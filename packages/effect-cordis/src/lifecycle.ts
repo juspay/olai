@@ -13,8 +13,8 @@ import type { Provision, ServiceKey } from "./service.ts"
 /** A duplicate is a distinct defect so the API can supply its own sentence
  * without accidentally disguising a cancellation or disposer-ownership defect. */
 export class OfferConflict extends Error {
-  constructor(readonly owner: string, readonly key: string, cause: Error) {
-    super(cause.message, { cause })
+  constructor(readonly owner: string, readonly key: string, cause: Error, message = cause.message) {
+    super(message, { cause })
   }
 }
 
@@ -104,6 +104,51 @@ export const hostActivations = (ctx: CordisContext): ReadonlyArray<Live> =>
   [...live.values()].filter((activation) => activation.ctx.root.fiber === ctx.root.fiber)
 
 export const interrupt = (fiber: CordisFiber): void => live.get(fiber)?.interrupt()
+
+/** `ctx.provide`, with its duplicate-provider refusal as an {@link OfferConflict}
+ * — the one door both an activation's offer and a host's root provision use.
+ *
+ * The pinned runtime exposes no typed duplicate error. Recognize its exact
+ * sentence here, beside the call it belongs to; callers neither parse Cordis
+ * prose nor preflight its exclusive-provider decision.
+ *
+ * ...AND WHEN THE SENTENCE NEVER ARRIVES, the store says the same thing. The
+ * refusal is raised inside `fiber.effect`, whose long-stack splice reads
+ * `.stack` as a string and throws its own TypeError when an error has none
+ * (seen under Bun), so the refusal is lost. It was thrown before the store was
+ * written: another fiber holding the key there IS the refusal, and names its
+ * owner without any prose. */
+export const provideExclusive = <Shape>(
+  ctx: CordisContext,
+  key: ServiceKey<Shape>,
+  provision: Provision<Shape>,
+): ReturnType<CordisContext["provide"]> => {
+  try {
+    return ctx.provide(key.cordis, provision)
+  } catch (cause) {
+    const prefix = `service "${key.cordis}" has been registered at <`
+    if (cause instanceof Error && cause.message.startsWith(prefix) && cause.message.endsWith(">")) {
+      throw new OfferConflict(cause.message.slice(prefix.length, -1), key.cordis, cause)
+    }
+    const holder = ctx.reflect._getImpl(key.cordis, false)
+    if (holder !== undefined && holder.fiber !== ctx.fiber) {
+      throw new OfferConflict(holder.fiber.name, key.cordis, cause instanceof Error ? cause : new Error(String(cause)),
+        `effect-cordis: service "${key.cordis}" is already provided by <${holder.fiber.name}>`)
+    }
+    throw cause
+  }
+}
+
+/** WHAT A FIBER'S LAST START THREW, as the bridge threw it. Cordis re-throws a
+ * failed fiber's error from `await()`, but only after its long-stack splice,
+ * which reads `.stack` as a string and throws its own TypeError when an error
+ * has none (Bun, `Error.stackTraceLimit` 0). A row's fault is the plugin's
+ * words, so the activation that threw them keeps them. Weak, so the record
+ * lives exactly as long as the fiber; cleared when the next start begins. */
+const thrown = new WeakMap<CordisFiber, { readonly reason: unknown }>()
+export const startThrew = (fiber: CordisFiber, reason: unknown): void => { thrown.set(fiber, { reason }) }
+export const startBegins = (fiber: CordisFiber): void => { thrown.delete(fiber) }
+export const lastStartThrew = (fiber: CordisFiber): { readonly reason: unknown } | undefined => thrown.get(fiber)
 
 export const activate = (ctx: CordisContext, services: Context.Context<never>): Activation => {
   const scope = Scope.makeUnsafe()
@@ -207,19 +252,7 @@ export const activate = (ctx: CordisContext, services: Context.Context<never>): 
     },
     offer: (key, provision) => {
       if (closing !== undefined) throw new Error("effect-cordis: offer requires an open plugin activation")
-      let revoke: () => void
-      try {
-        revoke = ctx.provide(key.cordis, provision)
-      } catch (cause) {
-        // The pinned runtime exposes no typed duplicate error. Recognize its
-        // exact sentence here, beside the call it belongs to; callers neither
-        // parse Cordis prose nor preflight its exclusive-provider decision.
-        const prefix = `service "${key.cordis}" has been registered at <`
-        if (cause instanceof Error && cause.message.startsWith(prefix) && cause.message.endsWith(">")) {
-          throw new OfferConflict(cause.message.slice(prefix.length, -1), key.cordis, cause)
-        }
-        throw cause
-      }
+      const revoke = provideExclusive(ctx, key, provision)
       // Pin coupling: ctx.provide installs its own guarded disposer into this
       // set, whose members Cordis unloads concurrently. An Effect finalizer
       // calling that wrapper again would return without joining its first call.

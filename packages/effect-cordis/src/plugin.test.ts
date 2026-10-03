@@ -263,6 +263,53 @@ test("a finalizer that dies on the way out does not steal the plugin's fault", a
   expect(said.some((line) => line.includes(`"broken"`))).toBe(true)
 })
 
+/** TWO WAYS AN ERROR ENDS UP WITHOUT A STACK under Bun: always while the limit
+ *  is 0, and at any limit when `prepareStackTrace` gives nothing back — the
+ *  second is how CI met it, where raising the limit did not help. */
+const STACKLESS = [
+  ["the stack trace limit is 0", () => {
+    const limit = Error.stackTraceLimit
+    Error.stackTraceLimit = 0
+    return () => { Error.stackTraceLimit = limit }
+  }],
+  ["no error has a stack at any limit", () => {
+    const errors = Error as unknown as { prepareStackTrace?: unknown }
+    const prepare = errors.prepareStackTrace
+    errors.prepareStackTrace = () => undefined
+    return () => { errors.prepareStackTrace = prepare }
+  }],
+] as const
+
+for (const [how, lose] of STACKLESS) {
+  test(`a start that fails while ${how} still reports the plugin's own words`, async () => {
+    // THE PIN'S LONG-STACK COMPOSITION reads `.stack` as a string, on the
+    // errors it makes and on the one it was thrown. Without one the splice
+    // threw its own TypeError and Cordis recorded THAT as the fiber's error:
+    // the row read "undefined is not an object" instead of anything the plugin
+    // said. Master's full unit run hit it in `@olai/plugin-api`'s services bench.
+    const restore = lose()
+    try {
+      await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+        const host = yield* openHost
+        const broken = yield* mountPlugin(
+          host,
+          definePlugin({
+            name: "broken",
+            needs: [],
+            apply: Effect.die(new Error("the socket is not there")),
+          }),
+        )
+        expect(yield* broken.report).toEqual({
+          state: "failed",
+          fault: "the socket is not there",
+        })
+      })).pipe(Effect.provide(Logger.layer([]))))
+    } finally {
+      restore()
+    }
+  })
+}
+
 test("a defect in detached work is said, with the plugin's word on it", async () => {
   // FIRE AND FORGET IS NOT SILENT, and for a round it was: the fiber `detached`
   // forks is discarded and effect's error reporting is opt-in, so a defect in

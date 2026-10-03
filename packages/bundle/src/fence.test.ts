@@ -2009,7 +2009,7 @@ describe("a module another package can open holds no live value", () => {
     // Cordis' runtime state in the one package this tree lets be an engine, and
     // an "owner" for it would be the runtime owning itself.
     "effect-cordis/src/host.ts": "a host's own close, keyed by that host",
-    "effect-cordis/src/lifecycle.ts": "the engine's activation table, keyed by fiber",
+    "effect-cordis/src/lifecycle.ts": "the engine's activation table and each fiber's last start failure, keyed by fiber",
     "effect-cordis/src/module.ts": "a module fiber's children, keyed by that fiber",
 
     // MEMOS OVER IMMUTABLE INPUT, every one a `WeakMap` keyed by the value it

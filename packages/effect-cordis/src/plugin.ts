@@ -42,7 +42,7 @@ import { Cause, Context, Effect, Exit, Fiber, FiberSet, Schema, Scope } from "ef
 import { moduleOwner } from "./module.ts"
 import { failed } from "./broadcast.ts"
 import { held } from "./host.ts"
-import { Offering, activate } from "./lifecycle.ts"
+import { Offering, activate, startBegins, startThrew } from "./lifecycle.ts"
 import type { AnyKey } from "./service.ts"
 
 /**
@@ -228,69 +228,80 @@ export const definePlugin = <const Keys extends ReadonlyArray<AnyKey>, Config = 
   ...(spec.configUpdates === undefined ? {} : { configUpdates: spec.configUpdates }),
   inject: spec.needs.map((key) => key.cordis),
   apply: async (ctx: CordisContext, config?: unknown) => {
-    const opened = held(ctx)
-    // Disposal can win before Cordis reaches its deferred apply call.
-    if (ctx.fiber.uid === null) return async () => {}
-    // THE STAMP, READ ONCE, off the registry binding — never off anything the
-    // plugin supplied. Every keyed service below is minted from it.
-    const who = moduleOwner(ctx)
-    // Runtime string lookup is the one point where the key's shape is erased.
-    // Resolve it here; lifetime ownership has no opinion about service shapes.
-    let services = Context.merge(opened, Context.make(PluginName, who)) as Context.Context<never>
-    const activation = activate(ctx, opened)
+    // WHAT THIS START THREW is kept beside Cordis's copy ({@link startThrew}):
+    // the row's fault cannot be read back from Cordis alone. Cleared first, so a
+    // fiber that starts again reports only this start. A `try` in this body
+    // rather than a wrapper around it, because a wrapper's extra await moves
+    // when a provider's dependents see it ACTIVE.
+    startBegins(ctx.fiber)
     try {
-      for (const key of spec.needs) {
-        const provision = (ctx as unknown as Record<string, unknown>)[key.cordis]
-        if (typeof provision !== "function") {
-          throw new Error(
-            `effect-cordis: "${who}" named the service "${key.cordis}", which is `
-              + "provided as something other than a provision — a host provides "
-              + "`(plugin) => service` and nothing else.",
+      const opened = held(ctx)
+      // Disposal can win before Cordis reaches its deferred apply call.
+      if (ctx.fiber.uid === null) return async () => {}
+      // THE STAMP, READ ONCE, off the registry binding — never off anything the
+      // plugin supplied. Every keyed service below is minted from it.
+      const who = moduleOwner(ctx)
+      // Runtime string lookup is the one point where the key's shape is erased.
+      // Resolve it here; lifetime ownership has no opinion about service shapes.
+      let services = Context.merge(opened, Context.make(PluginName, who)) as Context.Context<never>
+      const activation = activate(ctx, opened)
+      try {
+        for (const key of spec.needs) {
+          const provision = (ctx as unknown as Record<string, unknown>)[key.cordis]
+          if (typeof provision !== "function") {
+            throw new Error(
+              `effect-cordis: "${who}" named the service "${key.cordis}", which is `
+                + "provided as something other than a provision — a host provides "
+                + "`(plugin) => service` and nothing else.",
+            )
+          }
+          services = Context.add(
+            services,
+            key as unknown as Context.Service<unknown, unknown>,
+            (provision as (plugin: string, lifetime: { current: () => boolean }) => unknown)(who, { current: activation.current }),
+          ) as Context.Context<never>
+        }
+      } catch (error) {
+        await activation.close(Exit.void)
+        throw error
+      }
+      services = Context.add(Context.add(services, Offering, activation), Scope.Scope, activation.scope) as Context.Context<never>
+      const work = Effect.suspend(() => {
+        // The schema has no external services (the same restriction as the old
+        // Standard Schema adapter). A decode failure is a defect inside this
+        // activation, so the row fails before its apply acquires any resources.
+        const value = spec.config === undefined ? (config ?? {}) as Config : Schema.decodeUnknownSync(spec.config)(config ?? {})
+        return Effect.isEffect(spec.apply) ? spec.apply : spec.apply(value)
+      })
+      const running = Effect.runForkWith(services)(work as Effect.Effect<void>)
+      activation.bind(running)
+      const exit = await Effect.runPromise(Fiber.await(running))
+      if (Exit.isFailure(exit)) {
+        // EVERY FINALIZER IT HAD ALREADY INSTALLED, before the throw goes out —
+        // which is what "lands FAILED having installed nothing" means when the
+        // plugin got halfway. Closing with the failing exit is also what tells a
+        // finalizer it is unwinding rather than shutting down.
+        //
+        // AND THE UNWIND MAY FAIL TOO, which is why this is `Exit` rather than a
+        // bare await. `Scope.close` is typed `Effect<void>` and is not infallible:
+        // it collects every finalizer's exit and ends on their combination, so one
+        // dying finalizer made this promise REJECT — and the `throw` below never
+        // ran, so what Cordis recorded as the row's fault, and what an operator
+        // then read on the preferences row, was the CLEANUP's defect rather than
+        // the plugin's. The plugin's failure is the subject of this whole arm; it
+        // wins, and a finalizer that died on the way out is said beside it.
+        const unwound = await Effect.runPromiseExit(Effect.promise(() => activation.close(exit)))
+        if (Exit.isFailure(unwound)) {
+          await Effect.runPromiseWith(opened)(
+            failed(who, "unwinding after a failed start", unwound.cause),
           )
         }
-        services = Context.add(
-          services,
-          key as unknown as Context.Service<unknown, unknown>,
-          (provision as (plugin: string, lifetime: { current: () => boolean }) => unknown)(who, { current: activation.current }),
-        ) as Context.Context<never>
+        if (!Cause.hasInterruptsOnly(exit.cause)) throw Cause.squash(exit.cause)
       }
-    } catch (error) {
-      await activation.close(Exit.void)
-      throw error
+      return () => activation.close(Exit.void)
+    } catch (reason) {
+      startThrew(ctx.fiber, reason)
+      throw reason
     }
-    services = Context.add(Context.add(services, Offering, activation), Scope.Scope, activation.scope) as Context.Context<never>
-    const work = Effect.suspend(() => {
-      // The schema has no external services (the same restriction as the old
-      // Standard Schema adapter). A decode failure is a defect inside this
-      // activation, so the row fails before its apply acquires any resources.
-      const value = spec.config === undefined ? (config ?? {}) as Config : Schema.decodeUnknownSync(spec.config)(config ?? {})
-      return Effect.isEffect(spec.apply) ? spec.apply : spec.apply(value)
-    })
-    const running = Effect.runForkWith(services)(work as Effect.Effect<void>)
-    activation.bind(running)
-    const exit = await Effect.runPromise(Fiber.await(running))
-    if (Exit.isFailure(exit)) {
-      // EVERY FINALIZER IT HAD ALREADY INSTALLED, before the throw goes out —
-      // which is what "lands FAILED having installed nothing" means when the
-      // plugin got halfway. Closing with the failing exit is also what tells a
-      // finalizer it is unwinding rather than shutting down.
-      //
-      // AND THE UNWIND MAY FAIL TOO, which is why this is `Exit` rather than a
-      // bare await. `Scope.close` is typed `Effect<void>` and is not infallible:
-      // it collects every finalizer's exit and ends on their combination, so one
-      // dying finalizer made this promise REJECT — and the `throw` below never
-      // ran, so what Cordis recorded as the row's fault, and what an operator
-      // then read on the preferences row, was the CLEANUP's defect rather than
-      // the plugin's. The plugin's failure is the subject of this whole arm; it
-      // wins, and a finalizer that died on the way out is said beside it.
-      const unwound = await Effect.runPromiseExit(Effect.promise(() => activation.close(exit)))
-      if (Exit.isFailure(unwound)) {
-        await Effect.runPromiseWith(opened)(
-          failed(who, "unwinding after a failed start", unwound.cause),
-        )
-      }
-      if (!Cause.hasInterruptsOnly(exit.cause)) throw Cause.squash(exit.cause)
-    }
-    return () => activation.close(Exit.void)
   },
 })
