@@ -1,3 +1,4 @@
+import { createWaitingForms, WaitingFormsProvider } from "./waiting-forms.ts"
 /**
  * The conversation, drawn.
  *
@@ -89,8 +90,7 @@ import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "sol
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { useShowNode } from "../references.ts"
-import { useFollow } from "olai-plugin-navigation/routing"
-import { selector } from "@olai/ui-primitives/testids.ts"
+import { useFollow, useShown, useMaybeRouter } from "olai-plugin-navigation/routing"
 import { TESTID } from "../../testids.ts"
 import { wholeYet } from "./attention/whole.ts"
 import { declaringFailure } from "../references.ts"
@@ -110,7 +110,6 @@ import type { Chat } from "./state.ts"
 /** A question still waiting on somebody — `./AskForm.tsx`'s row with its own
  *  flag still on. The one thing a press of the attention banner is looking
  *  for, spelled off the panel's own declared handles rather than off a class. */
-const WAITING_ASK = `${selector(TESTID.chatAsk)}[data-asking="true"]`
 
 export function Transcript(props: { readonly chat: Chat; readonly page?: boolean }) {
   const [revealing, setRevealing] = props.chat.ui.reveal
@@ -118,6 +117,9 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   const { previewing } = useConversationUI().previewing
   const show = useShowNode()
   const follow = useFollow()
+  const shown = useShown()
+  const router = useMaybeRouter()
+  let grown: ResizeObserver | undefined
   let pane: HTMLDivElement | undefined
   let content: HTMLDivElement | undefined
   let outer: HTMLElement | undefined
@@ -125,6 +127,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   /** Should new text pull the view down with it? True until the reader scrolls
    *  away from the bottom, and true again the moment they come back. */
   let following = true
+  let restoringVisibility = true
   /** The `scrollTop` we last assigned. A later `scroll` event that still sits
    *  here is our jump, not the reader — the event is dispatched after the
    *  assignment returns, so a boolean around the write cannot see it. */
@@ -136,12 +139,14 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   }
 
   const jump = (): void => {
+    if (!shown()) return
     const host = scrollPane()
     if (host === undefined) return
     host.scrollTop = host.scrollHeight
     assignedTop = host.scrollTop
   }
   const scrolled = () => {
+    if (!shown() || restoringVisibility) return
     const host = scrollPane()
     if (host === undefined) return
     // Browser anchoring can move the scroll forward before ResizeObserver
@@ -155,21 +160,42 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     following = atBottom()
   }
 
+  let listening: Window | HTMLElement | undefined
+  let scrollMode: string | undefined
+  const bindScroll = () => {
+    if (!props.page || !pane || !shown()) return
+    const mode = `${router?.split() === true}:${window.matchMedia("(min-width: 48rem)").matches}`
+    if (outer !== undefined && scrollMode === mode) return
+    scrollMode = mode
+    let parent = pane.parentElement
+    while (parent !== null && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement
+    const next = parent ?? document.documentElement
+    if (outer !== next) {
+      if (outer !== undefined) grown?.unobserve(outer)
+      outer = next
+      grown?.observe(outer)
+    }
+    const target = outer === document.documentElement ? window : outer
+    if (listening === target) return
+    listening?.removeEventListener("scroll", scrolled)
+    listening = target
+    target.addEventListener("scroll", scrolled, { passive: true })
+  }
+  onCleanup(() => listening?.removeEventListener("scroll", scrolled))
+  createEffect(on([shown, () => router?.split()], ([visible]) => {
+    restoringVisibility = true
+    if (!visible) return
+    const frame = requestAnimationFrame(() => { bindScroll(); if (following) jump(); restoringVisibility = false })
+    onCleanup(() => cancelAnimationFrame(frame))
+  }))
   onMount(() => {
     if (content === undefined || pane === undefined) return
-    if (props.page) {
-      let parent = pane.parentElement
-      while (parent !== null && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement
-      outer = parent ?? document.documentElement
-      const target = outer === document.documentElement ? window : outer
-      target.addEventListener("scroll", scrolled, { passive: true })
-      onCleanup(() => target.removeEventListener("scroll", scrolled))
-      jump()
-    }
+    bindScroll()
+    if (props.page) jump()
     // Content growing does NOT move `scrollTop`, so the browser fires no scroll
     // event for it. New text is followed from here. The jump's own `scroll`
     // arrives later and is recognised by `assignedTop`, not by a flag.
-    const grown = new ResizeObserver(() => {
+    grown = new ResizeObserver(() => {
       if (following) jump()
     })
     grown.observe(content)
@@ -186,13 +212,13 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     // that is owed is honoured whenever the geometry moves — and it was only
     // ever watching half the geometry.
     grown.observe(pane)
-    if (props.page && outer !== undefined) {
-      grown.observe(outer)
-      const resized = () => { if (following) jump() }
+    if (props.page) {
+      if (outer !== undefined) grown.observe(outer)
+      const resized = () => { bindScroll(); if (following) jump() }
       window.addEventListener("resize", resized)
       onCleanup(() => window.removeEventListener("resize", resized))
     }
-    onCleanup(() => grown.disconnect())
+    onCleanup(() => grown?.disconnect())
   })
 
   // Opening a conversation is not "new text arrived while reading". The
@@ -239,9 +265,10 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
    * is restored either way — a press is a person arriving at the conversation,
    * like opening it.
    */
+  const waitingForms = createWaitingForms()
   createEffect(() => {
-    if (!revealing()) return
-    const waiting = pane?.querySelector(WAITING_ASK) ?? null
+    if (!shown() || !revealing()) return
+    const waiting = waitingForms.first() ?? null
     // Nothing to show and the conversation is still arriving: stay asked. The
     // `wholeYet` read subscribes this to the first row it is waiting on, so
     // that row landing is what brings it back.
@@ -353,6 +380,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   )
 
   return (
+    <WaitingFormsProvider value={waitingForms}>
     <div
       // `min-h-0` is what makes THIS the scroller. `flex-1` with the default
       // `min-height: auto` will not shrink below the content, so a long turn
@@ -405,8 +433,8 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
              *
              *  Its own memo rather than folded into the lane below, and that
              *  is a reactivity decision rather than a stylistic one: what
-             *  comes out is an ENTRY, whose identity survives a frame (the
-             *  collection reconciles in place), so a re-run here stops here.
+             *  comes out is the previous ENTRY. Its upserts replace the leaf,
+             *  so downstream views compare the particular values they use.
              *  Reading the row list straight into the lane would tie every
              *  lane to the list instead — and a lane is a fresh object every
              *  time it is computed, so one row arriving would re-run the
@@ -418,7 +446,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
                 ? undefined
                 : props.chat.entry(previous)()
             })
-            const lane = createMemo(() => laneOf(entry(), above(), titleOf))
+            const lane = createMemo(() => laneOf(entry(), above(), titleOf), undefined, { equals: (a, b) => a?.parent === b?.parent && a?.label === b?.label })
             /** ... and the live RAIL under this row, whichever of the two it
              *  is: a spawned agent still out, or a background task still
              *  running ({@link ./rail.ts}, which owns the precedence and
@@ -445,7 +473,9 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
             const speaker = createMemo((): Faced | null => {
               const party = facedAt(entry(), above())
               return party === null ? null : { party, agent: agent() }
-            })
+            }, null, { equals: (a, b) => a?.party.of === b?.party.of &&
+              (a?.party.of !== "plugin" || b?.party.of === "plugin" && a.party.name === b.party.name) &&
+              a?.agent?.id === b?.agent?.id && a?.agent?.name === b?.agent?.name })
             return (
               <Show when={entry()}>
                 {(row) => (
@@ -503,5 +533,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
 
       </div>
     </div>
+    </WaitingFormsProvider>
   )
 }

@@ -168,6 +168,7 @@ The same problem appears in UI code:
 - After the import resolves, check the owner still exists before allocating.
 - If construction throws partway, release what was already allocated.
 - Own observers, timers and deferred callbacks, not only the visible widget. See [LivePane](../../packages/plugins/kolu/src/appliance/props/LivePane.tsx).
+- A tooltip's enabled child owns its token, position and event listeners; disabling it disposes those resources while the wrapped control retains its DOM and focus.
 - Outlines owns the DOM container its menus render into, via its [overlay owner](../../packages/plugins/outlines/src/browser/overlay.ts). Layout draws the frame around the page, which does not make it the owner of overlays other plugins open inside it.
 
 Background work needs an owner too:

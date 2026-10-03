@@ -24,13 +24,14 @@
  * readers below are shaped for.
  */
 
-import { type Accessor, createContext, createSignal, useContext } from "solid-js"
+import { type Accessor, createContext, createSelector, createSignal, useContext } from "solid-js"
 
 import { chainOf } from "../select/range.ts"
 
 export interface Air {
   /** The records being carried right now — empty when nothing is. */
   readonly held: Accessor<ReadonlySet<string>>
+  readonly has: (record: string) => boolean
   /** Lift these, or (with an empty set) put everything down. Called by the one
    *  gesture that is live, at the moment it becomes a drag and at the moment it
    *  ends, whichever way it ended. */
@@ -52,7 +53,7 @@ export const AirProvider = AirContext.Provider
 
 export const createAir = (): Air => {
   const [held, setHeld] = createSignal<ReadonlySet<string>>(new Set())
-  return { held, lift: setHeld }
+  return { held, has: createSelector(held, (record: string, records) => records.has(record)), lift: setHeld }
 }
 
 /**

@@ -91,15 +91,40 @@ started, and always finishes. A
 `switchLane` asked for mid-travel updates the lane and the page at once, and
 writes the entry once the browser is back on it.
 
-`switchLane` is not a history event. Without `to` it only names the lane the
-entry under the reader belongs to, and leaves the address, landing and scroll
-alone. With `to` it also replaces that entry with `to.workspace`, reusing `to.key`
-when given so the scroll memory returns the entry to where it was left. Either
-way it returns the key the entry carries now. The first lane taken
-where none was in force adopts the entries this document wrote without one.
-`forgetLane(lane)` marks that lane's entries dead, so a closed tab's pages are skipped. Forgetting the lane in force keeps the entry under the reader alive until the next `switchLane`, so Back and Forward always have an entry to return to. `switchLane(null)`
-restores window history: every entry matches again. `lane()` and `entryKey()`
-read the lane in force and the name of the current entry.
+`switchLane` is not a history event. It brings an existing live lane forward
+with that lane's current workspace; `to.workspace` seeds only a lane that has
+not been shown. The current entry takes that lane's address and reuses `to.key`
+when supplied for scroll restoration. The first named lane adopts the window
+lane and its mounted pages. `forgetLane` marks its history entries dead and
+disposes a background lane immediately. A forgotten front lane remains live
+until `switchLane` installs its replacement; calls in between still update its
+readings and page. `switchLane(null)` adopts the front lane as the window's,
+disposes all others, and restores ordinary window history.
+
+Navigation owns each lane's reactive root, workspace, landings and reports.
+`lanes()` returns stable lane objects. Each provides page navigation verbs scoped to its own workspace.
+Only the declared navigation service exposes the lane roster, entry key and
+switch/forget controls; page routers cannot alter other lanes. A background verb changes only that lane; only the
+front lane writes window history. Every lane reparses routes when the roster
+changes. The service's own readings still describe the lane in front.
+
+Each lane exposes stable `panes()` objects with `id`, reactive `index()`,
+`route()` and `width()`, plus `focusIndex()` and `split()` slices. Navigation
+keeps ids through navigation, reorder and neighbour removal. Address reparses
+reserve address matches first, using position to break duplicate-address ties
+and then to reuse remaining owners for changed addresses at equal counts.
+Unchanged addresses reuse their Route objects. Pane ids are runtime identities,
+not URL or storage fields. Reports and page memories use those ids.
+
+`navigation.page()` honours an enclosing `RouterProvider`; without one it uses
+the front lane. `usePane()` supplies the id, reactive index and mounted element.
+`useShown()` reports whether the page is currently drawn (including narrow-pane
+and folded-chat visibility). A lane is shown only while it is in front and
+at least one registered layout declares content ready. Each registration has its
+own release token; with no registrations the front lane is shown. Outside a lane,
+the service router reports shown even while page content is loading. Outside a visibility provider, `useShown()`
+falls back to the enclosing router and then to true if there is no router.
+Page listeners, overlays, focus and scrolling must honour that reading.
 
 History is per document. The router only knows the entries this document wrote,
 so after a reload every entry before it is dead while a lane is in force, and

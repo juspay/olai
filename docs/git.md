@@ -131,3 +131,9 @@ into the Inbox, with singular and plural labels. Each filed conversation is an
 independent Ops write; the normal commit cadence can collect the initial burst
 into one commit or several. `auto` remains a commit-only writer and never edits
 a file.
+
+Commit preparation leases the repository identity published by the git surface.
+Restarting git or vault for the same served root preserves the message and path
+selection; a different root clears both before the controls appear. Withdrawal
+releases the active lease without retaining a vault service object. A reply
+from an earlier repository cannot clear preparation in the new one.

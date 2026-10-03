@@ -1,3 +1,4 @@
+import { Key } from "@solid-primitives/keyed"
 /**
  * A document's table of contents: the headings it has, as links into itself.
  *
@@ -110,20 +111,20 @@ export function Toc(props: {
             Contents
           </summary>
           <ol class="mt-2 space-y-0.5 text-body">
-            <For each={props.headings}>
+            <Key each={props.headings} by="id">
               {(heading) => (
-                <li style={{ "padding-left": `${(heading.depth - base()) * INDENT_REM}rem` }}>
+                <li style={{ "padding-left": `${(heading().depth - base()) * INDENT_REM}rem` }}>
                   {/* A plain `<a href="#…">`, not a `<Link>`: this goes
                       nowhere — it is the same page, and the fragment is the
                       browser's own job. Intercepting it would be this app
                       re-implementing a scroll the platform already does, and
                       losing the address a reader can copy. */}
-                  <a href={`#${heading.id}`} class={LINE} data-testid={TESTID.tocLink}>
-                    {heading.text}
+                  <a href={`#${heading().id}`} class={LINE} data-testid={TESTID.tocLink}>
+                    {heading().text}
                   </a>
                 </li>
               )}
-            </For>
+            </Key>
           </ol>
         </details>
       </nav>

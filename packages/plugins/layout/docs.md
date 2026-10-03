@@ -165,3 +165,19 @@ has no such name (`Home`, `Trash`, a node's id, a path). Both are read through
 the routing this row holds from `navigation.state` (`src/routing.ts`). The
 pane's close button is named `Close <name>`, and a collapsed pane's rail is
 named `Expand <name>`.
+
+## Retained pages and sidebar
+
+The frame renders one host per live navigation lane and one subtree per stable
+pane object. A tab switch changes visibility. Splitting, reordering, closing a
+neighbour, collapsing to a rail and crossing the desktop breakpoint preserve
+the surviving page elements. A lone lane scrolls the window; split columns
+scroll independently. Navigation owns window scroll restoration.
+
+After its first ready state the content-status gate keeps those hosts mounted
+through reading and failure states, but hides them and withdraws their shown
+status until content is ready again. Layout leases this visibility through
+`navigation.drawContent`; releasing layout releases the lease. Collapsing the desktop sidebar hides its
+body, preserving the calendar month and its subscriptions. The phone footer
+resolves its contributed JSX once per owner, so there is one closet controls
+tree. Layout geometry belongs to the layout activation and leaves with it.

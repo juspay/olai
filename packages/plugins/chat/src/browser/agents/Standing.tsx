@@ -2,7 +2,8 @@ import { createSignal, lazy, Show } from "solid-js"
 import { OFFER_REVEAL } from "@olai/ui-primitives/touch.ts"
 import { QUIET_PILL } from "@olai/web/client/pill.ts"
 import { DOT } from "@olai/web/client/readout.ts"
-import { agoOf, createNow as createAgeClock } from "@olai/web/client/ago.ts"
+import { agoOf } from "@olai/web/client/ago.ts"
+import { createTicking, MINUTE } from "@olai/web/client/clock.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
@@ -60,7 +61,7 @@ export function Standing(props: { readonly node: string; readonly record?: strin
 function AgentStanding(props: { readonly row: Row; readonly record?: string }) {
   const busy = () => props.row.standing === "working" || props.row.standing === "waking"
   const now = createNow(busy)
-  const age = createAgeClock()
+  const age = createTicking(MINUTE, () => props.row.standing === "asleep")
   const look = () => LOOK[props.row.standing]
   return <button type="button" class="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-1 text-label text-muted enabled:hover:bg-rule"
     classList={{ "text-doing": props.row.standing === "needs-you" }}

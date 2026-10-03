@@ -887,7 +887,7 @@ Then(
 When("I close the agent fold", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent);
   await this.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", this.nodeId(this.activeAgent))}`).click();
-  await this.chat(CHAT_PANEL).waitFor({ state: "detached", timeout: POLL_TIMEOUT });
+  await this.chat(CHAT_PANEL).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 When("I open the agent fold again", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent);
@@ -3825,6 +3825,9 @@ When("I attach a text file named {string} containing {string}", async function (
   const choosing = this.page.waitForEvent("filechooser");
   await this.chat(CHAT_ATTACH_BUTTON).click();
   await (await choosing).setFiles({ name, mimeType: "text/plain", buffer: Buffer.from(text) });
+  // The chooser dispatches input before the asynchronous upload finishes.
+  // Sending immediately can legitimately send only the typed message.
+  await this.chat(pendingChip(name)).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 Then("the pending attachment {string} shows size {string}", async function (this: OlaiWorld, name: string, size: string) {
@@ -4118,3 +4121,30 @@ Then("the selected chat completion is {string}", async function (this: OlaiWorld
 When("the chat box reports its unchanged caret", async function(this: OlaiWorld) {
   await this.chat(CHAT_INPUT).evaluate(field => field.dispatchEvent(new Event("select", { bubbles: true })))
 })
+
+
+When("I mark the terminal output element", async function (this: OlaiWorld) {
+  await this.chatRoot().getByRole("region", { name: "Terminal output", exact: true }).first().locator("pre").evaluate(element => {
+    if (element.scrollHeight <= element.clientHeight) throw new Error("terminal output is not scrollable")
+    element.scrollTop = 80
+    if (element.scrollTop !== 80) throw new Error("terminal output did not accept its reading position")
+    ;(element as HTMLElement & { retainedOutput?: boolean }).retainedOutput = true
+  })
+})
+Then("the terminal output keeps its element", async function (this: OlaiWorld) {
+  assert.equal(await this.chatRoot().getByRole("region", { name: "Terminal output", exact: true }).first().locator("pre").evaluate(element =>
+    (element as HTMLElement & { retainedOutput?: boolean }).retainedOutput === true && element.scrollTop === 80), true)
+})
+
+
+const rememberedComposers = new WeakMap<OlaiWorld, NonNullable<Awaited<ReturnType<Locator["elementHandle"]>>>>();
+When("I remember the chat composer before leaving", async function (this: OlaiWorld) {
+  const composer = await this.chat(CHAT_INPUT).elementHandle();
+  assert.ok(composer);
+  rememberedComposers.set(this, composer);
+});
+Then("the remembered chat composer is detached", async function (this: OlaiWorld) {
+  const composer = rememberedComposers.get(this);
+  assert.ok(composer);
+  await this.waitUntil(async () => !(await composer.evaluate(node => node.isConnected)), "the old composer to be detached");
+});

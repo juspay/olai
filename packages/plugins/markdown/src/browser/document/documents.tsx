@@ -35,6 +35,7 @@
  * without threading a reader through unrelated row components.
  */
 
+import { createDocumentEditors, type DocumentEditor } from "./drafts.ts"
 import type { DocumentEntry } from "../../wire.ts"
 
 import type { Ready } from "./ready.ts"
@@ -80,6 +81,8 @@ export type { Ready, Refused, Served } from "./ready.ts"
 export { isServed } from "./ready.ts"
 
 export interface Documents {
+  readonly retainEditors: (active: ReadonlyMap<string, string | undefined>) => void
+  readonly editor: (pane: string, file: string) => DocumentEditor
   /** One document's body, for as long as the calling owner lives — and for as
    *  long as `file()` names one: `undefined` is a caller that has nothing it
    *  would do with a body (a page whose face cannot be written — see
@@ -101,6 +104,7 @@ const arrived = (entry: DocumentEntry | undefined): entry is Ready =>
   entry !== undefined && (entry.refused || entry.text !== null)
 
 export const createDocuments = (): Documents => {
+  const editors = createDocumentEditors()
   /** Who wants what: a path is wanted while at least one owner is showing it.
    *  ONE value, so membership cannot disagree with the count that decides it —
    *  a path stuck in the key set is a stream that never closes, and one missing
@@ -136,6 +140,8 @@ export const createDocuments = (): Documents => {
   const entries = client().collections.documents.use({ keys: wanted })
 
   return {
+    editor: editors.editor,
+    retainEditors: editors.retain,
     read: (file) => {
       // An EFFECT, so the interest follows a component whose `file` moves (a
       // document reader following another link) and is dropped when the
@@ -197,3 +203,5 @@ export const holdDocuments = (value: Documents): (() => void) => {
  ownedDocuments = value
  return () => { if (ownedDocuments === value) ownedDocuments = undefined }
 }
+
+export const useDocumentEditor = (pane: string, file: string): DocumentEditor => reader().editor(pane, file)

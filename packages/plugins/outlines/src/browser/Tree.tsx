@@ -1,3 +1,4 @@
+import { useRowElement } from "./row-elements.ts"
 import { useLicences } from "./reading.tsx"
 import { dressed } from "./faces.ts"
 /**
@@ -97,9 +98,9 @@ import { onATag } from "./filter/tag.ts"
 import { useUndo } from "./edit/undoing.ts"
 import { DescEditor, DraftSaid, keyHandler, TitleEditor } from "./edit/RowEditor.tsx"
 import { setFolded } from "./fold/memory.ts"
-import { createFoldReading } from "./fold/reading.ts"
+import { FoldProvider, useFolded } from "./fold/reading.ts"
 import { foldIdOf, foldOf, foldsUnder } from "./fold/rows.ts"
-import { focusedNode, selectNode } from "./focus.ts"
+import { useFocused, selectNode } from "./focus.ts"
 import { doneUnder } from "@olai/web/client/hidden.ts"
 import { isEditingTarget } from "@olai/web/client/keys.ts"
 import { hotOf } from "./hot.ts"
@@ -159,7 +160,7 @@ export function Tree(props: {
   // for nothing. ./touch.ts keeps the argument, and the 62ch that IS kept, on
   // the note.
   return (
-    <RowForms>
+    <FoldProvider><RowForms>
       <ul
         // `olai-tree` is the PRODUCT's own hook: `styles.css` reserves a jump's
         // band on pages that draw a tree (the pinned section row below the bar),
@@ -192,7 +193,7 @@ export function Tree(props: {
           {(row) => <Branch row={row()} depth={0} />}
         </Key>
       </ul>
-    </RowForms>
+    </RowForms></FoldProvider>
   )
 }
 
@@ -223,8 +224,8 @@ function Branch(props: {
   //
   // Asked of the NODE this row folds by — its target if it is a mirror, so the
   // fold is the node's wherever the node appears (./fold/rows.ts).
-  const folded = createFoldReading()
-  const collapsed = createMemo(() => folded().has(foldIdOf(props.row)))
+  const folded = useFolded()
+  const collapsed = createMemo(() => folded(foldIdOf(props.row)))
   // The RECORD a row shows, file and all — the file is what a note's relative
   // picture and a link are relative to, and for a mirror that is the file the
   // node is DEFINED in rather than the one being read.
@@ -260,6 +261,7 @@ function Branch(props: {
   // reads its own roster — so this row subscribes to nothing about chat.
   // ⌘Z is one stack for this page, whichever hand wrote: a menu verb files
   // what would take it back exactly as a keystroke does (./writes.ts).
+  const licences = useLicences()
   const undo = useUndo()
   // Whether this row's date has gone by on work nobody has finished. Asked of
   // the node the row SHOWS — a mirror carries neither a date nor a mark — and
@@ -388,14 +390,12 @@ function Branch(props: {
   // on screen — the new line is drawn after the line it will follow.
   const editor = useEditor()
   const typing = (field: "title" | "desc") => {
-    const at = editor.where()
-    if (at.place !== props.row.key || at.field !== field) return undefined
+    if (!editor.isEditing(props.row.key) || editor.where().field !== field) return undefined
     const draft = editor.draft()
     return draft?.kind === "row" ? draft : undefined
   }
   const live = (kind: "after" | "before" | "under") => {
-    const at = editor.where().pending
-    if (at?.kind !== kind || at.id !== props.row.at.node.id) return undefined
+    if (!editor.pendingAt(kind, props.row.at.node.id)) return undefined
     // The line itself, which may be a pending OR the row it became a moment
     // ago — the same seat, the same editor, and the same words
     // (`./edit/draft.ts`'s `ghostOf`). Only the row that matched reads it.
@@ -421,16 +421,14 @@ function Branch(props: {
     />
   )
   const parked = (kind: "after" | "before" | "under") =>
-    editor.ghosts().filter((g) => {
-      const at = editor.displayAt(g.at)
-      return at.kind === kind && at.id === props.row.at.node.id
-    })
+    editor.ghostsAt(kind, props.row.at.node.id)
+
   /** Is the caret in THIS row? What the row draws to say so, and what a
    *  scenario asks. A blinking text cursor at the end of a title was the whole
    *  affordance a walk with `↑`/`↓` had, and in a tree of a hundred rows that
    *  is a pixel nobody finds — so the row is toned while it holds the caret,
    *  and the bullet beside it takes the accent. */
-  const editing = () => editor.where().place === props.row.key
+  const editing = () => editor.isEditing(props.row.key)
   /** Is this row the one a reference in the chat panel just pointed at
    *  (./focus.ts)? Asked of the NODE the row shows, which is the rule a fold
    *  and a mark verb already follow — so every drawing of that node lights up,
@@ -439,7 +437,8 @@ function Branch(props: {
    *  A MEMO, like `collapsed` above and for its reason: two bindings read it,
    *  and one press of a reference would otherwise re-derive it twice in every
    *  row of the tree. */
-  const focused = createMemo(() => focusedNode() === foldIdOf(props.row))
+  const isFocused = useFocused()
+  const focused = () => isFocused(foldIdOf(props.row))
 
   /** WHY this row is drawn, in the three things a narrowed page says about it
    *  (./filter/why.ts): the words to light in its title, the dim it wears
@@ -451,6 +450,7 @@ function Branch(props: {
    *  drawn. A memo because four bindings read it, and `props.row` is a fresh
    *  object on every frame the store publishes. */
   const shownId = createMemo(() => shownRecord(props.row).node.id)
+  const rowElement = useRowElement(() => props.row.at.node.id, shownId)
 
   /** Is this row PICKED, and is it in the air? Two facts about the same row and
    *  neither is the caret's: a pick is a set of places
@@ -459,7 +459,7 @@ function Branch(props: {
    *  `data-` facts on the item, which is where `data-editing` already is. */
   const selection = useSelection()
   const dragging = useDragging()
-  const picked = () => selection.keys().has(props.row.key)
+  const picked = () => selection.has(props.row.key)
   const carried = () => dragging.carrying(props.row.key)
 
   /**
@@ -528,6 +528,7 @@ function Branch(props: {
       // (./drag/sweeping.ts). Everything WITH words in it is a descendant and
       // wears no such mark, which is what keeps the rule an allowlist.
       data-sweep=""
+      ref={rowElement}
       data-testid={TESTID.node}
       data-node-id={props.row.at.node.id}
       data-status={props.row.status}
@@ -685,7 +686,7 @@ function Branch(props: {
           <NodeMenu
             door={menu}
             actions={nodeMenuActions({
-              placement: { kind: (key, value) => useLicences()()(shown()?.file ?? props.row.at.file, key, value),
+              placement: { kind: (key, value) => licences()(shown()?.file ?? props.row.at.file, key, value),
                 at: kind => dressed("outline.row.placement").get(kind) },
               routes,
               row: props.row,

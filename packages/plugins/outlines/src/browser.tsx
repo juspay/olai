@@ -1,3 +1,6 @@
+import { createDoneReveals, holdDoneReveals } from "./browser/settings/done.ts"
+import { createFocusState, holdFocusState } from "./browser/focus.ts"
+import { createRowElements, rowElements } from "./browser/row-elements.ts"
 import { Landings } from "@olai/plugin-api"
 import { holdLandings } from "./browser/landings.ts"
 /** Outlines owns editor history, selection/drag registers, page readings and
@@ -45,13 +48,12 @@ import { backlinksMemory } from "./browser/backlinks/memory.ts"
 import { name, browserState, datedRows, pageView, titles, propertyRoutes, type OutlinesBrowser } from "./index.ts"
 import type { References } from "./contracts/references.ts"
 import { openOverlaySocket, overlayRoot } from "./browser/overlay.ts"
-import { createDeclared, declaringFailure, clearDeclared } from "./browser/declared.ts"
+import { createDeclared, declaringFailure, createDeclarations, holdDeclarations } from "./browser/declared.ts"
 import { useShowNode, clearFocus, focusedNode } from "./browser/focus.ts"
 import { createUndo, holdUndo } from "./browser/edit/undoing.ts"
 import { createReadings, holdReadings } from "./browser/reading.tsx"
 import { createAir, holdAir } from "./browser/drag/air.ts"
 import { createFields, holdFields } from "./browser/drag/fields.ts"
-import { clearRowForms } from "./browser/date/memory.tsx"
 
 import { followDensity } from "./browser/settings/density.ts"
 import { followDonePrefs } from "./browser/settings/done.ts"
@@ -117,12 +119,12 @@ export default definePlugin({ name, needs: [Landings, Wired, Offers, Edits, Slot
     const readings = createReadings()
     const fields = createFields()
     const air = createAir()
-    const stops = [holdUndo(undo), holdReadings(readings), holdFields(fields), holdAir(air), openOverlaySocket()]
+    const stops = [holdDoneReveals(createDoneReveals()), holdDeclarations(createDeclarations()), holdFocusState(createFocusState()), rowElements.hold(createRowElements()), holdUndo(undo), holdReadings(readings), holdFields(fields), holdAir(air), openOverlaySocket()]
     createRefiling({ ask: request => runAsync(client().procedures.nodes.homes(request)),
       reachable: () => reachable(connectionReadout()) })
     return {
       value: { client, undo, readings, fields, air, references, overlay: overlayRoot } satisfies OutlinesBrowser,
-      dispose: () => { dispose(); for (const stop of stops) stop(); clearEditorMemory(); clearRowForms(); clearFocus(); clearDeclared() },
+      dispose: () => { dispose(); for (const stop of stops) stop(); clearEditorMemory(); clearFocus() },
     }
   })), state => Effect.sync(state.dispose))
   const offers = yield* Offers

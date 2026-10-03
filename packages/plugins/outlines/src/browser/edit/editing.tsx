@@ -49,6 +49,7 @@ import { debounce } from "@solid-primitives/scheduled"
 import {
   type Accessor,
   type Signal,
+  createComputed,
   createContext,
   createEffect,
   createMemo,
@@ -56,7 +57,9 @@ import {
   batch,
   untrack,
   useContext,
+  createSelector,
 } from "solid-js"
+import { createStore, unwrap } from "solid-js/store"
 import { Result } from "effect"
 
 import { datePick } from "../date/pick.ts"
@@ -140,6 +143,8 @@ export interface Editor {
    *  line's SEAT, as three primitives every row may compare; this is the line
    *  itself, and only the row that matched reads it. */
   readonly live: Accessor<Ghost | null>
+  readonly pendingAt: (kind: Beside["kind"], id: string) => boolean
+  readonly ghostsAt: (kind: Beside["kind"], id: string) => ReadonlyArray<Pending>
   /** Put the caret in a parked empty draft. Clicking a ghost that is already
    *  on screen is how a skeleton gets filled in. */
   readonly resume: (slot: string) => void
@@ -151,12 +156,10 @@ export interface Editor {
    *  `Row.key` of the row being edited, the row a new line is drawn after or
    *  before, and which field. Primitives, so they answer the same value while
    *  a person types and a row's match stops propagating. */
+  readonly isEditing: (key: string) => boolean
   readonly where: Accessor<Where>
-  /** A counter the open editor watches: every bump means "take the caret
-   *  back". It is bumped after the ops that redraw the row the key was pressed
-   *  in, because moving an element in the document is what takes focus off it
-   *  (`./RowEditor.tsx` says the rest). */
-  readonly caret: Accessor<number>
+  /** Subscribe the live field to an explicit request to recover focus. */
+  readonly onCaret: (take: () => void) => () => void
   /**
    * Start editing a row's title (a click on it) or its note.
    *
@@ -320,14 +323,34 @@ export const createEditor = (
   zooming: Zooming,
   memory: EditorMemory = editorMemory(),
 ): Editor => {
-  const { draft, setDraft, ghosts, setGhosts, caret, setCaret, resuming, setResuming, mintSlot, enqueue } = memory
+  const { draft: storedDraft, setDraft: setStoredDraft, ghosts, setGhosts, requestCaret, onCaret, resuming, setResuming, mintSlot, enqueue } = memory
+  const subject = createMemo(() => {
+    const held = storedDraft()
+    return held?.kind === "row" ? { row: held.row, place: held.place } : null
+  }, null, { equals: (a, b) => a?.row === b?.row && a?.place === b?.place })
+  const hasRowDraft = createMemo(() => storedDraft()?.kind === "row")
+  const drawn = createMemo<ReadonlyArray<Row>>(() =>
+    hasRowDraft() ? flatten(page.rows(), page.collapsed()) : NO_ROWS
+  )
+  const currentPlace = createMemo(() => {
+    const held = subject()
+    return held === null ? undefined : refound(drawn(), held.row, held.place)
+  })
+  const draft = createMemo(() => {
+    const held = storedDraft()
+    const place = currentPlace()
+    return held?.kind === "row" && place !== undefined && place !== held.place ? { ...held, place } : held
+  })
+  const setDraft = (next: Draft | null | ((before: Draft | null) => Draft | null)): Draft | null => {
+    const value = typeof next === "function" ? next(untrack(draft)) : next
+    return batch(() => {
+      if (value === null) { memory.completion.slot = undefined; memory.completion.dismissed[1](null) }
+      return setStoredDraft(value)
+    })
+  }
   let retainedRange = memory.range
   memory.range = undefined
-  createEffect(() => {
-    if (draft() !== null) return
-    memory.completion.slot = undefined
-    memory.completion.dismissed[1](null)
-  })
+
   /** Leave an empty pending on screen without it holding the caret. Same
    *  slot is a no-op, so parking twice cannot duplicate a ghost. A titled
    *  draft, or nothing, is left alone — parking is not how a write happens. */
@@ -339,7 +362,7 @@ export const createEditor = (
    *  about the three fields a new row starts with. */
   const openPending = (at: Anchor): void => {
     setDraft(emptyPending(at, mintSlot()))
-    setCaret((n) => n + 1)
+    requestCaret()
   }
   /** Where a write's inverse goes. Read once, here, rather than at every
    *  write: it is the app's, it does not move, and a context read inside a
@@ -379,19 +402,16 @@ export const createEditor = (
   })
   /** The walk itself is `./draft.ts`'s (`walked`): the same rule a blank's
    *  seat is read by, and the same one a start line matches its anchor with. */
-  const displayAt = (at: Anchor): Anchor => walked(at, memory.placements(), present())
-  createEffect(() => {
-    const held = memory.placements()
-    const next = new Map([...held].filter(([id]) => !present().has(id)))
-    if (next.size !== held.size) memory.setPlacements(next)
-  })
+  const displayAt = (at: Anchor): Anchor => walked(at, placements(), present())
+  const placements = createMemo(() => new Map([...memory.placements()].filter(([id]) => !present().has(id))))
+
 
   /** The caret's own three facts, memoised so typing does not move them. */
   const where = createMemo<Where>(() => {
     const held = draft()
     if (held === null) return NOWHERE
     if (held.kind === "new") {
-      return { place: null, pending: seatOf(held, memory.placements(), present()), field: null }
+      return { place: null, pending: seatOf(held, placements(), present()), field: null }
     }
     // A LINE THAT LANDED KEEPS ITS SEAT — and it keeps it by a different rule
     // from the blank above, which is why the two call different walks: a
@@ -413,16 +433,47 @@ export const createEditor = (
     // frame, rather than vanishing for it.
     const blank = ghostOf(held)
     if (blank === null) return { place: held.place, pending: null, field: held.field }
-    const at = seatKept(held.row, memory.placements()) ?? { kind: "after", id: held.row }
-    // `field` is what a WALK of the tree is gated on (`drawn`, below), and it
-    // is the one thing the two halves of this answer differ about: a line with
-    // no row behind it is nothing to walk for, while a line whose row the
-    // frame is about to draw is exactly what `follow` walks the tree to find.
+    const at = seatKept(held.row, placements()) ?? { kind: "after", id: held.row }
+    // This pending seat does not itself walk the tree. The shared `drawn`
+    // memo is gated by a row draft; `follow` uses it once the new row arrives.
     return { place: null, pending: besideOf(at), field: held.field }
   }, NOWHERE, {
     equals: (a, b) =>
       a.place === b.place && a.field === b.field &&
       a.pending?.kind === b.pending?.kind && a.pending?.id === b.pending?.id,
+  })
+
+  // One atomic publication contains both halves of every seat. A resumed
+  // draft cannot disappear between a parked-list update and a live selector.
+  const [locations, setLocations] = createStore<Record<string, { live: boolean; parked: ReadonlyArray<Pending> } | undefined>>({})
+  const locationKey = (kind: Beside["kind"], id: string) => `${kind}\0${id}`
+  const noGhosts: ReadonlyArray<Pending> = []
+  // Project derived seats into a keyed store rather than a memo: unchanged
+  // keys stay silent. Compare draft identities; reconciliation mutates drafts
+  // owned by the editor when a parked line moves to another array index.
+  createComputed(() => {
+    const next = new Map<string, { live: boolean; parked: Pending[] }>()
+    const seat = (at: Beside) => {
+      const key = locationKey(at.kind, at.id)
+      let value = next.get(key)
+      if (!value) next.set(key, value = { live: false, parked: [] })
+      return value
+    }
+    const pending = where().pending
+    if (pending) seat(pending).live = true
+    for (const ghost of ghosts()) {
+      const at = besideOf(displayAt(ghost.at))
+      if (at) seat(at).parked.push(ghost)
+    }
+    untrack(() => batch(() => {
+      for (const key of Object.keys(locations)) if (!next.has(key)) setLocations(key, undefined)
+      for (const [key, value] of next) {
+        const old = locations[key]
+        if (old?.live === value.live && old.parked.length === value.parked.length
+          && unwrap(old.parked).every((ghost, index) => ghost === value.parked[index])) continue
+        setLocations(key, value)
+      }
+    }))
   })
 
   /**
@@ -446,9 +497,6 @@ export const createEditor = (
    * row draft is the one state all three readers are reachable from, and it is
    * the one state with a `field` on it.
    */
-  const drawn = createMemo<ReadonlyArray<Row>>(() =>
-    where().field === null ? NO_ROWS : flatten(page.rows(), page.collapsed())
-  )
 
   /** Every blank ON THE PAGE — the parked ones, and the live draft when it is
    *  one. What the wire is drawn from, so the three keys that walk it
@@ -475,6 +523,7 @@ export const createEditor = (
    */
   let settling = false
   let takingDraft = false
+  let restoringCaret = false
 
   /** The caret is settled on the frame that redraws the row, and again when
    *  the write answers — because the two arrive in either order. The server
@@ -503,35 +552,13 @@ export const createEditor = (
     // frame-driven restoration until its queued activation has completed.
     if (!settling && resuming() === null) return
     settling = false
-    setCaret((n) => n + 1)
+    restoringCaret = true
+    requestCaret()
+    // A moved, still-connected input can report blur before the queued focus.
+    // Protect this update only, not a later reader gesture during a write.
+    queueMicrotask(() => { restoringCaret = false })
   }
   createEffect(settle)
-
-  /**
-   * The row a draft is drawn at, found again when it has moved.
-   *
-   * A draft names a ROW, and where that row is drawn is a `Row.key` — the
-   * chain of ids from the root of the page — so `Tab` changes it: the row that
-   * was `…/install/measure` is `…/handles/measure` the moment the file says
-   * so. That is the honest consequence of having no optimistic UI. It is also
-   * how a row that did not exist when `Enter` was pressed gets located:
-   * `landed` leaves the place `null` and the frame carrying the new row fills
-   * it in.
-   *
-   * The RULE itself is `./order.ts`'s (`refound`), because a multi-selection
-   * needs the same one over a set of places — this is the effect that applies
-   * it to the one place a caret is in.
-   */
-  const follow = () => {
-    // The PRIMITIVES, so typing does not run this: what it needs is where the
-    // caret is and which record it is about, and neither moves per keystroke.
-    const at = where().place
-    const held = untrack(draft)
-    if (held === null || held.kind !== "row") return
-    const moved = refound(drawn(), held.row, at)
-    if (moved !== undefined && moved !== at) setDraft({ ...held, place: moved })
-  }
-  createEffect(follow)
 
   /**
    * The write. Answers what the edit turned out to be about — the node, and
@@ -579,8 +606,9 @@ export const createEditor = (
     idle.clear()
     const done = await send(edit, slotOf(current))
     if (done === null) return false
+    batch(() => {
     if (current.kind === "new") {
-      memory.setPlacements((held) => new Map(held).set(done.id, current.at))
+      memory.setPlacements((held) => new Map(placements()).set(done.id, current.at))
     }
     // Only when the editor is still on the same draft: a commit that landed
     // while the reader had already moved on must not drag them back.
@@ -592,6 +620,7 @@ export const createEditor = (
     if (current.kind === "new") {
       setGhosts((list) => reaimed(list, current.at, done.id))
     }
+    })
     return true
   }
 
@@ -743,8 +772,10 @@ export const createEditor = (
     // The caret is taken again because a row that merely moved among its
     // siblings keeps its editor and loses the focus anyway — the document
     // moved the element.
-    setDraft((current) => kept(current, held, moved?.nudge))
-    setCaret((n) => n + 1)
+    batch(() => {
+      setDraft((current) => kept(current, held, moved?.nudge))
+      requestCaret()
+    })
   }
 
   /** `Enter`: commit this row, and open an editor where the next one goes. The
@@ -830,7 +861,7 @@ export const createEditor = (
     const current = draft()
     if (done === null || current === null || !sameSlot(slotOf(current), slotOf(held))) return
     setDraft(opening(done, 0))
-    setCaret((n) => n + 1)
+    requestCaret()
   }
 
   /**
@@ -911,7 +942,7 @@ export const createEditor = (
       )
       if (done === null) return
       setDraft(opening(done, done.title.length - before.text.length))
-      setCaret((n) => n + 1)
+      requestCaret()
       return
     }
     if (!(await commit())) return
@@ -920,7 +951,7 @@ export const createEditor = (
     const done = await redrawing({ verb: "merge", id: held.row }, slotOf(held))
     if (done === null) return
     setDraft(opening(done, done.title.length - held.text.length))
-    setCaret((n) => n + 1)
+    requestCaret()
   }
 
   /** The row a compound key left the caret in, as the draft that edits it —
@@ -1196,7 +1227,7 @@ export const createEditor = (
    *
    * DECIDED BEFORE THE COMMIT: the parent row is looked up in `drawn`, which
    * is the tree through the caret's eyes and answers with nothing the moment
-   * the draft closes (`drawn`'s `where` gate, above) — so the destination is
+   * the draft closes (`drawn`'s row-draft gate, above) — so the destination is
    * worked out while the caret is still standing in it, and only then is the
    * line let go. `picking` could not order that: its callback runs after the
    * draft is gone.
@@ -1296,7 +1327,7 @@ export const createEditor = (
         setGhosts((list) => list.filter((g) => g.slot !== slot))
         setDraft(found)
         setResuming(null)
-        setCaret((n) => n + 1)
+        requestCaret()
       })
     } finally {
       // A surrounding Solid update may flush the DOM after this nested batch
@@ -1325,7 +1356,7 @@ export const createEditor = (
         // refused. Focus is still in the parked input, whose keys we
         // swallow — put the caret back on the draft that is holding the
         // reason.
-        setCaret((n) => n + 1)
+        requestCaret()
         return
       }
       // AFTER the commit: that is the call that re-aims parked `before`
@@ -1376,11 +1407,14 @@ export const createEditor = (
     draft,
     ghosts,
     live: () => ghostOf(draft()),
+    pendingAt: (kind, id) => locations[locationKey(kind, id)]?.live === true,
+    ghostsAt: (kind, id) => locations[locationKey(kind, id)]?.parked ?? noGhosts,
     resume,
     resuming,
     displayAt,
+    isEditing: createSelector(() => where().place),
     where,
-    caret,
+    onCaret,
     open: (at, field, here) => {
       const next = opened(at, field, here)
       if (next === null) return
@@ -1419,7 +1453,7 @@ export const createEditor = (
       // A pending redraw may remove an editor, but does not own a reader's
       // later click away from an attached editor. RowEditor has already
       // deferred this report past synchronous DOM moves and refocusing.
-      if (takingDraft || (settling && !left)) return
+      if (takingDraft || restoringCaret || (settling && !left)) return
       if (left) settling = false
       // A blur nobody caused on purpose: the editor's element is not in the
       // document any more, so it was REMOVED by a re-render rather than left

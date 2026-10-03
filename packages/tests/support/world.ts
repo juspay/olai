@@ -1669,7 +1669,7 @@ export class OlaiWorld extends World {
     if ((await fault.count()) > 0) {
       throw new Error(
         `the client threw while drawing ${path}, so the app is a fault card:\n` +
-          oneLine(await fault.innerText()),
+          oneLine(await fault.textContent() ?? ""),
       );
     }
     // The header can paint while a socket is still connecting or redialling.
@@ -1876,7 +1876,7 @@ export class OlaiWorld extends World {
    *  than in a step file because two of them now ask (`document_steps.ts`,
    *  `toc_steps.ts`), and `.first()` being the right answer is one decision. */
   documentBody(): Locator {
-    return this.page.locator(DOCUMENT_BODY).first();
+    return this.frontLane().locator(DOCUMENT_BODY).first();
   }
 
   /**
@@ -1952,15 +1952,17 @@ export class OlaiWorld extends World {
    *  SCREEN: two panes showing one file draw every row of it twice, so
    *  "the bullet of `knobs`" has no answer until a step says which column it
    *  means. Spelled once here for the reason every other selector is. */
+  frontLane(): Locator { return this.page.locator(`${selector(PLUGIN_TESTID.lane)}[data-lane-front="true"], main[aria-label="Alternate layout fixture"]`); }
+
   pane(index: number): Locator {
-    return this.page.locator(`${PANE}${attr("data-pane", String(index))}`);
+    return this.frontLane().locator(`${PANE}${attr("data-pane", String(index))}`);
   }
 
   /** Where a row is looked for when the step does NOT name a pane: the whole
    *  page. The unscoped answer, as a scope — so the helpers that take one do
    *  not need a second arity for the lone case. */
   everywhere(): Locator {
-    return this.page.locator("body");
+    return this.frontLane();
   }
 
   /** One node in the tree, by id. Ids are unique across the whole loaded set,
@@ -1980,41 +1982,41 @@ export class OlaiWorld extends World {
     assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
     return `:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))} :is(${control})`;
   }
-  chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.page.locator(this.chatSelector(control), options); }
+  chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.frontLane().locator(this.chatSelector(control), options); }
   /** Settings and the standing strips (plan, tools, still running, alerts)
    *  live in the fold or the zoomed page's pinned head. */
   chatLine(): Locator {
     assert.ok(this.activeAgent, "select a node agent before addressing its agent line");
-    return this.page.locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
+    return this.frontLane().locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
   }
   chatRoot(): Locator {
     assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
-    return this.page.locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
+    return this.frontLane().locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
   }
   readonly nodeNames = new Map<string, string>();
   nodeId(name: string): string { return this.nodeNames.get(name) ?? name; }
 
   node(id: string): Locator {
-    return this.page.locator(nodeSelector(this.nodeId(id)));
+    return this.frontLane().locator(nodeSelector(this.nodeId(id)));
   }
 
   /** The same node, only if it is on screen. `:visible` because dropping a row
    *  and hiding it are both legitimate ways to hide something, and they read
    *  the same to the person looking at the page. */
   visibleNode(id: string): Locator {
-    return this.page.locator(`${nodeSelector(this.nodeId(id))}:visible`);
+    return this.frontLane().locator(`${nodeSelector(this.nodeId(id))}:visible`);
   }
 
   /** The trail above a zoomed node, crumb by crumb, in order. */
   crumbs(): Locator {
-    return this.page.locator(`${BREADCRUMBS} ${CRUMB}`);
+    return this.frontLane().locator(`${BREADCRUMBS} ${CRUMB}`);
   }
 
   /** A node's OWN control. `.first()` is the node's own: a descendant's
    *  matches inside the scope too, and the node's own is rendered before any
    *  child's. */
   within(id: string, control: string): Locator {
-    return this.node(id).locator(control).first();
+    return this.visibleNode(id).locator(control).first();
   }
 
   /**
@@ -2420,7 +2422,7 @@ export class OlaiWorld extends World {
    * inside it would pass by dismissing nothing.
    */
   async tapAway(): Promise<void> {
-    const tree = await this.box(this.page.locator(OUTLINE_TREE).first(), "the outline tree");
+    const tree = await this.box(this.frontLane().locator(OUTLINE_TREE).first(), "the outline tree");
     const view = this.viewport();
     // Clear of the bottom of the screen, where a phone keeps the agent's strip.
     const at = { x: view.width - 12, y: Math.min(tree.y + tree.height + 24, view.height - 80) };
@@ -2499,7 +2501,7 @@ export class OlaiWorld extends World {
    *  inside the scope — `.first()` is the node's own because the title is
    *  rendered before the children. */
   nodeTitle(id: string): Locator {
-    return this.node(id).locator(NODE_TITLE).first();
+    return this.visibleNode(id).locator(NODE_TITLE).first();
   }
 
   /** The nodes rendered INSIDE a node — its children, or, for a mirror, the
@@ -2521,23 +2523,29 @@ export class OlaiWorld extends World {
    *  attribute that is waiting on the NETWORK rather than on a render (a wire
    *  re-dialling through its backoff after a server restart) is a different
    *  scale, and passing `HYDRATION_TIMEOUT` says which one this is. */
+  /** Chrome is explicitly outside the retained page lanes. */
+  async expectChromeAttribute(selector: string, attribute: string, expected: string, what: string, timeout = POLL_TIMEOUT): Promise<void> {
+    return this.expectAttribute(selector, attribute, expected, what, timeout, this.page);
+  }
+
   async expectAttribute(
     selector: string,
     attribute: string,
     expected: string,
     what: string,
     timeout = POLL_TIMEOUT,
+    scope: Page | Locator = this.frontLane(),
   ): Promise<void> {
     try {
-      await this.page
+      await scope
         .locator(`${selector}${attr(attribute, expected)}`)
         .first()
         .waitFor({ state: "attached", timeout });
     } catch {
-      const actual = await this.page
+      const actual = await scope
         .locator(selector)
         .first()
-        .getAttribute(attribute)
+        .getAttribute(attribute, { timeout: 1000 })
         .catch(() => null);
       throw new Error(
         `expected ${what} to have ${attribute}="${expected}", ` +
@@ -2556,17 +2564,18 @@ export class OlaiWorld extends World {
     attribute: string,
     what: string,
     timeout = POLL_TIMEOUT,
+    scope: Page | Locator = this.frontLane(),
   ): Promise<void> {
     try {
-      await this.page
+      await scope
         .locator(`${selector}:not([${attribute}])`)
         .first()
         .waitFor({ state: "attached", timeout });
     } catch {
-      const actual = await this.page
+      const actual = await scope
         .locator(selector)
         .first()
-        .getAttribute(attribute)
+        .getAttribute(attribute, { timeout: 1000 })
         .catch(() => null);
       throw new Error(
         `expected ${what} to carry no ${attribute}, but it is ` +
@@ -2610,7 +2619,7 @@ export class OlaiWorld extends World {
     expected: boolean,
   ): Promise<void> {
     await this.openCalendar();
-    await this.expectAttribute(
+    await this.expectChromeAttribute(
       daySelector(date),
       fact,
       String(expected),

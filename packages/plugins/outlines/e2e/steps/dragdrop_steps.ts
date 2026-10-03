@@ -114,21 +114,21 @@ When("I click the bullet of {string}", async function (this: OlaiWorld, id: stri
 Then(
   "the drop line would put it under {string}",
   async function (this: OlaiWorld, parent: string) {
-    await this.expectAttribute(DROP_LINE, "data-parent", parent, "the drop line");
+    await this.expectChromeAttribute(DROP_LINE, "data-parent", parent, "the drop line");
   },
 );
 
 Then(
   "the drop line would put it after {string}",
   async function (this: OlaiWorld, sibling: string) {
-    await this.expectAttribute(DROP_LINE, "data-after", sibling, "the drop line");
+    await this.expectChromeAttribute(DROP_LINE, "data-after", sibling, "the drop line");
   },
 );
 
 Then("the drop line would put it first", async function (this: OlaiWorld) {
   // `""` is how "first among them" is spelled — the one placement an anchor
   // cannot name, and the reason the surface has a `place` verb at all.
-  await this.expectAttribute(DROP_LINE, "data-after", "", "the drop line");
+  await this.expectChromeAttribute(DROP_LINE, "data-after", "", "the drop line");
 });
 
 Then(
@@ -329,7 +329,7 @@ When(
 );
 
 Then("the band is crossing {int} rows", async function (this: OlaiWorld, many: number) {
-  await this.expectAttribute(SWEEP_BAND, "data-rows", String(many), "the sweep's band");
+  await this.expectChromeAttribute(SWEEP_BAND, "data-rows", String(many), "the sweep's band");
 });
 
 Then("no band is drawn", async function (this: OlaiWorld) {

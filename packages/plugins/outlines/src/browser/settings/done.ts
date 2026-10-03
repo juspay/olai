@@ -1,3 +1,4 @@
+import { heldService } from "@olai/ui-primitives/held.ts"
 /**
  * Whether finished work is drawn: a browser-wide default, and the pages that
  * out-vote it.
@@ -57,12 +58,10 @@
  * itself holds the exception.
  */
 
-import { withoutDone } from "@olai/format"
 import { type Accessor, createSignal } from "solid-js"
 
 import type { Shown } from "@olai/format"
 
-import type { Drawn } from "../page.ts"
 import { boolCodec, createPreference } from "@olai/web/client/preference.ts"
 
 import { DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY } from "../../contracts/preferences.ts"
@@ -78,7 +77,7 @@ type DoneWord = "shown" | "hidden"
 /** Hidden, for a browser that has never been asked — and for a value nothing
  *  here ever wrote, which is `boolCodec`'s rule and not this file's. */
 const makePref = () => createPreference(DONE_HIDDEN_KEY, boolCodec(true))
-let pref = makePref()
+const [pref, setPref] = createSignal(makePref())
 
 /** The overrides circuit: parse all-or-nothing the symmetric codec cannot help
  *  with, print SORTED for idempotency — the `fold/memory.ts` discipline, where
@@ -109,21 +108,21 @@ const makeOverrides = () => createPreference(DONE_OVERRIDES_KEY, {
           ),
         ),
 })
-let overrides = makeOverrides()
+const [overrides, setOverrides] = createSignal(makeOverrides())
 
 /** Whether this browser hides what is done, where no page has said otherwise. */
-export const doneHidden: Accessor<boolean> = () => pref.value()
+export const doneHidden: Accessor<boolean> = () => pref().value()
 
-/** Persist it — `pref.set` writes `olai.done.hidden`. The write is fenced by
+/** Persist it — `pref().set` writes `olai.done.hidden`. The write is fenced by
  * `preferences.feature`'s stored-key step; the reload scenario fences the boot
  * read, not this setter. */
-export const setDoneHidden = (value: boolean): void => pref.set(value)
+export const setDoneHidden = (value: boolean): void => pref().set(value)
 
 /** What this page asked for, or NOTHING — and the nothing is a real answer:
  *  "follow the default". There is no stored value for it: a page whose pick
  *  is the panel's holds no entry. */
 export const doneOverride = (file: string): DoneWord | undefined =>
-  overrides.value().get(file)
+  overrides().value().get(file)
 
 /**
  * The pick a PAGE answers to: its own word if it has one, the default's
@@ -132,7 +131,7 @@ export const doneOverride = (file: string): DoneWord | undefined =>
  * is one module.
  */
 export const doneHiddenOn = (file: string): boolean =>
-  (overrides.value().get(file) ?? (doneHidden() ? "hidden" : "shown")) ===
+  (overrides().value().get(file) ?? (doneHidden() ? "hidden" : "shown")) ===
   "hidden"
 
 /**
@@ -144,40 +143,46 @@ export const setDoneFor = (file: string, word: DoneWord): void => {
   // stored() LAST: a key in both places is the SIBLING's fresher answer, and
   // spreads do not delete, so this tab's never-written entries survive
   // either way (the pick trace is in done.test.ts).
-  const combined = new Map([...overrides.value(), ...overrides.stored()])
+  const combined = new Map([...overrides().value(), ...overrides().stored()])
   combined.set(file, word)
-  overrides.set(combined)
+  overrides().set(combined)
 }
 
 /** Hand a page back to the panel: drop its entry, with the same union
  *  discipline ranked after everything it was unioned with — the removal is
  *  this tab's own say-so, the way `fold/memory.ts`'s clear is. */
 export const letDoneFollow = (file: string): void => {
-  const combined = new Map([...overrides.value(), ...overrides.stored()])
+  const combined = new Map([...overrides().value(), ...overrides().stored()])
   combined.delete(file)
-  overrides.set(combined)
+  overrides().set(combined)
 }
 
 /**
  * THE REVEAL's table: the places a landing asked this page to keep drawn,
- * per file — `visibleIn` reads it the way it reads the pick, so the one door
+ * per file — `createDoneRows` reads it the way it reads the pick, so the one door
  * the page composition asks stays one door.
  */
 /**
  * THE REVEAL's table, OUTER-KEYED per pane: the places a landing asked THIS
  * pane's copy of THIS page to keep drawn.
  */
-const [revealed, setRevealed] = createSignal<
-  ReadonlyMap<number, ReadonlyMap<string, ReadonlySet<string>>>
->(new Map())
+type Reveals = ReadonlyMap<string, ReadonlyMap<string, ReadonlySet<string>>>
+export const createDoneReveals = () => {
+  const [read, set] = createSignal<Reveals>(new Map())
+  return { read, set }
+}
+const heldReveals = heldService<ReturnType<typeof createDoneReveals>>()
+export const holdDoneReveals = heldReveals.hold
+const emptyReveals: Reveals = new Map()
+const revealed = (): Reveals => heldReveals.read()?.read() ?? emptyReveals
+const setRevealed = (next: (before: Reveals) => Reveals) => heldReveals.read()?.set(next)
 
-/** The places the pick's sweep spares for pane `pane` on `file`, or nothing
- *  — DELIBERATELY not exported: what spares a row is a question the sweep
- *  answers by sweeping, and a second door onto the raw table is a second way
- *  for the page and somebody else to disagree about the same row. */
-const landingReveal = (
+
+/** The pane's temporary landing reveal, consumed by the drawn-row sweep.
+ *  The reveal registry owns its lifetime; readers never mutate its sets. */
+export const landingReveal = (
   file: string,
-  pane: number,
+  pane: string,
 ): ReadonlySet<string> | undefined => revealed().get(pane)?.get(file)
 
 /**
@@ -196,7 +201,7 @@ const landingReveal = (
  */
 export const revealDone = (
   file: string,
-  pane: number,
+  pane: string,
   keys: ReadonlySet<string>,
 ): ReadonlySet<string> => {
   const standing = revealed().get(pane)?.get(file)
@@ -225,7 +230,7 @@ export const revealDone = (
  */
 export const concealDone = (
   file: string,
-  pane: number,
+  pane: string,
   keys: ReadonlySet<string>,
 ): void => {
   if (revealed().get(pane)?.get(file) !== keys) return
@@ -244,7 +249,7 @@ export const concealDone = (
  * done preference reaching a page it was never about.
  *
  * A PAGE is only about an outline: the Held completion filter owns "is this
- * work that finished" (`../filter/completion.ts`), and `visibleIn` below is
+ * work that finished" (`../filter/completion.ts`), and `createDoneRows` is
  * what the pick instructs. It does NOT reach the page that does not have
  * one: a day records what happened (and half of what happened is work that
  * finished); the agenda's done lane IS its claim; the trash is what was put
@@ -262,47 +267,14 @@ export const pageFileOf = (page: Shown | undefined): string | undefined => {
   return undefined
 }
 
-/**
- * The rows this page actually draws — the one door to the pick for the page
- * composition. The pick and what it does to a tree are one thing, so every
- * page asks the same question rather than each re-deciding what "hidden"
- * means — and a page in step with its pick is handed back THE VERY VALUE it
- * was given: that identity is what `../filter/narrowing.ts`'s count of
- * held-back matches reads as its zero, and a fresh wrapper per frame would
- * make it walk the page twice to prove the answer was nothing. An empty zoom
- * wraps there (a tree with no file to be about) and is not pruned: the
- * default the row holds is not the thing such a page says.
- *
- * The LANDING's reveal rides the same sweep as `keep` — places spared rather
- * than rows forgiven, and scoped to the ONE PANE the arrival was owed:
- * the pick still SAYS what the reader left it saying, and the kept chain is
- * the one spelling of "except this, for the visit" the page knows.
- *
- * THE EDGE IS WHERE THE PAGE SAYS WHAT THE PAGE IS (../filter/narrowing.ts's
- * split of what a page holds from what it draws): here, "which pages is the
- * default answering for"; there, "which rows of the answer show through".
- * Both are the same sentence read from its two ends.
- */
-export const visibleIn = (
-  drawn: Drawn,
-  file: string | undefined,
-  pane: number,
-): Drawn => {
-  if (file === undefined || drawn.kind !== "tree") return drawn
-  if (doneHiddenOn(file))
-    return { ...drawn, rows: withoutDone(drawn.rows, landingReveal(file, pane)) }
-  return drawn
-}
-
 /** Follow both halves for as long as this document lives — the same shape as
  *  `followFolds` and `followLayout`, started once from `main.tsx`, because a
  *  preference belongs to the browser: the panel writes the default once, and
  *  every page holds the answers to what the default does not say. */
 export const followDonePrefs = (): (() => void) => {
-  pref = makePref()
-  overrides = makeOverrides()
-  const stopDefault = pref.follow()
-  const stopOverrides = overrides.follow()
-  setRevealed(new Map())
-  return () => { stopDefault(); stopOverrides(); setRevealed(new Map()) }
+  setPref(makePref())
+  setOverrides(makeOverrides())
+  const stopDefault = pref().follow()
+  const stopOverrides = overrides().follow()
+  return () => { stopDefault(); stopOverrides() }
 }

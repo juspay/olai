@@ -1,17 +1,13 @@
 /** Fold state is local to this browser plugin activation, never persisted. */
-import { createSignal } from "solid-js"
+import { createStore } from "solid-js/store"
 import { heldService } from "@olai/ui-primitives/held.ts"
 
 export const createFolding = () => {
-  const [opened, setOpened] = createSignal<ReadonlySet<string>>(new Set())
+  const [opened, setOpened] = createStore<Record<string, boolean | undefined>>({})
   return {
-    unfolded: (node: string) => opened().has(node),
-    unfold: (node: string) => setOpened(before => new Set([...before, node])),
-    fold: (node: string) => setOpened(before => {
-      const after = new Set(before)
-      after.delete(node)
-      return after
-    }),
+    unfolded: (node: string) => opened[node] === true,
+    unfold: (node: string) => setOpened(node, true),
+    fold: (node: string) => setOpened(node, undefined),
   }
 }
 const held = heldService<ReturnType<typeof createFolding>>()

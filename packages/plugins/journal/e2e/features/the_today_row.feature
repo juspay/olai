@@ -72,3 +72,14 @@ Feature: Today is one row, and the month folds under it
     And the directory drawer is open with a scrim
     When I tap the day "2019-11-06"
     Then the day open is "2019-11-06"
+
+  @corpus:journal
+  Scenario: A paged calendar keeps its month across sidebar collapse
+    Given I open the day "2019-11-05"
+    When I press the month's chevron
+    And I page the calendar forward
+    Then the month shown is "2019-12"
+    When I collapse the sidebar
+    And I expand the sidebar from the rail
+    Then the month shown is "2019-12"
+    And there should be no page errors

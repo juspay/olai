@@ -16,14 +16,13 @@ export function Control(props: {
 }) {
   const text = () => typeof props.value.value === "boolean" ? (props.value.value ? "yes" : "no") : String(props.value.value)
   const reading = () => props.value.problem?.raw ?? text()
-  const [draft, setDraft] = createSignal(reading())
+  const [edited, setDraft] = createSignal<string>()
+  const draft = () => edited() ?? reading()
   const [pending, setPending] = createSignal(false)
   const [refused, setRefused] = createSignal<string>()
-  let dirty = false
   let reset: HTMLButtonElement | undefined
   let active = true
   onCleanup(() => { active = false })
-  createEffect(() => { const value = reading(); if (!dirty) setDraft(value) })
   const metadata = () => controlOf(props.value)
   const frozen = () => props.frozen ?? (metadata() === undefined ? "This setting can't be changed here." : undefined)
   const disabled = () => frozen() !== undefined || pending()
@@ -37,12 +36,11 @@ export function Control(props: {
       setRefused(failure.message)
     }, () => {
       if (!active) return
-      dirty = false
       setPending(false)
-      setDraft(reading())
+      setDraft(undefined)
     })
   }
-  const saveDraft = () => { if (dirty) save(draft()) }
+  const saveDraft = () => { if (edited() !== undefined) save(draft()) }
   /**
    * WHETHER THIS BLUR IS A LEAVE — a person moving on, which is a save, or the
    * APP TAKING THE KEYBOARD, which is not. The reconnect freeze is a modal
@@ -63,7 +61,7 @@ export function Control(props: {
     if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); saveDraft() }
     if (event.key === "Escape") {
       event.preventDefault(); event.stopPropagation()
-      dirty = false; setDraft(reading()); setRefused(undefined)
+      setDraft(undefined); setRefused(undefined)
     }
   }
   const invalid = () => props.value.problem !== undefined || refused() !== undefined
@@ -97,7 +95,7 @@ export function Control(props: {
             max={metadata()?.kind === "number" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).max : undefined}
             step={metadata()?.kind === "number" && (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).integer ? 1 : "any"}
             placeholder={metadata()?.kind === "text" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "text" }>).expected : undefined}
-            onInput={event => { dirty = true; setDraft(event.currentTarget.value); setRefused(undefined) }}
+            onInput={event => { setDraft(event.currentTarget.value); setRefused(undefined) }}
             onBlur={event => { if (leaving(event)) saveDraft() }} on:keydown={keyboard} />
           <Show when={metadata()?.kind === "number" && knobUnit(props.value.key)}>{unit => <span class="plugins-knob-key">{unit()}</span>}</Show>
         </Match>

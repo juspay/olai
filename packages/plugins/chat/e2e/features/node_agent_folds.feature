@@ -34,17 +34,20 @@ Feature: A node agent's conversation unfolds in the outline
     And node agent "order" is unfolded
 
   @node-idle-fast
-  Scenario: Folding releases only that node's idle hold
+  Scenario: Folding retains the reading and leaving the page releases its idle hold
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And I open the "claude" agent on node "order"
     And the node agent's fold is ready
     And I fold node agent "install"
-    Then the agent "install" stands "asleep"
+    Then the agent "install" remains "idle" across two idle deadlines
     And the agent "order" remains "idle" across two idle deadlines
     When I use the fold on node "order"
     And I ask the agent "still reading"
     Then the agent has answered "still reading" exactly once
+    When I click the outline "yard.olai"
+    Then the agent "install" stands "asleep"
+    And the agent "order" stands "asleep"
 
   Scenario: A question is answered inside its fold
     When I open the "claude" agent on node "install"

@@ -17,6 +17,7 @@ export const TESTID = {
   faultHome: "fault-home",
   uptime: "uptime",
   panelResize: "panel-resize",
+  lane: "lane",
   paneRail: "pane-rail",
   paneHeader: "pane-header",
   paneClose: "pane-close",

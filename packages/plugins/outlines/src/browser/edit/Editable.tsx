@@ -1,3 +1,4 @@
+import { usePaneId, useShown } from "olai-plugin-navigation/routing"
 import { createEffect, createSignal } from "solid-js"
 import { carriedText } from "olai-plugin-chat/carry"
 import { documentBox } from "@olai/web/client/carry.ts"
@@ -86,7 +87,7 @@ import { atFile, atNode } from "olai-plugin-navigation/routes"
 import { createSelection, type Selection, SelectionProvider } from "../select/selection.ts"
 import { SelectionBar } from "../select/SelectionBar.tsx"
 import { createEditor, EditorProvider, type Zooming } from "./editing.tsx"
-import { keepEditor, takeEditor } from "./memory.ts"
+import { useEditorMemory } from "./memory.ts"
 
 interface EditableProps {
   /** What is drawn — half of where `↑`/`↓` go, of where a row that has moved
@@ -113,25 +114,16 @@ interface EditableProps {
 }
 
 export function Editable(props: EditableProps) {
-  const here = useHere()
-  const identity = createMemo(() => JSON.stringify([here(), props.file, props.within]))
-  return <Show when={identity()} keyed>{(_identity) => <EditablePage {...props} />}</Show>
+  return <EditablePage {...props} />
 }
 
 function EditablePage(props: EditableProps) {
-  const pane = useHere()()
+  const shown = useShown()
+  const here = useHere()
   const router = useRouter()
-  const route = panesOf(router.workspace())[pane]?.route
-  const identity = JSON.stringify([props.file, props.within])
-  const memory = takeEditor(pane, identity, route)
-  onCleanup(() => {
-    const now = panesOf(router.workspace())[pane]?.route
-    if (now?.kind === "at" && route?.kind === "at"
-      && (now.address === null ? null : printAddress(now.address))
-        === (route.address === null ? null : printAddress(route.address))) {
-      keepEditor(pane, identity, now, memory)
-    }
-  })
+  const memory = useEditorMemory()
+  // Navigation changes the editor's subject, not its component owner. Rows
+  // common to both views keep their own notes, property panes and DOM.
   const page = {
     rows: () => props.rows(),
     // What is folded FOR THIS READING rather than what this browser has folded
@@ -228,6 +220,7 @@ function EditablePage(props: EditableProps) {
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (!shown()) return
       // A STRUCTURAL REPLY CAN LEAVE THE CARET IN A ROW WITH NO BOX AT ALL.
       // `opening` puts it on the row the write answered with, whose `place` is
       // `null` until the frame draws that row — and for a SPLIT or a MERGE the
@@ -243,14 +236,14 @@ function EditablePage(props: EditableProps) {
       // still focused, and hears the key for itself. The `kind` here is what
       // says so — a pending is not this case either.
       if (!event.defaultPrevented && event.key === "Escape"
-        && router.workspace().focus === pane
+        && router.focusIndex() === here()
         && (event.target === document.body || event.target === document.documentElement)
         && editor.draft()?.kind === "row" && editor.where().place === null) {
         event.preventDefault()
         editor.press("cancel")
         return
       }
-      if ((router as import("olai-plugin-navigation/contract").Navigation).info(pane)?.pending === true) return
+      if ((router as import("olai-plugin-navigation/contract").Navigation).info(here())?.pending === true) return
       if (selection.rows().length === 0) return
       // Never over a field. The pick is live across the whole window, so a
       // handler that fired while somebody was typing in the composer would be a

@@ -1,3 +1,5 @@
+import { createMemo } from "solid-js"
+import { sameList } from "@olai/web/client/same.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 /**
  * One node, as a page — the zoom.
@@ -75,6 +77,7 @@ function Zoom(props: {
    *  to know, because "nothing under this node" and "nothing here matches" are
    *  two different pieces of news (./filter/narrowed.tsx). */
   const narrowed = useNarrowed()
+  const within = createMemo(() => [...props.zoomed.trail.map(crumb => crumb.node.id), props.zoomed.shows.node.id], [], { equals: sameList })
   /** This page's edge editing — the panel, both doors' writes, and the line
    *  that says what came of them (./edges/editing.tsx). A zoom always lands on
    *  a regular node however it was addressed, so the node is never absent
@@ -101,7 +104,7 @@ function Zoom(props: {
       // The page is drawn INSIDE this node, so nothing under it is a place a
       // drag carrying it may land — a fact its rows' keys cannot state, because
       // they start at this page's own roots (`./drag/fields.ts`).
-      within={[...props.zoomed.trail.map((crumb) => crumb.node.id), props.zoomed.shows.node.id]}
+      within={within()}
     >
       <div class="contents">
 

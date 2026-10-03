@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js"
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 
@@ -247,8 +248,10 @@ test("a lane brought back with its entry's key comes back to where it was scroll
     page.scroll(300)
     const left = router.entryKey()
     router.switchLane("b", { workspace: lone(atFile("b.md")) })
+    await settled()
     expect(page.top()).toBe(0)
     router.switchLane("a", { workspace: lone(atFile("one.md")), key: left })
+    await settled()
     expect(page.top()).toBe(300)
   })
 })
@@ -268,5 +271,129 @@ test("a switch asked for mid-travel is written once the browser is back on its e
     page.back()
     await settled()
     expect(drawn(router)).toBe("/c.md")
+  })
+})
+
+
+test("lane reports propagate loading and failure changes with an unchanged title", async () => {
+  await withRouter(async router => {
+    const owner = createRoot(dispose => {
+      const [pending, setPending] = createSignal(true)
+      const [failure, setFailure] = createSignal<string>()
+      router.report(() => 0, () => ({ title: "same page", file: "one.md", pending: pending(), failure: failure() }))
+      return { dispose, setPending, setFailure }
+    })
+    expect(router.info(0)?.pending).toBe(true)
+    owner.setPending(false)
+    expect(router.info(0)?.pending).toBe(false)
+    expect(router.focused()?.pending).toBe(false)
+    owner.setFailure("read refused")
+    expect(router.focused()?.failure).toBe("read refused")
+    owner.setFailure(undefined)
+    expect(router.info(0)?.failure).toBeUndefined()
+    owner.dispose()
+  })
+})
+
+test("a history arrival keeps its unavailable address until a provider returns", async () => {
+  const { holdRoutePages } = await import("./pages.ts")
+  const { defineAppPage, defineAppRoute, settleRoutePages, NO_PAGES } = await import("./routes.ts")
+  const day = defineAppPage(defineAppRoute<{ date: string }, { kind: "day"; date: string }>({
+    claims: [{ kind: "prefix", path: "/d/" }],
+    parse: path => path.startsWith("/d/") ? { date: path.slice(3) } : null,
+    href: value => `/d/${value.date}`,
+    breadcrumb: value => value.date,
+    narrowable: true,
+    request: value => ({ kind: "day", date: value.date }),
+    stream: { use: () => () => undefined },
+  }), () => null)
+  const pages = settleRoutePages([{ plugin: "journal", face: day }])
+  const [claims, setClaims] = createSignal(pages)
+  const release = holdRoutePages(claims)
+  try {
+    await withRouter(async (router, page) => {
+      router.go(atFile("other.olai"))
+      setClaims(NO_PAGES)
+      page.back()
+      await settled()
+      expect(page.path()).toBe("/d/2019-11-05")
+      expect(router.route().kind).not.toBe("plugin")
+      setClaims(pages)
+      expect(router.route().kind).toBe("plugin")
+      expect(drawn(router)).toBe("/d/2019-11-05")
+    }, "/d/2019-11-05")
+  } finally { release() }
+})
+
+test("forgetting the front keeps its live readings until a replacement is installed", async () => {
+  await withRouter(async router => {
+    router.switchLane("a")
+    const retained = router.lanes()[0]!
+    router.forgetLane("a")
+    router.openRight(0, atFile("second.md"), true)
+    expect(router.lanes()).toEqual([retained])
+    expect(retained.split()).toBe(true)
+    expect(retained.focusIndex()).toBe(1)
+    expect(router.routes.href(retained.route())).toBe("/second.md")
+    router.switchLane("b", { workspace: lone(HOME_ROUTE) })
+    expect(router.lanes()).not.toContain(retained)
+  })
+})
+
+test("content visibility gates retained lanes without changing their owners", async () => {
+  await withRouter(async router => {
+    const lane = router.lanes()[0]!
+    const pane = lane.panes()[0]!
+    const [ready, setReady] = createSignal(true)
+    const release = router.drawContent(ready)
+    expect(lane.shown()).toBe(true)
+    setReady(false)
+    expect(lane.shown()).toBe(false)
+    expect(router.shown()).toBe(true)
+    router.go(atFile("while-reading.md"))
+    setReady(true)
+    expect(lane.shown()).toBe(true)
+    expect(lane.panes()[0]).toBe(pane)
+    expect(router.routes.href(pane.route())).toBe("/while-reading.md")
+    expect("switchLane" in lane).toBe(false)
+    expect("forgetLane" in lane).toBe(false)
+    expect("lanes" in lane).toBe(false)
+    expect("entryKey" in lane).toBe(false)
+    release()
+  })
+})
+
+test("Back and Forward across reorder preserve each address's pane owner", async () => {
+  await withRouter(async (router, page) => {
+    router.go(atFile("first.md"))
+    router.openRight(0, atFile("second.md"), true)
+    const [first, second] = router.panes()
+    router.reorder(0, 1)
+    expect(router.panes()).toEqual([second!, first!])
+    page.back()
+    await settled()
+    expect(router.panes()[0]).toBe(first!)
+    expect(router.panes()[1]).toBe(second!)
+    expect(router.routes.href(first!.route())).toBe("/first.md")
+    page.forward()
+    await settled()
+    expect(router.panes()[0]).toBe(second!)
+    expect(router.panes()[1]).toBe(first!)
+  })
+})
+
+test("reordering leaves across a nested sibling subtree keeps the actual permutation", async () => {
+  await withRouter(async router => {
+    router.open({ focus: 0, layout: { kind: "split", axis: "row", children: [
+      { layout: { kind: "leaf", route: HOME_ROUTE } },
+      { layout: { kind: "split", axis: "col", children: [
+        { layout: { kind: "leaf", route: HOME_ROUTE } },
+        { layout: { kind: "leaf", route: atFile("inner.md") } },
+      ] } },
+      { layout: { kind: "leaf", route: atFile("last.md") } },
+    ] } })
+    const before = [...router.panes()]
+    router.reorder(0, 3)
+    expect(router.panes().map(pane => pane.id)).toEqual([before[1]!.id, before[2]!.id, before[3]!.id, before[0]!.id])
   })
 })

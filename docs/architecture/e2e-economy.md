@@ -72,3 +72,50 @@ Timings come from reports of past runs, so they bound the suite's cost loosely r
 - Reconnect cases spend about 10s waiting for the production connection state to become "reconnecting". That wait is doing real work, unlike the Escape wait corrected above.
 - The audit supports these specific merges and the one synchronization fix. It does not support the claim that no browser test covers anything a unit test covers, nor the claim that all redundancy has been ruled out.
 - Future additions should name the browser-specific failure they catch, and extend an existing workflow whenever its setup and outcome already cover the same path.
+
+
+## Retained lanes and Solid reactivity (#642)
+
+`tabs/retained.feature` checks actual element identity across tab switches,
+close, lazy reload, split/close/reorder, rails and breakpoint changes. It also
+covers hidden selection, filters, window scroll and a nonzero split-column
+scroll position. `tabs/retained_chat.feature`
+adds split conversation identity, unsent words, open tool details, hidden
+streaming with both scroll intentions, hidden-tab attention, and independent completion keys with a hidden menu. Completion keyboard priority follows the focused composer when several retained folds offer menus.
+
+Existing history, missing-file recovery, independent phone-pane drafts, terminal
+target changes and plugin withdrawal scenarios remain behavioural constraints.
+Core helpers scope page content to the front lane. Some geometry/order helpers
+remain page-wide, and attached-state checks can match hidden panes within it.
+Visibility assertions distinguish shown elements from hidden or disposed ones;
+they do not prove disposal. The alternate-layout fixture
+remains supported without requiring layout's lane markup.
+
+The PageView frame scenario exercises done/filter pruning with a live property
+drawer, and calendar collapse checks month retention. Cheap browser-unit tests
+measure row binding counts, per-key lookups, tool selectors and composer text
+invalidation; pure tests cover pane reconciliation and transcript ordering.
+These do not replace the DOM identity and user-action scenarios. Coverage is
+organised around ownership transitions rather than repeated loading delays.
+
+The fold idle/capacity tests release the retained row by navigating away before
+expecting eviction. Folding alone retains its reader; actual page departure
+still releases it. Transcript remount tests likewise leave the page owner explicitly;
+completion selection survives folding and reopening. Inspector per-key isolation and reference-collapse
+round trips are browser-unit tests, avoiding another server/browser setup.
+
+Pinned-tab presses use pointer coordinates after hit-testing the visible control.
+Playwright's automatic scroll-into-view moved the window before the press,
+invalidating what the scroll-restoration scenarios claimed to measure.
+
+A plugin switch writes `_olai/Settings.olai`, so its scenario must use a
+scratch fixture. The retained-tabs withdrawal scenario previously used the
+worker's read-only corpus and disabled Tabs for later scenarios on that worker;
+this caused the intermittent missing strip/menu at startup. It now owns a
+scratch fixture, and the switch step refuses a shared read-only corpus before
+writing. Increasing the startup wait cannot repair this fixture leak.
+
+Review 1 follow-up scope: the owner deferred remaining E3/E5 coverage expansion.
+Completed scenarios remain; the unfinished PageView counting fixture was removed.
+This PR does not claim a regression test for every audited notification or
+ownership boundary.

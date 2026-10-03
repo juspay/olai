@@ -115,6 +115,8 @@ export interface Fleet {
    *  it (`@olai/surface`'s `resolveTerminal`), and a prefix needs the key set
    *  to resolve against. A lookup was what drew a working terminal as retired
    *  for every one of the board's eight-character values. */
+  // The map mutates in place. Derive values inside a memo; do not memoize
+  // only this accessor's map identity or later fleet frames will be suppressed.
   readonly terminals: () => ReadonlyMap<string, FleetTerminal>
   /** THE EVENT LOG, as the server keeps it — the watcher's ring, in fire
    *  order. Same handing rule as `terminals`: a reader reads it whole,

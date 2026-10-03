@@ -117,7 +117,7 @@ Then(
   async function (this: OlaiWorld) {
     const slot = this.page.locator(IDENTITY);
     await slot.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-    await this.expectAttribute(
+    await this.expectChromeAttribute(
       IDENTITY,
       "data-who",
       "error",
@@ -174,7 +174,7 @@ Then("the header has no identity chip", async function (this: OlaiWorld) {
 Then("the header shows anonymous", async function (this: OlaiWorld) {
   const slot = this.page.locator(IDENTITY);
   await slot.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-  await this.expectAttribute(
+  await this.expectChromeAttribute(
     IDENTITY,
     "data-who",
     "none",
@@ -206,8 +206,8 @@ Then(
   async function (this: OlaiWorld, login: string) {
     const slot = this.page.locator(IDENTITY);
     await slot.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
-    await this.expectAttribute(IDENTITY, "data-who", "yes", "the identity chip");
-    await this.expectAttribute(IDENTITY, "data-login", login, "the identity chip");
+    await this.expectChromeAttribute(IDENTITY, "data-who", "yes", "the identity chip");
+    await this.expectChromeAttribute(IDENTITY, "data-login", login, "the identity chip");
     await iconOnly(slot);
   },
 );

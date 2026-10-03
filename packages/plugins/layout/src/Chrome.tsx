@@ -1,3 +1,4 @@
+import { sameList } from "@olai/web/client/same.ts"
 /**
  * WHAT THE PLUGINS HANG IN THE APP'S BAR — every readout in the `app.header`
  * slot, in mount order, and the app knows none of them by name.
@@ -51,7 +52,6 @@
  */
 import type {} from "./slots.ts"
 import { createMemo, For } from "solid-js"
-import { Dynamic } from "solid-js/web"
 
 import { hung } from "./faces.ts"
 
@@ -70,16 +70,16 @@ import { hung } from "./faces.ts"
  * rather than an ordering a plugin could write for itself.
  */
 export function PluginHeaders(props: { readonly place: "lead" | "cluster" }) {
-  const headers = createMemo(() => hung("app.header").filter((one) => one.face.place === props.place))
+  const headers = createMemo(() => hung("app.header").filter((one) => one.face.place === props.place), undefined, { equals: sameList })
   return (
     <For each={headers()}>
-      {(one) => <Dynamic component={one.face.body} />}
+      {(one) => <one.face.body />}
     </For>
   )
 }
 
 /** Notices occupy their own space below the header rather than covering content. */
 export function PluginBanners() {
-  const banners = createMemo(() => hung("app.banner"))
-  return <For each={banners()}>{(one) => <Dynamic component={one.face} />}</For>
+  const banners = createMemo(() => hung("app.banner"), undefined, { equals: sameList })
+  return <For each={banners()}>{(one) => <one.face />}</For>
 }

@@ -1,3 +1,4 @@
+import { Index } from "solid-js"
 /**
  * One result row, wherever search is drawn.
  *
@@ -232,13 +233,13 @@ export function Result(props: {
         {/* One line, truncated like the two above it, so six properties cost
             what one does and neither this nor the panel ever widens. */}
         <span class="flex w-full min-w-0 gap-4 truncate text-caption">
-          <For each={props.props}>
+          <Index each={props.props}>
             {(prop) => (
               <span
                 class="min-w-0 truncate"
                 data-testid={props.testids.prop}
-                data-key={prop.key}
-                data-matched={prop.matched ? "true" : undefined}
+                data-key={prop().key}
+                data-matched={prop().matched ? "true" : undefined}
               >
                 {/* The drawer's pairing: mono key, reading-face value. A
                     MATCHED key is drawn in the reading ink instead of the
@@ -252,14 +253,14 @@ export function Result(props: {
                     survives everything, including a line ellipsized down to its
                     first pair (`./props.ts` puts the matched keys in front). */}
                 <span
-                  class={`font-mono ${prop.matched ? "text-ink" : "text-muted"}`}
+                  class={`font-mono ${prop().matched ? "text-ink" : "text-muted"}`}
                 >
-                  {prop.key}
+                  {prop().key}
                 </span>{" "}
-                <span class="text-muted">{prop.value}</span>
+                <span class="text-muted">{prop().value}</span>
               </span>
             )}
-          </For>
+          </Index>
         </span>
       </Show>
     </button>

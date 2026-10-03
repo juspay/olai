@@ -46,13 +46,13 @@ When(
 
 /** The panel, the box, and the button — one spelling each, so the steps below
  *  cannot wait on them four slightly different ways. */
-const panel = (world: OlaiWorld) => world.page.locator(DATE_PICKER);
+const panel = (world: OlaiWorld) => world.page.locator(`${DATE_PICKER}:visible`);
 
-const box = (world: OlaiWorld) => world.page.locator(DATE_PICKER_DAY);
+const box = (world: OlaiWorld) => world.page.locator(`${DATE_PICKER_DAY}:visible`);
 
-const time = (world: OlaiWorld) => world.page.locator(DATE_PICKER_TIME);
+const time = (world: OlaiWorld) => world.page.locator(`${DATE_PICKER_TIME}:visible`);
 
-const button = (world: OlaiWorld) => world.page.locator(DATE_PICKER_SET);
+const button = (world: OlaiWorld) => world.page.locator(`${DATE_PICKER_SET}:visible`);
 
 Then("the date picker is open", async function (this: OlaiWorld) {
   await panel(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -61,7 +61,7 @@ Then("the date picker is open", async function (this: OlaiWorld) {
 Then("the date picker is closed", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await panel(this).count()) === 0,
-    "the date picker to be gone from the page",
+    "no date picker to be visible",
   );
 });
 
@@ -235,3 +235,7 @@ Then(
     );
   },
 );
+
+When("I press Escape in the date picker", async function (this: OlaiWorld) {
+  await box(this).press("Escape");
+});

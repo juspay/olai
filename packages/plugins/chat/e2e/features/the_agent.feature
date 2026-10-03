@@ -1464,16 +1464,15 @@ Feature: Talking to a node agent
   Scenario: Opening a conversation with a transcript lands on the newest line
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    # A different question from the one above. Following is a decision the
-    # reader makes by scrolling WHILE they are in a conversation. Opening one
-    # — the panel coming back, a stored chat picked from the list — is always
-    # a jump to the newest line, even if they had scrolled away before they
-    # left. The jump is instant: an open is a place, not a motion.
+    # Leaving the page releases the reader. Opening a new reader starts at
+    # the newest line; merely folding and reopening retains its scroll choice.
     When I ask the agent "flood"
     Then the agent is idle
     And the transcript is scrolled to the newest line
     When I scroll the transcript to the top
     And I close the agent fold
+    And I open the outline "yard.olai"
+    And I open the outline "house.olai"
     And I open the agent fold again
     Then the chat eventually shows "line 39"
     And the transcript is scrolled to the newest line

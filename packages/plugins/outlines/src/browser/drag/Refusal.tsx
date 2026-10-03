@@ -1,3 +1,4 @@
+import { overlayRoot } from "../overlay.ts"
 /**
  * The face a pane wears when the row over it cannot land there.
  *
@@ -39,7 +40,7 @@ import type { Refusal } from "./aim.ts"
 
 export function DropRefusal(props: { readonly refusal: Refusal }) {
   return (
-    <Portal>
+    <Portal mount={overlayRoot(document.body)}>
       <div
         // `LAYER.row` — over the rows it is about and under every piece of
         // chrome, which is the drop line's claim and the same one for the same

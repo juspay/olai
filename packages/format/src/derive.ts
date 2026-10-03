@@ -1867,11 +1867,18 @@ export const withoutDone = (
   rows: ReadonlyArray<Row>,
   keep?: ReadonlySet<string>,
 ): ReadonlyArray<Row> =>
-  rows.flatMap((row) =>
-    row.status === "done" && keep?.has(row.key) !== true
-      ? []
-      : [{ ...row, children: withoutDone(row.children, keep) }]
-  )
+  pruneRows(rows, row => row.status === "done" && keep?.has(row.key) !== true
+    ? undefined : withoutDone(row.children, keep))
+
+/** Return original rows and arrays when pruning removed nothing. */
+const pruneRows = (rows: ReadonlyArray<Row>, childrenOf: (row: Row) => ReadonlyArray<Row> | undefined): ReadonlyArray<Row> => {
+  const kept: Row[] = []
+  for (const row of rows) {
+    const children = childrenOf(row)
+    if (children !== undefined) kept.push(children === row.children ? row : { ...row, children })
+  }
+  return kept.length === rows.length && kept.every((row, index) => row === rows[index]) ? rows : kept
+}
 
 /**
  * The canonical parent chain of a node, root first, the node itself excluded.

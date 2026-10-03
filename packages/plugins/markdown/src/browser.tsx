@@ -15,7 +15,7 @@ import { UndoSaid } from "@olai/edit-history/UndoSaid.tsx"
 import {Clocks} from "@olai/plugin-api"
 import { definePlugin, Offers, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
-import { createRoot, createMemo, createEffect, on } from "solid-js"
+import { createRoot, createMemo, createEffect, on, onCleanup } from "solid-js"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { navigation, content } from "olai-plugin-navigation/contract"
 import {fileAccess} from "olai-plugin-vault/contract"
@@ -23,7 +23,6 @@ import { fileTypes, fileState } from "olai-plugin-files/contract"
 import { holdFileControls } from "./browser/files.tsx"
 import { createUndo } from "@olai/edit-history/undoing.ts"
 import { createDocuments, holdDocuments } from "./browser/document/documents.tsx"
-import { clearDocumentDrafts } from "./browser/document/drafts.ts"
 import { holdHistory, useHistory } from "./browser/history.ts"
 import { holdLocations } from "./browser/locations.ts"
 import { holdServed } from "./browser/vault.ts"
@@ -61,7 +60,7 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
     const release = [holdDocuments(documents), holdHistory(history)]
     return {
       value: { client, documents, history, editing: { openCreated } } satisfies MarkdownBrowser,
-      dispose: () => { dispose(); for (const stop of release) stop(); clearDocumentDrafts(); clearMinted() },
+      dispose: () => { dispose(); for (const stop of release) stop(); clearMinted() },
     }
   })), state => Effect.sync(state.dispose))
   // THE SECTION'S OPEN-STATE MEMORY, minted on THIS activation's scope and
@@ -82,6 +81,26 @@ export default definePlugin({ name, needs: [Wired, Offers, Edits], apply: Effect
   yield* offers.own("referrer-memory", () => memory)
 }) })
 export const components = {
+  drafts: definePlugin({ name: "drafts", needs: [browserState, navigation], apply: Effect.gen(function*() {
+    const { documents } = yield* browserState
+    const nav = yield* navigation
+    yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+      createEffect(() => documents.retainEditors(new Map(nav.lanes().flatMap(lane => lane.panes().map(pane => {
+        const route = pane.route()
+        return [pane.id, route.kind === "at" && route.address !== null && route.address.kind !== "node" ? route.address.path : undefined] as const
+      })))))
+      createEffect(() => {
+        const panes = new Set(nav.lanes().flatMap(lane => lane.panes().map(pane => pane.id)))
+        const memory = referrersMemory.read()
+        for (const key of memory?.opened?.keys() ?? []) {
+          const [pane] = JSON.parse(key) as [string, string]
+          if (!panes.has(pane)) memory?.forget(key)
+        }
+      })
+      onCleanup(() => documents.retainEditors(new Map()))
+      return dispose
+    })), dispose => Effect.sync(dispose))
+  }) }),
   glyph: definePlugin({ name: "glyph", needs: [rendererSlots], apply: Effect.gen(function*() {
     const by = { kind: "markdown" } as const
     yield* (yield* rendererSlots).contribute(fileKinds, { by, glyph: KindGlyph, noun: "document", article: "a", testid: KIND_IDS.documentLink }, { key: fileKindKey(by) })

@@ -22,7 +22,7 @@ export const palette = definePlugin({ name: "palette", needs: [browserState, ren
   const nav = yield* navigation
   const undo = useUndo()
   const readings = useReadings()
-  const focused = () => readings.at(nav.workspace().focus)?.shows
+  const focused = () => readings.at(nav.panes()[nav.focusIndex()]!.id)?.shows
   const slots = yield* rendererSlots
   yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
     const file = createMemo(() => { const named = fileNamed(nav.route()); if (named !== undefined) return named; const shows = focused(); return shows === undefined ? undefined : fileOf(shows) })

@@ -57,12 +57,9 @@
  * open while a reference is added elsewhere is exactly the live update this
  * feature is for.
  *
- * THE KEY THE MEMORY ANSWERS UNDER is the caller's (place) string, and what it
- * is made of is the caller's own business — the node pages read the pane
- * INDEX from `useHere()`, which revs on the layout clock when a pane is
- * reordered or closed. No pane identity exists on this wire today, so the
- * index is what there is; a key built on it merely starts a new visit when
- * the layout moves, which is the honest reading of a place that left.
+ * The memory key belongs to the caller: stable pane id plus place. Reorder
+ * and closing another pane preserve that id. The caller releases entries
+ * when their pane closes; a rebuild of the same pane can recover its toggle.
  *
  * FORGETTING is the section's too, decided at the moment it leaves: the
  * {@link ReferrerMemory} is written on every toggle, and the caller's

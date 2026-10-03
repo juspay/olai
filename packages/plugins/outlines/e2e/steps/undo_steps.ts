@@ -21,13 +21,13 @@ import { UNDO_SAID } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 Then("the undo says {string}", async function (this: OlaiWorld, said: string) {
-  await saysThat(this, UNDO_SAID, said, "undo line", "aside");
+  await saysThat(this, UNDO_SAID, said, "undo line", "aside", this.page);
 });
 
 Then(
   "the undo refusal says {string}",
   async function (this: OlaiWorld, said: string) {
-    await saysThat(this, UNDO_SAID, said, "undo line", "alarm");
+    await saysThat(this, UNDO_SAID, said, "undo line", "alarm", this.page);
   },
 );
 

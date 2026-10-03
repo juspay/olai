@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js"
 /**
  * THE MAIL READOUT — whether this serve holds a Gmail account, and who for.
  *
@@ -31,7 +32,7 @@ export function MailReadout(props: {
   readonly app: MailBar
   readonly account: Accessor<Account>
 }) {
-  const said = () => mailSaid(props.account())
+  const said = createMemo(() => mailSaid(props.account()))
   const pill = props.app.pill
   return (
     <Show when={props.app.desktop()}>

@@ -54,7 +54,7 @@ function Attachment(props: {
    *  cannot free. Only for a PICTURE: a URL made for a PDF would be a URL an
    *  `<img>` cannot draw. */
   const ui = useConversationUI()
-  const previewOf = (name: string) => ui.previews.previewOf(name, ui.uploadScope[0]())
+  const previewOf = (name: string) => ui.previews.previewOf(name, ui.uploadScope.value())
   const source = createMemo<string | undefined>(() => {
     const blob = previewOf(props.name)
     if (blob === undefined || !isPicture(props.name)) return undefined

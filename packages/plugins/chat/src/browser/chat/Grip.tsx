@@ -19,8 +19,8 @@ export const textCarry = (text: () => string | null) => {
     },
   }
 }
-export function Grip(props: { readonly text: string | null; readonly carry: ReturnType<typeof textCarry> }) {
-  return <Show when={props.text !== null}><button type="button" aria-label="Drag these words" data-grip data-testid={TESTID.chatGrip}
+export function Grip(props: { readonly has: boolean; readonly carry: ReturnType<typeof textCarry> }) {
+  return <Show when={props.has}><button type="button" aria-label="Drag these words" data-grip data-testid={TESTID.chatGrip}
     class={`absolute left-0 top-0 cursor-grab text-muted ${HOVER_REVEAL}`}
     draggable={false} onDragStart={event => event.preventDefault()}
     onPointerDown={event => { event.stopPropagation(); props.carry.grab(event) }}

@@ -13,14 +13,14 @@
  */
 import { TESTID } from "olai-plugin-layout/testids"
 import type {Navigation} from "olai-plugin-navigation/contract"
-import { createSignal,For,Index,onCleanup,Show } from "solid-js"
+import { createSignal,createMemo,createSelector,createComputed,createEffect,on,For,onCleanup,Show } from "solid-js"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
 import { drag as pointerDrag } from "@olai/web/client/pointer.ts"
 
 import { PaneProvider } from "olai-plugin-navigation/pane"
-import { useRouter } from "olai-plugin-navigation/routing"
+import { RouterProvider, ShownProvider, useRouter } from "olai-plugin-navigation/routing"
 import {
 flexOf,
 isLone,
@@ -34,117 +34,94 @@ import { nameOf } from "../routing.ts"
 
 export { PANE_MIN_PX,PANE_RAIL_PX } from "./geometry.ts"
 
+/** Layout owns hosts, navigation owns lane state. Visibility never replaces a
+ * host or its page; a lane leaving the declared list is the disposal boundary. */
 export function Panes() {
-  const router = useRouter()
-  const split = () => !isLone(router.workspace())
-
-  return (
-    <div
-      // `bg-paper` because this is a PAGE and the frame around it is ink — the
-      // rule every branch of ../App.tsx's Switch keeps, written down in
-      // ../layout/sheet.ts. Not `SHEET`: this one is a column in the grid and
-      // takes its height from the pair below, not from a lone page's.
-      class="flex min-w-0 flex-col bg-paper"
-      classList={{
-        [PANES_SPLIT]: split(),
-        [PANES_LONE]: !split(),
-      }}
-    >
-      <Show when={split() && !desktop()}>
-        <TabStrip />
-      </Show>
-      <Show when={split() && desktop()} fallback={<FocusedOrLone />}>
-        <DesktopRow />
-      </Show>
-    </div>
-  )
+  const nav = useRouter() as Navigation
+  return <For each={nav.lanes()}>{lane =>
+    <RouterProvider router={lane}>
+      <LanePanes page={nav.page} />
+    </RouterProvider>
+  }</For>
 }
 
-function FocusedOrLone() {
+function LanePanes(props: { readonly page: Navigation["page"] }) {
   const router = useRouter()
-  const index = () => router.workspace().focus
-  return (
-    <PaneProvider index={index()}>
-      {(router as Navigation).page(index)}
-    </PaneProvider>
-  )
-}
-
-function DesktopRow() {
-  const router = useRouter()
+  const columns = createMemo(() => router.split() && desktop())
+  const focused = createSelector(router.focusIndex)
+  let host: HTMLDivElement | undefined
+  const [laneBox, setLaneBox] = createSignal<DOMRect>()
+  const scrolls = new Map<HTMLElement, { top: number; left: number }>()
+  let alive = true
+  onCleanup(() => { alive = false; scrolls.clear() })
+  // Read positions and the lane box before hiding its contents. Restore after
+  // it has geometry, before transcript followers perform their next-frame jump.
+  const visible = router.shown
+  createComputed(on(visible, shown => {
+    if (!shown) {
+      const box = host?.getBoundingClientRect()
+      if (box && box.width > 0 && box.height > 0) setLaneBox(box)
+      for (const host of scrolls.keys()) scrolls.set(host, { top: host.scrollTop, left: host.scrollLeft })
+    }
+  }))
+  createEffect(on(visible, shown => {
+    if (shown) queueMicrotask(() => {
+      if (!alive || !router.shown()) return
+      for (const [host, at] of scrolls) { host.scrollTop = at.top; host.scrollLeft = at.left }
+    })
+  }))
   let row: HTMLDivElement | undefined
-  // Live fractions while a divider is held — committed to the address only
-  // on release, so a pointermove is not a replaceState and a remount.
   const [live, setLive] = createSignal<ReadonlyArray<number> | undefined>()
-
-  const grow = () => live() ?? flexOf(panesOf(router.workspace()))
-
-  return (
+  const grow = createMemo(() => live() ?? flexOf(router.panes().map(pane => ({ route: pane.route(), width: pane.width() }))))
+  return <div ref={host} data-testid={TESTID.lane} data-lane-front={String(visible())}
+    class="flex min-w-0 flex-col bg-paper"
+    style={{
+      "content-visibility": visible() ? undefined : "hidden",
+      visibility: visible() ? undefined : "hidden",
+      position: visible() ? undefined : "fixed",
+      "pointer-events": visible() ? undefined : "none",
+      overflow: visible() ? undefined : "hidden",
+      left: visible() ? undefined : `${laneBox()?.x ?? 0}px`,
+      top: visible() ? undefined : `${laneBox()?.y ?? 0}px`,
+      width: visible() ? undefined : `${laneBox()?.width ?? 0}px`,
+      height: visible() ? undefined : `${laneBox()?.height ?? 0}px`,
+      "overflow-anchor": "none",
+    }}
+    classList={{ [PANES_SPLIT]: router.split(), [PANES_LONE]: !router.split() }}>
+    <Show when={router.split() && !desktop()}><TabStrip /></Show>
     <div ref={row} class="flex min-h-0 min-w-0 flex-1">
-      <Index each={panesOf(router.workspace())}>
-        {(pane, i) => {
-          // A function, not a const: Index does not re-run a slot of the
-          // same length, so a captured number would stay the share the
-          // pane was born with and a collapse would never become a rail.
-          const share = () => grow()[i] ?? 0
-          return (
-            <>
-              <Show when={i > 0}>
-                <Divider
-                  left={i - 1}
-                  right={i}
-                  row={() => row}
-                  onLive={setLive}
-                />
-              </Show>
-              <Show
-                when={share() > 0}
-                fallback={
-                  <Rail index={i} pane={pane()} />
-                }
-              >
-                <Column index={i} pane={pane()} grow={share()} />
-              </Show>
-            </>
-          )
-        }}
-      </Index>
+      <For each={router.panes()}>{pane => {
+        let element: HTMLDivElement | undefined
+        const share = createMemo(() => grow()[pane.index()] ?? 0)
+        const drawn = createMemo(() => !router.split() || (columns() ? share() > 0 : focused(pane.index())))
+        const shown = createMemo(() => router.shown() && drawn())
+        const reading = () => ({ route: pane.route(), width: pane.width() })
+        return <>
+          <Show when={columns() && pane.index() > 0}>
+            <Divider left={pane.index() - 1} right={pane.index()} row={() => row} onLive={setLive} />
+          </Show>
+          <Show when={columns() && share() === 0}><Rail index={pane.index()} pane={reading()} focused={() => focused(pane.index())} /></Show>
+          <div ref={root => { element = root; onCleanup(pane.mount(root)) }} class="flex min-h-0 min-w-0 flex-col"
+            data-pane-id={pane.id}
+            style={{ display: drawn() ? undefined : "none", "flex-grow": columns() ? String(share()) : "1", "flex-basis": "0" }}
+            classList={{ "ring-2 ring-inset ring-accent": columns() && focused(pane.index()) }}>
+            <Show when={columns()}><Header index={pane.index()} pane={reading()} row={() => row} focused={() => focused(pane.index())} /></Show>
+            <div ref={host => { scrolls.set(host, { top: 0, left: 0 }); onCleanup(() => scrolls.delete(host)) }} class="flex min-h-0 flex-1 flex-col" classList={{ "overflow-y-auto": columns() }}
+              style={{ "--height-chrome": columns() ? "0px" : undefined }}>
+              <ShownProvider shown={shown}>
+                <PaneProvider index={pane.index()} id={pane.id} element={element}>{props.page(pane.index)}</PaneProvider>
+              </ShownProvider>
+            </div>
+          </div>
+        </>
+      }}</For>
     </div>
-  )
+  </div>
 }
 
-function Column(props: {
-  readonly index: number
-  readonly pane: Pane
-  readonly grow: number
-}) {
+function Header(props: { readonly index: number; readonly pane: Pane; readonly row: () => HTMLDivElement | undefined; readonly focused: () => boolean }) {
   const router = useRouter()
-  const focused = () => router.workspace().focus === props.index
-  return (
-    <div
-      class="flex min-h-0 min-w-0 flex-col"
-      style={{ "flex-grow": String(props.grow), "flex-basis": "0" }}
-      classList={{
-        "ring-2 ring-inset ring-accent": focused(),
-      }}
-    >
-      <Header index={props.index} pane={props.pane} />
-      {/* Pane chrome stays outside the reading's scroll owner. Node-page
-          headings and composers pin within this one content scroller.
-          This owner declares zero chrome inside its scrollport; portalled
-          overlays still inherit the viewport reserve from the document. */}
-      <div class="flex min-h-0 flex-1 flex-col overflow-y-auto" style={{ "--height-chrome": "0px" }}>
-        <PaneProvider index={props.index}>
-          {(router as Navigation).page(()=>props.index)}
-        </PaneProvider>
-      </div>
-    </div>
-  )
-}
-
-function Header(props: { readonly index: number; readonly pane: Pane }) {
-  const router = useRouter()
-  const focused = () => router.workspace().focus === props.index
+  const focused = props.focused
   let stop: (() => void) | undefined
   onCleanup(() => stop?.())
 
@@ -167,12 +144,13 @@ function Header(props: { readonly index: number; readonly pane: Pane }) {
             stop = undefined
             if (up === null) return
             const headers = [
-              ...document.querySelectorAll(`[data-testid="${TESTID.paneHeader}"]`),
+              ...(props.row()?.querySelectorAll(`[data-testid="${TESTID.paneHeader}"]`) ?? []),
             ]
-            const over = headers.findIndex((el) => {
+            const overHeader = headers.find((el) => {
               const box = el.getBoundingClientRect()
               return up.clientX >= box.left && up.clientX <= box.right
             })
+            const over = Number(overHeader?.getAttribute("data-pane") ?? -1)
             if (over >= 0 && over !== from) router.reorder(from, over)
             else if (Math.abs(up.clientX - originX) < 8) router.focus(from)
           },
@@ -195,9 +173,9 @@ function Header(props: { readonly index: number; readonly pane: Pane }) {
   )
 }
 
-function Rail(props: { readonly index: number; readonly pane: Pane }) {
+function Rail(props: { readonly index: number; readonly pane: Pane; readonly focused: () => boolean }) {
   const router = useRouter()
-  const focused = () => router.workspace().focus === props.index
+  const focused = props.focused
   return (
     <button
       type="button"
@@ -274,6 +252,7 @@ function Divider(props: {
 
 function TabStrip() {
   const router = useRouter()
+  const isFocused = createSelector(router.focusIndex)
   return (
     <div
       class="flex shrink-0 gap-1 overflow-x-auto border-b border-rule/60 bg-desk px-2 py-1"
@@ -281,9 +260,9 @@ function TabStrip() {
       role="tablist"
       aria-label="Panes"
     >
-      <For each={panesOf(router.workspace())}>
+      <For each={router.panes()}>
         {(pane, i) => {
-          const focused = () => router.workspace().focus === i()
+          const focused = () => isFocused(i())
           return (
             <button
               type="button"
@@ -298,7 +277,7 @@ function TabStrip() {
               data-pane={String(i())}
               onClick={() => router.focus(i())}
             >
-              {nameOf(pane.route)}
+              {nameOf(pane.route())}
             </button>
           )
         }}

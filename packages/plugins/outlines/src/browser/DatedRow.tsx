@@ -1,3 +1,4 @@
+import { useRowElement } from "./row-elements.ts"
 /**
  * One dated node, on a day's page — and on the agenda, which asks the same
  * question forward (../agenda/AgendaPage.tsx). One component, because they are
@@ -107,7 +108,7 @@ import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
 import { subjectOfSituated } from "./menu/verbs.ts"
 import { usePins } from "./pins.ts"
-import { focusedNode, selectNode } from "./focus.ts"
+import { useFocused, selectNode } from "./focus.ts"
 
 export function DatedRow(props: {
   readonly dated: DayEntry
@@ -116,7 +117,9 @@ export function DatedRow(props: {
   /** What the date pill says — absent draws none. See the header. */
   readonly pill?: string
 }) {
+  const isFocused = useFocused()
   const node = () => props.dated.shows.node
+  const rowElement = useRowElement(() => node().id, () => node().id)
   const note = createNoteExpand(() => startsOpen(density()))
   const today = useToday()
   const narrowed = useNarrowed()
@@ -158,7 +161,7 @@ export function DatedRow(props: {
   return (
     <li
       class="mb-3"
-      data-testid={TESTID.node}
+      ref={rowElement} data-testid={TESTID.node}
       data-node-id={node().id}
       data-status={props.dated.status}
       data-file={props.dated.shows.file}
@@ -190,7 +193,7 @@ export function DatedRow(props: {
         // since a dated row has no caret to say it — and the active row is
         // where a plugin's offer shows on a phone (`OFFER_REVEAL`).
         onClick={() => selectNode(node().id)}
-        data-active={focusedNode() === node().id ? "" : undefined}
+        data-active={isFocused(node().id) ? "" : undefined}
       >
         <div class={HANGING_MENU}>
           {/* Built where it is READ, inside the open panel — Solid compiles a

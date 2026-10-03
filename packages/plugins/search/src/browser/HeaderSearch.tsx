@@ -58,7 +58,7 @@ import { boxFace } from "./faces.ts"
 import type {} from "../contracts/box.ts"
 import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 import { needlesFrom } from "@olai/format"
-import { createEffect, createMemo, createSignal, Index, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, createSelector, createSignal, Index, onCleanup, Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { type Anchor, anchoredTo, styleOf } from "@olai/web/client/anchor.ts"
@@ -113,7 +113,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
   // bottom of a list does. It also keeps a list the SERVER shortened under somebody honest,
   // which is what the clamp-after-the-fact here used to be for.
   const cursor = createCursor(() => items().length)
-  const [at, setAt] = createSignal<Anchor | null>(null)
+  const [at, setAt] = createSignal<Anchor | null>(null, { equals: (a, b) => a === b || !!a && !!b && a.left === b.left && a.width === b.width && a.maxHeight === b.maxHeight && a.side === b.side && a.offset === b.offset })
   let box: HTMLInputElement | undefined
 
   /** WHAT THIS BOX IS ASKING — the query, or `null` while nobody has the caret
@@ -143,6 +143,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
    * `<Index>` below then writes nothing at all.
    */
   const items = createMemo(() => hitItems(nodes))
+  const isCurrent = createSelector(cursor.at)
   // The panel is up when there is anything to say — rows, a refused call, or a
   // query the grammar could not read. That last one is why a typo in an
   // operator opens the panel at all rather than looking like an empty
@@ -277,7 +278,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
               // afternoon before the shared answer was used.
               style={styleOf(box_())}
             >
-              <Show when={below()}>{face => face().body({ search: nodes })}</Show>
+              <Show when={below()} keyed>{face => <face.body search={nodes} />}</Show>
               <Show when={nodes.failure()}>
                 {(err) => (
                   <SaidLine
@@ -319,7 +320,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
                         needles={needles()}
                         place={item().place}
                         props={item().props}
-                        active={index === cursor.at()}
+                        active={isCurrent(index)}
                         testids={HEADER_ROW}
                         id={item().id}
                         onHover={() => cursor.to(index)}

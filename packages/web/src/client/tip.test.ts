@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { clampedLeft, hideTip, liftedTop, showTip, takeTip, tipShowing } from "./tip.ts"
+import { clampedLeft, createTips, liftedTop } from "./tip.ts"
 
 // The ordinary case: a tip starts where the thing it is about starts.
 test("a tip that fits is drawn under its anchor", () => {
@@ -73,6 +73,7 @@ test("with no bar, the top pin is the margin itself", () => {
 // hover put a second one beside it saying the same sentence a few pixels
 // away. Opening one closes every other, whatever happened to the first.
 test("opening a tip closes whichever was open", () => {
+  const { takeTip, showTip, hideTip, tipShowing } = createTips()
   const first = takeTip()
   const second = takeTip()
 
@@ -89,6 +90,7 @@ test("opening a tip closes whichever was open", () => {
 // closer — a leave arriving after another tip took over, a disposal running
 // late — must not take the current one down with it.
 test("a superseded tip cannot close its successor", () => {
+  const { takeTip, showTip, hideTip, tipShowing } = createTips()
   const first = takeTip()
   const second = takeTip()
 
@@ -100,6 +102,7 @@ test("a superseded tip cannot close its successor", () => {
 })
 
 test("a tip closes itself while it is the one open", () => {
+  const { takeTip, showTip, hideTip, tipShowing } = createTips()
   const only = takeTip()
   showTip(only)
   hideTip(only)

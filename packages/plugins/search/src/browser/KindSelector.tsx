@@ -1,4 +1,4 @@
-import { For } from "solid-js"
+import { createMemo, For } from "solid-js"
 import { type Claims } from "@olai/format"
 import type { Search } from "../contracts/reading.ts"
 import type { Kind, KindPick } from "../contracts/box.ts"
@@ -18,6 +18,7 @@ export const cycleKind = (claims: Claims, state: KindPick): void => {
 }
 
 export function KindSelector(props: { readonly claims: () => Claims; readonly state: KindPick; readonly search: Search }) {
+  const choices = createMemo(() => choicesFor(props.claims()))
   const count = (kind: Kind) => {
     if (props.search.answering() === null) return undefined
     const picked = props.state.pick()
@@ -25,11 +26,13 @@ export function KindSelector(props: { readonly claims: () => Claims; readonly st
     return kind === undefined ? props.search.total() : props.search.totals()?.[kind]
   }
   return <div role="radiogroup" aria-label="Search kind" class="flex gap-1 px-3 py-2">
-    <For each={choicesFor(props.claims())}>{choice => <button type="button" role="radio" aria-checked={props.state.pick() === choice.value}
-      aria-label={choice.label} tabIndex={-1}
-      class={`rounded-control px-3 py-1 text-label ${props.state.pick() === choice.value ? "bg-rule text-ink" : "text-muted hover:bg-rule/60"}`}
-      onMouseDown={event => event.preventDefault()} onClick={() => props.state.set(choice.value)}>
-      {choice.label}{" "}<span hidden={count(choice.value) === undefined} class="ml-2 tabular-nums text-caption">{count(choice.value)}</span>
-    </button>}</For>
+    <For each={choices().map(choice => choice.value)}>{kind => {
+    const choice = () => choices().find(choice => choice.value === kind)!
+    return <button type="button" role="radio" aria-checked={props.state.pick() === choice().value}
+      aria-label={choice().label} tabIndex={-1}
+      class={`rounded-control px-3 py-1 text-label ${props.state.pick() === choice().value ? "bg-rule text-ink" : "text-muted hover:bg-rule/60"}`}
+      onMouseDown={event => event.preventDefault()} onClick={() => props.state.set(choice().value)}>
+      {choice().label}{" "}<span hidden={count(choice().value) === undefined} class="ml-2 tabular-nums text-caption">{count(choice().value)}</span>
+    </button>}}</For>
   </div>
 }

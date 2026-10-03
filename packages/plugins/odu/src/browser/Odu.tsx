@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js"
 /**
  * THE ODU READOUT — whether this olai can see the per-user service.
  *
@@ -28,7 +29,7 @@ export function OduReadout(props: {
   readonly app: OduBar
   readonly link: Accessor<OduLink>
 }) {
-  const said = () => oduSaid(props.link())
+  const said = createMemo(() => oduSaid(props.link()))
   const pill = props.app.pill
   return (
     <Show when={props.app.desktop()}>
