@@ -11,7 +11,7 @@
 import { createEffect, createMemo, createSignal, onCleanup, untrack, type Accessor } from "solid-js"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { runAsync } from "@olai/web/client/run.ts"
-import type { LevelScope, PaletteItem, PaletteValue } from "olai-plugin-navigation/contract"
+import type { LevelScope, PaletteItem, PaletteOption, PaletteValue } from "olai-plugin-navigation/contract"
 import { nodePlace } from "olai-plugin-search/ui/place.ts"
 import { chatWire } from "../wire.ts"
 import { navigation } from "../navigation.ts"
@@ -55,7 +55,10 @@ const messageLevel = (owner: NewChatOwner, agents: Roster, parent: string | null
   kind: "value",
   placeholder: "Say something to start…",
   submitLabel: "Start chat",
-  options: () => () => agents.engines().map(engine => ({ id: engine.id, label: engine.name })),
+  // One memo per opening, in the level's scope: the radio group is drawn by
+  // object, so an option keeps its object while its engine keeps its name.
+  options: () => createMemo<ReadonlyArray<PaletteOption>>(previous => agents.engines().map(engine =>
+    previous.find(option => option.id === engine.id && option.label === engine.name) ?? { id: engine.id, label: engine.name }), []),
   validate: text => text.trim() === "" ? "Type a message first." : null,
   submit: async (text, engine, signal) => {
     if (engine === undefined) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
@@ -63,6 +66,10 @@ const messageLevel = (owner: NewChatOwner, agents: Roster, parent: string | null
     return refusal === null ? {} : { keepOpen: true, said: { tone: "alarm", text: refusal } }
   },
 })
+
+/** What a place row draws; a row whose drawing is unchanged keeps its object. */
+const drawn = (row: WhereRow): string =>
+  JSON.stringify([row.section, row.node?.id, row.node?.title, row.node?.file, row.node?.path])
 
 const rowOf = (owner: NewChatOwner, agents: Roster) => (row: WhereRow): PaletteItem => row.node === undefined
   ? { id: "new-chat-default", label: DEFAULT_LABEL, hint: "default", section: row.section, search: DEFAULT_LABEL.toLowerCase(),
@@ -112,10 +119,18 @@ const whereLevel = (owner: NewChatOwner, agents: Roster, memory: DefaultMemory) 
       }
     })
   })
-  return createMemo(() => whereRows({
+  // The palette keys rows by id and hands each row its item; reusing the item
+  // of a row whose drawing is unchanged keeps that row's bindings asleep while
+  // typing filters the list and answers arrive.
+  const toItem = rowOf(owner, agents)
+  const entries = createMemo<ReadonlyArray<{ readonly key: string; readonly item: PaletteItem }>>(previous => whereRows({
     defaultOffered: answer().defaultParent !== null, defaultParent: answer().defaultParent, here, recent: recent(),
     nodes: answer().nodes, typed: scope.typed(),
-  }).map(rowOf(owner, agents)))
+  }).map(row => {
+    const key = drawn(row)
+    return previous.find(entry => entry.key === key) ?? { key, item: toItem(row) }
+  }), [])
+  return createMemo(() => entries().map(entry => entry.item))
 }
 
 /** The palette row. Offered only while an engine can start. */

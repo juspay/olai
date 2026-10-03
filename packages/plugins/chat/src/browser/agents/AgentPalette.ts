@@ -15,10 +15,13 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
   // The last default container New chat was told of, for this activation.
   const [last, remember] = createSignal<string | null>()
   const memory = { last, remember: (value: string | null) => { remember(value) } }
+  // One New chat row for the activation: listing again (a roster tick) hands
+  // the palette the same object, so its open path and drawing stay put.
+  const newChat = creation === undefined ? undefined : newChatRow(creation, agents, memory)
   return { items: (): ReadonlyArray<PaletteItem> => {
     // ONLY WHAT WORKS: with no engine this machine can start, there is no
     // `new chat` row to choose — the plugins panel says why.
-    const creating: ReadonlyArray<PaletteItem> = agents.engines().length === 0 || creation === undefined ? [] : [newChatRow(creation, agents, memory)]
+    const creating: ReadonlyArray<PaletteItem> = agents.engines().length === 0 || newChat === undefined ? [] : [newChat]
     return [...creating, ...byActivity(agents.rows()).map((row): PaletteItem => ({
       id: `agent-${row.id}`, label: row.title, hint: LOOK[row.standing].label,
       place: "Agents", search: `agents ${row.title}`.toLowerCase(), taking: atOnce,
