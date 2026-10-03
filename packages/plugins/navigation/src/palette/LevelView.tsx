@@ -4,15 +4,40 @@
  * its rows are `./level-owner.ts`'s, and every press is handed back.
  */
 import { Key } from "@solid-primitives/keyed"
-import { For, Show } from "solid-js"
+import { type Accessor, createComputed, For, Show } from "solid-js"
+import { createStore } from "solid-js/store"
 import type { needlesFrom } from "@olai/format"
 import { TESTID } from "olai-plugin-navigation/testids"
 import { Result } from "olai-plugin-search/ui/Result.tsx"
 import { fileClaims } from "../pages.ts"
 import type { PaletteItem } from "./items.ts"
-import type { Live, Step } from "./level-owner.ts"
+import type { Crumb, Live } from "./level-owner.ts"
 import type { PaletteOption } from "./levels.ts"
 import { PALETTE_ROW } from "./row-testids.ts"
+
+/**
+ * WHICH ROWS START A SECTION — a heading per row id, kept per key.
+ *
+ * A row's heading depends on the row before it, so asking it of the whole
+ * list from inside every row woke every row whenever the list moved. One
+ * `createComputed` builds the next table instead and writes only the ids whose
+ * heading changed, so a filter that leaves a row's heading alone leaves that
+ * row asleep.
+ */
+const createHeadings = (rows: Accessor<ReadonlyArray<{ readonly id: string; readonly section?: string }>>) => {
+  const [headings, setHeadings] = createStore<Record<string, string | undefined>>({})
+  createComputed(() => {
+    const next = new Map<string, string | undefined>()
+    let before: string | undefined
+    for (const row of rows()) {
+      next.set(row.id, row.section !== undefined && row.section !== before ? row.section : undefined)
+      before = row.section
+    }
+    for (const id of Object.keys(headings)) if (!next.has(id) && headings[id] !== undefined) setHeadings(id, undefined)
+    for (const [id, heading] of next) if (headings[id] !== heading) setHeadings(id, heading)
+  })
+  return (id: string) => headings[id]
+}
 
 /**
  * AN OPEN LEVEL, drawn in the list's place: a group's rows under their
@@ -22,20 +47,24 @@ import { PALETTE_ROW } from "./row-testids.ts"
  */
 export function LevelView(props: {
   readonly live: Live
-  readonly step: Step
+  /** The level's own id and name — one object while it stands. */
+  readonly crumb: Crumb
+  readonly busy: boolean
   readonly items: ReadonlyArray<PaletteItem>
   readonly lit: (index: number) => boolean
-  readonly value: { readonly options: ReadonlyArray<PaletteOption>; readonly chosen: PaletteOption | undefined } | undefined
+  /** A value level's options, or `undefined` at a group. */
+  readonly options: ReadonlyArray<PaletteOption> | undefined
+  /** Whether this option is the chosen one — a selector, so moving the
+   *  choice wakes the two options it moves between. */
+  readonly chosen: (id: string | undefined) => boolean
   readonly needles: ReturnType<typeof needlesFrom>
   readonly onHover: (index: number) => void
   readonly onSelect: (item: PaletteItem) => void
   readonly onOption: (option: PaletteOption) => void
   readonly onSubmit: () => void
 }) {
-  const heading = (rows: ReadonlyArray<{ readonly section?: string }>, index: number) => {
-    const section = rows[index]?.section
-    return section !== undefined && section !== rows[index - 1]?.section ? section : undefined
-  }
+  const rowHeading = createHeadings(() => props.items)
+  const optionHeading = createHeadings(() => props.options ?? [])
   const SectionHeading = (heading: { readonly text: string }) => (
     <p
       class="m-0 px-3 pb-0.5 pt-2 text-caption font-semibold uppercase tracking-wider text-muted"
@@ -45,18 +74,18 @@ export function LevelView(props: {
       {heading.text}
     </p>
   )
-  const busy = () => props.step.busy
+  const busy = () => props.busy
   return (
     <div
       class="flex min-h-0 flex-1 flex-col md:flex-none"
       data-testid={TESTID.paletteLevel}
-      data-id={props.step.id}
+      data-id={props.crumb.id}
       data-kind={props.live.level.kind}
       data-busy={busy() ? "true" : "false"}
       aria-busy={busy()}
     >
       <Show
-        when={props.value}
+        when={props.options}
         fallback={
           <ul
             class="m-0 min-h-0 flex-1 list-none overflow-x-hidden overflow-y-auto p-1 md:max-h-72 md:flex-none"
@@ -73,7 +102,7 @@ export function LevelView(props: {
             >
               {(item, index) => (
                 <li>
-                  <Show when={heading(props.items, index())}>{(text) => <SectionHeading text={text()} />}</Show>
+                  <Show when={rowHeading(item().id)}>{(text) => <SectionHeading text={text()} />}</Show>
                   <Result
                     claims={fileClaims()}
                     label={item().label}
@@ -95,27 +124,27 @@ export function LevelView(props: {
           </ul>
         }
       >
-        {(value) => (
+        {(options) => (
           <div
             class="m-0 min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1 md:max-h-72 md:flex-none"
             role="radiogroup"
-            aria-label={props.step.label}
+            aria-label={props.crumb.label}
             data-testid={TESTID.paletteList}
           >
-            <For each={value().options}>
-              {(option, index) => (
+            <For each={options()}>
+              {(option) => (
                 <>
-                  <Show when={heading(value().options, index())}>{(text) => <SectionHeading text={text()} />}</Show>
+                  <Show when={optionHeading(option.id)}>{(text) => <SectionHeading text={text()} />}</Show>
                   <button
                     type="button"
                     role="radio"
-                    aria-checked={value().chosen?.id === option.id}
+                    aria-checked={props.chosen(option.id)}
                     class={`flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-control px-3 py-2 text-left text-body text-ink ${
-                      value().chosen?.id === option.id ? "bg-rule" : "hover:bg-rule/60"
+                      props.chosen(option.id) ? "bg-rule" : "hover:bg-rule/60"
                     }`}
                     data-testid={TESTID.paletteOption}
                     data-id={option.id}
-                    data-chosen={value().chosen?.id === option.id ? "true" : "false"}
+                    data-chosen={props.chosen(option.id) ? "true" : "false"}
                     // Pressed, not focused: the caret stays in the box with
                     // the words it is about to send.
                     onMouseDown={(event) => event.preventDefault()}
@@ -123,7 +152,7 @@ export function LevelView(props: {
                   >
                     <span
                       class={`size-3 shrink-0 rounded-full border-2 ${
-                        value().chosen?.id === option.id ? "border-accent bg-accent" : "border-muted"
+                        props.chosen(option.id) ? "border-accent bg-accent" : "border-muted"
                       }`}
                       aria-hidden="true"
                     />
@@ -149,7 +178,7 @@ export function LevelView(props: {
         data-testid={TESTID.paletteFooter}
       >
         <Show
-          when={props.value !== undefined && props.live.level.kind === "value" ? props.live.level : undefined}
+          when={props.options !== undefined && props.live.level.kind === "value" ? props.live.level : undefined}
           fallback={<span><kbd class="text-ink">↵</kbd> choose</span>}
         >
           {(level) => (
@@ -162,7 +191,10 @@ export function LevelView(props: {
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => props.onSubmit()}
               >
-                {busy() ? "Working…" : <><kbd>↵</kbd> {level().submitLabel ?? "Submit"}</>}
+                {/* Both words are drawn and one is hidden: a submit going
+                    out is an attribute on the button, not a new subtree. */}
+                <span hidden={busy()}><kbd>↵</kbd> {level().submitLabel ?? "Submit"}</span>
+                <span hidden={!busy()}>Working…</span>
               </button>
               <span><kbd class="text-ink">↑↓</kbd> choose</span>
             </>

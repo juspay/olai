@@ -148,11 +148,49 @@ Then("the palette refuses with {string}", async function (this: OlaiWorld, sente
 Then("the palette level is busy", async function (this: OlaiWorld) {
   await this.page.locator(`${LEVEL}${attr("data-busy", "true")}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.page.locator(`${SUBMIT}:disabled`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  assert.ok((await this.page.locator(SUBMIT).textContent())?.includes("Working"), "the submit says it is working");
+  // innerText, not textContent: both words are drawn and one is hidden.
+  assert.ok((await this.page.locator(SUBMIT).innerText()).includes("Working"), "the submit says it is working");
 });
 
 Then("the palette level is not busy", async function (this: OlaiWorld) {
   await this.page.locator(`${LEVEL}${attr("data-busy", "false")}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const submit = this.page.locator(SUBMIT);
+  if ((await submit.count()) > 0) {
+    assert.ok(!(await submit.innerText()).includes("Working"), "the submit no longer says it is working");
+  }
+});
+
+// ── element identity: what a state change must NOT rebuild ─────────────
+
+/** Everything a level draws that a keystroke, an arrow or a submit going out
+ *  must leave in place. */
+const DRAWN = [CRUMB, OPTION, SECTION, HINT, LEVEL, SUBMIT, FOOTER].join(", ");
+
+/** Tag every element drawn now, on the element itself — a rebuilt element is
+ *  a new object and does not carry the tag. */
+When("I mark what the palette has drawn", async function (this: OlaiWorld) {
+  await this.page.locator(LEVEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const marked = await this.page.locator(DRAWN).evaluateAll((all) => {
+    for (const one of all) (one as unknown as { olaiMark?: boolean }).olaiMark = true;
+    return all.length;
+  });
+  assert.ok(marked > 0, "something was drawn to mark");
+});
+
+/** Every marked element is still in the document, and everything of those
+ *  kinds the palette draws now is one of them. */
+Then("what the palette had drawn is still drawn", async function (this: OlaiWorld) {
+  const fresh = await this.page.locator(DRAWN).evaluateAll((all) =>
+    all.filter((one) => (one as unknown as { olaiMark?: boolean }).olaiMark !== true)
+      .map((one) => `${one.getAttribute("data-testid")}:${one.getAttribute("data-id") ?? ""}`));
+  assert.deepStrictEqual(fresh, [], "elements the palette drew again instead of keeping");
+});
+
+Then("the palette crumb {string} is the one drawn before", async function (this: OlaiWorld, id: string) {
+  const crumb = this.page.locator(`${CRUMB}${attr("data-id", id)}`);
+  await crumb.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.ok(await crumb.evaluate((one) => (one as unknown as { olaiMark?: boolean }).olaiMark === true),
+    `the crumb ${id} was drawn again`);
 });
 
 // ── what a person who cannot see it is told ────────────────────────────

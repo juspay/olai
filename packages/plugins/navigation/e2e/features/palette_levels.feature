@@ -188,6 +188,36 @@ Feature: Levels in the command palette
     Then the command palette is closed
     And there should be no page errors
 
+  Scenario: Typing, moving the choice and a submit going out keep what the level has drawn
+    # Each of these is a state change to show, not a new view: the options,
+    # their headings, the crumbs, the footer and its submit stay the same
+    # elements, and only their attributes and text follow.
+    When the fixture opens the palette at "test-levels, test-note" with ""
+    And I mark what the palette has drawn
+    And I type "hold the same rows" into the palette
+    And I press "ArrowDown"
+    Then the palette option "quiet" is chosen
+    And what the palette had drawn is still drawn
+    When I press "Enter"
+    Then the palette level is busy
+    And what the palette had drawn is still drawn
+    When the fixture answers its held notes saying "Kept."
+    Then the palette remarks "Kept."
+    And the palette level is not busy
+    And what the palette had drawn is still drawn
+    And there should be no page errors
+
+  Scenario: Opening and leaving a nested level keeps the crumbs already drawn
+    When the fixture opens the palette at "test-levels"
+    And I mark what the palette has drawn
+    And I press the palette row "test-citrus"
+    Then the palette path is "test-levels, test-citrus"
+    And the palette crumb "test-levels" is the one drawn before
+    When I press "Backspace"
+    Then the palette path is "test-levels"
+    And the palette crumb "test-levels" is the one drawn before
+    And there should be no page errors
+
   Scenario: A press on an option submits with that option
     When the fixture opens the palette at "test-levels, test-note" with "say pressed"
     Then the palette box holds "say pressed"

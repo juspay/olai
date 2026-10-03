@@ -304,6 +304,10 @@ export function Palette(props: {
     focus: () => input?.focus(),
   })
   const { top, valueTop, crumbs } = levels
+  /** WHICH OPTION OF A VALUE LEVEL IS CHOSEN, asked per option — the lit row's
+   *  rule for the radio: moving the choice wakes the two options it moves
+   *  between, and typing wakes none. */
+  const chosenOption = createSelector(() => levels.chosenId())
   const depth = levels.depth
 
   const box = createMemo(() => boxOf(query(), paletteAsking(), prefixes(), depth() > 0))
@@ -328,7 +332,7 @@ export function Palette(props: {
   const boxSays = () => {
     const it = box()
     if (it.kind === "level") {
-      const level = top()?.live.level
+      const level = levels.topLive()?.level
       return level?.placeholder ?? (level?.kind === "value" ? "Type…" : "Filter…")
     }
     if (it.kind === "answering" && it.question.kind === "line") {
@@ -392,7 +396,7 @@ export function Palette(props: {
     // A GROUP LEVEL'S ROWS are the list while it is on top; a value level's
     // options are not rows and are walked by their own arrows.
     if (box().kind === "level") {
-      const live = top()?.live
+      const live = levels.topLive()
       return live?.level.kind === "group" ? live.rows() : []
     }
     if (!listing()) return [] as ReadonlyArray<PaletteItem>
@@ -1087,14 +1091,16 @@ export function Palette(props: {
             {/* THE QUESTION FIRST, above both prefixes: it is up because
                 somebody chose the verb that asks it, and nothing they type
                 next may quietly become the answer. */}
-            <Match when={inLevel() ? top() : undefined}>
-              {(at) => (
+            <Match when={inLevel() ? levels.topLive() : undefined}>
+              {(live) => (
                 <LevelView
-                  live={at().live}
-                  step={at().step}
+                  live={live()}
+                  crumb={crumbs().at(-1)!}
+                  busy={levels.busy()}
                   items={items()}
                   lit={lit}
-                  value={valueTop()}
+                  options={levels.options()}
+                  chosen={chosenOption}
                   needles={needles()}
                   onHover={(index) => {
                     setChosen(true)
