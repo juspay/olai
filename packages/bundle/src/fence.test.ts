@@ -61,6 +61,43 @@ import {
   transpilers,
   walkFrom,
 } from "./tree.testlib.ts"
+
+/**
+ * ONE READING PER FILE PER RUN, for the whole-repo sweeps below.
+ *
+ * Those sweeps ask about the same modules from many entries: a contract module
+ * a dozen packages reach is walked, read, transpiled and parsed once per spec
+ * that reaches it, and a general door's helpers once per door behind which they
+ * sit. Under a loaded CI shard that repetition is what pushed them past Bun's
+ * per-test timeout. The tree does not change during a run, so each answer is
+ * kept for the run; a thrown read is not kept and throws again.
+ *
+ * Every key is exactly the argument the uncached call took, and every reading
+ * is the same function over the same input — the RAW source, shebang and all.
+ * `codeOf` below strips the shebang first and so keeps its own reading rather
+ * than sharing this one (see `tree.testlib.ts`'s `WALKED` for why two inputs
+ * under one key is the mistake to avoid).
+ */
+const perRun = <T>(read: (key: string) => T): ((key: string) => T) => {
+  const held = new Map<string, T>()
+  return (key) => {
+    if (held.has(key)) return held.get(key) as T
+    const found = read(key)
+    held.set(key, found)
+    return found
+  }
+}
+/** `graphFrom`, by absolute entry. Callers only read the answer. */
+const graphAt = perRun(graphFrom)
+/** A `packages/`-relative file's raw text. */
+const sourceAt = perRun((file) => readFileSync(path.join(PACKAGES, file), "utf8"))
+/** ...transpiled by the grammar its extension names. */
+const transpiledAt = perRun((file) => transpilers[file.endsWith(".tsx") ? "tsx" : "ts"].transformSync(sourceAt(file)))
+/** ...its runtime import specifiers. */
+const runtimeImportsAt = perRun((file) => runtimeImportsOf(file, sourceAt(file)))
+/** ...and what it holds at module scope. */
+const liveStateAt = perRun((file) => liveStateIn(file))
+
 /** This package, and the plugins it is allowed to name. Spelled as member
  *  directories because that is what the walk below has; both are DERIVED —
  *  the registry from the manifest that owns this file, the tenants from the
@@ -510,13 +547,13 @@ describe("a plugin's browser chunk stays a browser chunk", () => {
     // an activation, so an accidentally empty entry cannot satisfy this
     // browser ownership check simply by importing static contracts.
     for (const { name, door } of BROWSER_DOORS) {
-      const activated = door.files.some(file => {
-        const source = readFileSync(path.join(PACKAGES, file), "utf8")
-        return runtimeImportsOf(file, source).some(spec => spec === "@olai/plugin-api") && /\bdefinePlugin\s*\(/.test(source)
-      })
+      const activated = door.files.some(file =>
+        runtimeImportsAt(file).some(spec => spec === "@olai/plugin-api") && /\bdefinePlugin\s*\(/.test(sourceAt(file))
+      )
       expect([name, componentsOn(door).length > 0 || activated]).toEqual([name, true])
     }
-  })
+    // Reads every browser chunk's files; 2.6 s on a loaded box before the per-run reads, 0.12 s after.
+  }, { timeout: 10_000 })
 })
 
 /**
@@ -829,7 +866,7 @@ describe("only the registry knows a plugin's name", () => {
         const manifest = manifestAt(path.join(PACKAGES, provider!))
         const target = manifest === undefined ? undefined : doorsOf(manifest)[`.${spec.slice(packageOf(spec).length)}`]
         expect(target, spec).toBeDefined()
-        const graph = graphFrom(path.join(PACKAGES, provider!, target!))
+        const graph = graphAt(path.join(PACKAGES, provider!, target!))
         expect(graph.unresolved, spec).toEqual([])
         const bad = graph.files.filter(file => {
           const absolute = path.resolve(PACKAGES, file)
@@ -840,15 +877,14 @@ describe("only the registry knows a plugin's name", () => {
           const targets = staticTargets(pkg)
           // A contract can use sibling contract helpers, but not reach back
           // into its provider's state/presentation implementation.
-          const identity = /^export const name = ["'][a-z0-9-]+["'];?\s*$/.test(transpilers[file.endsWith(".tsx") ? "tsx" : "ts"].transformSync(readFileSync(absolute, "utf8")).trim())
+          const identity = /^export const name = ["'][a-z0-9-]+["'];?\s*$/.test(transpiledAt(file).trim())
           return !identity && !targets.includes(absolute) && !absolute.startsWith(path.join(PACKAGES, member, "src/contracts") + path.sep)
         })
         violations.push(...bad.map(file => `${spec}: private implementation ${file}`))
         const acquiring = graph.files.filter(file => {
           const member = memberOf(file)
           if (!member || !PLUGIN_DIRS.includes(member)) return false
-          const source = readFileSync(path.join(PACKAGES, file), "utf8")
-          const code = transpilers[file.endsWith(".tsx") ? "tsx" : "ts"].transformSync(source)
+          const code = transpiledAt(file)
           return /\b(?:setTimeout|setInterval|createRoot|watchPreference|definePlugin)\s*\(|\.addEventListener\s*\(|\bEffect\.(?:acquireRelease|fork)|new (?:MutationObserver|ResizeObserver|WebSocket)\s*\(/.test(code)
         })
         violations.push(...acquiring.map(file => `${spec}: runtime acquisition ${file}`))
@@ -862,12 +898,13 @@ describe("only the registry knows a plugin's name", () => {
           const member = memberOf(file)
           return !member || !PLUGIN_DIRS.includes(member)
             ? []
-            : liveStateIn(file).map(said => `${spec}: ${said}`)
+            : liveStateAt(file).map(said => `${spec}: ${said}`)
         }))
       }
     }
     expect([...new Set(violations)]).toEqual([])
-  })
+    // Walks every cross-plugin contract graph; 1.8 s on a loaded box, and it timed out at 8–14 s in a CI shard before the per-run reads.
+  }, { timeout: 15_000 })
 
   test("general production packages name no plugins; test readers use explicit static doors", () => {
     for (const pkg of packages) {
@@ -2076,7 +2113,7 @@ describe("a module another package can open holds no live value", () => {
   const behind = (file: string): ReadonlyArray<string> => {
     const member = memberOf(file)
     if (member === undefined || PLUGIN_DIRS.includes(member)) return [file]
-    const graph = graphFrom(path.join(PACKAGES, file))
+    const graph = graphAt(path.join(PACKAGES, file))
     expect(graph.unresolved, file).toEqual([])
     return [file, ...graph.files.filter((one) => memberOf(one) === member)]
   }
@@ -2084,13 +2121,14 @@ describe("a module another package can open holds no live value", () => {
   test("nothing opened across a boundary holds live state, but the ones that are not state", () => {
     const found = [...OPENED.keys()].sort().flatMap((door) =>
       door in ALLOWED ? [] : [...new Set(behind(door))].flatMap((file) =>
-        file in ALLOWED ? [] : liveStateIn(file).map((said) =>
+        file in ALLOWED ? [] : liveStateAt(file).map((said) =>
           file === door ? said : `${said} (behind ${door})`,
         ),
       ),
     )
     expect([...new Set(found)]).toEqual([])
-  })
+    // Parses ~500 distinct modules behind ~170 doors; 4 s on a loaded box, the slowest sweep in this file.
+  }, { timeout: 20_000 })
 
   test("every allowance names a module that is still reachable across a boundary and still holds state", () => {
     // The other half of an equality, and the half a plain filter cannot make: an
@@ -2101,10 +2139,11 @@ describe("a module another package can open holds no live value", () => {
     const reachable = new Set([...OPENED.keys()].flatMap((door) => [...behind(door)]))
     for (const [file, why] of Object.entries(ALLOWED)) {
       expect([file, reachable.has(file)]).toEqual([file, true])
-      expect([file, liveStateIn(file).length > 0]).toEqual([file, true])
+      expect([file, liveStateAt(file).length > 0]).toEqual([file, true])
       expect([file, why.length > 20]).toEqual([file, true])
     }
-  })
+    // The same reach as the sweep above, which it pays in full when run without it (`-t`).
+  }, { timeout: 20_000 })
 
   /**
    * THE READING ITSELF, over the shapes rather than over the tree.
