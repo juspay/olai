@@ -7,11 +7,11 @@
         "owner": "cordiverse",
         "repo": "cordis"
       },
-      "branch": "master",
+      "branch": "main",
       "submodules": false,
-      "revision": "00278924a984fedfaffb4bc3d5eb7d8e76215643",
-      "url": "https://github.com/cordiverse/cordis/archive/00278924a984fedfaffb4bc3d5eb7d8e76215643.tar.gz",
-      "hash": "sha256-tCoHVKDAs8e3+BpHI0JV0x+hNPjrvwAHvACQsiZCkZA="
+      "revision": "f8ea3cd50f1a5724e8e715995bcde131c9c12b2c",
+      "url": "https://github.com/cordiverse/cordis/archive/f8ea3cd50f1a5724e8e715995bcde131c9c12b2c.tar.gz",
+      "hash": "sha256-EekAM/om1vtOnLVxvU0gqB6LvkhyJ8ZZ8xt5Ke3Yboo="
     },
     "fenix": {
       "type": "Git",

@@ -16,8 +16,9 @@
 # other rows. Both are peers of the core the pin already carries, so hydrating
 # them is one more (src, dest) pair each rather than a second arrangement.
 #
-# THE PIN TRACKS MASTER at the revision this tree compiled against. `just
+# THE PIN TRACKS `main` at the revision this tree compiled against. `just
 # update-pins` walks it forward; `npins/sources.json` records the sha either way.
+# (Upstream renamed `master` to `main`; the pin followed at 4.0.0-rc.10, f8ea3cd.)
 #
 # ## The two throwaway arms of the spike's rewrite, and what became of them
 #
@@ -111,6 +112,16 @@
 #      lost refusal off the service store
 #      (`packages/effect-cordis/src/lifecycle.ts`); a `typeof` guard upstream
 #      would retire both.
+#
+# STATUS AT f8ea3cd (cordis 4.0.0-rc.10, plugin-loader 1.0.0-rc.7, plugin-include
+# 1.1.0): all five still open. 1: the per-package off-switches are unchanged.
+# 2: rc.7 resolves bare specifiers from the config file's project by writing a
+# `.cordis/resolve.mjs` helper there. That is not a seam a consumer can supply,
+# so `loader.internal` stays filled (its header in `loader.ts` says why).
+# 3: `reflect.ts` still throws the prose. 4: `Fiber._unload` is still one
+# `Promise.all` (`upstream.test.ts` asks it). 5: `handleError` in
+# `src/utils.ts` still calls `.split` on `.stack` unguarded, for both
+# `info.error` and the outer error it makes.
 #
 # None is a blocker: the tree works. All five are the pin's own shape asking to
 # be a little wider, and a note here is how they stay askable.
