@@ -2,7 +2,7 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { memoryOf, UsageFailure } from "@olai/format"
 import { Result } from "effect"
-import { type Accessor, createEffect, createMemo, createRoot, createSignal, untrack, For, onCleanup, Show } from "solid-js"
+import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, untrack, For, onCleanup, Show } from "solid-js"
 import { usePane } from "olai-plugin-navigation/pane"
 import { runAsync } from "@olai/web/client/run.ts"
 import { TESTID } from "../../testids.ts"
@@ -101,15 +101,16 @@ function createPageSession(node: string): PageSession {
   const start = async (engine: string) => {
     const text = draft()
     if (starting() || text.trim() === "") return
-    setStarting(true)
-    setFailure(null)
-    setDraft("")
+    batch(() => { setStarting(true); setFailure(null); setDraft("") })
     try {
       const result = await runAsync(chatWire().procedures.conversation.startAgentSession({ node, agent: engine }))
       if (agentReadings() !== reading) return
       if (Result.isFailure(result)) {
-        setDraft(now => now === "" ? text : `${text}\n${now}`)
-        setFailure(result.failure.message)
+        // After the await: the words and the refusal appear together.
+        batch(() => {
+          setDraft(now => now === "" ? text : `${text}\n${now}`)
+          setFailure(result.failure.message)
+        })
         return
       }
       const to = result.success
