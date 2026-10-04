@@ -11,7 +11,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test"
 
 import { atFile } from "./routes.ts"
 import { routingIn } from "./routes.testlib.ts"
-import { followed, followedSplit } from "./routing.tsx"
+import { followed, followedSplit } from "./written.ts"
 
 class FakeElement {
   constructor(private readonly attributes: Readonly<Record<string, string>>) {}
