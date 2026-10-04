@@ -1,4 +1,3 @@
-import type { WorkspaceRouting } from "olai-plugin-navigation/workspace"
 /**
  * THE APP'S URL GRAMMAR, as a document page spells it — held for the activation that
  * declared it.
@@ -29,9 +28,9 @@ import {
   nameOf as nameWith,
   titleFace as titleFaceWith,
 } from "olai-plugin-navigation/address/address.ts"
-import { HOME_ROUTE, hrefOfPlain } from "olai-plugin-navigation/routes"
+import { HOME_ROUTE, hrefOfPlain, type Routing } from "olai-plugin-navigation/routes"
 
-const provider = heldService<WorkspaceRouting>()
+const provider = heldService<Routing>()
 
 /** Told by `../browser.tsx`'s `content` component, for that activation. */
 export const holdRouting = provider.hold
@@ -44,7 +43,7 @@ export const hrefOf = (route: Route): string =>
 /** The route a link on the page names, or `null` for an address this app
  *  should let the browser have. */
 export const routeIn = (href: string): Route | null =>
-  provider.read()?.pageIn(href) ?? null
+  provider.read()?.routeIn(href) ?? null
 
 /** ...and the two address readings that go through it — the door's own pure
  *  helpers, bound to the same grammar (`olai-plugin-navigation/address`). */

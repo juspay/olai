@@ -1,5 +1,3 @@
-import { targetOf, follow } from "olai-plugin-navigation/routing"
-import { useShown } from "olai-plugin-navigation/routing"
 /**
  * A served `.html`, drawn — and, since the ruling of 2026-08-16, RUNNING.
  *
@@ -71,14 +69,14 @@ import { useShown } from "olai-plugin-navigation/routing"
  * A LINK THE READER CLICKS AT A PAGE OF THIS VAULT IS NEITHER, and that is the
  * decision this component gained last. It is not a walk-off, and it is no longer
  * a navigation at all: the seal's own handler claims that click before the frame
- * moves and posts the address out here instead (`seal.ts`'s `FOLLOW` and
- * `OPEN`), and {@link Hypertext}'s `open` navigates THE APP to that file's page.
+ * moves and posts the link out here instead (`seal.ts`'s `FOLLOW`), and
+ * {@link Hypertext}'s `link` hands it to navigation's `follow`.
  * The reader lands where clicking it in the sidebar lands — same address, same
  * heading, same entry lit in the column — because it is the same route, and this
  * element is unmounted along with the page that held it. What the frame said is
  * a lookup key in this app's own file list and never anything more; the argument
  * for why that is the only safe reading of it is where the message is defined,
- * and the enforcement of it is `open` below.
+ * and the enforcement of it is `link` below.
  *
  * THAT TEST IS FORGEABLE, and it is written down here rather than left to be
  * discovered: a page that has walked off can post the same message, because it
@@ -118,7 +116,7 @@ import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
 import { Lede } from "@olai/web/client/errors/Lede.tsx"
 import { servedDirectory } from "./vault.ts"
-import { useHere, useRouter, useLanding } from "olai-plugin-navigation/routing"
+import { follow, targetOf, useHere, useLanding, useRouter, useShown } from "olai-plugin-navigation/routing"
 import { fileNamed } from "olai-plugin-navigation/routes"
 
 import { useHead } from "./vault.ts"
@@ -648,14 +646,6 @@ export function Hypertext(props: { readonly file: string }) {
     point(`${mediaHref(props.file)}?${VISIT}=${visits}${anchor(at)}`, { rev: rev(), at })
   }
 
-  /** Compatibility with a sealed page retained across a client update. New
-   * pages forward their anchor to the shared link listeners below. */
-  const open = (named: string, at?: string) => {
-    if (!servedDirectory()?.paths().includes(named)) return setRefused(REFUSED)
-    const href = "/" + named.split("/").map(encodeURIComponent).join("/") + (at === undefined ? "" : "#" + encodeURIComponent(at))
-    link({ kind: "link", href, action: "click", intent: "go", x: 0, y: 0, width: 0, height: 0 })
-  }
-
   /** Put the file back, or — once the budget is out — nothing at all, which is
    *  a pointing with no {@link Pointed} to it: nothing of ours is in there, so
    *  the box goes back to the guess rather than standing at the size of a page
@@ -773,9 +763,8 @@ export function Hypertext(props: { readonly file: string }) {
       // loaded and nothing walked off, and custody is deliberately untouched:
       // there is no navigation of the FRAME's to record. What happens after is
       // the app's — usually this element unmounting with the page that held it,
-      // and, for a page that named itself, no unmount at all (see `open`).
+      // and, for a page that named itself, no unmount at all (see `link`).
       if (said.kind === "link") return link(said)
-      if (said.kind === "open") return open(said.file, said.at)
       // WHERE THE ANCHOR ENDED UP, and the host window's half of landing on it.
       //
       // The frame scrolls ITSELF to the fragment on its own URL, which lands

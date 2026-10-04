@@ -1473,14 +1473,12 @@ Feature: A `.html` in the vault
     # THE HOSTILE CASE, and the reason the message is a lookup key rather than
     # an instruction. A previewed page runs its own JavaScript, so it can post
     # this app anything at all: a page that is not there, a climb out of the
-    # vault, one of the app's own addresses, a bare path. Each is decoded
-    # through the vault's one URL decoder and then MATCHED against the files
-    # this app is serving, and the route is built from the string that list
-    # holds — so a miss moves nothing, and nothing a frame said ever reaches the
-    # address bar.
+    # vault, an address off this origin, the retired open-page string. Each is
+    # validated by the seal's parser and then MATCHED against the files this app
+    # is serving — so a miss moves nothing.
     #
     # The last two lines are the fixture's teeth and the residue, in one act. A
-    # forged prefix that no longer matched the seal's would make every line
+    # forged message that no longer matched the seal's would make every line
     # above vacuous, so the page also sends one WELL-FORMED message naming a
     # file this vault really holds, and that one does open its page — which is
     # no more than the page could have done by drawing a link and is exactly as

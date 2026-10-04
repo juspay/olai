@@ -18,7 +18,7 @@ import { ROUTES, routingIn } from "./routes.testlib.ts"
  *  than implicit (`./routes.ts`'s header on why the table travels as an
  *  argument now). A case that IS about a mounted claim binds its own. */
 const routes = routingIn()
-const { face: routeFace, filterOf, href: hrefOf, narrowable, narrowedTo, pageIn: routeIn, routeOf, samePage } = routes
+const { face: routeFace, filterOf, href: hrefOf, narrowable, narrowedTo, routeIn, routeOf, samePage } = routes
 
 
 test("every route survives being written to a URL and read back", () => {

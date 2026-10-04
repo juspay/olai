@@ -105,7 +105,6 @@ export type {
   LevelRows, LevelScope, PaletteGroup, PaletteLevel, PaletteOption, PaletteRunResult, PaletteValue,
 } from "./palette/levels.ts"
 
-
 /**
  * THE PAGE'S GESTURE ARBITER — one verb, and the only one another row wants.
  *

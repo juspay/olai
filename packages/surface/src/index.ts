@@ -50,9 +50,8 @@ export { surface } from "./core.ts"
  *  onto ops requests total. */
 export { type Applied, Anchor, Edit } from "./edit.ts"
 
-/** What a reader meant by a press — one rule, because the app answers a click
- *  in three places and the seal ships a fourth into somebody else's page. See
- *  {@link ./press.ts}. */
+/** What a reader meant by a press, and which links are not the app's — one
+ *  rule, shared by the app's listener and shipped into the sealed frame. */
 export { intentOf, localLink, type Intent, type Press } from "./press.ts"
 
 /** The one HTTP address both ends spell — see {@link ./media.ts}. `mediaTarget`

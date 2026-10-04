@@ -23,7 +23,7 @@ import { addressIn as addressWith, labelIn, nameOf as nameWith, shownIn } from "
  *  grammar's own arms. The roster-dependent half is asked THROUGH this rather
  *  than off a module-scope table (`olai-plugin-navigation/routes`' header). */
 const routes = routingIn()
-const { href: hrefOf, pageIn: routeIn, routeOf } = routes
+const { href: hrefOf, routeIn, routeOf } = routes
 const addressIn = (title: string) => addressWith(routes, title)
 const nameOf = (route: Parameters<typeof nameWith>[1], shows: Parameters<typeof nameWith>[2]) => nameWith(routes, route, shows)
 

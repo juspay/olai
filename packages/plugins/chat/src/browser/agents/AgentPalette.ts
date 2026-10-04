@@ -28,7 +28,7 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
       action: { kind: "run", run: async () => {
         const nav = navigation()
         if (nav === undefined) return { keepOpen: true, said: { tone: "alarm", text: "Can't open this right now" } }
-        if (!focusAgent(route => nav.go(route), row)) return { keepOpen: true, said: { tone: "alarm", text: "Your notes aren't available" } }
+        focusAgent(route => nav.go(route), row)
         return {}
       } },
     }))]

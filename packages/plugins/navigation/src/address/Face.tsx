@@ -119,7 +119,6 @@ export function Face(props: {
         {/* Navigation’s owned listener follows the real href. */}
         <a
           href={href()}
-
           class={`min-w-0 flex-1 ${labelClass()} underline decoration-rule underline-offset-2 hover:decoration-accent`}
           data-testid={TESTID.addressName}
         >

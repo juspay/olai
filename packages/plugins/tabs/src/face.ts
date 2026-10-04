@@ -11,7 +11,7 @@ import { panesOf, type WorkspaceRouting, workspaceOf } from "olai-plugin-navigat
 
 import type { Tab } from "./contract.ts"
 
-export const glyphOf = (routes: Omit<Routing, "routeIn">, href: string): string => {
+export const glyphOf = (routes: Routing, href: string): string => {
   const panes = panesOf(workspaceOf(routes, href))
   if (panes.length > 1) return "◫"
   const route = panes[0]!.route

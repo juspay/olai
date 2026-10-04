@@ -25,10 +25,6 @@
  * are written down rather than excused by a pattern.
  */
 
-/** The attribute a rendered node reference wears — what a step locates a
- *  pressable backtick by, in the transcript and in a backlink alike. */
-export { NODE_REF } from "./browser/chat/refs.ts"
-
 /** How close to the foot of the transcript still counts as FOLLOWING — the
  *  number the panel's own autoscroll decides with, so a step that scrolls and
  *  then asserts is asserting against the client's answer rather than a second

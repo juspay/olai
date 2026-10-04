@@ -321,7 +321,7 @@ export interface LinkTarget {
  *  the anchor may sit in any of its lanes. */
 export const targetOf = (here: Router, anchor: HTMLAnchorElement, tabs?: NavigationRouter): LinkTarget | undefined => {
   if (localLink(anchor)) return
-  const destination = here.routes.routeIn(anchor.href)
+  const destination = here.routes.destinationIn(anchor.href)
   if (!destination) return
   const id = anchor.closest<HTMLElement>("[data-pane-id]")?.dataset.paneId
   const router = id ? (tabs?.lanes() ?? [here]).find(lane => lane.panes().some(pane => pane.id === id)) : here

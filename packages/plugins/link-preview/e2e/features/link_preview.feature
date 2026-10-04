@@ -144,9 +144,7 @@ Feature: Live read-only internal link previews
     And pane 1 is showing "/preview.olai#preview-target"
     And the page has not reloaded
 
-  # A written link is answered by navigation's `useFollow`, which used to ask
-  # whether Shift forced a new pane only AFTER claiming the press — and a
-  # claimed press is not a split, so every Alt+Shift+click reused the pane.
+  # Alt+Shift once reused the pane because the press was claimed before Shift was read.
   Scenario: Alt-Shift-click on a written link forces a new pane
     When I alt-click the preview link "target"
     Then there are 2 panes

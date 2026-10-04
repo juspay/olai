@@ -126,9 +126,8 @@ export function MovePicker(props: {
         onClick={(event) => {
           // The heading is not read through — the picker is an open write:
           // its pill must not filter the tree (and unseat the panel) any
-          // more than its anchor would navigate from under one. The filter
-          // router reads `preventDefault` (`@olai/surface`'s `ours`) — the
-          // same claiming the search rows do (`../search/Result.tsx`).
+          // more than its anchor would navigate from under one: a prevented
+          // press is nobody's (`@olai/surface`'s `intentOf`).
           if (
             event.target instanceof Element &&
             event.target.closest("[data-tag]") !== null

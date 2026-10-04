@@ -102,8 +102,7 @@ export function Pin(props: {
     >
       <Show when={page()} fallback={
         <a data-link-intent={props.pin.target.kind === "layout" ? "new-tab" : undefined} href={href()} class={ROW} data-testid={TESTID.pinLink}
-          aria-current={props.current ? "page" : undefined} title={props.pin.bare}
->
+          aria-current={props.current ? "page" : undefined} title={props.pin.bare}>
           <Face target={props.pin.target} name={props.pin.name} />
         </a>
       }>{(route) =>

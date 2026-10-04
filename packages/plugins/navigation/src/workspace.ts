@@ -126,7 +126,7 @@ const isFlatSplit = (layout: Split, axis?: Axis): boolean =>
 export const hrefOfWorkspace = (
   /** The grammar to print a plugin's page with — the router's own, handed in
    *  rather than reached for ({@link Routing}). */
-  routing: Omit<Routing, "routeIn">,
+  routing: Routing,
   workspace: Workspace,
 ): string => {
   const layout = workspace.layout
@@ -138,7 +138,7 @@ export const hrefOfWorkspace = (
   return query === "" ? path : `${path}?${query}`
 }
 
-export const workspaceOf = (routing: Omit<Routing, "routeIn">, address: string): Workspace => {
+export const workspaceOf = (routing: Routing, address: string): Workspace => {
   const { pathname, search } = splitAddress(address)
   if (!pathname.startsWith(WORKSPACE_PREFIX)) {
     return lone(routing.routeOf(address))
@@ -176,17 +176,16 @@ export type AddressTarget =
 export const workspaceFor = (target: AddressTarget): Workspace =>
   target.kind === "layout" ? target.workspace : lone(target.route)
 
-export interface WorkspaceRouting extends Omit<Routing, "routeIn"> {
-  readonly pageIn: Routing["routeIn"]
-  readonly routeIn: (href: string) => AddressTarget | null
+export interface WorkspaceRouting extends Routing {
+  /** A page route or a whole saved layout, for any in-app href. */
+  readonly destinationIn: (href: string) => AddressTarget | null
   readonly layoutIn: (href: string) => Workspace | null
   readonly layoutHref: (workspace: Workspace) => string
 }
 
 export const workspaceRoutingOver = (routes: Routing): WorkspaceRouting => ({
   ...routes,
-  pageIn: routes.routeIn,
-  routeIn: href => {
+  destinationIn: href => {
     let path = href
     if (!href.startsWith("/") || href.startsWith("//")) {
       if (!/^https?:\/\//.test(href) && !href.startsWith("//")) return null
@@ -221,19 +220,19 @@ export const savedLayout = (workspace: Workspace): Workspace => ({
 })
 
 /** Serialize the same value an in-place layout navigation opens. */
-export const layoutHref = (routing: Omit<Routing, "routeIn">, workspace: Workspace): string =>
+export const layoutHref = (routing: Routing, workspace: Workspace): string =>
   hrefOfWorkspace(routing, savedLayout(workspace))
 
 /** Workspace addresses belong to navigation, never to a page claim. */
-export const layoutIn = (routing: Omit<Routing, "routeIn">, href: string): Workspace | null =>
+export const layoutIn = (routing: Routing, href: string): Workspace | null =>
   splitAddress(href).pathname.startsWith(WORKSPACE_PREFIX) ? workspaceOf(routing, href) : null
 
-const encodePane = (routing: Omit<Routing, "routeIn">, route: Route): string => {
+const encodePane = (routing: Routing, route: Route): string => {
   const href = routing.href(route)
   return encodeURIComponent(href.startsWith("/") ? href.slice(1) : href)
 }
 
-const decodePane = (routing: Omit<Routing, "routeIn">, segment: string): Route | undefined => {
+const decodePane = (routing: Routing, segment: string): Route | undefined => {
   if (segment === "") return undefined
   try {
     return routing.routeOf("/" + decodeURIComponent(segment))

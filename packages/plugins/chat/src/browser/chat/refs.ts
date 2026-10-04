@@ -1,8 +1,5 @@
 import { atNode, type Route } from "olai-plugin-navigation/routes"
 
-/** Styling marker only; the anchor href carries the destination. */
-export const NODE_REF = "data-node-chip"
-
 /** Ignore fences and resolve placement ids through the declared outline reader. */
 export const nodeNamedBy = (
 

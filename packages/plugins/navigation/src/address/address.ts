@@ -63,16 +63,20 @@ export const addressIn = (
   /** The grammar to read the address with — the router's own, handed in rather
    *  than reached for, because a plugin's URL is a question about the mounted
    *  roster ({@link Routing}). */
-  routes: WorkspaceRouting,
+  routes: Routing,
   title: string,
 ): Route | undefined => {
+  const address = written(title)
+  return address === undefined ? undefined : routes.routeIn(address) ?? undefined
+}
+
+/** The address a title spells, or `undefined` for prose. Cheap first: nearly
+ *  every title in a directory is neither, and this runs once per title per draw. */
+const written = (title: string): string | undefined => {
   const text = title.trim()
-  // Cheap first: nearly every title in a directory is neither, and this runs
-  // once per title per draw now that the tree reads it too.
   if (!text.startsWith("/") && !text.startsWith("[")) return undefined
   const address = addressWritten(text)
-  if (/\s/.test(address)) return undefined
-  return routes.pageIn(address) ?? undefined
+  return /\s/.test(address) ? undefined : address
 }
 
 /** The name written INTO a title, for the address somebody named — `undefined`
@@ -116,7 +120,7 @@ export interface Faced {
  * to refuse.
  */
 export const titleFace = (
-  routes: Omit<Routing, "routeIn">,
+  routes: Routing,
   title: string,
   route: Route,
   /** {@link nameOf}'s missing fact — from the server for a shelf row, from
@@ -184,7 +188,7 @@ export const titleFace = (
  * work out for itself.
  */
 export const nameOf = (
-  routes: Omit<Routing, "routeIn">,
+  routes: Routing,
   route: Route,
   /** What the node this address names is CALLED, when it names one and
    *  somebody could say — `undefined` for every other address, and for a node
@@ -262,24 +266,20 @@ export const shownIn = (
 
 /** Titles use the same reader as anchor activation, previews and link menus. */
 export const targetIn = (routes: WorkspaceRouting, title: string): AddressTarget | undefined => {
-  const text = title.trim()
-  if (!text.startsWith("/") && !text.startsWith("[")) return undefined
-  const address = addressWritten(text)
-  if (/\s/.test(address)) return undefined
-  const route = routes.routeIn(address)
-  return route ?? undefined
+  const address = written(title)
+  return address === undefined ? undefined : routes.destinationIn(address) ?? undefined
 }
 
-export const layoutName = (routes: Omit<Routing, "routeIn">, workspace: Workspace,
+export const layoutName = (routes: Routing, workspace: Workspace,
   shows: (route: Route, index: number) => string | undefined = () => undefined): string =>
   panesOf(workspace).map(({ route }, index) => nameOf(routes, route, shows(route, index))).join(" · ")
 
-export const targetName = (routes: Omit<Routing, "routeIn">, target: AddressTarget,
+export const targetName = (routes: Routing, target: AddressTarget,
   shows: (route: Route) => string | undefined): string => target.kind === "page"
     ? nameOf(routes, target.route, shows(target.route))
     : layoutName(routes, target.workspace, shows)
 
-export const targetFace = (routes: Omit<Routing, "routeIn">, title: string, target: AddressTarget,
+export const targetFace = (routes: Routing, title: string, target: AddressTarget,
   shows: (route: Route) => string | undefined): Faced => {
   const written = labelIn(title)
   return { name: written ?? targetName(routes, target, shows), written: written !== undefined }

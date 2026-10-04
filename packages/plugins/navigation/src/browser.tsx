@@ -117,7 +117,7 @@ export const components = {
    const stop=holdRoutePages(createMemo(()=>settleRoutePages(routeFaces("app.route"))))
    return ()=>{dispose();stop()}
  })),stop=>Effect.sync(stop))
-})}), files:definePlugin({name:"files",needs:[fileAccess,Offers],apply:Effect.gen(function*(){
+})}), files:definePlugin({name:"files",needs:[fileAccess],apply:Effect.gen(function*(){
  const files=yield* fileAccess
  yield* Effect.acquireRelease(Effect.sync(()=>holdFiles(files)),stop=>Effect.sync(stop))
 })}), palette:definePlugin({name:"palette",needs:[navigation,rendererSlots,Clocks,Faces,appShell],apply:Effect.gen(function*(){

@@ -571,7 +571,7 @@ const routeNamedIn = (table: Claims | undefined, pages: MountedPages, parts: Spl
   // where the page is picked (`./page.ts`). That is the whole of the arm
   // collapse — an address and a sidebar click cannot open two different pages
   // for one file, because neither of them says which page.
-  const route = named.kind === "node" ? atNode(named.id) : atAddress(named)
+  const route = atAddress(named)
   return narrowablePlain(table, route) || sourceLanding(route) ? { ...route, ...narrowed } : route
 }
 

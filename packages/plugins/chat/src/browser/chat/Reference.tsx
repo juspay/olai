@@ -23,7 +23,6 @@ export function Reference(props: {
       data-testid={TESTID.chatNodeRef}
       title="Show this row"
       aria-label={`Show ${props.id}`}
-
     >
       {props.children}
     </a>

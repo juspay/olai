@@ -40,10 +40,6 @@ import type { Server } from "node:net";
 import * as path from "node:path";
 import * as os from "node:os";
 
-// Aliased: `NODE_REF` below is the see/after reference ELEMENT (`NodeRefs.tsx`),
-// and this is the ATTRIBUTE a pressable node reference in the chat panel
-// carries. Two different things, one word — so the import says which.
-import { NODE_REF as CHAT_NODE_REF_ATTR } from "olai-plugin-chat/testlib";
 import { LONG_PRESS_MS, selector } from "@olai/web/testlib"
 // ...and the PLUGINS' half of the same table, which is where the bulk of this
 // file's selectors now come from. The ids split by RENDERER — a scenario

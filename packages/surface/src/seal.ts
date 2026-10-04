@@ -75,18 +75,12 @@
  * both of them files of this vault. The vault's own shape is the URL space, so
  * nothing has to be rewritten to agree with it.
  *
- * AND THE TWO PART COMPANY AT THE CLICK, which is the rest of that bug and what
- * {@link OPEN} is for. The picture is FETCHED — it is a part the page draws
- * itself with, so it travels this route and the policy above is the whole of
- * what governs it. The link is not: `other.html` is a file olai has a PAGE for,
- * and a reader following it wants that page — its address, its heading, its
- * entry lit in the directory column — rather than the neighbour drawn inside a
- * frame that is still, by every other sign in the app, `report.html`. So the
- * handler below claims that one click, hands the address out, and the app
- * navigates. Nothing about the seal moves an inch to make that work: the frame
- * gets no origin, no channel back and no privilege it did not have. It gets to
- * SAY something, over the same `postMessage` it already says its height on, and
- * to be believed exactly as far as a lookup in this app's own list of files.
+ * AND THE TWO PART COMPANY AT THE CLICK. The picture is FETCHED, so this route
+ * and the policy above govern it. The link is not: `other.html` is a file olai
+ * has a PAGE for, so {@link FOLLOW} hands the link out as a message and the app
+ * navigates. The frame gains no origin, channel back or privilege — it gets to
+ * SAY something over the `postMessage` it already says its height on, and is
+ * believed only as far as the app's own lookup.
  *
  * `base-uri 'none'` is what keeps that true. A saved page carries a `<base
  * href>` of its own often enough that it is the ordinary case rather than the
@@ -165,7 +159,7 @@
  */
 
 
-import { mediaPath, MEDIA_PREFIX } from "./media.ts"
+import { MEDIA_PREFIX } from "./media.ts"
 import { intentOf, localLink, type Intent } from "./press.ts"
 
 /**
@@ -298,38 +292,8 @@ export const REFUSED_MARKUP =
  *  sealed frame may say is ONE vocabulary, and it is classified once. */
 
 /**
- * THE THIRD THING A SEALED PAGE MAY SAY: a reader clicked a link, and the
- * address it names is a file of this vault that olai has a page for.
- *
- * It is a MESSAGE rather than a navigation because of what the click means. A
- * saved page linking to `other.html` beside it is naming a file of the vault,
- * and this app has a page for that file — its own address, its own heading, its
- * entry lit in the directory column. Following it inside the frame renders the
- * neighbour and leaves every one of those saying the file the reader has just
- * left, which is a preview pretending to be a browser. So the frame hands the
- * address OUT and the app navigates: the reader lands exactly where clicking
- * that file in the sidebar lands, because it is the same route.
- *
- * `postMessage` is the only way out of an opaque origin and the channel this
- * seal already speaks (the greeting and the heights above it), so it is the
- * channel — kolu's own iframe renderer documents the same shape for the same
- * reason. What travels is the PATHNAME the browser resolved, percent-escapes
- * and all, exactly as it would have fetched it.
- *
- * NOTHING IN IT IS TRUSTED, and the receiving end is written on that
- * assumption: a page that runs script can post any string at all, so what
- * arrives is a LOOKUP KEY and never an instruction. {@link heard} decodes it
- * through the vault's one URL decoder and hands back a path; `Hypertext.tsx`
- * then matches that path against the set of files this app is actually serving
- * and navigates using ITS OWN copy of the string. A path the vault does not
- * hold moves nothing — no address, no page, no screen that says the frame
- * named it — which is the difference between a lookup and an instruction.
- */
-const OPEN = "olai:open-page:"
-
-/**
- * THE FOURTH THING A SEALED PAGE MAY SAY: where the anchor it was pointed at
- * ended up.
+ * THE FOURTH THING A SEALED PAGE MAY SAY (the third is {@link FOLLOW}'s
+ * link): where the anchor it was pointed at ended up.
  *
  * It exists because of a gap only the frame can close. A `.html` opened at
  * `#beds` gets the fragment on its own URL, so the browser inside the frame
@@ -498,74 +462,19 @@ const MEASURE = `(function () {
 })()`
 
 /**
- * The second program olai puts into somebody else's page: the one that notices
- * a reader clicking a link at a page of this vault, and hands the address out
- * instead of following it.
+ * The second program olai puts into somebody else's page: it forwards what a
+ * reader does at a link to the app instead of letting the frame act on it.
  *
- * WHICH CLICKS IT CLAIMS — five conditions, each with what holds it named at
- * the end of its own bullet, because they are not all held by the same kind of
- * test and a reader auditing this should not have to guess which:
- *
- *   - a PLAIN left click, and nothing modified — which is not a rule this file
- *     states. It is `./press.ts`'s `intentOf`, the app's one answer to what a reader
- *     meant by a press, INTERPOLATED here as its own source: the frame has no
- *     module system, so a function cannot be imported into it, but it can be
- *     shipped. One definition, read by the client and carried into the page,
- *     rather than the second hand-typed spelling this was — whose drift had no
- *     symptom in the direction that matters (a press this app has decided is
- *     not its own, still claimed in the frame). WHAT HOLDS IT: `./seal.test.ts`
- *     runs the shipped text against the function over every combination of the
- *     six facts a press has — which pins what the RULE answers, and cannot pin
- *     that this handler is what asks it. A modified click is read in a real
- *     browser by `html_previews.feature` on the app's side only, since which
- *     modifier opens a tab is the platform's decision and not olai's;
- *   - a click the PAGE has not already answered. Bubble phase and
- *     `defaultPrevented`, so a saved page that routes its own links keeps them.
- *     Capturing would take clicks off a page that had already decided what they
- *     mean, to send them somewhere the page never asked for. WHAT HOLDS IT: the
- *     scenario where a page prevents its own link's default and neither the app
- *     nor the frame moves — which is the one assertion that tells the two
- *     phases apart, since a capturing handler would see the press first, find
- *     nothing prevented, and navigate the app out from under the page;
- *   - THIS VAULT's address space and no other: the document's own scheme and
- *     host, under the media route. A link to a stranger is not ours to answer —
- *     it walks the frame off and comes home, which is the behaviour that was
- *     already there and is deliberately untouched. WHAT HOLDS IT: the two
- *     walk-off scenarios;
- *   - a suffix supplied to `seal` by the vault from its current Claims.
- *     The app chooses the corresponding page; this click handler only hands
- *     the address back. Other assets, such as stylesheets and fonts, remain
- *     ordinary links inside the preview rather than app navigation targets.
- *     WHAT HOLDS IT: the supplied suffix list is asserted in `seal.test.ts`,
- *     and `html_previews.feature` opens relative links in the app;
- *   - NO IN-PAGE ANCHOR. `#top` is a jump inside the document the reader is
- *     already looking at, and there is nothing for the app to do with one: the
- *     frame keeps it, because a page scrolling itself is not a navigation.
- *     `other.html#beds` IS one — it names another file and a place inside it —
- *     and it is claimed, fragment and all, because the document page can land on
- *     a section now (`@olai/web`'s `routes.ts` carries it, and the two faces do
- *     the landing by two different mechanisms). Same document is the whole
- *     test, which is why it is a comparison against `location.pathname` rather
- *     than a look at whether there is a hash at all. WHAT HOLDS IT: one
- *     scenario clicks a fragment link AT THE FILE NEXT DOOR and reads both
- *     halves — the app arriving at the neighbour's address WITH the anchor on
- *     it, and the page landing on the section — and another clicks an in-page
- *     `#top` and reads the app staying exactly where it was.
- *
- * A `.md` is on that list on purpose, and it is the one judgement call here. The
- * media route REFUSES a `.md` — it is not an `isAsset`, so the frame following
- * such a link gets a 404 today, which is a dead click at the end of a link
- * somebody wrote in their own vault. The click never reaches the network now: it
- * names a note, and a note has a page. What makes the two consistent rather than
- * contradictory is that they answer different questions — what a browser may be
- * SERVED, and what a reader may be TAKEN to.
- *
- * `new URL` rather than string arithmetic, because resolving `../other.html`
- * against the document's own address is the browser's job and it is already
- * done: an anchor's `href` property IS the resolved absolute URL. The `try` is
- * for the one element that has an `href` which is not a string — an `<a>` in
- * SVG, whose `href` is an `SVGAnimatedString` — and it falls out as a link this
- * does not claim.
+ * A click carries the reader's intent — go, right or new pane — as `./press.ts`'s
+ * `intentOf` answers it, INTERPOLATED as source (the frame has no module system,
+ * so the one rule is shipped rather than retyped). A context menu, and the
+ * pointer moving over and out, are forwarded too, for the app's menu and hover.
+ * Links `localLink` (shipped the same way) gives to the page or the browser — an
+ * in-page `#fragment`, a download, another target — are left alone, as is
+ * anything off this document's origin. A media path is mapped back to the vault
+ * path it serves, but only for the `extensions` the vault has pages for. The
+ * message is `{ type: "olai:link", … }` with the link's box; the parent
+ * (`Hypertext.tsx`) validates it and hands the intent to navigation's `follow`.
  */
 const FOLLOW = (extensions: ReadonlyArray<string>) => `(function () {
   var pages = ${JSON.stringify(extensions)}
@@ -776,12 +685,6 @@ export type Said =
   | { readonly kind: "hello" }
   /** The file is served and will not open — {@link REFUSED}. */
   | { readonly kind: "refused" }
-  /** A page of this vault the reader clicked a link at — {@link OPEN}. Still
-   *  not a file: a path SHAPED like one, to be looked up. `at` is the place
-   *  inside it the link named, when it named one; it is not checked against
-   *  anything here, because which ids a page has is not knowable until it has
-   *  been drawn. */
-  | { readonly kind: "open"; readonly file: string; readonly at?: string }
   /** How tall the page says it is — {@link READING}. A claim, clamped by CSS at
    *  the other end. */
   | { readonly kind: "reading"; readonly height: number }
@@ -805,19 +708,8 @@ export type Said =
  * says is privileged. Arm by arm:
  *
  *   - the GREETING is an identity, and only the exact string is it;
- *   - an OPEN carries an address, and the judgement of what that address may
- *     name is not made here — it is `./media.ts`'s {@link mediaPath}, the ONE
- *     decoder of this URL space and already the guard the route stands behind,
- *     so anything outside `/media/`, a climb spelled either way, a segment
- *     smuggling a separator or a NUL, and a malformed escape all fall out
- *     there. A second parse written for this message would be a second
- *     traversal guard, and the one nobody thought to attack is the one that
- *     would be wrong. WHAT COMES BACK IS STILL NOT A FILE: `secrets.md` is a
- *     perfectly well-formed path and this hands it back. What makes that safe
- *     is the step after it, and it is the receiver's — the path is looked UP in
- *     the set of files the app is serving, and a lookup that misses moves
- *     nothing. This is where the message stops being a URL; it is not where it
- *     starts being trusted;
+ *   - a LINK is the one object: a rooted path, a known action and intent, a
+ *     finite box. The path is still only a claim — the receiver looks it up;
  *   - a READING carries a number. `Number` of a prefix-stripped tail rejects
  *     the empty string as `0` and anything wordy as `NaN`, both of which fall
  *     out through the same gate as a negative or an infinity. Rounded UP,
@@ -829,19 +721,6 @@ export type Said =
  * prefixes begins another, which is what makes the classification a fact about
  * the message rather than about this function's arm order.
  */
-/** A fragment as the page will look for it — the escaping undone, and nothing
- *  at all for an empty one or a malformed escape. Neither is a place in a page,
- *  and a frame that sends one has said nothing rather than said something
- *  wrong. */
-const decoded = (fragment: string): string | undefined => {
-  if (fragment === "") return undefined
-  try {
-    return decodeURIComponent(fragment)
-  } catch {
-    return undefined
-  }
-}
-
 export const heard = (said: unknown): Said | undefined => {
   if (typeof said === "object" && said !== null) {
     const message = said as Record<string, unknown>
@@ -858,17 +737,6 @@ export const heard = (said: unknown): Said | undefined => {
   if (said === HELLO) return { kind: "hello" }
   if (said === REFUSED) return { kind: "refused" }
   if (typeof said !== "string") return undefined
-  if (said.startsWith(OPEN)) {
-    const address = said.slice(OPEN.length)
-    const file = mediaPath(address)
-    if (file === null) return undefined
-    // The fragment is cut off the END, which is where an address keeps it —
-    // `mediaPath` has already stopped reading at the same `#`, so the two
-    // halves are taken from one string by one rule rather than parsed twice.
-    const hash = address.indexOf("#")
-    const at = hash === -1 ? undefined : decoded(address.slice(hash + 1))
-    return at === undefined ? { kind: "open", file } : { kind: "open", file, at }
-  }
   if (said.startsWith(LANDED)) {
     // FINITE is the gate, and it is a wider one than a height's on purpose:
     // this number is an offset rather than a size, so zero is the ordinary

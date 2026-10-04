@@ -58,7 +58,7 @@ listener, link previews, the tabs link menu and the `.html` frame bridge. It
 reads the authored `href` before the browser expands it: a raw `#fragment` stays
 with the content that drew it (Markdown scrolls a note's footnote in place
 without touching the address), and so do `download` links and links aimed at
-another browsing context. Everything else resolves through `routes.routeIn`,
+another browsing context. Everything else resolves through `routes.destinationIn`,
 which answers either a pane route or a whole saved layout (`AddressTarget`); a
 `Route` itself is always one pane's place. `follow(target, intent)` performs
 the press, so a frame that forwards an intent is answered without synthesizing
@@ -214,7 +214,7 @@ a departed suffix-to-row mapping. Trash and Agenda can name the configured
 outline row when it is off; Inbox and Pins explain that state in their sidebar
 entries while their files remain ordinary addresses.
 
-Saved layouts use the shared `routeIn` reader and `layoutHref` writer. A literal single file such as `/s/notes.olai` remains a file; encoded pane segments, multiple segments, or an explicit tree describe a workspace. Shared title recognition, shelf rows, hover previews and tab menus all use that reader. `Router.open(workspace)` replaces the workspace in one history push and records its landings. The pure `savedLayout(workspace)` transformation retains ordered pages and discards saved geometry and focus. Ordinary link intent also applies to layout anchors: Alt opens the pages to the right, Alt+Shift inserts panes, and browser modifiers remain native.
+Saved layouts use the shared `destinationIn` reader and `layoutHref` writer. A literal single file such as `/s/notes.olai` remains a file; encoded pane segments, multiple segments, or an explicit tree describe a workspace. Shared title recognition, shelf rows, hover previews and tab menus all use that reader. `Router.open(workspace)` replaces the workspace in one history push and records its landings. The pure `savedLayout(workspace)` transformation retains ordered pages and discards saved geometry and focus. Ordinary link intent also applies to layout anchors: Alt opens the pages to the right, Alt+Shift inserts panes, and browser modifiers remain native.
 
 ## Lanes: history for one tab at a time
 

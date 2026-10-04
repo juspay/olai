@@ -374,7 +374,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
       data-testid={TESTID.chatTranscript}
       ref={pane}
       onScroll={props.page ? undefined : scrolled}
-
     >
       {/* A wrapper with no styling of its own, purely so there is something
           whose HEIGHT can be observed: the pane's own size never changes, and

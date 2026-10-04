@@ -108,7 +108,7 @@ export const namedEdit = (
  */
 export const namingFor = (
   /** The app's URL grammar, handed in — see `./pins.ts`'s `pinsOf`. */
-  routes: Omit<Routing, "routeIn">,
+  routes: Routing,
   route: Route,
   /** The pin this page ALREADY has, as the caller resolved it — the same
    *  answer the door beside this one draws its label from, asked once

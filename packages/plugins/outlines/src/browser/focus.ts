@@ -27,22 +27,9 @@ export function FocusProvider(props: { readonly children: JSX.Element }) {
 }
 export const useFocused = (): ((id: string) => boolean) => useContext(FocusContext) ?? createSelector(focused)
 
-/** The attribute a focused row carries — a FACT in the markup rather than a
- *  colour, so a scenario asking "which row is being pointed at" is not asking
- *  about a class name (`./Tree.tsx` writes it). It is also what the scroll
- *  below aims at: the row that wears it is the row to bring on screen,
- *  wherever in the tree it turned out to be, and a mirror of the node wears it
- *  too. */
-
 /**
- * SELECT the row an address asked for — the same "this is the row" a
- * reference's press draws, because this module's standing rule is that there
- * is one accent for it and a second vocabulary for an arrival would be a
- * second thing for a reader to learn.
- *
- * Exported for the outline's landing act (`./OutlinePage.tsx`), which is the
- * only other writer: where a press is a person pointing from the panel, an
- * arrival is a URL asking once — same signal, same attribute, same accent.
+ * SELECT the row an address asked for — one accent for "this is the row",
+ * whether a reveal or the outline's landing act (`./OutlinePage.tsx`) asked.
  */
 export const selectNode = (id: string): void => {
   setFocused(id)
@@ -67,4 +54,3 @@ export const revealNode = (pane: string, id: string): boolean => {
   bringOntoScreen(row)
   return true
 }
-export const clearFocus = (): void => { setFocused(null) }
