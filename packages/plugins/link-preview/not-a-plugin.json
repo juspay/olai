@@ -1,0 +1,6 @@
+{
+  "//navigation": "The imported navigation service tag is a declared dependency, not a plugin-name lookup.",
+  "navigation": [
+    "src/browser.tsx"
+  ]
+}

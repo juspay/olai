@@ -2,7 +2,7 @@ import { createMemo, Show } from "solid-js"
 import { proseIn } from "@olai/format"
 import type { Route } from "olai-plugin-navigation/contract"
 import { markdownReady } from "@olai/markdown-ui/chunk.ts"
-import { renderMarkdown } from "@olai/markdown-ui/render.ts"
+import { renderMarkdown, landingId } from "@olai/markdown-ui/render.ts"
 import { isServed, useDocument } from "./document/documents.tsx"
 import { servedDirectory } from "./vault.ts"
 
@@ -18,7 +18,7 @@ export function MarkdownLinkPreview(props: { readonly route: Route }) {
     const template = document.createElement("template")
     template.innerHTML = renderMarkdown(servedDirectory()?.claims(), proseIn(body.text), file())
     const at = address()
-    const heading = at?.kind === "heading" ? [...template.content.querySelectorAll("h1,h2,h3,h4,h5,h6")].find(h => h.id === at.slug) : undefined
+    const heading = at?.kind === "heading" ? [...template.content.querySelectorAll("h1,h2,h3,h4,h5,h6")].find(h => h.id === landingId(proseIn(body.text), file(), at.slug)) : undefined
     if (at?.kind === "heading" && !heading) return { missing: true, html: "", title: at.slug }
     const title = heading?.textContent?.replace(/^#\s*/, "") ?? file()
     const nodes = [...template.content.children]

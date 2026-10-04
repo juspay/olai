@@ -17,10 +17,16 @@ Feature: Chat links share live previews
     And there should be no page errors
 
   Scenario: Conversation links preview the last two turns without a composer
+    When I ask the agent "hello"
+    Then the agent's answer mentions "you said: hello"
+    When I ask the agent "middle preview turn"
+    Then the agent's answer mentions "you said: middle preview turn"
     When I ask the agent "context"
     Then the agent's answer says "no node in context"
     When I hover the conversation preview link "kitchen"
     Then the link preview contains "Chat"
     And the link preview contains "no node in context"
+    And the link preview contains "middle preview turn"
+    And the link preview does not contain "you said: hello"
     And the link preview does not contain "Start an agent"
     And there should be no page errors

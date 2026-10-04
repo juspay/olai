@@ -26,7 +26,7 @@ Feature: Live read-only internal link previews
   Scenario: Escape dismisses until the next deliberate hover
     When I hover the preview link "target"
     Then the link preview contains "Preview target"
-    When I press Escape
+    When I dismiss the link preview with Escape
     Then the link preview closes
     When I hover the preview link "dead"
     Then the link preview contains "Nothing at #preview-missing"

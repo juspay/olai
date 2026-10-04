@@ -2,6 +2,7 @@ import * as assert from "node:assert/strict"
 import { readFileSync, existsSync } from "node:fs"
 import { join } from "node:path"
 import { Given, When, Then } from "@olai/tests/harness/runner.ts"
+import { attr } from "@olai/tests/harness/world.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 import { TESTID } from "../../src/testids.ts"
 
@@ -73,5 +74,7 @@ When("I expand the preview backlinks", async function (this: OlaiWorld) {
   await summary.click()
 })
 When("I hover the preview backlink", async function (this: OlaiWorld) { await this.page.locator('[data-testid="backlinks"] a[href="/#preview-source"]').first().hover() })
-When("I hover the chat preview reference {string}", async function (this: OlaiWorld, id: string) { await this.page.locator(`code[data-node-ref="${id}"]`).last().hover() })
-When("I hover the conversation preview link {string}", async function (this: OlaiWorld, id: string) { await this.page.locator(`a[href="/#${id}"]`).first().hover() })
+When("I hover the chat preview reference {string}", async function (this: OlaiWorld, id: string) { await this.page.locator(`code${attr("data-node-ref", id)}`).last().hover() })
+When("I hover the conversation preview link {string}", async function (this: OlaiWorld, id: string) { await this.page.locator(`a${attr("href", `/#${id}`)}`).first().hover() })
+
+When("I dismiss the link preview with Escape", async function (this: OlaiWorld) { await this.page.keyboard.press("Escape") })
