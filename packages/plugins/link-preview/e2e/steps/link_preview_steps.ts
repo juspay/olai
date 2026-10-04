@@ -43,7 +43,12 @@ Then("the link preview is read-only and clipped", async function (this: OlaiWorl
 })
 When("I make the preview note an active editor", async function (this: OlaiWorld) { await link(this, "target").evaluate(el => el.parentElement!.setAttribute("contenteditable", "true")) })
 When("I change the preview target on disk", function (this: OlaiWorld) { write(this, records().map(row => row.id === "preview-target" ? { ...row, title: "Changed preview target" } : row)) })
-When("I delete the preview target on disk", function (this: OlaiWorld) { write(this, records().filter(row => row.id !== "preview-target" && !("parent" in row && row.parent === "preview-target"))) })
+When("I delete the preview target on disk", function (this: OlaiWorld) {
+  // Keep the outline valid: structural see references cannot dangle, while
+  // the source's Markdown link deliberately remains to show the missing card.
+  write(this, records().filter(row => row.id !== "preview-target" && !("parent" in row && row.parent === "preview-target"))
+    .map(row => row.id === "preview-source" ? { ...row, see: [] } : row))
+})
 When("I mark the preview card identity", async function (this: OlaiWorld) { await card(this).evaluate(el => { (window as unknown as { previewCard: Element }).previewCard = el }) })
 Then("the preview card identity is unchanged", async function (this: OlaiWorld) { assert.ok(await card(this).evaluate(el => (window as unknown as { previewCard: Element }).previewCard === el)) })
 When("I hover the nested preview link", async function (this: OlaiWorld) { await card(this).getByRole("link", { name: "nested" }).hover(); await this.page.waitForTimeout(500) })
