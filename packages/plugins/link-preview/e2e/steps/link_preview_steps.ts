@@ -155,3 +155,15 @@ Then("the preview describes its source link", async function (this: OlaiWorld) {
 Then("closing the preview preserves the original description", async function (this: OlaiWorld) {
   assert.equal(await link(this, "target").getAttribute("aria-describedby"), "preview-existing-description")
 })
+When("the open preview anchor is replaced in place", async function (this: OlaiWorld) {
+  await link(this, "target").evaluate(el => {
+    Object.assign(window, { replacedPreviewAnchor: el })
+    el.replaceWith(el.cloneNode(true))
+  })
+})
+Then("the removed anchor has only its original description", async function (this: OlaiWorld) {
+  assert.equal(await this.page.evaluate(() => (window as unknown as { replacedPreviewAnchor: Element }).replacedPreviewAnchor.getAttribute("aria-describedby")), "preview-existing-description")
+})
+Then("the preview source has no description token", async function (this: OlaiWorld) {
+  assert.equal(await link(this, "target").getAttribute("aria-describedby"), null)
+})

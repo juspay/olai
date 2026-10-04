@@ -247,3 +247,24 @@ Feature: Live read-only internal link previews
     When I dismiss the link preview with Escape
     Then the link preview closes
     And closing the preview preserves the original description
+
+  Scenario: Replacing an anchor transfers only the card's description token
+    When the preview source has an existing description
+    And I hover the preview link "target"
+    Then the link preview contains "Preview target"
+    When I mark the preview card identity
+    And the open preview anchor is replaced in place
+    Then the link preview remains open
+    And the preview card identity is unchanged
+    And the preview describes its source link
+    And the removed anchor has only its original description
+    When I set the preview plugin "link-preview" off on disk
+    Then the link preview closes
+    And closing the preview preserves the original description
+
+  Scenario: Plugin withdrawal removes an otherwise absent description attribute
+    When I hover the preview link "target"
+    Then the link preview contains "Preview target"
+    When I set the preview plugin "link-preview" off on disk
+    Then the link preview closes
+    And the preview source has no description token
