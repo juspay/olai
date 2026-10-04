@@ -136,3 +136,22 @@ When("I touch the preview link {string}", async function (this: OlaiWorld, label
   await link(this, label).dispatchEvent("pointerover", { pointerType: "touch", clientX: 20, clientY: 20 })
   await link(this, label).dispatchEvent("pointermove", { pointerType: "touch", clientX: 21, clientY: 20 })
 })
+
+When("the preview source has an existing description", async function (this: OlaiWorld) {
+  await link(this, "target").evaluate(el => {
+    const description = document.createElement("span")
+    description.id = "preview-existing-description"
+    description.hidden = true
+    description.textContent = "Existing link description"
+    el.after(description)
+    el.setAttribute("aria-describedby", description.id)
+  })
+})
+Then("the preview describes its source link", async function (this: OlaiWorld) {
+  const id = await card(this).getAttribute("id")
+  assert.ok(id)
+  assert.deepEqual((await link(this, "target").getAttribute("aria-describedby"))?.split(" "), ["preview-existing-description", id])
+})
+Then("closing the preview preserves the original description", async function (this: OlaiWorld) {
+  assert.equal(await link(this, "target").getAttribute("aria-describedby"), "preview-existing-description")
+})

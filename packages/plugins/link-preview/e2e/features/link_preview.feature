@@ -238,3 +238,12 @@ Feature: Live read-only internal link previews
   Scenario: A mouse on a touch-primary device can preview
     When I hover the preview link "target"
     Then the link preview contains "Preview target"
+
+  Scenario: The preview owns only its accessible description token
+    When the preview source has an existing description
+    And I focus the preview link "target"
+    Then the link preview contains "Preview target"
+    And the preview describes its source link
+    When I dismiss the link preview with Escape
+    Then the link preview closes
+    And closing the preview preserves the original description

@@ -1,6 +1,6 @@
 import { definePlugin } from "@olai/plugin-api"
 import { Effect } from "effect"
-import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, createUniqueId, on, onCleanup, Show } from "solid-js"
 import { Dynamic, Portal } from "solid-js/web"
 import { Popper } from "@kobalte/core/popper"
 import { navigation, linkPreviews, type Route, type LinkPreview } from "olai-plugin-navigation/contract"
@@ -111,8 +111,19 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     const matched = createMemo(() => { const at = target(); return at && matchPreview(slots.read(linkPreviews), at.route) })
     return <RouterProvider router={nav}><Show when={target()} keyed>{at =>
       <Show when={matched()} keyed>{renderer => {
+        const cardId = `link-preview-${createUniqueId()}`
         const [content, setContent] = createSignal<HTMLElement>()
         const [anchor, setAnchor] = createSignal(at.element)
+        createEffect(() => {
+          const element = anchor()
+          const tokens = () => (element.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean)
+          element.setAttribute("aria-describedby", [...new Set([...tokens(), cardId])].join(" "))
+          onCleanup(() => {
+            const remaining = tokens().filter(token => token !== cardId)
+            if (remaining.length) element.setAttribute("aria-describedby", remaining.join(" "))
+            else element.removeAttribute("aria-describedby")
+          })
+        })
         anchorEl = at.element
         onCleanup(() => { anchorEl = undefined })
         // Live edits can remove an anchor without a pointerout event. Its card
@@ -138,7 +149,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
         onCleanup(() => removed.disconnect())
         return <Popper anchorRef={anchor} contentRef={content} placement="bottom-start" gutter={6}>
           <Portal mount={root}><Popper.Positioner>
-            <aside ref={setContent} data-link-preview="" data-testid={TESTID.linkPreview}
+            <aside id={cardId} ref={setContent} data-link-preview="" data-testid={TESTID.linkPreview}
               aria-label="Link preview" class="w-[min(24rem,90vw)] rounded-surface border border-rule/60 bg-panel shadow-raised text-ink">
               <PaneProvider index={at.pane} id={nav.panes()[at.pane]?.id}><Body renderer={renderer} route={at.route} /></PaneProvider>
               <footer class="border-t border-rule/60 px-3 py-2 text-xs text-muted">Click opens · Alt-click opens on the right <span class="float-right">read-only</span></footer>
