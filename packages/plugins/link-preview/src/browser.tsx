@@ -99,7 +99,9 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
   }))
   function Body(props: { readonly renderer: LinkPreview; readonly route: Route }) {
     const follow = useFollow()
-    return <div class="max-h-80 overflow-hidden p-3" onClick={follow}><Dynamic component={props.renderer.Preview} route={props.route} /></div>
+    // The keyed target owns this mount and its immutable route contract.
+    const route = props.route
+    return <div class="max-h-80 overflow-hidden p-3" onClick={follow}><Dynamic component={props.renderer.Preview} route={route} /></div>
   }
   function Preview() {
     onCleanup(close)

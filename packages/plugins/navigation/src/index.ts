@@ -139,6 +139,8 @@ export const pages = location<FilePage>("navigation.pages", "many", "key")
 export interface LinkPreview {
   readonly priority: number
   readonly matches: (route: Route) => boolean
+  /** Mounted once per route: route never changes during a mount. Providers
+   * may acquire a route-specific lease at construction; the card owns it. */
   readonly Preview: (props: { readonly route: Route }) => JSX.Element
 }
 export const linkPreviews = location<LinkPreview>("navigation.link-previews", "many")
