@@ -173,3 +173,19 @@ Feature: Live read-only internal link previews
     Then the link preview contains "Preview target"
     When I remove the preview source links on disk
     Then the link preview closes
+
+  Scenario: Links under a real row editor do not preview
+    Given I open the outline "preview.olai"
+    When I open the note of "preview-source"
+    And I click the title of "preview-source"
+    And I hover the preview see link
+    Then the link preview stays closed
+
+  Scenario: A nested link belongs to the hovered pane even if its neighbour is focused
+    When I alt-click the preview link "target"
+    Then pane 1 is focused
+    When I hover the preview link "target"
+    Then the link preview contains "Preview target"
+    When I click the nested preview link
+    Then pane 0 is showing "/#preview-destination"
+    And pane 1 is showing "/#preview-target"

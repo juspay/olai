@@ -527,7 +527,8 @@ opening blocks and duplicate heading sections; missing targets; hover delay,
 leave grace, pointer transfer, Escape, keyboard focus, rapid target changes,
 read-only/clipped content, editor/coarse-pointer exclusion, local/external links,
 live disk updates and deletion, anchor removal, card identity, subscription release, nested links,
-ordinary/split navigation, plugin removal/return and content withdrawal/return.
+ordinary/split navigation, source-pane navigation from a card, real row-editor
+exclusion, plugin removal/return and content withdrawal/return.
 Matching unit tests cover priority, absence, unsupported targets and deterministic
 ties. The existing split-navigation contract is Alt-click, not Shift alone.
 `link_preview_chat.feature` covers real agent code references, their unchanged

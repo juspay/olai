@@ -4,6 +4,7 @@ import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "sol
 import { Dynamic, Portal } from "solid-js/web"
 import { Popper } from "@kobalte/core/popper"
 import { navigation, linkPreviews, type Route, type LinkPreview } from "olai-plugin-navigation/contract"
+import { PaneProvider } from "olai-plugin-navigation/pane"
 import { RouterProvider, useFollow } from "olai-plugin-navigation/routing"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { overlays } from "olai-plugin-layout/contract"
@@ -12,7 +13,7 @@ import { name } from "./index.ts"
 import { TESTID } from "./testids.ts"
 import { matchPreview, OPEN_MS, CLOSE_MS } from "./matching.ts"
 
-interface Target { readonly element: HTMLElement; readonly route: Route }
+interface Target { readonly element: HTMLElement; readonly route: Route; readonly pane: number }
 const CARD = "[data-link-preview]"
 const EDITOR = '[contenteditable]:not([contenteditable="false"]), [data-editing="true"]'
 
@@ -34,13 +35,16 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     if (!element || element.closest(EDITOR)) return
     const href = element.getAttribute("href") ?? `/#${encodeURIComponent(element.dataset.nodeRef ?? "")}`
     const route = nav.routes.routeIn(href)
-    return route && matchPreview(slots.read(linkPreviews), route) ? { element, route } : undefined
+    const pane = element.closest("[data-pane]")?.getAttribute("data-pane")
+    return route && matchPreview(slots.read(linkPreviews), route)
+      ? { element, route, pane: pane === undefined || pane === null ? nav.focusIndex() : Number(pane) }
+      : undefined
   }
   const enter = (event: PointerEvent | FocusEvent) => {
     if (matchMedia("(pointer: coarse)").matches || (event instanceof PointerEvent && event.pointerType === "touch")) return
     if (event.target instanceof Element && event.target.closest(CARD)) { hold(); return }
     const next = classify(event.target)
-    if (!next) return
+    if (!next || (event.type === "focusin" && !next.element.matches(":focus-visible"))) return
     hold()
     if (target()?.element === next.element || pending === next.element) return
     clearOpening()
@@ -97,7 +101,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
           <Portal mount={root}><Popper.Positioner>
             <aside ref={setContent} data-link-preview="" data-testid={TESTID.linkPreview}
               aria-label="Link preview" class="w-[min(24rem,90vw)] rounded-surface border border-rule/60 bg-panel shadow-raised text-ink">
-              <Body renderer={renderer} route={at.route} />
+              <PaneProvider index={at.pane} id={nav.panes()[at.pane]?.id}><Body renderer={renderer} route={at.route} /></PaneProvider>
               <footer class="border-t border-rule/60 px-3 py-2 text-xs text-muted">Click opens · Alt-click opens on the right <span class="float-right">read-only</span></footer>
             </aside>
           </Popper.Positioner></Portal>
