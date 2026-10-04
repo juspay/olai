@@ -81,3 +81,17 @@ Feature: Chat references share the app link vocabulary
     And the unified "roster" link previews "kitchen"
     When I open the unified "roster" link menu
     Then the unified link menu offers Open in new tab
+
+  Scenario Outline: Chat local fragments stay outside navigation and tab menus
+    When I ask the agent "fragments"
+    Then the agent's answer mentions "Local footnote"
+    And the local "<kind>" fragment stays in its content
+    Examples:
+      | kind |
+      | chat |
+      | chat-footnote |
+
+  Scenario: Ctrl-clicking the roster does not visit and unfold its conversation
+    When I close the agent fold
+    Then the unified "roster" link leaves "Ctrl" to the browser
+    And the roster has not unfolded the conversation

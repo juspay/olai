@@ -18,7 +18,7 @@
 import { NO_PINS, type Shelf } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { zoomNode as atNode } from "olai-plugin-navigation/routes"
+import { atNode } from "olai-plugin-navigation/routes"
 
 import { pinnedAt, pinsOf } from "./pins.ts"
 import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
@@ -77,7 +77,7 @@ test("a name is spent only where THIS parser agrees the row addresses that node"
   const crossed: Shelf = [
     { id: "p", title: "/#herbs", shows: { id: "elsewhere", name: "the kitchen" } },
   ]
-  expect(pinsOf(routes, crossed)[0]?.name).toBe("/zoom/#herbs")
+  expect(pinsOf(routes, crossed)[0]?.name).toBe("/#herbs")
 })
 
 // A title an escape nothing can read is not a door

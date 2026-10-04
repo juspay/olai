@@ -1,19 +1,5 @@
 # The plugin system
 
-Navigation owns the delegated anchor listener under `Effect.acquireRelease`.
-Its optional nodes component declares `outlines.references`; outlines provides
-node-home facts and pane-scoped row selection, while navigation owns landing
-policy and pending request validity. Provider withdrawal invalidates outstanding
-answers and reconnection retries unresolved addresses. A reveal awaiting its
-provider stays associated with its originating pane and route. A returning
-provider retries it only if that pane has not moved; a deleted target leaves
-the original page and selection intact. Resolution adds one history entry. Content rows encode
-hrefs and do not acquire their own navigation listeners. Hypertext owns the
-opaque-frame bridge: it validates sender identity, href, gesture and finite
-geometry, then lends an anchor in the owning pane to the normal listeners.
-That anchor is removed with the frame or its visible document. The sandbox
-retains `allow-scripts` without `allow-same-origin`.
-
 olai integrates with tools it does not own — kolu, odu, xyne-spaces, Gmail,
 ACP coding agents — and with most of its own features, through **plugins**. A plugin is a
 package the bundle mounts at runtime. General olai packages may know a plugin's
@@ -140,6 +126,21 @@ export default definePlugin({
 ---
 
 ## 3. The runtime underneath
+
+Navigation owns the delegated anchor listener under `Effect.acquireRelease`.
+Its optional nodes component declares `outlines.references`; outlines provides
+node-home facts and pane-scoped row selection, while navigation owns landing
+policy and pending request validity. Provider withdrawal invalidates outstanding
+answers and reconnection retries unresolved addresses. A reveal awaiting its
+provider stays associated with its originating pane and route. A returning
+provider retries it only if that pane has not moved; a deleted target leaves
+the original page and selection intact. Resolution adds one history entry. Content rows encode
+hrefs and do not acquire their own navigation listeners. Hypertext owns the
+opaque-frame bridge: it validates sender identity, href, gesture and finite
+geometry, then lends an anchor in the owning pane to the normal listeners.
+That anchor is removed with the frame or its visible document. The sandbox
+retains `allow-scripts` without `allow-same-origin`.
+
 
 Plugin authors write Effect; Cordis, the component engine underneath, is confined
 to one package.

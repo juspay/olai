@@ -15,6 +15,8 @@ const link = (world: OlaiWorld, surface: string) => {
     case "breadcrumb": return world.page.locator('[data-testid="breadcrumbs"] a[href="/#preview-target"]').first()
     case "palette": return world.page.locator('[data-testid="palette-item"][href="/#preview-target"]').first()
     case "search": return world.page.locator('[data-testid="header-search-item"][href="/#preview-target"]').first()
+    case "files-rail": return world.page.getByTestId("rail-outlines")
+    case "dated": return world.page.locator('[data-node-id="dated-link"] a[href="/#preview-target"]').first()
     case "rail": return world.page.locator('[data-testid="rail-trash"]').first()
     case "card": return world.page.locator('[data-testid="link-preview"] a').getByText("nested", { exact: true }).first()
     case "html": return world.page.frameLocator('iframe').first().getByRole("link", { name: "target row", exact: true })
@@ -41,7 +43,7 @@ Then("the unified link menu offers Open in new tab", async function(this: OlaiWo
   await this.page.getByRole("menuitem", { name: "Open in new tab", exact: true }).waitFor({ state: "visible" })
 })
 Then("the unified destination row {string} is selected", async function(this: OlaiWorld, id: string) {
-  await this.waitUntil(async () => this.page.locator(`a${attr("href", `/zoom/#${encodeURIComponent(id)}`)}`).evaluateAll(links => links.some(el => el.closest("[data-node-id]")?.getAttribute("data-focused") === "true")), "destination row selected")
+  await this.waitUntil(async () => this.page.locator(`a${attr("href", `/zoom/#${encodeURIComponent(id)}`)}`).evaluateAll(links => links.some(el => el.closest("[data-node-id]")?.getAttribute("data-focused") === "true" || el.closest("[data-active]") !== null)), "destination row selected")
 })
 Then("the unified destination row {string} is selected in pane {int}", async function(this: OlaiWorld, id: string, pane: number) {
   await this.page.locator(`${attr("data-pane", String(pane))} ${attr("data-node-id", id)}[data-focused="true"]`).first().waitFor({ state: "visible" })
@@ -96,7 +98,7 @@ Then("the unified {string} link leaves {string} to the browser", async function(
       event.preventDefault()
     }, { once: true })
   }, gesture)
-  await anchor.click({ button: gesture === "middle" ? "middle" : "left", modifiers: gesture === "Ctrl" ? ["Control"] : gesture === "Meta" ? ["Meta"] : [] })
+  await anchor.click({ button: gesture === "middle" ? "middle" : "left", modifiers: gesture === "Ctrl" ? ["Control"] : gesture === "Meta" ? ["Meta"] : gesture === "Shift" ? ["Shift"] : [] })
   assert.equal(await anchor.evaluate(element => (element.ownerDocument.defaultView as unknown as { linkClaimed: boolean }).linkClaimed), false)
   assert.equal(this.page.url(), before)
   assert.equal(await this.page.locator('[data-picked="true"]').count(), picked)
@@ -118,4 +120,69 @@ Given("legacy zoom tabs are stored", async function(this: OlaiWorld) {
 Given("a legacy zoom history entry is restored", async function(this: OlaiWorld) {
   await this.page.evaluate(() => history.replaceState({ key: "legacy", lane: null, at: 0 }, "", "/#install"))
   await this.page.reload()
+})
+
+Given("local fragment examples are served", function(this: OlaiWorld) {
+  const rows = this.servedNodesSoFar("preview.olai")
+  this.writeServed("preview.olai", rows.map(row => JSON.stringify(row.id === "preview-source" ? { ...row, desc: "[local](#local)\n\n## Local\n\nA footnote[^one].\n\n[^one]: Local footnote." } : row)).join("\n"))
+})
+Then("the local {string} fragment stays in its content", async function(this: OlaiWorld, kind: string) {
+  const root = this.page.locator(kind.startsWith("chat") ? '[data-testid="chat-said"]' : '[data-node-id="preview-source"] [data-testid="desc"]').last()
+  const anchor = kind.includes("footnote") ? root.locator('a[data-footnote-ref]').first() : root.getByRole("link", { name: "local", exact: true })
+  await anchor.waitFor({ state: "visible" })
+  assert.ok((await anchor.getAttribute("href"))?.startsWith("#"))
+  const before = this.page.url()
+  await anchor.click()
+  await this.waitForFrame()
+  assert.equal(this.page.url(), before)
+  await anchor.click({ button: "right" })
+  assert.equal(await this.page.getByRole("menuitem", { name: "Open in new tab", exact: true }).count(), 0)
+  await anchor.hover()
+  await this.page.waitForTimeout(500)
+  assert.equal(await this.page.getByTestId("link-preview").count(), 0)
+})
+Given("a dated title link is served", function(this: OlaiWorld) {
+  const rows = this.servedNodesSoFar("preview.olai")
+  this.writeServed("preview.olai", [...rows, { id: "dated-link", ord: "b0", title: "[Dated target](/#preview-target)", date: "2026-10-04", todo: "2026-10-04" }].map(row => JSON.stringify(row)).join("\n"))
+})
+Then("the dated link leaves its row unselected on Ctrl-click", async function(this: OlaiWorld) {
+  const row = this.page.locator('[data-node-id="dated-link"]').first()
+  const before = await row.getAttribute("data-active")
+  const anchor = link(this, "dated")
+  await anchor.evaluate(el => window.addEventListener("click", event => event.preventDefault(), { once: true }))
+  await anchor.click({ modifiers: ["Control"] })
+  assert.equal(await row.getAttribute("data-active"), before)
+})
+Then("a local address-bar reveal selects without adding history", async function(this: OlaiWorld) {
+  const before = await this.page.evaluate(() => history.length)
+  await this.page.evaluate(() => { history.replaceState(null, "", "/#preview-target"); dispatchEvent(new PopStateEvent("popstate")) })
+  await this.page.locator('[data-node-id="preview-target"][data-focused="true"]').waitFor({ state: "visible" })
+  assert.equal(new URL(this.page.url()).pathname, "/preview.olai")
+  assert.equal(await this.page.evaluate(() => history.length), before)
+  assert.equal(await this.page.getByTestId("zoom-title").count(), 0)
+})
+Then("a pending reveal never draws a zoom page", async function(this: OlaiWorld) {
+  await this.page.getByText("Finding…", { exact: true }).waitFor({ state: "visible" })
+  assert.equal(await this.page.getByTestId("zoom-title").count(), 0)
+})
+
+Then("the missing reveal has no zoom renderer", async function(this: OlaiWorld) {
+  await this.page.getByText("Page not found", { exact: true }).waitFor({ state: "visible" })
+  assert.equal(await this.page.getByTestId("zoom-title").count(), 0)
+})
+
+When("I open local fragments at {string}", async function(this: OlaiWorld, address: string) {
+  await this.open(address)
+  if (!address.startsWith("/zoom/")) await this.page.locator('[data-node-id="preview-source"] [data-testid="note-mark"]').click()
+})
+Then("the files sidebar remains collapsed", async function(this: OlaiWorld) {
+  assert.equal(await this.page.getByTestId("sidebar-collapse").isVisible(), false)
+})
+Then("the roster has not unfolded the conversation", async function(this: OlaiWorld) {
+  assert.equal(await this.page.locator('[data-testid="agent-standing"][data-agent="kitchen"]').getAttribute("aria-expanded"), "false")
+})
+Then("holding the dated link does not open the row menu", async function(this: OlaiWorld) {
+  await this.hold(link(this, "dated"))
+  assert.equal(await this.page.getByRole("menuitem", { name: "Zoom in", exact: true }).count(), 0)
+  await this.page.keyboard.press("Escape")
 })

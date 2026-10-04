@@ -89,9 +89,10 @@ export const asTheyWere = (all: Landings): Landings => all
  *  of the two this is — and either element address carries the document it is
  *  an element OF, so there is nothing to look the file up in.
  *
- *  The BARE node is the one element address that is NOT a landing: `/#id` is
+ *  The BARE node is the one element address that is NOT a landing: `/zoom/#id` is
  *  the zoom permalink, the page that IS the node, and navigating there is an
- *  arrival at the page rather than inside one. */
+ *  arrival at the page rather than inside one. A reveal `/#id` first resolves
+ *  to a file-qualified row route, which then carries the landing. */
 export const landingOf = (route: Route): Landing | undefined => {
   const address = route.kind === "at" ? route.address : undefined
   if (address?.kind === "heading") {

@@ -554,3 +554,10 @@ matches during movement inside one link and after a stationary replacement.
 Long-content scenarios cover both node and qualified-row links, with plain and
 address-shaped titles. They measure full paragraph visibility while scrolling,
 verify the Popper height cap, and retain the three-child limit and read-only state.
+
+The unified-link scenarios also exercise local fragments and footnotes in notes,
+zoom pages and chat, same-frame HTML anchors, dated-row link menus and Ctrl-click,
+bullet keyboard/split gestures, the Zoom in command, visible-row address-bar
+reveal, and pending/missing references without a zoom renderer. The pins migration
+scenario starts with a legacy shelf, verifies rewritten titles on disk, adds a
+new reveal pin, and restarts the server to prove migration is one-time.

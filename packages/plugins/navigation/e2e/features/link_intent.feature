@@ -215,6 +215,7 @@ Feature: Every link has one destination and one gesture vocabulary
     And I close the plugins panel
     And I activate the unified "document" link with "click"
     Then the address is exactly "/#preview-target"
+    And a pending reveal never draws a zoom page
     When I open the plugins panel
     And I switch the plugin "outlines" on
     And I close the plugins panel
@@ -222,3 +223,63 @@ Feature: Every link has one destination and one gesture vocabulary
     And the focused pane is drawing the outline "preview.olai"
     When I go back
     Then the address is exactly "/intent.md"
+
+  Scenario Outline: Local note fragments have no app destination
+    Given local fragment examples are served
+    When I open local fragments at "<address>"
+    Then the local "<kind>" fragment stays in its content
+    Examples:
+      | address | kind |
+      | /preview.olai | note |
+      | /preview.olai | footnote |
+      | /zoom/#preview-source | note |
+      | /zoom/#preview-source | footnote |
+
+  Scenario Outline: Bullet gestures explicitly zoom
+    Given I open the outline "preview.olai"
+    When I activate the unified "bullet" link with "<gesture>"
+    Then the zoomed node in pane <pane> is "preview-source"
+    Examples:
+      | gesture | pane |
+      | Enter | 0 |
+      | Alt | 1 |
+      | Alt-Shift | 1 |
+
+  Scenario: The Zoom in command opens the standalone node page
+    Given I open the outline "preview.olai"
+    When I open the node menu of "preview-source"
+    And I choose "Zoom in" from the node menu
+    Then the zoomed node is "preview-source"
+
+  Scenario: Address-bar reveal preserves an already visible outline
+    Given I open the outline "preview.olai"
+    Then a local address-bar reveal selects without adding history
+
+  Scenario: A missing reveal shows absence instead of the zoom renderer
+    When I open the address "/#missing-reference"
+    Then the missing reveal has no zoom renderer
+    And there should be no page errors
+
+  Scenario Outline: Dated row links have ordinary link gestures and menus
+    Given a dated title link is served
+    When I open the address "<address>"
+    Then holding the dated link does not open the row menu
+    And the dated link leaves its row unselected on Ctrl-click
+    When I open the unified "dated" link menu
+    Then the unified link menu offers Open in new tab
+    When I press "Escape"
+    And I activate the unified "dated" link with "click"
+    Then the unified destination row "preview-target" is selected
+    Examples:
+      | address |
+      | /d/2026-10-04 |
+      | /agenda |
+
+  Scenario: Shift-click belongs to the browser
+    Given I prepare the unified "title" surface
+    Then the unified "title" link leaves "Shift" to the browser
+
+  Scenario: Ctrl-clicking the files rail keeps the sidebar collapsed
+    Given I prepare the unified "rail" surface
+    Then the unified "files-rail" link leaves "Ctrl" to the browser
+    And the files sidebar remains collapsed

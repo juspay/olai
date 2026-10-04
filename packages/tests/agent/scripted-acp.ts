@@ -2836,6 +2836,12 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // no component — which is why they are worth a verb: the panel is mounted
   // beside the panes, so nothing above them catches the click, and for a while
   // one of these reloaded the whole app.
+  if (verb === "fragments") {
+    say("[local](#local)\n\n## Local\n\nA footnote[^one].\n\n[^one]: Local footnote.\n")
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "links") {
     say(
       "the note is [the cabinets note](notes/cabinets.md) " +

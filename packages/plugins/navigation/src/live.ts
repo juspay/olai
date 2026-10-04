@@ -202,5 +202,5 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
     },
 
   }
-  return { value, setWorkspace: (next: Workspace, requested?: string) => { address = requested ?? hrefOfWorkspace(routing, next); setWorkspace(next) }, setLandings }
+  return { value, revealVisible: (route: Route) => resolving.visible(focusIndex(), route), setWorkspace: (next: Workspace, requested?: string) => { address = requested ?? hrefOfWorkspace(routing, next); setWorkspace(next) }, setLandings }
 }

@@ -441,7 +441,7 @@ Feature: A `.html` in the vault
     And the page is scrolled to the top
 
   @scratch:good
-  Scenario: An in-page anchor updates the app address and lands the frame
+  Scenario: A same-frame fragment stays inside the HTML preview
     Given I open the app
     And I mark the page
     When I rewrite "notes/long.html" as:
@@ -456,10 +456,9 @@ Feature: A `.html` in the vault
     And I click the page "notes/long.html"
     Then the preview shows the heading "Long"
     When I click "#down" inside the preview
-    # The router lands the frame at the heading.
+    # The frame owns its local fragment.
     Then the preview is at the anchor "#end"
-    # Its shareable address records the same destination.
-    And the address is "/notes/long.html#end"
+    And the address is "/notes/long.html"
     And the document open is "notes/long.html"
     And the page has not reloaded
 

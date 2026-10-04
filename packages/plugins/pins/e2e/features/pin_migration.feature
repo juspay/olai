@@ -13,7 +13,7 @@ Feature: Legacy pins migrate once at the storage boundary
     And I follow the pin "/#order"
     Then the focused pane is drawing the outline "house.olai"
     And the unified destination row "order" is selected
+    And there should be no page errors
     When the server stops
     And the server starts again on the same port
     Then "_olai/Pins.olai" holds a node titled "/#order"
-    And there should be no page errors

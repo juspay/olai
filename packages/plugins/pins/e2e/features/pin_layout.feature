@@ -26,12 +26,12 @@ Feature: Pinning layouts
     And pane 0 is focused
     And the layout panes have equal widths
     And the address is exactly "/s/house.olai/garden.olai"
-    And there are 1 tabs
-    When I go back
+    And there are 2 tabs
+    When I press tab 0
     Then the address is exactly "/finishes.md"
     And there should be no page errors
 
-  Scenario: A saved workspace replaces the workspace on a plain click
+  Scenario: A saved workspace opens a new front tab on a plain click
     Given the directory has the pins:
       | [Planning](/s/house.olai/garden.olai?w=10,90&f=1) |
     When I open the address "/s/zoom%2F%23order/finishes.md"
@@ -41,7 +41,8 @@ Feature: Pinning layouts
     And pane 1 is showing "/garden.olai"
     And pane 0 is focused
     And the layout panes have equal widths
-    When I go back
+    And there are 2 tabs
+    When I press tab 0
     Then pane 0 is showing "/zoom/#order"
     And pane 1 is showing "/finishes.md"
 
@@ -247,7 +248,7 @@ Feature: Pinning layouts
     And pane 0 is focused
     And the layout panes have equal widths
     And the address is exactly "/s/house.olai/garden.olai/finishes.md"
-    When I go back
+    When I press tab 0
     Then the address is exactly "/house.olai"
 
   Scenario: Reordering a layout pin consumes the click without opening its workspace
@@ -264,12 +265,3 @@ Feature: Pinning layouts
     Then there are 2 panes
     And there should be no page errors
 
-  Scenario: Legacy persisted node and layout pins retain the zoom view
-    Given the directory has the pins:
-      | /#order |
-      | [Old layout](/s/house.olai/%23install) |
-    When I follow the pin "/zoom/#order"
-    Then the zoomed node is "order"
-    When I follow the pin "/s/house.olai/zoom%2F%23install"
-    Then there are 2 panes
-    And the zoomed node in pane 1 is "install"

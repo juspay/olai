@@ -53,6 +53,13 @@ export function createReveal(panes: Accessor<readonly LivePane[]>, arrive: (inde
   createEffect(watch)
   return {
     reveal,
+    visible(index: number, route: Route) {
+      const pane = panes()[index]
+      if (!pane || route.kind !== "at" || !route.reveal || route.address?.kind !== "node" || !nodeTargets.read()?.reveal(pane.id, route.address.id)) return false
+      requests.delete(pane.id)
+      arrive(index, undefined, "replace")
+      return true
+    },
     cancel(index: number) { const pane = panes()[index]; if (pane) { requests.delete(pane.id); setStatus(pane.id, undefined) } },
     status(index: number) { const id = panes()[index]?.id; return id ? status[id] : undefined },
   }

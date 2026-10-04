@@ -24,7 +24,7 @@ import { heldService } from "@olai/ui-primitives/held.ts"
 import type { Route } from "olai-plugin-navigation/routes"
 import { HOME_ROUTE, hrefOfPlain, labelIn, NO_PAGES, type Routing } from "olai-plugin-navigation/routes"
 
-const provider = heldService<Routing>()
+const provider = heldService<Omit<Routing, "routeIn">>()
 
 /** Told by `./browser.tsx`'s row, for that activation. */
 export const holdRouting = provider.hold

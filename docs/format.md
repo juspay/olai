@@ -1,12 +1,5 @@
 # The outline format
 
-Node references use `/#id` to reveal a row; explicit zoom links use
-`/zoom/#id`. File-qualified row and heading links keep `/<file>#<element>`.
-Old unversioned Pins.olai node URLs (including nodes inside saved layouts) are
-interpreted as zoom views for compatibility. Newly saved zoom pins write the
-explicit form. Stored browser tabs and stamped history migrate old node URLs
-at their storage boundary; current written links and address-bar input reveal.
-
 One `.olai` file per outline. One JSON object per line; one line per node. Every `.olai` file under the served directory is an independent tree: no cross-file parents. Cross-file relations are mirrors and edges, by bare id.
 
 That is a rule about a `parent` FIELD and not about where a node may end up. A subtree moves between outlines whole — `outlines_move` with a `parent` or a `file` in another outline, and `outlines_trash` on the way to `_olai/Trash.olai` — and it keeps its ids, so what it lands under is a parent in the file it landed in. Ids are unique across the whole served directory (below), which is the entire mechanism: nothing has to be re-pointed, because nothing ever left the namespace it was pointed at in. Every mirror, edge, `node`-typed property and PIN aimed at what moved goes on resolving — a pin by the address grammar rather than by this rule, since a node address names the id and drops the file half ([Pins](#pins)) — and so does the day a dated node sits on, which changes only the outline it is grouped under. The one exception is a `ref`-typed property, which asserts ancestry as well as existence: moving a variant out of its declared root is refused `bad-prop` at the write gate, with nothing written ([Typed properties](#typed-properties)).
@@ -430,6 +423,13 @@ A `.md` file under the served directory is a **document**, and documents are par
 
 ## Pins
 
+Node references use `/#id` to reveal a row; explicit zoom links use
+`/zoom/#id`. File-qualified row and heading links keep `/<file>#<element>`.
+Existing Pins.olai node URLs (including nodes inside saved layouts) are
+rewritten once to explicit zoom URLs. New `/#id` pins reveal rows. Stored browser tabs and stamped history migrate old node URLs
+at their storage boundary; current written links and address-bar input reveal.
+
+
 **A pin is an ordinary node, in an ordinary outline, whose title is an ADDRESS.** The sidebar draws a shelf of them above Outlines and Reference — one click back to a node, a document, or a page with the query it was narrowed by ([editing.md](editing.md#pinning-a-page-to-the-sidebar)). Nothing in this format is new for it: no field, no record shape, no op.
 
 **The file matches the `Pins` stem directly under `_olai/`**, case-insensitively, with any node-holding suffix. Two matching files are ambiguous. A directory without one has an empty shelf; when the configured outline row is off, the sidebar explains that instead.
@@ -438,7 +438,7 @@ A `.md` file under the served directory is a **document**, and documents are par
 
 **The top level of that file is the shelf, in `ord` order.** One node per pin. What is nested under a pin is that pin's own business — notes about it, a checklist — and is not a second row in the sidebar.
 
-**The title is the address this app would spell for that page.** An address is `[document]#[element]`, the format's own grammar (`@olai/format`'s `address.ts`), with a slash in front of it: `/#<id>` a node, `/<path>` a document — a `.md`, a `.html` or an outline, the suffix says which page it opens — and `/<path>#<slug>` a heading inside one, or — after an `.olai` — a ROW: the node landed at its place in its own file rather than alone, which is the one address whose file half can go stale the way a renamed heading does (the node moves; the id is durable and the file is not). The row's id may name a PLACEMENT, and that lands too: a fragment spelling a mirror's own id — what `outlines_read` reports in `mirrors`, the spelling an agent citing a board row naturally writes — lands on the mirror's own row when the file draws it, and when it does not, the landing resolves the id to the node the placement stands for (the chat panel's answer to a backticked one, [chat.md](chat.md)) and lands by the same rule. Beside them are the pages that name nothing on disk, which are the app's own ([architecture.md](architecture/overview.md)): `/d/<ISO>` a day, `/today`, `/agenda`, `/trash`. Each may carry `?q=<filter>`, which is how a **saved query** is a pin at all ([search.md](search.md)).
+**The title is the address this app would spell for that page.** An address is `[document]#[element]`, the format's own grammar (`@olai/format`'s `address.ts`), with a slash in front of it: `/#<id>` reveals a node in its outline, `/zoom/#<id>` opens its standalone page, `/<path>` a document — a `.md`, a `.html` or an outline, the suffix says which page it opens — and `/<path>#<slug>` a heading inside one, or — after an `.olai` — a ROW: the node landed at its place in its own file rather than alone, which is the one address whose file half can go stale the way a renamed heading does (the node moves; the id is durable and the file is not). The row's id may name a PLACEMENT, and that lands too: a fragment spelling a mirror's own id — what `outlines_read` reports in `mirrors`, the spelling an agent citing a board row naturally writes — lands on the mirror's own row when the file draws it, and when it does not, the landing resolves the id to the node the placement stands for (the chat panel's answer to a backticked one, [chat.md](chat.md)) and lands by the same rule. Beside them are the pages that name nothing on disk, which are the app's own ([architecture.md](architecture/overview.md)): `/d/<ISO>` a day, `/today`, `/agenda`, `/trash`. Each may carry `?q=<filter>`, which is how a **saved query** is a pin at all ([search.md](search.md)).
 
 A pin title may also be a workspace address: `/s/` followed by percent-encoded page addresses, one per pane (without each page's leading slash). For example, `[Orchestrating](/s/%23abc/orchestrator%2Flanes.olai)`. The app always writes layout pins with a supplied name and saves pages only, with no `?w=` widths or `?f=` focus. Readers tolerate those parameters and the workspace codec's `?a=` and `?t=` extensions; following a pin restores equal widths and first-pane focus. Bare workspace titles written by hand remain pins, deriving pane names and using an unresolved node's address when necessary.
 

@@ -11,7 +11,7 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { atElement, atFile, atNode, labelIn, nameIn, lineFragment, lineAt, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
+import { atElement, atFile, atNode, routingOver, NO_PAGES, labelIn, nameIn, lineFragment, lineAt, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
 import { ROUTES, routingIn } from "./routes.testlib.ts"
 
 /** No plugin claims a URL — the roster these cases are about, named rather
@@ -409,4 +409,10 @@ test("a document is named by the files sidebar's stem, and a file that is not on
   expect(nameIn(TEST_CLAIMS, { kind: "trash" })).toBeUndefined()
   // ...and nothing before the claims have been read.
   expect(nameIn(undefined, atFile("garden.olai"))).toBeUndefined()
+})
+
+test("node addresses keep their identity before the file claims arrive", () => {
+  const early = routingOver(() => undefined, () => NO_PAGES)
+  expect(early.routeOf("/#herbs")).toEqual(atNode("herbs"))
+  expect(early.href(early.routeOf("/zoom/#herbs"))).toBe("/zoom/#herbs")
 })

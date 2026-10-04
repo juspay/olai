@@ -1,3 +1,4 @@
+import { intentOf } from "@olai/surface"
 /**
  * Markdown from a file, on the page — a note, a document, or the agent.
  *
@@ -126,6 +127,14 @@ export function Markdown(props: {
           // Safe because the pipeline sanitises (see ./render.ts), and because
           // the text of the file it came from is escaped when there is no
           // pipeline yet.
+          onClick={event => {
+            if (intentOf(event) === null || !(event.target instanceof Element)) return
+            const anchor = event.target.closest<HTMLAnchorElement>("a[href]")
+            const href = anchor?.getAttribute("href")
+            if (!href?.startsWith("#") || anchor?.hasAttribute("download") || (anchor?.target && anchor.target !== "_self")) return
+            event.preventDefault()
+            try { container?.querySelector(`#${CSS.escape(decodeURIComponent(href.slice(1)))}`)?.scrollIntoView({ block: "nearest" }) } catch { /* malformed local fragment */ }
+          }}
           innerHTML={html() ?? escapeHtml(props.source)}
         />
       }

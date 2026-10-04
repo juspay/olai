@@ -550,7 +550,7 @@ const routeNamedIn = (table: Claims | undefined, pages: MountedPages, parts: Spl
   if (!pathname.startsWith(HOME)) return null
   // The front page names no file — "whichever outline was found first" — which
   // is a page of this app and not a fallback, so a link may be written to it.
-  if (pathname === HOME && fragment === undefined) return { ...HOME_ROUTE, ...narrowed }
+  if (pathname === HOME) return fragment === undefined ? { ...HOME_ROUTE, ...narrowed } : { ...atNode(decodeURIComponent(fragment)), ...narrowed }
 
   const named = table === undefined ? null : parseAddress(
     table,

@@ -1,38 +1,5 @@
-/**
- * NAMING A NODE FROM SOMEWHERE THAT IS NOT AN OUTLINE — the contract, and
- * nothing live.
- *
- * The chat panel writes references to nodes: an armed chip carries an id and
- * wants the node's title, a reference in a delivered sentence wants to be
- * pressable, and a set of ids the outline could not name wants a line saying
- * so. All three are the OUTLINE's readings, and the panel is a different
- * package.
- *
- * ## What used to cross this door, and why it was wrong
- *
- * A Solid signal, at module scope, holding the outline's live implementation:
- * outlines' `browser.tsx` called `holdReferences(value)` and the panel's
- * components read it through `createDeclared`. The value crossed a package wall
- * as a module variable, so the runtime saw no dependency at all — chat declared
- * nothing, `plugins.inspect` reported nothing, and nothing withdrew when the
- * outline row stopped except the signal going quiet on its own good behaviour.
- * That is the audit's §2 and §12 in one file.
- *
- * The value travels on {@link references} now — a service outlines offers and
- * chat's `references` component declares. What is left here is the SHAPE and
- * the pure adapters over an accessor a caller supplies, because the
- * absent arm is the interesting part of each of them and is worth having once
- * rather than three times in the consuming package.
- *
- * ## The absent arm is the contract, not a fallback
- *
- * A panel with no outline row mounted keeps every reference it is holding and
- * draws the ids it carries: `named` answers `null`, `want` asks nobody,
- * the failure line is empty. That is the same
- * reading these adapters have always had — what changed is that it is now
- * reached because a DECLARED provider is absent rather than because a module
- * variable happens to be `undefined`.
- */
+/** Static outline readings. Consumers declare this service; provider withdrawal
+ * restores the absent adapters without dropping the consumer’s own state. */
 import { createMemo, type Accessor } from "solid-js"
 import { serviceTag } from "@olai/plugin-api/contracts"
 

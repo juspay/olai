@@ -36,7 +36,7 @@ import { type Landings, landingsOf, NOWHERE } from "./landing.ts"
 import { adopted, forgotten, type LaneRows, pushedAt, seek } from "./lanes.ts"
 import { routing } from "./pages.ts"
 import { createScrollMemory } from "./scroll.ts"
-import { legacyZoomHref, hrefOfWorkspace, type Workspace, workspaceOf } from "./workspace.ts"
+import { legacyZoomHref, hrefOfWorkspace, isLone, focusedRoute, type Workspace, workspaceOf } from "./workspace.ts"
 
 /** What this app keeps on a history entry, which is a NAME for it and nothing
  *  else: what was on screen is derived from the address, and a second copy of
@@ -271,6 +271,7 @@ export const createRouter = (): NavigationRouter => {
       // position you left" belongs to entries, and none was traversed to.
       const next = workspaceOf(routing, here())
       currentKey = nameHere()
+      if (isLone(next) && front().revealVisible(focusedRoute(next))) return
       batch(() => {
         setLandings(landingsOf(next))
         setWorkspace(next)

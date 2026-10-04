@@ -223,7 +223,7 @@ const INSTRUCTIONS =
   "— no shell, no grep, no path outside the served directory, and no way to name part " +
   "of a file — and that is deliberate.\n\n" +
   "An address is the app's own — there is no host or port to know: `/#<id>` names a " +
-  "node wherever it lives, `/<path>` a document or an outline, `/<path>#<element>` a " +
+  "node to reveal in its outline; `/zoom/#<id>` opens its standalone page. `/<path>` names a document or an outline, `/<path>#<element>` a " +
   "row of that outline or a heading of that document. A tool's `at` (`#a1b2c3`, " +
   "`notes/plan.md`) is the same address without the leading `/`. Tools are named " +
   "`<row>_<verb>`; a row that is off has no verbs here, and a verb you do not see is " +

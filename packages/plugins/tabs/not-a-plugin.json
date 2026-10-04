@@ -5,8 +5,7 @@
   ],
   "//layout": "Saved-layout vocabulary names a workspace address, not the layout plugin.",
   "layout": [
-    "src/Links.tsx",
-    "src/face.ts"
+    "src/Links.tsx"
   ],
   "navigation": [
     "src/browser.tsx"
