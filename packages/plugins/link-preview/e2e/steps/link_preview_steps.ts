@@ -123,3 +123,5 @@ Then("Escape reaches the page when no preview is open", async function (this: Ol
   await this.page.keyboard.press("Escape")
   assert.equal(await this.page.evaluate(() => (window as unknown as { previewEscape: { escapes: number } }).previewEscape.escapes), 1)
 })
+
+When("I remove the first preview child on disk", function (this: OlaiWorld) { write(this, records().filter(row => row.id !== "preview-child-0")) })

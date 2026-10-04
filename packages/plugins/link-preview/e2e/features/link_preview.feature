@@ -222,3 +222,13 @@ Feature: Live read-only internal link previews
     And Escape leaves the preview's underlying page untouched
     And the address is "/#preview-source"
     And Escape reaches the page when no preview is open
+
+  Scenario: Removing a visible child keeps the live card intact
+    When I hover the preview link "target"
+    Then the link preview contains "Child one"
+    When I mark the preview card identity
+    And I remove the first preview child on disk
+    Then the link preview contains "Child four"
+    And the link preview does not contain "Child one"
+    And the preview card identity is unchanged
+    And there should be no page errors

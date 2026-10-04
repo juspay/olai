@@ -52,10 +52,12 @@ export function OutlineLinkPreview(props: { readonly route: Route }) {
   </ReadingProvider>
 }
 function PreviewChildren(props: { readonly rows: ReadonlyArray<Row> }) {
-  const keys = createMemo(() => props.rows.slice(0, 3).map(row => row.key))
+  const byKey = createMemo(() => new Map(props.rows.slice(0, 3).map(row => [row.key, row])))
+  const keys = createMemo(() => [...byKey().keys()])
   return <><ul class="mt-2 space-y-1 text-sm"><For each={keys()}>{key => {
-    const row = () => props.rows.find(row => row.key === key)!
-    const title = () => { const item = row(); return item.kind === "node" || item.kind === "mirror" ? item.shows.node.title : "Missing target" }
-    return <li class="flex gap-2"><span class="text-muted">{row().status ?? "•"}</span><NodeTitle title={title()} from={row().at.file} /></li>
+    const row = () => byKey().get(key)
+    return <Show when={row()}>{item => <li class="flex gap-2"><span class="text-muted">{item().status ?? "•"}</span><NodeTitle
+      title={(() => { const current = item(); return current.kind === "node" || current.kind === "mirror" ? current.shows.node.title : "Missing target" })()}
+      from={item().at.file} /></li>}</Show>
   }}</For></ul><Show when={props.rows.length > 3}><p class="mt-1 text-xs text-muted">+{props.rows.length - 3} more</p></Show></>
 }
