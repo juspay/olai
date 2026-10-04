@@ -95,7 +95,6 @@ import type { Workspace } from "olai-plugin-navigation/workspace"
  * in a unit test rather than in a sidebar.
  */
 
-import { legacyZoomHref } from "olai-plugin-navigation/workspace"
 import { addressWritten } from "@olai/format"
 import type { Pinned, Shelf } from "@olai/format"
 
@@ -166,7 +165,7 @@ export interface Pin {
  *  it is a thing somebody may write. (A MIRROR never reaches here: it carries
  *  no title to address with, and the reading leaves it out.) */
 const pinOf = (routes: Routing, row: Pinned): Pin | undefined => {
-  const target = targetIn(routes, legacyZoomHref(addressWritten(row.title)))
+  const target = targetIn(routes, row.title)
   if (target === undefined) return undefined
   const shows = (route: Route) => showing(route, row)
   const face = targetFace(routes, row.title, target, shows)

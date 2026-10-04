@@ -14,7 +14,7 @@ test("bare and named layout rows coexist with page pins and compare only pages",
   ]
   const pins = pinsOf(routes, shelf)
   expect(pins.map(pin => pin.id)).toEqual(["bare", "named", "page"])
-  expect(pins[0]).toMatchObject({ target: { kind: "layout" }, name: "house.olai · /zoom/#missing", written: false })
+  expect(pins[0]).toMatchObject({ target: { kind: "layout" }, name: "house.olai · /#missing", written: false })
   expect(pins[1]).toMatchObject({ name: "Planning", bare: "house.olai · garden.olai", written: true })
   expect(pinnedAt(routes, shelf, atFile("house.olai"))?.id).toBe("page")
   expect(pinnedLayout(routes, shelf, routes.layoutIn("/s/house.olai/garden.olai?w=90,10")!)?.id).toBe("named")
