@@ -321,7 +321,7 @@ test("a pane's index is drawn by the workspace and read where two panes must be 
     "plugins/markdown/src/browser/BodyPage.tsx",
     "plugins/markdown/src/browser/PageView.tsx",
     "plugins/navigation/src/PageView.tsx",
-    "plugins/navigation/src/links.ts",
+    "plugins/navigation/src/routing.tsx",
     "plugins/outlines/src/browser/PageView.tsx",
     "plugins/outlines/src/browser/drag/lines.ts"
   ])

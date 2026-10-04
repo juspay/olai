@@ -91,7 +91,6 @@ const DOORS: Readonly<Record<string, { readonly module: object; readonly names: 
       "isAttachmentVideo",
       "mediaHref",
       "mediaTarget",
-      "ours",
       "pluginState",
       "refusalIn",
       "sealPolicy",

@@ -84,7 +84,7 @@ test("a mirror pins the node it SHOWS, never the placement standing there", () =
 })
 
 test("a node the shelf already holds is offered the way OFF it instead", () => {
-  const shelf: Shelf = [{ id: "p-install", title: "/#install" }]
+  const shelf: Shelf = [{ id: "p-install", title: "/zoom/#install" }]
   const offered = writeVerbs(routes, subjectOfRow(row("install")), row("install").under, shelf)
   expect(offered.map((one) => one.label)).toContain("Unpin from sidebar")
   expect(offered.map((one) => one.label)).not.toContain("Pin to sidebar")
