@@ -183,7 +183,15 @@ Then("the complete preview title and every paragraph are reachable", async funct
   await heading.scrollIntoViewIfNeeded()
   assert.equal(await heading.textContent(), longTitle)
   // Geometry, not just textContent: hidden/clamped text can still be in the DOM.
-  assert.equal(await heading.evaluate(el => el.scrollWidth <= el.clientWidth + 1), true)
+  const visibleBody = (await body.boundingBox())!
+  const titleLines = await heading.evaluate(el => {
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    return [...range.getClientRects()].filter(rect => rect.width > 0).map(rect => ({ x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom }))
+  })
+  assert.ok(titleLines.length > 1, "long titles wrap")
+  for (const line of titleLines) assert.ok(line.x >= visibleBody.x - 1 && line.right <= visibleBody.x + visibleBody.width + 1
+    && line.y >= visibleBody.y - 1 && line.bottom <= visibleBody.y + visibleBody.height + 1, "every title line is visible, including address labels")
   const note = card(this).getByTestId("desc")
   assert.equal(await note.locator("p").count(), longParagraphs.length)
   for (const paragraph of longParagraphs) {
