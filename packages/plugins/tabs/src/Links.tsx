@@ -12,7 +12,8 @@
  * menu of its own (`data-menu-owner`, which the outline's rows wear), the strip
  * itself, a Shift+right-click (the browser's own menu, on request), and any
  * `href` this app's grammar does not read — an external link keeps the
- * browser's menu.
+ * browser's menu. A link to a heading inside its own document is read by the
+ * route stamped beside its fragment, so it has the menu too.
  *
  * Open is the anchor's own click, so whatever that link does on a plain press
  * — navigate its pane, open a saved layout — it does here. Open in new tab puts
@@ -20,6 +21,8 @@
  * no strip to find it in, it comes to the front instead (`tabs.state`'s `open`).
  */
 import { createSignal, onCleanup, Show } from "solid-js"
+
+import { ROUTE_HREF } from "@olai/web/client/press.ts"
 
 import type { Navigation } from "olai-plugin-navigation/contract"
 import { lone, type Workspace } from "olai-plugin-navigation/workspace"
@@ -52,7 +55,12 @@ export function LinkMenu(props: { readonly tabs: TabsState; readonly router: Nav
     const anchor = target.closest("a[href]")
     if (!(anchor instanceof HTMLAnchorElement)) return
     if (anchor.closest(`[data-menu-owner], [data-testid="${TESTID.tabsStrip}"]`) !== null) return
-    const workspace = workspaceAt(props.router.routes, anchor.getAttribute("href")!)
+    // The stamped route first, the way a split reads it (`@olai/web`'s
+    // `ROUTE_HREF`): a link to a heading inside its own document is a
+    // page-local fragment, which no route parses, and the page it stands for
+    // is written beside it. Open stays the anchor's own click, which still
+    // scrolls in place.
+    const workspace = workspaceAt(props.router.routes, anchor.getAttribute(ROUTE_HREF) ?? anchor.getAttribute("href")!)
     if (workspace === undefined) return
     event.preventDefault()
     setOpen({ x: event.clientX, y: event.clientY, anchor, workspace })

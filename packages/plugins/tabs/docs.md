@@ -52,7 +52,9 @@ nothing about the other tabs.
 
 Right-click any link this app can open — a door in the sidebar, a link in a
 document — for **Open** and **Open in new tab**. A new tab opens right after the
-tab in front and stays behind it. Links inside an outline row are left to the
+tab in front and stays behind it. A link to a heading inside its own document,
+and a line of a document's contents, opens that document at that heading;
+**Open** on one still scrolls the page in place. Links inside an outline row are left to the
 row, which owns its own menu, and external links keep the browser's menu.
 Shift+right-click always shows the browser's menu. ⌘-click and middle-click on a
 link still open a browser tab, as they do everywhere else.

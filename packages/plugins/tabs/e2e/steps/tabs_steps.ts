@@ -255,6 +255,23 @@ When("I choose {string} from the menu of the document link {string}", async func
   await chooseFromMenu(this, entry);
 });
 
+// A link to a heading inside its own document, and a line of its contents:
+// page-local fragments, found by what a reader sees rather than a row's
+// selector — the contents is the page's `Contents` navigation.
+When("I choose {string} from the menu of the in-page link {string}", async function (this: OlaiWorld, entry: string, label: string) {
+  const link = this.documentBody().getByRole("link", { name: label, exact: true }).first();
+  await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await link.click({ button: "right" });
+  await chooseFromMenu(this, entry);
+});
+
+When("I choose {string} from the menu of the contents line {string}", async function (this: OlaiWorld, entry: string, text: string) {
+  const link = this.page.getByRole("navigation", { name: "Contents" }).getByRole("link", { name: text, exact: true }).first();
+  await link.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await link.click({ button: "right" });
+  await chooseFromMenu(this, entry);
+});
+
 Then("right-clicking the bullet of {string} opens no tab menu", async function (this: OlaiWorld, id: string) {
   // The bullet is a link INSIDE the row's line, which owns the menu a press on
   // it opens (`data-menu-owner`), so the page-wide link menu leaves it alone.
