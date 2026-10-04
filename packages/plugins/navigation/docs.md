@@ -74,18 +74,17 @@ records the heading in the address and the landing scrolls the owning pane.
 Stored tabs and stamped history written before `/zoom/` existed are read as
 zoom at their persistence boundaries; current links use the current grammar.
 
-Reveal resolution (`src/reveal.ts`) belongs to each lane, with one observer per
-pane. The optional `nodes` component declares `outlines.references`, which
-answers row visibility, selection and a node's home file; navigation owns the
-pending request and drops an answer once its pane has moved, its provider was
-withdrawn or the lane was disposed. An answer, including absence, is kept for
-that route and provider; only a returning provider retries. An answer that
-cannot be acted on yet — busy because the connection was replaced at boot, or
-a home file whose suffix the claim table does not hold yet — is asked again
-on a short lane-owned timer, and after a bounded number of tries the node is
-reported missing. While a reveal is
-unresolved the pane says “Finding…”, and a missing node says “Page not found” —
-never the zoom page.
+A followed node link commits its `/#id` route, and the pane resolves it in
+place of that entry (`src/reveal.ts`), so it is still one step of history. Each
+pane reads the node's home once per route and provider through the optional
+`nodes` component, which declares `outlines.references`; the reading belongs to
+the pane's effect, so moving the pane or withdrawing the provider disposes it,
+and a returning provider is asked again. The pane lands when the claim table
+names the home file, however late that is. Nothing here retries: outlines
+re-asks a call its wire dropped when the next connection is established. While
+a reveal is unresolved the pane says “Finding…”; a node that does not exist
+says “Page not found”, and an outline that cannot be asked says the page can't
+be opened — never the zoom page.
 
 ## Palette levels
 

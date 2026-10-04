@@ -183,9 +183,10 @@ settings — a second, unnamed boundary.
 **A browser listener is a registration too.** Navigation's one delegated
 link listener is acquired with `Effect.acquireRelease` in its activation, so
 content rows only encode hrefs and never hold a listener of their own. A pending
-node reveal belongs to the pane and route that asked; withdrawing
-`outlines.references` invalidates the answer, and its return retries only a pane
-that has not moved. Hypertext owns the opaque-frame bridge: it checks the
+node reveal is a reading owned by the pane's effect for the route that asked;
+withdrawing `outlines.references` disposes it, and its return asks again only
+for a pane that has not moved. Re-asking a call the wire dropped is the
+outline row's, on its own connection. Hypertext owns the opaque-frame bridge: it checks the
 sender's identity, the href, the gesture and finite geometry, then hands the
 intent to navigation's `follow`. The anchor it places in the owning pane for
 hover and menus is removed with the frame. The sandbox keeps `allow-scripts`
