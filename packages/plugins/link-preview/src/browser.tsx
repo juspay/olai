@@ -25,9 +25,10 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
   let opening: ReturnType<typeof setTimeout> | undefined
   let closing: ReturnType<typeof setTimeout> | undefined
   let pending: HTMLElement | undefined
+  let insideCard = false
   const clearOpening = () => { clearTimeout(opening); opening = undefined; pending = undefined }
   const hold = () => { clearTimeout(closing); closing = undefined }
-  const close = () => { clearOpening(); hold(); setTarget(undefined) }
+  const close = () => { clearOpening(); hold(); insideCard = false; setTarget(undefined) }
   const leave = () => { clearOpening(); hold(); closing = setTimeout(close, CLOSE_MS) }
   const classify = (at: EventTarget | null): Target | undefined => {
     if (!(at instanceof Element) || at.closest(`${CARD}, ${EDITOR}`)) return
@@ -42,7 +43,9 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
   }
   const enter = (event: PointerEvent | FocusEvent) => {
     if (matchMedia("(pointer: coarse)").matches || (event instanceof PointerEvent && event.pointerType === "touch")) return
-    if (event.target instanceof Element && event.target.closest(CARD)) { hold(); return }
+    const inCard = event.target instanceof Element && event.target.closest(CARD) !== null
+    if (event instanceof PointerEvent) insideCard = inCard
+    if (inCard) { hold(); return }
     const next = classify(event.target)
     if (!next || (event.type === "focusin" && !next.element.matches(":focus-visible"))) return
     hold()
@@ -56,7 +59,10 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     }, OPEN_MS)
   }
   const out = (event: PointerEvent | FocusEvent) => {
+    if (!pending && !target()) return
     const next = event.relatedTarget
+    if (event instanceof PointerEvent) insideCard = next instanceof Element && next.closest(CARD) !== null
+    else if (insideCard) return
     if (next instanceof Node && (target()?.element.contains(next) || pending?.contains(next)
       || (next instanceof Element && next.closest(CARD)))) return
     leave()

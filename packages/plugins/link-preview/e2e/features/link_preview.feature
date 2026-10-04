@@ -189,3 +189,12 @@ Feature: Live read-only internal link previews
     When I click the nested preview link
     Then pane 0 is showing "/#preview-destination"
     And pane 1 is showing "/#preview-target"
+
+  Scenario: A focused link can hand the pointer to the card without blur dismissing it
+    When I focus the preview link "target"
+    Then the link preview contains "Preview target"
+    When I move onto the preview card
+    Then the link preview is read-only and clipped
+    And the link preview remains open
+    When I dismiss the link preview with Escape
+    Then the link preview closes
