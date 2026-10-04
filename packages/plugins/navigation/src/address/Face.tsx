@@ -116,11 +116,7 @@ export function Face(props: {
           </span>
         }
       >
-        {/* A plain `<a>` rather than a `<Link>`: the press is answered by the
-            pane's delegated listener, which is what already turns a written
-            link into a navigation and gives Alt+click its split for free
-            (`../router.tsx`'s `followed`, `../pane/PageView.tsx`). A `<Link>`
-            here would be a second answer to the same click. */}
+        {/* Navigation’s owned listener follows the real href. */}
         <a
           href={href()}
 

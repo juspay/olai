@@ -1,7 +1,8 @@
 # Link previews
 
-Preview classification reads only an anchor's real href through
-`navigation.routes.routeIn`, just as clicks and the tab link menu do. Chat code
+Preview classification uses navigation’s shared `targetOf` reader, just as
+clicks and the tab link menu do. Local fragments, downloads and links targeting
+another browsing context are excluded. Chat code
 references are anchors too. A preview card carries its source pane identity,
 so links in a portalled card navigate that pane even while another is focused.
 
