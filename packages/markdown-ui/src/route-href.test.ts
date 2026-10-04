@@ -53,3 +53,41 @@ test("a note's in-page links and headings carry no route", () => {
 test("without claims nothing is stamped", () => {
   expect(anchors(renderMarkdown(undefined, BODY, "notes/garden.md")).every((one) => one.route === undefined)).toBe(true)
 })
+
+/**
+ * WHERE THE STAMP LANDS is the claim, not what it spells: the route goes
+ * through the same door a split arrives by (`landingId` over the slug the
+ * address names), and must find the very heading a plain click on the same
+ * anchor scrolls to — the element the minted fragment names.
+ */
+const lands = (body: string, from: string, label: string) => {
+  const html = renderMarkdown(TEST_CLAIMS, body, from)
+  const anchor = new RegExp(`<a ([^>]*)>${label}</a>`).exec(html)?.[1] ?? ""
+  const href = /href="#([^"]*)"/.exec(anchor)?.[1]
+  const route = new RegExp(`${ROUTE_HREF}="([^"]*)"`).exec(anchor)?.[1]
+  expect(href).toBeDefined()
+  expect(route?.startsWith(`/${from}#`)).toBe(true)
+  // What the browser scrolls to on a plain click: the fragment, decoded.
+  const scrolled = decodeURIComponent(href!)
+  // What the split lands on: the route's slug, read the way an address is.
+  const landed = landingId(body, from, decodeURIComponent(route!.slice(route!.indexOf("#") + 1)))
+  const ids = [...html.matchAll(/<h[1-6] id="([^"]*)"/g)].map((one) => one[1])
+  return { scrolled, landed, ids }
+}
+
+test("a link to the second of two same-named headings lands on the second", () => {
+  const body = ["# Garden", "", "See [the later beds](#beds-1).", "", "## Beds", "", "First.", "", "## Beds", "", "Second."].join("\n")
+  const { scrolled, landed, ids } = lands(body, "notes/garden.md", "the later beds")
+  expect(ids.length).toBe(3)
+  expect(landed).toBe(ids[2]!)
+  expect(landed).toBe(scrolled)
+})
+
+test("a non-ASCII slug lands on its heading, written raw or percent-encoded", () => {
+  for (const written of ["#café-plan", "#caf%C3%A9-plan"]) {
+    const body = ["# Garden", "", `See [the plan](${written}).`, "", "## Café plan", "", "Mint."].join("\n")
+    const { scrolled, landed, ids } = lands(body, "notes/garden.md", "the plan")
+    expect(landed).toBe(ids[1]!)
+    expect(landed).toBe(scrolled)
+  }
+})
