@@ -6,7 +6,7 @@ The browser provider owns a document reader and a fresh edit-history scope. Its 
 
 While a page's first reading is on its way it says `Loading…`. An address that names no such file says `Page not found`, with a detail such as `There is no document named notes/plan.md.` The source editor's accessible name is `Edit <file>`.
 
-Heading fragments remain in each pane's navigation route and scroll history. Metadata requests use only the document path, so opening a section still fetches the correct file, and two panes can land independently at headings in the same document. Moving between headings of that file reuses its metadata subscription.
+Heading fragments remain in each pane's navigation route and scroll history. A link inside a document to one of its own headings (`[x](#slug)`) and every line of its contents are page-local fragments, so a plain click scrolls the page in place; each also carries the heading's app route (`data-route-href`, by the authored slug), which Alt+click opens on the right — also from a document's link-preview card. Notes in an outline carry no such route. Metadata requests use only the document path, so opening a section still fetches the correct file, and two panes can land independently at headings in the same document. Moving between headings of that file reuses its metadata subscription.
 
 `markdown.browser-state` carries what this row owns in a tab — its sibling
 client, the open documents and their drafts, and its own edit history — rather

@@ -220,6 +220,14 @@ and then to reuse remaining owners for changed addresses at equal counts.
 Unchanged addresses reuse their Route objects. Pane ids are runtime identities,
 not URL or storage fields. Reports and page memories use those ids.
 
+Links a reader WROTE are answered by `useFollow`: a plain press reads the
+anchor's `href` (`followed`), and Alt+click reads `followedSplit`, which prefers
+the route a renderer stamped as `data-route-href` (`@olai/web`'s `ROUTE_HREF`)
+over the `href`. That is how an in-document fragment such as a document's
+`#slug` link or contents line, whose `href` is the page-local id a plain click
+scrolls to, still opens its heading on the right. Navigation owns the reading;
+the renderer only writes the attribute.
+
 `navigation.page()` honours an enclosing `RouterProvider`; without one it uses
 the front lane. `usePane()` supplies the id, reactive index and mounted element.
 `useShown()` reports whether the page is currently drawn (including narrow-pane
