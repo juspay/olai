@@ -1761,17 +1761,15 @@ Feature: A `.html` in the vault
     And the address is "/runaway.html"
 
   @scratch:good
-  Scenario: A link out of a preview comes home to the sealed document
+  Scenario: A same-origin app link in a preview navigates the owning pane
     Given I open the app
     When I rewrite "outbound.html" as a page that walks the frame off by "a link the reader follows"
     And I click the page "outbound.html"
     Then the preview shows the heading "Walk off"
     When I follow the link out of the preview
-    # The positive half of the same mechanism: the file's own markup is BACK,
-    # which is what says the restore ran rather than the navigation having
-    # quietly failed and left everything where it was.
-    Then the preview is back on the sealed document
-    And the app is not loaded inside the preview
+    Then the address is "/"
+    And there is no preview on this page
+    And there should be no page errors
 
   @scratch:good
   Scenario: A picture that arrives after the page has loaded takes the frame with it
