@@ -2,7 +2,9 @@
 
 Hover an internal link for about 400 ms, or focus it with the keyboard, to
 read a live preview. Move onto the card to keep it open; leave it for about
-200 ms or press Escape to close it. Only one card opens at a time.
+200 ms or press Escape to close it. Only one card opens at a time. A layout
+change moving a new link under a stationary pointer does not open a card;
+moving the pointer over that link does.
 
 Outlines show the target's context, title, status, date, task progress, a short
 note and up to three children. Whole outline links show three top-level rows.

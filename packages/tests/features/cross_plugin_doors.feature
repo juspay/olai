@@ -61,8 +61,9 @@ Feature: Plugins depend on doors
   # `search` and `alerts` are in this selection because the case asserts chat
   # has NO browser warning once identity arrives. Its matcher and attention
   # components name search.readings and alerts.channel; leaving either out
-  # would assert an unrelated absence alongside identity.viewer.
-  @rows:vault,olai,alerts,chat,claude,search,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins
+  # would assert an unrelated absence alongside identity.viewer. Link-preview
+  # owns the location consumed by chat's optional preview contribution.
+  @rows:vault,olai,alerts,chat,claude,search,ws,web-app,mcp,ui-renderer,layout,sidebar,preferences,theme,plugin-inspector,navigation,outlines,markdown,files,pins,capture,trash,vault-plugins,link-preview
   Scenario: The speaker waits visibly while the conversation remains usable
     Given I am the Tailscale user "ada@example.com"
     And I open the app

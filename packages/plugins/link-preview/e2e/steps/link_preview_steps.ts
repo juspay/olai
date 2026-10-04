@@ -22,6 +22,17 @@ Given("the link preview examples are served", function (this: OlaiWorld) {
   this.writeServed("preview.md", "# Document\n\nOpening paragraph\n\n## Section\n\nFirst section text\n\n## Section\n\nSecond section text\n\n## End\n\nThird section text\n")
 })
 When("I hover the preview link {string}", async function (this: OlaiWorld, label: string) { await link(this, label).hover() })
+When("a target link replaces the local link under the stationary pointer", async function (this: OlaiWorld) {
+  await link(this, "local").evaluate(el => {
+    const replacement = el.cloneNode(true) as HTMLAnchorElement
+    replacement.href = "/#preview-target"
+    el.replaceWith(replacement)
+  })
+})
+When("I move slightly within the preview link {string}", async function (this: OlaiWorld, label: string) {
+  const box = (await link(this, label).boundingBox())!
+  await this.page.mouse.move(box.x + box.width / 2 + 2, box.y + box.height / 2)
+})
 When("I focus the preview link {string}", async function (this: OlaiWorld, label: string) { await link(this, label).focus() })
 When("I blur the preview link", async function (this: OlaiWorld) { await this.page.evaluate(() => (document.activeElement as HTMLElement)?.blur()) })
 When("I move onto the preview card", async function (this: OlaiWorld) { await card(this).hover() })

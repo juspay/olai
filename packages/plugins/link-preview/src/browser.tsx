@@ -26,6 +26,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
   let closing: ReturnType<typeof setTimeout> | undefined
   let pending: HTMLElement | undefined
   let insideCard = false
+  let pointer: { x: number; y: number } | undefined
   const clearOpening = () => { clearTimeout(opening); opening = undefined; pending = undefined }
   const hold = () => { clearTimeout(closing); closing = undefined }
   const close = () => { clearOpening(); hold(); insideCard = false; setTarget(undefined) }
@@ -43,6 +44,9 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
   }
   const enter = (event: PointerEvent | FocusEvent) => {
     if (matchMedia("(pointer: coarse)").matches || (event instanceof PointerEvent && event.pointerType === "touch")) return
+    // Layout changes synthesize boundary events beneath a stationary pointer.
+    // A newly arrived link is not a deliberate hover; a subsequent move is.
+    if (event.type === "pointerover" && event instanceof PointerEvent && pointer?.x === event.clientX && pointer.y === event.clientY) return
     const inCard = event.target instanceof Element && event.target.closest(CARD) !== null
     if (event instanceof PointerEvent) insideCard = inCard
     if (inCard) { hold(); return }
@@ -57,6 +61,11 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
       clearOpening()
       if (next.element.isConnected && classify(next.element)) setTarget(next)
     }, OPEN_MS)
+  }
+  const move = (event: PointerEvent) => {
+    if (pointer?.x === event.clientX && pointer.y === event.clientY) return
+    pointer = { x: event.clientX, y: event.clientY }
+    enter(event)
   }
   const out = (event: PointerEvent | FocusEvent) => {
     if (!pending && !target()) return
@@ -74,6 +83,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     root.className = `fixed left-0 top-0 ${LAYER.over}`
     document.body.append(root)
     document.addEventListener("pointerover", enter)
+    document.addEventListener("pointermove", move)
     document.addEventListener("pointerout", out)
     document.addEventListener("focusin", enter)
     document.addEventListener("focusout", out)
@@ -81,6 +91,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
   }), () => Effect.sync(() => {
     close()
     document.removeEventListener("pointerover", enter)
+    document.removeEventListener("pointermove", move)
     document.removeEventListener("pointerout", out)
     document.removeEventListener("focusin", enter)
     document.removeEventListener("focusout", out)
