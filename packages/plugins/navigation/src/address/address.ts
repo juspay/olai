@@ -262,18 +262,15 @@ export const shownIn = (
 }
 
 
-/** Titles can name a workspace or a page. Workspace recognition goes first:
- * a workspace ending in a filename also fits the page grammar, which must
- * continue to recognise real files under an s/ directory. */
+/** Titles use the same reader as anchor activation, previews and link menus. */
 export const targetIn = (routes: WorkspaceRouting, title: string): AddressTarget | undefined => {
   const text = title.trim()
   if (!text.startsWith("/") && !text.startsWith("[")) return undefined
   const address = addressWritten(text)
   if (/\s/.test(address)) return undefined
-  const workspace = routes.layoutIn(address)
-  if (workspace !== null) return { kind: "layout", workspace }
-  const route = addressIn(routes, text)
-  return route === undefined ? undefined : { kind: "page", route }
+  const route = routes.routeIn(address)
+  return route === null ? undefined : route.kind === "layout"
+    ? { kind: "layout", workspace: route.workspace } : { kind: "page", route }
 }
 
 export const layoutName = (routes: Routing, workspace: Workspace,

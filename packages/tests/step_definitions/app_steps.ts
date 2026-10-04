@@ -155,7 +155,7 @@ Then(
   async function (this: OlaiWorld, line: string, action: string) {
     const { said, block } = emptyPage(this.page, line);
     await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    const buttons = (await block.getByRole("button").allInnerTexts()).map(oneLine);
+    const buttons = (await block.locator("button, a[href]").allInnerTexts()).map(oneLine);
     assert.deepStrictEqual(buttons, [action], `the empty page offers ${JSON.stringify(buttons)}`);
   },
 );
@@ -171,7 +171,7 @@ When(
   async function (this: OlaiWorld, action: string, line: string) {
     const { said, block } = emptyPage(this.page, line);
     await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await this.press(block.getByRole("button", { name: action, exact: true }));
+    await this.press(block.getByRole("button", { name: action, exact: true }).or(block.getByRole("link", { name: action, exact: true })));
   },
 );
 

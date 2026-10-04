@@ -119,7 +119,7 @@ When(
         .first(),
     );
     await this.page
-      .locator(ZOOM_TITLE)
+      .locator(`${attr("data-node-id", id)}[data-focused="true"]`).first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );

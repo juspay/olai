@@ -24,7 +24,7 @@
 import { splitAddress } from "@olai/format"
 import type { Axis } from "olai-plugin-layout/geometry"
 
-import { HOME_ROUTE,hrefOfPlain,type Route,type Routing } from "./routes.ts"
+import { HOME_ROUTE,hrefOfPlain,fileNamed,type Route,type Routing } from "./routes.ts"
 
 export type { Axis } from "olai-plugin-layout/geometry"
 
@@ -188,8 +188,15 @@ export const workspaceRoutingOver = (routes: Routing): WorkspaceRouting => ({
         path = url.pathname + url.search + url.hash
       } catch { return null }
     }
-    const workspace = path.slice(WORKSPACE_PREFIX.length).includes("/") ? layoutIn(routes, path) : null
-    return workspace ? { kind: "layout", workspace } : routes.routeIn(path)
+    const page = routes.routeIn(path)
+    // A lone literal filename under s/ remains a file. Encoded/multiple
+    // segments and an explicit tree are workspace addresses, including old
+    // degenerate saved layouts. Every link surface uses this same decision.
+    const address = splitAddress(path)
+    const layout = address.pathname.slice(WORKSPACE_PREFIX.length).includes("/")
+      || address.search.includes("t=") || !page || fileNamed(page) === undefined
+    const workspace = layout ? layoutIn(routes, path) : null
+    return workspace ? { kind: "layout", workspace } : page
   },
   layoutIn: (href) => layoutIn(routes, href),
   layoutHref: (workspace) => layoutHref(routes, workspace),

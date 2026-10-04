@@ -53,7 +53,7 @@ import { repeatPick } from "../date/repeat.ts"
 import { type Relation, RELATIONS } from "../edges/relation.ts"
 import { pinnedAt } from "olai-plugin-pins/values"
 import { customEntries } from "olai-plugin-outlines/property-values"
-import { atNode, hrefOfPlain } from "olai-plugin-navigation/routes"
+import { zoomNode, hrefOfPlain } from "olai-plugin-navigation/routes"
 import type { WorkspaceRouting as Routing } from "olai-plugin-navigation/workspace"
 import { trashQuestion } from "olai-plugin-trash/questions"
 
@@ -350,14 +350,14 @@ export const writeVerbs = (
     // and a mirror's page is its target's; storing the placement's id instead
     // would leave a pin that stops resolving the day somebody retires that
     // placement, which is a write about a line and not about the shelf.
-    const pinned = pinnedAt(routes, shelf, atNode(shown.node.id))
+    const pinned = pinnedAt(routes, shelf, zoomNode(shown.node.id))
     verbs.push(
       pinned === undefined
         ? {
           id: "pin",
           group: "plan",
           label: "Pin to sidebar",
-          does: sends({ verb: "pin", at: hrefOfPlain(atNode(shown.node.id)) }),
+          does: sends({ verb: "pin", at: hrefOfPlain(zoomNode(shown.node.id)) }),
         }
         : {
           id: "unpin",

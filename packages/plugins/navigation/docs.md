@@ -184,9 +184,7 @@ a departed suffix-to-row mapping. Trash and Agenda can name the configured
 outline row when it is off; Inbox and Pins explain that state in their sidebar
 entries while their files remain ordinary addresses.
 
-Saved layouts use `WorkspaceRouting.layoutIn(href)` to read workspace addresses and `WorkspaceRouting.layoutHref(workspace)` to print only ordered pages, without widths or focus. `WorkspaceRouting` composes over the page grammar when navigation binds its live roster. The page parser remains unchanged and does not import the workspace codec; it still resolves files under `s/`. Shared title recognition tries workspace addresses before page addresses, and both outline titles and shelf rows draw the resulting page or layout face. Named layout faces navigate in place; ⌘/Ctrl-click and middle-click retain browser new-tab behavior. `Router.open(workspace)` replaces the entire workspace in one history push without landings. These operations are supplied through `navigation.state`. Its `info(index)` exposes the existing live pane report, withdrawn with the reporting owner, for consumers that need pane names.
-
-Saved-layout normalization is the pure `savedLayout(workspace)` transformation. URL serialization and in-place opening both use that value; opening does not encode and reparse a URL to discard geometry. `followLayout`, exported through the static `layout-press` contract, owns layout-anchor gesture policy for both shelf and outline faces. It accepts the caller's existing router, respects already-consumed gestures and browser new-tab clicks, and holds no service or lifetime of its own.
+Saved layouts use the shared `routeIn` reader and `layoutHref` writer. A literal single file such as `/s/notes.olai` remains a file; encoded pane segments, multiple segments, or an explicit tree describe a workspace. Shared title recognition, shelf rows, hover previews and tab menus all use that reader. `Router.open(workspace)` replaces the workspace in one history push and records its landings. The pure `savedLayout(workspace)` transformation retains ordered pages and discards saved geometry and focus. Ordinary link intent also applies to layout anchors: Alt opens the pages to the right, Alt+Shift inserts panes, and browser modifiers remain native.
 
 ## Lanes: history for one tab at a time
 
@@ -235,16 +233,6 @@ reserve address matches first, using position to break duplicate-address ties
 and then to reuse remaining owners for changed addresses at equal counts.
 Unchanged addresses reuse their Route objects. Pane ids are runtime identities,
 not URL or storage fields. Reports and page memories use those ids.
-
-Links a reader WROTE are answered by `useFollow`: a plain press reads the
-anchor's `href` (`followed`), and Alt+click reads `followedSplit`, which prefers
-the route a renderer stamped as `data-route-href` (`@olai/web`'s `ROUTE_HREF`)
-over the `href`. That is how an in-document fragment such as a document's
-`#slug` link or contents line, whose `href` is the page-local id a plain click
-scrolls to, still opens its heading on the right. Navigation owns the reading;
-the renderer only writes the attribute. The two readings are plain data in and out (no
-service or lifetime), kept in `src/contracts/written.ts` and re-exported by
-the `routing` contract beside `useFollow`.
 
 `navigation.page()` honours an enclosing `RouterProvider`; without one it uses
 the front lane. `usePane()` supplies the id, reactive index and mounted element.

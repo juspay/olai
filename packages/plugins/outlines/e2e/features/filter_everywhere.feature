@@ -86,7 +86,7 @@ Feature: The filter reaches every page that draws nodes
     # the pill inside it might have suggested.
     Given I open the day "2019-11-05"
     When I press the tag "#home"
-    Then the address is exactly "/zoom/#deck"
+    Then the address is exactly "/work.olai#deck"
 
   @corpus:agenda
   Scenario: The agenda narrows day by day, and the silences close up

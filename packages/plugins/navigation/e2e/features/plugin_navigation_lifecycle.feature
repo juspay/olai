@@ -56,7 +56,7 @@ Feature: Plugin changes preserve working navigation and editing
     And I type "bronze" into the palette
     Then the palette lists the node "choose the bronze handles"
     When I pick the palette item "choose the bronze handles"
-    Then the zoomed node is "handles"
+    Then the unified destination row "handles" is selected
     And the page has not reloaded
     And there should be no page errors
 

@@ -114,14 +114,6 @@ export function Toc(props: {
             <Key each={props.headings} by="id">
               {(heading) => (
                 <li style={{ "padding-left": `${(heading().depth - base()) * INDENT_REM}rem` }}>
-                  {/* A plain `<a href="#…">`, not a `<Link>`: a plain click
-                      goes nowhere — it is the same page, and the fragment is
-                      the browser's own job. Intercepting it would be this app
-                      re-implementing a scroll the platform already does, and
-                      losing the address a reader can copy. Alt+click is a
-                      split, and opens the ROUTE the heading stands for, which
-                      the rendering worked out beside its id (`@olai/web`'s
-                      `ROUTE_HREF`, read by the navigation row's router). */}
                   <a href={heading().route ?? `#${heading().id}`} class={LINE} data-testid={TESTID.tocLink}>
                     {heading().text}
                   </a>

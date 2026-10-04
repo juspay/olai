@@ -488,7 +488,7 @@ A name the link cannot hold is refused rather than mangled, in the palette's own
 
 With multiple panes open, `⌘K` also offers **Pin this layout…**, with the pane names underneath. It always asks for a name; empty Enter says **a layout needs a name** and keeps the question open. Escape writes nothing.
 
-A layout pin has a split mark and a tooltip listing its pages. Clicking it opens the layout in a new olai tab in front, including with Alt or Shift held ([Keeping several pages open](#keeping-several-pages-open)); with the tabs plugin switched off it replaces the whole workspace in one history push instead, and Back restores the previous workspace. ⌘/Ctrl-click and middle-click open its address in a new browser tab. Only pages are saved: the layout reopens with equal widths and the first pane focused.
+A layout pin has a split mark and a tooltip listing its pages. Clicking it replaces the workspace in one history push; Back restores the previous workspace. Alt opens its pages to the right; Alt+Shift inserts new panes. Right-click **Open in new tab** keeps it in a separate olai tab. ⌘/Ctrl-click and middle-click open its address in a new browser tab. Only pages are saved: the layout reopens with equal widths and the first pane focused.
 
 The command becomes **Unpin this layout** when those pages are already pinned, regardless of widths or focus. Shelf rename and remove work as for page pins, including undo; layout renames also require a name. Handwritten bare layout addresses are accepted and display the pane names, falling back to an unresolved node's address.
 
@@ -496,7 +496,7 @@ The command becomes **Unpin this layout** when those pages are already pinned, r
 
 On a desktop, a strip of tabs sits above the page. Each tab holds one page, or a whole split of panes, and the tab in front is the page you are looking at: the address bar shows it, and the sidebar, Back and every pane gesture act on it. The sidebar, the chat panel and the palette are shared by every tab. A tab you leave keeps its page, its filter and where it was scrolled.
 
-- **A new tab.** Right-click a link — a door in the sidebar, a link in a document — and choose **Open in new tab**; the tab opens behind the one in front. **+** at the end of the strip, or `⌘⇧O` / `Ctrl+⇧O`, opens a tab on the front page. A pinned layout on the shelf opens in a new tab.
+- **A new tab.** Right-click a link — a door in the sidebar, a link in a document — and choose **Open in new tab**; the tab opens behind the one in front. **+** at the end of the strip, or `⌘⇧O` / `Ctrl+⇧O`, opens a tab on the front page. A pinned layout offers the same link menu.
 - **Switching.** Press a tab, or use `⌘⇧.` and `⌘⇧,` (`Ctrl+⇧.` and `Ctrl+⇧,`) for the next and previous tab.
 - **Closing.** The × on a tab, a middle-click, or `⌘⇧X` / `Ctrl+⇧X` for the tab in front. Right-click a tab for **Duplicate tab** and **Close other tabs**. Closing the last tab leaves one on the front page.
 - **Reordering.** Drag a tab along the strip.

@@ -467,7 +467,7 @@ Feature: Properties on a node, from the web
     And I open the outline "house.olai"
     Then the property "reviewer" on "handles" is a "node" door to "/#basil"
     When I follow the property "reviewer" on "handles"
-    Then the zoomed node is "basil"
+    Then the unified destination row "basil" is selected
     And there should be no page errors
 
   Scenario: A date wears the date badge and opens its day

@@ -6,6 +6,8 @@ Feature: A node's page holds its memory and conversation
     And the node agent's fold is ready
     And I type "keep this cabinet draft" into the chat
     And I follow the agent's open-page link
+    Then the unified destination row "install" is selected
+    When I zoom into the node "install"
     Then the zoomed node is "install"
     And the node page conversation is ready for "install"
     And the chat input reads "keep this cabinet draft"

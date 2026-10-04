@@ -441,13 +441,7 @@ Feature: A `.html` in the vault
     And the page is scrolled to the top
 
   @scratch:good
-  Scenario: An in-page anchor is still the frame's own jump
-    # The half that did NOT change, and the one the rule above is a comparison
-    # against: `#top` names a place in the document the reader is already
-    # looking at, so there is nothing for the app to do with it. A page
-    # scrolling itself is not a navigation, and the test is the document rather
-    # than the presence of a hash — which is why the handler compares pathnames
-    # instead of asking whether there is a fragment at all.
+  Scenario: An in-page anchor updates the app address and lands the frame
     Given I open the app
     And I mark the page
     When I rewrite "notes/long.html" as:

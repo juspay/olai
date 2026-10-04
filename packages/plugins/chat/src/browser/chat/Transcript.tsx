@@ -388,13 +388,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
       data-testid={TESTID.chatTranscript}
       ref={pane}
       onScroll={props.page ? undefined : scrolled}
-      // A press the chips decline is still a press on the agent's markdown, and
-      // an anchor in there is an address in this vault: a `.md` link the
-      // renderer resolved (`../markdown/rewrite.ts`) or an app path the agent
-      // wrote. This panel is mounted BESIDE the panes, so nothing above it was
-      // ever going to catch one — they fell to the browser and reloaded the app
-      // cold. `useFollow` is the pane's own tail, and it lands in the focused
-      // pane, which is where a link pressed in a drawer belongs.
 
     >
       {/* A wrapper with no styling of its own, purely so there is something

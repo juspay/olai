@@ -116,6 +116,7 @@ import {
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
 import { Lede } from "@olai/web/client/errors/Lede.tsx"
+import { servedDirectory } from "./vault.ts"
 import { useHere, useRouter, useLanding } from "olai-plugin-navigation/routing"
 import { fileNamed } from "olai-plugin-navigation/routes"
 
@@ -646,89 +647,14 @@ export function Hypertext(props: { readonly file: string }) {
     point(`${mediaHref(props.file)}?${VISIT}=${visits}${anchor(at)}`, { rev: rev(), at })
   }
 
-  /**
-   * OPEN A PAGE OF THIS VAULT, because a reader clicked a link to it inside the
-   * preview — and the whole of what "because" is worth here.
-   *
-   * What arrives is a path from a document running somebody else's JavaScript,
-   * so it is a LOOKUP KEY and nothing else: it is handed to the page model
-   * (`../opens.tsx`, `../page.ts`'s `opensAt`), which answers with the route
-   * that draws that file — the body page for a `.md` or a `.html`, the tree
-   * page for an outline — or with nothing, and nothing moves nothing.
-   *
-   * THAT MEMBERSHIP IS THE WHOLE GUARANTEE — one question, asked by the module
-   * that answers it for every other address in this app, and there is no second
-   * one hiding behind it. In particular, navigating with the string the LIST
-   * holds rather than with the one that arrived buys nothing: the two are `===`
-   * equal strings, so there is no copy and nothing is laundered. Anything that
-   * reads as a further guard here is ceremony, and ceremony makes the real test
-   * harder to see.
-   *
-   * WHICH PAGE is deliberately not decided here either. This component knows
-   * that a path either opens somewhere or does not; that a `.md` is read at
-   * a body while an outline is a tree is the page model's, and a
-   * preview frame is the last place that should hold a second copy of it.
-   *
-   * A MISS MOVES NOTHING, deliberately, and the tempting alternative is worth
-   * naming because it looks kinder: navigating anyway would let this app's own
-   * "no such document" screen say what happened. It would also put an arbitrary
-   * string from a sandboxed frame into the URL bar, which is a capability, and
-   * the sentence on screen would be about a file the reader never named.
-   *
-   * BUT IT SAYS SO. A click that does nothing and explains nothing is what
-   * the error rule is about — the reader pressed a link, the page did not
-   * move, and nothing on screen accounts for it — so the miss draws a refusal
-   * in the voice every other refused act in this client speaks
-   * ({@link REFUSED}). Moving nothing is still the answer; being silent about
-   * it was never part of the argument.
-   *
-   * WHAT A MISS COSTS, because a dead click is not free. The two ends of this
-   * disagree about what the vault holds, in one direction. The seal claims a
-   * click by SUFFIX under `/media/` — the ROUTE's world, whose guard is lexical
-   * and will serve any `.html` it can find on disk. This list is the STORE's
-   * world, and the store's walk prunes dot-directories and `node_modules`
-   * (`@olai/store`'s `disk.ts`). So a `.html` under a pruned directory is
-   * servable and unlistable at once: the click is claimed and then dropped,
-   * where before this change the frame would have drawn it. Nothing became
-   * unreachable that was reachable — `../page.ts` refuses those paths too, so
-   * olai has no page for such a file either — but the FRAME's rendering of it
-   * is gone, and it goes silently. `html_previews.feature` holds that case, so
-   * it is a known cost rather than something for a reader to discover.
-   *
-   * AND A PAGE NAMING ITSELF IS REFUSED, which is the rule this channel needing
-   * no gesture forced.
-   *
-   * `[here](./here.md)` in rendered markdown reaches `../router.tsx`'s
-   * `followed` only when somebody presses it. This arrives whenever the page
-   * decides to send it, because a `postMessage` is not a press and nothing on
-   * this side can tell the two apart. Everywhere else that costs nothing: a
-   * message naming ANOTHER file navigates once and takes this element with it,
-   * so the sender is gone. A message naming THE FILE ALREADY SHOWN is the one
-   * that does not — the route is the page that is open, so `DocumentPage` does
-   * not re-key, this element is never replaced, and the sender is still sitting
-   * there able to send again. Unrefused, that is history a page can spend with
-   * no reader in it, and the tab's scroll with it: the same hazard class
-   * {@link WALK_OFFS} exists for ("no served file can put this tab in a reload
-   * loop"), on the channel that arrived after it.
-   *
-   * So the file being shown is not a file this can open. Asked through
-   * `fileNamed` rather than by reading the route's arms, because which routes
-   * name a file is `../routes.ts`'s answer and both of the ones this produces
-   * do — an outline can never BE the file shown here, but the comparison should
-   * not be the thing that knows it.
-   *
-   * SILENTLY, and that is the one place this parts company with a miss. A miss
-   * is a click this app could not answer, so the reader is owed the reason
-   * ({@link REFUSED}); a self-open names a page olai has and is DRAWING — the
-   * reader is looking at it. An alarm saying the link cannot be opened, over
-   * the very file it names, would be a refusal contradicted by the screen it is
-   * drawn on. A reader who clicks a link to the page they are on is already
-   * where it goes.
-   */
+  /** Compatibility with a sealed page retained across a client update. New
+   * pages forward their anchor to the shared link listeners below. */
   const open = (named: string, at?: string, intent: "go" | "right" | "new-pane" = "go") => {
+    if (!servedDirectory()?.paths().includes(named)) return setRefused(REFUSED)
     const href = "/" + named.split("/").map(encodeURIComponent).join("/") + (at === undefined ? "" : "#" + encodeURIComponent(at))
     const route = router.routes.routeIn(href)
     if (route === null) return setRefused(REFUSED)
+    if (intent === "go" && router.routes.href(router.panes()[here()]!.route()) === router.routes.href(route)) return
     if (intent === "go") router.goIn(here(), route)
     else router.openRight(here(), route, intent === "new-pane")
   }
@@ -762,6 +688,46 @@ export function Hypertext(props: { readonly file: string }) {
     // Nothing said it was one of ours. It has {@link SAYS_HELLO} to say so
     // before the file goes back.
     stand({ at: "stray", until: setTimeout(bring, SAYS_HELLO) })
+  }
+
+  // A sealed frame cannot dispatch into its parent's DOM. Its owned anchor
+  // carries the validated href and geometry across that boundary; the normal
+  // navigation, preview and tab-menu listeners interpret it. No plugin looks
+  // inside another plugin's service or the opaque frame.
+  let frameLink: HTMLAnchorElement | undefined
+  const clearLink = () => {
+    frameLink?.dispatchEvent(new PointerEvent("pointerout", { bubbles: true }))
+    frameLink?.remove()
+    frameLink = undefined
+  }
+  onCleanup(clearLink)
+  createEffect(on(() => [shown(), rev(), landing.at()], clearLink, { defer: true }))
+  const link = (said: Extract<ReturnType<typeof heard>, { kind: "link" }>) => {
+    if (!shown() || !frame) return
+    const route = router.routes.routeIn(said.href)
+    if (!route) return
+    const named = fileNamed(route)
+    if (named && !servedDirectory()?.paths().includes(named)) {
+      if (said.action === "click") setRefused(REFUSED)
+      return
+    }
+    if (!frameLink || frameLink.getAttribute("href") !== said.href) {
+      clearLink()
+      frameLink = document.createElement("a")
+      frameLink.href = said.href
+      frameLink.tabIndex = -1
+      frameLink.setAttribute("aria-hidden", "true")
+      frameLink.style.cssText = "position:fixed;pointer-events:none;opacity:0"
+      frame.parentElement?.append(frameLink)
+    }
+    const box = frame.getBoundingClientRect()
+    const x = box.x + Math.max(0, Math.min(frame.clientWidth, said.x))
+    const y = box.y + Math.max(0, Math.min(frame.clientHeight, said.y))
+    Object.assign(frameLink.style, { left: `${x}px`, top: `${y}px`, width: `${Math.max(0, Math.min(frame.clientWidth, said.width))}px`, height: `${Math.max(0, Math.min(frame.clientHeight, said.height))}px` })
+    if (said.action === "click" && said.intent === "go" && router.routes.href(router.panes()[here()]!.route()) === router.routes.href(route)) return
+    const options = { bubbles: true, cancelable: true, clientX: x, clientY: y,
+      altKey: said.intent === "right" || said.intent === "new-pane", shiftKey: said.intent === "new-pane" }
+    frameLink.dispatchEvent(said.action.startsWith("pointer") ? new PointerEvent(said.action, options) : new MouseEvent(said.action, options))
   }
 
   // The message arrives on the WINDOW — there is no per-frame channel — so the
@@ -806,6 +772,7 @@ export function Hypertext(props: { readonly file: string }) {
       // there is no navigation of the FRAME's to record. What happens after is
       // the app's — usually this element unmounting with the page that held it,
       // and, for a page that named itself, no unmount at all (see `open`).
+      if (said.kind === "link") return link(said)
       if (said.kind === "open") return open(said.file, said.at, said.intent)
       // WHERE THE ANCHOR ENDED UP, and the host window's half of landing on it.
       //

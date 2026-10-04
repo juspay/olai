@@ -38,6 +38,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     if (!(at instanceof Element) || at.closest(`${CARD}, ${EDITOR}`)) return
     const element = at.closest<HTMLAnchorElement>('a[href]')
     if (!element || element.closest(EDITOR)) return
+    if (element.getAttribute("href")?.startsWith("#")) return
     const href = element.href
     const route = nav.routes.routeIn(href)
     const pane = element.closest("[data-pane]")?.getAttribute("data-pane")

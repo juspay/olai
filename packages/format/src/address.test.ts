@@ -259,3 +259,8 @@ test("a name that cannot be written is REFUSED rather than mangled", () => {
   }
   expect(PIN_NAME_UNWRITABLE).toContain("]")
 })
+
+
+test("an explicit zoom permalink names the same node for references and shelf names", () => {
+  expect(parseAddress(TEST_CLAIMS, "zoom/#a1b2c3")).toEqual(node("a1b2c3"))
+})

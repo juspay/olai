@@ -34,9 +34,9 @@ Feature: Tabs above the panes
     And the page has not reloaded
     And there should be no page errors
 
-  Scenario: A link drawn inside an outline row keeps the row's own menu
+  Scenario: A link drawn inside an outline row owns its link menu
     Given I open the outline "house.olai"
-    Then right-clicking the bullet of "install" opens no tab menu
+    Then right-clicking the bullet of "install" opens the link menu
     And there is 1 tab
     And there should be no page errors
 

@@ -314,17 +314,8 @@ test("anything else the frame could say is not a height", () => {
 
 // ── the click a page hands out ─────────────────────────────────────────
 
-/**
- * The prefix the link handler posts, taken out of the SCRIPT rather than
- * written here — the same discipline the height prefix is read under and for
- * the same reason: the producer is text no compiler reads, so a literal
- * copied into this file would drift with it and go on passing.
- */
-const OPEN = ((): string => {
-  const found = /parent\.postMessage\({ type: "([^"]*)", href: path \+ at\.hash, intent: intent }, "\*"\)/.exec(SEAL)
-  if (found === null) throw new Error(`the seal's link handler posts nothing: ${SEAL}`)
-  return found[1]!
-})()
+// Older sealed pages can remain mounted across a client upgrade.
+const OPEN = "olai:open-page:"
 
 /**
  * WHICH FILES THE HANDLER CLAIMS A CLICK ON, read the same way: the list is
@@ -360,7 +351,7 @@ test("the handler claims the kinds the registry says have pages", () => {
  * changes the meaning fails and names the press.
  */
 const shipped = ((): ((press: Press) => ReturnType<typeof intentOf>) => {
-  const found = /\n  var intentOf = ([\s\S]*?)\n  addEventListener/.exec(SEAL)
+  const found = /\n  var intentOf = ([\s\S]*?)\n  function target/.exec(SEAL)
   if (found === null) {
     throw new Error(`the seal ships no press rule — this test has nothing to check:\n${SEAL}`)
   }
@@ -643,4 +634,11 @@ test("a frame that is resized says where the anchor is now, unasked", () => {
   // the receiver refuses as saying nothing (`olai-plugin-hypertext`'s `browser/echo.ts`).
   // Not posting it at all is the cheaper half of the same answer.
   expect(said.map(heard)).toEqual([{ kind: "landed", top: 1195 }])
+})
+
+
+test("sealed link reports validate gestures and finite anchor geometry", () => {
+  const report = { type: "olai:link", href: "/#node", action: "click", intent: "right", x: 1, y: 2, width: 30, height: 20 }
+  expect(heard(report)).toMatchObject({ kind: "link", href: "/#node", intent: "right" })
+  for (const change of [{href: "//elsewhere/"}, {href: "javascript:evil()"}, {intent: "wrong"}, {action: "wrong"}, {x: Infinity}, {width: "30"}]) expect(heard({...report, ...change})).toBeUndefined()
 })

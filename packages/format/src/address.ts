@@ -26,7 +26,7 @@
  * used to be normalised away to the bare node, on the argument that the file
  * in it is a fact that can go stale and the id beside it cannot. What that
  * argument could not say is where a reader LANDS when they follow one, and a
- * page answered that: `/#id` is the durable zoom permalink, so the qualified
+ * page answered that: `/#id` reveals a node; `/zoom/#id` is its explicit zoom permalink, so the qualified
  * spelling was the one place left for *the outline, landed at that row* to
  * mean — the same treatment `README.md#install` already has for a document.
  * The staleness the normalisation was avoiding is still real, and it is paid
@@ -279,7 +279,7 @@ export const parseAddress = (claims: Claims, text: string): Address | null => {
   const cut = text.indexOf("#")
   const document = cut === -1 ? text : text.slice(0, cut)
   const element = cut === -1 ? "" : spelled(text.slice(cut + 1))
-  const path = readPath(document)
+  const path = readPath(document === "zoom/" ? "" : document)
   return path === null ? null : addressOf(claims, path, element)
 }
 

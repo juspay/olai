@@ -34,10 +34,10 @@ Feature: Sidebar pins remain useful when their files disappear and return
 
   Scenario: Restoring the pins file replaces the vanished shelf with its new destinations
     Given the directory has the pins:
-      | /#order |
+      | /zoom/#order |
     And I open the outline "house.olai"
     And I mark the page
-    Then the pinned shelf holds "/#order"
+    Then the pinned shelf holds "/zoom/#order"
     When I remove the served file "_olai/Pins.olai"
     Then the pinned shelf is not drawn
     When I rewrite "_olai/Pins.olai" as:

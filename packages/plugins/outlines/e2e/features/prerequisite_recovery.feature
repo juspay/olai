@@ -21,8 +21,8 @@ Feature: Prerequisites remain usable when their target changes live
       """
     Then the node "dependent" comes after "renamed prerequisite"
     When I follow the blocked link to "prerequisite" on "dependent"
-    Then the zoomed node is "prerequisite"
-    And the breadcrumbs are "prerequisite.olai"
+    Then the unified destination row "prerequisite" is selected
+    And the focused pane is drawing the outline "prerequisite.olai"
     When I click the outline "prerequisite.olai"
     And I click the title of "prerequisite"
     And I press "Control+Enter"
@@ -48,8 +48,8 @@ Feature: Prerequisites remain usable when their target changes live
     Then the node "dependent" comes after "relocated prerequisite"
     And the node "dependent" is blocked by exactly "prerequisite"
     When I follow the blocked link to "prerequisite" on "dependent"
-    Then the zoomed node is "prerequisite"
-    And the breadcrumbs are "relocated.olai"
+    Then the unified destination row "prerequisite" is selected
+    And the focused pane is drawing the outline "relocated.olai"
     When I click the outline "relocated.olai"
     And I click the title of "prerequisite"
     And I press "Alt+Enter"
@@ -71,7 +71,7 @@ Feature: Prerequisites remain usable when their target changes live
     Then the journal chrome is absent
     And the node "dependent" is blocked by exactly "prerequisite"
     When I follow the blocked link to "prerequisite" on "dependent"
-    Then the zoomed node is "prerequisite"
+    Then the unified destination row "prerequisite" is selected
     When I go back
     Then the zoomed node is "dependent"
     When I drop "prerequisite" from the drawn "after" of "dependent"

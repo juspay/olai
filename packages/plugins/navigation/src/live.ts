@@ -20,7 +20,7 @@ spent
 } from "./landing.ts"
 import { nodeTargets } from "./nodes.ts"
 import { atElement } from "./routes.ts"
-import { fileClaims } from "./pages.ts"
+import { fileClaims, directory } from "./pages.ts"
 import type { Route } from "./routes.ts"
 import { routing } from "./pages.ts"
 import {
@@ -100,7 +100,10 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
     const id = next.address.id, key = pane.id
     const ticket = (requests.get(key) ?? 0) + 1
     requests.set(key, ticket)
-    if (provider.reveal(key, id)) return true
+    if (provider.reveal(key, id)) {
+      commit(focusAt(workspace(), index), "replace", asTheyWere)
+      return true
+    }
     const before = pane.route()
     void provider.home(id).then(file => {
       if (!alive || nodeTargets.read() !== provider || requests.get(key) !== ticket || pane.route() !== before) return
@@ -115,7 +118,9 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
   // the held provider here retries pending addresses after reconnection.
   createEffect(() => {
     const provider = nodeTargets.read()
-    if (!provider) return
+    const claims = fileClaims()
+    const standing = directory()?.standing()
+    if (!provider || !claims || standing === "reading") return
     panes().forEach((pane, index) => {
       const route = pane.route()
       untrack(() => reveal(index, route, "replace"))
@@ -167,7 +172,18 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
     replaceIn,
     open: (next) => commit(next, "push", () => landingsOf(next)),
     openRight: (from, next, forceNew) => {
-      if (next.kind === "layout") { commit(next.workspace, "push", () => landingsOf(next.workspace)); return }
+      if (next.kind === "layout") {
+        let after = workspace(), cursor = from
+        const nextIds = [...ids()]
+        for (const [offset, pane] of panesOf(next.workspace).entries()) {
+          const before = nextIds.length
+          after = openRight(after, cursor, pane.route, forceNew === true || offset > 0)
+          cursor = after.focus
+          if (panesOf(after).length > before) nextIds.splice(cursor, 0, crypto.randomUUID())
+        }
+        commit({ ...after, focus: from + 1 }, "push", () => landingsOf(after), nextIds)
+        return
+      }
       const after = openRight(workspace(), from, next, forceNew === true)
       // A PANE IS BORN, so every index at or after it means a different pane
       // than it did a moment ago: only the arrival this verb is about survives.

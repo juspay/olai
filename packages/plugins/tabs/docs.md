@@ -59,13 +59,11 @@ Right-click any link this app can open — a door in the sidebar, a link in a
 document — for **Open** and **Open in new tab**. A new tab opens right after the
 tab in front and stays behind it. A link to a heading inside its own document,
 and a line of a document's contents, opens that document at that heading;
-**Open** on one still scrolls the page in place. Links inside an outline row are left to the
-row, which owns its own menu, and external links keep the browser's menu.
+**Open** also updates the address to that heading. Links inside outline rows have this same link menu; the rest of a row keeps its row menu. External links keep the browser's menu.
 Shift+right-click always shows the browser's menu. ⌘-click and middle-click on a
 link still open a browser tab, as they do everywhere else.
 
-With the `pins` row, pressing a pinned layout on the shelf opens it in a new tab
-in front. Without the tabs row it opens in place.
+Pinned layouts use ordinary link intent: plain click opens in place, and **Open in new tab** opens a separate tab.
 
 ## Keys
 

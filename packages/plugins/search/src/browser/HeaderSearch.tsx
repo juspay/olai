@@ -102,6 +102,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
    * on it below: a door that could not open anywhere is worse than no door,
    * which is the sentence that prop's own comment carried.
    */
+  let results: HTMLDivElement | undefined
   const go = useMaybeGo()
   const router = useMaybeRouter()
   const [query, setQuery] = createSignal("")
@@ -213,7 +214,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
             setCaret(true)
             measure()
           }}
-          onBlur={() => setCaret(false)}
+          onBlur={event => { if (!(event.relatedTarget instanceof Node && results?.contains(event.relatedTarget))) setCaret(false) }}
           // WHICH key is the registry's (`@olai/web`'s `keys.ts`, the same
           // one the palette and the row editor's completions ask); what each
           // answer MEANS is this box's — `dismiss` empties it and gives the
@@ -270,6 +271,8 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
           <Portal>
             <div
               class={`fixed ${LAYER.over} overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule/40`}
+              ref={results}
+              onFocusOut={event => { if (!(event.relatedTarget instanceof Node && (results?.contains(event.relatedTarget) || event.relatedTarget === box))) setCaret(false) }}
               data-testid={TESTID.headerSearchResults}
               // `styleOf` rather than a style object of this file's own: a
               // COMPUTED key (`[at.side]`) compiles away silently in Solid and

@@ -50,7 +50,7 @@ Feature: A stale Enter is claimed and spends nothing
     # ...and the key is not lost to the reader, only to the wrong row: pressed
     # again over rows that are theirs, it opens the one they were looking at.
     When I press "Enter"
-    Then the address is "/zoom/#mint"
+    Then the unified destination row "mint" is selected
     And there should be no page errors
 
   Scenario: A pointer opens the row it pressed, inside the same window
@@ -64,7 +64,7 @@ Feature: A stale Enter is claimed and spends nothing
     And I type "compost" into the palette
     Then the palette lists the node "the compost heap"
     When I retype the palette as "mint" and press the node row "compost" at once
-    Then the address is "/zoom/#compost"
+    Then the unified destination row "compost" is selected
     And there should be no page errors
 
   Scenario: The palette's own rows are not gated by a search behind them
@@ -89,7 +89,7 @@ Feature: A stale Enter is claimed and spends nothing
     And the header search lists the node "split the mint"
     And the address is "/house.olai"
     When I press "Enter"
-    Then the address is "/zoom/#mint"
+    Then the unified destination row "mint" is selected
     And there should be no page errors
 
   Scenario: The @ list writes nothing for a row the word has moved past

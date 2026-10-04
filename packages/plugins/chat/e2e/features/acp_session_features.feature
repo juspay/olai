@@ -5,7 +5,7 @@ Feature: Agent session controls and progress
     And I open the outline "house.olai"
     And I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    And I follow the agent's open-page link
+    And I zoom into the node "kitchen"
     And the node page conversation is ready for "kitchen"
 
   Scenario: Advertised select and boolean settings reach the agent

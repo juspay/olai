@@ -2,9 +2,9 @@
 Feature: Renaming a pin does not replace changes made while its question was open
   Scenario Outline: A stale name cannot overwrite a pin's <change>
     Given the directory has the pins:
-      | /#order |
+      | /zoom/#order |
     And I open the outline "house.olai"
-    When I rename the pin "/#order"
+    When I rename the pin "/zoom/#order"
     And I type "My proposed name" into the palette
     And I rewrite "_olai/Pins.olai" as:
       """
@@ -26,5 +26,5 @@ Feature: Renaming a pin does not replace changes made while its question was ope
 
     Examples:
       | change      | replacement                    | address      |
-      | name        | [Other writer](/#order)         | /#order      |
+      | name        | [Other writer](/zoom/#order)         | /zoom/#order      |
       | destination | [Other writer](/garden.olai)    | /garden.olai |

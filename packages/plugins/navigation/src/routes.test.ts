@@ -263,7 +263,7 @@ test("a link into a section of a document is this app's", () => {
  * A SCHEME GOES WHERE IT SAYS, and this app does not get a vote.
  *
  * `routeIn` answers `null` for anything that is not an address of this app, and
- * `useFollow` leaves a `null` alone — no `preventDefault`, no navigation — so
+ * delegated link listener leaves a `null` alone — no `preventDefault`, no navigation — so
  * the browser follows the href, and a scheme the browser has no page for is
  * handed to the OS. That is what makes a captured mail's `message://` link open
  * Mail.app rather than being swallowed by a router that thought every anchor on

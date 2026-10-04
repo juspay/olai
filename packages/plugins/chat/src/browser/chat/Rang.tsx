@@ -290,7 +290,7 @@ export function Rang(props: {
             // `cursor-pointer`, and it is not decoration: a chevron the mouse
             // does not acknowledge is a control most people never find. The
             // panel says pressable the same way everywhere — `Reference.tsx`'s
-            // node chip and `styles.css`'s `code[data-node-ref]` both carry it —
+            // node chip and `styles.css`'s `a[data-node-chip] code` both carry it —
             // and this is the transcript's third pressable thing joining them.
             class="shrink-0 cursor-pointer rounded-control leading-4 hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
             data-testid={TESTID.chatRangFold}

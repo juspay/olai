@@ -708,7 +708,7 @@ export const TESTID = {
   /** Take an armed node back off before the message goes. */
   chatContextRemove: "chat-context-remove",
   /** A node NAMED in the panel and pressable: a context chip, or the node an
-   *  olai write was about. Carries the id in `data-node-ref`, which is the same
+   *  olai write was about. Carries its destination in `href`, which is the same
    *  attribute the ids in the agent's own prose are marked with — one selector
    *  for every reference, however it got there (`./browser/chat/refs.ts`). */
   chatNodeRef: "chat-node-ref",

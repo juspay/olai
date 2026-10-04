@@ -26,23 +26,23 @@ Feature: Pinning a page to the sidebar
   Scenario: A node pinned from the row menu appears on the shelf, and in the file
     When I open the node menu of "order"
     And I choose "Pin to sidebar" from the node menu
-    Then the pinned shelf holds "/#order"
+    Then the pinned shelf holds "/zoom/#order"
     # Minted where olai puts the files it names itself, not at the top level of
     # somebody else’s directory.
-    And "_olai/Pins.olai" holds a node titled "/#order"
-    And the pin "/#order" is named "order the new cabinets"
+    And "_olai/Pins.olai" holds a node titled "/zoom/#order"
+    And the pin "/zoom/#order" is named "order the new cabinets"
     And there should be no page errors
 
   Scenario: The shelf says the node's name RIGHT NOW, not the one it was pinned under
     When I open the node menu of "order"
     And I choose "Pin to sidebar" from the node menu
     And the file "house.olai" renames "order" to "order the walnut ones"
-    Then the pin "/#order" is named "order the walnut ones"
+    Then the pin "/zoom/#order" is named "order the walnut ones"
 
   Scenario: A pinned node is offered the way off the shelf instead
     When I open the node menu of "order"
     And I choose "Pin to sidebar" from the node menu
-    Then the pinned shelf holds "/#order"
+    Then the pinned shelf holds "/zoom/#order"
     When I open the node menu of "order"
     Then the node menu offers "Unpin from sidebar"
     And the node menu does not offer "Pin to sidebar"
@@ -127,15 +127,15 @@ Feature: Pinning a page to the sidebar
     # the one the undo stack already knows — so the shelf's door onto it needs
     # no verb of its own.
     Given the directory has the pins:
-      | /#order |
-    When I rename the pin "/#order"
+      | /zoom/#order |
+    When I rename the pin "/zoom/#order"
     Then the palette asks "Rename this pin, or leave it blank"
     When I name the pin "Kitchen project"
-    Then the pin "/#order" is named "Kitchen project"
-    And "_olai/Pins.olai" holds a node titled "[Kitchen project](/#order)"
+    Then the pin "/zoom/#order" is named "Kitchen project"
+    And "_olai/Pins.olai" holds a node titled "[Kitchen project](/zoom/#order)"
     When I press "ControlOrMeta+z"
     # Back to a bare address, which is drawn by what it points at — live.
-    Then the pin "/#order" is named "order the new cabinets"
+    Then the pin "/zoom/#order" is named "order the new cabinets"
     And there should be no page errors
 
   Scenario: A document is a door like any other
@@ -168,16 +168,16 @@ Feature: Pinning a page to the sidebar
 
   Scenario: Pins are ordered by the file, and a drag reorders them
     Given the directory has the pins:
-      | /#order  |
-      | /#demo   |
+      | /zoom/#order  |
+      | /zoom/#demo   |
       | /agenda   |
-    Then the pinned shelf reads "/#order /#demo /agenda"
-    When I drag the pin "/agenda" above "/#order"
-    Then the pinned shelf reads "/agenda /#order /#demo"
+    Then the pinned shelf reads "/zoom/#order /zoom/#demo /agenda"
+    When I drag the pin "/agenda" above "/zoom/#order"
+    Then the pinned shelf reads "/agenda /zoom/#order /zoom/#demo"
     When I press "ControlOrMeta+z"
-    Then the pinned shelf reads "/#order /#demo /agenda"
+    Then the pinned shelf reads "/zoom/#order /zoom/#demo /agenda"
     When I press "ControlOrMeta+Shift+z"
-    Then the pinned shelf reads "/agenda /#order /#demo"
+    Then the pinned shelf reads "/agenda /zoom/#order /zoom/#demo"
     And there should be no page errors
 
   Scenario: Pins.olai opened as an outline reads like an outline
@@ -187,14 +187,14 @@ Feature: Pinning a page to the sidebar
     # drawn, which is one resolver rather than a case per page.
     Given the directory has the pins:
       | /finishes.md |
-      | /#order         |
+      | /zoom/#order         |
     When I open "_olai/Pins.olai" from the vault group
     Then the node "p0" reads "finishes.md"
     And the node "p1" reads "order the new cabinets"
     # …and it is still the address underneath: what the editor opens is the
     # source, exactly as it is for a markdown title.
     When I click the title of "p1"
-    Then the editor holds "/#order"
+    Then the editor holds "/zoom/#order"
     And there should be no page errors
 
   Scenario: A pin written as a link draws its NAME, and pressing it opens the address
@@ -203,9 +203,9 @@ Feature: Pinning a page to the sidebar
     # drawn beside it either way, because a name renames the PIN and never the
     # destination.
     Given the directory has the pins:
-      | [Kitchen project](/#order)          |
+      | [Kitchen project](/zoom/#order)          |
       | [What is late](/agenda?q=is%3Atodo)  |
-    Then the pin "/#order" is named "Kitchen project"
+    Then the pin "/zoom/#order" is named "Kitchen project"
     And the pin "/agenda?q=is%3Atodo" is named "What is late"
     And the pin "/agenda?q=is%3Atodo" carries the query "is:todo"
     When I open "_olai/Pins.olai" from the vault group
@@ -223,8 +223,8 @@ Feature: Pinning a page to the sidebar
     # a face that restyled part of it would be making a claim about the
     # directory out of somebody's punctuation.
     Given the directory has the pins:
-      | [Kitchen #home](/#order) |
-    Then the pin "/#order" is named "Kitchen #home"
+      | [Kitchen #home](/zoom/#order) |
+    Then the pin "/zoom/#order" is named "Kitchen #home"
     When I open "_olai/Pins.olai" from the vault group
     Then the node "p0" reads "Kitchen #home"
     And the node "p0" draws no tag
@@ -237,12 +237,12 @@ Feature: Pinning a page to the sidebar
     # MID-DRAG here, which is what the window-edge autoscroll used to do on the
     # reader's behalf.
     Given the directory has the pins:
-      | /#order  |
-      | /#demo   |
+      | /zoom/#order  |
+      | /zoom/#demo   |
       | /agenda   |
     When I open the document "kitchen-sink.md"
-    And I drag the pin "/agenda" above "/#order" while the page scrolls
-    Then the pinned shelf reads "/agenda /#order /#demo"
+    And I drag the pin "/agenda" above "/zoom/#order" while the page scrolls
+    Then the pinned shelf reads "/agenda /zoom/#order /zoom/#demo"
     And there should be no page errors
 
   Scenario: A title spelled with an escape nothing can read takes nothing down
@@ -250,9 +250,9 @@ Feature: Pinning a page to the sidebar
     # `decodeURIComponent("%")` throws — which during render is the whole
     # sidebar, not one skipped row.
     Given the directory has the pins:
-      | /#%     |
-      | /#order |
-    Then the pinned shelf reads "/#order"
+      | /zoom/#%     |
+      | /zoom/#order |
+    Then the pinned shelf reads "/zoom/#order"
     And the outline list links to "house.olai"
     And there should be no page errors
 
