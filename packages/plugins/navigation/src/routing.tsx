@@ -329,6 +329,8 @@ export const targetOf = (here: Router, anchor: HTMLAnchorElement, tabs?: Navigat
   const index = id ? router.panes().findIndex(pane => pane.id === id) : router.focusIndex()
   return index < 0 ? undefined : { destination, router, index, anchor, tabs }
 }
+/** What `follow` tells the anchor it followed, for the anchor's own after-step. */
+declare module "solid-js" { namespace JSX { interface CustomEvents { "olai-navigated": Event } } }
 export const follow = (target: LinkTarget, intent: Intent): void => {
   const { destination, router, index, anchor, tabs } = target
   const workspace = workspaceFor(destination)

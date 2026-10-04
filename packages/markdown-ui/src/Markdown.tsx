@@ -129,9 +129,9 @@ export function Markdown(props: {
           // pipeline yet.
           onClick={event => {
             if (intentOf(event) === null || !(event.target instanceof Element)) return
-            const anchor = event.target.closest<HTMLAnchorElement>("a[href]")
-            const href = anchor?.getAttribute("href")
-            if (!href?.startsWith("#") || anchor?.hasAttribute("download") || (anchor?.target && anchor.target !== "_self")) return
+            // The sanitiser keeps neither `download` nor `target` on a `#` link.
+            const href = event.target.closest("a[href]")?.getAttribute("href")
+            if (!href?.startsWith("#")) return
             event.preventDefault()
             try { container?.querySelector(`#${CSS.escape(decodeURIComponent(href.slice(1)))}`)?.scrollIntoView({ block: "nearest" }) } catch { /* malformed local fragment */ }
           }}

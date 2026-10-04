@@ -1,4 +1,3 @@
-import { intentOf } from "@olai/surface"
 import { agentReadings } from "./reading.ts"
 import { NewChat, NewChatSaid } from "./NewChat.tsx"
 import { Key } from "@solid-primitives/keyed"
@@ -29,7 +28,7 @@ export function NeedsYou() {
       <div class={REGION_HEAD}><h2 class={REGION_LABEL}>Needs you</h2></div>
       <ul class="m-0 list-none p-0"><Key each={rows()} by="id">{row => <li>
         <a href={focus.href(row())} class={`${ENTRY_SHAPE} w-full gap-2 text-left text-doing`} data-testid={TESTID.agentNeedRow}
-          data-agent={row().id} data-standing={row().standing} onClick={event => { if (intentOf(event) !== null) focus.visit(row()) }}>
+          data-agent={row().id} data-standing={row().standing} on:olai-navigated={() => focus.visit(row())}>
           <span class={`${DOT} ${LOOK[row().standing].dot}`} aria-hidden="true" />
           <span class="min-w-0 flex-1 truncate">{row().title}</span>
           <Show when={row().standing === "gone"} fallback={<span class={CHIP_QUIET} data-testid={TESTID.agentWaiting}>{row().waiting}</span>}>
@@ -57,7 +56,7 @@ export function Chats() {
     <ul class="m-0 list-none p-0"><Key each={rows()} by="id">{row => <li>
       <a href={focus.href(row())} class={`${ENTRY_SHAPE} w-full gap-2 text-left`} data-testid={TESTID.agentRow}
         data-agent={row().id} data-engine={row().engine} data-standing={row().standing} aria-current={current(row()) ? "page" : undefined}
-        title={row().title} onClick={event => { if (intentOf(event) !== null) focus.visit(row()) }}>
+        title={row().title} on:olai-navigated={() => focus.visit(row())}>
         <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span><span class="min-w-0 flex-1 truncate">{row().title}</span>
         <span class="inline-flex shrink-0 items-center gap-2">
           <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} title={LOOK[row().standing].detail} />

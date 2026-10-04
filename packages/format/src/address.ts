@@ -279,7 +279,7 @@ export const parseAddress = (claims: Claims, text: string): Address | null => {
   const cut = text.indexOf("#")
   const document = cut === -1 ? text : text.slice(0, cut)
   const element = cut === -1 ? "" : spelled(text.slice(cut + 1))
-  const path = readPath(document === "zoom/" ? "" : document)
+  const path = readPath(document)
   return path === null ? null : addressOf(claims, path, element)
 }
 

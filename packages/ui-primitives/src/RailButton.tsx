@@ -10,7 +10,9 @@ export function RailButton(props: {
    * button any tenant's vocabulary. */
   readonly data?: { readonly [key: `data-${string}`]: string | undefined }
   readonly href?: string
-  readonly onClick?: (event: MouseEvent) => void
+  readonly onClick?: () => void
+  /** After navigation followed this anchor (`olai-navigated`), not on presses the browser keeps. */
+  readonly onNavigate?: () => void
   readonly children: JSX.Element
 }) {
   return (
@@ -25,7 +27,8 @@ export function RailButton(props: {
       data-testid={props.testid}
       aria-label={props.label}
       title={props.title}
-      onClick={(event: MouseEvent) => props.onClick?.(event)}
+      onClick={() => props.onClick?.()}
+      on:olai-navigated={() => props.onNavigate?.()}
     >
       {props.children}
     </Dynamic>

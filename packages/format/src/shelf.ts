@@ -169,7 +169,8 @@ export const pinTargetIn = (claims: Claims, title: string): string | undefined =
   // hand the two halves of what is left to the grammar — which is what decides
   // whether this names a node.
   const { pathname, fragment } = splitAddress(at.slice(1))
-  const address = parseAddress(claims, pathname + (fragment === undefined ? "" : `#${fragment}`))
+  // `/zoom/#id` is the browser's spelling of a node's own page; it names the node too.
+  const address = parseAddress(claims, (pathname === "zoom/" ? "" : pathname) + (fragment === undefined ? "" : `#${fragment}`))
   // A ROW names a node too — `Tasks.olai#a1b2c3` is what a hand writes when
   // it knows where the node lives — and what a pin draws is the node's NAME,
   // which the id half answers alone: the file half can go stale across a
