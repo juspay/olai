@@ -10,8 +10,8 @@
   "files": [
     "src/browser.tsx",
     "src/browser/Nothing.tsx",
-    "src/browser/focus.ts",
     "src/browser/fold/memory.ts",
+    "src/browser/home.ts",
     "src/browser/page.ts",
     "src/projection.ts",
     "src/tools.ts"

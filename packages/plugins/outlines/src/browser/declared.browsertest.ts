@@ -66,6 +66,7 @@ const releaseClient = holdClient(() => fake)
 afterAll(releaseClient)
 mock.module("@olai/web/client/wire.ts", () => ({
   connectionReadout: () => ({ status: "live" }),
+  connectionEpoch: () => 1,
 }))
 
 const { createDeclared, declaringFailure, createDeclarations, holdDeclarations } = await import("./declared.ts")

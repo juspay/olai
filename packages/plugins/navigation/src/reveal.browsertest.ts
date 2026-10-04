@@ -1,13 +1,12 @@
 import { expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
-import { claims as claimsOf } from "@olai/format"
-import { TEST_CLAIMS } from "@olai/format/testlib"
+import { NO_CLAIMS, TEST_CLAIMS } from "@olai/format/testlib"
 import type { Home } from "olai-plugin-outlines/references"
 import { createPaneState } from "./pane/state.ts"
 import { createReveal } from "./reveal.ts"
 import { nodeTargets } from "./nodes.ts"
 import { holdFiles } from "./pages.ts"
-import { atFile, type Route } from "./routes.ts"
+import { atFile, atNode, type Route } from "./routes.ts"
 import { routingIn } from "./routes.testlib.ts"
 import { navigateIn, workspaceOf } from "./workspace.ts"
 
@@ -25,7 +24,7 @@ const lane = (address: string) => {
   const state = createRoot(stop => {
     dispose = stop
     const panes = createPaneState(workspaceOf(routes, address), routes)
-    const reveal = createReveal(panes.panes, (_, route?: Route) => { if (route) arrived.push(routes.href(route)) })
+    const reveal = createReveal(panes.panes, (_, route: Route | undefined, how) => { if (route) arrived.push(`${how} ${routes.href(route)}`) })
     return { ...panes, reveal }
   })
   return { state, arrived, dispose }
@@ -53,7 +52,7 @@ test("an answer, missing included, is read once per route and provider", () => {
 })
 
 test("a home lands once the claim table names its file", () => {
-  const [table, setTable] = createSignal(claimsOf([{ kind: "markdown", exts: [".md"], holds: "text", kept: true, fetched: false, noun: "document", article: "a" }]))
+  const [table, setTable] = createSignal(NO_CLAIMS)
   const files = holdFiles({ claims: table, paths: () => [], standing: () => "loaded" })
   const reader = provider()
   const release = nodeTargets.hold(reader.value)
@@ -63,6 +62,20 @@ test("a home lands once the claim table names its file", () => {
     expect(arrived).toEqual([])
     expect(state.reveal.status(0)).toBe("finding")
     setTable(TEST_CLAIMS)
-    expect(arrived).toEqual(["/house.olai#order"])
+    expect(arrived).toEqual(["replace /house.olai#order"])
+  } finally { dispose(); release(); files() }
+})
+
+test("a followed link keeps its page until the node lands, then pushes", () => {
+  const files = holdFiles({ claims: () => TEST_CLAIMS, paths: () => [], standing: () => "loaded" })
+  const reader = provider()
+  const release = nodeTargets.hold(reader.value)
+  const { state, arrived, dispose } = lane("/garden.olai")
+  try {
+    expect(state.reveal.follow(0, atNode("order"))).toBe(true)
+    expect(reader.asked).toEqual(["order"])
+    expect(state.reveal.status(0)).toBeUndefined()
+    reader.setAnswer("house.olai")
+    expect(arrived).toEqual(["push /house.olai#order"])
   } finally { dispose(); release(); files() }
 })

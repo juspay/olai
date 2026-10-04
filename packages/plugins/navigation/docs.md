@@ -74,9 +74,10 @@ records the heading in the address and the landing scrolls the owning pane.
 Stored tabs and stamped history written before `/zoom/` existed are read as
 zoom at their persistence boundaries; current links use the current grammar.
 
-A followed node link commits its `/#id` route, and the pane resolves it in
-place of that entry (`src/reveal.ts`), so it is still one step of history. Each
-pane reads the node's home once per route and provider through the optional
+A followed node link keeps the pane's page until the node lands, then pushes
+the row's address; a `/#id` already in a pane (the address bar, a split)
+resolves in place of its own entry (`src/reveal.ts`). Either way it is one step
+of history. Each pane reads the node's home once per route and provider through the optional
 `nodes` component, which declares `outlines.references`; the reading belongs to
 the pane's effect, so moving the pane or withdrawing the provider disposes it,
 and a returning provider is asked again. The pane lands when the claim table
