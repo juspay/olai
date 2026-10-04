@@ -351,7 +351,7 @@ test("the handler claims the kinds the registry says have pages", () => {
  * changes the meaning fails and names the press.
  */
 const shipped = ((): ((press: Press) => ReturnType<typeof intentOf>) => {
-  const found = /\n  var intentOf = ([\s\S]*?)\n  function target/.exec(SEAL)
+  const found = /\n  var intentOf = ([\s\S]*?)\n  var localLink/.exec(SEAL)
   if (found === null) {
     throw new Error(`the seal ships no press rule — this test has nothing to check:\n${SEAL}`)
   }

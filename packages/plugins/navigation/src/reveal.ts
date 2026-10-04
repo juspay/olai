@@ -1,7 +1,7 @@
 import { createEffect, createMemo, mapArray, on, onCleanup, untrack, type Accessor } from "solid-js"
 import { createStore } from "solid-js/store"
 import type { LivePane } from "./routing.tsx"
-import { atElement, atNode, fileNamed, type Route } from "./routes.ts"
+import { atElement, fileNamed, type Route } from "./routes.ts"
 import { nodeTargets } from "./nodes.ts"
 import { directory, fileClaims } from "./pages.ts"
 
@@ -35,8 +35,8 @@ export function createReveal(panes: Accessor<readonly LivePane[]>, arrive: (inde
       createEffect(() => {
         const file = home(), claims = fileClaims()
         if (file === null || file instanceof Error) {
-          // A followed link that cannot land shows why, at its own address.
-          if (how === "push") return untrack(() => arrive(pane.index(), atNode(id), "push"))
+          // A followed link that cannot land leaves the page as it was.
+          if (how === "push") return setAsked(pane.id, undefined)
           return setStatus(pane.id, file === null ? "missing" : "unavailable")
         }
         const route = file === undefined || !claims ? undefined : atElement(claims, file, id)
