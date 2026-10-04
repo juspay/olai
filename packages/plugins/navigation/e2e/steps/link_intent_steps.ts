@@ -146,7 +146,7 @@ Given("a dated title link is served", function(this: OlaiWorld) {
   this.writeServed("preview.olai", [...rows, { id: "dated-link", ord: "b0", title: "[Dated target](/#preview-target)", date: "2026-10-04", todo: "2026-10-04" }].map(row => JSON.stringify(row)).join("\n"))
 })
 Then("the dated link leaves its row unselected on Ctrl-click", async function(this: OlaiWorld) {
-  const row = this.page.locator('[data-node-id="dated-link"]').first()
+  const row = this.page.locator('[data-node-id="dated-link"] [data-testid="node-gutter"]').first()
   const before = await row.getAttribute("data-active")
   const anchor = link(this, "dated")
   await anchor.evaluate(el => window.addEventListener("click", event => event.preventDefault(), { once: true }))
