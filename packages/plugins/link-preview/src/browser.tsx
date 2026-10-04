@@ -15,7 +15,7 @@ import { matchPreview, OPEN_MS, CLOSE_MS } from "./matching.ts"
 
 import { pointerEdges } from "./pointer.ts"
 
-interface Target { element: HTMLElement; readonly route: Route; readonly pane: number }
+interface Target { readonly element: HTMLElement; readonly route: Route; readonly pane: number }
 const CARD = "[data-link-preview]"
 const EDITOR = '[contenteditable]:not([contenteditable="false"]), [data-editing="true"]'
 
@@ -27,6 +27,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
   let opening: ReturnType<typeof setTimeout> | undefined
   let closing: ReturnType<typeof setTimeout> | undefined
   let pending: HTMLElement | undefined
+  let anchorEl: HTMLElement | undefined
   let insideCard = false
   const clearOpening = () => { clearTimeout(opening); opening = undefined; pending = undefined }
   const hold = () => { clearTimeout(closing); closing = undefined }
@@ -51,7 +52,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     const next = classify(event.target)
     if (!next || (event.type === "focusin" && !next.element.matches(":focus-visible"))) return
     hold()
-    if (target()?.element === next.element || pending === next.element) return
+    if (anchorEl === next.element || pending === next.element) return
     clearOpening()
     if (event.type === "focusin") { setTarget(next); return }
     pending = next.element
@@ -66,7 +67,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     const next = event.relatedTarget
     if (event instanceof PointerEvent) insideCard = next instanceof Element && next.closest(CARD) !== null
     else if (insideCard) return
-    if (next instanceof Node && (target()?.element.contains(next) || pending?.contains(next)
+    if (next instanceof Node && (anchorEl?.contains(next) || pending?.contains(next)
       || (next instanceof Element && next.closest(CARD)))) return
     leave()
   }
@@ -111,21 +112,27 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
       <Show when={matched()} keyed>{renderer => {
         const [content, setContent] = createSignal<HTMLElement>()
         const [anchor, setAnchor] = createSignal(at.element)
+        anchorEl = at.element
+        onCleanup(() => { anchorEl = undefined })
         // Live edits can remove an anchor without a pointerout event. Its card
         // must release immediately, rather than reading at a detached element.
         const parent = at.element.parentElement
         const href = at.element.getAttribute("href")
         const node = at.element.getAttribute("data-node-ref")
         const removed = new MutationObserver(() => {
-          if (at.element.isConnected) return
+          if (anchor().isConnected) return
           // Markdown can replace its HTML when membership changes. Follow the
           // same link in that owned block without remounting its live reading.
           const replacement = parent?.isConnected ? [...parent.querySelectorAll<HTMLElement>("a[href], code[data-node-ref]")]
             .find(element => element.getAttribute("href") === href && element.getAttribute("data-node-ref") === node) : undefined
           if (!replacement) { close(); return }
-          at.element = replacement
+          anchorEl = replacement
           setAnchor(replacement)
         })
+        // The source can be in a pane, sidebar or portal, all of which may
+        // themselves be removed. Observing a descendant misses removal of that
+        // root; body is their narrowest shared surviving ancestor. The callback
+        // does no search while the current anchor is still connected.
         removed.observe(document.body, { childList: true, subtree: true })
         onCleanup(() => removed.disconnect())
         return <Popper anchorRef={anchor} contentRef={content} placement="bottom-start" gutter={6}>
