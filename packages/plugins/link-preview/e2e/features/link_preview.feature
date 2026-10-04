@@ -167,3 +167,9 @@ Feature: Live read-only internal link previews
     And I hover the preview backlink
     Then the link preview contains "Preview source"
     And there should be no page errors
+
+  Scenario: Removing a hovered anchor closes its reading
+    When I hover the preview link "target"
+    Then the link preview contains "Preview target"
+    When I remove the preview source links on disk
+    Then the link preview closes

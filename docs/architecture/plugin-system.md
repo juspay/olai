@@ -1365,7 +1365,8 @@ The link-preview overlay contribution owns this location. Its activation owns
 the delegated document listeners, timers and fixed overlay root on `LAYER.over`;
 withdrawing the overlay drains contributions before releasing these resources.
 It reads navigation's declared route service and renderer's declared slot service,
-without importing content implementations. Each mounted card owns its data lease.
+without importing content implementations. Each mounted card owns its data lease and an anchor-removal observer. Navigation,
+anchor removal, dismissal and scope withdrawal all release that lease.
 
 Outlines contributes a `ReadingProvider` with title, note and a trimmed child list
 and no edit callbacks; markdown leases its existing document body; chat directly

@@ -32,7 +32,7 @@ export function ChatLinkPreview(props: { readonly route: Route; readonly roster:
     return messages
   })
   return <>
-    <div class="text-xs text-muted">Chat</div>
+    <div class="text-xs text-muted">{props.roster.at(id())?.file} › Chat</div>
     <strong>{props.roster.at(id())?.title ?? `#${id()}`}</strong>
     <Show when={props.roster.at(id())}>{row => <span class="ml-2 rounded border border-rule/60 px-1 text-xs">{LOOK[row().standing].label}</span>}</Show>
     <div class="mt-2 space-y-2"><For each={keys()}>{key => {

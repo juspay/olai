@@ -78,3 +78,7 @@ When("I hover the chat preview reference {string}", async function (this: OlaiWo
 When("I hover the conversation preview link {string}", async function (this: OlaiWorld, id: string) { await this.page.locator(`a${attr("href", `/#${id}`)}`).first().hover() })
 
 When("I dismiss the link preview with Escape", async function (this: OlaiWorld) { await this.page.keyboard.press("Escape") })
+
+When("I remove the preview source links on disk", function (this: OlaiWorld) {
+  write(this, records().map(row => row.id === "preview-source" ? { ...row, desc: "The links have been removed." } : row))
+})

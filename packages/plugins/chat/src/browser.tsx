@@ -118,7 +118,11 @@ export default definePlugin({
     })), owner => Effect.sync(owner.dispose))
     yield* (yield* rendererSlots).contribute(linkPreviews, {
       priority: 100,
-      matches: route => { const id = previewNode(route); return id !== undefined && state.agents.at(id)?.session != null },
+      matches: route => {
+        const id = previewNode(route)
+        const agent = id === undefined ? undefined : state.agents.at(id)
+        return agent?.session != null && (route.kind !== "at" || route.address?.kind !== "row" || route.address.path === agent.file)
+      },
       Preview: props => <ChatLinkPreview route={props.route} roster={state.agents} />,
     })
     yield* (yield* rendererSlots).contribute(paletteAdapters, palette.value)

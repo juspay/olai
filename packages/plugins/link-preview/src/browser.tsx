@@ -88,6 +88,11 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     return <RouterProvider router={nav}><Show when={target()} keyed>{at =>
       <Show when={matched()} keyed>{renderer => {
         const [content, setContent] = createSignal<HTMLElement>()
+        // Live edits can remove an anchor without a pointerout event. Its card
+        // must release immediately, rather than reading at a detached element.
+        const removed = new MutationObserver(() => { if (!at.element.isConnected) close() })
+        removed.observe(document.body, { childList: true, subtree: true })
+        onCleanup(() => removed.disconnect())
         return <Popper anchorRef={() => at.element} contentRef={content} placement="bottom-start" gutter={6}>
           <Portal mount={root}><Popper.Positioner>
             <aside ref={setContent} data-link-preview="" data-testid={TESTID.linkPreview}
