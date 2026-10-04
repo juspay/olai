@@ -5,8 +5,9 @@ Its optional nodes component declares `outlines.references`; outlines provides
 node-home facts and pane-scoped row selection, while navigation owns landing
 policy and pending request validity. Provider withdrawal invalidates outstanding
 answers and reconnection retries unresolved addresses. A reveal awaiting its
-provider is kept as the pane route; resolving it replaces that history entry,
-so a reconnect neither loses the intent nor adds a second Back step. Content rows encode
+provider stays associated with its originating pane and route. A returning
+provider retries it only if that pane has not moved; a deleted target leaves
+the original page and selection intact. Resolution adds one history entry. Content rows encode
 hrefs and do not acquire their own navigation listeners. Hypertext owns the
 opaque-frame bridge: it validates sender identity, href, gesture and finite
 geometry, then lends an anchor in the owning pane to the normal listeners.

@@ -198,8 +198,10 @@ Feature: Every link has one destination and one gesture vocabulary
 
   Scenario: A delegated link keeps working after an optional neighbour reconnects
     Given I prepare the unified "document" surface
-    When I set the preview plugin "outlines" off on disk
-    And I set the preview plugin "outlines" on on disk
+    When I open the plugins panel
+    And I switch the plugin "outlines" off
+    And I switch the plugin "outlines" on
+    And I close the plugins panel
     And I activate the unified "document" link with "click"
     Then the unified destination row "preview-target" is selected
     And there are 1 panes

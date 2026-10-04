@@ -45,7 +45,8 @@ export interface Declared {
 }
 export interface References {
   readonly reveal: (pane: string, id: string) => boolean
-  readonly home: (id: string) => Promise<string | undefined>
+  /** Canonical file, null for an absent node, undefined while the provider cannot answer. */
+  readonly home: (id: string) => Promise<string | null | undefined>
   readonly focused: Accessor<string | null>
   readonly declare: (failure?: (message: string, ids: ReadonlyArray<string>) => void) => Declared
   readonly showNode: () => (id: string) => void

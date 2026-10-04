@@ -92,7 +92,8 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
   const focused = createMemo(() => info(focusIndex()), undefined, { equals: samePageInfo })
   let alive = true
   const requests = new Map<string, number>()
-  onCleanup(() => { alive = false; requests.clear() })
+  const pending = new Map<string, { next: Route; before: Route; how: "push" | "replace" }>()
+  onCleanup(() => { alive = false; requests.clear(); pending.clear() })
   const reveal = (index: number, next: Route, how: "push" | "replace"): boolean => {
     if (next.kind !== "at" || !next.reveal || next.address?.kind !== "node") return false
     const provider = nodeTargets.read(), pane = panes()[index]
@@ -103,20 +104,20 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
     const before = pane.route()
     const unresolved = before.kind === "at" && before.reveal
     if (!unresolved && provider.reveal(key, id)) {
+      pending.delete(key)
       commit(focusAt(workspace(), index), "replace", asTheyWere)
       return true
     }
-    // Keep the intent in the workspace while its owner answers. A sibling
-    // can withdraw between the press and the reply; its return must retry the
-    // unresolved route rather than silently losing a press on the old page.
-    if (how === "push") {
-      commit(navigateIn(workspace(), index, next), "push", all => marked(all, index, undefined))
-      return true
-    }
+    // Keep the requested route with its originating pane until its owner
+    // answers. Withdrawal may interrupt this lookup; a returning provider
+    // retries it. A missing node leaves the current page and selection intact.
+    pending.set(key, { next, before, how })
     void provider.home(id).then(file => {
       if (!alive || nodeTargets.read() !== provider || requests.get(key) !== ticket || pane.route() !== before) return
       const at = panes().indexOf(pane), claims = fileClaims()
       if (at < 0 || file === undefined || !claims) return
+      pending.delete(key)
+      if (file === null) return
       const route = atElement(claims, file, id)
       commit(navigateIn(workspace(), at, route), how, all => marked(all, at, landingOf(route)))
     }).catch(error => { if (alive) console.warn("Node destination unavailable", error) })
@@ -129,16 +130,21 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
     const claims = fileClaims()
     const standing = directory()?.standing()
     if (!provider || !claims || standing === "reading") return
-    panes().forEach((pane, index) => {
-      const route = pane.route()
-      untrack(() => reveal(index, route, "replace"))
+    const current = panes()
+    for (const key of pending.keys()) if (!current.some(pane => pane.id === key)) pending.delete(key)
+    current.forEach((pane, index) => {
+      const route = pane.route(), waiting = pending.get(pane.id)
+      if (waiting && waiting.before !== route) pending.delete(pane.id)
+      untrack(() => waiting?.before === route
+        ? reveal(index, waiting.next, waiting.how)
+        : reveal(index, route, "replace"))
     })
   })
   const goIn = (index: number, next: Route): void => {
     if (next.kind === "layout") { commit(next.workspace, "push", () => landingsOf(next.workspace)); return }
     if (reveal(index, next, "push")) return
     const pane = panes()[index]
-    if (pane) requests.set(pane.id, (requests.get(pane.id) ?? 0) + 1)
+    if (pane) { pending.delete(pane.id); requests.set(pane.id, (requests.get(pane.id) ?? 0) + 1) }
     commit(
       navigateIn(workspace(), index, next),
       "push",
