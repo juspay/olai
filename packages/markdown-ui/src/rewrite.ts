@@ -96,11 +96,15 @@ export const rewrite = (tree: Root, options: Rewrite): readonly Heading[] => {
  * for the router to read on Alt+click. Only for a body: in an outline's note a
  * `#name` would read as a ROW of that outline, which is not what it pointed at.
  */
-const headingRoute = (claims: Claims | undefined, from: string): ((slug: string) => string) | null => {
+/** The route a heading of this block stands for, by its authored slug — or
+ *  `undefined` where the slug names no heading of a document. */
+type HeadingRoute = (slug: string) => string | undefined
+
+const headingRoute = (claims: Claims | undefined, from: string): HeadingRoute | null => {
   if (claims === undefined || bodyKind(claims, from) === null) return null
   return (slug) => {
     const address = addressOf(claims, from, slug)
-    return address?.kind === "heading" ? "/" + printAddress(address) : ""
+    return address?.kind === "heading" ? "/" + printAddress(address) : undefined
   }
 }
 
@@ -108,7 +112,7 @@ const walk = (
   parent: Root | Element,
   options: Rewrite,
   headings: Heading[],
-  route: ((slug: string) => string) | null,
+  route: HeadingRoute | null,
 ): void => {
   for (const child of parent.children) {
     if (child.type !== "element") continue
@@ -124,8 +128,8 @@ const walk = (
     // AFTER the subtree, so what a heading reads as is what is left of it.
     const heading = headingOf(child)
     if (heading === null) continue
-    const at = route?.(heading.id.slice(options.ids.length + 1)) ?? ""
-    headings.push(at === "" ? heading : { ...heading, route: at })
+    const at = route?.(heading.id.slice(options.ids.length + 1))
+    headings.push(at === undefined ? heading : { ...heading, route: at })
   }
 }
 
@@ -278,7 +282,7 @@ const UNDRAWN = "inline-block rounded border border-rule px-1.5 py-0.5 " +
  *  A link into a DOCUMENT's own body also carries the route it stands for
  *  ({@link headingRoute}) — by the AUTHORED slug, the one an address names and
  *  `landingId` translates, never the minted id. */
-const mint = (element: Element, ids: string, route: ((slug: string) => string) | null): void => {
+const mint = (element: Element, ids: string, route: HeadingRoute | null): void => {
   const properties = element.properties
   if (properties === undefined) return
 
@@ -288,8 +292,8 @@ const mint = (element: Element, ids: string, route: ((slug: string) => string) |
   const href = properties["href"]
   if (typeof href === "string" && href.startsWith("#")) {
     properties["href"] = `#${ids}-${href.slice(1)}`
-    const at = href.length > 1 ? route?.(authored(href.slice(1))) ?? "" : ""
-    if (at !== "") properties[ROUTE_HREF] = at
+    const at = href.length > 1 ? route?.(authored(href.slice(1))) : undefined
+    if (at !== undefined) properties[ROUTE_HREF] = at
   }
 }
 
