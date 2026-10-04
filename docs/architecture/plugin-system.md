@@ -1377,3 +1377,10 @@ operations. Chat's priority 100 wins over outlines' priority 0 when its already-
 roster identifies a conversation. Equal priorities sort by contribution owner,
 so activation order cannot change selection. Plugin withdrawal removes its face;
 returning providers are matched through the live location roster.
+
+A preview renderer mounts once per immutable route; changing targets disposes
+that lease before mounting the next. Qualified outline rows lease the node face
+and verify its file. Whole-outline cards retain a full page lease because the
+wire exposes no bounded root-list/count face. Anchor replacement uses a separate
+card-owned signal, with description-token cleanup tied to each anchor. The body
+observer detects removal of entire panes, sidebars and portals as well as links.

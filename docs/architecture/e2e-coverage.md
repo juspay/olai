@@ -525,7 +525,7 @@ ownership boundary.
 `link_preview.feature` covers note links, qualified rows, outline files, markdown
 opening blocks and duplicate heading sections; missing targets; hover delay,
 leave grace, pointer transfer, Escape, keyboard focus, rapid target changes,
-read-only/clipped content, editor/coarse-pointer exclusion, local/external links,
+read-only/clipped content, editor/touch exclusion, hybrid mouse input, local/external links,
 live disk updates and deletion, anchor removal, card identity, subscription release, nested links,
 ordinary/split navigation, source-pane navigation from a card, real row-editor
 exclusion, plugin removal/return and content withdrawal/return.
@@ -534,3 +534,10 @@ ties. The existing split-navigation contract is Alt-click, not Shift alone.
 `link_preview_chat.feature` covers real agent code references, their unchanged
 in-place click behavior, and conversation preview priority/turns without a composer.
 The general feature also exercises actual see-links and backlinks.
+
+Review coverage additionally checks that qualified rows request the node face
+and reject a mismatched file, visible child removal retains the card, Escape
+preserves underlying focus/zoom and does not reach page handlers, document
+excerpts decorate missing links, and accessible description tokens preserve
+existing descriptions on close. Pointer-edge unit coverage counts renderer
+matches during movement inside one link and after a stationary replacement.
