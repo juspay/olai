@@ -1,13 +1,10 @@
 # Link previews
 
-Preview classification uses navigation’s shared `targetOf` reader, just as
-clicks and the tab link menu do. Local fragments, downloads and links targeting
-another browsing context are excluded. Chat code
-references are anchors too. A preview card carries its source pane identity,
-so links in a portalled card navigate that pane even while another is focused.
-
 Hover an internal link for about 400 ms, or focus it with the keyboard, to
-read a live preview. Move onto the card to keep it open; leave it for about
+read a live preview. Which links are internal, and what they point at, is
+navigation's `targetOf` — the reading a click and the tabs link menu use — so a
+page-local fragment, a download or a link aimed at another browsing context
+has no card, and a card always shows what a click would open. Move onto the card to keep it open; leave it for about
 200 ms or press Escape to close it. Only one card opens at a time. A layout
 change moving a new link under a stationary pointer does not open a card;
 moving the pointer over that link does. Movement within the same element does
@@ -31,6 +28,8 @@ but do not create nested previews. Touch input, keyboard focus on a coarse-point
 device, and links in active editors do not open cards. A mouse on a hybrid
 device can still open previews. Clicking retains the app's navigation gestures:
 click opens, Alt-click opens on the right, and Alt-Shift-click forces a new pane.
+A card carries the pane its link was drawn in, so a link inside the portalled
+card acts on that pane even while another one is focused.
 A document card's link to one of that document's own headings opens the document
 at that heading on the right.
 

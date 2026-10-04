@@ -1,11 +1,5 @@
 # Editing: the keyboard, and the pointer
 
-A node reference (`/#id`) selects its row if visible in the link's pane;
-otherwise it opens the node's current file at that row. The bullet and Zoom in
-command use `/zoom/#id`. Alt opens to the right, Alt-Shift inserts a new pane,
-and Ctrl/Meta/middle use the browser's tab behavior. Right-clicking any outline
-link offers Open in new tab; right-clicking the rest of a row opens its row menu.
-
 Click a title and the caret is where you clicked. From there it is the outliner's loop on the keys you already know, and the whole list is in the app, under **Keyboard shortcuts** in the ⌘K palette.
 
 Escape cancels a held row drag: the drop indicator disappears and releasing the pointer does not move the row. During a selection sweep, Escape ends the sweep and retains the picked rows; another Escape clears the pick. Both gestures can be started again immediately.
@@ -41,12 +35,13 @@ If the requested page fails, the loading line becomes an error. The previous pag
 | **⌘O** / **Ctrl+O** | show this page's finished work, or hide it again — the same as the **Finished** box beside the filter |
 | **Alt+click** | open a link in the pane to the right — a link to a heading inside the same document, and a line of a document's contents, too: the document opens at that heading |
 | **Alt+Shift+click** | open it in a new pane to the right |
+| **⌘/Ctrl+click**, middle-click, **Shift+click** | the browser's own: a new browser tab or window, and the row under the link is not selected |
 | **Alt+←** / **Alt+→** | move focus to the neighbouring pane — not while typing, where it stays the text field's word jump; Escape first |
 | **⌘⇧W** / **Ctrl+⇧W** | close the focused pane |
 
 Nothing has a mode: the title becomes an input in the same place, at the same size, and the row you are in is toned so you can see where the caret went. What you type is the SOURCE — `**bold**` and `#tags` as they are written — and the rendering comes back the moment you leave. A note is the same trade one line down.
 
-**What has no key is in the row's `•••` menu**, and it has two doors. On a pointer device, hover a row and the `•••` appears in the gutter left of the collapse triangle. A phone has no hover and no room for it, so there the door is the row itself: **hold a finger on a row** and the same menu opens under it, with the same verbs. Nothing in it is a mouse's alone. Tall menus scroll internally; when a menu opens upward, it reserves the app bar so its first entries remain visible. A finger that MOVES is scrolling the page, not pressing — the menu comes up only for one that stays put — and the tap that lifting it would otherwise leave behind is dropped, so a press never also opens the row for editing or follows its bullet.
+**What has no key is in the row's `•••` menu**, and it has two doors. On a pointer device, hover a row and the `•••` appears in the gutter left of the collapse triangle. A phone has no hover and no room for it, so there the door is the row itself: **hold a finger on a row** and the same menu opens under it, with the same verbs. Nothing in it is a mouse's alone. Tall menus scroll internally; when a menu opens upward, it reserves the app bar so its first entries remain visible. A finger that MOVES is scrolling the page, not pressing — the menu comes up only for one that stays put — and the tap that lifting it would otherwise leave behind is dropped, so a press never also opens the row for editing or follows its bullet. A link inside a row — its bullet, a link in its title — keeps the link menu (**Open in new tab**) on a right-click or a held finger; the rest of the row opens the row menu.
 
 **The menu is short, in groups.** From the top: **Zoom in** and **Mark ›**; then **Set date…** (or **Change date…**), **Set repeat…** on a dated row, and **Pin to sidebar**; then **Move to…** and **Duplicate**; then what plugins add, such as **Start an agent**; then **More ›**; and last, under a rule of its own, **Move to Trash**, which asks before it moves anything. **Mark ›** opens the four marks — To do, Doing, Done, Cancelled — and **Clear** when the row has one; the mark the row already carries is not offered. **More ›** holds what you reach for rarely: Copy link, Copy as text, Expand all and Collapse all, Add property…, Link to…, Wait for…, Remove from here on a mirror, Clear date and Stop repeating. The row's own fold is the triangle beside the `•••`, so the menu does not repeat it.
 
@@ -379,6 +374,8 @@ A node carries two lists of other nodes ([format.md](format.md)): `see`, which i
 Both are facts about the node a row SHOWS, so choosing one at a mirror writes the node it stands for — a placement carries no edges of its own.
 
 
+**Following one.** A link to a node — `/#<id>`, a see or after reference, a backlink, a breadcrumb, a chip in the chat panel — shows you that node: when its row is already on the page in that pane it is selected where it is, and otherwise its file opens at that row. The node's own page, alone, is `/zoom/#<id>`: the bullet and **Zoom in** go there.
+
 ## What points at a node, and at a document
 
 The reverse of the edge rows is drawn as a **referenced-by** section — on a node's page it is the *referenced by* fold under the note, on a document's page the *what points at it* fold under the body, and the two are the same component and the same list ([format.md](format.md#references)). What counts is what the format counts: a `see`, an `@mention` in a title, a note or a document's body, and a markdown link to the node's id or to the file — a link onto one heading counts as a link to the whole document, a picture shown with `![](…)` is a link too, and a link inside a code fence is text. The sources are drawn in path order with their way (`see`, *mentions*, *links*), a record that refers twice is one row, and what is on the Trash is nowhere here.
@@ -488,7 +485,7 @@ A name the link cannot hold is refused rather than mangled, in the palette's own
 
 With multiple panes open, `⌘K` also offers **Pin this layout…**, with the pane names underneath. It always asks for a name; empty Enter says **a layout needs a name** and keeps the question open. Escape writes nothing.
 
-A layout pin has a split mark and a tooltip listing its pages. Clicking it replaces the workspace in one history push; Back restores the previous workspace. Alt opens its pages to the right; Alt+Shift inserts new panes. Right-click **Open in new tab** keeps it in a separate olai tab. ⌘/Ctrl-click and middle-click open its address in a new browser tab. Only pages are saved: the layout reopens with equal widths and the first pane focused.
+A layout pin has a split mark and a tooltip listing its pages. Clicking it opens the layout in a new olai tab in front ([Keeping several pages open](#keeping-several-pages-open)); with the tabs plugin switched off it replaces the whole workspace in one history push instead, and Back restores the previous workspace. Alt opens its pages to the right of the pane you are in; Alt+Shift inserts new panes. ⌘/Ctrl-click and middle-click open its address in a new browser tab. Only pages are saved: the layout reopens with equal widths and the first pane focused.
 
 The command becomes **Unpin this layout** when those pages are already pinned, regardless of widths or focus. Shelf rename and remove work as for page pins, including undo; layout renames also require a name. Handwritten bare layout addresses are accepted and display the pane names, falling back to an unresolved node's address.
 
@@ -496,7 +493,7 @@ The command becomes **Unpin this layout** when those pages are already pinned, r
 
 On a desktop, a strip of tabs sits above the page. Each tab holds one page, or a whole split of panes, and the tab in front is the page you are looking at: the address bar shows it, and the sidebar, Back and every pane gesture act on it. The sidebar, the chat panel and the palette are shared by every tab. A tab you leave keeps its page, its filter and where it was scrolled.
 
-- **A new tab.** Right-click a link — a door in the sidebar, a link in a document — and choose **Open in new tab**; the tab opens behind the one in front. **+** at the end of the strip, or `⌘⇧O` / `Ctrl+⇧O`, opens a tab on the front page. A pinned layout offers the same link menu.
+- **A new tab.** Right-click a link — a door in the sidebar, a link in a document — and choose **Open in new tab**; the tab opens behind the one in front. **+** at the end of the strip, or `⌘⇧O` / `Ctrl+⇧O`, opens a tab on the front page. A pinned layout on the shelf opens in a new tab.
 - **Switching.** Press a tab, or use `⌘⇧.` and `⌘⇧,` (`Ctrl+⇧.` and `Ctrl+⇧,`) for the next and previous tab.
 - **Closing.** The × on a tab, a middle-click, or `⌘⇧X` / `Ctrl+⇧X` for the tab in front. Right-click a tab for **Duplicate tab** and **Close other tabs**. Closing the last tab leaves one on the front page.
 - **Reordering.** Drag a tab along the strip.

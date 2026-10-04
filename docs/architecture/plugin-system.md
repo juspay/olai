@@ -127,21 +127,6 @@ export default definePlugin({
 
 ## 3. The runtime underneath
 
-Navigation owns the delegated anchor listener under `Effect.acquireRelease`.
-Its optional nodes component declares `outlines.references`; outlines provides
-node-home facts and pane-scoped row selection, while navigation owns landing
-policy and pending request validity. Provider withdrawal invalidates outstanding
-answers and reconnection retries unresolved addresses. A reveal awaiting its
-provider stays associated with its originating pane and route. A returning
-provider retries it only if that pane has not moved; a deleted target leaves
-the original page and selection intact. Resolution adds one history entry. Content rows encode
-hrefs and do not acquire their own navigation listeners. Hypertext owns the
-opaque-frame bridge: it validates sender identity, href, gesture and finite
-geometry, then passes intent directly through navigation’s shared follow function. An anchor in the owning pane supplies geometry to hover and menu listeners.
-That anchor is removed with the frame or its visible document. The sandbox
-retains `allow-scripts` without `allow-same-origin`.
-
-
 Plugin authors write Effect; Cordis, the component engine underneath, is confined
 to one package.
 
@@ -194,6 +179,17 @@ stops when the plugin unloads.
 `ring.held` exists so a caller needing the handle does not fall back to
 `Effect.runFork`, which creates a fiber with no owner and none of the operator's
 settings — a second, unnamed boundary.
+
+**A browser listener is a registration too.** Navigation's one delegated
+link listener is acquired with `Effect.acquireRelease` in its activation, so
+content rows only encode hrefs and never hold a listener of their own. A pending
+node reveal belongs to the pane and route that asked; withdrawing
+`outlines.references` invalidates the answer, and its return retries only a pane
+that has not moved. Hypertext owns the opaque-frame bridge: it checks the
+sender's identity, the href, the gesture and finite geometry, then hands the
+intent to navigation's `follow`. The anchor it places in the owning pane for
+hover and menus is removed with the frame. The sandbox keeps `allow-scripts`
+without `allow-same-origin` ([navigation](../../packages/plugins/navigation/docs.md#links)).
 
 **Phases.** The bundle's rows and browser slots are the composition model of the
 Cordis proposal's §6. The Effect API above is phase 4, node agents as scopes

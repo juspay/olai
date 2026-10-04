@@ -1,15 +1,17 @@
 # The conversation
 
-Authored Reference chips, write-result references, roster entries and resolved
-backticked node ids publish real `/#id` anchors. They share navigation's reveal
-and gesture rules; the transcript has no click or keyboard navigation shim.
-Streaming code references wrap and unwrap anchors as node declarations change.
-
 Chat contributes conversations to outline rows and zoomed node pages, plus the
 standing/start aside, Needs you and Chats, an Agents palette adapter with New
 chat's two levels, and the carry gesture. These faces arrive with chat's plugin row and leave
 with it. [chat.md](../chat.md) describes the workflows; this page describes their
 ownership.
+
+Every reference the panel draws — an authored Reference chip, a write's
+result, a roster row and a backticked id that names a node — is a real `/#id`
+anchor, so navigation answers it with the same reveal and the same gestures as
+any other link; the transcript has no click or keyboard handler of its own. A
+backticked id streaming in is wrapped in its anchor once the node is known, and
+unwrapped if it stops being one.
 
 ## What turns it on
 

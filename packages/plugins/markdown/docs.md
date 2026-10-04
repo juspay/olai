@@ -1,10 +1,5 @@
 # Markdown
 
-Same-document heading links and contents links use the document's route href,
-including the authored heading slug. Element ids remain namespaced. There is
-no alternate destination attribute: plain click updates the address bar and
-scrolls through navigation's landing; all other link gestures read that href.
-
 Markdown claims Markdown text files and supplies their document page, editor and glyph. HTML, CSV, image and PDF views belong to their own rows. It owns document body subscriptions, headings, document drafts, conflict handling, frontmatter display and its own undo history. Its server readings and writes run without browser code or outline UI.
 
 The browser provider owns a document reader and a fresh edit-history scope. Its content integration registers with `navigation.pages`, and its creation control registers with `files.types`, where it is the `New document` item in the Outlines heading's `+` menu. A Markdown page reads frontmatter, referrers and missing-file transitions through its own `documentPage` stream and bodies through its own collection; it needs no outline page, outline filtering, selection or drag context. Disabling outlines leaves an existing Markdown editor mounted and able to save. File metadata comes from the vault, so disabling the Files sidebar also leaves open content intact. Frontmatter remains readable independently; when outlines is present, it contributes the existing rich property drawer through the document-owned properties location.
@@ -12,10 +7,13 @@ The browser provider owns a document reader and a fresh edit-history scope. Its 
 While a page's first reading is on its way it says `Loading…`. An address that names no such file says `Page not found`, with a detail such as `There is no document named notes/plan.md.` The source editor's accessible name is `Edit <file>`.
 
 Heading fragments remain in each pane's navigation route and scroll history.
-A heading link and a contents entry both encode `/document.md#slug` directly.
-Plain activation updates the address and scrolls through the router's landing;
-Alt opens that same destination on the right, including from a preview card.
-Notes in an outline keep local fragment ids. Metadata subscriptions depend only
+A heading link and a contents entry both encode `/document.md#slug` directly
+(the authored slug; element ids on the page stay namespaced), and there is no
+second destination attribute. A plain click records the heading in the address
+and the router's landing scrolls to it; Alt opens that same destination on the
+right, including from a preview card. A note in an outline keeps its local
+`#fragment` links (footnotes): the renderer scrolls to them in place and the
+address is not touched. Metadata subscriptions depend only
 on the document path, so changing headings retains the document owner.
 
 `markdown.browser-state` carries what this row owns in a tab — its sibling

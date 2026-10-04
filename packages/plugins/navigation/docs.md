@@ -1,21 +1,5 @@
 # Navigation
 
-Navigation owns one scoped, delegated click listener. Content publishes real
-anchors; `intentOf` interprets plain/Enter, Alt and Alt-Shift as go, right and
-new pane. Ctrl/Meta/middle and prevented presses belong to the browser. The
-anchor's mounted pane owns the action; chrome uses the focused pane. The
-optional `nodes` integration declares `outlines.references`, which supplies
-row visibility/selection and node homes. Navigation owns asynchronous landing
-requests and rejects replies after pane changes, provider withdrawal or disposal.
-
-`/#id` reveals a node: select its visible row in the destination pane, otherwise
-open its current file at that row. `/zoom/#id` explicitly opens its own page.
-Legacy stored pins, layouts, tabs and stamped history retain zoom semantics at
-their persistence readers. Current authored links use the current grammar.
-Document heading anchors carry `/document.md#slug`; navigation updates history
-and the existing landing performer scrolls the owning pane. Layout destinations
-are read by the same route reader and opened by navigation.
-
 Navigation owns browser addresses, history, open panes and focus. Its state
 provider starts without a layout; replacing the layout preserves that state.
 The provider owns scroll restoration and keyboard/IME observers and releases
@@ -56,6 +40,48 @@ contributions. Disabling capture removes its command and makes `+` ordinary
 query text. Duplicate prefixes are reported and resolved in contribution order.
 The keyboard-settling observer belongs to navigation, so keyboard workflows and
 their observable completion work with alternative layouts too.
+
+## Links
+
+Content publishes real anchors (`<a href={routes.href(route)}>`) and nothing
+else; navigation owns every press on them. One delegated click listener,
+acquired by the navigation activation under `Effect.acquireRelease`, answers
+each `a[href]` the router can read. `intentOf` (`@olai/surface`'s `press.ts`) is
+the one reading of the gesture: plain click or Enter goes in place, Alt opens to
+the right, Alt-Shift inserts a new pane. Ctrl, Meta, Shift, middle-click and a
+press something else already prevented return `null` and stay the browser's.
+The pane a link is drawn in (`data-pane-id`) is the pane it acts on; chrome
+outside every pane acts on the focused pane.
+
+`targetOf(router, anchor)` is the one reading of the destination, shared by the
+listener, link previews, the tabs link menu and the `.html` frame bridge. It
+reads the authored `href` before the browser expands it: a raw `#fragment` stays
+with the content that drew it (Markdown scrolls a note's footnote in place
+without touching the address), and so do `download` links and links aimed at
+another browsing context. Everything else resolves through `routes.routeIn`,
+which answers either a pane route or a whole saved layout (`AddressTarget`); a
+`Route` itself is always one pane's place. `follow(target, intent)` performs
+the press, so a frame that forwards an intent is answered without synthesizing
+modifier keys. A shelf layout carrying `data-link-intent="new-tab"` asks the
+tab-opening capability tabs leases to navigation for its activation; without
+tabs it opens in place.
+
+`/#id` means one thing: REVEAL. If the node's row is visible in the pane, it is
+selected there with no history entry; otherwise the node's current file opens
+at that row. `/zoom/#id` is the node's own page, which the bullet and Zoom in
+use. A same-document heading link carries `/document.md#slug`, so a plain click
+records the heading in the address and the landing scrolls the owning pane.
+Stored tabs and stamped history written before `/zoom/` existed are read as
+zoom at their persistence boundaries; current links use the current grammar.
+
+Reveal resolution (`src/reveal.ts`) belongs to each lane, with one observer per
+pane. The optional `nodes` component declares `outlines.references`, which
+answers row visibility, selection and a node's home file; navigation owns the
+pending request and drops an answer once its pane has moved, its provider was
+withdrawn or the lane was disposed. An answer, including absence, is kept for
+that route and provider; only a returning provider retries. While a reveal is
+unresolved the pane says “Finding…”, and a missing node says “Page not found” —
+never the zoom page.
 
 ## Palette levels
 
@@ -318,7 +344,3 @@ link/Back recovery, an already-open palette/confirmation, and a failed request.
 Browser setup that opens an outline waits for both its drawn file and a
 non-busy reading. The home route can already draw that file, so matching the
 filename alone would let the next action hit the retained page.
-
-Link readers share `targetOf`: raw local fragments stay with their content renderer; downloads and links targeting another browsing context stay with the browser. Markdown scrolls local fragments without changing the app address. Shift-click, like Ctrl/Meta/middle-click, is a browser gesture. Layout targets hold workspaces separately from pane routes. Tabs leases navigation’s tab-opening capability for its activation; pinned layouts request a front tab through that capability. Without tabs, they open in place.
-
-Reveal resolution is owned by each lane, with one observer per pane. In-flight and missing answers are retained for that route and provider identity. A provider returning can retry; unrelated pane changes cannot. Unresolved address-bar references display “Finding…” and missing nodes display “Page not found”, never the zoom renderer.

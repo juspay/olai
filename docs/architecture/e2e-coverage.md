@@ -1,14 +1,5 @@
 # Browser coverage audit
 
-The navigation `link_intent.feature` and `chat_link_intent.feature` exercise
-real anchors in notes, titles, documents, headings and TOC, chat written links
-and both chip forms, see references, backlinks, breadcrumbs, search/palette,
-rails, roster rows, sealed HTML and preview cards. They cover click/Enter,
-Alt/Alt+Shift, browser Ctrl/Meta/middle presses, link menus, matching hover
-targets, pane ownership, reconnection, and old stored zoom tabs/history.
-`pin_layout` covers legacy node/layout pins and layout intent. Existing pane,
-chat, preview, tabs and HTML suites cover their surrounding workflows.
-
 This document records which user workflows have real browser tests, and which still do not.
 
 The navigation scenarios in `the_chrome_holds_still.feature` plant a DOM-identity
@@ -555,9 +546,24 @@ Long-content scenarios cover both node and qualified-row links, with plain and
 address-shaped titles. They measure full paragraph visibility while scrolling,
 verify the Popper height cap, and retain the three-child limit and read-only state.
 
-The unified-link scenarios also exercise local fragments and footnotes in notes,
-zoom pages and chat, same-frame HTML anchors, dated-row link menus and Ctrl-click,
-bullet keyboard/split gestures, the Zoom in command, visible-row address-bar
-reveal, and pending/missing references without a zoom renderer. The pins migration
-scenario starts with a legacy shelf, verifies rewritten titles on disk, adds a
-new reveal pin, and restarts the server to prove migration is one-time.
+## One meaning for links (#650)
+
+`link_intent.feature` and `chat_link_intent.feature` (navigation) are a matrix
+of surface × gesture over real anchors: note links, titles, documents, headings
+and their contents, chat written links and both chip forms, see references,
+backlinks, breadcrumbs, the palette and header search, the sidebar rails, roster
+rows, sealed `.html` previews and preview cards. Each is pressed with click,
+Enter, Alt and Alt-Shift and lands in the pane it was drawn in; Ctrl, Meta,
+middle and Shift presses are left to the browser without selecting a row; every
+link offers Open in new tab, and its hover card shows what a click opens. They
+also cover page-local fragments and footnotes in notes, zoom pages and chat
+(neither routed nor offered a menu), dated and agenda row links, the bullet's
+keyboard and split gestures, the Zoom in command, an address-bar `/#id` whose
+row is already visible (selected with no history entry), a reveal pending on a
+withdrawn outlines row and its return, a missing reveal without a zoom page,
+Ctrl-click on the files rail and the roster without side effects, and old stored
+zoom tabs and history. `html_previews` keeps a same-frame `#anchor` inside the
+frame. `pin_layout` covers a shelf layout opening in a new front tab and Alt
+opening it beside the current panes; `pin_migration` starts from a legacy
+shelf, checks the rewritten titles on disk, adds a new reveal pin and restarts
+the server to prove the migration runs once.
