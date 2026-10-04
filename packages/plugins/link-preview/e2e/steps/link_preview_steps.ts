@@ -19,7 +19,7 @@ const records = () => [
 const write = (world: OlaiWorld, rows: unknown[]) => world.writeServed("preview.olai", rows.map(row => JSON.stringify(row)).join("\n"))
 Given("the link preview examples are served", function (this: OlaiWorld) {
   write(this, records())
-  this.writeServed("preview.md", "# Document\n\nOpening paragraph\n\n## Section\n\nFirst section text\n\n## Section\n\nSecond section text\n\n## End\n\nThird section text\n")
+  this.writeServed("preview.md", "# Document\n\nOpening paragraph with [lost document](/preview-missing.md).\n\n## Section\n\nFirst section text\n\n## Section\n\nSecond section text\n\n## End\n\nThird section text\n")
 })
 When("I hover the preview link {string}", async function (this: OlaiWorld, label: string) { await link(this, label).hover() })
 When("a target link replaces the local link under the stationary pointer", async function (this: OlaiWorld) {
@@ -125,3 +125,9 @@ Then("Escape reaches the page when no preview is open", async function (this: Ol
 })
 
 When("I remove the first preview child on disk", function (this: OlaiWorld) { write(this, records().filter(row => row.id !== "preview-child-0")) })
+
+Then("the preview document marks its missing link dead", async function (this: OlaiWorld) {
+  const missing = card(this).getByRole("link", { name: "lost document" })
+  assert.equal(await missing.getAttribute("data-dead"), "true")
+  assert.ok((await missing.getAttribute("class"))?.includes("olai-dead-link"))
+})

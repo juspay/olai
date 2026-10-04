@@ -66,6 +66,7 @@ Feature: Live read-only internal link previews
   Scenario: Documents and sections use the document's actual heading ids
     When I hover the preview link "document"
     Then the link preview contains "Opening paragraph"
+    And the preview document marks its missing link dead
     When I hover the preview link "heading"
     Then the link preview contains "Second section text"
     And the link preview does not contain "Opening paragraph"

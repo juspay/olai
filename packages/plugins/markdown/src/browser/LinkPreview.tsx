@@ -1,4 +1,6 @@
 import { createMemo, Show } from "solid-js"
+import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
+import { markdownExcerpt } from "@olai/markdown-ui/excerpt.ts"
 import { proseIn } from "@olai/format"
 import type { Route } from "olai-plugin-navigation/contract"
 import { markdownReady } from "@olai/markdown-ui/chunk.ts"
@@ -15,28 +17,19 @@ export function MarkdownLinkPreview(props: { readonly route: Route }) {
   const section = createMemo(() => {
     const body = entry()
     if (!isServed(body) || !markdownReady()) return undefined
-    const template = document.createElement("template")
-    template.innerHTML = renderMarkdown(servedDirectory()?.claims(), proseIn(body.text), file())
     const at = address()
-    const heading = at?.kind === "heading" ? [...template.content.querySelectorAll("h1,h2,h3,h4,h5,h6")].find(h => h.id === landingId(proseIn(body.text), file(), at.slug)) : undefined
-    if (at?.kind === "heading" && !heading) return { missing: true, html: "", title: at.slug }
-    const title = heading?.textContent?.replace(/^#\s*/, "") ?? file()
-    const nodes = [...template.content.children]
-    const start = heading ? nodes.indexOf(heading) + 1 : 0
-    const selected: Element[] = []
-    for (const node of nodes.slice(start)) {
-      if (heading && /^H[1-6]$/.test(node.tagName) && node.tagName <= heading.tagName) break
-      selected.push(node)
-      if (selected.length === 3) break
-    }
-    return { missing: false, title, html: selected.map(node => node.outerHTML).join("") }
+    const heading = at?.kind === "heading" ? landingId(proseIn(body.text), file(), at.slug) : undefined
+    const selected = markdownExcerpt(renderMarkdown(servedDirectory()?.claims(), proseIn(body.text), file()), { after: heading, blocks: 3 })
+    return { ...selected, heading, title: selected.title ?? file() }
   })
   const missing = () => servedDirectory()?.members().has(file()) === false || section()?.missing
   return <>
     <div class="text-xs text-muted">{file()}</div>
     <Show when={!missing()} fallback={<><strong>Nothing at {file()}{address()?.kind === "heading" ? `#${(address() as {slug: string}).slug}` : ""}</strong><p class="text-sm text-muted">The document or heading is missing.</p></>}>
       <strong>{section()?.title ?? file()}</strong>
-      <div class="olai-md olai-md-compact max-h-56 overflow-hidden" innerHTML={section()?.html ?? ""} />
+      <Markdown claims={servedDirectory()?.claims()} members={servedDirectory()?.members()} from={file()}
+        source={(() => { const body = entry(); return isServed(body) ? proseIn(body.text) : "" })()} excerpt={{ after: section()?.heading, blocks: 3 }}
+        class="olai-md-compact max-h-56 overflow-hidden" />
       <Show when={!entry()}><p class="text-xs text-muted">Reading…</p></Show>
       <Show when={entry()?.refused}><p class="text-sm text-alarm">This document could not be read.</p></Show>
     </Show>
