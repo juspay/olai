@@ -5,7 +5,7 @@ Feature: A node's page holds its memory and conversation
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And I type "keep this cabinet draft" into the chat
-    And I follow the agent's open-page link
+    And I follow the agent's show-in-outline link
     Then the unified destination row "install" is selected
     When I zoom into the node "install"
     Then the zoomed node is "install"
