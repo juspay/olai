@@ -88,12 +88,13 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
   const [reports, setReports] = createStore<Record<string, (() => PageInfo) | undefined>>({})
   const info = (index: number) => reports[panes()[index]?.id ?? ""]?.()
   const focused = createMemo(() => info(focusIndex()), undefined, { equals: samePageInfo })
-  const resolving = createReveal(panes, (index, route, how) => route
-    ? commit(navigateIn(workspace(), index, route), how, all => marked(all, index, landingOf(route)))
+  // A reveal resolves IN PLACE of its own entry: the route it replaces is the
+  // one that asked, so a followed reference is still one step of history.
+  const resolving = createReveal(panes, (index, route) => route
+    ? commit(navigateIn(workspace(), index, route), "replace", all => marked(all, index, landingOf(route)))
     : commit(focusAt(workspace(), index), "replace", asTheyWere))
   const goIn = (index: number, next: Route): void => {
-    if (resolving.reveal(index, next, "push")) return
-    resolving.cancel(index)
+    if (resolving.visible(index, next)) return
     commit(
       navigateIn(workspace(), index, next),
       "push",

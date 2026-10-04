@@ -10,10 +10,13 @@ export interface Declared {
   readonly want: (ids: ReadonlyArray<string>) => void
   readonly told: (id: string) => string | null | undefined
 }
+/** A node's canonical file, `null` when no node has the id, an `Error` when the
+ *  outline cannot be asked, or `undefined` until it has answered. */
+export type Home = string | null | Error | undefined
 export interface References {
   readonly reveal: (pane: string, id: string) => boolean
-  /** Canonical file, null for an absent node, undefined while the provider cannot answer. */
-  readonly home: (id: string) => Promise<string | null | undefined>
+  /** A reading owned by the caller; the provider re-asks on its own wire. */
+  readonly home: (id: string) => Accessor<Home>
   readonly focused: Accessor<string | null>
   readonly declare: (failure?: (message: string, ids: ReadonlyArray<string>) => void) => Declared
   readonly failure: Accessor<string | null>

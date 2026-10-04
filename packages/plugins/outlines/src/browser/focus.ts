@@ -2,13 +2,10 @@ import { heldService } from "@olai/ui-primitives/held.ts"
 import { rowElements } from "./row-elements.ts"
 /** Outlines owns the row registry and selection/scroll act. Navigation owns
  * whether a reference reveals here or needs a file landing elsewhere. */
-import { Result } from "effect"
 import { type Accessor, createSignal, createSelector, createContext, createComponent, useContext, type JSX } from "solid-js"
 
-import { runAsync } from "@olai/web/client/run.ts"
 import { useShown } from "olai-plugin-navigation/routing"
 
-import { client } from "../client.ts"
 
 export const createFocusState = () => {
   const [focused, setFocused] = createSignal<string | null>(null)
@@ -69,11 +66,5 @@ export const revealNode = (pane: string, id: string): boolean => {
   selectNode(id)
   bringOntoScreen(row)
   return true
-}
-export const nodeHome = async (id: string): Promise<string | null | undefined> => {
-  const outcome = await runAsync(client().procedures.nodes.homes({ ids: [id], files: [] }))
-  if (Result.isSuccess(outcome)) return outcome.success.homes.find(one => one.id === id)?.file ?? null
-  if (outcome.failure._tag === "BusyFailure") return undefined
-  throw new Error(outcome.failure.reason)
 }
 export const clearFocus = (): void => { setFocused(null) }

@@ -1,59 +1,68 @@
 import { expect, test } from "bun:test"
-import { createRoot } from "solid-js"
+import { createRoot, createSignal } from "solid-js"
+import { claims as claimsOf } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
+import type { Home } from "olai-plugin-outlines/references"
 import { createPaneState } from "./pane/state.ts"
 import { createReveal } from "./reveal.ts"
 import { nodeTargets } from "./nodes.ts"
 import { holdFiles } from "./pages.ts"
-import { atFile, atNode } from "./routes.ts"
+import { atFile, type Route } from "./routes.ts"
 import { routingIn } from "./routes.testlib.ts"
 import { navigateIn, workspaceOf } from "./workspace.ts"
 
-test("a pane retains in-flight and missing outcomes across unrelated changes; provider replacement retries", async () => {
-  let calls = 0, answer!: (file: string | null) => void, dispose = () => {}
-  const files = holdFiles({ claims: () => TEST_CLAIMS, paths: () => [], standing: () => "loaded" })
-  let release = nodeTargets.hold({ reveal: () => false, home: () => { calls++; return new Promise(resolve => { answer = resolve }) } })
+/** A provider whose answers the test sets; each `home` call is one reading. */
+const provider = () => {
+  const asked: string[] = []
+  const [answer, setAnswer] = createSignal<Home>()
+  return { asked, setAnswer, value: { reveal: () => false, home: (id: string) => { asked.push(id); return answer } } }
+}
+
+const lane = (address: string) => {
   const routes = routingIn()
+  const arrived: string[] = []
+  let dispose = () => {}
   const state = createRoot(stop => {
     dispose = stop
-    const panes = createPaneState(workspaceOf(routes, "/s/%23missing/house.olai"), routes)
-    const resolving = createReveal(panes.panes, () => {})
-    return { ...panes, resolving }
+    const panes = createPaneState(workspaceOf(routes, address), routes)
+    const reveal = createReveal(panes.panes, (_, route?: Route) => { if (route) arrived.push(routes.href(route)) })
+    return { ...panes, reveal }
   })
+  return { state, arrived, dispose }
+}
+
+test("an answer, missing included, is read once per route and provider", () => {
+  const files = holdFiles({ claims: () => TEST_CLAIMS, paths: () => [], standing: () => "loaded" })
+  const first = provider()
+  let release = nodeTargets.hold(first.value)
+  const { state, dispose } = lane("/s/%23missing/house.olai")
   try {
-    await Promise.resolve()
-    expect(calls).toBe(1)
+    expect(first.asked).toEqual(["missing"])
     state.setWorkspace(navigateIn(state.workspace(), 1, atFile("garden.olai")))
-    expect(calls).toBe(1)
-    answer(null); await Promise.resolve()
-    expect(state.resolving.status(0)).toBe("missing")
+    first.setAnswer(null)
+    expect(state.reveal.status(0)).toBe("missing")
     state.setWorkspace(navigateIn(state.workspace(), 1, atFile("other.olai")))
-    expect(calls).toBe(1)
+    expect(first.asked).toEqual(["missing"])
     release()
-    release = nodeTargets.hold({ reveal: () => false, home: async () => { calls++; return null } })
-    await Promise.resolve()
-    expect(calls).toBe(2)
-    state.setWorkspace(navigateIn(state.workspace(), 0, atNode("another")))
-    await Promise.resolve()
-    expect(calls).toBe(3)
+    const second = provider()
+    release = nodeTargets.hold(second.value)
+    expect(second.asked).toEqual(["missing"])
+    second.setAnswer(new Error("no wire"))
+    expect(state.reveal.status(0)).toBe("unavailable")
   } finally { dispose(); release(); files() }
 })
 
-test("a busy answer asks again instead of leaving the pane finding", async () => {
-  let calls = 0, dispose = () => {}
-  const arrived: string[] = []
-  const files = holdFiles({ claims: () => TEST_CLAIMS, paths: () => [], standing: () => "loaded" })
-  const release = nodeTargets.hold({ reveal: () => false, home: async () => ++calls === 1 ? undefined : "house.olai" })
-  const routes = routingIn()
-  const state = createRoot(stop => {
-    dispose = stop
-    const panes = createPaneState(workspaceOf(routes, "/#order"), routes)
-    return createReveal(panes.panes, (_, route) => { if (route) arrived.push(routes.href(route)) })
-  })
+test("a home lands once the claim table names its file", () => {
+  const [table, setTable] = createSignal(claimsOf([{ kind: "markdown", exts: [".md"], holds: "text", kept: true, fetched: false, noun: "document", article: "a" }]))
+  const files = holdFiles({ claims: table, paths: () => [], standing: () => "loaded" })
+  const reader = provider()
+  const release = nodeTargets.hold(reader.value)
+  const { state, arrived, dispose } = lane("/#order")
   try {
-    await new Promise(resolve => setTimeout(resolve, 300))
-    expect(calls).toBe(2)
+    reader.setAnswer("house.olai")
+    expect(arrived).toEqual([])
+    expect(state.reveal.status(0)).toBe("finding")
+    setTable(TEST_CLAIMS)
     expect(arrived).toEqual(["/house.olai#order"])
-    expect(state.status(0)).toBeUndefined()
   } finally { dispose(); release(); files() }
 })

@@ -3,6 +3,7 @@ import type { Intent } from "@olai/surface"
  * context; importing this contract starts no history, observer or timer. */
 import { type Accessor,createContext,createMemo,type JSX,useContext } from "solid-js"
 import type { Landing } from "./landing.ts"
+import type { RevealState } from "./reveal.ts"
 import { usePane } from "./pane/context.tsx"
 import { fileNamed,type Route } from "./routes.ts"
 import { workspaceFor, type AddressTarget, type Workspace, type WorkspaceRouting } from "./workspace.ts"
@@ -16,7 +17,7 @@ export interface LivePane {
 }
 export interface Lane extends Router {}
 export interface Router {
-  readonly revealState: (index: number) => "finding" | "missing" | undefined
+  readonly revealState: (index: number) => RevealState | undefined
   readonly panes: Accessor<readonly LivePane[]>
   readonly focusIndex: Accessor<number>
   readonly split: Accessor<boolean>

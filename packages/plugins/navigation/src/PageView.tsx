@@ -12,6 +12,12 @@ import { TESTID } from "./testids.ts"
 import { TESTID as UI } from "@olai/ui-primitives/testids.ts"
 import { Empty } from "@olai/web/client/Empty.tsx"
 
+const REVEALING = {
+  finding: { line: "Finding…" },
+  missing: { line: "Page not found", detail: "There is no node at this address." },
+  unavailable: { line: "This page can't be opened", detail: "The outline could not say where this node lives." },
+} as const
+
 export function PageView() {
   const router = useRouter(), here = useHere()
   const route = createMemo(() => router.panes()[here()]!.route())
@@ -33,7 +39,7 @@ export function PageView() {
   const draw = createMemo<((props: Props) => JSX.Element) | undefined>(() => revealing() ? undefined : address() ? page()?.page : handler()?.Page)
   /** What went wrong, as a heading and one plain line under it. */
   const said = (): { readonly line: string; readonly detail?: string } => {
-    if (revealing()) return router.revealState(here()) === "missing" ? { line: "Page not found", detail: "There is no node at this address." } : { line: "Finding…" }
+    if (revealing()) return REVEALING[router.revealState(here()) ?? "finding"]
     if (address() === undefined) {
       return { line: "This page can't be opened", detail: "The plugin that shows it is turned off." }
     }
