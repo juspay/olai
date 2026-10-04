@@ -105,3 +105,21 @@ Then("the qualified preview requested only the target node", function (this: Ola
   assert.ok(this.socketAskedSince("page/get", '"kind":"node"', "preview-target") > 0)
   assert.equal(this.socketAskedSince("page/get", '"kind":"row"', "preview-target"), 0)
 })
+
+When("I watch Escape beneath the preview", async function (this: OlaiWorld) {
+  await this.page.evaluate(() => {
+    const state = { focus: document.activeElement, href: location.href, escapes: 0 }
+    Object.assign(window, { previewEscape: state })
+    document.addEventListener("keydown", event => { if (event.key === "Escape") state.escapes++ })
+  })
+})
+Then("Escape leaves the preview's underlying page untouched", async function (this: OlaiWorld) {
+  assert.deepEqual(await this.page.evaluate(() => {
+    const state = (window as unknown as { previewEscape: { focus: Element | null; href: string; escapes: number } }).previewEscape
+    return { focus: state.focus === document.activeElement, href: state.href === location.href, escapes: state.escapes }
+  }), { focus: true, href: true, escapes: 0 })
+})
+Then("Escape reaches the page when no preview is open", async function (this: OlaiWorld) {
+  await this.page.keyboard.press("Escape")
+  assert.equal(await this.page.evaluate(() => (window as unknown as { previewEscape: { escapes: number } }).previewEscape.escapes), 1)
+})

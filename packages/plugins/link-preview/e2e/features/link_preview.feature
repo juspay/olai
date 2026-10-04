@@ -212,3 +212,13 @@ Feature: Live read-only internal link previews
     And the link preview remains open
     When I dismiss the link preview with Escape
     Then the link preview closes
+
+  Scenario: Escape belongs only to the open preview
+    When I focus the preview link "target"
+    Then the link preview contains "Preview target"
+    When I watch Escape beneath the preview
+    And I dismiss the link preview with Escape
+    Then the link preview closes
+    And Escape leaves the preview's underlying page untouched
+    And the address is "/#preview-source"
+    And Escape reaches the page when no preview is open

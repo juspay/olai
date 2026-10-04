@@ -70,7 +70,12 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
       || (next instanceof Element && next.closest(CARD)))) return
     leave()
   }
-  const key = (event: KeyboardEvent) => { if (event.key === "Escape") close() }
+  const key = (event: KeyboardEvent) => {
+    if (event.key !== "Escape" || !target()) return
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    close()
+  }
   const activate = Effect.acquireRelease(Effect.sync(() => {
     root = document.createElement("div")
     root.dataset.linkPreviewOverlay = ""
@@ -81,7 +86,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     document.addEventListener("pointerout", out)
     document.addEventListener("focusin", enter)
     document.addEventListener("focusout", out)
-    document.addEventListener("keydown", key)
+    document.addEventListener("keydown", key, true)
   }), () => Effect.sync(() => {
     close()
     document.removeEventListener("pointerover", pointer.over)
@@ -89,7 +94,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     document.removeEventListener("pointerout", out)
     document.removeEventListener("focusin", enter)
     document.removeEventListener("focusout", out)
-    document.removeEventListener("keydown", key)
+    document.removeEventListener("keydown", key, true)
     root.remove()
   }))
   function Body(props: { readonly renderer: LinkPreview; readonly route: Route }) {
