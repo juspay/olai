@@ -15,6 +15,7 @@ import { Empty } from "@olai/web/client/Empty.tsx"
 export function PageView() {
   const router = useRouter(), here = useHere()
   const route = createMemo(() => router.panes()[here()]!.route())
+  const revealing = createMemo(() => { const at = route(); return at.kind === "at" && at.reveal })
   const address = createMemo(() => {
     const at = route()
     return at.kind === "at" && at.address !== null && at.address.kind !== "node" ? at.address : undefined
@@ -29,9 +30,10 @@ export function PageView() {
   // Both locations dispatch through one component identity. A file-to-node
   // zoom owned by the same renderer must keep that renderer's undo scope.
   type Props = Address & { readonly route: ReturnType<typeof route>; readonly index: number }
-  const draw = createMemo<((props: Props) => JSX.Element) | undefined>(() => address() ? page()?.page : handler()?.Page)
+  const draw = createMemo<((props: Props) => JSX.Element) | undefined>(() => revealing() ? undefined : address() ? page()?.page : handler()?.Page)
   /** What went wrong, as a heading and one plain line under it. */
   const said = (): { readonly line: string; readonly detail?: string } => {
+    if (revealing()) return router.revealState(here()) === "missing" ? { line: "Page not found", detail: "There is no node at this address." } : { line: "Finding…" }
     if (address() === undefined) {
       return { line: "This page can't be opened", detail: "The plugin that shows it is turned off." }
     }

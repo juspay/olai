@@ -1,3 +1,4 @@
+import { actionHref } from "./items.ts"
 import { useRouter } from "../routing.tsx"
 import { closePalette } from "./state.ts"
 /**
@@ -108,7 +109,7 @@ export function LevelView(props: {
                   <Show when={rowHeading(item().id)}>{(text) => <SectionHeading text={text()} />}</Show>
                   <Result
                     claims={fileClaims()}
-                    href={item().action.kind === "route" ? router.routes.href((item().action as Extract<import("./items.ts").PaletteAction, {kind: "route"}>).route) : undefined}
+                    href={actionHref(router.routes, item().action)}
                     onNavigate={closePalette}
                     label={item().label}
                     from={item().from}

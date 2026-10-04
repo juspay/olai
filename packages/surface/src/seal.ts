@@ -572,7 +572,7 @@ const FOLLOW = (extensions: ReadonlyArray<string>) => `(function () {
   var intentOf = ${intentOf.toString()}
   function target(event) {
     var link = event.target && event.target.closest ? event.target.closest("a[href]") : null
-    if (!link || link.hasAttribute("download") || (link.target && link.target !== "_self")) return
+    if (!link || link.getAttribute("href").startsWith("#") || link.hasAttribute("download") || (link.target && link.target !== "_self")) return
     var at
     try { at = new URL(link.href) } catch (_) { return }
     if (at.protocol !== location.protocol || at.host !== location.host) return
@@ -780,7 +780,7 @@ export type Said =
    *  inside it the link named, when it named one; it is not checked against
    *  anything here, because which ids a page has is not knowable until it has
    *  been drawn. */
-  | { readonly kind: "open"; readonly intent?: Intent; readonly file: string; readonly at?: string }
+  | { readonly kind: "open"; readonly file: string; readonly at?: string }
   /** How tall the page says it is — {@link READING}. A claim, clamped by CSS at
    *  the other end. */
   | { readonly kind: "reading"; readonly height: number }
@@ -852,9 +852,7 @@ export const heard = (said: unknown): Said | undefined => {
       return { kind: "link", href: message.href, action: message.action, intent: message.intent,
         x: message.x, y: message.y, width: message.width, height: message.height } as Extract<Said, { kind: "link" }>
     }
-    if (message.type !== OPEN || typeof message.href !== "string" || !["go", "right", "new-pane"].includes(String(message.intent))) return undefined
-    const target = heard(OPEN + message.href)
-    return target?.kind === "open" ? { ...target, intent: message.intent as Intent } : undefined
+    return undefined
   }
   if (said === HELLO) return { kind: "hello" }
   if (said === REFUSED) return { kind: "refused" }

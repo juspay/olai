@@ -1,5 +1,4 @@
 import { Dynamic } from "solid-js/web"
-import { intentOf } from "@olai/surface"
 import { Index } from "solid-js"
 /**
  * One result row, wherever search is drawn.
@@ -183,13 +182,10 @@ export function Result(props: {
       // shut the panel and land the click on nothing. Preventing the default
       // on mousedown keeps focus where it is and still lets `click` fire.
       onMouseDown={(event: MouseEvent) => event.preventDefault()}
-      onClick={(event: MouseEvent) => {
+      on:olai-navigated={() => props.onNavigate?.()}
+      onClick={() => {
         if (props.href === undefined) props.onSelect()
-        else if (intentOf(event) !== null) {
-          // Keep the anchor connected until navigation's window listener has
-          // read its owning pane and destination.
-          queueMicrotask(() => props.onNavigate?.())
-        }
+
       }}
     >
       <span class="flex w-full min-w-0 items-center gap-3">

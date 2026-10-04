@@ -88,7 +88,7 @@ test("the journal's URL is still the journal's after the palette withdraws", () 
     // ...and the palette's, over the same table and a scope of its own.
     yield* Scope.provide(holdPaletteFaces(rendererTable), palette)
 
-    expect(routing.routeIn("/d/2026-09-07")?.kind).toBe("plugin")
+    expect(routing.pageIn("/d/2026-09-07")?.kind).toBe("plugin")
 
     // THE WITHDRAWAL THIS IS ABOUT: layout leaves, so the palette stops. The
     // renderer has not moved and the journal has not moved.
@@ -98,7 +98,7 @@ test("the journal's URL is still the journal's after the palette withdraws", () 
     // palette's own registrations leaving does: the memo re-reads, and what it
     // re-reads is the renderer's hold, still standing.
     moved((at) => at + 1)
-    expect(routing.routeIn("/d/2026-09-07")?.kind).toBe("plugin")
+    expect(routing.pageIn("/d/2026-09-07")?.kind).toBe("plugin")
 
     // ...AND THE PALETTE COMES BACK, which is the other half of the reviewers'
     // ask and the half a holder gets wrong in the other direction: a second
@@ -107,16 +107,16 @@ test("the journal's URL is still the journal's after the palette withdraws", () 
     const again = yield* Scope.make()
     yield* Scope.provide(holdPaletteFaces(rendererTable), again)
     moved((at) => at + 1)
-    expect(routing.routeIn("/d/2026-09-07")?.kind).toBe("plugin")
+    expect(routing.pageIn("/d/2026-09-07")?.kind).toBe("plugin")
     yield* Scope.close(again, Exit.void)
     moved((at) => at + 1)
-    expect(routing.routeIn("/d/2026-09-07")?.kind).toBe("plugin")
+    expect(routing.pageIn("/d/2026-09-07")?.kind).toBe("plugin")
 
     // ...and when the renderer does stop, the claim goes with it, which is the
     // empty reading this row has always had before its renderer settled.
     yield* Scope.close(renderer, Exit.void)
     moved((at) => at + 1)
     expect(routeFaces("app.route")).toHaveLength(0)
-    expect(routing.routeIn("/d/2026-09-07")?.kind).not.toBe("plugin")
+    expect(routing.pageIn("/d/2026-09-07")?.kind).not.toBe("plugin")
     settling()
   })))

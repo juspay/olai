@@ -126,7 +126,7 @@ const isFlatSplit = (layout: Split, axis?: Axis): boolean =>
 export const hrefOfWorkspace = (
   /** The grammar to print a plugin's page with — the router's own, handed in
    *  rather than reached for ({@link Routing}). */
-  routing: Routing,
+  routing: Omit<Routing, "routeIn">,
   workspace: Workspace,
 ): string => {
   const layout = workspace.layout
@@ -138,7 +138,7 @@ export const hrefOfWorkspace = (
   return query === "" ? path : `${path}?${query}`
 }
 
-export const workspaceOf = (routing: Routing, address: string): Workspace => {
+export const workspaceOf = (routing: Omit<Routing, "routeIn">, address: string): Workspace => {
   const { pathname, search } = splitAddress(address)
   if (!pathname.startsWith(WORKSPACE_PREFIX)) {
     return lone(routing.routeOf(address))
@@ -169,14 +169,20 @@ export const workspaceOf = (routing: Routing, address: string): Workspace => {
 
 /** Workspace grammar composes above page routing; page parsers remain unaware
  * of the workspace prefix. Bound by the navigation owner over its live roster. */
-export interface WorkspaceRouting extends Routing {
+export type AddressTarget =
+  | { readonly kind: "page"; readonly route: Route }
+  | { readonly kind: "layout"; readonly workspace: Workspace }
+
+export interface WorkspaceRouting extends Omit<Routing, "routeIn"> {
+  readonly pageIn: Routing["routeIn"]
+  readonly routeIn: (href: string) => AddressTarget | null
   readonly layoutIn: (href: string) => Workspace | null
   readonly layoutHref: (workspace: Workspace) => string
 }
 
 export const workspaceRoutingOver = (routes: Routing): WorkspaceRouting => ({
   ...routes,
-  href: route => route.kind === "layout" ? layoutHref(routes, route.workspace) : routes.href(route),
+  pageIn: routes.routeIn,
   routeIn: href => {
     let path = href
     if (!href.startsWith("/") || href.startsWith("//")) {
@@ -193,10 +199,10 @@ export const workspaceRoutingOver = (routes: Routing): WorkspaceRouting => ({
     // segments and an explicit tree are workspace addresses, including old
     // degenerate saved layouts. Every link surface uses this same decision.
     const address = splitAddress(path)
-    const layout = address.pathname.slice(WORKSPACE_PREFIX.length).includes("/")
-      || address.search.includes("t=") || !page || fileNamed(page) === undefined
+    const layout = address.pathname.startsWith(WORKSPACE_PREFIX) && (address.pathname.slice(WORKSPACE_PREFIX.length).includes("/")
+      || address.search.includes("t=") || !page || fileNamed(page) === undefined)
     const workspace = layout ? layoutIn(routes, path) : null
-    return workspace ? { kind: "layout", workspace } : page
+    return workspace ? { kind: "layout", workspace } : page ? { kind: "page", route: page } : null
   },
   layoutIn: (href) => layoutIn(routes, href),
   layoutHref: (workspace) => layoutHref(routes, workspace),
@@ -212,19 +218,19 @@ export const savedLayout = (workspace: Workspace): Workspace => ({
 })
 
 /** Serialize the same value an in-place layout navigation opens. */
-export const layoutHref = (routing: Routing, workspace: Workspace): string =>
+export const layoutHref = (routing: Omit<Routing, "routeIn">, workspace: Workspace): string =>
   hrefOfWorkspace(routing, savedLayout(workspace))
 
 /** Workspace addresses belong to navigation, never to a page claim. */
-export const layoutIn = (routing: Routing, href: string): Workspace | null =>
+export const layoutIn = (routing: Omit<Routing, "routeIn">, href: string): Workspace | null =>
   splitAddress(href).pathname.startsWith(WORKSPACE_PREFIX) ? workspaceOf(routing, href) : null
 
-const encodePane = (routing: Routing, route: Route): string => {
+const encodePane = (routing: Omit<Routing, "routeIn">, route: Route): string => {
   const href = routing.href(route)
   return encodeURIComponent(href.startsWith("/") ? href.slice(1) : href)
 }
 
-const decodePane = (routing: Routing, segment: string): Route | undefined => {
+const decodePane = (routing: Omit<Routing, "routeIn">, segment: string): Route | undefined => {
   if (segment === "") return undefined
   try {
     return routing.routeOf("/" + decodeURIComponent(segment))

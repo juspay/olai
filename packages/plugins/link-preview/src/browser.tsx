@@ -5,7 +5,7 @@ import { Dynamic, Portal } from "solid-js/web"
 import { Popper } from "@kobalte/core/popper"
 import { navigation, linkPreviews, type Route, type LinkPreview } from "olai-plugin-navigation/contract"
 import { PaneProvider } from "olai-plugin-navigation/pane"
-import { RouterProvider } from "olai-plugin-navigation/routing"
+import { RouterProvider, targetOf } from "olai-plugin-navigation/routing"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { overlays } from "olai-plugin-layout/contract"
 import { LAYER } from "@olai/web/client/layer.ts"
@@ -38,12 +38,10 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     if (!(at instanceof Element) || at.closest(`${CARD}, ${EDITOR}`)) return
     const element = at.closest<HTMLAnchorElement>('a[href]')
     if (!element || element.closest(EDITOR)) return
-    if (element.getAttribute("href")?.startsWith("#")) return
-    const href = element.href
-    const route = nav.routes.routeIn(href)
-    const pane = element.closest("[data-pane]")?.getAttribute("data-pane")
+    const target = targetOf(nav, element)
+    const route = target?.destination.kind === "page" ? target.destination.route : undefined
     return route && matchPreview(slots.read(linkPreviews), route)
-      ? { element, route, pane: pane === undefined || pane === null ? nav.focusIndex() : Number(pane) }
+      ? { element, route, pane: target!.index }
       : undefined
   }
   const enter = (event: PointerEvent | FocusEvent) => {

@@ -392,3 +392,7 @@ const afterPrefix = (raw: string, prefix: string): string | null => {
   if (!trimmed.startsWith(prefix)) return null
   return trimmed.slice(prefix.length).trimStart()
 }
+
+/** A route result carries a real href; commands remain buttons. */
+export const actionHref = (routes: { href: (route: Route) => string } | undefined, action: PaletteAction): string | undefined =>
+  action.kind === "route" ? routes?.href(action.route) : undefined

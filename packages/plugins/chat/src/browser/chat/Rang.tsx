@@ -1,3 +1,4 @@
+import { useRouter } from "olai-plugin-navigation/routing"
 /**
  * A MACHINE'S SENTENCE IN A PERSON'S LANE — the panel's third face, and the one
  * nobody typed.
@@ -205,6 +206,7 @@ export function Rang(props: {
    * would put a second condition in a switch whose every other non-trivial arm
    * is one line, for an asker only this file can spend.
    */
+  const routes = useRouter().routes
   const declared = createDeclared()
   /** The row's own element, so the ids inside it can be found. A ref rather
    *  than a query on the pane, for {@link ./Entry.tsx}'s reason: the pass is
@@ -232,7 +234,7 @@ export function Rang(props: {
   createEffect(() => {
     said()
     if (rang === undefined) return
-    declared.want(markNodeRefs(rang, declared.named))
+    declared.want(markNodeRefs(rang, declared.named, routes.href))
   })
   return (
     <div

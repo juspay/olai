@@ -44,6 +44,7 @@ import type { Route } from "olai-plugin-navigation/routes"
 export const requestFor = (route: Route): FiledPageRequest | null => {
   switch (route.kind) {
     case "at": {
+      if (route.reveal) return null
       const address = route.address
       // A HEADING IS NOT A PAGE, and neither is a ROW — and dropping both
       // here is the page model's own rule kept where it now matters: an arm
@@ -65,7 +66,6 @@ export const requestFor = (route: Route): FiledPageRequest | null => {
     }
     case "trash":
       return { kind: "trash" }
-    case "layout":
     case "plugin":
       // A mounted route tenant supplies its own request in PageView. This arm
       // is only the total fallback for a route whose tenant disappeared. It

@@ -22,7 +22,7 @@ import type { Dots, Tab } from "./contract.ts"
 
 export const needingYou = (
   chat: Attention,
-  routes: Routing,
+  routes: Omit<Routing, "routeIn">,
   tabs: Accessor<ReadonlyArray<Tab>>,
 ): Dots => {
   const waiting = createMemo(() => chat.agents.rows().filter(row => row.standing === "needs-you"))

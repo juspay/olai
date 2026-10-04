@@ -1,4 +1,3 @@
-import { hrefOfWorkspace } from "./workspace.ts"
 import { Schema } from "effect"
 import type { AppPage } from "olai-plugin-navigation/slots"
 import type { AppRoute } from "olai-plugin-navigation/slots"
@@ -61,7 +60,6 @@ export interface MountedAppPage {
 }
 
 export type Route =
-  | { readonly kind: "layout"; readonly workspace: import("./workspace.ts").Workspace; readonly filter?: string }
   /**
    * A PLACE in the served directory — one address, and `null` for the front
    * page, which names none ("whichever outline was found first", the bare
@@ -404,7 +402,6 @@ export const atElement = (table: Claims, file: string, element: string | null): 
  * whole and cut back open here.
  */
 export const hrefOfPlain = (route: PlainRoute): string => {
-  if (route.kind === "layout") return hrefOfWorkspace(routingOver(() => undefined, () => NO_PAGES), route.workspace)
   const narrowed = narrowing(sourceLanding(route) ? route.filter : filterOfPlain(route))
   if (isNamed(route.kind)) return NAMED[route.kind] + narrowed
   const address = addressNamed(route)
@@ -704,7 +701,6 @@ export interface Routing {
  * both read it off `navigation.state`.
  */
 export const labelIn = (pages: MountedPages, route: Route): string => {
-  if (route.kind === "layout") return "Layout"
   if (route.kind === "at") {
     const address = route.address
     if (address === null) return "Home"

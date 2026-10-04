@@ -116,7 +116,7 @@ export default definePlugin({ name, needs: [Landings, Wired, Offers, Edits, Slot
     yield* Effect.acquireRelease(Effect.sync(start), stop => Effect.sync(stop))
   }
   const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
-    const references: References = { reveal: revealNode, home: nodeHome, focused: focusedNode, declare: createDeclared, showNode: failure: declaringFailure }
+    const references: References = { reveal: revealNode, home: nodeHome, focused: focusedNode, declare: createDeclared, failure: declaringFailure }
     const undo = createUndo(edit => runAsync(writeEdit(edit)))
     const readings = createReadings()
     const fields = createFields()

@@ -1,3 +1,4 @@
+import { useRouter } from "olai-plugin-navigation/routing"
 /**
  * One row of the conversation, and the six things it can be.
  *
@@ -171,6 +172,7 @@ export function Entry(props: {
    *  markdown in it, and `kind` never changes for an entry — so this is asked
    *  once rather than leaving every user message and every tool frame of a long
    *  transcript holding an asker with nothing to ask about. */
+  const routes = useRouter().routes
   const declared = props.entry.kind === "agent" ? createDeclared() : undefined
   /** The element the agent's rendered answer lands in, so the ids it names can
    *  be found in it ({@link ./refs.ts}). A ref rather than a query on the pane:
@@ -227,7 +229,7 @@ export function Entry(props: {
       // SHOW and a mark on the placement's own id would leave the page for a
       // node that is right there. Reading the answer inside this effect is what
       // re-runs the pass when one lands.
-      declared.want(markNodeRefs(said, declared.named))
+      declared.want(markNodeRefs(said, declared.named, routes.href))
     })
   }
 

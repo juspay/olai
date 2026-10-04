@@ -10,7 +10,7 @@ import { pinnedAt } from "./pins.ts"
 
 export const pinItem = (
   /** The app's URL grammar, handed in — see `./pins.ts`'s `pinsOf`. */
-  routes: Routing,
+  routes: Omit<Routing, "routeIn">,
   route: Route,
   shelf: Shelf,
   /** The live page name, used on the second line and naming placeholder. */

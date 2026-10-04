@@ -1,4 +1,4 @@
-import { atNode, hrefOfPlain } from "olai-plugin-navigation/routes"
+import { atNode, type Route } from "olai-plugin-navigation/routes"
 /**
  * The ids the AGENT names, made pressable — without inventing a syntax.
  *
@@ -181,6 +181,7 @@ const inFenceAt = (span: Element): boolean => span.parentElement?.tagName === "P
 export const markNodeRefs = (
   root: HTMLElement,
   resolve: (id: string) => string | null,
+  href: (route: Route) => string,
 ): ReadonlyArray<string> => {
   const asked = new Set<string>()
   for (const span of root.querySelectorAll("code")) {
@@ -197,7 +198,7 @@ export const markNodeRefs = (
     const link = anchor ?? document.createElement("a")
     link.dataset.nodeChip = ""
     link.title = "Show this row"
-    link.setAttribute("href", hrefOfPlain(atNode(id)))
+    link.setAttribute("href", href(atNode(id)))
     if (!anchor) { span.replaceWith(link); link.append(span) }
 
   }

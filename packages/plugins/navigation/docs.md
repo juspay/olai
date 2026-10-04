@@ -318,3 +318,7 @@ link/Back recovery, an already-open palette/confirmation, and a failed request.
 Browser setup that opens an outline waits for both its drawn file and a
 non-busy reading. The home route can already draw that file, so matching the
 filename alone would let the next action hit the retained page.
+
+Link readers share `targetOf`: raw local fragments, downloads and links targeting another browsing context stay with the browser. Shift-click, like Ctrl/Meta/middle-click, is a browser gesture. Layout targets hold workspaces separately from pane routes. Tabs leases navigation’s tab-opening capability for its activation; pinned layouts request a front tab through that capability. Without tabs, they open in place.
+
+Reveal resolution is owned by each lane, with one observer per pane. In-flight and missing answers are retained for that route and provider identity. A provider returning can retry; unrelated pane changes cannot. Unresolved address-bar references display “Finding…” and missing nodes display “Page not found”, never the zoom renderer.

@@ -386,9 +386,16 @@ export const createRouter = (): NavigationRouter => {
   }
   setFront(makeLane(null, workspaceOf(routing, here())))
   onCleanup(() => { for (const one of untrack(live)) one.dispose() })
+  let tabOpener: ((workspace: Workspace) => void) | undefined
   // Service readers follow the front; lane readers retain their own view.
   const current = (): Lane => front().value
   return {
+    offerTabs(open) {
+      if (tabOpener) throw new Error("navigation already has a tab owner")
+      tabOpener = open
+      return () => { if (tabOpener === open) tabOpener = undefined }
+    },
+    openTab(workspace) { if (!tabOpener) return false; tabOpener(workspace); return true },
     drawContent(shown) {
       const row = { shown }
       setContentVisibility(rows => [...rows, row])
@@ -408,10 +415,12 @@ export const createRouter = (): NavigationRouter => {
     landing: index => current().landing(index),
     landed: (...args) => current().landed(...args),
     go: (...args) => current().go(...args),
+    revealState: index => current().revealState(index),
     goIn: (...args) => current().goIn(...args),
     replace: (...args) => current().replace(...args),
     replaceIn: (...args) => current().replaceIn(...args),
     open: (...args) => current().open(...args),
+    openWorkspaceRight: (...args) => current().openWorkspaceRight(...args),
     openRight: (...args) => current().openRight(...args),
     close: (...args) => current().close(...args),
     focus: (...args) => current().focus(...args),

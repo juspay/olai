@@ -1,10 +1,11 @@
+import type { Intent } from "@olai/surface"
 /** Stateless route consumers. They receive the navigation provider through
  * context; importing this contract starts no history, observer or timer. */
 import { type Accessor,createContext,createMemo,type JSX,useContext } from "solid-js"
 import type { Landing } from "./landing.ts"
 import { usePane } from "./pane/context.tsx"
 import { fileNamed,type Route } from "./routes.ts"
-import type { Workspace,WorkspaceRouting } from "./workspace.ts"
+import { lone, type AddressTarget, type Workspace, type WorkspaceRouting } from "./workspace.ts"
 export interface LivePane {
   readonly element: Accessor<HTMLElement | undefined>
   readonly mount: (element: HTMLElement) => () => void
@@ -15,6 +16,7 @@ export interface LivePane {
 }
 export interface Lane extends Router {}
 export interface Router {
+  readonly revealState: (index: number) => "finding" | "missing" | undefined
   readonly panes: Accessor<readonly LivePane[]>
   readonly focusIndex: Accessor<number>
   readonly split: Accessor<boolean>
@@ -89,6 +91,7 @@ export interface Router {
   readonly replaceIn: (index: number, route: Route) => void
   /** Replace the whole workspace in one history push, without landings. */
   readonly open: (workspace: Workspace) => void
+  readonly openWorkspaceRight: (from: number, workspace: Workspace, forceNew?: boolean) => void
   readonly openRight: (from: number, route: Route, forceNew?: boolean) => void
   readonly close: (index?: number) => void
   readonly focus: (index: number) => void
@@ -104,6 +107,8 @@ export interface Router {
 /** Window-wide controls belong to the declared navigation service, never to
  * the lane router handed to a page. */
 export interface NavigationRouter extends Router {
+  readonly offerTabs: (open: (workspace: Workspace) => void) => () => void
+  readonly openTab: (workspace: Workspace) => boolean
   readonly lanes: Accessor<readonly Lane[]>
   /** Layouts register content visibility independently. Any shown registration draws
    * the front lane; with no registrations the front lane is shown. */
@@ -300,4 +305,37 @@ export function Link(props: LinkProps) {
       {props.children}
     </a>
   )
+}
+
+/** One reading for activation, menus, previews and the opaque-frame bridge.
+ * Raw local fragments remain the content's; a resolved absolute URL loses that fact. */
+export interface LinkTarget {
+  readonly destination: AddressTarget
+  readonly router: Router
+  readonly index: number
+  readonly anchor: HTMLAnchorElement
+  readonly tabs?: NavigationRouter
+}
+export const targetOf = (navigation: Router, anchor: HTMLAnchorElement): LinkTarget | undefined => {
+  const href = anchor.getAttribute("href")
+  if (!href || href.startsWith("#") || anchor.hasAttribute("download") || (anchor.target && anchor.target !== "_self")) return
+  const destination = navigation.routes.routeIn(anchor.href)
+  if (!destination) return
+  const tabs = "lanes" in navigation ? navigation as NavigationRouter : undefined
+  const id = anchor.closest<HTMLElement>("[data-pane-id]")?.dataset.paneId
+  const router = id ? (tabs?.lanes() ?? [navigation]).find(lane => lane.panes().some(pane => pane.id === id)) : navigation
+  if (!router || !router.shown()) return
+  const index = id ? router.panes().findIndex(pane => pane.id === id) : router.focusIndex()
+  return index < 0 ? undefined : { destination, router, index, anchor, tabs }
+}
+export const follow = (target: LinkTarget, intent: Intent): void => {
+  const { destination, router, index, anchor, tabs } = target
+  const workspace = destination.kind === "layout" ? destination.workspace : lone(destination.route)
+  if (intent === "go" && anchor.dataset.linkIntent === "new-tab" && tabs?.openTab(workspace)) { /* served by tabs */ }
+  else if (destination.kind === "layout") {
+    if (intent === "go") router.open(workspace)
+    else router.openWorkspaceRight(index, workspace, intent === "new-pane")
+  } else if (intent === "go") router.goIn(index, destination.route)
+  else router.openRight(index, destination.route, intent === "new-pane")
+  anchor.dispatchEvent(new CustomEvent("olai-navigated"))
 }

@@ -1,3 +1,4 @@
+import { targetOf, follow } from "olai-plugin-navigation/routing"
 import { useShown } from "olai-plugin-navigation/routing"
 /**
  * A served `.html`, drawn — and, since the ruling of 2026-08-16, RUNNING.
@@ -649,14 +650,10 @@ export function Hypertext(props: { readonly file: string }) {
 
   /** Compatibility with a sealed page retained across a client update. New
    * pages forward their anchor to the shared link listeners below. */
-  const open = (named: string, at?: string, intent: "go" | "right" | "new-pane" = "go") => {
+  const open = (named: string, at?: string) => {
     if (!servedDirectory()?.paths().includes(named)) return setRefused(REFUSED)
     const href = "/" + named.split("/").map(encodeURIComponent).join("/") + (at === undefined ? "" : "#" + encodeURIComponent(at))
-    const route = router.routes.routeIn(href)
-    if (route === null) return setRefused(REFUSED)
-    if (intent === "go" && router.routes.href(router.panes()[here()]!.route()) === router.routes.href(route)) return
-    if (intent === "go") router.goIn(here(), route)
-    else router.openRight(here(), route, intent === "new-pane")
+    link({ kind: "link", href, action: "click", intent: "go", x: 0, y: 0, width: 0, height: 0 })
   }
 
   /** Put the file back, or — once the budget is out — nothing at all, which is
@@ -704,13 +701,6 @@ export function Hypertext(props: { readonly file: string }) {
   createEffect(on(() => [shown(), rev(), landing.at()], clearLink, { defer: true }))
   const link = (said: Extract<ReturnType<typeof heard>, { kind: "link" }>) => {
     if (!shown() || !frame) return
-    const route = router.routes.routeIn(said.href)
-    if (!route) return
-    const named = fileNamed(route)
-    if (named && !servedDirectory()?.paths().includes(named)) {
-      if (said.action === "click") setRefused(REFUSED)
-      return
-    }
     if (!frameLink || frameLink.getAttribute("href") !== said.href) {
       clearLink()
       frameLink = document.createElement("a")
@@ -720,13 +710,25 @@ export function Hypertext(props: { readonly file: string }) {
       frameLink.style.cssText = "position:fixed;pointer-events:none;opacity:0"
       frame.parentElement?.append(frameLink)
     }
+    const target = targetOf(router, frameLink)
+    if (!target) return
+    const route = target.destination.kind === "page" ? target.destination.route : undefined
+    const named = route && fileNamed(route)
+    if (named && !servedDirectory()?.paths().includes(named)) {
+      if (said.action === "click") setRefused(REFUSED)
+      return
+    }
     const box = frame.getBoundingClientRect()
     const x = box.x + Math.max(0, Math.min(frame.clientWidth, said.x))
     const y = box.y + Math.max(0, Math.min(frame.clientHeight, said.y))
     Object.assign(frameLink.style, { left: `${x}px`, top: `${y}px`, width: `${Math.max(0, Math.min(frame.clientWidth, said.width))}px`, height: `${Math.max(0, Math.min(frame.clientHeight, said.height))}px` })
-    if (said.action === "click" && said.intent === "go" && router.routes.href(router.panes()[here()]!.route()) === router.routes.href(route)) return
-    const options = { bubbles: true, cancelable: true, clientX: x, clientY: y,
-      altKey: said.intent === "right" || said.intent === "new-pane", shiftKey: said.intent === "new-pane" }
+    if (said.action === "click") {
+      const current = router.panes()[here()]?.route()
+      if (said.intent === "go" && route && current && router.routes.href(current) === router.routes.href(route)) return
+      if (said.intent) follow(target, said.intent)
+      return
+    }
+    const options = { bubbles: true, cancelable: true, clientX: x, clientY: y }
     frameLink.dispatchEvent(said.action.startsWith("pointer") ? new PointerEvent(said.action, options) : new MouseEvent(said.action, options))
   }
 
@@ -773,7 +775,7 @@ export function Hypertext(props: { readonly file: string }) {
       // the app's — usually this element unmounting with the page that held it,
       // and, for a page that named itself, no unmount at all (see `open`).
       if (said.kind === "link") return link(said)
-      if (said.kind === "open") return open(said.file, said.at, said.intent)
+      if (said.kind === "open") return open(said.file, said.at)
       // WHERE THE ANCHOR ENDED UP, and the host window's half of landing on it.
       //
       // The frame scrolls ITSELF to the fragment on its own URL, which lands

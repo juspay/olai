@@ -1,3 +1,4 @@
+import { actionHref } from "olai-plugin-navigation/palette-model"
 /**
  * The header's search box — the second door to the one search reading.
  *
@@ -318,7 +319,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
                     <li>
                       <Result
                         claims={props.claims}
-                        href={item().action.kind === "route" ? router?.routes.href((item().action as Extract<import("olai-plugin-navigation/palette-model").PaletteAction, {kind: "route"}>).route) : undefined}
+                        href={actionHref(router?.routes, item().action)}
                         onNavigate={() => { setQuery(""); box?.blur() }}
                         label={item().label}
 

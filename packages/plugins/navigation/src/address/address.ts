@@ -30,9 +30,8 @@ import type { Names } from "olai-plugin-outlines/names"
 import type { Route, Routing } from "olai-plugin-navigation/routes"
 
 /** A page and a workspace are distinct navigation targets. */
-export type AddressTarget =
-  | { readonly kind: "page"; readonly route: Route }
-  | { readonly kind: "layout"; readonly workspace: Workspace }
+export type { AddressTarget } from "../workspace.ts"
+import type { AddressTarget } from "../workspace.ts"
 
 /**
  * The address a title names, or `undefined`.
@@ -64,7 +63,7 @@ export const addressIn = (
   /** The grammar to read the address with — the router's own, handed in rather
    *  than reached for, because a plugin's URL is a question about the mounted
    *  roster ({@link Routing}). */
-  routes: Routing,
+  routes: Routing | WorkspaceRouting,
   title: string,
 ): Route | undefined => {
   const text = title.trim()
@@ -73,7 +72,7 @@ export const addressIn = (
   if (!text.startsWith("/") && !text.startsWith("[")) return undefined
   const address = addressWritten(text)
   if (/\s/.test(address)) return undefined
-  return routes.routeIn(address) ?? undefined
+  return ("pageIn" in routes ? routes.pageIn(address) : routes.routeIn(address)) ?? undefined
 }
 
 /** The name written INTO a title, for the address somebody named — `undefined`
@@ -117,7 +116,7 @@ export interface Faced {
  * to refuse.
  */
 export const titleFace = (
-  routes: Routing,
+  routes: Omit<Routing, "routeIn">,
   title: string,
   route: Route,
   /** {@link nameOf}'s missing fact — from the server for a shelf row, from
@@ -185,7 +184,7 @@ export const titleFace = (
  * work out for itself.
  */
 export const nameOf = (
-  routes: Routing,
+  routes: Omit<Routing, "routeIn">,
   route: Route,
   /** What the node this address names is CALLED, when it names one and
    *  somebody could say — `undefined` for every other address, and for a node
@@ -220,7 +219,6 @@ export const nameOf = (
       // a pin to that document as far as a row four columns wide is concerned.
       return basenameOf(address.path)
     }
-    case "layout": return "Layout"
     case "trash":
       return "Trash"
     case "plugin":
@@ -269,20 +267,19 @@ export const targetIn = (routes: WorkspaceRouting, title: string): AddressTarget
   const address = addressWritten(text)
   if (/\s/.test(address)) return undefined
   const route = routes.routeIn(address)
-  return route === null ? undefined : route.kind === "layout"
-    ? { kind: "layout", workspace: route.workspace } : { kind: "page", route }
+  return route ?? undefined
 }
 
-export const layoutName = (routes: Routing, workspace: Workspace,
+export const layoutName = (routes: Omit<Routing, "routeIn">, workspace: Workspace,
   shows: (route: Route, index: number) => string | undefined = () => undefined): string =>
   panesOf(workspace).map(({ route }, index) => nameOf(routes, route, shows(route, index))).join(" · ")
 
-export const targetName = (routes: Routing, target: AddressTarget,
+export const targetName = (routes: Omit<Routing, "routeIn">, target: AddressTarget,
   shows: (route: Route) => string | undefined): string => target.kind === "page"
     ? nameOf(routes, target.route, shows(target.route))
     : layoutName(routes, target.workspace, shows)
 
-export const targetFace = (routes: Routing, title: string, target: AddressTarget,
+export const targetFace = (routes: Omit<Routing, "routeIn">, title: string, target: AddressTarget,
   shows: (route: Route) => string | undefined): Faced => {
   const written = labelIn(title)
   return { name: written ?? targetName(routes, target, shows), written: written !== undefined }

@@ -1,3 +1,4 @@
+import { actionHref } from "./items.ts"
 /**
  * ⌘K command palette — the shell, jump-to-node search, and what it can WRITE.
  *
@@ -1052,7 +1053,7 @@ export function Palette(props: {
                       <li>
                         <Result
                           claims={fileClaims()}
-                          href={item().action.kind === "route" ? router.routes.href((item().action as Extract<import("./items.ts").PaletteAction, {kind: "route"}>).route) : undefined}
+                          href={actionHref(router.routes, item().action)}
                           onNavigate={close}
                           label={item().label}
 

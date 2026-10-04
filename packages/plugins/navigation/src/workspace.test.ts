@@ -335,7 +335,7 @@ test("layout addresses round trip pages, stripping widths, focus, axis and nesti
 
 test("page routing and workspace segments still resolve files in s/", () => {
   const file = atFile("s/notes.olai")
-  expect(routes.routeIn("/s/notes.olai")).toEqual(file)
+  expect(routes.routeIn("/s/notes.olai")).toEqual({ kind: "page", route: file })
   expect(routes.routeOf("/s/notes.olai")).toEqual(file)
   const workspace = routes.layoutIn("/s/s%2Fnotes.olai/house.olai")!
   expect(panesOf(workspace).map(pane => pane.route)).toEqual([file, house])
