@@ -31,6 +31,10 @@ export interface Heading {
   readonly id: string
   /** What the heading reads as. */
   readonly text: string
+  /** The app route this heading stands for (`/notes/beds.md#beds`), when the
+   *  block is a document's own body — what Alt+click on a line naming it
+   *  opens on the right. Absent for a note, whose headings have no address. */
+  readonly route?: string
 }
 
 /**

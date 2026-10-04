@@ -59,6 +59,7 @@ import {
 
 import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { mediaHref } from "@olai/surface"
+import { ROUTE_HREF } from "@olai/web/client/press.ts"
 import type { Element, Root } from "hast"
 
 import { type Heading, headingOf } from "./outline.ts"
@@ -80,11 +81,35 @@ export interface Rewrite {
  *  in document order, which is the order a table of contents is read in. */
 export const rewrite = (tree: Root, options: Rewrite): readonly Heading[] => {
   const headings: Heading[] = []
-  walk(tree, options, headings)
+  walk(tree, options, headings, headingRoute(options.claims, options.from))
   return headings
 }
 
-const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): void => {
+/**
+ * The app route a heading of THIS block stands for, by its authored slug — or
+ * `null` when the block is not a document's own body.
+ *
+ * A fragment inside a rendered block is page-local by construction ({@link
+ * mint}), which is right for a plain click and says nothing a split can open.
+ * A document's heading has an address of its own (`notes/beds.md#beds`), so
+ * the route is stamped beside the fragment (`@olai/web`'s {@link ROUTE_HREF})
+ * for the router to read on Alt+click. Only for a body: in an outline's note a
+ * `#name` would read as a ROW of that outline, which is not what it pointed at.
+ */
+const headingRoute = (claims: Claims | undefined, from: string): ((slug: string) => string) | null => {
+  if (claims === undefined || bodyKind(claims, from) === null) return null
+  return (slug) => {
+    const address = addressOf(claims, from, slug)
+    return address?.kind === "heading" ? "/" + printAddress(address) : ""
+  }
+}
+
+const walk = (
+  parent: Root | Element,
+  options: Rewrite,
+  headings: Heading[],
+  route: ((slug: string) => string) | null,
+): void => {
   for (const child of parent.children) {
     if (child.type !== "element") continue
     if (child.tagName === "img") resolvePicture(child, options.claims, options.from)
@@ -94,11 +119,13 @@ const walk = (parent: Root | Element, options: Rewrite, headings: Heading[]): vo
       resolveDocument(child, options.claims, options.from, options.members)
       openExternal(child)
     }
-    mint(child, options.ids)
-    walk(child, options, headings)
+    mint(child, options.ids, route)
+    walk(child, options, headings, route)
     // AFTER the subtree, so what a heading reads as is what is left of it.
     const heading = headingOf(child)
-    if (heading !== null) headings.push(heading)
+    if (heading === null) continue
+    const at = route?.(heading.id.slice(options.ids.length + 1)) ?? ""
+    headings.push(at === "" ? heading : { ...heading, route: at })
   }
 }
 
@@ -246,8 +273,12 @@ const UNDRAWN = "inline-block rounded border border-rule px-1.5 py-0.5 " +
 /** Move this element's id, and any link into this block, into the block's own
  *  namespace. Applied to every id rather than to the footnote ids alone: the
  *  rule is "the ids on the page are ours", and a rule with an exception is a
- *  rule with a collision. */
-const mint = (element: Element, ids: string): void => {
+ *  rule with a collision.
+ *
+ *  A link into a DOCUMENT's own body also carries the route it stands for
+ *  ({@link headingRoute}) — by the AUTHORED slug, the one an address names and
+ *  `landingId` translates, never the minted id. */
+const mint = (element: Element, ids: string, route: ((slug: string) => string) | null): void => {
   const properties = element.properties
   if (properties === undefined) return
 
@@ -257,5 +288,14 @@ const mint = (element: Element, ids: string): void => {
   const href = properties["href"]
   if (typeof href === "string" && href.startsWith("#")) {
     properties["href"] = `#${ids}-${href.slice(1)}`
+    const at = href.length > 1 ? route?.(authored(href.slice(1))) ?? "" : ""
+    if (at !== "") properties[ROUTE_HREF] = at
   }
+}
+
+/** A fragment as the markdown spelled it, read back to the slug it names: the
+ *  parser percent-encodes what a heading's id holds verbatim. An unreadable one
+ *  is kept as written rather than sinking the link. */
+const authored = (fragment: string): string => {
+  try { return decodeURIComponent(fragment) } catch { return fragment }
 }
