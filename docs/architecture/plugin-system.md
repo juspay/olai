@@ -1381,6 +1381,13 @@ returning providers are matched through the live location roster.
 A preview renderer mounts once per immutable route; changing targets disposes
 that lease before mounting the next. Qualified outline rows lease the node face
 and verify its file. Whole-outline cards retain a full page lease because the
-wire exposes no bounded root-list/count face. Anchor replacement uses a separate
-card-owned signal, with description-token cleanup tied to each anchor. The body
+wire exposes no bounded root-list/count face. Anchor replacement and gesture handling read one current-anchor signal, filled
+and cleared by the mounted card, with description-token cleanup tied to each anchor. The body
 observer detects removal of entire panes, sidebars and portals as well as links.
+
+Listener registration shares one activation-owned abort controller; withdrawal
+still closes the card before aborting listeners and removing the overlay root.
+Hover timing belongs to the interaction owner, independently of content matching.
+Document cards inspect cached heading metadata; only the shared Markdown view
+slices rendered excerpts and decorates their links. Immutable route values stay
+separate from live document, outline and transcript readings.

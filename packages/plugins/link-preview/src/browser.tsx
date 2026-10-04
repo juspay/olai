@@ -11,11 +11,12 @@ import { overlays } from "olai-plugin-layout/contract"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { name } from "./index.ts"
 import { TESTID } from "./testids.ts"
-import { matchPreview, OPEN_MS, CLOSE_MS } from "./matching.ts"
-
+import { matchPreview } from "./matching.ts"
 import { pointerEdges } from "./pointer.ts"
 
 interface Target { readonly element: HTMLElement; readonly route: Route; readonly pane: number }
+const OPEN_MS = 400
+const CLOSE_MS = 200
 const CARD = "[data-link-preview]"
 const EDITOR = '[contenteditable]:not([contenteditable="false"]), [data-editing="true"]'
 
@@ -27,7 +28,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
   let opening: ReturnType<typeof setTimeout> | undefined
   let closing: ReturnType<typeof setTimeout> | undefined
   let pending: HTMLElement | undefined
-  let anchorEl: HTMLElement | undefined
+  const [anchor, setAnchor] = createSignal<HTMLElement>()
   let insideCard = false
   const clearOpening = () => { clearTimeout(opening); opening = undefined; pending = undefined }
   const hold = () => { clearTimeout(closing); closing = undefined }
@@ -53,7 +54,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     const next = classify(event.target)
     if (!next || (event.type === "focusin" && !next.element.matches(":focus-visible"))) return
     hold()
-    if (anchorEl === next.element || pending === next.element) return
+    if (anchor() === next.element || pending === next.element) return
     clearOpening()
     if (event.type === "focusin") { setTarget(next); return }
     pending = next.element
@@ -68,7 +69,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     const next = event.relatedTarget
     if (event instanceof PointerEvent) insideCard = next instanceof Element && next.closest(CARD) !== null
     else if (insideCard) return
-    if (next instanceof Node && (anchorEl?.contains(next) || pending?.contains(next)
+    if (next instanceof Node && (anchor()?.contains(next) || pending?.contains(next)
       || (next instanceof Element && next.closest(CARD)))) return
     leave()
   }
@@ -79,24 +80,22 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     close()
   }
   const activate = Effect.acquireRelease(Effect.sync(() => {
+    const listeners = new AbortController()
+    const options = { signal: listeners.signal }
     root = document.createElement("div")
     root.dataset.linkPreviewOverlay = ""
     root.className = `fixed left-0 top-0 ${LAYER.over}`
     document.body.append(root)
-    document.addEventListener("pointerover", pointer.over)
-    document.addEventListener("pointermove", pointer.move)
-    document.addEventListener("pointerout", out)
-    document.addEventListener("focusin", enter)
-    document.addEventListener("focusout", out)
-    document.addEventListener("keydown", key, true)
-  }), () => Effect.sync(() => {
+    document.addEventListener("pointerover", pointer.over, options)
+    document.addEventListener("pointermove", pointer.move, options)
+    document.addEventListener("pointerout", out, options)
+    document.addEventListener("focusin", enter, options)
+    document.addEventListener("focusout", out, options)
+    document.addEventListener("keydown", key, { ...options, capture: true })
+    return listeners
+  }), listeners => Effect.sync(() => {
     close()
-    document.removeEventListener("pointerover", pointer.over)
-    document.removeEventListener("pointermove", pointer.move)
-    document.removeEventListener("pointerout", out)
-    document.removeEventListener("focusin", enter)
-    document.removeEventListener("focusout", out)
-    document.removeEventListener("keydown", key, true)
+    listeners.abort()
     root.remove()
   }))
   function Body(props: { readonly renderer: LinkPreview; readonly route: Route }) {
@@ -113,9 +112,10 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
       <Show when={matched()} keyed>{renderer => {
         const cardId = `link-preview-${createUniqueId()}`
         const [content, setContent] = createSignal<HTMLElement>()
-        const [anchor, setAnchor] = createSignal(at.element)
+        setAnchor(at.element)
+        onCleanup(() => setAnchor(undefined))
         createEffect(() => {
-          const element = anchor()
+          const element = anchor()!
           const tokens = () => (element.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean)
           element.setAttribute("aria-describedby", [...new Set([...tokens(), cardId])].join(" "))
           onCleanup(() => {
@@ -124,21 +124,18 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
             else element.removeAttribute("aria-describedby")
           })
         })
-        anchorEl = at.element
-        onCleanup(() => { anchorEl = undefined })
         // Live edits can remove an anchor without a pointerout event. Its card
         // must release immediately, rather than reading at a detached element.
         const parent = at.element.parentElement
         const href = at.element.getAttribute("href")
         const node = at.element.getAttribute("data-node-ref")
         const removed = new MutationObserver(() => {
-          if (anchor().isConnected) return
+          if (anchor()?.isConnected) return
           // Markdown can replace its HTML when membership changes. Follow the
           // same link in that owned block without remounting its live reading.
           const replacement = parent?.isConnected ? [...parent.querySelectorAll<HTMLElement>("a[href], code[data-node-ref]")]
             .find(element => element.getAttribute("href") === href && element.getAttribute("data-node-ref") === node) : undefined
           if (!replacement) { close(); return }
-          anchorEl = replacement
           setAnchor(replacement)
         })
         // The source can be in a pane, sidebar or portal, all of which may

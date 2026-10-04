@@ -81,8 +81,6 @@ Feature: Live read-only internal link previews
     Then the link preview stays closed
 
   Scenario: A link arriving under a stationary pointer waits for deliberate movement
-    Given the link preview examples are served
-    And I open the node "preview-source"
     When I hover the preview link "local"
     And a target link replaces the local link under the stationary pointer
     Then the link preview stays closed

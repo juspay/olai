@@ -1,6 +1,6 @@
 /** A card owns this reading; none of the pane's edit callbacks or editor
  * memories enter this subtree. Rows are keyed by their stable placement key. */
-import { createMemo, createEffect, For, Show } from "solid-js"
+import { createMemo, For, Show } from "solid-js"
 import { type Row, printAddress } from "@olai/format"
 import { atNode } from "olai-plugin-navigation/routes"
 import type { Route } from "olai-plugin-navigation/contract"
@@ -10,32 +10,32 @@ import { NodeTitle } from "./NodeTitle.tsx"
 import { Note } from "./Note.tsx"
 
 export function OutlineLinkPreview(props: { readonly route: Route }) {
-  const address = () => props.route.kind === "at" ? props.route.address : null
+  // A Preview route is immutable for this mount; only its reading is live.
+  const address = props.route.kind === "at" ? props.route.address : null
   // No wire face offers bounded top-level rows plus a count. Whole-outline
   // cards retain the page lease; qualified rows use only the zoomed node face.
-  const reading = createReading(() => { const at = address(); return at?.kind === "row" ? atNode(at.id) : { kind: "at", address: at } })
+  const reading = createReading(() => address?.kind === "row" ? atNode(address.id) : { kind: "at", address })
   const named = createDeclared()
-  const id = () => { const at = address(); return at?.kind === "node" || at?.kind === "row" ? at.id : undefined }
-  createEffect(() => named.want(id() ? [id()!] : []))
+  const id = address?.kind === "node" || address?.kind === "row" ? address.id : undefined
+  named.want(id ? [id] : [])
   const shown = () => reading.page()?.shows
   const subject = createMemo(() => {
     const page = shown()
-    const at = address()
     if (page?.kind === "node" && page.zoomed.kind === "node"
-      && (at?.kind !== "row" || page.zoomed.shows.file === at.path)) return page.zoomed
+      && (address?.kind !== "row" || page.zoomed.shows.file === address.path)) return page.zoomed
     return undefined
   })
   const rows = () => {
-    const at = address(), page = shown()
-    return subject()?.children ?? (page?.kind === "outline" && at?.kind === "document" ? page.rows : [])
+    const page = shown()
+    return subject()?.children ?? (page?.kind === "outline" && address?.kind === "document" ? page.rows : [])
   }
-  const file = () => { const at = address(); return subject()?.shows.file ?? (at && at.kind !== "node" ? at.path : "") }
+  const file = () => subject()?.shows.file ?? (address && address.kind !== "node" ? address.path : "")
   const missing = () => !reading.pending() && reading.page() !== undefined && !subject()
-    && (shown()?.kind !== "outline" || address()?.kind === "row")
+    && (shown()?.kind !== "outline" || address?.kind === "row")
   return <ReadingProvider reading={reading}>
-    <Show when={!missing()} fallback={<><strong>Nothing at {address() ? printAddress(address()!) : "this link"}</strong><p class="text-sm text-muted">The target is missing or cannot be resolved.</p></>}>
+    <Show when={!missing()} fallback={<><strong>Nothing at {address ? printAddress(address) : "this link"}</strong><p class="text-sm text-muted">The target is missing or cannot be resolved.</p></>}>
       <div class="mb-1 text-xs text-muted">{file()}{subject()?.trail.map(parent => ` › ${parent.node.title}`).join("")}</div>
-      <div class="font-semibold"><NodeTitle title={subject()?.shows.node.title ?? (id() ? named.title(id()!) ?? `#${id()}` : file())} from={file()} /></div>
+      <div class="font-semibold"><NodeTitle title={subject()?.shows.node.title ?? (id ? named.title(id) ?? `#${id}` : file())} from={file()} /></div>
       <Show when={subject()}>{node => <>
         <div class="my-1 flex gap-2 text-xs text-muted">
           <Show when={node().status}><span class="rounded border border-rule/60 px-1">{node().status}</span></Show>
