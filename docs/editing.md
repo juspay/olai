@@ -33,7 +33,7 @@ If the requested page fails, the loading line becomes an error. The previous pag
 | **⌘Z** / **Ctrl+Z** | take back your last edit on this outline |
 | **⌘⇧Z** / **Ctrl+⇧Z** | put it back |
 | **⌘O** / **Ctrl+O** | show this page's finished work, or hide it again — the same as the **Finished** box beside the filter |
-| **Alt+click** | open a link in the pane to the right |
+| **Alt+click** | open a link in the pane to the right — a link to a heading inside the same document, and a line of a document's contents, too: the document opens at that heading |
 | **Alt+Shift+click** | open it in a new pane to the right |
 | **Alt+←** / **Alt+→** | move focus to the neighbouring pane — not while typing, where it stays the text field's word jump; Escape first |
 | **⌘⇧W** / **Ctrl+⇧W** | close the focused pane |

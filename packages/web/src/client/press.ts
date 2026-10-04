@@ -53,3 +53,22 @@ export const splitClick = (press: Press): Split | null => {
   if (!press.altKey) return null
   return press.shiftKey ? "force" : "reuse"
 }
+
+/**
+ * The attribute an anchor carries when its `href` is not the app route it
+ * stands for.
+ *
+ * A link that stays inside its own document — `[x](#beds)`, a line of the
+ * contents — has to be a page-local fragment (`#md-<ns>-beds`, the id the
+ * rendered block minted), because a plain click is the browser's own scroll.
+ * But Alt+click is a split, and a split needs a ROUTE: the document at that
+ * heading. The renderer, which knows both, writes the route here, and
+ * {@link destinationOf} is the one reading that prefers it. A plain press
+ * never reads it.
+ */
+export const ROUTE_HREF = "data-route-href"
+
+/** Where an anchor goes when this app opens it somewhere other than in place —
+ *  a split, a new tab: the stamped route when there is one, else the `href`. */
+export const destinationOf = (anchor: Element): string | null =>
+  anchor.getAttribute(ROUTE_HREF) ?? anchor.getAttribute("href")

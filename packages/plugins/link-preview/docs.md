@@ -25,6 +25,8 @@ but do not create nested previews. Touch input, keyboard focus on a coarse-point
 device, and links in active editors do not open cards. A mouse on a hybrid
 device can still open previews. Clicking retains the app's navigation gestures:
 click opens, Alt-click opens on the right, and Alt-Shift-click forces a new pane.
+A document card's link to one of that document's own headings opens the document
+at that heading on the right.
 
 The card leases live data only while open. Switching this plugin off removes
 its listeners, timers, overlay and reading. Content plugins independently offer
