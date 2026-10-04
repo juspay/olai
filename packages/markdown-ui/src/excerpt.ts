@@ -5,7 +5,7 @@ export function markdownExcerpt(html: string, excerpt: { readonly after?: string
   template.innerHTML = html
   const heading = excerpt.after === undefined ? undefined
     : [...template.content.querySelectorAll("h1,h2,h3,h4,h5,h6")].find(node => node.id === excerpt.after)
-  if (excerpt.after !== undefined && !heading) return { missing: true, title: "", html: "" }
+  if (excerpt.after !== undefined && !heading) return ""
   const nodes = [...template.content.children]
   const selected: Element[] = []
   for (const node of nodes.slice(heading ? nodes.indexOf(heading) + 1 : 0)) {
@@ -13,5 +13,5 @@ export function markdownExcerpt(html: string, excerpt: { readonly after?: string
     selected.push(node)
     if (selected.length >= excerpt.blocks) break
   }
-  return { missing: false, title: heading?.textContent?.replace(/^#\s*/, ""), html: selected.map(node => node.outerHTML).join("") }
+  return selected.map(node => node.outerHTML).join("")
 }

@@ -17,9 +17,8 @@ export const previewNode = (route: Route) => route.kind === "at" &&
 export function ChatLinkPreview(props: { readonly route: Route; readonly roster: Roster }) {
   // LinkPreview.Preview guarantees one immutable route per mount.
   const node = previewNode(props.route)!
-  const id = () => node
-  const transcript = chatWire().streams.transcript.useCollection({ node: id() }, transcriptRows)
-  const tail = createTail(chatWire().streams.saying.useCollection({ node: id() }, sayingRows).fold)
+  const transcript = chatWire().streams.transcript.useCollection({ node }, transcriptRows)
+  const tail = createTail(chatWire().streams.saying.useCollection({ node }, sayingRows).fold)
   const ordered = createRows(transcript.fold)
   const keys = createMemo(() => {
     const messages = ordered.keys().filter(key => {
@@ -34,9 +33,9 @@ export function ChatLinkPreview(props: { readonly route: Route; readonly roster:
     return messages
   })
   return <>
-    <div class="text-xs text-muted">{props.roster.at(id())?.file} › Chat</div>
-    <strong>{props.roster.at(id())?.title ?? `#${id()}`}</strong>
-    <Show when={props.roster.at(id())}>{row => <span class="ml-2 rounded border border-rule/60 px-1 text-xs">{LOOK[row().standing].label}</span>}</Show>
+    <div class="text-xs text-muted">{props.roster.at(node)?.file} › Chat</div>
+    <strong>{props.roster.at(node)?.title ?? `#${node}`}</strong>
+    <Show when={props.roster.at(node)}>{row => <span class="ml-2 rounded border border-rule/60 px-1 text-xs">{LOOK[row().standing].label}</span>}</Show>
     <div class="mt-2 space-y-2"><For each={keys()}>{key => {
       const row = () => transcript.byKey(key)?.()
       const text = () => {

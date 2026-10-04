@@ -59,9 +59,9 @@ export function Markdown(props: {
   /** This text is still arriving, so it is rendered but not CACHED: every
    *  prefix of a growing answer is a string that will never be asked for
    *  again. See ./render.ts. */
+  readonly live?: boolean
   /** A clipped document/section face, using the same decoration and states. */
   readonly excerpt?: { readonly after?: string; readonly blocks: number }
-  readonly live?: boolean
   readonly landing?: { readonly line: number; readonly needles: ReadonlyArray<string> }
 }) {
   let container: HTMLDivElement | undefined
@@ -78,7 +78,7 @@ export function Markdown(props: {
   )
   const html = createMemo(() => {
     const value = rendered()
-    return value !== undefined && props.excerpt ? markdownExcerpt(value, props.excerpt).html : value
+    return value !== undefined && props.excerpt ? markdownExcerpt(value, props.excerpt) : value
   })
   // File membership changes link decoration, never the rendered prose or its
   // selection/details state. The rewrite pass records authored link metadata.
