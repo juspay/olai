@@ -114,7 +114,7 @@ import { nodeMenuActions } from "./menu/actions.ts"
 import { usePins } from "./pins.ts"
 import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
-import { followed, followedSplit, useGo, useRouter } from "olai-plugin-navigation/routing"
+import { useGo, useRouter } from "olai-plugin-navigation/routing"
 import { density, showsPreview, startsOpen } from "./settings/density.ts"
 
 import { useToday } from "./clock.ts"
@@ -490,7 +490,7 @@ function Branch(props: {
     // pane's delegated listener answers the same click (`./pane/PageView.tsx`
     // through `./router.tsx`'s `followed`). The caret is still one press away
     // — anywhere else on the line — which is how the label gets edited.
-    if (followed(routes, event) !== null || followedSplit(routes, event) !== null) return
+    if (event.target instanceof Element && event.target.closest("a[href]")) return
     // …and a press inside the EDITOR belongs to the editor, now that the input
     // is drawn in the title's own cell (`./NodeLine.tsx`'s `titleEditor`): the
     // line's own handler covers the whole row, filler included, so without this
@@ -613,7 +613,7 @@ function Branch(props: {
         // frame the store publishes — for every row in the outline. The two
         // handlers are the whole of `LongPress`.
         onPointerDown={menu.hold.onPointerDown}
-        onContextMenu={menu.hold.onContextMenu}
+        onContextMenu={event => { if (!(event.target instanceof Element && event.target.closest("a[href]"))) menu.hold.onContextMenu(event) }}
         // THIS ROW OWNS ITS MENU, so a page-wide link menu (the tabs row's Open
         // in new tab) leaves the links drawn inside it alone.
         data-menu-owner="outline-row"

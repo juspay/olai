@@ -12,6 +12,7 @@
  * both when the set is read back (`here`), so keeping them would only cost a
  * write on every change to the page in front.
  */
+import { legacyZoomHref } from "olai-plugin-navigation/workspace"
 import { parsedJson } from "@olai/web/client/preference.ts"
 
 import type { Tab } from "./contract.ts"
@@ -21,7 +22,7 @@ import type { TabList } from "./list.ts"
 export const TABS_KEY = "olai.tabs"
 
 /** The stored shape's version. A record of any other is read as no record. */
-const STORED_VERSION = 1
+const STORED_VERSION = 2
 
 interface Stored {
   readonly v: typeof STORED_VERSION
@@ -50,14 +51,14 @@ export const readStored = (raw: string | null, here: Pick<Tab, "href" | "title">
   const parsed = parsedJson(raw)
   if (typeof parsed !== "object" || parsed === null) return undefined
   const { v, front, tabs } = parsed as Record<string, unknown>
-  if (v !== STORED_VERSION || !Array.isArray(tabs)) return undefined
+  if ((v !== 1 && v !== STORED_VERSION) || !Array.isArray(tabs)) return undefined
   const seen = new Set<string>()
   const kept: Array<Tab> = []
   for (const one of tabs) {
     const tab = tabIn(one, front)
     if (tab === undefined || seen.has(tab.id)) continue
     seen.add(tab.id)
-    kept.push(tab)
+    kept.push(v === 1 ? { ...tab, href: legacyZoomHref(tab.href) } : tab)
   }
   if (kept.length === 0) return undefined
   const shown = text(front) && seen.has(front) ? front : kept[0]!.id

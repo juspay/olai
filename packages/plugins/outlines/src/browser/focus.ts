@@ -41,13 +41,12 @@ import { rowElements } from "./row-elements.ts"
  * fifth: it is the same "this is the row" one frame late, so its scroll is
  * this module's one statement, reached for directly ({@link bringOntoScreen}).
  */
-import { servedDirectory } from "./vault.ts"
 import { Result } from "effect"
 import { type Accessor, createSignal, onCleanup, createSelector, createContext, createComponent, useContext, type JSX } from "solid-js"
 
-import { atElement, type Route } from "olai-plugin-navigation/routes"
+import { atNode } from "olai-plugin-navigation/routes"
 import { runAsync } from "@olai/web/client/run.ts"
-import { useRouter, useShown } from "olai-plugin-navigation/routing"
+import { useGo, useShown } from "olai-plugin-navigation/routing"
 
 import { client } from "../client.ts"
 
@@ -147,123 +146,21 @@ export const bringOntoScreen = (row: Element): void => {
   row.scrollIntoView({ block: "center", behavior: "smooth" })
 }
 
-/** What a press adds to THE SCROLL: WHICH row — the focused one, in the
- *  frame after the attribute landed — and whether there was one at all,
- *  since `false` is what a press's `elsewhere` walks out. */
-const bringFocusedOntoScreen = (pane: string, id: string): boolean => {
+/** Select only a visible row in the requested pane. Navigation chooses the
+ * pane; this content owner owns its row registry and the scrolling act. */
+export const revealNode = (pane: string, id: string): boolean => {
   const row = rowElements.read()?.find(pane, id, "shown")
-  if (row === undefined) return false
+  if (!row) return false
+  selectNode(id)
   bringOntoScreen(row)
   return true
 }
-
-/**
- * Point at `id`: light the row up, and bring it onto the screen.
- *
- * `elsewhere` is called when the node is not drawn on this page at all — a node
- * in another outline, one inside a collapsed branch, one hidden by
- * done-hidden. It is a parameter rather than a route this module knows, because
- * a route change belongs to the router; it is not exported, because there is
- * exactly one answer to it and that answer is the hook below.
- *
- * The look happens after the frame that draws the attribute: the row does not
- * wear it yet when this returns, and asking the DOM before then would find
- * nothing and navigate away from a node that is right there.
- */
-const focusNode = (id: string, panes: () => readonly string[], elsewhere: () => void): void => {
-  const own = focusState.read()
-  if (own === undefined) return
-  setFocused(id)
-  const frame = requestAnimationFrame(() => {
-    own.frames.delete(frame)
-    if (!panes().some(pane => bringFocusedOntoScreen(pane, id))) elsewhere()
-  })
-  own.frames.add(frame)
+export const nodeHome = async (id: string): Promise<string | undefined> => {
+  const outcome = await runAsync(client().procedures.nodes.homes({ ids: [id], files: [] }))
+  return Result.isSuccess(outcome) ? outcome.success.homes.find(one => one.id === id)?.file : undefined
 }
-
-/** How many times the reader has pointed at a node. The press the page
- *  follows is the LATEST one, and the elsewhere half of `useShowNode` is a
- *  round trip: a reader who pressed a second reference while the first was
- *  still asking where its node lives must not be walked back to the first. */
-
-/**
- * Where a reference goes when its node is NOT on the open page: the node's
- * own file, landed at the row (`./landing.ts` takes it from there).
- *
- * One question on the way (`nodes.homes`). The button says `show this
- * node`, and ZOOMING — `/#id`, where this used to go — showed the node by
- * leaving every page, which is the one reading the chat panel's references
- * were never about. The id is durable and the file is not, which is exactly
- * why the file is asked at press time rather than carried: the transcript's
- * hat on a node from an hour ago still lands where the node IS.
- *
- * ABSENT IS THE ANSWER, twice: an id the set has no record for is one the
- * press said nothing about, so the page stays exactly where it was — the
- * polite half of the ruled behaviour, and a blank zoom page's replacement.
- * A wire that cannot answer is a console line, no louder: the connection pill
- * is already saying so, which is `fold/refiling.ts`'s own ruling.
- *
- * "Exactly where it was" includes the ACCENT: `focusNode` writes it ahead
- * of the frame, and let stand would be one answer against the other arm of
- * the ruling — a row losing the ring to an id that is not anywhere drawn,
- * which IS the page changing. `before` restores it on both quiet outcomes;
- * a STALE press restores nothing, because by then everything on screen
- * belongs to the newer one.
- */
-const landOnRow = (go: (route: Route) => void, id: string, mine: number, before: string | null): void => {
-  const own = focusState.read()
-  void runAsync(client().procedures.nodes.homes({ ids: [id], files: [] })).then((outcome) => {
-    if (own === undefined || focusState.read() !== own || mine !== own.pointed) return
-    if (Result.isFailure(outcome)) {
-      console.warn(
-        "olai: could not ask where the pressed node lives, so the reference went nowhere —",
-        outcome.failure.message,
-      )
-      setFocused(before)
-      return
-    }
-    const home = outcome.success.homes.find((one) => one.id === id)?.file
-    if (home === undefined) {
-      setFocused(before)
-      return
-    }
-    const claims = servedDirectory()?.claims()
-    if (claims !== undefined) go(atElement(claims, home, id))
-  })
-}
-
-/**
- * What pressing a reference DOES — the whole of this module's surface, and
- * decided once.
- *
- * Every reference in the panel is either a button this app authored
- * ({@link ./chat/Reference.tsx}) or an id inside rendered markdown that a
- * listener on the pane catches ({@link ./chat/Transcript.tsx}), and two places
- * writing the same "and if it is not on this page?" is one place for the two to
- * start disagreeing about what a press means.
- *
- * What it means, one sentence each arm: on the open page, the row is SELECTED
- * — this file's whole fact — and off it, the reader is taken to the node's own
- * file, LANDED at the row ({@link landOnRow}). The zoom page (`/#id`) is
- * where it used to land, and that address still means zoom — it is the
- * permalink a pin or an outside hand spells; a reference is not one.
- */
 export const useShowNode = (): ((id: string) => void) => {
-  const router = useRouter()
-  return (id) => {
-    const own = focusState.read()
-    if (own === undefined) return
-    const mine = ++own.pointed
-    const before = focused()
-    focusNode(id, () => router.shown() ? router.panes().map(pane => pane.id) : [], () => landOnRow(router.go, id, mine, before))
-  }
+  const go = useGo()
+  return id => go(atNode(id))
 }
-
-export const clearFocus = (): void => {
-  const own = focusState.read()
-  if (own === undefined) return
-  ++own.pointed
-  for (const frame of own.frames) cancelAnimationFrame(frame)
-  own.frames.clear()
-  own.setFocused(null)
-}
+export const clearFocus = (): void => { setFocused(null) }

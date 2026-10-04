@@ -22,7 +22,7 @@
  */
 import { createSignal, onCleanup, Show } from "solid-js"
 
-import { destinationOf } from "@olai/web/client/press.ts"
+
 
 import type { Navigation } from "olai-plugin-navigation/contract"
 import { lone, type Workspace } from "olai-plugin-navigation/workspace"
@@ -34,10 +34,8 @@ import { TESTID } from "./testids.ts"
 /** The workspace an in-app `href` opens, or `undefined` for one this app would
  *  let the browser have. */
 export const workspaceAt = (routes: Navigation["routes"], href: string): Workspace | undefined => {
-  const layout = routes.layoutIn(href)
-  if (layout !== null) return layout
   const route = routes.routeIn(href)
-  return route === null ? undefined : lone(route)
+  return route === null ? undefined : route.kind === "layout" ? route.workspace : lone(route)
 }
 
 export function LinkMenu(props: { readonly tabs: TabsState; readonly router: Navigation }) {
@@ -54,10 +52,10 @@ export function LinkMenu(props: { readonly tabs: TabsState; readonly router: Nav
     if (!(target instanceof Element)) return
     const anchor = target.closest("a[href]")
     if (!(anchor instanceof HTMLAnchorElement)) return
-    if (anchor.closest(`[data-menu-owner], [data-testid="${TESTID.tabsStrip}"]`) !== null) return
+    if (anchor.closest(`[data-testid="${TESTID.tabsStrip}"]`) !== null) return
     // Read as a split reads it (`destinationOf`), so a link to a heading inside
     // its own document opens that heading; Open stays the anchor's own click.
-    const workspace = workspaceAt(props.router.routes, destinationOf(anchor)!)
+    const workspace = workspaceAt(props.router.routes, anchor.href)
     if (workspace === undefined) return
     event.preventDefault()
     setOpen({ x: event.clientX, y: event.clientY, anchor, workspace })

@@ -18,6 +18,9 @@ marked,
 NOWHERE,
 spent
 } from "./landing.ts"
+import { nodeTargets } from "./nodes.ts"
+import { atElement } from "./routes.ts"
+import { fileClaims } from "./pages.ts"
 import type { Route } from "./routes.ts"
 import { routing } from "./pages.ts"
 import {
@@ -87,7 +90,42 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
   const [reports, setReports] = createStore<Record<string, (() => PageInfo) | undefined>>({})
   const info = (index: number) => reports[panes()[index]?.id ?? ""]?.()
   const focused = createMemo(() => info(focusIndex()), undefined, { equals: samePageInfo })
+  let alive = true
+  const requests = new Map<string, number>()
+  onCleanup(() => { alive = false; requests.clear() })
+  const reveal = (index: number, next: Route, how: "push" | "replace"): boolean => {
+    if (next.kind !== "at" || !next.reveal || next.address?.kind !== "node") return false
+    const provider = nodeTargets.read(), pane = panes()[index]
+    if (!provider || !pane) return false
+    const id = next.address.id, key = pane.id
+    const ticket = (requests.get(key) ?? 0) + 1
+    requests.set(key, ticket)
+    if (provider.reveal(key, id)) return true
+    const before = pane.route()
+    void provider.home(id).then(file => {
+      if (!alive || nodeTargets.read() !== provider || requests.get(key) !== ticket || pane.route() !== before) return
+      const at = panes().indexOf(pane), claims = fileClaims()
+      if (at < 0 || file === undefined || !claims) return
+      const route = atElement(claims, file, id)
+      commit(navigateIn(workspace(), at, route), how, all => marked(all, at, landingOf(route)))
+    }).catch(error => { if (alive) console.warn("Node destination unavailable", error) })
+    return true
+  }
+  // Address-bar arrivals and background tabs use the same resolver. Reading
+  // the held provider here retries pending addresses after reconnection.
+  createEffect(() => {
+    const provider = nodeTargets.read()
+    if (!provider) return
+    panes().forEach((pane, index) => {
+      const route = pane.route()
+      untrack(() => reveal(index, route, "replace"))
+    })
+  })
   const goIn = (index: number, next: Route): void => {
+    if (next.kind === "layout") { commit(next.workspace, "push", () => landingsOf(next.workspace)); return }
+    if (reveal(index, next, "push")) return
+    const pane = panes()[index]
+    if (pane) requests.set(pane.id, (requests.get(pane.id) ?? 0) + 1)
     commit(
       navigateIn(workspace(), index, next),
       "push",
@@ -127,8 +165,9 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
     goIn,
     replace: (next) => replaceIn(workspace().focus, next),
     replaceIn,
-    open: (next) => commit(next, "push", () => NOWHERE),
+    open: (next) => commit(next, "push", () => landingsOf(next)),
     openRight: (from, next, forceNew) => {
+      if (next.kind === "layout") { commit(next.workspace, "push", () => landingsOf(next.workspace)); return }
       const after = openRight(workspace(), from, next, forceNew === true)
       // A PANE IS BORN, so every index at or after it means a different pane
       // than it did a moment ago: only the arrival this verb is about survives.

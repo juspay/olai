@@ -1,4 +1,5 @@
-import { useShowNode } from "./focus.ts"
+import { useRouter } from "olai-plugin-navigation/routing"
+import { atNode } from "olai-plugin-navigation/routes"
 import { writeIn } from "./reply.ts"
 export { fileOf } from "./reply.ts"
 import { servedDirectory } from "./vault.ts"
@@ -15,7 +16,7 @@ export function story(input: { reply: unknown }) {
 }
 
 function Story(props: { readonly wrote: NonNullable<ReturnType<typeof writeIn>> }) {
-  const show = useShowNode()
+  const router = useRouter()
   /** A write that changed no record has no honest word for what it did, and
    *  this is what it says instead — the one case the table cannot cover. */
   const said = () => (props.wrote.sort === null ? "No change" : SAID[props.wrote.sort])
@@ -53,13 +54,13 @@ function Story(props: { readonly wrote: NonNullable<ReturnType<typeof writeIn>> 
           }
         >
           {(id) => (
-            <button type="button" class="min-w-0 truncate text-accent hover:underline" data-testid={TESTID.outlinesStoryRef} data-node-ref={id()} onClick={event => { event.stopPropagation(); show(id()) }}>
+            <a href={router.routes.href(atNode(id()))} class="min-w-0 truncate text-accent hover:underline" data-testid={TESTID.outlinesStoryRef}>
               <TitleHtml
                 drawing={renderTitle(servedDirectory()?.claims(), props.wrote.title, props.wrote.file ?? "", {
                   links: false,
                 })}
               />
-            </button>
+            </a>
           )}
         </Show>
         <span class="ml-auto shrink-0 text-muted">{said()}</span>

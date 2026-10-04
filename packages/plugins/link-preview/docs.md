@@ -1,5 +1,10 @@
 # Link previews
 
+Preview classification reads only an anchor's real href through
+`navigation.routes.routeIn`, just as clicks and the tab link menu do. Chat code
+references are anchors too. A preview card carries its source pane identity,
+so links in a portalled card navigate that pane even while another is focused.
+
 Hover an internal link for about 400 ms, or focus it with the keyboard, to
 read a live preview. Move onto the card to keep it open; leave it for about
 200 ms or press Escape to close it. Only one card opens at a time. A layout

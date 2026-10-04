@@ -16,6 +16,7 @@ export const glyphOf = (routes: Routing, href: string): string => {
   if (panes.length > 1) return "◫"
   const route = panes[0]!.route
   if (route.kind === "plugin") return "◷"
+  if (route.kind === "layout") return "◫"
   if (route.kind === "trash") return "⌫"
   const address = route.address
   if (address === null) return "⌂"

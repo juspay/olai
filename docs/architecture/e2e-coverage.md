@@ -1,5 +1,10 @@
 # Browser coverage audit
 
+The navigation `link_intent.feature` covers node reveal from the address bar,
+plain and keyboard activation, Alt and Alt-Shift, heading address/scroll
+agreement, and link menus on outline references and bullets. Existing pane,
+chat, preview, tabs, pins and HTML features exercise their surrounding workflows.
+
 This document records which user workflows have real browser tests, and which still do not.
 
 The navigation scenarios in `the_chrome_holds_still.feature` plant a DOM-identity

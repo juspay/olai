@@ -1,12 +1,4 @@
-/**
- * A link that stays inside its document carries TWO addresses: the page-local
- * fragment a plain click scrolls to (the minted id), and the app route an
- * Alt+click opens on the right (`ROUTE_HREF`). These hold the second one to the
- * AUTHORED slug — the half an address names and `landingId` translates — and
- * keep it off every block that is not a document's own body.
- */
 import { TEST_CLAIMS } from "@olai/format/testlib"
-import { ROUTE_HREF } from "@olai/web/client/press.ts"
 import { expect, test } from "bun:test"
 
 import { installPipeline } from "./chunk.ts"
@@ -22,7 +14,7 @@ const anchors = (html: string): ReadonlyArray<{ href: string; route: string | un
     const attrs = one[1] as string
     return {
       href: /href="([^"]*)"/.exec(attrs)?.[1] ?? "",
-      route: new RegExp(`${ROUTE_HREF}="([^"]*)"`).exec(attrs)?.[1],
+      route: /data-route-href="([^"]*)"/.exec(attrs)?.[1],
     }
   })
 
@@ -31,9 +23,9 @@ test("an in-page link in a document carries its heading's route beside its fragm
   const herbs = anchors(html).find((one) => one.href.endsWith("herbs-and-caf%C3%A9"))
   expect(herbs).toBeDefined()
   // The fragment is still the page's own — what a plain click scrolls to…
-  expect(herbs?.href).toBe(`#${landingId(BODY, "notes/garden.md", "herbs-and-caf%C3%A9")}`)
+  expect(herbs?.href).toBe("/notes/garden.md#herbs-and-caf%C3%A9")
   // …and the route is the address a reader could type, by the AUTHORED slug.
-  expect(herbs?.route).toBe("/notes/garden.md#herbs-and-caf%C3%A9")
+  expect(herbs?.route).toBeUndefined()
 })
 
 test("a document's headings say their route, for the contents to stamp", () => {
@@ -63,12 +55,12 @@ test("without claims nothing is stamped", () => {
 const lands = (body: string, from: string, label: string) => {
   const html = renderMarkdown(TEST_CLAIMS, body, from)
   const anchor = new RegExp(`<a ([^>]*)>${label}</a>`).exec(html)?.[1] ?? ""
-  const href = /href="#([^"]*)"/.exec(anchor)?.[1]
-  const route = new RegExp(`${ROUTE_HREF}="([^"]*)"`).exec(anchor)?.[1]
+  const href = /href="([^"]*)"/.exec(anchor)?.[1]
+  const route = href
   expect(href).toBeDefined()
   expect(route?.startsWith(`/${from}#`)).toBe(true)
   // What the browser scrolls to on a plain click: the fragment, decoded.
-  const scrolled = decodeURIComponent(href!)
+  const scrolled = landingId(body, from, decodeURIComponent(href!.split("#")[1]!))
   // What the split lands on: the route's slug, read the way an address is.
   const landed = landingId(body, from, decodeURIComponent(route!.slice(route!.indexOf("#") + 1)))
   const ids = [...html.matchAll(/<h[1-6] id="([^"]*)"/g)].map((one) => one[1])

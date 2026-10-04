@@ -476,7 +476,7 @@ Feature: Talking to a node agent
     # The other half, and a different path through the renderer: an app address
     # in an answer is written as-is and rewritten by nothing.
     When I follow the link "the order row" in the agent's answer
-    Then the address is "/#order"
+    Then the address is "/zoom/#order"
     And the page has not reloaded
 
   @scratch:chat

@@ -1,5 +1,12 @@
 # Outlines
 
+Node links reveal a visible row in their own pane, falling back to the node's
+current file and row. Bullets and Zoom in commands explicitly use `/zoom/#id`.
+The outlines references service supplies row selection and node homes;
+navigation decides the destination and owns pending requests. Title links,
+including modified clicks, bypass row editing and multiselection. Links own
+their context menus; the rest of each row keeps its row menu.
+
 Outlines supplies pages for every claim holding nodes, node addresses and the tree editor. It owns node readings and writes, selection, drag and drop, undo, row forms, folding, property editing and the Row density and Show finished preferences. Its server capability runs without a browser, renderer or layout.
 
 Outline row carries consult the host-supplied `Landings` table before planning a move. Each editable page registers a text receiver, owns its drop line, and submits a single undoable add with title and optional note. Registrations end with the component or activation. Row moving and text receiving share `drag/places.ts` for measurable placements, independent of gesture handling. The text receiver caches geometry for one visit and uses its displayed landing as the write target; leaving clears both.

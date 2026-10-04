@@ -126,6 +126,7 @@
  * cannot be read names nothing, and the address means what an unrecognised one
  * means.
  */
+import { hrefOfWorkspace } from "./workspace.ts"
 import { Schema } from "effect"
 import type { AppPage } from "olai-plugin-navigation/slots"
 import type { AppRoute } from "olai-plugin-navigation/slots"
@@ -188,6 +189,7 @@ export interface MountedAppPage {
 }
 
 export type Route =
+  | { readonly kind: "layout"; readonly workspace: import("./workspace.ts").Workspace; readonly filter?: string }
   /**
    * A PLACE in the served directory — one address, and `null` for the front
    * page, which names none ("whichever outline was found first", the bare
@@ -207,7 +209,7 @@ export type Route =
    * is one `AtHeading`, and it used to be a `file` with an `at` beside it on
    * the document arm alone.
    */
-  | { readonly kind: "at"; readonly address: Address | null; readonly filter?: string }
+  | { readonly kind: "at"; readonly address: Address | null; readonly reveal?: true; readonly filter?: string }
   /** What was put away: every `_olai/Trash.olai` under the directory, read-only.
    *  It spells no file for the reason `/agenda` spells no horizon — which
    *  archives exist is the set's answer, and an address that named one would
@@ -489,12 +491,12 @@ export const HOME_ROUTE: PlainRoute = { kind: "at", address: null }
  * pair falls back to, on {@link routeOfIn}'s own kindness: a route that names
  * nothing is the page that names nothing.
  */
-const atAddress = (address: Address | null): PlainRoute => ({ kind: "at", address })
+const atAddress = (address: Address | null): Extract<Route, { kind: "at" }> => ({ kind: "at", address })
 
 /** The page a served FILE opens — an outline drawn as a tree, a body drawn
  *  whole, and which of those is nobody's decision here (`./page.ts` asks the
  *  registry when it picks the page). */
-export const atFile = (file: string): PlainRoute => atAddress({ kind: "document", path: DocumentPath.make(file) })
+export const atFile = (file: string): Extract<Route, { kind: "at" }> => atAddress({ kind: "document", path: DocumentPath.make(file) })
 
 /** The source-line fragment grammar, shared by result routes and document pages. */
 export const lineFragment = (line: number): string => `L${line}`
@@ -511,11 +513,12 @@ const sourceLanding = (route: PlainRoute): boolean => {
 
 /** One node's page, by the id that is the whole of its address: bare, global,
  *  and right about where the node lives after every move short of a delete. */
-export const atNode = (id: string): PlainRoute => atAddress({ kind: "node", id: NodeId.make(id) })
+export const zoomNode = (id: string): Extract<Route, { kind: "at" }> => atAddress({ kind: "node", id: NodeId.make(id) })
+export const atNode = (id: string): Extract<Route, { kind: "at" }> => ({ ...zoomNode(id), reveal: true })
 
 /** A place INSIDE a file — a heading of a body, or a node of an outline, which
  *  is the grammar's own reading of what a `#` after a path means. */
-export const atElement = (table: Claims, file: string, element: string | null): PlainRoute =>
+export const atElement = (table: Claims, file: string, element: string | null): Extract<Route, { kind: "at" }> =>
   atAddress(addressOf(table, file, element))
 
 /**
@@ -529,12 +532,13 @@ export const atElement = (table: Claims, file: string, element: string | null): 
  * whole and cut back open here.
  */
 export const hrefOfPlain = (route: PlainRoute): string => {
+  if (route.kind === "layout") return hrefOfWorkspace(routingOver(() => undefined, () => NO_PAGES), route.workspace)
   const narrowed = narrowing(sourceLanding(route) ? route.filter : filterOfPlain(route))
   if (isNamed(route.kind)) return NAMED[route.kind] + narrowed
   const address = addressNamed(route)
   if (address === null) return HOME + narrowed
   const { path, element } = writtenAddress(address)
-  return HOME + path + narrowed + (element === undefined ? "" : `#${element}`)
+  return (address.kind === "node" && route.kind === "at" && !route.reveal ? "/zoom/" : HOME) + path + narrowed + (element === undefined ? "" : `#${element}`)
 }
 
 /**
@@ -682,6 +686,10 @@ export const routeOfIn = (table: Claims | undefined, pages: MountedPages, addres
  */
 const routeNamedIn = (table: Claims | undefined, pages: MountedPages, parts: Split): Route | null => {
   const { pathname, search, fragment } = parts
+  if (pathname === "/zoom/" && fragment !== undefined) {
+    const node = routeNamedIn(table, pages, { ...parts, pathname: "/" })
+    return node?.kind === "at" && node.address?.kind === "node" ? { ...node, reveal: undefined } : null
+  }
   const narrowed = narrowedBy(search)
 
   const tenant = pages.find((one) => claims(one.page.route, pathname))?.page
@@ -718,7 +726,7 @@ const routeNamedIn = (table: Claims | undefined, pages: MountedPages, parts: Spl
   // where the page is picked (`./page.ts`). That is the whole of the arm
   // collapse — an address and a sidebar click cannot open two different pages
   // for one file, because neither of them says which page.
-  const route = atAddress(named)
+  const route = named.kind === "node" ? atNode(named.id) : atAddress(named)
   return narrowablePlain(table, route) || sourceLanding(route) ? { ...route, ...narrowed } : route
 }
 
@@ -852,6 +860,7 @@ export interface Routing {
  * both read it off `navigation.state`.
  */
 export const labelIn = (pages: MountedPages, route: Route): string => {
+  if (route.kind === "layout") return "Layout"
   if (route.kind === "at") {
     const address = route.address
     if (address === null) return "Home"

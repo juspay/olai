@@ -44,7 +44,7 @@ Feature: Pinning layouts
     And pane 0 is focused
     And the layout panes have equal widths
     When I press tab 0
-    Then pane 0 is showing "/#order"
+    Then pane 0 is showing "/zoom/#order"
     And pane 1 is showing "/finishes.md"
 
     Examples:
@@ -105,7 +105,7 @@ Feature: Pinning layouts
     And the page has not reloaded
     When I follow the pin "/s/house.olai/%23missing"
     Then there are 2 panes
-    And pane 1 is showing "/#missing"
+    And pane 1 is showing "/zoom/#missing"
     When I follow the pin "/s/house.olai/garden.olai"
     Then there are 2 panes
     And pane 1 is showing "/garden.olai"
@@ -119,7 +119,7 @@ Feature: Pinning layouts
     And I follow the pin "/s/house.olai/%23order"
     Then there are 2 panes
     And pane 0 is showing "/house.olai"
-    And pane 1 is showing "/#order"
+    And pane 1 is showing "/zoom/#order"
     And there should be no page errors
 
   Scenario: A lone page has only the page command

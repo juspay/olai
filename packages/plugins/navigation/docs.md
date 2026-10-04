@@ -1,5 +1,21 @@
 # Navigation
 
+Navigation owns one scoped, delegated click listener. Content publishes real
+anchors; `intentOf` interprets plain/Enter, Alt and Alt-Shift as go, right and
+new pane. Ctrl/Meta/middle and prevented presses belong to the browser. The
+anchor's mounted pane owns the action; chrome uses the focused pane. The
+optional `nodes` integration declares `outlines.references`, which supplies
+row visibility/selection and node homes. Navigation owns asynchronous landing
+requests and rejects replies after pane changes, provider withdrawal or disposal.
+
+`/#id` reveals a node: select its visible row in the destination pane, otherwise
+open its current file at that row. `/zoom/#id` explicitly opens its own page.
+Legacy stored pins, layouts, tabs and stamped history retain zoom semantics at
+their persistence readers. Current authored links use the current grammar.
+Document heading anchors carry `/document.md#slug`; navigation updates history
+and the existing landing performer scrolls the owning pane. Layout destinations
+are read by the same route reader and opened by navigation.
+
 Navigation owns browser addresses, history, open panes and focus. Its state
 provider starts without a layout; replacing the layout preserves that state.
 The provider owns scroll restoration and keyboard/IME observers and releases

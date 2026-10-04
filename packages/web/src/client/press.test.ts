@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { ours, splitClick } from "./press.ts"
+import { ours, intentOf } from "./press.ts"
 
 const press = (
   mods: {
@@ -22,25 +22,25 @@ const press = (
 
 test("a plain click is ours and not a split", () => {
   expect(ours(press())).toBe(true)
-  expect(splitClick(press())).toBeNull()
+  expect(intentOf(press())).toBe("go")
 })
 
 test("Alt+click is a reuse, and is not ours", () => {
   expect(ours(press({ alt: true }))).toBe(false)
-  expect(splitClick(press({ alt: true }))).toBe("reuse")
+  expect(intentOf(press({ alt: true }))).toBe("right")
 })
 
 test("Alt+Shift+click forces a new pane", () => {
-  expect(splitClick(press({ alt: true, shift: true }))).toBe("force")
+  expect(intentOf(press({ alt: true, shift: true }))).toBe("new-pane")
 })
 
 test("Ctrl/Cmd still belong to the browser, even with Alt", () => {
-  expect(splitClick(press({ alt: true, ctrl: true }))).toBeNull()
-  expect(splitClick(press({ alt: true, meta: true }))).toBeNull()
+  expect(intentOf(press({ alt: true, ctrl: true }))).toBeNull()
+  expect(intentOf(press({ alt: true, meta: true }))).toBeNull()
   expect(ours(press({ ctrl: true }))).toBe(false)
 })
 
 test("a press something else already answered is nobody's", () => {
-  expect(splitClick(press({ alt: true, defaultPrevented: true }))).toBeNull()
+  expect(intentOf(press({ alt: true, defaultPrevented: true }))).toBeNull()
   expect(ours(press({ defaultPrevented: true }))).toBe(false)
 })

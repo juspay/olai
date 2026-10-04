@@ -1,3 +1,4 @@
+import { Dynamic } from "solid-js/web"
 import type { JSX } from "solid-js"
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 
@@ -8,12 +9,14 @@ export function RailButton(props: {
   /** Optional semantic facts owned by the caller, without teaching this shell
    * button any tenant's vocabulary. */
   readonly data?: { readonly [key: `data-${string}`]: string | undefined }
-  readonly onClick: () => void
+  readonly href?: string
+  readonly onClick?: () => void
   readonly children: JSX.Element
 }) {
   return (
-    <button
-      type="button"
+    <Dynamic component={props.href === undefined ? "button" : "a"}
+      href={props.href}
+      type={props.href === undefined ? "button" : undefined}
       // `relative`: the agenda's dot is absolute against this box, and the
       // containing block is declared once, here, rather than by whichever child
       // happens to need one.
@@ -22,9 +25,9 @@ export function RailButton(props: {
       data-testid={props.testid}
       aria-label={props.label}
       title={props.title}
-      onClick={() => props.onClick()}
+      onClick={() => props.onClick?.()}
     >
       {props.children}
-    </button>
+    </Dynamic>
   )
 }

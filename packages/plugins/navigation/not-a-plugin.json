@@ -10,6 +10,7 @@
     "src/address/address.ts",
     "src/live.ts",
     "src/pane/state.ts",
+    "src/routes.ts",
     "src/workspace.ts"
   ],
   "search": [

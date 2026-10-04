@@ -1,5 +1,11 @@
 # Editing: the keyboard, and the pointer
 
+A node reference (`/#id`) selects its row if visible in the link's pane;
+otherwise it opens the node's current file at that row. The bullet and Zoom in
+command use `/zoom/#id`. Alt opens to the right, Alt-Shift inserts a new pane,
+and Ctrl/Meta/middle use the browser's tab behavior. Right-clicking any outline
+link offers Open in new tab; right-clicking the rest of a row opens its row menu.
+
 Click a title and the caret is where you clicked. From there it is the outliner's loop on the keys you already know, and the whole list is in the app, under **Keyboard shortcuts** in the ⌘K palette.
 
 Escape cancels a held row drag: the drop indicator disappears and releasing the pointer does not move the row. During a selection sweep, Escape ends the sweep and retains the picked rows; another Escape clears the pick. Both gestures can be started again immediately.
@@ -505,7 +511,7 @@ The palette goes places and asks the agent ([search.md](search.md)); it writes t
 
 **An untouched palette has nothing chosen.** The rows a node can take are listed first, where you can see them, and that is only safe because the highlight is where the arrows START rather than a choice you made: press ⌘K and Enter and nothing happens. The first character you type is the choice, and it lights the best match; ↓ is the other way in.
 
-**The verbs of the node you have ZOOMED.** On `/#<id>`, the palette lists what that node can take — `Mark: To do`, `Mark: Done`, `Mark: Cancelled`, `Mark: Clear`, `Clear date`, `Duplicate`, `Move to Trash` (a mark keeps its `Mark:` heading here, since the list is flat) — the entries of the row's ••• menu that need no second gesture, decided by the same rule (a verb that would change nothing is not drawn), naming the same ids, and refused in the same words. Each row says which node it is about on its second line, because a palette is opened from anywhere. This is the affordance the zoomed node never had: the ••• hangs off a row, and a zoom is a page.
+**The verbs of the node you have ZOOMED.** On `/zoom/#<id>`, the palette lists what that node can take — `Mark: To do`, `Mark: Done`, `Mark: Cancelled`, `Mark: Clear`, `Clear date`, `Duplicate`, `Move to Trash` (a mark keeps its `Mark:` heading here, since the list is flat) — the entries of the row's ••• menu that need no second gesture, decided by the same rule (a verb that would change nothing is not drawn), naming the same ids, and refused in the same words. Each row says which node it is about on its second line, because a palette is opened from anywhere. This is the affordance the zoomed node never had: the ••• hangs off a row, and a zoom is a page.
 
 On any other page there are none of them. A command read out of context must not be aimed at a node you cannot see, and what the address says you are looking at is a fact you and the palette can both see.
 

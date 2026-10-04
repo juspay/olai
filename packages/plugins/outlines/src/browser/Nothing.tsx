@@ -56,7 +56,7 @@ export function Nothing(props: {
           testid={TESTID.nothing}
           line="Page not found"
           detail={missingDetail(path(), noun(path()))}
-          action={{ label: "Go home", run: () => router.go(HOME_ROUTE), testid: OUTLINES.missingGoHome }}
+          action={{ label: "Go home", href: router.routes.href(HOME_ROUTE), testid: OUTLINES.missingGoHome }}
         />
       )}
     </Show>

@@ -884,9 +884,9 @@ export const CHAT_MINE = selector(PLUGIN_TESTID.chatMine);
  *  timeout. Note the id it carries is the RESOLVED one — a span saying `echo`
  *  points at the node `echo` is a placement of, because that is the node a
  *  reader can be shown. */
-export const chatNodeRef = (id: string): string => attr(CHAT_NODE_REF_ATTR, id);
+export const chatNodeRef = (id: string): string => `a[href="/#${encodeURIComponent(id)}"]`;
 /** ...and any of them at all, for the steps that assert an absence. */
-export const NODE_REF_ANY = `[${CHAT_NODE_REF_ATTR}]`;
+export const NODE_REF_ANY = `a[href^="/#"]`;
 
 /** The app has finished its first render when it has committed to one of its
  *  three shapes: a docked header (the set loaded and the directory column is
@@ -1708,7 +1708,7 @@ export class OlaiWorld extends World {
    *  no click history behind it. That is the whole promise of `/#<id>`, and
    *  navigating there in-app instead would never test it. */
   async openNode(id: string): Promise<void> {
-    await this.open(`/#${encodeURIComponent(id)}`);
+    await this.open(`/zoom/#${encodeURIComponent(id)}`);
   }
 
   /** One day's own page COLD — `/d/<date>` in a fresh document, which is what

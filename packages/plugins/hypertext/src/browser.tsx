@@ -12,8 +12,7 @@ import { KindGlyph } from "./glyph.tsx"
 import { TESTID } from "./testids.ts"
 import { Hypertext } from "./browser/Hypertext.tsx"
 import { holdServed } from "./browser/vault.ts"
-import { fileLinks } from "olai-plugin-navigation/contract"
-import { holdOpens } from "./browser/links.ts"
+import { navigation } from "olai-plugin-navigation/contract"
 import { referrerMemoryChannel } from "@olai/ui-primitives/referrer-memory.ts"
 // THE CHANNEL to the section's memory, factory-minted HERE (a package calls
 // it once; `@olai/ui-primitives/referrer-memory.ts`'s `referrerMemoryChannel`
@@ -36,11 +35,9 @@ export const components = {
     const memory = yield* referrerMemory
     yield* Effect.acquireRelease(Effect.sync(() => channel.hold(memory)), stop => Effect.sync(stop))
   }) }),
-  page: definePlugin({ name: "page", needs: [rendererSlots, fileAccess, fileLinks], apply: Effect.gen(function*() {
+  page: definePlugin({ name: "page", needs: [rendererSlots, fileAccess, navigation], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots, directory = yield* fileAccess
     yield* Effect.acquireRelease(Effect.sync(() => holdServed(directory)), stop => Effect.sync(stop))
-    const opens = yield* fileLinks
-    yield* Effect.acquireRelease(Effect.sync(() => holdOpens(opens)), stop => Effect.sync(stop))
     yield* slots.contribute(pages, { by, edits: false, page: () => <BodyPage directory={directory} memory={channel.read()} Body={Hypertext} /> }, { key: fileKindKey(by) })
   }) }),
 }

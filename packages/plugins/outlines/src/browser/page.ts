@@ -28,7 +28,7 @@ import type {
 } from "@olai/format"
 import type { FiledPageRequest } from "@olai/format"
 
-import { atElement, type Route } from "olai-plugin-navigation/routes"
+import type { Route } from "olai-plugin-navigation/routes"
 
 /**
  * WHAT THE SERVER IS ASKED, for the route this pane is showing.
@@ -65,6 +65,7 @@ export const requestFor = (route: Route): FiledPageRequest | null => {
     }
     case "trash":
       return { kind: "trash" }
+    case "layout":
     case "plugin":
       // A mounted route tenant supplies its own request in PageView. This arm
       // is only the total fallback for a route whose tenant disappeared. It
@@ -72,40 +73,6 @@ export const requestFor = (route: Route): FiledPageRequest | null => {
       return null
   }
 }
-
-/**
- * WHERE A PATH OF THIS VAULT OPENS — the route that draws the file at `path`,
- * or nothing at all for a path this directory does not hold.
- *
- * It is the same membership the page reading requires before it will draw
- * either page, asked one step earlier and for a caller that has a PATH rather
- * than an address. That caller is the `.html` preview: a reader clicks a link
- * inside somebody's saved page, the seal hands the path out, and the app has to
- * decide both whether it holds that file and which of its two page shapes the
- * file is (`olai-plugin-hypertext`’s `browser/Hypertext.tsx`).
- *
- * ASKED OF THE PATHS, which is what a browser still holds of the directory: one
- * head per served file, no records and no bodies (`@olai/surface`'s `heads`).
- * Membership was always this question; what changed is that the list it is
- * asked of no longer arrives with every record in it. It took the FACES until
- * `perf-faces-broken-walk` and read `face.path` off every one of them to answer
- * — the directory hands the paths over now (`./directory.ts`), since that was
- * the only thing any reader of that list ever wanted.
- *
- * A FRAGMENT rides on both element arms, and that is the address grammar's
- * own answer rather than this function's: in a body it is a heading the
- * document face lands on, and after an outline it is a ROW, which is the
- * outline's landing. It came back whole from the grammar since the outline
- * arm gained its own (`./landing.ts`) — before, the qualified spelling was
- * discarded into a bare node on the way in, and the only fragment an outline
- * path could make was a zoom.
- */
-export const opensAt = (
-  claims: Claims,
-  paths: ReadonlyArray<string>,
-  path: string,
-  at?: string,
-): Route | undefined => paths.includes(path) ? atElement(claims, path, at ?? null) : undefined
 
 /** The file the open page belongs to — the sidebar entry to light up. A zoomed
  *  node belongs to the file its CANONICAL record is in, whichever file the

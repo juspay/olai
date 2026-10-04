@@ -59,7 +59,6 @@ import {
 
 import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { mediaHref } from "@olai/surface"
-import { ROUTE_HREF } from "@olai/web/client/press.ts"
 import type { Element, Root } from "hast"
 
 import { type Heading, headingOf } from "./outline.ts"
@@ -290,9 +289,8 @@ const mint = (element: Element, ids: string, route: HeadingRoute | null): void =
 
   const href = properties["href"]
   if (typeof href === "string" && href.startsWith("#")) {
-    properties["href"] = `#${ids}-${href.slice(1)}`
     const at = href.length > 1 ? route?.(authored(href.slice(1))) : undefined
-    if (at !== undefined) properties[ROUTE_HREF] = at
+    properties["href"] = at ?? `#${ids}-${href.slice(1)}`
   }
 }
 

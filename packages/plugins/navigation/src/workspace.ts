@@ -176,6 +176,21 @@ export interface WorkspaceRouting extends Routing {
 
 export const workspaceRoutingOver = (routes: Routing): WorkspaceRouting => ({
   ...routes,
+  href: route => route.kind === "layout" ? layoutHref(routes, route.workspace) : routes.href(route),
+  routeIn: href => {
+    let path = href
+    if (!href.startsWith("/") || href.startsWith("//")) {
+      if (!/^https?:\/\//.test(href) && !href.startsWith("//")) return null
+      if (typeof location === "undefined") return null
+      try {
+        const url = new URL(href, location.href)
+        if (url.origin !== location.origin) return null
+        path = url.pathname + url.search + url.hash
+      } catch { return null }
+    }
+    const workspace = path.slice(WORKSPACE_PREFIX.length).includes("/") ? layoutIn(routes, path) : null
+    return workspace ? { kind: "layout", workspace } : routes.routeIn(path)
+  },
   layoutIn: (href) => layoutIn(routes, href),
   layoutHref: (workspace) => layoutHref(routes, workspace),
 })
@@ -749,3 +764,16 @@ export const splitOf = (
   layout: { kind: "split", axis, children },
   focus,
 })
+
+/** Pre-reveal stored URLs named zoom views. Only persistence readers call this;
+ * authored links and the address bar always use the current grammar. */
+export const legacyZoomHref = (href: string): string => {
+  if (/^\/(?:\?[^#]*)?#.+/.test(href)) return "/zoom/" + href.slice(1)
+  if (!href.startsWith(WORKSPACE_PREFIX)) return href
+  const query = href.indexOf("?")
+  const path = query < 0 ? href : href.slice(0, query)
+  try {
+    return WORKSPACE_PREFIX + path.slice(WORKSPACE_PREFIX.length).split("/").map(part =>
+      encodeURIComponent(legacyZoomHref("/" + decodeURIComponent(part)).slice(1))).join("/") + (query < 0 ? "" : href.slice(query))
+  } catch { return href }
+}

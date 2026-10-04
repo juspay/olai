@@ -166,7 +166,7 @@
 
 
 import { mediaPath, MEDIA_PREFIX } from "./media.ts"
-import { ours } from "./press.ts"
+import { intentOf, type Intent } from "./press.ts"
 
 /**
  * WHAT THE FRAME SAYS ABOUT ITS HEIGHT, and the whole of it: this prefix, then
@@ -569,9 +569,10 @@ const MEASURE = `(function () {
  */
 const FOLLOW = (extensions: ReadonlyArray<string>) => `(function () {
   var pages = ${JSON.stringify(extensions)}
-  var ours = ${ours.toString()}
+  var intentOf = ${intentOf.toString()}
   addEventListener("click", function (event) {
-    if (!ours(event)) return
+    var intent = intentOf(event)
+    if (intent === null) return
     var node = event.target
     var link = node && node.closest ? node.closest("a") : null
     if (!link) return
@@ -582,13 +583,12 @@ const FOLLOW = (extensions: ReadonlyArray<string>) => `(function () {
       return
     }
     if (at.protocol !== location.protocol || at.host !== location.host) return
-    if (at.hash !== "" && at.pathname === location.pathname) return
     var path = at.pathname
     if (!path.startsWith(${JSON.stringify(MEDIA_PREFIX)})) return
     for (var i = 0; i < pages.length; i++) {
       if (!path.endsWith(pages[i])) continue
       event.preventDefault()
-      parent.postMessage(${JSON.stringify(OPEN)} + path + at.hash, "*")
+      parent.postMessage({ type: ${JSON.stringify(OPEN)}, href: path + at.hash, intent: intent }, "*")
       return
     }
   })
@@ -770,7 +770,7 @@ export type Said =
    *  inside it the link named, when it named one; it is not checked against
    *  anything here, because which ids a page has is not knowable until it has
    *  been drawn. */
-  | { readonly kind: "open"; readonly file: string; readonly at?: string }
+  | { readonly kind: "open"; readonly intent?: Intent; readonly file: string; readonly at?: string }
   /** How tall the page says it is — {@link READING}. A claim, clamped by CSS at
    *  the other end. */
   | { readonly kind: "reading"; readonly height: number }
@@ -832,6 +832,12 @@ const decoded = (fragment: string): string | undefined => {
 }
 
 export const heard = (said: unknown): Said | undefined => {
+  if (typeof said === "object" && said !== null) {
+    const message = said as Record<string, unknown>
+    if (message.type !== OPEN || typeof message.href !== "string" || !["go", "right", "new-pane"].includes(String(message.intent))) return undefined
+    const target = heard(OPEN + message.href)
+    return target?.kind === "open" ? { ...target, intent: message.intent as Intent } : undefined
+  }
   if (said === HELLO) return { kind: "hello" }
   if (said === REFUSED) return { kind: "refused" }
   if (typeof said !== "string") return undefined

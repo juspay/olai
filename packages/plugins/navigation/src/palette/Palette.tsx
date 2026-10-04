@@ -1052,6 +1052,8 @@ export function Palette(props: {
                       <li>
                         <Result
                           claims={fileClaims()}
+                          href={item().action.kind === "route" ? router.routes.href((item().action as Extract<import("./items.ts").PaletteAction, {kind: "route"}>).route) : undefined}
+                          onNavigate={close}
                           label={item().label}
 
                           from={item().from}

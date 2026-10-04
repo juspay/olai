@@ -1,5 +1,10 @@
 # Tabs
 
+The link menu resolves real anchor hrefs through navigation. A link inside an
+outline row, including the bullet, owns its context menu; the rest of the row
+retains the row menu. Stored tab version 2 distinguishes current reveal links
+from version 1 node URLs, which are upgraded to explicit zoom URLs on read.
+
 `tabs` is a browser-only row that keeps several pages open in the main column.
 On a desktop it draws a strip of tabs above the panes. Each tab holds a
 **workspace**: one page, or a whole split of panes. The header, the sidebar, the

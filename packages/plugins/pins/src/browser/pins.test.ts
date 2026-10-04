@@ -18,7 +18,7 @@
 import { NO_PINS, type Shelf } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { atNode } from "olai-plugin-navigation/routes"
+import { zoomNode as atNode } from "olai-plugin-navigation/routes"
 
 import { pinnedAt, pinsOf } from "./pins.ts"
 import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
@@ -34,7 +34,7 @@ const ANSWERED: Shelf = [
   { id: "p-doc", title: "/notes/finishes.md" },
   { id: "p-late", title: "[What is late](/trash?q=is%3Atodo)" },
   { id: "p-note", title: "the ones I keep coming back to" },
-  { id: "p-gone", title: "/#gone" },
+  { id: "p-gone", title: "/zoom/#gone" },
 ]
 
 // ── reading the answer ─────────────────────────────────────────────────
@@ -58,7 +58,7 @@ test("what a door is CALLED: the written name, then the set's, then the address"
     "What is late",
     // The honest dead row: an address this app can read, at a node the set does
     // not declare.
-    "/#gone",
+    "/zoom/#gone",
   ])
 })
 
@@ -77,7 +77,7 @@ test("a name is spent only where THIS parser agrees the row addresses that node"
   const crossed: Shelf = [
     { id: "p", title: "/#herbs", shows: { id: "elsewhere", name: "the kitchen" } },
   ]
-  expect(pinsOf(routes, crossed)[0]?.name).toBe("/#herbs")
+  expect(pinsOf(routes, crossed)[0]?.name).toBe("/zoom/#herbs")
 })
 
 // A title an escape nothing can read is not a door

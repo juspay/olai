@@ -116,8 +116,7 @@ import {
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { Said } from "@olai/web/client/saying.ts"
 import { Lede } from "@olai/web/client/errors/Lede.tsx"
-import { useOpens } from "./links.ts"
-import { useGo, useLanding } from "olai-plugin-navigation/routing"
+import { useHere, useRouter, useLanding } from "olai-plugin-navigation/routing"
 import { fileNamed } from "olai-plugin-navigation/routes"
 
 import { useHead } from "./vault.ts"
@@ -432,7 +431,7 @@ export function Hypertext(props: { readonly file: string }) {
   // page had no such id. A SIGNAL rather than a scroll done on arrival, for the
   // reason the effect below gives.
   const [landedAt, setLandedAt] = createSignal<number>()
-  const go = useGo()
+  const router = useRouter(), here = useHere()
   /** Where inside this file this pane was asked to land, read the two ways
    *  this file needs it — the slug as a FACT, which is what the frame's URL is
    *  built from, and the ACT still owed, which is what may put a fragment on
@@ -440,7 +439,6 @@ export function Hypertext(props: { readonly file: string }) {
    *  memoized there so a navigation next door says nothing here
    *  (`../router.tsx`'s {@link Landfall}). */
   const landing = useLanding(() => props.file)
-  const opens = useOpens()
   let frame: HTMLIFrameElement | undefined
 
   // Which height reports this frame acts on: every one that says something the
@@ -727,11 +725,12 @@ export function Hypertext(props: { readonly file: string }) {
    * drawn on. A reader who clicks a link to the page they are on is already
    * where it goes.
    */
-  const open = (named: string, at?: string) => {
-    const route = opens(named, at)
-    if (route === undefined) return setRefused(REFUSED)
-    if (fileNamed(route) === props.file) return
-    go(route)
+  const open = (named: string, at?: string, intent: "go" | "right" | "new-pane" = "go") => {
+    const href = "/" + named.split("/").map(encodeURIComponent).join("/") + (at === undefined ? "" : "#" + encodeURIComponent(at))
+    const route = router.routes.routeIn(href)
+    if (route === null) return setRefused(REFUSED)
+    if (intent === "go") router.goIn(here(), route)
+    else router.openRight(here(), route, intent === "new-pane")
   }
 
   /** Put the file back, or — once the budget is out — nothing at all, which is
@@ -807,7 +806,7 @@ export function Hypertext(props: { readonly file: string }) {
       // there is no navigation of the FRAME's to record. What happens after is
       // the app's — usually this element unmounting with the page that held it,
       // and, for a page that named itself, no unmount at all (see `open`).
-      if (said.kind === "open") return open(said.file, said.at)
+      if (said.kind === "open") return open(said.file, said.at, said.intent)
       // WHERE THE ANCHOR ENDED UP, and the host window's half of landing on it.
       //
       // The frame scrolls ITSELF to the fragment on its own URL, which lands

@@ -104,7 +104,7 @@ export type {PaletteItem, PalettePrefix} from "./palette/items.ts"
 export type {
   LevelRows, LevelScope, PaletteGroup, PaletteLevel, PaletteOption, PaletteRunResult, PaletteValue,
 } from "./palette/levels.ts"
-export const fileLinks=serviceTag<import("./opens.tsx").Opens>("navigation.file-links")
+
 
 /**
  * THE PAGE'S GESTURE ARBITER — one verb, and the only one another row wants.

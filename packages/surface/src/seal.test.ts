@@ -7,7 +7,7 @@ const SEAL = seal(FILE_EXTS)
 import { expect, test } from "bun:test"
 
 import { mediaHref } from "./media.ts"
-import { ours, type Press } from "./press.ts"
+import { intentOf, type Press } from "./press.ts"
 import { BODY_REFUSED, heard, REFUSED_MARKUP, SEAL as seal, sealPolicy } from "./seal.ts"
 const HOST = "127.0.0.1:4173"
 
@@ -321,7 +321,7 @@ test("anything else the frame could say is not a height", () => {
  * copied into this file would drift with it and go on passing.
  */
 const OPEN = ((): string => {
-  const found = /parent\.postMessage\("([^"]*)" \+ path \+ at\.hash, "\*"\)/.exec(SEAL)
+  const found = /parent\.postMessage\({ type: "([^"]*)", href: path \+ at\.hash, intent: intent }, "\*"\)/.exec(SEAL)
   if (found === null) throw new Error(`the seal's link handler posts nothing: ${SEAL}`)
   return found[1]!
 })()
@@ -359,12 +359,12 @@ test("the handler claims the kinds the registry says have pages", () => {
  * is not a text comparison: a build that reformats passes, and a build that
  * changes the meaning fails and names the press.
  */
-const shipped = ((): ((press: Press) => boolean) => {
-  const found = /\n  var ours = ([\s\S]*?)\n  addEventListener/.exec(SEAL)
+const shipped = ((): ((press: Press) => ReturnType<typeof intentOf>) => {
+  const found = /\n  var intentOf = ([\s\S]*?)\n  addEventListener/.exec(SEAL)
   if (found === null) {
     throw new Error(`the seal ships no press rule — this test has nothing to check:\n${SEAL}`)
   }
-  return new Function(`return (${found[1]!})`)() as (press: Press) => boolean
+  return new Function(`return (${found[1]!})`)() as (press: Press) => ReturnType<typeof intentOf>
 })()
 
 /** Every combination of the six facts: 64 presses, which is small enough to
@@ -396,10 +396,10 @@ test("the press rule the seal ships is the press rule this app applies", () => {
   // comes back for one is `undefined` rather than `false` — but that is the
   // handler's shape, not this function's: `ours` returns a boolean either way,
   // and any disagreement here is a real one.
-  expect(PRESSES.filter((press) => shipped(press) !== ours(press))).toEqual([])
+  expect(PRESSES.filter((press) => shipped(press) !== intentOf(press))).toEqual([])
   // …and the agreement is over presses of both kinds: a rule that claimed
   // everything, or nothing, would agree with a broken `ours` and pass above.
-  expect(PRESSES.filter(ours)).toHaveLength(1)
+  expect(PRESSES.filter(press => intentOf(press) !== null)).toHaveLength(3)
 })
 
 // THE ADDRESS, from both ends: what the frame posts is the pathname the browser

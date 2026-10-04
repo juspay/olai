@@ -122,7 +122,7 @@ export function Toc(props: {
                       split, and opens the ROUTE the heading stands for, which
                       the rendering worked out beside its id (`@olai/web`'s
                       `ROUTE_HREF`, read by the navigation row's router). */}
-                  <a href={`#${heading().id}`} data-route-href={heading().route} class={LINE} data-testid={TESTID.tocLink}>
+                  <a href={heading().route ?? `#${heading().id}`} class={LINE} data-testid={TESTID.tocLink}>
                     {heading().text}
                   </a>
                 </li>

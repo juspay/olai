@@ -12,10 +12,8 @@ export function FileRail() { const router = useRouter(); return <>
         testid={TESTID.railOutlines}
         label="Open outlines"
         title="Outlines"
-        onClick={() => {
-          setSidebarOpen(true)
-          router.go(HOME_ROUTE)
-        }}
+        href={router.routes.href(HOME_ROUTE)}
+        onClick={() => setSidebarOpen(true)}
       >
         {/* The tree's own outline glyph (../file/icons.tsx), at the rail's
             size. Both faces of this column already agree about what is OWED;

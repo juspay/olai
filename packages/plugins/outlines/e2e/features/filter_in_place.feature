@@ -183,7 +183,7 @@ Feature: Filtering the outline in place
     Given I open the outline "house.olai"
     When I filter the page by "cabinets"
     And I zoom into the node "install"
-    Then the address is exactly "/#install"
+    Then the address is exactly "/zoom/#install"
     And the filter box holds ""
     When I go back
     Then the address is exactly "/house.olai?q=cabinets"

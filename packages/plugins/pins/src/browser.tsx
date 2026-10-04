@@ -19,8 +19,6 @@ import { holdPinUndo, usePinUndo } from "./browser/history.ts"
 import { paletteIntegration } from "./browser/Palette.tsx"
 import { scopePinSaid } from "./browser/status.ts"
 import { pinnedShelf } from "./contract.ts"
-import { holdTabs } from "./browser/tabs.ts"
-import { tabsState } from "olai-plugin-tabs/contract"
 export default definePlugin({name:"pins", needs:[Wired, Offers, Edits], apply:Effect.gen(function*(){
   const ownWire = yield* Wired
   yield* Effect.acquireRelease(Effect.sync(() => holdClient(() => ownWire.client() as Client)), stop => Effect.sync(stop))
@@ -43,12 +41,7 @@ export default definePlugin({name:"pins", needs:[Wired, Offers, Edits], apply:Ef
  yield* (yield* Offers).own("state",()=>({ shelf: usePins() }))
 })})
 export const components={palette:paletteIntegration,
- // A PINNED LAYOUT OPENS AS A TAB where the tabs row is active; held for this
- // component's activation, and in place without it (`./browser/tabs.ts`).
- tabs:definePlugin({name:"tabs",needs:[tabsState],apply:Effect.gen(function*(){
-  const tabs=yield* tabsState
-  yield* Effect.acquireRelease(Effect.sync(()=>holdTabs(tabs)),stop=>Effect.sync(stop))
- })}),sidebar:definePlugin({name:"sidebar", needs:[rendererSlots,pinnedShelf,navigation,fileAccess], apply:Effect.gen(function*(){
+sidebar:definePlugin({name:"sidebar", needs:[rendererSlots,pinnedShelf,navigation,fileAccess], apply:Effect.gen(function*(){
  const nav = yield* navigation
  const files = yield* fileAccess
  const undo = usePinUndo()

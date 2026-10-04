@@ -1,3 +1,4 @@
+import { atNode, hrefOfPlain } from "olai-plugin-navigation/routes"
 /**
  * The ids the AGENT names, made pressable — without inventing a syntax.
  *
@@ -50,7 +51,7 @@
 /** The attribute a marked span carries: the id it names. Read by the pane's
  *  listener, and by `styles.css`, which is where a rule for markup this
  *  codebase did not author belongs. */
-export const NODE_REF = "data-node-ref"
+export const NODE_REF = "data-node-chip"
 
 /**
  * WHAT A CODE SPAN MEANS — the rule, as a value: the id it asks about, and the
@@ -146,11 +147,6 @@ const inFenceAt = (span: Element): boolean => span.parentElement?.tagName === "P
  *  readers of this panel cannot press. ONE list, read forwards to mark and
  *  backwards to unmark — two hand-written lists is how a `role="button"` gets
  *  left on a span that has stopped being one. */
-const AS_A_CONTROL: ReadonlyArray<readonly [string, string]> = [
-  ["role", "button"],
-  ["tabindex", "0"],
-  ["title", "Show this row"],
-]
 
 /**
  * Mark every code span in `root` that names a node, unmark the rest, and answer
@@ -194,26 +190,17 @@ export const markNodeRefs = (
     // can be shown.
     const { asked: says, id } = nodeNamedBy(span.textContent, inFenceAt(span), resolve)
     if (says !== null) asked.add(says)
-    const marked = span.getAttribute(NODE_REF)
+    const anchor = span.parentElement?.matches("a[data-node-chip]") ? span.parentElement as HTMLAnchorElement : undefined
+    if (id === null) { if (anchor) anchor.replaceWith(span); continue }
+    // Authored links already supply a destination; never nest anchors.
+    if (!anchor && span.closest("a")) continue
+    const link = anchor ?? document.createElement("a")
+    link.dataset.nodeChip = ""
+    link.title = "Show this row"
+    link.setAttribute("href", hrefOfPlain(atNode(id)))
+    if (!anchor) { span.replaceWith(link); link.append(span) }
 
-    if (id === marked) continue
-    if (id === null) {
-      span.removeAttribute(NODE_REF)
-      for (const [attribute] of AS_A_CONTROL) span.removeAttribute(attribute)
-      continue
-    }
-    span.setAttribute(NODE_REF, id)
-    for (const [attribute, value] of AS_A_CONTROL) span.setAttribute(attribute, value)
   }
   return [...asked]
 }
 
-/** The id a press landed on, or `null` — the pane's listener asked of the
- *  event's target. Its own function so the rule ("the nearest marked span, and
- *  only a marked one") is one statement with a test rather than a chain of
- *  optional calls inside a handler. */
-export const nodeRefIn = (target: EventTarget | null): string | null => {
-  if (!(target instanceof Element)) return null
-  const id = target.closest(`[${NODE_REF}]`)?.getAttribute(NODE_REF)
-  return id === undefined || id === "" ? null : id
-}

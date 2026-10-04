@@ -89,8 +89,7 @@ import { agentIn } from "olai-plugin-chat/wire"
 import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "solid-js"
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
-import { useShowNode } from "../references.ts"
-import { useFollow, useShown, useMaybeRouter } from "olai-plugin-navigation/routing"
+import { useShown, useMaybeRouter } from "olai-plugin-navigation/routing"
 import { TESTID } from "../../testids.ts"
 import { wholeYet } from "./attention/whole.ts"
 import { declaringFailure } from "../references.ts"
@@ -99,7 +98,6 @@ import { NEAR } from "./near.ts"
 import { useConversationUI } from "./ui.tsx"
 import { railOf, sameRail } from "./rail.ts"
 import { createPrevious } from "./previous.ts"
-import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import { Row } from "./Row.tsx"
 import { facedAt } from "./speakers.ts"
@@ -115,8 +113,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
   const [revealing, setRevealing] = props.chat.ui.reveal
   const revealed = () => setRevealing(false)
   const { previewing } = useConversationUI().previewing
-  const show = useShowNode()
-  const follow = useFollow()
   const shown = useShown()
   const router = useMaybeRouter()
   let grown: ResizeObserver | undefined
@@ -294,12 +290,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
    *  It answers whether it CLAIMED the press, so the keyboard half below can
    *  preventDefault on exactly the presses it took rather than asking the same
    *  question twice about one event. */
-  const pressed = (target: EventTarget | null): boolean => {
-    const id = nodeRefIn(target)
-    if (id === null) return false
-    show(id)
-    return true
-  }
 
   /**
    * What is drawn above what, for the whole list at once.
@@ -405,19 +395,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
       // ever going to catch one — they fell to the browser and reloaded the app
       // cold. `useFollow` is the pane's own tail, and it lands in the focused
       // pane, which is where a link pressed in a drawer belongs.
-      onClick={(event) => {
-        if (pressed(event.target)) return
-        follow(event)
-      }}
-      // The keyboard's half of the same control: a marked span is given
-      // `role="button"` and a tab stop (`./refs.ts`), and those two promise
-      // Enter and Space do what a click does. Space scrolls a pane it is
-      // pressed in, which is exactly the pane this is — so the default is
-      // prevented for the presses this took, and left alone for the rest.
-      onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== " ") return
-        if (pressed(event.target)) event.preventDefault()
-      }}
+
     >
       {/* A wrapper with no styling of its own, purely so there is something
           whose HEIGHT can be observed: the pane's own size never changes, and

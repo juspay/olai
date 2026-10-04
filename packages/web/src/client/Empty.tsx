@@ -13,6 +13,7 @@
  * service.
  */
 
+import { Dynamic } from "solid-js/web"
 import { Show } from "solid-js"
 
 import { TESTID } from "@olai/ui-primitives/testids.ts"
@@ -22,7 +23,8 @@ import { Leaf } from "@olai/web/client/Leaf.tsx"
 export interface EmptyAction {
   /** The button's words, Sentence case: `New outline`, `Go home`. */
   readonly label: string
-  readonly run: () => void
+  readonly href?: string
+  readonly run?: () => void
   readonly testid?: string
 }
 
@@ -51,14 +53,15 @@ export function Empty(props: {
       </div>
       <Show when={props.action}>
         {(action) => (
-          <button
-            type="button"
+          <Dynamic component={action().href ? "a" : "button"}
+            href={action().href}
+            type={action().href ? undefined : "button"}
             class="inline-flex min-h-11 cursor-pointer items-center rounded-control border-0 bg-accent px-4 text-body font-semibold text-paper hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:min-h-9"
             data-testid={action().testid}
-            onClick={() => action().run()}
+            onClick={() => action().run?.()}
           >
             {action().label}
-          </button>
+          </Dynamic>
         )}
       </Show>
     </div>

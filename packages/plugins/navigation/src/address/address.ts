@@ -220,6 +220,7 @@ export const nameOf = (
       // a pin to that document as far as a row four columns wide is concerned.
       return basenameOf(address.path)
     }
+    case "layout": return "Layout"
     case "trash":
       return "Trash"
     case "plugin":

@@ -74,5 +74,8 @@
   ],
   "//files": "The empty page says olai can't open some `files`: the word, not the files row.",
   "//preferences": "browser.tsx registers this plugin's rows with the preferences panel through its declared contract.",
-  "//trash": "A write's story reads `Moved to Trash`: the Trash a person sees, not the trash row."
+  "//trash": "A write's story reads `Moved to Trash`: the Trash a person sees, not the trash row.",
+  "layout": [
+    "src/browser/page.ts"
+  ]
 }

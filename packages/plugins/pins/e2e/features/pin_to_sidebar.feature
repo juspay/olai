@@ -215,7 +215,7 @@ Feature: Pinning a page to the sidebar
     Then the node "p0" reads "Kitchen project"
     And the node "p1" reads "What is late is:todo"
     When I press the name of "p0"
-    Then the address is "/#order"
+    Then the address is "/zoom/#order"
     And the page has not reloaded
 
   Scenario: A label is the words somebody chose, not markup

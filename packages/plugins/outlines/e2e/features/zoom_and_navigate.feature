@@ -16,7 +16,7 @@ Feature: Zoom and navigate
     And I mark the page
     When I zoom into the node "install"
     Then the zoomed node is "install"
-    And the address is "/#install"
+    And the address is "/zoom/#install"
     And the node "handles" is shown
     # A route, not a reload: the page answered in place.
     And the page has not reloaded
@@ -39,7 +39,7 @@ Feature: Zoom and navigate
     Given I open the node "handles"
     When I follow the breadcrumb "install the cabinets"
     Then the zoomed node is "install"
-    And the address is "/#install"
+    And the address is "/zoom/#install"
 
   Scenario: The trail roots at the node's own outline
     Given I open the node "handles"
@@ -173,7 +173,7 @@ Feature: Zoom and navigate
     Given I mark the page
     When I follow the see link to "herbs" on "order"
     Then the zoomed node is "herbs"
-    And the address is "/#herbs"
+    And the address is "/zoom/#herbs"
     And the page has not reloaded
     And there should be no page errors
 
@@ -184,7 +184,7 @@ Feature: Zoom and navigate
     Then the node "order" sees "herbs" as "the herb bed by the door"
     When I follow the see link to "herbs" on "order"
     Then the zoomed node is "herbs"
-    And the address is "/#herbs"
+    And the address is "/zoom/#herbs"
     And there should be no page errors
 
   Scenario: The waiting mark opens the page that names the blockers
@@ -195,7 +195,7 @@ Feature: Zoom and navigate
     And I mark the page
     When I follow the waiting mark on "hinges"
     Then the zoomed node is "hinges"
-    And the address is "/#hinges"
+    And the address is "/zoom/#hinges"
     And the page has not reloaded
     And there should be no page errors
 
@@ -206,7 +206,7 @@ Feature: Zoom and navigate
     Then the node "hinges" is blocked by "order"
     When I follow the blocked link to "order" on "hinges"
     Then the zoomed node is "order"
-    And the address is "/#order"
+    And the address is "/zoom/#order"
     And there should be no page errors
 
   Scenario: A row address opens the outline landed on the row, cold

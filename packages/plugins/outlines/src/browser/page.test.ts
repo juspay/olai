@@ -14,7 +14,7 @@ import { addressOf } from "@olai/format"
 import type { Agenda, Row, Shown } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { drawnBy, fileOf, opensAt, requestFor } from "./page.ts"
+import { drawnBy, fileOf, requestFor } from "./page.ts"
 import { atElement, atFile, atNode, defineAppRoute, HOME_ROUTE } from "olai-plugin-navigation/routes"
 
 const TODAY = "2026-08-10"
@@ -157,19 +157,3 @@ test("a page a query has nothing to say about draws none of it", () => {
  *  directory holds them (`../client/directory.ts`). It was a list of faces
  *  until `perf-faces-broken-walk`, and every element of it was read for its
  *  `path` and nothing else. */
-const SERVED = ["house.olai", "notes/finishes.md"]
-
-test("a path the directory holds opens at its own route; one it does not opens nowhere", () => {
-  expect(opensAt(TEST_CLAIMS, SERVED, "house.olai")).toEqual(atFile("house.olai"))
-  expect(opensAt(TEST_CLAIMS, SERVED, "shed.olai")).toBeUndefined()
-})
-
-test("a fragment is read by the grammar that would have written it", () => {
-  // In a BODY it is a heading — the ids a rendered document has.
-  expect(opensAt(TEST_CLAIMS, SERVED, "notes/finishes.md", "install"))
-    .toEqual(atElement(TEST_CLAIMS, "notes/finishes.md", "install"))
-  // After an OUTLINE it is a node, because an outline's places are node ids —
-  // which is the grammar's own answer (`@olai/format`'s `address.ts`), asked
-  // here rather than re-decided.
-  expect(opensAt(TEST_CLAIMS, SERVED, "house.olai", "install")).toEqual(atElement(TEST_CLAIMS, "house.olai", "install"))
-})

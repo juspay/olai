@@ -67,7 +67,7 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { hitItems, type PaletteItem } from "olai-plugin-navigation/palette-model"
 import { openPalette } from "./palette.ts"
 import { Refusals } from "@olai/web/client/refusals.tsx"
-import { useMaybeGo } from "olai-plugin-navigation/routing"
+import { useMaybeGo, useMaybeRouter } from "olai-plugin-navigation/routing"
 import { listKey } from "@olai/web/client/keys.ts"
 
 import { TESTID } from "../testids.ts"
@@ -103,6 +103,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
    * which is the sentence that prop's own comment carried.
    */
   const go = useMaybeGo()
+  const router = useMaybeRouter()
   const [query, setQuery] = createSignal("")
   const [caret, setCaret] = createSignal(false)
   const today = useToday()
@@ -314,6 +315,8 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
                     <li>
                       <Result
                         claims={props.claims}
+                        href={item().action.kind === "route" ? router?.routes.href((item().action as Extract<import("olai-plugin-navigation/palette-model").PaletteAction, {kind: "route"}>).route) : undefined}
+                        onNavigate={() => { setQuery(""); box?.blur() }}
                         label={item().label}
 
                         from={item().from}

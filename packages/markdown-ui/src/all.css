@@ -445,12 +445,12 @@ mark.olai-hit {
  * mark. Two rules keyed on where the span happens to live would be two answers
  * to "what does a pressable id look like", free to drift — and the one that
  * drifted would be the row nobody was editing. */
-code[data-node-ref] {
+a[data-node-chip] code {
   color: var(--color-accent);
   cursor: pointer;
 }
 
-code[data-node-ref]:hover {
+a[data-node-chip] code:hover {
   text-decoration: underline;
 }
 

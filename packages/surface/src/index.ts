@@ -53,7 +53,7 @@ export { type Applied, Anchor, Edit } from "./edit.ts"
 /** What a reader meant by a press — one rule, because the app answers a click
  *  in three places and the seal ships a fourth into somebody else's page. See
  *  {@link ./press.ts}. */
-export { ours, type Press } from "./press.ts"
+export { intentOf, ours, type Intent, type Press } from "./press.ts"
 
 /** The one HTTP address both ends spell — see {@link ./media.ts}. `mediaTarget`
  *  is what the ROUTE may answer, and it is the only half either end needs: the
