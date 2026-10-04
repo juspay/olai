@@ -38,3 +38,22 @@ test("a pane retains in-flight and missing outcomes across unrelated changes; pr
     expect(calls).toBe(3)
   } finally { dispose(); release(); files() }
 })
+
+test("a busy answer asks again instead of leaving the pane finding", async () => {
+  let calls = 0, dispose = () => {}
+  const arrived: string[] = []
+  const files = holdFiles({ claims: () => TEST_CLAIMS, paths: () => [], standing: () => "loaded" })
+  const release = nodeTargets.hold({ reveal: () => false, home: async () => ++calls === 1 ? undefined : "house.olai" })
+  const routes = routingIn()
+  const state = createRoot(stop => {
+    dispose = stop
+    const panes = createPaneState(workspaceOf(routes, "/#order"), routes)
+    return createReveal(panes.panes, (_, route) => { if (route) arrived.push(routes.href(route)) })
+  })
+  try {
+    await new Promise(resolve => setTimeout(resolve, 300))
+    expect(calls).toBe(2)
+    expect(arrived).toEqual(["/house.olai#order"])
+    expect(state.status(0)).toBeUndefined()
+  } finally { dispose(); release(); files() }
+})

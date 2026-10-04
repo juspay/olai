@@ -5,14 +5,17 @@ import { atElement, type Route } from "./routes.ts"
 import { nodeTargets } from "./nodes.ts"
 import { directory, fileClaims } from "./pages.ts"
 
+const BUSY_RETRY_MS = 200
+
 /** A lane owns these requests. Each pane observes only its route and provider;
  * an answer, including absence, is remembered until either identity changes. */
 export function createReveal(panes: Accessor<readonly LivePane[]>, arrive: (index: number, route: Route | undefined, how: "push" | "replace") => void) {
   type Request = { before: Route; next: Route; how: "push" | "replace"; provider: ReturnType<typeof nodeTargets.read> }
   const requests = new Map<string, Request>()
   const [status, setStatus] = createStore<Record<string, "finding" | "missing" | undefined>>({})
+  const retries = new Set<ReturnType<typeof setTimeout>>()
   let alive = true
-  onCleanup(() => { alive = false; requests.clear() })
+  onCleanup(() => { alive = false; requests.clear(); for (const timer of retries) clearTimeout(timer) })
   const ready = createMemo(() => !!fileClaims() && directory()?.standing() !== "reading")
   const reveal = (index: number, next: Route, how: "push" | "replace", retry = false): boolean => {
     if (next.kind !== "at" || !next.reveal || next.address?.kind !== "node") return false
@@ -30,8 +33,11 @@ export function createReveal(panes: Accessor<readonly LivePane[]>, arrive: (inde
     }
     setStatus(pane.id, "finding")
     const current = () => alive && nodeTargets.read() === provider && requests.get(pane.id) === request && pane.route() === before && panes().includes(pane)
-    void provider.home(id).then(file => {
-      if (!current() || file === undefined) return
+    // `undefined` is busy: the call's connection was replaced (every boot whose
+    // roster lands after first paint), so the same question is asked again.
+    const ask = (): void => void provider.home(id).then(file => {
+      if (!current()) return
+      if (file === undefined) { const timer = setTimeout(() => { retries.delete(timer); ask() }, BUSY_RETRY_MS); retries.add(timer); return }
       if (file === null) { setStatus(pane.id, "missing"); return }
       const claims = fileClaims()
       if (!claims) return
@@ -39,6 +45,7 @@ export function createReveal(panes: Accessor<readonly LivePane[]>, arrive: (inde
       setStatus(pane.id, undefined)
       arrive(panes().indexOf(pane), atElement(claims, file, id), how)
     }).catch(() => { if (current()) setStatus(pane.id, "missing") })
+    ask()
     return true
   }
   const watch = mapArray(panes, pane => {
