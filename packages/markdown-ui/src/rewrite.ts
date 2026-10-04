@@ -92,12 +92,9 @@ type HeadingRoute = (slug: string) => string | undefined
  * {@link HeadingRoute} for this block, or `null` when the block is not a
  * document's own body.
  *
- * A fragment inside a rendered block is page-local by construction ({@link
- * mint}), which is right for a plain click and says nothing a split can open.
- * A document's heading has an address of its own (`notes/beds.md#beds`), so
- * the route is stamped beside the fragment (`@olai/web`'s {@link ROUTE_HREF}).
- * Only for a body: in an outline's note a `#name` would read as a ROW of that
- * outline, which is not what it pointed at.
+ * A document heading has a route href (`notes/beds.md#beds`), while its
+ * rendered element keeps a namespaced id. Outline-note fragments stay local:
+ * interpreting those as outline rows would change what their author meant.
  */
 const headingRoute = (claims: Claims | undefined, from: string): HeadingRoute | null => {
   if (claims === undefined || bodyKind(claims, from) === null) return null

@@ -433,7 +433,7 @@ mark.olai-hit {
  * would claim this panel had rewritten the sentence.
  *
  * A RULE RATHER THAN A CLASS, and that reason survived the selector losing its
- * `.olai-md` scope: `data-node-ref` is written by a DOM pass after the element
+ * `.olai-md` scope: `data-node-chip` marks an anchor added by a DOM pass after the element
  * is drawn, so "is this span a reference" is not a question any component knows
  * the answer to at render time — no `classList` can express it, in authored
  * markup or otherwise.

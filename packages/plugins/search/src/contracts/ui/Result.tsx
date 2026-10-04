@@ -136,7 +136,7 @@ export function Result(props: {
    * The file a NODE hit is written in. When set, the label runs through
    * `renderTitle` — markdown, tags, and the query's words lit where they
    * sit — the same HTML a tree row draws. `links` is false because this
-   * row is a `<button>`; nested anchors would be invalid.
+   * row is itself an interactive anchor or button; nested links are invalid.
    *
    * Absent on commands, completions, and document hits, which stay a text
    * node of the label as it arrived.

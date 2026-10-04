@@ -174,9 +174,7 @@ const seeLinkTo = (world: OlaiWorld, source: string, target: string) =>
  *  — a `see` ref and a blocker are the same link — over `press`, which is
  *  already "wait until it is there, click it, wait out the frame". */
 const followRef = async (world: OlaiWorld, link: Locator): Promise<void> => {
-  const id = await link.evaluate(el => new URL(el.closest<HTMLAnchorElement>("a[href]")!.href).hash.slice(1))
   await world.press(link)
-  await world.waitUntil(async () => world.page.locator(`a${attr("href", `/zoom/#${id}`)}`).evaluateAll(links => links.some(el => el.closest("[data-node-id]")?.getAttribute("data-focused") === "true")), "referenced row selected", POLL_TIMEOUT)
 };
 
 Then(

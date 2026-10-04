@@ -1,9 +1,13 @@
 # Browser coverage audit
 
-The navigation `link_intent.feature` covers node reveal from the address bar,
-plain and keyboard activation, Alt and Alt-Shift, heading address/scroll
-agreement, and link menus on outline references and bullets. Existing pane,
-chat, preview, tabs, pins and HTML features exercise their surrounding workflows.
+The navigation `link_intent.feature` and `chat_link_intent.feature` exercise
+real anchors in notes, titles, documents, headings and TOC, chat written links
+and both chip forms, see references, backlinks, breadcrumbs, search/palette,
+rails, roster rows, sealed HTML and preview cards. They cover click/Enter,
+Alt/Alt+Shift, browser Ctrl/Meta/middle presses, link menus, matching hover
+targets, pane ownership, reconnection, and old stored zoom tabs/history.
+`pin_layout` covers legacy node/layout pins and layout intent. Existing pane,
+chat, preview, tabs and HTML suites cover their surrounding workflows.
 
 This document records which user workflows have real browser tests, and which still do not.
 

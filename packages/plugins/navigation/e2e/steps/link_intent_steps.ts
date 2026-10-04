@@ -8,7 +8,7 @@ const link = (world: OlaiWorld, surface: string) => {
     case "note": return world.page.locator('[data-testid="desc"] a').getByText("target", { exact: true }).first()
     case "see": return world.page.locator('[data-testid="see-refs"] a').first()
     case "bullet": return world.page.locator('[data-testid="zoom"]').first()
-    case "title": return world.page.locator('[data-node-id="preview-source"] [data-testid="title"] a').first()
+    case "title": return world.page.locator('[data-node-id="title-link"] a[href="/#preview-target"]').first()
     case "document": return world.page.getByRole("link", { name: "target row", exact: true }).first()
     case "toc": return world.page.locator('[data-testid="toc-link"]').getByText("End", { exact: true }).first()
     case "backlink": return world.page.locator('[data-testid="backlinks"] a[href="/#preview-source"]').first()
@@ -57,6 +57,8 @@ Then("the unified heading {string} is visible in pane {int}", async function(thi
 })
 
 Given("the unified document links are served", function(this: OlaiWorld) {
+  const rows = this.servedNodesSoFar("preview.olai")
+  this.writeServed("preview.olai", [...rows, { id: "title-link", ord: "a9", title: "[Title target](/#preview-target)" }].map(row => JSON.stringify(row)).join("\n"))
   this.writeServed("intent.md", "# Links\n\n[target row](/#preview-target)\n\n[the end](#end)\n\n" + "Paragraph before.\n\n".repeat(70) + "## End\n\n" + "Paragraph after.\n\n".repeat(60))
   this.writeServed("intent.html", '<!doctype html><title>Links</title><a href="preview.olai#preview-target">target row</a>')
 })
@@ -64,7 +66,8 @@ Given("I prepare the unified {string} surface", async function(this: OlaiWorld, 
   if (["document", "heading", "toc"].includes(surface)) {
     await this.open("/intent.md")
     if (surface === "toc" && !(await this.page.getByTestId("toc").getAttribute("open") !== null)) await this.page.locator('[data-testid="toc"] summary').click()
-  } else if (surface === "html") await this.open("/intent.html")
+  } else if (surface === "title") await this.open("/preview.olai")
+  else if (surface === "html") await this.open("/intent.html")
   else if (surface === "backlink") {
     await this.openNode("preview-target")
     await this.page.getByTestId("backlinks-summary").click()

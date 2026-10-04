@@ -1,48 +1,9 @@
 import { heldService } from "@olai/ui-primitives/held.ts"
 import { rowElements } from "./row-elements.ts"
-/**
- * Which node the reader was just pointed AT, and how the page answers.
- *
- * The other direction of `chat-node-context`: a row arms the composer, and a
- * reference in the transcript points back. What a reference does is FOCUS —
- * the node is brought onto the screen and the row says it is the one being
- * talked about — and this module is the whole of that fact.
- *
- * Three decisions, and each of them is about not doing more than was asked:
- *
- *   - **it is a reading, not a write and not a route.** Nothing is stored,
- *     nothing crosses the wire, nothing is remembered for the next visit. It is
- *     one id, in this tab, exactly like the caret's own place — and the row it
- *     names draws the same accent the row holding the caret draws, because "this
- *     is the row" is one thing to say and a second vocabulary for it would be a
- *     second thing for a reader to learn.
- *   - **it does not open an editor.** Being shown a node is not being asked to
- *     type in it, and putting the caret in a title would start a DRAFT nobody
- *     asked for — one Escape away from being fine, and one keystroke away from
- *     editing the wrong row.
- *   - **it lasts until it is replaced.** No timer: the whole point is that the
- *     reader is looking at the chat panel when they press it, and a highlight
- *     that expired while they looked back at the tree would be a place-marker
- *     that is gone exactly when it is wanted. The next reference takes it.
- *
- * A node that is not on this page is not a failure — it is in another outline,
- * or inside a branch this reader has collapsed. The caller says what to do
- * about that ({@link focusNode}'s `elsewhere`), which is how the one statement
- * that MOVES the page stays here and the one that changes the ADDRESS stays
- * with the router.
- *
- * The scroll is one of four statements in this client that move the page. Two
- * are `./scroll.ts`'s — which says so in its own header — and it is
- * deliberately not one of them: those two are what a NAVIGATION does, and this
- * is a page staying exactly where it is except for the row somebody asked to
- * see. The fourth is `./autoscroll.ts`'s, which is neither: a page keeping up
- * with a gesture that has run out of screen, moving for as long as a hand holds
- * it near an edge. The outline's landing act (`./OutlinePage.tsx`) is NOT a
- * fifth: it is the same "this is the row" one frame late, so its scroll is
- * this module's one statement, reached for directly ({@link bringOntoScreen}).
- */
+/** Outlines owns the row registry and selection/scroll act. Navigation owns
+ * whether a reference reveals here or needs a file landing elsewhere. */
 import { Result } from "effect"
-import { type Accessor, createSignal, onCleanup, createSelector, createContext, createComponent, useContext, type JSX } from "solid-js"
+import { type Accessor, createSignal, createSelector, createContext, createComponent, useContext, type JSX } from "solid-js"
 
 import { atNode } from "olai-plugin-navigation/routes"
 import { runAsync } from "@olai/web/client/run.ts"
@@ -52,10 +13,7 @@ import { client } from "../client.ts"
 
 export const createFocusState = () => {
   const [focused, setFocused] = createSignal<string | null>(null)
-  const frames = new Set<number>()
-  const state = { focused, setFocused, frames, pointed: 0 }
-  onCleanup(() => { ++state.pointed; for (const frame of frames) cancelAnimationFrame(frame); frames.clear() })
-  return state
+  return { focused, setFocused }
 }
 const focusState = heldService<ReturnType<typeof createFocusState>>()
 export const holdFocusState = focusState.hold
@@ -118,30 +76,7 @@ export const clearNode = (): void => {
   setFocused(null)
 }
 
-/** The row the last point or landing selected, WITHIN one root — the whole
- *  DOM for a press, one pane for a landing, so a file opened in two columns
- *  scrolls the one the landing belongs to. It is found rather than computed,
- *  which is why `focusNode` below looks after the frame that draws the
- *  attribute: a mirror of the node wears it too, and either will do.
- *
- *  The ROW, named as such: a focused pane used to wear this same attribute
- *  and sat above every row, so a bare `[data-focused]` always found the pane
- *  and never walked a collapsed node to its own address. Panes now wear
- *  `data-pane-focused`. The selector still names the row so that fact cannot
- *  sit in front of this one again. */
-
-
-/** THE SCROLL this vocabulary owns — one statement, both callers: a press
- *  aims it at the focused row of the whole DOM (through the helper below);
- *  the outline's landing aims it at the row IT owes, found by its own
- *  placement and never at the accent: one signal for the whole app, so it
- *  may very well be answering the other pane's landing (`./OutlinePage.tsx`).
- *  Exported rather than written twice, because it is ONE entry in the count
- *  this module's header keeps.
- *
- *  `center` rather than the top: a row scrolled to the very top of the
- *  window has its children off the bottom of it, and what a person wants to
- *  see about the node they were just told about is what hangs under it. */
+/** The content owner scrolls the row navigation asks to reveal. */
 export const bringOntoScreen = (row: Element): void => {
   row.scrollIntoView({ block: "center", behavior: "smooth" })
 }

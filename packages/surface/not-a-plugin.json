@@ -20,7 +20,8 @@
     "src/attach.ts"
   ],
   "search": [
-    "src/media.ts"
+    "src/media.ts",
+    "src/seal.ts"
   ],
   "trash": [
     "src/edit.ts"
@@ -28,5 +29,6 @@
   "vault": [
     "src/plugins.ts",
     "src/seal.ts"
-  ]
+  ],
+  "//search": "URL.search is browser address vocabulary in media validation and the sealed link bridge."
 }

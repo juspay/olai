@@ -456,10 +456,10 @@ Feature: A `.html` in the vault
     And I click the page "notes/long.html"
     Then the preview shows the heading "Long"
     When I click "#down" inside the preview
-    # The frame jumped inside itself…
+    # The router lands the frame at the heading.
     Then the preview is at the anchor "#end"
-    # …and the app did not move at all: no navigation, no history, no address.
-    And the address is "/notes/long.html"
+    # Its shareable address records the same destination.
+    And the address is "/notes/long.html#end"
     And the document open is "notes/long.html"
     And the page has not reloaded
 

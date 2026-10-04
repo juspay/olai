@@ -62,6 +62,10 @@ Feature: Every link has one destination and one gesture vocabulary
 
     Examples:
       | surface | gesture | target | pane |
+      | title | click | preview-target | 0 |
+      | title | Enter | preview-target | 0 |
+      | title | Alt | preview-target | 1 |
+      | title | Alt-Shift | preview-target | 1 |
       | document | click | preview-target | 0 |
       | document | Enter | preview-target | 0 |
       | document | Alt | preview-target | 1 |
@@ -102,6 +106,7 @@ Feature: Every link has one destination and one gesture vocabulary
     Examples:
       | surface |
       | note |
+      | title |
       | see |
       | document |
       | backlink |
@@ -121,6 +126,7 @@ Feature: Every link has one destination and one gesture vocabulary
     Examples:
       | surface | text |
       | note | Preview target |
+      | title | Preview target |
       | see | Preview target |
       | document | Preview target |
       | backlink | Preview source |
@@ -180,3 +186,22 @@ Feature: Every link has one destination and one gesture vocabulary
     And a legacy zoom history entry is restored
     Then the zoomed node is "install"
     And the address is exactly "/zoom/#install"
+
+  Scenario: A visible destination stays in its source pane while another pane is focused
+    Given I open the address "/s/preview.olai/house.olai?f=1"
+    And I open the note of "preview-source"
+    When I activate the unified "note" link with "click"
+    Then pane 0 is focused
+    And pane 0 is showing "/preview.olai"
+    And pane 1 is showing "/house.olai"
+    And the unified destination row "preview-target" is selected in pane 0
+
+  Scenario: A delegated link keeps working after an optional neighbour reconnects
+    Given I prepare the unified "document" surface
+    When I set the preview plugin "outlines" off on disk
+    And I set the preview plugin "outlines" on on disk
+    And I activate the unified "document" link with "click"
+    Then the unified destination row "preview-target" is selected
+    And there are 1 panes
+    When I go back
+    Then the address is exactly "/intent.md"

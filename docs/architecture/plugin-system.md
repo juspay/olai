@@ -5,7 +5,11 @@ Its optional nodes component declares `outlines.references`; outlines provides
 node-home facts and pane-scoped row selection, while navigation owns landing
 policy and pending request validity. Provider withdrawal invalidates outstanding
 answers and reconnection retries unresolved addresses. Content rows encode
-hrefs and do not acquire their own navigation listeners.
+hrefs and do not acquire their own navigation listeners. Hypertext owns the
+opaque-frame bridge: it validates sender identity, href, gesture and finite
+geometry, then lends an anchor in the owning pane to the normal listeners.
+That anchor is removed with the frame or its visible document. The sandbox
+retains `allow-scripts` without `allow-same-origin`.
 
 olai integrates with tools it does not own — kolu, odu, xyne-spaces, Gmail,
 ACP coding agents — and with most of its own features, through **plugins**. A plugin is a

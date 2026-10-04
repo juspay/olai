@@ -100,11 +100,12 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
     const id = next.address.id, key = pane.id
     const ticket = (requests.get(key) ?? 0) + 1
     requests.set(key, ticket)
-    if (provider.reveal(key, id)) {
+    const before = pane.route()
+    const unresolved = before.kind === "at" && before.reveal
+    if (!unresolved && provider.reveal(key, id)) {
       commit(focusAt(workspace(), index), "replace", asTheyWere)
       return true
     }
-    const before = pane.route()
     void provider.home(id).then(file => {
       if (!alive || nodeTargets.read() !== provider || requests.get(key) !== ticket || pane.route() !== before) return
       const at = panes().indexOf(pane), claims = fileClaims()
