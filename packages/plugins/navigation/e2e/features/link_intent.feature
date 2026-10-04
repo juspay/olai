@@ -205,3 +205,18 @@ Feature: Every link has one destination and one gesture vocabulary
     And there are 1 panes
     When I go back
     Then the address is exactly "/intent.md"
+
+  Scenario: A reference followed while outlines is unavailable resolves on its return
+    Given I prepare the unified "document" surface
+    When I open the plugins panel
+    And I switch the plugin "outlines" off
+    And I close the plugins panel
+    And I activate the unified "document" link with "click"
+    Then the address is exactly "/#preview-target"
+    When I open the plugins panel
+    And I switch the plugin "outlines" on
+    And I close the plugins panel
+    Then the unified destination row "preview-target" is selected
+    And the focused pane is drawing the outline "preview.olai"
+    When I go back
+    Then the address is exactly "/intent.md"

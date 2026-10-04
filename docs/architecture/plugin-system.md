@@ -4,7 +4,9 @@ Navigation owns the delegated anchor listener under `Effect.acquireRelease`.
 Its optional nodes component declares `outlines.references`; outlines provides
 node-home facts and pane-scoped row selection, while navigation owns landing
 policy and pending request validity. Provider withdrawal invalidates outstanding
-answers and reconnection retries unresolved addresses. Content rows encode
+answers and reconnection retries unresolved addresses. A reveal awaiting its
+provider is kept as the pane route; resolving it replaces that history entry,
+so a reconnect neither loses the intent nor adds a second Back step. Content rows encode
 hrefs and do not acquire their own navigation listeners. Hypertext owns the
 opaque-frame bridge: it validates sender identity, href, gesture and finite
 geometry, then lends an anchor in the owning pane to the normal listeners.

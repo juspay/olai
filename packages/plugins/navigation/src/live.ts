@@ -106,6 +106,13 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
       commit(focusAt(workspace(), index), "replace", asTheyWere)
       return true
     }
+    // Keep the intent in the workspace while its owner answers. A sibling
+    // can withdraw between the press and the reply; its return must retry the
+    // unresolved route rather than silently losing a press on the old page.
+    if (how === "push") {
+      commit(navigateIn(workspace(), index, next), "push", all => marked(all, index, undefined))
+      return true
+    }
     void provider.home(id).then(file => {
       if (!alive || nodeTargets.read() !== provider || requests.get(key) !== ticket || pane.route() !== before) return
       const at = panes().indexOf(pane), claims = fileClaims()
