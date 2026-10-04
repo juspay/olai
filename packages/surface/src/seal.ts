@@ -507,7 +507,7 @@ const MEASURE = `(function () {
  * test and a reader auditing this should not have to guess which:
  *
  *   - a PLAIN left click, and nothing modified — which is not a rule this file
- *     states. It is `./press.ts`'s `ours`, the app's one answer to what a reader
+ *     states. It is `./press.ts`'s `intentOf`, the app's one answer to what a reader
  *     meant by a press, INTERPOLATED here as its own source: the frame has no
  *     module system, so a function cannot be imported into it, but it can be
  *     shipped. One definition, read by the client and carried into the page,

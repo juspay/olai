@@ -27,7 +27,6 @@ test("the panel's references retract on departure and acquire fresh scoped reade
       return { title: (id: string) => ids().includes(id) ? `Title of ${id}` : null, named: (id: string) => ids().includes(id) ? id : null, told: (id: string) => ids().includes(id) ? id : undefined, want: setIds }
     },
     reveal: () => false, home: async () => undefined,
-    showNode: () => (_id: string) => {},
     failure: () => null,
     focused: () => null,
   })

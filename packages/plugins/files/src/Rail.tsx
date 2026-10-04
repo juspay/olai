@@ -1,3 +1,4 @@
+import { intentOf } from "@olai/surface"
 import { servedDirectory } from "./vault.ts"
 import { TESTID } from "olai-plugin-files/testids"
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
@@ -13,7 +14,7 @@ export function FileRail() { const router = useRouter(); return <>
         label="Open outlines"
         title="Outlines"
         href={router.routes.href(HOME_ROUTE)}
-        onClick={() => setSidebarOpen(true)}
+        onClick={event => { if (intentOf(event) !== null) setSidebarOpen(true) }}
       >
         {/* The tree's own outline glyph (../file/icons.tsx), at the rail's
             size. Both faces of this column already agree about what is OWED;

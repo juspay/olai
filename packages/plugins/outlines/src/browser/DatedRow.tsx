@@ -187,12 +187,12 @@ export function DatedRow(props: {
         data-testid={TESTID.nodeGutter}
         onPointerDown={menu.hold.onPointerDown}
         onContextMenu={menu.hold.onContextMenu}
-        // This row owns its menu; a page-wide link menu leaves its links alone.
+        // The row menu yields anchors to the shared link menu.
         data-menu-owner="outline-row"
         // A tap makes this THE row — the tree's "this is the one" (`./focus.ts`),
         // since a dated row has no caret to say it — and the active row is
         // where a plugin's offer shows on a phone (`OFFER_REVEAL`).
-        onClick={() => selectNode(node().id)}
+        onClick={event => { if (!(event.target instanceof Element && event.target.closest("a[href]"))) selectNode(node().id) }}
         data-active={isFocused(node().id) ? "" : undefined}
       >
         <div class={HANGING_MENU}>

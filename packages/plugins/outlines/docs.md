@@ -147,3 +147,5 @@ submenu. Pointer dismissal and keyboard close gestures still close it normally.
 Focus memory records entries and confirmation controls, not the replaceable
 menu shells visited by mount autofocus (including portalled submenu shells),
 so resuming preserves the chosen entry.
+
+Dated rows and tree rows yield links to navigation and the link menu, including touch long presses. Pressing a link never also selects its containing row.

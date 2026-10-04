@@ -335,7 +335,7 @@ test("the handler claims the kinds the registry says have pages", () => {
 /**
  * THE PRESS RULE IS SHIPPED, NOT RETYPED — and this is what says so.
  *
- * `./press.ts`'s `ours` is the app's one answer to what a reader meant by a
+ * `./press.ts`'s `intentOf` is the app's one answer to what a reader meant by a
  * press, and the injected handler gets it by having its SOURCE interpolated
  * (`Function.prototype.toString`), because a frame with no module system cannot
  * import a function. That is one definition rather than two, which is the point
@@ -385,11 +385,11 @@ const PRESSES: ReadonlyArray<Press> = BOTH.flatMap((defaultPrevented) =>
 test("the press rule the seal ships is the press rule this app applies", () => {
   // A BARE `return` is what the handler does with a press it refuses, so what
   // comes back for one is `undefined` rather than `false` — but that is the
-  // handler's shape, not this function's: `ours` returns a boolean either way,
+  // handler's shape, not this function's: `intentOf` returns an intent or null,
   // and any disagreement here is a real one.
   expect(PRESSES.filter((press) => shipped(press) !== intentOf(press))).toEqual([])
   // …and the agreement is over presses of both kinds: a rule that claimed
-  // everything, or nothing, would agree with a broken `ours` and pass above.
+  // everything, or nothing, would agree with a broken `intentOf` and pass above.
   expect(PRESSES.filter(press => intentOf(press) !== null)).toHaveLength(3)
 })
 

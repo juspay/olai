@@ -5,9 +5,8 @@ import { rowElements } from "./row-elements.ts"
 import { Result } from "effect"
 import { type Accessor, createSignal, createSelector, createContext, createComponent, useContext, type JSX } from "solid-js"
 
-import { atNode } from "olai-plugin-navigation/routes"
 import { runAsync } from "@olai/web/client/run.ts"
-import { useGo, useShown } from "olai-plugin-navigation/routing"
+import { useShown } from "olai-plugin-navigation/routing"
 
 import { client } from "../client.ts"
 
@@ -93,9 +92,5 @@ export const revealNode = (pane: string, id: string): boolean => {
 export const nodeHome = async (id: string): Promise<string | null | undefined> => {
   const outcome = await runAsync(client().procedures.nodes.homes({ ids: [id], files: [] }))
   return Result.isSuccess(outcome) ? (outcome.success.homes.find(one => one.id === id)?.file ?? null) : undefined
-}
-export const useShowNode = (): ((id: string) => void) => {
-  const go = useGo()
-  return id => go(atNode(id))
 }
 export const clearFocus = (): void => { setFocused(null) }

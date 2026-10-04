@@ -1,8 +1,7 @@
-import { servedDirectory } from "../../vault.ts"
 import type { Router } from "olai-plugin-navigation/routing"
 import { agentReadings } from "../../agents/reading.ts"
 import { needing } from "../../agents/attention-order.ts"
-import { rowOf } from "../../agents/focus.ts"
+import { atNode } from "olai-plugin-navigation/routes"
 import { unfold } from "../../agents/folding.ts"
 
 /** The notification intentionally identifies no conversation. */
@@ -15,9 +14,7 @@ export const createReveal = (router: Router) => {
       return
     }
     held?.visit(first.id)
-    const claims = servedDirectory()?.claims()
-    if (claims === undefined) return
-    router.go(rowOf(claims, first))
+    router.go(atNode(first.id))
     unfold(first.id)
     held?.reveal(first.id)
   }

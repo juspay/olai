@@ -20,7 +20,7 @@
  *
  * The value travels on {@link references} now — a service outlines offers and
  * chat's `references` component declares. What is left here is the SHAPE and
- * the three pure adapters over an accessor a caller supplies, because the
+ * the pure adapters over an accessor a caller supplies, because the
  * absent arm is the interesting part of each of them and is worth having once
  * rather than three times in the consuming package.
  *
@@ -28,7 +28,7 @@
  *
  * A panel with no outline row mounted keeps every reference it is holding and
  * draws the ids it carries: `named` answers `null`, `want` asks nobody,
- * `showNode` does nothing and the failure line is empty. That is the same
+ * the failure line is empty. That is the same
  * reading these adapters have always had — what changed is that it is now
  * reached because a DECLARED provider is absent rather than because a module
  * variable happens to be `undefined`.
@@ -49,7 +49,6 @@ export interface References {
   readonly home: (id: string) => Promise<string | null | undefined>
   readonly focused: Accessor<string | null>
   readonly declare: (failure?: (message: string, ids: ReadonlyArray<string>) => void) => Declared
-  readonly showNode: () => (id: string) => void
   readonly failure: Accessor<string | null>
 }
 export const references = serviceTag<References>("outlines.references")
@@ -65,14 +64,6 @@ export const declaredFrom = (
 ): Declared => {
   const reader = createMemo(() => provider()?.declare(failure) ?? absent)
   return { title: id => reader().title(id), named: id => reader().named(id), want: ids => reader().want(ids), told: id => reader().told(id) }
-}
-
-/** ...and the press that shows one, which does nothing at all with no outline. */
-export const showNodeFrom = (
-  provider: Accessor<References | undefined>,
-): ((id: string) => void) => {
-  const show = createMemo(() => provider()?.showNode())
-  return id => show()?.(id)
 }
 
 /** ...and what the outline could not name, or nothing. */

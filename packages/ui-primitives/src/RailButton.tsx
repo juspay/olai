@@ -10,7 +10,7 @@ export function RailButton(props: {
    * button any tenant's vocabulary. */
   readonly data?: { readonly [key: `data-${string}`]: string | undefined }
   readonly href?: string
-  readonly onClick?: () => void
+  readonly onClick?: (event: MouseEvent) => void
   readonly children: JSX.Element
 }) {
   return (
@@ -25,7 +25,7 @@ export function RailButton(props: {
       data-testid={props.testid}
       aria-label={props.label}
       title={props.title}
-      onClick={() => props.onClick?.()}
+      onClick={(event: MouseEvent) => props.onClick?.(event)}
     >
       {props.children}
     </Dynamic>

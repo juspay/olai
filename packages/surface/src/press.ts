@@ -13,4 +13,3 @@ export const intentOf = (press: Press): Intent | null => {
   if (press.altKey) return press.shiftKey ? "new-pane" : "right"
   return press.shiftKey ? null : "go"
 }
-export const ours = (press: Press): boolean => intentOf(press) === "go"

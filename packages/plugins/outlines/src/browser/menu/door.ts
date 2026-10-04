@@ -120,10 +120,10 @@ export const createMenuDoor = (): MenuDoor => {
   return {
     hold: {
       onPointerDown: (event) => {
-        if (onTheHandle(event)) return
+        if (onTheHandle(event) || (event.target instanceof Element && event.target.closest("a[href]"))) return
         press.onPointerDown(event)
       },
-      onContextMenu: press.onContextMenu,
+      onContextMenu: event => { if (!(event.target instanceof Element && event.target.closest("a[href]"))) press.onContextMenu(event) },
     },
     line: (el) => {
       line = el

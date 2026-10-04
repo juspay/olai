@@ -277,20 +277,6 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     revealed()
   })
 
-  /** An id the agent named, pressed — shown, or nothing when the press landed
-   *  on the words around one.
-   *
-   *  ONE listener on the pane rather than a handler per span, because the spans
-   *  are inside rendered markdown and belong to no component: the same
-   *  arrangement a relative link between two documents has on the main pane,
-   *  for the same reason. The panel's OWN references are buttons and do not
-   *  come through here (`./Reference.tsx`); both ends call the same
-   *  `useShowNode`.
-   *
-   *  It answers whether it CLAIMED the press, so the keyboard half below can
-   *  preventDefault on exactly the presses it took rather than asking the same
-   *  question twice about one event. */
-
   /**
    * What is drawn above what, for the whole list at once.
    *
