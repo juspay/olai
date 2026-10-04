@@ -26,7 +26,7 @@ export function LinkMenu(props: { readonly tabs: TabsState; readonly router: Nav
     const anchor = element.closest("a[href]")
     if (!(anchor instanceof HTMLAnchorElement)) return
     if (anchor.closest(`[data-testid="${TESTID.tabsStrip}"]`) !== null) return
-    const target = targetOf(props.router, anchor)
+    const target = targetOf(props.router, anchor, props.router)
     if (!target) return
     event.preventDefault()
     setOpen({ x: event.clientX, y: event.clientY, anchor, workspace: workspaceFor(target.destination) })

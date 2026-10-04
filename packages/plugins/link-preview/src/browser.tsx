@@ -38,7 +38,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     if (!(at instanceof Element) || at.closest(`${CARD}, ${EDITOR}`)) return
     const element = at.closest<HTMLAnchorElement>('a[href]')
     if (!element || element.closest(EDITOR)) return
-    const target = targetOf(nav, element)
+    const target = targetOf(nav, element, nav)
     const route = target?.destination.kind === "page" ? target.destination.route : undefined
     return route && matchPreview(slots.read(linkPreviews), route)
       ? { element, route, pane: target!.index }

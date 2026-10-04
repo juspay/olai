@@ -7,7 +7,7 @@ export const followLinks = (navigation: NavigationRouter): (() => void) => {
     const intent = intentOf(event)
     if (intent === null || !(event.target instanceof Element)) return
     const anchor = event.target.closest<HTMLAnchorElement>("a[href]")
-    const target = anchor && targetOf(navigation, anchor)
+    const target = anchor && targetOf(navigation, anchor, navigation)
     if (!target) return
     event.preventDefault()
     follow(target, intent)

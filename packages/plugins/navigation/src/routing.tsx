@@ -1,4 +1,4 @@
-import type { Intent } from "@olai/surface"
+import { localLink, type Intent } from "@olai/surface"
 /** Stateless route consumers. They receive the navigation provider through
  * context; importing this contract starts no history, observer or timer. */
 import { type Accessor,createContext,createMemo,type JSX,useContext } from "solid-js"
@@ -317,14 +317,14 @@ export interface LinkTarget {
   readonly anchor: HTMLAnchorElement
   readonly tabs?: NavigationRouter
 }
-export const targetOf = (navigation: Router, anchor: HTMLAnchorElement): LinkTarget | undefined => {
-  const href = anchor.getAttribute("href")
-  if (!href || href.startsWith("#") || anchor.hasAttribute("download") || (anchor.target && anchor.target !== "_self")) return
-  const destination = navigation.routes.routeIn(anchor.href)
+/** `here` is the router the reader holds; `tabs`, the window's navigation, when
+ *  the anchor may sit in any of its lanes. */
+export const targetOf = (here: Router, anchor: HTMLAnchorElement, tabs?: NavigationRouter): LinkTarget | undefined => {
+  if (localLink(anchor)) return
+  const destination = here.routes.routeIn(anchor.href)
   if (!destination) return
-  const tabs = "lanes" in navigation ? navigation as NavigationRouter : undefined
   const id = anchor.closest<HTMLElement>("[data-pane-id]")?.dataset.paneId
-  const router = id ? (tabs?.lanes() ?? [navigation]).find(lane => lane.panes().some(pane => pane.id === id)) : navigation
+  const router = id ? (tabs?.lanes() ?? [here]).find(lane => lane.panes().some(pane => pane.id === id)) : here
   if (!router || !router.shown()) return
   const index = id ? router.panes().findIndex(pane => pane.id === id) : router.focusIndex()
   return index < 0 ? undefined : { destination, router, index, anchor, tabs }

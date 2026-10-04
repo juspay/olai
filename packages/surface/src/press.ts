@@ -1,4 +1,4 @@
-/** Shared with the seal by source injection: keep intentOf self-contained. */
+/** Shared with the seal by source injection: keep both functions self-contained. */
 export interface Press {
   readonly defaultPrevented: boolean
   readonly button: number
@@ -13,3 +13,7 @@ export const intentOf = (press: Press): Intent | null => {
   if (press.altKey) return press.shiftKey ? "new-pane" : "right"
   return press.shiftKey ? null : "go"
 }
+/** A link the app never answers: a page-local `#fragment` (its content's), a
+ *  download, or one aimed at another browsing context (the browser's). */
+export const localLink = (link: Pick<HTMLAnchorElement, "getAttribute" | "hasAttribute" | "target">): boolean =>
+  (link.getAttribute("href") ?? "").startsWith("#") || link.hasAttribute("download") || (link.target !== "" && link.target !== "_self")

@@ -166,7 +166,7 @@
 
 
 import { mediaPath, MEDIA_PREFIX } from "./media.ts"
-import { intentOf, type Intent } from "./press.ts"
+import { intentOf, localLink, type Intent } from "./press.ts"
 
 /**
  * WHAT THE FRAME SAYS ABOUT ITS HEIGHT, and the whole of it: this prefix, then
@@ -570,9 +570,10 @@ const MEASURE = `(function () {
 const FOLLOW = (extensions: ReadonlyArray<string>) => `(function () {
   var pages = ${JSON.stringify(extensions)}
   var intentOf = ${intentOf.toString()}
+  var localLink = ${localLink.toString()}
   function target(event) {
     var link = event.target && event.target.closest ? event.target.closest("a[href]") : null
-    if (!link || link.getAttribute("href").startsWith("#") || link.hasAttribute("download") || (link.target && link.target !== "_self")) return
+    if (!link || localLink(link)) return
     var at
     try { at = new URL(link.href) } catch (_) { return }
     if (at.protocol !== location.protocol || at.host !== location.host) return

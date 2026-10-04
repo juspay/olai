@@ -63,7 +63,7 @@ export const addressIn = (
   /** The grammar to read the address with — the router's own, handed in rather
    *  than reached for, because a plugin's URL is a question about the mounted
    *  roster ({@link Routing}). */
-  routes: Routing | WorkspaceRouting,
+  routes: WorkspaceRouting,
   title: string,
 ): Route | undefined => {
   const text = title.trim()
@@ -72,7 +72,7 @@ export const addressIn = (
   if (!text.startsWith("/") && !text.startsWith("[")) return undefined
   const address = addressWritten(text)
   if (/\s/.test(address)) return undefined
-  return ("pageIn" in routes ? routes.pageIn(address) : routes.routeIn(address)) ?? undefined
+  return routes.pageIn(address) ?? undefined
 }
 
 /** The name written INTO a title, for the address somebody named — `undefined`
