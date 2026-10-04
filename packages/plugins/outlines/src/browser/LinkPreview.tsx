@@ -1,37 +1,28 @@
 /** A card owns this reading; none of the pane's edit callbacks or editor
  * memories enter this subtree. Rows are keyed by their stable placement key. */
 import { createMemo, createEffect, For, Show } from "solid-js"
-import { type Row, type LocatedRegular, printAddress } from "@olai/format"
+import { type Row, printAddress } from "@olai/format"
+import { atNode } from "olai-plugin-navigation/routes"
 import type { Route } from "olai-plugin-navigation/contract"
 import { createReading, ReadingProvider } from "./reading.tsx"
 import { createDeclared } from "./declared.ts"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { Note } from "./Note.tsx"
 
-const rowWithId = (rows: ReadonlyArray<Row>, id: string, trail: ReadonlyArray<LocatedRegular> = []):
-  { readonly row: Row; readonly trail: ReadonlyArray<LocatedRegular> } | undefined => {
-  for (const row of rows) {
-    if (row.at.node.id === id) return { row, trail }
-    const child = rowWithId(row.children, id,
-      row.kind === "node" || row.kind === "mirror" ? [...trail, row.shows] : trail)
-    if (child) return child
-  }
-}
 export function OutlineLinkPreview(props: { readonly route: Route }) {
   const address = () => props.route.kind === "at" ? props.route.address : null
-  const reading = createReading(() => ({ kind: "at", address: address() }))
+  // No wire face offers bounded top-level rows plus a count. Whole-outline
+  // cards retain the page lease; qualified rows use only the zoomed node face.
+  const reading = createReading(() => { const at = address(); return at?.kind === "row" ? atNode(at.id) : { kind: "at", address: at } })
   const named = createDeclared()
   const id = () => { const at = address(); return at?.kind === "node" || at?.kind === "row" ? at.id : undefined }
   createEffect(() => named.want(id() ? [id()!] : []))
   const shown = () => reading.page()?.shows
   const subject = createMemo(() => {
     const page = shown()
-    if (page?.kind === "node" && page.zoomed.kind === "node") return page.zoomed
     const at = address()
-    if (page?.kind === "outline" && at?.kind === "row") {
-      const found = rowWithId(page.rows, at.id)
-      if (found && (found.row.kind === "node" || found.row.kind === "mirror")) return { ...found.row, trail: found.trail }
-    }
+    if (page?.kind === "node" && page.zoomed.kind === "node"
+      && (at?.kind !== "row" || page.zoomed.shows.file === at.path)) return page.zoomed
     return undefined
   })
   const rows = () => {

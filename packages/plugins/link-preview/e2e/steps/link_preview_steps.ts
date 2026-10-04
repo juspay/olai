@@ -9,7 +9,7 @@ import { TESTID } from "../../src/testids.ts"
 const card = (world: OlaiWorld) => world.page.getByTestId(TESTID.linkPreview)
 const link = (world: OlaiWorld, label: string) => world.page.locator('[data-testid="desc"] a').getByText(label, { exact: true }).first()
 const records = () => [
-  { id: "preview-source", ord: "a0", title: "Preview source", desc: "[target](/#preview-target) [dead](/#preview-missing) [row](/preview.olai#preview-target) [outline](/preview.olai) [document](/preview.md) [heading](/preview.md#section-1) [missing heading](/preview.md#absent) [local](#preview-target) [external](https://example.com)", see: ["preview-target"] },
+  { id: "preview-source", ord: "a0", title: "Preview source", desc: "[target](/#preview-target) [dead](/#preview-missing) [row](/preview.olai#preview-target) [wrong row](/house.olai#preview-target) [outline](/preview.olai) [document](/preview.md) [heading](/preview.md#section-1) [missing heading](/preview.md#absent) [local](#preview-target) [external](https://example.com)", see: ["preview-target"] },
   { id: "preview-parent", ord: "a1", title: "Preview parent" },
   { id: "preview-target", parent: "preview-parent", ord: "a0", title: "Preview target #sample", todo: "2026-10-04", date: "2026-10-04", desc: "A live note with [nested](/#preview-destination).\n\n- [ ] Cannot toggle this\n\nMore prose." },
   ...["one", "two", "three", "four"].map((word, i) => ({ id: `preview-child-${i}`, parent: "preview-target", ord: `a${i}`, title: `Child ${word}`, todo: "2026-10-04" })),
@@ -100,3 +100,8 @@ When("I remove the preview source links on disk", function (this: OlaiWorld) {
 })
 
 When("I hover the editing row permalink", async function (this: OlaiWorld) { await this.page.locator('[data-editing="true"] [data-testid="zoom"]').hover() })
+
+Then("the qualified preview requested only the target node", function (this: OlaiWorld) {
+  assert.ok(this.socketAskedSince("page/get", '"kind":"node"', "preview-target") > 0)
+  assert.equal(this.socketAskedSince("page/get", '"kind":"row"', "preview-target"), 0)
+})

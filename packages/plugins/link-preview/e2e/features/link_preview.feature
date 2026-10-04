@@ -51,9 +51,14 @@ Feature: Live read-only internal link previews
     Then the link preview contains "Nothing at #preview-missing"
     And there is exactly one link preview
 
+  @wire
   Scenario: Qualified row and outline file previews
+    Given I mark the wire
     When I hover the preview link "row"
     Then the link preview contains "Preview target"
+    And the qualified preview requested only the target node
+    When I hover the preview link "wrong row"
+    Then the link preview contains "Nothing at house.olai#preview-target"
     When I hover the preview link "outline"
     Then the link preview contains "Preview parent"
     And the link preview contains "+1 more"
