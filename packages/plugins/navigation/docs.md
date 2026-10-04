@@ -226,7 +226,9 @@ the route a renderer stamped as `data-route-href` (`@olai/web`'s `ROUTE_HREF`)
 over the `href`. That is how an in-document fragment such as a document's
 `#slug` link or contents line, whose `href` is the page-local id a plain click
 scrolls to, still opens its heading on the right. Navigation owns the reading;
-the renderer only writes the attribute.
+the renderer only writes the attribute. The two readings live in the static
+`written` contract (plain data in and out, no service or lifetime), which
+`routing` re-exports beside `useFollow`.
 
 `navigation.page()` honours an enclosing `RouterProvider`; without one it uses
 the front lane. `usePane()` supplies the id, reactive index and mounted element.

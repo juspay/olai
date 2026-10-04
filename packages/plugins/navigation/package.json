@@ -9,6 +9,7 @@
     "./browser": "./src/browser.tsx",
     "./*": "./src/*",
     "./routing": "./src/routing.tsx",
+    "./written": "./src/written.ts",
     "./layout-press": "./src/layout-press.ts",
     "./routes": "./src/routes.ts",
     "./workspace": "./src/workspace.ts",
@@ -46,6 +47,7 @@
   "olai": {
     "contracts": [
       "./routing",
+      "./written",
       "./layout-press",
       "./routes",
       "./workspace",
