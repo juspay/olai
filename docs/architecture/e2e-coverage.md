@@ -530,3 +530,6 @@ live disk updates and deletion, card identity, subscription release, nested link
 ordinary/split navigation, plugin removal/return and content withdrawal/return.
 Matching unit tests cover priority, absence, unsupported targets and deterministic
 ties. The existing split-navigation contract is Alt-click, not Shift alone.
+`link_preview_chat.feature` covers real agent code references, their unchanged
+in-place click behavior, and conversation preview priority/turns without a composer.
+The general feature also exercises actual see-links and backlinks.

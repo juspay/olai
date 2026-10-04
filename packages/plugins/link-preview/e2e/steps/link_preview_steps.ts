@@ -67,3 +67,11 @@ When("I set the preview plugin {string} {word} on disk", async function (this: O
   await this.page.waitForTimeout(700)
 })
 Then("the preview overlay is removed", async function (this: OlaiWorld) { await this.page.locator('[data-link-preview-overlay]').waitFor({ state: "detached" }) })
+When("I hover the preview see link", async function (this: OlaiWorld) { await this.page.locator('[data-testid="see-refs"] a').first().hover() })
+When("I expand the preview backlinks", async function (this: OlaiWorld) {
+  const summary = this.page.getByTestId("backlinks-summary")
+  await summary.click()
+})
+When("I hover the preview backlink", async function (this: OlaiWorld) { await this.page.locator('[data-testid="backlinks"] a[href="/#preview-source"]').first().hover() })
+When("I hover the chat preview reference {string}", async function (this: OlaiWorld, id: string) { await this.page.locator(`code[data-node-ref="${id}"]`).last().hover() })
+When("I hover the conversation preview link {string}", async function (this: OlaiWorld, id: string) { await this.page.locator(`a[href="/#${id}"]`).first().hover() })

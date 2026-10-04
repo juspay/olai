@@ -20,7 +20,8 @@
     "olai-plugin-ui-renderer": "workspace:*",
     "olai-plugin-navigation": "workspace:*",
     "olai-plugin-layout": "workspace:*",
-    "@kobalte/core": "^0.13.13"
+    "@kobalte/core": "^0.13.13",
+    "@olai/ui-primitives": "workspace:*"
   },
   "devDependencies": {
     "@olai/tests": "workspace:*"

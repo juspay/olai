@@ -158,3 +158,12 @@ Feature: Live read-only internal link previews
     Then the link preview stays closed
     When I focus the preview link "target"
     Then the link preview stays closed
+
+  Scenario: See links and backlinks use the same preview renderer
+    When I hover the preview see link
+    Then the link preview contains "Preview target"
+    When I open the node "preview-target"
+    And I expand the preview backlinks
+    And I hover the preview backlink
+    Then the link preview contains "Preview source"
+    And there should be no page errors

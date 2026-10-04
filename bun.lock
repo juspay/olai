@@ -600,6 +600,7 @@
         "@kobalte/core": "^0.13.13",
         "@olai/plugin-api": "workspace:*",
         "@olai/web": "workspace:*",
+        "@olai/ui-primitives": "workspace:*",
         "effect": "4.0.0",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-navigation": "workspace:*",

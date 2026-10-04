@@ -1,17 +1,19 @@
 /** A card owns this reading; none of the pane's edit callbacks or editor
  * memories enter this subtree. Rows are keyed by their stable placement key. */
 import { createMemo, createEffect, For, Show } from "solid-js"
-import { type Row, printAddress } from "@olai/format"
+import { type Row, type LocatedRegular, printAddress } from "@olai/format"
 import type { Route } from "olai-plugin-navigation/contract"
 import { createReading, ReadingProvider } from "./reading.tsx"
 import { createDeclared } from "./declared.ts"
 import { NodeTitle } from "./NodeTitle.tsx"
 import { Note } from "./Note.tsx"
 
-const rowWithId = (rows: ReadonlyArray<Row>, id: string): Row | undefined => {
+const rowWithId = (rows: ReadonlyArray<Row>, id: string, trail: ReadonlyArray<LocatedRegular> = []):
+  { readonly row: Row; readonly trail: ReadonlyArray<LocatedRegular> } | undefined => {
   for (const row of rows) {
-    if (row.at.node.id === id) return row
-    const child = rowWithId(row.children, id)
+    if (row.at.node.id === id) return { row, trail }
+    const child = rowWithId(row.children, id,
+      row.kind === "node" || row.kind === "mirror" ? [...trail, row.shows] : trail)
     if (child) return child
   }
 }
@@ -27,8 +29,8 @@ export function OutlineLinkPreview(props: { readonly route: Route }) {
     if (page?.kind === "node" && page.zoomed.kind === "node") return page.zoomed
     const at = address()
     if (page?.kind === "outline" && at?.kind === "row") {
-      const row = rowWithId(page.rows, at.id)
-      if (row && (row.kind === "node" || row.kind === "mirror")) return { ...row, trail: [] }
+      const found = rowWithId(page.rows, at.id)
+      if (found && (found.row.kind === "node" || found.row.kind === "mirror")) return { ...found.row, trail: found.trail }
     }
     return undefined
   })
@@ -36,9 +38,9 @@ export function OutlineLinkPreview(props: { readonly route: Route }) {
     const at = address(), page = shown()
     return subject()?.children ?? (page?.kind === "outline" && at?.kind === "document" ? page.rows : [])
   }
-  const file = () => subject()?.shows.file ?? (address()?.kind !== "node" ? (address() as { path?: string } | null)?.path : undefined) ?? ""
-  const missing = () => !reading.pending() && reading.page() !== undefined && !subject() && shown()?.kind !== "outline"
-    || (!reading.pending() && address()?.kind === "row" && !subject())
+  const file = () => { const at = address(); return subject()?.shows.file ?? (at && at.kind !== "node" ? at.path : "") }
+  const missing = () => !reading.pending() && reading.page() !== undefined && !subject()
+    && (shown()?.kind !== "outline" || address()?.kind === "row")
   return <ReadingProvider reading={reading}>
     <Show when={!missing()} fallback={<><strong>Nothing at {address() ? printAddress(address()!) : "this link"}</strong><p class="text-sm text-muted">The target is missing or cannot be resolved.</p></>}>
       <div class="mb-1 text-xs text-muted">{file()}{subject()?.trail.map(parent => ` › ${parent.node.title}`).join("")}</div>
@@ -46,6 +48,7 @@ export function OutlineLinkPreview(props: { readonly route: Route }) {
       <Show when={subject()}>{node => <>
         <div class="my-1 flex gap-2 text-xs text-muted">
           <Show when={node().status}><span class="rounded border border-rule/60 px-1">{node().status}</span></Show>
+          <Show when={node().status}>{status => <span>{node().shows.node[status()]}</span>}</Show>
           <Show when={node().shows.node.date}><span>{node().shows.node.date}</span></Show>
           <Show when={node().progress}>{progress => <span>{progress().done}/{progress().total} done</span>}</Show>
         </div>

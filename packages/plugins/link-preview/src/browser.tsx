@@ -1,6 +1,6 @@
 import { definePlugin } from "@olai/plugin-api"
 import { Effect } from "effect"
-import { createMemo, createSignal, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js"
 import { Dynamic, Portal } from "solid-js/web"
 import { Popper } from "@kobalte/core/popper"
 import { navigation, linkPreviews, type Route, type LinkPreview } from "olai-plugin-navigation/contract"
@@ -83,6 +83,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
   }
   function Preview() {
     onCleanup(close)
+    createEffect(on(() => nav.workspace(), close, { defer: true }))
     const matched = createMemo(() => { const at = target(); return at && matchPreview(slots.read(linkPreviews), at.route) })
     return <RouterProvider router={nav}><Show when={target()} keyed>{at =>
       <Show when={matched()} keyed>{renderer => {
