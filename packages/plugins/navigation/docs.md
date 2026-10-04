@@ -79,7 +79,11 @@ pane. The optional `nodes` component declares `outlines.references`, which
 answers row visibility, selection and a node's home file; navigation owns the
 pending request and drops an answer once its pane has moved, its provider was
 withdrawn or the lane was disposed. An answer, including absence, is kept for
-that route and provider; only a returning provider retries. While a reveal is
+that route and provider; only a returning provider retries. An answer that
+cannot be acted on yet — busy because the connection was replaced at boot, or
+a home file whose suffix the claim table does not hold yet — is asked again
+on a short lane-owned timer, and after a bounded number of tries the node is
+reported missing. While a reveal is
 unresolved the pane says “Finding…”, and a missing node says “Page not found” —
 never the zoom page.
 
