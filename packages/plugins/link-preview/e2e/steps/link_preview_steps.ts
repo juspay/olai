@@ -82,3 +82,5 @@ When("I dismiss the link preview with Escape", async function (this: OlaiWorld) 
 When("I remove the preview source links on disk", function (this: OlaiWorld) {
   write(this, records().map(row => row.id === "preview-source" ? { ...row, desc: "The links have been removed." } : row))
 })
+
+When("I hover the editing row permalink", async function (this: OlaiWorld) { await this.page.locator('[data-editing="true"] [data-testid="zoom"]').hover() })

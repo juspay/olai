@@ -13,7 +13,7 @@ import { name } from "./index.ts"
 import { TESTID } from "./testids.ts"
 import { matchPreview, OPEN_MS, CLOSE_MS } from "./matching.ts"
 
-interface Target { readonly element: HTMLElement; readonly route: Route; readonly pane: number }
+interface Target { element: HTMLElement; readonly route: Route; readonly pane: number }
 const CARD = "[data-link-preview]"
 const EDITOR = '[contenteditable]:not([contenteditable="false"]), [data-editing="true"]'
 
@@ -98,12 +98,25 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     return <RouterProvider router={nav}><Show when={target()} keyed>{at =>
       <Show when={matched()} keyed>{renderer => {
         const [content, setContent] = createSignal<HTMLElement>()
+        const [anchor, setAnchor] = createSignal(at.element)
         // Live edits can remove an anchor without a pointerout event. Its card
         // must release immediately, rather than reading at a detached element.
-        const removed = new MutationObserver(() => { if (!at.element.isConnected) close() })
+        const parent = at.element.parentElement
+        const href = at.element.getAttribute("href")
+        const node = at.element.getAttribute("data-node-ref")
+        const removed = new MutationObserver(() => {
+          if (at.element.isConnected) return
+          // Markdown can replace its HTML when membership changes. Follow the
+          // same link in that owned block without remounting its live reading.
+          const replacement = parent?.isConnected ? [...parent.querySelectorAll<HTMLElement>("a[href], code[data-node-ref]")]
+            .find(element => element.getAttribute("href") === href && element.getAttribute("data-node-ref") === node) : undefined
+          if (!replacement) { close(); return }
+          at.element = replacement
+          setAnchor(replacement)
+        })
         removed.observe(document.body, { childList: true, subtree: true })
         onCleanup(() => removed.disconnect())
-        return <Popper anchorRef={() => at.element} contentRef={content} placement="bottom-start" gutter={6}>
+        return <Popper anchorRef={anchor} contentRef={content} placement="bottom-start" gutter={6}>
           <Portal mount={root}><Popper.Positioner>
             <aside ref={setContent} data-link-preview="" data-testid={TESTID.linkPreview}
               aria-label="Link preview" class="w-[min(24rem,90vw)] rounded-surface border border-rule/60 bg-panel shadow-raised text-ink">

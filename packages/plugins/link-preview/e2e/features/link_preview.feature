@@ -178,7 +178,7 @@ Feature: Live read-only internal link previews
     Given I open the outline "preview.olai"
     When I open the note of "preview-source"
     And I click the title of "preview-source"
-    And I hover the preview see link
+    And I hover the editing row permalink
     Then the link preview stays closed
 
   Scenario: A nested link belongs to the hovered pane even if its neighbour is focused
