@@ -1,16 +1,21 @@
 /**
  * What a press on a link a reader WROTE is asking for — read off the anchor,
  * with no component and no router in hand, so it is plain data in and out
- * (`./routing.tsx` re-exports it beside `useFollow`, which answers it).
+ * (`../routing.tsx` re-exports it beside `useFollow`, which answers it).
+ *
+ * Under `contracts/` because it is a helper of the `routing` door rather than a
+ * door of its own: the bundle fence lets a declared contract reach its
+ * package's `src/contracts/`, so no new public export is needed for a module
+ * split out only so its test can run without JSX.
  */
 import { ours,ROUTE_HREF,splitClick } from "@olai/web/client/press.ts"
-import type { Route,Routing } from "./routes.ts"
+import type { Route,Routing } from "../routes.ts"
 
 /**
  * The page a click on a link inside RENDERED MARKDOWN is asking for, or `null`
  * for one to leave alone.
  *
- * Same rule as `./routing.tsx`'s `Link`: a plain press is in-place in this pane; the
+ * Same rule as `../routing.tsx`'s `Link`: a plain press is in-place in this pane; the
  * caller decides what to do with it. Split presses are not this function's
  * — they fail `ours`, so the pane's own listener can see Alt and open
  * right without this claiming the event as a same-pane go.

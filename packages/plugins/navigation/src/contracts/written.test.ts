@@ -9,8 +9,8 @@
 import { ROUTE_HREF } from "@olai/web/client/press.ts"
 import { afterAll, beforeAll, expect, test } from "bun:test"
 
-import { atFile } from "./routes.ts"
-import { routingIn } from "./routes.testlib.ts"
+import { atFile } from "../routes.ts"
+import { routingIn } from "../routes.testlib.ts"
 import { followed, followedSplit } from "./written.ts"
 
 class FakeElement {

@@ -1,7 +1,7 @@
 /** Stateless route consumers. They receive the navigation provider through
  * context; importing this contract starts no history, observer or timer. */
 import { ours,splitClick } from "@olai/web/client/press.ts"
-import { followed, followedSplit } from "./written.ts"
+import { followed, followedSplit } from "./contracts/written.ts"
 import { type Accessor,createContext,createMemo,type JSX,useContext } from "solid-js"
 import type { Landing } from "./landing.ts"
 import { usePane } from "./pane/context.tsx"
@@ -284,7 +284,7 @@ export interface LinkProps {
   readonly children?: JSX.Element
 }
 
-export { followed, followedSplit } from "./written.ts"
+export { followed, followedSplit } from "./contracts/written.ts"
 
 /**
  * TAKE a click on a link inside rendered markdown — the pair above, answered.
