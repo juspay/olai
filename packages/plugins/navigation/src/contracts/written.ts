@@ -8,7 +8,7 @@
  * package's `src/contracts/`, so no new public export is needed for a module
  * split out only so its test can run without JSX.
  */
-import { ours,ROUTE_HREF,splitClick } from "@olai/web/client/press.ts"
+import { destinationOf,ours,splitClick } from "@olai/web/client/press.ts"
 import type { Route,Routing } from "../routes.ts"
 
 /**
@@ -27,25 +27,25 @@ const routeFrom = (
   routes: Routing,
   event: MouseEvent,
   claimed: (event: MouseEvent) => boolean,
-  /** Whether the anchor's stamped route ({@link ROUTE_HREF}) answers before
-   *  its `href`. Only a split asks: a plain press on an in-page fragment is
-   *  the browser's scroll, and must stay one. */
-  stamped: boolean,
+  /** Which address of the anchor this press follows. */
+  read: (anchor: Element) => string | null,
 ): Route | null => {
   if (!claimed(event)) return null
   const target = event.target
   if (!(target instanceof Element)) return null
   const anchor = target.closest("a")
-  const href = (stamped ? anchor?.getAttribute(ROUTE_HREF) : null) ?? anchor?.getAttribute("href")
-  return href === undefined || href === null ? null : routes.routeIn(href)
+  const href = anchor === null ? null : read(anchor)
+  return href === null ? null : routes.routeIn(href)
 }
 
+/** A plain press reads the `href` alone: on an in-page fragment that is the
+ *  browser's own scroll, and must stay one. */
 export const followed = (routes: Routing, event: MouseEvent): Route | null =>
-  routeFrom(routes, event, ours, false)
+  routeFrom(routes, event, ours, (anchor) => anchor.getAttribute("href"))
 
 /** The route an Alt+click on a written link is asking to open to the right,
  *  or `null`. Pair of {@link followed}, for the press `ours` declines — and
  *  the one that reads an in-page fragment's stamped route, so Alt+click on
  *  `[x](#beds)` or a line of the contents opens that heading on the right. */
 export const followedSplit = (routes: Routing, event: MouseEvent): Route | null =>
-  routeFrom(routes, event, (event) => splitClick(event) !== null, true)
+  routeFrom(routes, event, (event) => splitClick(event) !== null, destinationOf)
