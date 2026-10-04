@@ -172,6 +172,9 @@ export const workspaceOf = (routing: Omit<Routing, "routeIn">, address: string):
 export type AddressTarget =
   | { readonly kind: "page"; readonly route: Route }
   | { readonly kind: "layout"; readonly workspace: Workspace }
+/** The whole workspace a target opens when it is given a tab of its own. */
+export const workspaceFor = (target: AddressTarget): Workspace =>
+  target.kind === "layout" ? target.workspace : lone(target.route)
 
 export interface WorkspaceRouting extends Omit<Routing, "routeIn"> {
   readonly pageIn: Routing["routeIn"]

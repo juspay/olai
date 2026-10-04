@@ -183,10 +183,7 @@ export function Result(props: {
       // on mousedown keeps focus where it is and still lets `click` fire.
       onMouseDown={(event: MouseEvent) => event.preventDefault()}
       on:olai-navigated={() => props.onNavigate?.()}
-      onClick={() => {
-        if (props.href === undefined) props.onSelect()
-
-      }}
+      onClick={() => { if (props.href === undefined) props.onSelect() }}
     >
       <span class="flex w-full min-w-0 items-center gap-3">
         <span class="flex min-w-0 flex-1 items-center gap-2">

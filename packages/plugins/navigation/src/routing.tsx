@@ -5,7 +5,7 @@ import { type Accessor,createContext,createMemo,type JSX,useContext } from "soli
 import type { Landing } from "./landing.ts"
 import { usePane } from "./pane/context.tsx"
 import { fileNamed,type Route } from "./routes.ts"
-import { lone, type AddressTarget, type Workspace, type WorkspaceRouting } from "./workspace.ts"
+import { workspaceFor, type AddressTarget, type Workspace, type WorkspaceRouting } from "./workspace.ts"
 export interface LivePane {
   readonly element: Accessor<HTMLElement | undefined>
   readonly mount: (element: HTMLElement) => () => void
@@ -330,7 +330,7 @@ export const targetOf = (navigation: Router, anchor: HTMLAnchorElement): LinkTar
 }
 export const follow = (target: LinkTarget, intent: Intent): void => {
   const { destination, router, index, anchor, tabs } = target
-  const workspace = destination.kind === "layout" ? destination.workspace : lone(destination.route)
+  const workspace = workspaceFor(destination)
   if (intent === "go" && anchor.dataset.linkIntent === "new-tab" && tabs?.openTab(workspace)) { /* served by tabs */ }
   else if (destination.kind === "layout") {
     if (intent === "go") router.open(workspace)

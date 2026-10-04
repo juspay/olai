@@ -187,8 +187,6 @@ export function DatedRow(props: {
         data-testid={TESTID.nodeGutter}
         onPointerDown={menu.hold.onPointerDown}
         onContextMenu={menu.hold.onContextMenu}
-        // The row menu yields anchors to the shared link menu.
-        data-menu-owner="outline-row"
         // A tap makes this THE row — the tree's "this is the one" (`./focus.ts`),
         // since a dated row has no caret to say it — and the active row is
         // where a plugin's offer shows on a phone (`OFFER_REVEAL`).

@@ -1,24 +1,15 @@
-import { targetOf } from "olai-plugin-navigation/routing"
 /** Link menus read the same anchor href as navigation and hover preview.
  * The overlay owns this document listener. Row menus yield only their links;
  * Shift-right-click and the tab strip retain their own handling. */
 import { createSignal, onCleanup, Show } from "solid-js"
 
-
-
 import type { Navigation } from "olai-plugin-navigation/contract"
-import { lone, type Workspace } from "olai-plugin-navigation/workspace"
+import { targetOf } from "olai-plugin-navigation/routing"
+import { workspaceFor, type Workspace } from "olai-plugin-navigation/workspace"
 
 import type { TabsState } from "./contract.ts"
 import { PointMenu } from "./chunk.ts"
 import { TESTID } from "./testids.ts"
-
-/** The workspace an in-app `href` opens, or `undefined` for one this app would
- *  let the browser have. */
-export const workspaceAt = (routes: Navigation["routes"], href: string): Workspace | undefined => {
-  const route = routes.routeIn(href)
-  return route === null ? undefined : route.kind === "layout" ? route.workspace : lone(route.route)
-}
 
 export function LinkMenu(props: { readonly tabs: TabsState; readonly router: Navigation }) {
   const [open, setOpen] = createSignal<{
@@ -37,9 +28,8 @@ export function LinkMenu(props: { readonly tabs: TabsState; readonly router: Nav
     if (anchor.closest(`[data-testid="${TESTID.tabsStrip}"]`) !== null) return
     const target = targetOf(props.router, anchor)
     if (!target) return
-    const workspace = target.destination.kind === "layout" ? target.destination.workspace : lone(target.destination.route)
     event.preventDefault()
-    setOpen({ x: event.clientX, y: event.clientY, anchor, workspace })
+    setOpen({ x: event.clientX, y: event.clientY, anchor, workspace: workspaceFor(target.destination) })
   }
   document.addEventListener("contextmenu", onContextMenu)
   onCleanup(() => document.removeEventListener("contextmenu", onContextMenu))

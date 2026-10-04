@@ -607,8 +607,6 @@ function Branch(props: {
         // handlers are the whole of `LongPress`.
         onPointerDown={menu.hold.onPointerDown}
         onContextMenu={menu.hold.onContextMenu}
-        // The row menu yields anchors to the shared link menu.
-        data-menu-owner="outline-row"
         // Two ways of being THE row, drawn in one accent and told apart by
         // weight: the caret fills its row, a reference outlines the row it
         // points at. One vocabulary, because "this is the one" is one thing to

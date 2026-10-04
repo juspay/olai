@@ -20,11 +20,11 @@ const press = (
   altKey: mods.alt === true,
 })
 
-test("a plain click is ours and not a split", () => {
+test("a plain click goes in place", () => {
   expect(intentOf(press())).toBe("go")
 })
 
-test("Alt+click is a reuse, and is not ours", () => {
+test("Alt+click opens to the right", () => {
   expect(intentOf(press({ alt: true }))).toBe("right")
 })
 
