@@ -144,6 +144,19 @@ Feature: Live read-only internal link previews
     And pane 1 is showing "/#preview-target"
     And the page has not reloaded
 
+  # A written link is answered by navigation's `useFollow`, which used to ask
+  # whether Shift forced a new pane only AFTER claiming the press — and a
+  # claimed press is not a split, so every Alt+Shift+click reused the pane.
+  Scenario: Alt-Shift-click on a written link forces a new pane
+    When I alt-click the preview link "target"
+    Then there are 2 panes
+    When I alt-shift-click the preview link "outline"
+    Then there are 3 panes
+    And pane 0 is showing "/#preview-source"
+    And pane 1 is showing "/preview.olai"
+    And pane 2 is showing "/#preview-target"
+    And pane 1 is focused
+
   Scenario: Plain click still opens the link
     Given I mark the page
     When I hover the preview link "target"

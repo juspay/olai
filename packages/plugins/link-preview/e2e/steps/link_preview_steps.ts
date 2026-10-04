@@ -67,6 +67,7 @@ When("I hover the nested preview link", async function (this: OlaiWorld) { await
 When("I click the nested preview link", async function (this: OlaiWorld) { await card(this).getByRole("link", { name: "nested" }).click() })
 When("I click the preview link {string}", async function (this: OlaiWorld, label: string) { await link(this, label).click() })
 When("I alt-click the card link {string}", async function (this: OlaiWorld, label: string) { await card(this).getByRole("link", { name: label, exact: true }).click({ modifiers: ["Alt"] }) })
+When("I alt-shift-click the preview link {string}", async function (this: OlaiWorld, label: string) { await link(this, label).click({ modifiers: ["Alt", "Shift"] }) })
 When("I alt-click the preview link {string}", async function (this: OlaiWorld, label: string) { await link(this, label).click({ modifiers: ["Alt"] }) })
 Then("no preview target page was requested", function (this: OlaiWorld) { assert.equal(this.socketAskedSince("page/get", "preview-target"), 0) })
 Then("the preview target page subscription is closed", async function (this: OlaiWorld) {

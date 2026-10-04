@@ -324,13 +324,16 @@ export const useFollow = (): ((event: MouseEvent) => void) => {
   return (event) => {
     const split = followedSplit(router.routes, event)
     if (split !== null) {
-      event.preventDefault()
       // `splitClick`'s own answer for "a new pane or the one already there".
       // The line came out of the pane spelling it `event.shiftKey`, which was
       // the shift⇒force rule written twice — once in `../press.ts` where
       // `Link` reads it, once here — and free to disagree the day the gesture
-      // moves.
-      router.openRight(here(), split, splitClick(event) === "force")
+      // moves. Asked BEFORE the press is claimed: `splitClick` declines a
+      // prevented press, so asking after `preventDefault` read every
+      // Alt+Shift+click on a written link as a reuse.
+      const force = splitClick(event) === "force"
+      event.preventDefault()
+      router.openRight(here(), split, force)
       return
     }
     const next = followed(router.routes, event)
