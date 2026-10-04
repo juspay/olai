@@ -461,6 +461,9 @@ export function Palette(props: {
   }
 
   const close = closePalette
+  /** A navigation moved the reader: the caret they left is not where they went,
+   *  and refocusing it would take an in-place reveal's selection back. */
+  const navigated = () => { previousFocus = null; close() }
   // Navigation can close the palette through its activation-owned shortcut.
   // Every closing door releases this renderer's query and focus identically.
   createEffect(on(paletteOpen, (opened) => {
@@ -588,7 +591,7 @@ export function Palette(props: {
       })
       return
     }
-    if (action.kind === "route") props.go(action.route)
+    if (action.kind === "route") { props.go(action.route); previousFocus = null }
     else if (action.kind === "shortcuts") setKeys(true)
     else if (action.kind === "toggle-sidebar") props.toggleDirectory()
     else if (action.kind === "reset-widths") resetPanelWidths()
@@ -1054,7 +1057,7 @@ export function Palette(props: {
                         <Result
                           claims={fileClaims()}
                           href={actionHref(router.routes, item().action)}
-                          onNavigate={close}
+                          onNavigate={navigated}
                           label={item().label}
 
                           from={item().from}
@@ -1110,6 +1113,7 @@ export function Palette(props: {
                     cursor.to(index)
                   }}
                   onSelect={runItem}
+                  onNavigate={navigated}
                   onOption={(option) => {
                     levels.choose(option)
                     levels.submit()
