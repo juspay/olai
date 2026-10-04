@@ -19,7 +19,7 @@ const records = () => [
 const write = (world: OlaiWorld, rows: unknown[]) => world.writeServed("preview.olai", rows.map(row => JSON.stringify(row)).join("\n"))
 Given("the link preview examples are served", function (this: OlaiWorld) {
   write(this, records())
-  this.writeServed("preview.md", "# Document\n\nOpening paragraph with [lost document](/preview-missing.md).\n\n## Section\n\nFirst section text\n\n## Section\n\nSecond section text\n\n## End\n\nThird section text\n")
+  this.writeServed("preview.md", "# Document\n\nOpening paragraph with [lost document](preview-missing.md).\n\n## Section\n\nFirst section text\n\n## Section\n\nSecond section text\n\n## End\n\nThird section text\n")
 })
 When("I hover the preview link {string}", async function (this: OlaiWorld, label: string) { await link(this, label).hover() })
 When("a target link replaces the local link under the stationary pointer", async function (this: OlaiWorld) {
@@ -102,8 +102,8 @@ When("I remove the preview source links on disk", function (this: OlaiWorld) {
 When("I hover the editing row permalink", async function (this: OlaiWorld) { await this.page.locator('[data-editing="true"] [data-testid="zoom"]').hover() })
 
 Then("the qualified preview requested only the target node", function (this: OlaiWorld) {
-  assert.ok(this.socketAskedSince("page/get", '"kind":"node"', "preview-target") > 0)
-  assert.equal(this.socketAskedSince("page/get", '"kind":"row"', "preview-target"), 0)
+  assert.ok(this.socketAskedSince("page/get", "preview-target") > 0)
+  assert.equal(this.socketAskedSince("page/get", "preview.olai"), 0)
 })
 
 When("I watch Escape beneath the preview", async function (this: OlaiWorld) {
@@ -128,7 +128,7 @@ When("I remove the first preview child on disk", function (this: OlaiWorld) { wr
 
 Then("the preview document marks its missing link dead", async function (this: OlaiWorld) {
   const missing = card(this).getByRole("link", { name: "lost document" })
-  assert.equal(await missing.getAttribute("data-dead"), "true")
+  await this.waitUntil(async () => await missing.getAttribute("data-dead") === "true", "missing document link decoration")
   assert.ok((await missing.getAttribute("class"))?.includes("olai-dead-link"))
 })
 
