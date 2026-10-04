@@ -645,3 +645,7 @@ their own seat. Descendant pruning readers are created when children are first
 requested and leave with the source row. Reference lookup indexes record and
 shown ids directly. Open menus retain their panel and submenu state while a
 lane is hidden; dismissal priority and portal visibility follow the lane.
+
+Internal links offer [live read-only previews](plugins/link-preview.md) on hover
+or keyboard focus. A preview shows a short note and three children without
+opening an editor. Escape dismisses it; ordinary navigation gestures still work.

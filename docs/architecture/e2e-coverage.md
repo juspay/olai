@@ -519,3 +519,14 @@ Review 1 follow-up scope: the owner deferred remaining E3/E5 coverage expansion.
 Completed scenarios remain; the unfinished PageView counting fixture was removed.
 This PR does not claim a regression test for every audited notification or
 ownership boundary.
+
+### Internal link previews
+
+`link_preview.feature` covers note links, qualified rows, outline files, markdown
+opening blocks and duplicate heading sections; missing targets; hover delay,
+leave grace, pointer transfer, Escape, keyboard focus, rapid target changes,
+read-only/clipped content, editor/coarse-pointer exclusion, local/external links,
+live disk updates and deletion, card identity, subscription release, nested links,
+ordinary/split navigation, plugin removal/return and content withdrawal/return.
+Matching unit tests cover priority, absence, unsupported targets and deterministic
+ties. The existing split-navigation contract is Alt-click, not Shift alone.

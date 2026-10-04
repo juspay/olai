@@ -1,0 +1,20 @@
+# Link previews
+
+Hover an internal link for about 400 ms, or focus it with the keyboard, to
+read a live preview. Move onto the card to keep it open; leave it for about
+200 ms or press Escape to close it. Only one card opens at a time.
+
+Outlines show the target's context, title, status, date, task progress, a short
+note and up to three children. Whole outline links show three top-level rows.
+Markdown links show opening blocks; heading links show that section. Chat
+conversation links show the last two turns. Missing targets say “Nothing at”.
+
+Cards are clipped, read-only and never scroll. Links inside them still open,
+but do not create nested previews. Touch/coarse pointers and links in active
+editors do not open cards. Clicking retains the app's navigation gestures:
+click opens, Alt-click opens on the right, and Alt-Shift-click forces a new pane.
+
+The card leases live data only while open. Switching this plugin off removes
+its listeners, timers, overlay and reading. Content plugins independently offer
+renderers through `navigation.link-previews`; removing one withdraws its card.
+Chat wins over the generic outline renderer for nodes with a conversation.

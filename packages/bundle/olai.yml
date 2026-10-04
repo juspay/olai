@@ -342,3 +342,9 @@
   name: olai-plugin-browsing/server
   section: Connections
   label: Browsing
+
+- id: link-preview
+  name: olai-plugin-link-preview
+  section: Interface
+  label: Link previews
+  quiet: true

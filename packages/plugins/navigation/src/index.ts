@@ -132,3 +132,13 @@ export interface FilePage {
   readonly edits: boolean
 }
 export const pages = location<FilePage>("navigation.pages", "many", "key")
+
+/** Content owners offer read-only faces. Highest priority wins; equal priorities
+ * are ordered by contribution owner, independent of activation order. Matching
+ * must only read already-held metadata, never acquire a target body. */
+export interface LinkPreview {
+  readonly priority: number
+  readonly matches: (route: Route) => boolean
+  readonly Preview: (props: { readonly route: Route }) => JSX.Element
+}
+export const linkPreviews = location<LinkPreview>("navigation.link-previews", "many")

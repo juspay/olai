@@ -7432,6 +7432,7 @@
   "olai-plugin-journal" = copyPathToStore ./packages/plugins/journal;
   "olai-plugin-kolu" = copyPathToStore ./packages/plugins/kolu;
   "olai-plugin-layout" = copyPathToStore ./packages/plugins/layout;
+  "olai-plugin-link-preview" = copyPathToStore ./packages/plugins/link-preview;
   "olai-plugin-mail" = copyPathToStore ./packages/plugins/mail;
   "olai-plugin-markdown" = copyPathToStore ./packages/plugins/markdown;
   "olai-plugin-mcp" = copyPathToStore ./packages/plugins/mcp;

@@ -77,6 +77,7 @@
         "olai-plugin-journal": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
         "olai-plugin-layout": "workspace:*",
+        "olai-plugin-link-preview": "workspace:*",
         "olai-plugin-mail": "workspace:*",
         "olai-plugin-markdown": "workspace:*",
         "olai-plugin-mcp": "workspace:*",
@@ -592,6 +593,23 @@
         "@olai/tests": "workspace:*",
       },
     },
+    "packages/plugins/link-preview": {
+      "name": "olai-plugin-link-preview",
+      "version": "0.1.0",
+      "dependencies": {
+        "@kobalte/core": "^0.13.13",
+        "@olai/plugin-api": "workspace:*",
+        "@olai/web": "workspace:*",
+        "effect": "4.0.0",
+        "olai-plugin-layout": "workspace:*",
+        "olai-plugin-navigation": "workspace:*",
+        "olai-plugin-ui-renderer": "workspace:*",
+        "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+      },
+    },
     "packages/plugins/mail": {
       "name": "olai-plugin-mail",
       "version": "0.1.0",
@@ -1061,7 +1079,6 @@
       "name": "olai-plugin-vault",
       "version": "0.1.0",
       "dependencies": {
-        "@solid-primitives/keyed": "^1.5.3",
         "@effect/platform-node": "4.0.0",
         "@olai/edit-intents": "workspace:*",
         "@olai/format": "workspace:*",
@@ -1072,6 +1089,7 @@
         "@olai/surface": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",
+        "@solid-primitives/keyed": "^1.5.3",
         "effect": "4.0.0",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-navigation": "workspace:*",
@@ -2085,6 +2103,8 @@
     "olai-plugin-kolu": ["olai-plugin-kolu@workspace:packages/plugins/kolu"],
 
     "olai-plugin-layout": ["olai-plugin-layout@workspace:packages/plugins/layout"],
+
+    "olai-plugin-link-preview": ["olai-plugin-link-preview@workspace:packages/plugins/link-preview"],
 
     "olai-plugin-mail": ["olai-plugin-mail@workspace:packages/plugins/mail"],
 
