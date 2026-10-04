@@ -1,11 +1,12 @@
 import { createEffect, createMemo, mapArray, on, onCleanup, untrack, type Accessor } from "solid-js"
 import { createStore } from "solid-js/store"
 import type { LivePane } from "./routing.tsx"
-import { atElement, type Route } from "./routes.ts"
+import { atElement, fileNamed, type Route } from "./routes.ts"
 import { nodeTargets } from "./nodes.ts"
 import { directory, fileClaims } from "./pages.ts"
 
 const BUSY_RETRY_MS = 200
+const BUSY_RETRIES = 50
 
 /** A lane owns these requests. Each pane observes only its route and provider;
  * an answer, including absence, is remembered until either identity changes. */
@@ -33,17 +34,26 @@ export function createReveal(panes: Accessor<readonly LivePane[]>, arrive: (inde
     }
     setStatus(pane.id, "finding")
     const current = () => alive && nodeTargets.read() === provider && requests.get(pane.id) === request && pane.route() === before && panes().includes(pane)
-    // `undefined` is busy: the call's connection was replaced (every boot whose
-    // roster lands after first paint), so the same question is asked again.
+    // Not yet answerable, so asked again: `undefined` is busy (the call's
+    // connection was replaced, as at every boot whose roster lands after first
+    // paint), and a home whose suffix the claim table does not hold yet would
+    // land on the front page instead of the file.
+    let attempts = 0
+    const again = () => {
+      if (++attempts > BUSY_RETRIES) { setStatus(pane.id, "missing"); return }
+      const timer = setTimeout(() => { retries.delete(timer); ask() }, BUSY_RETRY_MS)
+      retries.add(timer)
+    }
     const ask = (): void => void provider.home(id).then(file => {
       if (!current()) return
-      if (file === undefined) { const timer = setTimeout(() => { retries.delete(timer); ask() }, BUSY_RETRY_MS); retries.add(timer); return }
+      if (file === undefined) return again()
       if (file === null) { setStatus(pane.id, "missing"); return }
       const claims = fileClaims()
-      if (!claims) return
+      const route = claims && atElement(claims, file, id)
+      if (!route || fileNamed(route) === undefined) return again()
       requests.delete(pane.id)
       setStatus(pane.id, undefined)
-      arrive(panes().indexOf(pane), atElement(claims, file, id), how)
+      arrive(panes().indexOf(pane), route, how)
     }).catch(() => { if (current()) setStatus(pane.id, "missing") })
     ask()
     return true
