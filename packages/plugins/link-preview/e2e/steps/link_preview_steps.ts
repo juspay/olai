@@ -131,3 +131,8 @@ Then("the preview document marks its missing link dead", async function (this: O
   assert.equal(await missing.getAttribute("data-dead"), "true")
   assert.ok((await missing.getAttribute("class"))?.includes("olai-dead-link"))
 })
+
+When("I touch the preview link {string}", async function (this: OlaiWorld, label: string) {
+  await link(this, label).dispatchEvent("pointerover", { pointerType: "touch", clientX: 20, clientY: 20 })
+  await link(this, label).dispatchEvent("pointermove", { pointerType: "touch", clientX: 21, clientY: 20 })
+})

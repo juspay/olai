@@ -45,7 +45,8 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
       : undefined
   }
   const enter = (event: PointerEvent | FocusEvent) => {
-    if (matchMedia("(pointer: coarse)").matches || (event instanceof PointerEvent && event.pointerType === "touch")) return
+    if ((event.type === "focusin" && matchMedia("(pointer: coarse)").matches)
+      || (event instanceof PointerEvent && event.pointerType === "touch")) return
     const inCard = event.target instanceof Element && event.target.closest(CARD) !== null
     if (event instanceof PointerEvent) insideCard = inCard
     if (inCard) { hold(); return }

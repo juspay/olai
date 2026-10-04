@@ -168,8 +168,8 @@ Feature: Live read-only internal link previews
     Then the link preview contains "Opening paragraph"
 
   @phone
-  Scenario: Coarse pointers do not preview on hover or focus
-    When I hover the preview link "target"
+  Scenario: Touch and coarse-device focus do not preview
+    When I touch the preview link "target"
     Then the link preview stays closed
     When I focus the preview link "target"
     Then the link preview stays closed
@@ -233,3 +233,8 @@ Feature: Live read-only internal link previews
     And the link preview does not contain "Child one"
     And the preview card identity is unchanged
     And there should be no page errors
+
+  @phone
+  Scenario: A mouse on a touch-primary device can preview
+    When I hover the preview link "target"
+    Then the link preview contains "Preview target"
