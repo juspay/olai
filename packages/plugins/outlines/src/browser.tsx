@@ -1,3 +1,5 @@
+import { linkPreviews } from "olai-plugin-navigation/contract"
+import { OutlineLinkPreview } from "./browser/LinkPreview.tsx"
 import { createDoneReveals, holdDoneReveals } from "./browser/settings/done.ts"
 import { createFocusState, holdFocusState } from "./browser/focus.ts"
 import { createRowElements, rowElements } from "./browser/row-elements.ts"
@@ -176,6 +178,13 @@ export const components = {
       matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || (served.kindOf(route.address.path) === null || served.claims().byKind.get(served.kindOf(route.address.path)!)?.holds === "nodes"))),
       Page,
     }, { children: [...Object.values(slotContracts), datedRows, pageView, titles, propertyRoutes] })
+    yield* slots.contribute(linkPreviews, {
+      priority: 0,
+      matches: route => route.kind === "at" && route.address !== null &&
+        (route.address.kind === "node" || route.address.kind === "row" ||
+          (route.address.kind === "document" && served.claims().byKind.get(served.kindOf(route.address.path) ?? "")?.holds === "nodes")),
+      Preview: OutlineLinkPreview,
+    })
     yield* slots.contribute(datedRows, DatedRow)
     yield* slots.contribute(pageView, OutlinePageView)
     yield* slots.contribute(titles, NodeTitle)

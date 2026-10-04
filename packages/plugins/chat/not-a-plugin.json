@@ -25,6 +25,7 @@
     "src/browser/chat/attach.ts"
   ],
   "markdown": [
+    "src/browser/LinkPreview.tsx",
     "src/browser/chat/Entry.tsx",
     "src/browser/chat/ToolFrame.tsx"
   ],
@@ -72,5 +73,6 @@
     "src/server.ts"
   ],
   "//alerts": "The wake strip's accessible label says `alerts` as an ordinary word, not the alerts row.",
-  "//files": "The completion menu's section heading reads `Files`: the vault's files, not the files row."
+  "//files": "The completion menu's section heading reads `Files`: the vault's files, not the files row.",
+  "//markdown": "Markdown is the shared renderer component, including the read-only conversation preview, not a runtime lookup of the markdown plugin."
 }

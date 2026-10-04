@@ -1356,3 +1356,38 @@ stable files through a generated catalog.
 - [slot-ownership.md](slot-ownership.md) — renderer location owners.
 - [live-properties.md](../live-properties.md) — the user-facing half of §8.
 - [running.md](../running.md) — row selection as an operator sees it.
+
+### Link preview location
+
+`navigation.linkPreviews` (`navigation.link-previews`, cardinality `many`) is a
+static contract for content-owned `{ matches, priority, Preview }` contributions.
+The link-preview overlay contribution owns this location. Its activation owns
+the delegated document listeners, timers and fixed overlay root on `LAYER.over`;
+withdrawing the overlay drains contributions before releasing these resources.
+It reads navigation's declared route service and renderer's declared slot service,
+without importing content implementations. Each mounted card owns its data lease and an anchor-removal observer. Navigation,
+anchor removal, dismissal and scope withdrawal all release that lease. Nested
+links receive the hovered link’s pane context, so a focused neighbour cannot
+take a click intended for the source pane.
+
+Outlines contributes a `ReadingProvider` with title, note and a trimmed child list
+and no edit callbacks; markdown leases its existing document body; chat directly
+leases transcript and streaming-tail readers without conversation UI or wake
+operations. Chat's priority 100 wins over outlines' priority 0 when its already-held
+roster identifies a conversation. Equal priorities sort by contribution owner,
+so activation order cannot change selection. Plugin withdrawal removes its face;
+returning providers are matched through the live location roster.
+
+A preview renderer mounts once per immutable route; changing targets disposes
+that lease before mounting the next. Qualified outline rows lease the node face
+and verify its file. Whole-outline cards retain a full page lease because the
+wire exposes no bounded root-list/count face. Anchor replacement and gesture handling read one current-anchor signal, filled
+and cleared by the mounted card, with description-token cleanup tied to each anchor. The body
+observer detects removal of entire panes, sidebars and portals as well as links.
+
+Listener registration shares one activation-owned abort controller; withdrawal
+still closes the card before aborting listeners and removing the overlay root.
+Hover timing belongs to the interaction owner, independently of content matching.
+Document cards inspect cached heading metadata; only the shared Markdown view
+slices rendered excerpts and decorates their links. Immutable route values stay
+separate from live document, outline and transcript readings.

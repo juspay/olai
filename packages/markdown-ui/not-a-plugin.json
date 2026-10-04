@@ -3,6 +3,8 @@
     "src/Markdown.tsx",
     "src/TitleHtml.tsx",
     "src/chunk.ts",
+    "src/excerpt.ts",
     "src/title.ts"
-  ]
+  ],
+  "//markdown": "Markdown rendering helpers name the document language, not a runtime plugin lookup."
 }

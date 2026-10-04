@@ -44,6 +44,7 @@ import { createEffect, createMemo, Show } from "solid-js"
 
 import { markdownFailure, markdownReady, markdownWaiting } from "./chunk.ts"
 import { renderMarkdown, renderStreaming, renderLineLanding } from "./render.ts"
+import { markdownExcerpt } from "./excerpt.ts"
 import { escapeHtml } from "./tags.ts"
 import { busyMark, waitingMark } from "./waiting.ts"
 
@@ -59,12 +60,14 @@ export function Markdown(props: {
    *  prefix of a growing answer is a string that will never be asked for
    *  again. See ./render.ts. */
   readonly live?: boolean
+  /** A clipped document/section face, using the same decoration and states. */
+  readonly excerpt?: { readonly after?: string; readonly blocks: number }
   readonly landing?: { readonly line: number; readonly needles: ReadonlyArray<string> }
 }) {
   let container: HTMLDivElement | undefined
   // `markdownReady()` both answers and asks — reading it here is what starts
   // the fetch, and what re-runs this memo when the file lands.
-  const html = createMemo(() =>
+  const rendered = createMemo(() =>
     markdownReady()
       ? props.live === true
         ? renderStreaming(props.claims, props.source, props.from)
@@ -73,6 +76,10 @@ export function Markdown(props: {
           : renderMarkdown(props.claims, props.source, props.from)
       : undefined
   )
+  const html = createMemo(() => {
+    const value = rendered()
+    return value !== undefined && props.excerpt ? markdownExcerpt(value, props.excerpt) : value
+  })
   // File membership changes link decoration, never the rendered prose or its
   // selection/details state. The rewrite pass records authored link metadata.
   createEffect(() => {

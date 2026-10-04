@@ -1,3 +1,5 @@
+import { linkPreviews } from "olai-plugin-navigation/contract"
+import { MarkdownLinkPreview } from "./browser/LinkPreview.tsx"
 /** Markdown owns body subscriptions, document drafts and edit history. Its
  * provider is independent of outlines and of presentation; content and file
  * creation integrations wait only for the actual locations they consume. */
@@ -153,6 +155,11 @@ export const components = {
     const router = yield* navigation
     yield* Effect.acquireRelease(Effect.sync(() => holdRouting(router.routes)), stop => Effect.sync(stop))
     yield* slots.contribute(pages, { by: { kind: "markdown" }, edits: true, page: () => <MarkdownPageView /> }, {key:fileKindKey({kind:"markdown"}),children:[documentBodies, properties]})
+    yield* slots.contribute(linkPreviews, {
+      priority: 0,
+      matches: route => route.kind === "at" && route.address !== null && route.address.kind !== "node" && served.kindOf(route.address.path) === "markdown",
+      Preview: MarkdownLinkPreview,
+    })
     yield* slots.contribute(documentBodies, EmbeddedDocument)
   }) }),
   files: definePlugin({ name: "files", needs: [browserState, rendererSlots], apply: Effect.gen(function*() {

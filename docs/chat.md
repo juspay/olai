@@ -972,3 +972,7 @@ has a separate lease: open tool details, armed context, previews, refusals,
 question drafts, and starting or sending work prevent eviction. A same-update
 address handover preserves that UI, and asynchronous opening holds it until
 its success or refusal is recorded.
+
+Hover or keyboard-focus a node reference to [preview its target](plugins/link-preview.md).
+Conversation nodes show their last two turns without waking an agent or opening
+a composer. The card follows live updates and releases its reading when closed.

@@ -1,3 +1,5 @@
+import { linkPreviews } from "olai-plugin-navigation/contract"
+import { ChatLinkPreview, previewNode } from "./browser/LinkPreview.tsx"
 import { Landings } from "@olai/plugin-api"
 import { holdLandings } from "./browser/landings.ts"
 import { SESSION_KIND } from "./binding.ts"
@@ -114,6 +116,15 @@ export default definePlugin({
       } })
       return { value, dispose }
     })), owner => Effect.sync(owner.dispose))
+    yield* (yield* rendererSlots).contribute(linkPreviews, {
+      priority: 100,
+      matches: route => {
+        const id = previewNode(route)
+        const agent = id === undefined ? undefined : state.agents.at(id)
+        return agent?.session != null && (route.kind !== "at" || route.address?.kind !== "row" || route.address.path === agent.file)
+      },
+      Preview: props => <ChatLinkPreview route={props.route} roster={state.agents} />,
+    })
     yield* (yield* rendererSlots).contribute(paletteAdapters, palette.value)
     // The aside reads the activation roster once per row; only opening a fold
     // acquires a conversation. Unbound rows offer a start gesture.

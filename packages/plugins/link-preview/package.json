@@ -1,0 +1,34 @@
+{
+  "name": "olai-plugin-link-preview",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./browser": "./src/browser.tsx",
+    "./all.css": "./src/all.css",
+    "./testids": "./src/testids.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@olai/plugin-api": "workspace:*",
+    "@olai/web": "workspace:*",
+    "effect": "4.0.0",
+    "solid-js": "^1.9.0",
+    "olai-plugin-ui-renderer": "workspace:*",
+    "olai-plugin-navigation": "workspace:*",
+    "olai-plugin-layout": "workspace:*",
+    "@kobalte/core": "^0.13.13",
+    "@olai/ui-primitives": "workspace:*"
+  },
+  "devDependencies": {
+    "@olai/tests": "workspace:*"
+  },
+  "olai": {
+    "contracts": [
+      "./testids"
+    ]
+  }
+}
