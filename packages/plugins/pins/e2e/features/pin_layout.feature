@@ -265,3 +265,19 @@ Feature: Pinning layouts
     Then there are 2 panes
     And there should be no page errors
 
+
+  Scenario: A layout pin falls back to the current workspace when tabs is absent
+    Given the directory has the pins:
+      | [Planning](/s/house.olai/garden.olai) |
+    When I open the plugins panel
+    And I switch the plugin "tabs" off
+    And I close the plugins panel
+    And I follow the pin "/s/house.olai/garden.olai"
+    Then there are 2 panes
+    And pane 0 is showing "/house.olai"
+    And pane 1 is showing "/garden.olai"
+    When I open the plugins panel
+    And I switch the plugin "tabs" on
+    And I close the plugins panel
+    And I follow the pin "/s/house.olai/garden.olai"
+    Then there are 2 tabs

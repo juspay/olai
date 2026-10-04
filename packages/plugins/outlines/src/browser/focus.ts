@@ -51,26 +51,7 @@ export const selectNode = (id: string): void => {
   setFocused(id)
 }
 
-/**
- * NOTHING is the row any more — the third state of the same signal, and a
- * state a CARET can be in.
- *
- * A line that is not yet a row is a place the reader is typing in: a ghost
- * under the row it will follow, or a page's first line. There is no row to
- * light up for it — the line draws its own chrome (`./edit/NewRow.tsx`) — and
- * saying so is what this call is for.
- *
- * It was missing, and the ring simply STAYED on whatever row was last
- * selected: a person typing a new line watched two lines claim to be the one,
- * and the row above lost its ring the moment the new row appeared — at the
- * landing, which is the one moment this whole arrangement exists to keep
- * still (`./Tree.tsx`'s `onFocusIn` claimed the row the ghost is drawn in
- * before it learnt to ignore one; nothing replaced it after that).
- *
- * `clearFocus` below is the other reader of the same signal and is NOT this:
- * it abandons a scroll that has not happened yet, and a caret arriving in a
- * line has nothing to abandon.
- */
+/** A caret on a new, unsaved row clears the previous selection. */
 export const clearNode = (): void => {
   setFocused(null)
 }
@@ -91,6 +72,8 @@ export const revealNode = (pane: string, id: string): boolean => {
 }
 export const nodeHome = async (id: string): Promise<string | null | undefined> => {
   const outcome = await runAsync(client().procedures.nodes.homes({ ids: [id], files: [] }))
-  return Result.isSuccess(outcome) ? (outcome.success.homes.find(one => one.id === id)?.file ?? null) : undefined
+  if (Result.isSuccess(outcome)) return outcome.success.homes.find(one => one.id === id)?.file ?? null
+  if (outcome.failure._tag === "BusyFailure") return undefined
+  throw new Error(outcome.failure.reason)
 }
 export const clearFocus = (): void => { setFocused(null) }

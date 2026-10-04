@@ -137,7 +137,7 @@ provider retries it only if that pane has not moved; a deleted target leaves
 the original page and selection intact. Resolution adds one history entry. Content rows encode
 hrefs and do not acquire their own navigation listeners. Hypertext owns the
 opaque-frame bridge: it validates sender identity, href, gesture and finite
-geometry, then lends an anchor in the owning pane to the normal listeners.
+geometry, then passes intent directly through navigation’s shared follow function. An anchor in the owning pane supplies geometry to hover and menu listeners.
 That anchor is removed with the frame or its visible document. The sandbox
 retains `allow-scripts` without `allow-same-origin`.
 
