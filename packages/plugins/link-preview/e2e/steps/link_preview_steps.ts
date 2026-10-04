@@ -19,7 +19,7 @@ const records = () => [
 const write = (world: OlaiWorld, rows: unknown[]) => world.writeServed("preview.olai", rows.map(row => JSON.stringify(row)).join("\n"))
 Given("the link preview examples are served", function (this: OlaiWorld) {
   write(this, records())
-  this.writeServed("preview.md", "# Document\n\nOpening paragraph with [lost document](preview-missing.md).\n\n## Section\n\nFirst section text\n\n## Section\n\nSecond section text\n\n## End\n\nThird section text\n")
+  this.writeServed("preview.md", "# Document\n\nOpening paragraph with [lost document](preview-missing.md) and [the end](#end).\n\n## Section\n\nFirst section text\n\n## Section\n\nSecond section text\n\n## End\n\nThird section text\n")
 })
 When("I hover the preview link {string}", async function (this: OlaiWorld, label: string) { await link(this, label).hover() })
 When("a target link replaces the local link under the stationary pointer", async function (this: OlaiWorld) {
@@ -66,6 +66,7 @@ Then("the preview card identity is unchanged", async function (this: OlaiWorld) 
 When("I hover the nested preview link", async function (this: OlaiWorld) { await card(this).getByRole("link", { name: "nested" }).hover(); await this.page.waitForTimeout(500) })
 When("I click the nested preview link", async function (this: OlaiWorld) { await card(this).getByRole("link", { name: "nested" }).click() })
 When("I click the preview link {string}", async function (this: OlaiWorld, label: string) { await link(this, label).click() })
+When("I alt-click the card link {string}", async function (this: OlaiWorld, label: string) { await card(this).getByRole("link", { name: label, exact: true }).click({ modifiers: ["Alt"] }) })
 When("I alt-click the preview link {string}", async function (this: OlaiWorld, label: string) { await link(this, label).click({ modifiers: ["Alt"] }) })
 Then("no preview target page was requested", function (this: OlaiWorld) { assert.equal(this.socketAskedSince("page/get", "preview-target"), 0) })
 Then("the preview target page subscription is closed", async function (this: OlaiWorld) {
