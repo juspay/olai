@@ -65,6 +65,8 @@ export function NodeTitle(props: {
    *  existing `<a>` (breadcrumb, see-ref) without nesting anchors. Default
    *  true — tree rows and zoomed headings keep their links. */
   readonly links?: boolean
+  /** Let address-shaped titles wrap instead of abbreviating their face. */
+  readonly wrap?: boolean
   /** The words a filter found this node by, lit where they sit
    *  (`./filter/lit.ts`) — absent on every title an unfiltered page draws, and
    *  on every title drawn for a row the query did not select. */
@@ -111,6 +113,7 @@ export function NodeTitle(props: {
             <Face
               target={target()}
               name={face().name}
+              wrap={props.wrap}
               // A WRITTEN name is what may be pressed, and whether this caller
               // may hold an anchor at all is its own half of that answer.
               pressable={face().written && props.links !== false}

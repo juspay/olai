@@ -46,9 +46,10 @@ Then("there is exactly one link preview", async function (this: OlaiWorld) { ass
 Then("the link preview closes", async function (this: OlaiWorld) { await card(this).waitFor({ state: "detached" }) })
 Then("the link preview stays closed", async function (this: OlaiWorld) { await this.page.waitForTimeout(650); assert.equal(await card(this).count(), 0) })
 Then("the link preview remains open", async function (this: OlaiWorld) { await this.page.waitForTimeout(350); assert.equal(await card(this).count(), 1) })
-Then("the link preview is read-only and clipped", async function (this: OlaiWorld) {
+Then("the link preview is read-only and fits the viewport", async function (this: OlaiWorld) {
   assert.equal(await card(this).locator('input:not([disabled]), textarea, [contenteditable="true"], button').count(), 0)
-  assert.ok((await card(this).boundingBox())!.height < 400)
+  const bounds = (await card(this).boundingBox())!
+  assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= this.page.viewportSize()!.height + 1)
   await card(this).getByText("Preview target #sample", { exact: false }).first().click()
   assert.equal(await card(this).locator('[data-testid="title-editor"]').count(), 0)
 })
@@ -166,4 +167,37 @@ Then("the removed anchor has only its original description", async function (thi
 })
 Then("the preview source has no description token", async function (this: OlaiWorld) {
   assert.equal(await link(this, "target").getAttribute("aria-describedby"), null)
+})
+
+const longTitle = "A complete preview title " + "with important details that must remain readable ".repeat(9) + "TITLE END"
+const longParagraphs = Array.from({ length: 12 }, (_, index) => `Paragraph ${index + 1}: ` + "The description remains complete and reachable in the preview. ".repeat(5) + `END ${index + 1}`)
+Given("the preview target has a long {word} title and description", function (this: OlaiWorld, style: string) {
+  write(this, records().map(row => row.id === "preview-target" ? {
+    ...row, title: style === "linked" ? `[${longTitle}](/#preview-destination)` : longTitle,
+    desc: longParagraphs.join("\n\n"),
+  } : row))
+})
+Then("the complete preview title and every paragraph are reachable", async function (this: OlaiWorld) {
+  const body = card(this).getByTestId(TESTID.linkPreviewBody)
+  const heading = card(this).getByRole("heading", { name: longTitle, exact: true })
+  await heading.scrollIntoViewIfNeeded()
+  assert.equal(await heading.textContent(), longTitle)
+  // Geometry, not just textContent: hidden/clamped text can still be in the DOM.
+  assert.equal(await heading.evaluate(el => el.scrollWidth <= el.clientWidth + 1), true)
+  const note = card(this).getByTestId("desc")
+  assert.equal(await note.locator("p").count(), longParagraphs.length)
+  for (const paragraph of longParagraphs) {
+    const rendered = note.getByText(paragraph, { exact: true })
+    await rendered.scrollIntoViewIfNeeded()
+    const [line, viewport] = await Promise.all([rendered.boundingBox(), body.boundingBox()])
+    assert.ok(line && viewport && line.y >= viewport.y - 1 && line.y + line.height <= viewport.y + viewport.height + 1, "each complete paragraph fits in the scrolled body")
+  }
+  await card(this).getByText("+1 more", { exact: true }).scrollIntoViewIfNeeded()
+  const metrics = await body.evaluate(el => ({ height: el.clientHeight, content: el.scrollHeight, top: el.scrollTop }))
+  assert.ok(metrics.content > metrics.height && metrics.top > 0, "oversized content scrolls")
+  const bounds = (await card(this).boundingBox())!
+  const available = await card(this).evaluate(el => parseFloat(getComputedStyle(el).getPropertyValue("--kb-popper-content-available-height")))
+  assert.ok(Math.abs(bounds.height - available) <= 2, "only Popper's available height caps the card")
+  assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= this.page.viewportSize()!.height + 1)
+  assert.equal(await card(this).locator('input:not([disabled]), textarea, [contenteditable="true"]').count(), 0)
 })

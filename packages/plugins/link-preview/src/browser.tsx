@@ -102,7 +102,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     const follow = useFollow()
     // The keyed target owns this mount and its immutable route contract.
     const route = props.route
-    return <div class="max-h-80 overflow-hidden p-3" onClick={follow}><Dynamic component={props.renderer.Preview} route={route} /></div>
+    return <div data-testid={TESTID.linkPreviewBody} class="min-h-0 overflow-auto p-3 [overflow-wrap:anywhere]" onClick={follow}><Dynamic component={props.renderer.Preview} route={route} /></div>
   }
   function Preview() {
     onCleanup(close)
@@ -144,12 +144,13 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
         // does no search while the current anchor is still connected.
         removed.observe(document.body, { childList: true, subtree: true })
         onCleanup(() => removed.disconnect())
-        return <Popper anchorRef={anchor} contentRef={content} placement="bottom-start" gutter={6}>
+        return <Popper anchorRef={anchor} contentRef={content} placement="bottom-start" gutter={6} fitViewport overflowPadding={8}>
           <Portal mount={root}><Popper.Positioner>
             <aside id={cardId} ref={setContent} data-link-preview="" data-testid={TESTID.linkPreview}
-              aria-label="Link preview" class="w-[min(24rem,90vw)] rounded-surface border border-rule/60 bg-panel shadow-raised text-ink">
+              aria-label="Link preview" style={{ "max-height": "var(--kb-popper-content-available-height, calc(100dvh - 16px))" }}
+              class="flex flex-col w-[min(24rem,90vw)] rounded-surface border border-rule/60 bg-panel shadow-raised text-ink">
               <PaneProvider index={at.pane} id={nav.panes()[at.pane]?.id}><Body renderer={renderer} route={at.route} /></PaneProvider>
-              <footer class="border-t border-rule/60 px-3 py-2 text-xs text-muted">Click opens · Alt-click opens on the right <span class="float-right">read-only</span></footer>
+              <footer class="shrink-0 border-t border-rule/60 px-3 py-2 text-xs text-muted">Click opens · Alt-click opens on the right <span class="float-right">read-only</span></footer>
             </aside>
           </Popper.Positioner></Portal>
         </Popper>

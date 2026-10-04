@@ -82,11 +82,14 @@ export function Face(props: {
    *  click there is the row's own — and one already inside a link says no
    *  whatever the title said. */
   readonly pressable?: boolean
+  /** Full labels for reading surfaces; compact navigation keeps truncation. */
+  readonly wrap?: boolean
 }) {
   // THE ROUTER'S OWN GRAMMAR, read from the context this face is always drawn
   // inside. Printing a plugin's URL and asking whether its page takes a filter
   // are questions about the MOUNTED ROSTER, and this face used to ask them of
   // a module-scope table nobody had declared (`../routes.ts`'s header).
+  const labelClass = () => props.wrap ? "whitespace-normal [overflow-wrap:anywhere]" : "truncate"
   const router = useRouter()
   const routes = router.routes
   const href = () => {
@@ -109,7 +112,7 @@ export function Face(props: {
       <Show
         when={props.pressable === true}
         fallback={
-          <span class="min-w-0 flex-1 truncate" data-testid={TESTID.addressName}>
+          <span class={`min-w-0 flex-1 ${labelClass()}`} data-testid={TESTID.addressName}>
             {props.name}
           </span>
         }
@@ -125,7 +128,7 @@ export function Face(props: {
             if (props.target.kind !== "layout") return
             followLayout(router, props.target.workspace, event)
           }}
-          class="min-w-0 flex-1 truncate underline decoration-rule underline-offset-2 hover:decoration-accent"
+          class={`min-w-0 flex-1 ${labelClass()} underline decoration-rule underline-offset-2 hover:decoration-accent`}
           data-testid={TESTID.addressName}
         >
           {props.name}
@@ -139,7 +142,7 @@ export function Face(props: {
             took the row and left the name as `c…`. It can shrink now, and
             the full query rides `title` for the half that does not fit. */}
         <span
-          class="min-w-0 max-w-[55%] truncate rounded-control bg-current/10 px-1 font-mono text-caption"
+          class={`min-w-0 max-w-[55%] ${labelClass()} rounded-control bg-current/10 px-1 font-mono text-caption`}
           data-testid={TESTID.addressFilter}
           title={filter()}
         >

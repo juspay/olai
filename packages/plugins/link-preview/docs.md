@@ -9,14 +9,18 @@ not repeatedly classify its link. Escape is consumed by an open card, leaving
 the underlying page and focus alone. Each card describes its link through
 `aria-describedby`, preserving any existing description when it closes.
 
-Outlines show the target's context, title, status, date, task progress, a short
-note and up to three children. Qualified row links read just the node and verify
+Outlines show the target's context, title, status, date, task progress, the complete
+title and note, and up to three children. Qualified row links read just the node and verify
 its file; they do not lease the whole outline. Whole outline links show three top-level rows.
 Markdown links show opening blocks; heading links show that section, using
 the same dead-link decoration and loading/failure states as document pages. Chat
 conversation links show the last two turns. Missing targets say “Nothing at”.
 
-Cards are clipped, read-only and never scroll. Links inside them still open,
+Cards are read-only and grow to fit their content. Outline titles and descriptions
+are never truncated. When a card reaches the available viewport height reported
+by Popper, its body scrolls so every paragraph remains reachable; the footer stays
+visible. The children list still shows at most three rows and “+N more”.
+Links inside cards still open,
 but do not create nested previews. Touch input, keyboard focus on a coarse-pointer
 device, and links in active editors do not open cards. A mouse on a hybrid
 device can still open previews. Clicking retains the app's navigation gestures:

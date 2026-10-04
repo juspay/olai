@@ -1,4 +1,4 @@
-export const TESTID = { linkPreview: "link-preview" } as const
+export const TESTID = { linkPreview: "link-preview", linkPreviewBody: "link-preview-body" } as const
 
 import type {} from "@olai/ui-primitives/testids.ts"
 type OwnedTestIds = typeof TESTID

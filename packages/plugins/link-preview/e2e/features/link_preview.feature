@@ -4,7 +4,7 @@ Feature: Live read-only internal link previews
     Given the link preview examples are served
     And I open the node "preview-source"
 
-  Scenario: A note link previews context, facts, note and a clipped child list
+  Scenario: A note link previews context, facts, full note and three children
     When I hover the preview link "target"
     Then the link preview contains "Preview target #sample"
     And the link preview contains "Preview parent"
@@ -12,7 +12,7 @@ Feature: Live read-only internal link previews
     And the link preview contains "Child one"
     And the link preview contains "+1 more"
     And the link preview contains "2026-10-04"
-    And the link preview is read-only and clipped
+    And the link preview is read-only and fits the viewport
     And there should be no page errors
 
   Scenario: Moving into the card keeps it open, leaving closes it
@@ -207,7 +207,7 @@ Feature: Live read-only internal link previews
     When I focus the preview link "target"
     Then the link preview contains "Preview target"
     When I move onto the preview card
-    Then the link preview is read-only and clipped
+    Then the link preview is read-only and fits the viewport
     And the link preview remains open
     When I dismiss the link preview with Escape
     Then the link preview closes
@@ -266,3 +266,20 @@ Feature: Live read-only internal link previews
     When I set the preview plugin "link-preview" off on disk
     Then the link preview closes
     And the preview source has no description token
+
+  Scenario Outline: Long titles and descriptions stay complete in node and row previews
+    Given the preview target has a long <style> title and description
+    When I hover the preview link "<link>"
+    Then the link preview contains "TITLE END"
+    When I move onto the preview card
+    Then the complete preview title and every paragraph are reachable
+    And the link preview contains "Child three"
+    And the link preview does not contain "Child four"
+    And there should be no page errors
+
+    Examples:
+      | link   | style  |
+      | target | plain  |
+      | row    | plain  |
+      | target | linked |
+      | row    | linked |
