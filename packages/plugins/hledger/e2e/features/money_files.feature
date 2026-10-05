@@ -5,7 +5,7 @@ Feature: A ledger file in the vault
   ledger written by hledger, ledger or a script, in a `.journal`, a `.hledger`
   or a `.ledger`.
 
-  The three suffixes are ONE kind — `@olai/format`'s kinds table claims all
+  The three suffixes are ONE kind — the registry's kinds table claims all
   three as `holds: "text"` — so the sidebar draws one ledger glyph for every one
   of them, the row keeps its suffix in its name (it is not a document, so no
   title is invented for it), and its page is VIEW ONLY. A ledger is read.

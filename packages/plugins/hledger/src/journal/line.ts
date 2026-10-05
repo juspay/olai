@@ -8,17 +8,17 @@
  * reading, and keeping the two apart is what makes classification something a
  * test can hand a single line.
  *
- * THE ORDER IS THE OLD SCAN'S, and it is the order that matters: a date in a
- * comment is a comment, because the comment check comes first; a date-shaped
- * line whose day is not real is `headerRefused` rather than a transaction,
- * because {@link headerOf} is asked before the line is believed.
+ * THE ORDER MATTERS: a date in a comment is a comment, because the comment
+ * check comes first; a date-shaped line whose day is not real is
+ * `headerRefused` rather than a transaction, because {@link headerOf} is asked
+ * before the line is believed.
  */
 import { DATE_SHAPE } from "./date.ts"
 import { type Header, headerOf } from "./header.ts"
 
 /** One line, as its own shape — with its raw text, because the fold keeps some
- *  of these verbatim and clips none of them (the bound is later, on finished
- *  records). */
+ *  of these verbatim. The cell cut is not here: it is applied where the record
+ *  is built ({@link ./read.ts}). */
 export type Line =
   | { readonly kind: "blank"; readonly raw: string }
   | { readonly kind: "comment"; readonly raw: string }

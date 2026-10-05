@@ -3,7 +3,7 @@ Feature: A ledger that is broken, and one that is empty
   A journal is somebody's file, and the file on disk can be half-written: an
   editor died mid-line, a script emitted a date that names no day, a posting
   lost its account. What the reader must NOT do is take the page down with it —
-  `@olai/format`'s reader is total, and a line it cannot make sense of is kept
+  this row's reader is total, and a line it cannot make sense of is kept
   as a raw entry rather than thrown.
 
   So the malformed lines are visible in Raw and in none of the transactions: a

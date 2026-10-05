@@ -4,7 +4,7 @@ Feature: A journal's odd lines, said rather than guessed at
   reader expects: a comment sits under a transaction header, a minus is written
   on either side of a symbol, an amount cannot be read, a transaction states two
   commodities and omits a third amount, a description runs to thousands of
-  characters, a file is longer than a page. `@olai/format`'s reader is total and
+  characters, a file is longer than a page. this row's reader is total and
   bounded, and every one of those lines has a ruling: what it becomes, what it
   does NOT become, and what the page owes the reader about it.
 

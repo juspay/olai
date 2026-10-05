@@ -10,8 +10,7 @@ const digits = (raw: string): string | null => {
 }
 
 // Money is never a float, and the separators are read the way tools write them.
-// (from `hledger.test.ts`'s "amounts are exact, on either side of the number",
-// at the decimal's own level)
+//
 test("a written number is read exactly, by the separators tools write", () => {
   expect(digits("-1,000.50")).toBe("-1000.50")
   expect(digits("1.000,50")).toBe("1000.50")
@@ -41,8 +40,7 @@ test("a repeated mark is a grouping and a single one is the decimal mark", () =>
 })
 
 // A LEADING DECIMAL MARK is how hledger writes a fraction of one, and it is a
-// number rather than something to refuse. (from "a number may begin with its
-// decimal mark")
+// number rather than something to refuse.
 test("a number may begin with its decimal mark", () => {
   expect(digits(".50")).toBe("0.50")
   expect(digits(",5")).toBe("0.5")

@@ -13,9 +13,7 @@ const held = (accounts: ReadonlyMap<string, ReadonlyMap<string, Decimal>>, accou
     .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
     .map(([commodity, value]) => `${text(value)} ${commodity}`)
 
-// The sum per account per commodity, rolled up to every parent prefix. (from
-// `hledger.test.ts`'s "balances add up per account and per commodity, and roll
-// up", at the rollup's own level)
+// The sum per account per commodity, rolled up to every parent prefix.
 test("movements roll up to every parent prefix", () => {
   const rolled = rollup([
     moved("assets:bank:checking", "$", 100n),

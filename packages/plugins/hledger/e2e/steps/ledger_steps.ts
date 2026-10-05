@@ -17,7 +17,7 @@
  *
  * WHAT THE READER OWNS AND THIS FILE DOES NOT: whether a payee is split off at
  * `|`, which lines are unparseable, how a commodity is spelled. Those are
- * `@olai/format`'s `hledger.test.ts` — the fixture below is what the BROWSER
+ * this row's `src/journal/` tests — the fixture below is what the BROWSER
  * shows of them, not a second unit suite.
  *
  * THE RAW VIEW IS THE FILE, checked by reading the served copy off disk (the

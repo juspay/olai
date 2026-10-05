@@ -5,16 +5,15 @@
  * THE BOUND IS ON THE READING, not a slice taken afterwards, over the three
  * axes a journal can be enormous along: lines read ({@link HLEDGER_LINES}),
  * transactions kept ({@link HLEDGER_TRANSACTIONS}), and the length of any one
- * field ({@link HLEDGER_CELL}). The scan STOPS paying for what it will not
- * draw.
+ * field ({@link HLEDGER_CELL}). The reading stops paying for what it will not
+ * draw, and says what it stopped on ({@link ./read.ts} owns the stopping).
  *
- * THE CELL CUT IS NOT THREADED THROUGH THE PARSE, and it is not a walk over a
- * finished journal either: it is one function ({@link clip}) called where a
- * record is BUILT ({@link ./read.ts}), so a field is cut once, from one
- * constant, and the account a movement is summed under is the same string the
- * page draws. Nine `cut` witnesses passed down through the parse was nine places
- * a record could be forgotten; a walk over the finished value was a second
- * traversal that had to remember every map KEY as well as every field.
+ * THE CELL CUT IS ONE FUNCTION CALLED WHERE A RECORD IS BUILT
+ * ({@link ./read.ts}): a field is cut once, from one constant, and the account
+ * a movement is summed under is the same string the page draws. So there is no
+ * witness threaded down through the parse — nine of them was nine places a
+ * record could be forgotten — and no walk over a finished value, which would
+ * have had to cut every map KEY as well as every field.
  */
 /** How many lines of a journal are read at all — past this the file is a file,
  *  not a page. Ten thousand transactions fit in twenty thousand lines with

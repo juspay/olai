@@ -63,7 +63,12 @@ Balances view are the sums of the postings as written.
 
 A journal is read up to 20,000 lines and 1,000 transactions, and no single
 field — a description, a comment, an account, a tag or a raw line — is longer
-than 2,000 characters; the page draws what fit. When something was left out —
+than 2,000 characters; the page draws what fit. A field cut in the middle of an
+account path keeps its segments whole (`assets:bank:checking` cut to twelve
+characters is `assets:bank`, not `assets:bank:`), which means two accounts whose
+beginnings are identical past the cut are drawn as ONE row — the honest cost of
+a bound, and the reason the Balances tree and the posting above it always agree
+about how long an account is. When something was left out —
 because the file is longer than the line bound, held more transactions than the
 transaction bound, or overran the character cut — a quiet line under the views
 says so, for example `Showing the first 1,000 transactions.`, `The file is

@@ -13,8 +13,7 @@ const written = (commodity: string, value: bigint, scale: number, sign: "leading
 /** An amount this reader computed — no style, so the house spelling. */
 const computed = (commodity: string, value: bigint, scale: number): Amount => ({ commodity, value: { value, scale }, style: null })
 
-// An amount is written the way it was read. (from `hledger.test.ts`'s "an
-// amount is written the way it was read")
+// An amount is written the way it was read.
 test("an amount is written the way it was read", () => {
   expect(amountText(written("", 12n, 0, "number", "prefix", false))).toBe("12")
   expect(amountText(written("$", 1250n, 2, "number", "prefix", false))).toBe("$12.50")

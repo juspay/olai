@@ -3,8 +3,7 @@ import { expect, test } from "bun:test"
 import { tagsIn } from "./tags.ts"
 
 // A tag VALUE runs to the next comma or the end of the comment — hledger's own
-// rule, which is not the one a whitespace split would pick. (from
-// `hledger.test.ts`'s "a tag value runs to the next comma")
+// rule, which is not the one a whitespace split would pick.
 test("a tag value runs to the next comma", () => {
   expect(tagsIn("trip:berlin paid:card, paid:true, note:")).toEqual([
     { key: "trip", value: "berlin paid:card" },

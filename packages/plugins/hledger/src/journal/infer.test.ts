@@ -21,8 +21,7 @@ const rows = (postings: ReadonlyArray<Posting>): ReadonlyArray<ReadonlyArray<unk
   postings.map((one) => [one.account, one.amount === null ? "" : text(one.amount.value), one.inferred])
 
 // ONE posting may omit its amount, and it is inferred to balance its group —
-// but only when the group states ONE commodity. (from `hledger.test.ts`'s "an
-// omitted amount is inferred only when one commodity is in play")
+// but only when the group states ONE commodity.
 test("an omitted amount is inferred only when one commodity is in play", () => {
   const single = transaction(["a  $10", "b  $5", "c"])
   expect(rows(single)).toEqual([
@@ -47,8 +46,7 @@ test("an omitted amount is inferred only when one commodity is in play", () => {
 
 // THE GROUPS: ordinary postings balance among themselves, balanced virtuals
 // (`[…]`) balance as their own group, and an unbalanced `(…)` posting balances
-// nothing at all. (from "inference is per group and never touches an unbalanced
-// virtual")
+// nothing at all.
 test("inference is per group and never touches an unbalanced virtual", () => {
   const one = transaction(["a  $10", "b", "[c]  $4", "[d]", "(e)"])
   expect(rows(one)).toEqual([
@@ -70,7 +68,7 @@ test("inference is per group and never touches an unbalanced virtual", () => {
 
 // A transaction with a COST is never inferred from: hledger balances it in the
 // cost commodity and this reader does not convert, so it says it does not know.
-// (from "a cost stops the inference rather than guessing a commodity")
+//
 test("a cost stops the inference rather than guessing a commodity", () => {
   const one = transaction(["a  10 EUR @ $1.10", "b"])
   expect(one.map((posting) => [posting.amount === null ? "" : text(posting.amount.value), posting.inferred])).toEqual([

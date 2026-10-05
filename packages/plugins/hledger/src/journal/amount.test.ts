@@ -11,7 +11,7 @@ const amount = (region: string): Amount => {
 }
 
 // Money is never a float, and the separators are read the way tools write them.
-// (from `hledger.test.ts`'s "amounts are exact, on either side of the number")
+//
 test("amounts are exact, on either side of the number", () => {
   const read = (region: string) => {
     const one = amount(region)
@@ -33,7 +33,7 @@ test("amounts are exact, on either side of the number", () => {
 // WHERE THE SIGN WAS WRITTEN is part of the amount, so the page hands back what
 // the file wrote: `-$10` keeps its minus in front of the symbol, `$-10` against
 // the digits, and a prefix commodity never swallows the sign into itself.
-// (from "a sign is read as a sign and not as part of the commodity")
+//
 test("a sign is read as a sign and not as part of the commodity", () => {
   const written = ["$-10", "-$10", "EUR-5", "-5 EUR"].map((region) => {
     const one = amount(region)
@@ -49,7 +49,7 @@ test("a sign is read as a sign and not as part of the commodity", () => {
 
 // A LEADING DECIMAL MARK is how hledger writes a fraction of one, and it is a
 // number rather than something to refuse — with or without a commodity and a
-// space in front of it. (from "a number may begin with its decimal mark")
+// space in front of it.
 test("a number may begin with its decimal mark", () => {
   expect(["$.50", ".50", ",5", "$ .25"].map((region) => text(amount(region).value))).toEqual([
     "0.50",
@@ -64,6 +64,20 @@ test("a number may begin with its decimal mark", () => {
 // unquoted commodity and a number that is not a grouping are refused — never an
 // amount the reader invented. (from "a posting that states something unreadable
 // is kept as raw text", at the amount's own level)
+// A SIGN IS SAID ONCE. `-$-10` states a minus twice, and folding the two would
+// read it as PLUS ten — a silent misread of the kind this reader refuses.
+test("an amount that says its sign twice is refused", () => {
+  for (const region of ["-$-10", "--10", "+$+10", "-$-10 EUR"]) {
+    expect(parseAmount(region), region).toBeNull()
+  }
+  // …while one sign, in either place, is still an amount: the value is minus
+  // ten either way, and the STYLE keeps where the file put the minus.
+  const leading = amount("-$10")
+  expect([text(leading.value), leading.style?.sign]).toEqual(["-10", "leading"])
+  const against = amount("$-10")
+  expect([text(against.value), against.style?.sign]).toEqual(["-10", "number"])
+})
+
 test("each unreadable amount is refused rather than guessed at", () => {
   for (const stated of ["10 20", "1E3 X", "1.2.3", "5 AAPL2", "$1 00", "10-20", '"unterminated']) {
     expect(parseAmount(stated), stated).toBeNull()

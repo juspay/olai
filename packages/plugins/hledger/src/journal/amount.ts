@@ -114,10 +114,15 @@ export const parseAmount = (region: string): Amount | null => {
   }
 
   // A sign may also sit against the digits: `$-10`, `10-` is not a thing, and
-  // `-10 EUR` had it before the digits already.
+  // `-10 EUR` had it before the digits already. A SIGN IS SAID ONCE, though:
+  // `-$-10` carries two of them and would read as PLUS ten if they were folded
+  // into each other, so an amount that says it twice is refused rather than
+  // guessed at — the same rule as every other unreadable amount here.
   if (written.startsWith("-") || written.startsWith("+")) {
-    if (written.startsWith("-")) negative = !negative
+    if (leading) return null
+    negative = written.startsWith("-")
     written = written.slice(1)
+    if (written.startsWith("-") || written.startsWith("+")) return null
   }
   const value = parse(written)
   if (value === null) return null

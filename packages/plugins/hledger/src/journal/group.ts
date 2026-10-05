@@ -12,11 +12,9 @@
  *   - a TRANSACTION: its postings, and the indented comments that join the
  *     transaction before its first posting or the posting above it.
  *
- * THERE IS NO INDEX MUTATION. The old scan appended a continuation by reaching
- * back into the output array — `entries[at] = { ...held, text: joined(...) }` —
- * which is one writer per line and a record that is rewritten after it was
- * finished. The accumulation is local here and pushed in one piece when the
- * directive ends, so every block in the answer was built once.
+ * EVERY BLOCK IS BUILT ONCE. A directive's lines accumulate locally and are
+ * pushed in one piece when the directive ends, so nothing in the answer is
+ * rewritten after it was finished and there is no index to reach back into.
  *
  * A refused posting line is NOT part of the transaction's postings: it is kept
  * with the block, to be drawn as the raw line it is, and its presence is what

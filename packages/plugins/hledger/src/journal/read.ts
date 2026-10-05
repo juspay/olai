@@ -149,17 +149,26 @@ export interface Journal {
 /** A journal, read — bounded, exact and total. */
 export const readJournal = (text: string, bounds?: Partial<Bounds>): Journal => {
   const limits = boundedBy(bounds)
-  // THE SPLIT IS BOUNDED TOO, and the one extra entry is how "was there more"
-  // is answered without counting the rest of the file.
+  // THE SPLIT IS BOUNDED TOO, so a file of a hundred megabytes costs a page of
+  // strings rather than a string per line.
   const rawLines = text.split("\n", limits.lines + 1)
-  const hitLimit = rawLines.length === limits.lines + 1
-  // A trailing newline is the end of the last line, not a line of its own: a
-  // file that ends with one and holds exactly `lines` lines did NOT run past the
-  // bound — the extra entry the limit returned is that empty last line.
-  const ended = hitLimit && rawLines[limits.lines] === "" && text.endsWith("\n")
-  const truncated = hitLimit && !ended
+  // A trailing newline is the end of the last line, not a line of its own.
   const logical = text === "" ? 0 : text.endsWith("\n") ? rawLines.length - 1 : rawLines.length
   const read = Math.min(logical, limits.lines)
+  // WAS THERE MORE IS A QUESTION ABOUT THE CHARACTERS, not about the entries the
+  // limited split returned: a BLANK line just past the bound and the empty string
+  // after a final newline are the same entry, and one means the file ran on while
+  // the other means it ended. So the walk asks where the last line read ended.
+  let consumed = 0
+  for (let at = 0; at < read; at++) {
+    const next = text.indexOf("\n", consumed)
+    if (next < 0) {
+      consumed = text.length
+      break
+    }
+    consumed = next + 1
+  }
+  const truncated = consumed < text.length
 
   const lines: Array<Line> = []
   for (let at = 0; at < read; at++) {
@@ -176,9 +185,18 @@ export const readJournal = (text: string, bounds?: Partial<Bounds>): Journal => 
   const cut = (field: string): string => clip(field, limits.cell, witness)
   const cutTags = (ones: ReadonlyArray<Tag>): ReadonlyArray<Tag> =>
     ones.map((one) => ({ key: cut(one.key), value: one.value === null ? null : cut(one.value) }))
+  /** An account as the tree will hold it: cut at the bound, and with a cut's
+   *  trailing `:` taken off — `a:b:` is a segment with no name, and a node the
+   *  Balances tree would draw as an empty row. Two accounts whose cut ends up
+   *  the same merge into one row, which is the honest cost of the bound. */
+  const cutAccount = (account: string): string => {
+    const held = cut(account)
+    const trimmed = held.replace(/:+$/, "")
+    return trimmed === "" ? held : trimmed
+  }
   const cutPosting = (one: Posting): Posting => ({
     ...one,
-    account: cut(one.account),
+    account: cutAccount(one.account),
     comment: one.comment === null ? null : cut(one.comment),
     tags: cutTags(one.tags),
   })

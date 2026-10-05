@@ -3,8 +3,7 @@ import { expect, test } from "bun:test"
 import { classify } from "./line.ts"
 
 // A date in a comment is a comment and not a transaction, which is the whole
-// reason lines are classified before they are parsed. (from `hledger.test.ts`'s
-// "a date in a comment is a comment")
+// reason lines are classified before they are parsed.
 test("a date in a comment is a comment", () => {
   expect([classify("; 2026-01-05 something").kind, classify("# 2026-01-05 too").kind, classify("* 2026-01-05 as well").kind])
     .toEqual(["comment", "comment", "comment"])

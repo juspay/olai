@@ -5,7 +5,7 @@ Feature: A ledger file that moves, and one bigger than a page
   watcher is for, and both are read here through the page a reader already has
   open.
 
-  The size bound is the same kind of claim one file over. `@olai/format`'s
+  The size bound is the same kind of claim one file over. this row's
   reader stops at a thousand transactions rather than reading a data dump, and
   the page must SAY what it left out — a table of the first thousand rows of
   twelve hundred with nothing saying so is a lie the reader cannot see. The

@@ -28,8 +28,7 @@ const spans = (text: string): ReadonlyArray<ReadonlyArray<unknown>> =>
 
 // AN INDENTED COMMENT BELONGS TO WHAT IT SITS UNDER: the transaction before its
 // postings, or the posting above it. It is never a posting to an account named
-// after the comment. (from `hledger.test.ts`'s "an indented comment joins the
-// transaction or the posting above it")
+// after the comment.
 test("an indented comment joins the transaction or the posting above it", () => {
   const one = txn(
     "2026-01-05 x\n" +
@@ -54,8 +53,7 @@ test("an indented comment joins the transaction or the posting above it", () => 
 // Directives, comments, comment BLOCKS and lines that are none of those are
 // kept as the text they are, at their own line numbers — and an indented line
 // CONTINUES the directive above it rather than becoming a line the page calls
-// unknown. (from "what is not a transaction or a posting is kept raw, in line
-// order")
+// unknown.
 test("what is not a transaction or a posting is kept raw, in line order", () => {
   const text =
     "; a header comment\n" +
@@ -93,8 +91,7 @@ test("what is not a transaction or a posting is kept raw, in line order", () => 
 })
 
 // A directive BETWEEN two transactions ends the first and does not become a
-// posting of either. (from "a directive between two transactions belongs to
-// neither")
+// posting of either.
 test("a directive between two transactions belongs to neither", () => {
   const text = "2026-01-01 x\n    a  $1\n    b\n" + "\n" + "account foo\n" + "\n" + "2026-01-02 y\n    a  $2\n    b"
   expect(

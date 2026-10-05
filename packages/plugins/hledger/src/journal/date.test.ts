@@ -4,8 +4,7 @@ import { DATE_SHAPE, endsAt, iso } from "./date.ts"
 
 // THE CALENDAR, month by month: a 31st is a day in March and not in April, a
 // 29th is a day in a leap year and not in another, and December is not a month
-// without an end. (from `hledger.test.ts`'s "a day is judged against the month
-// it names")
+// without an end.
 test("a day is judged against the month it names", () => {
   for (const day of ["2024-03-31", "2024-12-31", "2024-01-31", "2024-02-29", "2023-02-28"]) {
     expect(iso(day), day).toBe(day)

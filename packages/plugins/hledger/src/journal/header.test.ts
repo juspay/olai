@@ -10,8 +10,7 @@ const facts = (line: string): ReadonlyArray<unknown> | null => {
 
 // Every spelling of a day hledger writes, the secondary date, the pending mark,
 // and a description with no `|` in it at all — where the payee IS the
-// description, which is hledger's own answer. (from `hledger.test.ts`'s "a
-// header is read through every spelling it has")
+// description, which is hledger's own answer.
 test("a header is read through every spelling it has", () => {
   expect([facts("2026/1/5=2026-01-06 ! Lunch"), facts("2026.2.28 Dinner")]).toEqual([
     ["2026-01-05", "2026-01-06", "pending", "Lunch", null],
@@ -41,8 +40,7 @@ test("a header carries its mark, code, description, comment and tags", () => {
 })
 
 // A header whose date names no real day, whose secondary date does not, or
-// which is glued to the description is not a header at all. (from "an
-// impossible day, an impossible secondary date and a glued word are unknowns")
+// which is glued to the description is not a header at all.
 test("an impossible day, an impossible secondary date and a glued word are not headers", () => {
   expect(headerOf("2024-02-31 nothing happens")).toBeNull()
   expect(headerOf("2026-01-01=2026-02-30 x")).toBeNull()
