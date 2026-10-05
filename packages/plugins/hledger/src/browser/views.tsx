@@ -8,14 +8,12 @@
  * nothing else. A view that could reach back into the body or the router would
  * be a view that had to be re-read when either moved.
  *
- * THE TAB STRIP IS NOT `@olai/ui-primitives`' `Segmented`, and that is the one
- * place this file departs from the client's habits. `Segmented` is a settings
- * control: it carries `aria-pressed` and the preference testids, and it means
- * "which of these is chosen". A page's view strip is a TABS pattern —
- * `role="tablist"`/`role="tab"` with `aria-selected` — and a screen reader is
- * told which panel is showing, not which preference is set. The two are both
- * strips of buttons and nothing else about them is the same, so the shared
- * component is not shared here.
+ * THE STRIP IS A TABS PATTERN, properly: `role="tablist"`/`role="tab"` with
+ * `aria-selected`, `aria-controls` pointing at the panel each tab owns, a
+ * `role="tabpanel"` for each, and the arrow keys moving the selection — which
+ * is what makes it a view strip rather than three buttons. `@olai/ui-primitives`'
+ * `Segmented` is a settings control (`aria-pressed`, the preference testids) and
+ * means "which of these is chosen"; this means "which panel is showing".
  *
  * EVERY ROW THAT REPEATS CARRIES ITS IDENTITY IN `data-*`, not only in its
  * text: `data-account`, `data-amount`, `data-status`, `data-commodity` and the
@@ -24,10 +22,18 @@
  * person first — but a test that asked "is this posting in assets:cash, and is
  * it inferred" gets an answer that does not move when a class or a wording
  * does.
+ *
+ * THE ROWS ARE `<Index>` AND NOT `<For>`, for the reason `../Csv.tsx` argues
+ * about its own table: a revision re-parses the file into fresh objects, so a
+ * keyed list would unmount and remount every row on every write, throwing away
+ * the DOM a reader was looking at (and any browser state inside it). This page
+ * draws a FILE, whose rows are positions in that file, and a position is what
+ * `<Index>` keys.
  */
-import { For, Show } from "solid-js"
+import { Index, Show } from "solid-js"
 
 import {
+  HLEDGER_CELL,
   hledgerAmountText,
   type HledgerBalances,
   type HledgerJournal,
@@ -48,30 +54,36 @@ const VIEWS: ReadonlyArray<{ readonly value: View; readonly label: string }> = [
   { value: "raw", label: "Raw" },
 ]
 
+const tabId = (view: View): string => `hledger-tab-${view}`
+const panelId = (view: View): string => `hledger-panel-${view}`
+
+/** A count and the noun it counts, in the number it is — `1 transaction`. */
+const counted = (count: number, one: string, many: string): string =>
+  `${count} ${count === 1 ? one : many}`
+
 /**
  * WHAT THE FILE HOLDS, in one line — the count of transactions, the count of
  * accounts, and the days the transactions span.
  *
- * The DATE RANGE is read from the transactions that have a readable date and
- * not from the raw header text: a header whose date did not parse is a fact
- * this line cannot use, and `dateWritten` would put an unparseable string where
- * a reader expects a day. A file with no readable dates simply omits the third
- * fact rather than inventing one — three facts is the shape of an ordinary
- * journal, not a promise to make one up.
+ * The DATE RANGE is read from the transactions and not from the raw header
+ * text: a header whose date did not parse is not a transaction at all
+ * (`@olai/format`'s `hledger.ts`), so there is no unreadable string to put
+ * where a reader expects a day. A file with no transactions simply omits the
+ * third fact rather than inventing one.
  */
 export const headerLine = (ledger: HledgerJournal): string => {
   const facts: Array<string> = [
-    `${ledger.transactions.length} transactions`,
-    `${ledger.balances.accounts.length} accounts`,
+    counted(ledger.transactions.length, "transaction", "transactions"),
+    counted(ledger.balances.accounts.length, "account", "accounts"),
   ]
   const range = dateRange(ledger.transactions)
   if (range !== null) facts.push(range)
   return facts.join(" · ")
 }
 
-/** The span of a journal's readable dates, `2026-01-05–2026-03-31`, or nothing
- *  when no transaction carried one. `YYYY-MM-DD` sorts as text, which is what
- *  makes the two comparisons below a min and a max. */
+/** The span of a journal's dates, `2026-01-05–2026-03-31`, or nothing when no
+ *  transaction carried one. `YYYY-MM-DD` sorts as text, which is what makes the
+ *  two comparisons below a min and a max. */
 const dateRange = (transactions: ReadonlyArray<HledgerTransaction>): string | null => {
   let first: string | null = null
   let last: string | null = null
@@ -83,38 +95,71 @@ const dateRange = (transactions: ReadonlyArray<HledgerTransaction>): string | nu
   return first === null || last === null ? null : `${first}\u2013${last}`
 }
 
-/** The page's view strip. A tab is selected, not pressed — see this file's
- *  header for why it is drawn here rather than borrowed. */
+/** The page's view strip — a tablist whose arrow keys move the selection, as a
+ *  tabs pattern's do. */
 export function TabStrip(props: {
   readonly view: View
   readonly onPick: (view: View) => void
 }) {
+  let strip: HTMLDivElement | undefined
+  /** Select and focus one tab — the three ways in (a step, Home, End) end
+   *  here, so the focus and the selection cannot drift apart. */
+  const go = (view: View | undefined): void => {
+    if (view === undefined) return
+    props.onPick(view)
+    strip?.querySelector<HTMLButtonElement>(`[data-view="${view}"]`)?.focus()
+  }
+  /** Select and focus a tab by offset, wrapping — what Left/Right do. */
+  const step = (from: View, by: number): void => {
+    const at = VIEWS.findIndex((one) => one.value === from)
+    const next = VIEWS[(at + by + VIEWS.length) % VIEWS.length]
+    go(next?.value)
+  }
+  const onKey = (event: KeyboardEvent): void => {
+    // The event's own target, narrowed rather than asserted: the handler is on
+    // the strip and the key belongs to whichever tab is focused.
+    const node = event.target instanceof HTMLElement ? event.target : null
+    const current = node?.dataset["view"] as View | undefined
+    if (current === undefined) return
+    if (event.key === "ArrowRight") { event.preventDefault(); step(current, 1) }
+    else if (event.key === "ArrowLeft") { event.preventDefault(); step(current, -1) }
+    else if (event.key === "Home") { event.preventDefault(); go(VIEWS[0]?.value) }
+    else if (event.key === "End") { event.preventDefault(); go(VIEWS[VIEWS.length - 1]?.value) }
+  }
   return (
-    <div class="mb-5 flex gap-1 border-b border-rule" role="tablist">
-      <For each={VIEWS}>
+    <div
+      class="mb-5 flex gap-1 border-b border-rule"
+      ref={strip}
+      role="tablist"
+      onKeyDown={onKey}
+    >
+      <Index each={VIEWS}>
         {(choice) => (
           <button
             type="button"
             role="tab"
+            id={tabId(choice().value)}
+            aria-controls={panelId(choice().value)}
+            aria-selected={props.view === choice().value ? "true" : "false"}
+            // Roving tabindex: the strip is ONE stop and the arrows move within
+            // it, which is the tabs pattern and not three separate stops.
+            tabindex={props.view === choice().value ? 0 : -1}
             // A border under the selected tab rather than a fill: the strip
             // shares one baseline with the page below it, and a filled chip in
             // a list of three reads as a filter rather than a view.
             class={`-mb-px border-b-2 px-3 py-1.5 text-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-              props.view === choice.value
+              props.view === choice().value
                 ? "border-accent text-ink"
                 : "border-transparent text-muted hover:text-ink"
             }`}
             data-testid={TESTID.hledgerTab}
-            data-view={choice.value}
-            // Spelled both ways round, like the client's other strips: a
-            // framework that drops a false boolean announces nothing at all.
-            aria-selected={props.view === choice.value ? "true" : "false"}
-            onClick={() => props.onPick(choice.value)}
+            data-view={choice().value}
+            onClick={() => props.onPick(choice().value)}
           >
-            {choice.label}
+            {choice().label}
           </button>
         )}
-      </For>
+      </Index>
     </div>
   )
 }
@@ -124,46 +169,71 @@ export function TransactionsPanel(props: {
   readonly transactions: ReadonlyArray<HledgerTransaction>
 }) {
   return (
-    <div class="flex flex-col gap-6" data-testid={TESTID.hledgerTransactions}>
-      <For each={props.transactions}>{(transaction) => <Transaction transaction={transaction} />}</For>
+    <div
+      role="tabpanel"
+      id={panelId("transactions")}
+      aria-labelledby={tabId("transactions")}
+      tabindex={0}
+      class="flex flex-col gap-6"
+      data-testid={TESTID.hledgerTransactions}
+    >
+      <Index each={props.transactions}>{(transaction) => <Transaction transaction={transaction()} />}</Index>
     </div>
   )
 }
 
-/** One transaction: its header, its postings, and its own comment and tags. */
+/** One transaction: its header, its postings, and its own comment and tags.
+ *  The payee and the note are the header's two halves when the file wrote a
+ *  `|`, and the note is drawn — the part a reader scans for is the merchant. */
 function Transaction(props: { readonly transaction: HledgerTransaction }) {
+  const one = () => props.transaction
   return (
     <article
       class="border-b border-rule pb-4"
-      data-testid="hledger-txn"
-      data-date={props.transaction.date}
-      data-status={props.transaction.status}
-      data-code={props.transaction.code ?? ""}
-      data-description={props.transaction.description}
+      data-testid={TESTID.hledgerTxn}
+      data-date={one().date}
+      data-secondary={one().secondaryDate ?? ""}
+      data-status={one().status}
+      data-code={one().code ?? ""}
+      data-description={one().description}
+      data-payee={one().payee}
+      data-note={one().note ?? ""}
     >
       <div class="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span class="font-mono text-label text-muted">{props.transaction.date}</span>
-        <Show when={props.transaction.status === "unmarked" ? undefined : props.transaction.status}>
+        <span class="font-mono text-label text-muted">
+          {one().date}
+          <Show when={one().secondaryDate}>
+            {(second) => <>{`=${second()}`}</>}
+          </Show>
+        </span>
+        <Show when={one().status === "unmarked" ? undefined : one().status}>
           {(status) => <span class="text-label text-muted">{status()}</span>}
         </Show>
-        <Show when={props.transaction.code ?? undefined}>
+        <Show when={one().code ?? undefined}>
           {(code) => <span class="font-mono text-label text-muted">({code()})</span>}
         </Show>
-        <span class="text-body text-ink">{props.transaction.description}</span>
+        <span class="text-body text-ink">{one().description}</span>
+        <Show when={one().note ?? undefined}>
+          {(note) => (
+            <span class="text-label text-muted italic" data-testid={TESTID.hledgerTxnNote}>
+              | {note()}
+            </span>
+          )}
+        </Show>
       </div>
       <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
-        <For each={props.transaction.postings}>{(posting) => <Posting posting={posting} />}</For>
+        <Index each={one().postings}>{(posting) => <Posting posting={posting()} />}</Index>
       </ul>
-      <Show when={props.transaction.comment ?? undefined}>
+      <Show when={one().comment ?? undefined}>
         {(comment) => (
-          <span class="mt-1 block text-label text-muted italic" data-testid="hledger-txn-comment">
+          <span class="mt-1 block text-label text-muted italic" data-testid={TESTID.hledgerTxnComment}>
             {comment()}
           </span>
         )}
       </Show>
-      <Show when={props.transaction.tags.length > 0}>
+      <Show when={one().tags.length > 0}>
         <span class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-          <For each={props.transaction.tags}>{(tag) => <Tag tag={tag} />}</For>
+          <Index each={one().tags}>{(tag) => <Tag tag={tag()} />}</Index>
         </span>
       </Show>
     </article>
@@ -181,7 +251,7 @@ function Posting(props: { readonly posting: HledgerPosting }) {
   return (
     <li
       class="flex flex-wrap items-baseline gap-x-2 font-mono text-label"
-      data-testid="hledger-posting"
+      data-testid={TESTID.hledgerPosting}
       data-account={props.posting.account}
       data-amount={amount()}
       data-inferred={props.posting.inferred ? "true" : "false"}
@@ -204,17 +274,22 @@ function Posting(props: { readonly posting: HledgerPosting }) {
         <span class="text-muted italic">inferred</span>
       </Show>
       <Show when={props.posting.comment ?? undefined}>
-        {(comment) => <span class="text-muted italic">{comment()}</span>}
+        {(comment) => (
+          <span class="text-muted italic" data-testid={TESTID.hledgerPostingComment}>
+            {comment()}
+          </span>
+        )}
       </Show>
+      <Index each={props.posting.tags}>{(tag) => <Tag tag={tag()} />}</Index>
     </li>
   )
 }
 
-/** One tag written under a transaction's header. */
+/** One tag, `key: value` — the shape a reader copies. */
 function Tag(props: { readonly tag: HledgerTag }) {
   const value = props.tag.value
   return (
-    <span class="font-mono text-label text-muted" data-testid="hledger-tag">
+    <span class="font-mono text-label text-muted" data-testid={TESTID.hledgerTag}>
       {value === null ? props.tag.key : `${props.tag.key}: ${value}`}
     </span>
   )
@@ -225,11 +300,11 @@ function Tag(props: { readonly tag: HledgerTag }) {
  *
  * FLAT AND INDENTED rather than nested lists, and it is the indent that carries
  * the depth: the format hands back the account names and their rolled-up
- * balances (`@olai/format`'s `hledger.ts`), and it hands them in flat tree
- * order — parents before their children — so this draws one row per name, at
- * `depth` columns in, rather than reassembling a nesting that is already a fact
- * of the order. `data-depth` says the same thing as the padding for a reader
- * that is not an eye.
+ * balances (`@olai/format`'s `hledger.ts`), in TREE order — parents before
+ * their children and children contiguous — so this draws one row per name, at
+ * `depth` columns in, rather than reassembling a nesting the order already
+ * states. `data-depth` says the same thing as the padding for a reader that is
+ * not an eye.
  *
  * A ROW IS DRAWN EVEN WHEN ITS TOTAL IS EMPTY, because the account was NAMED in
  * the file and a reader browsing their chart of accounts wants to see it — a
@@ -238,56 +313,89 @@ function Tag(props: { readonly tag: HledgerTag }) {
  */
 export function BalancesPanel(props: { readonly balances: HledgerBalances }) {
   return (
-    <div class="flex flex-col" data-testid={TESTID.hledgerBalances}>
-      <For each={props.balances.accounts}>
+    <div
+      role="tabpanel"
+      id={panelId("balances")}
+      aria-labelledby={tabId("balances")}
+      tabindex={0}
+      class="flex flex-col"
+      data-testid={TESTID.hledgerBalances}
+    >
+      <Index each={props.balances.accounts}>
         {(account) => {
-          const depth = account.split(":").length - 1
+          const depth = account().split(":").length - 1
           return (
             <div
               class="flex flex-wrap items-baseline gap-x-4 border-b border-rule py-1"
-              data-testid="hledger-balance"
-              data-account={account}
+              data-testid={TESTID.hledgerBalance}
+              data-account={account()}
               data-depth={depth}
             >
               <span
                 class={depth === 0 ? "text-body text-ink" : "text-label text-muted"}
                 style={{ "padding-left": `${depth * 1.25}rem` }}
-                data-testid="hledger-balance-account"
+                data-testid={TESTID.hledgerBalanceAccount}
               >
-                {account.slice(account.lastIndexOf(":") + 1)}
+                {account().slice(account().lastIndexOf(":") + 1)}
               </span>
               <span class="ml-auto flex flex-wrap justify-end gap-x-4 font-mono text-label tabular-nums">
-                <For each={props.balances.of.get(account) ?? []}>
+                <Index each={props.balances.of.get(account()) ?? []}>
                   {(amount) => (
-                    <span data-testid="hledger-balance-amount" data-commodity={amount.commodity}>
-                      {hledgerAmountText(amount)}
+                    <span data-testid={TESTID.hledgerBalanceAmount} data-commodity={amount().commodity}>
+                      {hledgerAmountText(amount())}
                     </span>
                   )}
-                </For>
+                </Index>
               </span>
             </div>
           )
         }}
-      </For>
+      </Index>
     </div>
   )
 }
 
 /**
- * The file itself, verbatim.
+ * The file itself, as far as it was READ.
  *
- * No highlighting and no parsing: this view exists so that a reader who wants
- * to know exactly what the format made of their journal can read the bytes it
- * read. Anything drawn here that was not in the file would defeat it, which is
- * why it takes the SOURCE and not the parse.
+ * ONE SPAN PER READ LINE, and that is two facts at once. The Raw view is the
+ * bytes the page actually read — never a re-rendering of the parse — and the
+ * bound is the reading's, so the DOM stops where {@link HledgerJournal.lines}
+ * stops rather than laying out a hundred-megabyte file a reader is not looking
+ * past (`../Hledger.tsx` argues the wire's own bound). And a line the reader
+ * kept as raw text says WHICH KIND it is in `data-entry`
+ * (`directive`/`comment`/`unknown`), which is the one thing typed about a line
+ * that is not a transaction or a posting and the reason the format keeps those
+ * entries at all.
+ *
+ * `split("\n", lines + 1)` rather than a full split: the limit stops the scan,
+ * so reading the first thousand lines of a huge file costs a thousand lines.
  */
-export function RawPanel(props: { readonly text: string }) {
+export function RawPanel(props: { readonly text: string; readonly read: HledgerJournal }) {
+  const lines = (): ReadonlyArray<string> => props.text.split("\n", props.read.lines + 1).slice(0, props.read.lines)
+  // Line number → kind, built once per parse: the alternative is a scan of the
+  // entries per rendered line.
+  const kinds = (): ReadonlyMap<number, string> =>
+    new Map(props.read.entries.map((entry) => [entry.line, entry.kind]))
   return (
     <pre
+      role="tabpanel"
+      id={panelId("raw")}
+      aria-labelledby={tabId("raw")}
+      tabindex={0}
       class="m-0 overflow-x-auto whitespace-pre font-mono text-label"
       data-testid={TESTID.hledgerRaw}
     >
-      {props.text}
+      <Index each={lines()}>
+        {(line, at) => (
+          <>
+            <Show when={at > 0}>{"\n"}</Show>
+            <span data-testid={TESTID.hledgerRawLine} data-line={at + 1} data-entry={kinds().get(at + 1)}>
+              {line().slice(0, HLEDGER_CELL)}
+            </span>
+          </>
+        )}
+      </Index>
     </pre>
   )
 }

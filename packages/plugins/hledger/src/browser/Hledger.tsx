@@ -119,7 +119,7 @@ export function Hledger(props: { readonly file: string }) {
               <BalancesPanel balances={read().balances} />
             </Show>
             <Show when={view() === "raw"}>
-              <RawPanel text={served()?.text ?? ""} />
+              <RawPanel text={served()?.text ?? ""} read={read()} />
             </Show>
             {/* WHAT THIS PAGE IS NOT SHOWING, once, under whichever panel is
                 drawn — through the one component that owns what a mood MEANS

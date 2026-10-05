@@ -9,17 +9,32 @@ hledger and ledger share. Olai claims the three usual suffixes — `.journal`,
 
 The page opens on **Transactions**, the file's own order: each date, its status
 and code, the description, then the postings under it with their accounts and
-amounts. A posting whose amount was left out of the file and worked out from
-the rest of the transaction is marked _inferred_, so you can tell the format's
-arithmetic from what was written. Transaction comments and tags are shown
-quietly beside the entry that carries them.
+amounts. A posting whose amount was left out of the file and worked out to
+balance the rest of its group — the ordinary postings, or the balanced virtual
+ones, since an unbalanced `(…)` posting balances nothing — is marked
+_inferred_, so you can tell the format's arithmetic from what was written.
+Transaction comments and tags are shown quietly beside the entry that carries
+them. Every amount is drawn as the file wrote it, so a minus written before a
+symbol stays where it is (`-$10`); a posting whose amount cannot be read at all
+is kept as raw text rather than guessed at, because a line this reader cannot
+turn into an account and an amount is not one it invents a number for.
 
 **Balances** is the same file read the other way: every account that was named,
 as a tree. Parent accounts roll their children up, so `assets` shows the sum of
-everything under it, and each row carries its own total per commodity.
+everything under it, and each row carries its own total per commodity. A total
+is this app's arithmetic rather than anybody's spelling, so it is written in one
+house style — a symbol against the number with the minus in front of it
+(`-$1200.00`), a word commodity after the number with a space.
 
 **Raw** is the file itself, exactly as it is on disk. Nothing on that view has
-been read or interpreted, which is the point of it.
+been read or interpreted, which is the point of it. It draws the file only as
+far as it was read (the same line bound as below), and each line kept as raw
+text is marked with the kind it is — a directive, a comment, or a line the
+reader could not place.
+
+The view is per file. Opening another journal starts again on Transactions,
+which is the reading a journal is opened for; nothing remembers which tab you
+left a file on.
 
 ## View only
 
@@ -27,6 +42,12 @@ A journal is claimed as text, but olai never writes one. There is no editor and
 no create verb; opening a journal shows you what is in it, and editing is what
 your hledger file already belongs to. The parsing rules are
 [the format's](../format.md).
+
+A link to a journal opens its page and draws no preview card. The card a link
+shows under the pointer is contributed per kind, and only the kinds with one
+have it — a document, an outline node, an agent session. A journal is not among
+them, so a link to one behaves exactly as a link to a `.csv` does: it opens the
+page, and nothing appears under the pointer.
 
 ## What is not modelled
 
@@ -38,9 +59,12 @@ Balances view are the sums of the postings as written.
 
 ## Bounds
 
-A journal is read up to 20,000 lines and 1,000 transactions, and the page draws
-what fit. When something was left out — because the file is longer than the
-line bound, or held more transactions than the transaction bound — a quiet line
-under the views says so, for example `Showing the first 1,000 transactions.` or
-`The file is longer than 20,000 lines; only the beginning was read.` An empty
-file says `This file is empty.` instead of drawing three empty panels.
+A journal is read up to 20,000 lines and 1,000 transactions, and no single
+field — a description, a comment, an account, a tag or a raw line — is longer
+than 2,000 characters; the page draws what fit. When something was left out —
+because the file is longer than the line bound, held more transactions than the
+transaction bound, or overran the character cut — a quiet line under the views
+says so, for example `Showing the first 1,000 transactions.`, `The file is
+longer than 20,000 lines; only the beginning was read.` or `Long lines are cut
+at 2,000 characters.` An empty file says `This file is empty.` instead of
+drawing three empty panels.
