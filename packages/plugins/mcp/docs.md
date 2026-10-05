@@ -53,7 +53,8 @@ The server's `instructions` are COMPOSED, at each `initialize`, from the rows
 standing at that moment — the same reading the tool list and the `surface://`
 resources come from. This row's own paragraphs come first: what olai IS to a
 tool caller (nodes and whole files, never bytes, no filesystem under it), the
-address grammar (`/#<id>` a node anywhere, `/<path>` a document or an outline,
+address grammar (`/#<id>` a node revealed in its outline, `/zoom/#<id>` its own
+page, `/<path>` a document or an outline,
 `/<path>#<element>` a row or a heading — `@olai/format`'s, true with no other
 row standing), that a tool's `at` is that address without the leading `/`, that
 an address is the app's own with no host or port to know, and that tools are

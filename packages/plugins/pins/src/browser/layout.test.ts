@@ -31,8 +31,8 @@ test("layout titles remain safe to follow with malformed or empty segments", () 
 })
 
 
-test("workspace recognition precedes the unchanged page parser", () => {
+test("workspace recognition uses the shared route reader", () => {
   const title = "/s/house.olai/garden.olai"
-  expect(routes.routeIn(title)).toEqual(atFile("s/house.olai/garden.olai"))
+  expect(routes.destinationIn(title)?.kind).toBe("layout")
   expect(pinsOf(routes, [{id: "p", title}])[0]?.target.kind).toBe("layout")
 })

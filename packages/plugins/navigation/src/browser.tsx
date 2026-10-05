@@ -1,6 +1,9 @@
 /** History and focus activate without layout or renderer. A separate renderer
  * integration owns content registrations; layout withdrawal leaves history and
  * the focused location alive. Each reactivation creates fresh subscriptions. */
+import { references } from "olai-plugin-outlines/references"
+import { nodeTargets } from "./nodes.ts"
+import { followLinks } from "./links.ts"
 import {Clocks} from "@olai/plugin-api"
 import { createGhost } from "@olai/web/client/ghost.ts"
 import { protectComposition } from "@olai/web/client/composition.ts"
@@ -65,6 +68,7 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
     value: createNavigation(), dispose,
   }))), ({ dispose }) => Effect.sync(dispose))
   yield* Effect.acquireRelease(Effect.sync(() => guardPageInput(state.value)), stop => Effect.sync(stop))
+  yield* Effect.acquireRelease(Effect.sync(() => followLinks(state.value)), stop => Effect.sync(stop))
   const offers = yield* Offers
   yield* offers.own("state", () => ({...state.value, routes: routing, page: (index: number | (()=>number)) => {
     const router = useMaybeRouter() ?? state.value
@@ -88,6 +92,10 @@ export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*
  * and no contributed pages, which is the same empty answer both settled before.
  */
 export const components = {
+ nodes: definePlugin({ name: "nodes", needs: [references], apply: Effect.gen(function*() {
+   const nodes = yield* references
+   yield* Effect.acquireRelease(Effect.sync(() => nodeTargets.hold(nodes)), stop => Effect.sync(stop))
+ }) }),
  /** The matcher, DECLARED — a component of its own so the palette keeps opening
   *  and keeps saying *no matcher* when the row is absent
   *  (`./palette/reading.ts`). */
@@ -109,11 +117,9 @@ export const components = {
    const stop=holdRoutePages(createMemo(()=>settleRoutePages(routeFaces("app.route"))))
    return ()=>{dispose();stop()}
  })),stop=>Effect.sync(stop))
-})}), files:definePlugin({name:"files",needs:[fileAccess,Offers],apply:Effect.gen(function*(){
+})}), files:definePlugin({name:"files",needs:[fileAccess],apply:Effect.gen(function*(){
  const files=yield* fileAccess
  yield* Effect.acquireRelease(Effect.sync(()=>holdFiles(files)),stop=>Effect.sync(stop))
- const opens=(path:string,at?:string)=>files.paths().includes(path)?atElement(files.claims(),path,at??null):undefined
- yield* (yield* Offers).own("file-links",()=>opens)
 })}), palette:definePlugin({name:"palette",needs:[navigation,rendererSlots,Clocks,Faces,appShell],apply:Effect.gen(function*(){
  yield* holdPaletteFaces(yield* Faces)
  // The two panel verbs and the breakpoint the palette spends

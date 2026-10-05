@@ -54,13 +54,18 @@ Right-click any link this app can open — a door in the sidebar, a link in a
 document — for **Open** and **Open in new tab**. A new tab opens right after the
 tab in front and stays behind it. A link to a heading inside its own document,
 and a line of a document's contents, opens that document at that heading;
-**Open** on one still scrolls the page in place. Links inside an outline row are left to the
-row, which owns its own menu, and external links keep the browser's menu.
+**Open** also updates the address to that heading. Links inside an outline row,
+its bullet included, have this same menu; the rest of the row keeps its row
+menu. The menu reads the link through navigation's `targetOf`, the same reading
+a click and a hover preview use, so a page-local `#fragment` gets no menu of
+its own. External links keep the browser's menu.
 Shift+right-click always shows the browser's menu. ⌘-click and middle-click on a
 link still open a browser tab, as they do everywhere else.
 
 With the `pins` row, pressing a pinned layout on the shelf opens it in a new tab
-in front. Without the tabs row it opens in place.
+in front; Alt and Alt+Shift still open its pages beside the current ones.
+Without the tabs row it opens in place. Tabs leases navigation's tab-opening
+capability for this and withdraws it before its own state is released.
 
 ## Keys
 
@@ -107,7 +112,9 @@ Another browser window does not pick up changes live: the window that writes
 last wins.
 
 A stored tab keeps its address, not a parsed page, so a plugin that was switched
-on or off since the tab was opened is honoured when the tab comes back.
+on or off since the tab was opened is honoured when the tab comes back. Tabs
+stored before `/zoom/#<id>` existed (version 1) spelled a zoom as `/#<id>`; they
+are read as zoom, so an old background tab still opens the page it held.
 
 ## Phones
 

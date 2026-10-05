@@ -83,7 +83,7 @@ Feature: On a phone
     And I mark the page
     When I tap the bullet of "kitchen"
     Then the zoomed node is "kitchen"
-    And the address is "/#kitchen"
+    And the address is "/zoom/#kitchen"
     And the page has not reloaded
 
   @corpus:good @phone

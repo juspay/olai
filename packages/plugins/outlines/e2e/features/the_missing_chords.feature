@@ -13,7 +13,7 @@ Feature: The rest of Workflowy's chords
     Given I open the outline "house.olai"
     When I click the title of "install"
     And I press "Alt+."
-    Then the address is "/#install"
+    Then the address is "/zoom/#install"
     And the zoomed node is "install"
     And there should be no page errors
 
@@ -21,7 +21,7 @@ Feature: The rest of Workflowy's chords
     Given I open the outline "house.olai"
     When I click the title of "handles"
     And I press "Alt+,"
-    Then the address is "/#install"
+    Then the address is "/zoom/#install"
     And the zoomed node is "install"
     And there should be no page errors
 
@@ -29,7 +29,7 @@ Feature: The rest of Workflowy's chords
     Given I open the node "install"
     When I click the title of "handles"
     And I press "Alt+,"
-    Then the address is "/#kitchen"
+    Then the address is "/zoom/#kitchen"
     And there should be no page errors
 
   Scenario: Alt+, on a whole outline's own rows has no page to go to

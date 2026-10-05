@@ -441,13 +441,7 @@ Feature: A `.html` in the vault
     And the page is scrolled to the top
 
   @scratch:good
-  Scenario: An in-page anchor is still the frame's own jump
-    # The half that did NOT change, and the one the rule above is a comparison
-    # against: `#top` names a place in the document the reader is already
-    # looking at, so there is nothing for the app to do with it. A page
-    # scrolling itself is not a navigation, and the test is the document rather
-    # than the presence of a hash — which is why the handler compares pathnames
-    # instead of asking whether there is a fragment at all.
+  Scenario: A same-frame fragment stays inside the HTML preview
     Given I open the app
     And I mark the page
     When I rewrite "notes/long.html" as:
@@ -462,9 +456,8 @@ Feature: A `.html` in the vault
     And I click the page "notes/long.html"
     Then the preview shows the heading "Long"
     When I click "#down" inside the preview
-    # The frame jumped inside itself…
+    # The frame owns its local fragment.
     Then the preview is at the anchor "#end"
-    # …and the app did not move at all: no navigation, no history, no address.
     And the address is "/notes/long.html"
     And the document open is "notes/long.html"
     And the page has not reloaded
@@ -1480,14 +1473,12 @@ Feature: A `.html` in the vault
     # THE HOSTILE CASE, and the reason the message is a lookup key rather than
     # an instruction. A previewed page runs its own JavaScript, so it can post
     # this app anything at all: a page that is not there, a climb out of the
-    # vault, one of the app's own addresses, a bare path. Each is decoded
-    # through the vault's one URL decoder and then MATCHED against the files
-    # this app is serving, and the route is built from the string that list
-    # holds — so a miss moves nothing, and nothing a frame said ever reaches the
-    # address bar.
+    # vault, an address off this origin, the retired open-page string. Each is
+    # validated by the seal's parser and then MATCHED against the files this app
+    # is serving — so a miss moves nothing.
     #
     # The last two lines are the fixture's teeth and the residue, in one act. A
-    # forged prefix that no longer matched the seal's would make every line
+    # forged message that no longer matched the seal's would make every line
     # above vacuous, so the page also sends one WELL-FORMED message naming a
     # file this vault really holds, and that one does open its page — which is
     # no more than the page could have done by drawing a link and is exactly as
@@ -1767,17 +1758,15 @@ Feature: A `.html` in the vault
     And the address is "/runaway.html"
 
   @scratch:good
-  Scenario: A link out of a preview comes home to the sealed document
+  Scenario: A same-origin app link in a preview navigates the owning pane
     Given I open the app
     When I rewrite "outbound.html" as a page that walks the frame off by "a link the reader follows"
     And I click the page "outbound.html"
     Then the preview shows the heading "Walk off"
     When I follow the link out of the preview
-    # The positive half of the same mechanism: the file's own markup is BACK,
-    # which is what says the restore ran rather than the navigation having
-    # quietly failed and left everything where it was.
-    Then the preview is back on the sealed document
-    And the app is not loaded inside the preview
+    Then the address is "/"
+    And there is no preview on this page
+    And there should be no page errors
 
   @scratch:good
   Scenario: A picture that arrives after the page has loaded takes the frame with it

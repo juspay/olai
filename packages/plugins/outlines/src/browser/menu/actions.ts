@@ -52,7 +52,7 @@ import type { Undo } from "../edit/undoing.ts"
 import { setFolded } from "../fold/memory.ts"
 import type { Fold } from "../fold/rows.ts"
 import { hung } from "../faces.ts"
-import { atNode, hrefOfPlain, type Route } from "olai-plugin-navigation/routes"
+import { atNode, zoomNode, hrefOfPlain, type Route } from "olai-plugin-navigation/routes"
 import type { WorkspaceRouting } from "olai-plugin-navigation/workspace"
 import type { RowAction, RowVerb } from "olai-plugin-outlines/slots"
 import { asText } from "./subtree.ts"
@@ -253,7 +253,7 @@ export const subjectMenuActions = (args: {
   const zoom: MenuAction = {
     id: "zoom",
     label: "Zoom in",
-    run: () => args.go(atNode(id)),
+    run: () => args.go(zoomNode(id)),
   }
   const copyLink: MenuAction = {
     id: "copy-link",

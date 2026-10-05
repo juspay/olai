@@ -20,7 +20,7 @@
  * press into both namespaces plus every ordinary word that spells it.
  */
 
-import { ours } from "@olai/web/client/press.ts"
+import { intentOf } from "@olai/surface"
 
 /** The attribute the pill publishes. A `data-` fact rather than a class, the
  *  same treatment every other machine-read fact on a row gets. */
@@ -42,7 +42,7 @@ import { TAG_ATTRIBUTE } from "@olai/markdown-ui/tag-contract.ts"
  *  Two unrelated answers under one word in one app is a grep that lands on the
  *  wrong file; this one is about a MouseEvent and says so. */
 export const tagPressed = (event: MouseEvent): string | null => {
-  if (!ours(event)) return null
+  if (intentOf(event) !== "go") return null
   const target = event.target
   if (!(target instanceof Element)) return null
   // `closest`, because a pill can hold an element the markdown put there.

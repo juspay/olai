@@ -19,7 +19,6 @@ import { heldService } from "@olai/ui-primitives/held.ts"
 import {
   declaredFrom,
   failureFrom,
-  showNodeFrom,
   type Declared,
   type References,
 } from "olai-plugin-outlines/references"
@@ -33,9 +32,6 @@ export const holdReferences = provider.hold
 export const createDeclared = (
   failure?: (message: string, ids: ReadonlyArray<string>) => void,
 ): Declared => declaredFrom(provider.read, failure)
-
-/** ...the press that shows a node on the page the reader already has. */
-export const useShowNode = (): ((id: string) => void) => showNodeFrom(provider.read)
 
 /** ...and what the outline could not name. */
 export const declaringFailure = failureFrom(provider.read)

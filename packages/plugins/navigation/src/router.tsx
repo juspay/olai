@@ -36,7 +36,7 @@ import { type Landings, landingsOf, NOWHERE } from "./landing.ts"
 import { adopted, forgotten, type LaneRows, pushedAt, seek } from "./lanes.ts"
 import { routing } from "./pages.ts"
 import { createScrollMemory } from "./scroll.ts"
-import { hrefOfWorkspace, type Workspace, workspaceOf } from "./workspace.ts"
+import { legacyZoomHref, hrefOfWorkspace, isLone, focusedRoute, type Workspace, workspaceOf } from "./workspace.ts"
 
 /** What this app keeps on a history entry, which is a NAME for it and nothing
  *  else: what was on screen is derived from the address, and a second copy of
@@ -48,6 +48,7 @@ import { hrefOfWorkspace, type Workspace, workspaceOf } from "./workspace.ts"
  *  a traversal can tell which way it went and whose entry it reached
  *  (`./lanes.ts`). */
 interface Entry {
+  readonly links?: 2
   readonly key: string
   readonly lane: string | null
   readonly at: number
@@ -66,8 +67,10 @@ const atIn = (state: unknown): number | undefined => {
   return typeof entry?.at === "number" && Number.isSafeInteger(entry.at) ? entry.at : undefined
 }
 
-const here = (): string =>
-  location.pathname + location.search + location.hash
+const here = (): string => {
+  const href = location.pathname + location.search + location.hash
+  return keyIn(history.state) !== undefined && history.state?.links !== 2 ? legacyZoomHref(href) : href
+}
 
 export const createRouter = (): NavigationRouter => {
   const owner = getOwner()
@@ -107,7 +110,7 @@ export const createRouter = (): NavigationRouter => {
    * whose write to the entry waits until the browser is back on it.
    */
   let seeking: { readonly direction: 1 | -1; steps: number; pending?: () => void } | undefined
-  const stamp = (key: string): Entry => ({ key, lane: untrack(lane), at: currentAt })
+  const stamp = (key: string): Entry => ({ links: 2, key, lane: untrack(lane), at: currentAt })
   /** An entry pushed over the one under the reader, by this router or by the
    *  browser: one position further, belonging to the lane in force, and every
    *  entry beyond it discarded. */
@@ -125,6 +128,8 @@ export const createRouter = (): NavigationRouter => {
     return key
   }
 
+  const initial = here()
+  if (initial !== location.pathname + location.search + location.hash) history.replaceState({ ...history.state, links: 2 }, "", initial)
   let currentKey = nameHere()
   const scroll = createScrollMemory(() => keyIn(history.state))
   let alive = true
@@ -266,6 +271,7 @@ export const createRouter = (): NavigationRouter => {
       // position you left" belongs to entries, and none was traversed to.
       const next = workspaceOf(routing, here())
       currentKey = nameHere()
+      if (isLone(next) && front().revealVisible(focusedRoute(next))) return
       batch(() => {
         setLandings(landingsOf(next))
         setWorkspace(next)
@@ -381,9 +387,16 @@ export const createRouter = (): NavigationRouter => {
   }
   setFront(makeLane(null, workspaceOf(routing, here())))
   onCleanup(() => { for (const one of untrack(live)) one.dispose() })
+  let tabOpener: ((workspace: Workspace) => void) | undefined
   // Service readers follow the front; lane readers retain their own view.
   const current = (): Lane => front().value
   return {
+    offerTabs(open) {
+      if (tabOpener) throw new Error("navigation already has a tab owner")
+      tabOpener = open
+      return () => { if (tabOpener === open) tabOpener = undefined }
+    },
+    openTab(workspace) { if (!tabOpener) return false; tabOpener(workspace); return true },
     drawContent(shown) {
       const row = { shown }
       setContentVisibility(rows => [...rows, row])
@@ -403,10 +416,12 @@ export const createRouter = (): NavigationRouter => {
     landing: index => current().landing(index),
     landed: (...args) => current().landed(...args),
     go: (...args) => current().go(...args),
+    revealState: index => current().revealState(index),
     goIn: (...args) => current().goIn(...args),
     replace: (...args) => current().replace(...args),
     replaceIn: (...args) => current().replaceIn(...args),
     open: (...args) => current().open(...args),
+    openWorkspaceRight: (...args) => current().openWorkspaceRight(...args),
     openRight: (...args) => current().openRight(...args),
     close: (...args) => current().close(...args),
     focus: (...args) => current().focus(...args),

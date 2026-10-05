@@ -6,6 +6,13 @@ chat's two levels, and the carry gesture. These faces arrive with chat's plugin 
 with it. [chat.md](../chat.md) describes the workflows; this page describes their
 ownership.
 
+Every reference the panel draws — an authored Reference chip, a write's
+result, a roster row and a backticked id that names a node — is a real `/#id`
+anchor, so navigation answers it with the same reveal and the same gestures as
+any other link; the transcript has no click or keyboard handler of its own. A
+backticked id streaming in is wrapped in its anchor once the node is known, and
+unwrapped if it stops being one.
+
 ## What turns it on
 
 Nothing. It is on by default, like the appliances and the engines. Two things take it away, and they answer two different questions.

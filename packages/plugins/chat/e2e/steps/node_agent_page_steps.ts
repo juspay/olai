@@ -33,8 +33,8 @@ const PINNED_TITLE = selector(PLUGIN_TESTID.zoomPinnedTitle);
 const pinnedShows = async (world: OlaiWorld) =>
   await world.topmostTestidOver(world.page.locator(PINNED_TITLE), "the pinned node name") === PLUGIN_TESTID.zoomPinnedTitle;
 
-When("I follow the agent's open-page link", async function(this: OlaiWorld) {
-  await this.chatRoot().getByRole("link", { name: "Open the page ›" }).click();
+When("I follow the agent's show-in-outline link", async function(this: OlaiWorld) {
+  await this.chatRoot().getByRole("link", { name: "Show in outline ›" }).click();
 });
 Given("I open the plain node composer for {string}", async function(this: OlaiWorld, node: string) {
   await this.openNode(node);
@@ -54,7 +54,7 @@ Then("the agent page puts its line before properties and memory before conversat
   const memory = await this.box(this.node("hinges"), "the memory row");
   const conversation = await this.box(this.page.locator(foot), "the conversation");
   assert.ok(line.y < properties.y && properties.y < memory.y && memory.y < conversation.y);
-  assert.equal(await this.page.getByRole("link", { name: "Open the page ›" }).count(), 0);
+  assert.equal(await this.page.getByRole("link", { name: "Show in outline ›" }).count(), 0);
   assert.equal(await this.chat(CHAT_PANEL).count(), 1);
 });
 Then("the plain node composer says {string} and {string}", async function(this: OlaiWorld, placeholder: string, notice: string) {

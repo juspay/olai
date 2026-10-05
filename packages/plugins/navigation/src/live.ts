@@ -18,6 +18,7 @@ marked,
 NOWHERE,
 spent
 } from "./landing.ts"
+import { createReveal } from "./reveal.ts"
 import type { Route } from "./routes.ts"
 import { routing } from "./pages.ts"
 import {
@@ -87,7 +88,11 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
   const [reports, setReports] = createStore<Record<string, (() => PageInfo) | undefined>>({})
   const info = (index: number) => reports[panes()[index]?.id ?? ""]?.()
   const focused = createMemo(() => info(focusIndex()), undefined, { equals: samePageInfo })
+  const resolving = createReveal(panes, (index, route, how) => route
+    ? commit(navigateIn(workspace(), index, route), how, all => marked(all, index, landingOf(route)))
+    : commit(focusAt(workspace(), index), "replace", asTheyWere))
   const goIn = (index: number, next: Route): void => {
+    if (resolving.follow(index, next)) return
     commit(
       navigateIn(workspace(), index, next),
       "push",
@@ -125,9 +130,21 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
       setLandings((all) => spent(all, index, file, at)),
     go: (next) => goIn(workspace().focus, next),
     goIn,
+    revealState: resolving.status,
     replace: (next) => replaceIn(workspace().focus, next),
     replaceIn,
-    open: (next) => commit(next, "push", () => NOWHERE),
+    open: (next) => commit(next, "push", () => landingsOf(next)),
+    openWorkspaceRight: (from, next, forceNew) => {
+        let after = workspace(), cursor = from
+        const nextIds = [...ids()]
+        for (const [offset, pane] of panesOf(next).entries()) {
+          const before = nextIds.length
+          after = openRight(after, cursor, pane.route, forceNew === true || offset > 0)
+          cursor = after.focus
+          if (panesOf(after).length > before) nextIds.splice(cursor, 0, crypto.randomUUID())
+        }
+        commit({ ...after, focus: from + 1 }, "push", () => landingsOf(after), nextIds)
+    },
     openRight: (from, next, forceNew) => {
       const after = openRight(workspace(), from, next, forceNew === true)
       // A PANE IS BORN, so every index at or after it means a different pane
@@ -184,5 +201,5 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
     },
 
   }
-  return { value, setWorkspace: (next: Workspace, requested?: string) => { address = requested ?? hrefOfWorkspace(routing, next); setWorkspace(next) }, setLandings }
+  return { value, revealVisible: (route: Route) => resolving.visible(focusIndex(), route), setWorkspace: (next: Workspace, requested?: string) => { address = requested ?? hrefOfWorkspace(routing, next); setWorkspace(next) }, setLandings }
 }

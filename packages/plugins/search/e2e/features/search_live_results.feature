@@ -18,7 +18,7 @@ Feature: Search results follow external edits while the query stays open
     Then the palette lists the node "orchid replacement task"
     And the palette lists no node with id "old-target"
     When I choose "orchid replacement task" from the palette
-    Then the zoomed node is "new-target"
+    Then the unified destination row "new-target" is selected
     When I click the outline "search-live.olai"
     And I click the title of "new-target"
     And I select all and type "edited from the live result"
@@ -44,7 +44,7 @@ Feature: Search results follow external edits while the query stays open
     Then the header search lists the node "orchid replacement task"
     And the header search does not list the node "orchid original task"
     When I press the header search result "orchid replacement task"
-    Then the zoomed node is "new-target"
+    Then the unified destination row "new-target" is selected
     When I click the outline "search-live.olai"
     And I click the title of "new-target"
     And I select all and type "edited from the live result"
@@ -79,7 +79,7 @@ Feature: Search results follow external edits while the query stays open
     And the palette says nothing about a total
     And the palette lists no node with id "match-1"
     When I choose "clematis only survivor" from the palette
-    Then the zoomed node is "match-0"
+    Then the unified destination row "match-0" is selected
     And there should be no page errors
 
   Scenario: An open palette search refreshes matches after a network outage
@@ -104,5 +104,5 @@ Feature: Search results follow external edits while the query stays open
     And the palette lists the node "orchid after outage"
     And the palette lists no node with id "old-target"
     When I choose "orchid after outage" from the palette
-    Then the zoomed node is "new-target"
+    Then the unified destination row "new-target" is selected
     And the page has not reloaded

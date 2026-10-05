@@ -1,62 +1,15 @@
 import { heldService } from "@olai/ui-primitives/held.ts"
 import { rowElements } from "./row-elements.ts"
-/**
- * Which node the reader was just pointed AT, and how the page answers.
- *
- * The other direction of `chat-node-context`: a row arms the composer, and a
- * reference in the transcript points back. What a reference does is FOCUS —
- * the node is brought onto the screen and the row says it is the one being
- * talked about — and this module is the whole of that fact.
- *
- * Three decisions, and each of them is about not doing more than was asked:
- *
- *   - **it is a reading, not a write and not a route.** Nothing is stored,
- *     nothing crosses the wire, nothing is remembered for the next visit. It is
- *     one id, in this tab, exactly like the caret's own place — and the row it
- *     names draws the same accent the row holding the caret draws, because "this
- *     is the row" is one thing to say and a second vocabulary for it would be a
- *     second thing for a reader to learn.
- *   - **it does not open an editor.** Being shown a node is not being asked to
- *     type in it, and putting the caret in a title would start a DRAFT nobody
- *     asked for — one Escape away from being fine, and one keystroke away from
- *     editing the wrong row.
- *   - **it lasts until it is replaced.** No timer: the whole point is that the
- *     reader is looking at the chat panel when they press it, and a highlight
- *     that expired while they looked back at the tree would be a place-marker
- *     that is gone exactly when it is wanted. The next reference takes it.
- *
- * A node that is not on this page is not a failure — it is in another outline,
- * or inside a branch this reader has collapsed. The caller says what to do
- * about that ({@link focusNode}'s `elsewhere`), which is how the one statement
- * that MOVES the page stays here and the one that changes the ADDRESS stays
- * with the router.
- *
- * The scroll is one of four statements in this client that move the page. Two
- * are `./scroll.ts`'s — which says so in its own header — and it is
- * deliberately not one of them: those two are what a NAVIGATION does, and this
- * is a page staying exactly where it is except for the row somebody asked to
- * see. The fourth is `./autoscroll.ts`'s, which is neither: a page keeping up
- * with a gesture that has run out of screen, moving for as long as a hand holds
- * it near an edge. The outline's landing act (`./OutlinePage.tsx`) is NOT a
- * fifth: it is the same "this is the row" one frame late, so its scroll is
- * this module's one statement, reached for directly ({@link bringOntoScreen}).
- */
-import { servedDirectory } from "./vault.ts"
-import { Result } from "effect"
-import { type Accessor, createSignal, onCleanup, createSelector, createContext, createComponent, useContext, type JSX } from "solid-js"
+/** Outlines owns the row registry and selection/scroll act. Navigation owns
+ * whether a reference reveals here or needs a file landing elsewhere. */
+import { type Accessor, createSignal, createSelector, createContext, createComponent, useContext, type JSX } from "solid-js"
 
-import { atElement, type Route } from "olai-plugin-navigation/routes"
-import { runAsync } from "@olai/web/client/run.ts"
-import { useRouter, useShown } from "olai-plugin-navigation/routing"
+import { useShown } from "olai-plugin-navigation/routing"
 
-import { client } from "../client.ts"
 
 export const createFocusState = () => {
   const [focused, setFocused] = createSignal<string | null>(null)
-  const frames = new Set<number>()
-  const state = { focused, setFocused, frames, pointed: 0 }
-  onCleanup(() => { ++state.pointed; for (const frame of frames) cancelAnimationFrame(frame); frames.clear() })
-  return state
+  return { focused, setFocused }
 }
 const focusState = heldService<ReturnType<typeof createFocusState>>()
 export const holdFocusState = focusState.hold
@@ -74,196 +27,30 @@ export function FocusProvider(props: { readonly children: JSX.Element }) {
 }
 export const useFocused = (): ((id: string) => boolean) => useContext(FocusContext) ?? createSelector(focused)
 
-/** The attribute a focused row carries — a FACT in the markup rather than a
- *  colour, so a scenario asking "which row is being pointed at" is not asking
- *  about a class name (`./Tree.tsx` writes it). It is also what the scroll
- *  below aims at: the row that wears it is the row to bring on screen,
- *  wherever in the tree it turned out to be, and a mirror of the node wears it
- *  too. */
-
 /**
- * SELECT the row an address asked for — the same "this is the row" a
- * reference's press draws, because this module's standing rule is that there
- * is one accent for it and a second vocabulary for an arrival would be a
- * second thing for a reader to learn.
- *
- * Exported for the outline's landing act (`./OutlinePage.tsx`), which is the
- * only other writer: where a press is a person pointing from the panel, an
- * arrival is a URL asking once — same signal, same attribute, same accent.
+ * SELECT the row an address asked for — one accent for "this is the row",
+ * whether a reveal or the outline's landing act (`./OutlinePage.tsx`) asked.
  */
 export const selectNode = (id: string): void => {
   setFocused(id)
 }
 
-/**
- * NOTHING is the row any more — the third state of the same signal, and a
- * state a CARET can be in.
- *
- * A line that is not yet a row is a place the reader is typing in: a ghost
- * under the row it will follow, or a page's first line. There is no row to
- * light up for it — the line draws its own chrome (`./edit/NewRow.tsx`) — and
- * saying so is what this call is for.
- *
- * It was missing, and the ring simply STAYED on whatever row was last
- * selected: a person typing a new line watched two lines claim to be the one,
- * and the row above lost its ring the moment the new row appeared — at the
- * landing, which is the one moment this whole arrangement exists to keep
- * still (`./Tree.tsx`'s `onFocusIn` claimed the row the ghost is drawn in
- * before it learnt to ignore one; nothing replaced it after that).
- *
- * `clearFocus` below is the other reader of the same signal and is NOT this:
- * it abandons a scroll that has not happened yet, and a caret arriving in a
- * line has nothing to abandon.
- */
+/** A caret on a new, unsaved row clears the previous selection. */
 export const clearNode = (): void => {
   setFocused(null)
 }
 
-/** The row the last point or landing selected, WITHIN one root — the whole
- *  DOM for a press, one pane for a landing, so a file opened in two columns
- *  scrolls the one the landing belongs to. It is found rather than computed,
- *  which is why `focusNode` below looks after the frame that draws the
- *  attribute: a mirror of the node wears it too, and either will do.
- *
- *  The ROW, named as such: a focused pane used to wear this same attribute
- *  and sat above every row, so a bare `[data-focused]` always found the pane
- *  and never walked a collapsed node to its own address. Panes now wear
- *  `data-pane-focused`. The selector still names the row so that fact cannot
- *  sit in front of this one again. */
-
-
-/** THE SCROLL this vocabulary owns — one statement, both callers: a press
- *  aims it at the focused row of the whole DOM (through the helper below);
- *  the outline's landing aims it at the row IT owes, found by its own
- *  placement and never at the accent: one signal for the whole app, so it
- *  may very well be answering the other pane's landing (`./OutlinePage.tsx`).
- *  Exported rather than written twice, because it is ONE entry in the count
- *  this module's header keeps.
- *
- *  `center` rather than the top: a row scrolled to the very top of the
- *  window has its children off the bottom of it, and what a person wants to
- *  see about the node they were just told about is what hangs under it. */
+/** The content owner scrolls the row navigation asks to reveal. */
 export const bringOntoScreen = (row: Element): void => {
   row.scrollIntoView({ block: "center", behavior: "smooth" })
 }
 
-/** What a press adds to THE SCROLL: WHICH row — the focused one, in the
- *  frame after the attribute landed — and whether there was one at all,
- *  since `false` is what a press's `elsewhere` walks out. */
-const bringFocusedOntoScreen = (pane: string, id: string): boolean => {
+/** Select only a visible row in the requested pane. Navigation chooses the
+ * pane; this content owner owns its row registry and the scrolling act. */
+export const revealNode = (pane: string, id: string): boolean => {
   const row = rowElements.read()?.find(pane, id, "shown")
-  if (row === undefined) return false
+  if (!row) return false
+  selectNode(id)
   bringOntoScreen(row)
   return true
-}
-
-/**
- * Point at `id`: light the row up, and bring it onto the screen.
- *
- * `elsewhere` is called when the node is not drawn on this page at all — a node
- * in another outline, one inside a collapsed branch, one hidden by
- * done-hidden. It is a parameter rather than a route this module knows, because
- * a route change belongs to the router; it is not exported, because there is
- * exactly one answer to it and that answer is the hook below.
- *
- * The look happens after the frame that draws the attribute: the row does not
- * wear it yet when this returns, and asking the DOM before then would find
- * nothing and navigate away from a node that is right there.
- */
-const focusNode = (id: string, panes: () => readonly string[], elsewhere: () => void): void => {
-  const own = focusState.read()
-  if (own === undefined) return
-  setFocused(id)
-  const frame = requestAnimationFrame(() => {
-    own.frames.delete(frame)
-    if (!panes().some(pane => bringFocusedOntoScreen(pane, id))) elsewhere()
-  })
-  own.frames.add(frame)
-}
-
-/** How many times the reader has pointed at a node. The press the page
- *  follows is the LATEST one, and the elsewhere half of `useShowNode` is a
- *  round trip: a reader who pressed a second reference while the first was
- *  still asking where its node lives must not be walked back to the first. */
-
-/**
- * Where a reference goes when its node is NOT on the open page: the node's
- * own file, landed at the row (`./landing.ts` takes it from there).
- *
- * One question on the way (`nodes.homes`). The button says `show this
- * node`, and ZOOMING — `/#id`, where this used to go — showed the node by
- * leaving every page, which is the one reading the chat panel's references
- * were never about. The id is durable and the file is not, which is exactly
- * why the file is asked at press time rather than carried: the transcript's
- * hat on a node from an hour ago still lands where the node IS.
- *
- * ABSENT IS THE ANSWER, twice: an id the set has no record for is one the
- * press said nothing about, so the page stays exactly where it was — the
- * polite half of the ruled behaviour, and a blank zoom page's replacement.
- * A wire that cannot answer is a console line, no louder: the connection pill
- * is already saying so, which is `fold/refiling.ts`'s own ruling.
- *
- * "Exactly where it was" includes the ACCENT: `focusNode` writes it ahead
- * of the frame, and let stand would be one answer against the other arm of
- * the ruling — a row losing the ring to an id that is not anywhere drawn,
- * which IS the page changing. `before` restores it on both quiet outcomes;
- * a STALE press restores nothing, because by then everything on screen
- * belongs to the newer one.
- */
-const landOnRow = (go: (route: Route) => void, id: string, mine: number, before: string | null): void => {
-  const own = focusState.read()
-  void runAsync(client().procedures.nodes.homes({ ids: [id], files: [] })).then((outcome) => {
-    if (own === undefined || focusState.read() !== own || mine !== own.pointed) return
-    if (Result.isFailure(outcome)) {
-      console.warn(
-        "olai: could not ask where the pressed node lives, so the reference went nowhere —",
-        outcome.failure.message,
-      )
-      setFocused(before)
-      return
-    }
-    const home = outcome.success.homes.find((one) => one.id === id)?.file
-    if (home === undefined) {
-      setFocused(before)
-      return
-    }
-    const claims = servedDirectory()?.claims()
-    if (claims !== undefined) go(atElement(claims, home, id))
-  })
-}
-
-/**
- * What pressing a reference DOES — the whole of this module's surface, and
- * decided once.
- *
- * Every reference in the panel is either a button this app authored
- * ({@link ./chat/Reference.tsx}) or an id inside rendered markdown that a
- * listener on the pane catches ({@link ./chat/Transcript.tsx}), and two places
- * writing the same "and if it is not on this page?" is one place for the two to
- * start disagreeing about what a press means.
- *
- * What it means, one sentence each arm: on the open page, the row is SELECTED
- * — this file's whole fact — and off it, the reader is taken to the node's own
- * file, LANDED at the row ({@link landOnRow}). The zoom page (`/#id`) is
- * where it used to land, and that address still means zoom — it is the
- * permalink a pin or an outside hand spells; a reference is not one.
- */
-export const useShowNode = (): ((id: string) => void) => {
-  const router = useRouter()
-  return (id) => {
-    const own = focusState.read()
-    if (own === undefined) return
-    const mine = ++own.pointed
-    const before = focused()
-    focusNode(id, () => router.shown() ? router.panes().map(pane => pane.id) : [], () => landOnRow(router.go, id, mine, before))
-  }
-}
-
-export const clearFocus = (): void => {
-  const own = focusState.read()
-  if (own === undefined) return
-  ++own.pointed
-  for (const frame of own.frames) cancelAnimationFrame(frame)
-  own.frames.clear()
-  own.setFocused(null)
 }

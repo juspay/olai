@@ -1196,7 +1196,7 @@ Then(
  * THE FORGER: a page that posts this app's own messages at it, which any
  * previewed file can do because its scripts run.
  *
- * The prefix is SPELLED here, and that is the one place in this suite where
+ * The message is SPELLED here, and that is the one place in this suite where
  * spelling a wire constant is the right thing rather than the usual mistake —
  * for the scripted agent's reason, which is the same reason: an adversary has no
  * access to olai's constants, and a fixture that derived the message from the
@@ -1206,26 +1206,25 @@ Then(
  * A guess that guessed WRONG would make every assertion in that scenario vacuous
  * — a stream of unrecognised strings moving nothing, for the wrong reason — so
  * the fixture carries its own teeth: `#honest` sends one well-formed message
- * naming a file this vault really holds, and the scenario watches it land. Only
- * the ADDRESS in it is built rather than spelled (`mediaHref`), because that is
- * the bijection both ends of this app already agree on and is not what is being
- * forged.
+ * naming a file this vault really holds, and the scenario watches it land.
  *
- * WHAT IS FORGED, and each is a different way through: a page of the right shape
- * that is not there, a climb out of the vault, a climb spelled inside it, one of
- * the APP's own addresses (the shape a page reaching for a route would try), a
- * bare path with no route at all, and a well-formed name for a file no directory
- * holds.
+ * WHAT IS FORGED, and each is a different way through: a page that is not
+ * there, a climb out of the vault, a name no directory holds, a bare path, an
+ * address off this origin, a click with no intent, and the retired
+ * `olai:open-page:` string naming a file that IS there — which no sealed page
+ * says any more and so must move nothing.
  */
-const FORGED_PREFIX = "olai:open-page:";
+const forged = (href: string, intent = "go") =>
+  ({ type: "olai:link", href, action: "click", intent, x: 0, y: 0, width: 0, height: 0 });
 
-const FORGERIES: ReadonlyArray<string> = [
-  `${FORGED_PREFIX}${mediaHref("nowhere.html")}`,
-  `${FORGED_PREFIX}${MEDIA_PREFIX}../../etc/hostname`,
-  `${FORGED_PREFIX}${MEDIA_PREFIX}notes/../../secrets.md`,
-  `${FORGED_PREFIX}/finishes.md`,
-  `${FORGED_PREFIX}finishes.md`,
-  `${FORGED_PREFIX}${mediaHref("Daily/nothing.md")}`,
+const FORGERIES: ReadonlyArray<unknown> = [
+  forged("/nowhere.html"),
+  forged("/../../etc/hostname"),
+  forged("/Daily/nothing.md"),
+  forged("finishes.md"),
+  forged("//collector.test/finishes.md"),
+  forged("/finishes.md", "anywhere"),
+  `olai:open-page:${mediaHref("finishes.md")}`,
 ];
 
 When(
@@ -1242,9 +1241,7 @@ When(
         `    parent.postMessage(said, "*")\n` +
         `  })\n` +
         `  document.getElementById("honest").addEventListener("click", function () {\n` +
-        `    parent.postMessage(${JSON.stringify(FORGED_PREFIX)} + ${
-          JSON.stringify(mediaHref("finishes.md"))
-        }, "*")\n` +
+        `    parent.postMessage(${JSON.stringify(forged("/finishes.md"))}, "*")\n` +
         `  })\n` +
         `</script>\n</body></html>\n`,
     );
@@ -1257,9 +1254,9 @@ When(
  *
  * It posts rather than draws a link, because a script needs no reader: that is
  * the whole hazard, and a scenario built on clicks would be measuring how fast
- * a test can click rather than what an unattended page can spend. The prefix is
- * spelled for the forger's reason, and the ADDRESS is built with `mediaHref` so
- * the message names this file exactly as the seal's own handler would.
+ * a test can click rather than what an unattended page can spend. The message
+ * is spelled for the forger's reason, naming this file exactly as the seal's own
+ * handler would.
  *
  * It also carries a self-LINK, because the guard has to hold for the reader's
  * half too: a page containing `<a href="itself.html">` is an ordinary thing to
@@ -1269,7 +1266,7 @@ When(
 When(
   "I rewrite {string} as a page that asks for itself",
   function (this: OlaiWorld, file: string) {
-    const asking = `${FORGED_PREFIX}${mediaHref(file)}`;
+    const asking = forged(`/${file}`);
     this.writeServed(
       file,
       `<!doctype html>\n<html lang="en"><head><meta charset="utf-8">` +
@@ -1321,8 +1318,8 @@ When(
   "something other than the preview asks the app to open {string}",
   async function (this: OlaiWorld, file: string) {
     await this.page.evaluate(
-      (said: string) => window.postMessage(said, "*"),
-      `${FORGED_PREFIX}${mediaHref(file)}`,
+      (said: unknown) => window.postMessage(said, "*"),
+      forged(`/${file}`),
     );
     await this.page.waitForTimeout(POLL_TIMEOUT / 10);
   },

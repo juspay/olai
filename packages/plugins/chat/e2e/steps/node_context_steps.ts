@@ -141,7 +141,7 @@ Then(
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.strictEqual(
-      await this.chat(`${CHAT_SAID} code${NODE_REF_ANY}`)
+      await this.chat(`${CHAT_SAID} ${NODE_REF_ANY}`)
         .filter({ hasText: text })
         .count(),
       0,

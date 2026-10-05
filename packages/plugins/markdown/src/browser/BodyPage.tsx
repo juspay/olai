@@ -2,7 +2,7 @@
  * component that declared it; this module owns no client or directory holder. */
 import { createMemo, Show, Switch, Match, type JSX } from "solid-js"
 import type { Directory } from "olai-plugin-vault/file-state"
-import { useHere, useFollow, useRouter } from "olai-plugin-navigation/routing"
+import { useHere, useRouter } from "olai-plugin-navigation/routing"
 import { samePageRequest, type DocumentPageRequest, type PageReading } from "@olai/format"
 import { TESTID as NAV } from "olai-plugin-navigation/testids"
 import { TESTID as UI } from "@olai/ui-primitives/testids.ts"
@@ -26,7 +26,7 @@ export function BodyPage(props: {
   readonly memory: ReferrerMemory | undefined
   readonly Body: (props: { readonly file: string }) => JSX.Element
 }) {
-  const here = useHere(), follow = useFollow(), navigation = useRouter()
+  const here = useHere(), navigation = useRouter()
   const route = createMemo(() => navigation.panes()[here()]!.route())
   const request = createMemo<DocumentPageRequest | null>(() => documentRequest(props.directory.claims(), route()), null, {
     equals: (a, b) => a === null || b === null ? a === b : samePageRequest(a, b),
@@ -38,7 +38,7 @@ export function BodyPage(props: {
   return <main class={`flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 pb-16 ${CLEARANCE} md:px-10 md:py-10`}
     data-testid={NAV.pane} data-pane={String(here())}
     data-pane-focused={here() === navigation.focusIndex() ? "true" : undefined}
-    data-href={navigation.routes.href(route())} onPointerDown={() => navigation.focus(here())} onClick={follow}>
+    data-href={navigation.routes.href(route())} onPointerDown={() => navigation.focus(here())}>
     <Show when={page()?.shows} fallback={<p class="m-0 py-8 text-muted">Loading…</p>}>
       {shows => <Switch>
         <Match when={only(shows(), "nothing")}>{missing => <Empty testid={UI.nothing} line="Page not found" detail={`There is no ${props.directory.claims().byKind.get(missing().sought)?.noun ?? "file"} named ${missing().requested}.`} />}</Match>

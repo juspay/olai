@@ -59,7 +59,6 @@ import {
 
 import { TESTID } from "@olai/markdown-ui/testids.ts"
 import { mediaHref } from "@olai/surface"
-import { ROUTE_HREF } from "@olai/web/client/press.ts"
 import type { Element, Root } from "hast"
 
 import { type Heading, headingOf } from "./outline.ts"
@@ -93,12 +92,9 @@ type HeadingRoute = (slug: string) => string | undefined
  * {@link HeadingRoute} for this block, or `null` when the block is not a
  * document's own body.
  *
- * A fragment inside a rendered block is page-local by construction ({@link
- * mint}), which is right for a plain click and says nothing a split can open.
- * A document's heading has an address of its own (`notes/beds.md#beds`), so
- * the route is stamped beside the fragment (`@olai/web`'s {@link ROUTE_HREF}).
- * Only for a body: in an outline's note a `#name` would read as a ROW of that
- * outline, which is not what it pointed at.
+ * A document heading has a route href (`notes/beds.md#beds`), while its
+ * rendered element keeps a namespaced id. Outline-note fragments stay local:
+ * interpreting those as outline rows would change what their author meant.
  */
 const headingRoute = (claims: Claims | undefined, from: string): HeadingRoute | null => {
   if (claims === undefined || bodyKind(claims, from) === null) return null
@@ -290,9 +286,8 @@ const mint = (element: Element, ids: string, route: HeadingRoute | null): void =
 
   const href = properties["href"]
   if (typeof href === "string" && href.startsWith("#")) {
-    properties["href"] = `#${ids}-${href.slice(1)}`
     const at = href.length > 1 ? route?.(authored(href.slice(1))) : undefined
-    if (at !== undefined) properties[ROUTE_HREF] = at
+    properties["href"] = at ?? `#${ids}-${href.slice(1)}`
   }
 }
 

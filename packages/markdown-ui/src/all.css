@@ -433,7 +433,7 @@ mark.olai-hit {
  * would claim this panel had rewritten the sentence.
  *
  * A RULE RATHER THAN A CLASS, and that reason survived the selector losing its
- * `.olai-md` scope: `data-node-ref` is written by a DOM pass after the element
+ * `.olai-md` scope: `data-node-chip` marks an anchor added by a DOM pass after the element
  * is drawn, so "is this span a reference" is not a question any component knows
  * the answer to at render time — no `classList` can express it, in authored
  * markup or otherwise.
@@ -445,12 +445,12 @@ mark.olai-hit {
  * mark. Two rules keyed on where the span happens to live would be two answers
  * to "what does a pressable id look like", free to drift — and the one that
  * drifted would be the row nobody was editing. */
-code[data-node-ref] {
+a[data-node-chip] code {
   color: var(--color-accent);
   cursor: pointer;
 }
 
-code[data-node-ref]:hover {
+a[data-node-chip] code:hover {
   text-decoration: underline;
 }
 

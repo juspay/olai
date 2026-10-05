@@ -112,7 +112,7 @@ When("I request the node {string} while its page answer is held", async function
   const state = heldPages.get(this)!;
   state.node = id;
   state.holding = true;
-  await this.settle(`/#${encodeURIComponent(id)}`);
+  await this.settle(`/zoom/#${encodeURIComponent(id)}`);
   await this.waitUntil(async () => state.pending.length > 0, "the requested page frame to be held");
 });
 

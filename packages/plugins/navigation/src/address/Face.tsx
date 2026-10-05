@@ -67,7 +67,6 @@ import { TESTID } from "olai-plugin-navigation/testids"
 import { Show } from "solid-js"
 
 import type { AddressTarget } from "./address.ts"
-import { followLayout } from "../layout-press.ts"
 import { useRouter } from "olai-plugin-navigation/routing"
 
 
@@ -117,17 +116,9 @@ export function Face(props: {
           </span>
         }
       >
-        {/* A plain `<a>` rather than a `<Link>`: the press is answered by the
-            pane's delegated listener, which is what already turns a written
-            link into a navigation and gives Alt+click its split for free
-            (`../router.tsx`'s `followed`, `../pane/PageView.tsx`). A `<Link>`
-            here would be a second answer to the same click. */}
+        {/* Navigation’s owned listener follows the real href. */}
         <a
           href={href()}
-          onClick={(event) => {
-            if (props.target.kind !== "layout") return
-            followLayout(router, props.target.workspace, event)
-          }}
           class={`min-w-0 flex-1 ${labelClass()} underline decoration-rule underline-offset-2 hover:decoration-accent`}
           data-testid={TESTID.addressName}
         >

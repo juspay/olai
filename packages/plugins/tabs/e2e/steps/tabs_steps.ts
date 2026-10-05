@@ -272,15 +272,12 @@ When("I choose {string} from the menu of the contents line {string}", async func
   await chooseFromMenu(this, entry);
 });
 
-Then("right-clicking the bullet of {string} opens no tab menu", async function (this: OlaiWorld, id: string) {
-  // The bullet is a link INSIDE the row's line, which owns the menu a press on
-  // it opens (`data-menu-owner`), so the page-wide link menu leaves it alone.
+Then("right-clicking the bullet of {string} opens the link menu", async function (this: OlaiWorld, id: string) {
   const bullet = this.within(id, ZOOM);
   await bullet.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  assert.ok(await bullet.evaluate((link) => link.closest("[data-menu-owner]") !== null), "the bullet is not inside a row that owns its menu");
   await bullet.click({ button: "right" });
   await this.waitForFrame();
-  assert.equal(await this.page.locator(MENU).count(), 0, "a tab menu opened over a row that owns its menu");
+  await this.page.getByRole("menuitem", { name: "Open in new tab", exact: true }).waitFor({ state: "visible" });
 });
 
 When("I widen the window to a desk", async function (this: OlaiWorld) {

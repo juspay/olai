@@ -45,6 +45,7 @@ export default definePlugin({
     yield* (yield* Offers).own("state", (): TabsState => state.value)
     yield* Effect.acquireRelease(Effect.sync(() => state.value.takeLane()), (release) => Effect.sync(release))
     yield* Effect.acquireRelease(Effect.sync(() => state.value.follow()), (stop) => Effect.sync(stop))
+    yield* Effect.acquireRelease(Effect.sync(() => router.offerTabs(workspace => state.value.open(workspace))), release => Effect.sync(release))
     const slots = yield* Slots
     for (const chord of chordsOf(state.value)) yield* slots.register("app.keys", chord)
   }),

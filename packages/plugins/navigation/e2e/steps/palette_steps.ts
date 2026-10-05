@@ -261,7 +261,7 @@ Then(
     const row = paletteNode(this, id);
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const tag = await row.evaluate((el) => el.tagName);
-    assert.strictEqual(tag, "BUTTON", `palette item for node \`${id}\` is a ${tag}`);
+    assert.strictEqual(tag, "A", `palette item for node \`${id}\` is a ${tag}`);
     assert.strictEqual(
       await row.locator("a").count(),
       0,

@@ -48,7 +48,7 @@ Feature: Browser history survives changes to the plugins serving its pages
     When I go back
     Then there are 2 panes
     And pane 0 is showing "/house.olai"
-    And pane 1 is showing "/#install"
+    And pane 1 is showing "/zoom/#install"
     And pane 1 is focused
     When I go forward
     Then there are 1 panes

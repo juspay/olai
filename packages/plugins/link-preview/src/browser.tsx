@@ -5,7 +5,7 @@ import { Dynamic, Portal } from "solid-js/web"
 import { Popper } from "@kobalte/core/popper"
 import { navigation, linkPreviews, type Route, type LinkPreview } from "olai-plugin-navigation/contract"
 import { PaneProvider } from "olai-plugin-navigation/pane"
-import { RouterProvider, useFollow } from "olai-plugin-navigation/routing"
+import { RouterProvider, targetOf } from "olai-plugin-navigation/routing"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { overlays } from "olai-plugin-layout/contract"
 import { LAYER } from "@olai/web/client/layer.ts"
@@ -36,13 +36,12 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
   const leave = () => { clearOpening(); hold(); closing = setTimeout(close, CLOSE_MS) }
   const classify = (at: EventTarget | null): Target | undefined => {
     if (!(at instanceof Element) || at.closest(`${CARD}, ${EDITOR}`)) return
-    const element = at.closest<HTMLElement>('a[href], code[data-node-ref]')
+    const element = at.closest<HTMLAnchorElement>('a[href]')
     if (!element || element.closest(EDITOR)) return
-    const href = element.getAttribute("href") ?? `/#${encodeURIComponent(element.dataset.nodeRef ?? "")}`
-    const route = nav.routes.routeIn(href)
-    const pane = element.closest("[data-pane]")?.getAttribute("data-pane")
+    const target = targetOf(nav, element, nav)
+    const route = target?.destination.kind === "page" ? target.destination.route : undefined
     return route && matchPreview(slots.read(linkPreviews), route)
-      ? { element, route, pane: pane === undefined || pane === null ? nav.focusIndex() : Number(pane) }
+      ? { element, route, pane: target!.index }
       : undefined
   }
   const enter = (event: PointerEvent | FocusEvent) => {
@@ -99,10 +98,9 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
     root.remove()
   }))
   function Body(props: { readonly renderer: LinkPreview; readonly route: Route }) {
-    const follow = useFollow()
     // The keyed target owns this mount and its immutable route contract.
     const route = props.route
-    return <div data-testid={TESTID.linkPreviewBody} class="min-h-0 overflow-auto p-3 [overflow-wrap:anywhere]" onClick={follow}><Dynamic component={props.renderer.Preview} route={route} /></div>
+    return <div data-testid={TESTID.linkPreviewBody} class="min-h-0 overflow-auto p-3 [overflow-wrap:anywhere]"><Dynamic component={props.renderer.Preview} route={route} /></div>
   }
   function Preview() {
     onCleanup(close)
@@ -128,13 +126,12 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
         // must release immediately, rather than reading at a detached element.
         const parent = at.element.parentElement
         const href = at.element.getAttribute("href")
-        const node = at.element.getAttribute("data-node-ref")
         const removed = new MutationObserver(() => {
           if (anchor()?.isConnected) return
           // Markdown can replace its HTML when membership changes. Follow the
           // same link in that owned block without remounting its live reading.
-          const replacement = parent?.isConnected ? [...parent.querySelectorAll<HTMLElement>("a[href], code[data-node-ref]")]
-            .find(element => element.getAttribute("href") === href && element.getAttribute("data-node-ref") === node) : undefined
+          const replacement = parent?.isConnected ? [...parent.querySelectorAll<HTMLElement>("a[href]")]
+            .find(element => element.getAttribute("href") === href) : undefined
           if (!replacement) { close(); return }
           setAnchor(replacement)
         })
@@ -146,7 +143,7 @@ export default definePlugin({ name, needs: [navigation, rendererSlots], apply: E
         onCleanup(() => removed.disconnect())
         return <Popper anchorRef={anchor} contentRef={content} placement="bottom-start" gutter={6} fitViewport overflowPadding={8}>
           <Portal mount={root}><Popper.Positioner>
-            <aside id={cardId} ref={setContent} data-link-preview="" data-testid={TESTID.linkPreview}
+            <aside data-pane-id={nav.panes()[at.pane]?.id} id={cardId} ref={setContent} data-link-preview="" data-testid={TESTID.linkPreview}
               aria-label="Link preview" style={{ "max-height": "var(--kb-popper-content-available-height, calc(100dvh - 16px))" }}
               class="flex flex-col w-[min(24rem,90vw)] rounded-surface border border-rule/60 bg-panel shadow-raised text-ink">
               <PaneProvider index={at.pane} id={nav.panes()[at.pane]?.id}><Body renderer={renderer} route={at.route} /></PaneProvider>

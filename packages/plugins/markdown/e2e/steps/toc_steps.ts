@@ -64,9 +64,9 @@ const headings = async (world: OlaiWorld, within: "document" | "note"): Promise<
   const block = within === "document" ? world.documentBody() : world.page.locator(DESC).first();
   const read = await block.locator(HEADINGS).evaluateAll((nodes) =>
     nodes.map((node) => ({
-      fragment: node.id,
+      fragment: node.querySelector<HTMLAnchorElement>("a[href]")?.hash.slice(1) ?? node.id,
       parts: [...node.childNodes]
-        .filter((child) => !(child instanceof HTMLAnchorElement && child.hash === `#${node.id}`))
+        .filter((child) => !(child instanceof HTMLAnchorElement))
         .map((child) => child.textContent ?? ""),
     }))
   );
@@ -102,7 +102,7 @@ Then(
       await this.page.locator(TOC_LINK).evaluateAll((nodes) =>
         nodes.map((node) => ({
           text: node.textContent ?? "",
-          fragment: (node.getAttribute("href") ?? "").slice(1),
+          fragment: new URL((node as HTMLAnchorElement).href).hash.slice(1),
         }))
       )
     ).map((line) => ({ ...line, text: oneLine(line.text) }));

@@ -83,7 +83,7 @@ import { createMoving, MovingProvider } from "../move/moving.tsx"
 import { useFrames } from "../reading.tsx"
 import { useGo, useHere, useRouter } from "olai-plugin-navigation/routing"
 import { panesOf } from "olai-plugin-navigation/workspace"
-import { atFile, atNode } from "olai-plugin-navigation/routes"
+import { atFile, zoomNode } from "olai-plugin-navigation/routes"
 import { createSelection, type Selection, SelectionProvider } from "../select/selection.ts"
 import { SelectionBar } from "../select/SelectionBar.tsx"
 import { createEditor, EditorProvider, type Zooming } from "./editing.tsx"
@@ -156,13 +156,13 @@ function EditablePage(props: EditableProps) {
    */
   const go = useGo()
   const zooming: Zooming = {
-    into: (id) => go(atNode(id)),
+    into: (id) => go(zoomNode(id)),
     get out() {
       if (props.within.length === 0) return undefined
       return () =>
         go(
           props.within.length >= 2
-            ? atNode(props.within[props.within.length - 2]!)
+            ? zoomNode(props.within[props.within.length - 2]!)
             : atFile(props.file),
         )
     },

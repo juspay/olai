@@ -1,9 +1,8 @@
 @share-scratch
 @scratch:good
 Feature: Pinning layouts
-  A named shelf entry restores the saved pages as one workspace. With the tabs
-  row on, the shelf opens it in a new tab in front, and the tab it was pressed
-  from keeps its page (`olai-plugin-tabs`' `pins.feature` has the row off).
+  A named shelf entry restores the saved pages as one workspace.
+  Alt opens its pages to the right; Alt-Shift inserts new panes.
 
   Background:
     Given I open the outline "house.olai"
@@ -29,29 +28,34 @@ Feature: Pinning layouts
     And the address is exactly "/s/house.olai/garden.olai"
     And there are 2 tabs
     When I press tab 0
-    Then there are 1 panes
-    And the address is exactly "/finishes.md"
+    Then the address is exactly "/finishes.md"
     And there should be no page errors
 
-  Scenario Outline: A saved workspace replaces a different split even with modifiers
+  Scenario: A saved workspace opens a new front tab on a plain click
     Given the directory has the pins:
       | [Planning](/s/house.olai/garden.olai?w=10,90&f=1) |
-    When I open the address "/s/%23order/finishes.md"
-    And I <modifier>-click the layout pin "/s/house.olai/garden.olai"
+    When I open the address "/s/zoom%2F%23order/finishes.md"
+    And I plain-click the layout pin "/s/house.olai/garden.olai"
     Then there are 2 panes
     And pane 0 is showing "/house.olai"
     And pane 1 is showing "/garden.olai"
     And pane 0 is focused
     And the layout panes have equal widths
+    And there are 2 tabs
     When I press tab 0
-    Then pane 0 is showing "/#order"
+    Then pane 0 is showing "/zoom/#order"
     And pane 1 is showing "/finishes.md"
 
-    Examples:
-      | modifier |
-      | plain    |
-      | Alt      |
-      | Shift    |
+  Scenario: Alt opens a saved layout to the right
+    Given the directory has the pins:
+      | [Planning](/s/house.olai/garden.olai) |
+    When I open the address "/s/zoom%2F%23order/finishes.md"
+    And I Alt-click the layout pin "/s/house.olai/garden.olai"
+    Then there are 3 panes
+    And pane 0 is showing "/zoom/#order"
+    And pane 1 is showing "/house.olai"
+    And pane 2 is showing "/garden.olai"
+    And pane 1 is focused
 
   Scenario: Empty names are refused and Escape and the removed chord write nothing
     When I open the address "/s/house.olai/garden.olai"
@@ -97,15 +101,15 @@ Feature: Pinning layouts
 
   Scenario: Agent-written bare and named layouts arrive live and open whole
     When I mark the page
-    And the directory grows a pin to "/s/house.olai/%23missing"
-    Then the pin "/s/house.olai/%23missing" is named "house.olai · /#missing"
-    And the pin "/s/house.olai/%23missing" has a split mark
+    And the directory grows a pin to "/s/house.olai/zoom%2F%23missing"
+    Then the pin "/s/house.olai/zoom%2F%23missing" is named "house.olai · /zoom/#missing"
+    And the pin "/s/house.olai/zoom%2F%23missing" has a split mark
     When the directory grows a pin to "[Planning](/s/house.olai/garden.olai)"
     Then the pin "/s/house.olai/garden.olai" is named "Planning"
     And the page has not reloaded
-    When I follow the pin "/s/house.olai/%23missing"
+    When I follow the pin "/s/house.olai/zoom%2F%23missing"
     Then there are 2 panes
-    And pane 1 is showing "/#missing"
+    And pane 1 is showing "/zoom/#missing"
     When I follow the pin "/s/house.olai/garden.olai"
     Then there are 2 panes
     And pane 1 is showing "/garden.olai"
@@ -113,13 +117,13 @@ Feature: Pinning layouts
 
   Scenario: A layout containing a trashed node still opens both panes
     Given the directory has the pins:
-      | [Planning](/s/house.olai/%23order) |
+      | [Planning](/s/house.olai/zoom%2F%23order) |
     When I open the node menu of "order"
     And I choose "Move to Trash" from the node menu
-    And I follow the pin "/s/house.olai/%23order"
+    And I follow the pin "/s/house.olai/zoom%2F%23order"
     Then there are 2 panes
     And pane 0 is showing "/house.olai"
-    And pane 1 is showing "/#order"
+    And pane 1 is showing "/zoom/#order"
     And there should be no page errors
 
   Scenario: A lone page has only the page command
@@ -170,15 +174,15 @@ Feature: Pinning layouts
 
   Scenario: Layout titles on the Pins outline share the face and navigate without reloading
     Given the directory has the pins:
-      | /s/house.olai/%23missing |
+      | /s/house.olai/zoom%2F%23missing |
       | [Planning](/s/house.olai/garden.olai?w=20,80&f=1) |
     When I open "_olai/Pins.olai" from the vault group
-    Then the node "p0" reads "house.olai · /#missing"
+    Then the node "p0" reads "house.olai · /zoom/#missing"
     And the node "p0" has a split mark
     And the node "p1" reads "Planning"
     And the node "p1" has a split mark
     When I click the title of "p0"
-    Then the editor holds "/s/house.olai/%23missing"
+    Then the editor holds "/s/house.olai/zoom%2F%23missing"
     When I press "Escape"
     And I mark the page
     And I press the name of "p1"
@@ -260,3 +264,20 @@ Feature: Pinning layouts
     When I follow the pin "/s/house.olai/garden.olai"
     Then there are 2 panes
     And there should be no page errors
+
+
+  Scenario: A layout pin falls back to the current workspace when tabs is absent
+    Given the directory has the pins:
+      | [Planning](/s/house.olai/garden.olai) |
+    When I open the plugins panel
+    And I switch the plugin "tabs" off
+    And I close the plugins panel
+    And I follow the pin "/s/house.olai/garden.olai"
+    Then there are 2 panes
+    And pane 0 is showing "/house.olai"
+    And pane 1 is showing "/garden.olai"
+    When I open the plugins panel
+    And I switch the plugin "tabs" on
+    And I close the plugins panel
+    And I follow the pin "/s/house.olai/garden.olai"
+    Then there are 2 tabs

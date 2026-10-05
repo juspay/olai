@@ -76,7 +76,7 @@ Feature: Rows land in the conversation chosen by the pointer
       """
       {"id":"carried-source","ord":"a0","title":"a node from another file"}
       """
-    When I open the address "/s/carried.olai/%23kitchen?f=1"
+    When I open the address "/s/carried.olai/zoom%2F%23kitchen?f=1"
     Then the node page conversation is ready for "kitchen"
     And I drop row "carried-source" from pane 0 into the conversation
     Then the composer is armed with "carried-source"

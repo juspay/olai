@@ -40,7 +40,7 @@ import { Nothing } from "./Nothing.tsx"
 import { drawnBy, requestFor, fileOf } from "./page.ts"
 import { createReading, ReadingProvider, useReadings } from "./reading.tsx"
 import { OutlinePage } from "./OutlinePage.tsx"
-import { useFollow, useHere, useRouter } from "olai-plugin-navigation/routing"
+import { useHere, useRouter } from "olai-plugin-navigation/routing"
 import type { MountedAppPage } from "olai-plugin-navigation/routes"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { TESTID } from "../testids.ts"
@@ -62,7 +62,6 @@ export function OutlinePageView(props: {readonly render?: (props: import("../ind
 function PageAt(props: { readonly source: MountedAppPage | null; readonly render?: (props: import("../index.ts").PageBodyProps) => import("solid-js").JSX.Element }) {
   const router = useRouter()
   const here = useHere()
-  const follow = useFollow()
   const today = useToday()
   const route = createMemo(() => router.panes()[here()]!.route())
   const opened = createMemo(route, undefined, { equals: samePage })
@@ -285,7 +284,6 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
           narrow(tag)
           return
         }
-        follow(event)
       }}
     >
       <EditorMemoryProvider value={memory}><ReadingProvider reading={reading}>
@@ -340,7 +338,7 @@ function PageAt(props: { readonly source: MountedAppPage | null; readonly render
               <Empty
                 testid={IDS_UI_PRIMITIVES.nothing}
                 line="Page not found"
-                action={{ label: "Go home", run: () => router.go(HOME_ROUTE), testid: TESTID.missingGoHome }}
+                action={{ label: "Go home", href: router.routes.href(HOME_ROUTE), testid: TESTID.missingGoHome }}
               />
             </Show>
           }

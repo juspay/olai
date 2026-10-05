@@ -52,7 +52,7 @@ interaction utilities: what the wire is doing and how the app says so
 (`connection/`, `readout.ts`, `Reload.tsx`), the chord registry
 (`keys.ts`), the preference circuit every stored pick rides (`preference.ts`),
 the address spellings and served-file paths (`paths.ts`, `ids.ts`), the pointer
-and touch behaviours a face composes from (`press.ts`, `longPress.ts`,
+and touch behaviours a face composes from (`longPress.ts`,
 `popover.ts`, `overlay.ts`, `layer.ts`), the small shared pieces
 (`Pill.tsx`, `Tip.tsx`, `ProgressBadge.tsx`, `Empty.tsx`), and the clock, the
 notifier and the settle helpers beside them. They must not reach upward into a

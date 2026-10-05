@@ -23,8 +23,8 @@ Feature: Backlink navigation follows replacement sources
     And the referenced-by "Mentions this" row reads "a mention of @backlink-target"
     And the referenced-by section draws no "Sees this" row
     When I follow the referenced-by link to "backlink-source"
-    Then the zoomed node is "backlink-source"
-    And the breadcrumbs are "source.olai"
+    Then the unified destination row "backlink-source" is selected
+    And the focused pane is drawing the outline "source.olai"
     When I go back
     Then the zoomed node is "backlink-target"
     And the page says it is referenced by 1 things
@@ -44,8 +44,8 @@ Feature: Backlink navigation follows replacement sources
     When I open the referenced-by section
     Then the referenced-by "Sees this" row reads "relocated source"
     When I follow the referenced-by link to "backlink-source"
-    Then the zoomed node is "backlink-source"
-    And the breadcrumbs are "replacement.olai, replacement outline"
+    Then the unified destination row "backlink-source" is selected
+    And the focused pane is drawing the outline "replacement.olai"
     When I click the title of "source-child"
     And I select all and type "edited through the restored backlink"
     And I press "Enter"
@@ -63,7 +63,7 @@ Feature: Backlink navigation follows replacement sources
     And the referenced-by section is still open
     And the referenced-by "Sees this" row reads "original source"
     When I follow the referenced-by link to "backlink-source"
-    Then the zoomed node is "backlink-source"
+    Then the unified destination row "backlink-source" is selected
     When I go back
     Then the zoomed node is "backlink-target"
     And the referenced-by section is collapsed

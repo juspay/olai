@@ -24,7 +24,7 @@
 import { splitAddress } from "@olai/format"
 import type { Axis } from "olai-plugin-layout/geometry"
 
-import { HOME_ROUTE,hrefOfPlain,type Route,type Routing } from "./routes.ts"
+import { HOME_ROUTE,hrefOfPlain,fileNamed,type Route,type Routing } from "./routes.ts"
 
 export type { Axis } from "olai-plugin-layout/geometry"
 
@@ -169,13 +169,43 @@ export const workspaceOf = (routing: Routing, address: string): Workspace => {
 
 /** Workspace grammar composes above page routing; page parsers remain unaware
  * of the workspace prefix. Bound by the navigation owner over its live roster. */
+export type AddressTarget =
+  | { readonly kind: "page"; readonly route: Route }
+  | { readonly kind: "layout"; readonly workspace: Workspace }
+/** The whole workspace a target opens when it is given a tab of its own. */
+export const workspaceFor = (target: AddressTarget): Workspace =>
+  target.kind === "layout" ? target.workspace : lone(target.route)
+
 export interface WorkspaceRouting extends Routing {
+  /** A page route or a whole saved layout, for any in-app href. */
+  readonly destinationIn: (href: string) => AddressTarget | null
   readonly layoutIn: (href: string) => Workspace | null
   readonly layoutHref: (workspace: Workspace) => string
 }
 
 export const workspaceRoutingOver = (routes: Routing): WorkspaceRouting => ({
   ...routes,
+  destinationIn: href => {
+    let path = href
+    if (!href.startsWith("/") || href.startsWith("//")) {
+      if (!/^https?:\/\//.test(href) && !href.startsWith("//")) return null
+      if (typeof location === "undefined") return null
+      try {
+        const url = new URL(href, location.href)
+        if (url.origin !== location.origin) return null
+        path = url.pathname + url.search + url.hash
+      } catch { return null }
+    }
+    const page = routes.routeIn(path)
+    // A lone literal filename under s/ remains a file. Encoded/multiple
+    // segments and an explicit tree are workspace addresses, including old
+    // degenerate saved layouts. Every link surface uses this same decision.
+    const address = splitAddress(path)
+    const layout = address.pathname.startsWith(WORKSPACE_PREFIX) && (address.pathname.slice(WORKSPACE_PREFIX.length).includes("/")
+      || address.search.includes("t=") || !page || fileNamed(page) === undefined)
+    const workspace = layout ? layoutIn(routes, path) : null
+    return workspace ? { kind: "layout", workspace } : page ? { kind: "page", route: page } : null
+  },
   layoutIn: (href) => layoutIn(routes, href),
   layoutHref: (workspace) => layoutHref(routes, workspace),
 })
@@ -749,3 +779,16 @@ export const splitOf = (
   layout: { kind: "split", axis, children },
   focus,
 })
+
+/** Pre-reveal stored URLs named zoom views. Only persistence readers call this;
+ * authored links and the address bar always use the current grammar. */
+export const legacyZoomHref = (href: string): string => {
+  if (/^\/(?:\?[^#]*)?#.+/.test(href)) return "/zoom/" + href.slice(1)
+  if (!href.startsWith(WORKSPACE_PREFIX)) return href
+  const query = href.indexOf("?")
+  const path = query < 0 ? href : href.slice(0, query)
+  try {
+    return WORKSPACE_PREFIX + path.slice(WORKSPACE_PREFIX.length).split("/").map(part =>
+      encodeURIComponent(legacyZoomHref("/" + decodeURIComponent(part)).slice(1))).join("/") + (query < 0 ? "" : href.slice(query))
+  } catch { return href }
+}

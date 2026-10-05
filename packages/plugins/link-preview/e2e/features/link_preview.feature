@@ -80,7 +80,7 @@ Feature: Live read-only internal link previews
     Then the link preview contains "Opening paragraph"
     When I alt-click the card link "the end"
     Then there are 2 panes
-    And pane 0 is showing "/#preview-source"
+    And pane 0 is showing "/zoom/#preview-source"
     And pane 1 is showing "/preview.md#end"
     And the page has not reloaded
     And there should be no page errors
@@ -132,7 +132,7 @@ Feature: Live read-only internal link previews
     Then there is exactly one link preview
     And the link preview contains "Preview target"
     When I click the nested preview link
-    Then the address is "/#preview-destination"
+    Then the address is "/preview.olai#preview-destination"
     And there should be no page errors
 
   Scenario: Hover leaves normal and split navigation intact
@@ -141,20 +141,18 @@ Feature: Live read-only internal link previews
     Then the link preview contains "Preview target"
     When I alt-click the preview link "target"
     Then there are 2 panes
-    And pane 1 is showing "/#preview-target"
+    And pane 1 is showing "/preview.olai#preview-target"
     And the page has not reloaded
 
-  # A written link is answered by navigation's `useFollow`, which used to ask
-  # whether Shift forced a new pane only AFTER claiming the press — and a
-  # claimed press is not a split, so every Alt+Shift+click reused the pane.
+  # Alt+Shift once reused the pane because the press was claimed before Shift was read.
   Scenario: Alt-Shift-click on a written link forces a new pane
     When I alt-click the preview link "target"
     Then there are 2 panes
     When I alt-shift-click the preview link "outline"
     Then there are 3 panes
-    And pane 0 is showing "/#preview-source"
+    And pane 0 is showing "/zoom/#preview-source"
     And pane 1 is showing "/preview.olai"
-    And pane 2 is showing "/#preview-target"
+    And pane 2 is showing "/preview.olai#preview-target"
     And pane 1 is focused
 
   Scenario: Plain click still opens the link
@@ -162,7 +160,7 @@ Feature: Live read-only internal link previews
     When I hover the preview link "target"
     Then the link preview contains "Preview target"
     When I click the preview link "target"
-    Then the address is "/#preview-target"
+    Then the address is "/preview.olai#preview-target"
     And the page has not reloaded
 
   Scenario: Removing the preview plugin clears its card and listeners
@@ -224,8 +222,8 @@ Feature: Live read-only internal link previews
     When I hover the preview link "target"
     Then the link preview contains "Preview target"
     When I click the nested preview link
-    Then pane 0 is showing "/#preview-destination"
-    And pane 1 is showing "/#preview-target"
+    Then pane 0 is showing "/preview.olai#preview-destination"
+    And pane 1 is showing "/preview.olai#preview-target"
 
   Scenario: A focused link can hand the pointer to the card without blur dismissing it
     When I focus the preview link "target"
@@ -243,7 +241,7 @@ Feature: Live read-only internal link previews
     And I dismiss the link preview with Escape
     Then the link preview closes
     And Escape leaves the preview's underlying page untouched
-    And the address is "/#preview-source"
+    And the address is "/zoom/#preview-source"
     And Escape reaches the page when no preview is open
 
   Scenario: Removing a visible child keeps the live card intact

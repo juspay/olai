@@ -180,6 +180,18 @@ stops when the plugin unloads.
 `Effect.runFork`, which creates a fiber with no owner and none of the operator's
 settings — a second, unnamed boundary.
 
+**A browser listener is a registration too.** Navigation's one delegated
+link listener is acquired with `Effect.acquireRelease` in its activation, so
+content rows only encode hrefs and never hold a listener of their own. A pending
+node reveal is a reading owned by the pane's effect for the route that asked;
+withdrawing `outlines.references` disposes it, and its return asks again only
+for a pane that has not moved. Re-asking a call the wire dropped is the
+outline row's, on its own connection. Hypertext owns the opaque-frame bridge: it checks the
+sender's identity, the href, the gesture and finite geometry, then hands the
+intent to navigation's `follow`. The anchor it places in the owning pane for
+hover and menus is removed with the frame. The sandbox keeps `allow-scripts`
+without `allow-same-origin` ([navigation](../../packages/plugins/navigation/docs.md#links)).
+
 **Phases.** The bundle's rows and browser slots are the composition model of the
 Cordis proposal's §6. The Effect API above is phase 4, node agents as scopes
 phase 6, the chat row phase 7, and the enable/disable switch (§7) phase 8. Not

@@ -7,7 +7,7 @@ const SEAL = seal(FILE_EXTS)
 import { expect, test } from "bun:test"
 
 import { mediaHref } from "./media.ts"
-import { ours, type Press } from "./press.ts"
+import { intentOf, type Press } from "./press.ts"
 import { BODY_REFUSED, heard, REFUSED_MARKUP, SEAL as seal, sealPolicy } from "./seal.ts"
 const HOST = "127.0.0.1:4173"
 
@@ -315,18 +315,6 @@ test("anything else the frame could say is not a height", () => {
 // ── the click a page hands out ─────────────────────────────────────────
 
 /**
- * The prefix the link handler posts, taken out of the SCRIPT rather than
- * written here — the same discipline the height prefix is read under and for
- * the same reason: the producer is text no compiler reads, so a literal
- * copied into this file would drift with it and go on passing.
- */
-const OPEN = ((): string => {
-  const found = /parent\.postMessage\("([^"]*)" \+ path \+ at\.hash, "\*"\)/.exec(SEAL)
-  if (found === null) throw new Error(`the seal's link handler posts nothing: ${SEAL}`)
-  return found[1]!
-})()
-
-/**
  * WHICH FILES THE HANDLER CLAIMS A CLICK ON, read the same way: the list is
  * interpolated from the suffixes supplied to `seal` (the literal test claims here), and this is
  * what says it still is. A `.html` written out over there would pass every
@@ -344,7 +332,7 @@ test("the handler claims the kinds the registry says have pages", () => {
 /**
  * THE PRESS RULE IS SHIPPED, NOT RETYPED — and this is what says so.
  *
- * `./press.ts`'s `ours` is the app's one answer to what a reader meant by a
+ * `./press.ts`'s `intentOf` is the app's one answer to what a reader meant by a
  * press, and the injected handler gets it by having its SOURCE interpolated
  * (`Function.prototype.toString`), because a frame with no module system cannot
  * import a function. That is one definition rather than two, which is the point
@@ -359,12 +347,12 @@ test("the handler claims the kinds the registry says have pages", () => {
  * is not a text comparison: a build that reformats passes, and a build that
  * changes the meaning fails and names the press.
  */
-const shipped = ((): ((press: Press) => boolean) => {
-  const found = /\n  var ours = ([\s\S]*?)\n  addEventListener/.exec(SEAL)
+const shipped = ((): ((press: Press) => ReturnType<typeof intentOf>) => {
+  const found = /\n  var intentOf = ([\s\S]*?)\n  var localLink/.exec(SEAL)
   if (found === null) {
     throw new Error(`the seal ships no press rule — this test has nothing to check:\n${SEAL}`)
   }
-  return new Function(`return (${found[1]!})`)() as (press: Press) => boolean
+  return new Function(`return (${found[1]!})`)() as (press: Press) => ReturnType<typeof intentOf>
 })()
 
 /** Every combination of the six facts: 64 presses, which is small enough to
@@ -394,75 +382,32 @@ const PRESSES: ReadonlyArray<Press> = BOTH.flatMap((defaultPrevented) =>
 test("the press rule the seal ships is the press rule this app applies", () => {
   // A BARE `return` is what the handler does with a press it refuses, so what
   // comes back for one is `undefined` rather than `false` — but that is the
-  // handler's shape, not this function's: `ours` returns a boolean either way,
+  // handler's shape, not this function's: `intentOf` returns an intent or null,
   // and any disagreement here is a real one.
-  expect(PRESSES.filter((press) => shipped(press) !== ours(press))).toEqual([])
+  expect(PRESSES.filter((press) => shipped(press) !== intentOf(press))).toEqual([])
   // …and the agreement is over presses of both kinds: a rule that claimed
-  // everything, or nothing, would agree with a broken `ours` and pass above.
-  expect(PRESSES.filter(ours)).toHaveLength(1)
-})
-
-// THE ADDRESS, from both ends: what the frame posts is the pathname the browser
-// resolved, and what comes back is the file of this vault it named. Built with
-// `mediaHref` rather than spelled, so this reads the same bijection the frame's
-// own `src` and every rewritten picture are built from.
-test("a page of this vault, clicked, arrives as the file it is", () => {
-  expect(heard(`${OPEN}${mediaHref("notes/second.html")}`))
-    .toEqual({ kind: "open", file: "notes/second.html" })
-  // A `.md` is on the list on purpose: the ROUTE refuses one (it is not an
-  // asset), and a reader clicking a link to a note beside the page still means
-  // that note's page. The two questions are different and this is the one about
-  // where a reader may be taken.
-  expect(heard(`${OPEN}${mediaHref("notes/second.md")}`))
-    .toEqual({ kind: "open", file: "notes/second.md" })
-  // A name that needs escaping survives the trip, which is the whole reason the
-  // pathname travels escaped rather than the frame decoding it first.
-  expect(heard(`${OPEN}${mediaHref("he said \"hi\"/a b.html")}`))
-    .toEqual({ kind: "open", file: `he said "hi"/a b.html` })
+  // everything, or nothing, would agree with a broken `intentOf` and pass above.
+  expect(PRESSES.filter(press => intentOf(press) !== null)).toHaveLength(3)
 })
 
 /**
- * …and everything else is nothing at all.
- *
- * The sender runs somebody else's JavaScript, so none of these is exotic: they
- * are what a receiver that skipped a check would let through. The climbs are the
- * ones `./media.ts` refuses and are here anyway, because the promise this
- * parser makes is that it refuses them — a future edit that decoded the path
- * itself "to save an import" would pass the tests above this line.
- *
- * What is NOT in this list, and cannot be, is the hostile message that is
- * perfectly well formed: `${OPEN}/media/secrets.md` names a path this returns.
- * Stopping that is not this function's job and is not attempted here — it is a
- * lookup in the app's own file list, and `html_previews.feature` is where a
- * page posting exactly that is watched failing to move anything.
+ * A forged or foreign message is not a link. The retired `olai:open-page:`
+ * string included: no sealed page says it any more, so a page that does is
+ * guessing, and it is heard as nothing.
  */
-test("anything else a frame could say is not a page to open", () => {
+test("anything else a frame could say is not a link", () => {
   for (
     const said of [
       undefined,
       null,
       42,
       { olai: "open-page", file: "notes/second.html" },
-      OPEN,
-      `${OPEN}/media/`,
-      // Not this route's URL space at all — the app's own addresses included,
-      // which is the shape a page would reach for to name a page directly.
-      `${OPEN}/second.html`,
-      `${OPEN}second.html`,
-      `${OPEN}https://olai.test/media/second.html`,
-      // The climbs, refused by the one decoder rather than by a second one.
-      `${OPEN}/media/../../etc/hostname`,
-      `${OPEN}/media/%2e%2e/secret.html`,
-      `${OPEN}/media/a%2fb.html`,
-      `${OPEN}/media/second.html%00.olai`,
-      // Ours, and not this message — heard as what they ARE, never as an open.
-      "olai:page-sealed",
-      "olai:page-height:640",
-      // Somebody else's message that happens to be well formed.
+      { type: "some-other-app:link", href: "/second.html", action: "click", intent: "go", x: 0, y: 0, width: 0, height: 0 },
+      `olai:open-page:${mediaHref("notes/second.html")}`,
       "some-other-app:open-page:/media/second.html",
     ]
   ) {
-    expect(heard(said)?.kind).not.toBe("open")
+    expect(heard(said)).toBeUndefined()
   }
 })
 
@@ -481,7 +426,7 @@ test("anything else a frame could say is not a page to open", () => {
  * above: the producer is text no compiler reads.
  */
 test("no one of the things a frame can say begins another", () => {
-  const vocabulary = { HELLO, HEIGHT, OPEN, REFUSED }
+  const vocabulary = { HELLO, HEIGHT, REFUSED }
   const overlaps: Array<string> = []
   for (const [name, one] of Object.entries(vocabulary)) {
     for (const [other, another] of Object.entries(vocabulary)) {
@@ -511,30 +456,6 @@ test("a fractional page gets the pixel it needs", () => {
 test("a slack spelling of a number is still a number", () => {
   expect(heard(`${HEIGHT} 640`)).toMatchObject({ height: 640 })
   expect(heard(`${HEIGHT}0x100`)).toMatchObject({ height: 256 })
-})
-
-// THE PLACE INSIDE THE PAGE, carried on the same message as the file. A link at
-// `other.html#beds` names two things — which file, and where in it — and both
-// have to survive the trip, because the app can land on a section now and a
-// fragment dropped in transit is a reader put at the top of a document they
-// were sent into the middle of.
-test("a clicked link's fragment arrives beside the file it names", () => {
-  expect(heard(`${OPEN}${mediaHref("notes/second.html")}#beds`))
-    .toEqual({ kind: "open", file: "notes/second.html", at: "beds" })
-  // Escaped on the way out and read back as written, since an id in somebody's
-  // saved page is whatever its author typed.
-  expect(heard(`${OPEN}${mediaHref("notes/second.html")}#Q3%20revenue`))
-    .toEqual({ kind: "open", file: "notes/second.html", at: "Q3 revenue" })
-  // A fragment that names no place is no fragment: the file still opens, at its
-  // top, which is what a browser does with the same address.
-  expect(heard(`${OPEN}${mediaHref("notes/second.html")}#`))
-    .toEqual({ kind: "open", file: "notes/second.html" })
-  expect(heard(`${OPEN}${mediaHref("notes/second.html")}#%zz`))
-    .toEqual({ kind: "open", file: "notes/second.html" })
-  // …and a fragment cannot smuggle a second path in: the file is decided by
-  // what is before the `#`, by the same decoder the route stands behind.
-  expect(heard(`${OPEN}${mediaHref("notes/second.html")}#/../secrets.md`))
-    .toEqual({ kind: "open", file: "notes/second.html", at: "/../secrets.md" })
 })
 
 // WHERE THE ANCHOR ENDED UP, which is a number and deliberately not a height:
@@ -643,4 +564,11 @@ test("a frame that is resized says where the anchor is now, unasked", () => {
   // the receiver refuses as saying nothing (`olai-plugin-hypertext`'s `browser/echo.ts`).
   // Not posting it at all is the cheaper half of the same answer.
   expect(said.map(heard)).toEqual([{ kind: "landed", top: 1195 }])
+})
+
+
+test("sealed link reports validate gestures and finite anchor geometry", () => {
+  const report = { type: "olai:link", href: "/#node", action: "click", intent: "right", x: 1, y: 2, width: 30, height: 20 }
+  expect(heard(report)).toMatchObject({ kind: "link", href: "/#node", intent: "right" })
+  for (const change of [{href: "//elsewhere/"}, {href: "javascript:evil()"}, {intent: "wrong"}, {action: "wrong"}, {x: Infinity}, {width: "30"}]) expect(heard({...report, ...change})).toBeUndefined()
 })

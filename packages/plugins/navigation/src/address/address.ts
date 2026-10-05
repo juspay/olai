@@ -30,9 +30,8 @@ import type { Names } from "olai-plugin-outlines/names"
 import type { Route, Routing } from "olai-plugin-navigation/routes"
 
 /** A page and a workspace are distinct navigation targets. */
-export type AddressTarget =
-  | { readonly kind: "page"; readonly route: Route }
-  | { readonly kind: "layout"; readonly workspace: Workspace }
+export type { AddressTarget } from "../workspace.ts"
+import type { AddressTarget } from "../workspace.ts"
 
 /**
  * The address a title names, or `undefined`.
@@ -67,13 +66,17 @@ export const addressIn = (
   routes: Routing,
   title: string,
 ): Route | undefined => {
+  const address = written(title)
+  return address === undefined ? undefined : routes.routeIn(address) ?? undefined
+}
+
+/** The address a title spells, or `undefined` for prose. Cheap first: nearly
+ *  every title in a directory is neither, and this runs once per title per draw. */
+const written = (title: string): string | undefined => {
   const text = title.trim()
-  // Cheap first: nearly every title in a directory is neither, and this runs
-  // once per title per draw now that the tree reads it too.
   if (!text.startsWith("/") && !text.startsWith("[")) return undefined
   const address = addressWritten(text)
-  if (/\s/.test(address)) return undefined
-  return routes.routeIn(address) ?? undefined
+  return /\s/.test(address) ? undefined : address
 }
 
 /** The name written INTO a title, for the address somebody named — `undefined`
@@ -261,18 +264,10 @@ export const shownIn = (
 }
 
 
-/** Titles can name a workspace or a page. Workspace recognition goes first:
- * a workspace ending in a filename also fits the page grammar, which must
- * continue to recognise real files under an s/ directory. */
+/** Titles use the same reader as anchor activation, previews and link menus. */
 export const targetIn = (routes: WorkspaceRouting, title: string): AddressTarget | undefined => {
-  const text = title.trim()
-  if (!text.startsWith("/") && !text.startsWith("[")) return undefined
-  const address = addressWritten(text)
-  if (/\s/.test(address)) return undefined
-  const workspace = routes.layoutIn(address)
-  if (workspace !== null) return { kind: "layout", workspace }
-  const route = addressIn(routes, text)
-  return route === undefined ? undefined : { kind: "page", route }
+  const address = written(title)
+  return address === undefined ? undefined : routes.destinationIn(address) ?? undefined
 }
 
 export const layoutName = (routes: Routing, workspace: Workspace,

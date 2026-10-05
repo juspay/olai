@@ -9689,26 +9689,6 @@
       hasInstallScript = false;
     };
   };
-  "ws@8.21.3" = fetchurl
-    {
-      url = "https://registry.npmjs.org/ws/-/ws-8.21.3.tgz";
-      hash = "sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw==";
-    } // {
-    manifest = {
-      tarballUrl = "https://registry.npmjs.org/ws/-/ws-8.21.3.tgz";
-      dependencies = { };
-      peerDependencies = {
-        "bufferutil" = "^4.0.1";
-        "utf-8-validate" = ">=5.0.2";
-      };
-      optionalDependencies = { };
-      optionalPeers = [ "bufferutil" "utf-8-validate" ];
-      bin = { };
-      os = [ ];
-      cpu = [ ];
-      hasInstallScript = false;
-    };
-  };
   "ws@8.22.0" = fetchurl
     {
       url = "https://registry.npmjs.org/ws/-/ws-8.22.0.tgz";

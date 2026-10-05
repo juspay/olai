@@ -47,7 +47,7 @@ Feature: Referenced by — a zoomed node says what points at it
   Scenario: Each entry opens the record that made the reference
     When I open the referenced-by section
     And I follow the referenced-by link to "order"
-    Then the zoomed node is "order"
+    Then the unified destination row "order" is selected
     And there should be no page errors
 
   # ── the three rulings ────────────────────────────────────────────────
@@ -214,8 +214,8 @@ Feature: Referenced by — a zoomed node says what points at it
     When I open the referenced-by section
     Then the referenced-by "Links to this" row reads "sow the basil"
     When I follow the referenced-by link to "sow-basil"
-    Then the zoomed node is "sow-basil"
-    And the breadcrumbs are "notes.olai, sowing notes"
+    Then the unified destination row "sow-basil" is selected
+    And the focused pane is drawing the outline "notes.olai"
     # A record row opens the node with the outline it was written in muted
     # beside it — which is how the two kinds of referrer stay apart on screen.
     And there should be no page errors

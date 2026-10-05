@@ -41,6 +41,52 @@ query text. Duplicate prefixes are reported and resolved in contribution order.
 The keyboard-settling observer belongs to navigation, so keyboard workflows and
 their observable completion work with alternative layouts too.
 
+## Links
+
+Content publishes real anchors (`<a href={routes.href(route)}>`) and nothing
+else; navigation owns every press on them. One delegated click listener,
+acquired by the navigation activation under `Effect.acquireRelease`, answers
+each `a[href]` the router can read. `intentOf` (`@olai/surface`'s `press.ts`) is
+the one reading of the gesture: plain click or Enter goes in place, Alt opens to
+the right, Alt-Shift inserts a new pane. Ctrl, Meta, Shift, middle-click and a
+press something else already prevented return `null` and stay the browser's.
+The pane a link is drawn in (`data-pane-id`) is the pane it acts on; chrome
+outside every pane acts on the focused pane.
+
+`targetOf(router, anchor)` is the one reading of the destination, shared by the
+listener, link previews, the tabs link menu and the `.html` frame bridge. It
+reads the authored `href` before the browser expands it: a raw `#fragment` stays
+with the content that drew it (Markdown scrolls a note's footnote in place
+without touching the address), and so do `download` links and links aimed at
+another browsing context. Everything else resolves through `routes.destinationIn`,
+which answers either a pane route or a whole saved layout (`AddressTarget`); a
+`Route` itself is always one pane's place. `follow(target, intent)` performs
+the press, so a frame that forwards an intent is answered without synthesizing
+modifier keys. A shelf layout carrying `data-link-intent="new-tab"` asks the
+tab-opening capability tabs leases to navigation for its activation; without
+tabs it opens in place.
+
+`/#id` means one thing: REVEAL. If the node's row is visible in the pane, it is
+selected there with no history entry; otherwise the node's current file opens
+at that row. `/zoom/#id` is the node's own page, which the bullet and Zoom in
+use. A same-document heading link carries `/document.md#slug`, so a plain click
+records the heading in the address and the landing scrolls the owning pane.
+Stored tabs and stamped history written before `/zoom/` existed are read as
+zoom at their persistence boundaries; current links use the current grammar.
+
+A followed node link keeps the pane's page until the node lands, then pushes
+the row's address; a `/#id` already in a pane (the address bar, a split)
+resolves in place of its own entry (`src/reveal.ts`). Either way it is one step
+of history. Each pane reads the node's home once per route and provider through the optional
+`nodes` component, which declares `outlines.references`; the reading belongs to
+the pane's effect, so moving the pane or withdrawing the provider disposes it,
+and a returning provider is asked again. The pane lands when the claim table
+names the home file, however late that is. Nothing here retries: outlines
+re-asks a call its wire dropped when the next connection is established. While
+a reveal is unresolved the pane says “Finding…”; a node that does not exist
+says “Page not found”, and an outline that cannot be asked says the page can't
+be opened — never the zoom page.
+
 ## Palette levels
 
 A palette row can open a LEVEL instead of acting at once. The row is an
@@ -168,9 +214,7 @@ a departed suffix-to-row mapping. Trash and Agenda can name the configured
 outline row when it is off; Inbox and Pins explain that state in their sidebar
 entries while their files remain ordinary addresses.
 
-Saved layouts use `WorkspaceRouting.layoutIn(href)` to read workspace addresses and `WorkspaceRouting.layoutHref(workspace)` to print only ordered pages, without widths or focus. `WorkspaceRouting` composes over the page grammar when navigation binds its live roster. The page parser remains unchanged and does not import the workspace codec; it still resolves files under `s/`. Shared title recognition tries workspace addresses before page addresses, and both outline titles and shelf rows draw the resulting page or layout face. Named layout faces navigate in place; ⌘/Ctrl-click and middle-click retain browser new-tab behavior. `Router.open(workspace)` replaces the entire workspace in one history push without landings. These operations are supplied through `navigation.state`. Its `info(index)` exposes the existing live pane report, withdrawn with the reporting owner, for consumers that need pane names.
-
-Saved-layout normalization is the pure `savedLayout(workspace)` transformation. URL serialization and in-place opening both use that value; opening does not encode and reparse a URL to discard geometry. `followLayout`, exported through the static `layout-press` contract, owns layout-anchor gesture policy for both shelf and outline faces. It accepts the caller's existing router, respects already-consumed gestures and browser new-tab clicks, and holds no service or lifetime of its own.
+Saved layouts use the shared `destinationIn` reader and `layoutHref` writer. A literal single file such as `/s/notes.olai` remains a file; encoded pane segments, multiple segments, or an explicit tree describe a workspace. Shared title recognition, shelf rows, hover previews and tab menus all use that reader. `Router.open(workspace)` replaces the workspace in one history push and records its landings. The pure `savedLayout(workspace)` transformation retains ordered pages and discards saved geometry and focus. Ordinary link intent also applies to layout anchors: Alt opens the pages to the right, Alt+Shift inserts panes, and browser modifiers remain native.
 
 ## Lanes: history for one tab at a time
 
@@ -219,16 +263,6 @@ reserve address matches first, using position to break duplicate-address ties
 and then to reuse remaining owners for changed addresses at equal counts.
 Unchanged addresses reuse their Route objects. Pane ids are runtime identities,
 not URL or storage fields. Reports and page memories use those ids.
-
-Links a reader WROTE are answered by `useFollow`: a plain press reads the
-anchor's `href` (`followed`), and Alt+click reads `followedSplit`, which prefers
-the route a renderer stamped as `data-route-href` (`@olai/web`'s `ROUTE_HREF`)
-over the `href`. That is how an in-document fragment such as a document's
-`#slug` link or contents line, whose `href` is the page-local id a plain click
-scrolls to, still opens its heading on the right. Navigation owns the reading;
-the renderer only writes the attribute. The two readings are plain data in and out (no
-service or lifetime), kept in `src/contracts/written.ts` and re-exported by
-the `routing` contract beside `useFollow`.
 
 `navigation.page()` honours an enclosing `RouterProvider`; without one it uses
 the front lane. `usePane()` supplies the id, reactive index and mounted element.

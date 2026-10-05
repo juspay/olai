@@ -11,7 +11,7 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { atElement, atFile, atNode, labelIn, nameIn, lineFragment, lineAt, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
+import { atElement, atFile, atNode, routingOver, NO_PAGES, labelIn, nameIn, lineFragment, lineAt, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
 import { ROUTES, routingIn } from "./routes.testlib.ts"
 
 /** No plugin claims a URL — the roster these cases are about, named rather
@@ -263,7 +263,7 @@ test("a link into a section of a document is this app's", () => {
  * A SCHEME GOES WHERE IT SAYS, and this app does not get a vote.
  *
  * `routeIn` answers `null` for anything that is not an address of this app, and
- * `useFollow` leaves a `null` alone — no `preventDefault`, no navigation — so
+ * delegated link listener leaves a `null` alone — no `preventDefault`, no navigation — so
  * the browser follows the href, and a scheme the browser has no page for is
  * handed to the OS. That is what makes a captured mail's `message://` link open
  * Mail.app rather than being swallowed by a router that thought every anchor on
@@ -409,4 +409,10 @@ test("a document is named by the files sidebar's stem, and a file that is not on
   expect(nameIn(TEST_CLAIMS, { kind: "trash" })).toBeUndefined()
   // ...and nothing before the claims have been read.
   expect(nameIn(undefined, atFile("garden.olai"))).toBeUndefined()
+})
+
+test("node addresses keep their identity before the file claims arrive", () => {
+  const early = routingOver(() => undefined, () => NO_PAGES)
+  expect(early.routeOf("/#herbs")).toEqual(atNode("herbs"))
+  expect(early.href(early.routeOf("/zoom/#herbs"))).toBe("/zoom/#herbs")
 })

@@ -130,7 +130,7 @@ Feature: Dragging a row from one pane into the other
     # Delete that early-out and this scenario fails rather than argues: pane 1's
     # three children become candidates, and the line offers to put `install`
     # inside itself — the loop the ops layer would then have to refuse.
-    When I open the address "/s/house.olai/%23install"
+    When I open the address "/s/house.olai/zoom%2F%23install"
     And I mark the page
     And I pick up the bullet of "install" in pane 0 and hold it over the title of "handles" in pane 1
     Then the drop is refused by "house.olai"

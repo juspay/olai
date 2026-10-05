@@ -2,10 +2,10 @@
 Feature: Palette drafts survive plugin changes
   Scenario: A pin rename stays saveable after another tab changes plugins
     Given the directory has the pins:
-      | /#order |
+      | /zoom/#order |
     And I open the outline "house.olai"
     And I mark the page
-    When I rename the pin "/#order"
+    When I rename the pin "/zoom/#order"
     And I type "Kitchen project draft" into the palette
     And I open another browser tab
     And I open the plugins panel
@@ -17,16 +17,16 @@ Feature: Palette drafts survive plugin changes
     And the palette box holds "Kitchen project draft"
     When I click the palette box
     And I press "Enter"
-    Then the pin "/#order" is named "Kitchen project draft"
-    And "_olai/Pins.olai" holds a node titled "[Kitchen project draft](/#order)"
+    Then the pin "/zoom/#order" is named "Kitchen project draft"
+    And "_olai/Pins.olai" holds a node titled "[Kitchen project draft](/zoom/#order)"
     And the page has not reloaded
     And there should be no page errors
 
   Scenario: Dismissing a retained pin name starts a clean rename next time
     Given the directory has the pins:
-      | /#order |
+      | /zoom/#order |
     And I open the outline "house.olai"
-    When I rename the pin "/#order"
+    When I rename the pin "/zoom/#order"
     And I type "abandoned name" into the palette
     And I open another browser tab
     And I open the plugins panel
@@ -37,11 +37,11 @@ Feature: Palette drafts survive plugin changes
     And the palette box holds "abandoned name"
     When I press "Escape"
     And I press "Escape"
-    And I rename the pin "/#order"
+    And I rename the pin "/zoom/#order"
     Then the palette box holds ""
     When I name the pin "Final name"
-    Then the pin "/#order" is named "Final name"
-    And "_olai/Pins.olai" holds a node titled "[Final name](/#order)"
+    Then the pin "/zoom/#order" is named "Final name"
+    And "_olai/Pins.olai" holds a node titled "[Final name](/zoom/#order)"
     And there should be no page errors
 
   Scenario: A capture draft remains sendable after the palette is rebuilt

@@ -27,7 +27,7 @@
  *     is the person's side of the same contract.
  *   - **A link to an app address is followed in place, beside the
  *     conversation; `https://` opens a new tab** — the transcript hands a
- *     press to the navigation row's `useFollow` and leaves an external link to
+ *     press to the navigation row's delegated link listener and leaves an external link to
  *     the browser; the last paragraph of that same docs section promises it.
  *
  * It sat in `@olai/surface` for one PR, as a static string the MCP row

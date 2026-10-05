@@ -26,7 +26,7 @@ import { batch, createEffect, createSignal, onCleanup, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
 import { isPutAway } from "@olai/format"
 import type { Navigation } from "olai-plugin-navigation/contract"
-import { atNode } from "olai-plugin-navigation/routes"
+import { zoomNode } from "olai-plugin-navigation/routes"
 import { servedDirectory } from "../vault.ts"
 import { navigation } from "../navigation.ts"
 import { pageReadings } from "../pages.ts"
@@ -120,7 +120,7 @@ export const createHandoff = (input: {
       if (from.signal.aborted || navigation() !== from.nav) { abandon(node, arrival); return }
       // In one batch with the arrival: the standing watch first runs against
       // the route this lands on, never the one it leaves.
-      from.nav.go(atNode(node))
+      from.nav.go(zoomNode(node))
       announce(node)
     }),
     /** Claim `node`'s arrival (or its parked words), once. Read in a page's

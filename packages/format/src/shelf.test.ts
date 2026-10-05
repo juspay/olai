@@ -109,6 +109,7 @@ test("the QUALIFIED node spelling resolves to the same node", () => {
 
 test("a node address is the one the grammar reads as one", () => {
   expect(pinTargetIn(TEST_CLAIMS, "/#herbs")).toBe("herbs")
+  expect(pinTargetIn(TEST_CLAIMS, "/zoom/#herbs")).toBe("herbs")
   expect(pinTargetIn(TEST_CLAIMS, "[the herb bed](/#herbs)")).toBe("herbs")
   // The query sits between the two halves of a URL, so a narrowed node page is
   // still a node page.

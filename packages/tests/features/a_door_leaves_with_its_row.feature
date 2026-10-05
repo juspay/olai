@@ -78,7 +78,7 @@ Feature: A reading leaves with the row that offered it, and comes back
     And I mark the page
     When I open the node menu of "order"
     And I choose "Pin to sidebar" from the node menu
-    Then the pinned shelf holds "/#order"
+    Then the pinned shelf holds "/zoom/#order"
     When I open the node menu of "order"
     Then the node menu offers "Unpin from sidebar"
     When I click away from the node menu
@@ -100,7 +100,7 @@ Feature: A reading leaves with the row that offered it, and comes back
     When I open the plugins panel
     And I switch the plugin "pins" on
     And I close the plugins panel
-    Then the pinned shelf holds "/#order"
+    Then the pinned shelf holds "/zoom/#order"
     When I open the node menu of "order"
     Then the node menu offers "Unpin from sidebar"
     And the page has not reloaded

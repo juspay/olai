@@ -794,7 +794,6 @@ describe("only the registry knows a plugin's name", () => {
       "tests/support/storage_keys.ts: olai-plugin-alerts/keys",
       "tests/support/storage_keys.ts: olai-plugin-outlines/testlib",
       "tests/support/workers.ts: olai-plugin-mail/appliance/testlib",
-      "tests/support/world.ts: olai-plugin-chat/testlib",
       "tests/support/world.ts: olai-plugin-csv/testids",
       "tests/support/world.ts: olai-plugin-hypertext/testids",
       "tests/support/world.ts: olai-plugin-image/testids",

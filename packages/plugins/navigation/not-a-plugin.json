@@ -10,6 +10,7 @@
     "src/address/address.ts",
     "src/live.ts",
     "src/pane/state.ts",
+    "src/routing.tsx",
     "src/workspace.ts"
   ],
   "search": [
@@ -28,5 +29,9 @@
     "src/address/address.ts",
     "src/palette/items.ts",
     "src/routes.ts"
-  ]
+  ],
+  "tabs": [
+    "src/routing.tsx"
+  ],
+  "//tabs": "A LinkTarget carries the optional navigation-owned tab capability, not a plugin lookup."
 }

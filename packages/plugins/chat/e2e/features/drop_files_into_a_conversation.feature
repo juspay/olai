@@ -79,7 +79,7 @@ Feature: A sidebar file becomes a path in the message
       """
       A document.
       """
-    When I open the address "/s/carry-document.md/%23kitchen?f=1"
+    When I open the address "/s/carry-document.md/zoom%2F%23kitchen?f=1"
     Then the node page conversation is ready for "kitchen"
     When I carry sidebar file "house.olai" over the conversation
     And I aim the carry at pane 0

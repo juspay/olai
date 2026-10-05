@@ -34,7 +34,7 @@ const ANSWERED: Shelf = [
   { id: "p-doc", title: "/notes/finishes.md" },
   { id: "p-late", title: "[What is late](/trash?q=is%3Atodo)" },
   { id: "p-note", title: "the ones I keep coming back to" },
-  { id: "p-gone", title: "/#gone" },
+  { id: "p-gone", title: "/zoom/#gone" },
 ]
 
 // ── reading the answer ─────────────────────────────────────────────────
@@ -58,7 +58,7 @@ test("what a door is CALLED: the written name, then the set's, then the address"
     "What is late",
     // The honest dead row: an address this app can read, at a node the set does
     // not declare.
-    "/#gone",
+    "/zoom/#gone",
   ])
 })
 

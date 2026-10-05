@@ -1,3 +1,4 @@
+import { useRouter } from "olai-plugin-navigation/routing"
 /**
  * A MACHINE'S SENTENCE IN A PERSON'S LANE — the panel's third face, and the one
  * nobody typed.
@@ -205,6 +206,7 @@ export function Rang(props: {
    * would put a second condition in a switch whose every other non-trivial arm
    * is one line, for an asker only this file can spend.
    */
+  const routes = useRouter().routes
   const declared = createDeclared()
   /** The row's own element, so the ids inside it can be found. A ref rather
    *  than a query on the pane, for {@link ./Entry.tsx}'s reason: the pass is
@@ -232,7 +234,7 @@ export function Rang(props: {
   createEffect(() => {
     said()
     if (rang === undefined) return
-    declared.want(markNodeRefs(rang, declared.named))
+    declared.want(markNodeRefs(rang, declared.named, routes.href))
   })
   return (
     <div
@@ -290,7 +292,7 @@ export function Rang(props: {
             // `cursor-pointer`, and it is not decoration: a chevron the mouse
             // does not acknowledge is a control most people never find. The
             // panel says pressable the same way everywhere — `Reference.tsx`'s
-            // node chip and `styles.css`'s `code[data-node-ref]` both carry it —
+            // node chip and `styles.css`'s `a[data-node-chip] code` both carry it —
             // and this is the transcript's third pressable thing joining them.
             class="shrink-0 cursor-pointer rounded-control leading-4 hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
             data-testid={TESTID.chatRangFold}

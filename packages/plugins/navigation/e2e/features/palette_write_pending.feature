@@ -4,7 +4,7 @@ Feature: Palette write responses belong to the interaction that sent them
     Given incoming updates to this browser tab can be held
     And I open the node "order"
     When I pin the page
-    Then the pinned shelf holds "/#order"
+    Then the pinned shelf holds "/zoom/#order"
     When I press the palette shortcut
     And I type "Unpin this page" into the palette
     Then the palette offers "Unpin this page"
@@ -18,7 +18,7 @@ Feature: Palette write responses belong to the interaction that sent them
     And I wait for the palette write to finish
     Then the command palette is open
     And the palette box holds "garden"
-    And "_olai/Pins.olai" no longer holds a node titled "/#order"
+    And "_olai/Pins.olai" no longer holds a node titled "/zoom/#order"
     And there should be no page errors
 
   Scenario Outline: An old write cannot close or annotate a reopened palette

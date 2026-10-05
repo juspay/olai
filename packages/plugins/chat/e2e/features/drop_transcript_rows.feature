@@ -140,7 +140,7 @@ Feature: A transcript row carries its source words
   Scenario: A transcript can create a node in the other pane's outline
     When I ask the agent "A sentence across panes"
     Then the agent is idle
-    When I open the address "/s/house.olai/%23kitchen?f=1"
+    When I open the address "/s/house.olai/zoom%2F%23kitchen?f=1"
     Then the node page conversation is ready for "kitchen"
     When I drop the message from pane 1 above row "order" in pane 0
     Then the outline contains "A sentence across panes"
@@ -150,7 +150,7 @@ Feature: A transcript row carries its source words
   Scenario: Two views of one conversation focus the receiving composer
     When I ask the agent "hello"
     Then the agent is idle
-    When I open the address "/s/%23kitchen/%23kitchen?f=0"
+    When I open the address "/s/zoom%2F%23kitchen/zoom%2F%23kitchen?f=0"
     When I quote the message from pane 1 into pane 0
     Then no conversation is lit for a carry
 
@@ -161,7 +161,7 @@ Feature: A transcript row carries its source words
       """
     When I ask the agent "hello"
     Then the agent is idle
-    When I open the address "/s/carry-document.md/%23kitchen?f=1"
+    When I open the address "/s/carry-document.md/zoom%2F%23kitchen?f=1"
     Then the node page conversation is ready for "kitchen"
     When I carry the last "user" row over the conversation
     And I aim the carry at pane 0
@@ -198,7 +198,7 @@ Feature: A transcript row carries its source words
       """
     When I ask the agent "A refused addition"
     Then the agent is idle
-    When I open the address "/s/carry-target.olai/%23kitchen?f=1"
+    When I open the address "/s/carry-target.olai/zoom%2F%23kitchen?f=1"
     Then the node page conversation is ready for "kitchen"
     When I carry the last message above outline row "carry-child"
     Then the drop line would put it under "carry-parent"

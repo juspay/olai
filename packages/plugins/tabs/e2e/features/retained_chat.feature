@@ -108,7 +108,7 @@ Feature: A split chat tab keeps its conversation
     Then the chat input reads "also @pick the hinges"
     And there should be no page errors
 
-  Scenario: A chat reference finds the outline in its neighbouring pane
+  Scenario: A chat reference reveals the row in its own pane
     Given I open the outline "house.olai"
     When I show the done nodes
     And I alt-click the zoom of "install"
@@ -120,4 +120,4 @@ Feature: A split chat tab keeps its conversation
     When I press the node "order" in the answer
     Then the node "order" is focused
     And pane 1 is still "chat-reference"
-    And the zoomed node in pane 1 is "install"
+    And the unified destination row "order" is selected in pane 1

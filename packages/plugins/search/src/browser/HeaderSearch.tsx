@@ -1,3 +1,4 @@
+import { actionHref } from "olai-plugin-navigation/palette-model"
 /**
  * The header's search box — the second door to the one search reading.
  *
@@ -67,7 +68,7 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { hitItems, type PaletteItem } from "olai-plugin-navigation/palette-model"
 import { openPalette } from "./palette.ts"
 import { Refusals } from "@olai/web/client/refusals.tsx"
-import { useMaybeGo } from "olai-plugin-navigation/routing"
+import { useMaybeGo, useMaybeRouter } from "olai-plugin-navigation/routing"
 import { listKey } from "@olai/web/client/keys.ts"
 
 import { TESTID } from "../testids.ts"
@@ -102,7 +103,9 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
    * on it below: a door that could not open anywhere is worse than no door,
    * which is the sentence that prop's own comment carried.
    */
+  let results: HTMLDivElement | undefined
   const go = useMaybeGo()
+  const router = useMaybeRouter()
   const [query, setQuery] = createSignal("")
   const [caret, setCaret] = createSignal(false)
   const today = useToday()
@@ -212,7 +215,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
             setCaret(true)
             measure()
           }}
-          onBlur={() => setCaret(false)}
+          onBlur={event => { if (!(event.relatedTarget instanceof Node && results?.contains(event.relatedTarget))) setCaret(false) }}
           // WHICH key is the registry's (`@olai/web`'s `keys.ts`, the same
           // one the palette and the row editor's completions ask); what each
           // answer MEANS is this box's — `dismiss` empties it and gives the
@@ -269,6 +272,8 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
           <Portal>
             <div
               class={`fixed ${LAYER.over} overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule/40`}
+              ref={results}
+              onFocusOut={event => { if (!(event.relatedTarget instanceof Node && (results?.contains(event.relatedTarget) || event.relatedTarget === box))) setCaret(false) }}
               data-testid={TESTID.headerSearchResults}
               // `styleOf` rather than a style object of this file's own: a
               // COMPUTED key (`[at.side]`) compiles away silently in Solid and
@@ -314,6 +319,8 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
                     <li>
                       <Result
                         claims={props.claims}
+                        href={actionHref(router?.routes, item().action)}
+                        onNavigate={() => { setQuery(""); box?.blur() }}
                         label={item().label}
 
                         from={item().from}

@@ -38,7 +38,7 @@ test("no storage reads as no set", () => {
 })
 
 test("another version reads as no set", () => {
-  expect(readStored(JSON.stringify({ v: 2, front: "t1", tabs: set.tabs }), here)).toBeUndefined()
+  expect(readStored(JSON.stringify({ v: 3, front: "t1", tabs: set.tabs }), here)).toBeUndefined()
   expect(readStored(JSON.stringify({ front: "t1", tabs: set.tabs }), here)).toBeUndefined()
 })
 
@@ -62,4 +62,10 @@ test("a second tab with an id already seen is dropped", () => {
 test("a front that names no tab falls to the first", () => {
   expect(readStored(JSON.stringify({ v: 1, front: "gone", tabs: set.tabs }), here)?.front).toBe("t1")
   expect(readStored(JSON.stringify({ v: 1, tabs: set.tabs }), here)?.front).toBe("t1")
+})
+
+test("v1 background zoom tabs migrate once while v2 reveal tabs keep their meaning", () => {
+  const tabs = [{ id: "front" }, { id: "old", href: "/#node", title: "Node" }]
+  expect(readStored(JSON.stringify({ v: 1, front: "front", tabs }), here)?.tabs[1]?.href).toBe("/zoom/#node")
+  expect(readStored(JSON.stringify({ v: 2, front: "front", tabs }), here)?.tabs[1]?.href).toBe("/#node")
 })

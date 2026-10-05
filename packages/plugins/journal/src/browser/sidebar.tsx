@@ -123,7 +123,7 @@ export function JournalRail() {
         testid={TESTID.railCalendar}
         label="Open today"
         title="Today"
-        onClick={() => router.go(todayRoute)}
+        href={router.routes.href(todayRoute)}
       >
         <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
           <path d="M3.5 2A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 12.5 2h-1V1a.75.75 0 0 0-1.5 0v1h-4V1A.75.75 0 0 0 4.5 1v1h-1zM3.5 6h9v6.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5V6z" />
@@ -134,7 +134,7 @@ export function JournalRail() {
         label={mark().said ?? "Open Agenda"}
         title={mark().said ?? "Agenda"}
         data={{ get "data-owed"() { return mark().face } }}
-        onClick={() => router.go(agendaRoute)}
+        href={router.routes.href(agendaRoute)}
       >
         <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
           <path d="M6.25 3.5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zm0 5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zm0 5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75z" />

@@ -153,7 +153,7 @@ Then("no page shows node {string}", async function(this: OlaiWorld, name: string
   assert.equal(await this.page.locator(`${selector(PLUGIN_TESTID.agentPageFoot)}${attr("data-agent", this.nodeId(name))}`).count(), 0);
 });
 /** In-app, so this tab's memory (an unsent draft) survives the trip: the
- *  palette's node hit lands on the node's own page. */
+ *  palette reveals the row, whose bullet opens its own page. */
 When("I go to node {string} from the palette", async function(this: OlaiWorld, name: string) {
   const id = this.nodeId(name);
   await this.page.keyboard.press("ControlOrMeta+k");
@@ -163,6 +163,7 @@ When("I go to node {string} from the palette", async function(this: OlaiWorld, n
   const hit = this.page.locator(`${PALETTE_ITEM}${attr("data-id", `hit-#${id}`)}`);
   await hit.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.press(hit);
+  await this.page.locator(`a${attr("href", `/zoom/#${id}`)}`).first().click();
   await this.page.locator(`${selector(PLUGIN_TESTID.agentPageFoot)}${attr("data-agent", id)}`).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 Then("new chat in Chats is starting", async function(this: OlaiWorld) {

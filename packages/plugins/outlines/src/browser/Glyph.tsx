@@ -38,7 +38,7 @@ import { Link } from "olai-plugin-navigation/routing"
 
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { CONTROL } from "@olai/ui-primitives/touch.ts"
-import { atNode } from "olai-plugin-navigation/routes"
+import { zoomNode } from "olai-plugin-navigation/routes"
 
 export function Glyph(props: {
   readonly id: string
@@ -71,7 +71,7 @@ export function Glyph(props: {
   // what a waiting row waits on. Each arm builds its own.
   const Cell = () => (
     <Link
-      route={atNode(props.id)}
+      route={zoomNode(props.id)}
       // Sized from ./touch.ts, which is where the gutter's one exception to
       // the 44px rule is argued and where everything that moves with it lives.
       class={`${CONTROL} group/glyph relative select-none text-center no-underline ${tone()}`}

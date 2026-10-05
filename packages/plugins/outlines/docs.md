@@ -10,12 +10,21 @@ The browser provider starts before its presentation. It acquires its reading, dr
 client, the undo stack, the page readings, the two drag registers, its naming of
 a node and the socket its floating menus hang from — rather than announcing
 readiness over values kept in module variables. The naming of a node is offered
-beside it as `outlines.references`, because its consumer is the chat panel and
-that panel must keep working when the outline row stops: with no provider its
-chips draw the ids they carry. The overlay socket is minted and removed inside
+beside it as `outlines.references` — whether a node's row is visible in a pane,
+selecting it there, and which file is its home — because its consumer is
+navigation's optional `nodes` component, which turns a `/#id` link into a
+landing and must keep working when the outline row stops: with no provider a
+reveal waits, and resolves when the row returns. The overlay socket is minted and removed inside
 this row's activation, so turning the row off takes the container off the page.
 
-Every row line, on an outline page and on a day page, carries `data-menu-owner`: the row owns the menu a press on it opens, so a page-wide link menu (the tabs row's Open in new tab) leaves the links drawn inside a row to the row.
+A link drawn inside a row — the bullet, a link in a title, a reference under
+it — belongs to navigation, on an outline page and on a day or agenda page
+alike. A press on it never also edits the title or selects or extends the
+selection, Ctrl/Meta-click included; a right-click or a held finger on it opens
+the link menu, while the rest of the row keeps the row menu
+(`browser/menu/door.ts`). A node link (`/#id`) reveals: it selects the row when
+it is visible in that pane and otherwise opens the node's file at that row. The
+bullet and **Zoom in** use `/zoom/#id`, the node's own page.
 
 An outline page declares the row chip, pane, block, action and door locations, along with typed title, dated-row, page-shell and property-navigation extension points. Journal supplies date destinations. Markdown supplies document destinations. Missing integrations produce ordinary text or no contribution, rather than importing or starting the missing provider.
 

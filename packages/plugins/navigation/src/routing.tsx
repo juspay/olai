@@ -1,12 +1,12 @@
+import { localLink, type Intent } from "@olai/surface"
 /** Stateless route consumers. They receive the navigation provider through
  * context; importing this contract starts no history, observer or timer. */
-import { ours,splitClick } from "@olai/web/client/press.ts"
-import { followed, followedSplit } from "./contracts/written.ts"
 import { type Accessor,createContext,createMemo,type JSX,useContext } from "solid-js"
 import type { Landing } from "./landing.ts"
+import type { RevealState } from "./reveal.ts"
 import { usePane } from "./pane/context.tsx"
 import { fileNamed,type Route } from "./routes.ts"
-import type { Workspace,WorkspaceRouting } from "./workspace.ts"
+import { workspaceFor, type AddressTarget, type Workspace, type WorkspaceRouting } from "./workspace.ts"
 export interface LivePane {
   readonly element: Accessor<HTMLElement | undefined>
   readonly mount: (element: HTMLElement) => () => void
@@ -17,6 +17,7 @@ export interface LivePane {
 }
 export interface Lane extends Router {}
 export interface Router {
+  readonly revealState: (index: number) => RevealState | undefined
   readonly panes: Accessor<readonly LivePane[]>
   readonly focusIndex: Accessor<number>
   readonly split: Accessor<boolean>
@@ -91,6 +92,7 @@ export interface Router {
   readonly replaceIn: (index: number, route: Route) => void
   /** Replace the whole workspace in one history push, without landings. */
   readonly open: (workspace: Workspace) => void
+  readonly openWorkspaceRight: (from: number, workspace: Workspace, forceNew?: boolean) => void
   readonly openRight: (from: number, route: Route, forceNew?: boolean) => void
   readonly close: (index?: number) => void
   readonly focus: (index: number) => void
@@ -106,6 +108,8 @@ export interface Router {
 /** Window-wide controls belong to the declared navigation service, never to
  * the lane router handed to a page. */
 export interface NavigationRouter extends Router {
+  readonly offerTabs: (open: (workspace: Workspace) => void) => () => void
+  readonly openTab: (workspace: Workspace) => boolean
   readonly lanes: Accessor<readonly Lane[]>
   /** Layouts register content visibility independently. Any shown registration draws
    * the front lane; with no registrations the front lane is shown. */
@@ -173,9 +177,9 @@ export const usePaneId = (): Accessor<string> => {
 }
 
 export const useHere = (): (() => number) => {
-  const router = useRouter()
+  const router = useMaybeRouter()
   const pane = usePane()
-  return () => pane?.index ?? router.focusIndex()
+  return () => pane?.index ?? router?.focusIndex() ?? 0
 }
 
 /**
@@ -267,9 +271,9 @@ export const useGo = (): ((route: Route) => void) => {
  */
 export const useMaybeGo = (): ((route: Route) => void) | null => {
   const router = useContext(RouterContext)
-  const pane = usePane()
+  const here = useHere()
   if (router === undefined) return null
-  return (route) => router.goIn(pane?.index ?? router.focusIndex(), route)
+  return (route) => router.goIn(here(), route)
 }
 
 export interface LinkProps {
@@ -284,82 +288,9 @@ export interface LinkProps {
   readonly children?: JSX.Element
 }
 
-export { followed, followedSplit } from "./contracts/written.ts"
-
-/**
- * TAKE a click on a link inside rendered markdown — the pair above, answered.
- *
- * {@link followed} and {@link followedSplit} say what a press is ASKING FOR;
- * this is the three lines every surface that draws markdown then writes to
- * answer it, and they must not be three lines each such surface writes for
- * itself: Alt opens to the right, a plain press goes in place, and everything
- * else — an external link, a modified click, a press something deeper already
- * answered — is left to the browser.
- *
- * {@link Link} answers the same question and does NOT come through here, which
- * is honest rather than an oversight waiting to be tidied: a `<Link>` is handed
- * the route it stands for, and reading one back off the `href` it just wrote
- * would be a round trip through a string for a value already in hand. What the
- * two must agree on is what a MODIFIER means, and that is `../press.ts`'s, read
- * by both — which is why the force bit below is `splitClick`'s answer and not a
- * second look at Shift.
- *
- * It lives here rather than in the pane because the pane is no longer the only
- * one: the chat panel is mounted BESIDE the panes (`./App.tsx`) and its
- * transcript renders the agent's markdown, so an anchor in an answer used to
- * fall through to the browser's default and reload the app cold. {@link useHere}
- * is what makes one function serve both — inside a pane it is that pane, and
- * outside every pane it is the FOCUSED one, which is where a link pressed in a
- * drawer belongs and where the palette and the sidebar already land.
- *
- * NOTHING COMES BACK. It either takes the press or leaves it, and there is no
- * third answer a caller could branch on — a caller with a question of its own
- * (the transcript's node chips) asks it BEFORE handing the event over, which is
- * the order that reads correctly anyway.
- */
-export const useFollow = (): ((event: MouseEvent) => void) => {
-  const router = useRouter()
-  const here = useHere()
-  const go = useGo()
-  return (event) => {
-    const split = followedSplit(router.routes, event)
-    if (split !== null) {
-      // `splitClick`'s own answer for "a new pane or the one already there".
-      // The line came out of the pane spelling it `event.shiftKey`, which was
-      // the shift⇒force rule written twice — once in `../press.ts` where
-      // `Link` reads it, once here — and free to disagree the day the gesture
-      // moves. Asked BEFORE the press is claimed: `splitClick` declines a
-      // prevented press, so asking after `preventDefault` read every
-      // Alt+Shift+click on a written link as a reuse.
-      const force = splitClick(event) === "force"
-      event.preventDefault()
-      router.openRight(here(), split, force)
-      return
-    }
-    const next = followed(router.routes, event)
-    if (next === null) return
-    event.preventDefault()
-    go(next)
-  }
-}
-
+/** Content encodes its destination; navigation owns every press. */
 export function Link(props: LinkProps) {
   const router = useRouter()
-  const here = useHere()
-  const go = useGo()
-
-  const onClick = (event: MouseEvent) => {
-    const split = splitClick(event)
-    if (split !== null) {
-      event.preventDefault()
-      router.openRight(here(), props.route, split === "force")
-      return
-    }
-    if (!ours(event)) return
-    event.preventDefault()
-    go(props.route)
-  }
-
   return (
     <a
       href={router.routes.href(props.route)}
@@ -371,9 +302,43 @@ export function Link(props: LinkProps) {
       data-file={fileNamed(props.route)}
       data-broken={props.broken === true ? "true" : undefined}
       data-halo={props.halo === true ? "true" : undefined}
-      onClick={onClick}
     >
       {props.children}
     </a>
   )
+}
+
+/** One reading for activation, menus, previews and the opaque-frame bridge.
+ * Raw local fragments remain the content's; a resolved absolute URL loses that fact. */
+export interface LinkTarget {
+  readonly destination: AddressTarget
+  readonly router: Router
+  readonly index: number
+  readonly anchor: HTMLAnchorElement
+  readonly tabs?: NavigationRouter
+}
+/** `here` is the router the reader holds; `tabs`, the window's navigation, when
+ *  the anchor may sit in any of its lanes. */
+export const targetOf = (here: Router, anchor: HTMLAnchorElement, tabs?: NavigationRouter): LinkTarget | undefined => {
+  if (localLink(anchor)) return
+  const destination = here.routes.destinationIn(anchor.href)
+  if (!destination) return
+  const id = anchor.closest<HTMLElement>("[data-pane-id]")?.dataset.paneId
+  const router = id ? (tabs?.lanes() ?? [here]).find(lane => lane.panes().some(pane => pane.id === id)) : here
+  if (!router || !router.shown()) return
+  const index = id ? router.panes().findIndex(pane => pane.id === id) : router.focusIndex()
+  return index < 0 ? undefined : { destination, router, index, anchor, tabs }
+}
+/** What `follow` tells the anchor it followed, for the anchor's own after-step. */
+declare module "solid-js" { namespace JSX { interface CustomEvents { "olai-navigated": Event } } }
+export const follow = (target: LinkTarget, intent: Intent): void => {
+  const { destination, router, index, anchor, tabs } = target
+  const workspace = workspaceFor(destination)
+  if (intent === "go" && anchor.dataset.linkIntent === "new-tab" && tabs?.openTab(workspace)) { /* served by tabs */ }
+  else if (destination.kind === "layout") {
+    if (intent === "go") router.open(workspace)
+    else router.openWorkspaceRight(index, workspace, intent === "new-pane")
+  } else if (intent === "go") router.goIn(index, destination.route)
+  else router.openRight(index, destination.route, intent === "new-pane")
+  anchor.dispatchEvent(new CustomEvent("olai-navigated"))
 }

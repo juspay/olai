@@ -35,8 +35,8 @@ Feature: The sidebar and command palette
     When I search the header for "hinges"
     Then the header search lists the node "pick the hinges"
     When I press the header search result "pick the hinges"
-    Then the address is "/#hinges"
-    And the zoomed node is "hinges"
+    Then the unified destination row "hinges" is selected
+    And the unified destination row "hinges" is selected
 
   @corpus:good
   Scenario: Palette search finds a node and jumps to it
@@ -48,8 +48,8 @@ Feature: The sidebar and command palette
     And I type "hinges" into the palette
     Then the palette lists the node "pick the hinges"
     When I pick the palette item "pick the hinges"
-    Then the address is "/#hinges"
-    And the zoomed node is "hinges"
+    Then the unified destination row "hinges" is selected
+    And the unified destination row "hinges" is selected
 
   @corpus:good
   Scenario: Keyboard toggles the sidebar

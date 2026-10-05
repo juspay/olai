@@ -1,0 +1,42 @@
+import { expect, test } from "bun:test"
+
+import { intentOf } from "./press.ts"
+
+const press = (
+  mods: {
+    alt?: boolean
+    shift?: boolean
+    ctrl?: boolean
+    meta?: boolean
+    button?: number
+    defaultPrevented?: boolean
+  } = {},
+) => ({
+  defaultPrevented: mods.defaultPrevented === true,
+  button: mods.button ?? 0,
+  metaKey: mods.meta === true,
+  ctrlKey: mods.ctrl === true,
+  shiftKey: mods.shift === true,
+  altKey: mods.alt === true,
+})
+
+test("a plain click goes in place", () => {
+  expect(intentOf(press())).toBe("go")
+})
+
+test("Alt+click opens to the right", () => {
+  expect(intentOf(press({ alt: true }))).toBe("right")
+})
+
+test("Alt+Shift+click forces a new pane", () => {
+  expect(intentOf(press({ alt: true, shift: true }))).toBe("new-pane")
+})
+
+test("Ctrl/Cmd still belong to the browser, even with Alt", () => {
+  expect(intentOf(press({ alt: true, ctrl: true }))).toBeNull()
+  expect(intentOf(press({ alt: true, meta: true }))).toBeNull()
+})
+
+test("a press something else already answered is nobody's", () => {
+  expect(intentOf(press({ alt: true, defaultPrevented: true }))).toBeNull()
+})

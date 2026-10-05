@@ -74,17 +74,17 @@ const edit = (id: string, label: string) => {
 // ── the shelf ──────────────────────────────────────────────────────────
 
 test("a node not on the shelf is offered a pin, at its own page's address", () => {
-  expect(edit("install", "Pin to sidebar")).toEqual({ verb: "pin", at: "/#install" })
+  expect(edit("install", "Pin to sidebar")).toEqual({ verb: "pin", at: "/zoom/#install" })
 })
 
 test("a mirror pins the node it SHOWS, never the placement standing there", () => {
   // A pin is a door to a PAGE, and a mirror's page is its target's. An address
   // spelling the placement would stop resolving the day somebody retires it.
-  expect(edit("kitchen-herbs", "Pin to sidebar")).toEqual({ verb: "pin", at: "/#herbs" })
+  expect(edit("kitchen-herbs", "Pin to sidebar")).toEqual({ verb: "pin", at: "/zoom/#herbs" })
 })
 
 test("a node the shelf already holds is offered the way OFF it instead", () => {
-  const shelf: Shelf = [{ id: "p-install", title: "/#install" }]
+  const shelf: Shelf = [{ id: "p-install", title: "/zoom/#install" }]
   const offered = writeVerbs(routes, subjectOfRow(row("install")), row("install").under, shelf)
   expect(offered.map((one) => one.label)).toContain("Unpin from sidebar")
   expect(offered.map((one) => one.label)).not.toContain("Pin to sidebar")

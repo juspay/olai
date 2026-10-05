@@ -631,7 +631,7 @@ test("a revision that changes no pin sends no frame", () =>
   withRuntime(
     {
       "a.olai": OUTLINE,
-      "_olai/Pins.olai": `{"id":"p","ord":"a0","title":"/#a"}\n`,
+      "_olai/Pins.olai": `{"id":"p","ord":"a0","title":"/zoom/#a"}\n`,
       "report.csv": "<h1>Before</h1>\n",
     },
     ({ wired, store, root }) =>
@@ -640,7 +640,7 @@ test("a revision that changes no pin sends no frame", () =>
         if (get === undefined) throw new Error("the pins cell has no `get`")
         const open = yield* watching(get({}) as Stream.Stream<Shelf>)
         expect(yield* open.take).toEqual([
-          { id: "p", title: "/#a", shows: { id: "a", name: "a" } },
+          { id: "p", title: "/zoom/#a", shows: { id: "a", name: "a" } },
         ])
 
         // A revision the shelf has nothing to say about: another file's bytes.
@@ -651,7 +651,7 @@ test("a revision that changes no pin sends no frame", () =>
         yield* store.refresh("cheap")
 
         expect(yield* open.take).toEqual([
-          { id: "p", title: "/#a", shows: { id: "a", name: "b" } },
+          { id: "p", title: "/zoom/#a", shows: { id: "a", name: "b" } },
         ])
       }),
   ))

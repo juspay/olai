@@ -27,7 +27,7 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
       <span class="flex items-center gap-1 text-doing" data-testid={TESTID.chatWorking} aria-live="polite"><span class={LIVE_DOT} aria-hidden="true" />{doing()?.kind === "waiting" ? "Waiting on you" : "Working…"}</span>
     </Show>
     <span class="flex-1" />
-    <Show when={!props.page}><Link route={atNode(props.node)}>Open the page ›</Link></Show>
+    <Show when={!props.page}><Link route={atNode(props.node)}>Show in outline ›</Link></Show>
     <Show when={agents.at(props.node)}>
       {agent => <>
         <FreshStart agent={agent()} page={props.page} />

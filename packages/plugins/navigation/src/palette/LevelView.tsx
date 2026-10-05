@@ -1,3 +1,5 @@
+import { actionHref } from "./items.ts"
+import { useRouter } from "../routing.tsx"
 /**
  * AN OPEN LEVEL, DRAWN — what `./Palette.tsx` puts in the list's place while a
  * level owns the box. It holds no state of its own: the level, its step and
@@ -60,9 +62,11 @@ export function LevelView(props: {
   readonly needles: ReturnType<typeof needlesFrom>
   readonly onHover: (index: number) => void
   readonly onSelect: (item: PaletteItem) => void
+  readonly onNavigate: () => void
   readonly onOption: (option: PaletteOption) => void
   readonly onSubmit: () => void
 }) {
+  const router = useRouter()
   const rowHeading = createHeadings(() => props.items)
   const optionHeading = createHeadings(() => props.options ?? [])
   const SectionHeading = (heading: { readonly text: string }) => (
@@ -105,6 +109,8 @@ export function LevelView(props: {
                   <Show when={rowHeading(item().id)}>{(text) => <SectionHeading text={text()} />}</Show>
                   <Result
                     claims={fileClaims()}
+                    href={actionHref(router.routes, item().action)}
+                    onNavigate={props.onNavigate}
                     label={item().label}
                     from={item().from}
                     needles={props.needles}

@@ -16,7 +16,7 @@ Feature: Zoom and navigate
     And I mark the page
     When I zoom into the node "install"
     Then the zoomed node is "install"
-    And the address is "/#install"
+    And the address is "/zoom/#install"
     And the node "handles" is shown
     # A route, not a reload: the page answered in place.
     And the page has not reloaded
@@ -38,8 +38,8 @@ Feature: Zoom and navigate
   Scenario: Breadcrumbs walk back up
     Given I open the node "handles"
     When I follow the breadcrumb "install the cabinets"
-    Then the zoomed node is "install"
-    And the address is "/#install"
+    Then the unified destination row "install" is selected
+    And the address is "/house.olai#install"
 
   Scenario: The trail roots at the node's own outline
     Given I open the node "handles"
@@ -165,15 +165,14 @@ Feature: Zoom and navigate
   Scenario: A see reference is a link to the target's page
     # `order` carries `see: ["herbs"]` — a free cross-reference into the other
     # outline. See links ride the expanded note (click), the link text is the
-    # TARGET's title, and clicking it is the same navigation a bullet is:
-    # `/#<id>`, no reload.
+    # TARGET's title; a visible mirror is revealed without leaving this file.
     Given I open the outline "house.olai"
     When I open the note of "order"
     Then the node "order" sees "herbs" as "the herb bed by the door"
     Given I mark the page
     When I follow the see link to "herbs" on "order"
-    Then the zoomed node is "herbs"
-    And the address is "/#herbs"
+    Then the unified destination row "kitchen-herbs" is selected
+    And the address is "/house.olai"
     And the page has not reloaded
     And there should be no page errors
 
@@ -183,8 +182,8 @@ Feature: Zoom and navigate
     Given I open the node "order"
     Then the node "order" sees "herbs" as "the herb bed by the door"
     When I follow the see link to "herbs" on "order"
-    Then the zoomed node is "herbs"
-    And the address is "/#herbs"
+    Then the unified destination row "herbs" is selected
+    And the address is "/garden.olai#herbs"
     And there should be no page errors
 
   Scenario: The waiting mark opens the page that names the blockers
@@ -195,7 +194,7 @@ Feature: Zoom and navigate
     And I mark the page
     When I follow the waiting mark on "hinges"
     Then the zoomed node is "hinges"
-    And the address is "/#hinges"
+    And the address is "/zoom/#hinges"
     And the page has not reloaded
     And there should be no page errors
 
@@ -205,8 +204,8 @@ Feature: Zoom and navigate
     Given I open the node "hinges"
     Then the node "hinges" is blocked by "order"
     When I follow the blocked link to "order" on "hinges"
-    Then the zoomed node is "order"
-    And the address is "/#order"
+    Then the unified destination row "order" is selected
+    And the address is "/house.olai#order"
     And there should be no page errors
 
   Scenario: A row address opens the outline landed on the row, cold

@@ -1,3 +1,4 @@
+import { Dynamic } from "solid-js/web"
 import { Index } from "solid-js"
 /**
  * One result row, wherever search is drawn.
@@ -112,6 +113,8 @@ export interface RowTestids {
 
 
 export function Result(props: {
+  readonly href?: string
+  readonly onNavigate?: () => void
   readonly claims: Claims | undefined;
   readonly label: string
   /** A chord or a word, inline at the right of the first line. */
@@ -132,7 +135,7 @@ export function Result(props: {
    * The file a NODE hit is written in. When set, the label runs through
    * `renderTitle` — markdown, tags, and the query's words lit where they
    * sit — the same HTML a tree row draws. `links` is false because this
-   * row is a `<button>`; nested anchors would be invalid.
+   * row is itself an interactive anchor or button; nested links are invalid.
    *
    * Absent on commands, completions, and document hits, which stay a text
    * node of the label as it arrived.
@@ -164,8 +167,9 @@ export function Result(props: {
     },
   )
   return (
-    <button
-      type="button"
+    <Dynamic component={props.href === undefined ? "button" : "a"}
+      href={props.href}
+      type={props.href === undefined ? "button" : undefined}
       class={`flex w-full min-w-0 flex-col rounded-control px-3 py-2 text-left text-body ${
         props.active ? "bg-rule text-ink" : "text-ink hover:bg-rule/60"
       }`}
@@ -177,26 +181,9 @@ export function Result(props: {
       // up only while it holds focus, so a plain click would blur the input,
       // shut the panel and land the click on nothing. Preventing the default
       // on mousedown keeps focus where it is and still lets `click` fire.
-      onMouseDown={(event) => event.preventDefault()}
-      onClick={(event) => {
-        // A click on a TAG inside this row is the ROW's, not the tag's: the
-        // label and the place line draw the title pipeline
-        // (`../markdown/tags.ts`), so their `#tags` wear pills the page's
-        // filter router would narrow on (`../filter/tag.ts`,
-        // `../pane/PageView.tsx`). The way the row says the press is already
-        // answered is `preventDefault` (`@olai/surface/press.ts`'s `ours`) —
-        // the same rule a breadcrumb holds — and ONLY when the tag is what
-        // was pressed: saying it universally kills a click on the row
-        // ITSELF, whose navigation downstream IS the default the same router
-        // keys on.
-        if (
-          event.target instanceof Element &&
-          event.target.closest("[data-tag]") !== null
-        ) {
-          event.preventDefault()
-        }
-        props.onSelect()
-      }}
+      onMouseDown={(event: MouseEvent) => event.preventDefault()}
+      on:olai-navigated={() => props.onNavigate?.()}
+      onClick={() => { if (props.href === undefined) props.onSelect() }}
     >
       <span class="flex w-full min-w-0 items-center gap-3">
         <span class="flex min-w-0 flex-1 items-center gap-2">
@@ -263,6 +250,6 @@ export function Result(props: {
           </Index>
         </span>
       </Show>
-    </button>
+    </Dynamic>
   )
 }

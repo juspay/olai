@@ -26,7 +26,7 @@ test("the panel's references retract on departure and acquire fresh scoped reade
       const [ids, setIds] = createSignal<ReadonlyArray<string>>([])
       return { title: (id: string) => ids().includes(id) ? `Title of ${id}` : null, named: (id: string) => ids().includes(id) ? id : null, told: (id: string) => ids().includes(id) ? id : undefined, want: setIds }
     },
-    showNode: () => (_id: string) => {},
+    reveal: () => false, home: () => () => undefined,
     failure: () => null,
     focused: () => null,
   })

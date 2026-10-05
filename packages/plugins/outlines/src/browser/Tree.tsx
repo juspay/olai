@@ -114,7 +114,7 @@ import { nodeMenuActions } from "./menu/actions.ts"
 import { usePins } from "./pins.ts"
 import { createMenuDoor } from "./menu/door.ts"
 import { NodeMenu } from "./menu/NodeMenu.tsx"
-import { followed, followedSplit, useGo, useRouter } from "olai-plugin-navigation/routing"
+import { useGo, useRouter } from "olai-plugin-navigation/routing"
 import { density, showsPreview, startsOpen } from "./settings/density.ts"
 
 import { useToday } from "./clock.ts"
@@ -482,15 +482,8 @@ function Branch(props: {
     // tag.ts`). Without this the same press would ALSO drop a caret in the
     // line, because Solid runs a descendant's handler before an ancestor's.
     if (onATag(event)) return
-    // …and a press on a LINK somebody wrote in the title belongs to the link,
-    // for exactly that reason one word along. A title may be written as one
-    // markdown link — which is how a pin carries a name somebody chose — and
-    // the ruling is that pressing it opens the ADDRESS (human, 2026-08-19).
-    // Without this the press would open the editor AND navigate, since the
-    // pane's delegated listener answers the same click (`./pane/PageView.tsx`
-    // through `./router.tsx`'s `followed`). The caret is still one press away
-    // — anywhere else on the line — which is how the label gets edited.
-    if (followed(routes, event) !== null || followedSplit(routes, event) !== null) return
+    // Links belong to navigation; the rest of the title remains editable.
+    if (event.target instanceof Element && event.target.closest("a[href]")) return
     // …and a press inside the EDITOR belongs to the editor, now that the input
     // is drawn in the title's own cell (`./NodeLine.tsx`'s `titleEditor`): the
     // line's own handler covers the whole row, filler included, so without this
@@ -614,9 +607,6 @@ function Branch(props: {
         // handlers are the whole of `LongPress`.
         onPointerDown={menu.hold.onPointerDown}
         onContextMenu={menu.hold.onContextMenu}
-        // THIS ROW OWNS ITS MENU, so a page-wide link menu (the tabs row's Open
-        // in new tab) leaves the links drawn inside it alone.
-        data-menu-owner="outline-row"
         // Two ways of being THE row, drawn in one accent and told apart by
         // weight: the caret fills its row, a reference outlines the row it
         // points at. One vocabulary, because "this is the one" is one thing to

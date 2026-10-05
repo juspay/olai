@@ -17,7 +17,7 @@ Feature: An open node permalink follows removal and relocation
       {"id":"source-root","ord":"a0","title":"original parent"}
       """
     Then a not-found is shown
-    And the address is "/#traveller"
+    And the address is "/zoom/#traveller"
     When I rewrite "source.olai" as:
       """
       {"id":"source-root","ord":"a0","title":"restored parent"}
@@ -32,7 +32,7 @@ Feature: An open node permalink follows removal and relocation
     And I select all and type "edited restored child"
     And I press "Enter"
     Then "source.olai" holds a node titled "edited restored child"
-    And the address is "/#traveller"
+    And the address is "/zoom/#traveller"
     And the page has not reloaded
     And there should be no page errors
 
@@ -48,7 +48,7 @@ Feature: An open node permalink follows removal and relocation
     Then the zoomed node is "traveller"
     And the node "traveller-child" has the title "relocated child"
     And the breadcrumbs are "destination.olai, new parent"
-    And the address is "/#traveller"
+    And the address is "/zoom/#traveller"
     When I follow the breadcrumb "destination.olai"
     Then the address is "/destination.olai"
     And the node "traveller" is shown

@@ -27,14 +27,14 @@ export function NeedsYou() {
     <section ref={element => readings?.needsSurface(element, shown)} class={REGION} data-testid={TESTID.agentNeedsYou} data-agent-needs-you tabIndex={-1}>
       <div class={REGION_HEAD}><h2 class={REGION_LABEL}>Needs you</h2></div>
       <ul class="m-0 list-none p-0"><Key each={rows()} by="id">{row => <li>
-        <button type="button" class={`${ENTRY_SHAPE} w-full gap-2 text-left text-doing`} data-testid={TESTID.agentNeedRow}
-          data-agent={row().id} data-standing={row().standing} onClick={() => focus.press(row())}>
+        <a href={focus.href(row())} class={`${ENTRY_SHAPE} w-full gap-2 text-left text-doing`} data-testid={TESTID.agentNeedRow}
+          data-agent={row().id} data-standing={row().standing} on:olai-navigated={() => focus.visit(row())}>
           <span class={`${DOT} ${LOOK[row().standing].dot}`} aria-hidden="true" />
           <span class="min-w-0 flex-1 truncate">{row().title}</span>
           <Show when={row().standing === "gone"} fallback={<span class={CHIP_QUIET} data-testid={TESTID.agentWaiting}>{row().waiting}</span>}>
             <span class="shrink-0 text-label text-paper/60">Not running</span>
           </Show>
-        </button>
+        </a>
       </li>}</Key></ul>
     </section>
   </Show>
@@ -54,15 +54,15 @@ export function Chats() {
     </div>
     <NewChatSaid />
     <ul class="m-0 list-none p-0"><Key each={rows()} by="id">{row => <li>
-      <button type="button" class={`${ENTRY_SHAPE} w-full gap-2 text-left`} data-testid={TESTID.agentRow}
+      <a href={focus.href(row())} class={`${ENTRY_SHAPE} w-full gap-2 text-left`} data-testid={TESTID.agentRow}
         data-agent={row().id} data-engine={row().engine} data-standing={row().standing} aria-current={current(row()) ? "page" : undefined}
-        title={row().title} onClick={() => focus.press(row())}>
+        title={row().title} on:olai-navigated={() => focus.visit(row())}>
         <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span><span class="min-w-0 flex-1 truncate">{row().title}</span>
         <span class="inline-flex shrink-0 items-center gap-2">
           <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} title={LOOK[row().standing].detail} />
           <Show when={row().said?.at ?? row().changed}>{at => <span class="tabular-nums text-label text-paper/60">{agoOf(at(), now())}</span>}</Show>
         </span>
-      </button>
+      </a>
     </li>}</Key></ul>
   </section>
 }

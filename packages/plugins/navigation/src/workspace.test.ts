@@ -1,3 +1,5 @@
+import { legacyZoomHref } from "./workspace.ts"
+import { zoomNode } from "./routes.ts"
 /**
  * THE PANES, as a value — how many there are, which one is focused, what a
  * navigation does to the others, and the one URL the whole arrangement is
@@ -338,4 +340,13 @@ test("page routing and workspace segments still resolve files in s/", () => {
   const workspace = routes.layoutIn("/s/s%2Fnotes.olai/house.olai")!
   expect(panesOf(workspace).map(pane => pane.route)).toEqual([file, house])
   expect(routes.layoutHref(workspace)).toBe("/s/s%2Fnotes.olai/house.olai")
+})
+
+test("reveal and explicit zoom have distinct URLs; stored node URLs migrate only at storage boundaries", () => {
+  expect(routes.href(atNode("kitchen"))).toBe("/#kitchen")
+  expect(routes.href(zoomNode("kitchen"))).toBe("/zoom/#kitchen")
+  expect(routes.routeOf("/zoom/#kitchen")).toEqual(zoomNode("kitchen"))
+  expect(legacyZoomHref("/#kitchen")).toBe("/zoom/#kitchen")
+  expect(legacyZoomHref("/s/house.olai/%23kitchen?f=1")).toBe("/s/house.olai/zoom%2F%23kitchen?f=1")
+  expect(legacyZoomHref("/house.olai#kitchen")).toBe("/house.olai#kitchen")
 })

@@ -174,10 +174,7 @@ const seeLinkTo = (world: OlaiWorld, source: string, target: string) =>
  *  — a `see` ref and a blocker are the same link — over `press`, which is
  *  already "wait until it is there, click it, wait out the frame". */
 const followRef = async (world: OlaiWorld, link: Locator): Promise<void> => {
-  await world.press(link);
-  await world.page
-    .locator(ZOOM_TITLE)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await world.press(link)
 };
 
 Then(
@@ -230,7 +227,8 @@ When(
 When(
   "I follow the waiting mark on {string}",
   async function (this: OlaiWorld, id: string) {
-    await followRef(this, this.within(id, BLOCKED));
+    await this.press(this.within(id, BLOCKED));
+    await this.page.locator(ZOOM_TITLE).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
 

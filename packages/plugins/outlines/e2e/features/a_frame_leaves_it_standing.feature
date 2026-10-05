@@ -129,7 +129,7 @@ Feature: A frame leaves the rest of the page standing
     When I open the outline "house.olai"
     And I mark the page
     And I pin the page
-    Then the pinned shelf holds "/#herbs"
+    Then the pinned shelf holds "/zoom/#herbs"
     And the pinned shelf holds "/house.olai"
     And I mark every element of the "pinned shelf"
     When I rewrite "garden.olai" as:
@@ -137,7 +137,7 @@ Feature: A frame leaves the rest of the page standing
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
       {"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed by the gate"}
       """
-    Then the pin "/#herbs" is named "the herb bed by the gate"
+    Then the pin "/zoom/#herbs" is named "the herb bed by the gate"
     And the "pinned shelf" kept every element it had
     And the page has not reloaded
     And there should be no page errors

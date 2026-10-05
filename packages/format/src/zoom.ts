@@ -1,7 +1,7 @@
 /**
  * One node, as a page.
  *
- * An id is the whole address (`/#<id>` in the browser): ids are unique across
+ * An id is the whole address (`/zoom/#<id>` in the browser): ids are unique across
  * the loaded set and survive renames and moves, so a link to a node outlives
  * every edit short of deleting it. Which file the node lives in and where it
  * sits in the tree are DERIVED here, not carried in the address — the outline
@@ -31,7 +31,7 @@ import {
 } from "./derive.ts"
 
 /**
- * What `/#<id>` shows: a node, or the reason it cannot.
+ * What `/zoom/#<id>` shows: a node, or the reason it cannot.
  *
  * A SCHEMA since `vault-in-browser`'s PR 10, for the reason every drawable
  * shape here is one: this IS the node page's reading, computed where the set

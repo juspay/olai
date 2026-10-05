@@ -80,6 +80,8 @@ Feature: Page actions wait for their reading while navigation stays available
     When I request the node "mint" while its page answer is held
     Then the retained page shows its loading cue
     When I click the retained page link to "kitchen"
+    Then the unified destination row "kitchen" is selected
+    When I zoom into the node "kitchen"
     Then the zoomed node is "kitchen"
     When I press "ControlOrMeta+k"
     Then the palette offers "Mark: Done"
@@ -90,6 +92,8 @@ Feature: Page actions wait for their reading while navigation stays available
     And I open the node "order"
     Then the zoomed node is "order"
     When I click the retained page link to "kitchen"
+    Then the unified destination row "kitchen" is selected
+    When I zoom into the node "kitchen"
     Then the zoomed node is "kitchen"
     When I request the node "mint" while its page answer is held
     And I go back
@@ -108,6 +112,8 @@ Feature: Page actions wait for their reading while navigation stays available
     And page shortcuts leave the retained page untouched
     And browser keys and outside typing remain available
     When I click the retained page link to "kitchen"
+    Then the unified destination row "kitchen" is selected
+    When I zoom into the node "kitchen"
     Then the zoomed node is "kitchen"
     When I press "ControlOrMeta+k"
     Then the palette offers "Mark: Done"
