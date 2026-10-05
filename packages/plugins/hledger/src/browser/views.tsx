@@ -68,7 +68,7 @@ import { tagStyle } from "@olai/appearance/tagInk.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 
-import { amountParts, amountText } from "./spell.ts"
+import { amountDigits, amountParts, amountText } from "./spell.ts"
 
 /** Which of the page's three drawings is on screen. The page owns the signal;
  *  this is the vocabulary it and the strip share. */
@@ -110,6 +110,15 @@ const humanDay = (iso: string): string => {
   const day = Number(iso.slice(8, 10))
   return `${MONTHS[month - 1] ?? ""} ${day}`
 }
+
+/** `2026-07-01` as a day INSIDE a band that already names its month — `Jul 01`.
+ *  Zero-padded, because a column of days is read down and `Jul 1` beside
+ *  `Jul 10` is a ragged left edge for no reason. */
+const shortDay = (iso: string): string => `${MONTHS[Number(iso.slice(5, 7)) - 1] ?? ""} ${iso.slice(8, 10)}`
+
+/** `2026-07-01` as the day alone — `01` — for the phone, where the band above
+ *  and the day beside the payee are the whole date. */
+const dayOfMonth = (iso: string): string => iso.slice(8, 10)
 
 /** The days a journal spans, as a person reads them — `Jul 1 – Sep 30, 2026`,
  *  or nothing when no transaction carried a date. `YYYY-MM-DD` sorts as text,
@@ -180,18 +189,22 @@ export function LedgerHeader(props: {
     <header class="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-body text-muted" data-testid={TESTID.hledgerHeader}>
       <Index each={facts()}>
         {(fact, at) => (
-          <>
-            <Show when={at > 0}>
-              <span aria-hidden="true">·</span>
-            </Show>
-            <span class="whitespace-nowrap" data-testid={TESTID.hledgerFact} data-fact={fact().kind}>{fact().text}</span>
-          </>
+          // THE SEPARATOR IS THE ITEM'S OWN, a pseudo-element rather than a
+          // span between them: a fact that wraps takes its `·` with it, so no
+          // line ends in a separator and none begins with one.
+          <span
+            class={`whitespace-nowrap ${at > 0 ? "before:mr-2 before:content-['·']" : ""}`}
+            data-testid={TESTID.hledgerFact}
+            data-fact={fact().kind}
+          >
+            {fact().text}
+          </span>
         )}
       </Index>
       <Show when={unreadable() > 0}>
         <button
           type="button"
-          class="ml-1 inline-flex min-h-8 cursor-pointer items-center rounded-control border border-alarm/40 bg-alarm/10 px-2 py-0.5 text-label text-alarm hover:bg-alarm/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-alarm md:min-h-0"
+          class="before:mr-2 before:content-['·'] inline-flex min-h-8 cursor-pointer items-center rounded-control border border-alarm/40 bg-alarm/10 px-2 py-0.5 text-label text-alarm hover:bg-alarm/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-alarm md:min-h-0"
           data-testid={TESTID.hledgerUnreadable}
           onClick={() => props.onUnreadable()}
         >
@@ -273,11 +286,19 @@ function TransactionHead(props: { readonly transaction: Transaction }) {
   const one = () => props.transaction
   return (
     <div class="col-span-full grid grid-cols-subgrid items-baseline py-0.5">
-      <span class="col-span-3 font-mono text-caption text-muted md:col-span-1 md:text-label">
-        {one().date}
-        <Show when={one().secondaryDate}>{(second) => <>{`=${second()}`}</>}</Show>
+      {/* THE DATE IS THE DAY, not the ISO string: the band above already names
+          the month, so `2026-07-01` under `JULY 2026` says July twice. The
+          whole date is still the row's `title` and its `data-date`, which is
+          what a scenario and a pointer read. */}
+      <span class="hidden font-mono text-label text-muted md:block" title={one().date} data-testid={TESTID.hledgerDate}>
+        {shortDay(one().date)}
+        <Show when={one().secondaryDate}>{(second) => <>{` =`}{shortDay(second())}</>}</Show>
       </span>
-      <span class="col-span-3 flex min-w-0 items-baseline gap-1.5 md:col-span-1">
+      <span class="col-span-full flex min-w-0 items-baseline gap-1.5 md:col-span-1">
+        {/* On a phone the day rides this line, left of the status mark — there
+            is no room for a column of dates, and a bare day is enough under
+            the band. */}
+        <span class="font-mono text-caption text-muted md:hidden" title={one().date} data-testid={TESTID.hledgerDay}>{dayOfMonth(one().date)}</span>
         <StatusDot status={one().status} />
         <span class="truncate text-body font-medium text-ink">{one().payee}</span>
         <Show when={one().note}>
@@ -292,7 +313,9 @@ function TransactionHead(props: { readonly transaction: Transaction }) {
           {(code) => <span class="font-mono text-caption text-muted">({code()})</span>}
         </Show>
       </span>
-      <span class="col-span-3 flex flex-wrap justify-end gap-x-2 md:col-span-1">
+      {/* The tags span the number and its tail on a laptop, so they end at the
+          same right edge the amounts do. */}
+      <span class="col-span-full flex flex-wrap justify-end gap-x-2 md:col-span-2">
         <Index each={one().tags}>{(tag) => <TagPill tag={tag()} />}</Index>
       </span>
       {/* The marker column — a placeholder on a laptop, gone on a phone where
@@ -309,7 +332,9 @@ function TransactionRow(props: { readonly transaction: Transaction }) {
   const one = () => props.transaction
   return (
     <div
-      class="col-span-full grid grid-cols-subgrid items-baseline hover:bg-rule/30"
+      // A phone has no date column to open a transaction with, so the gap
+      // between one transaction and the next is the row's own margin.
+      class="col-span-full mt-3 grid grid-cols-subgrid items-baseline hover:bg-rule/30 md:mt-0"
       data-testid={TESTID.hledgerTxn}
       data-date={one().date}
       data-status={one().status}
@@ -354,6 +379,14 @@ function PostingRow(props: { readonly posting: Posting }) {
   // `./spell.ts`'s one spelling of an amount is the thing the markup and the
   // attribute may not disagree about.
   const amount = (): string => (props.posting.amount === null ? "" : amountText(props.posting.amount))
+  /** Whether the tail cell draws anything — a suffix commodity, a cost or an
+   *  assertion. It is what decides the cell's left padding: an empty cell that
+   *  padded itself would open a gap between the number column and the marker
+   *  on every row of the page. */
+  const hasTail = (): boolean =>
+    props.posting.cost !== null ||
+    props.posting.assertion !== null ||
+    (props.posting.amount !== null && amountParts(props.posting.amount).suffix !== "")
   return (
     <div
       class="col-span-full grid grid-cols-subgrid items-baseline py-px"
@@ -375,10 +408,18 @@ function PostingRow(props: { readonly posting: Posting }) {
         </Show>
         <Index each={props.posting.tags}>{(tag) => <TagPill tag={tag()} />}</Index>
       </span>
-      <span class="flex items-baseline justify-end gap-1.5 font-mono text-label tabular-nums">
-        <Show when={props.posting.amount}>
-          {(held) => <AmountSpans amount={held()} muted={props.posting.inferred} />}
-        </Show>
+      {/* The number: the prefix symbol is glued to its digits and the cell is
+          right-aligned, so every amount's last digit lands in one column. */}
+      <span class="text-right font-mono text-label tabular-nums" data-testid={TESTID.hledgerAmount}>
+        <Show when={props.posting.amount}>{(held) => <AmountNumber amount={held()} muted={props.posting.inferred} />}</Show>
+      </span>
+      {/* The tail: a suffix commodity, then whatever was written beside the
+          amount. Left-aligned, so the commodities line up under each other. */}
+      <span
+        class={`flex items-baseline gap-1.5 text-left font-mono text-label tabular-nums ${hasTail() ? "pl-1.5" : ""}`}
+        data-testid={TESTID.hledgerAmountTail}
+      >
+        <Show when={props.posting.amount}>{(held) => <AmountSuffix amount={held()} muted={props.posting.inferred} />}</Show>
         <Show when={props.posting.cost}>
           {(cost) => <span class="truncate text-muted" data-testid={TESTID.hledgerCost} title="cost annotation">{cost()}</span>}
         </Show>
@@ -386,9 +427,12 @@ function PostingRow(props: { readonly posting: Posting }) {
           {(claim) => <span class="truncate text-muted" data-testid={TESTID.hledgerAssertion} title="balance assertion">{claim()}</span>}
         </Show>
       </span>
-      <span class="flex justify-center">
+      {/* The marker is `self-center`d and has no leading of its own: a glyph
+          that kept its line box made every inferred row taller than its
+          neighbours. */}
+      <span class="flex justify-center self-center">
         <Show when={props.posting.inferred}>
-          <span class="text-muted" data-testid={TESTID.hledgerInferred} title="inferred" aria-label="inferred">◌</span>
+          <span class="leading-none text-muted" data-testid={TESTID.hledgerInferred} title="inferred" aria-label="inferred">◌</span>
         </Show>
       </span>
     </div>
@@ -415,21 +459,25 @@ function AccountName(props: { readonly account: string; readonly virtual: Postin
   )
 }
 
-/** An amount split into its prefix, digits and suffix, so the number column a
- *  right-aligned `tabular-nums` run of rows shares. Muted when the reader
+/** The amount's number as it goes in the number column: the prefix symbol
+ *  glued to its digits (`$4,250.00`, `-$1,200.00`, `5`). Muted when the reader
  *  inferred it. */
-function AmountSpans(props: { readonly amount: Amount; readonly muted: boolean }) {
+function AmountNumber(props: { readonly amount: Amount; readonly muted: boolean }) {
   const parts = () => amountParts(props.amount)
   const ink = () => (props.muted ? "text-muted" : "text-ink")
-  // ONE flex item, so the column's `gap` falls between the amount and the
-  // cost or assertion beside it and never inside the amount: `$ 4,250.00`
-  // would be a different number from `$4,250.00`.
   return (
-    <span class="whitespace-nowrap">
-      <Show when={parts().prefix}>{(prefix) => <span class={ink()}>{prefix()}</span>}</Show>
-      <span class={ink()}>{parts().number}</span>
-      <Show when={parts().suffix}>{(suffix) => <span class={ink()}>{suffix()}</span>}</Show>
-    </span>
+    <span class={`whitespace-nowrap ${ink()}`}>{`${parts().prefix}${parts().number}`}</span>
+  )
+}
+
+/** The amount's suffix as it goes in the tail column — the commodity a file
+ *  wrote after its number (`EUR`, `INR`), or nothing. */
+function AmountSuffix(props: { readonly amount: Amount; readonly muted: boolean }) {
+  const parts = () => amountParts(props.amount)
+  return (
+    <Show when={parts().suffix}>
+      {(suffix) => <span class={`whitespace-nowrap ${props.muted ? "text-muted" : "text-ink"}`}>{suffix()}</span>}
+    </Show>
   )
 }
 
@@ -492,7 +540,13 @@ export function TransactionsPanel(props: {
       id={panelId(props.scope, "transactions")}
       aria-labelledby={tabId(props.scope, "transactions")}
       tabindex={0}
-      class="grid grid-cols-[minmax(0,1fr)_max-content_1rem] md:grid-cols-[5.5rem_minmax(0,1fr)_max-content_1rem]"
+      // THE NUMBER AND ITS TAIL ARE TWO COLUMNS. The number column is
+      // right-aligned and holds the prefix symbol glued to the digits; the
+      // tail column is left-aligned and holds a suffix commodity and whatever
+      // was written beside the amount. Two columns and not one, because a
+      // right-aligned `850.00 EUR` puts its last digit where `$4,250.00` puts
+      // its `R` — the decimals line up only when the number ends the cell.
+      class="grid grid-cols-[minmax(0,1fr)_max-content_max-content_1rem] md:grid-cols-[5.5rem_minmax(0,1fr)_max-content_max-content_1rem]"
       data-testid={TESTID.hledgerTransactions}
     >
       <Index each={months()}>
@@ -555,14 +609,23 @@ function DepthGuides(props: { readonly depth: number }) {
  *
  * COLLAPSE AND DEPTH ARE THE PAGE'S STATE, handed in — so a live revision that
  * re-parses the file keeps the tree a reader had opened.
+ *
+ * A PARENT IS EXPANDED OR NOT, and that is ONE state rather than two. The
+ * reader's own fold wins where they set one (`closed`/`opened`); otherwise the
+ * depth control decides, and a parent sitting exactly at the cut is NOT
+ * expanded — which is what makes the chevron tell the truth at depth 2 instead
+ * of claiming a row is open whose children are hidden. A press on that chevron
+ * opens the parent PAST the cut, which is the reader overruling the control for
+ * that one node; a press on an open one closes it.
  */
 export function BalancesPanel(props: {
   readonly scope: string
   readonly balances: Balances
   readonly depth: Depth
   readonly onDepth: (depth: Depth) => void
-  readonly collapsed: ReadonlySet<string>
-  readonly onToggle: (account: string) => void
+  readonly closed: ReadonlySet<string>
+  readonly opened: ReadonlySet<string>
+  readonly onToggle: (account: string, expanded: boolean) => void
 }) {
   const commodities = createMemo((): ReadonlyArray<string> => {
     const held = new Set<string>()
@@ -581,13 +644,22 @@ export function BalancesPanel(props: {
     }
     return held
   })
-  /** The rows the control and the collapse state leave on screen, in tree
-   *  order. A row is hidden when an ancestor is collapsed or when it is deeper
-   *  than the control allows. */
-  const rows = createMemo((): ReadonlyArray<string> => {
+  /** Whether a parent's children are drawn: the reader's fold if they set one,
+   *  the depth control otherwise. A parent at the cut is not expanded, so its
+   *  chevron says `▸` and a press opens it past the cut. */
+  const expanded = (account: string): boolean => {
+    if (props.closed.has(account)) return false
+    if (props.opened.has(account)) return true
     const limit = props.depth === "all" ? Infinity : Number(props.depth)
+    // The control counts ROWS, and a parent's children are one row deeper than
+    // the parent: `2` draws depth 0 and 1, so a parent at depth 1 is at the cut.
+    return account.split(":").length < limit
+  }
+  /** The rows the control and the folds leave on screen, in tree order: a row
+   *  is drawn when every ancestor of it is expanded. */
+  const rows = createMemo((): ReadonlyArray<string> => {
     const out: Array<string> = []
-    const stack: Array<{ readonly depth: number; readonly collapsed: boolean }> = []
+    const stack: Array<{ readonly depth: number; readonly expanded: boolean }> = []
     for (const account of props.balances.accounts) {
       const depth = account.split(":").length - 1
       let top = stack[stack.length - 1]
@@ -595,9 +667,8 @@ export function BalancesPanel(props: {
         stack.pop()
         top = stack[stack.length - 1]
       }
-      const hidden = stack.some((entry) => entry.collapsed)
-      if (!hidden && depth < limit) out.push(account)
-      stack.push({ depth, collapsed: props.collapsed.has(account) })
+      if (!stack.some((entry) => !entry.expanded)) out.push(account)
+      stack.push({ depth, expanded: expanded(account) })
     }
     return out
   })
@@ -655,11 +726,15 @@ export function BalancesPanel(props: {
             {(account) => {
               const depth = (): number => account().split(":").length - 1
               const hasChildren = (): boolean => parents().has(account())
-              const isCollapsed = (): boolean => props.collapsed.has(account())
+              const isExpanded = (): boolean => expanded(account())
               return (
                 <div
+                  // THE EMPHASIS IS THE NAME'S AND THE BAND'S, not the
+                  // numbers': a top-level total in bold mono reads as smeared
+                  // at this size, so the row gets a faint band and the account
+                  // carries the weight.
                   class={`col-span-full grid grid-cols-subgrid border-b border-rule py-0.5 ${
-                    depth() === 0 ? "font-semibold" : "text-body text-ink"
+                    depth() === 0 ? "bg-rule/20 text-ink" : "text-body text-ink"
                   }`}
                   data-testid={TESTID.hledgerBalance}
                   data-account={account()}
@@ -671,15 +746,18 @@ export function BalancesPanel(props: {
                       <button
                         type="button"
                         class="inline-flex w-4 shrink-0 cursor-pointer justify-center text-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                        aria-expanded={isCollapsed() ? "false" : "true"}
-                        aria-label={isCollapsed() ? `Expand ${account()}` : `Collapse ${account()}`}
+                        aria-expanded={isExpanded() ? "true" : "false"}
+                        aria-label={isExpanded() ? `Collapse ${account()}` : `Expand ${account()}`}
                         data-testid={TESTID.hledgerBalanceToggle}
-                        onClick={() => props.onToggle(account())}
+                        onClick={() => props.onToggle(account(), isExpanded())}
                       >
-                        {isCollapsed() ? "▸" : "▾"}
+                        {isExpanded() ? "▾" : "▸"}
                       </button>
                     </Show>
-                    <span class="truncate text-ink" data-testid={TESTID.hledgerBalanceAccount}>
+                    <span
+                      class={`truncate text-ink ${depth() === 0 ? "font-semibold" : ""}`}
+                      data-testid={TESTID.hledgerBalanceAccount}
+                    >
                       {account().slice(account().lastIndexOf(":") + 1)}
                     </span>
                   </span>
@@ -697,6 +775,9 @@ export function BalancesPanel(props: {
                     <Show
                       when={stacked()}
                       fallback={
+                        // THE COMMODITY IS THE COLUMN'S, so the cell does not
+                        // repeat it: `813.80` under `EUR`, `19,031.05` under
+                        // `$`. The sign stays, because it is the amount's.
                         <Index each={commodities()}>
                           {(commodity) => (
                             <Show when={amountFor(account(), commodity())} fallback={<span />}>
@@ -706,7 +787,7 @@ export function BalancesPanel(props: {
                                   data-testid={TESTID.hledgerBalanceAmount}
                                   data-commodity={amount().commodity}
                                 >
-                                  {amountText(amount())}
+                                  {amountDigits(amount())}
                                 </span>
                               )}
                             </Show>
@@ -714,6 +795,9 @@ export function BalancesPanel(props: {
                         </Index>
                       }
                     >
+                      {/* Above four commodities the columns are stacked in
+                          one cell, so the cell has to name each amount: there
+                          is no column header to read it against. */}
                       <span class="flex flex-col px-2 text-right font-mono text-label tabular-nums">
                         <Index each={amountsOf(account())}>
                           {(amount) => (

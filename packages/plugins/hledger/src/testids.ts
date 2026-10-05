@@ -22,12 +22,22 @@ export const TESTID = {
   /** A month band in the transactions grid, `data-month="2026-07"`. */
   hledgerMonth: "hledger-month",
   hledgerTxn: "hledger-txn",
+  /** The date a transaction opens with: the short day in its own column on a
+   *  laptop, the bare day beside the payee on a phone. The ISO date is the
+   *  cell's `title` and the row's `data-date`. */
+  hledgerDate: "hledger-date",
+  hledgerDay: "hledger-day",
   hledgerTxnNote: "hledger-txn-note",
   hledgerTxnComment: "hledger-txn-comment",
   hledgerTag: "hledger-tag",
   hledgerStatus: "hledger-status",
   hledgerPosting: "hledger-posting",
   hledgerPostingComment: "hledger-posting-comment",
+  /** The amount's number cell (prefix symbol glued to the digits, right
+   *  aligned) and the tail cell beside it (a suffix commodity, a cost, an
+   *  assertion — left aligned). */
+  hledgerAmount: "hledger-amount",
+  hledgerAmountTail: "hledger-amount-tail",
   hledgerCost: "hledger-cost",
   hledgerAssertion: "hledger-assertion",
   hledgerInferred: "hledger-inferred",

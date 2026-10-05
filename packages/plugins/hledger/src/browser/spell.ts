@@ -98,3 +98,17 @@ export const amountText = (amount: Amount): string => {
   const parts = amountParts(amount)
   return `${parts.prefix}${parts.number}${parts.suffix}`
 }
+
+/** The amount's number and sign ALONE, with no commodity — `19,031.05`,
+ *  `-51.88`, `5`.
+ *
+ *  For a column that names its commodity once: the balances tree heads each
+ *  column with it, so a cell repeating it would say `EUR` twice. The sign is
+ *  not the commodity's and stays, which is the one case the parts cannot answer
+ *  alone: a file that wrote `-$10` keeps its minus in the PREFIX, and the
+ *  number beside it is unsigned. */
+export const amountDigits = (amount: Amount): string => {
+  const parts = amountParts(amount)
+  const leading = (amount.style ?? houseStyle(amount.commodity, amount.value)).sign === "leading"
+  return leading && amount.value.value < 0n ? `-${parts.number}` : parts.number
+}

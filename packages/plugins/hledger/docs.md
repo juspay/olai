@@ -14,37 +14,54 @@ lines, the row ends in a button saying how many, and pressing it switches to
 Source and scrolls to the first of them.
 
 The page opens on **Transactions**, the file's own order, under a band naming
-the month each run of transactions belongs to. Each entry draws its date and
-its status as a mark — a filled dot for cleared, a half dot for pending, a ring
-for unmarked — then the payee, the note the file wrote after `|`, and the code
-in parentheses; the comment is drawn once as the prose it is, with its tags as
-pills beside it, rather than the comment repeated and the tags again. The
-postings under it carry the account with its parent path muted and its last
-segment in ink, and the amount as the file wrote it, so a minus written before
-a symbol stays where it is (`-$10`) and the digits keep the grouping the file
-gave them (`$4,250.00`). A cost (`@ $271.12`) and a balance assertion
-(`= $5,123.45`) are drawn beside the amount in quiet type — the file's own
-annotation, not something this reader applies. A posting whose amount was left
-out of the file and worked out to balance the rest of its group — the ordinary
-postings, or the balanced virtual ones, since an unbalanced `(…)` posting
-balances nothing — is marked _inferred_ with a hollow circle, so you can tell
-the format's arithmetic from what was written. Every amount in the view is one
-aligned column, so a column of amounts can be read down rather than across.
+the month each run of transactions belongs to — a band per RUN, so a file that
+goes back to an earlier month starts a new one rather than merging into the
+first. Each entry draws its day and its status as a mark — a filled dot for
+cleared, a half dot for pending, a ring for unmarked — then the payee, the
+note the file wrote after `|`, and the code in parentheses; the comment is
+drawn once as the prose it is, with its tags as pills beside it, rather than
+the comment repeated and the tags again. The postings under it carry the
+account with its parent path muted and its last segment in ink, and the amount
+as the file wrote it, so a minus written before a symbol stays where it is
+(`-$10`) and the digits keep the grouping the file gave them (`$4,250.00`). A
+cost (`@ $271.12`) and a balance assertion (`= $5,123.45`) are drawn beside
+the amount in quiet type — the file's own annotation, not something this
+reader applies. A posting whose amount was left out of the file and worked out
+to balance the rest of its group — the ordinary postings, or the balanced
+virtual ones, since an unbalanced `(…)` posting balances nothing — is marked
+_inferred_ with a hollow circle, so you can tell the format's arithmetic from
+what was written. The date a row draws is the DAY (`Jul 01`), because the band
+above already names the month; the whole date is the cell's `title`. Every
+amount in the view is one aligned column — the number right-aligned, a suffix
+commodity in its own column beside it — so a column of amounts can be read
+down rather than across, and the decimals line up whatever side the commodity
+was written on.
 
-**Balances** is the same file read the other way: every account that was named,
-as a tree, with one column per commodity the file uses. Parent accounts roll
-their children up, so `assets` shows the sum of everything under it, and each
-row carries its own total in the column of the commodity it is in — a
+On a phone the day moves to the payee's line (`01 ● Landlord · rent July`), the
+transactions are set apart by a gap rather than by a date column, and the
+amounts keep their columns — the account truncating from the left so its last
+segment stays visible.
+
+**Balances** is the same file read the other way: every account that was
+named, as a tree, with one column per commodity the file uses. Parent accounts
+roll their children up, so `assets` shows the sum of everything under it, and
+each row carries its own total in the column of the commodity it is in — a
 commodity the row does not hold leaves its column blank, and a row with no
 total at all shows `—` rather than a zero, because zero and nothing are
-different facts. A parent folds with the chevron beside it, and the depth
-control clips the tree to one, two, three or all of its levels. Both are kept
-for as long as the page is open: a rewrite of the file that still holds the
-account leaves the fold where you put it. A total is this app's arithmetic
-rather than anybody's spelling, so it is written in one house style — a symbol
-against the number with the minus in front of it (`-$1,200.00`), a word
-commodity after the number with a space — and its integer part is grouped in
-threes, because a computed number is one you have to read rather than check.
+different facts. A cell is the number and its sign alone (`19,031.05`,
+`-51.88`): the column is headed with the commodity, so repeating it in every
+row would say it twice. A parent folds with the chevron beside it, and the
+depth control clips the tree to one, two, three or all of its levels. The
+chevron shows what is true of that row — `▸` when its children are not on
+screen, whether you closed it or the control cut it — and pressing it opens
+the parent past the cut, which is you overruling the control for that one
+node. Both are kept for as long as the page is open: a rewrite of the file
+that still holds the account leaves the fold where you put it. A total is this
+app's arithmetic rather than anybody's spelling, so it is written in one house
+style — a symbol against the number with the minus in front of it
+(`-$1,200.00`), a word commodity after the number with a space — and its
+integer part is grouped in threes, because a computed number is one you have
+to read rather than check.
 
 **Source** is the file's own lines, as far as they were read, under a gutter
 numbering each one: nothing on that view is re-rendered from the parse, which

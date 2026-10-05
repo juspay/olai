@@ -75,14 +75,26 @@ export function Hledger(props: { readonly file: string }) {
   // collapsed an account expects it to stay collapsed — as long as the account
   // is still in the file.
   const [depth, setDepth] = createSignal<Depth>("2")
-  const [collapsed, setCollapsed] = createSignal<ReadonlySet<string>>(new Set())
-  const toggleCollapsed = (account: string): void => {
-    setCollapsed((previous) => {
-      const next = new Set(previous)
-      if (next.has(account)) next.delete(account)
-      else next.add(account)
+  // A FOLD IS TWO FACTS AND NOT ONE, because a parent can be shut for two
+  // reasons: the reader closed it, or the depth control cut it. `closed` is the
+  // first, `opened` the second answered — a parent the control hid and the
+  // reader opened, which is how one chevron press overrules the control for
+  // one node. Both are keyed by account, so a revision that still holds the
+  // account keeps them.
+  const [closed, setClosed] = createSignal<ReadonlySet<string>>(new Set())
+  const [opened, setOpened] = createSignal<ReadonlySet<string>>(new Set())
+  const toggleFold = (account: string, expanded: boolean): void => {
+    const change = (held: ReadonlySet<string>, add: boolean): ReadonlySet<string> => {
+      const next = new Set(held)
+      if (add) next.add(account)
+      else next.delete(account)
       return next
-    })
+    }
+    // The press flips what the chevron showed: an expanded parent is CLOSED,
+    // and a collapsed one is OPENED — which is the depth control being
+    // overruled, not a second collapse.
+    setClosed((previous) => change(previous, expanded))
+    setOpened((previous) => change(previous, !expanded))
   }
   // HOW MANY TIMES the unreadable button has been pressed: the source panel
   // reads it and scrolls to the first line the reader could not make sense of.
@@ -149,8 +161,9 @@ export function Hledger(props: { readonly file: string }) {
                       balances={read().balances}
                       depth={depth()}
                       onDepth={setDepth}
-                      collapsed={collapsed()}
-                      onToggle={toggleCollapsed}
+                      closed={closed()}
+                      opened={opened()}
+                      onToggle={toggleFold}
                     />
                   </Show>
                   <Show when={view() === "source"}>
