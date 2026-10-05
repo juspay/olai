@@ -1,4 +1,4 @@
-# Hledger
+# Ledger
 
 A journal is a plain-text book of account: transactions written as a date, a
 description and the postings that moved money between accounts, in the syntax

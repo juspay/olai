@@ -69,13 +69,11 @@ import { TESTID as KIND_OUTLINES } from "olai-plugin-outlines/testids";
 import { TESTID as KIND_MARKDOWN } from "olai-plugin-markdown/testids";
 import { TESTID as KIND_HYPERTEXT } from "olai-plugin-hypertext/testids";
 import { TESTID as KIND_CSV } from "olai-plugin-csv/testids";
-import { TESTID as KIND_HLEDGER } from "olai-plugin-hledger/testids";
 import { TESTID as KIND_IMAGE } from "olai-plugin-image/testids";
 import { TESTID as KIND_PDF } from "olai-plugin-pdf/testids";
 const ROW_TESTID = {
   "outline-olai": KIND_OUTLINES.outlineLink, markdown: KIND_MARKDOWN.documentLink,
   hypertext: KIND_HYPERTEXT.hypertextLink, csv: KIND_CSV.csvLink,
-  hledger: KIND_HLEDGER.hledgerLink,
   image: KIND_IMAGE.imageLink, pdf: KIND_PDF.pdfLink,
 };
 import { makeReferrerWays } from "@olai/markdown-ui/ReferrersSection.tsx";

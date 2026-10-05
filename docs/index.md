@@ -85,7 +85,7 @@ The five ACP agents the chat panel can run. What a conversation is, for all of t
 | [plugins/outline-olai.md](plugins/outline-olai.md) | Outline file claims, parsing, and canonical writing. |
 | [plugins/hypertext.md](plugins/hypertext.md) | Saved HTML page claims and sealed previews. |
 | [plugins/csv.md](plugins/csv.md) | Table file claims and reading tabular content. |
-| [plugins/hledger.md](plugins/hledger.md) | Ledger journal claims and the transaction, balance and source views. |
+| [plugins/ledger.md](plugins/ledger.md) | Ledger journal claims and the transaction, balance and source views. |
 | [plugins/image.md](plugins/image.md) | Picture file claims and media access. |
 | [plugins/pdf.md](plugins/pdf.md) | PDF file claims, browser viewing, and media access. |
 

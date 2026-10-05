@@ -86,7 +86,7 @@
     "olai-plugin-outline-olai": "workspace:*",
     "olai-plugin-hypertext": "workspace:*",
     "olai-plugin-csv": "workspace:*",
-    "olai-plugin-hledger": "workspace:*",
+    "olai-plugin-ledger": "workspace:*",
     "olai-plugin-image": "workspace:*",
     "olai-plugin-pdf": "workspace:*",
     "olai-plugin-browsing": "workspace:*",

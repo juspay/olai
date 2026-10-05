@@ -1,5 +1,5 @@
 {
-  "name": "olai-plugin-hledger",
+  "name": "olai-plugin-ledger",
   "version": "0.1.0",
   "private": true,
   "type": "module",

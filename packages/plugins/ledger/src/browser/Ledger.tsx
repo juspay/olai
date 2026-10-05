@@ -36,7 +36,7 @@
  * keeps a hundred-megabyte journal in a vault it is the READ that has to learn
  * about ranges, for every bodied kind at once.
  */
-import { TESTID } from "olai-plugin-hledger/testids"
+import { TESTID } from "olai-plugin-ledger/testids"
 import { hledgerJournal } from "@olai/format"
 import { createEffect, createSignal, onCleanup, createMemo, createUniqueId, Show } from "solid-js"
 
@@ -46,7 +46,7 @@ import { BodyRefused } from "olai-plugin-markdown/body-refused"
 import { Effect } from "effect"
 import type { Body } from "olai-plugin-vault/surface"
 import { servedDirectory } from "./vault.ts"
-import { hledgerSaid } from "./said.ts"
+import { ledgerSaid } from "./said.ts"
 import {
   BalancesPanel,
   headerLine,
@@ -58,7 +58,7 @@ import {
 
 /** The file, and nothing else — ../browser.tsx’s page props, spelled here rather
  *  than imported from the page contribution that imports this component. */
-export function Hledger(props: { readonly file: string }) {
+export function Ledger(props: { readonly file: string }) {
   // ONE ID FOR THIS PAGE, so two ledger pages mounted at once (a split pane, a
   // kept-alive tab) do not mint the same tab and panel ids.
   const scope = createUniqueId()
@@ -93,7 +93,7 @@ export function Hledger(props: { readonly file: string }) {
    *  owns both moods and the words). */
   const said = () => {
     const read = ledger()
-    return read === null ? null : hledgerSaid(read)
+    return read === null ? null : ledgerSaid(read)
   }
 
   return (
@@ -106,7 +106,7 @@ export function Hledger(props: { readonly file: string }) {
           <>
             <header
               class="mb-4 text-body text-muted"
-              data-testid={TESTID.hledgerHeader}
+              data-testid={TESTID.ledgerHeader}
             >
               {headerLine(read())}
             </header>
@@ -135,7 +135,7 @@ export function Hledger(props: { readonly file: string }) {
                 <SaidLine
                   said={one()}
                   class="mt-4 mb-0 text-body"
-                  testid={TESTID.hledgerSaid}
+                  testid={TESTID.ledgerSaid}
                 />
               )}
             </Show>

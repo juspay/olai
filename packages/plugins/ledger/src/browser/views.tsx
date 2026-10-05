@@ -2,7 +2,7 @@
  * The three things a journal's page can draw, and the one line above them that
  * says what the file holds.
  *
- * Split from {@link ./Hledger.tsx} so that the PAGE owns the reading and the
+ * Split from {@link ./Ledger.tsx} so that the PAGE owns the reading and the
  * DRAWINGS own the shapes: the page reads once, parses once, and switches which
  * of these is mounted; each of these takes the piece of the parse it draws and
  * nothing else. A view that could reach back into the body or the router would
@@ -53,7 +53,7 @@ import {
   type HledgerTransaction,
 } from "@olai/format"
 
-import { TESTID } from "olai-plugin-hledger/testids"
+import { TESTID } from "olai-plugin-ledger/testids"
 
 /** Which of the page's three drawings is on screen. The page owns the signal;
  *  this is the vocabulary it and the strip share. */
@@ -95,7 +95,7 @@ export const headerLine = (ledger: HledgerJournal): string => {
 /** The span of a journal's dates, `2026-01-05–2026-03-31`, or nothing when no
  *  transaction carried one. `YYYY-MM-DD` sorts as text, which is what makes the
  *  two comparisons below a min and a max. */
-const dateRange = (transactions: ReadonlyArray<HledgerTransaction>): string | null => {
+const dateRange = (transactions: ReadonlyArray<LedgerTransaction>): string | null => {
   let first: string | null = null
   let last: string | null = null
   for (const transaction of transactions) {
@@ -163,7 +163,7 @@ export function TabStrip(props: {
                 ? "border-accent text-ink"
                 : "border-transparent text-muted hover:text-ink"
             }`}
-            data-testid={TESTID.hledgerTab}
+            data-testid={TESTID.ledgerTab}
             data-view={choice().value}
             onClick={() => props.onPick(choice().value)}
           >
@@ -178,7 +178,7 @@ export function TabStrip(props: {
 /** Every transaction, in file order — the journal's main reading. */
 export function TransactionsPanel(props: {
   readonly scope: string
-  readonly transactions: ReadonlyArray<HledgerTransaction>
+  readonly transactions: ReadonlyArray<LedgerTransaction>
 }) {
   return (
     <div
@@ -187,7 +187,7 @@ export function TransactionsPanel(props: {
       aria-labelledby={tabId(props.scope, "transactions")}
       tabindex={0}
       class="flex flex-col gap-6"
-      data-testid={TESTID.hledgerTransactions}
+      data-testid={TESTID.ledgerTransactions}
     >
       <Index each={props.transactions}>{(transaction) => <Transaction transaction={transaction()} />}</Index>
     </div>
@@ -202,7 +202,7 @@ function Transaction(props: { readonly transaction: HledgerTransaction }) {
   return (
     <article
       class="border-b border-rule pb-4"
-      data-testid={TESTID.hledgerTxn}
+      data-testid={TESTID.ledgerTxn}
       data-date={one().date}
       data-secondary={one().secondaryDate ?? ""}
       data-status={one().status}
@@ -227,7 +227,7 @@ function Transaction(props: { readonly transaction: HledgerTransaction }) {
         <span class="text-body text-ink">{one().description}</span>
         <Show when={one().note ?? undefined}>
           {(note) => (
-            <span class="text-label text-muted italic" data-testid={TESTID.hledgerTxnNote}>
+            <span class="text-label text-muted italic" data-testid={TESTID.ledgerTxnNote}>
               | {note()}
             </span>
           )}
@@ -238,7 +238,7 @@ function Transaction(props: { readonly transaction: HledgerTransaction }) {
       </ul>
       <Show when={one().comment ?? undefined}>
         {(comment) => (
-          <span class="mt-1 block text-label text-muted italic" data-testid={TESTID.hledgerTxnComment}>
+          <span class="mt-1 block text-label text-muted italic" data-testid={TESTID.ledgerTxnComment}>
             {comment()}
           </span>
         )}
@@ -264,7 +264,7 @@ function Posting(props: { readonly posting: HledgerPosting }) {
   return (
     <li
       class="flex flex-wrap items-baseline gap-x-2 font-mono text-label"
-      data-testid={TESTID.hledgerPosting}
+      data-testid={TESTID.ledgerPosting}
       data-account={props.posting.account}
       data-amount={amount()}
       data-inferred={props.posting.inferred ? "true" : "false"}
@@ -288,7 +288,7 @@ function Posting(props: { readonly posting: HledgerPosting }) {
       </Show>
       <Show when={props.posting.comment ?? undefined}>
         {(comment) => (
-          <span class="text-muted italic" data-testid={TESTID.hledgerPostingComment}>
+          <span class="text-muted italic" data-testid={TESTID.ledgerPostingComment}>
             {comment()}
           </span>
         )}
@@ -303,7 +303,7 @@ function Posting(props: { readonly posting: HledgerPosting }) {
  *  position `<Index>` keeps. */
 function Tag(props: { readonly tag: HledgerTag }) {
   return (
-    <span class="font-mono text-label text-muted" data-testid={TESTID.hledgerTag}>
+    <span class="font-mono text-label text-muted" data-testid={TESTID.ledgerTag}>
       {props.tag.value === null ? props.tag.key : `${props.tag.key}: ${props.tag.value}`}
     </span>
   )
@@ -337,7 +337,7 @@ export function BalancesPanel(props: {
       aria-labelledby={tabId(props.scope, "balances")}
       tabindex={0}
       class="flex flex-col"
-      data-testid={TESTID.hledgerBalances}
+      data-testid={TESTID.ledgerBalances}
     >
       <Index each={props.balances.accounts}>
         {(account) => {
@@ -345,21 +345,21 @@ export function BalancesPanel(props: {
           return (
             <div
               class="flex flex-wrap items-baseline gap-x-4 border-b border-rule py-1"
-              data-testid={TESTID.hledgerBalance}
+              data-testid={TESTID.ledgerBalance}
               data-account={account()}
               data-depth={depth()}
             >
               <span
                 class={depth() === 0 ? "text-body text-ink" : "text-label text-muted"}
                 style={{ "padding-left": `${depth() * 1.25}rem` }}
-                data-testid={TESTID.hledgerBalanceAccount}
+                data-testid={TESTID.ledgerBalanceAccount}
               >
                 {account().slice(account().lastIndexOf(":") + 1)}
               </span>
               <span class="ml-auto flex flex-wrap justify-end gap-x-4 font-mono text-label tabular-nums">
                 <Index each={props.balances.of.get(account()) ?? []}>
                   {(amount) => (
-                    <span data-testid={TESTID.hledgerBalanceAmount} data-commodity={amount().commodity}>
+                    <span data-testid={TESTID.ledgerBalanceAmount} data-commodity={amount().commodity}>
                       {hledgerAmountText(amount())}
                     </span>
                   )}
@@ -380,7 +380,7 @@ export function BalancesPanel(props: {
  * bytes the page actually read — never a re-rendering of the parse — and the
  * bound is the reading's, so the DOM stops where {@link HledgerJournal.lines}
  * stops rather than laying out a hundred-megabyte file a reader is not looking
- * past (`../Hledger.tsx` argues the wire's own bound). And a line the reader
+ * past (`../Ledger.tsx` argues the wire's own bound). And a line the reader
  * kept as raw text says WHICH KIND it is in `data-entry`
  * (`directive`/`comment`/`unknown`), which is the one thing typed about a line
  * that is not a transaction or a posting and the reason the format keeps those
@@ -415,13 +415,13 @@ export function RawPanel(props: {
       aria-labelledby={tabId(props.scope, "raw")}
       tabindex={0}
       class="m-0 overflow-x-auto whitespace-pre font-mono text-label"
-      data-testid={TESTID.hledgerRaw}
+      data-testid={TESTID.ledgerRaw}
     >
       <Index each={lines()}>
         {(line, at) => (
           <>
             <Show when={at > 0}>{"\n"}</Show>
-            <span data-testid={TESTID.hledgerRawLine} data-line={at + 1} data-entry={kinds().get(at + 1)}>
+            <span data-testid={TESTID.ledgerRawLine} data-line={at + 1} data-entry={kinds().get(at + 1)}>
               {line().slice(0, HLEDGER_CELL)}
             </span>
           </>
