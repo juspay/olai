@@ -122,6 +122,9 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
     # opens the ledger's page in place.
     When I open the address "/money/notes.md"
     Then the document open is "money/notes.md"
+    # The sentinel the last assertion reads is planted on the CURRENT document,
+    # so it has to be planted after the address above (which is a real load).
+    Given I mark the page
     When I follow the link "household.journal" in the rendered markdown
     Then the document open is "money/household.journal"
     And the address is "/money/household.journal"
