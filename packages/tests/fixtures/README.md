@@ -124,27 +124,6 @@ bullet as work that can never be finished. Both ends of the blocking edge carry
 a mark somebody wrote, so what the scenarios assert is the rule rather than
 anything about the nodes' children.
 
-### `good/money/` — the ledgers
-
-Five ledger files and a note, for the `hledger` kind
-(`packages/plugins/hledger/e2e/features/`). `household.journal` is the main one
-and is built to be read: five transactions in round amounts and two commodities
-— a cleared `*` one and a pending `!` one, a `(groceries)` code, a
-`payee | note` description, a trailing comment carrying `trip:berlin` and
-`paid:card`, an omitted posting the reader infers to `$-120.50`, a two-space
-account whose name holds a single space (`expenses:dining out`), an unbalanced
-virtual posting (`(budget:travel)`), a cost annotation the reader does not
-model, and a directive-and-comment section the raw view draws. Its balances —
-each leaf, each rolled-up parent, in dollars and euros — are asserted against
-arithmetic a person can do by hand. `wallet.hledger` and `ledger.ledger` are
-the other two suffixes, one transaction each. `broken.journal` holds two whole
-transactions around a date-shaped line that names no real day and an indented
-line with no account, both kept as raw entries and drawn by no transaction.
-`empty.journal` is ZERO BYTES rather than blank lines: the page says "This file
-is empty." `money/notes.md` is the document whose relative link to
-`household.journal` makes it both a referrer of the ledger and the way a
-scenario opens the ledger's page.
-
 ## `chat/` — a set the agent writes to
 
 Deliberately plain: one outline, one parent, its children — one done, one under

@@ -14,7 +14,7 @@
  * registry's `edits: false` (../browser.tsx) rather than a `Show` in this file.
  *
  * IT ASKS FOR THE BODY, like `../Csv.tsx` next door and for its reason: a
- * journal is interpreted HERE — `@olai/format`'s `hledgerJournal` is what turns
+ * journal is interpreted HERE — `../journal/read.ts`'s `readJournal` is what turns
  * the text into transactions — so the text has to arrive, and it arrives
  * through `vault.files.body`, read for whoever is holding it open and kept by
  * nobody (the vault's `server/bodies.ts`). One read of the disk, at the
@@ -37,7 +37,7 @@
  * about ranges, for every bodied kind at once.
  */
 import { TESTID } from "olai-plugin-ledger/testids"
-import { hledgerJournal } from "@olai/format"
+import { readJournal } from "../journal/index.ts"
 import { createEffect, createSignal, onCleanup, createMemo, createUniqueId, Show } from "solid-js"
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
@@ -86,7 +86,7 @@ export function Ledger(props: { readonly file: string }) {
   // megabytes.
   const ledger = createMemo(() => {
     const entry = served()
-    return entry !== undefined && !entry.refused && entry.text !== null ? hledgerJournal(entry.text) : null
+    return entry !== undefined && !entry.refused && entry.text !== null ? readJournal(entry.text) : null
   })
   /** WHAT THIS PAGE IS NOT SHOWING, in one sentence or none — a bound said out
    *  loud, or the honest nothing for a file that is empty (./said.ts, which

@@ -761,8 +761,8 @@ describe("only the registry knows a plugin's name", () => {
    * on; MAIL's is its pair of fakes, the mailbox the serve spawns and the Google
    * it talks to (`@mail-himalaya:`, `@mail-google:`), which the same spawn is
    * handed as two variables. CHAT's is the panel constant `world.ts` composes a shared selector from.
-   * The seven `/testids` doors are `ROW_TESTID` — which row draws one KIND of
-   * file — a question about seven rows at once that no one of them can answer.
+   * The six `/testids` doors are `ROW_TESTID` — which row draws one KIND of
+   * file — a question about six rows at once that no one of them can answer.
    * And `storage_keys.ts` is the newest and the sharpest: the preferences PANEL
    * is one row and the keys its steps assert on belong to two others, so the
    * four names come through the harness rather than through a row reaching
@@ -795,7 +795,6 @@ describe("only the registry knows a plugin's name", () => {
       "tests/support/storage_keys.ts: olai-plugin-outlines/testlib",
       "tests/support/workers.ts: olai-plugin-mail/appliance/testlib",
       "tests/support/world.ts: olai-plugin-csv/testids",
-      "tests/support/world.ts: olai-plugin-hledger/testids",
       "tests/support/world.ts: olai-plugin-hypertext/testids",
       "tests/support/world.ts: olai-plugin-image/testids",
       "tests/support/world.ts: olai-plugin-kolu/appliance/testlib",

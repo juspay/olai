@@ -1,7 +1,7 @@
 @corpus:good
 Feature: A shortlist says how much of the answer it drew
   Both doors onto the one search reading ask for eight hits and draw what comes
-  back (`client/search/nodes.ts`'s `LIMIT`). A query that matched twenty-one things
+  back (`client/search/nodes.ts`'s `LIMIT`). A query that matched twenty things
   and a query that matched eight were therefore the same eight rows under the
   same silence — so both doors told a reader the directory holds eight of
   something it holds twenty of, while the honest number was on the wire the
@@ -26,7 +26,7 @@ Feature: A shortlist says how much of the answer it drew
   Scenario: The palette drew eight of what it found, and says which
     When I press the palette shortcut
     And I type "the" into the palette
-    Then the palette found "8 of 21 matches"
+    Then the palette found "8 of 20 matches"
 
   Scenario: A palette answer that fits says nothing about a total
     # The silence is the other half of the promise: "3 of 3 matches" is a
@@ -39,7 +39,7 @@ Feature: A shortlist says how much of the answer it drew
 
   Scenario: The header's box says the same thing about the same answer
     When I search the header for "the"
-    Then the header search found "8 of 21 matches"
+    Then the header search found "8 of 20 matches"
 
   Scenario: A header answer that fits says nothing about a total
     When I search the header for "cabinets"

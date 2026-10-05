@@ -5610,7 +5610,7 @@ const namingDocument = (
  *     validator approved, and the file goes because the set was judged
  *     without it.
  *
- * AND THE SHOW KINDS STAY OUT. A `.html`, a `.csv`, a ledger journal, a picture, a `.pdf`:
+ * AND THE SHOW KINDS STAY OUT. A `.html`, a `.csv`, a picture, a `.pdf`:
  * olai draws them and never writes one — no create verb, no editor — and a
  * delete would be the largest write of all aimed at the files it never
  * touched. They are refused with the same sentence every other face that

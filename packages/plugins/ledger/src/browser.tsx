@@ -10,7 +10,7 @@ import { referrerMemory } from "olai-plugin-markdown/contract"
 import { claim, name } from "./claim.ts"
 import { KindGlyph } from "./glyph.tsx"
 import { TESTID } from "./testids.ts"
-import { Ledger } from "./browser/Hledger.tsx"
+import { Ledger } from "./browser/Ledger.tsx"
 import { holdServed } from "./browser/vault.ts"
 import { referrerMemoryChannel } from "@olai/ui-primitives/referrer-memory.ts"
 // THE CHANNEL to the section's memory, factory-minted HERE (a package calls

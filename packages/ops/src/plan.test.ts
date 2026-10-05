@@ -4932,19 +4932,6 @@ describe("documents", () => {
     expect(failure.message).not.toContain("report.html —")
   })
 
-  // The same rule for the other view-only kinds, and the one worth pinning is a
-  // LEDGER: it is text the app parses and draws, so a writable one looks
-  // plausible — but nothing here writes a journal back, and a `markdown_write`
-  // that took one would be a door onto an edit the rest of the app does not
-  // have.
-  test("a journal the set holds is not a document this verb may write", () => {
-    const set = setOf({ "house.olai": KITCHEN }, [["notes/notes.md", NOTES], "money/household.journal"])
-    const failure = refused(set, { op: "doc", file: "money/household.journal", text: "2026-01-05 x\n" })
-    expect(failure._tag).toBe("NotFoundFailure")
-    expect(failure.message).toContain("is not a document under the served directory")
-    expect(failure.message).not.toContain("household.journal —")
-  })
-
   test("a document that could not be read is never overwritten from a set that lost it", () => {
     const set = setOf({}, [], { "broken.md": "anything at all" })
     const failure = refused(set, { op: "doc", file: "broken.md", text: "x" })
@@ -5104,18 +5091,6 @@ describe("delete", () => {
     expect(failure.message).toContain("whatever put it there")
     // …and AN when the word begins with one: `image` is the vowel-led kind.
     expect(refused(set, { op: "delete", file: "art/shot.png" }).message).toContain("is an image")
-  })
-
-  // The same rule for the LEDGER, whose noun is its own: a journal is a show
-  // kind like the saved page beside it, and the sentence names it as the
-  // registry does rather than by its suffix.
-  test("a ledger journal stays out too — a show kind like any other", () => {
-    const set = setOf({ "house.olai": DOCS_REFS }, ["report.html", "books.journal"])
-    const failure = refused(set, { op: "delete", file: "books.journal" })
-    expect(failure._tag).toBe("UsageFailure")
-    expect(failure.message).toContain("only SHOWS")
-    expect(failure.message).toContain("is a ledger")
-    expect(failure.message).toContain("whatever put it there")
   })
 
   test("a file the set could not read is refused with the validator's own words", () => {

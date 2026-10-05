@@ -3,12 +3,12 @@
  * panels.
  *
  * It is HERE and not in the format, and that is the layering rather than a
- * convenience. `@olai/format`'s `hledger.ts` answers in FACTS — the transactions
+ * convenience. `../journal/read.ts` answers in FACTS — the transactions
  * it kept, and whether the reading ran out of lines or transaction headers —
  * because what a journal says is a fact about the file. What a READER is told
  * about it is this client's vocabulary, the way what a reader calls each kind
- * of file is (`../file/kinds.ts`'s `NAMED`, which the format cannot import for
- * the same reason). Nothing else in `@olai/format` writes a sentence for a
+ * of file is (`../file/kinds.ts`'s `NAMED`, which the reading cannot import for
+ * the same reason). Nothing else in the reading writes a sentence for a
  * person; a function that did would be the floor deciding how the roof speaks.
  *
  * ONE SENTENCE FOR EVERYTHING a page can be not showing, because a reader asks
@@ -21,7 +21,7 @@
  * total is the honest half of the correction the reading took. A total is a
  * number only a full scan knows, and the scan stops at the bound precisely so
  * that a journal with tens of thousands of transactions is not read to print a
- * figure the bound exists to avoid reading (`@olai/format`'s `hledger.ts`
+ * figure the bound exists to avoid reading (`../journal/read.ts`
  * argues it). What the page can say is that there was more, which is the same
  * warning at none of the cost. The two bounds are named rather than counted
  * off the reading, because the reading stopped and never learned the totals.
@@ -38,11 +38,11 @@
  * is not.
  */
 
-import { HLEDGER_CELL, HLEDGER_LINES, HLEDGER_TRANSACTIONS, type HledgerJournal } from "@olai/format"
+import { HLEDGER_CELL, HLEDGER_LINES, HLEDGER_TRANSACTIONS, type Journal } from "../journal/index.ts"
 
 import type { Said } from "@olai/web/client/saying.ts"
 
-export const ledgerSaid = (ledger: HledgerJournal): Said | null => {
+export const ledgerSaid = (ledger: Journal): Said | null => {
   // A FILE WITH NOTHING AT ALL is said rather than drawn as empty panels: a
   // journal nobody has written a line into is a real thing to find out, and a
   // reader shown three empty views learns it by elimination.

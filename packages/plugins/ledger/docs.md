@@ -41,8 +41,9 @@ left a file on.
 
 A journal is claimed as text, but olai never writes one. There is no editor and
 no create verb; opening a journal shows you what is in it, and editing is what
-your hledger file already belongs to. The parsing rules are
-[the format's](../format.md).
+your hledger file already belongs to. The reading is this plugin's own — the
+modules under `src/journal/` — and it is deliberately narrower than hledger
+itself, which is what the next section is about.
 
 A link to a journal opens its page and draws no preview card. The card a link
 shows under the pointer is contributed per kind, and only the kinds with one

@@ -4,7 +4,7 @@ Feature: Outlines are the map and Reference holds the material
   Scenario: Reference starts folded and remembers its open state
     Given I open the outline "house.olai"
     Then the reference section is collapsed
-    And the reference section lists 16 files
+    And the reference section lists 10 files
     And the outline tree omits the folder "notes"
     When I expand the reference section
     Then the reference section is expanded
@@ -47,7 +47,7 @@ Feature: Outlines are the map and Reference holds the material
     And the outline list does not link to "garden.olai"
     And the outline list does not link to "Daily/2026-08.olai"
     And the outline list has 0 entries
-    And the reference section lists 16 files
+    And the reference section lists 10 files
 
   @scratch:good
   Scenario: A directory with only outlines has no Reference header
@@ -62,12 +62,6 @@ Feature: Outlines are the map and Reference holds the material
     And I remove the served file "art/handle.png"
     And I remove the served file "art/tall.png"
     And I remove the served file "art/diagram.svg"
-    And I remove the served file "money/household.journal"
-    And I remove the served file "money/wallet.hledger"
-    And I remove the served file "money/ledger.ledger"
-    And I remove the served file "money/broken.journal"
-    And I remove the served file "money/empty.journal"
-    And I remove the served file "money/notes.md"
     Then there is no reference section
     And the outline list has 2 entries
 
@@ -101,7 +95,7 @@ Feature: Outlines are the map and Reference holds the material
       """
       # Another
       """
-    Then the reference section lists 18 files
+    Then the reference section lists 12 files
     And the reference section is collapsed
 
   @scratch:good

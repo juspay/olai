@@ -1,4 +1,4 @@
-import { hledgerJournal, type HledgerJournal } from "@olai/format"
+import { readJournal, type Journal } from "../journal/index.ts"
 import { expect, test } from "bun:test"
 
 import { ledgerSaid } from "./said.ts"
@@ -12,8 +12,8 @@ const SAMPLE = `2026-01-05 groceries
 /** A journal with the given reading flags, taken over a real parse rather than
  *  a hand-built bag of fields: the sentences below are about WHAT THE FLAGS
  *  SAY, and the parse is what the flags normally come from. */
-const journal = (over: Partial<LedgerJournal> = {}): HledgerJournal => ({
-  ...hledgerJournal(SAMPLE),
+const journal = (over: Partial<Journal> = {}): Journal => ({
+  ...readJournal(SAMPLE),
   ...over,
 })
 
@@ -28,7 +28,7 @@ test("a page showing the whole file says nothing about what it left out", () => 
 // SAID rather than drawn as three empty panels, which a reader has to work out
 // by elimination.
 test("a file with nothing in it says so", () => {
-  expect(ledgerSaid(hledgerJournal(""))).toEqual({
+  expect(ledgerSaid(readJournal(""))).toEqual({
     tone: "aside",
     text: "This file is empty.",
   })
@@ -37,12 +37,12 @@ test("a file with nothing in it says so", () => {
 // A file with directives but no transactions is NOT empty and gets the
 // ordinary nothing rather than the empty sentence.
 test("a file with only directives is not called empty", () => {
-  expect(ledgerSaid(hledgerJournal("account expenses:food\n"))).toBeNull()
+  expect(ledgerSaid(readJournal("account expenses:food\n"))).toBeNull()
 })
 
 // THE TRANSACTION BOUND, said. The count is the bound rather than a total: the
 // scan stopped, so how many more there were was never read
-// (`@olai/format`'s `hledger.ts`).
+// (`../journal/read.ts`).
 test("a page that ran out of transaction room says which part it drew", () => {
   expect(ledgerSaid(journal({ moreTransactions: true }))).toEqual({
     tone: "aside",
@@ -84,7 +84,7 @@ test("a page whose long lines were cut says that too", () => {
 // refused and nothing failed, so a screen reader is told politely rather than
 // interrupted (`@olai/web/client/SaidLine.tsx` owns what a mood means).
 test("what it says is an aside, in every mood it has", () => {
-  expect(ledgerSaid(hledgerJournal(""))?.tone).toBe("aside")
+  expect(ledgerSaid(readJournal(""))?.tone).toBe("aside")
   expect(ledgerSaid(journal({ moreTransactions: true }))?.tone).toBe("aside")
   expect(ledgerSaid(journal({ truncated: true }))?.tone).toBe("aside")
 })

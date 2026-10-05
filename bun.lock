@@ -598,7 +598,6 @@
       "name": "olai-plugin-ledger",
       "version": "0.1.0",
       "dependencies": {
-        "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",

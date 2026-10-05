@@ -12,13 +12,6 @@
   "files": [
     "src/projection.ts"
   ],
-  "//hledger-journal": "The .hledger/.journal/.ledger suffixes are attachment policy in DOCUMENT_EXTENSIONS (a ledger is text a person attaches), not dependencies on those rows — and `journal` is also one of them, which happens to be the daily-notes row's name.",
-  "hledger": [
-    "src/attach.ts"
-  ],
-  "journal": [
-    "src/attach.ts"
-  ],
   "//image": "The image/* picker MIME wildcard is attachment policy, not a dependency on the image plugin.",
   "image": [
     "src/attach.ts"

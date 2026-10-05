@@ -46,9 +46,8 @@ test("the gate takes what can be looked at AND what can be read", () => {
   expect(attachmentRejection("shot.PNG", 1024)).toBeNull()
 
   // ... and the documents an agent opens from a path rather than looks at. A
-  // PDF is the one a person reaches for first; the rest is text — a ledger
-  // journal among them, by each of its three suffixes.
-  for (const name of ["Type 04-C.pdf", "notes.txt", "README.md", "rows.csv", "tsconfig.json", "books.journal", "personal.hledger", "old.ledger"]) {
+  // PDF is the one a person reaches for first; the rest is text.
+  for (const name of ["Type 04-C.pdf", "notes.txt", "README.md", "rows.csv", "tsconfig.json"]) {
     expect(attachmentRejection(name, 1024)).toBeNull()
   }
 

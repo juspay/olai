@@ -44,16 +44,17 @@
 import { Index, Show, createMemo, createUniqueId } from "solid-js"
 
 import {
-  hledgerAmountText,
   HLEDGER_CELL,
-  type HledgerBalances,
-  type HledgerJournal,
-  type HledgerPosting,
-  type HledgerTag,
-  type HledgerTransaction,
-} from "@olai/format"
+  type Balances,
+  type Journal,
+  type Posting,
+  type Tag,
+  type Transaction,
+} from "../journal/index.ts"
 
 import { TESTID } from "olai-plugin-ledger/testids"
+
+import { amountText } from "./spell.ts"
 
 /** Which of the page's three drawings is on screen. The page owns the signal;
  *  this is the vocabulary it and the strip share. */
@@ -78,11 +79,11 @@ const counted = (count: number, one: string, many: string): string =>
  *
  * The DATE RANGE is read from the transactions and not from the raw header
  * text: a header whose date did not parse is not a transaction at all
- * (`@olai/format`'s `hledger.ts`), so there is no unreadable string to put
+ * (`../journal/read.ts`), so there is no unreadable string to put
  * where a reader expects a day. A file with no transactions simply omits the
  * third fact rather than inventing one.
  */
-export const headerLine = (ledger: HledgerJournal): string => {
+export const headerLine = (ledger: Journal): string => {
   const facts: Array<string> = [
     counted(ledger.transactions.length, "transaction", "transactions"),
     counted(ledger.balances.accounts.length, "account", "accounts"),
@@ -95,7 +96,7 @@ export const headerLine = (ledger: HledgerJournal): string => {
 /** The span of a journal's dates, `2026-01-05–2026-03-31`, or nothing when no
  *  transaction carried one. `YYYY-MM-DD` sorts as text, which is what makes the
  *  two comparisons below a min and a max. */
-const dateRange = (transactions: ReadonlyArray<LedgerTransaction>): string | null => {
+const dateRange = (transactions: ReadonlyArray<Transaction>): string | null => {
   let first: string | null = null
   let last: string | null = null
   for (const transaction of transactions) {
@@ -178,7 +179,7 @@ export function TabStrip(props: {
 /** Every transaction, in file order — the journal's main reading. */
 export function TransactionsPanel(props: {
   readonly scope: string
-  readonly transactions: ReadonlyArray<LedgerTransaction>
+  readonly transactions: ReadonlyArray<Transaction>
 }) {
   return (
     <div
@@ -189,7 +190,7 @@ export function TransactionsPanel(props: {
       class="flex flex-col gap-6"
       data-testid={TESTID.ledgerTransactions}
     >
-      <Index each={props.transactions}>{(transaction) => <Transaction transaction={transaction()} />}</Index>
+      <Index each={props.transactions}>{(transaction) => <TransactionRow transaction={transaction()} />}</Index>
     </div>
   )
 }
@@ -197,7 +198,7 @@ export function TransactionsPanel(props: {
 /** One transaction: its header, its postings, and its own comment and tags.
  *  The payee and the note are the header's two halves when the file wrote a
  *  `|`, and the note is drawn — the part a reader scans for is the merchant. */
-function Transaction(props: { readonly transaction: HledgerTransaction }) {
+function TransactionRow(props: { readonly transaction: Transaction }) {
   const one = () => props.transaction
   return (
     <article
@@ -234,7 +235,7 @@ function Transaction(props: { readonly transaction: HledgerTransaction }) {
         </Show>
       </div>
       <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
-        <Index each={one().postings}>{(posting) => <Posting posting={posting()} />}</Index>
+        <Index each={one().postings}>{(posting) => <PostingRow posting={posting()} />}</Index>
       </ul>
       <Show when={one().comment ?? undefined}>
         {(comment) => (
@@ -245,7 +246,7 @@ function Transaction(props: { readonly transaction: HledgerTransaction }) {
       </Show>
       <Show when={one().tags.length > 0}>
         <span class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-          <Index each={one().tags}>{(tag) => <Tag tag={tag()} />}</Index>
+          <Index each={one().tags}>{(tag) => <TagRow tag={tag()} />}</Index>
         </span>
       </Show>
     </article>
@@ -254,13 +255,13 @@ function Transaction(props: { readonly transaction: HledgerTransaction }) {
 
 /** One posting — the account, whatever it did to it, and whatever was written
  *  beside it. */
-function Posting(props: { readonly posting: HledgerPosting }) {
+function PostingRow(props: { readonly posting: Posting }) {
   // One derivation, read twice (the `data-amount` fact and the amount drawn):
-  // the format's own spelling of an amount is the one thing here the markup and
+  // `./spell.ts`'s one spelling of an amount is the thing here the markup and
   // the attribute may not disagree about. A function rather than a value, so a
   // revision that changes the amount moves both.
   const amount = (): string =>
-    props.posting.amount === null ? "" : hledgerAmountText(props.posting.amount)
+    props.posting.amount === null ? "" : amountText(props.posting.amount)
   return (
     <li
       class="flex flex-wrap items-baseline gap-x-2 font-mono text-label"
@@ -293,7 +294,7 @@ function Posting(props: { readonly posting: HledgerPosting }) {
           </span>
         )}
       </Show>
-      <Index each={props.posting.tags}>{(tag) => <Tag tag={tag()} />}</Index>
+      <Index each={props.posting.tags}>{(tag) => <TagRow tag={tag()} />}</Index>
     </li>
   )
 }
@@ -301,7 +302,7 @@ function Posting(props: { readonly posting: HledgerPosting }) {
 /** One tag, `key: value` — the shape a reader copies. Read inside the markup
  *  rather than into a local, because a live edit changes the value under a
  *  position `<Index>` keeps. */
-function Tag(props: { readonly tag: HledgerTag }) {
+function TagRow(props: { readonly tag: Tag }) {
   return (
     <span class="font-mono text-label text-muted" data-testid={TESTID.ledgerTag}>
       {props.tag.value === null ? props.tag.key : `${props.tag.key}: ${props.tag.value}`}
@@ -314,7 +315,7 @@ function Tag(props: { readonly tag: HledgerTag }) {
  *
  * FLAT AND INDENTED rather than nested lists, and it is the indent that carries
  * the depth: the format hands back the account names and their rolled-up
- * balances (`@olai/format`'s `hledger.ts`), in TREE order — parents before
+ * balances (`../journal/balances.ts`), in TREE order — parents before
  * their children and children contiguous — so this draws one row per name, at
  * `depth` columns in, rather than reassembling a nesting the order already
  * states. `data-depth` says the same thing as the padding for a reader that is
@@ -328,7 +329,7 @@ function Tag(props: { readonly tag: HledgerTag }) {
  */
 export function BalancesPanel(props: {
   readonly scope: string
-  readonly balances: HledgerBalances
+  readonly balances: Balances
 }) {
   return (
     <div
@@ -360,7 +361,7 @@ export function BalancesPanel(props: {
                 <Index each={props.balances.of.get(account()) ?? []}>
                   {(amount) => (
                     <span data-testid={TESTID.ledgerBalanceAmount} data-commodity={amount().commodity}>
-                      {hledgerAmountText(amount())}
+                      {amountText(amount())}
                     </span>
                   )}
                 </Index>
@@ -378,7 +379,7 @@ export function BalancesPanel(props: {
  *
  * ONE SPAN PER READ LINE, and that is two facts at once. The Raw view is the
  * bytes the page actually read — never a re-rendering of the parse — and the
- * bound is the reading's, so the DOM stops where {@link HledgerJournal.lines}
+ * bound is the reading's, so the DOM stops where {@link Journal.lines}
  * stops rather than laying out a hundred-megabyte file a reader is not looking
  * past (`../Ledger.tsx` argues the wire's own bound). And a line the reader
  * kept as raw text says WHICH KIND it is in `data-entry`
@@ -396,7 +397,7 @@ export function BalancesPanel(props: {
 export function RawPanel(props: {
   readonly scope: string
   readonly text: string
-  readonly read: HledgerJournal
+  readonly read: Journal
 }) {
   const lines = createMemo((): ReadonlyArray<string> =>
     props.text.split("\n", props.read.lines + 1).slice(0, props.read.lines))

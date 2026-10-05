@@ -133,9 +133,8 @@ test("text that names no place is not an address", () => {
 })
 
 // EVERY KIND THE REGISTRY CLAIMS IS AN ADDRESS, which is what makes an address
-// a fact about the path rather than a list kept here: a picture, a `.csv`, a
-// journal and a `.pdf` got one the day they got a page, and this file changed
-// by nothing.
+// a fact about the path rather than a list kept here: a picture, a `.csv` and
+// a `.pdf` got one the day they got a page, and this file changed by nothing.
 //
 // AN ELEMENT ON ONE IS A HEADING, and that is the one reading worth pinning: a
 // file whose content is a body has headings in it, and one whose content is

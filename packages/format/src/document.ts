@@ -34,7 +34,7 @@
  * collection beside a `documents` one, so a feature has no node-only list to
  * import: the nodes are reachable, through the outline they are written in.
  *
- * ## Three arms, over the seven kinds the registry claims
+ * ## Three arms, over the six kinds the registry claims
  *
  * Discriminated on `kind`, which is `./kinds.ts`'s own word for the file. A
  * kind added to that table is a compile error at every `Record` and every
@@ -49,7 +49,7 @@
  * admitted the file and carry those facts onto the value.
  *
  * {@link Unkept} is the arm with nothing but a face, and its emptiness is a
- * decision recorded rather than a gap: those five are the files olai only ever
+ * decision recorded rather than a gap: those four are the files olai only ever
  * SHOWS, so the set keeps their paths and not their bytes (`./kinds.ts`'s
  * `kept`, which owns that argument). One points at nothing and tags nothing
  * because nothing here has read it — which is honest, and is not the same claim
@@ -138,9 +138,9 @@ export const Face = Schema.Struct({
    * read by {@link ./frontmatter.ts} and answered by `prop:` in the query
    * grammar exactly as a record's `custom` map is.
    *
-   * TOTAL like the other four, and empty for the six kinds that write none: an
+   * TOTAL like the other four, and empty for the five kinds that write none: an
    * outline's records carry their own properties (a file is not one of its
-   * nodes), and the other five are the files olai only ever shows. Empty
+   * nodes), and the other four are the files olai only ever shows. Empty
    * because NOTHING WROTE ONE, which is the same honest sentence the unkept
    * arm's empty `links` and `tags` already say, and not a slot waiting to be
    * filled in.
@@ -261,8 +261,8 @@ export const Markdown = Schema.Struct({
 export type Markdown = typeof Markdown.Type
 
 /**
- * A file olai only ever SHOWS: a saved `.html`, a `.csv` table, a ledger
- * journal, a picture, a `.pdf` — sitting in the vault with everything else.
+ * A file olai only ever SHOWS: a saved `.html`, a `.csv` table, a picture, a
+ * `.pdf` — sitting in the vault with everything else.
  *
  * A FACE AND NOTHING ELSE, and the emptiness is `./kinds.ts`'s `kept: false`
  * showing through: nothing validates one, no op writes one, and a vault of
@@ -278,7 +278,7 @@ export type Markdown = typeof Markdown.Type
  * for a reason a reader can be told.
  *
  * IT IS NAMED FOR `kept` AND NOT FOR "SHOWN", which is the reader's word for
- * these five and the word this docstring spends: `Shown` is taken, one package
+ * these four and the word this docstring spends: `Shown` is taken, one package
  * layer up, for what one PAGE shows (`./page.ts`), and one word for two things
  * in one repository is the ambiguity the registry already refused for
  * "hypertext". The storage fact is the honest second name — this arm is exactly

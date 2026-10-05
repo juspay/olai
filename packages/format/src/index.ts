@@ -183,16 +183,6 @@ export { proseIn, proseLineOffset } from "./frontmatter.ts"
  *  client's own (`@olai/web`'s `document/clamped.ts`). */
 export { CSV_CELL, CSV_COLUMNS, CSV_ROWS, csvRows, csvTable } from "./csv.ts"
 export type { CsvTable } from "./csv.ts"
-/** WHAT A LEDGER FILE SAYS — its transactions, the balances their postings come
- *  to, and the directives and comments kept as the text they are, bounded on
- *  the reading itself. Exported for the same reason `./csv.ts` is: the BROWSER
- *  is the only thing that draws one, a journal's page is handed the file's text
- *  over `vault.files.body` like a document's, and so the parse is the format's
- *  and the drawing is the client's. What it answers in is FACTS — the sentence
- *  a reader is told about a bounded file is the client's own
- *  (`packages/plugins/hledger/src/browser/said.ts`). */
-export { HLEDGER_CELL, HLEDGER_LINES, HLEDGER_TRANSACTIONS, hledgerAmountText, hledgerJournal } from "./hledger.ts"
-export type { HledgerAmount, HledgerBalances, HledgerBounds, HledgerEntry, HledgerJournal, HledgerPosting, HledgerStatus, HledgerTag, HledgerTransaction } from "./hledger.ts"
 /** The view PATCHED rather than rebuilt, and what a delta says: files upserted,
  *  files gone — Surface's own collection-delta frame, which is the vocabulary
  *  "what changed" already travels this system in.
