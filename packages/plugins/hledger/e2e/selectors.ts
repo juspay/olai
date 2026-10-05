@@ -52,9 +52,17 @@ export const HLEDGER_TXN_COMMENT = selector(TESTID.hledgerTxnComment);
 export const HLEDGER_STATUS = selector(TESTID.hledgerStatus);
 export const HLEDGER_TAG = selector(TESTID.hledgerTag);
 
-/** One posting: its account, its amount and the annotations beside it. */
+/** The date a transaction opens with — its own column on a laptop, the bare
+ *  day beside the payee on a phone. */
+export const HLEDGER_DATE = selector(TESTID.hledgerDate);
+export const HLEDGER_DAY = selector(TESTID.hledgerDay);
+
+/** One posting: its account, the amount's two cells (the number, and the tail
+ *  a suffix commodity or an annotation goes in) and the annotations. */
 export const HLEDGER_POSTING = selector(TESTID.hledgerPosting);
 export const HLEDGER_POSTING_COMMENT = selector(TESTID.hledgerPostingComment);
+export const HLEDGER_AMOUNT = selector(TESTID.hledgerAmount);
+export const HLEDGER_AMOUNT_TAIL = selector(TESTID.hledgerAmountTail);
 export const HLEDGER_COST = selector(TESTID.hledgerCost);
 export const HLEDGER_ASSERTION = selector(TESTID.hledgerAssertion);
 export const HLEDGER_INFERRED = selector(TESTID.hledgerInferred);

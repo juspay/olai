@@ -37,6 +37,16 @@ Feature: The personal books the audit read, drawn as a journal
     And the ledger transaction 31 is dated "2026-08-28"
     And the ledger transaction 32 is dated "2026-09-01"
     And the ledger transaction 47 is dated "2026-09-30"
+    # …AND A ROW DRAWS THE DAY, not the ISO string: the band above it names the
+    # month, so `Jul 01` is the whole date a reader needs, and the ISO form is
+    # still the cell's `title`.
+    And the ledger transaction 1 draws the date "Jul 01"
+    # THE AMOUNTS ARE ONE COLUMN DOWN THE PAGE, which is what makes a column of
+    # money readable: every number's last digit in one place, and every suffix
+    # commodity starting from one — `$4,250.00` and `850.00 EUR` do not end at
+    # the same right edge, which is the whole reason the suffix has a column of
+    # its own.
+    And the ledger amounts line up on their last digit
     And there should be no page errors
 
   Scenario: Amounts are drawn with the digits the file wrote
@@ -76,12 +86,14 @@ Feature: The personal books the audit read, drawn as a journal
     # by `data-commodity`.
     And the ledger balances head the commodities "$, EUR, INR, VTI"
     # A ROW'S CELLS are what the columns are for: two dollars down one
-    # right-aligned tabular column, and the other commodities in theirs.
-    And the ledger balance for "assets:bank:hdfc:checking" shows "$8,326.20" in "$"
-    And the ledger balance for "assets:bank:hdfc:savings" shows "$10,756.73" in "$"
-    And the ledger balance for "assets:bank:wise:eur" shows "813.80 EUR" in "EUR"
-    And the ledger balance for "assets:cash:wallet" shows "1,260.00 INR" in "INR"
-    And the ledger balance for "assets:investments:brokerage:VTI" shows "5 VTI" in "VTI"
+    # right-aligned tabular column, and the other commodities in theirs. A cell
+    # is the number and its sign ALONE — the header names the commodity, so
+    # `813.80` under `EUR` and `19,031.05` under `$`, and never `813.80 EUR`.
+    And the ledger balance for "assets:bank:hdfc:checking" shows "8,326.20" in "$"
+    And the ledger balance for "assets:bank:hdfc:savings" shows "10,756.73" in "$"
+    And the ledger balance for "assets:bank:wise:eur" shows "813.80" in "EUR"
+    And the ledger balance for "assets:cash:wallet" shows "1,260.00" in "INR"
+    And the ledger balance for "assets:investments:brokerage:VTI" shows "5" in "VTI"
     # AN ACCOUNT THE FILE NAMED AND NEVER MOVED draws the empty marker rather
     # than nothing.
     And the ledger balance for "equity:adjustments" has no total
@@ -111,4 +123,42 @@ Feature: The personal books the audit read, drawn as a journal
     Then the ledger balance for "assets" is drawn
     And the ledger balance for "assets:bank" is not drawn
     And the ledger balances draw 6 rows
+    And there should be no page errors
+
+  Scenario: The chevron tells the truth at the depth control's cut, and overrules it
+    When I open the address "/money/personal.journal"
+    And I switch the ledger to the "balances" view
+    # DEPTH 2 IS THE DEFAULT, and `assets:bank` sits AT the cut: its children
+    # are hidden, so its chevron must say so — a `▾` on a row whose children are
+    # not on screen is a control lying about its state.
+    Then the ledger balance for "assets" is expanded
+    And the ledger balance for "assets:bank" is collapsed
+    And the ledger balance for "assets:bank:hdfc" is not drawn
+    # …AND A PRESS OPENS IT PAST THE CUT: the reader overruling the control for
+    # that one node rather than a second way to collapse it.
+    When I expand the ledger balance for "assets:bank"
+    Then the ledger balance for "assets:bank" is expanded
+    And the ledger balance for "assets:bank:hdfc" is drawn
+    # The children it just revealed are at the cut themselves, so the tree
+    # still stops where the control said.
+    And the ledger balance for "assets:bank:hdfc:checking" is not drawn
+    When I collapse the ledger balance for "assets:bank"
+    Then the ledger balance for "assets:bank:hdfc" is not drawn
+    And there should be no page errors
+
+  @phone
+  Scenario: A phone draws the day on the payee's line and sets transactions apart
+    When I open the address "/money/personal.journal"
+    # THE DAY RIDES THE PAYEE LINE, left of the status mark, and the date
+    # column is not drawn at all: there is no room for a column of dates, and
+    # the band above already names the month.
+    Then the ledger transaction 1 opens with the day "01"
+    And the ledger transaction 2 opens with the day "01"
+    # THE TRANSACTIONS ARE SET APART, so the row above does not read as part of
+    # the one below — the phone has no date column to open one with.
+    And the ledger transactions are set apart
+    # …AND THE FACTS WRAP AS WHOLE ITEMS: `Jul 1 – Sep 30, 2026 · 47
+    # transactions` then `· 48 accounts · $ EUR INR VTI`, never a fact split in
+    # half and never a separator stranded at the end of a line.
+    And the ledger header facts each stay on one line
     And there should be no page errors

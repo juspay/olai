@@ -51,7 +51,7 @@ Feature: A ledger file that moves, and one bigger than a page
     When I open the address "/money/household.journal"
     And I switch the ledger to the "balances" view
     And I set the ledger balance depth to "all"
-    Then the ledger balance for "expenses:groceries" is "$120.50"
+    Then the ledger balance for "expenses:groceries" is "120.50"
     When I remember the ledger balances
     And I rewrite "money/household.journal" as:
       """
@@ -71,8 +71,8 @@ Feature: A ledger file that moves, and one bigger than a page
     Then the ledger header counts 2 transactions and 7 accounts
     And the ledger is showing the "balances" view
     And the ledger balances stayed mounted during its revision
-    And the ledger balance for "expenses:groceries" is "$50.00"
-    And the ledger balance for "assets:bank:checking" is "$1,150.00"
+    And the ledger balance for "expenses:groceries" is "50.00"
+    And the ledger balance for "assets:bank:checking" is "1,150.00"
     And there should be no page errors
 
   # THE ROWS BEHIND A REVISION ARE POSITIONS, and a position keeps its DOM. The
@@ -168,7 +168,7 @@ Feature: A ledger file that moves, and one bigger than a page
     And the ledger balance for "assets:bank:checking" is not drawn
     # …AND THE TREE DID re-read the file: unfolding shows the new arithmetic.
     When I expand the ledger balance for "assets:bank"
-    Then the ledger balance for "assets:bank:checking" is "$1,290.00"
+    Then the ledger balance for "assets:bank:checking" is "1,290.00"
     And there should be no page errors
 
   Scenario: A removed ledger that comes back draws its page again
@@ -224,6 +224,6 @@ Feature: A ledger file that moves, and one bigger than a page
     And the ledger transaction 2 posting 2 reads "assets:bank:checking | -$120.50 | true"
     When I switch the ledger to the "balances" view
     And I set the ledger balance depth to "all"
-    Then the ledger balance for "assets:bank:checking" is "$1,019.50"
-    And the ledger balance for "expenses" is "$180.50, 140.00 EUR"
+    Then the ledger balance for "assets:bank:checking" is "1,019.50"
+    And the ledger balance for "expenses" is "180.50, 140.00"
     And there should be no page errors

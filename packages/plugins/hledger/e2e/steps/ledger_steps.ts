@@ -43,6 +43,8 @@ import type { OlaiWorld as World } from "@olai/tests/harness/world.ts";
 
 import { name as HLEDGER_KIND } from "../../src/claim.ts";
 import {
+  HLEDGER_AMOUNT,
+  HLEDGER_AMOUNT_TAIL,
   HLEDGER_ASSERTION,
   HLEDGER_BALANCE,
   HLEDGER_BALANCE_AMOUNT,
@@ -52,6 +54,8 @@ import {
   HLEDGER_BALANCE_TOGGLE,
   HLEDGER_BALANCES,
   HLEDGER_COST,
+  HLEDGER_DATE,
+  HLEDGER_DAY,
   HLEDGER_DEPTH,
   HLEDGER_EMPTY,
   HLEDGER_FACT,
@@ -472,6 +476,134 @@ Then(
     );
   },
 );
+
+// WHAT THE ROW DRAWS FOR ITS DATE, which is the DAY and not the ISO string:
+// the band above already names the month, so `2026-07-01` under `JULY 2026`
+// would say July twice. The whole date is still the cell's `title`, which is
+// what a pointer reads — asserted here rather than left to the markup.
+Then(
+  "the ledger transaction {int} draws the date {string}",
+  async function (this: World, at: number, drawn: string) {
+    const cell = (await transaction(this, at)).locator(HLEDGER_DATE);
+    await cell.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      ((await cell.textContent()) ?? "").trim(),
+      drawn,
+      `the date transaction ${String(at)} draws`,
+    );
+    const title = await cell.getAttribute("title");
+    assert.match(
+      title ?? "",
+      /^\d{4}-\d{2}-\d{2}$/,
+      `the whole date of transaction ${String(at)}, kept for a pointer`,
+    );
+  },
+);
+
+// ON A PHONE the day rides the payee's line instead of a column of its own, and
+// the column's cell is gone: one of the two is drawn, never both.
+Then(
+  "the ledger transaction {int} opens with the day {string}",
+  async function (this: World, at: number, day: string) {
+    const row = await transaction(this, at);
+    const shown = row.locator(HLEDGER_DAY);
+    await shown.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      ((await shown.textContent()) ?? "").trim(),
+      day,
+      `the day transaction ${String(at)} opens with`,
+    );
+    assert.strictEqual(
+      await row.locator(HLEDGER_DATE).isVisible(),
+      false,
+      `transaction ${String(at)} to draw one date and not two`,
+    );
+  },
+);
+
+// THE AMOUNTS ARE ONE COLUMN DOWN THE PAGE, which is what makes a column of
+// money readable: every number's last digit in one place, and every suffix
+// commodity starting from one. The claim is the CELLS' own boxes — the numbers
+// on their right edge, the tails on their left — and never a pixel of a shot.
+Then("the ledger amounts line up on their last digit", async function (this: World) {
+  const cells = this.page.locator(`${HLEDGER_TXN} ${HLEDGER_POSTING} ${HLEDGER_AMOUNT}`);
+  await this.waitUntil(
+    async () => (await cells.count()) > 0,
+    "the transactions to draw an amount",
+  );
+  const boxes = await cells.evaluateAll((nodes) =>
+    nodes
+      .map((node) => node.getBoundingClientRect())
+      .filter((box) => box.width > 0)
+      .map((box) => ({ right: box.right, left: box.left })),
+  );
+  const right = boxes[0]?.right ?? 0;
+  for (const box of boxes) {
+    assert.ok(
+      Math.abs(box.right - right) < 0.5,
+      `every amount's last digit in one column: ${String(box.right)} against ${String(right)}`,
+    );
+  }
+  const tails = await this.page
+    .locator(`${HLEDGER_TXN} ${HLEDGER_POSTING} ${HLEDGER_AMOUNT_TAIL}`)
+    .evaluateAll((nodes) =>
+      nodes
+        .map((node) => node.getBoundingClientRect())
+        .filter((box) => box.width > 0)
+        .map((box) => box.left),
+    );
+  for (const left of tails) {
+    assert.ok(
+      Math.abs(left - right) < 0.5,
+      `every suffix to start where the numbers end: ${String(left)} against ${String(right)}`,
+    );
+  }
+});
+
+// ON A PHONE the transactions are set apart by the row's own margin: there is
+// no date column to open one with, so the gap is what says where one ends and
+// the next begins.
+Then("the ledger transactions are set apart", async function (this: World) {
+  const rows = this.page.locator(`${HLEDGER_TRANSACTIONS} ${HLEDGER_TXN}`);
+  await this.waitUntil(async () => (await rows.count()) > 1, "the transactions to be drawn");
+  const gaps = await rows.evaluateAll((nodes) => {
+    const boxes = nodes.map((node) => node.getBoundingClientRect());
+    return boxes.slice(1).map((box, at) => box.top - (boxes[at] as DOMRect).bottom);
+  });
+  for (const gap of gaps) {
+    assert.ok(
+      gap >= 8,
+      `a gap between one transaction and the next (found ${String(Math.round(gap))}px)`,
+    );
+  }
+});
+
+// THE HEADER'S FACTS WRAP AS WHOLE ITEMS: each is one line and none runs off
+// the row, so a fact is never split in half and the `·` — which belongs to the
+// fact that follows it — never ends a line on its own.
+Then("the ledger header facts each stay on one line", async function (this: World) {
+  const header = this.page.locator(HLEDGER_HEADER);
+  await header.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const facts = header.locator(HLEDGER_FACT);
+  await this.waitUntil(async () => (await facts.count()) > 1, "the header to draw its facts");
+  const drawn = await facts.evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const style = getComputedStyle(node);
+      const box = node.getBoundingClientRect();
+      const line = Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) * 1.2;
+      return { height: box.height, line, right: box.right, text: (node.textContent ?? "").trim() };
+    }),
+  );
+  const row = await header.boundingBox();
+  assert.ok(row !== null, "the header to have a box");
+  for (const box of drawn) {
+    assert.ok(
+      box.height <= box.line * 1.5,
+      `${box.text} to stay on one line (${String(box.height)} against ${String(box.line)})`,
+    );
+    assert.ok(box.right <= row.right + 0.5, `${box.text} to stay inside the header`);
+  }
+});
 
 // THE STATUS IS DRAWN as a mark (the redesign's dot), and `data-status` is the
 // fact behind it: this says the mark is on the row at all, and the step above

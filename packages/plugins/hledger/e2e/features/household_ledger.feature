@@ -85,26 +85,28 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
     And I set the ledger balance depth to "all"
     Then the ledger is showing the "balances" view
     # THE LEAVES. Checking: +1200.00 − 120.50 (inferred) − 60.00 = 1019.50.
-    And the ledger balance for "assets:bank:checking" is "$1,019.50"
+    # The cell is the NUMBER AND ITS SIGN alone: the column above it is headed
+    # `$`, so repeating the symbol in every row would say it twice.
+    And the ledger balance for "assets:bank:checking" is "1,019.50"
     And the ledger balance for "assets:bank:checking" is held in "$"
     # The depth is the account's own colons, which is what the flat tree's
     # indentation and its `data-depth` both say.
     And the ledger balance for "assets:bank:checking" sits at depth 2
-    And the ledger balance for "equity:opening balances" is "-$1,200.00"
-    And the ledger balance for "expenses:groceries" is "$120.50"
-    And the ledger balance for "expenses:dining out" is "$60.00"
+    And the ledger balance for "equity:opening balances" is "-1,200.00"
+    And the ledger balance for "expenses:groceries" is "120.50"
+    And the ledger balance for "expenses:dining out" is "60.00"
     # The second commodity, at its own leaf: 100.00 + 40.00 = 140.00 EUR.
-    And the ledger balance for "expenses:travel" is "140.00 EUR"
+    And the ledger balance for "expenses:travel" is "140.00"
     # …and the virtual posting's account, which the reader sums like any other.
-    And the ledger balance for "budget:travel" is "-40.00 EUR"
+    And the ledger balance for "budget:travel" is "-40.00"
     # THE ROLL-UPS, per commodity and sorted by commodity: expenses holds
     # 120.50 + 60.00 dollars and 140.00 euros; assets:bank holds checking's
     # dollars and savings' −140.00 euros.
-    And the ledger balance for "expenses" is "$180.50, 140.00 EUR"
-    And the ledger balance for "assets:bank" is "$1,019.50, -140.00 EUR"
-    And the ledger balance for "assets" is "$1,019.50, -140.00 EUR"
+    And the ledger balance for "expenses" is "180.50, 140.00"
+    And the ledger balance for "assets:bank" is "1,019.50, -140.00"
+    And the ledger balance for "assets" is "1,019.50, -140.00"
     And the ledger balance for "assets" is held in "$, EUR"
-    And the ledger balance for "equity" is "-$1,200.00"
+    And the ledger balance for "equity" is "-1,200.00"
     And there should be no page errors
 
   Scenario: The source view is the file's own bytes
