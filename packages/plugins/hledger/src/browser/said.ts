@@ -26,16 +26,18 @@
  * warning at none of the cost. The two bounds are named rather than counted
  * off the reading, because the reading stopped and never learned the totals.
  *
- * AN EMPTY FILE IS SAID FIRST, because it is the one answer that wraps the
- * others: a file with no transactions and no directives has nothing for a
- * bound to have cut short, and "showing the first 1,000 transactions" over
- * nothing is nonsense a reader would have to reconcile.
+ * AN EMPTY FILE IS NOT SAID HERE ANY MORE. The empty state
+ * (`../browser/Hledger.tsx`, drawing `@olai/web/client/Empty.tsx`) owns it: a
+ * file with no transactions and no directives has nothing for a bound to have
+ * cut short, and "showing the first 1,000 transactions" over nothing is
+ * nonsense a reader would have to reconcile — so that page says "No
+ * transactions yet" instead of drawing tabs over three empty panels, and this
+ * function returns `null` for it.
  *
  * AN ASIDE, never an alarm. Nothing was refused and nothing failed: a bound was
- * reached, or the file really is empty. `@olai/web/client/SaidLine.tsx` is what
- * turns that mood into a `role` and an `aria-live`, and the reason it is a
- * value here rather than markup is that the mood is the decision and the markup
- * is not.
+ * reached. `@olai/web/client/SaidLine.tsx` is what turns that mood into a
+ * `role` and an `aria-live`, and the reason it is a value here rather than
+ * markup is that the mood is the decision and the markup is not.
  */
 
 import { HLEDGER_CELL, HLEDGER_LINES, HLEDGER_TRANSACTIONS, type Journal } from "../journal/index.ts"
@@ -43,12 +45,6 @@ import { HLEDGER_CELL, HLEDGER_LINES, HLEDGER_TRANSACTIONS, type Journal } from 
 import type { Said } from "@olai/web/client/saying.ts"
 
 export const hledgerSaid = (ledger: Journal): Said | null => {
-  // A FILE WITH NOTHING AT ALL is said rather than drawn as empty panels: a
-  // journal nobody has written a line into is a real thing to find out, and a
-  // reader shown three empty views learns it by elimination.
-  if (ledger.transactions.length === 0 && ledger.entries.length === 0) {
-    return { tone: "aside", text: "This file is empty." }
-  }
   // Each clause only when that bound really ran out: a file with nine hundred
   // transactions and a short line count is owed no word about its lines, and
   // being told about them anyway teaches a reader to skip the line that matters.

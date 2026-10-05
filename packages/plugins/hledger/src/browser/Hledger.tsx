@@ -40,6 +40,7 @@ import { TESTID } from "olai-plugin-hledger/testids"
 import { readJournal } from "../journal/index.ts"
 import { createEffect, createSignal, onCleanup, createMemo, createUniqueId, Show } from "solid-js"
 
+import { Empty } from "@olai/web/client/Empty.tsx"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 
 import { BodyRefused } from "olai-plugin-markdown/body-refused"
@@ -49,8 +50,9 @@ import { servedDirectory } from "./vault.ts"
 import { hledgerSaid } from "./said.ts"
 import {
   BalancesPanel,
-  headerLine,
-  RawPanel,
+  type Depth,
+  LedgerHeader,
+  SourcePanel,
   TabStrip,
   TransactionsPanel,
   type View,
@@ -68,6 +70,27 @@ export function Hledger(props: { readonly file: string }) {
   const [served, setServed] = createSignal<Body>()
   // WHICH VIEW, defaulting to the transactions a journal is opened to read.
   const [view, setView] = createSignal<View>("transactions")
+  // THE BALANCES TREE'S OWN STATE, held HERE and not in the panel: a live
+  // revision re-parses the file and redraws the panel, and a reader who had
+  // collapsed an account expects it to stay collapsed — as long as the account
+  // is still in the file.
+  const [depth, setDepth] = createSignal<Depth>("2")
+  const [collapsed, setCollapsed] = createSignal<ReadonlySet<string>>(new Set())
+  const toggleCollapsed = (account: string): void => {
+    setCollapsed((previous) => {
+      const next = new Set(previous)
+      if (next.has(account)) next.delete(account)
+      else next.add(account)
+      return next
+    })
+  }
+  // HOW MANY TIMES the unreadable button has been pressed: the source panel
+  // reads it and scrolls to the first line the reader could not make sense of.
+  const [reveal, setReveal] = createSignal(0)
+  const showUnreadable = (): void => {
+    setView("source")
+    setReveal((count) => count + 1)
+  }
   createEffect(() => {
     const directory = servedDirectory()
     const file = props.file
@@ -104,40 +127,55 @@ export function Hledger(props: { readonly file: string }) {
       <Show when={ledger()}>
         {(read) => (
           <>
-            <header
-              class="mb-4 text-body text-muted"
-              data-testid={TESTID.hledgerHeader}
+            <LedgerHeader ledger={read()} onUnreadable={showUnreadable} />
+            {/* AN EMPTY FILE IS THE EMPTY STATE, not tabs over three empty
+                panels: there is nothing to read, so the page says so in the
+                app's own empty-state voice and draws no strip at all. */}
+            <Show
+              when={read().transactions.length === 0 && read().entries.length === 0}
+              fallback={
+                <>
+                  <TabStrip scope={scope} view={view()} onPick={setView} />
+                  {/* One panel at a time, keyed on the view — the strip above
+                      is the only thing that decides which. The source view
+                      reads the FILE and not the parse, so it draws even when
+                      the parse is empty but a body arrived. */}
+                  <Show when={view() === "transactions"}>
+                    <TransactionsPanel scope={scope} transactions={read().transactions} />
+                  </Show>
+                  <Show when={view() === "balances"}>
+                    <BalancesPanel
+                      scope={scope}
+                      balances={read().balances}
+                      depth={depth()}
+                      onDepth={setDepth}
+                      collapsed={collapsed()}
+                      onToggle={toggleCollapsed}
+                    />
+                  </Show>
+                  <Show when={view() === "source"}>
+                    <SourcePanel scope={scope} text={served()?.text ?? ""} read={read()} reveal={reveal()} />
+                  </Show>
+                  {/* WHAT THIS PAGE IS NOT SHOWING, once, under whichever panel
+                      is drawn — through the one component that owns what a mood
+                      MEANS (`@olai/web/client/SaidLine.tsx`). Nothing at all
+                      when the whole file is drawn, which is the ordinary page:
+                      a line saying "showing all of it" under every panel is
+                      noise that teaches a reader to skip the line that
+                      matters. */}
+                  <Show when={said()}>
+                    {(one) => (
+                      <SaidLine
+                        said={one()}
+                        class="mt-4 mb-0 text-body"
+                        testid={TESTID.hledgerSaid}
+                      />
+                    )}
+                  </Show>
+                </>
+              }
             >
-              {headerLine(read())}
-            </header>
-            <TabStrip scope={scope} view={view()} onPick={setView} />
-            {/* One panel at a time, keyed on the view — the strip above is the
-                only thing that decides which. The raw view reads the SOURCE and
-                not the parse, so it draws even when the parse is empty but a
-                body arrived. */}
-            <Show when={view() === "transactions"}>
-              <TransactionsPanel scope={scope} transactions={read().transactions} />
-            </Show>
-            <Show when={view() === "balances"}>
-              <BalancesPanel scope={scope} balances={read().balances} />
-            </Show>
-            <Show when={view() === "raw"}>
-              <RawPanel scope={scope} text={served()?.text ?? ""} read={read()} />
-            </Show>
-            {/* WHAT THIS PAGE IS NOT SHOWING, once, under whichever panel is
-                drawn — through the one component that owns what a mood MEANS
-                (`@olai/web/client/SaidLine.tsx`). Nothing at all when the whole
-                file is drawn, which is the ordinary page: a line saying
-                "showing all of it" under every panel is noise that teaches a
-                reader to skip the line that matters. */}
-            <Show when={said()}>
-              {(one) => (
-                <SaidLine
-                  said={one()}
-                  class="mt-4 mb-0 text-body"
-                  testid={TESTID.hledgerSaid}
-                />
-              )}
+              <Empty testid={TESTID.hledgerEmpty} line="No transactions yet" />
             </Show>
           </>
         )}

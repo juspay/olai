@@ -17,6 +17,8 @@
     "effect": "4.0.0",
     "@olai/web": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
+    "@olai/markdown-ui": "workspace:*",
+    "@olai/appearance": "workspace:*",
     "olai-plugin-files": "workspace:*",
     "olai-plugin-navigation": "workspace:*",
     "olai-plugin-ui-renderer": "workspace:*",

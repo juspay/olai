@@ -24,14 +24,11 @@ test("a page showing the whole file says nothing about what it left out", () => 
   expect(hledgerSaid(journal())).toBeNull()
 })
 
-// A file with nothing in it is a fact about the file, not a failure — and it is
-// SAID rather than drawn as three empty panels, which a reader has to work out
-// by elimination.
-test("a file with nothing in it says so", () => {
-  expect(hledgerSaid(readJournal(""))).toEqual({
-    tone: "aside",
-    text: "This file is empty.",
-  })
+// A file with nothing in it is the EMPTY STATE's to say (`../browser/Hledger.tsx`,
+// "No transactions yet"), not a bound's: there is no "showing the first 1,000
+// transactions" over nothing to reconcile, so this function returns null.
+test("a file with nothing in it is not said here — the empty state owns it", () => {
+  expect(hledgerSaid(readJournal(""))).toBeNull()
 })
 
 // A file with directives but no transactions is NOT empty and gets the
@@ -84,7 +81,6 @@ test("a page whose long lines were cut says that too", () => {
 // refused and nothing failed, so a screen reader is told politely rather than
 // interrupted (`@olai/web/client/SaidLine.tsx` owns what a mood means).
 test("what it says is an aside, in every mood it has", () => {
-  expect(hledgerSaid(readJournal(""))?.tone).toBe("aside")
   expect(hledgerSaid(journal({ moreTransactions: true }))?.tone).toBe("aside")
   expect(hledgerSaid(journal({ truncated: true }))?.tone).toBe("aside")
 })

@@ -458,6 +458,8 @@
       "name": "olai-plugin-hledger",
       "version": "0.1.0",
       "dependencies": {
+        "@olai/appearance": "workspace:*",
+        "@olai/markdown-ui": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "@olai/web": "workspace:*",
