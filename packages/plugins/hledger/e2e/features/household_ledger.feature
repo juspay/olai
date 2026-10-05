@@ -45,7 +45,7 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
     And the ledger transaction 2 has status "cleared"
     And the ledger transaction 2 carries code "groceries"
     And the ledger transaction 2 is described "Supermarket | weekly shop"
-    And the ledger transaction 2 carries the comment "groceries run trip:berlin paid:card"
+    And the ledger transaction 2 carries the comment "groceries run trip:berlin, paid:card"
     And the ledger transaction 2 carries the tags "trip: berlin, paid: card"
     And the ledger transaction 2 posting 1 reads "expenses:groceries | $120.50 | false"
     # THE INFERENCE, said rather than drawn as if the file had written it: one
