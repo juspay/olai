@@ -7426,13 +7426,13 @@
   "olai-plugin-csv" = copyPathToStore ./packages/plugins/csv;
   "olai-plugin-files" = copyPathToStore ./packages/plugins/files;
   "olai-plugin-git" = copyPathToStore ./packages/plugins/git;
+  "olai-plugin-hledger" = copyPathToStore ./packages/plugins/hledger;
   "olai-plugin-hypertext" = copyPathToStore ./packages/plugins/hypertext;
   "olai-plugin-identity" = copyPathToStore ./packages/plugins/identity;
   "olai-plugin-image" = copyPathToStore ./packages/plugins/image;
   "olai-plugin-journal" = copyPathToStore ./packages/plugins/journal;
   "olai-plugin-kolu" = copyPathToStore ./packages/plugins/kolu;
   "olai-plugin-layout" = copyPathToStore ./packages/plugins/layout;
-  "olai-plugin-ledger" = copyPathToStore ./packages/plugins/ledger;
   "olai-plugin-link-preview" = copyPathToStore ./packages/plugins/link-preview;
   "olai-plugin-mail" = copyPathToStore ./packages/plugins/mail;
   "olai-plugin-markdown" = copyPathToStore ./packages/plugins/markdown;

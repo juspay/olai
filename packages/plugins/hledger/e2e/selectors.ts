@@ -20,29 +20,29 @@ import { TESTID } from "../src/testids.ts";
 /** The sidebar row a served ledger file is listed as — the row the tree steps
  *  grip, so a scenario never names the harness's kind table for a kind only
  *  this row draws. */
-export const LEDGER_LINK = selector(TESTID.ledgerLink);
+export const HLEDGER_LINK = selector(TESTID.hledgerLink);
 
 /** The page's chrome: the one-line summary and the three-view strip. */
-export const LEDGER_HEADER = selector(TESTID.ledgerHeader);
-export const LEDGER_TAB = selector(TESTID.ledgerTab);
+export const HLEDGER_HEADER = selector(TESTID.hledgerHeader);
+export const HLEDGER_TAB = selector(TESTID.hledgerTab);
 
 /** The three panels, one of which is on screen at a time. */
-export const LEDGER_TRANSACTIONS = selector(TESTID.ledgerTransactions);
-export const LEDGER_BALANCES = selector(TESTID.ledgerBalances);
-export const LEDGER_RAW = selector(TESTID.ledgerRaw);
+export const HLEDGER_TRANSACTIONS = selector(TESTID.hledgerTransactions);
+export const HLEDGER_BALANCES = selector(TESTID.hhledgerBalances);
+export const HLEDGER_RAW = selector(TESTID.hledgerRaw);
 
 /** What the page is not showing, when it is not showing all of it. */
-export const LEDGER_SAID = selector(TESTID.ledgerSaid);
+export const HLEDGER_SAID = selector(TESTID.hledgerSaid);
 
 /** One transaction, one posting, and the comment and tags written under a
  *  transaction's header or a posting. */
-export const LEDGER_TXN = selector(TESTID.ledgerTxn);
-export const LEDGER_POSTING = selector(TESTID.ledgerPosting);
-export const LEDGER_TXN_COMMENT = selector(TESTID.ledgerTxnComment);
-export const LEDGER_POSTING_COMMENT = selector(TESTID.ledgerPostingComment);
-export const LEDGER_TAG = selector(TESTID.ledgerTag);
-export const LEDGER_RAW_LINE = selector(TESTID.ledgerRawLine);
+export const HLEDGER_TXN = selector(TESTID.hledgerTxn);
+export const HLEDGER_POSTING = selector(TESTID.hledgerPosting);
+export const HLEDGER_TXN_COMMENT = selector(TESTID.hhledgerTxnComment);
+export const HLEDGER_POSTING_COMMENT = selector(TESTID.hhledgerPostingComment);
+export const HLEDGER_TAG = selector(TESTID.hledgerTag);
+export const HLEDGER_RAW_LINE = selector(TESTID.hhledgerRawLine);
 
 /** One account of the balances tree, and its per-commodity totals. */
-export const LEDGER_BALANCE = selector(TESTID.ledgerBalance);
-export const LEDGER_BALANCE_AMOUNT = selector(TESTID.ledgerBalanceAmount);
+export const HLEDGER_BALANCE = selector(TESTID.hledgerBalance);
+export const HLEDGER_BALANCE_AMOUNT = selector(TESTID.hhledgerBalanceAmount);

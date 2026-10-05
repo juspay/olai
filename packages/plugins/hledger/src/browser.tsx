@@ -10,7 +10,7 @@ import { referrerMemory } from "olai-plugin-markdown/contract"
 import { claim, name } from "./claim.ts"
 import { KindGlyph } from "./glyph.tsx"
 import { TESTID } from "./testids.ts"
-import { Ledger } from "./browser/Ledger.tsx"
+import { Hledger } from "./browser/Hledger.tsx"
 import { holdServed } from "./browser/vault.ts"
 import { referrerMemoryChannel } from "@olai/ui-primitives/referrer-memory.ts"
 // THE CHANNEL to the section's memory, factory-minted HERE (a package calls
@@ -23,7 +23,7 @@ const by = { kind: name } as const
 export default definePlugin({ name, needs: [], apply: Effect.void })
 export const components = {
   glyph: definePlugin({ name: "glyph", needs: [rendererSlots], apply: Effect.gen(function*() {
-    yield* (yield* rendererSlots).contribute(fileKinds, { by, glyph: KindGlyph, noun: claim.noun, article: claim.article, testid: TESTID.ledgerLink }, { key: fileKindKey(by) })
+    yield* (yield* rendererSlots).contribute(fileKinds, { by, glyph: KindGlyph, noun: claim.noun, article: claim.article, testid: TESTID.hledgerLink }, { key: fileKindKey(by) })
   }) }),
   /** The referrers section's open-state memory, DECLARED — a component of its
    *  own so a ledger page still draws when the markdown row is off (the
@@ -38,6 +38,6 @@ export const components = {
   page: definePlugin({ name: "page", needs: [rendererSlots, fileAccess], apply: Effect.gen(function*() {
     const slots = yield* rendererSlots, directory = yield* fileAccess
     yield* Effect.acquireRelease(Effect.sync(() => holdServed(directory)), stop => Effect.sync(stop))
-    yield* slots.contribute(pages, { by, edits: false, page: () => <BodyPage directory={directory} memory={channel.read()} Body={Ledger} /> }, { key: fileKindKey(by) })
+    yield* slots.contribute(pages, { by, edits: false, page: () => <BodyPage directory={directory} memory={channel.read()} Body={Hledger} /> }, { key: fileKindKey(by) })
   }) }),
 }

@@ -71,13 +71,13 @@
         "olai-plugin-csv": "workspace:*",
         "olai-plugin-files": "workspace:*",
         "olai-plugin-git": "workspace:*",
+        "olai-plugin-hledger": "workspace:*",
         "olai-plugin-hypertext": "workspace:*",
         "olai-plugin-identity": "workspace:*",
         "olai-plugin-image": "workspace:*",
         "olai-plugin-journal": "workspace:*",
         "olai-plugin-kolu": "workspace:*",
         "olai-plugin-layout": "workspace:*",
-        "olai-plugin-ledger": "workspace:*",
         "olai-plugin-link-preview": "workspace:*",
         "olai-plugin-mail": "workspace:*",
         "olai-plugin-markdown": "workspace:*",
@@ -454,6 +454,26 @@
         "@types/node": "^22.0.0",
       },
     },
+    "packages/plugins/hledger": {
+      "name": "olai-plugin-hledger",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/plugin-api": "workspace:*",
+        "@olai/ui-primitives": "workspace:*",
+        "@olai/web": "workspace:*",
+        "effect": "4.0.0",
+        "olai-plugin-files": "workspace:*",
+        "olai-plugin-markdown": "workspace:*",
+        "olai-plugin-navigation": "workspace:*",
+        "olai-plugin-ui-renderer": "workspace:*",
+        "olai-plugin-vault": "workspace:*",
+        "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/surface": "workspace:*",
+        "@olai/tests": "workspace:*",
+      },
+    },
     "packages/plugins/hypertext": {
       "name": "olai-plugin-hypertext",
       "version": "0.1.0",
@@ -591,26 +611,6 @@
         "solid-js": "^1.9.0",
       },
       "devDependencies": {
-        "@olai/tests": "workspace:*",
-      },
-    },
-    "packages/plugins/ledger": {
-      "name": "olai-plugin-ledger",
-      "version": "0.1.0",
-      "dependencies": {
-        "@olai/plugin-api": "workspace:*",
-        "@olai/ui-primitives": "workspace:*",
-        "@olai/web": "workspace:*",
-        "effect": "4.0.0",
-        "olai-plugin-files": "workspace:*",
-        "olai-plugin-markdown": "workspace:*",
-        "olai-plugin-navigation": "workspace:*",
-        "olai-plugin-ui-renderer": "workspace:*",
-        "olai-plugin-vault": "workspace:*",
-        "solid-js": "^1.9.0",
-      },
-      "devDependencies": {
-        "@olai/surface": "workspace:*",
         "@olai/tests": "workspace:*",
       },
     },
@@ -2113,6 +2113,8 @@
 
     "olai-plugin-git": ["olai-plugin-git@workspace:packages/plugins/git"],
 
+    "olai-plugin-hledger": ["olai-plugin-hledger@workspace:packages/plugins/hledger"],
+
     "olai-plugin-hypertext": ["olai-plugin-hypertext@workspace:packages/plugins/hypertext"],
 
     "olai-plugin-identity": ["olai-plugin-identity@workspace:packages/plugins/identity"],
@@ -2124,8 +2126,6 @@
     "olai-plugin-kolu": ["olai-plugin-kolu@workspace:packages/plugins/kolu"],
 
     "olai-plugin-layout": ["olai-plugin-layout@workspace:packages/plugins/layout"],
-
-    "olai-plugin-ledger": ["olai-plugin-ledger@workspace:packages/plugins/ledger"],
 
     "olai-plugin-link-preview": ["olai-plugin-link-preview@workspace:packages/plugins/link-preview"],
 

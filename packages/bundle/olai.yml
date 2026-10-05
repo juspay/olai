@@ -325,10 +325,10 @@
   label: CSV
   quiet: true
   profiles: [surface]
-- id: ledger
-  name: olai-plugin-ledger/server
+- id: hledger
+  name: olai-plugin-hledger/server
   section: Notes
-  label: Ledger
+  label: hledger
   quiet: true
   profiles: [surface]
 - id: image

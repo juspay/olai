@@ -42,7 +42,7 @@ import { HLEDGER_CELL, HLEDGER_LINES, HLEDGER_TRANSACTIONS, type Journal } from 
 
 import type { Said } from "@olai/web/client/saying.ts"
 
-export const ledgerSaid = (ledger: Journal): Said | null => {
+export const hledgerSaid = (ledger: Journal): Said | null => {
   // A FILE WITH NOTHING AT ALL is said rather than drawn as empty panels: a
   // journal nobody has written a line into is a real thing to find out, and a
   // reader shown three empty views learns it by elimination.

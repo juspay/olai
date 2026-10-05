@@ -2,7 +2,7 @@
  * The three things a journal's page can draw, and the one line above them that
  * says what the file holds.
  *
- * Split from {@link ./Ledger.tsx} so that the PAGE owns the reading and the
+ * Split from {@link ./Hledger.tsx} so that the PAGE owns the reading and the
  * DRAWINGS own the shapes: the page reads once, parses once, and switches which
  * of these is mounted; each of these takes the piece of the parse it draws and
  * nothing else. A view that could reach back into the body or the router would
@@ -52,7 +52,7 @@ import {
   type Transaction,
 } from "../journal/index.ts"
 
-import { TESTID } from "olai-plugin-ledger/testids"
+import { TESTID } from "olai-plugin-hledger/testids"
 
 import { amountText } from "./spell.ts"
 
@@ -164,7 +164,7 @@ export function TabStrip(props: {
                 ? "border-accent text-ink"
                 : "border-transparent text-muted hover:text-ink"
             }`}
-            data-testid={TESTID.ledgerTab}
+            data-testid={TESTID.hledgerTab}
             data-view={choice().value}
             onClick={() => props.onPick(choice().value)}
           >
@@ -188,7 +188,7 @@ export function TransactionsPanel(props: {
       aria-labelledby={tabId(props.scope, "transactions")}
       tabindex={0}
       class="flex flex-col gap-6"
-      data-testid={TESTID.ledgerTransactions}
+      data-testid={TESTID.hledgerTransactions}
     >
       <Index each={props.transactions}>{(transaction) => <TransactionRow transaction={transaction()} />}</Index>
     </div>
@@ -203,7 +203,7 @@ function TransactionRow(props: { readonly transaction: Transaction }) {
   return (
     <article
       class="border-b border-rule pb-4"
-      data-testid={TESTID.ledgerTxn}
+      data-testid={TESTID.hledgerTxn}
       data-date={one().date}
       data-secondary={one().secondaryDate ?? ""}
       data-status={one().status}
@@ -228,7 +228,7 @@ function TransactionRow(props: { readonly transaction: Transaction }) {
         <span class="text-body text-ink">{one().description}</span>
         <Show when={one().note ?? undefined}>
           {(note) => (
-            <span class="text-label text-muted italic" data-testid={TESTID.ledgerTxnNote}>
+            <span class="text-label text-muted italic" data-testid={TESTID.hhledgerTxnNote}>
               | {note()}
             </span>
           )}
@@ -239,7 +239,7 @@ function TransactionRow(props: { readonly transaction: Transaction }) {
       </ul>
       <Show when={one().comment ?? undefined}>
         {(comment) => (
-          <span class="mt-1 block text-label text-muted italic" data-testid={TESTID.ledgerTxnComment}>
+          <span class="mt-1 block text-label text-muted italic" data-testid={TESTID.hhledgerTxnComment}>
             {comment()}
           </span>
         )}
@@ -265,7 +265,7 @@ function PostingRow(props: { readonly posting: Posting }) {
   return (
     <li
       class="flex flex-wrap items-baseline gap-x-2 font-mono text-label"
-      data-testid={TESTID.ledgerPosting}
+      data-testid={TESTID.hledgerPosting}
       data-account={props.posting.account}
       data-amount={amount()}
       data-inferred={props.posting.inferred ? "true" : "false"}
@@ -289,7 +289,7 @@ function PostingRow(props: { readonly posting: Posting }) {
       </Show>
       <Show when={props.posting.comment ?? undefined}>
         {(comment) => (
-          <span class="text-muted italic" data-testid={TESTID.ledgerPostingComment}>
+          <span class="text-muted italic" data-testid={TESTID.hhledgerPostingComment}>
             {comment()}
           </span>
         )}
@@ -304,7 +304,7 @@ function PostingRow(props: { readonly posting: Posting }) {
  *  position `<Index>` keeps. */
 function TagRow(props: { readonly tag: Tag }) {
   return (
-    <span class="font-mono text-label text-muted" data-testid={TESTID.ledgerTag}>
+    <span class="font-mono text-label text-muted" data-testid={TESTID.hledgerTag}>
       {props.tag.value === null ? props.tag.key : `${props.tag.key}: ${props.tag.value}`}
     </span>
   )
@@ -338,7 +338,7 @@ export function BalancesPanel(props: {
       aria-labelledby={tabId(props.scope, "balances")}
       tabindex={0}
       class="flex flex-col"
-      data-testid={TESTID.ledgerBalances}
+      data-testid={TESTID.hhledgerBalances}
     >
       <Index each={props.balances.accounts}>
         {(account) => {
@@ -346,21 +346,21 @@ export function BalancesPanel(props: {
           return (
             <div
               class="flex flex-wrap items-baseline gap-x-4 border-b border-rule py-1"
-              data-testid={TESTID.ledgerBalance}
+              data-testid={TESTID.hledgerBalance}
               data-account={account()}
               data-depth={depth()}
             >
               <span
                 class={depth() === 0 ? "text-body text-ink" : "text-label text-muted"}
                 style={{ "padding-left": `${depth() * 1.25}rem` }}
-                data-testid={TESTID.ledgerBalanceAccount}
+                data-testid={TESTID.hhledgerBalanceAccount}
               >
                 {account().slice(account().lastIndexOf(":") + 1)}
               </span>
               <span class="ml-auto flex flex-wrap justify-end gap-x-4 font-mono text-label tabular-nums">
                 <Index each={props.balances.of.get(account()) ?? []}>
                   {(amount) => (
-                    <span data-testid={TESTID.ledgerBalanceAmount} data-commodity={amount().commodity}>
+                    <span data-testid={TESTID.hhledgerBalanceAmount} data-commodity={amount().commodity}>
                       {amountText(amount())}
                     </span>
                   )}
@@ -381,7 +381,7 @@ export function BalancesPanel(props: {
  * bytes the page actually read — never a re-rendering of the parse — and the
  * bound is the reading's, so the DOM stops where {@link Journal.lines}
  * stops rather than laying out a hundred-megabyte file a reader is not looking
- * past (`../Ledger.tsx` argues the wire's own bound). And a line the reader
+ * past (`../Hledger.tsx` argues the wire's own bound). And a line the reader
  * kept as raw text says WHICH KIND it is in `data-entry`
  * (`directive`/`comment`/`unknown`), which is the one thing typed about a line
  * that is not a transaction or a posting and the reason the format keeps those
@@ -416,13 +416,13 @@ export function RawPanel(props: {
       aria-labelledby={tabId(props.scope, "raw")}
       tabindex={0}
       class="m-0 overflow-x-auto whitespace-pre font-mono text-label"
-      data-testid={TESTID.ledgerRaw}
+      data-testid={TESTID.hledgerRaw}
     >
       <Index each={lines()}>
         {(line, at) => (
           <>
             <Show when={at > 0}>{"\n"}</Show>
-            <span data-testid={TESTID.ledgerRawLine} data-line={at + 1} data-entry={kinds().get(at + 1)}>
+            <span data-testid={TESTID.hhledgerRawLine} data-line={at + 1} data-entry={kinds().get(at + 1)}>
               {line().slice(0, HLEDGER_CELL)}
             </span>
           </>
