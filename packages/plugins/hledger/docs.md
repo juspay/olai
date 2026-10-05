@@ -7,31 +7,52 @@ hledger and ledger share. Olai claims the three usual suffixes — `.journal`,
 
 ## The three views
 
-The page opens on **Transactions**, the file's own order: each date, its status
-and code, the description, then the postings under it with their accounts and
-amounts. A posting whose amount was left out of the file and worked out to
-balance the rest of its group — the ordinary postings, or the balanced virtual
-ones, since an unbalanced `(…)` posting balances nothing — is marked
-_inferred_, so you can tell the format's arithmetic from what was written.
-Transaction comments and tags are shown quietly beside the entry that carries
-them. Every amount is drawn as the file wrote it, so a minus written before a
-symbol stays where it is (`-$10`); a posting whose amount cannot be read at all
-is kept as raw text rather than guessed at, because a line this reader cannot
-turn into an account and an amount is not one it invents a number for.
+Above the views is a row of facts about the file — the days it spans, the
+transactions and accounts it has, and the commodities it uses — each its own
+fact rather than one sentence. When the reader could not make sense of some
+lines, the row ends in a button saying how many, and pressing it switches to
+Source and scrolls to the first of them.
+
+The page opens on **Transactions**, the file's own order, under a band naming
+the month each run of transactions belongs to. Each entry draws its date and
+its status as a mark — a filled dot for cleared, a half dot for pending, a ring
+for unmarked — then the payee, the note the file wrote after `|`, and the code
+in parentheses; the comment is drawn once as the prose it is, with its tags as
+pills beside it, rather than the comment repeated and the tags again. The
+postings under it carry the account with its parent path muted and its last
+segment in ink, and the amount as the file wrote it, so a minus written before
+a symbol stays where it is (`-$10`) and the digits keep the grouping the file
+gave them (`$4,250.00`). A cost (`@ $271.12`) and a balance assertion
+(`= $5,123.45`) are drawn beside the amount in quiet type — the file's own
+annotation, not something this reader applies. A posting whose amount was left
+out of the file and worked out to balance the rest of its group — the ordinary
+postings, or the balanced virtual ones, since an unbalanced `(…)` posting
+balances nothing — is marked _inferred_ with a hollow circle, so you can tell
+the format's arithmetic from what was written. Every amount in the view is one
+aligned column, so a column of amounts can be read down rather than across.
 
 **Balances** is the same file read the other way: every account that was named,
-as a tree. Parent accounts roll their children up, so `assets` shows the sum of
-everything under it, and each row carries its own total per commodity. A total
-is this app's arithmetic rather than anybody's spelling, so it is written in one
-house style — a symbol against the number with the minus in front of it
-(`-$1200.00`), a word commodity after the number with a space.
+as a tree, with one column per commodity the file uses. Parent accounts roll
+their children up, so `assets` shows the sum of everything under it, and each
+row carries its own total in the column of the commodity it is in — a
+commodity the row does not hold leaves its column blank, and a row with no
+total at all shows `—` rather than a zero, because zero and nothing are
+different facts. A parent folds with the chevron beside it, and the depth
+control clips the tree to one, two, three or all of its levels. Both are kept
+for as long as the page is open: a rewrite of the file that still holds the
+account leaves the fold where you put it. A total is this app's arithmetic
+rather than anybody's spelling, so it is written in one house style — a symbol
+against the number with the minus in front of it (`-$1,200.00`), a word
+commodity after the number with a space — and its integer part is grouped in
+threes, because a computed number is one you have to read rather than check.
 
-**Raw** is the file's own lines, as far as they were read: nothing on that view
-is re-rendered from the parse, which is the point of it. The drawing stops
-where the reading does (the line bound below), a line longer than the character
-cut is shortened like any other field, and a line the reader kept as raw text
-carries the kind it is — a directive, a comment, or a line it could not place.
-A directive's indented sub-lines are that directive, and they carry its mark.
+**Source** is the file's own lines, as far as they were read, under a gutter
+numbering each one: nothing on that view is re-rendered from the parse, which
+is the point of it. The drawing stops where the reading does (the line bound
+below), a line longer than the character cut is shortened like any other field,
+and a line the reader kept as raw text carries the kind it is — a directive, a
+comment, or a line it could not place, marked in alarm. A directive's indented
+sub-lines are that directive, and they carry its mark.
 
 The view is per file. Opening another journal starts again on Transactions,
 which is the reading a journal is opened for; nothing remembers which tab you
@@ -56,22 +77,24 @@ page, and nothing appears under the pointer.
 This is a reading of a journal, not an accounting engine. Transaction costs and
 prices, automated postings, and periodic or generated transactions are **not**
 applied — a journal that depends on them will show the lines it was written
-with rather than the lines hledger would produce from them. The totals in the
-Balances view are the sums of the postings as written.
+with rather than the lines hledger would produce from them. A cost is drawn
+beside the amount that carries it and a balance assertion beside the amount it
+asserts, as the file's own annotation, but neither changes a total: the totals
+in the Balances view are the sums of the postings as written.
 
 ## Bounds
 
 A journal is read up to 20,000 lines and 1,000 transactions, and no single
-field — a description, a comment, an account, a tag or a raw line — is longer
-than 2,000 characters; the page draws what fit. A field cut in the middle of an
-account path keeps its segments whole (`assets:bank:checking` cut to twelve
-characters is `assets:bank`, not `assets:bank:`), which means two accounts whose
-beginnings are identical past the cut are drawn as ONE row — the honest cost of
-a bound, and the reason the Balances tree and the posting above it always agree
-about how long an account is. When something was left out —
+field — a description, a comment, an account, a tag or a source line — is
+longer than 2,000 characters; the page draws what fit. A field cut in the
+middle of an account path keeps its segments whole (`assets:bank:checking` cut
+to twelve characters is `assets:bank`, not `assets:bank:`), which means two
+accounts whose beginnings are identical past the cut are drawn as ONE row — the
+honest cost of a bound, and the reason the Balances tree and the posting above
+it always agree about how long an account is. When something was left out —
 because the file is longer than the line bound, held more transactions than the
 transaction bound, or overran the character cut — a quiet line under the views
 says so, for example `Showing the first 1,000 transactions.`, `The file is
 longer than 20,000 lines; only the beginning was read.` or `Long lines are cut
-at 2,000 characters.` An empty file says `This file is empty.` instead of
-drawing three empty panels.
+at 2,000 characters.` A file with no records at all draws the app's empty state
+— the glyph and `No transactions yet` — rather than three empty views.
