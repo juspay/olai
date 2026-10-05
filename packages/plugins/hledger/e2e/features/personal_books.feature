@@ -61,8 +61,10 @@ Feature: The personal books the audit read, drawn as a journal
     And the ledger transaction 47 posting 1 reads "assets:bank:hdfc:checking | $0 | false"
     And the ledger transaction 47 posting 1 shows the assertion "= $5,123.45"
     # …AND AN ASSERTION-ONLY POSTING IS NOT AN OMISSION TO FILL: the other
-    # posting of that transaction is the inferred one.
-    And the ledger transaction 47 posting 2 reads "equity:adjustments | | true"
+    # posting of that transaction is the inferred one — and what it is inferred
+    # AS is this reader's arithmetic, so it is written in the house style: the
+    # stated posting claimed `$0`, so the balancing amount is `$0`.
+    And the ledger transaction 47 posting 2 reads "equity:adjustments | $0 | true"
     And the ledger transaction 47 posting 2 carries the inferred mark
     And there should be no page errors
 

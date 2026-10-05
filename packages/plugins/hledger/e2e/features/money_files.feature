@@ -21,7 +21,7 @@ Feature: A ledger file in the vault
   Scenario: The three suffixes are one kind, each with the ledger glyph
     When I open the app
     And I expand the folder "money"
-    Then the ledger rows listed are "money/broken.journal, money/empty.journal, money/household.journal, money/ledger.ledger, money/wallet.hledger"
+    Then the ledger rows listed are "money/broken.journal, money/empty.journal, money/household.journal, money/ledger.ledger, money/personal.journal, money/wallet.hledger"
     # The glyph is the KIND's, asked of every suffix so that a `.ledger` drawn
     # with some other kind's mark is a failure rather than a detail.
     And the ledger row "money/household.journal" wears its own glyph

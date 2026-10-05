@@ -460,14 +460,12 @@ function MonthBand(props: { readonly month: string; readonly count: number }) {
   }
   return (
     <div
-      class={`col-span-full sticky top-[calc(var(--height-chrome)+2.125rem)] ${LAYER.row} border-b border-rule bg-paper py-1 text-caption uppercase tracking-wide text-muted`}
+      class={`col-span-full sticky top-[calc(var(--height-chrome)+2.125rem)] ${LAYER.row} flex items-baseline justify-between gap-4 border-b border-rule bg-paper py-1 text-caption uppercase tracking-wide text-muted`}
       data-testid={TESTID.hledgerMonth}
       data-month={props.month}
     >
-      <div class="flex items-baseline justify-between gap-4">
-        <span>{label()}</span>{" "}
-        <span>{counted(props.count, "transaction", "transactions")}</span>
-      </div>
+      <span>{label()}</span>
+      <span>{counted(props.count, "transaction", "transactions")}</span>
     </div>
   )
 }
