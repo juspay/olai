@@ -33,6 +33,7 @@
     "olai-plugin-markdown": "workspace:*",
     "olai-plugin-hypertext": "workspace:*",
     "olai-plugin-csv": "workspace:*",
+    "olai-plugin-hledger": "workspace:*",
     "olai-plugin-image": "workspace:*",
     "olai-plugin-pdf": "workspace:*",
     "olai-plugin-mail": "workspace:*"

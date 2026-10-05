@@ -1,0 +1,33 @@
+; household.journal — the money fixtures' main ledger. Round amounts, two
+; commodities, and a section of directives up top for the raw view to show.
+
+account assets:bank:checking
+account expenses:groceries
+account expenses:dining out
+commodity $
+commodity EUR
+P 2024-01-01 EUR $1.10
+
+2024-01-02 * Opening balance
+    assets:bank:checking      $1200.00
+    equity:opening balances  -$1200.00
+
+2024-01-03 * (groceries) Supermarket | weekly shop  ; groceries run trip:berlin paid:card
+    expenses:groceries        $120.50
+    assets:bank:checking
+
+# ── the trip ──
+; Berlin, February — the one section that is not in dollars
+
+2024-02-14 ! (trip) Hotel | deposit  ; the deposit trip:berlin
+    expenses:travel            100.00 EUR @ $1.10
+    assets:bank:savings       -100.00 EUR
+
+2024-02-15 * (trip) Train | to Berlin  ; trip:berlin paid:card
+    expenses:travel             40.00 EUR
+    assets:bank:savings        -40.00 EUR
+    (budget:travel)            -40.00 EUR
+
+2024-03-01 * Dinner | with Sam  ; paid:card
+    expenses:dining out        $60.00
+    assets:bank:checking      -$60.00

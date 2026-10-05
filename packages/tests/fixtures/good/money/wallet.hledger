@@ -1,0 +1,5 @@
+; wallet.hledger — the same kind under its second suffix: one transaction.
+
+2025-04-05 * Coffee | flat white  ; paid:card
+    expenses:coffee            4.50 EUR
+    assets:cash               -4.50 EUR

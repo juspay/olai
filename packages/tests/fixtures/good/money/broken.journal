@@ -1,0 +1,15 @@
+; broken.journal — a file an editor half-wrote. Two transactions are whole;
+; two lines are not, and the page must still draw every one of the four.
+
+2024-06-01 * Rent | June
+    expenses:rent              900.00
+    assets:bank:checking
+
+2024-6-32 this line begins like a date and is not one
+    expenses:nonsense          12.00
+
+2024-06-02 * Groceries | mid-week
+    expenses:groceries          31.25
+    assets:bank:checking
+
+    a stray indented line with no account at all

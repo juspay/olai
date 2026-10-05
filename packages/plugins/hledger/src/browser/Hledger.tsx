@@ -1,0 +1,144 @@
+/**
+ * A served `.journal` (or `.hledger`/`.ledger`), drawn — the transactions in
+ * file order, the account tree they net to, and the file's own bytes, behind
+ * one strip of three views.
+ *
+ * VIEW ONLY, which is a decision and not a stage of one. A journal is
+ * somebody's ledger — kept by a person or written by a tool — and what a person
+ * opening one in their notes wants is to SEE it: what was spent, where it went,
+ * and whether the file they are looking at is the one they meant. An editable
+ * ledger is a different product, and half of one — lines you can type in that
+ * write back through an op nobody has written — would be a page that looks like
+ * it holds your changes. So there is no editor, no create verb, and
+ * `markdown_write` refuses the file if anything asks (`@olai/ops`). That is the
+ * registry's `edits: false` (../browser.tsx) rather than a `Show` in this file.
+ *
+ * IT ASKS FOR THE BODY, like `../Csv.tsx` next door and for its reason: a
+ * journal is interpreted HERE — `@olai/format`'s `hledgerJournal` is what turns
+ * the text into transactions — so the text has to arrive, and it arrives
+ * through `vault.files.body`, read for whoever is holding it open and kept by
+ * nobody (the vault's `server/bodies.ts`). One read of the disk, at the
+ * revision the rest of the page is at, and a file rewritten under an open page
+ * redraws it.
+ *
+ * WHICH VIEW IS SHOWING IS THIS PAGE'S OWN SIGNAL, not a preference and not a
+ * route: switching the view is looking at the same file a different way, so it
+ * does not deserve a history entry, and the page opening on Transactions every
+ * time is the right default — that is the reading a journal is opened for.
+ *
+ * WHAT IS NOT BOUNDED, said rather than left to be discovered: the WIRE. The
+ * whole file's text crosses the socket even though a fraction of it is read
+ * here — that is what a `.md` body has always cost, this is the same member,
+ * and paging it would be a second protocol for one kind of file. So the memory
+ * a huge journal costs this tab is one string rather than one string plus every
+ * field of every transaction of it, which is the difference the reading's bound
+ * makes and the whole of what it can make from this side. The day somebody
+ * keeps a hundred-megabyte journal in a vault it is the READ that has to learn
+ * about ranges, for every bodied kind at once.
+ */
+import { TESTID } from "olai-plugin-hledger/testids"
+import { hledgerJournal } from "@olai/format"
+import { createEffect, createSignal, onCleanup, createMemo, Show } from "solid-js"
+
+import { SaidLine } from "@olai/web/client/SaidLine.tsx"
+
+import { BodyRefused } from "olai-plugin-markdown/body-refused"
+import { Effect } from "effect"
+import type { Body } from "olai-plugin-vault/surface"
+import { servedDirectory } from "./vault.ts"
+import { hledgerSaid } from "./said.ts"
+import {
+  BalancesPanel,
+  headerLine,
+  RawPanel,
+  TabStrip,
+  TransactionsPanel,
+  type View,
+} from "./views.tsx"
+
+/** The file, and nothing else — ../browser.tsx’s page props, spelled here rather
+ *  than imported from the page contribution that imports this component. */
+export function Hledger(props: { readonly file: string }) {
+  // THE BODY, asked for by the face that draws from it — the rule ../browser.tsx
+  // states: a face asks the wire for what it needs, so what a kind costs this
+  // tab is a fact about that kind's own component.
+  const [served, setServed] = createSignal<Body>()
+  // WHICH VIEW, defaulting to the transactions a journal is opened to read.
+  const [view, setView] = createSignal<View>("transactions")
+  createEffect(() => {
+    const directory = servedDirectory()
+    const file = props.file
+    const revision = directory?.head(() => file)()
+    if (directory === undefined || revision === undefined) { setServed(undefined); return }
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
+    void Effect.runPromise(directory.body(file), { signal: controller.signal }).then(
+      body => { if (!controller.signal.aborted) setServed(body) },
+      () => { if (!controller.signal.aborted) setServed({ text: null, refused: true }) },
+    )
+  })
+  // ONE PARSE per body, not one per view drawn. A memo rather than a call in
+  // the markup: the header, the sentence and all three panels read the same
+  // journal, and a call each would be four walks of a file that can be
+  // megabytes.
+  const ledger = createMemo(() => {
+    const entry = served()
+    return entry !== undefined && !entry.refused && entry.text !== null ? hledgerJournal(entry.text) : null
+  })
+  /** WHAT THIS PAGE IS NOT SHOWING, in one sentence or none — a bound said out
+   *  loud, or the honest nothing for a file that is empty (./said.ts, which
+   *  owns both moods and the words). */
+  const said = () => {
+    const read = ledger()
+    return read === null ? null : hledgerSaid(read)
+  }
+
+  return (
+    <>
+      <Show when={served()?.refused}>
+        <BodyRefused />
+      </Show>
+      <Show when={ledger()}>
+        {(read) => (
+          <>
+            <header
+              class="mb-4 text-body text-muted"
+              data-testid={TESTID.hledgerHeader}
+            >
+              {headerLine(read())}
+            </header>
+            <TabStrip view={view()} onPick={setView} />
+            {/* One panel at a time, keyed on the view — the strip above is the
+                only thing that decides which. The raw view reads the SOURCE and
+                not the parse, so it draws even when the parse is empty but a
+                body arrived. */}
+            <Show when={view() === "transactions"}>
+              <TransactionsPanel transactions={read().transactions} />
+            </Show>
+            <Show when={view() === "balances"}>
+              <BalancesPanel balances={read().balances} />
+            </Show>
+            <Show when={view() === "raw"}>
+              <RawPanel text={served()?.text ?? ""} />
+            </Show>
+            {/* WHAT THIS PAGE IS NOT SHOWING, once, under whichever panel is
+                drawn — through the one component that owns what a mood MEANS
+                (`@olai/web/client/SaidLine.tsx`). Nothing at all when the whole
+                file is drawn, which is the ordinary page: a line saying
+                "showing all of it" under every panel is noise that teaches a
+                reader to skip the line that matters. */}
+            <Show when={said()}>
+              {(one) => (
+                <SaidLine
+                  said={one()}
+                  class="mt-4 mb-0 text-body"
+                  testid={TESTID.hledgerSaid}
+                />
+              )}
+            </Show>
+          </>
+        )}
+      </Show>
+    </>
+  )
+}
