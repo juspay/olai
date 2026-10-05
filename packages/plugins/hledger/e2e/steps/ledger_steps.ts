@@ -596,12 +596,13 @@ Then("the ledger header facts each stay on one line", async function (this: Worl
   );
   const row = await header.boundingBox();
   assert.ok(row !== null, "the header to have a box");
+  const edge = row.x + row.width;
   for (const box of drawn) {
     assert.ok(
       box.height <= box.line * 1.5,
       `${box.text} to stay on one line (${String(box.height)} against ${String(box.line)})`,
     );
-    assert.ok(box.right <= row.right + 0.5, `${box.text} to stay inside the header`);
+    assert.ok(box.right <= edge + 0.5, `${box.text} to stay inside the header`);
   }
 });
 
