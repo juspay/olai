@@ -1,0 +1,226 @@
+; personal.journal — Q3 2026 household books
+
+account assets:bank:hdfc:checking
+account assets:bank:hdfc:savings
+account assets:bank:wise:eur
+account assets:cash:wallet
+account assets:investments:brokerage:VTI
+account liabilities:credit card:amex
+account expenses:food:groceries
+account expenses:food:dining:restaurants
+account expenses:food:dining:coffee
+account expenses:housing:rent
+account expenses:housing:utilities:electricity
+account expenses:housing:utilities:internet
+account expenses:transport:fuel
+account expenses:transport:transit
+account expenses:travel:lodging
+account expenses:travel:flights
+account expenses:health:pharmacy
+account expenses:subscriptions:software
+account income:salary:acme
+account income:interest
+commodity $1,000.00
+commodity 1.000,00 EUR
+commodity 1,000.00 INR
+P 2026-07-01 EUR $1.08
+P 2026-07-01 VTI $265.40
+
+2026-07-01 * Opening balances
+    assets:bank:hdfc:checking        $4,250.00
+    assets:bank:hdfc:savings        $12,000.00
+    assets:bank:wise:eur             850.00 EUR
+    assets:cash:wallet               2,500.00 INR
+    liabilities:credit card:amex     -$312.18
+    equity:opening balances
+
+2026-07-01 * Landlord | rent July  ; recurring:rent
+    expenses:housing:rent                       $1,850.00
+    assets:bank:hdfc:checking
+
+2026-07-04 * Whole Foods | weekly shop  ; paid:card
+    expenses:food:groceries                     $152.08
+    liabilities:credit card:amex
+
+2026-07-05 * City Power | electricity  ; bill:utility
+    expenses:housing:utilities:electricity      $101.19
+    liabilities:credit card:amex
+
+2026-07-06 * Fiber Co | internet  ; bill:utility, autopay:
+    expenses:housing:utilities:internet         $59.99
+    liabilities:credit card:amex
+
+2026-07-08 ! Blue Bottle | coffee
+    expenses:food:dining:coffee                 $8.71
+    assets:cash:wallet
+
+2026-07-10 * Figma | seat  ; recurring:software
+    expenses:subscriptions:software             $15.00
+    liabilities:credit card:amex
+
+2026-07-14 * Trader Joe's | weekly shop  ; paid:card
+    expenses:food:groceries                     $68.70
+    liabilities:credit card:amex
+
+2026-07-15 * (PAY07) Acme Corp | salary
+    assets:bank:hdfc:checking                   $3,912.40
+    income:salary:acme                          -$5,200.00
+    expenses:taxes:federal                      $1,040.00  ; withheld
+    expenses:taxes:state                        $247.60
+
+2026-07-19 * (T-881) Lufthansa | SFO→MUC  ; trip:munich-2026
+    expenses:travel:flights                     $1,128.40
+    liabilities:credit card:amex
+
+2026-07-20 * Amex | payment
+    liabilities:credit card:amex                $424.00
+    assets:bank:hdfc:checking
+
+2026-07-22 * Ritual | coffee
+    expenses:food:dining:coffee                 $6.13
+    assets:cash:wallet
+
+2026-07-24 * Whole Foods | weekly shop  ; paid:card
+    expenses:food:groceries                     $60.72
+    liabilities:credit card:amex
+
+2026-07-28 * Bank interest
+    assets:bank:hdfc:savings                    $42.83
+    income:interest
+
+2026-08-01 * Landlord | rent August  ; recurring:rent
+    expenses:housing:rent                       $1,850.00
+    assets:bank:hdfc:checking
+
+2026-08-03 * Trader Joe's | weekly shop  ; paid:card
+    expenses:food:groceries                     $102.80
+    liabilities:credit card:amex
+
+2026-08-03 ! Hotel Bayerischer Hof | deposit  ; trip:munich-2026, pending refund check
+    expenses:travel:lodging                     420.00 EUR
+    assets:bank:wise:eur                        -420.00 EUR
+
+2026-08-04 * Augustiner Bräu | dinner with Lena and Tomas, split three ways  ; trip:munich-2026
+    expenses:food:dining:restaurants            96.50 EUR  ; my share was a third
+    assets:bank:wise:eur                        -96.50 EUR
+    (budget:travel:munich)                      -96.50 EUR
+
+2026-08-05 * City Power | electricity  ; bill:utility
+    expenses:housing:utilities:electricity      $69.68
+    liabilities:credit card:amex
+
+2026-08-05 * Ritual | coffee
+    expenses:food:dining:coffee                 $7.47
+    assets:cash:wallet
+
+2026-08-05 * MVV | U-Bahn week pass  ; trip:munich-2026
+    expenses:transport:transit                  19.70 EUR
+    assets:bank:wise:eur
+
+2026-08-06 * Fiber Co | internet  ; bill:utility, autopay:
+    expenses:housing:utilities:internet         $59.99
+    liabilities:credit card:amex
+
+2026-08-09 * Wise | top up
+    assets:bank:wise:eur                        500.00 EUR @ $1.09
+    assets:bank:hdfc:checking                   -$545.00
+
+2026-08-10 * Figma | seat  ; recurring:software
+    expenses:subscriptions:software             $15.00
+    liabilities:credit card:amex
+
+2026-08-13 * Costco | weekly shop  ; paid:card
+    expenses:food:groceries                     $194.07
+    liabilities:credit card:amex
+
+2026-08-15 * (PAY08) Acme Corp | salary
+    assets:bank:hdfc:checking                   $3,912.40
+    income:salary:acme                          -$5,200.00
+    expenses:taxes:federal                      $1,040.00  ; withheld
+    expenses:taxes:state                        $247.60
+
+2026-08-19 ! Blue Bottle | coffee
+    expenses:food:dining:coffee                 $12.91
+    assets:cash:wallet
+
+2026-08-20 * Amex | payment
+    liabilities:credit card:amex                $698.00
+    assets:bank:hdfc:checking
+
+2026-08-22 * (BRK-22) Vanguard | buy VTI  ; invest:
+    assets:investments:brokerage:VTI            5 VTI @ $271.12
+    assets:bank:hdfc:savings                    -$1,355.60
+
+2026-08-23 * Costco | weekly shop  ; paid:card
+    expenses:food:groceries                     $194.50
+    liabilities:credit card:amex
+
+2026-08-28 * Bank interest
+    assets:bank:hdfc:savings                    $33.46
+    income:interest
+
+2026-09-01 * Landlord | rent September  ; recurring:rent
+    expenses:housing:rent                       $1,850.00
+    assets:bank:hdfc:checking
+
+2026-09-02 * Trader Joe's | weekly shop  ; paid:card
+    expenses:food:groceries                     $101.05
+    liabilities:credit card:amex
+
+2026-09-02 * Blue Bottle | coffee
+    expenses:food:dining:coffee                 $4.79
+    assets:cash:wallet
+
+2026-09-02 * Shell | fuel
+    expenses:transport:fuel                     $48.31
+    liabilities:credit card:amex
+
+2026-09-05 * City Power | electricity  ; bill:utility
+    expenses:housing:utilities:electricity      $67.64
+    liabilities:credit card:amex
+
+2026-09-06 * Fiber Co | internet  ; bill:utility, autopay:
+    expenses:housing:utilities:internet         $59.99
+    liabilities:credit card:amex
+
+2026-09-09 * CVS | pharmacy  ; hsa:eligible
+    expenses:health:pharmacy                    $23.17
+    liabilities:credit card:amex
+
+2026-09-10 * Figma | seat  ; recurring:software
+    expenses:subscriptions:software             $15.00
+    liabilities:credit card:amex
+
+2026-09-12 * Costco | weekly shop  ; paid:card
+    expenses:food:groceries                     $79.37
+    liabilities:credit card:amex
+
+2026-09-14 ! Delhi Darbar | lunch
+    expenses:food:dining:restaurants            1,240.00 INR
+    assets:cash:wallet
+
+2026-09-15 * (PAY09) Acme Corp | salary
+    assets:bank:hdfc:checking                   $3,912.40
+    income:salary:acme                          -$5,200.00
+    expenses:taxes:federal                      $1,040.00  ; withheld
+    expenses:taxes:state                        $247.60
+
+2026-09-16 * Blue Bottle | coffee
+    expenses:food:dining:coffee                 $11.87
+    assets:cash:wallet
+
+2026-09-20 * Amex | payment
+    liabilities:credit card:amex                $444.00
+    assets:bank:hdfc:checking
+
+2026-09-22 * Whole Foods | weekly shop  ; paid:card
+    expenses:food:groceries                     $81.69
+    liabilities:credit card:amex
+
+2026-09-28 * Bank interest
+    assets:bank:hdfc:savings                    $36.04
+    income:interest
+
+2026-09-30 * Reconcile  ; reconciled:
+    assets:bank:hdfc:checking                   $0 = $5,123.45
+    equity:adjustments

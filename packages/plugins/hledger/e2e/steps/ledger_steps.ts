@@ -6,12 +6,13 @@
  * WHAT IS ASSERTED AND WHAT IS NOT, said once:
  *
  *   - the facts come off the DOM's OWN `data-` attributes (`data-date`,
- *     `data-status`, `data-code`, `data-description`, `data-account`,
- *     `data-amount`, `data-inferred`, `data-depth`, `data-commodity`), never
- *     off the ink — which is the difference between a promise and a palette;
- *   - the ARITHMETIC is the scenario's: the fixture is round amounts on
- *     purpose, so a leaf total, a rolled-up parent and a multi-commodity row
- *     are checked against a sum a person can do by hand;
+ *     `data-status`, `data-code`, `data-description`, `data-payee`, `data-note`,
+ *     `data-account`, `data-amount`, `data-inferred`, `data-cost`,
+ *     `data-assertion`, `data-depth`, `data-commodity`), never off the ink —
+ *     which is the difference between a promise and a palette;
+ *   - the ARITHMETIC is the scenario's: `money/household.journal` is round
+ *     amounts on purpose, so a leaf total, a rolled-up parent and a
+ *     multi-commodity row are checked against a sum a person can do by hand;
  *   - the page is VIEW ONLY, read through the global `this file has no editor`
  *     (`olai-plugin-csv/e2e/steps/viewer_steps.ts`) rather than again here.
  *
@@ -20,7 +21,7 @@
  * this row's `src/journal/` tests — the fixture below is what the BROWSER
  * shows of them, not a second unit suite.
  *
- * THE RAW VIEW IS THE FILE, checked by reading the served copy off disk (the
+ * THE SOURCE VIEW IS THE FILE, checked by reading the served copy off disk (the
  * scratch copy the scenario owns, which the `Given` above has just written)
  * rather than by repeating the source in the Gherkin: a second copy of a
  * fixture in a feature is a copy that drifts the day the fixture is edited.
@@ -42,21 +43,36 @@ import type { OlaiWorld as World } from "@olai/tests/harness/world.ts";
 
 import { name as HLEDGER_KIND } from "../../src/claim.ts";
 import {
+  HLEDGER_ASSERTION,
   HLEDGER_BALANCE,
   HLEDGER_BALANCE_AMOUNT,
+  HLEDGER_BALANCE_COMMODITY,
+  HLEDGER_BALANCE_EMPTY,
+  HLEDGER_BALANCE_HEAD,
+  HLEDGER_BALANCE_TOGGLE,
   HLEDGER_BALANCES,
+  HLEDGER_COST,
+  HLEDGER_DEPTH,
+  HLEDGER_EMPTY,
+  HLEDGER_FACT,
   HLEDGER_HEADER,
+  HLEDGER_INFERRED,
   HLEDGER_LINK,
+  HLEDGER_MONTH,
   HLEDGER_POSTING,
   HLEDGER_POSTING_COMMENT,
-  HLEDGER_RAW,
-  HLEDGER_RAW_LINE,
   HLEDGER_SAID,
+  HLEDGER_SOURCE,
+  HLEDGER_SOURCE_LINE,
+  HLEDGER_SOURCE_NUMBER,
+  HLEDGER_STATUS,
   HLEDGER_TAB,
   HLEDGER_TAG,
   HLEDGER_TRANSACTIONS,
   HLEDGER_TXN,
   HLEDGER_TXN_COMMENT,
+  HLEDGER_TXN_NOTE,
+  HLEDGER_UNREADABLE,
 } from "../selectors.ts";
 
 // ── the row in the tree, and the fixtures it stands for ────────────────
@@ -83,13 +99,17 @@ const FIXTURES = new URL("../fixtures/", import.meta.url);
 /** What every ledger scenario is served, at the paths its scenarios address.
  *  A feature's `Background` writes them all: the harness restores the copy
  *  between scenarios, so the `Given` below runs again for each and each one
- *  starts from these bytes and no other. */
+ *  starts from these bytes and no other. `personal.journal` is the audit's
+ *  realistic books — 47 transactions, four commodities, grouping, a cost, an
+ *  assertion and month-spanning dates — kept here so the redesigned page is
+ *  read against facts a person can open the file and check. */
 const HLEDGER_FIXTURES = [
   "broken.journal",
   "empty.journal",
   "household.journal",
   "ledger.ledger",
   "notes.md",
+  "personal.journal",
   "wallet.hledger",
 ] as const;
 
@@ -163,12 +183,34 @@ Then(
 
 // ── the page's chrome ──────────────────────────────────────────────────
 
-/** The header, waited for first, so a failure says "no ledger page drew"
- *  rather than "expected 5, got null". */
+/** The header ROW, waited for first, so a failure says "no ledger page drew"
+ *  rather than "expected 5, got null". Its facts are separate spans, so the
+ *  reads below grip one by the `data-fact` it carries rather than parsing the
+ *  row's whole sentence — the redesign moved the counts behind spans, and the
+ *  order of the row is a layout decision this row need not pin. */
 const header = async (world: World): Promise<string> => {
   const found = world.page.locator(HLEDGER_HEADER);
   await found.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   return oneLine(await found.innerText());
+};
+
+/** One header fact, by the name it carries. */
+const fact = (world: World, name: string) =>
+  world.page.locator(`${HLEDGER_FACT}${attr("data-fact", name)}`);
+
+/** What a header fact says right now, or `null` while it is not drawn — the
+ *  non-waiting read `waitUntil` may poll with (a waiting read nested in a poll
+ *  outlives the poll's own deadline and reports the wrong timeout). */
+const factReading = async (world: World, name: string): Promise<string | null> => {
+  const found = fact(world, name);
+  if ((await found.count()) === 0) return null;
+  return oneLine((await found.first().textContent()) ?? "");
+};
+
+/** The same read, for a step that is asking once rather than waiting. */
+const factText = async (world: World, name: string): Promise<string> => {
+  await fact(world, name).first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  return (await factReading(world, name)) ?? "";
 };
 
 When(
@@ -189,8 +231,8 @@ Then(
     // read as that sentence rather than as a thirty-second wait for a tab that
     // was never going to exist.
     assert.ok(
-      view === "transactions" || view === "balances" || view === "raw",
-      `no ledger view is called "${view}" — they are transactions, balances and raw`,
+      view === "transactions" || view === "balances" || view === "source",
+      `no ledger view is called "${view}" — they are transactions, balances and source`,
     );
     const tab = this.page.locator(`${HLEDGER_TAB}${attr("data-view", view)}`);
     await tab.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
@@ -198,8 +240,14 @@ Then(
       async () => (await tab.getAttribute("aria-selected")) === "true",
       `the ${view} view to be the one in front`,
     );
+    const panel =
+      view === "transactions"
+        ? HLEDGER_TRANSACTIONS
+        : view === "balances"
+          ? HLEDGER_BALANCES
+          : HLEDGER_SOURCE;
     await this.page
-      .locator(view === "transactions" ? HLEDGER_TRANSACTIONS : view === "balances" ? HLEDGER_BALANCES : HLEDGER_RAW)
+      .locator(panel)
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   },
 );
@@ -254,36 +302,131 @@ Then(
     );
     await header(this);
     // WAITED FOR, not read once: a scenario may be asserting the counts a live
-    // rewrite just produced, and the old line is still on screen until the
-    // watcher's revision lands. Same reason the csv header step polls.
-    await this.waitUntil(
-      async () => {
-        const found = /^([\d,]+) transactions? · ([\d,]+) accounts?(?: · |$)/.exec(
-          await header(this),
-        );
-        return (
-          found !== null &&
-          Number((found[1] as string).replace(/,/g, "")) === transactions &&
-          Number((found[2] as string).replace(/,/g, "")) === accounts
-        );
-      },
-      `the header to count ${String(transactions)} transaction(s) and ${String(accounts)} account(s)`,
-    );
-    const text = await header(this);
-    assert.match(text, /^[\d,]+ transactions? · [\d,]+ accounts?(?: · |$)/, `the header reads ${JSON.stringify(text)}`);
+    // rewrite just produced, and the old fact is still on screen until the
+    // watcher's revision lands. The COUNT is compared as a number, so a page
+    // that grouped a four-digit count (`1,000 transactions`) still reads as the
+    // count it is — the noun is what the fact has to spell.
+    const wanted: ReadonlyArray<readonly [string, number, string]> = [
+      ["transactions", transactions, transactionNoun],
+      ["accounts", accounts, accountNoun],
+    ];
+    for (const [name, count, noun] of wanted) {
+      await fact(this, name).first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+      await this.waitUntil(
+        async () => {
+          const text = await factReading(this, name);
+          const found = text === null ? null : /^([\d,]+) (\S+)$/.exec(text);
+          return (
+            found !== null &&
+            Number((found[1] as string).replace(/,/g, "")) === count &&
+            found[2] === noun
+          );
+        },
+        `the header's ${name} fact to count ${String(count)} ${noun}`,
+      );
+    }
   },
 );
 
+// THE DATES FACT, read as the one human string the header draws it as — the
+// redesign replaced the row's whole sentence with facts a reader scans, so this
+// is the span and not `parts[2]` of an ordered line any more.
 Then(
   "the ledger header spans {string}",
   async function (this: World, expected: string) {
-    const text = await header(this);
-    const parts = text.split(" · ");
-    assert.strictEqual(
-      parts[2],
-      expected,
-      `the span of readable dates, in ${JSON.stringify(text)}`,
+    await header(this);
+    await this.waitUntil(
+      async () => (await factReading(this, "dates")) === expected,
+      `the header's dates fact to read ${JSON.stringify(expected)}`,
     );
+    assert.strictEqual(await factText(this, "dates"), expected);
+  },
+);
+
+// THE COMMODITY LIST the file uses, space-joined in the header's own order —
+// the same union the Balances columns are one per.
+Then(
+  "the ledger header lists the commodities {string}",
+  async function (this: World, expected: string) {
+    assert.strictEqual(await factText(this, "commodities"), expected);
+  },
+);
+
+// The sentence the header owes a reader for the lines it could not read —
+// shown only when there are any, and a BUTTON, because it goes somewhere.
+Then(
+  "the ledger header reports {int} lines not read",
+  async function (this: World, lines: number) {
+    const button = this.page.locator(HLEDGER_UNREADABLE);
+    await button.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const noun = lines === 1 ? "line" : "lines";
+    assert.strictEqual(
+      oneLine((await button.textContent()) ?? ""),
+      `⚠ ${String(lines)} ${noun} not read`,
+      `the header's unreadable-lines button`,
+    );
+  },
+);
+
+When("I click the ledger unreadable button", async function (this: World) {
+  const button = this.page.locator(HLEDGER_UNREADABLE);
+  await button.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await button.click();
+  await this.waitForFrame();
+});
+
+// ── the month bands ────────────────────────────────────────────────────
+
+// THE BANDS ARE THE MONTHS THE FILE HOLDS, in the order it holds them: the
+// `data-month` keys a scenario reads rather than the label's case, which is a
+// stylesheet decision.
+Then(
+  "the ledger month bands are {string}",
+  async function (this: World, expected: string) {
+    const wanted = expected.split(",").map((one) => one.trim());
+    const bands = this.page.locator(HLEDGER_MONTH);
+    await this.waitUntil(
+      async () => (await bands.count()) === wanted.length,
+      `the ledger to draw ${String(wanted.length)} month band(s)`,
+    );
+    assert.deepStrictEqual(
+      await bands.evaluateAll((nodes) =>
+        nodes.map((node) => node.getAttribute("data-month")),
+      ),
+      wanted,
+      "the month bands, by their data-month keys",
+    );
+  },
+);
+
+// ONE BAND: the month it names and the count of transactions under it. The band
+// has exactly two child spans — the label, then the count — because the count
+// is what a reader scans at the right edge.
+Then(
+  "the ledger month {string} is named {string} with {int} {word}",
+  async function (
+    this: World,
+    month: string,
+    name: string,
+    count: number,
+    noun: string,
+  ) {
+    assert.strictEqual(
+      noun,
+      count === 1 ? "transaction" : "transactions",
+      `the noun for ${String(count)}`,
+    );
+    const band = this.page.locator(`${HLEDGER_MONTH}${attr("data-month", month)}`);
+    await band.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    const parts = await band.evaluate((node) =>
+      Array.from(node.children).map((child) => (child.textContent ?? "").trim()),
+    );
+    assert.strictEqual(parts.length, 2, `the band for ${month} to be a label and a count`);
+    assert.strictEqual(parts[0], name, `the label of the band for ${month}`);
+    const found = /^([\d,]+) (\S+)$/.exec(parts[1] as string);
+    assert.ok(found !== null, `the band for ${month} to count its transactions, not ${JSON.stringify(parts[1])}`);
+    assert.strictEqual(Number((found[1] as string).replace(/,/g, "")), count, `the count in the band for ${month}`);
+    assert.strictEqual(found[2], noun, `the noun in the band for ${month}`);
   },
 );
 
@@ -330,6 +473,17 @@ Then(
   },
 );
 
+// THE STATUS IS DRAWN as a mark (the redesign's dot), and `data-status` is the
+// fact behind it: this says the mark is on the row at all, and the step above
+// says which status it stands for.
+Then(
+  "the ledger transaction {int} draws the status mark",
+  async function (this: World, at: number) {
+    const mark = (await transaction(this, at)).locator(HLEDGER_STATUS);
+    await mark.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  },
+);
+
 Then(
   "the ledger transaction {int} carries code {string}",
   async function (this: World, at: number, code: string) {
@@ -348,6 +502,33 @@ Then(
       await (await transaction(this, at)).getAttribute("data-description"),
       description,
       `the description of transaction ${String(at)}`,
+    );
+  },
+);
+
+// THE TWO HALVES OF THE HEAD, drawn apart now: the payee is the whole
+// description when the file wrote no `|`, and the note is only there when it
+// did. `data-description` stays the whole head; these are what the page DRAWS.
+Then(
+  "the ledger transaction {int} has payee {string}",
+  async function (this: World, at: number, payee: string) {
+    assert.strictEqual(
+      await (await transaction(this, at)).getAttribute("data-payee"),
+      payee,
+      `the payee of transaction ${String(at)}`,
+    );
+  },
+);
+
+Then(
+  "the ledger transaction {int} has note {string}",
+  async function (this: World, at: number, note: string) {
+    const span = (await transaction(this, at)).locator(HLEDGER_TXN_NOTE);
+    await span.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      oneLine((await span.textContent()) ?? ""),
+      note,
+      `the note drawn on transaction ${String(at)}`,
     );
   },
 );
@@ -371,12 +552,13 @@ Then(
 );
 
 // ONE POSTING, THREE FACTS, in one step because they are one row: `account |
-// amount | inferred`, the account ending at two spaces. A STATED amount keeps
-// the file's own spelling (no thousands grouping), while a COMPUTED or INFERRED
-// amount is written by the format — which is why a negative symbol amount reads
-// `-$1200.00` there, in front of the symbol, whatever the file's own minus did.
-// The empty spelling of an amount is how an omission that could not be inferred
-// is asked for.
+// amount | inferred`, the account ending at two spaces. `data-amount` is the
+// amount AS THE FILE WROTE IT — grouping and all — so `$4,250.00` keeps its
+// comma, while a COMPUTED or INFERRED amount is written by the format (which
+// is why a negative symbol amount reads `-$1200.00` there, in front of the
+// symbol, whatever the file's own minus did). The empty spelling is how an
+// omission that could not be inferred — or an assertion-only line — is asked
+// for.
 Then(
   "the ledger transaction {int} posting {int} reads {string}",
   async function (this: World, at: number, which: number, expected: string) {
@@ -401,6 +583,73 @@ Then(
   },
 );
 
+// A COST ANNOTATION (`@ $271.12`) is drawn muted beside the amount, and kept on
+// the row — the reader does not convert with it, but the page shows it.
+Then(
+  "the ledger transaction {int} posting {int} shows the cost {string}",
+  async function (this: World, at: number, which: number, cost: string) {
+    const posting = (await transaction(this, at)).locator(HLEDGER_POSTING).nth(which - 1);
+    await posting.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      await posting.getAttribute("data-cost"),
+      cost,
+      `the cost on transaction ${String(at)}'s posting ${String(which)}`,
+    );
+    const span = posting.locator(HLEDGER_COST);
+    await span.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      oneLine((await span.textContent()) ?? ""),
+      cost,
+      `the cost drawn on transaction ${String(at)}'s posting ${String(which)}`,
+    );
+  },
+);
+
+// A BALANCE ASSERTION (`= $5,123.45`) is drawn the same way, with a `title` —
+// it is a claim about a running total this reader never kept, so it is shown
+// and not checked.
+Then(
+  "the ledger transaction {int} posting {int} shows the assertion {string}",
+  async function (this: World, at: number, which: number, assertion: string) {
+    const posting = (await transaction(this, at)).locator(HLEDGER_POSTING).nth(which - 1);
+    await posting.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      await posting.getAttribute("data-assertion"),
+      assertion,
+      `the assertion on transaction ${String(at)}'s posting ${String(which)}`,
+    );
+    const span = posting.locator(HLEDGER_ASSERTION);
+    await span.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      oneLine((await span.textContent()) ?? ""),
+      assertion,
+      `the assertion drawn on transaction ${String(at)}'s posting ${String(which)}`,
+    );
+    assert.ok(
+      ((await span.getAttribute("title")) ?? "").length > 0,
+      `the assertion on transaction ${String(at)}'s posting ${String(which)} to carry a title`,
+    );
+  },
+);
+
+// THE INFERRED MARK: a posting whose amount the reader COMPUTED (an omission
+// it filled in to balance the transaction) is drawn with a marker in the
+// last column and a `title` — the visible half of `data-inferred`.
+Then(
+  "the ledger transaction {int} posting {int} carries the inferred mark",
+  async function (this: World, at: number, which: number) {
+    const posting = (await transaction(this, at)).locator(HLEDGER_POSTING).nth(which - 1);
+    await posting.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    const mark = posting.locator(HLEDGER_INFERRED);
+    await mark.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      await mark.getAttribute("title"),
+      "inferred",
+      `the inferred mark on transaction ${String(at)}'s posting ${String(which)}`,
+    );
+  },
+);
+
 // HOW MANY postings the row draws — the count a scenario asks when what matters
 // is that a line did NOT become one (an unreadable amount, an indented comment),
 // where reaching for posting 3 would time out instead.
@@ -415,15 +664,17 @@ Then(
   },
 );
 
-// The comment is drawn whole — tags and all — and the tags are drawn again as
-// their own spans, `key: value`, which is the shape a reader copies.
+// The COMMENT is drawn as the prose it is — its tags are pills beside it now,
+// drawn once rather than the whole comment and then the tags out of it. A
+// comment that is ONLY tags draws no prose span at all, which is why this step
+// waits rather than reading an absent one.
 Then(
   "the ledger transaction {int} carries the comment {string}",
   async function (this: World, at: number, comment: string) {
     const span = (await transaction(this, at)).locator(HLEDGER_TXN_COMMENT);
     await span.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
-      oneLine(await span.innerText()),
+      oneLine((await span.textContent()) ?? ""),
       comment,
       `the comment under transaction ${String(at)}`,
     );
@@ -457,7 +708,7 @@ Then(
     const span = posting.locator(HLEDGER_POSTING_COMMENT);
     await span.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
-      oneLine(await span.innerText()),
+      oneLine((await span.textContent()) ?? ""),
       comment,
       `the comment on transaction ${String(at)}'s posting ${String(which)}`,
     );
@@ -492,15 +743,20 @@ const balance = async (world: World, account: string) => {
   return row;
 };
 
+/** A row's fold chevron — only a parent draws one. */
+const foldOf = (world: World, account: string) =>
+  world.page.locator(`${HLEDGER_BALANCE}${attr("data-account", account)} ${HLEDGER_BALANCE_TOGGLE}`);
+
 // THE SUM, per commodity, in the commodity's own spelling — sorted by
-// commodity, which is the format's order. Commas separate the amounts and no
-// amount carries one (`hledgerAmountText`: no thousands grouping), which is
-// what makes this readable in one string.
+// commodity, which is the format's order. `, ` (comma and a space) separates
+// the amounts, and a COMPUTED total carries its own grouping commas inside a
+// number (`$1,019.50`), which is why the separator is the spaced one and not a
+// bare comma.
 Then(
   "the ledger balance for {string} is {string}",
   async function (this: World, account: string, expected: string) {
     const amounts = (await balance(this, account)).locator(HLEDGER_BALANCE_AMOUNT);
-    const wanted = expected.split(",").map((one) => one.trim());
+    const wanted = expected.split(", ").map((one) => one.trim());
     await this.waitUntil(
       async () => (await amounts.count()) === wanted.length,
       `${String(wanted.length)} amount(s) for ${account}`,
@@ -536,6 +792,174 @@ Then(
   },
 );
 
+// THE COMMODITY COLUMNS: one per commodity the file uses, named by the header
+// band and keyed by `data-commodity`, so a scenario reads the CELL and never a
+// pixel of where it sits.
+Then(
+  "the ledger balances head the commodities {string}",
+  async function (this: World, expected: string) {
+    const wanted = expected.split(",").map((one) => one.trim());
+    const head = this.page.locator(HLEDGER_BALANCE_HEAD);
+    await head.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const cells = head.locator(HLEDGER_BALANCE_COMMODITY);
+    await this.waitUntil(
+      async () => (await cells.count()) === wanted.length,
+      `${String(wanted.length)} commodity column(s)`,
+    );
+    assert.deepStrictEqual(
+      await cells.evaluateAll((nodes) =>
+        nodes.map((node) => node.getAttribute("data-commodity")),
+      ),
+      wanted,
+      "the commodity columns, by their data-commodity keys",
+    );
+    assert.deepStrictEqual(
+      (await cells.allInnerTexts()).map(oneLine),
+      wanted,
+      "the commodity columns, by what they draw",
+    );
+  },
+);
+
+// ONE CELL: the amount a row holds in one commodity. This is the assertion the
+// redesign's columns are for — two rows' `$` cells read side by side line up on
+// the decimal because they are the same column, and the claim is each cell's
+// own text.
+Then(
+  "the ledger balance for {string} shows {string} in {string}",
+  async function (this: World, account: string, amount: string, commodity: string) {
+    const cell = (await balance(this, account)).locator(
+      `${HLEDGER_BALANCE_AMOUNT}${attr("data-commodity", commodity)}`,
+    );
+    await cell.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      oneLine((await cell.textContent()) ?? ""),
+      amount,
+      `the ${commodity} cell of ${account}`,
+    );
+  },
+);
+
+// A row with NO total at all draws the empty marker rather than nothing — an
+// account the file NAMED and never moved (`equity:adjustments` in the personal
+// books).
+Then(
+  "the ledger balance for {string} has no total",
+  async function (this: World, account: string) {
+    const empty = (await balance(this, account)).locator(HLEDGER_BALANCE_EMPTY);
+    await empty.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      oneLine((await empty.textContent()) ?? ""),
+      "—",
+      `the empty total of ${account}`,
+    );
+  },
+);
+
+Then(
+  "the ledger balances draw {int} rows",
+  async function (this: World, expected: number) {
+    const rows = this.page.locator(`${HLEDGER_BALANCES} ${HLEDGER_BALANCE}`);
+    await this.waitUntil(
+      async () => (await rows.count()) === expected,
+      `the balances tree to draw ${String(expected)} row(s)`,
+    );
+  },
+);
+
+// The row is GONE, not merely empty — the claim a collapse makes about a child.
+Then(
+  "the ledger balance for {string} is not drawn",
+  async function (this: World, account: string) {
+    const row = this.page.locator(`${HLEDGER_BALANCE}${attr("data-account", account)}`);
+    await this.waitUntil(
+      async () => (await row.count()) === 0,
+      `the balance row for ${account} to be gone`,
+    );
+  },
+);
+
+// The other half: the row IS on screen — a depth level that keeps it, an
+// unfolded parent whose child came back.
+Then(
+  "the ledger balance for {string} is drawn",
+  async function (this: World, account: string) {
+    const row = this.page.locator(`${HLEDGER_BALANCE}${attr("data-account", account)}`);
+    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  },
+);
+
+// FOLD A PARENT: its chevron's `aria-expanded` is the state, and the rows under
+// it come and go with it.
+When(
+  "I collapse the ledger balance for {string}",
+  async function (this: World, account: string) {
+    const fold = foldOf(this, account);
+    await fold.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    if ((await fold.getAttribute("aria-expanded")) !== "false") await fold.click();
+    await this.waitForFrame();
+    await this.waitUntil(
+      async () => (await fold.getAttribute("aria-expanded")) === "false",
+      `${account} to be collapsed`,
+    );
+  },
+);
+
+When(
+  "I expand the ledger balance for {string}",
+  async function (this: World, account: string) {
+    const fold = foldOf(this, account);
+    await fold.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    if ((await fold.getAttribute("aria-expanded")) !== "true") await fold.click();
+    await this.waitForFrame();
+    await this.waitUntil(
+      async () => (await fold.getAttribute("aria-expanded")) === "true",
+      `${account} to be expanded`,
+    );
+  },
+);
+
+Then(
+  "the ledger balance for {string} is collapsed",
+  async function (this: World, account: string) {
+    const fold = foldOf(this, account);
+    await fold.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(
+      async () => (await fold.getAttribute("aria-expanded")) === "false",
+      `${account} to be collapsed`,
+    );
+  },
+);
+
+Then(
+  "the ledger balance for {string} is expanded",
+  async function (this: World, account: string) {
+    const fold = foldOf(this, account);
+    await fold.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(
+      async () => (await fold.getAttribute("aria-expanded")) === "true",
+      `${account} to be expanded`,
+    );
+  },
+);
+
+// THE DEPTH CONTROL: the chosen level hides rows at or past it, so a reader
+// folds the whole tree to the levels they care about in one press. Each button
+// carries its `data-depth`; the testid is on the control, but the selector
+// admits it on the button too, and scoping to the control is what keeps a
+// balance row's own `data-depth` out of the match.
+When(
+  "I set the ledger balance depth to {string}",
+  async function (this: World, level: string) {
+    const button = this.page.locator(
+      `${HLEDGER_DEPTH}${attr("data-depth", level)}, ${HLEDGER_DEPTH} ${attr("data-depth", level)}`,
+    );
+    await button.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await button.click();
+    await this.waitForFrame();
+  },
+);
+
 // ── the panel that did not go away ─────────────────────────────────────
 //
 // A live revision re-parses the file into fresh objects; the rows are `<Index>`
@@ -567,52 +991,58 @@ Then(
 // ── the file itself ────────────────────────────────────────────────────
 
 /**
- * The raw view IS the file — not a re-rendering of the parse.
+ * THE SOURCE VIEW IS THE FILE — not a re-rendering of the parse.
  *
- * Read off disk rather than repeated in the Gherkin: the scratch copy this
- * scenario owns, which its `Background` wrote (`world.served`). The comparison
- * normalizes only TRAILING newlines, which is the one byte a text editor's
- * save and a `pre`'s text node may disagree about without the file having
- * changed.
+ * The panel has a line-number gutter, so its own `textContent` interleaves the
+ * numbers with the lines; what IS the file is the `hledger-source-line` spans,
+ * each one line's own text, joined with the newline the file has. Read off disk
+ * rather than repeated in the Gherkin: the scratch copy this scenario owns,
+ * which its `Background` wrote (`world.served`). The comparison normalizes only
+ * TRAILING newlines, which is the one byte a text editor's save and a joined
+ * run of lines may disagree about without the file having changed.
  */
 Then(
-  "the ledger raw view is the file {string}",
+  "the ledger source view is the file {string}",
   async function (this: World, file: string) {
-    const pre = this.page.locator(HLEDGER_RAW);
-    await pre.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const panel = this.page.locator(HLEDGER_SOURCE);
+    await panel.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const lines = panel.locator(HLEDGER_SOURCE_LINE);
+    await lines.first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     // THE SERVED COPY the server is reading, which is a path this scenario
-    // OWNS: the raw view's whole claim is that it is the bytes of the file on
+    // OWNS: the source view's whole claim is that it is the bytes of the file on
     // disk, so the step has to read one — and a row's steps may not climb out
     // of the row into the harness's fixtures (`packages/tests/imports.test.ts`),
     // which is why the scenario asking this is a `@scratch:` one.
     const root = this.served;
     assert.ok(root !== undefined, "this step reads the served copy, so its scenario is @scratch:<corpus>");
     const source = fs.readFileSync(path.join(root, file), "utf8").replace(/\n+$/, "");
-    const drawn = ((await pre.evaluate((node) => node.textContent)) ?? "").replace(/\n+$/, "");
-    assert.strictEqual(drawn, source, `the raw view is not the bytes of ${file}`);
+    const drawn = ((await lines.evaluateAll((nodes) =>
+      nodes.map((node) => node.textContent ?? "").join("\n"),
+    )) ?? "").replace(/\n+$/, "");
+    assert.strictEqual(drawn, source, `the source view is not the lines of ${file}`);
   },
 );
 
-// HOW MANY LINES the raw view draws — the visible half of the reading's LINE
-// bound. One span per READ line (`../src/browser/views.tsx`), so the count is
-// the bound and not a scroll height.
+// HOW MANY LINES the source view draws — the visible half of the reading's LINE
+// bound. One span per READ line, so the count is the bound and not a scroll
+// height, and the gutter's numbers are separate spans that do not change it.
 Then(
-  "the ledger raw view draws {int} lines",
+  "the ledger source view draws {int} lines",
   async function (this: World, expected: number) {
-    const lines = this.page.locator(`${HLEDGER_RAW} ${HLEDGER_RAW_LINE}`);
+    const lines = this.page.locator(`${HLEDGER_SOURCE} ${HLEDGER_SOURCE_LINE}`);
     await this.waitUntil(
       async () => (await lines.count()) === expected,
-      `the raw view to draw ${String(expected)} line(s)`,
+      `the source view to draw ${String(expected)} line(s)`,
     );
   },
 );
 
 Then(
-  "the ledger raw line {int} reads {string}",
+  "the ledger source line {int} reads {string}",
   async function (this: World, line: number, expected: string) {
-    const found = this.page.locator(`${HLEDGER_RAW_LINE}${attr("data-line", String(line))}`);
+    const found = this.page.locator(`${HLEDGER_SOURCE_LINE}${attr("data-line", String(line))}`);
     await found.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
-    assert.strictEqual(oneLine(await found.innerText()), expected, `raw line ${String(line)}`);
+    assert.strictEqual(oneLine(await found.innerText()), expected, `source line ${String(line)}`);
   },
 );
 
@@ -620,24 +1050,53 @@ Then(
 // one thing typed about a line that is neither a transaction nor a posting, and
 // what a scenario asks to prove an unreadable line stayed raw.
 Then(
-  "the ledger raw line {int} is kept as {string}",
+  "the ledger source line {int} is kept as {string}",
   async function (this: World, line: number, kind: string) {
-    const found = this.page.locator(`${HLEDGER_RAW_LINE}${attr("data-line", String(line))}`);
+    const found = this.page.locator(`${HLEDGER_SOURCE_LINE}${attr("data-line", String(line))}`);
     await found.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
       await found.getAttribute("data-entry"),
       kind,
-      `the kind the reader gave raw line ${String(line)}`,
+      `the kind the reader gave source line ${String(line)}`,
     );
+  },
+);
+
+// THE GUTTER: every line carries its own number beside it, which is why the
+// panel's `textContent` is no longer the file and why the line spans are what
+// `the ledger source view is the file` reads.
+Then("the ledger source draws a number for every line", async function (this: World) {
+  const lines = this.page.locator(`${HLEDGER_SOURCE} ${HLEDGER_SOURCE_LINE}`);
+  const numbers = this.page.locator(`${HLEDGER_SOURCE} ${HLEDGER_SOURCE_NUMBER}`);
+  await lines.first().waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(async () => {
+    const drawn = await lines.count();
+    return drawn > 0 && (await numbers.count()) === drawn;
+  }, "the source view to number every line");
+});
+
+// THE UNREADABLE JUMP: pressing the header's button switches to Source and
+// scrolls the first line it could not read into view — so the claim is the
+// line's own `data-entry="unknown"` mark is on screen, not merely in the DOM.
+Then(
+  "the ledger source line {int} is in view",
+  async function (this: World, line: number) {
+    const found = this.page.locator(`${HLEDGER_SOURCE_LINE}${attr("data-line", String(line))}`);
+    await found.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(async () => {
+      const box = await found.boundingBox();
+      if (box === null) return false;
+      const view = this.viewport();
+      return box.y + box.height > 0 && box.y < view.height;
+    }, `source line ${String(line)} to be within the viewport`);
   },
 );
 
 // ── what the page is not showing ───────────────────────────────────────
 
-// The sentence the page owes a reader for a bound it reached or a file with
-// nothing in it (`../src/browser/said.ts`) — read as the sentence it is, because
-// a scenario asserting "it said something" would pass on a page that said
-// anything at all.
+// The sentence the page owes a reader for a bound it reached (`../src/browser/said.ts`)
+// — read as the sentence it is, because a scenario asserting "it said
+// something" would pass on a page that said anything at all.
 Then(
   "the ledger page says {string}",
   async function (this: World, expected: string) {
@@ -655,6 +1114,29 @@ Then("the ledger page says nothing", async function (this: World) {
     await this.page.locator(HLEDGER_SAID).count(),
     0,
     "a page with the whole file drawn said something about what it left out",
+  );
+});
+
+// A FILE WITH NO RECORDS draws the app's empty block rather than three empty
+// tabs over a sentence — the glyph and the words, and no view strip at all.
+Then(
+  "the ledger shows the empty state {string}",
+  async function (this: World, expected: string) {
+    const empty = this.page.locator(HLEDGER_EMPTY);
+    await empty.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      oneLine((await empty.textContent()) ?? ""),
+      expected,
+      "the empty state's words",
+    );
+  },
+);
+
+Then("the ledger draws no tabs", async function (this: World) {
+  await header(this);
+  await this.waitUntil(
+    async () => (await this.page.locator(HLEDGER_TAB).count()) === 0,
+    "the ledger to draw no view tabs",
   );
 });
 

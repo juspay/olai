@@ -22,27 +22,54 @@ import { TESTID } from "../src/testids.ts";
  *  this row draws. */
 export const HLEDGER_LINK = selector(TESTID.hledgerLink);
 
-/** The page's chrome: the one-line summary and the three-view strip. */
+/** The page's chrome: the one-line summary row (whose facts are separate
+ *  spans) and the three-view strip. */
 export const HLEDGER_HEADER = selector(TESTID.hledgerHeader);
+export const HLEDGER_FACT = selector(TESTID.hledgerFact);
+export const HLEDGER_UNREADABLE = selector(TESTID.hledgerUnreadable);
 export const HLEDGER_TAB = selector(TESTID.hledgerTab);
 
-/** The three panels, one of which is on screen at a time. */
+/** The three panels, one of which is on screen at a time. The third is the
+ *  file's own bytes, under a line-number gutter. */
 export const HLEDGER_TRANSACTIONS = selector(TESTID.hledgerTransactions);
 export const HLEDGER_BALANCES = selector(TESTID.hledgerBalances);
-export const HLEDGER_RAW = selector(TESTID.hledgerRaw);
+export const HLEDGER_SOURCE = selector(TESTID.hledgerSource);
 
 /** What the page is not showing, when it is not showing all of it. */
 export const HLEDGER_SAID = selector(TESTID.hledgerSaid);
 
-/** One transaction, one posting, and the comment and tags written under a
- *  transaction's header or a posting. */
-export const HLEDGER_TXN = selector(TESTID.hledgerTxn);
-export const HLEDGER_POSTING = selector(TESTID.hledgerPosting);
-export const HLEDGER_TXN_COMMENT = selector(TESTID.hledgerTxnComment);
-export const HLEDGER_POSTING_COMMENT = selector(TESTID.hledgerPostingComment);
-export const HLEDGER_TAG = selector(TESTID.hledgerTag);
-export const HLEDGER_RAW_LINE = selector(TESTID.hledgerRawLine);
+/** The month band a run of transactions sits under, and the empty state a
+ *  file with no records draws. */
+export const HLEDGER_MONTH = selector(TESTID.hledgerMonth);
+export const HLEDGER_EMPTY = selector(TESTID.hledgerEmpty);
 
-/** One account of the balances tree, and its per-commodity totals. */
+/** One transaction and the pieces the redesign drew out of its head: the note
+ *  on its own, the comment's prose on its own (the tags are pills), and the
+ *  status mark. */
+export const HLEDGER_TXN = selector(TESTID.hledgerTxn);
+export const HLEDGER_TXN_NOTE = selector(TESTID.hledgerTxnNote);
+export const HLEDGER_TXN_COMMENT = selector(TESTID.hledgerTxnComment);
+export const HLEDGER_STATUS = selector(TESTID.hledgerStatus);
+export const HLEDGER_TAG = selector(TESTID.hledgerTag);
+
+/** One posting: its account, its amount and the annotations beside it. */
+export const HLEDGER_POSTING = selector(TESTID.hledgerPosting);
+export const HLEDGER_POSTING_COMMENT = selector(TESTID.hledgerPostingComment);
+export const HLEDGER_COST = selector(TESTID.hledgerCost);
+export const HLEDGER_ASSERTION = selector(TESTID.hledgerAssertion);
+export const HLEDGER_INFERRED = selector(TESTID.hledgerInferred);
+
+/** One account of the balances tree, its commodities' columns, the header band
+ *  that names those columns, the chevron that folds a parent and the depth
+ *  control. */
 export const HLEDGER_BALANCE = selector(TESTID.hledgerBalance);
 export const HLEDGER_BALANCE_AMOUNT = selector(TESTID.hledgerBalanceAmount);
+export const HLEDGER_BALANCE_EMPTY = selector(TESTID.hledgerBalanceEmpty);
+export const HLEDGER_BALANCE_TOGGLE = selector(TESTID.hledgerBalanceToggle);
+export const HLEDGER_BALANCE_HEAD = selector(TESTID.hledgerBalanceHead);
+export const HLEDGER_BALANCE_COMMODITY = selector(TESTID.hledgerBalanceCommodity);
+export const HLEDGER_DEPTH = selector(TESTID.hledgerDepth);
+
+/** One line of the source view: its gutter number and the line's own text. */
+export const HLEDGER_SOURCE_LINE = selector(TESTID.hledgerSourceLine);
+export const HLEDGER_SOURCE_NUMBER = selector(TESTID.hledgerSourceNumber);

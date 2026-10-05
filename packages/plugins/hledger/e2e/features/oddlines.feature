@@ -27,9 +27,9 @@ Feature: A journal's odd lines, said rather than guessed at
     When I open the address "/money/odd.journal"
     Then the document open is "money/odd.journal"
     # UNDER THE HEADER, before any posting, is the TRANSACTION's comment and
-    # tags — and the value runs to the end of the comment, hledger's rule.
-    And the ledger transaction 1 carries the comment "the weekly shop trip:berlin"
-    And the ledger transaction 1 carries the tags "trip: berlin"
+    # tags — the prose is drawn as prose and the tag as a pill, once each.
+    And the ledger transaction 1 carries the comment "the weekly shop"
+    And the ledger transaction 1 carries the tags "#trip:berlin"
     # UNDER A POSTING is THAT posting's comment, and the line is not a posting
     # of its own: the transaction still draws exactly two, and the omitted
     # amount is still inferred.
@@ -84,11 +84,11 @@ Feature: A journal's odd lines, said rather than guessed at
     And the ledger header counts 1 transaction and 0 accounts
     # …and nothing new is said about it — a line kept as text is ordinary.
     And the ledger page says nothing
-    # THE OTHER HALF: the raw view is the file, so the line is still there, at
-    # its own line number, marked as the unknown line it is.
-    When I switch the ledger to the "raw" view
-    And the ledger raw line 2 reads "a 1E3 X"
-    And the ledger raw line 2 is kept as "unknown"
+    # THE OTHER HALF: the source view is the file, so the line is still there,
+    # at its own line number, marked as the unknown line it is.
+    When I switch the ledger to the "source" view
+    And the ledger source line 2 reads "a 1E3 X"
+    And the ledger source line 2 is kept as "unknown"
     And there should be no page errors
 
   Scenario: A file past the line bound says so and draws only what was read
@@ -99,8 +99,8 @@ Feature: A journal's odd lines, said rather than guessed at
     And the ledger page says "The file is longer than 20,000 lines; only the beginning was read."
     # …AND THE DRAWING STOPS WHERE THE READING DID: one span per read line, a
     # page's worth, not the twenty-five thousand in the file.
-    When I switch the ledger to the "raw" view
-    And the ledger raw view draws 20000 lines
+    When I switch the ledger to the "source" view
+    And the ledger source view draws 20000 lines
     And there should be no page errors
 
   Scenario: A field past the cell bound is said to be cut
@@ -117,8 +117,8 @@ Feature: A journal's odd lines, said rather than guessed at
 
   Scenario: Opening another ledger resets the view to Transactions
     When I open the address "/money/household.journal"
-    And I switch the ledger to the "raw" view
-    Then the ledger is showing the "raw" view
+    And I switch the ledger to the "source" view
+    Then the ledger is showing the "source" view
     # THE OTHER JOURNAL IS REACHED THE WAY A READER REACHES IT — a click on the
     # sidebar's row, which is a route and not a reload. `I open the address`
     # would `page.goto` a fresh document, and a fresh document resetting the
@@ -150,16 +150,16 @@ Feature: A journal's odd lines, said rather than guessed at
     And the ledger tab "transactions" has focus
     # Home and End jump to the ends rather than stepping.
     When I press "End"
-    Then the ledger is showing the "raw" view
-    And the ledger tab "raw" has focus
+    Then the ledger is showing the "source" view
+    And the ledger tab "source" has focus
     When I press "Home"
     Then the ledger is showing the "transactions" view
     And the ledger tab "transactions" has focus
     # …AND THE ENDS WRAP rather than stopping: Left on the FIRST and Right on
     # the LAST are the two steps a clamp gets wrong and the modulo gets right.
     When I press "ArrowLeft"
-    Then the ledger is showing the "raw" view
-    And the ledger tab "raw" has focus
+    Then the ledger is showing the "source" view
+    And the ledger tab "source" has focus
     When I press "ArrowRight"
     Then the ledger is showing the "transactions" view
     And the ledger tab "transactions" has focus

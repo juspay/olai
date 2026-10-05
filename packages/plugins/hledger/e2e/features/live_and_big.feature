@@ -5,9 +5,9 @@ Feature: A ledger file that moves, and one bigger than a page
   watcher is for, and both are read here through the page a reader already has
   open.
 
-  The size bound is the same kind of claim one file over. this row's
-  reader stops at a thousand transactions rather than reading a data dump, and
-  the page must SAY what it left out — a table of the first thousand rows of
+  The size bound is the same kind of claim one file over. this row's reader
+  stops at a thousand transactions rather than reading a data dump, and the
+  page must SAY what it left out — a table of the first thousand rows of
   twelve hundred with nothing saying so is a lie the reader cannot see. The
   file is written by the scenario (a fixture whose whole point is being big is
   thousands of lines of nothing in the repository) and kept with a private copy,
@@ -50,6 +50,7 @@ Feature: A ledger file that moves, and one bigger than a page
   Scenario: Rewriting the ledger while Balances is showing recomputes it in place
     When I open the address "/money/household.journal"
     And I switch the ledger to the "balances" view
+    And I set the ledger balance depth to "all"
     Then the ledger balance for "expenses:groceries" is "$120.50"
     When I remember the ledger balances
     And I rewrite "money/household.journal" as:
@@ -71,7 +72,7 @@ Feature: A ledger file that moves, and one bigger than a page
     And the ledger is showing the "balances" view
     And the ledger balances stayed mounted during its revision
     And the ledger balance for "expenses:groceries" is "$50.00"
-    And the ledger balance for "assets:bank:checking" is "$1150.00"
+    And the ledger balance for "assets:bank:checking" is "$1,150.00"
     And there should be no page errors
 
   # THE ROWS BEHIND A REVISION ARE POSITIONS, and a position keeps its DOM. The
@@ -91,6 +92,9 @@ Feature: A ledger file that moves, and one bigger than a page
       """
     When I open the address "/money/odd.journal"
     And I switch the ledger to the "balances" view
+    # The depth control opens at 2, which hides the second level; this scenario
+    # is about a row's depth, so it asks for the whole tree.
+    And I set the ledger balance depth to "all"
     # assets, assets:cash, expenses, expenses:food — the fourth row, one level in.
     Then the ledger balance for "expenses:food" sits at depth 1
     # THE SAME FOUR ROWS, the same index deeper: assets, expenses,
@@ -120,7 +124,7 @@ Feature: A ledger file that moves, and one bigger than a page
           assets:cash         -$10.00
       """
     When I open the address "/money/odd.journal"
-    Then the ledger transaction 1 carries the tags "trip: berlin, paid: card"
+    Then the ledger transaction 1 carries the tags "#trip:berlin, #paid:card"
     When I rewrite "money/odd.journal" as:
       """
       2024-01-02 * Groceries  ; trip:munich, paid:card
@@ -132,7 +136,39 @@ Feature: A ledger file that moves, and one bigger than a page
           assets:cash          -$3.00
       """
     Then the ledger draws 2 transactions
-    And the ledger transaction 1 carries the tags "trip: munich, paid: card"
+    And the ledger transaction 1 carries the tags "#trip:munich, #paid:card"
+    And there should be no page errors
+
+  # A FOLD IS KEYED BY THE ACCOUNT, not by a row's position: a live rewrite
+  # that keeps the account moves the numbers under it and leaves the fold where
+  # the reader put it.
+  Scenario: A collapsed branch stays collapsed across a live rewrite
+    When I open the address "/money/household.journal"
+    And I switch the ledger to the "balances" view
+    And I set the ledger balance depth to "all"
+    And the ledger balance for "assets:bank" is expanded
+    When I collapse the ledger balance for "assets:bank"
+    Then the ledger balance for "assets:bank" is collapsed
+    And the ledger balance for "assets:bank:checking" is not drawn
+    # The rewrite keeps `assets:bank` and moves its arithmetic; the header's
+    # counts are the wait — two transactions only after the new parse is on
+    # screen — and the fold is still folded.
+    When I rewrite "money/household.journal" as:
+      """
+      2024-01-02 * Opening balance
+          assets:bank:checking      $1300.00
+          equity:opening balances  -$1300.00
+
+      2024-01-03 * Groceries
+          expenses:groceries        $10.00
+          assets:bank:checking      -$10.00
+      """
+    Then the ledger header counts 2 transactions and 7 accounts
+    And the ledger balance for "assets:bank" is collapsed
+    And the ledger balance for "assets:bank:checking" is not drawn
+    # …AND THE TREE DID re-read the file: unfolding shows the new arithmetic.
+    When I expand the ledger balance for "assets:bank"
+    Then the ledger balance for "assets:bank:checking" is "$1,290.00"
     And there should be no page errors
 
   Scenario: A removed ledger that comes back draws its page again
@@ -187,6 +223,7 @@ Feature: A ledger file that moves, and one bigger than a page
     # never saw arrive: the inference, and the balances it feeds.
     And the ledger transaction 2 posting 2 reads "assets:bank:checking | -$120.50 | true"
     When I switch the ledger to the "balances" view
-    Then the ledger balance for "assets:bank:checking" is "$1019.50"
+    And I set the ledger balance depth to "all"
+    Then the ledger balance for "assets:bank:checking" is "$1,019.50"
     And the ledger balance for "expenses" is "$180.50, 140.00 EUR"
     And there should be no page errors

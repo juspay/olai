@@ -1,5 +1,5 @@
 ; household.journal — the money fixtures' main ledger. Round amounts, two
-; commodities, and a section of directives up top for the raw view to show.
+; commodities, and a section of directives up top for the source view to show.
 
 account assets:bank:checking
 account expenses:groceries
