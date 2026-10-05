@@ -90,6 +90,7 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
     And the ledger balance for "equity" is "$-1200.00"
     And there should be no page errors
 
+  @scratch:good
   Scenario: The raw view is the file's own bytes
     When I open the address "/money/household.journal"
     And I switch the ledger to the "raw" view

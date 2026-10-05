@@ -320,11 +320,13 @@ Then(
   async function (this: World, file: string) {
     const pre = this.page.locator(HLEDGER_RAW);
     await pre.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    const root = this.served ?? path.resolve(
-      import.meta.dirname,
-      "../../../../tests/fixtures",
-      this.corpus,
-    );
+    // THE SERVED COPY the server is reading, which is a path this scenario
+    // OWNS: the raw view's whole claim is that it is the bytes of the file on
+    // disk, so the step has to read one — and a row's steps may not climb out
+    // of the row into the harness's fixtures (`packages/tests/imports.test.ts`),
+    // which is why the scenario asking this is a `@scratch:` one.
+    const root = this.served;
+    assert.ok(root !== undefined, "this step reads the served copy, so its scenario is @scratch:<corpus>");
     const source = fs.readFileSync(path.join(root, file), "utf8").replace(/\n+$/, "");
     const drawn = ((await pre.evaluate((node) => node.textContent)) ?? "").replace(/\n+$/, "");
     assert.strictEqual(drawn, source, `the raw view is not the bytes of ${file}`);
