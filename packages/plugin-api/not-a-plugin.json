@@ -1,4 +1,8 @@
 {
+  "//ledger": "`ledger` is olai's own word for the write ledger — the record a write rides, in the gate and the commit door — and not the ledger FILE kind a plugin claims. The two are different concepts that share an English word.",
+  "ledger": [
+    "src/services.ts"
+  ],
   "identity": [
     "src/services.ts"
   ],
