@@ -161,7 +161,7 @@ test("the files a browser fetches are the ones whose page points at them", () =>
 // branch on this (the store's probe, which does not read what nothing will keep;
 // the codec that decodes such a file from its name; the server that reads the
 // body when a reader opens it), and a loop over `kept` would re-run the one line
-// this is here to pin. The four kinds olai only SHOWS are the ones that are not
+// this is here to pin. The FIVE kinds olai only SHOWS are the ones that are not
 // kept, and they are the ones that can be megabytes.
 test("the shown kinds are the ones the set holds the path of and not the content", () => {
   expect(unkept(TEST_CLAIMS, "report.html")).toBe(true)

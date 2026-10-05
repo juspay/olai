@@ -949,7 +949,7 @@ export const CreateDocumentRequest = Schema.Struct({
  * longer refused. A `doc`-typed property IS a promise the value names a served
  * document — that one the guards above hold.
  *
- * AND THE FOUR SHOW KINDS STAY OUT. A `.html`, a `.csv`, a picture, a `.pdf`:
+ * AND THE FIVE SHOW KINDS STAY OUT. A `.html`, a `.csv`, a ledger journal, a picture, a `.pdf`:
  * olai draws them and never writes one — no create verb, no editor — and a
  * delete would be the largest write of all aimed at the files it never
  * touched. They belong to whatever put them there.
@@ -962,8 +962,8 @@ export const DeleteRequest = Schema.Struct({
       "(any content) or an `.olai` outline holding NO records. Refused, naming what to " +
       "settle first, for a path the set does not hold, an outline still carrying records, " +
       "a document a link or a `doc`-declared property still names, a file the set " +
-      "could not load, and any of the kinds olai only shows (`.html`, `.csv`, pictures, " +
-      "`.pdf`). The delete is not undoable in olai: what survives is whatever git had " +
+      "could not load, and any of the kinds olai only shows (`.html`, `.csv`, ledger " +
+      "journals, pictures, `.pdf`). The delete is not undoable in olai: what survives is whatever git had " +
       "already recorded.",
   }),
 })
