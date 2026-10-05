@@ -166,3 +166,27 @@ Feature: A ledger file that moves, and one bigger than a page
     Then the empty page says "Page not found" over "There is no ledger named money/household.journal."
     And the address is "/money/household.journal"
     And there should be no page errors
+
+  @scratch:good @own-scratch
+  Scenario: A ledger that was on disk before the server booted is served
+    # Every other scenario here reaches its fixtures through the WATCHER: the
+    # file arrives while a server is running and the page redraws. This one
+    # takes the other path, which is the one a vault that already held a
+    # journal takes — the server probes the directory as it boots and the file
+    # is in the set before any page asks for it. The Background has written the
+    # fixtures into this scenario's own copy; the server that is running found
+    # them by watching, so it is stopped and started again on the same port,
+    # and what the next process serves was on disk before it existed.
+    When the server stops
+    And the server starts again on the same port
+    When I open the address "/money/household.journal"
+    Then the document open is "money/household.journal"
+    And the ledger header counts 5 transactions and 12 accounts
+    And the ledger draws 5 transactions
+    # The same arithmetic a live-write scenario reads, off a file the process
+    # never saw arrive: the inference, and the balances it feeds.
+    And the ledger transaction 2 posting 2 reads "assets:bank:checking | -$120.50 | true"
+    When I switch the ledger to the "balances" view
+    Then the ledger balance for "assets:bank:checking" is "$1019.50"
+    And the ledger balance for "expenses" is "$180.50, 140.00 EUR"
+    And there should be no page errors

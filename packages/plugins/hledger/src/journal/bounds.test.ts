@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { HLEDGER_CELL, HLEDGER_LINES, HLEDGER_TRANSACTIONS, boundedBy, clipFields } from "./bounds.ts"
+import { HLEDGER_CELL, HLEDGER_LINES, HLEDGER_TRANSACTIONS, boundedBy, clip } from "./bounds.ts"
 import { readJournal } from "./read.ts"
 
 // THE CELL BOUND, on any one field — read off the DRAWING and not only off the
@@ -21,15 +21,25 @@ test("the defaults are the named bounds", () => {
   expect(boundedBy({ cell: 5 })).toEqual({ lines: 20_000, transactions: 1_000, cell: 5 })
 })
 
-// THE CUT IS ONE PASS OVER FINISHED RECORDS: every field, and the flag, in the
-// one place the bound is applied.
-test("clipFields cuts a finished read's fields", () => {
-  const read = readJournal(`2026-01-05 a very long description  ; a:long tag value\n    a  $1\n    b\n`)
-  const clipped = clipFields(read, 4)
-  expect(clipped.transactions[0]!.description).toBe("a ve")
-  expect(clipped.transactions[0]!.tags).toEqual([{ key: "a", value: "long" }])
-  expect(clipped.longCells).toBe(true)
-  // The entry text is a field too.
-  const withEntry = readJournal(`account ${"x".repeat(50)}\n`)
-  expect(clipFields(withEntry, 8).entries[0]!.text).toBe("account ")
+// THE CUT IS APPLIED WHERE A RECORD IS BUILT, which is what makes the two views
+// agree: the account the balances are summed under is the SAME cut string the
+// posting draws, so a long account is shortened in both places or in neither.
+test("a cut account is the same string in a posting and in the balances", () => {
+  const long = "expenses:food:an-account-name-that-runs-on-and-on"
+  const journal = readJournal(`2026-01-05 x\n    ${long}  $1\n    assets:cash\n`, { cell: 12 })
+  const account = journal.transactions[0]!.postings[0]!.account
+  expect(account).toBe(long.slice(0, 12))
+  expect(journal.balances.accounts).toContain(account)
+  expect([...journal.balances.of.keys()].some((one) => one.startsWith("expenses"))).toBe(true)
+  // …and every key is cut, the parents a rollup minted included.
+  expect([...journal.balances.accounts].every((one) => one.length <= 12)).toBe(true)
+  expect(journal.longCells).toBe(true)
+})
+
+// The cut itself: one function, one witness.
+test("clip cuts a field and remembers that it did", () => {
+  const witness = { cut: false }
+  expect(clip("abcdef", 3, witness)).toBe("abc")
+  expect(witness.cut).toBe(true)
+  expect(clip("ab", 3, witness)).toBe("ab")
 })

@@ -46,7 +46,7 @@ test("a transaction is its header's facts and its postings", () => {
 test("an impossible day, an impossible secondary date and a glued word are unknowns", () => {
   const impossible = readJournal("2024-02-31 nothing happens\n")
   expect(impossible.transactions).toEqual([])
-  expect(impossible.entries).toEqual([{ line: 1, text: "2024-02-31 nothing happens", kind: "unknown" }])
+  expect(impossible.entries).toEqual([{ line: 1, span: 1, text: "2024-02-31 nothing happens", kind: "unknown" }])
 
   const leap = readJournal("2024-02-29 Leap day\n    a  $1\n    b\n")
   expect(leap.transactions.map((one) => one.date)).toEqual(["2024-02-29"])

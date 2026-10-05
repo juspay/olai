@@ -8,17 +8,14 @@
  * field ({@link HLEDGER_CELL}). The scan STOPS paying for what it will not
  * draw.
  *
- * THE CELL CUT IS APPLIED TO FINISHED RECORDS rather than threaded through the
- * parsing, which is what the record shapes buy: `headerOf`, `postingOf` and the
- * fold all work on the file's own text, and every field is cut once at the end,
- * in one place, from one constant. Nine `cut` witnesses passed down through the
- * parse was nine places a record could be forgotten and nine call sites that had
- * to agree about a counter.
+ * THE CELL CUT IS NOT THREADED THROUGH THE PARSE, and it is not a walk over a
+ * finished journal either: it is one function ({@link clip}) called where a
+ * record is BUILT ({@link ./read.ts}), so a field is cut once, from one
+ * constant, and the account a movement is summed under is the same string the
+ * page draws. Nine `cut` witnesses passed down through the parse was nine places
+ * a record could be forgotten; a walk over the finished value was a second
+ * traversal that had to remember every map KEY as well as every field.
  */
-import { type Posting } from "./posting.ts"
-import { type Journal } from "./read.ts"
-import { type Tag } from "./tags.ts"
-
 /** How many lines of a journal are read at all — past this the file is a file,
  *  not a page. Ten thousand transactions fit in twenty thousand lines with
  *  their postings; a journal past it is a data dump somebody is not reading in
@@ -49,37 +46,17 @@ export const boundedBy = (asked?: Partial<Bounds>): Bounds => ({
   cell: asked?.cell ?? HLEDGER_CELL,
 })
 
-/** A finished read with every field cut at `at`, and `longCells` set when any
- *  one of them was. One cut, one place, from one constant. */
-export const clipFields = (read: Journal, at: number): Journal => {
-  let cut = false
-  const clip = (text: string): string => {
-    if (text.length <= at) return text
-    cut = true
-    return text.slice(0, at)
-  }
-  const tags = (ones: ReadonlyArray<Tag>): ReadonlyArray<Tag> =>
-    ones.map((one) => ({ key: clip(one.key), value: one.value === null ? null : clip(one.value) }))
-  const postings = (ones: ReadonlyArray<Posting>): ReadonlyArray<Posting> =>
-    ones.map((one) => ({
-      ...one,
-      account: clip(one.account),
-      comment: one.comment === null ? null : clip(one.comment),
-      tags: tags(one.tags),
-    }))
-  return {
-    ...read,
-    transactions: read.transactions.map((one) => ({
-      ...one,
-      code: one.code === null ? null : clip(one.code),
-      description: clip(one.description),
-      payee: clip(one.payee),
-      note: one.note === null ? null : clip(one.note),
-      comment: one.comment === null ? null : clip(one.comment),
-      tags: tags(one.tags),
-      postings: postings(one.postings),
-    })),
-    entries: read.entries.map((one) => ({ ...one, text: clip(one.text) })),
-    longCells: read.longCells || cut,
-  }
+/** Whether a read cut anything — the witness one clip shares with its caller,
+ *  so that "some field was shortened" is one flag rather than a pair per field. */
+export interface Cut {
+  cut: boolean
+}
+
+/** A field's text, cut at the bound — remembering that it WAS cut, because a
+ *  page that says nothing about a shortened description is a page lying about
+ *  the file. */
+export const clip = (text: string, at: number, witness: Cut): string => {
+  if (text.length <= at) return text
+  witness.cut = true
+  return text.slice(0, at)
 }

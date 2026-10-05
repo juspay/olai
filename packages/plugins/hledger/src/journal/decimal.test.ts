@@ -25,6 +25,21 @@ test("a written number is read exactly, by the separators tools write", () => {
   expect(digits("")).toBeNull()
 })
 
+// A MARK THAT REPEATS IS GROUPING, in either spelling: `1.000.000` is a
+// million, exactly as `1,000,000` is, and only a mark that appears ONCE can be
+// the decimal one — the ambiguity hledger resolves the same way without a
+// `decimal-mark` directive, which this reader does not read.
+test("a repeated mark is a grouping and a single one is the decimal mark", () => {
+  expect(digits("1.000.000")).toBe("1000000")
+  expect(digits("1,000,000")).toBe("1000000")
+  expect(digits("1.000.000,50")).toBe("1000000.50")
+  expect(digits("1.000,50")).toBe("1000.50")
+  expect(digits("1,000.50")).toBe("1000.50")
+  // The ambiguous one, said out loud: a single dot is the decimal mark.
+  expect(digits("1.000")).toBe("1.000")
+  expect(digits("1.000.50")).toBeNull()
+})
+
 // A LEADING DECIMAL MARK is how hledger writes a fraction of one, and it is a
 // number rather than something to refuse. (from "a number may begin with its
 // decimal mark")

@@ -22,7 +22,9 @@ export const houseStyle = (commodity: string, value: Decimal): Style => {
   if (commodity === "") return { sign: "number", side: "prefix", spaced: false }
   if (/^[A-Za-z]/.test(commodity)) return { sign: "number", side: "suffix", spaced: true }
   return {
-    sign: decimalText(value).startsWith("-") ? "leading" : "number",
+    // The SIGN is read off the number, not off the text it renders as: a house
+    // style decided by a string is a style that would change if the spelling did.
+    sign: value.value < 0n ? "leading" : "number",
     side: "prefix",
     spaced: false,
   }

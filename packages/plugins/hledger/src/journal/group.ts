@@ -38,15 +38,20 @@ export type Block =
   | {
       readonly kind: "entry"
       readonly line: number
+      /** How many source lines this entry covers — one for a comment, and one
+       *  per line for a directive whose sub-lines continue it. The Raw view
+       *  marks every one of them, and it cannot count them off the TEXT: the
+       *  text is cut at the cell bound and a cut line would lose its mark. */
+      readonly span: number
       readonly text: string
       readonly entry: EntryKind
     }
   | {
       readonly kind: "transaction"
       readonly line: number
+      /** The header with its FINAL comment and tags: an indented comment under
+       *  the header joins them here, so nothing downstream merges two shapes. */
       readonly header: Header
-      readonly comment: string | null
-      readonly tags: ReadonlyArray<Tag>
       readonly postings: ReadonlyArray<Stated>
       readonly refused: ReadonlyArray<{ readonly line: number; readonly text: string }>
     }
@@ -63,16 +68,20 @@ export const group = (lines: ReadonlyArray<Line>): ReadonlyArray<Block> => {
   let directive: { readonly line: number; readonly lines: Array<string> } | null = null
   let txn: {
     readonly line: number
-    readonly header: Header
-    comment: string | null
-    readonly tags: Array<Tag>
+    header: Header
     readonly postings: Array<Stated>
     readonly refused: Array<{ line: number; text: string }>
   } | null = null
 
   const flushDirective = (): void => {
     if (directive === null) return
-    blocks.push({ kind: "entry", line: directive.line, text: directive.lines.join("\n"), entry: "directive" })
+    blocks.push({
+      kind: "entry",
+      line: directive.line,
+      span: directive.lines.length,
+      text: directive.lines.join("\n"),
+      entry: "directive",
+    })
     directive = null
   }
   const flushTxn = (): void => {
@@ -81,8 +90,6 @@ export const group = (lines: ReadonlyArray<Line>): ReadonlyArray<Block> => {
       kind: "transaction",
       line: txn.line,
       header: txn.header,
-      comment: txn.comment,
-      tags: txn.tags,
       postings: txn.postings,
       refused: txn.refused,
     })
@@ -97,7 +104,7 @@ export const group = (lines: ReadonlyArray<Line>): ReadonlyArray<Block> => {
     // INSIDE A COMMENT BLOCK every line is a comment, whatever it looks like —
     // this is the one thing the classification above cannot say on its own.
     if (inComment) {
-      blocks.push({ kind: "entry", line: number, text: raw, entry: "comment" })
+      blocks.push({ kind: "entry", line: number, span: 1, text: raw, entry: "comment" })
       if (/^\s*end comment\b/.test(raw)) inComment = false
       continue
     }
@@ -112,13 +119,13 @@ export const group = (lines: ReadonlyArray<Line>): ReadonlyArray<Block> => {
       case "comment":
         flushTxn()
         flushDirective()
-        blocks.push({ kind: "entry", line: number, text: raw, entry: "comment" })
+        blocks.push({ kind: "entry", line: number, span: 1, text: raw, entry: "comment" })
         continue
       case "blockOpen":
         flushTxn()
         flushDirective()
         inComment = true
-        blocks.push({ kind: "entry", line: number, text: raw, entry: "comment" })
+        blocks.push({ kind: "entry", line: number, span: 1, text: raw, entry: "comment" })
         continue
       case "directive":
         flushTxn()
@@ -130,27 +137,25 @@ export const group = (lines: ReadonlyArray<Line>): ReadonlyArray<Block> => {
         flushDirective()
         // The transaction's comment and tags START as the header's own, and an
         // indented comment below joins them — which is what makes a comment
-        // under the header part of the transaction rather than a lost line.
-        txn = {
-          line: number,
-          header: line.header,
-          comment: line.header.comment,
-          tags: [...line.header.tags],
-          postings: [],
-          refused: [],
-        }
+        // under the header part of the transaction rather than a lost line. The
+        // header is REPLACED on each join, because a Header's fields are
+        // readonly and there is exactly one shape downstream.
+        txn = { line: number, header: line.header, postings: [], refused: [] }
         continue
       case "headerRefused":
         flushTxn()
         flushDirective()
-        blocks.push({ kind: "entry", line: number, text: raw, entry: "unknown" })
+        blocks.push({ kind: "entry", line: number, span: 1, text: raw, entry: "unknown" })
         continue
       case "indentedComment": {
         const comment = raw.trim().replace(/^[;#]+\s*/, "").trim()
         if (txn !== null) {
           if (txn.postings.length === 0) {
-            txn.comment = joined(txn.comment, comment)
-            txn.tags.push(...tagsIn(comment))
+            txn.header = {
+              ...txn.header,
+              comment: joined(txn.header.comment, comment),
+              tags: [...txn.header.tags, ...tagsIn(comment)],
+            }
           } else {
             const last = txn.postings[txn.postings.length - 1] as Stated
             txn.postings[txn.postings.length - 1] = {
@@ -165,7 +170,7 @@ export const group = (lines: ReadonlyArray<Line>): ReadonlyArray<Block> => {
         } else if (directive !== null) {
           directive.lines.push(raw)
         } else {
-          blocks.push({ kind: "entry", line: number, text: raw, entry: "comment" })
+          blocks.push({ kind: "entry", line: number, span: 1, text: raw, entry: "comment" })
         }
         continue
       }
@@ -177,7 +182,7 @@ export const group = (lines: ReadonlyArray<Line>): ReadonlyArray<Block> => {
         } else if (directive !== null) {
           directive.lines.push(raw)
         } else {
-          blocks.push({ kind: "entry", line: number, text: raw, entry: "unknown" })
+          blocks.push({ kind: "entry", line: number, span: 1, text: raw, entry: "unknown" })
         }
         continue
     }

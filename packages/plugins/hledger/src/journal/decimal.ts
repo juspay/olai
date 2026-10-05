@@ -129,11 +129,17 @@ export const parse = (raw: string): Decimal | null => {
   }
   let mark = -1
   if (dots.length > 0 && commas.length > 0) mark = Math.max(dots[dots.length - 1] as number, commas[commas.length - 1] as number)
-  else if (dots.length > 0) mark = dots[dots.length - 1] as number
+  else if (dots.length === 1) mark = dots[0] as number
   else if (commas.length === 1) {
     const only = commas[0] as number
     if (digits.length - only - 1 <= 2) mark = only
   }
+  // MORE THAN ONE MARK AND NO OTHER KIND IS GROUPING, not a fraction: `1.000.000`
+  // is a million, which is what the {@link GROUPED} comment above promises and
+  // what the comma rule already did. A SINGLE mark stays the decimal one —
+  // hledger's default, and the ambiguity a `commodity`/`decimal-mark` directive
+  // would settle (this reader does not read directives, so `1.000` is one and
+  // three thousandths, the way hledger without such a directive reads it).
 
   // `.50` has no integer part at all, which is zero rather than a refusal.
   const whole = (mark >= 0 ? digits.slice(0, mark) : digits) || "0"

@@ -20,6 +20,12 @@ const entries = (text: string): ReadonlyArray<ReadonlyArray<unknown>> =>
     .filter((one): one is Extract<Block, { kind: "entry" }> => one.kind === "entry")
     .map((one) => [one.line, one.entry])
 
+/** An entry block as `[line, span]`, which is what the Raw view marks. */
+const spans = (text: string): ReadonlyArray<ReadonlyArray<unknown>> =>
+  blocks(text)
+    .filter((one): one is Extract<Block, { kind: "entry" }> => one.kind === "entry")
+    .map((one) => [one.line, one.span])
+
 // AN INDENTED COMMENT BELONGS TO WHAT IT SITS UNDER: the transaction before its
 // postings, or the posting above it. It is never a posting to an account named
 // after the comment. (from `hledger.test.ts`'s "an indented comment joins the
@@ -32,8 +38,10 @@ test("an indented comment joins the transaction or the posting above it", () => 
       "    ; paid by card\n" +
       "    assets:cash",
   )
-  expect(one.comment).toBe("the bank's own words: settled")
-  expect(one.tags).toEqual([{ key: "words", value: "settled" }])
+  // The header carries the comment the indented line joined, so there is one
+  // shape downstream rather than a header plus an override.
+  expect(one.header.comment).toBe("the bank's own words: settled")
+  expect(one.header.tags).toEqual([{ key: "words", value: "settled" }])
   expect(one.postings.map((stated) => stated.posting.account)).toEqual(["expenses:food", "assets:cash"])
   expect(one.postings[0]!.posting.comment).toBe("paid by card")
   expect(one.postings[1]!.posting.comment).toBeNull()
@@ -78,6 +86,9 @@ test("what is not a transaction or a posting is kept raw, in line order", () => 
     .map((one) => one.text)
   expect(kept[1]).toBe("account assets:bank\n  ; a subdirective comment\n  note the bank's own note")
   expect(kept[2]).toBe("P 2026-01-01 $ 1.5 EUR")
+  // THE SPAN is what the Raw view marks: the directive covers its own line and
+  // the two that continued it, and every single-line entry covers one.
+  expect(spans(text)).toEqual([[1, 1], [2, 3], [5, 1], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1]])
   expect(blocks(text).filter((one) => one.kind === "transaction")).toEqual([])
 })
 

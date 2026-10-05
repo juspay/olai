@@ -4,7 +4,7 @@ export const TESTID = {
   hledgerHeader: "hledger-header",
   hledgerTab: "hledger-tab",
   hledgerTransactions: "hledger-transactions",
-  hhledgerBalances: "hledger-balances",
+  hledgerBalances: "hledger-balances",
   hledgerRaw: "hledger-raw",
   hledgerSaid: "hledger-said",
   /** The rows inside the three views: one transaction, its note and its
@@ -13,15 +13,15 @@ export const TESTID = {
    *  here rather than spelled at each use for the reason the containers are:
    *  a rename is a type error in the package that renamed it. */
   hledgerTxn: "hledger-txn",
-  hhledgerTxnNote: "hledger-txn-note",
-  hhledgerTxnComment: "hledger-txn-comment",
+  hledgerTxnNote: "hledger-txn-note",
+  hledgerTxnComment: "hledger-txn-comment",
   hledgerTag: "hledger-tag",
   hledgerPosting: "hledger-posting",
-  hhledgerPostingComment: "hledger-posting-comment",
+  hledgerPostingComment: "hledger-posting-comment",
   hledgerBalance: "hledger-balance",
-  hhledgerBalanceAccount: "hledger-balance-account",
-  hhledgerBalanceAmount: "hledger-balance-amount",
-  hhledgerRawLine: "hledger-raw-line",
+  hledgerBalanceAccount: "hledger-balance-account",
+  hledgerBalanceAmount: "hledger-balance-amount",
+  hledgerRawLine: "hledger-raw-line",
 } as const
 export type TestId = (typeof TESTID)[keyof typeof TESTID]
 import type {} from "@olai/ui-primitives/testids.ts"

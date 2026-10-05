@@ -41,7 +41,7 @@
  * computed outside it is a snapshot. Every derived value below is therefore a
  * function, called where it is drawn.
  */
-import { Index, Show, createMemo, createUniqueId } from "solid-js"
+import { Index, Show, createMemo } from "solid-js"
 
 import {
   HLEDGER_CELL,
@@ -228,7 +228,7 @@ function TransactionRow(props: { readonly transaction: Transaction }) {
         <span class="text-body text-ink">{one().description}</span>
         <Show when={one().note ?? undefined}>
           {(note) => (
-            <span class="text-label text-muted italic" data-testid={TESTID.hhledgerTxnNote}>
+            <span class="text-label text-muted italic" data-testid={TESTID.hledgerTxnNote}>
               | {note()}
             </span>
           )}
@@ -239,7 +239,7 @@ function TransactionRow(props: { readonly transaction: Transaction }) {
       </ul>
       <Show when={one().comment ?? undefined}>
         {(comment) => (
-          <span class="mt-1 block text-label text-muted italic" data-testid={TESTID.hhledgerTxnComment}>
+          <span class="mt-1 block text-label text-muted italic" data-testid={TESTID.hledgerTxnComment}>
             {comment()}
           </span>
         )}
@@ -289,7 +289,7 @@ function PostingRow(props: { readonly posting: Posting }) {
       </Show>
       <Show when={props.posting.comment ?? undefined}>
         {(comment) => (
-          <span class="text-muted italic" data-testid={TESTID.hhledgerPostingComment}>
+          <span class="text-muted italic" data-testid={TESTID.hledgerPostingComment}>
             {comment()}
           </span>
         )}
@@ -338,7 +338,7 @@ export function BalancesPanel(props: {
       aria-labelledby={tabId(props.scope, "balances")}
       tabindex={0}
       class="flex flex-col"
-      data-testid={TESTID.hhledgerBalances}
+      data-testid={TESTID.hledgerBalances}
     >
       <Index each={props.balances.accounts}>
         {(account) => {
@@ -353,14 +353,14 @@ export function BalancesPanel(props: {
               <span
                 class={depth() === 0 ? "text-body text-ink" : "text-label text-muted"}
                 style={{ "padding-left": `${depth() * 1.25}rem` }}
-                data-testid={TESTID.hhledgerBalanceAccount}
+                data-testid={TESTID.hledgerBalanceAccount}
               >
                 {account().slice(account().lastIndexOf(":") + 1)}
               </span>
               <span class="ml-auto flex flex-wrap justify-end gap-x-4 font-mono text-label tabular-nums">
                 <Index each={props.balances.of.get(account()) ?? []}>
                   {(amount) => (
-                    <span data-testid={TESTID.hhledgerBalanceAmount} data-commodity={amount().commodity}>
+                    <span data-testid={TESTID.hledgerBalanceAmount} data-commodity={amount().commodity}>
                       {amountText(amount())}
                     </span>
                   )}
@@ -403,9 +403,11 @@ export function RawPanel(props: {
     props.text.split("\n", props.read.lines + 1).slice(0, props.read.lines))
   const kinds = createMemo((): ReadonlyMap<number, string> => {
     const held = new Map<number, string>()
+    // The SPAN the fold recorded, not the line count of the text: the text is
+    // cut at the cell bound, so a cut directive would lose the marks of the
+    // lines that continued it.
     for (const entry of props.read.entries) {
-      const span = entry.text.split("\n").length
-      for (let at = 0; at < span; at++) held.set(entry.line + at, entry.kind)
+      for (let at = 0; at < entry.span; at++) held.set(entry.line + at, entry.kind)
     }
     return held
   })
@@ -422,7 +424,7 @@ export function RawPanel(props: {
         {(line, at) => (
           <>
             <Show when={at > 0}>{"\n"}</Show>
-            <span data-testid={TESTID.hhledgerRawLine} data-line={at + 1} data-entry={kinds().get(at + 1)}>
+            <span data-testid={TESTID.hledgerRawLine} data-line={at + 1} data-entry={kinds().get(at + 1)}>
               {line().slice(0, HLEDGER_CELL)}
             </span>
           </>

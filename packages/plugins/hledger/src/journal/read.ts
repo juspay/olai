@@ -15,8 +15,9 @@
  * ({@link ./group.ts}), a header and a posting are read context-free
  * ({@link ./header.ts}, {@link ./posting.ts}), an omission is inferred
  * ({@link ./infer.ts}), the movements are summed ({@link ./balances.ts}), and
- * the bounds cut the finished records ({@link ./bounds.ts}). This file is only
- * the composition: it is the one place that knows the order.
+ * the bounds bound the split and cut each field where it is built
+ * ({@link ./bounds.ts}). This file is only the composition: it is the one place
+ * that knows the order.
  *
  * ## It is a READER and not an implementation of hledger
  *
@@ -59,10 +60,16 @@
  *
  * ## THE BOUND IS ON THE READING, not a slice taken afterwards
  *
- * The scan STOPS paying for what it will not draw: past the transaction bound, a
- * transaction's postings are consumed and discarded and only the fact that there
- * was another header is remembered. What a stopped scan can say is that there
- * WAS more — never how much, because a total is a number only a full read knows.
+ * The LINE bound bounds the SPLIT and the walk: `split` stops at the bound and
+ * the lines past it are never classified, so a file of a hundred megabytes
+ * costs a page of strings rather than a string per line. The TRANSACTION bound
+ * keeps the first {@link HLEDGER_TRANSACTIONS} and remembers that there was
+ * another header — and the postings of a dropped transaction are still read,
+ * because a line that is not a posting is kept as raw text whatever the bound
+ * says ({@link ./group.ts} is bound-free: the bound is a reading policy, and a
+ * fold that knew it would be a second place deciding what "kept" means). What a
+ * stopped read can say is that there WAS more, never how much: a total is a
+ * number only a full read knows.
  *
  * ## It never throws
  *
@@ -72,30 +79,26 @@
  */
 import { type Amount } from "./amount.ts"
 import { compareAccounts, type Movement, rollup } from "./balances.ts"
-import { boundedBy, type Bounds, clipFields } from "./bounds.ts"
+import { boundedBy, type Bounds, clip } from "./bounds.ts"
 import { type EntryKind, group } from "./group.ts"
-import { type Status } from "./header.ts"
+import { type Header } from "./header.ts"
 import { infer } from "./infer.ts"
 import { classify, type Line } from "./line.ts"
 import { type Posting } from "./posting.ts"
 import { type Tag } from "./tags.ts"
 
-/** One transaction: the header's facts, its comment and tags, and its
- *  postings. `date` is the header's own spelling normalized to `YYYY-MM-DD` —
- *  a header whose spelling named no real day, or whose secondary date did not,
- *  is not a transaction at all and is kept as a raw entry. */
-export interface Transaction {
-  readonly date: string
-  readonly secondaryDate: string | null
-  readonly status: Status
-  readonly code: string | null
-  readonly description: string
-  /** The description up to `|`, or the whole description when the file wrote
-   *  none — the part hledger calls the payee. */
-  readonly payee: string
-  readonly note: string | null
-  readonly comment: string | null
-  readonly tags: ReadonlyArray<Tag>
+/**
+ * One transaction: the header the fold finished (its comment and tags already
+ * joined by whatever indented under it), and its postings.
+ *
+ * A HEADER AND ITS POSTINGS, rather than a record that re-declares every field
+ * a header has: the two were the same eight fields twice, and a field added to
+ * one would have had to be added to the other by whoever remembered. `date` is
+ * the header's own spelling normalized to `YYYY-MM-DD` — a header whose spelling
+ * named no real day, or whose secondary date did not, is not a transaction at
+ * all and is kept as a raw entry.
+ */
+export type Transaction = Header & {
   readonly postings: ReadonlyArray<Posting>
 }
 
@@ -107,6 +110,10 @@ export interface Transaction {
  */
 export interface Entry {
   readonly line: number
+  /** How many source lines it covers ({@link ./group.ts}), which is what the
+   *  Raw view marks — not the line count of `text`, which the cell cut can
+   *  shorten. */
+  readonly span: number
   readonly text: string
   readonly kind: EntryKind
 }
@@ -142,18 +149,39 @@ export interface Journal {
 /** A journal, read — bounded, exact and total. */
 export const readJournal = (text: string, bounds?: Partial<Bounds>): Journal => {
   const limits = boundedBy(bounds)
-  const rawLines = text.split("\n")
-  // A trailing newline is the end of the last line, not a line of its own; a
-  // `\r\n` file is one ending too.
+  // THE SPLIT IS BOUNDED TOO, and the one extra entry is how "was there more"
+  // is answered without counting the rest of the file.
+  const rawLines = text.split("\n", limits.lines + 1)
+  const hitLimit = rawLines.length === limits.lines + 1
+  // A trailing newline is the end of the last line, not a line of its own: a
+  // file that ends with one and holds exactly `lines` lines did NOT run past the
+  // bound — the extra entry the limit returned is that empty last line.
+  const ended = hitLimit && rawLines[limits.lines] === "" && text.endsWith("\n")
+  const truncated = hitLimit && !ended
   const logical = text === "" ? 0 : text.endsWith("\n") ? rawLines.length - 1 : rawLines.length
   const read = Math.min(logical, limits.lines)
-  const truncated = logical > limits.lines
 
   const lines: Array<Line> = []
   for (let at = 0; at < read; at++) {
     const raw = rawLines[at] as string
     lines.push(classify(raw.endsWith("\r") ? raw.slice(0, -1) : raw))
   }
+
+  // THE CUT IS APPLIED WHERE A RECORD IS BUILT. The account a movement is summed
+  // under is the SAME cut string the page draws, so the Balances tree and the
+  // Transactions rows cannot disagree about how long an account is — and there
+  // is no walk over a finished journal that would have had to remember every map
+  // key as well as every field.
+  const witness = { cut: false }
+  const cut = (field: string): string => clip(field, limits.cell, witness)
+  const cutTags = (ones: ReadonlyArray<Tag>): ReadonlyArray<Tag> =>
+    ones.map((one) => ({ key: cut(one.key), value: one.value === null ? null : cut(one.value) }))
+  const cutPosting = (one: Posting): Posting => ({
+    ...one,
+    account: cut(one.account),
+    comment: one.comment === null ? null : cut(one.comment),
+    tags: cutTags(one.tags),
+  })
 
   const transactions: Array<Transaction> = []
   const entries: Array<Entry> = []
@@ -162,19 +190,29 @@ export const readJournal = (text: string, bounds?: Partial<Bounds>): Journal => 
 
   for (const block of group(lines)) {
     if (block.kind === "entry") {
-      entries.push({ line: block.line, text: block.text, kind: block.entry })
+      entries.push({ line: block.line, span: block.span, text: cut(block.text), kind: block.entry })
       continue
     }
     // A refused posting is a line the transaction does not hold, so it is kept
     // as raw text — even when the transaction itself is past the bound and is
     // dropped, because the line is still part of what was read.
-    for (const bad of block.refused) entries.push({ line: bad.line, text: bad.text, kind: "unknown" })
+    for (const bad of block.refused) entries.push({ line: bad.line, span: 1, text: cut(bad.text), kind: "unknown" })
     if (transactions.length >= limits.transactions) {
       moreTransactions = true
       continue
     }
-    const postings = infer(block.postings, block.refused.length > 0)
-    transactions.push({ ...block.header, comment: block.comment, tags: block.tags, postings })
+    const header = block.header
+    const postings = infer(block.postings, block.refused.length > 0).map(cutPosting)
+    transactions.push({
+      ...header,
+      code: header.code === null ? null : cut(header.code),
+      description: cut(header.description),
+      payee: cut(header.payee),
+      note: header.note === null ? null : cut(header.note),
+      comment: header.comment === null ? null : cut(header.comment),
+      tags: cutTags(header.tags),
+      postings,
+    })
     for (const posting of postings) {
       const amount = posting.amount
       if (amount === null) continue
@@ -192,16 +230,13 @@ export const readJournal = (text: string, bounds?: Partial<Bounds>): Journal => 
     if (amounts.length > 0) of.set(account, amounts)
   }
 
-  return clipFields(
-    {
-      transactions,
-      entries,
-      balances: { accounts: [...rolled.keys()].sort(compareAccounts), of },
-      moreTransactions,
-      truncated,
-      longCells: false,
-      lines: read,
-    },
-    limits.cell,
-  )
+  return {
+    transactions,
+    entries,
+    balances: { accounts: [...rolled.keys()].sort(compareAccounts), of },
+    moreTransactions,
+    truncated,
+    longCells: witness.cut,
+    lines: read,
+  }
 }

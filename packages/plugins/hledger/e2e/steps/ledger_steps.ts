@@ -65,8 +65,15 @@ import {
 // this ROW's, kept beside these steps rather than in the harness's corpus.
 // The harness knows no ledger kind (`support/world.ts` has no `ROW_TESTID`
 // entry for it), so a scenario's first move is to put the fixtures it reads
-// into the copy it owns, through `world.writeServed` — the one door that
-// refuses to write anything but a `@scratch:` scenario's own tree.
+// into the copy it owns — through the world's own `scratch()`, which is the
+// guard that refuses anything but a `@scratch:` scenario's tree.
+//
+// THE BYTES ARE EXACT. `world.writeServed` appends a newline when the text has
+// none (`support/world.ts`), which is right for the outlines and documents its
+// other callers write and wrong for one of these: `empty.journal` is ZERO
+// BYTES, and a scenario that said "this file is empty" about a file with a
+// newline in it would be asserting the sentence and not the file. So the
+// fixture is written as it is on disk, byte for byte, through the same guard.
 
 /** The fixture files, beside this step file — one home for the ledger's own
  *  bytes, and a relative path INTO the plugin so the harness's import fence
@@ -88,10 +95,9 @@ const HLEDGER_FIXTURES = [
 
 Given("the ledger fixtures are served", function (this: World) {
   for (const name of HLEDGER_FIXTURES) {
-    this.writeServed(
-      `money/${name}`,
-      fs.readFileSync(new URL(name, FIXTURES), "utf8"),
-    );
+    const target = path.join(this.scratch(), "money", name);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, fs.readFileSync(new URL(name, FIXTURES)));
   }
 });
 
