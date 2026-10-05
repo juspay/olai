@@ -73,6 +73,69 @@ Feature: A ledger file that moves, and one bigger than a page
     And the ledger balance for "assets:bank:checking" is "$1150.00"
     And there should be no page errors
 
+  # THE ROWS BEHIND A REVISION ARE POSITIONS, and a position keeps its DOM. The
+  # balances tree is an `<Index>`, so the rewrite reuses the row at the same
+  # index rather than re-making it — which is the whole of what makes the page
+  # hold still, and also the whole of what a value snapshotted at build time
+  # would get wrong. Four accounts before and four after, and index 3 is what
+  # moves: `expenses:food` at depth 1 becomes `expenses:food:snacks` at depth 2.
+  # A `data-depth` computed once when the row was built reads 1 here and fails;
+  # only a depth derived per read says 2.
+  @scratch:good
+  Scenario: Rewriting the ledger under Balances moves a row's depth
+    Given I rewrite "money/odd.journal" as:
+      """
+      2024-01-02 * Food
+          expenses:food        $10.00
+          assets:cash         -$10.00
+      """
+    When I open the address "/money/odd.journal"
+    And I switch the ledger to the "balances" view
+    # assets, assets:cash, expenses, expenses:food — the fourth row, one level in.
+    Then the ledger balance for "expenses:food" sits at depth 1
+    # THE SAME FOUR ROWS, the same index deeper: assets, expenses,
+    # expenses:food, expenses:food:snacks. Waiting on the new account name is
+    # the wait for the revision — the row cannot carry `expenses:food:snacks`
+    # before the new parse is the one on screen.
+    When I rewrite "money/odd.journal" as:
+      """
+      2024-01-02 * Food
+          expenses:food:snacks   $10.00
+          assets                -$10.00
+      """
+    Then the ledger balance for "expenses:food:snacks" sits at depth 2
+    And there should be no page errors
+
+  # AND A ROW'S VALUE IS A POSITION TOO. The tags under transaction 1 are an
+  # `<Index>`, so the first tag's span is reused: with `trip: berlin` becoming
+  # `trip: munich` the key stays `trip` and only the value moves. A tag read
+  # into a local when the span was built keeps `berlin` and fails; only a value
+  # read where it is drawn follows the file. The rewrite adds a transaction, and
+  # that count is the wait — two rows only after the new parse is on screen.
+  @scratch:good
+  Scenario: Rewriting the ledger under Transactions moves a tag's value
+    Given I rewrite "money/odd.journal" as:
+      """
+      2024-01-02 * Groceries  ; trip:berlin, paid:card
+          expenses:food        $10.00
+          assets:cash         -$10.00
+      """
+    When I open the address "/money/odd.journal"
+    Then the ledger transaction 1 carries the tags "trip: berlin, paid: card"
+    When I rewrite "money/odd.journal" as:
+      """
+      2024-01-02 * Groceries  ; trip:munich, paid:card
+          expenses:food        $10.00
+          assets:cash         -$10.00
+
+      2024-01-03 * Coffee
+          expenses:coffee       $3.00
+          assets:cash          -$3.00
+      """
+    Then the ledger draws 2 transactions
+    And the ledger transaction 1 carries the tags "trip: munich, paid: card"
+    And there should be no page errors
+
   @scratch:good
   Scenario: A removed ledger that comes back draws its page again
     When I open the address "/money/household.journal"

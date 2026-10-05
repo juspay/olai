@@ -243,6 +243,24 @@ Then(
   },
 );
 
+// HOW LONG THE DRAWN DESCRIPTION IS — the cell bound read off the DRAWING and
+// not only off the sentence: `the ledger page says "Long lines are cut at 2,000
+// characters."` is true of a page that then drew two thousand five hundred and
+// no eye counts them. `data-description` is the same fact the sentence is
+// about, so the two can be asserted against each other.
+Then(
+  "the ledger transaction {int} description is {int} characters long",
+  async function (this: World, at: number, characters: number) {
+    const description = await (await transaction(this, at)).getAttribute("data-description");
+    assert.ok(description !== null, `transaction ${String(at)} has no description to measure`);
+    assert.strictEqual(
+      description.length,
+      characters,
+      `the drawn length of transaction ${String(at)}'s description`,
+    );
+  },
+);
+
 // ONE POSTING, THREE FACTS, in one step because they are one row: `account |
 // amount | inferred`, the account ending at two spaces. A STATED amount keeps
 // the file's own spelling (no thousands grouping), while a COMPUTED or INFERRED

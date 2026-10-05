@@ -28,6 +28,6 @@ P 2024-01-01 EUR $1.10
     assets:bank:savings        -40.00 EUR
     (budget:travel)            -40.00 EUR
 
-2024-03-01 * Dinner | with Sam  ; paid:card
+2024-03-31 * Dinner | with Sam  ; paid:card
     expenses:dining out        $60.00
     assets:bank:checking      -$60.00

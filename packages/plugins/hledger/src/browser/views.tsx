@@ -8,12 +8,15 @@
  * nothing else. A view that could reach back into the body or the router would
  * be a view that had to be re-read when either moved.
  *
- * THE STRIP IS A TABS PATTERN, properly: `role="tablist"`/`role="tab"` with
- * `aria-selected`, `aria-controls` pointing at the panel each tab owns, a
- * `role="tabpanel"` for each, and the arrow keys moving the selection — which
- * is what makes it a view strip rather than three buttons. `@olai/ui-primitives`'
- * `Segmented` is a settings control (`aria-pressed`, the preference testids) and
- * means "which of these is chosen"; this means "which panel is showing".
+ * THE STRIP IS A TABS PATTERN, properly: `role="tablist"`/`role="tab"`
+ * with `aria-selected`, `aria-controls` pointing at the panel each tab owns, a
+ * `role="tabpanel"` for each, and the arrow keys moving the selection and the
+ * focus — which is what makes it a view strip rather than three buttons.
+ * `@olai/ui-primitives`' `Segmented` is a settings control (`aria-pressed`, the
+ * preference testids) and means "which of these is chosen"; this means "which
+ * panel is showing". The ids are minted from the PAGE's own unique id, because
+ * two ledger pages can be mounted at once (a split pane, a kept-alive tab) and
+ * a fixed id would name two elements.
  *
  * EVERY ROW THAT REPEATS CARRIES ITS IDENTITY IN `data-*`, not only in its
  * text: `data-account`, `data-amount`, `data-status`, `data-commodity` and the
@@ -29,12 +32,20 @@
  * the DOM a reader was looking at (and any browser state inside it). This page
  * draws a FILE, whose rows are positions in that file, and a position is what
  * `<Index>` keys.
+ *
+ * WHICH MAKES EVERY READ INSIDE A ROW A READ OF AN ACCESSOR. `<Index>`'s child
+ * function runs once per POSITION, so a value taken out of it once — a
+ * `const depth = …`, a `const value = props.tag.value` — is the value that
+ * position had when the row was built and never the one it has now. What is
+ * read inside the markup is a live read (the prop itself is a getter); what is
+ * computed outside it is a snapshot. Every derived value below is therefore a
+ * function, called where it is drawn.
  */
-import { Index, Show } from "solid-js"
+import { Index, Show, createMemo, createUniqueId } from "solid-js"
 
 import {
-  HLEDGER_CELL,
   hledgerAmountText,
+  HLEDGER_CELL,
   type HledgerBalances,
   type HledgerJournal,
   type HledgerPosting,
@@ -54,8 +65,8 @@ const VIEWS: ReadonlyArray<{ readonly value: View; readonly label: string }> = [
   { value: "raw", label: "Raw" },
 ]
 
-const tabId = (view: View): string => `hledger-tab-${view}`
-const panelId = (view: View): string => `hledger-panel-${view}`
+const tabId = (scope: string, view: View): string => `${scope}-tab-${view}`
+const panelId = (scope: string, view: View): string => `${scope}-panel-${view}`
 
 /** A count and the noun it counts, in the number it is — `1 transaction`. */
 const counted = (count: number, one: string, many: string): string =>
@@ -98,6 +109,7 @@ const dateRange = (transactions: ReadonlyArray<HledgerTransaction>): string | nu
 /** The page's view strip — a tablist whose arrow keys move the selection, as a
  *  tabs pattern's do. */
 export function TabStrip(props: {
+  readonly scope: string
   readonly view: View
   readonly onPick: (view: View) => void
 }) {
@@ -112,8 +124,7 @@ export function TabStrip(props: {
   /** Select and focus a tab by offset, wrapping — what Left/Right do. */
   const step = (from: View, by: number): void => {
     const at = VIEWS.findIndex((one) => one.value === from)
-    const next = VIEWS[(at + by + VIEWS.length) % VIEWS.length]
-    go(next?.value)
+    go(VIEWS[(at + by + VIEWS.length) % VIEWS.length]?.value)
   }
   const onKey = (event: KeyboardEvent): void => {
     // The event's own target, narrowed rather than asserted: the handler is on
@@ -138,8 +149,8 @@ export function TabStrip(props: {
           <button
             type="button"
             role="tab"
-            id={tabId(choice().value)}
-            aria-controls={panelId(choice().value)}
+            id={tabId(props.scope, choice().value)}
+            aria-controls={panelId(props.scope, choice().value)}
             aria-selected={props.view === choice().value ? "true" : "false"}
             // Roving tabindex: the strip is ONE stop and the arrows move within
             // it, which is the tabs pattern and not three separate stops.
@@ -166,13 +177,14 @@ export function TabStrip(props: {
 
 /** Every transaction, in file order — the journal's main reading. */
 export function TransactionsPanel(props: {
+  readonly scope: string
   readonly transactions: ReadonlyArray<HledgerTransaction>
 }) {
   return (
     <div
       role="tabpanel"
-      id={panelId("transactions")}
-      aria-labelledby={tabId("transactions")}
+      id={panelId(props.scope, "transactions")}
+      aria-labelledby={tabId(props.scope, "transactions")}
       tabindex={0}
       class="flex flex-col gap-6"
       data-testid={TESTID.hledgerTransactions}
@@ -245,7 +257,8 @@ function Transaction(props: { readonly transaction: HledgerTransaction }) {
 function Posting(props: { readonly posting: HledgerPosting }) {
   // One derivation, read twice (the `data-amount` fact and the amount drawn):
   // the format's own spelling of an amount is the one thing here the markup and
-  // the attribute may not disagree about.
+  // the attribute may not disagree about. A function rather than a value, so a
+  // revision that changes the amount moves both.
   const amount = (): string =>
     props.posting.amount === null ? "" : hledgerAmountText(props.posting.amount)
   return (
@@ -285,12 +298,13 @@ function Posting(props: { readonly posting: HledgerPosting }) {
   )
 }
 
-/** One tag, `key: value` — the shape a reader copies. */
+/** One tag, `key: value` — the shape a reader copies. Read inside the markup
+ *  rather than into a local, because a live edit changes the value under a
+ *  position `<Index>` keeps. */
 function Tag(props: { readonly tag: HledgerTag }) {
-  const value = props.tag.value
   return (
     <span class="font-mono text-label text-muted" data-testid={TESTID.hledgerTag}>
-      {value === null ? props.tag.key : `${props.tag.key}: ${value}`}
+      {props.tag.value === null ? props.tag.key : `${props.tag.key}: ${props.tag.value}`}
     </span>
   )
 }
@@ -304,36 +318,40 @@ function Tag(props: { readonly tag: HledgerTag }) {
  * their children and children contiguous — so this draws one row per name, at
  * `depth` columns in, rather than reassembling a nesting the order already
  * states. `data-depth` says the same thing as the padding for a reader that is
- * not an eye.
+ * not an eye — and it is DERIVED per row on every read, because an account
+ * inserted above another moves the depth of everything below it.
  *
  * A ROW IS DRAWN EVEN WHEN ITS TOTAL IS EMPTY, because the account was NAMED in
  * the file and a reader browsing their chart of accounts wants to see it — a
  * parent with children nets to zero all the time, and the children below it are
  * its balance. The format's map simply has no entry to draw for it.
  */
-export function BalancesPanel(props: { readonly balances: HledgerBalances }) {
+export function BalancesPanel(props: {
+  readonly scope: string
+  readonly balances: HledgerBalances
+}) {
   return (
     <div
       role="tabpanel"
-      id={panelId("balances")}
-      aria-labelledby={tabId("balances")}
+      id={panelId(props.scope, "balances")}
+      aria-labelledby={tabId(props.scope, "balances")}
       tabindex={0}
       class="flex flex-col"
       data-testid={TESTID.hledgerBalances}
     >
       <Index each={props.balances.accounts}>
         {(account) => {
-          const depth = account().split(":").length - 1
+          const depth = (): number => account().split(":").length - 1
           return (
             <div
               class="flex flex-wrap items-baseline gap-x-4 border-b border-rule py-1"
               data-testid={TESTID.hledgerBalance}
               data-account={account()}
-              data-depth={depth}
+              data-depth={depth()}
             >
               <span
-                class={depth === 0 ? "text-body text-ink" : "text-label text-muted"}
-                style={{ "padding-left": `${depth * 1.25}rem` }}
+                class={depth() === 0 ? "text-body text-ink" : "text-label text-muted"}
+                style={{ "padding-left": `${depth() * 1.25}rem` }}
                 data-testid={TESTID.hledgerBalanceAccount}
               >
                 {account().slice(account().lastIndexOf(":") + 1)}
@@ -366,22 +384,35 @@ export function BalancesPanel(props: { readonly balances: HledgerBalances }) {
  * kept as raw text says WHICH KIND it is in `data-entry`
  * (`directive`/`comment`/`unknown`), which is the one thing typed about a line
  * that is not a transaction or a posting and the reason the format keeps those
- * entries at all.
+ * entries at all — every line the entry SPANS carries it, not only the first,
+ * because a directive's sub-lines are that directive.
  *
- * `split("\n", lines + 1)` rather than a full split: the limit stops the scan,
- * so reading the first thousand lines of a huge file costs a thousand lines.
+ * The two derivations are MEMOS: the line list is one slice of the body, and
+ * the line → kind table is one walk of the entries. Read per rendered line
+ * instead, the table would be rebuilt once per line — O(lines × entries) at the
+ * bound, which is four hundred million operations for a page that draws twenty
+ * thousand rows.
  */
-export function RawPanel(props: { readonly text: string; readonly read: HledgerJournal }) {
-  const lines = (): ReadonlyArray<string> => props.text.split("\n", props.read.lines + 1).slice(0, props.read.lines)
-  // Line number → kind, built once per parse: the alternative is a scan of the
-  // entries per rendered line.
-  const kinds = (): ReadonlyMap<number, string> =>
-    new Map(props.read.entries.map((entry) => [entry.line, entry.kind]))
+export function RawPanel(props: {
+  readonly scope: string
+  readonly text: string
+  readonly read: HledgerJournal
+}) {
+  const lines = createMemo((): ReadonlyArray<string> =>
+    props.text.split("\n", props.read.lines + 1).slice(0, props.read.lines))
+  const kinds = createMemo((): ReadonlyMap<number, string> => {
+    const held = new Map<number, string>()
+    for (const entry of props.read.entries) {
+      const span = entry.text.split("\n").length
+      for (let at = 0; at < span; at++) held.set(entry.line + at, entry.kind)
+    }
+    return held
+  })
   return (
     <pre
       role="tabpanel"
-      id={panelId("raw")}
-      aria-labelledby={tabId("raw")}
+      id={panelId(props.scope, "raw")}
+      aria-labelledby={tabId(props.scope, "raw")}
       tabindex={0}
       class="m-0 overflow-x-auto whitespace-pre font-mono text-label"
       data-testid={TESTID.hledgerRaw}

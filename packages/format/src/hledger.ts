@@ -268,20 +268,18 @@ const GROUPED = /^(?:[0-9]+|[0-9]{1,3}(?:[.,][0-9]{3})+)$/
  */
 const scanNumber = (text: string): { readonly written: string; readonly rest: string } | null => {
   let at = 0
-  if (text.startsWith("-") || text.startsWith("+")) at++
-  const head = at
-  while (isDigit(text[at])) at++
-  if (at === head) return null
-  let written = text.slice(0, at)
+  // The sign rides along in `written`, because the caller is what decides what
+  // it means (a leading sign before a commodity, or the number's own).
+  let written = ""
+  if (text.startsWith("-") || text.startsWith("+")) {
+    written = text[0] as string
+    at = 1
+  }
   while (at < text.length) {
     const char = text[at] as string
-    if (char === "." || char === ",") {
+    if (isDigit(char) || char === "." || char === ",") {
       written += char
       at++
-      while (isDigit(text[at])) {
-        written += text[at]
-        at++
-      }
       continue
     }
     if (char === " ") {
@@ -293,7 +291,9 @@ const scanNumber = (text: string): { readonly written: string; readonly rest: st
     }
     break
   }
-  return { written, rest: text.slice(at) }
+  // SOMETHING WITH NO DIGIT IN IT IS NOT A NUMBER — a lone mark, or nothing —
+  // and a leading mark is allowed, because `.50` is how hledger writes half.
+  return /[0-9]/.test(written) ? { written, rest: text.slice(at) } : null
 }
 
 /**
@@ -339,7 +339,8 @@ const parseDecimal = (raw: string): Decimal | null => {
     if (text.length - only - 1 <= 2) mark = only
   }
 
-  const whole = mark >= 0 ? text.slice(0, mark) : text
+  // `.50` has no integer part at all, which is zero rather than a refusal.
+  const whole = (mark >= 0 ? text.slice(0, mark) : text) || "0"
   const fraction = mark >= 0 ? text.slice(mark + 1) : ""
   if (!GROUPED.test(whole)) return null
   if (!/^[0-9]*$/.test(fraction)) return null
@@ -396,7 +397,7 @@ const parseAmount = (raw: string): { readonly amount: HledgerAmount; readonly va
     const number = scanNumber(rest.trimStart())
     if (number === null || number.rest.trim() !== "") return null
     written = number.written
-  } else if (isDigit(text[0])) {
+  } else if (isDigit(text[0]) || text[0] === "." || text[0] === ",") {
     const number = scanNumber(text)
     if (number === null) return null
     written = number.written
@@ -444,11 +445,15 @@ const parseAmount = (raw: string): { readonly amount: HledgerAmount; readonly va
   }
 }
 
-/** How many days a month really has — so `2024-02-31` is not a day. */
-const daysIn = (year: number, month: number): number => {
-  if (month === 2) return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 29 : 28
-  return [31, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] as number
-}
+/** How many days a month really has — so `2024-02-31` is not a day, and a
+ *  31st is one in March and not in April. February is answered above rather
+ *  than by this table, but its slot is here so the index IS the month. */
+const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const
+
+const daysIn = (year: number, month: number): number =>
+  month === 2
+    ? (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 29 : 28
+    : (MONTH_DAYS[month - 1] as number)
 
 /** `YYYY-MM-DD` for a written day, or `null` when it names no real one. The
  *  three separators hledger accepts are all one reading here. */
@@ -742,7 +747,7 @@ const scan = (text: string, bounds: HledgerBounds): HledgerJournal => {
   /** The transaction being read, its postings as written, and whether it is
    *  still being KEPT — past the transaction bound the postings are consumed
    *  and dropped, so the file is walked once and the cap costs no second pass. */
-  let current: { txn: HledgerTransaction; postings: Array<Stated> } | null = null
+  let current: { txn: HledgerTransaction; postings: Array<Stated>; refused: boolean } | null = null
   let keeping = false
   let inComment = false
   /** The entry index of the directive an indented line would continue, or
@@ -765,10 +770,13 @@ const scan = (text: string, bounds: HledgerBounds): HledgerJournal => {
     // themselves and so do the balanced virtuals, while a `(…)` unbalanced
     // posting balances nothing. A transaction with a cost is never inferred
     // from — hledger balances it in the cost commodity and this reader does not
-    // convert — and a group infers only when exactly one amount is missing and
-    // every amount it does state is in one commodity.
+    // convert — and NEITHER IS ONE WITH A POSTING THIS READER REFUSED: a line
+    // that stated something unreadable is a movement the sum does not know
+    // about, so an inferred amount beside it would be arithmetic over a hole.
+    // A group infers only when exactly one amount is missing and every amount
+    // it does state is in one commodity.
     const inferred = new Map<number, { readonly value: Decimal; readonly commodity: string }>()
-    if (!held.postings.some((one) => one.cost)) {
+    if (!held.refused && !held.postings.some((one) => one.cost)) {
       for (const virtual of ["no", "balanced"] as const) {
         const group = held.postings.flatMap((one, at) => (one.posting.virtual === virtual ? [{ one, at }] : []))
         const known = group.filter(({ one }) => one.value !== null)
@@ -834,7 +842,7 @@ const scan = (text: string, bounds: HledgerBounds): HledgerJournal => {
         finish()
         keeping = transactions.length < bounds.transactions
         if (!keeping) moreTransactions = true
-        current = { txn: header, postings: [] }
+        current = { txn: header, postings: [], refused: false }
         continue
       }
       if (/^\s*comment\b/.test(raw)) {
@@ -858,7 +866,7 @@ const scan = (text: string, bounds: HledgerBounds): HledgerJournal => {
       const comment = content.replace(/^[;#]+\s*/, "").trim()
       if (current === null) {
         if (directive === null) keep({ line, text, kind: "comment" })
-        else continueEntry(entries, directive, content)
+        else continueEntry(entries, directive, text)
       } else if (current.postings.length === 0) {
         current.txn = {
           ...current.txn,
@@ -883,11 +891,14 @@ const scan = (text: string, bounds: HledgerBounds): HledgerJournal => {
 
     if (current === null) {
       if (directive === null) keep({ line, text, kind: "unknown" })
-      else continueEntry(entries, directive, content)
+      else continueEntry(entries, directive, text)
       continue
     }
     const stated = postingOf(raw, bounds, cut)
     if (stated === null) {
+      // The transaction keeps its other postings and loses its inference: what
+      // was refused is a movement nothing here can add up.
+      current.refused = true
       keep({ line, text, kind: "unknown" })
       continue
     }

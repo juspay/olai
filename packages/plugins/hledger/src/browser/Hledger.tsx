@@ -38,7 +38,7 @@
  */
 import { TESTID } from "olai-plugin-hledger/testids"
 import { hledgerJournal } from "@olai/format"
-import { createEffect, createSignal, onCleanup, createMemo, Show } from "solid-js"
+import { createEffect, createSignal, onCleanup, createMemo, createUniqueId, Show } from "solid-js"
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 
@@ -59,6 +59,9 @@ import {
 /** The file, and nothing else — ../browser.tsx’s page props, spelled here rather
  *  than imported from the page contribution that imports this component. */
 export function Hledger(props: { readonly file: string }) {
+  // ONE ID FOR THIS PAGE, so two ledger pages mounted at once (a split pane, a
+  // kept-alive tab) do not mint the same tab and panel ids.
+  const scope = createUniqueId()
   // THE BODY, asked for by the face that draws from it — the rule ../browser.tsx
   // states: a face asks the wire for what it needs, so what a kind costs this
   // tab is a fact about that kind's own component.
@@ -107,19 +110,19 @@ export function Hledger(props: { readonly file: string }) {
             >
               {headerLine(read())}
             </header>
-            <TabStrip view={view()} onPick={setView} />
+            <TabStrip scope={scope} view={view()} onPick={setView} />
             {/* One panel at a time, keyed on the view — the strip above is the
                 only thing that decides which. The raw view reads the SOURCE and
                 not the parse, so it draws even when the parse is empty but a
                 body arrived. */}
             <Show when={view() === "transactions"}>
-              <TransactionsPanel transactions={read().transactions} />
+              <TransactionsPanel scope={scope} transactions={read().transactions} />
             </Show>
             <Show when={view() === "balances"}>
-              <BalancesPanel balances={read().balances} />
+              <BalancesPanel scope={scope} balances={read().balances} />
             </Show>
             <Show when={view() === "raw"}>
-              <RawPanel text={served()?.text ?? ""} read={read()} />
+              <RawPanel scope={scope} text={served()?.text ?? ""} read={read()} />
             </Show>
             {/* WHAT THIS PAGE IS NOT SHOWING, once, under whichever panel is
                 drawn — through the one component that owns what a mood MEANS

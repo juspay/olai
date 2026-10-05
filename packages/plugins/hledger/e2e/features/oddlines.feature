@@ -112,6 +112,10 @@ Feature: A journal's odd lines, said rather than guessed at
     # A description was READ and shortened, which is a different fact from the
     # reading stopping — so it is its own sentence.
     And the ledger page says "Long lines are cut at 2,000 characters."
+    # …AND THE CUT IS IN THE DRAWING, not only in the sentence: the drawn
+    # description is exactly the bound, so a page that said "cut" over the
+    # whole two thousand five hundred characters would fail here.
+    And the ledger transaction 1 description is 2000 characters long
     And there should be no page errors
 
   @scratch:good
@@ -119,10 +123,21 @@ Feature: A journal's odd lines, said rather than guessed at
     When I open the address "/money/household.journal"
     And I switch the ledger to the "raw" view
     Then the ledger is showing the "raw" view
-    # A journal is opened to read, so the page's default is Transactions and a
-    # view is the page's own state — the next file starts there again.
-    When I open the address "/money/wallet.hledger"
+    # THE OTHER JOURNAL IS REACHED THE WAY A READER REACHES IT — a click on the
+    # sidebar's row, which is a route and not a reload. `I open the address`
+    # would `page.goto` a fresh document, and a fresh document resetting the
+    # view says nothing: it would pass even if the body were never keyed on the
+    # file and the view followed the reader to the next journal. The sentinel is
+    # planted after the last real load and before the click, so `the page has
+    # not reloaded` is about this navigation and nothing else.
+    When I expand the folder "money"
+    Given I mark the page
+    When I click the "hledger" row "money/wallet.hledger"
     Then the document open is "money/wallet.hledger"
+    And the address is "/money/wallet.hledger"
+    And the page has not reloaded
+    # A journal is opened to read, so the page's default is Transactions and a
+    # view is the page's own state — the next file starts there again, in place.
     And the ledger is showing the "transactions" view
     And there should be no page errors
 
@@ -143,6 +158,14 @@ Feature: A journal's odd lines, said rather than guessed at
     Then the ledger is showing the "raw" view
     And the ledger tab "raw" has focus
     When I press "Home"
+    Then the ledger is showing the "transactions" view
+    And the ledger tab "transactions" has focus
+    # …AND THE ENDS WRAP rather than stopping: Left on the FIRST and Right on
+    # the LAST are the two steps a clamp gets wrong and the modulo gets right.
+    When I press "ArrowLeft"
+    Then the ledger is showing the "raw" view
+    And the ledger tab "raw" has focus
+    When I press "ArrowRight"
     Then the ledger is showing the "transactions" view
     And the ledger tab "transactions" has focus
     And there should be no page errors

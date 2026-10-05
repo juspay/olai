@@ -67,6 +67,20 @@ test("a date in a comment is a comment", () => {
 
 // ── what is NOT a header ────────────────────────────────────────────────
 
+// THE CALENDAR, month by month: a 31st is a day in March and not in April, a
+// 29th is a day in a leap year and not in another, and December is not a month
+// without an end.
+test("a day is judged against the month it names", () => {
+  for (const day of ["2024-03-31", "2024-12-31", "2024-01-31", "2024-02-29", "2023-02-28"]) {
+    expect(hledgerJournal(`${day} x\n    a  $1\n    b\n`).transactions.map((one) => one.date), day).toEqual([day])
+  }
+  for (const day of ["2024-04-31", "2024-06-31", "2024-09-31", "2024-11-31", "2024-02-30", "2023-02-29", "2024-12-32", "2024-02-31", "2024-00-10", "2024-13-01"]) {
+    const journal = hledgerJournal(`${day} x\n    a  $1\n    b\n`)
+    expect(journal.transactions, day).toEqual([])
+    expect(journal.entries[0]?.kind, day).toBe("unknown")
+  }
+})
+
 // A date-shaped line whose day does not exist, a secondary date that does not,
 // and a date glued to a word are all lines this reader cannot make sense of —
 // kept as raw text rather than half-read as a transaction.
@@ -149,6 +163,14 @@ test("a posting that states something unreadable is kept as raw text", () => {
   }
   // The escape hatch is hledger's own: write the commodity quoted.
   expect(amountsOf('2026-01-05 x\n    a  5 "AAPL2"\n').map(hledgerAmountText)).toEqual(["5 AAPL2"])
+})
+
+// A LEADING DECIMAL MARK is how hledger writes a fraction of one, and it is a
+// number rather than something to refuse — with or without a commodity and a
+// space in front of it.
+test("a number may begin with its decimal mark", () => {
+  expect(amountsOf("2026-01-05 x\n    a  $.50\n    b  .50\n    c  ,5\n    d  $ .25\n").map(hledgerAmountText))
+    .toEqual(["$0.50", "0.50", "0.5", "$ 0.25"])
 })
 
 // The account ends at TWO spaces or a tab, which is what lets it hold one.
@@ -245,7 +267,9 @@ test("what is not a transaction or a posting is kept raw, in line order", () => 
     [10, "unknown"],
     [11, "unknown"],
   ])
-  expect(journal.entries[1]!.text).toBe("account assets:bank\n; a subdirective comment\nnote the bank's own note")
+  // A sub-line keeps its own indentation: the entry is the file's lines, not a
+  // trim of them.
+  expect(journal.entries[1]!.text).toBe("account assets:bank\n  ; a subdirective comment\n  note the bank's own note")
   expect(journal.entries[2]!.text).toBe("P 2026-01-01 $ 1.5 EUR")
   expect(journal.transactions).toEqual([])
 })
@@ -314,6 +338,23 @@ test("inference is per group and never touches an unbalanced virtual", () => {
     ["b", "-10"],
     ["e", undefined],
   ])
+})
+
+// A posting this reader REFUSED is a movement the sum does not know about, so
+// the transaction it sits in loses its inference rather than balancing over a
+// hole — the two good postings keep their amounts and the third stays unknown.
+test("a refused posting stops the transaction's inference", () => {
+  const journal = hledgerJournal("2026-01-05 x\n    a  $10\n    b  1E3 X\n    c\n")
+  expect(journal.transactions[0]!.postings.map((posting) => [posting.account, posting.amount?.quantity, posting.inferred])).toEqual([
+    ["a", "10", false],
+    ["c", undefined, false],
+  ])
+  expect(journal.entries.map((entry) => entry.kind)).toEqual(["unknown"])
+  // …and the balances hold only what was read.
+  expect(journal.balances.total.map(hledgerAmountText)).toEqual(["$10"])
+  // A transaction with no refusal infers exactly as before, which is what makes
+  // the flag a fact about the transaction rather than a global switch.
+  expect(hledgerJournal("2026-01-05 x\n    a  $10\n    c\n").transactions[0]!.postings[1]!.inferred).toBe(true)
 })
 
 // A transaction with a COST is never inferred from: hledger balances it in the

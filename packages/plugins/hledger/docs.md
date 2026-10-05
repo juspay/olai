@@ -26,11 +26,12 @@ is this app's arithmetic rather than anybody's spelling, so it is written in one
 house style — a symbol against the number with the minus in front of it
 (`-$1200.00`), a word commodity after the number with a space.
 
-**Raw** is the file itself, exactly as it is on disk. Nothing on that view has
-been read or interpreted, which is the point of it. It draws the file only as
-far as it was read (the same line bound as below), and each line kept as raw
-text is marked with the kind it is — a directive, a comment, or a line the
-reader could not place.
+**Raw** is the file's own lines, as far as they were read: nothing on that view
+is re-rendered from the parse, which is the point of it. The drawing stops
+where the reading does (the line bound below), a line longer than the character
+cut is shortened like any other field, and a line the reader kept as raw text
+carries the kind it is — a directive, a comment, or a line it could not place.
+A directive's indented sub-lines are that directive, and they carry its mark.
 
 The view is per file. Opening another journal starts again on Transactions,
 which is the reading a journal is opened for; nothing remembers which tab you

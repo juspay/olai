@@ -27,7 +27,7 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
     # expenses:groceries, expenses:travel).
     And the ledger is showing the "transactions" view
     And the ledger header counts 5 transactions and 12 accounts
-    And the ledger header spans "2024-01-02–2024-03-01"
+    And the ledger header spans "2024-01-02–2024-03-31"
     And the ledger draws 5 transactions
     # A cleared transaction with no code and a one-line description.
     And the ledger transaction 1 is dated "2024-01-02"
