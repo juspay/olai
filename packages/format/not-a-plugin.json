@@ -44,6 +44,10 @@
     "src/searching.ts",
     "src/writing.ts"
   ],
+  "hledger": [
+    "src/hledger.ts",
+    "src/index.ts"
+  ],
   "journal": [
     "src/patch.ts",
     "src/searching.ts"

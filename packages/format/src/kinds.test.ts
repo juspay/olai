@@ -194,7 +194,7 @@ test("the minting constants are the suffixes the walk claims", () => {
 // here is an arm that cannot hold a file the sidebar lists. Derived from
 // `kept` over the bodied kinds, and asserted as the answer.
 test("the shown kinds are the bodied ones the set keeps no content of", () => {
-  expect([...TEST_CLAIMS.byKind.values()].filter(claim => !claim.kept).map(claim => claim.kind).sort()).toEqual(["csv", "hypertext", "image", "pdf"])
+  expect([...TEST_CLAIMS.byKind.values()].filter(claim => !claim.kept).map(claim => claim.kind).sort()).toEqual(["csv", "hledger", "hypertext", "image", "pdf"])
 })
 
 
