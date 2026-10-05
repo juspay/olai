@@ -1,4 +1,4 @@
-@corpus:good
+@scratch:good @share-scratch
 Feature: A ledger that is broken, and one that is empty
   A journal is somebody's file, and the file on disk can be half-written: an
   editor died mid-line, a script emitted a date that names no day, a posting
@@ -13,7 +13,9 @@ Feature: A ledger that is broken, and one that is empty
   And a file with nothing in it is a real thing to find out, so the page says
   so rather than drawing three empty views for the reader to work it out of.
 
-  @scratch:good
+  Background:
+    Given the ledger fixtures are served
+
   Scenario: A half-written journal is still read as far as it goes
     When I open the address "/money/broken.journal"
     Then the document open is "money/broken.journal"

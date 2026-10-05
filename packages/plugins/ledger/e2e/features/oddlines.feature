@@ -1,4 +1,4 @@
-@share-scratch
+@scratch:good @share-scratch
 Feature: A journal's odd lines, said rather than guessed at
   A journal is somebody's file, and the lines in it are not always the shape a
   reader expects: a comment sits under a transaction header, a minus is written
@@ -12,7 +12,9 @@ Feature: A journal's odd lines, said rather than guessed at
   whole point is one odd line is one odd line the repository should not hold —
   and the one that is longer than 20,000 lines could not be held at all.
 
-  @scratch:good
+  Background:
+    Given the ledger fixtures are served
+
   Scenario: An indented comment belongs to the header above it, or the posting
     Given I rewrite "money/odd.journal" as:
       """
@@ -39,7 +41,6 @@ Feature: A journal's odd lines, said rather than guessed at
     And the ledger header counts 1 transaction and 4 accounts
     And there should be no page errors
 
-  @scratch:good
   Scenario: A negative symbol amount keeps whichever side the file put the minus
     Given I rewrite "money/odd.journal" as:
       """
@@ -54,7 +55,6 @@ Feature: A journal's odd lines, said rather than guessed at
     And the ledger transaction 1 posting 2 reads "two | -$10 | false"
     And there should be no page errors
 
-  @scratch:good
   Scenario: An omitted amount between two commodities is left un-inferred
     Given I rewrite "money/odd.journal" as:
       """
@@ -70,7 +70,6 @@ Feature: A journal's odd lines, said rather than guessed at
     And the ledger transaction 1 posting 3 reads "expenses:fees | | false"
     And there should be no page errors
 
-  @scratch:good
   Scenario: A posting whose amount cannot be read is kept as the raw line it is
     Given I rewrite "money/odd.journal" as:
       """
@@ -92,7 +91,6 @@ Feature: A journal's odd lines, said rather than guessed at
     And the ledger raw line 2 is kept as "unknown"
     And there should be no page errors
 
-  @scratch:good
   Scenario: A file past the line bound says so and draws only what was read
     Given a ledger of 25000 lines exists at "money/long.journal"
     When I open the address "/money/long.journal"
@@ -105,7 +103,6 @@ Feature: A journal's odd lines, said rather than guessed at
     And the ledger raw view draws 20000 lines
     And there should be no page errors
 
-  @scratch:good
   Scenario: A field past the cell bound is said to be cut
     Given a ledger whose description is 2500 characters exists at "money/cut.journal"
     When I open the address "/money/cut.journal"
@@ -118,7 +115,6 @@ Feature: A journal's odd lines, said rather than guessed at
     And the ledger transaction 1 description is 2000 characters long
     And there should be no page errors
 
-  @scratch:good
   Scenario: Opening another ledger resets the view to Transactions
     When I open the address "/money/household.journal"
     And I switch the ledger to the "raw" view
@@ -132,7 +128,7 @@ Feature: A journal's odd lines, said rather than guessed at
     # not reloaded` is about this navigation and nothing else.
     When I expand the folder "money"
     Given I mark the page
-    When I click the "hledger" row "money/wallet.hledger"
+    When I click the ledger row "money/wallet.hledger"
     Then the document open is "money/wallet.hledger"
     And the address is "/money/wallet.hledger"
     And the page has not reloaded
@@ -141,7 +137,6 @@ Feature: A journal's odd lines, said rather than guessed at
     And the ledger is showing the "transactions" view
     And there should be no page errors
 
-  @scratch:good
   Scenario: The tab strip's arrow keys move the selection and the focus
     When I open the address "/money/household.journal"
     And I focus the ledger tab "transactions"

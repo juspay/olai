@@ -21,7 +21,7 @@
  * shows of them, not a second unit suite.
  *
  * THE RAW VIEW IS THE FILE, checked by reading the served copy off disk (the
- * scratch copy when the scenario may write, the tracked corpus otherwise)
+ * scratch copy the scenario owns, which the `Given` above has just written)
  * rather than by repeating the source in the Gherkin: a second copy of a
  * fixture in a feature is a copy that drifts the day the fixture is edited.
  */
@@ -32,32 +32,135 @@ import * as path from "node:path";
 
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { attr } from "@olai/tests/harness/selectors.ts";
-import { HYDRATION_TIMEOUT, oneLine } from "@olai/tests/harness/world.ts";
+import { TESTID } from "@olai/tests/harness/testids.ts";
+import {
+  FILE_GLYPH,
+  HYDRATION_TIMEOUT,
+  oneLine,
+} from "@olai/tests/harness/world.ts";
 import type { OlaiWorld as World } from "@olai/tests/harness/world.ts";
 
+import { name as LEDGER_KIND } from "../../src/claim.ts";
 import {
-  HLEDGER_BALANCE,
-  HLEDGER_BALANCE_AMOUNT,
-  HLEDGER_BALANCES,
-  HLEDGER_HEADER,
-  HLEDGER_POSTING,
-  HLEDGER_POSTING_COMMENT,
-  HLEDGER_RAW,
-  HLEDGER_RAW_LINE,
-  HLEDGER_SAID,
-  HLEDGER_TAB,
-  HLEDGER_TAG,
-  HLEDGER_TRANSACTIONS,
-  HLEDGER_TXN,
-  HLEDGER_TXN_COMMENT,
+  LEDGER_BALANCE,
+  LEDGER_BALANCE_AMOUNT,
+  LEDGER_BALANCES,
+  LEDGER_HEADER,
+  LEDGER_LINK,
+  LEDGER_POSTING,
+  LEDGER_POSTING_COMMENT,
+  LEDGER_RAW,
+  LEDGER_RAW_LINE,
+  LEDGER_SAID,
+  LEDGER_TAB,
+  LEDGER_TAG,
+  LEDGER_TRANSACTIONS,
+  LEDGER_TXN,
+  LEDGER_TXN_COMMENT,
 } from "../selectors.ts";
+
+// ── the row in the tree, and the fixtures it stands for ────────────────
+//
+// A LEDGER IS A SERVED FILE, so its page needs one on disk — and the file is
+// this ROW's, kept beside these steps rather than in the harness's corpus.
+// The harness knows no ledger kind (`support/world.ts` has no `ROW_TESTID`
+// entry for it), so a scenario's first move is to put the fixtures it reads
+// into the copy it owns, through `world.writeServed` — the one door that
+// refuses to write anything but a `@scratch:` scenario's own tree.
+
+/** The fixture files, beside this step file — one home for the ledger's own
+ *  bytes, and a relative path INTO the plugin so the harness's import fence
+ *  (`packages/tests/imports.test.ts`) never sees a climb out of it. */
+const FIXTURES = new URL("../fixtures/", import.meta.url);
+
+/** What every ledger scenario is served, at the paths its scenarios address.
+ *  A feature's `Background` writes them all: the harness restores the copy
+ *  between scenarios, so the `Given` below runs again for each and each one
+ *  starts from these bytes and no other. */
+const LEDGER_FIXTURES = [
+  "broken.journal",
+  "empty.journal",
+  "household.journal",
+  "ledger.ledger",
+  "notes.md",
+  "wallet.hledger",
+] as const;
+
+Given("the ledger fixtures are served", function (this: World) {
+  for (const name of LEDGER_FIXTURES) {
+    this.writeServed(
+      `money/${name}`,
+      fs.readFileSync(new URL(name, FIXTURES), "utf8"),
+    );
+  }
+});
+
+// The four steps the harness used to own for this kind, said here instead:
+// `the {string} rows listed are {string}` and its siblings go through
+// `world.rowsOfKind`, which is the ROW_TESTID table — and this kind left that
+// table with the row (there is no `hledger` entry to look up). Every phrase
+// below reads this row's own `LEDGER_LINK`, so a rename is a compile error in
+// `e2e/selectors.ts` rather than a selector nobody writes.
+
+Then(
+  "the ledger rows listed are {string}",
+  async function (this: World, expected: string) {
+    await this.expectListed(
+      `${attr("data-testid", TESTID.referenceList)} ${LEDGER_LINK}`,
+      expected.split(",").map((file) => file.trim()),
+      "ledger row(s)",
+    );
+  },
+);
+
+When(
+  "I click the ledger row {string}",
+  async function (this: World, file: string) {
+    await this.showSidebar();
+    await this.expandReference();
+    const row = this.fileLink(LEDGER_LINK, file);
+    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await row.click();
+    await this.waitForFrame();
+  },
+);
+
+// The glyph is the KIND's, asserted on `data-glyph` rather than on the
+// drawing: which shape is right for a journal is a design question, and "it is
+// this row's own mark" is the promise — read against the kind this package
+// registers, so a second row's glyph here is the failure.
+Then(
+  "the ledger row {string} wears its own glyph",
+  async function (this: World, file: string) {
+    await this.showSidebar();
+    await this.expectChromeAttribute(
+      `${LEDGER_LINK}${attr("data-file", file)} ${FILE_GLYPH}`,
+      "data-glyph",
+      LEDGER_KIND,
+      `the ledger "${file}"`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+// The name a row draws is the file's own — a ledger is not a document, so no
+// title is invented for it and the suffix stays.
+Then(
+  "the ledger row {string} reads {string}",
+  async function (this: World, file: string, name: string) {
+    await this.showSidebar();
+    const row = this.fileLink(LEDGER_LINK, file);
+    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(oneLine(await row.innerText()), name, `the ledger "${file}"`);
+  },
+);
 
 // ── the page's chrome ──────────────────────────────────────────────────
 
 /** The header, waited for first, so a failure says "no ledger page drew"
  *  rather than "expected 5, got null". */
 const header = async (world: World): Promise<string> => {
-  const found = world.page.locator(HLEDGER_HEADER);
+  const found = world.page.locator(LEDGER_HEADER);
   await found.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   return oneLine(await found.innerText());
 };
@@ -66,7 +169,7 @@ When(
   "I switch the ledger to the {string} view",
   async function (this: World, view: string) {
     await header(this);
-    const tab = this.page.locator(`${HLEDGER_TAB}${attr("data-view", view)}`);
+    const tab = this.page.locator(`${LEDGER_TAB}${attr("data-view", view)}`);
     await tab.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await tab.click();
     await this.waitForFrame();
@@ -83,14 +186,14 @@ Then(
       view === "transactions" || view === "balances" || view === "raw",
       `no ledger view is called "${view}" — they are transactions, balances and raw`,
     );
-    const tab = this.page.locator(`${HLEDGER_TAB}${attr("data-view", view)}`);
+    const tab = this.page.locator(`${LEDGER_TAB}${attr("data-view", view)}`);
     await tab.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     await this.waitUntil(
       async () => (await tab.getAttribute("aria-selected")) === "true",
       `the ${view} view to be the one in front`,
     );
     await this.page
-      .locator(view === "transactions" ? HLEDGER_TRANSACTIONS : view === "balances" ? HLEDGER_BALANCES : HLEDGER_RAW)
+      .locator(view === "transactions" ? LEDGER_TRANSACTIONS : view === "balances" ? LEDGER_BALANCES : LEDGER_RAW)
       .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   },
 );
@@ -102,7 +205,7 @@ When(
   "I focus the ledger tab {string}",
   async function (this: World, view: string) {
     await header(this);
-    const tab = this.page.locator(`${HLEDGER_TAB}${attr("data-view", view)}`);
+    const tab = this.page.locator(`${LEDGER_TAB}${attr("data-view", view)}`);
     await tab.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     await tab.focus();
   },
@@ -111,7 +214,7 @@ When(
 Then(
   "the ledger tab {string} has focus",
   async function (this: World, view: string) {
-    const tab = this.page.locator(`${HLEDGER_TAB}${attr("data-view", view)}`);
+    const tab = this.page.locator(`${LEDGER_TAB}${attr("data-view", view)}`);
     await tab.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     await this.waitUntil(
       async () => await tab.evaluate((node) => node === document.activeElement),
@@ -183,7 +286,7 @@ Then(
 Then(
   "the ledger draws {int} transactions",
   async function (this: World, expected: number) {
-    const rows = this.page.locator(`${HLEDGER_TRANSACTIONS} ${HLEDGER_TXN}`);
+    const rows = this.page.locator(`${LEDGER_TRANSACTIONS} ${LEDGER_TXN}`);
     await this.waitUntil(
       async () => (await rows.count()) === expected,
       `the ledger to draw ${String(expected)} transactions`,
@@ -194,7 +297,7 @@ Then(
 /** One transaction, waited for, so a fact read off it names the one that is
  *  missing rather than timing out on a null attribute. */
 const transaction = async (world: World, at: number) => {
-  const found = world.page.locator(HLEDGER_TXN).nth(at - 1);
+  const found = world.page.locator(LEDGER_TXN).nth(at - 1);
   await found.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
   return found;
 };
@@ -271,7 +374,7 @@ Then(
 Then(
   "the ledger transaction {int} posting {int} reads {string}",
   async function (this: World, at: number, which: number, expected: string) {
-    const posting = (await transaction(this, at)).locator(HLEDGER_POSTING).nth(which - 1);
+    const posting = (await transaction(this, at)).locator(LEDGER_POSTING).nth(which - 1);
     await posting.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     const [account, amount, inferred] = expected.split("|").map((one) => one.trim());
     assert.strictEqual(
@@ -298,7 +401,7 @@ Then(
 Then(
   "the ledger transaction {int} draws {int} postings",
   async function (this: World, at: number, expected: number) {
-    const postings = (await transaction(this, at)).locator(HLEDGER_POSTING);
+    const postings = (await transaction(this, at)).locator(LEDGER_POSTING);
     await this.waitUntil(
       async () => (await postings.count()) === expected,
       `transaction ${String(at)} to draw ${String(expected)} posting(s)`,
@@ -311,7 +414,7 @@ Then(
 Then(
   "the ledger transaction {int} carries the comment {string}",
   async function (this: World, at: number, comment: string) {
-    const span = (await transaction(this, at)).locator(HLEDGER_TXN_COMMENT);
+    const span = (await transaction(this, at)).locator(LEDGER_TXN_COMMENT);
     await span.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
       oneLine(await span.innerText()),
@@ -324,7 +427,7 @@ Then(
 Then(
   "the ledger transaction {int} carries the tags {string}",
   async function (this: World, at: number, expected: string) {
-    const spans = (await transaction(this, at)).locator(HLEDGER_TAG);
+    const spans = (await transaction(this, at)).locator(LEDGER_TAG);
     const wanted = expected.split(",").map((one) => one.trim());
     await this.waitUntil(
       async () => (await spans.count()) === wanted.length,
@@ -343,9 +446,9 @@ Then(
 Then(
   "the ledger transaction {int} posting {int} carries the comment {string}",
   async function (this: World, at: number, which: number, comment: string) {
-    const posting = (await transaction(this, at)).locator(HLEDGER_POSTING).nth(which - 1);
+    const posting = (await transaction(this, at)).locator(LEDGER_POSTING).nth(which - 1);
     await posting.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
-    const span = posting.locator(HLEDGER_POSTING_COMMENT);
+    const span = posting.locator(LEDGER_POSTING_COMMENT);
     await span.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
       oneLine(await span.innerText()),
@@ -358,9 +461,9 @@ Then(
 Then(
   "the ledger transaction {int} posting {int} carries the tags {string}",
   async function (this: World, at: number, which: number, expected: string) {
-    const posting = (await transaction(this, at)).locator(HLEDGER_POSTING).nth(which - 1);
+    const posting = (await transaction(this, at)).locator(LEDGER_POSTING).nth(which - 1);
     await posting.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
-    const spans = posting.locator(HLEDGER_TAG);
+    const spans = posting.locator(LEDGER_TAG);
     const wanted = expected.split(",").map((one) => one.trim());
     await this.waitUntil(
       async () => (await spans.count()) === wanted.length,
@@ -378,7 +481,7 @@ Then(
 
 /** One account's row of the tree, by the account name it carries. */
 const balance = async (world: World, account: string) => {
-  const row = world.page.locator(`${HLEDGER_BALANCE}${attr("data-account", account)}`);
+  const row = world.page.locator(`${LEDGER_BALANCE}${attr("data-account", account)}`);
   await row.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
   return row;
 };
@@ -390,7 +493,7 @@ const balance = async (world: World, account: string) => {
 Then(
   "the ledger balance for {string} is {string}",
   async function (this: World, account: string, expected: string) {
-    const amounts = (await balance(this, account)).locator(HLEDGER_BALANCE_AMOUNT);
+    const amounts = (await balance(this, account)).locator(LEDGER_BALANCE_AMOUNT);
     const wanted = expected.split(",").map((one) => one.trim());
     await this.waitUntil(
       async () => (await amounts.count()) === wanted.length,
@@ -407,7 +510,7 @@ Then(
 Then(
   "the ledger balance for {string} is held in {string}",
   async function (this: World, account: string, expected: string) {
-    const amounts = (await balance(this, account)).locator(HLEDGER_BALANCE_AMOUNT);
+    const amounts = (await balance(this, account)).locator(LEDGER_BALANCE_AMOUNT);
     const wanted = expected.split(",").map((one) => one.trim());
     const found = await amounts.evaluateAll((nodes) =>
       nodes.map((node) => node.getAttribute("data-commodity")),
@@ -435,7 +538,7 @@ Then(
 // trick the csv table's steps use, because "the DOM was replaced" and "the
 // markup ended up the same" are different failures.
 When("I remember the ledger balances", async function (this: World) {
-  const panel = this.page.locator(HLEDGER_BALANCES);
+  const panel = this.page.locator(LEDGER_BALANCES);
   await panel.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await panel.evaluate((node) => {
     (node as HTMLElement & { retainedBalances?: boolean }).retainedBalances = true;
@@ -445,7 +548,7 @@ When("I remember the ledger balances", async function (this: World) {
 Then(
   "the ledger balances stayed mounted during its revision",
   async function (this: World) {
-    const panel = this.page.locator(HLEDGER_BALANCES);
+    const panel = this.page.locator(LEDGER_BALANCES);
     await panel.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
       await panel.evaluate((node) => (node as HTMLElement & { retainedBalances?: boolean }).retainedBalances),
@@ -460,16 +563,16 @@ Then(
 /**
  * The raw view IS the file — not a re-rendering of the parse.
  *
- * Read off disk rather than repeated in the Gherkin: the scratch copy when the
- * scenario may write (`world.served`), the tracked corpus otherwise. The
- * comparison normalizes only TRAILING newlines, which is the one byte a text
- * editor's save and a `pre`'s text node may disagree about without the file
- * having changed.
+ * Read off disk rather than repeated in the Gherkin: the scratch copy this
+ * scenario owns, which its `Background` wrote (`world.served`). The comparison
+ * normalizes only TRAILING newlines, which is the one byte a text editor's
+ * save and a `pre`'s text node may disagree about without the file having
+ * changed.
  */
 Then(
   "the ledger raw view is the file {string}",
   async function (this: World, file: string) {
-    const pre = this.page.locator(HLEDGER_RAW);
+    const pre = this.page.locator(LEDGER_RAW);
     await pre.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     // THE SERVED COPY the server is reading, which is a path this scenario
     // OWNS: the raw view's whole claim is that it is the bytes of the file on
@@ -490,7 +593,7 @@ Then(
 Then(
   "the ledger raw view draws {int} lines",
   async function (this: World, expected: number) {
-    const lines = this.page.locator(`${HLEDGER_RAW} ${HLEDGER_RAW_LINE}`);
+    const lines = this.page.locator(`${LEDGER_RAW} ${LEDGER_RAW_LINE}`);
     await this.waitUntil(
       async () => (await lines.count()) === expected,
       `the raw view to draw ${String(expected)} line(s)`,
@@ -501,7 +604,7 @@ Then(
 Then(
   "the ledger raw line {int} reads {string}",
   async function (this: World, line: number, expected: string) {
-    const found = this.page.locator(`${HLEDGER_RAW_LINE}${attr("data-line", String(line))}`);
+    const found = this.page.locator(`${LEDGER_RAW_LINE}${attr("data-line", String(line))}`);
     await found.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(oneLine(await found.innerText()), expected, `raw line ${String(line)}`);
   },
@@ -513,7 +616,7 @@ Then(
 Then(
   "the ledger raw line {int} is kept as {string}",
   async function (this: World, line: number, kind: string) {
-    const found = this.page.locator(`${HLEDGER_RAW_LINE}${attr("data-line", String(line))}`);
+    const found = this.page.locator(`${LEDGER_RAW_LINE}${attr("data-line", String(line))}`);
     await found.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
       await found.getAttribute("data-entry"),
@@ -532,7 +635,7 @@ Then(
 Then(
   "the ledger page says {string}",
   async function (this: World, expected: string) {
-    const said = this.page.locator(HLEDGER_SAID);
+    const said = this.page.locator(LEDGER_SAID);
     await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(oneLine(await said.innerText()), expected);
   },
@@ -543,7 +646,7 @@ Then(
 Then("the ledger page says nothing", async function (this: World) {
   await header(this);
   assert.strictEqual(
-    await this.page.locator(HLEDGER_SAID).count(),
+    await this.page.locator(LEDGER_SAID).count(),
     0,
     "a page with the whole file drawn said something about what it left out",
   );

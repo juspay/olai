@@ -1,4 +1,4 @@
-@corpus:good
+@scratch:good @share-scratch
 Feature: The page of a ledger whose arithmetic can be checked by hand
   `money/household.journal` is five transactions and twelve accounts, in round
   amounts, in dollars and euros. It is built so that every number a scenario
@@ -11,6 +11,9 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
   The three views are one page: Transactions is what a journal is opened to
   read, Balances is the tree the postings net to, and Raw is the bytes the page
   actually read.
+
+  Background:
+    Given the ledger fixtures are served
 
   Scenario: The transactions view reads out the header's facts and the postings
     When I open the address "/money/household.journal"
@@ -90,7 +93,6 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
     And the ledger balance for "equity" is "-$1200.00"
     And there should be no page errors
 
-  @scratch:good
   Scenario: The raw view is the file's own bytes
     When I open the address "/money/household.journal"
     And I switch the ledger to the "raw" view

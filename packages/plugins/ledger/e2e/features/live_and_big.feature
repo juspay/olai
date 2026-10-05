@@ -1,4 +1,4 @@
-@share-scratch
+@scratch:good @share-scratch
 Feature: A ledger file that moves, and one bigger than a page
   A served directory is live: a file rewritten under an open page redraws it,
   and one that is deleted is a page that is no longer there. Both are what the
@@ -13,7 +13,10 @@ Feature: A ledger file that moves, and one bigger than a page
   thousands of lines of nothing in the repository) and kept with a private copy,
   like the csv clamp's.
 
-  @scratch:good @own-scratch
+  Background:
+    Given the ledger fixtures are served
+
+  @own-scratch
   Scenario: A journal past the transaction bound says what it left out
     Given a journal of 1200 transactions exists at "money/big.journal"
     When I open the address "/money/big.journal"
@@ -28,7 +31,6 @@ Feature: A ledger file that moves, and one bigger than a page
     And the ledger page says "Showing the first 1,000 transactions."
     And there should be no page errors
 
-  @scratch:good
   Scenario: Rewriting the ledger under an open page redraws it
     When I open the address "/money/household.journal"
     Then the ledger header counts 5 transactions and 12 accounts
@@ -45,7 +47,6 @@ Feature: A ledger file that moves, and one bigger than a page
     And the ledger header counts 1 transaction and 5 accounts
     And there should be no page errors
 
-  @scratch:good
   Scenario: Rewriting the ledger while Balances is showing recomputes it in place
     When I open the address "/money/household.journal"
     And I switch the ledger to the "balances" view
@@ -81,7 +82,6 @@ Feature: A ledger file that moves, and one bigger than a page
   # moves: `expenses:food` at depth 1 becomes `expenses:food:snacks` at depth 2.
   # A `data-depth` computed once when the row was built reads 1 here and fails;
   # only a depth derived per read says 2.
-  @scratch:good
   Scenario: Rewriting the ledger under Balances moves a row's depth
     Given I rewrite "money/odd.journal" as:
       """
@@ -112,7 +112,6 @@ Feature: A ledger file that moves, and one bigger than a page
   # into a local when the span was built keeps `berlin` and fails; only a value
   # read where it is drawn follows the file. The rewrite adds a transaction, and
   # that count is the wait — two rows only after the new parse is on screen.
-  @scratch:good
   Scenario: Rewriting the ledger under Transactions moves a tag's value
     Given I rewrite "money/odd.journal" as:
       """
@@ -136,7 +135,6 @@ Feature: A ledger file that moves, and one bigger than a page
     And the ledger transaction 1 carries the tags "trip: munich, paid: card"
     And there should be no page errors
 
-  @scratch:good
   Scenario: A removed ledger that comes back draws its page again
     When I open the address "/money/household.journal"
     Given I mark the page
@@ -159,7 +157,6 @@ Feature: A ledger file that moves, and one bigger than a page
     And the page has not reloaded
     And there should be no page errors
 
-  @scratch:good
   Scenario: Deleting the ledger under an open page is handled
     When I open the address "/money/household.journal"
     Then the ledger is showing the "transactions" view

@@ -1,4 +1,4 @@
-@corpus:good
+@scratch:good @share-scratch
 Feature: A ledger file in the vault
   A served directory is somebody's folder, and what is in one is not only
   outlines and notes. There is also the book somebody keeps: a plain-text
@@ -10,19 +10,27 @@ Feature: A ledger file in the vault
   of them, the row keeps its suffix in its name (it is not a document, so no
   title is invented for it), and its page is VIEW ONLY. A ledger is read.
 
+  The fixtures are this row's own (`e2e/fixtures/`), put into the served copy
+  by the `Background` below rather than living in the harness's corpus: the
+  harness knows no ledger kind, so the files a ledger scenario reads are the
+  ledger's to serve.
+
+  Background:
+    Given the ledger fixtures are served
+
   Scenario: The three suffixes are one kind, each with the ledger glyph
     When I open the app
     And I expand the folder "money"
-    Then the "hledger" rows listed are "money/broken.journal, money/empty.journal, money/household.journal, money/ledger.ledger, money/wallet.hledger"
+    Then the ledger rows listed are "money/broken.journal, money/empty.journal, money/household.journal, money/ledger.ledger, money/wallet.hledger"
     # The glyph is the KIND's, asked of every suffix so that a `.ledger` drawn
     # with some other kind's mark is a failure rather than a detail.
-    And the "hledger" row "money/household.journal" wears its own glyph
-    And the "hledger" row "money/wallet.hledger" wears its own glyph
-    And the "hledger" row "money/ledger.ledger" wears its own glyph
+    And the ledger row "money/household.journal" wears its own glyph
+    And the ledger row "money/wallet.hledger" wears its own glyph
+    And the ledger row "money/ledger.ledger" wears its own glyph
     # A ledger is not a document, so the name a row draws is the file's own —
     # suffix and all, exactly what the tab would say.
-    And the "hledger" row "money/household.journal" reads "household.journal"
-    And the "hledger" row "money/wallet.hledger" reads "wallet.hledger"
+    And the ledger row "money/household.journal" reads "household.journal"
+    And the ledger row "money/wallet.hledger" reads "wallet.hledger"
     # …and the outlines beside them are untouched: a vault that gained a kind
     # did not lose the one `Daily/2026-08.olai` lives in.
     And the "outline-olai" rows listed are "Daily/2026-08.olai, garden.olai, house.olai"
@@ -66,7 +74,7 @@ Feature: A ledger file in the vault
     When I open the app
     And I expand the folder "money"
     Given I mark the page
-    When I click the "hledger" row "money/household.journal"
+    When I click the ledger row "money/household.journal"
     Then the document open is "money/household.journal"
     And the address is "/money/household.journal"
     And the page has not reloaded

@@ -13,6 +13,9 @@ Feature: A link to a ledger is a link
   a card whose content is parsed by the wrong reader. The absence is the
   promise.
 
+  Background:
+    Given the ledger fixtures are served
+
   Scenario: A node's link to a ledger draws no card
     # A node whose note links the ledger, opened on the node's own page — the
     # precedent `link_preview.feature` sets, and the same door this claim needs:
