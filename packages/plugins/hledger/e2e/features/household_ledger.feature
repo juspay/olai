@@ -111,7 +111,7 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
     When I open the address "/money/household.journal"
     # One thing points here, and it is `money/notes.md` — the count first, then
     # the row by the file it opens.
-    Then the document is pointed at by 1 thing(s)
+    Then the document is pointed at by 1 thing
     When I open what points at the document
     Then the referrers name "money/notes.md"
     And there should be no page errors
