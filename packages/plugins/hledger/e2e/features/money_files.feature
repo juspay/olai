@@ -36,3 +36,55 @@ Feature: A ledger file in the vault
     When I open the address "/money/nowhere.journal"
     Then the empty page says "Page not found" over "There is no ledger named money/nowhere.journal."
     And there should be no page errors
+
+  # The address alone opens each of the three suffixes — a RELOAD, not a route,
+  # because a prefix-free address is a real URL somebody can paste. One outline
+  # rather than three scenarios, so a suffix that stopped being claimed is one
+  # row of a failure and not a missing test.
+  Scenario Outline: The address alone opens each ledger suffix
+    When I open the address "/<file>"
+    Then the document open is "<file>"
+    And the address is "/<file>"
+    And the ledger is showing the "transactions" view
+    And the ledger header counts <transactions> <txnoun> and <accounts> <acnoun>
+    # ONE POSTING EACH, so the three fixtures' arithmetic is read and not only
+    # their header: the dollars of the household, the euros of the wallet, the
+    # bare number of the `.ledger`.
+    And the ledger transaction 1 posting 1 reads "<posting>"
+    And there should be no page errors
+
+    Examples:
+      | file                    | transactions | txnoun       | accounts | acnoun   | posting                                    |
+      | money/household.journal | 5            | transactions | 12       | accounts | assets:bank:checking \| $1200.00 \| false  |
+      | money/wallet.hledger    | 1            | transaction  | 4        | accounts | expenses:coffee \| 4.50 EUR \| false       |
+      | money/ledger.ledger     | 1            | transaction  | 4        | accounts | expenses:transport \| 2.75 \| false        |
+
+  # The sidebar's half of the same door: a reader who does not know the address
+  # finds the row. A ROUTE, not a reload — the page answers in place, exactly as
+  # a document's link does.
+  Scenario: Clicking a ledger in the sidebar opens its page in place
+    When I open the app
+    And I expand the folder "money"
+    Given I mark the page
+    When I click the "hledger" row "money/household.journal"
+    Then the document open is "money/household.journal"
+    And the address is "/money/household.journal"
+    And the page has not reloaded
+    And the ledger is showing the "transactions" view
+    And the ledger header counts 5 transactions and 12 accounts
+    And there should be no page errors
+
+  # A ledger is a file of the vault, so the palette finds it by name and opens
+  # it — the row this kind earns in the same list `.md` does.
+  Scenario: The palette finds a ledger by name and opens it
+    When I open the app
+    Given I mark the page
+    When I press the palette shortcut
+    And I type "household" into the palette
+    Then the palette lists the document "money/household.journal"
+    When I pick the palette item "household"
+    Then the document open is "money/household.journal"
+    And the address is "/money/household.journal"
+    And the page has not reloaded
+    And the ledger is showing the "transactions" view
+    And there should be no page errors

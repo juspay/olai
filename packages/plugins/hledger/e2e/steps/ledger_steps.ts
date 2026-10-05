@@ -32,11 +32,7 @@ import * as path from "node:path";
 
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { attr } from "@olai/tests/harness/selectors.ts";
-import {
-  DOCUMENT_REFERRERS,
-  HYDRATION_TIMEOUT,
-  oneLine,
-} from "@olai/tests/harness/world.ts";
+import { HYDRATION_TIMEOUT, oneLine } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld as World } from "@olai/tests/harness/world.ts";
 
 import {
@@ -45,7 +41,9 @@ import {
   HLEDGER_BALANCES,
   HLEDGER_HEADER,
   HLEDGER_POSTING,
+  HLEDGER_POSTING_COMMENT,
   HLEDGER_RAW,
+  HLEDGER_RAW_LINE,
   HLEDGER_SAID,
   HLEDGER_TAB,
   HLEDGER_TAG,
@@ -78,15 +76,18 @@ When(
 Then(
   "the ledger is showing the {string} view",
   async function (this: World, view: string) {
+    // THE NAME FIRST, because an unknown one is a scenario's mistake and should
+    // read as that sentence rather than as a thirty-second wait for a tab that
+    // was never going to exist.
+    assert.ok(
+      view === "transactions" || view === "balances" || view === "raw",
+      `no ledger view is called "${view}" — they are transactions, balances and raw`,
+    );
     const tab = this.page.locator(`${HLEDGER_TAB}${attr("data-view", view)}`);
     await tab.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     await this.waitUntil(
       async () => (await tab.getAttribute("aria-selected")) === "true",
       `the ${view} view to be the one in front`,
-    );
-    assert.ok(
-      view === "transactions" || view === "balances" || view === "raw",
-      `no ledger view is called "${view}" — they are transactions, balances and raw`,
     );
     await this.page
       .locator(view === "transactions" ? HLEDGER_TRANSACTIONS : view === "balances" ? HLEDGER_BALANCES : HLEDGER_RAW)
@@ -94,22 +95,73 @@ Then(
   },
 );
 
+/** The strip's own focus, for the keyboard half of the tabs pattern: a roving
+ *  tabindex means the SELECTED tab is the one a press lands on, so a scenario
+ *  focuses it explicitly rather than hoping Chromium picked it. */
+When(
+  "I focus the ledger tab {string}",
+  async function (this: World, view: string) {
+    await header(this);
+    const tab = this.page.locator(`${HLEDGER_TAB}${attr("data-view", view)}`);
+    await tab.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await tab.focus();
+  },
+);
+
 Then(
-  "the ledger header counts {int} transactions and {int} accounts",
-  async function (this: World, transactions: number, accounts: number) {
+  "the ledger tab {string} has focus",
+  async function (this: World, view: string) {
+    const tab = this.page.locator(`${HLEDGER_TAB}${attr("data-view", view)}`);
+    await tab.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(
+      async () => await tab.evaluate((node) => node === document.activeElement),
+      `the ${view} tab to hold focus`,
+    );
+  },
+);
+
+Then(
+  "the ledger header counts {int} {word} and {int} {word}",
+  async function (
+    this: World,
+    transactions: number,
+    transactionNoun: string,
+    accounts: number,
+    accountNoun: string,
+  ) {
+    // THE NOUN IS PART OF THE CLAIM: the header pluralises `1 transaction` /
+    // `1 account`, so a scenario writing the wrong one is asserting a line the
+    // page does not draw — checked here rather than by a looser phrase that
+    // would swallow either.
+    assert.strictEqual(
+      transactionNoun,
+      transactions === 1 ? "transaction" : "transactions",
+      `the noun for ${String(transactions)}`,
+    );
+    assert.strictEqual(
+      accountNoun,
+      accounts === 1 ? "account" : "accounts",
+      `the noun for ${String(accounts)}`,
+    );
+    await header(this);
+    // WAITED FOR, not read once: a scenario may be asserting the counts a live
+    // rewrite just produced, and the old line is still on screen until the
+    // watcher's revision lands. Same reason the csv header step polls.
+    await this.waitUntil(
+      async () => {
+        const found = /^([\d,]+) transactions? · ([\d,]+) accounts?(?: · |$)/.exec(
+          await header(this),
+        );
+        return (
+          found !== null &&
+          Number((found[1] as string).replace(/,/g, "")) === transactions &&
+          Number((found[2] as string).replace(/,/g, "")) === accounts
+        );
+      },
+      `the header to count ${String(transactions)} transaction(s) and ${String(accounts)} account(s)`,
+    );
     const text = await header(this);
-    const found = /^([\d,]+) transactions · ([\d,]+) accounts(?: · |$)/.exec(text);
-    assert.ok(found !== null, `the header reads ${JSON.stringify(text)}`);
-    assert.strictEqual(
-      Number((found[1] as string).replace(/,/g, "")),
-      transactions,
-      `the header's transaction count, in ${JSON.stringify(text)}`,
-    );
-    assert.strictEqual(
-      Number((found[2] as string).replace(/,/g, "")),
-      accounts,
-      `the header's account count, in ${JSON.stringify(text)}`,
-    );
+    assert.match(text, /^[\d,]+ transactions? · [\d,]+ accounts?(?: · |$)/, `the header reads ${JSON.stringify(text)}`);
   },
 );
 
@@ -192,9 +244,12 @@ Then(
 );
 
 // ONE POSTING, THREE FACTS, in one step because they are one row: `account |
-// amount | inferred`, the account ending at two spaces and the amount exactly
-// as the file wrote it (no thousands grouping). The empty spelling of an
-// amount is how an omission that could not be inferred is asked for.
+// amount | inferred`, the account ending at two spaces. A STATED amount keeps
+// the file's own spelling (no thousands grouping), while a COMPUTED or INFERRED
+// amount is written by the format — which is why a negative symbol amount reads
+// `-$1200.00` there, in front of the symbol, whatever the file's own minus did.
+// The empty spelling of an amount is how an omission that could not be inferred
+// is asked for.
 Then(
   "the ledger transaction {int} posting {int} reads {string}",
   async function (this: World, at: number, which: number, expected: string) {
@@ -215,6 +270,20 @@ Then(
       await posting.getAttribute("data-inferred"),
       inferred,
       `whether transaction ${String(at)}'s posting ${String(which)} was inferred`,
+    );
+  },
+);
+
+// HOW MANY postings the row draws — the count a scenario asks when what matters
+// is that a line did NOT become one (an unreadable amount, an indented comment),
+// where reaching for posting 3 would time out instead.
+Then(
+  "the ledger transaction {int} draws {int} postings",
+  async function (this: World, at: number, expected: number) {
+    const postings = (await transaction(this, at)).locator(HLEDGER_POSTING);
+    await this.waitUntil(
+      async () => (await postings.count()) === expected,
+      `transaction ${String(at)} to draw ${String(expected)} posting(s)`,
     );
   },
 );
@@ -247,6 +316,42 @@ Then(
       (await spans.allInnerTexts()).map(oneLine),
       wanted,
       `the tags under transaction ${String(at)}`,
+    );
+  },
+);
+
+// A POSTING's own comment and tags, drawn beside the amount it sits under — an
+// indented comment after a posting belongs to that posting, not the transaction.
+Then(
+  "the ledger transaction {int} posting {int} carries the comment {string}",
+  async function (this: World, at: number, which: number, comment: string) {
+    const posting = (await transaction(this, at)).locator(HLEDGER_POSTING).nth(which - 1);
+    await posting.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    const span = posting.locator(HLEDGER_POSTING_COMMENT);
+    await span.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      oneLine(await span.innerText()),
+      comment,
+      `the comment on transaction ${String(at)}'s posting ${String(which)}`,
+    );
+  },
+);
+
+Then(
+  "the ledger transaction {int} posting {int} carries the tags {string}",
+  async function (this: World, at: number, which: number, expected: string) {
+    const posting = (await transaction(this, at)).locator(HLEDGER_POSTING).nth(which - 1);
+    await posting.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    const spans = posting.locator(HLEDGER_TAG);
+    const wanted = expected.split(",").map((one) => one.trim());
+    await this.waitUntil(
+      async () => (await spans.count()) === wanted.length,
+      `${String(wanted.length)} tag(s) on posting ${String(which)}`,
+    );
+    assert.deepStrictEqual(
+      (await spans.allInnerTexts()).map(oneLine),
+      wanted,
+      `the tags on transaction ${String(at)}'s posting ${String(which)}`,
     );
   },
 );
@@ -304,6 +409,34 @@ Then(
   },
 );
 
+// ── the panel that did not go away ─────────────────────────────────────
+//
+// A live revision re-parses the file into fresh objects; the rows are `<Index>`
+// so the DOM a reader was looking at stays. A scenario proves that by MARKING
+// the panel element and asking whether the mark survived the rewrite — the same
+// trick the csv table's steps use, because "the DOM was replaced" and "the
+// markup ended up the same" are different failures.
+When("I remember the ledger balances", async function (this: World) {
+  const panel = this.page.locator(HLEDGER_BALANCES);
+  await panel.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await panel.evaluate((node) => {
+    (node as HTMLElement & { retainedBalances?: boolean }).retainedBalances = true;
+  });
+});
+
+Then(
+  "the ledger balances stayed mounted during its revision",
+  async function (this: World) {
+    const panel = this.page.locator(HLEDGER_BALANCES);
+    await panel.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      await panel.evaluate((node) => (node as HTMLElement & { retainedBalances?: boolean }).retainedBalances),
+      true,
+      "the balances panel was torn down and rebuilt by the revision",
+    );
+  },
+);
+
 // ── the file itself ────────────────────────────────────────────────────
 
 /**
@@ -330,6 +463,45 @@ Then(
     const source = fs.readFileSync(path.join(root, file), "utf8").replace(/\n+$/, "");
     const drawn = ((await pre.evaluate((node) => node.textContent)) ?? "").replace(/\n+$/, "");
     assert.strictEqual(drawn, source, `the raw view is not the bytes of ${file}`);
+  },
+);
+
+// HOW MANY LINES the raw view draws — the visible half of the reading's LINE
+// bound. One span per READ line (`../src/browser/views.tsx`), so the count is
+// the bound and not a scroll height.
+Then(
+  "the ledger raw view draws {int} lines",
+  async function (this: World, expected: number) {
+    const lines = this.page.locator(`${HLEDGER_RAW} ${HLEDGER_RAW_LINE}`);
+    await this.waitUntil(
+      async () => (await lines.count()) === expected,
+      `the raw view to draw ${String(expected)} line(s)`,
+    );
+  },
+);
+
+Then(
+  "the ledger raw line {int} reads {string}",
+  async function (this: World, line: number, expected: string) {
+    const found = this.page.locator(`${HLEDGER_RAW_LINE}${attr("data-line", String(line))}`);
+    await found.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(oneLine(await found.innerText()), expected, `raw line ${String(line)}`);
+  },
+);
+
+// WHICH KIND the reader kept a line as (`directive`/`comment`/`unknown`) — the
+// one thing typed about a line that is neither a transaction nor a posting, and
+// what a scenario asks to prove an unreadable line stayed raw.
+Then(
+  "the ledger raw line {int} is kept as {string}",
+  async function (this: World, line: number, kind: string) {
+    const found = this.page.locator(`${HLEDGER_RAW_LINE}${attr("data-line", String(line))}`);
+    await found.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      await found.getAttribute("data-entry"),
+      kind,
+      `the kind the reader gave raw line ${String(line)}`,
+    );
   },
 );
 
@@ -385,22 +557,38 @@ Given(
   },
 );
 
-// ── what points at the ledger ──────────────────────────────────────────
+/**
+ * A journal whose LINE count is past the bound — the sibling of the transaction
+ * bound above, and written for the same reason: the file's whole point is being
+ * longer than the repository should hold. Every line is a comment, so the line
+ * bound is the ONLY one that runs out: no transaction header is past its own
+ * bound, and the sentence a scenario reads is the lines clause alone.
+ */
+Given(
+  "a ledger of {int} lines exists at {string}",
+  function (this: World, count: number, file: string) {
+    const lines = ["; generated by the overlong-ledger scenario"]
+    for (let at = 1; at < count; at++) lines.push(`; filler line ${String(at)}`)
+    this.writeServed(file, lines.join("\n"))
+  },
+);
 
 /**
- * A note that links this ledger, named the way the referrers section names it:
- * by the file the row opens (`data-ref`, which a body's row carries its path
- * on — `@olai/markdown-ui`'s `referrerRowOf`).
- *
- * The count is asked by the shared `the document is pointed at by {int}
- * thing(s)` and the section opened by `I open what points at the document`; this
- * is the half only a ledger-specific step can say, that the thing in there is
- * THIS note.
+ * A one-transaction journal whose DESCRIPTION is longer than the cell bound, so
+ * `longCells` is the only bound that runs out. The description is generated
+ * rather than spelled in the Gherkin: three thousand characters of `x` in a
+ * scenario would bury the one assertion it makes.
  */
-Then(
-  "the referrers name {string}",
-  async function (this: World, file: string) {
-    const row = this.frontLane().locator(`${DOCUMENT_REFERRERS} a:has(${attr("data-ref", file)})`);
-    await row.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+Given(
+  "a ledger whose description is {int} characters exists at {string}",
+  function (this: World, characters: number, file: string) {
+    this.writeServed(
+      file,
+      [
+        `2024-01-02 * ${"x".repeat(characters)}`,
+        "    expenses:generated        $1.00",
+        "    assets:bank:checking      -$1.00",
+      ].join("\n"),
+    )
   },
 );

@@ -42,7 +42,58 @@ Feature: A ledger file that moves, and one bigger than a page
       """
     Then the ledger draws 1 transactions
     And the ledger transaction 1 is described "Opening balance | rewritten"
-    And the ledger header counts 1 transactions and 5 accounts
+    And the ledger header counts 1 transaction and 5 accounts
+    And there should be no page errors
+
+  @scratch:good
+  Scenario: Rewriting the ledger while Balances is showing recomputes it in place
+    When I open the address "/money/household.journal"
+    And I switch the ledger to the "balances" view
+    Then the ledger balance for "expenses:groceries" is "$120.50"
+    When I remember the ledger balances
+    And I rewrite "money/household.journal" as:
+      """
+      ; rewritten while the balances tree is showing
+      2024-01-02 * Opening balance
+          assets:bank:checking      $1200.00
+          equity:opening balances  -$1200.00
+
+      2024-01-03 * Groceries
+          expenses:groceries        $50.00
+          assets:bank:checking      -$50.00
+      """
+    # The view is the PAGE's own signal, not the file's: a rewrite redraws what
+    # is in front of the reader rather than snapping back to Transactions. The
+    # header line is the wait — it changes with the revision, so the balance
+    # reads below are reading the new parse and not the old tree.
+    Then the ledger header counts 2 transactions and 7 accounts
+    And the ledger is showing the "balances" view
+    And the ledger balances stayed mounted during its revision
+    And the ledger balance for "expenses:groceries" is "$50.00"
+    And the ledger balance for "assets:bank:checking" is "$1150.00"
+    And there should be no page errors
+
+  @scratch:good
+  Scenario: A removed ledger that comes back draws its page again
+    When I open the address "/money/household.journal"
+    Given I mark the page
+    Then the ledger is showing the "transactions" view
+    When I remove the served file "money/household.journal"
+    # The address still names the file; the file is gone, so the page is the
+    # one every missing address gets.
+    Then the empty page says "Page not found" over "There is no ledger named money/household.journal."
+    # THE OTHER HALF: written back, the page is a ledger again — in place, the
+    # same reader, no reload.
+    When I rewrite "money/household.journal" as:
+      """
+      2024-01-02 * Opening balance
+          assets:bank:checking      $1200.00
+          equity:opening balances  -$1200.00
+      """
+    Then the document open is "money/household.journal"
+    And the ledger header counts 1 transaction and 5 accounts
+    And the ledger transaction 1 is described "Opening balance"
+    And the page has not reloaded
     And there should be no page errors
 
   @scratch:good

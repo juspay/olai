@@ -12,7 +12,7 @@ P 2024-01-01 EUR $1.10
     assets:bank:checking      $1200.00
     equity:opening balances  -$1200.00
 
-2024-01-03 * (groceries) Supermarket | weekly shop  ; groceries run trip:berlin paid:card
+2024-01-03 * (groceries) Supermarket | weekly shop  ; groceries run trip:berlin, paid:card
     expenses:groceries        $120.50
     assets:bank:checking
 

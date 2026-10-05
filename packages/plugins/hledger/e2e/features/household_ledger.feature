@@ -37,7 +37,7 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
     And the ledger transaction 1 posting 1 reads "assets:bank:checking | $1200.00 | false"
     # An account whose NAME holds a single space — the account ends at the two
     # spaces before the amount, which is the whole of what that rule is for.
-    And the ledger transaction 1 posting 2 reads "equity:opening balances | $-1200.00 | false"
+    And the ledger transaction 1 posting 2 reads "equity:opening balances | -$1200.00 | false"
     And the ledger transaction 5 posting 1 reads "expenses:dining out | $60.00 | false"
     # The `payee | note` description as the file wrote it, the code in
     # parentheses, the comment whole and the tags again as their own spans.
@@ -51,7 +51,7 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
     # THE INFERENCE, said rather than drawn as if the file had written it: one
     # posting omitted its amount and the transaction states one commodity, so
     # the reader filled in the balancing amount and marked it inferred.
-    And the ledger transaction 2 posting 2 reads "assets:bank:checking | $-120.50 | true"
+    And the ledger transaction 2 posting 2 reads "assets:bank:checking | -$120.50 | true"
     # A pending transaction, the second commodity, and a cost annotation the
     # reader does NOT model: the amount is what the file states, `100.00 EUR`.
     And the ledger transaction 3 is dated "2024-02-14"
@@ -73,7 +73,7 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
     # The depth is the account's own colons, which is what the flat tree's
     # indentation and its `data-depth` both say.
     And the ledger balance for "assets:bank:checking" sits at depth 2
-    And the ledger balance for "equity:opening balances" is "$-1200.00"
+    And the ledger balance for "equity:opening balances" is "-$1200.00"
     And the ledger balance for "expenses:groceries" is "$120.50"
     And the ledger balance for "expenses:dining out" is "$60.00"
     # The second commodity, at its own leaf: 100.00 + 40.00 = 140.00 EUR.
@@ -87,7 +87,7 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
     And the ledger balance for "assets:bank" is "$1019.50, -140.00 EUR"
     And the ledger balance for "assets" is "$1019.50, -140.00 EUR"
     And the ledger balance for "assets" is held in "$, EUR"
-    And the ledger balance for "equity" is "$-1200.00"
+    And the ledger balance for "equity" is "-$1200.00"
     And there should be no page errors
 
   @scratch:good
@@ -113,7 +113,7 @@ Feature: The page of a ledger whose arithmetic can be checked by hand
     # the row by the file it opens.
     Then the document is pointed at by 1 thing
     When I open what points at the document
-    Then the referrers name "money/notes.md"
+    Then what points at the document is "Money"
     And there should be no page errors
 
   Scenario: A note's link opens the ledger page

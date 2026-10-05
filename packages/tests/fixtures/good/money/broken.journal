@@ -1,5 +1,5 @@
 ; broken.journal — a file an editor half-wrote. Two transactions are whole;
-; two lines are not, and the page must still draw every one of the four.
+; two lines are not, and the page must still draw every one of the two.
 
 2024-06-01 * Rent | June
     expenses:rent              900.00
