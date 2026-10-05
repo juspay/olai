@@ -58,7 +58,8 @@ export const MAX_VIDEO_ATTACHMENT_BYTES = 200 * 1024 * 1024
  *
  * Every entry is something the agent on the other end can open from a path:
  * a PDF (Claude Code reads those), and text a person is likely to be holding
- * when they reach for a chat window — notes, a document, a table, a config.
+ * when they reach for a chat window — notes, a document, a table, a ledger, a
+ * config.
  * The list is closed for the reason `@olai/format`'s is: "not an outline" is
  * not a policy, and a denylist is a promise to have thought of everything.
  *
@@ -72,6 +73,9 @@ export const DOCUMENT_EXTENSIONS: ReadonlyArray<string> = [
   ".md",
   ".csv",
   ".json",
+  ".journal",
+  ".hledger",
+  ".ledger",
 ]
 
 /**

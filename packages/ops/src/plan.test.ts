@@ -5106,6 +5106,18 @@ describe("delete", () => {
     expect(refused(set, { op: "delete", file: "art/shot.png" }).message).toContain("is an image")
   })
 
+  // The same rule for the LEDGER, whose noun is its own: a journal is a show
+  // kind like the saved page beside it, and the sentence names it as the
+  // registry does rather than by its suffix.
+  test("a ledger journal stays out too — a show kind like any other", () => {
+    const set = setOf({ "house.olai": DOCS_REFS }, ["report.html", "books.journal"])
+    const failure = refused(set, { op: "delete", file: "books.journal" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("only SHOWS")
+    expect(failure.message).toContain("is a ledger")
+    expect(failure.message).toContain("whatever put it there")
+  })
+
   test("a file the set could not read is refused with the validator's own words", () => {
     const set = setOf({}, [], { "broken.md": "anything at all" })
     const failure = refused(set, { op: "delete", file: "broken.md" })
