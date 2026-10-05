@@ -1,4 +1,4 @@
-@share-scratch
+@scratch:good @share-scratch
 Feature: A link to a ledger is a link
   A ledger has a page, so a note or a node that links to one navigates there —
   the same rewrite every other kind with a page gets. What it does NOT get is a
@@ -13,15 +13,15 @@ Feature: A link to a ledger is a link
   a card whose content is parsed by the wrong reader. The absence is the
   promise.
 
-  @scratch:good
-  Scenario: A node's link to a ledger opens the page and draws no card
-    Given I rewrite "money/pointer.olai" as:
+  Scenario: A node's link to a ledger draws no card
+    # A node whose note links the ledger, opened on the node's own page — the
+    # precedent `link_preview.feature` sets, and the same door this claim needs:
+    # a note's links are the markdown an ordinary reader writes.
+    Given I rewrite "pointer.olai" as:
       """
-      {"id":"ptr","ord":"a0","title":"Pointer","desc":"[the ledger](household.journal)"}
+      {"id":"ptr","ord":"a0","title":"Pointer","desc":"[the ledger](money/household.journal)"}
       """
-    When I open the outline "money/pointer.olai"
-    # The link is a node's own `[the ledger](household.journal)`. Nothing is
-    # drawn over it, over the delay a card takes to appear.
+    When I open the node "ptr"
     And I hover the preview link "the ledger"
     Then the link preview stays closed
     And there should be no page errors
