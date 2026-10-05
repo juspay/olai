@@ -152,7 +152,7 @@ export const group = (lines: ReadonlyArray<Line>): ReadonlyArray<Block> => {
             txn.header = {
               ...txn.header,
               comment: joined(txn.header.comment, comment),
-              tags: [...txn.header.tags, ...tagsIn(comment)],
+              tags: [...txn.header.tags, ...tagsIn(comment).tags],
             }
           } else {
             const last = txn.postings[txn.postings.length - 1] as Stated
@@ -161,7 +161,7 @@ export const group = (lines: ReadonlyArray<Line>): ReadonlyArray<Block> => {
               posting: {
                 ...last.posting,
                 comment: joined(last.posting.comment, comment),
-                tags: [...last.posting.tags, ...tagsIn(comment)],
+                tags: [...last.posting.tags, ...tagsIn(comment).tags],
               },
             }
           }

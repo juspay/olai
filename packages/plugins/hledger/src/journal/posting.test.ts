@@ -49,3 +49,42 @@ test("a posting that states something unreadable is refused", () => {
   expect(postingOf("a  10 EUR @ $1.10")?.cost).toBe(true)
   expect(postingOf("a  10 EUR")?.cost).toBe(false)
 })
+
+// A COST AND AN ASSERTION ARE KEPT AS WRITTEN. Neither is modelled — hledger
+// converts with the first and checks a running total with the second — and a
+// page that draws somebody's journal has to show them.
+test("the cost and the assertion are kept as the file wrote them", () => {
+  const one = postingOf("    assets:investments:brokerage:VTI   5 VTI @ $271.12")!
+  expect(one.posting.amount?.written).toBe("5")
+  expect(one.posting.cost).toBe("@ $271.12")
+  expect(one.posting.assertion).toBeNull()
+
+  const reconciled = postingOf("    assets:bank:hdfc:checking   $0 = $5,123.45")!
+  expect(reconciled.posting.amount?.written).toBe("0")
+  expect(reconciled.posting.cost).toBeNull()
+  expect(reconciled.posting.assertion).toBe("= $5,123.45")
+
+  // An assertion-only line states no amount of its own.
+  const claimed = postingOf("    assets:bank:hdfc:checking   = $5,123.45")!
+  expect(claimed.posting.amount).toBeNull()
+  expect(claimed.posting.assertion).toBe("= $5,123.45")
+})
+
+// THE DIGITS ARE THE FILE'S, grouping and all: a page draws what the file says.
+test("an amount keeps the digits the file wrote", () => {
+  expect(postingOf("    a  $4,250.00")!.posting.amount?.written).toBe("4,250.00")
+  expect(postingOf("    a  1,240.00 INR")!.posting.amount?.written).toBe("1,240.00")
+  expect(postingOf("    a  $4250.00")!.posting.amount?.written).toBe("4250.00")
+  // …and the value is the arithmetic either way.
+  expect(text(postingOf("    a  $4,250.00")!.posting.amount!.value)).toBe("4250.00")
+})
+
+// THE PROSE IS THE COMMENT'S OWN WORDS: a page draws the prose once and the
+// tags once, rather than the whole comment and then the tags out of it.
+test("a posting's comment is kept as prose and as tags, not twice", () => {
+  const one = postingOf("    a  $1  ; withheld")!
+  expect([one.posting.prose, one.posting.tags]).toEqual(["withheld", []])
+  const two = postingOf("    a  $1  ; trip:munich-2026, my share was a third")!
+  expect(two.posting.prose).toBe("my share was a third")
+  expect(two.posting.tags).toEqual([{ key: "trip", value: "munich-2026" }])
+})

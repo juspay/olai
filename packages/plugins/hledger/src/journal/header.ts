@@ -89,6 +89,6 @@ export const headerOf = (line: string): Header | null => {
     payee: bar >= 0 ? head.slice(0, bar).trim() : head,
     note: bar >= 0 ? head.slice(bar + 1).trim() : null,
     comment: comment === "" ? null : comment,
-    tags: comment === null ? [] : tagsIn(comment),
+    tags: comment === null ? [] : tagsIn(comment).tags,
   }
 }

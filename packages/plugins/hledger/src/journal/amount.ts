@@ -27,13 +27,16 @@ export interface Style {
   readonly spaced: boolean
 }
 
-/** One amount: the commodity, the exact quantity under it, and how it was
- *  written — or a `null` style when this reader computed it (an inferred
- *  amount, or a total). */
+/** One amount: the commodity, the exact quantity under it, how it was written
+ *  — or a `null` style when this reader computed it (an inferred amount, or a
+ *  total) — and the DIGITS the file wrote, grouping and all, which a computed
+ *  amount has none of. The value is the arithmetic; `written` is the file's own
+ *  spelling of it, which is what a page drawing somebody's journal should show. */
 export interface Amount {
   readonly commodity: string
   readonly value: Decimal
   readonly style: Style | null
+  readonly written: string | null
 }
 
 /** An unquoted commodity: no whitespace, no digit and none of the characters
@@ -130,6 +133,7 @@ export const parseAmount = (region: string): Amount | null => {
   return {
     commodity,
     value: exact,
+    written,
     style: {
       // The sign is LEADING only where it was written before a prefix
       // commodity (`-$10`); everywhere else the number carries it.

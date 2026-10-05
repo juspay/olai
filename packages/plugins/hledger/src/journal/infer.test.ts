@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 
 import { text } from "./decimal.ts"
 import { infer } from "./infer.ts"
+import { readJournal } from "./read.ts"
 import { type Posting, type Stated, postingOf } from "./posting.ts"
 
 /** One posting line as the reading stated it — `null` would be a refusal, and
@@ -85,5 +86,29 @@ test("a refused posting stops the transaction's inference", () => {
   expect(rows(transaction(["a  $10", "c"], true))).toEqual([
     ["a", "10", false],
     ["c", "", false],
+  ])
+})
+
+// AN ASSERTION-ONLY POSTING IS NOT AN OMISSION: filling it in would be this
+// reader answering for a balance it never kept.
+test("an assertion-only posting is not inferred into", () => {
+  const reconciled = readJournal("2026-09-30 x\n    assets:bank:hdfc:checking   $0 = $5,123.45\n    equity:adjustments\n")
+  // The stated posting keeps the file's `0`; the inferred one has digits this
+  // reader computed (`written: null`) and its value is zero, which is what
+  // balances a transaction whose only stated amount was zero.
+  expect(reconciled.transactions[0]!.postings.map((one) => [
+    one.account,
+    one.amount === null ? null : [one.amount.written, text(one.amount.value)],
+    one.inferred,
+  ])).toEqual([
+    ["assets:bank:hdfc:checking", ["0", "0"], false],
+    ["equity:adjustments", [null, "0"], true],
+  ])
+
+  const claimed = readJournal("2026-09-30 x\n    a  $10\n    b  = $5,123.45\n    c\n")
+  expect(claimed.transactions[0]!.postings.map((one) => [one.account, one.amount?.written ?? null, one.inferred, one.assertion])).toEqual([
+    ["a", "10", false, null],
+    ["b", null, false, "= $5,123.45"],
+    ["c", null, true, null],
   ])
 })

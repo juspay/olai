@@ -85,7 +85,7 @@ import { type Header } from "./header.ts"
 import { infer } from "./infer.ts"
 import { classify, type Line } from "./line.ts"
 import { type Posting } from "./posting.ts"
-import { type Tag } from "./tags.ts"
+import { type Tag, tagsIn } from "./tags.ts"
 
 /**
  * One transaction: the header the fold finished (its comment and tags already
@@ -99,6 +99,8 @@ import { type Tag } from "./tags.ts"
  * all and is kept as a raw entry.
  */
 export type Transaction = Header & {
+  /** The header comment's own words, with its tags taken out. */
+  readonly prose: string
   readonly postings: ReadonlyArray<Posting>
 }
 
@@ -197,7 +199,14 @@ export const readJournal = (text: string, bounds?: Partial<Bounds>): Journal => 
   const cutPosting = (one: Posting): Posting => ({
     ...one,
     account: cutAccount(one.account),
+    cost: one.cost === null ? null : cut(one.cost),
+    assertion: one.assertion === null ? null : cut(one.assertion),
     comment: one.comment === null ? null : cut(one.comment),
+    // The prose is the comment's own words, and it is derived HERE rather than
+    // carried through the fold: the fold joins comments (an indented one under
+    // a posting is that posting's), and one place asking what is a tag is one
+    // place a page and its tags can disagree from.
+    prose: one.comment === null ? "" : cut(tagsIn(one.comment).prose),
     tags: cutTags(one.tags),
   })
 
@@ -228,6 +237,7 @@ export const readJournal = (text: string, bounds?: Partial<Bounds>): Journal => 
       payee: cut(header.payee),
       note: header.note === null ? null : cut(header.note),
       comment: header.comment === null ? null : cut(header.comment),
+      prose: header.comment === null ? "" : cut(tagsIn(header.comment).prose),
       tags: cutTags(header.tags),
       postings,
     })
@@ -244,7 +254,7 @@ export const readJournal = (text: string, bounds?: Partial<Bounds>): Journal => 
     const amounts = [...held]
       .filter(([, value]) => value.value !== 0n)
       .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-      .map(([commodity, value]) => ({ commodity, value, style: null }))
+      .map(([commodity, value]) => ({ commodity, value, style: null, written: null }))
     if (amounts.length > 0) of.set(account, amounts)
   }
 

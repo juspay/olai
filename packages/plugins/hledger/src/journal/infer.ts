@@ -31,7 +31,10 @@ export const infer = (items: ReadonlyArray<Stated>, refused: boolean): ReadonlyA
     for (const virtual of ["no", "balanced"] as const) {
       const group = items.flatMap((one, at) => (one.posting.virtual === virtual ? [{ one, at }] : []))
       const known = group.filter(({ one }) => one.posting.amount !== null)
-      const missing = group.filter(({ one }) => one.posting.amount === null)
+      // AN ASSERTION-ONLY POSTING IS NOT AN OMISSION: a line that states no
+      // amount but claims a running total is a claim, and filling it in would
+      // be this reader answering for a balance it never kept.
+      const missing = group.filter(({ one }) => one.posting.amount === null && one.posting.assertion === null)
       const commodities = new Set(known.map(({ one }) => one.posting.amount?.commodity ?? ""))
       if (missing.length !== 1 || known.length === 0 || commodities.size !== 1) continue
       const target = missing[0]
@@ -41,7 +44,7 @@ export const infer = (items: ReadonlyArray<Stated>, refused: boolean): ReadonlyA
       // The COMMODITY comes from an amount the group DID state — the posting
       // being inferred into has none, which is the whole reason it is here.
       const commodity = known[0]?.one.posting.amount?.commodity ?? ""
-      filled.set(target.at, { commodity, value: negate(sum), style: null })
+      filled.set(target.at, { commodity, value: negate(sum), written: null, style: null })
     }
   }
   return postings.map((posting, at) => {

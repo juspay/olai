@@ -21,13 +21,21 @@ import { type Tag, tagsIn } from "./tags.ts"
 
 /** One posting under a transaction. `virtual` is the account's bracket pair:
  *  `(acct)` unbalanced, `[acct]` balanced, none for an ordinary posting. An
- *  amount is `null` when the line stated none and it could not be inferred. */
+ *  amount is `null` when the line stated none and it could not be inferred —
+ *  or when the line stated only an ASSERTION, which is a claim about a running
+ *  total and not an omission to fill ({@link ./infer.ts}). `cost` and
+ *  `assertion` are the annotations as written (`@ $271.12`, `= $5,123.45`),
+ *  kept so a page can draw them beside the amount. */
 export interface Posting {
   readonly account: string
   readonly virtual: "no" | "unbalanced" | "balanced"
   readonly amount: Amount | null
   readonly inferred: boolean
+  readonly cost: string | null
+  readonly assertion: string | null
   readonly comment: string | null
+  /** The comment's own words, with its tags taken out. */
+  readonly prose: string
   readonly tags: ReadonlyArray<Tag>
 }
 
@@ -73,25 +81,41 @@ export const postingOf = (raw: string): Stated | null => {
   const semi = rest.indexOf(";")
   const comment = semi >= 0 ? rest.slice(semi + 1).trim() : null
   let region = (semi >= 0 ? rest.slice(0, semi) : rest).trim()
+  // A COST is the annotation as written (`@ $271.12`, `@@ 1,000.00 EUR`) and a
+  // BALANCE ASSERTION is the claim after `=` (`= $5,123.45`). Neither is
+  // modelled — hledger converts with the first and checks a running total with
+  // the second — so both are kept as the text they are, for the page to draw
+  // beside the amount.
+  let cost: string | null = null
   const atSign = region.indexOf("@")
-  const cost = atSign >= 0
-  if (cost) region = region.slice(0, atSign).trim()
+  if (atSign >= 0) {
+    cost = region.slice(atSign).trim()
+    region = region.slice(0, atSign).trim()
+  }
+  let assertion: string | null = null
   const equals = region.indexOf("=")
-  if (equals >= 0) region = region.slice(0, equals).trim()
+  if (equals >= 0) {
+    assertion = region.slice(equals).trim()
+    region = region.slice(0, equals).trim()
+  }
 
   // ONE parse, and the refusal is its `null`: an empty region is an OMISSION,
   // which is a different answer (`amount: null`, and the inference may fill it).
   const stated = region === "" ? null : parseAmount(region)
   if (region !== "" && stated === null) return null
+  const said = comment === null ? { tags: [], prose: "" } : tagsIn(comment)
   return {
     posting: {
       account,
       virtual,
       amount: stated,
       inferred: false,
+      cost,
+      assertion,
       comment: comment === "" ? null : comment,
-      tags: comment === null ? [] : tagsIn(comment),
+      prose: said.prose,
+      tags: said.tags,
     },
-    cost,
+    cost: cost !== null,
   }
 }

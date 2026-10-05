@@ -16,13 +16,29 @@ export interface Tag {
   readonly value: string | null
 }
 
-/** The tags one comment carries, in the order written. */
-export const tagsIn = (comment: string): ReadonlyArray<Tag> => {
+/** What one comment says: its tags, and the PROSE left between them — a page
+ *  draws the prose once and the tags once, rather than the whole comment and
+ *  then the tags again out of it. */
+export interface Commented {
+  readonly tags: ReadonlyArray<Tag>
+  readonly prose: string
+}
+
+/** The tags one comment carries, in the order written, and the prose around
+ *  them. A tag's own text — the key, the colon and the value that runs to the
+ *  next comma — is not prose, and neither is the comma that separated it from
+ *  the next one. */
+export const tagsIn = (comment: string): Commented => {
   const tags: Array<Tag> = []
-  const pattern = /([^\s:;,]+):\s*([^,]*)/g
+  let prose = ""
+  let at = 0
+  const pattern = /([^\s:;,]+):\s*([^,]*),?/g
   for (let found = pattern.exec(comment); found !== null; found = pattern.exec(comment)) {
+    prose += comment.slice(at, found.index)
     const value = (found[2] as string).trim()
     tags.push({ key: found[1] as string, value: value === "" ? null : value })
+    at = found.index + (found[0] as string).length
   }
-  return tags
+  prose += comment.slice(at)
+  return { tags, prose: prose.replace(/\s+/g, " ").trim() }
 }
