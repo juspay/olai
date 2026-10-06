@@ -827,7 +827,9 @@ Then(
       cost,
       `the cost on transaction ${String(at)}'s posting ${String(which)}`,
     );
-    const span = posting.locator(HLEDGER_COST);
+    // `:visible`, because the annotations are drawn twice — beside the amount
+    // on a laptop, under the posting on a phone — and a reader sees one.
+    const span = posting.locator(`${HLEDGER_COST}:visible`);
     await span.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
       oneLine((await span.textContent()) ?? ""),
@@ -850,7 +852,7 @@ Then(
       assertion,
       `the assertion on transaction ${String(at)}'s posting ${String(which)}`,
     );
-    const span = posting.locator(HLEDGER_ASSERTION);
+    const span = posting.locator(`${HLEDGER_ASSERTION}:visible`);
     await span.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
       oneLine((await span.textContent()) ?? ""),
@@ -872,7 +874,7 @@ Then(
   async function (this: World, at: number, which: number) {
     const posting = (await transaction(this, at)).locator(HLEDGER_POSTING).nth(which - 1);
     await posting.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
-    const mark = posting.locator(HLEDGER_INFERRED);
+    const mark = posting.locator(`${HLEDGER_INFERRED}:visible`);
     await mark.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
       await mark.getAttribute("title"),
