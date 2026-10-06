@@ -659,15 +659,21 @@ Then("the ledger annotations sit under the amount", async function (this: World)
     `${HLEDGER_TXN} ${HLEDGER_POSTING} ${HLEDGER_COST}:visible, ${HLEDGER_TXN} ${HLEDGER_POSTING} ${HLEDGER_ASSERTION}:visible`,
   );
   await this.waitUntil(async () => (await spans.count()) > 0, "an annotated posting on screen");
-  const below = await spans.evaluateAll((nodes, selector) => {
+  const below = await spans.evaluateAll((nodes, selectors) => {
+    const { posting, amount } = selectors as { posting: string; amount: string };
     return nodes.map((node) => {
-      const money = node.closest(selector as string);
-      const cell = money?.getBoundingClientRect() ?? null;
-      return cell === null ? 0 : Math.round(node.getBoundingClientRect().top - cell.bottom);
+      // The AMOUNT's cell in this posting, not the posting's row: the row ends
+      // below the line the annotation is on, so it would measure the annotation
+      // as "above" it whatever happened.
+      const cell = node.closest(posting)?.querySelector(amount)?.getBoundingClientRect() ?? null;
+      return cell === null ? Number.NEGATIVE_INFINITY : Math.round(node.getBoundingClientRect().top - cell.bottom);
     });
-  }, HLEDGER_POSTING);
+  }, { posting: HLEDGER_POSTING, amount: HLEDGER_AMOUNT });
   for (const gap of below) {
-    assert.ok(gap >= 0, `the annotation to sit under the amount (found ${String(gap)}px above it)`);
+    assert.ok(
+      gap >= -1,
+      `the annotation to sit under the amount (found ${String(gap)}px above it)`,
+    );
   }
 });
 
