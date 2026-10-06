@@ -39,8 +39,12 @@ was written on.
 
 On a phone the day moves to the payee's line (`01 ● Landlord · rent July`), the
 transactions are set apart by a gap rather than by a date column, and the
-amounts keep their columns — the account truncating from the left so its last
-segment stays visible.
+account truncates from the left so its last segment stays visible, against a
+column gap rather than into its own money. The amount keeps its two columns
+there, so the decimals still line up; the inferred `◌` rides the amount itself,
+because the cell it would otherwise end the row in is as wide as the widest
+annotation on the page; and a cost or an assertion — which is that widest
+thing — takes a line under the posting instead.
 
 **Balances** is the same file read the other way: every account that was
 named, as a tree, with one column per commodity the file uses. Parent accounts
