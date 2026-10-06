@@ -106,7 +106,7 @@ export function Hledger(props: { readonly file: string }) {
   const pickDepth = (next: Depth): void => {
     if (next === depth()) return
     setDepth(next)
-    setOpened(new Set())
+    setOpened(new Set<string>())
   }
   // HOW MANY TIMES the unreadable button has been pressed: the source panel
   // reads it and scrolls to the first line the reader could not make sense of.
