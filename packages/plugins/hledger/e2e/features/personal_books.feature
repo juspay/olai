@@ -115,6 +115,10 @@ Feature: The personal books the audit read, drawn as a journal
     And the ledger balance for "assets:bank:hdfc:checking" is drawn
     And the ledger balances draw 48 rows
     # THE DEPTH CONTROL: level 3 keeps three levels, so a depth-3 account goes.
+    # …AND IT IS THE DIAL, not a suggestion: `assets:bank:hdfc` was opened by
+    # hand above (past the cut of the depth it was at), and changing the dial
+    # drops that answer — an open that defeated the control answered THAT
+    # setting. The reader's own CLOSES stay; those are marks on accounts.
     When I set the ledger balance depth to "3"
     Then the ledger balance for "assets:bank:hdfc" is drawn
     And the ledger balance for "assets:bank:hdfc:checking" is not drawn

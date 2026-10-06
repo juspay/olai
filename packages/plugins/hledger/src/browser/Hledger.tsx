@@ -96,6 +96,18 @@ export function Hledger(props: { readonly file: string }) {
     setClosed((previous) => change(previous, expanded))
     setOpened((previous) => change(previous, !expanded))
   }
+  /** THE DIAL IS AUTHORITATIVE FOR HOW DEEP THE TREE IS DRAWN. An open the
+   *  reader made PAST the cut was an answer to the setting it defeated, so a
+   *  new setting drops those answers — otherwise `1` would draw two levels for
+   *  a branch somebody had opened earlier, which is the dial lying about what
+   *  it says. A CLOSE is a mark on an account rather than on the dial, so it
+   *  stays: that is the half the control cannot express, and the half a live
+   *  revision keeps. */
+  const pickDepth = (next: Depth): void => {
+    if (next === depth()) return
+    setDepth(next)
+    setOpened(new Set())
+  }
   // HOW MANY TIMES the unreadable button has been pressed: the source panel
   // reads it and scrolls to the first line the reader could not make sense of.
   const [reveal, setReveal] = createSignal(0)
@@ -160,7 +172,7 @@ export function Hledger(props: { readonly file: string }) {
                       scope={scope}
                       balances={read().balances}
                       depth={depth()}
-                      onDepth={setDepth}
+                      onDepth={pickDepth}
                       closed={closed()}
                       opened={opened()}
                       onToggle={toggleFold}

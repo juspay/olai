@@ -55,13 +55,15 @@ depth control clips the tree to one, two, three or all of its levels. The
 chevron shows what is true of that row — `▸` when its children are not on
 screen, whether you closed it or the control cut it — and pressing it opens
 the parent past the cut, which is you overruling the control for that one
-node. Both are kept for as long as the page is open: a rewrite of the file
-that still holds the account leaves the fold where you put it. A total is this
-app's arithmetic rather than anybody's spelling, so it is written in one house
-style — a symbol against the number with the minus in front of it
-(`-$1,200.00`), a word commodity after the number with a space — and its
-integer part is grouped in threes, because a computed number is one you have
-to read rather than check.
+node. The dial stays the dial: changing it drops those overrules, so `1` draws
+one level and never two for a branch you had opened earlier. What survives the
+dial is your own closes, and both survive a live revision as long as the
+account is still in the file: a rewrite of the file that still holds the
+account leaves the fold where you put it. A total is this app's arithmetic
+rather than anybody's spelling, so it is written in one house style — a symbol
+against the number with the minus in front of it (`-$1,200.00`), a word
+commodity after the number with a space — and its integer part is grouped in
+threes, because a computed number is one you have to read rather than check.
 
 **Source** is the file's own lines, as far as they were read, under a gutter
 numbering each one: nothing on that view is re-rendered from the parse, which
