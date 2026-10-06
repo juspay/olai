@@ -61,6 +61,7 @@ export const HLEDGER_DAY = selector(TESTID.hledgerDay);
  *  a suffix commodity or an annotation goes in) and the annotations. */
 export const HLEDGER_POSTING = selector(TESTID.hledgerPosting);
 export const HLEDGER_POSTING_COMMENT = selector(TESTID.hledgerPostingComment);
+export const HLEDGER_ACCOUNT = selector(TESTID.hledgerAccount);
 export const HLEDGER_AMOUNT = selector(TESTID.hledgerAmount);
 export const HLEDGER_AMOUNT_TAIL = selector(TESTID.hledgerAmountTail);
 export const HLEDGER_COST = selector(TESTID.hledgerCost);

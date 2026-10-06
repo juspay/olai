@@ -43,6 +43,7 @@ import type { OlaiWorld as World } from "@olai/tests/harness/world.ts";
 
 import { name as HLEDGER_KIND } from "../../src/claim.ts";
 import {
+  HLEDGER_ACCOUNT,
   HLEDGER_AMOUNT,
   HLEDGER_AMOUNT_TAIL,
   HLEDGER_ASSERTION,
@@ -603,6 +604,104 @@ Then("the ledger header facts each stay on one line", async function (this: Worl
       `${box.text} to stay on one line (${String(box.height)} against ${String(box.line)})`,
     );
     assert.ok(box.right <= edge + 0.5, `${box.text} to stay inside the header`);
+  }
+});
+
+// THE PHONE'S POSTING SHAPE, three claims about where things sit. On a laptop
+// the amount is two columns and the marker ends the row; on a phone there is no
+// room for that, so the account and the amount are separated by the grid's own
+// gap, the marker rides the amount, and whatever was written beside an amount
+// takes a line under it.
+Then("the ledger postings keep a gap between the account and the amount", async function (this: World) {
+  const postings = this.page.locator(`${HLEDGER_TXN} ${HLEDGER_POSTING}`);
+  await this.waitUntil(async () => (await postings.count()) > 0, "the transactions to draw a posting");
+  const gaps = await postings.evaluateAll((nodes, selectors) => {
+    const { account, amount } = selectors as { account: string; amount: string };
+    return nodes
+      .map((node) => {
+        const held = node.querySelector(account);
+        const money = node.querySelector(amount);
+        if (held === null || money === null) return null;
+        return money.getBoundingClientRect().left - held.getBoundingClientRect().right;
+      })
+      .filter((gap): gap is number => gap !== null && gap > 0);
+  }, { account: HLEDGER_ACCOUNT, amount: HLEDGER_AMOUNT });
+  assert.ok(gaps.length > 0, "the postings to draw an account and an amount");
+  for (const gap of gaps) {
+    assert.ok(
+      gap >= 8,
+      `a gap between the account and the amount (found ${String(Math.round(gap))}px)`,
+    );
+  }
+});
+
+Then("the ledger inferred mark rides the amount", async function (this: World) {
+  const marks = this.page.locator(`${HLEDGER_TXN} ${HLEDGER_POSTING} ${HLEDGER_INFERRED}:visible`);
+  await this.waitUntil(async () => (await marks.count()) > 0, "an inferred posting on screen");
+  const held = await marks.evaluateAll((nodes, selector) => {
+    return nodes.map((node) => {
+      const money = node.closest(selector as string);
+      const mark = node.getBoundingClientRect();
+      const cell = money?.getBoundingClientRect() ?? null;
+      return {
+        inside: cell !== null && mark.left >= cell.left - 0.5 && mark.right <= cell.right + 0.5,
+        away: cell === null ? 0 : Math.round(mark.left - cell.right),
+      };
+    });
+  }, HLEDGER_AMOUNT);
+  for (const mark of held) {
+    assert.ok(mark.inside, `the inferred mark to ride its amount (${String(mark.away)}px past it)`);
+  }
+});
+
+Then("the ledger annotations sit under the amount", async function (this: World) {
+  const spans = this.page.locator(
+    `${HLEDGER_TXN} ${HLEDGER_POSTING} ${HLEDGER_COST}:visible, ${HLEDGER_TXN} ${HLEDGER_POSTING} ${HLEDGER_ASSERTION}:visible`,
+  );
+  await this.waitUntil(async () => (await spans.count()) > 0, "an annotated posting on screen");
+  const below = await spans.evaluateAll((nodes, selector) => {
+    return nodes.map((node) => {
+      const money = node.closest(selector as string);
+      const cell = money?.getBoundingClientRect() ?? null;
+      return cell === null ? 0 : Math.round(node.getBoundingClientRect().top - cell.bottom);
+    });
+  }, HLEDGER_POSTING);
+  for (const gap of below) {
+    assert.ok(gap >= 0, `the annotation to sit under the amount (found ${String(gap)}px above it)`);
+  }
+});
+
+// NO LINE OF THE FACTS OPENS WITH A SEPARATOR: the `·` belongs to the fact
+// BEFORE it, so a line that wraps begins with a fact. A separator drawn as an
+// element of its own is what cannot make that claim — it is exactly the thing
+// that gets stranded at the start of the next line.
+Then("the ledger header never opens a line with a separator", async function (this: World) {
+  const header = this.page.locator(HLEDGER_HEADER);
+  await header.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const starts = await header.evaluate((node, fact) => {
+    const kids = [...node.children].map((child) => {
+      const box = child.getBoundingClientRect();
+      return {
+        top: Math.round(box.top),
+        left: Math.round(box.left),
+        fact: child.matches(fact as string),
+        text: (child.textContent ?? "").trim(),
+      };
+    });
+    const lines = new Map<number, typeof kids>();
+    for (const kid of kids) {
+      const held = lines.get(kid.top) ?? [];
+      held.push(kid);
+      lines.set(kid.top, held);
+    }
+    return [...lines.values()].map((line) => line.sort((left, right) => left.left - right.left)[0]);
+  }, HLEDGER_FACT);
+  assert.ok(starts.length > 0, "the header to draw a line of facts");
+  for (const first of starts) {
+    assert.ok(
+      first?.fact === true,
+      `the line starting with ${JSON.stringify(first?.text)} to start with a fact`,
+    );
   }
 });
 

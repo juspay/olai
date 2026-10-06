@@ -161,8 +161,17 @@ Feature: The personal books the audit read, drawn as a journal
     # THE TRANSACTIONS ARE SET APART, so the row above does not read as part of
     # the one below — the phone has no date column to open one with.
     And the ledger transactions are set apart
+    # THE POSTING'S OWN SHAPE: a real gap between the account and its amount (so
+    # the account truncates instead of running into its own money), the inferred
+    # mark riding the amount rather than ending the row, and a cost or an
+    # assertion on a line under it.
+    And the ledger postings keep a gap between the account and the amount
+    And the ledger inferred mark rides the amount
+    And the ledger annotations sit under the amount
     # …AND THE FACTS WRAP AS WHOLE ITEMS: `Jul 1 – Sep 30, 2026 · 47
-    # transactions` then `· 48 accounts · $ EUR INR VTI`, never a fact split in
-    # half and never a separator stranded at the end of a line.
+    # transactions` then `48 accounts · $ EUR INR VTI` — never a fact split in
+    # half, and never a line OPENING with a separator (the `·` belongs to the
+    # fact before it).
+    And the ledger header never opens a line with a separator
     And the ledger header facts each stay on one line
     And there should be no page errors

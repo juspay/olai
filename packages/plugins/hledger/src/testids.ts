@@ -33,9 +33,10 @@ export const TESTID = {
   hledgerStatus: "hledger-status",
   hledgerPosting: "hledger-posting",
   hledgerPostingComment: "hledger-posting-comment",
-  /** The amount's number cell (prefix symbol glued to the digits, right
-   *  aligned) and the tail cell beside it (a suffix commodity, a cost, an
-   *  assertion — left aligned). */
+  /** The account cell, the amount's number cell (prefix symbol glued to the
+   *  digits, right aligned) and the tail cell beside it (a suffix commodity —
+   *  and, on a laptop, a cost and an assertion). */
+  hledgerAccount: "hledger-account",
   hledgerAmount: "hledger-amount",
   hledgerAmountTail: "hledger-amount-tail",
   hledgerCost: "hledger-cost",

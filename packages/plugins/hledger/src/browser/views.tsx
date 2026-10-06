@@ -189,11 +189,14 @@ export function LedgerHeader(props: {
     <header class="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-body text-muted" data-testid={TESTID.hledgerHeader}>
       <Index each={facts()}>
         {(fact, at) => (
-          // THE SEPARATOR IS THE ITEM'S OWN, a pseudo-element rather than a
-          // span between them: a fact that wraps takes its `·` with it, so no
-          // line ends in a separator and none begins with one.
+          // THE SEPARATOR BELONGS TO THE ITEM BEFORE IT (`after`), so a line
+          // that wraps never BEGINS with a `·` — the mark travels with the fact
+          // it follows. The last fact carries one only when the button below
+          // follows it.
           <span
-            class={`whitespace-nowrap ${at > 0 ? "before:mr-2 before:content-['·']" : ""}`}
+            class={`whitespace-nowrap ${
+              at < facts().length - 1 || unreadable() > 0 ? "after:ml-2 after:content-['·']" : ""
+            }`}
             data-testid={TESTID.hledgerFact}
             data-fact={fact().kind}
           >
@@ -204,7 +207,7 @@ export function LedgerHeader(props: {
       <Show when={unreadable() > 0}>
         <button
           type="button"
-          class="before:mr-2 before:content-['·'] inline-flex min-h-8 cursor-pointer items-center rounded-control border border-alarm/40 bg-alarm/10 px-2 py-0.5 text-label text-alarm hover:bg-alarm/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-alarm md:min-h-0"
+          class="inline-flex min-h-8 cursor-pointer items-center rounded-control border border-alarm/40 bg-alarm/10 px-2 py-0.5 text-label text-alarm hover:bg-alarm/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-alarm md:min-h-0"
           data-testid={TESTID.hledgerUnreadable}
           onClick={() => props.onUnreadable()}
         >
@@ -399,7 +402,7 @@ function PostingRow(props: { readonly posting: Posting }) {
       data-virtual={props.posting.virtual}
     >
       <span class="hidden md:block" />
-      <span class="flex min-w-0 items-baseline gap-1.5">
+      <span class="flex min-w-0 items-baseline gap-1.5" data-testid={TESTID.hledgerAccount}>
         <AccountName account={props.posting.account} virtual={props.posting.virtual} />
         <Show when={props.posting.prose}>
           {(prose) => (
@@ -410,8 +413,22 @@ function PostingRow(props: { readonly posting: Posting }) {
       </span>
       {/* The number: the prefix symbol is glued to its digits and the cell is
           right-aligned, so every amount's last digit lands in one column. */}
-      <span class="text-right font-mono text-label tabular-nums" data-testid={TESTID.hledgerAmount}>
+      <span class="flex items-baseline justify-end gap-1.5 text-right font-mono text-label tabular-nums" data-testid={TESTID.hledgerAmount}>
         <Show when={props.posting.amount}>{(held) => <AmountNumber amount={held()} muted={props.posting.inferred} />}</Show>
+        {/* ON A PHONE THE MARKER RIDES THE NUMBER, because there is no room
+            for a column of its own there and the cell it would sit in is as
+            wide as the widest annotation on the page: the `◌` would be a
+            hundred pixels from the amount it is about. */}
+        <Show when={props.posting.inferred}>
+          <span
+            class="leading-none text-muted md:hidden"
+            data-testid={TESTID.hledgerInferred}
+            title="inferred"
+            aria-label="inferred"
+          >
+            ◌
+          </span>
+        </Show>
       </span>
       {/* The tail: a suffix commodity, then whatever was written beside the
           amount. Left-aligned, so the commodities line up under each other. */}
@@ -420,22 +437,40 @@ function PostingRow(props: { readonly posting: Posting }) {
         data-testid={TESTID.hledgerAmountTail}
       >
         <Show when={props.posting.amount}>{(held) => <AmountSuffix amount={held()} muted={props.posting.inferred} />}</Show>
-        <Show when={props.posting.cost}>
-          {(cost) => <span class="truncate text-muted" data-testid={TESTID.hledgerCost} title="cost annotation">{cost()}</span>}
-        </Show>
-        <Show when={props.posting.assertion}>
-          {(claim) => <span class="truncate text-muted" data-testid={TESTID.hledgerAssertion} title="balance assertion">{claim()}</span>}
-        </Show>
+        <span class="hidden items-baseline gap-1.5 md:flex">
+          <Annotations posting={props.posting} />
+        </span>
       </span>
-      {/* The marker is `self-center`d and has no leading of its own: a glyph
-          that kept its line box made every inferred row taller than its
-          neighbours. */}
-      <span class="flex justify-center self-center">
+      {/* The marker column: the laptop's. */}
+      <span class="hidden justify-center self-center md:flex">
         <Show when={props.posting.inferred}>
           <span class="leading-none text-muted" data-testid={TESTID.hledgerInferred} title="inferred" aria-label="inferred">◌</span>
         </Show>
       </span>
+      {/* WHAT WAS WRITTEN BESIDE THE AMOUNT takes a line of its own on a phone:
+          `= $5,123.45` is wider than any suffix, and a column sized by it would
+          push every amount on the page away from the right edge. */}
+      <span class="col-span-full flex items-baseline justify-end gap-1.5 font-mono text-label tabular-nums md:hidden">
+        <Annotations posting={props.posting} />
+      </span>
     </div>
+  )
+}
+
+/** A cost (`@ $271.12`) and a balance assertion (`= $5,123.45`) as the file
+ *  wrote them, in quiet type. Two places draw them — the tail cell beside the
+ *  amount on a laptop, a line of its own on a phone — so they are one component
+ *  rather than the same two spans written out twice. */
+function Annotations(props: { readonly posting: Posting }) {
+  return (
+    <>
+      <Show when={props.posting.cost}>
+        {(cost) => <span class="truncate text-muted" data-testid={TESTID.hledgerCost} title="cost annotation">{cost()}</span>}
+      </Show>
+      <Show when={props.posting.assertion}>
+        {(claim) => <span class="truncate text-muted" data-testid={TESTID.hledgerAssertion} title="balance assertion">{claim()}</span>}
+      </Show>
+    </>
   )
 }
 
@@ -546,7 +581,13 @@ export function TransactionsPanel(props: {
       // was written beside the amount. Two columns and not one, because a
       // right-aligned `850.00 EUR` puts its last digit where `$4,250.00` puts
       // its `R` — the decimals line up only when the number ends the cell.
-      class="grid grid-cols-[minmax(0,1fr)_max-content_max-content_1rem] md:grid-cols-[5.5rem_minmax(0,1fr)_max-content_max-content_1rem]"
+      // A PHONE HAS THREE COLUMNS, NOT FOUR. The annotations take a line of
+      // their own there (see the posting), so the tail column holds a suffix
+      // commodity and nothing wider — which is what keeps the amounts off the
+      // right edge instead of a hundred pixels away from it. `gap-x-3` is the
+      // phone's: the account truncates against that gap rather than running
+      // into its own amount.
+      class="grid grid-cols-[minmax(0,1fr)_max-content_max-content] gap-x-3 md:grid-cols-[5.5rem_minmax(0,1fr)_max-content_max-content_1rem] md:gap-x-0"
       data-testid={TESTID.hledgerTransactions}
     >
       <Index each={months()}>
