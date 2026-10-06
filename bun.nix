@@ -7426,6 +7426,7 @@
   "olai-plugin-csv" = copyPathToStore ./packages/plugins/csv;
   "olai-plugin-files" = copyPathToStore ./packages/plugins/files;
   "olai-plugin-git" = copyPathToStore ./packages/plugins/git;
+  "olai-plugin-hledger" = copyPathToStore ./packages/plugins/hledger;
   "olai-plugin-hypertext" = copyPathToStore ./packages/plugins/hypertext;
   "olai-plugin-identity" = copyPathToStore ./packages/plugins/identity;
   "olai-plugin-image" = copyPathToStore ./packages/plugins/image;

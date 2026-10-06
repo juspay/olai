@@ -1,0 +1,6 @@
+{
+  "//journal": "The daily-notes plugin is called `journal`, and `.journal` is one of the three suffixes THIS row claims — the word is the file format's, and the extension literal has to be spelled in `src/claim.ts` (the suffix sweep requires it there). Nothing here reaches that plugin; the collision is the English word.",
+  "journal": [
+    "src/claim.ts"
+  ]
+}

@@ -1,0 +1,5 @@
+; ledger.ledger — the third suffix, and nothing else about the kind differs.
+
+2025-05-01 * Bus fare
+    expenses:transport         2.75
+    assets:cash               -2.75
