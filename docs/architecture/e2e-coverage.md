@@ -320,6 +320,39 @@ that the sidebar action itself has drawn its destination.
 
 ## Browsing tools
 
+`the_agents_browser.feature` (`@browsing-live`) runs the e2e shell's pinned
+Chromium as the row's own browser and the real Playwright MCP as each
+conversation's tools; the scenario serves its pages on loopback. It covers
+opening `/browser` from the health popover and from the palette while the
+browser is down, Start, a tab appearing, the address bar, a decoded frame,
+pressing a page's button and typing and pasting into its box through the
+picture (asserted by the tab title the page sets), Escape handing the keys
+back, opening and closing a tab, a second pane (Alt) on the same tab streaming
+and the first staying live after the second closes, the chat roster's
+`browser` chip linking to the pane, an agent's real MCP navigating in the
+person's browser and its `browser_close` leaving the browser and the tab up,
+site storage surviving an olai restart (and Chromium dying with the stopped
+server) until **Forget sign-ins** clears it, switching the row off killing the
+Chromium process and on-again Start relaunching a new one, and a dropped
+socket resuming the stream. Each ends with no page errors. A `browsing.feature`
+scenario covers the blank-Chromium case: the pane says why, the conversation
+keeps its isolated handoff and the chip still links.
+
+Unit tests hold the CDP pipe framing (split and joined frames, refusals,
+events, a closed pipe failing calls in flight), the standing walk and one
+shared launch under concurrent demands, a failed launch retried, a crash
+taking the browser to `failed` with its tabs cleared and panes told, row
+withdrawal releasing the browser and interrupting a launch, the screencast
+refcount (one per tab, every frame acknowledged, the last frame handed to a
+joining pane, stopped with the last pane), titles re-read on loads and new
+pictures, every gesture's CDP shape, forgetting sign-ins, the address bar's
+URL reading, the pane's pointer and key mapping, the attached handoff's args
+and env, and core's local directory door. The Nix surface check launches the
+pinned Chromium, attaches the pinned MCP over CDP twice to prove one shared
+cookie jar, checks `browser_close` leaves the browser running, and receives
+screencast frames through the plugin's own client, printing their size
+against the surface frame cap.
+
 `browsing.feature` uses a scripted MCP executable and the existing ACP fixture.
 The lifecycle workflow verifies the engine's received server list, two distinct
 0700 conversation output directories and their removal on withdrawal, same-node
@@ -335,9 +368,8 @@ failed probes leaving no conversation directories, missing tools, timeout, early
 exit with bounded stderr diagnostics, non-executable and absent knobs, unexpected
 preparation defects, transport cancellation, pagination, notifications and malformed
 JSON shapes. Private pure protocol tests cover partial-line framing, bounds,
-message parsing, initialization order and immutable pagination state. The sandboxed Nix surface check asks the real pinned executable for
-its tool list without launching Chromium. Live web browsing and live model
-behavior are not exercised by CI.
+message parsing, initialization order and immutable pagination state. Live
+model behavior is not exercised by CI.
 
 The same-node toggle case exposed a product race: a reconnecting reader for the
 old binding could enqueue `session/load` while fresh-start was still opening.

@@ -50,6 +50,7 @@ Feature: The person sees and uses the browser their agents use
     And I type "open browser" into the palette
     And I press "Enter"
     Then pane 0 draws the browser page
+    And the browser pane says the browser is down
     When I start the browser from the pane
     And I go to the site's "fixture" page in the browser's address bar
     Then the shown browser tab in pane 0 is titled "Fixture"

@@ -962,10 +962,18 @@ the existing scope lifecycle and tool boundaries.
 
 New conversations also receive the default-on [browsing plugin](plugins/browsing.md)'s
 Playwright MCP server when its executable answers the per-conversation probe.
-Every ACP engine gets the same headless, isolated browser handoff. Failed probes
-show the plugin's explanation in chat; an empty `OLAI_BROWSER_MCP` omits it.
-Screenshots and downloads use plugin-owned temporary scratch, removed when the
-row stops, rather than the vault or the agent's working directory.
+Every ACP engine is attached to the same browser: the one olai runs for this
+served directory, which you can see and use at `/browser`, signed in wherever
+you signed it in. (With `OLAI_BROWSER_CHROMIUM` empty, each conversation gets
+an isolated browser of its own instead.) Failed probes show the plugin's
+explanation in chat; an empty `OLAI_BROWSER_MCP` omits it. Screenshots and
+downloads use plugin-owned temporary scratch, removed when the row stops,
+rather than the vault or the agent's working directory.
+
+**A tool with a page of its own is a link on the roster.** The `browser` chip
+goes to `/browser`. A probing plugin may name an app address for the server
+it hands over (`Probed.at`); chat draws that chip as a link and learns nothing
+else about what the address shows.
 
 Question fields keep drafts by field key, and choice buttons keep their element
 identity by protocol value. Waiting-form reveal follows current document order.

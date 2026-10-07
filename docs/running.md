@@ -370,6 +370,7 @@ Environment readings follow the controls and stay read-only. Wrapper-provided ex
 | `OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI` | executable paths, normally wrapper-provided |
 | `CODEX_CONFIG` | JSON overlay olai merges into the Codex session config on every Codex spawn, forcing `features.memories: false` while keeping every key the operator set |
 | `OLAI_BROWSER_MCP` | absolute Playwright MCP executable; empty omits browser tools; artifacts use private scratch under `XDG_RUNTIME_DIR` or the system temporary directory |
+| `OLAI_BROWSER_CHROMIUM` | absolute Chromium executable olai runs (headless, one per served directory, profile under `XDG_STATE_HOME`) and attaches every conversation's MCP to, shown at `/browser`; empty gives each conversation an isolated browser of its own |
 | `OLAI_ODU_BIN` | directory prepended to the appliance's PATH |
 | `ODU_WEB_ORIGIN` | odu service origin this olai dials; default `http://127.0.0.1:18440` |
 | `OLAI_HIMALAYA` | the pinned `himalaya` the mail row runs, normally wrapper-provided |
