@@ -25,7 +25,7 @@ kill -ABRT $$
   expect(failure.why).toContain("FATAL:zygote_host_impl_linux.cc(132)] No usable sandbox!")
   expect(failure.why).toContain("[end of stack trace]")
   // ...and names the one switch that answers it.
-  expect(failure.why).toContain("set OLAI_BROWSER_CHROMIUM_SANDBOX=off")
+  expect(failure.why).toContain("set OLAI_BROWSER_CHROMIUM_SANDBOX=container")
   expect(failure.why.length).toBeLessThan(1500)
 })
 
@@ -33,14 +33,24 @@ test("olai's own launch keeps Chromium's sandbox; only the check's option drops 
   for (const flag of WITHOUT_ITS_OWN_SANDBOX) expect(FLAGS("/profile")).not.toContain(flag)
 })
 
-test("the sandbox knob is on unless it says off, and anything else is a sentence", () => {
-  for (const value of [undefined, "", " on "]) expect(sandboxFlags(value)).toEqual([])
-  expect(sandboxFlags("off")).toEqual(WITHOUT_ITS_OWN_SANDBOX)
-  expect(sandboxFlags("no")).toEqual({ why: 'OLAI_BROWSER_CHROMIUM_SANDBOX is "no"; it takes on or off.' })
+test("the sandbox knob is chromium unless it says container, and anything else is a sentence", () => {
+  for (const value of [undefined, "", " chromium "]) expect(sandboxFlags(value)).toEqual([])
+  expect(sandboxFlags("container")).toEqual(WITHOUT_ITS_OWN_SANDBOX)
+  // The YAML 1.1 booleans are refused by name, never read as either word.
+  for (const value of ["on", "off", "yes", "no", "true", "false", "Container"]) {
+    const answer = sandboxFlags(value)
+    expect("why" in answer).toBe(true)
+    if ("why" in answer) {
+      expect(answer.why).toContain(`OLAI_BROWSER_CHROMIUM_SANDBOX is ${JSON.stringify(value)}`)
+      expect(answer.why).toContain("chromium")
+      expect(answer.why).toContain("container")
+      expect(answer.why).toContain("YAML")
+    }
+  }
 })
 
 test("only a sandbox failure names the knob", () => {
-  expect(tail(["[1:1:FATAL:zygote_host_impl_linux.cc(128)] No usable sandbox!"], "")).toContain("OLAI_BROWSER_CHROMIUM_SANDBOX=off")
+  expect(tail(["[1:1:FATAL:zygote_host_impl_linux.cc(128)] No usable sandbox!"], "")).toContain("OLAI_BROWSER_CHROMIUM_SANDBOX=container")
   expect(tail(["[1:1:FATAL:something_else.cc(1)] Out of memory"], "")).not.toContain("OLAI_BROWSER_CHROMIUM_SANDBOX")
   expect(tail([], "")).toBe("")
 })

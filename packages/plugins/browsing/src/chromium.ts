@@ -68,7 +68,7 @@ export const FLAGS = (profile: string): ReadonlyArray<string> => [
  * Shared memory and a GPU are missing there too.
  *
  * Two callers, and no third: the hermetic `surface.check.ts`, and a person
- * who sets {@link SANDBOX_KNOB} to `off` because their container is the
+ * who sets {@link SANDBOX_KNOB} to `container` because their container is the
  * boundary. {@link FLAGS} carries none of these, nothing detects a host and
  * drops them on its behalf, and the default is Chromium's own sandbox.
  * (Playwright's own launches pass `--no-sandbox` by default, which is why the
@@ -79,17 +79,29 @@ export const WITHOUT_ITS_OWN_SANDBOX: ReadonlyArray<string> = ["--no-sandbox", "
 /** The person's switch for {@link WITHOUT_ITS_OWN_SANDBOX}. */
 export const SANDBOX_KNOB = "OLAI_BROWSER_CHROMIUM_SANDBOX"
 
-/** The flags the knob asks for: unset, empty or `on` keeps Chromium's own
- *  sandbox; `off` drops it; anything else is a sentence, never a guess. */
+/**
+ * The flags the knob asks for, named for WHAT IS THE SANDBOX: `chromium` (the
+ * default; unset or empty means it too) keeps Chromium's own, and `container`
+ * drops it because the container is the boundary. Anything else is a
+ * sentence, never a guess.
+ *
+ * NOT on/off, and not yes/no or true/false: all six are YAML 1.1 booleans. A
+ * Kubernetes manifest carrying `value: off` reached k3s (and every Go YAML
+ * reader) as `false`, the env entry was rejected ("unrecognized type:
+ * string") and never reached the pod. Two plain words survive any manifest
+ * unquoted.
+ */
 export const sandboxFlags = (value: string | undefined): ReadonlyArray<string> | { readonly why: string } => {
   const said = value?.trim() ?? ""
-  if (said === "" || said === "on") return []
-  if (said === "off") return WITHOUT_ITS_OWN_SANDBOX
-  return { why: `${SANDBOX_KNOB} is ${JSON.stringify(said)}; it takes on or off.` }
+  if (said === "" || said === "chromium") return []
+  if (said === "container") return WITHOUT_ITS_OWN_SANDBOX
+  return {
+    why: `${SANDBOX_KNOB} is ${JSON.stringify(said)}; it takes chromium (Chromium's own sandbox, the default) or container (the container is the sandbox). Not on/off: YAML reads those, and yes/no and true/false, as booleans, and a manifest then drops the variable.`,
+  }
 }
 
 /** Said after Chromium's own words when its sandbox could not start. */
-const NO_SANDBOX_HINT = ` Chromium's own sandbox cannot start on this host (it needs unprivileged user namespaces or a setuid helper). If a container is already the boundary, set ${SANDBOX_KNOB}=off; the browsing docs say what that gives up.`
+const NO_SANDBOX_HINT = ` Chromium's own sandbox cannot start on this host (it needs unprivileged user namespaces or a setuid helper). If a container is already the boundary, set ${SANDBOX_KNOB}=container; the browsing docs say what that gives up.`
 
 /** Is this an absolute executable file? The knob's own check, the probe's
  *  rule for `OLAI_BROWSER_MCP` one row over. */

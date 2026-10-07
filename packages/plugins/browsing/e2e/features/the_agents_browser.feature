@@ -142,9 +142,9 @@ Feature: The person sees and uses the browser their agents use
     And there should be no page errors
 
   @browsing-live-unsandboxed
-  Scenario: With the sandbox knob off, the browser starts without its own sandbox and streams
+  Scenario: When the container is the sandbox, the browser starts without its own and streams
     # The container-is-the-sandbox deployment: OLAI_BROWSER_CHROMIUM_SANDBOX
-    # is off, so Chromium is launched with the flags the hermetic check uses.
+    # is `container`, so Chromium is launched with the flags the hermetic check uses.
     # Everywhere else in this file it runs inside its own sandbox.
     When I open the address "/browser"
     And I start the browser from the pane

@@ -79,10 +79,18 @@ AppArmor default, and hardened containers — a Kubernetes pod with seccomp
 Chromium will not start. The pane and chat both say why, in Chromium's own
 words (`No usable sandbox!`), and name the switch below.
 
-`OLAI_BROWSER_CHROMIUM_SANDBOX=off` launches Chromium without its own sandbox
-(`--no-sandbox`, `--disable-gpu`, `--disable-dev-shm-usage`). It is `on` by
-default. olai never turns it off for you or tries to detect such a host;
-anything other than `on` or `off` is refused with a sentence.
+`OLAI_BROWSER_CHROMIUM_SANDBOX` says what Chromium's sandbox is:
+
+- `chromium` (the default; unset or empty means the same): Chromium's own.
+- `container`: the container is the boundary, so Chromium launches without
+  its own (`--no-sandbox`, `--disable-gpu`, `--disable-dev-shm-usage`).
+
+olai never chooses `container` for you or tries to detect such a host. Any
+other value fails the launch with a sentence naming the two words. That
+includes `on`/`off`, `yes`/`no` and `true`/`false`, on purpose: YAML 1.1
+reads all six as booleans, so in a Kubernetes manifest an unquoted `off`
+becomes `false`, the env entry is rejected, and the variable never reaches
+the pod. The two words above need no quoting anywhere.
 
 **What you give up.** Chromium's sandbox is what stands between a hostile
 web page and the process running it. Without it, a page that exploits a

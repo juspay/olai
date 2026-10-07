@@ -341,7 +341,7 @@ server) until **Forget sign-ins** clears it, switching the row off killing the
 Chromium process and on-again Start relaunching a new one, and a dropped
 socket resuming the stream. The first scenario also checks Chromium runs inside
 its own sandbox by default, and one `@browsing-live-unsandboxed` scenario sets
-`OLAI_BROWSER_CHROMIUM_SANDBOX=off` and checks the browser starts with
+`OLAI_BROWSER_CHROMIUM_SANDBOX=container` and checks the browser starts with
 `--no-sandbox` on its command line and streams and takes a press. Each ends
 with no page errors. A `browsing.feature`
 scenario covers the blank-Chromium case: the pane says why, the conversation

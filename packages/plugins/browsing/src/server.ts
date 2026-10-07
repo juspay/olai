@@ -33,7 +33,7 @@ export default definePlugin({
   environment: [
     {"key": "OLAI_BROWSER_MCP", "secret": false, "says": "the absolute Playwright MCP executable; empty disables browser tools"},
     {"key": "OLAI_BROWSER_CHROMIUM", "secret": false, "says": "the absolute Chromium executable olai runs for its agents and shows at /browser; empty gives each conversation an isolated browser instead"},
-    {"key": "OLAI_BROWSER_CHROMIUM_SANDBOX", "secret": false, "says": "on (the default) runs that Chromium inside its own sandbox; off drops it, for a container that is already the boundary"},
+    {"key": "OLAI_BROWSER_CHROMIUM_SANDBOX", "secret": false, "says": "what is that Chromium's sandbox: chromium (the default; its own) or container (the container is the boundary, so Chromium runs without its own)"},
   ],
   needs: [Clock, Env, LocalState, SessionStart, Surfaces],
   apply: Effect.gen(function*() {
