@@ -3,9 +3,10 @@
  * packaged MCP and Chromium, and by hand with any two executables.
  *
  * The disposable probe still never opens a page; then the row's own owner
- * launches Chromium headless on a temp profile, the handed-over MCP attaches
- * over CDP and navigates to `about:blank`, two MCPs prove they share one
- * cookie jar, `browser_close` leaves the browser and the person's tab
+ * launches Chromium headless on a temp profile — without Chromium's own
+ * sandbox, which a build sandbox may not allow and olai's runtime never
+ * drops — the handed-over MCP attaches over CDP and navigates to
+ * `about:blank`, two MCPs prove they share one cookie jar, `browser_close` leaves the browser and the person's tab
  * standing, and the plugin's own CDP client receives a screencast frame. It
  * prints the frame sizes against the surface's frame cap. No network.
  */
@@ -15,6 +16,7 @@ import { Effect, Option, Stream } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { launchChromium, WITHOUT_ITS_OWN_SANDBOX } from "./chromium.ts"
 import { openLive } from "./live.ts"
 import { probing } from "./probe.ts"
 import { openScratch } from "./scratch.ts"
@@ -33,6 +35,9 @@ const program = Effect.scoped(Effect.gen(function*() {
     profile: Effect.succeed(join(home, "profile")),
     now: () => new Date().toISOString(),
     publish: { standing: () => {}, tab: () => {}, untab: () => {} },
+    // A build sandbox may have no user namespaces for Chromium's own sandbox
+    // (`./chromium.ts` says why this is the check's alone).
+    launch: (executable, profile) => launchChromium(executable, profile, { extraFlags: WITHOUT_ITS_OWN_SANDBOX }),
   })
   const answer = yield* probing({ ...process.env, OLAI_BROWSER_MCP: mcp }, output, 15_000, live.attach)
   const server = answer.server ?? fail(answer.missing?.why ?? "No browser MCP executable was supplied.")

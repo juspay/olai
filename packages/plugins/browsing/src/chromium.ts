@@ -53,6 +53,17 @@ export const FLAGS = (profile: string): ReadonlyArray<string> => [
   "about:blank",
 ]
 
+/**
+ * FOR A HERMETIC CHECK ONLY, NEVER olai's RUNTIME. A Nix build sandbox may
+ * have no user namespaces (GitHub's hosted runners do not), so Chromium's own
+ * sandbox cannot start and aborts (SIGABRT); its shared memory and GPU are
+ * missing there too. `surface.check.ts` passes these to prove the
+ * MCP-over-CDP path on such a builder. The browser a person signs in with
+ * always runs with Chromium's sandbox: {@link FLAGS} carries none of these,
+ * and nothing in the row passes `extraFlags`.
+ */
+export const WITHOUT_ITS_OWN_SANDBOX: ReadonlyArray<string> = ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"]
+
 /** Is this an absolute executable file? The knob's own check, the probe's
  *  rule for `OLAI_BROWSER_MCP` one row over. */
 export const isExecutable = (path: string): boolean => {
@@ -65,9 +76,17 @@ export const isExecutable = (path: string): boolean => {
   }
 }
 
-const tail = (said: string): string => {
-  const trimmed = said.trim()
-  return trimmed === "" ? "" : ` Chromium said: ${trimmed.slice(-600)}`
+/** Chromium's lines that say WHY it stopped — a `FATAL`, a failed `CHECK`,
+ *  the sandbox's complaint — as opposed to the stack trace and registers that
+ *  follow them and fill any tail. */
+const DIAGNOSTIC = /FATAL|ERROR:|Check failed|sandbox/i
+
+/** What Chromium said, for a failure sentence: its first diagnostic lines,
+ *  kept as they arrived however much followed, then the last of the rest. */
+const tail = (diagnostics: ReadonlyArray<string>, said: string): string => {
+  const rest = said.trim().slice(-300)
+  const words = [...diagnostics, ...(rest === "" ? [] : [`… ${rest}`])]
+  return words.length === 0 ? "" : ` Chromium said: ${words.join(" ")}`
 }
 
 const exitSentence = (code: number | null, signal: string | null): string =>
@@ -76,7 +95,14 @@ const exitSentence = (code: number | null, signal: string | null): string =>
 export const launchChromium = (
   executable: string,
   profile: string,
-  options: { readonly deadlineMs?: number; readonly graceMs?: number; readonly env?: NodeJS.ProcessEnv } = {},
+  options: {
+    readonly deadlineMs?: number
+    readonly graceMs?: number
+    readonly env?: NodeJS.ProcessEnv
+    /** Flags after {@link FLAGS}. olai's runtime passes none; see
+     *  {@link WITHOUT_ITS_OWN_SANDBOX} for the one caller that does. */
+    readonly extraFlags?: ReadonlyArray<string>
+  } = {},
 ): Effect.Effect<Launched, LaunchFailure, Scope.Scope> => Effect.gen(function*() {
   if (!isExecutable(executable)) {
     return yield* new LaunchFailure({ why: "OLAI_BROWSER_CHROMIUM does not name an absolute executable file." })
@@ -91,7 +117,7 @@ export const launchChromium = (
     catch: (cause) => new LaunchFailure({ why: `The browser profile could not be prepared: ${String(cause)}.` }),
   })
   const child: Child = yield* Effect.acquireRelease(
-    Effect.sync(() => start(executable, FLAGS(profile), {
+    Effect.sync(() => start(executable, [...FLAGS(profile), ...(options.extraFlags ?? [])], {
       processGroup: true,
       // fds 3 and 4 are the DevTools pipe (`./cdp.ts`).
       stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"],
@@ -100,6 +126,17 @@ export const launchChromium = (
     })),
     (child) => Effect.promise(() => child.stop({ graceMs: options.graceMs ?? 2_000 }).catch(() => undefined)),
   )
+  // The diagnostic lines, kept for the process's whole life: a crash long
+  // after launch is reported with them too.
+  const diagnostics: Array<string> = []
+  let partial = ""
+  child.stderr?.on("data", (chunk: string) => {
+    const lines = (partial + chunk).split("\n")
+    partial = lines.pop() ?? ""
+    for (const line of lines) {
+      if (diagnostics.length < 3 && DIAGNOSTIC.test(line)) diagnostics.push(line.trim().slice(0, 300))
+    }
+  })
   const endpoint = yield* Effect.callback<string, LaunchFailure>((resume) => {
     let settled = false
     const dispose = () => {
@@ -112,7 +149,7 @@ export const launchChromium = (
       dispose()
       resume(outcome)
     }
-    const fail = (why: string) => settle(Effect.fail(new LaunchFailure({ why: `${why}.${tail(child.err())}` })))
+    const fail = (why: string) => settle(Effect.fail(new LaunchFailure({ why: `${why}.${tail(diagnostics, child.err())}` })))
     const heard = () => {
       const said = /DevTools listening on (ws:\/\/127\.0\.0\.1:\d+\/devtools\/browser\/[\w-]+)/.exec(child.err())
       if (said !== null) settle(Effect.succeed(said[1]!))
@@ -125,7 +162,7 @@ export const launchChromium = (
     return Effect.sync(dispose)
   })
   const exited = Effect.promise(() => child.closed).pipe(
-    Effect.map(({ code, signal }) => `${exitSentence(code, signal)}.${tail(child.err())}`),
+    Effect.map(({ code, signal }) => `${exitSentence(code, signal)}.${tail(diagnostics, child.err())}`),
   )
   const pipe = { calls: child.stdio[3] as Writable, answers: child.stdio[4] as Readable }
   return { pid: child.pid!, endpoint, pipe, exited }

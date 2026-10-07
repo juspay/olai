@@ -66,6 +66,15 @@ outright takes the browser with it rather than leaving one running with your
 profile. A browser that crashes is reported in the pane, and the next
 conversation or **Start** launches it again.
 
+Chromium always runs inside its own sandbox, which needs unprivileged user
+namespaces. On a host that refuses them (Ubuntu 23.10+ with its AppArmor
+default, some containers) Chromium will not start, and the pane says why in
+Chromium's own words (`No usable sandbox!`). olai does not drop the sandbox to
+get around it; allow user namespaces for Chromium, or set
+`OLAI_BROWSER_CHROMIUM` empty. (The package's hermetic build check alone
+launches without it, because a Nix build sandbox may have no user namespaces;
+that browser holds no profile and visits only loopback.)
+
 **Switching the row off revokes the browser from running conversations.**
 Their MCP servers were attached to this browser, and it is gone; a
 conversation started after the row is back on is attached to the new one.
