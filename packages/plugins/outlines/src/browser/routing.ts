@@ -32,7 +32,7 @@ import {
   nameOf as nameWith,
   titleFace as titleFaceWith,
 } from "olai-plugin-navigation/address/address.ts"
-import { HOME_ROUTE, hrefOfPlain, type MountedAppPage } from "olai-plugin-navigation/routes"
+import { HOME_ROUTE, hrefOfPlain, type MountedNodePage } from "olai-plugin-navigation/routes"
 
 const provider = heldService<WorkspaceRouting>()
 
@@ -44,9 +44,12 @@ export const holdRouting = provider.hold
 export const hrefOf = (route: Route): string =>
   provider.read()?.href(route) ?? hrefOfPlain(HOME_ROUTE)
 
-/** The mounted tenant for a plugin route, or `null` after it left. */
-export const routeFace = (route: Route): MountedAppPage | null =>
-  provider.read()?.face(route) ?? null
+/** The mounted tenant for a NODE-page plugin route, or `null` after it left.
+ *  A self-drawn page is navigation's to host and never reaches this row. */
+export const routeFace = (route: Route): MountedNodePage | null => {
+  const face = provider.read()?.face(route)
+  return face?.kind === "node" ? face : null
+}
 
 /** Whether a page takes a filter at all. */
 export const narrowable = (route: Route): boolean =>

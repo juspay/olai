@@ -15,7 +15,7 @@ export const glyphOf = (routes: Routing, href: string): string => {
   const panes = panesOf(workspaceOf(routes, href))
   if (panes.length > 1) return "◫"
   const route = panes[0]!.route
-  if (route.kind === "plugin") return "◷"
+  if (route.kind === "plugin") return route.source.kind === "node" ? "◷" : "◇"
   if (route.kind === "trash") return "⌫"
   const address = route.address
   if (address === null) return "⌂"

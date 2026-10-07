@@ -27,6 +27,7 @@ import { name,navigation,content,pages,type PaletteControl } from "./index.ts"
 import { askInPalette,closePalette,dropQuestion,openPalette,openPaletteAt,paletteAsking } from "./palette/state.ts"
 import { paletteOpen } from "./palette/state.ts"
 import { PageView } from "./PageView.tsx"
+import { SelfDrawnPage, selfDrawn } from "./SelfDrawnPage.tsx"
 import { followPaletteShortcut } from "./palette/shortcut.ts"
 import { scopePaletteState } from "./palette/open-owner.ts"
 import { Palette,resetPaletteMemory } from "./palette/Palette.tsx"
@@ -109,9 +110,12 @@ export const components = {
  // holder the survivor is still reading through (`./faces.ts`).
  yield* holdRouteFaces(yield* Faces)
  const slots=yield* rendererSlots
- // This integration owns the file-page location under the content container.
- // It draws nothing itself; PageView dispatches the contributed file pages.
- yield* slots.contribute(content,{matches:()=>false,Page:()=>null},{children:[pages]})
+ // This integration owns the file-page location under the content container
+ // (PageView dispatches the contributed file pages), and it HOSTS the
+ // self-drawn plugin pages the claim table below settles: one component for
+ // the table and its host, so a page and the claim that names it come and go
+ // together. Node pages are outlines' to host (`./SelfDrawnPage.tsx`).
+ yield* slots.contribute(content,{matches:selfDrawn,Page:SelfDrawnPage},{children:[pages]})
  yield* Effect.acquireRelease(Effect.sync(()=>holdLocations(slots.read)),stop=>Effect.sync(stop))
  yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{
    const stop=holdRoutePages(createMemo(()=>settleRoutePages(routeFaces("app.route"))))

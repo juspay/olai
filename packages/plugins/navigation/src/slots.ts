@@ -17,24 +17,43 @@ export type AppRouteClaim =
   | { readonly kind: "exact"; readonly path: `/${string}` }
   | { readonly kind: "prefix"; readonly path: `/${string}` }
 
-export interface AppRoute {
+/** The grammar every plugin page shares, whoever draws it. */
+export interface AppRouteGrammar {
   readonly claims: ReadonlyArray<AppRouteClaim>
   readonly parse: (pathname: string) => unknown | null
   readonly href: (page: unknown) => string
   readonly breadcrumb: (page: unknown) => string
   readonly narrowable: boolean
+}
+
+/** A NODE page: its value becomes a document-format request, its stream
+ *  answers a page reading, and outlines hosts its face. */
+export interface AppRoute extends AppRouteGrammar {
   readonly request: (page: unknown, today: string) => unknown
   readonly stream: AppPageStream
 }
 
-export interface AppPage {
-  readonly route: AppRoute
-  readonly face: (props: {
-    readonly page: unknown
-    readonly drawn: unknown
-    readonly today: string
-  }) => JSX.Element
-}
+/** The two kinds of plugin page the slot carries. A NODE page is read and
+ *  hosted by outlines; a SELF-DRAWN page is a component over the route's own
+ *  value, mounted by navigation, with no document-format page types at all. */
+export type AppPage =
+  | {
+    readonly kind: "node"
+    readonly route: AppRoute
+    readonly face: (props: {
+      readonly page: unknown
+      readonly drawn: unknown
+      readonly today: string
+    }) => JSX.Element
+  }
+  | {
+    readonly kind: "self-drawn"
+    readonly route: AppRouteGrammar
+    readonly face: (props: {
+      readonly value: unknown
+      readonly filter: string
+    }) => JSX.Element
+  }
 
 export interface AppPalette {
   readonly id: string
