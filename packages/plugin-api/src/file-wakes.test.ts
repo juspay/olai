@@ -15,7 +15,7 @@ test("file fault announcements persist across restart, heal quietly, and re-chec
   let current = true
   let fail = false
   const bodies: Array<() => string | null> = []
-  const local: LocalState = { load: Effect.sync(() => saved), save: next => fail ? Effect.fail({ _tag: "read-only" }) : Effect.sync(() => { saved = next }) }
+  const local: LocalState = { directory: Effect.fail({ _tag: "StateFailure", why: "unused" }), load: Effect.sync(() => saved), save: next => fail ? Effect.fail({ _tag: "read-only" }) : Effect.sync(() => { saved = next }) }
   const deliveries: Deliveries = { scopes: () => [{ agent: "a", session: "s", pick: "work.olai", current: () => current }],
     deliver: (_to, say) => Effect.sync(() => { bodies.push(say) }), notify: () => Effect.void }
   const open = () => Effect.runPromise(fileWakeFaults(local, deliveries, () => fault, { gone: "missing", unwatchable: "wrong kind" }))

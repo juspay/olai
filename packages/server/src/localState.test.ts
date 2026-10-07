@@ -5,7 +5,7 @@
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import { expect, test } from "bun:test"
 import { Effect, Result } from "effect"
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -150,4 +150,26 @@ test("old layouts stay inert and the first save writes only the current path", (
     expect((await run(localStateFor("example", served, () => {}).load))?.["queue"]).toEqual(["new"])
     expect(JSON.parse(readFileSync(old, "utf8")).queue).toEqual(["old"])
     expect(warnings).toEqual([])
+  }))
+
+test("the directory door answers one private path per plugin and served directory", () =>
+  withHome(async ({ served, home }) => {
+    const warnings: Array<string> = []
+    const local = localStateFor("example", served, (line) => warnings.push(line))
+    const at = await run(local.directory)
+    expect(at).toBe(join(home, "olai", "example", digestOf(canonical(served))))
+    expect(statSync(at).mode & 0o777).toBe(0o700)
+    rmSync(at, { recursive: true })
+    // A home cleaned out mid-serve is made again on the next ask.
+    expect(await run(localStateFor("example", served, () => {}).directory)).toBe(at)
+    expect(warnings).toEqual([])
+  }))
+
+test("a directory that cannot be made private is a warned refusal", () =>
+  withHome(async ({ served, home }) => {
+    writeFileSync(join(home, "olai"), "a file where the home should be")
+    const warnings: Array<string> = []
+    const failed = await run(Effect.flip(localStateFor("example", served, (line) => warnings.push(line)).directory))
+    expect(failed.why).toContain("could not be opened")
+    expect(warnings.some((line) => line.includes("local directory unavailable"))).toBe(true)
   }))

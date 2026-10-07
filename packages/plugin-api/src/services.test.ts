@@ -496,6 +496,7 @@ test("a plugin's local-state door is one door, however many times it is used", a
         return {
           load: Effect.sync(() => record),
           save: (value) => Effect.sync(() => void (record = value)),
+          directory: Effect.fail({ _tag: "StateFailure", why: "unused here" }),
         }
       },
     })
@@ -549,6 +550,7 @@ test("a plugin that comes back writes down the chain it was already writing down
         return {
           load: Effect.sync(() => record),
           save: (value) => Effect.sync(() => void (record = value)),
+          directory: Effect.fail({ _tag: "StateFailure", why: "unused here" }),
         }
       },
     })

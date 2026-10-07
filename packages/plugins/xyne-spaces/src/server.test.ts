@@ -62,6 +62,7 @@ const memoryLocalState = (): LocalState => {
   return {
     load: Effect.sync(() => record),
     save: (value) => Effect.sync(() => void (record = value)),
+    directory: Effect.fail({ _tag: "StateFailure", why: "unused here" }),
   }
 }
 

@@ -103,7 +103,7 @@
 import { Data, Effect } from "effect"
 import { createHash } from "node:crypto"
 import * as fs from "node:fs"
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
+import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, isAbsolute, join, resolve } from "node:path"
 
@@ -188,6 +188,64 @@ export const fileForLocal = (plugin: string, cwd: string): string => {
   }
   return join(stateHome(), plugin, `${digestOf(cwd)}.json`)
 }
+
+/**
+ * ...and where one plugin's machine-local DIRECTORY lives for one served
+ * directory: the record's sibling, `<plugin>/<digest>/` beside
+ * `<plugin>/<digest>.json`.
+ *
+ * A record is a convenience note the next serve rewrites; some state is not a
+ * note. A browser profile is a tree of files another program writes, and the
+ * one tenant that needs it (`olai-plugin-browsing`) cannot spell this home —
+ * the fence keeps plugins off this package — so core hands it the path through
+ * the same `LocalState` door the record rides. Same name rule, same digest.
+ */
+export const directoryForLocal = (plugin: string, cwd: string): string =>
+  fileForLocal(plugin, cwd).slice(0, -".json".length)
+
+/** The guard a local directory carries: the served path, written inside it,
+ *  for {@link LocalRecord.cwd}'s reason — a person reading the home can tell
+ *  whose it is, and the prune can tell when its directory is gone. */
+export const LOCAL_DIRECTORY_MARK = ".olai-cwd"
+
+/**
+ * Make (or reopen) one local directory, owner-only, and answer its path.
+ *
+ * IT REFUSES A DIRECTORY ABOUT ANOTHER VAULT, where {@link readLocal} answers
+ * `null` for a record about one. The stakes differ: a stale record is a
+ * convenience lost, and a directory handed to the wrong served path would be
+ * one vault's browser sign-ins served to another. A digest collision or a
+ * copied home is news, so it comes out the error channel.
+ *
+ * The mode is re-asserted on every open rather than only at `mkdir`: a
+ * directory that already existed keeps whatever mode it was made with, and the
+ * promise is owner-only.
+ */
+export const openLocalDirectory = (
+  at: string,
+  cwd: string,
+): Effect.Effect<string, StateFailure> =>
+  Effect.tryPromise({
+    try: async () => {
+      await mkdir(at, { recursive: true, mode: 0o700 })
+      await chmod(dirname(at), 0o700)
+      await chmod(at, 0o700)
+      const mark = join(at, LOCAL_DIRECTORY_MARK)
+      let held: string | null = null
+      try {
+        held = await readFile(mark, "utf8")
+      } catch (cause) {
+        if ((cause as { readonly code?: unknown }).code !== "ENOENT") throw cause
+      }
+      if (held === null) await writeFile(mark, `${cwd}\n`, { mode: 0o600 })
+      else if (held.trim() !== cwd) {
+        throw new Error(`it belongs to ${JSON.stringify(held.trim())}, not this served directory`)
+      }
+      return at
+    },
+    catch: (cause) =>
+      new StateFailure({ why: `\`${at}\` could not be opened: ${reasonOf(cause)}` }),
+  })
 
 /** What every record here carries beside its own fields — see the header for
  *  why the path is written inside the file it is named after. */
@@ -354,8 +412,9 @@ export const pruneGone = (): number => {
       continue
     }
     for (const name of names) {
-      if (!name.endsWith(".json")) continue
-      if (goneRecord(join(dir, name))) pruned += 1
+      if (name.endsWith(".json")) {
+        if (goneRecord(join(dir, name))) pruned += 1
+      } else if (goneDirectory(join(dir, name))) pruned += 1
     }
   }
   return pruned
@@ -390,6 +449,36 @@ const goneRecord = (at: string): boolean => {
   }
   try {
     fs.unlinkSync(at)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * ...and one local directory's: the same ruling over its {@link
+ * LOCAL_DIRECTORY_MARK}. Anything that is not a directory carrying a readable
+ * absolute mark is left, so a staged `.tmp` or a stranger's file is never
+ * touched; a removal that fails part-way keeps what it could not remove and is
+ * not counted.
+ */
+const goneDirectory = (at: string): boolean => {
+  let cwd: string
+  try {
+    if (!fs.lstatSync(at).isDirectory()) return false
+    cwd = fs.readFileSync(join(at, LOCAL_DIRECTORY_MARK), "utf8").trim()
+  } catch {
+    return false
+  }
+  if (cwd === "" || !isAbsolute(cwd)) return false
+  try {
+    fs.statSync(cwd)
+    return false
+  } catch (cause) {
+    if ((cause as { readonly code?: unknown }).code !== "ENOENT") return false
+  }
+  try {
+    fs.rmSync(at, { recursive: true })
     return true
   } catch {
     return false

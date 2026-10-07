@@ -788,6 +788,22 @@ export const Watching = serviceTag<Watching>("watching")
 export interface LocalState {
   readonly load: Effect.Effect<Record<string, unknown> | null>
   readonly save: (value: Record<string, unknown>) => Effect.Effect<void, Refusal>
+  /**
+   * ...AND A DIRECTORY BESIDE THE RECORD, for state that is a tree of files
+   * another program writes rather than a note this plugin keeps — a browser
+   * profile is the one tenant. Created on first read, owner-only, and the
+   * same path on every serve of this directory; core sweeps it with the record
+   * once the served directory is gone. What goes inside is the plugin's.
+   *
+   * It FAILS rather than answering a path it could not make private, and it
+   * fails on a serve that keeps no machine-local state at all: a plugin that
+   * needs a directory is a plugin that must say it has none.
+   */
+  readonly directory: Effect.Effect<string, LocalRefusal>
+}
+/** Why {@link LocalState.directory} has no directory to give, in a sentence. */
+export interface LocalRefusal extends Refusal {
+  readonly why: string
 }
 export const LocalState = serviceTag<LocalState>("localState")
 
@@ -1753,6 +1769,7 @@ export const openPlugins = (
       return localStates.get(plugin) ?? {
         load: Effect.succeed(null),
         save: () => Effect.void,
+        directory: Effect.fail({ _tag: "StateFailure", why: "this serve keeps no machine-local state" }),
       }
     })
 

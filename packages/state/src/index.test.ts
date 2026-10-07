@@ -18,7 +18,10 @@ import * as path from "node:path"
 import {
   canonical,
   digestOf,
+  directoryForLocal,
   fileForLocal,
+  LOCAL_DIRECTORY_MARK,
+  openLocalDirectory,
   pruneGone,
   readLocal,
   runtimeHome,
@@ -301,3 +304,51 @@ test("bun test never answers with the developer's own state home by default", ()
   expect(process.env["XDG_STATE_HOME"]).not.toBe("")
   expect(stateHome()).not.toBe(path.join(os.homedir(), ".local", "state", "olai"))
 })
+
+/**
+ * THE LOCAL DIRECTORY — the record's sibling for state that is a tree of files
+ * rather than a note: owner-only, guarded by its served path, refused when it
+ * belongs to another one, and swept like a record when that path is gone.
+ */
+test("a local directory sits beside the record, owner-only, and reopens to the same path", () =>
+  withState(async ({ root, home }) => {
+    const at = directoryForLocal("browsing", root)
+    expect(at).toBe(path.join(home, "olai", "browsing", digestOf(root)))
+    expect(`${at}.json`).toBe(fileForLocal("browsing", root))
+    expect(await Effect.runPromise(openLocalDirectory(at, root))).toBe(at)
+    expect(fs.statSync(at).mode & 0o777).toBe(0o700)
+    expect(fs.statSync(path.dirname(at)).mode & 0o777).toBe(0o700)
+    expect(fs.readFileSync(path.join(at, LOCAL_DIRECTORY_MARK), "utf8")).toBe(`${root}\n`)
+    fs.writeFileSync(path.join(at, "kept"), "x")
+    fs.chmodSync(at, 0o755)
+    expect(await Effect.runPromise(openLocalDirectory(at, root))).toBe(at)
+    expect(fs.statSync(at).mode & 0o777).toBe(0o700)
+    expect(fs.readFileSync(path.join(at, "kept"), "utf8")).toBe("x")
+  }))
+
+test("a local directory about another served path is refused, not handed over", () =>
+  withState(async ({ root }) => {
+    const at = directoryForLocal("browsing", root)
+    await Effect.runPromise(openLocalDirectory(at, "/some/other/vault"))
+    const outcome = await Effect.runPromise(Effect.exit(openLocalDirectory(at, root)))
+    expect(outcome._tag).toBe("Failure")
+    if (outcome._tag === "Failure") expect(String(outcome.cause)).toContain("/some/other/vault")
+  }))
+
+test("a local directory whose served path is gone is swept; a live or unmarked one stays", () =>
+  withState(async ({ root, home }) => {
+    const gone = fs.mkdtempSync(path.join(os.tmpdir(), "olai-state-gone-"))
+    fs.rmSync(gone, { recursive: true, force: true })
+    const dead = directoryForLocal("browsing", gone)
+    await Effect.runPromise(openLocalDirectory(dead, gone))
+    fs.mkdirSync(path.join(dead, "profile", "Default"), { recursive: true })
+    const alive = directoryForLocal("browsing", root)
+    await Effect.runPromise(openLocalDirectory(alive, root))
+    const stranger = path.join(home, "olai", "browsing", "unmarked")
+    fs.mkdirSync(stranger)
+    expect(pruneGone()).toBe(1)
+    expect(fs.existsSync(dead)).toBe(false)
+    expect(fs.existsSync(alive)).toBe(true)
+    expect(fs.existsSync(stranger)).toBe(true)
+    expect(pruneGone()).toBe(0)
+  }))
