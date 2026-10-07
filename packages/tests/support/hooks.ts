@@ -319,7 +319,7 @@ const fakesOf = (
   tags: ReadonlyArray<{ readonly name: string }>,
 ): ReadonlyArray<string> => {
   const on = new Set(tags.map((tag) => tag.name));
-  return FAKES.filter((fake) => on.has(`@${fake.word}`)).map((fake) => fake.word);
+  return FAKES.flatMap((fake) => [fake.word, ...(fake.variants ?? [])].filter((word) => on.has(`@${word}`)));
 };
 
 /**
@@ -909,7 +909,11 @@ const startServerChild = async (
         ...Object.assign(
           {},
           ...FAKES.filter((fake) => fake.env !== undefined).map((fake) =>
-            fake.env!({ on: agentOn(fake, spawnOptions), stored: spawnOptions.stored === true })
+            fake.env!({
+              on: agentOn(fake, spawnOptions),
+              stored: spawnOptions.stored === true,
+              variants: (fake.variants ?? []).filter((variant) => spawnOptions.fakes.includes(variant)),
+            })
           ),
         ),
         // WHERE PADI IS, for a scenario that has one. Set only where it was

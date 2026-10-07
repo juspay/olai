@@ -31,6 +31,14 @@ const ASK = { maxWidth: 1280, quality: 60 } as const
 
 const BUTTON = "rounded border border-rule px-2 py-0.5 text-caption hover:bg-ink/5 disabled:opacity-50"
 
+/** One frame's JPEG as an object URL the page's image policy admits. */
+const pictureOf = (base64: string): string => {
+  const text = atob(base64)
+  const bytes = new Uint8Array(text.length)
+  for (let at = 0; at < text.length; at++) bytes[at] = text.charCodeAt(at)
+  return URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }))
+}
+
 const sayOf = (failure: unknown): string => {
   const says = (failure as { readonly says?: unknown } | null)?.says
   if (typeof says === "string") return says
@@ -56,13 +64,23 @@ export function BrowserPage(props: {
 
   // ONE SCREENCAST SUBSCRIPTION per pane, reopened when the shown tab or the
   // running browser changes and closed with the pane.
+  //
+  // Each picture is an OBJECT URL: the shell's image policy admits `blob:`
+  // and, on purpose, not `data:`. A frame's URL is revoked as soon as the
+  // next one replaces it, and the last one with the pane.
   const [frame, setFrame] = createSignal<{ readonly src: string; readonly meta: FrameMeta } | null>(null)
+  const show = (next: { readonly src: string; readonly meta: FrameMeta } | null) => {
+    const before = frame()
+    setFrame(next)
+    if (before !== null) URL.revokeObjectURL(before.src)
+  }
+  onCleanup(() => show(null))
   createEffect(on([shown, up, () => tab() !== undefined] as const, ([targetId, pid, open]) => {
-    setFrame(null)
+    show(null)
     if (targetId === null || pid === null || !open) return
     void run(calls.tab.activate({ targetId }))
     const fiber = Effect.runFork(Stream.runForEach(props.browsing.watch({ targetId, ...ASK }), (got) => Effect.sync(() => {
-      if (got._tag === "frame") setFrame({ src: `data:image/jpeg;base64,${got.jpeg}`, meta: got.meta })
+      if (got._tag === "frame") show({ src: pictureOf(got.jpeg), meta: got.meta })
       else say(got.says)
     })).pipe(Effect.catchCause(() => Effect.void)))
     onCleanup(() => { void Effect.runPromise(Fiber.interrupt(fiber)) })
@@ -133,8 +151,9 @@ export function BrowserPage(props: {
 
   return (
     <section class="flex h-full min-h-0 flex-col gap-2 p-3" aria-label="Browser" data-testid={TESTID.browserPage}
-      data-standing={standing().kind} data-target={shown() ?? undefined}>
-      <Banner standing={standing()} start={() => void run(calls.browser.start({}))} />
+      data-standing={standing().kind} data-target={shown() ?? undefined} data-pid={up() ?? undefined}>
+      {/* A failed start is the banner's to say: it is the standing. */}
+      <Banner standing={standing()} start={() => void Effect.runPromise(Effect.ignore(calls.browser.start({}))).then(() => say(null))} />
       <Show when={up() !== null}>
         <nav class="flex flex-wrap items-center gap-1" aria-label="Browser tabs">
           <For each={props.browsing.tabs()}>{(one) => (

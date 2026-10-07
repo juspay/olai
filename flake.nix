@@ -98,6 +98,9 @@
             name = "olai-shell-e2e";
             env = (prev.env or { }) // {
               PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
+              # The real Playwright MCP, for the browsing row's live scenarios:
+              # an agent's own MCP attaching to the Chromium olai launched.
+              OLAI_E2E_PLAYWRIGHT_MCP = "${pkgs.playwright-mcp}/bin/playwright-mcp";
             };
           });
         });

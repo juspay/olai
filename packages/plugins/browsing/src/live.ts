@@ -87,12 +87,19 @@ interface Instance {
   readonly launched: Launched
   readonly profile: string
   readonly cdp: Cdp
-  /** Each tab's flattened session, attached on first use. */
+  /** Each tab's flattened session, attached as the tab appears. */
   readonly sessions: Map<string, Deferred.Deferred<string, BrowserRefused>>
+  /** ...and back, from a session to its tab, for the events it carries. */
+  readonly targets: Map<string, string>
   readonly casts: Map<string, Cast>
+  /** Whose info is being re-read: a tab with a read in flight is marked
+   *  `dirty` instead of asked twice, and read once more when it lands. */
+  readonly reading: Map<string, "busy" | "dirty">
 }
 
 const refused = (says: string) => new BrowserRefused({ says })
+/** A tab's own session events after which its title may have moved. */
+const REREAD_ON = new Set(["Page.domContentEventFired", "Page.loadEventFired", "Page.frameNavigated", "Page.navigatedWithinDocument"])
 /** A failure's own sentence, whichever kind of failure it was. */
 const whyOf = (cause: Cause.Cause<unknown>, interrupted: string): string => {
   if (Cause.hasInterruptsOnly(cause)) return interrupted
@@ -128,14 +135,52 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
   }
   options.publish.standing(standing)
 
-  const upsertTab = (info: Record<string, unknown>) => {
-    if (info["type"] !== "page" || typeof info["targetId"] !== "string") return
+  /** Take one target's info; answers whether it is a page this row had not
+   *  seen, which the caller then attaches to. */
+  const upsertTab = (info: Record<string, unknown>): boolean => {
+    if (info["type"] !== "page" || typeof info["targetId"] !== "string") return false
     const tab: Tab = { id: info["targetId"], title: String(info["title"] ?? ""), url: String(info["url"] ?? "") }
     const held = tabs.get(tab.id)
-    if (held !== undefined && held.title === tab.title && held.url === tab.url) return
+    if (held !== undefined && held.title === tab.title && held.url === tab.url) return false
     tabs.set(tab.id, tab)
     options.publish.tab(tab)
+    return held === undefined
   }
+
+  /** Work on one launch's behalf, owned by its scope: whatever is in flight
+   *  when it closes is interrupted with it. */
+  const own = (instance: Instance, effect: Effect.Effect<unknown, unknown>) => {
+    Effect.runFork(Effect.forkIn(Effect.ignore(effect), instance.scope))
+  }
+
+  /**
+   * RE-READ ONE TAB'S INFO. Chromium announces a target's URL changes but not
+   * its TITLE — a page's `<title>` and every `document.title =` arrive on no
+   * event at all — so the strip asks again whenever the tab's own session
+   * says something happened: a load, a navigation, or a new picture. One read
+   * in flight per tab; anything that lands meanwhile asks for one more.
+   */
+  const reread = (instance: Instance, targetId: string) => {
+    if (instance.reading.has(targetId)) {
+      instance.reading.set(targetId, "dirty")
+      return
+    }
+    instance.reading.set(targetId, "busy")
+    const once: Effect.Effect<void> = Effect.gen(function*() {
+      const answer = yield* Effect.result(instance.cdp.send("Target.getTargetInfo", { targetId }))
+      const info = Result.isSuccess(answer) ? answer.success["targetInfo"] as Record<string, unknown> | undefined : undefined
+      if (current === instance && info !== undefined && tabs.has(targetId)) upsertTab(info)
+      if (instance.reading.get(targetId) === "dirty") {
+        instance.reading.set(targetId, "busy")
+        return yield* once
+      }
+      instance.reading.delete(targetId)
+    })
+    own(instance, once)
+  }
+
+  /** Attach to a tab as soon as it appears, so its loads reach `reread`. */
+  const follow = (instance: Instance, targetId: string) => own(instance, sessionFor(instance, targetId))
   const dropTab = (id: string) => {
     if (!tabs.delete(id)) return
     options.publish.untab(id)
@@ -164,13 +209,22 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
 
   const onEvent = (instance: Instance) => (event: CdpEvent) => {
     if (event.sessionId !== null) {
+      const targetId = instance.targets.get(event.sessionId)
+      if (targetId === undefined) return
+      if (REREAD_ON.has(event.method)) {
+        // A sub-frame's navigation is not the tab's.
+        const frame = event.params["frame"] as { readonly parentId?: unknown } | undefined
+        if (frame?.parentId === undefined) reread(instance, targetId)
+        return
+      }
       if (event.method !== "Page.screencastFrame") return
-      const targetId = [...instance.sessions].find(([, held]) => Deferred.isDoneUnsafe(held) && sessionOf(held) === event.sessionId)?.[0]
       const params = event.params as { readonly data: string; readonly sessionId: number; readonly metadata: Record<string, number> }
       // Every frame is acknowledged, whoever is watching: an unacknowledged
       // screencast stops sending.
-      Effect.runFork(Effect.ignore(instance.cdp.send("Page.screencastFrameAck", { sessionId: params.sessionId }, event.sessionId)))
-      const cast = targetId === undefined ? undefined : instance.casts.get(targetId)
+      own(instance, instance.cdp.send("Page.screencastFrameAck", { sessionId: params.sessionId }, event.sessionId))
+      // A new picture is the one sign a script retitled the page.
+      reread(instance, targetId)
+      const cast = instance.casts.get(targetId)
       if (cast === undefined) return
       const meta = params.metadata
       const frame: Frame = {
@@ -191,20 +245,22 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     }
     switch (event.method) {
       case "Target.targetCreated":
-      case "Target.targetInfoChanged":
-        upsertTab(event.params["targetInfo"] as Record<string, unknown>)
+      case "Target.targetInfoChanged": {
+        const info = event.params["targetInfo"] as Record<string, unknown>
+        if (upsertTab(info)) follow(instance, String(info["targetId"]))
         return
+      }
       case "Target.targetDestroyed": {
         const targetId = String(event.params["targetId"])
         endCast(instance, targetId, "This tab was closed.")
-        instance.sessions.delete(targetId)
+        forgetSessions(instance, targetId)
         dropTab(targetId)
         return
       }
       case "Target.detachedFromTarget": {
         const targetId = String(event.params["targetId"] ?? "")
         endCast(instance, targetId, "The browser let go of this tab.")
-        instance.sessions.delete(targetId)
+        forgetSessions(instance, targetId)
         return
       }
     }
@@ -223,18 +279,19 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       yield* Scope.close(scope, Exit.void)
       return yield* refused(whyOf(opened.cause, "The browser launch was interrupted."))
     }
-    const instance: Instance = { scope, ...opened.value, sessions: new Map(), casts: new Map() }
+    const instance: Instance = { scope, ...opened.value, sessions: new Map(), targets: new Map(), casts: new Map(), reading: new Map() }
     yield* instance.cdp.listen(onEvent(instance)).pipe(Scope.provide(scope))
     const seeded = yield* Effect.exit(Effect.gen(function*() {
       yield* instance.cdp.send("Target.setDiscoverTargets", { discover: true })
       const { targetInfos } = (yield* instance.cdp.send("Target.getTargets")) as { readonly targetInfos: ReadonlyArray<Record<string, unknown>> }
-      for (const info of targetInfos) upsertTab(info)
+      return targetInfos.filter((info) => upsertTab(info)).map((info) => String(info["targetId"]))
     }))
     if (Exit.isFailure(seeded)) {
       yield* Scope.close(scope, Exit.void)
       return yield* refused(`The browser did not answer DevTools: ${whyOf(seeded.cause, "interrupted")}`)
     }
     current = instance
+    for (const targetId of seeded.value) follow(instance, targetId)
     stand({ kind: "up", pid: instance.launched.pid, since: options.now() })
     // A crash, or a DevTools socket that went away under a live process,
     // takes the instance down; the watcher forks the teardown onto the row so
@@ -294,7 +351,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     instance.sessions.set(targetId, result)
     const attach = Effect.gen(function*() {
       const { sessionId } = (yield* instance.cdp.send("Target.attachToTarget", { targetId, flatten: true })) as { readonly sessionId: string }
-      sessions.set(result, sessionId)
+      instance.targets.set(sessionId, targetId)
       yield* instance.cdp.send("Page.enable", {}, sessionId)
       // A headless page is never focused, and a page that thinks it is not
       // focused drops caret and key handling the person expects.
@@ -306,8 +363,11 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     )
     return Effect.flatMap(Effect.exit(attach), (exit) => Effect.andThen(Deferred.done(result, exit), exit))
   })
-  const sessions = new WeakMap<Deferred.Deferred<string, BrowserRefused>, string>()
-  const sessionOf = (held: Deferred.Deferred<string, BrowserRefused>) => sessions.get(held)
+  const forgetSessions = (instance: Instance, targetId: string) => {
+    instance.sessions.delete(targetId)
+    instance.reading.delete(targetId)
+    for (const [sessionId, held] of instance.targets) if (held === targetId) instance.targets.delete(sessionId)
+  }
 
   /** Run one call on a tab's session, refusing when nothing is up. */
   const onTab = <A>(targetId: string, use: (instance: Instance, sessionId: string) => Effect.Effect<A, CdpFailure>) =>

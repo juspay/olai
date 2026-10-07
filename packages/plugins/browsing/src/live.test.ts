@@ -41,12 +41,14 @@ const double = () => {
   let gate: Deferred.Deferred<void> | null = null
   let failNext: string | null = null
   let targets: Array<Record<string, unknown>> = [{ targetId: "T1", type: "page", title: "blank", url: "about:blank" }]
+  const retitled = new Map<string, Record<string, unknown>>()
   const cdp: Cdp = {
     send: (method, params = {}, sessionId) => Effect.suspend(() => {
       calls.push({ method, params, ...(sessionId === undefined ? {} : { sessionId }) })
       if (method === "Target.getTargets") return Effect.succeed({ targetInfos: targets })
       if (method === "Target.attachToTarget") return Effect.succeed({ sessionId: `S-${String(params["targetId"])}` })
       if (method === "Target.createTarget") return Effect.succeed({ targetId: "T9" })
+      if (method === "Target.getTargetInfo") return Effect.succeed({ targetInfo: { ...targets.find((one) => one["targetId"] === params["targetId"]), ...retitled.get(String(params["targetId"])) } })
       if (method === "Page.navigate" && params["url"] === "https://refused.example") return Effect.succeed({ errorText: "net::ERR_NAME_NOT_RESOLVED" })
       if (method === "Target.closeTarget" && params["targetId"] === "gone") return Effect.fail(new CdpFailure({ why: "No target with given id found" }))
       return Effect.succeed({})
@@ -85,6 +87,7 @@ const double = () => {
     hold: () => { gate = Deferred.makeUnsafe<void>(); return gate },
     failNextLaunch: (why: string) => { failNext = why },
     setTargets: (next: Array<Record<string, unknown>>) => { targets = next },
+    retitle: (targetId: string, title: string) => { retitled.set(targetId, { title }) },
     listening: () => listeners.size,
   }
 }
@@ -287,3 +290,29 @@ test("forgetting sign-ins stops a running browser first, then removes its profil
     rmSync(home, { recursive: true, force: true })
   }
 })
+
+test("a tab's title is read again after its loads and its new pictures, which Chromium announces no other way", () => run(Effect.gen(function*() {
+  const browser = double()
+  const live = yield* openLive(browser.options())
+  yield* live.start
+  yield* Effect.sleep("10 millis")
+  // Every page is attached as it appears, so its loads reach the strip.
+  expect(browser.calls.filter((call) => call.method === "Target.attachToTarget").map((call) => call.params["targetId"])).toEqual(["T1"])
+  browser.retitle("T1", "Loaded")
+  browser.emit({ method: "Page.loadEventFired", sessionId: "S-T1", params: {} })
+  yield* Effect.sleep("10 millis")
+  expect(live.tabs().get("T1")?.title).toBe("Loaded")
+  // A sub-frame's navigation is not the tab's.
+  const asked = browser.calls.filter((call) => call.method === "Target.getTargetInfo").length
+  browser.emit({ method: "Page.frameNavigated", sessionId: "S-T1", params: { frame: { id: "F2", parentId: "F1" } } })
+  yield* Effect.sleep("10 millis")
+  expect(browser.calls.filter((call) => call.method === "Target.getTargetInfo").length).toBe(asked)
+  browser.retitle("T1", "clicked")
+  browser.emit(frame("S-T1", 1))
+  yield* Effect.sleep("10 millis")
+  expect(live.tabs().get("T1")?.title).toBe("clicked")
+  // A tab that appears later is followed too.
+  browser.emit({ method: "Target.targetCreated", sessionId: null, params: { targetInfo: { targetId: "T2", type: "page", title: "", url: "about:blank" } } })
+  yield* Effect.sleep("10 millis")
+  expect(browser.calls.filter((call) => call.method === "Target.attachToTarget").map((call) => call.params["targetId"])).toEqual(["T1", "T2"])
+})))

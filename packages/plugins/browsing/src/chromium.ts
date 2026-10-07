@@ -7,14 +7,17 @@
  * GPU and renderer children too; release is SIGTERM, a short grace, then
  * SIGKILL, and the child is reaped before the scope says it is closed.
  *
- * The endpoint is read from the profile's `DevToolsActivePort`, which Chromium
- * writes once it is listening. The wait is that event — Chromium announces the
- * socket on stderr in the same breath — and the clock beside it is a hang
- * detector that fails with what Chromium said.
+ * The endpoint is Chromium's own announcement on stderr, `DevTools listening
+ * on ws://…`, which is the event the wait is for; the clock beside it is a
+ * hang detector that fails with what Chromium said. Not the profile's
+ * `DevToolsActivePort`: Chromium announces BEFORE it writes that file, so a
+ * reader woken by the announcement races the write and loses (the e2e found
+ * it). A file left by an earlier run is still removed first, so nothing ever
+ * reads a stale one.
  */
 import { start, type Child } from "@olai/child"
 import { accessSync, constants, statSync } from "node:fs"
-import { mkdir, readFile, rm } from "node:fs/promises"
+import { mkdir, rm } from "node:fs/promises"
 import { isAbsolute, join } from "node:path"
 import { Data, Effect, type Scope } from "effect"
 
@@ -104,15 +107,8 @@ export const launchChromium = (
     }
     const fail = (why: string) => settle(Effect.fail(new LaunchFailure({ why: `${why}.${tail(child.err())}` })))
     const heard = () => {
-      if (!child.err().includes("DevTools listening on")) return
-      void readFile(port, "utf8").then(
-        (text) => {
-          const [at, path] = text.split("\n")
-          if (!/^\d+$/.test(at ?? "") || !path?.startsWith("/devtools/browser/")) fail("Chromium's DevToolsActivePort did not name a socket")
-          else settle(Effect.succeed(`ws://127.0.0.1:${at}${path}`))
-        },
-        (cause) => fail(`Chromium announced DevTools but its DevToolsActivePort could not be read: ${String(cause)}`),
-      )
+      const said = /DevTools listening on (ws:\/\/127\.0\.0\.1:\d+\/devtools\/browser\/[\w-]+)/.exec(child.err())
+      if (said !== null) settle(Effect.succeed(said[1]!))
     }
     const timer = setTimeout(() => fail(`Chromium did not open DevTools within ${(options.deadlineMs ?? 20_000) / 1000} seconds`), options.deadlineMs ?? 20_000)
     child.stderr?.on("data", heard)
