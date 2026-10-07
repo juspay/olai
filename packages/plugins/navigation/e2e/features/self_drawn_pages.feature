@@ -104,7 +104,8 @@ Feature: A plugin page that draws itself
     When I type "red fox" into the fixture filter in pane 0
     Then pane 0's fixture page is narrowed by "red fox"
     And the fixture filter in pane 0 has the caret
-    And the address is "/fixture/alpha?q=red+fox"
+    And the address is "/fixture/alpha"
+    And the address's query is "?q=red+fox"
     When I reload the page
     Then pane 0's fixture page is narrowed by "red fox"
     And I mark the page
@@ -112,13 +113,16 @@ Feature: A plugin page that draws itself
     Then pane 0 draws the fixture page for "beta"
     And pane 0's fixture page is narrowed by ""
     And the address is "/fixture/beta"
+    And the address's query is ""
     When I go back
     Then pane 0 draws the fixture page for "alpha"
     And pane 0's fixture page is narrowed by "red fox"
-    And the address is "/fixture/alpha?q=red+fox"
+    And the address is "/fixture/alpha"
+    And the address's query is "?q=red+fox"
     When I clear the fixture filter in pane 0
     Then pane 0's fixture page is narrowed by ""
     And the address is "/fixture/alpha"
+    And the address's query is ""
     And the page has not reloaded
     And there should be no page errors
 

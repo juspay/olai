@@ -118,6 +118,15 @@ Then("the address is {string}", async function (this: OlaiWorld, path: string) {
   assert.strictEqual(this.place(), path);
 });
 
+/** ...and its QUERY, which `the address is` leaves out on purpose (a place is
+ *  its path and fragment). Exact, and `""` for an address with none. */
+Then("the address's query is {string}", async function (this: OlaiWorld, query: string) {
+  await this.page
+    .waitForURL((url) => url.search === query, { timeout: POLL_TIMEOUT })
+    .catch(() => undefined);
+  assert.strictEqual(new URL(this.page.url()).search, query);
+});
+
 // ── breadcrumbs ────────────────────────────────────────────────────────
 
 /** The trail, crumb by crumb, in order. Asserting the whole list rather than
