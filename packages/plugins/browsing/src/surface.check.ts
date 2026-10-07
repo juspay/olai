@@ -28,7 +28,7 @@ const home = mkdtempSync(join(tmpdir(), "olai-browser-check-"))
 const fail = (why: string): never => { throw new Error(why) }
 
 /** What the launched Chromium has said, for the failure report. */
-let chromiumSaid = (): string => ""
+let chromiumSaid = (_chars?: number): string => ""
 
 const program = Effect.scoped(Effect.gen(function*() {
   const output = yield* openScratch(undefined)
@@ -43,7 +43,7 @@ const program = Effect.scoped(Effect.gen(function*() {
     // proxy settings, which left every page load hanging; the check browses
     // loopback only, so it asks for no proxy. Both are the check's alone.
     launch: (executable, profile) => Effect.tap(
-      launchChromium(executable, profile, { extraFlags: [...WITHOUT_ITS_OWN_SANDBOX, "--no-proxy-server", "--enable-logging=stderr"] }),
+      launchChromium(executable, profile, { extraFlags: [...WITHOUT_ITS_OWN_SANDBOX, "--no-proxy-server", "--enable-logging=stderr", "--v=1"] }),
       (launched) => Effect.sync(() => { chromiumSaid = launched.said }),
     ),
   })
@@ -68,7 +68,7 @@ const program = Effect.scoped(Effect.gen(function*() {
       dial.onerror = (event) => { clearTimeout(timer); resolve(`websocket: error ${String((event as ErrorEvent).message ?? event.type)}`) }
     })
     const own = await fetch(page).then((answer) => `its own page answers HTTP ${answer.status}`, (cause) => `its own page fails: ${String(cause)}`)
-    return `the check sees ${endpoint}: ${http}; ${socket}; ${own}; the browser is ${JSON.stringify(live.standing())}; its tabs ${JSON.stringify([...live.tabs().values()])};${chromiumSaid()}`
+    return `the check sees ${endpoint}: ${http}; ${socket}; ${own}; the browser is ${JSON.stringify(live.standing())}; its tabs ${JSON.stringify([...live.tabs().values()])};${chromiumSaid(6_000)}`
   })
   const session = (calls: Parameters<typeof callStdioMcp>[0]["calls"]) =>
     Effect.scoped(callStdioMcp({ command: server.command, args: server.args, env, timeout: 60_000, calls }))
