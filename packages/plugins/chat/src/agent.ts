@@ -142,7 +142,7 @@ import type { AgentEvent, Command, Stored } from "./events.ts"
 import type { Models } from "./models.ts"
 import type { MemorySnapshot, Memory, MemoryFailure } from "./memory.ts"
 import { streamOver } from "./pipes.ts"
-import { handedIn, missingIn, type Probe, probed, type StdioServer } from "./probes.ts"
+import { addressesIn, handedIn, missingIn, type Probe, probed, type StdioServer } from "./probes.ts"
 import * as Questions from "./questions.ts"
 import { movedBy, rosterOf } from "./servers.ts"
 import { Json } from "./json.ts"
@@ -2193,7 +2193,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // session as much as a failed one — and a panel told only about
         // failures leaves the other answer to the model, which is the incident
         // this comes from (`mcp-roster-visible`).
-        announce(rosterOf(handing, missingIn(found)))
+        announce(rosterOf(handing, missingIn(found), addressesIn(found)))
         return handing
       },
     )

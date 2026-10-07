@@ -95,6 +95,7 @@ export interface NotHere {
  * what it was not is the same list's other half.
  *
  * @param handing the `mcpServers` this session is being opened with
+ * @param at the app address each handed server's plugin named for it, if any
  * @param missing what a person is owed about the servers it was not given —
  *   empty when there was nothing to miss ({@link ./probes.ts}'s `missingIn`; a
  *   host that is not running the tool had nothing go wrong)
@@ -102,10 +103,12 @@ export interface NotHere {
 export const rosterOf = (
   handing: ReadonlyArray<McpServer>,
   missing: ReadonlyArray<NotHere>,
+  at: ReadonlyMap<string, string> = new Map(),
 ): ReadonlyArray<ChatServer> => [
   ...handing.map((server): ChatServer => ({
     name: server.name,
     where: whereOf(server),
+    ...(at.has(server.name) ? { at: at.get(server.name)! } : {}),
     // HANDED, never `connected`, and this is the layering in one line: olai
     // knows it gave the server to the session and cannot know the session took
     // it. Only an agent's own word moves a row past here ({@link movedBy}).

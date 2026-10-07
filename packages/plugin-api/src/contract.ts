@@ -132,6 +132,15 @@ export interface Probed {
     readonly where: string | null
     readonly why: string
   } | null
+  /**
+   * WHERE IN THIS APP A PERSON SEES WHAT THE SERVER WORKS ON — an app address
+   * such as `/browser` — or absent where there is nothing to look at.
+   *
+   * It is the probing plugin's own page, named by the plugin that owns it, so
+   * a roster can draw the server as a link without learning what the server
+   * is: chat renders the chip as an anchor and knows nothing about browsing.
+   */
+  readonly at?: string
 }
 
 /**

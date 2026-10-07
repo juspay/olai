@@ -80,6 +80,8 @@ export interface Probed {
   /** What a person is owed about the one they did not get, or `null` where an
    *  absence is the ordinary case and no fault. */
   readonly missing: NotHere | null
+  /** The probing plugin's own page for this server, if it has one. */
+  readonly at?: string
 }
 
 /** ONE THING TO ASK — the caller's own name for it, and the question.
@@ -185,3 +187,8 @@ export const handedIn = (found: ReadonlyArray<Probed>): ReadonlyArray<StdioServe
  *  off, never off a second probe — see {@link Probed}. */
 export const missingIn = (found: ReadonlyArray<Probed>): ReadonlyArray<NotHere> =>
   found.flatMap((one) => one.missing === null ? [] : [one.missing])
+
+/** ...and the app addresses of the ones that have a page, by server name. Read
+ *  off the same array, for {@link handedIn}'s reason. */
+export const addressesIn = (found: ReadonlyArray<Probed>): ReadonlyMap<string, string> =>
+  new Map(found.flatMap((one) => one.server !== null && one.at !== undefined ? [[one.server.name, one.at] as const] : []))

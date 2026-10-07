@@ -14,6 +14,7 @@ describe("chat's one machine-local document", () => {
       heard: { heard: [{ session: "sess-1" }] },
     }
     const door: LocalState = {
+      directory: Effect.fail({ _tag: "StateFailure", why: "unused here" }),
       load: Effect.succeed(record),
       save: (next) => Effect.sync(() => void (record = next)),
     }
@@ -32,6 +33,7 @@ describe("chat's one machine-local document", () => {
   test("simultaneous section writes share one lane", async () => {
     let record: Record<string, unknown> = {}
     const door: LocalState = {
+      directory: Effect.fail({ _tag: "StateFailure", why: "unused here" }),
       load: Effect.succeed(null),
       save: (next) => Effect.gen(function*() {
         yield* Effect.yieldNow
@@ -56,6 +58,7 @@ describe("chat's one machine-local document", () => {
   test("a fresh activation sees the record the previous one left", async () => {
     let record: Record<string, unknown> | null = null
     const door: LocalState = {
+      directory: Effect.fail({ _tag: "StateFailure", why: "unused here" }),
       load: Effect.sync(() => record),
       save: (next) => Effect.sync(() => void (record = next)),
     }
@@ -71,6 +74,7 @@ describe("chat's one machine-local document", () => {
 
   test("a refused write reaches chat and leaves its snapshot where it landed", async () => {
     const door: LocalState = {
+      directory: Effect.fail({ _tag: "StateFailure", why: "unused here" }),
       load: Effect.succeed({ memory: { session: "sess-1" } }),
       save: () => Effect.fail({ _tag: "StateFailure", why: "the state home is read-only" }),
     }

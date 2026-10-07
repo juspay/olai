@@ -1687,6 +1687,11 @@ export const ChatServer = Schema.Struct({
   /** How it stands, and — on the two arms that have one — why not. See
    *  {@link ServerStanding}. */
   standing: ServerStanding,
+  /** Where in this app a person can see what the server works on — an app
+   *  address its plugin named on the probe (`Probed.at`), drawn as a link on
+   *  the chip. Absent for a server with nothing to look at; chat never learns
+   *  what the address shows. */
+  at: Schema.optional(Schema.String),
 })
 export type ChatServer = typeof ChatServer.Type
 

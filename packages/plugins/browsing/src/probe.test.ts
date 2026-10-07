@@ -3,7 +3,7 @@ import { chmodSync, mkdtempSync, rmSync, statSync, writeFileSync, existsSync, re
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber, Scope, Exit } from "effect"
-import { probing } from "./probe.ts"
+import { type Attaching, probing } from "./probe.ts"
 import { ownProbe } from "./owned.ts"
 import { openScratch } from "./scratch.ts"
 
@@ -28,6 +28,7 @@ test("hands over the absolute answering executable with isolated headless scratc
   expect(answer).toEqual({
     server: { name: "browser", command: exe, args: ["--headless", "--isolated", "--output-dir", output], env: {} },
     missing: null,
+    at: "/browser",
   })
 })
 test("unset and explicitly empty knobs are ordinary absence", async () => {
@@ -126,4 +127,50 @@ test("the caller includes executable diagnostics in its startup sentence", async
   const answer = await probe(exe, dir)
   expect(answer.server).toBeNull()
   expect(answer.missing?.why).toContain("Executable stderr: cannot find Chromium")
+})
+
+
+const attachedProbe = (exe: string, output: string, attaching: Attaching, mode = "good") =>
+  Effect.runPromise(Effect.scoped(probing({ OLAI_BROWSER_MCP: exe, FAKE_BROWSER_MODE: mode, XDG_RUNTIME_DIR: output }, output, 2000, attaching)))
+
+test("with olai's browser, the probe stays disposable and the handoff attaches over CDP with its env set", async () => {
+  const { dir, exe } = fixture()
+  let asked = 0
+  const attaching: Attaching = Effect.sync(() => {
+    asked += 1
+    return { endpoint: "ws://127.0.0.1:9/devtools/browser/abc", profile: "/state/browsing/digest/profile" }
+  })
+  const answer = await attachedProbe(exe, dir, attaching)
+  const output = answer.server?.args[3]!
+  expect(output.startsWith(join(dir, "conversation-"))).toBe(true)
+  expect(answer).toEqual({
+    server: {
+      name: "browser",
+      command: exe,
+      args: ["--cdp-endpoint", "ws://127.0.0.1:9/devtools/browser/abc", "--output-dir", output],
+      env: { PLAYWRIGHT_MCP_USER_DATA_DIR: "/state/browsing/digest/profile", PLAYWRIGHT_MCP_ISOLATED: "false" },
+    },
+    missing: null,
+    at: "/browser",
+  })
+  expect(asked).toBe(1)
+  // The disposable interrogation itself never attached: it ran isolated.
+  const probes = readFileSync(join(dir, "browser-probes.log"), "utf8").trim().split("\n").map(line => JSON.parse(line))
+  expect(probes.map(one => one.args)).toEqual([["--headless", "--isolated"]])
+})
+
+test("a browser that cannot come up is a missing sentence, and claims no conversation directory", async () => {
+  const { dir, exe } = fixture()
+  const answer = await attachedProbe(exe, dir, Effect.fail({ says: "Chromium exited with code 1 before opening DevTools." }))
+  expect(answer.server).toBeNull()
+  expect(answer.missing?.why).toBe("Browser tools could not reach olai's browser: Chromium exited with code 1 before opening DevTools.")
+  expect(readdirSync(dir).filter(name => name.startsWith("conversation-"))).toEqual([])
+})
+
+test("an incompatible MCP never launches the browser", async () => {
+  const { dir, exe } = fixture()
+  let asked = 0
+  const answer = await attachedProbe(exe, dir, Effect.sync(() => { asked += 1; return { endpoint: "", profile: "" } }), "missing")
+  expect(answer.server).toBeNull()
+  expect(asked).toBe(0)
 })
