@@ -368,6 +368,7 @@ Environment readings follow the controls and stay read-only. Wrapper-provided ex
 | `OLAI_SPACES_TOKEN` | Spaces installed-app JWT; secret |
 | `OLAI_AGENT_PATH` | engine search path; empty searches nowhere |
 | `OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI` | executable paths, normally wrapper-provided |
+| `CODEX_CONFIG` | JSON overlay olai merges into the Codex session config on every Codex spawn, forcing `features.memories: false` while keeping every key the operator set |
 | `OLAI_BROWSER_MCP` | absolute Playwright MCP executable; empty omits browser tools; artifacts use private scratch under `XDG_RUNTIME_DIR` or the system temporary directory |
 | `OLAI_ODU_BIN` | directory prepended to the appliance's PATH |
 | `ODU_WEB_ORIGIN` | odu service origin this olai dials; default `http://127.0.0.1:18440` |

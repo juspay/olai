@@ -21,12 +21,6 @@ export const CODEX_AGENT_ENV = "OLAI_ACP_CODEX"
 /** THE CODEX CONFIG OVERLAY, as a value — `features.memories` forced OFF. */
 const MEMORIES_OFF = { features: { memories: false } }
 
-/**
- * The engine's own-memory switch: the one field of a `CODEX_CONFIG` overlay
- * olai forces, over every other key an operator set.
- */
-export const MEMORY_OFF_CONFIG = JSON.stringify(MEMORIES_OFF)
-
 /** The environment variable that carries the overlay — exported so tests and
  *  docs share one spelling. */
 export const CODEX_CONFIG_ENV = "CODEX_CONFIG"
@@ -72,17 +66,9 @@ export const ENGINE: Registering = {
     if (adapter === null) return INSTALL
     return {
       ...adapter,
-      // THE ADAPTER'S OWN MEMORY IS OFF — the node's subtree is the only
-      // memory, and a second one the panel cannot see would drift from it.
-      // `CODEX_CONFIG` is a JSON object the pinned codex-acp (1.13.1) merges
-      // into the Codex session config, and the engine's own
-      // `features.memories` setting is forced false in it: a user-level
-      // `~/.codex/config.toml` may have enabled it (Codex CLI has no
-      // environment switch of its own), and the overlay is the one place a
-      // spawn can win. Every other key an operator set survives — the merge
-      // keeps the whole object and overrides only this one field — and a
-      // `CODEX_CONFIG` that is not a JSON object is treated as absent rather
-      // than as something an operator meant.
+      // THE ADAPTER'S OWN MEMORY IS OFF — the merge {@link memoryOff} does,
+      // over every key the operator set.
+
       env: { [CODEX_CONFIG_ENV]: memoryOff(where.env[CODEX_CONFIG_ENV]) },
     }
   },
@@ -90,10 +76,12 @@ export const ENGINE: Registering = {
   // rides visibly with the first prompt, as it does for every other engine.
   prompt: { kind: "first-turn" },
 }
+
 export default definePlugin({
   environment: [
     {"key": "OLAI_ACP_CODEX", "secret": false, "says": "the Codex ACP adapter"},
     {"key": "OPENAI_API_KEY", "secret": true, "says": "the provider credential read by Codex"},
+    {"key": "CODEX_CONFIG", "secret": false, "says": "a JSON overlay olai merges into the Codex session config on every spawn — an operator's `features.memories` is switched OFF, every other key survives"},
   ],
   name,
   needs: [Agents],

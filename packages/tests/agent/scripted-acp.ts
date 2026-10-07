@@ -248,7 +248,6 @@ export interface ScriptedTool {
  *  fake into speaking for the other engine. */
 let toolWire: ScriptedTool = { announced: () => ({}), wrapped: () => ({ rawOutput: undefined }) }
 
-
 /**
  * WHAT THIS AGENT'S SPAWN SAW of its own-memory switch — the input for the
  * `memory` verb, read where a real harness would read it, so the e2e proves
@@ -258,10 +257,10 @@ let toolWire: ScriptedTool = { announced: () => ({}), wrapped: () => ({ rawOutpu
  * the codex one lives inside a `CODEX_CONFIG` JSON overlay's
  * `features.memories`, beside every key the operator set — and what the
  * operator set is reported too, so a merge that dropped it is as visible as
- * one that missed the switch. Opencode, pi and omp have no such memory at
- * all, and their descriptors set no switch, so the check names those and
- * reports `on` — a fake that answers a `memory` scenario is asserting its
- * engine's own absence.
+ * one that missed the switch. The fake reports what its spawn saw, plain:
+ * `harness memory: off (…)` when a switch is present, `harness memory: on`
+ * otherwise. Only engines with a switch have a `memory` scenario — opencode,
+ * pi and omp have none, so their fakes never answer this verb.
  */
 const memoryReport = (): string => {
   const made = (value: string): string => `harness memory: off (${value})`
@@ -285,7 +284,6 @@ const memoryReport = (): string => {
   return "harness memory: on"
 }
 let isCodex = false
-
 
 /** The wire, and what an agent puts on it — the transport this file shares with
  *  the other scripted agent ({@link ../support/scripted.ts}). What is NOT

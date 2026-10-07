@@ -103,13 +103,6 @@ export const ENGINE: Registering = {
       // told nothing about where it is running, and it offers the
       // paste-a-code methods this panel can run instead (`olai-plugin-chat`'s
       // `agent.ts` is where they become a row).
-
-      // ... AND ITS OWN MEMORY IS SWITCHED OFF, unconditionally — the node's
-      // subtree is the only memory, and a second one the panel cannot see
-      // would drift from it. The env var wins over `autoMemoryEnabled` in the
-      // adapter's own `settings.json`; an operator's contrary export beyond
-      // this door loses on purpose, exactly as the strip above loses.
-      env: { [DISABLE_AUTO_MEMORY_ENV]: "1" },
       //
       // STRIPPED RATHER THAN GUESSED AT, because a variable that happens to be
       // set on somebody's host is not a fact about the person using the panel:
@@ -117,6 +110,13 @@ export const ENGINE: Registering = {
       // `CLAUDE_CODE_REMOTE`, a `NO_BROWSER` in a shell profile. None of them
       // changes who is looking at the screen.
       unset: REMOTE_SIGNALS,
+
+      // ... AND ITS OWN MEMORY IS SWITCHED OFF, unconditionally — the node's
+      // subtree is the only memory, and a second one the panel cannot see
+      // would drift from it. The env var wins over `autoMemoryEnabled` in the
+      // adapter's own `settings.json`; an operator's contrary export beyond
+      // this door loses on purpose, exactly as the strip above loses.
+      env: { [DISABLE_AUTO_MEMORY_ENV]: "1" },
     }
   },
   // ACP has no system prompt on any wire, this one included, so the standing

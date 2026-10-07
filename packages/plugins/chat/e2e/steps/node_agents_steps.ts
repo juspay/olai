@@ -262,8 +262,9 @@ Then(
   },
 );
 
-/** ... and what it SAYS, which is the half that matters: the node it names and
- *  the law that node's subtree is the memory. */
+/** ... and what it SAYS, which is the half that matters: the node it names,
+ *  the law that node's subtree is the memory, and the memory rule every
+ *  contract carries — the agent has no memory of its own here. */
 Then(
   "the contract names {string} and its subtree",
   async function (this: OlaiWorld, title: string) {
@@ -275,6 +276,11 @@ Then(
     assert.ok(
       said.includes("SUBTREE is your memory"),
       `the contract to say the subtree is the memory, ` +
+        `and it says ${JSON.stringify(said)}`,
+    );
+    assert.ok(
+      said.includes("You have no memory of your own here: this subtree is the only memory."),
+      `the contract to say the agent has no memory of its own, ` +
         `and it says ${JSON.stringify(said)}`,
     );
   },

@@ -84,13 +84,15 @@ test("it is the same three lines in the same order, however the session arrived"
   for (const line of teachingFor(SPACES, "assigned")) expect(line.startsWith("[olai] ")).toBe(true)
 })
 
-test("the harness's own memory being off is said on BOTH contracts", () => {
-  // The one fact every contract shares about the memory itself: the switch is
-  // made at the spawn, and the agent is told so it does not go looking for a
-  // second memory beside the subtree.
+test("the agent is told it has no memory of its own, on BOTH contracts", () => {
+  // The one fact every contract shares about the memory itself: under every
+  // engine the agent keeps none of its own here — Claude and Codex have one
+  // the switch takes away, the others have nothing to switch off — and the
+  // subtree is the only memory. The sentence must not name one engine's
+  // mechanism, so it is true under all of them.
   for (const how of ["opened", "assigned"] as const) {
     const lines = teachingFor(SPACES, how)
-    expect(lines[2]).toContain("harness's own memory is switched off")
+    expect(lines[2]).toContain("You have no memory of your own here")
     expect(lines[2]).toContain("this subtree is the only memory")
   }
   // ... and it is the same sentence word for word under both arrivals.

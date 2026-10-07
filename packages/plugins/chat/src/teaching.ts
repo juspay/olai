@@ -73,26 +73,36 @@ import { memoryOf, type NodeAgent } from "@olai/format"
 export type Arrival = "opened" | "assigned"
 
 /**
- * THREE LINES: who it is, what that means, and the one fact every contract
- * shares about the memory itself — that the harness's own is off and this
- * subtree is the only one. The first two are separate because they age
+ * WHAT THE AGENT IS TOLD, as the lines {@link ./prompt.ts}'s `annotated` puts
+ * under a message — one line per thing, in the order they are given.
+ *
+ * TWO LINES: who it is, and what that means. They are separate because they age
  * differently — the first is a fact about this conversation and the second is
- * the standing law — and the third is the same sentence under every agent,
- * so a reader comparing two agents' first turns can see that both the law
- * and the memory rule are the same both times.
+ * the standing law, and a reader comparing two agents' first turns should be
+ * able to see that the law is the same sentence both times.
  *
- * ## THE MIGRATION VARIANT is the same three lines with the same shape
+ * AN EMPTY SUBTREE IS SAID rather than skipped, and it is the case a fresh node
+ * agent is actually in: "nothing under it yet" is an instruction to start
+ * writing, where a line claiming a memory of zero rows would read as a memory
+ * that failed to load.
  *
- * An assigned session is told the same three things in the same order — which
- * node, what its subtree is, and the memory rule — because they are the same
- * three facts, and a reader comparing an assigned agent's first turn with an
- * opened one's should see one contract rather than two. What differs is a
- * clause on each: that this
- * conversation was moved here (and may already contain useful knowledge), and that the first thing to do
- * is reconcile that knowledge with the subtree. The distillation order is a
+ * ## THE MIGRATION VARIANT is the same two lines with the same shape
+ *
+ * An assigned session is told the same two things in the same order — which
+ * node, and what its subtree is — because they are the same two facts, and a
+ * reader comparing an assigned agent's first turn with an opened one's should
+ * see one contract rather than two. What differs is a clause on each: that this
+ * conversation was moved here (it was somebody's chat a moment ago and its
+ * transcript is the only copy of what it knows), and that the first thing to do
+ * about that is WRITE THE STANDING FACTS DOWN. The distillation order is a
  * sentence in the contract rather than a turn of its own, for the reason the
  * whole teaching is a preamble: a turn spent before anybody has said anything
  * is a turn spent on every migrated chat whether or not it is ever used again.
+ *
+ * A THIRD LINE says the memory rule under every agent: you have no memory of
+ * your own here, this subtree is the only one. It is the same sentence under
+ * both contracts and every engine, so the two things a reader compares stay
+ * the same under every agent.
  */
 export const teachingFor = (
   agent: NodeAgent,
@@ -109,16 +119,16 @@ export const teachingFor = (
 }
 
 /**
- * THE HARNESS'S OWN MEMORY IS OFF — the sentence both contracts append.
+ * THE AGENT'S OWN MEMORY IS OFF — the sentence both contracts append.
  *
- * A harness that kept one would write beside the subtree, where the panel
- * cannot see it, and the two would drift; the switch is made at the spawn
- * (each engine's `at`), and this line is what the agent is told about it so
- * it does not go looking for a second memory.
+ * Under every engine the agent keeps no memory of its own here: Claude and
+ * Codex have one the switch takes away, and opencode, pi and omp have nothing
+ * to switch off. Either way, this subtree is the only memory, and the sentence
+ * says so without naming one engine's mechanism — the same words under every
+ * agent, so a reader comparing two first turns sees one contract.
  */
 const HARNESS_MEMORY_OFF =
-  "The harness's own memory is switched off under olai; this subtree is the only memory."
-
+  "You have no memory of your own here: this subtree is the only memory."
 /**
  * THE STANDING LAW, spelled ONCE — the sentence both contracts end on.
  *
