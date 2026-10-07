@@ -27,6 +27,9 @@ const home = mkdtempSync(join(tmpdir(), "olai-browser-check-"))
 
 const fail = (why: string): never => { throw new Error(why) }
 
+/** What the launched Chromium has said, for the failure report. */
+let chromiumSaid = (): string => ""
+
 const program = Effect.scoped(Effect.gen(function*() {
   const output = yield* openScratch(undefined)
   const live = yield* openLive({
@@ -39,7 +42,10 @@ const program = Effect.scoped(Effect.gen(function*() {
     // (`./chromium.ts`), and macOS's refuses Chromium's reading of the system
     // proxy settings, which left every page load hanging; the check browses
     // loopback only, so it asks for no proxy. Both are the check's alone.
-    launch: (executable, profile) => launchChromium(executable, profile, { extraFlags: [...WITHOUT_ITS_OWN_SANDBOX, "--no-proxy-server"] }),
+    launch: (executable, profile) => Effect.tap(
+      launchChromium(executable, profile, { extraFlags: [...WITHOUT_ITS_OWN_SANDBOX, "--no-proxy-server", "--enable-logging=stderr"] }),
+      (launched) => Effect.sync(() => { chromiumSaid = launched.said }),
+    ),
   })
   const answer = yield* probing({ ...process.env, OLAI_BROWSER_MCP: mcp }, output, 15_000, live.attach)
   const server = answer.server ?? fail(answer.missing?.why ?? "No browser MCP executable was supplied.")
@@ -62,7 +68,7 @@ const program = Effect.scoped(Effect.gen(function*() {
       dial.onerror = (event) => { clearTimeout(timer); resolve(`websocket: error ${String((event as ErrorEvent).message ?? event.type)}`) }
     })
     const own = await fetch(page).then((answer) => `its own page answers HTTP ${answer.status}`, (cause) => `its own page fails: ${String(cause)}`)
-    return `the check sees ${endpoint}: ${http}; ${socket}; ${own}; the browser is ${JSON.stringify(live.standing())}`
+    return `the check sees ${endpoint}: ${http}; ${socket}; ${own}; the browser is ${JSON.stringify(live.standing())}; its tabs ${JSON.stringify([...live.tabs().values()])};${chromiumSaid()}`
   })
   const session = (calls: Parameters<typeof callStdioMcp>[0]["calls"]) =>
     Effect.scoped(callStdioMcp({ command: server.command, args: server.args, env, timeout: 60_000, calls }))

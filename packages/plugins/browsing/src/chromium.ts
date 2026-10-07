@@ -38,6 +38,8 @@ export interface Launched {
   readonly pipe: DevToolsPipe
   /** Settles with a sentence when the process exits, by any hand. */
   readonly exited: Effect.Effect<string>
+  /** What Chromium has said so far, as a failure sentence would quote it. */
+  readonly said: () => string
 }
 
 export const FLAGS = (profile: string): ReadonlyArray<string> => [
@@ -188,5 +190,5 @@ export const launchChromium = (
     Effect.map(({ code, signal }) => `${exitSentence(code, signal)}.${tail(diagnostics, child.err())}`),
   )
   const pipe = { calls: child.stdio[3] as Writable, answers: child.stdio[4] as Readable }
-  return { pid: child.pid!, endpoint, pipe, exited }
+  return { pid: child.pid!, endpoint, pipe, exited, said: () => tail(diagnostics, child.err()) }
 })
