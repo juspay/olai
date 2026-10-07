@@ -1,0 +1,3 @@
+/* This plugin's sheet: Tailwind emits only the utilities it can see, so the
+ * pane's faces point it at their own directory. */
+@source "./";

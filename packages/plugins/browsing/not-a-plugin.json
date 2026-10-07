@@ -5,5 +5,27 @@
     "src/surface.check.ts",
     "src/testlib/fake-browser-mcp.ts"
   ],
-  "//mcp": "MCP protocol and executable names, not the olai transport row."
+  "//mcp": "MCP protocol and executable names, not the olai transport row.",
+  "tabs": [
+    "src/browser.tsx",
+    "src/browser/Page.tsx",
+    "src/browser/client.ts",
+    "src/live.ts",
+    "src/server.ts",
+    "src/surface.check.ts",
+    "src/wire.ts"
+  ],
+  "//tabs": "The browser's own tabs (CDP page targets), not olai's tabs row.",
+  "image": [
+    "src/browser/Page.tsx"
+  ],
+  "//image": "The JPEG frame's `data:image/jpeg` MIME type.",
+  "search": [
+    "src/browser.tsx"
+  ],
+  "//search": "The palette row's `search` words field.",
+  "ws": [
+    "src/chromium.ts"
+  ],
+  "//ws": "The `ws://` scheme of Chromium's DevTools socket."
 }

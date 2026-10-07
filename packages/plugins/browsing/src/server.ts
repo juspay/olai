@@ -9,6 +9,7 @@ import { ownProbe } from "./owned.ts"
 import { openScratch } from "./scratch.ts"
 import { faces, surface, type Tab } from "./wire.ts"
 export { name } from "./index.ts"
+export { faces, surface } from "./wire.ts"
 
 type Ctx = SurfaceCtx<typeof surface.spec>
 

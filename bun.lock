@@ -278,6 +278,7 @@
         "@olai/plugin-kit": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
         "effect": "4.0.0",
+        "olai-plugin-layout": "workspace:*",
         "olai-plugin-navigation": "workspace:*",
         "solid-js": "^1.9.0",
         "ws": "^8.21.0",
