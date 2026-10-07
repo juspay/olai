@@ -27,11 +27,19 @@ in
     path = chromium;
   };
   # End to end and hermetic: the pinned Chromium launches headless on a temp
-  # profile, the pinned MCP attaches over CDP and opens about:blank, and the
-  # plugin's own CDP client receives one screencast frame of it. No network.
+  # profile, the pinned MCP attaches over CDP and browses pages the check
+  # serves itself, and the plugin's own CDP client receives screencast frames.
+  # Loopback only; no network.
   checks = { tree }: {
     surface = pkgs.runCommand "olai-plugin-browsing-surface"
-      { nativeBuildInputs = [ pkgs.bun ]; }
+      {
+        nativeBuildInputs = [ pkgs.bun ];
+        # Loopback only: the MCP reaches Chromium's DevTools port and the
+        # check serves its pages on 127.0.0.1. The macOS build sandbox refuses
+        # local networking without this (the MCP's CDP dial was reset); it
+        # changes nothing on Linux.
+        __darwinAllowLocalNetworking = true;
+      }
       ''
         export HOME=$TMPDIR
         cd ${tree}
