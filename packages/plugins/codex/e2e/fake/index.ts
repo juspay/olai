@@ -18,11 +18,11 @@ export const fake: Fake = {
   },
   env: ({ stored }): Readonly<Record<string, string>> => ({
     ...(stored ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
-    // THE OPERATOR'S CONTRARY CONFIG — a user-level `~/.codex/config.toml`
-    // with Codex's own memory ON, plus another key that must survive the
-    // overlay: this engine's registration forces `features.memories` false
-    // into a `CODEX_CONFIG` merge, and the fake's `memory` answer proves
-    // both facts crossed the spawn — memory off, the other key intact.
+    // THE OPERATOR'S CONTRARY CONFIG, on olai's own environment — a
+    // user-level `~/.codex/config.toml` with Codex's own memory ON, plus
+    // another key that must survive the overlay. The fake's `memory` answer
+    // proves this engine's `at` merge won over it: memory off, the other key
+    // intact — the same rule `agent.ts`'s env-wins test pins for claude.
     CODEX_CONFIG: JSON.stringify({ features: { memories: true }, model: "gpt-5" }),
   }),
 };

@@ -92,9 +92,8 @@ export type Arrival = "opened" | "assigned"
  * node, and what its subtree is — because they are the same two facts, and a
  * reader comparing an assigned agent's first turn with an opened one's should
  * see one contract rather than two. What differs is a clause on each: that this
- * conversation was moved here (it was somebody's chat a moment ago and its
- * transcript is the only copy of what it knows), and that the first thing to do
- * about that is WRITE THE STANDING FACTS DOWN. The distillation order is a
+ * conversation was moved here (and may already contain useful knowledge), and that the first thing to do
+ * is reconcile that knowledge with the subtree. The distillation order is a
  * sentence in the contract rather than a turn of its own, for the reason the
  * whole teaching is a preamble: a turn spent before anybody has said anything
  * is a turn spent on every migrated chat whether or not it is ever used again.
@@ -129,6 +128,7 @@ export const teachingFor = (
  */
 const HARNESS_MEMORY_OFF =
   "You have no memory of your own here: this subtree is the only memory."
+
 /**
  * THE STANDING LAW, spelled ONCE — the sentence both contracts end on.
  *

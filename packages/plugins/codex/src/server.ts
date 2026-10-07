@@ -68,7 +68,6 @@ export const ENGINE: Registering = {
       ...adapter,
       // THE ADAPTER'S OWN MEMORY IS OFF — the merge {@link memoryOff} does,
       // over every key the operator set.
-
       env: { [CODEX_CONFIG_ENV]: memoryOff(where.env[CODEX_CONFIG_ENV]) },
     }
   },

@@ -57,8 +57,11 @@ export const REMOTE_SIGNALS: ReadonlyArray<string> = [
  * THE ADAPTER'S OWN-MEMORY SWITCH, set unconditionally on its spawn — the
  * variable that tells Claude Code its automatic memory is OFF.
  *
- * Exporting the name lets tests, the scripted fake and this file's docs share
- * one spelling of it, the way {@link REMOTE_SIGNALS} is shared.
+ * The name is exported so this file's tests and its `at` share one spelling,
+ * the way {@link REMOTE_SIGNALS} is shared. The e2e fake arms the operator's
+ * contrary value (`"0"`) by its literal name, because what it proves is that
+ * the `at` merge wins over olai's own environment — a spelling imported from
+ * here would tie the two together, and they rev on different clocks.
  */
 export const DISABLE_AUTO_MEMORY_ENV = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
 
