@@ -42,13 +42,18 @@ describe("finding the Codex adapter on a host", () => {
     // `features` that is not a record is replaced rather than crashed on.
     expect(memoryOff('{"features":"on"}')).toBe('{"features":{"memories":false}}')
     // The adapter hand gets the same answer, from wherever the operator's
-    // value came.
+    // value came — compare the whole row, as the claude sibling does.
     expect(ENGINE.at({
       env: { [CODEX_AGENT_ENV]: "/nix/store/x/bin/codex-acp", [CODEX_CONFIG_ENV]: '{"model":"gpt-6","features":{"memories":true}}' },
       cwd: CWD,
       found: nowhere,
-    }).env).toEqual({ [CODEX_CONFIG_ENV]: '{"model":"gpt-6","features":{"memories":false}}' })
+    })).toEqual({
+      command: "/nix/store/x/bin/codex-acp",
+      args: [],
+      env: { [CODEX_CONFIG_ENV]: '{"model":"gpt-6","features":{"memories":false}}' },
+    })
   })
+
 
   test("an absent or empty pin is this engine's own sentence, and never falls through to PATH", () => {
     let probed = false
@@ -60,5 +65,5 @@ describe("finding the Codex adapter on a host", () => {
     expect(ENGINE.at({ env: { [CODEX_AGENT_ENV]: "" }, cwd: CWD, found })).toBe(INSTALL)
     expect(probed).toBe(false)
   })
-
 })
+

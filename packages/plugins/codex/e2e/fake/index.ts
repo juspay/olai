@@ -16,16 +16,13 @@ export const fake: Fake = {
     knob: "OLAI_ACP_CODEX",
     exe: resolve(import.meta.dirname, "codex-acp"),
   },
-  env: ({ stored }): Readonly<Record<string, string>> => {
-    const base = stored ? { OLAI_FAKE_ACP_STORED: "yes" } : {}
-    return {
-      ...base,
-      // THE OPERATOR'S CONTRARY CONFIG — a user-level `~/.codex/config.toml`
-      // with Codex's own memory ON, plus another key that must survive the
-      // overlay: this engine's registration forces `features.memories` false
-      // into a `CODEX_CONFIG` merge, and the fake's `memory` answer proves
-      // both facts crossed the spawn — memory off, the other key intact.
-      CODEX_CONFIG: JSON.stringify({ features: { memories: true }, model: "gpt-5" }),
-    }
-  },
+  env: ({ stored }): Readonly<Record<string, string>> => ({
+    ...(stored ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
+    // THE OPERATOR'S CONTRARY CONFIG — a user-level `~/.codex/config.toml`
+    // with Codex's own memory ON, plus another key that must survive the
+    // overlay: this engine's registration forces `features.memories` false
+    // into a `CODEX_CONFIG` merge, and the fake's `memory` answer proves
+    // both facts crossed the spawn — memory off, the other key intact.
+    CODEX_CONFIG: JSON.stringify({ features: { memories: true }, model: "gpt-5" }),
+  }),
 };
