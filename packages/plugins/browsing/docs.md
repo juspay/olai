@@ -54,7 +54,11 @@ the MCP's wrapper uses (not the headless shell, which real sign-in flows
 tolerate less well). Set it to another absolute executable to override it.
 
 The profile is at `$XDG_STATE_HOME/olai/browsing/<digest>/profile` (by default
-`~/.local/state/olai/…`), one per served directory, created owner-only. It
+`~/.local/state/olai/…`), one per served directory, created owner-only. Its
+cookies are encrypted with a key Chromium keeps in the profile rather than in
+the OS secret store (GNOME Keyring, the macOS Keychain), because olai runs it
+as a service with nobody there to answer a Keychain prompt; the profile
+directory's owner-only mode is what protects them at rest. It
 survives olai restarting. olai removes it when you **Forget sign-ins**, and
 when the served directory itself no longer exists.
 

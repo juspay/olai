@@ -51,7 +51,13 @@ export const FLAGS = (profile: string): ReadonlyArray<string> => [
   `--window-size=${WINDOW.width},${WINDOW.height}`,
   "--no-first-run",
   "--no-default-browser-check",
+  // The profile's cookie key, without the OS secret store: `basic` on Linux,
+  // the mock keychain on macOS (each flag is ignored by the other). Under a
+  // service with no UI the real Keychain lookup blocks or prompts, and every
+  // page load waits on it — the macOS builder's navigation hung exactly so.
+  // Cookies at rest are then protected by the profile directory's 0700.
   "--password-store=basic",
+  "--use-mock-keychain",
   "--disable-background-networking",
   "about:blank",
 ]
@@ -103,7 +109,7 @@ export const isExecutable = (path: string): boolean => {
 /** Chromium's lines that say WHY it stopped — a `FATAL`, a failed `CHECK`,
  *  the sandbox's complaint — as opposed to the stack trace and registers that
  *  follow them and fill any tail. */
-const DIAGNOSTIC = /FATAL|ERROR:|Check failed|sandbox/i
+const DIAGNOSTIC = /FATAL|ERROR:|Check failed|No usable sandbox/i
 
 /** What Chromium said, for a failure sentence: its first diagnostic lines,
  *  kept as they arrived however much followed, then the last of the rest —
