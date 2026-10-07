@@ -1,7 +1,5 @@
 import { Schema } from "effect"
 import type { AppPage } from "olai-plugin-navigation/slots"
-import type { AppRoute } from "olai-plugin-navigation/slots"
-import type { AppRouteGrammar } from "olai-plugin-navigation/slots"
 import type { AppRouteClaim } from "olai-plugin-navigation/slots"
 import {
 type Address,
@@ -206,6 +204,15 @@ export const defineAppRoute = <Value, Request extends PageRequest>(spec: Grammar
   return { ...definedOver(source, spec), request: spec.request }
 }
 
+/** The slot entry both page definers build: already in the shape it is
+ * mounted in, so the settled page IS the registered value (a re-settle keeps
+ * every face's identity), and its `kind` is copied from the route, the one
+ * place a page's kind is decided. */
+const pageOf = (source: PageRoute, face: unknown): AppPage => {
+  const page = { [APP_PAGE]: true, kind: source.kind, route: source, face }
+  return page as unknown as AppPage
+}
+
 /** Join a typed route to the face mounted in the same plugin scope. */
 export const defineAppPage = <Value, Request extends PageRequest>(
   route: DefinedAppRoute<Value, Request>,
@@ -214,15 +221,7 @@ export const defineAppPage = <Value, Request extends PageRequest>(
     readonly drawn: Drawn
     readonly today: string
   }) => JSX.Element,
-): AppPage => {
-  const page = {
-    [APP_PAGE]: true,
-    kind: "node" as const,
-    route: route.source as unknown as AppRoute,
-    face: face as Extract<AppPage, { readonly kind: "node" }>["face"],
-  }
-  return page
-}
+): AppPage => pageOf(route.source, face)
 
 export type DefinedSelfDrawnRoute<Value> = DefinedGrammar<Value, SelfDrawnPageRoute>
 
@@ -245,15 +244,7 @@ export const defineSelfDrawnPage = <Value>(
     readonly filter: string
     readonly narrow: (filter: string) => void
   }) => JSX.Element,
-): AppPage => {
-  const page = {
-    [APP_PAGE]: true,
-    kind: "self-drawn" as const,
-    route: route.source as unknown as AppRouteGrammar,
-    face: face as Extract<AppPage, { readonly kind: "self-drawn" }>["face"],
-  }
-  return page
-}
+): AppPage => pageOf(route.source, face)
 
 /** The front page: the address that names no place at all, and what every
  *  string this cannot read comes back as. */
@@ -328,7 +319,7 @@ const addressNamed = (route: Route): Address | null =>
   route.kind === "at" ? route.address : null
 
 const mountedPage = (page: AppPage): MountedAppPage => {
-  if (!(APP_PAGE in page) || !(APP_ROUTE in page.route) || (page.route as unknown as PageRoute).kind !== page.kind) {
+  if (!(APP_PAGE in page) || !(APP_ROUTE in page.route)) {
     throw new Error("app.route entries must be built with defineAppRoute and defineAppPage, or defineSelfDrawnRoute and defineSelfDrawnPage")
   }
   return page as unknown as MountedAppPage

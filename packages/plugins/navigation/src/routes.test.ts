@@ -498,15 +498,10 @@ test("self-drawn and node claims settle in one table, colliding as one", () => {
   ])
 })
 
-test("an app.route entry not built by a definer is dropped, whichever kind it claims to be", () => {
+test("an app.route entry not built by a definer is dropped", () => {
   const logged: Array<string> = []
   const route = drawnRoute()
-  const forged = { kind: "self-drawn" as const, route: { ...route.source }, face: () => null }
-  const mismatched = { ...defineSelfDrawnPage(route, () => null), kind: "node" as const } as unknown as Parameters<typeof settleRoutePages>[0][number]["face"]
-  const settled = settleRoutePages([
-    { plugin: "forged", face: forged },
-    { plugin: "mismatched", face: mismatched },
-  ], (message) => logged.push(message))
-  expect(settled).toEqual([])
-  expect(logged).toHaveLength(2)
+  const forged = { route: { ...route.source }, face: () => null }
+  expect(settleRoutePages([{ plugin: "forged", face: forged }], (message) => logged.push(message))).toEqual([])
+  expect(logged).toHaveLength(1)
 })
