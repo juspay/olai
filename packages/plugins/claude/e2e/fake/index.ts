@@ -30,5 +30,12 @@ export const fake: Fake = {
   env: ({ stored }): Readonly<Record<string, string>> => ({
     ...(stored ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
     SSH_CONNECTION: "10.0.0.1 40222 10.0.0.2 22",
+    // THE OPERATOR'S CONTRARY EXPORT, on olai's own environment — the value
+    // an operator who WANTED Claude's automatic memory on would have: this
+    // engine's `at` sets the switch unconditionally over it, and the fake's
+    // `memory` answer proves that merge won — the same rule `agent.ts`'s
+    // env-wins test pins. A regression shows up as the fake reporting its
+    // memory ON rather than as a fact about CI.
+    CLAUDE_CODE_DISABLE_AUTO_MEMORY: "0",
   }),
 };

@@ -53,6 +53,18 @@ export const REMOTE_SIGNALS: ReadonlyArray<string> = [
   "CLAUDE_CODE_REMOTE",
 ]
 
+/**
+ * THE ADAPTER'S OWN-MEMORY SWITCH, set unconditionally on its spawn — the
+ * variable that tells Claude Code its automatic memory is OFF.
+ *
+ * The name is exported so this file's tests and its `at` share one spelling,
+ * the way {@link REMOTE_SIGNALS} is shared. The e2e fake arms the operator's
+ * contrary value (`"0"`) by its literal name, because what it proves is that
+ * the `at` merge wins over olai's own environment — a spelling imported from
+ * here would tie the two together, and they rev on different clocks.
+ */
+export const DISABLE_AUTO_MEMORY_ENV = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
+
 /** The plugin's word, re-exported for the reason every tenant's server door
  *  re-exports it: one entry per plugin, and one spelling of the key — and
  *  because `@olai/bundle` reads it off the module its ROW names to prove that a
@@ -101,6 +113,13 @@ export const ENGINE: Registering = {
       // `CLAUDE_CODE_REMOTE`, a `NO_BROWSER` in a shell profile. None of them
       // changes who is looking at the screen.
       unset: REMOTE_SIGNALS,
+
+      // ... AND ITS OWN MEMORY IS SWITCHED OFF, unconditionally — the node's
+      // subtree is the only memory, and a second one the panel cannot see
+      // would drift from it. The env var wins over `autoMemoryEnabled` in the
+      // adapter's own `settings.json`; an operator's contrary export beyond
+      // this door loses on purpose, exactly as the strip above loses.
+      env: { [DISABLE_AUTO_MEMORY_ENV]: "1" },
     }
   },
   // ACP has no system prompt on any wire, this one included, so the standing

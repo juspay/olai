@@ -17,7 +17,7 @@
 import { AGENT_ENV } from "@olai/acp/engine"
 import { describe, expect, test } from "bun:test"
 
-import { ENGINE, REMOTE_SIGNALS } from "./server.ts"
+import { DISABLE_AUTO_MEMORY_ENV, ENGINE, REMOTE_SIGNALS } from "./server.ts"
 import { INSTALL } from "./install.ts"
 
 const CWD = "/vault"
@@ -37,17 +37,43 @@ describe("finding the Claude Code adapter on a host", () => {
     ).toEqual({
       command: "/nix/store/x/bin/claude-agent-acp",
       args: [],
-      // THE FIVE VARIABLES THE ADAPTER GUESSES FROM, taken away from every
-      // spawn of it: olai is the remote end of a browser, and the person is
-      // not somewhere else ({@link REMOTE_SIGNALS}, and `olai-plugin-chat`'s
-      // `agent.ts` for what the removal does for a sign-in).
+      // THE ADAPTER'S OWN MEMORY IS SWITCHED OFF, and the five variables the
+      // adapter guesses from are taken away from every spawn of it: olai runs
+      // the far end of a browser, and the node's subtree is the only memory
+      // ({@link DISABLE_AUTO_MEMORY_ENV}, and `olai-plugin-chat`'s `agent.ts`
+      // for what the removal does for a sign-in).
+      env: { [DISABLE_AUTO_MEMORY_ENV]: "1" },
+      unset: REMOTE_SIGNALS,
+    })
+  })
+
+  test("the adapter's own memory is switched OFF on every spawn", () => {
+    // The node's subtree is the only memory; a second one the panel cannot
+    // see would drift from it. The env var wins over `autoMemoryEnabled` in
+    // the adapter's `settings.json`, and an operator's contrary export loses
+    // on purpose — the return value here is unconditional.
+    expect(
+      ENGINE.at({
+        env: { [AGENT_ENV]: "/nix/store/x/bin/claude-agent-acp", [DISABLE_AUTO_MEMORY_ENV]: "0" },
+        cwd: CWD,
+        found: nowhere,
+      }),
+    ).toEqual({
+      command: "/nix/store/x/bin/claude-agent-acp",
+      args: [],
+      env: { [DISABLE_AUTO_MEMORY_ENV]: "1" },
       unset: REMOTE_SIGNALS,
     })
   })
 
   test("a command line, not a path: the adapter is often `node <file>`", () => {
     expect(ENGINE.at({ env: { [AGENT_ENV]: "node /a/index.js" }, cwd: CWD, found: nowhere }))
-      .toEqual({ command: "node", args: ["/a/index.js"], unset: REMOTE_SIGNALS })
+      .toEqual({
+        command: "node",
+        args: ["/a/index.js"],
+        env: { [DISABLE_AUTO_MEMORY_ENV]: "1" },
+        unset: REMOTE_SIGNALS,
+      })
   })
 
   test("nothing baked in is this engine's own sentence, and NOTHING is looked for on a path", () => {

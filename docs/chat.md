@@ -835,6 +835,16 @@ remove obsolete information. Store useful knowledge, not a running account of
 conversations or actions. These are instructions to the agent, not an automatic
 subtree reorganization.
 
+The engine's own harness memory — the automatic memory Claude Code and Codex
+persist beside their transcripts — is switched off under olai (see each
+engine's page for the switch). The subtree is the only memory: a second one
+the panel cannot see would drift from it. Engines with no built-in memory
+(opencode, pi, omp by default) need no switch and keep none.
+
+The preamble also says so, in both contracts: a node agent is told that it has
+no memory of its own here, and that this subtree is the only memory, so it
+does not go looking for a second one.
+
 ## Moving the chats you already have
 
 ### Filing stored conversations into the Inbox

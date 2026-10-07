@@ -271,7 +271,11 @@ export interface Options {
   readonly args: ReadonlyArray<string>
   /** Extra environment the ROSTER ROW asked for ({@link ../adapter.ts}'s
    *  `Adapter.env`), merged over this process's own at the spawn — pi-acp's
-   *  `PI_ACP_PI_COMMAND` is the one row that uses it today. */
+   *  `PI_ACP_PI_COMMAND` is one row that uses it, and an engine's own-memory
+   *  switch (Claude's `CLAUDE_CODE_DISABLE_AUTO_MEMORY`, Codex's
+   *  `CODEX_CONFIG` overlay) is another. A value here WINS over the same name
+   *  in `process.env`: the row's answer is the child's environment, which is
+   *  what makes a switch an engine sets unconditional. */
   readonly env?: Readonly<Record<string, string>>
   /**
    * ENVIRONMENT VARIABLES THIS ADAPTER MUST NOT SEE — removed from its spawn,

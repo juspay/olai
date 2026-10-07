@@ -44,13 +44,14 @@ test("one row is `1 row`", () => {
   expect(teachingFor({ ...SPACES, memory: 1 })[1]).toContain("(1 row)")
 })
 
-test("it is TWO lines, so the standing law reads the same under every agent", () => {
+test("it is THREE lines, so the standing law and the memory rule read the same under every agent", () => {
   const one = teachingFor(SPACES)
   const other = teachingFor({ id: "odu", title: "Odu", file: "ci.olai", engine: "opus", session: null, memory: 14 })
-  expect(one).toHaveLength(2)
-  // The first line differs — it is about this node — and the second does not.
+  expect(one).toHaveLength(3)
+  // The first line differs — it is about this node — and the other two do not.
   expect(one[0]).not.toBe(other[0])
   expect(one[1]).toBe(other[1] as string)
+  expect(one[2]).toBe(other[2] as string)
 })
 
 // ── the migration variant ─────────────────────────────────────────────
@@ -76,11 +77,26 @@ test("... and is ordered to BANK what it knows rather than to write as it learns
   expect(law).toContain("14 rows")
 })
 
-test("it is the same two lines in the same order, however the session arrived", () => {
+test("it is the same three lines in the same order, however the session arrived", () => {
   // One contract rather than two: a reader comparing an assigned agent's first
   // turn with an opened one's should see the same shape.
-  expect(teachingFor(SPACES, "assigned")).toHaveLength(2)
+  expect(teachingFor(SPACES, "assigned")).toHaveLength(3)
   for (const line of teachingFor(SPACES, "assigned")) expect(line.startsWith("[olai] ")).toBe(true)
+})
+
+test("the agent is told it has no memory of its own, on BOTH contracts", () => {
+  // The one fact every contract shares about the memory itself: under every
+  // engine the agent keeps none of its own here — Claude and Codex have one
+  // the switch takes away, the others have nothing to switch off — and the
+  // subtree is the only memory. The sentence must not name one engine's
+  // mechanism, so it is true under all of them.
+  for (const how of ["opened", "assigned"] as const) {
+    const lines = teachingFor(SPACES, how)
+    expect(lines[2]).toContain("You have no memory of your own here")
+    expect(lines[2]).toContain("this subtree is the only memory")
+  }
+  // ... and it is the same sentence word for word under both arrivals.
+  expect(teachingFor(SPACES, "opened")[2]).toBe(teachingFor(SPACES, "assigned")[2] as string)
 })
 
 test("... and both end on the SAME standing law, word for word", () => {

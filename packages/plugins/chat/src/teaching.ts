@@ -97,6 +97,11 @@ export type Arrival = "opened" | "assigned"
  * sentence in the contract rather than a turn of its own, for the reason the
  * whole teaching is a preamble: a turn spent before anybody has said anything
  * is a turn spent on every migrated chat whether or not it is ever used again.
+ *
+ * A THIRD LINE says the memory rule under every agent: you have no memory of
+ * your own here, this subtree is the only one. It is the same sentence under
+ * both contracts and every engine, so the two things a reader compares stay
+ * the same under every agent.
  */
 export const teachingFor = (
   agent: NodeAgent,
@@ -108,8 +113,21 @@ export const teachingFor = (
     `[olai] ${says.memory} (${
       agent.memory === 0 ? "nothing under it yet" : memoryOf(agent)
     }): ${says.order} ${LAW}`,
+    `[olai] ${HARNESS_MEMORY_OFF}`,
   ]
 }
+
+/**
+ * THE AGENT'S OWN MEMORY IS OFF — the sentence both contracts append.
+ *
+ * Under every engine the agent keeps no memory of its own here: Claude and
+ * Codex have one the switch takes away, and opencode, pi and omp have nothing
+ * to switch off. Either way, this subtree is the only memory, and the sentence
+ * says so without naming one engine's mechanism — the same words under every
+ * agent, so a reader comparing two first turns sees one contract.
+ */
+const HARNESS_MEMORY_OFF =
+  "You have no memory of your own here: this subtree is the only memory."
 
 /**
  * THE STANDING LAW, spelled ONCE — the sentence both contracts end on.

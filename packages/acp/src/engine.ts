@@ -59,7 +59,13 @@ export interface Adapter {
    *  adapter that WRAPS an agent (pi-acp spawns `pi`) puts the found agent here,
    *  because olai's PATH is not your shell's and the adapter's own lookup would
    *  read a third one, its child's. Omitted for adapters that want nothing, so a
-   *  child inherits exactly what olai has. */
+   *  child inherits exactly what olai has.
+   *
+   *  This is also where an engine keeps its own memory OFF: an engine under
+   *  olai keeps no memory of its own, and one whose harness has such a memory
+   *  says in its `at` how it is switched off. A value set here wins over the
+   *  same name in olai's own environment.
+   */
   readonly env?: Readonly<Record<string, string>>
   /**
    * ... AND THE VARIABLES IT MUST NOT SEE, removed from that same spawn.

@@ -25,6 +25,7 @@ Every reading was captured live against **opencode 1.17.9**. Each is safe to los
 - **opencode cannot be INTERRUPTED.** `_session/steering` does not exist on this wire, so the composer simply does not draw the gesture. Sending is otherwise identical: the message goes at once and opencode answers one prompt at a time, in order.
 - **its subagents carry no attribution**, so a fan-out draws flat — every call in one column — rather than in lanes. Nothing guesses at whose a call was.
 - **its picker offers the ids it reports**, so the agent line names a model with the picker's own label and needs no alias arithmetic.
+- **no harness memory built in.** opencode's memory is opt-in plugins, and olai installs none — the node's subtree is the only memory.
 
 ## Where to get it
 
