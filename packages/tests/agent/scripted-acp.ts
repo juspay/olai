@@ -247,6 +247,43 @@ export interface ScriptedTool {
  *  claude vocabulary, codex's the codex one, and no flag can flip a running
  *  fake into speaking for the other engine. */
 let toolWire: ScriptedTool = { announced: () => ({}), wrapped: () => ({ rawOutput: undefined }) }
+
+
+/**
+ * WHAT THIS AGENT'S SPAWN SAW of its own-memory switch — the input for the
+ * `memory` verb, read where a real harness would read it, so the e2e proves
+ * the switch crossed the spawn rather than trusting a sibling unit test.
+ *
+ * `CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1"` is the whole of the claude switch;
+ * the codex one lives inside a `CODEX_CONFIG` JSON overlay's
+ * `features.memories`, beside every key the operator set — and what the
+ * operator set is reported too, so a merge that dropped it is as visible as
+ * one that missed the switch. Opencode, pi and omp have no such memory at
+ * all, and their descriptors set no switch, so the check names those and
+ * reports `on` — a fake that answers a `memory` scenario is asserting its
+ * engine's own absence.
+ */
+const memoryReport = (): string => {
+  const made = (value: string): string => `harness memory: off (${value})`
+  if (process.env["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] === "1") return made("auto memory disabled")
+  try {
+    const config: unknown = JSON.parse(process.env["CODEX_CONFIG"] ?? "")
+    if (typeof config === "object" && config !== null && !Array.isArray(config)) {
+      const record = config as Record<string, unknown>
+      const features = record["features"]
+      if (typeof features === "object" && features !== null && !Array.isArray(features)) {
+        const settings = features as Record<string, unknown>
+        if (settings["memories"] === false) {
+          const kept = Object.keys(record).filter((key) => key !== "features").map((key) => `${key}=${String(record[key])}`)
+          return made(`features.memories=false` + (kept.length === 0 ? "" : `, kept ${kept.join(" ")}`))
+        }
+      }
+    }
+  } catch {
+    // Not JSON: the CODEX_CONFIG overlay is absent or unreadable.
+  }
+  return "harness memory: on"
+}
 let isCodex = false
 
 
@@ -1513,6 +1550,12 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // that produced not one frame leaves the client unable to tell a prompt that
   // was read from one that never arrived, which is the case a message may
   // honestly be marked for. `crash` speaks first and must NOT be markable.
+  if (verb === "memory") {
+    say(memoryReport())
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "native") {
     const air = (capabilities._meta as { jetbrains?: { air?: { version?: number; capabilities?: string[] } } } | undefined)?.jetbrains?.air
     if (air?.version !== 1 || !air.capabilities?.includes("nativeSubagentSessions") || !air.capabilities.includes("asyncTasks")) {
