@@ -53,7 +53,7 @@ one of two kinds of face, each with its own typed definer in `./routes`:
 | Kind | Definers | Face | Hosted by |
 | --- | --- | --- | --- |
 | node page | `defineAppRoute` / `defineAppPage` | `{ page: Shown, drawn: Drawn, today }`, from a `request` into `@olai/format`'s `PageRequest` and a `stream` answering a `PageReading` | outlines, whose `navigation.content` handler claims only node-page routes |
-| self-drawn page | `defineSelfDrawnRoute` / `defineSelfDrawnPage` | `{ value, filter }`: the route's own value and its `?q=` | navigation, through the content handler its `renderer` component contributes beside the claim table it settles |
+| self-drawn page | `defineSelfDrawnRoute` / `defineSelfDrawnPage` | `{ value, filter, narrow }`: the route's own value, its `?q=`, and the verb that replaces the pane's address with the same page narrowed (so the page may draw its own filter box) | navigation, through the content handler its `renderer` component contributes beside the claim table it settles |
 
 Each definer is the one place its kind's value type is erased; consumers never
 cast. The kind rides on the route's `source`, so a host can tell which routes
@@ -62,7 +62,8 @@ treatment from everything that keys off `Route`: tabs (the glyph is `◷` for a
 node page, `◇` for a self-drawn one), pane labels and breadcrumbs, link
 intents, the palette and lanes. A self-drawn page names its own services (a
 clock, a wire) as any component of its plugin does; navigation hands it nothing
-else.
+else. Its host reports the pane as never pending: the page owns its own loading
+state and draws it.
 
 When a tenant leaves, its page unmounts and the open addresses are read again
 against the claims that remain — usually the front page, since a plugin's path
