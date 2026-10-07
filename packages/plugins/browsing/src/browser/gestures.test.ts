@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { keptByPane, keyOf, modifiersOf, mouseOf, pagePoint, textOf } from "./gestures.ts"
+import { addressOf, keptByPane, keyOf, modifiersOf, mouseOf, pagePoint, textOf } from "./gestures.ts"
 
 const meta = { deviceWidth: 1280, deviceHeight: 800, pageScaleFactor: 1, scrollOffsetX: 0, scrollOffsetY: 0, timestamp: 0 }
 const none = { altKey: false, ctrlKey: false, metaKey: false, shiftKey: false }
@@ -42,4 +42,14 @@ test("Escape hands the keys back and a paste chord is left to the paste event", 
   expect(keptByPane({ ...none, ctrlKey: true, key: "v" })).toBe("paste")
   expect(keptByPane({ ...none, metaKey: true, key: "V" })).toBe("paste")
   expect(keptByPane({ ...none, key: "v" })).toBeNull()
+})
+
+test("an address bar's words become a URL", () => {
+  expect(addressOf("  https://x.com/home ")).toBe("https://x.com/home")
+  expect(addressOf("data:text/html,<b>hi</b>")).toBe("data:text/html,<b>hi</b>")
+  expect(addressOf("x.com")).toBe("https://x.com")
+  expect(addressOf("localhost:3000/a")).toBe("http://localhost:3000/a")
+  expect(addressOf("127.0.0.1:8080")).toBe("http://127.0.0.1:8080")
+  expect(addressOf("example.org:8443/x")).toBe("https://example.org:8443/x")
+  expect(addressOf("two words")).toBe("https://duckduckgo.com/?q=two%20words")
 })

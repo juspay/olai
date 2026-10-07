@@ -17,9 +17,9 @@ import { useGo } from "olai-plugin-navigation/routing"
 import type { Route } from "olai-plugin-navigation/routes"
 import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js"
 import { TESTID } from "../testids.ts"
-import type { FrameMeta, InputEvent, Standing } from "../wire.ts"
+import { type FrameMeta, type InputEvent, type Standing, WINDOW } from "../wire.ts"
 import type { Browsing } from "./client.ts"
-import { keptByPane, keyOf, mouseOf, pagePoint } from "./gestures.ts"
+import { addressOf, keptByPane, keyOf, mouseOf, pagePoint } from "./gestures.ts"
 
 export interface Shown {
   readonly targetId: string | null
@@ -27,7 +27,7 @@ export interface Shown {
 
 /** The picture is asked at the browser's own window width, so it is never
  *  upscaled; a quality that keeps a busy page near 300 KB a frame. */
-const ASK = { maxWidth: 1280, quality: 60 } as const
+const ASK = { maxWidth: WINDOW.width, quality: 60 } as const
 
 const BUTTON = "rounded border border-rule px-2 py-0.5 text-caption hover:bg-ink/5 disabled:opacity-50"
 
@@ -59,7 +59,7 @@ export function BrowserPage(props: {
     Effect.runPromise(effect).then(() => { say(null); done?.() }, (failure) => say(sayOf(failure)))
 
   const up = createMemo(() => { const now = standing(); return now.kind === "up" ? now.pid : null })
-  const shown = createMemo(() => props.value.targetId ?? props.browsing.tabs()[0]?.id ?? null)
+  const shown = createMemo(() => props.browsing.shown(props.value.targetId))
   const tab = () => { const id = shown(); return id === null ? undefined : props.browsing.tab(id) }
 
   // ONE SCREENCAST SUBSCRIPTION per pane, reopened when the shown tab or the
@@ -143,7 +143,7 @@ export function BrowserPage(props: {
     const url = typing()
     if (targetId === null || url === null || url.trim() === "") return
     type(null)
-    void run(calls.tab.navigate({ targetId, url }))
+    void run(calls.tab.navigate({ targetId, url: addressOf(url) }))
   }
 
   const [confirming, confirm] = createSignal(false)

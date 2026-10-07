@@ -85,3 +85,14 @@ export const keptByPane = (event: Mods & { readonly key: string }): "release" | 
   if ((event.ctrlKey || event.metaKey) && (event.key === "v" || event.key === "V")) return "paste"
   return null
 }
+
+/** The address bar is a gesture too: make an absolute URL out of what a
+ *  person typed. Words that are not one are searched (`browsing.md` names
+ *  the engine). The server navigates to exactly what it is handed. */
+export const addressOf = (typed: string): string => {
+  const text = typed.trim()
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(text) || /^(about|data|blob|javascript|view-source|mailto):/i.test(text)) return text
+  if (/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/i.test(text)) return `http://${text}`
+  if (/^[^\s/]+\.[^\s/]+/.test(text) || /^[^\s/]+:\d+(\/|$)/.test(text)) return `https://${text}`
+  return `https://duckduckgo.com/?q=${encodeURIComponent(text)}`
+}

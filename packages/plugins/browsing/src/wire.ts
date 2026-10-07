@@ -25,6 +25,10 @@ export const name = "browsing"
 /** The pane's own address, which chat's roster chip links to. */
 export const BROWSER_PATH = "/browser"
 
+/** The headless window olai launches Chromium at. The pane asks for frames
+ *  at its width, so a picture is never upscaled. */
+export const WINDOW = { width: 1280, height: 800 } as const
+
 /**
  * WHERE THE BROWSER STANDS. `absent` is a serve with no Chromium configured
  * (`OLAI_BROWSER_CHROMIUM` blank) and never changes while the row stands; the

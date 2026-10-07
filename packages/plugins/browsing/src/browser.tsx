@@ -49,8 +49,8 @@ export default definePlugin({
       },
       href: ({ targetId }) => targetId === null ? BROWSER_PATH : `${PREFIX}${encodeURIComponent(targetId)}`,
       breadcrumb: ({ targetId }) => {
-        const tab = browsing.tab(targetId ?? browsing.tabs()[0]?.id ?? "")
-        return tab?.title || "Browser"
+        const shown = browsing.shown(targetId)
+        return (shown === null ? undefined : browsing.tab(shown))?.title || "Browser"
       },
       narrowable: false,
     })

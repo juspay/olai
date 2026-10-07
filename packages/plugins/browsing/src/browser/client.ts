@@ -42,6 +42,8 @@ export interface Browsing {
   readonly standing: Accessor<Standing>
   readonly tabs: Accessor<ReadonlyArray<Tab>>
   readonly tab: (id: string) => Tab | undefined
+  /** The tab an address shows: its own, or `/browser`'s first. */
+  readonly shown: (targetId: string | null) => string | null
   readonly watch: (ask: ScreencastAsk) => Stream.Stream<Frame, unknown>
   readonly calls: BrowsingClient["procedures"]
 }
@@ -63,6 +65,7 @@ export const createBrowsing = (client: BrowsingClient): Browsing => {
     standing: () => standing() ?? DOWN,
     tabs,
     tab: (id) => folded()?.get(id),
+    shown: (targetId) => targetId ?? tabs()[0]?.id ?? null,
     // Un-enrolled: a pane's screencast ends and reopens for ordinary reasons
     // (a tab closed, the browser stopped), and must not raise the app's
     // Disconnected overlay. The framework's retry fence still replays it

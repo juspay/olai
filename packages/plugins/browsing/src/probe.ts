@@ -1,8 +1,9 @@
-import { accessSync, constants, statSync } from "node:fs"
 import { mkdtemp } from "node:fs/promises"
-import { isAbsolute, join } from "node:path"
+import { join } from "node:path"
 import { Effect, Result, type Scope } from "effect"
 import type { Probed, StdioServer } from "@olai/plugin-api"
+import { isExecutable } from "./chromium.ts"
+import type { Attach } from "./live.ts"
 import { BROWSER_PATH } from "./wire.ts"
 import { askStdioMcp, type Verdict } from "@olai/plugin-kit/stdio-mcp"
 
@@ -33,11 +34,7 @@ export const whyOf = (verdict: Verdict): string | null => {
 /** Where the handed-over MCP attaches: olai's own browser, launched on
  *  demand. `null` is a serve with no Chromium configured, which keeps the
  *  isolated browser each MCP launches for itself. */
-export type Attaching = Effect.Effect<{ readonly endpoint: string; readonly profile: string }, { readonly says: string }> | null
-
-/** The pane's address, carried on the handoff so chat's roster chip can link
- *  to it. Spelled in `./wire.ts`. */
-const AT = BROWSER_PATH
+export type Attaching = Effect.Effect<Attach, { readonly says: string }> | null
 
 /**
  * THE HANDED-OVER SERVER, attached to olai's browser.
@@ -73,12 +70,7 @@ export const probing = (
   return Effect.gen(function*() {
     // Empty overrides deliberately disable the packaged executable, like engine knobs.
     if (!command) return { server: null, missing: null }
-    const executable = yield* Effect.try(() => {
-      if (!isAbsolute(command) || !statSync(command).isFile()) throw new Error("not an absolute executable file")
-      accessSync(command, constants.X_OK)
-      return true
-    }).pipe(Effect.catch(() => Effect.succeed(false)))
-    if (!executable) {
+    if (!isExecutable(command)) {
       return missing("Browser tools are unavailable because OLAI_BROWSER_MCP does not name an absolute executable file.")
     }
     // Interrogation never opens a page or requests artifacts. Give the disposable
@@ -91,14 +83,14 @@ export const probing = (
     if (why !== null) return missing(why)
     if (attaching === null) {
       const directory = yield* claim(output)
-      return { server: { name: "browser", command, args: [...args, "--output-dir", directory], env: {} }, missing: null, at: AT }
+      return { server: { name: "browser", command, args: [...args, "--output-dir", directory], env: {} }, missing: null, at: BROWSER_PATH }
     }
     // Only a compatible MCP launches the browser: a broken executable must
     // not cost a Chromium the person never sees used.
     const attached = yield* Effect.result(attaching)
     if (Result.isFailure(attached)) return missing(`Browser tools could not reach olai's browser: ${attached.failure.says}`)
     const directory = yield* claim(output)
-    return { server: attachedServer(command, attached.success.endpoint, attached.success.profile, directory), missing: null, at: AT }
+    return { server: attachedServer(command, attached.success.endpoint, attached.success.profile, directory), missing: null, at: BROWSER_PATH }
   }).pipe(Effect.catchDefect(defect => Effect.succeed(
     missing(`Browser tools could not be prepared: ${String(defect)}.`),
   )))

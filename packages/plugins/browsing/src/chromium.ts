@@ -22,6 +22,7 @@ import { isAbsolute, join } from "node:path"
 import { Data, Effect, type Scope } from "effect"
 import type { Readable, Writable } from "node:stream"
 import type { DevToolsPipe } from "./cdp.ts"
+import { WINDOW } from "./wire.ts"
 
 export class LaunchFailure extends Data.TaggedError("LaunchFailure")<{ readonly why: string }> {
   override get message(): string {
@@ -44,7 +45,7 @@ export const FLAGS = (profile: string): ReadonlyArray<string> => [
   "--remote-debugging-pipe",
   "--remote-debugging-port=0",
   `--user-data-dir=${profile}`,
-  "--window-size=1280,800",
+  `--window-size=${WINDOW.width},${WINDOW.height}`,
   "--no-first-run",
   "--no-default-browser-check",
   "--password-store=basic",

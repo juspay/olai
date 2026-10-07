@@ -93,9 +93,6 @@ interface Instance {
   /** ...and back, from a session to its tab, for the events it carries. */
   readonly targets: Map<string, string>
   readonly casts: Map<string, Cast>
-  /** Whose info is being re-read: a tab with a read in flight is marked
-   *  `dirty` instead of asked twice, and read once more when it lands. */
-  readonly reading: Map<string, "busy" | "dirty">
   /** When each tab's info was last asked for, and which tabs have a
    *  picture-driven ask already waiting. */
   readonly lastRead: Map<string, number>
@@ -113,15 +110,6 @@ const whyOf = (cause: Cause.Cause<unknown>, interrupted: string): string => {
 }
 const NOT_UP = "The browser is not running. Start it from this pane."
 const refusing = (says: string): Stream.Stream<Frame> => Stream.succeed<Frame>({ _tag: "refused", says })
-
-/** Make an absolute URL out of what a person typed in an address bar. */
-export const addressOf = (typed: string): string => {
-  const text = typed.trim()
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(text) || /^(about|data|blob|javascript|view-source|mailto):/i.test(text)) return text
-  if (/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/i.test(text)) return `http://${text}`
-  if (/^[^\s/]+\.[^\s/]+/.test(text) || /^[^\s/]+:\d+(\/|$)/.test(text)) return `https://${text}`
-  return `https://duckduckgo.com/?q=${encodeURIComponent(text)}`
-}
 
 export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope.Scope> => Effect.gen(function*() {
   const row = yield* Effect.scope
@@ -168,27 +156,16 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
    * the tab's own session says something happened. A load or navigation asks
    * at once; a new picture — the one sign a script retitled the page — asks at
    * most once per {@link LiveOptions.titleEveryMs}, trailing, so a page
-   * streaming frames costs one call a second, not one a frame. One read in
-   * flight per tab; anything that lands meanwhile asks for one more.
+   * streaming frames costs one call a second, not one a frame. Reads need no
+   * coalescing: the pipe answers in order, so the last read to land is the
+   * newest.
    */
   const reread = (instance: Instance, targetId: string) => {
-    if (instance.reading.has(targetId)) {
-      instance.reading.set(targetId, "dirty")
-      return
-    }
-    instance.reading.set(targetId, "busy")
     instance.lastRead.set(targetId, Date.now())
-    const once: Effect.Effect<void> = Effect.gen(function*() {
-      const answer = yield* Effect.result(instance.cdp.send("Target.getTargetInfo", { targetId }))
-      const info = Result.isSuccess(answer) ? answer.success["targetInfo"] as Record<string, unknown> | undefined : undefined
+    own(instance, Effect.map(instance.cdp.send("Target.getTargetInfo", { targetId }), (answer) => {
+      const info = answer["targetInfo"] as Record<string, unknown> | undefined
       if (current === instance && info !== undefined && tabs.has(targetId)) upsertTab(info)
-      if (instance.reading.get(targetId) === "dirty") {
-        instance.reading.set(targetId, "busy")
-        return yield* once
-      }
-      instance.reading.delete(targetId)
-    })
-    own(instance, once)
+    }))
   }
 
   /** ...and the throttled ask a new picture makes: now if the last read was
@@ -303,7 +280,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       yield* Scope.close(scope, Exit.void)
       return yield* refused(whyOf(opened.cause, "The browser launch was interrupted."))
     }
-    const instance: Instance = { scope, ...opened.value, sessions: new Map(), targets: new Map(), casts: new Map(), reading: new Map(), lastRead: new Map(), soon: new Set() }
+    const instance: Instance = { scope, ...opened.value, sessions: new Map(), targets: new Map(), casts: new Map(), lastRead: new Map(), soon: new Set() }
     yield* instance.cdp.listen(onEvent(instance)).pipe(Scope.provide(scope))
     const seeded = yield* Effect.exit(Effect.gen(function*() {
       yield* instance.cdp.send("Target.setDiscoverTargets", { discover: true })
@@ -394,25 +371,19 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
   })
   const forgetSessions = (instance: Instance, targetId: string) => {
     instance.sessions.delete(targetId)
-    instance.reading.delete(targetId)
     instance.lastRead.delete(targetId)
     for (const [sessionId, held] of instance.targets) if (held === targetId) instance.targets.delete(sessionId)
   }
 
-  /** Run one call on a tab's session, refusing when nothing is up. */
-  const onTab = <A>(targetId: string, use: (instance: Instance, sessionId: string) => Effect.Effect<A, CdpFailure>) =>
-    Effect.suspend(() => {
-      const instance = current
-      if (instance === null) return Effect.fail(refused(NOT_UP))
-      return Effect.flatMap(sessionFor(instance, targetId), (sessionId) =>
-        Effect.mapError(use(instance, sessionId), (failure) => refused(`The browser refused: ${failure.why}.`)))
-    })
-
-  const onBrowser = <A>(use: (instance: Instance) => Effect.Effect<A, CdpFailure>) => Effect.suspend(() => {
+  /** Run one call on the running browser, refusing when nothing is up. */
+  const onBrowser = <A>(use: (instance: Instance) => Effect.Effect<A, CdpFailure | BrowserRefused>) => Effect.suspend(() => {
     const instance = current
     if (instance === null) return Effect.fail(refused(NOT_UP))
-    return Effect.mapError(use(instance), (failure) => refused(`The browser refused: ${failure.why}.`))
+    return Effect.mapError(use(instance), (failure) => failure._tag === "CdpFailure" ? refused(`The browser refused: ${failure.why}.`) : failure)
   })
+  /** ...or on one tab's session. */
+  const onTab = <A>(targetId: string, use: (instance: Instance, sessionId: string) => Effect.Effect<A, CdpFailure>) =>
+    onBrowser((instance) => Effect.flatMap(sessionFor(instance, targetId), (sessionId) => use(instance, sessionId)))
 
   const screencast = (ask: ScreencastAsk): Stream.Stream<Frame> => Stream.unwrap(Effect.gen(function*() {
     const instance = current
@@ -493,9 +464,9 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     screencast,
     input,
     navigate: (targetId, url) => onTab(targetId, (instance, sessionId) =>
-      Effect.flatMap(instance.cdp.send("Page.navigate", { url: addressOf(url) }, sessionId), (answer) =>
+      Effect.flatMap(instance.cdp.send("Page.navigate", { url }, sessionId), (answer) =>
         typeof answer["errorText"] === "string" && answer["errorText"] !== ""
-          ? Effect.fail(new CdpFailure({ why: `${addressOf(url)} did not open (${answer["errorText"]})` }))
+          ? Effect.fail(new CdpFailure({ why: `${url} did not open (${answer["errorText"]})` }))
           : Effect.void)),
     open: onBrowser((instance) => Effect.map(
       instance.cdp.send("Target.createTarget", { url: "about:blank" }),

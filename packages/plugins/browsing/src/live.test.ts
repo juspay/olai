@@ -6,7 +6,7 @@ import { join } from "node:path"
 import { PassThrough } from "node:stream"
 import { type Cdp, type CdpEvent, CdpFailure, decodeMessage, encodeCall, framesOf, openCdp } from "./cdp.ts"
 import { LaunchFailure } from "./chromium.ts"
-import { addressOf, openLive, type LiveOptions } from "./live.ts"
+import { openLive, type LiveOptions } from "./live.ts"
 import type { Standing } from "./wire.ts"
 
 test("CDP calls frame with or without a session; answers, refusals and events decode", () => {
@@ -23,16 +23,6 @@ test("CDP calls frame with or without a session; answers, refusals and events de
     .toEqual({ _tag: "event", method: "Target.targetDestroyed", params: { targetId: "T" }, sessionId: null })
   expect(() => decodeMessage("[1]")).toThrow()
   expect(() => decodeMessage("{}")).toThrow()
-})
-
-test("an address bar's words become a URL", () => {
-  expect(addressOf("  https://x.com/home ")).toBe("https://x.com/home")
-  expect(addressOf("data:text/html,<b>hi</b>")).toBe("data:text/html,<b>hi</b>")
-  expect(addressOf("x.com")).toBe("https://x.com")
-  expect(addressOf("localhost:3000/a")).toBe("http://localhost:3000/a")
-  expect(addressOf("127.0.0.1:8080")).toBe("http://127.0.0.1:8080")
-  expect(addressOf("example.org:8443/x")).toBe("https://example.org:8443/x")
-  expect(addressOf("two words")).toBe("https://duckduckgo.com/?q=two%20words")
 })
 
 /** A browser double: a launch the test settles, and a CDP connection that
@@ -240,7 +230,7 @@ test("tabs follow the browser's page targets; a closed tab ends its panes", () =
 test("the person's gestures reach the tab's session as CDP input", () => run(Effect.gen(function*() {
   const browser = double()
   const live = yield* openLive(browser.options())
-  expect((yield* Effect.flip(live.navigate("T1", "x.com"))).says).toBe("The browser is not running. Start it from this pane.")
+  expect((yield* Effect.flip(live.navigate("T1", "https://x.com"))).says).toBe("The browser is not running. Start it from this pane.")
   yield* live.start
   yield* live.input("T1", { kind: "mouse", type: "mousePressed", x: 10, y: 20, button: "left", buttons: 1, clickCount: 1, modifiers: 0, deltaX: 0, deltaY: 0 })
   yield* live.input("T1", { kind: "mouse", type: "mouseWheel", x: 10, y: 20, button: "none", buttons: 0, clickCount: 0, modifiers: 0, deltaX: 0, deltaY: 120 })
@@ -248,7 +238,7 @@ test("the person's gestures reach the tab's session as CDP input", () => run(Eff
   yield* live.input("T1", { kind: "key", type: "keyDown", key: "Enter", code: "Enter", text: "", keyCode: 13, modifiers: 0 })
   yield* live.input("T1", { kind: "key", type: "keyUp", key: "a", code: "KeyA", text: "", keyCode: 65, modifiers: 0 })
   yield* live.input("T1", { kind: "text", text: "pasted" })
-  yield* live.navigate("T1", "x.com")
+  yield* live.navigate("T1", "https://x.com")
   expect((yield* Effect.flip(live.navigate("T1", "https://refused.example"))).says).toContain("ERR_NAME_NOT_RESOLVED")
   expect(yield* live.open).toEqual({ targetId: "T9" })
   expect((yield* Effect.flip(live.close("gone"))).says).toContain("No target")
