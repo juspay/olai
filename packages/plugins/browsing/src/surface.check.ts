@@ -45,7 +45,22 @@ const program = Effect.scoped(Effect.gen(function*() {
   const standing = live.standing()
   if (standing.kind !== "up") fail(`the browser is not up: ${JSON.stringify(standing)}`)
   const pid = standing.kind === "up" ? standing.pid : 0
-  const env = { ...process.env, ...server.env }
+  // The MCP's own log, so a failure below says what it was waiting on.
+  const env = { ...process.env, ...server.env, DEBUG: "pw:mcp*,pw:browser*,pw:api" }
+  const endpoint = server.args[server.args.indexOf("--cdp-endpoint") + 1]!
+  /** What the check itself sees of Chromium's DevTools port, for a failure
+   *  sentence: whether HTTP answers there, and whether a websocket opens. */
+  const seen = () => Effect.promise(async () => {
+    const http = await fetch(`http://127.0.0.1:${new URL(endpoint).port}/json/version`)
+      .then(async (answer) => `HTTP ${answer.status} ${(await answer.text()).replace(/\s+/g, " ").slice(0, 200)}`, (cause) => `HTTP failed: ${String(cause)}`)
+    const socket = await new Promise<string>((resolve) => {
+      const ws = new WebSocket(endpoint)
+      const timer = setTimeout(() => { ws.close(); resolve("websocket: no open within 5s") }, 5_000)
+      ws.onopen = () => { clearTimeout(timer); ws.close(); resolve("websocket: opened") }
+      ws.onerror = (event) => { clearTimeout(timer); resolve(`websocket: error ${String((event as ErrorEvent).message ?? event.type)}`) }
+    })
+    return `the check sees ${endpoint}: ${http}; ${socket}; the browser is ${JSON.stringify(live.standing())}`
+  })
   const session = (calls: Parameters<typeof callStdioMcp>[0]["calls"]) =>
     Effect.scoped(callStdioMcp({ command: server.command, args: server.args, env, timeout: 60_000, calls }))
   // A loopback origin, because `data:` pages have no storage: what one
@@ -60,14 +75,14 @@ const program = Effect.scoped(Effect.gen(function*() {
     { name: "browser_navigate", arguments: { url: page } },
     { name: "browser_evaluate", arguments: { function: "() => { localStorage.setItem('olai', 'kept'); return document.title }" } },
   ])
-  if (first._tag === "failed") fail(`the attached MCP could not navigate: ${first.cause}\n${first.stderr}`)
+  if (first._tag === "failed") fail(`the attached MCP could not navigate: ${first.cause}\n${yield* seen()}\n${first.stderr}`)
   // A second conversation, after the first has gone: the same jar.
   const second = yield* session([
     { name: "browser_navigate", arguments: { url: page } },
     { name: "browser_evaluate", arguments: { function: "() => localStorage.getItem('olai')" } },
     { name: "browser_close", arguments: {} },
   ])
-  if (second._tag === "failed") return fail(`the second MCP could not attach: ${second.cause}\n${second.stderr}`)
+  if (second._tag === "failed") return fail(`the second MCP could not attach: ${second.cause}\n${yield* seen()}\n${second.stderr}`)
   const read = JSON.stringify(second.results[1]?.["content"] ?? null)
   if (!read.includes("kept")) fail(`the second conversation did not share the first's storage: ${read}`)
   try { process.kill(pid, 0) } catch { fail("browser_close stopped the shared browser") }
