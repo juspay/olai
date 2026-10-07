@@ -50,7 +50,7 @@ export interface LiveOptions {
     readonly untab: (id: string) => void
   }
   readonly launch?: typeof launchChromium
-  readonly connect?: typeof openCdp
+  readonly connect?: (launched: Launched) => Effect.Effect<Cdp, never, Scope.Scope>
 }
 
 export interface Live {
@@ -121,7 +121,7 @@ export const addressOf = (typed: string): string => {
 export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope.Scope> => Effect.gen(function*() {
   const row = yield* Effect.scope
   const launch = options.launch ?? launchChromium
-  const connect = options.connect ?? openCdp
+  const connect = options.connect ?? ((launched: Launched) => openCdp(launched.pipe))
   const transitions = yield* Semaphore.make(1)
 
   let standing: Standing = options.chromium === null ? { kind: "absent", why: options.absentWhy } : DOWN
@@ -272,7 +272,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     const opened = yield* Effect.exit(Effect.gen(function*() {
       const profile = yield* Effect.mapError(options.profile, (failure) => new LaunchFailure({ why: `The browser profile is unavailable: ${failure.why}.` }))
       const launched = yield* launch(chromium, profile)
-      const cdp = yield* Effect.mapError(connect(launched.endpoint), (failure) => new LaunchFailure({ why: failure.why }))
+      const cdp = yield* connect(launched)
       return { launched, profile, cdp }
     }).pipe(Scope.provide(scope)))
     if (Exit.isFailure(opened)) {

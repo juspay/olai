@@ -20,6 +20,8 @@ import { accessSync, constants, statSync } from "node:fs"
 import { mkdir, rm } from "node:fs/promises"
 import { isAbsolute, join } from "node:path"
 import { Data, Effect, type Scope } from "effect"
+import type { Readable, Writable } from "node:stream"
+import type { DevToolsPipe } from "./cdp.ts"
 
 export class LaunchFailure extends Data.TaggedError("LaunchFailure")<{ readonly why: string }> {
   override get message(): string {
@@ -29,14 +31,17 @@ export class LaunchFailure extends Data.TaggedError("LaunchFailure")<{ readonly 
 
 export interface Launched {
   readonly pid: number
-  /** `ws://127.0.0.1:<port>/devtools/browser/<id>`. */
+  /** `ws://127.0.0.1:<port>/devtools/browser/<id>` — the agents' door. */
   readonly endpoint: string
+  /** olai's own door, whose closing is also Chromium's cue to quit. */
+  readonly pipe: DevToolsPipe
   /** Settles with a sentence when the process exits, by any hand. */
   readonly exited: Effect.Effect<string>
 }
 
 export const FLAGS = (profile: string): ReadonlyArray<string> => [
   "--headless=new",
+  "--remote-debugging-pipe",
   "--remote-debugging-port=0",
   `--user-data-dir=${profile}`,
   "--window-size=1280,800",
@@ -87,7 +92,8 @@ export const launchChromium = (
   const child: Child = yield* Effect.acquireRelease(
     Effect.sync(() => start(executable, FLAGS(profile), {
       processGroup: true,
-      stdio: ["ignore", "ignore", "pipe"],
+      // fds 3 and 4 are the DevTools pipe (`./cdp.ts`).
+      stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"],
       maxBuffer: 16 * 1024,
       ...(options.env === undefined ? {} : { env: options.env }),
     })),
@@ -120,5 +126,6 @@ export const launchChromium = (
   const exited = Effect.promise(() => child.closed).pipe(
     Effect.map(({ code, signal }) => `${exitSentence(code, signal)}.${tail(child.err())}`),
   )
-  return { pid: child.pid!, endpoint, exited }
+  const pipe = { calls: child.stdio[3] as Writable, answers: child.stdio[4] as Readable }
+  return { pid: child.pid!, endpoint, pipe, exited }
 })

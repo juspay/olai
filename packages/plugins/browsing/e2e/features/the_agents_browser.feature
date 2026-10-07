@@ -72,20 +72,21 @@ Feature: The person sees and uses the browser their agents use
     And there should be no page errors
 
   Scenario: An agent's browser tools attach to the person's browser, and the roster chip leads to it
+    # The agent's own Playwright MCP is the real one, handed `--cdp-endpoint`
+    # at session open: its page lands in the person's tab strip, and its
+    # `browser_close` lets go of the browser without closing it.
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     Then the panel says this conversation has "browser"
     And the chat's browser chip links to the browser pane
     When I ask the agent to open the site's "agent" page with its browser tools
     Then the agent's answer mentions "Agent page"
+    When I ask the agent to close its browser
+    Then the agent is idle
     When I press the chat's browser chip
     Then pane 0 draws the browser page
+    And the address is "/browser"
     And the browser pane says the browser is up
-    And a browser tab in pane 0 is titled "Agent page"
-    When I remember the browser's process
-    And I ask the agent to close its browser
-    Then the agent is idle
-    And the remembered browser process is running
     And a browser tab in pane 0 is titled "Agent page"
     And there should be no page errors
 

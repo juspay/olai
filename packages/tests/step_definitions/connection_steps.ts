@@ -297,6 +297,9 @@ When("I reload from the overlay", async function (this: OlaiWorld) {
 // ── the server under the page ──────────────────────────────────────────
 
 When("the server stops", async function (this: OlaiWorld) {
+  // Told to the ledger, as `the browser goes offline` is: the refused redials
+  // that follow are this suite's doing, not the page's.
+  this.noteOutage();
   await stopOwnServer(this);
 });
 

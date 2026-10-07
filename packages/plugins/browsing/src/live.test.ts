@@ -3,14 +3,17 @@ import { Deferred, Effect, Exit, Fiber, Option, Scope, Stream } from "effect"
 import { mkdtempSync, rmSync, writeFileSync, existsSync, mkdirSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { type Cdp, type CdpEvent, CdpFailure, decodeMessage, encodeCall } from "./cdp.ts"
+import { PassThrough } from "node:stream"
+import { type Cdp, type CdpEvent, CdpFailure, decodeMessage, encodeCall, framesOf, openCdp } from "./cdp.ts"
 import { LaunchFailure } from "./chromium.ts"
 import { addressOf, openLive, type LiveOptions } from "./live.ts"
 import type { Standing } from "./wire.ts"
 
 test("CDP calls frame with or without a session; answers, refusals and events decode", () => {
-  expect(JSON.parse(encodeCall({ id: 1, method: "Target.getTargets", params: {} }))).toEqual({ id: 1, method: "Target.getTargets", params: {} })
-  expect(JSON.parse(encodeCall({ id: 2, method: "Page.navigate", params: { url: "x" }, sessionId: "S" }))).toEqual({ id: 2, method: "Page.navigate", params: { url: "x" }, sessionId: "S" })
+  expect(encodeCall({ id: 1, method: "Target.getTargets", params: {} })).toBe('{"id":1,"method":"Target.getTargets","params":{}}\0')
+  expect(JSON.parse(encodeCall({ id: 2, method: "Page.navigate", params: { url: "x" }, sessionId: "S" }).slice(0, -1))).toEqual({ id: 2, method: "Page.navigate", params: { url: "x" }, sessionId: "S" })
+  expect(framesOf('{"id":1}\0{"id"')).toEqual({ frames: ['{"id":1}'], rest: '{"id"' })
+  expect(framesOf('{"id":1}\0{"id":2}\0')).toEqual({ frames: ['{"id":1}', '{"id":2}'], rest: "" })
   expect(decodeMessage('{"id":3,"result":{"a":1}}')).toEqual({ _tag: "answer", id: 3, result: { a: 1 } })
   expect(decodeMessage('{"id":4}')).toEqual({ _tag: "answer", id: 4, result: {} })
   expect(decodeMessage('{"id":5,"error":{"code":-32000,"message":"No target"}}')).toEqual({ _tag: "refusal", id: 5, why: "No target" })
@@ -74,7 +77,7 @@ const double = () => {
         const held = { exited: Deferred.makeUnsafe<string>(), released: false }
         launches.push(held)
         yield* Effect.addFinalizer(() => Effect.sync(() => { held.released = true }))
-        return { pid: 4000 + launches.length, endpoint: `ws://127.0.0.1:1/devtools/browser/${launches.length}`, exited: Deferred.await(held.exited) }
+        return { pid: 4000 + launches.length, endpoint: `ws://127.0.0.1:1/devtools/browser/${launches.length}`, pipe: undefined as never, exited: Deferred.await(held.exited) }
       }),
       connect: () => Effect.succeed(cdp),
       ...overrides,
@@ -315,4 +318,30 @@ test("a tab's title is read again after its loads and its new pictures, which Ch
   browser.emit({ method: "Target.targetCreated", sessionId: null, params: { targetInfo: { targetId: "T2", type: "page", title: "", url: "about:blank" } } })
   yield* Effect.sleep("10 millis")
   expect(browser.calls.filter((call) => call.method === "Target.attachToTarget").map((call) => call.params["targetId"])).toEqual(["T1", "T2"])
+})))
+
+test("over the pipe, calls answer by id, events reach listeners, and a closed pipe fails what is in the air", () => run(Effect.gen(function*() {
+  const calls = new PassThrough()
+  const answers = new PassThrough()
+  const written: Array<string> = []
+  calls.on("data", (chunk) => written.push(String(chunk)))
+  const cdp = yield* openCdp({ calls, answers })
+  const seen: Array<string> = []
+  yield* cdp.listen((event) => seen.push(`${event.method}@${event.sessionId}`))
+  const asking = yield* Effect.forkChild(cdp.send("Target.getTargets"))
+  const refusing = yield* Effect.forkChild(Effect.flip(cdp.send("Page.navigate", { url: "x" }, "S")))
+  yield* Effect.sleep("5 millis")
+  expect(written.join("")).toBe('{"id":1,"method":"Target.getTargets","params":{}}\0{"id":2,"method":"Page.navigate","params":{"url":"x"},"sessionId":"S"}\0')
+  // Split mid-frame, and two frames in one chunk.
+  answers.write('{"method":"Target.targetCreated","params":{}}\0{"id":2,"error":{"mess')
+  answers.write('age":"No target"}}\0{"id":1,"result":{"targetInfos":[]}}\0')
+  expect(yield* Fiber.join(asking)).toEqual({ targetInfos: [] })
+  expect((yield* Fiber.join(refusing)).why).toBe("No target")
+  expect(seen).toEqual(["Target.targetCreated@null"])
+  const hanging = yield* Effect.forkChild(Effect.flip(cdp.send("Browser.getVersion")))
+  yield* Effect.sleep("5 millis")
+  answers.end()
+  expect((yield* Fiber.join(hanging)).why).toBe("the browser's DevTools pipe closed")
+  yield* cdp.closed
+  expect((yield* Effect.flip(cdp.send("Browser.getVersion"))).why).toBe("the browser's DevTools pipe closed")
 })))
