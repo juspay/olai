@@ -36,8 +36,10 @@ const program = Effect.scoped(Effect.gen(function*() {
     now: () => new Date().toISOString(),
     publish: { standing: () => {}, tab: () => {}, untab: () => {} },
     // A build sandbox may have no user namespaces for Chromium's own sandbox
-    // (`./chromium.ts` says why this is the check's alone).
-    launch: (executable, profile) => launchChromium(executable, profile, { extraFlags: WITHOUT_ITS_OWN_SANDBOX }),
+    // (`./chromium.ts`), and macOS's refuses Chromium's reading of the system
+    // proxy settings, which left every page load hanging; the check browses
+    // loopback only, so it asks for no proxy. Both are the check's alone.
+    launch: (executable, profile) => launchChromium(executable, profile, { extraFlags: [...WITHOUT_ITS_OWN_SANDBOX, "--no-proxy-server"] }),
   })
   const answer = yield* probing({ ...process.env, OLAI_BROWSER_MCP: mcp }, output, 15_000, live.attach)
   const server = answer.server ?? fail(answer.missing?.why ?? "No browser MCP executable was supplied.")
@@ -54,12 +56,13 @@ const program = Effect.scoped(Effect.gen(function*() {
     const http = await fetch(`http://127.0.0.1:${new URL(endpoint).port}/json/version`)
       .then(async (answer) => `HTTP ${answer.status} ${(await answer.text()).replace(/\s+/g, " ").slice(0, 200)}`, (cause) => `HTTP failed: ${String(cause)}`)
     const socket = await new Promise<string>((resolve) => {
-      const ws = new WebSocket(endpoint)
-      const timer = setTimeout(() => { ws.close(); resolve("websocket: no open within 5s") }, 5_000)
-      ws.onopen = () => { clearTimeout(timer); ws.close(); resolve("websocket: opened") }
-      ws.onerror = (event) => { clearTimeout(timer); resolve(`websocket: error ${String((event as ErrorEvent).message ?? event.type)}`) }
+      const dial = new WebSocket(endpoint)
+      const timer = setTimeout(() => { dial.close(); resolve("websocket: no open within 5s") }, 5_000)
+      dial.onopen = () => { clearTimeout(timer); dial.close(); resolve("websocket: opened") }
+      dial.onerror = (event) => { clearTimeout(timer); resolve(`websocket: error ${String((event as ErrorEvent).message ?? event.type)}`) }
     })
-    return `the check sees ${endpoint}: ${http}; ${socket}; the browser is ${JSON.stringify(live.standing())}`
+    const own = await fetch(page).then((answer) => `its own page answers HTTP ${answer.status}`, (cause) => `its own page fails: ${String(cause)}`)
+    return `the check sees ${endpoint}: ${http}; ${socket}; ${own}; the browser is ${JSON.stringify(live.standing())}`
   })
   const session = (calls: Parameters<typeof callStdioMcp>[0]["calls"]) =>
     Effect.scoped(callStdioMcp({ command: server.command, args: server.args, env, timeout: 60_000, calls }))

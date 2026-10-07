@@ -66,14 +66,33 @@ outright takes the browser with it rather than leaving one running with your
 profile. A browser that crashes is reported in the pane, and the next
 conversation or **Start** launches it again.
 
-Chromium always runs inside its own sandbox, which needs unprivileged user
-namespaces. On a host that refuses them (Ubuntu 23.10+ with its AppArmor
-default, some containers) Chromium will not start, and the pane says why in
-Chromium's own words (`No usable sandbox!`). olai does not drop the sandbox to
-get around it; allow user namespaces for Chromium, or set
-`OLAI_BROWSER_CHROMIUM` empty. (The package's hermetic build check alone
-launches without it, because a Nix build sandbox may have no user namespaces;
-that browser holds no profile and visits only loopback.)
+### When the container is the sandbox
+
+By default Chromium runs inside its own sandbox, which needs unprivileged user
+namespaces or a setuid helper. Some hosts have neither: Ubuntu 23.10+ under its
+AppArmor default, and hardened containers — a Kubernetes pod with seccomp
+`RuntimeDefault`, every capability dropped and no privilege escalation. There
+Chromium will not start. The pane and chat both say why, in Chromium's own
+words (`No usable sandbox!`), and name the switch below.
+
+`OLAI_BROWSER_CHROMIUM_SANDBOX=off` launches Chromium without its own sandbox
+(`--no-sandbox`, `--disable-gpu`, `--disable-dev-shm-usage`). It is `on` by
+default. olai never turns it off for you or tries to detect such a host;
+anything other than `on` or `off` is refused with a sentence.
+
+**What you give up.** Chromium's sandbox is what stands between a hostile
+web page and the process running it. Without it, a page that exploits a
+renderer bug runs with olai's own user and everything that user can reach —
+your vault, this browser's signed-in profile, the agents' tools. Turn it off
+only where something else is the boundary: a container or VM that holds
+nothing but this olai and its data. That is the trade the isolated handoff made
+silently before olai ran its own browser: Playwright launches Chromium with
+`--no-sandbox` by default. Here you make it explicitly, and only for this one
+browser.
+
+The package's hermetic Nix check launches with the same flags, because a build
+sandbox has no user namespaces either; that browser holds no profile and visits
+only loopback.
 
 **Switching the row off revokes the browser from running conversations.**
 Their MCP servers were attached to this browser, and it is gone; a

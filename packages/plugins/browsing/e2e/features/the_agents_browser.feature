@@ -22,6 +22,7 @@ Feature: The person sees and uses the browser their agents use
     And the browser pane says "The browser is not running."
     When I start the browser from the pane
     Then the browser pane says the browser is up
+    And the browser runs within its own sandbox
     And the browser pane shows 1 tab
     When I go to the site's "fixture" page in the browser's address bar
     Then the shown browser tab in pane 0 is titled "Fixture"
@@ -137,6 +138,23 @@ Feature: The person sees and uses the browser their agents use
     When I note the picture in pane 0
     And I type "mine" into the page's box through pane 0
     Then the shown browser tab in pane 0 is titled "typed:mine"
+    And the picture in pane 0 changes
+    And there should be no page errors
+
+  @browsing-live-unsandboxed
+  Scenario: With the sandbox knob off, the browser starts without its own sandbox and streams
+    # The container-is-the-sandbox deployment: OLAI_BROWSER_CHROMIUM_SANDBOX
+    # is off, so Chromium is launched with the flags the hermetic check uses.
+    # Everywhere else in this file it runs inside its own sandbox.
+    When I open the address "/browser"
+    And I start the browser from the pane
+    Then the browser pane says the browser is up
+    And the browser runs without its own sandbox
+    When I go to the site's "fixture" page in the browser's address bar
+    Then pane 0 draws a picture of the page
+    When I note the picture in pane 0
+    And I press the page's button through pane 0
+    Then the shown browser tab in pane 0 is titled "clicked"
     And the picture in pane 0 changes
     And there should be no page errors
 

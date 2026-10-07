@@ -9,6 +9,7 @@
  * picture lands on them whatever size the frame is.
  */
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { createServer, type Server } from "node:http"
 import type { AddressInfo } from "node:net"
 import { After, Given, Then, When } from "@olai/tests/harness/runner.ts"
@@ -220,6 +221,14 @@ Then("the remembered browser process is {word}", async function (this: OlaiWorld
   const pid = pids.get(this)
   assert.ok(pid !== undefined, "remember the browser's process first")
   await this.waitUntil(async () => alive(pid) === (state === "running"), `browser process ${pid} to be ${state}`, HYDRATION_TIMEOUT)
+})
+
+Then("the browser runs {word} its own sandbox", async function (this: OlaiWorld, how: string) {
+  const pid = await pidShown(this)
+  // Chromium rewrites its process title into one space-joined string, so the
+  // flags are split on either separator.
+  const argv = readFileSync(`/proc/${pid}/cmdline`, "utf8").split(/[\0 ]/)
+  assert.equal(argv.includes("--no-sandbox"), how === "without", `Chromium ${pid} was started with: ${argv.join(" ")}`)
 })
 
 Then("the browser runs as a different process", async function (this: OlaiWorld) {

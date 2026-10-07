@@ -339,7 +339,11 @@ person's browser and its `browser_close` leaving the browser and the tab up,
 site storage surviving an olai restart (and Chromium dying with the stopped
 server) until **Forget sign-ins** clears it, switching the row off killing the
 Chromium process and on-again Start relaunching a new one, and a dropped
-socket resuming the stream. Each ends with no page errors. A `browsing.feature`
+socket resuming the stream. The first scenario also checks Chromium runs inside
+its own sandbox by default, and one `@browsing-live-unsandboxed` scenario sets
+`OLAI_BROWSER_CHROMIUM_SANDBOX=off` and checks the browser starts with
+`--no-sandbox` on its command line and streams and takes a press. Each ends
+with no page errors. A `browsing.feature`
 scenario covers the blank-Chromium case: the pane says why, the conversation
 keeps its isolated handoff and the chip still links.
 
@@ -359,7 +363,10 @@ cookie jar, checks `browser_close` leaves the browser running, and receives
 screencast frames through the plugin's own client, printing their size
 against the surface frame cap.
 
-Open, not driven end to end: switching the row off while a conversation's
+Open, not driven end to end: a host that refuses Chromium's sandbox (the
+`No usable sandbox` sentence naming the knob is unit-tested against a stand-in
+Chromium, and reproduced by hand under `bwrap --disable-userns`); switching the
+row off while a conversation's
 real MCP is attached (the MCP losing its browser mid-session; the e2e switches
 the row off with only the pane attached), a Chromium that crashes under a
 running row (unit-tested only), a page's own title changes that repaint

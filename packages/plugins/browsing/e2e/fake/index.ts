@@ -8,6 +8,10 @@ import { join } from "node:path"
  *  browser olai launched. Without the variant the row keeps the scripted MCP
  *  and no Chromium — the isolated handoff, exactly as before. */
 const LIVE = "browsing-live"
+/** `@browsing-live-unsandboxed`: the same, with OLAI_BROWSER_CHROMIUM_SANDBOX
+ *  off — the container-is-the-sandbox deployment. Every other serve sets it
+ *  empty (Chromium's own sandbox), so a developer's shell cannot decide it. */
+const UNSANDBOXED = "browsing-live-unsandboxed"
 
 /** Playwright's own registry layout under `PLAYWRIGHT_BROWSERS_PATH`. */
 const chromiumIn = (bundle: string): string => {
@@ -29,11 +33,12 @@ const required = (key: string): string => {
 
 export const fake: Fake = {
   word: "browsing",
-  variants: [LIVE],
-  env: ({ on, variants }) => variants.includes(LIVE)
+  variants: [LIVE, UNSANDBOXED],
+  env: ({ on, variants }) => variants.includes(LIVE) || variants.includes(UNSANDBOXED)
     ? {
       OLAI_BROWSER_MCP: required("OLAI_E2E_PLAYWRIGHT_MCP"),
       OLAI_BROWSER_CHROMIUM: chromiumIn(required("PLAYWRIGHT_BROWSERS_PATH")),
+      OLAI_BROWSER_CHROMIUM_SANDBOX: variants.includes(UNSANDBOXED) ? "off" : "",
     }
-    : { OLAI_BROWSER_MCP: on ? join(import.meta.dirname, "browser-mcp") : "", OLAI_BROWSER_CHROMIUM: "" },
+    : { OLAI_BROWSER_MCP: on ? join(import.meta.dirname, "browser-mcp") : "", OLAI_BROWSER_CHROMIUM: "", OLAI_BROWSER_CHROMIUM_SANDBOX: "" },
 }

@@ -3,6 +3,7 @@ import { Clock, definePlugin, Env, LocalState, SessionStart, Surfaces } from "@o
 import { Effect } from "effect"
 import { join } from "node:path"
 import { name } from "./index.ts"
+import { launchChromium, LaunchFailure, SANDBOX_KNOB, sandboxFlags } from "./chromium.ts"
 import { openLive } from "./live.ts"
 import { probing } from "./probe.ts"
 import { ownProbe } from "./owned.ts"
@@ -32,6 +33,7 @@ export default definePlugin({
   environment: [
     {"key": "OLAI_BROWSER_MCP", "secret": false, "says": "the absolute Playwright MCP executable; empty disables browser tools"},
     {"key": "OLAI_BROWSER_CHROMIUM", "secret": false, "says": "the absolute Chromium executable olai runs for its agents and shows at /browser; empty gives each conversation an isolated browser instead"},
+    {"key": "OLAI_BROWSER_CHROMIUM_SANDBOX", "secret": false, "says": "on (the default) runs that Chromium inside its own sandbox; off drops it, for a container that is already the boundary"},
   ],
   needs: [Clock, Env, LocalState, SessionStart, Surfaces],
   apply: Effect.gen(function*() {
@@ -42,6 +44,8 @@ export default definePlugin({
     const surfaces = yield* Surfaces
     const output = yield* openScratch(env.vars["XDG_RUNTIME_DIR"])
     const chromium = env.vars["OLAI_BROWSER_CHROMIUM"]?.trim() || null
+    // Read as the person set it, never inferred from the host.
+    const sandbox = sandboxFlags(env.vars[SANDBOX_KNOB])
 
     // Filled the moment core mints this sibling's write face. Until then the
     // members answer from the owner's own state, which is what they read.
@@ -51,6 +55,9 @@ export default definePlugin({
       absentWhy: ABSENT_WHY,
       profile: Effect.map(local.directory, (directory) => join(directory, "profile")),
       now: clock.now,
+      launch: (executable, profile) => "why" in sandbox
+        ? Effect.fail(new LaunchFailure({ why: sandbox.why }))
+        : launchChromium(executable, profile, { extraFlags: sandbox }),
       publish: {
         standing: (standing) => mine?.cells.standing.set(standing),
         tab: (tab) => mine?.collections.tabs.upsert(tab.id, tab),
