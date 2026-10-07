@@ -15,7 +15,7 @@
  * it). A file left by an earlier run is still removed first, so nothing ever
  * reads a stale one.
  */
-import { start, type Child } from "@olai/child"
+import { run, start, type Child } from "@olai/child"
 import { accessSync, constants, statSync } from "node:fs"
 import { mkdir, rm } from "node:fs/promises"
 import { isAbsolute, join } from "node:path"
@@ -40,7 +40,25 @@ export interface Launched {
   readonly exited: Effect.Effect<string>
 }
 
-export const FLAGS = (profile: string): ReadonlyArray<string> => [
+/**
+ * THE USER AGENT A HEADED CHROMIUM OF THIS VERSION SENDS, in Chrome's reduced
+ * format: headless mode announces itself as `HeadlessChrome/<v>`, and sites
+ * refuse it (x.com answers 403). This is the same browser, the same version,
+ * on the same OS family — the reduced UA's own fixed platform words, which
+ * Chrome also sends on Apple silicon and on every Linux. It claims no other
+ * browser, and nothing here touches `navigator.webdriver`.
+ */
+export const headedUserAgent = (major: number, platform: NodeJS.Platform = process.platform): string =>
+  `Mozilla/5.0 (${platform === "darwin" ? "Macintosh; Intel Mac OS X 10_15_7" : "X11; Linux x86_64"}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${major}.0.0.0 Safari/537.36`
+
+/** The major version out of `<chromium> --version` ("Chromium 149.0.7827.55",
+ *  "Google Chrome for Testing 149.0.7827.55"), or `null` when it says none. */
+export const majorOf = (said: string): number | null => {
+  const found = /\b(\d+)\.\d+\.\d+\.\d+\b/.exec(said)
+  return found === null ? null : Number(found[1])
+}
+
+export const FLAGS = (profile: string, userAgent: string): ReadonlyArray<string> => [
   "--headless=new",
   "--remote-debugging-pipe",
   "--remote-debugging-port=0",
@@ -56,6 +74,8 @@ export const FLAGS = (profile: string): ReadonlyArray<string> => [
   "--password-store=basic",
   "--use-mock-keychain",
   "--disable-background-networking",
+  // Every page — the person's and every MCP's — carries it from the start.
+  `--user-agent=${userAgent}`,
   "about:blank",
 ]
 
@@ -157,8 +177,19 @@ export const launchChromium = (
     },
     catch: (cause) => new LaunchFailure({ why: `The browser profile could not be prepared: ${String(cause)}.` }),
   })
+  // The version, asked of the executable itself: one short-lived process,
+  // cheaper than a launch to read Browser.getVersion and a relaunch to apply it.
+  const userAgent = yield* Effect.tryPromise({
+    try: () => run(executable, ["--version"], { timeout: 15_000 }),
+    catch: (cause) => new LaunchFailure({ why: `Chromium did not say its version: ${String(cause)}.` }),
+  }).pipe(Effect.flatMap((said) => {
+    const major = majorOf(said.out)
+    return major === null
+      ? Effect.fail(new LaunchFailure({ why: `Chromium did not say its version (\`--version\` answered ${JSON.stringify(said.said.slice(0, 200))}).` }))
+      : Effect.succeed(headedUserAgent(major))
+  }))
   const child: Child = yield* Effect.acquireRelease(
-    Effect.sync(() => start(executable, [...FLAGS(profile), ...(options.extraFlags ?? [])], {
+    Effect.sync(() => start(executable, [...FLAGS(profile, userAgent), ...(options.extraFlags ?? [])], {
       processGroup: true,
       // fds 3 and 4 are the DevTools pipe (`./cdp.ts`).
       stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"],

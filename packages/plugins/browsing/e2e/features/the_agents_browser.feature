@@ -187,6 +187,22 @@ Feature: The person sees and uses the browser their agents use
     And the picture in pane 0 changes
     And there should be no page errors
 
+  Scenario: Pages see a headed Chrome's user agent, the person's and an agent's alike
+    # Headless Chromium announces itself as `HeadlessChrome`, which sites
+    # refuse; olai's presents the same version's headed Chrome string, and
+    # every page carries it — the HTTP header and navigator.userAgent both.
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    And I ask the agent to open the site's "ua" page with its browser tools
+    Then the agent's answer mentions "ua:Mozilla/5.0"
+    When I press the chat's browser chip
+    Then pane 0 draws the browser page
+    When I open a new browser tab from the pane
+    And I go to the site's "ua" page in the browser's address bar
+    Then 2 browser tabs in pane 0 see a headed Chrome's user agent
+    And the site was only ever asked for pages as a headed Chrome
+    And there should be no page errors
+
   Scenario: An agent's browser tools attach to the person's browser, and the roster chip leads to it
     # The agent's own Playwright MCP is the real one, handed `--cdp-endpoint`
     # at session open: its page lands in the person's tab strip, and its

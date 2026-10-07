@@ -65,11 +65,15 @@ const program = Effect.scoped(Effect.gen(function*() {
   const second = yield* session([
     { name: "browser_navigate", arguments: { url: page } },
     { name: "browser_evaluate", arguments: { function: "() => localStorage.getItem('olai')" } },
+    { name: "browser_evaluate", arguments: { function: "() => navigator.userAgent" } },
     { name: "browser_close", arguments: {} },
   ])
   if (second._tag === "failed") return fail(`the second MCP could not attach: ${second.cause}\n${second.stderr}`)
   const read = JSON.stringify(second.results[1]?.["content"] ?? null)
   if (!read.includes("kept")) fail(`the second conversation did not share the first's storage: ${read}`)
+  // A headed Chrome's user agent, not headless's, on the MCP's own page.
+  const agent = JSON.stringify(second.results[2]?.["content"] ?? null)
+  if (!agent.includes("Chrome/") || agent.includes("Headless")) fail(`the MCP's page does not see a headed Chrome's user agent: ${agent}`)
   try { process.kill(pid, 0) } catch { fail("browser_close stopped the shared browser") }
   const tabs = [...live.tabs().values()]
   const shown = tabs.find((tab) => tab.title === "check") ?? fail(`no tab carries the navigated page: ${JSON.stringify(tabs)}`)

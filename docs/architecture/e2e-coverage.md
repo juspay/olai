@@ -326,7 +326,9 @@ conversation's tools; the scenario serves its pages on loopback. It covers
 opening `/browser` from the health popover, the palette, the sidebar's Browser
 door (current while the pane shows) and the collapsed rail's, and on a phone
 from the drawer's door through Start to a decoded frame, while the browser is
-down, Start, a tab appearing, the address bar, a decoded frame,
+down; every page seeing a headed Chrome's user agent (`Chrome/`, never
+`Headless`) in its title and in the HTTP header the site recorded, the
+person's page and an agent's MCP page alike; Start, a tab appearing, the address bar, a decoded frame,
 pressing a page's button and typing and pasting into its box through the
 picture (asserted by the tab title the page sets), Escape handing the keys
 back, opening and closing a tab, a second pane (Alt) on the same tab streaming

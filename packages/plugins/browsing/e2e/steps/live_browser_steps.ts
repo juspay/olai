@@ -44,7 +44,10 @@ const REMEMBERING = `<!doctype html><title>loading</title><body style="margin:0"
   onclick="localStorage.setItem('olai','signed-in');document.title='kept:'+localStorage.getItem('olai')">Sign in</button>
 <script>document.title='kept:'+(localStorage.getItem('olai')||'nothing')</script>`
 
-const sites = new WeakMap<OlaiWorld, { readonly server: Server; readonly origin: string }>()
+/** Its title is the user agent the page sees. */
+const UA_PAGE = "<!doctype html><title>loading</title><script>document.title='ua:'+navigator.userAgent</script>"
+
+const sites = new WeakMap<OlaiWorld, { readonly server: Server; readonly origin: string; readonly agents: Array<string> }>()
 After(async function (this: OlaiWorld) {
   const site = sites.get(this)
   if (site === undefined) return
@@ -53,14 +56,17 @@ After(async function (this: OlaiWorld) {
 })
 
 Given("a web site the browser can visit", async function (this: OlaiWorld) {
+  // Every request's User-Agent header, so a scenario can ask what the site saw.
+  const agents: Array<string> = []
   const server = createServer((request, response) => {
+    agents.push(request.headers["user-agent"] ?? "")
     const name = (request.url ?? "/").slice(1)
-    const body = name === "remember" ? REMEMBERING : drivenPage(DRIVEN[name] ?? DRIVEN["fixture"]!)
+    const body = name === "remember" ? REMEMBERING : name === "ua" ? UA_PAGE : drivenPage(DRIVEN[name] ?? DRIVEN["fixture"]!)
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" })
     response.end(body)
   })
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
-  sites.set(this, { server, origin: `http://127.0.0.1:${(server.address() as AddressInfo).port}` })
+  sites.set(this, { server, agents, origin: `http://127.0.0.1:${(server.address() as AddressInfo).port}` })
 })
 
 const siteOf = (world: OlaiWorld) => {
@@ -292,4 +298,20 @@ When("I tap Start in the browser pane", async function (this: OlaiWorld) {
 Then("the sidebar's Browser door is current", async function (this: OlaiWorld) {
   await this.page.locator(`${id(TESTID.browserEntry)}${attr("aria-current", "page")}`)
     .waitFor({ state: "attached", timeout: POLL_TIMEOUT })
+})
+
+const headed = (agent: string) => agent.includes("Chrome/") && !agent.includes("Headless")
+
+Then("{int} browser tabs in pane {int} see a headed Chrome's user agent", async function (this: OlaiWorld, count: number, index: number) {
+  const tabs = pageIn(this, index).locator(`${id(TESTID.browserTab)}${attr("data-title", "ua:", "^=")}`)
+  await this.waitUntil(async () => (await tabs.count()) === count, `${count} tabs titled with their user agent`, HYDRATION_TIMEOUT)
+  for (const title of await tabs.evaluateAll((all) => all.map((tab) => tab.getAttribute("data-title") ?? ""))) {
+    assert.ok(headed(title), `a page saw ${JSON.stringify(title)}`)
+  }
+})
+
+Then("the site was only ever asked for pages as a headed Chrome", function (this: OlaiWorld) {
+  const agents = sites.get(this)?.agents ?? []
+  assert.ok(agents.length > 0, "the site was asked for nothing")
+  for (const agent of agents) assert.ok(headed(agent), `the site was asked by ${JSON.stringify(agent)}`)
 })

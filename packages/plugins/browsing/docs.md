@@ -55,6 +55,10 @@ Playwright for theirs.
 points it at the full Chromium from the same pinned Playwright browsers bundle
 the MCP's wrapper uses (not the headless shell, which real sign-in flows
 tolerate less well). Set it to another absolute executable to override it.
+olai does not announce headless (`HeadlessChrome/<version>`), because sites
+refuse it: every page sees the user agent a headed Chrome of the same version
+sends on the same OS family, read from the executable's `--version`, and it
+never claims to be another browser.
 
 The profile is at `$XDG_STATE_HOME/olai/browsing/<digest>/profile` (by default
 `~/.local/state/olai/…`), one per served directory, created owner-only. Its
