@@ -1,6 +1,5 @@
 import { Schema } from "effect"
 import type { AppPage } from "olai-plugin-navigation/slots"
-import type { AppRoute } from "olai-plugin-navigation/slots"
 import type { AppRouteClaim } from "olai-plugin-navigation/slots"
 import {
 type Address,
@@ -27,21 +26,38 @@ import type { Drawn } from "olai-plugin-outlines/page"
 const APP_ROUTE = Symbol("olai app route")
 const APP_PAGE = Symbol("olai app page")
 
-/** The node-page protocol the shell actually knows how to host. Plugin API's
- * heterogeneous positions are narrowed to this protocol once, by
- * {@link defineAppRoute}, rather than cast independently by every consumer. */
-export interface NodePageRoute {
+/** The grammar every plugin page shares, whoever draws it: the URL words it
+ * claims, its two readings of a path and a value, its breadcrumb, and whether
+ * it takes a `?q=`. Plugin API's heterogeneous positions are narrowed to this
+ * once, by {@link defineAppRoute} or {@link defineSelfDrawnRoute}, rather than
+ * cast independently by every consumer. */
+interface PageGrammar {
   readonly [APP_ROUTE]: true
   readonly claims: ReadonlyArray<AppRouteClaim>
   readonly parse: (pathname: string) => unknown | null
   readonly href: (page: unknown) => string
   readonly breadcrumb: (page: unknown) => string
   readonly narrowable: boolean
+}
+
+/** The NODE-page protocol: a value that becomes a document-format request and
+ * a stream that answers it. Outlines hosts it. */
+export interface NodePageRoute extends PageGrammar {
+  readonly kind: "node"
   readonly request: (page: unknown, today: string) => PageRequest
   readonly stream: {
     readonly use: (input: Accessor<PageRequest | null>) => PageAnswer
   }
 }
+
+/** The SELF-DRAWN-page protocol: the grammar and nothing else. Navigation
+ * mounts its face over the route's own value; no reading, no format types. */
+export interface SelfDrawnPageRoute extends PageGrammar {
+  readonly kind: "self-drawn"
+}
+
+/** Either kind — what a plugin route's `source` is. */
+export type PageRoute = NodePageRoute | SelfDrawnPageRoute
 
 export interface PageAnswer {
   (): PageReading | undefined
@@ -50,7 +66,8 @@ export interface PageAnswer {
   readonly changed?: (handler: () => void) => () => void
 }
 
-export interface MountedAppPage {
+export interface MountedNodePage {
+  readonly kind: "node"
   readonly route: NodePageRoute
   readonly face: (props: {
     readonly page: Shown
@@ -58,6 +75,20 @@ export interface MountedAppPage {
     readonly today: string
   }) => JSX.Element
 }
+
+export interface MountedSelfDrawnPage {
+  readonly kind: "self-drawn"
+  readonly route: SelfDrawnPageRoute
+  readonly face: (props: {
+    readonly value: unknown
+    readonly filter: string
+    readonly narrow: (filter: string) => void
+  }) => JSX.Element
+}
+
+/** A mounted tenant's page, of either kind. Who hosts it is read off `kind`:
+ * outlines takes `node`, navigation takes `self-drawn`. */
+export type MountedAppPage = MountedNodePage | MountedSelfDrawnPage
 
 export type Route =
   /**
@@ -85,10 +116,13 @@ export type Route =
    *  archives exist is the set's answer, and an address that named one would
    *  mean something different the day a subdirectory gets its own. */
   | { readonly kind: "trash"; readonly filter?: string }
-  /** A page whose grammar, reading and face are owned by a mounted plugin. */
+  /** A page whose grammar and face are owned by a mounted plugin — a NODE
+   *  page (outlines hosts its reading) or a SELF-DRAWN one (navigation mounts
+   *  its face), as `source.kind` says. The kind rides on the source itself,
+   *  so it is known even after the tenant has left. */
   | {
     readonly kind: "plugin"
-    readonly source: NodePageRoute
+    readonly source: PageRoute
     readonly value: unknown
     readonly filter?: string
   }
@@ -106,52 +140,77 @@ export type Route =
  */
 export type PlainRoute = Exclude<Route, { readonly kind: "plugin" }>
 
-export interface DefinedAppRoute<Value, Request extends PageRequest> {
-  readonly source: NodePageRoute
+/** What both definers answer: the typed grammar, plus the two ways between a
+ * value and a {@link Route}. */
+interface DefinedGrammar<Value, Source extends PageRoute> {
+  readonly source: Source
   readonly to: (value: Value) => Route
   readonly value: (route: Route) => Value | null
   /** Kept for the route grammar's own focused tests. */
   readonly parse: (pathname: string) => Value | null
   readonly href: (value: Value) => `/${string}`
   readonly breadcrumb: (value: Value) => string
-  readonly request: (value: Value, today: string) => Request
 }
 
-/** Define one typed node-page grammar. This is the sole erasure point between
- * a tenant's value/request types and the heterogeneous route slot. */
-export const defineAppRoute = <Value, Request extends PageRequest>(spec: {
+interface GrammarSpec<Value> {
   readonly claims: ReadonlyArray<AppRouteClaim>
   readonly parse: (pathname: string) => Value | null
   readonly href: (value: Value) => `/${string}`
   readonly breadcrumb: (value: Value) => string
   readonly narrowable: boolean
+}
+
+/** The grammar half, erased — shared by both definers so the one cast of a
+ * value per field is written once. */
+const erasedGrammar = <Value>(spec: GrammarSpec<Value>): PageGrammar => ({
+  [APP_ROUTE]: true,
+  claims: spec.claims,
+  parse: spec.parse as (pathname: string) => unknown | null,
+  href: (value) => spec.href(value as Value),
+  breadcrumb: (value) => spec.breadcrumb(value as Value),
+  narrowable: spec.narrowable,
+})
+
+const definedOver = <Value, Source extends PageRoute>(source: Source, spec: GrammarSpec<Value>): DefinedGrammar<Value, Source> => ({
+  source,
+  to: (value) => ({ kind: "plugin", source, value }),
+  value: (route) =>
+    route.kind === "plugin" && route.source === source ? route.value as Value : null,
+  parse: spec.parse,
+  href: spec.href,
+  breadcrumb: spec.breadcrumb,
+})
+
+export interface DefinedAppRoute<Value, Request extends PageRequest> extends DefinedGrammar<Value, NodePageRoute> {
+  readonly request: (value: Value, today: string) => Request
+}
+
+/** Define one typed node-page grammar. This is the sole erasure point between
+ * a tenant's value/request types and the heterogeneous route slot. */
+export const defineAppRoute = <Value, Request extends PageRequest>(spec: GrammarSpec<Value> & {
   readonly request: (value: Value, today: string) => Request
   readonly stream: {
     readonly use: (input: Accessor<Request | null>) => PageAnswer
   }
 }): DefinedAppRoute<Value, Request> => {
   const source: NodePageRoute = {
-    [APP_ROUTE]: true,
-    claims: spec.claims,
-    parse: spec.parse as (pathname: string) => unknown | null,
-    href: (value) => spec.href(value as Value),
-    breadcrumb: (value) => spec.breadcrumb(value as Value),
-    narrowable: spec.narrowable,
+    ...erasedGrammar(spec),
+    kind: "node",
     request: (value, today) => spec.request(value as Value, today),
     stream: {
       use: (input) => spec.stream.use(input as Accessor<Request | null>),
     },
   }
-  return {
-    source,
-    to: (value) => ({ kind: "plugin", source, value }),
-    value: (route) =>
-      route.kind === "plugin" && route.source === source ? route.value as Value : null,
-    parse: spec.parse,
-    href: spec.href,
-    breadcrumb: spec.breadcrumb,
-    request: spec.request,
-  }
+  return { ...definedOver(source, spec), request: spec.request }
+}
+
+/** The slot entry both page definers build: already in the shape it is
+ * mounted in, so the settled page IS the registered value (a re-settle keeps
+ * every face's identity), and its `kind` is copied from the route, the one
+ * place a page's kind is decided. */
+const pageOf = (source: PageRoute, face: unknown): AppPage => {
+  const page = { [APP_PAGE]: true, kind: source.kind, route: source, face }
+  return page as unknown as AppPage
 }
 
 /** Join a typed route to the face mounted in the same plugin scope. */
@@ -162,14 +221,30 @@ export const defineAppPage = <Value, Request extends PageRequest>(
     readonly drawn: Drawn
     readonly today: string
   }) => JSX.Element,
-): AppPage => {
-  const page = {
-    [APP_PAGE]: true,
-    route: route.source as unknown as AppRoute,
-    face: face as AppPage["face"],
-  }
-  return page
-}
+): AppPage => pageOf(route.source, face)
+
+export type DefinedSelfDrawnRoute<Value> = DefinedGrammar<Value, SelfDrawnPageRoute>
+
+/** Define one typed SELF-DRAWN page grammar: the same claims, parse, href,
+ * breadcrumb and narrowing a node page has, and no request or stream. The
+ * sole erasure point for this kind, as {@link defineAppRoute} is for the
+ * other. */
+export const defineSelfDrawnRoute = <Value>(spec: GrammarSpec<Value>): DefinedSelfDrawnRoute<Value> =>
+  definedOver<Value, SelfDrawnPageRoute>({ ...erasedGrammar(spec), kind: "self-drawn" }, spec)
+
+/** Join a self-drawn route to the component that draws it. Navigation mounts
+ * the face in the pane, handing it the route's value, its `?q=` (always `""`
+ * unless the route is narrowable) and `narrow`, which replaces this pane's
+ * address with the same page narrowed by a new filter — the verb outlines'
+ * filter box spends, so a self-drawn page may draw a box of its own. */
+export const defineSelfDrawnPage = <Value>(
+  route: DefinedSelfDrawnRoute<Value>,
+  face: (props: {
+    readonly value: Value
+    readonly filter: string
+    readonly narrow: (filter: string) => void
+  }) => JSX.Element,
+): AppPage => pageOf(route.source, face)
 
 /** The front page: the address that names no place at all, and what every
  *  string this cannot read comes back as. */
@@ -243,9 +318,9 @@ const FILTER_KEY = "q"
 const addressNamed = (route: Route): Address | null =>
   route.kind === "at" ? route.address : null
 
-const nodePage = (page: AppPage): MountedAppPage => {
+const mountedPage = (page: AppPage): MountedAppPage => {
   if (!(APP_PAGE in page) || !(APP_ROUTE in page.route)) {
-    throw new Error("app.route entries must be built with defineAppRoute and defineAppPage")
+    throw new Error("app.route entries must be built with defineAppRoute and defineAppPage, or defineSelfDrawnRoute and defineSelfDrawnPage")
   }
   return page as unknown as MountedAppPage
 }
@@ -281,7 +356,7 @@ export const settleRoutePages = (
   for (const { plugin, face } of entries) {
     let page: MountedAppPage
     try {
-      page = nodePage(face)
+      page = mountedPage(face)
     } catch (error) {
       report(`app route from ${plugin} was dropped: ${String(error)}`)
       continue
@@ -337,7 +412,7 @@ export type MountedPages = ReturnType<typeof settleRoutePages>
  *  contributed anything, and the one a bench starts from. */
 export const NO_PAGES: MountedPages = []
 
-const claims = (route: NodePageRoute, pathname: string): boolean =>
+const claims = (route: PageRoute, pathname: string): boolean =>
   route.claims.some((claim) =>
     claim.kind === "exact" ? pathname === claim.path : pathname.startsWith(claim.path)
   )

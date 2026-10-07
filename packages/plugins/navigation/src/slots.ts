@@ -2,38 +2,28 @@
 import type { JSX } from "solid-js"
 import { slotContract, type SlotDefinition } from "@olai/plugin-api/slots"
 
-export interface AppPageAnswer {
-  (): unknown | undefined
-  /** Present for streams that can fail; pure local page accessors cannot. */
-  readonly error?: () => Error | undefined
-  readonly changed?: (handler: () => void) => () => void
-}
-
-export interface AppPageStream {
-  readonly use: (input: () => unknown | null) => AppPageAnswer
-}
-
 export type AppRouteClaim =
   | { readonly kind: "exact"; readonly path: `/${string}` }
   | { readonly kind: "prefix"; readonly path: `/${string}` }
 
-export interface AppRoute {
+/** The grammar every plugin page shares, whoever draws it. */
+export interface AppRouteGrammar {
   readonly claims: ReadonlyArray<AppRouteClaim>
   readonly parse: (pathname: string) => unknown | null
   readonly href: (page: unknown) => string
   readonly breadcrumb: (page: unknown) => string
   readonly narrowable: boolean
-  readonly request: (page: unknown, today: string) => unknown
-  readonly stream: AppPageStream
 }
 
+/** One plugin page as the slot carries it, ERASED: the grammar every page
+ *  shares and a face whose props only the definer that built it knows. The
+ *  only constructors are `./routes.ts`'s definers, a node page
+ *  (`defineAppRoute`/`defineAppPage`) or a self-drawn one
+ *  (`defineSelfDrawnRoute`/`defineSelfDrawnPage`), and which kind it is lives
+ *  on the route they build. */
 export interface AppPage {
-  readonly route: AppRoute
-  readonly face: (props: {
-    readonly page: unknown
-    readonly drawn: unknown
-    readonly today: string
-  }) => JSX.Element
+  readonly route: AppRouteGrammar
+  readonly face: (props: never) => JSX.Element
 }
 
 export interface AppPalette {

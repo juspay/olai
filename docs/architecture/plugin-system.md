@@ -897,6 +897,12 @@ docs line, step 4), and no general package changes at all.
   against an owner that has already gone.
   `packages/plugins/kolu/src/appliance/props/mounting.ts` is that pattern written
   out, with the reason a `runWithOwner` rescue does not cover it.
+- A plugin that owns a page registers `app.route` here. A page made of nodes
+  (a request the document format reads, rendered by outlines) uses
+  `defineAppRoute` / `defineAppPage`; any other page uses
+  `defineSelfDrawnRoute` / `defineSelfDrawnPage`, a component over the route's
+  own value that navigation mounts in the pane. Both are in
+  `olai-plugin-navigation/routes` ([navigation.md](../plugins/navigation.md#plugin-pages)).
 - An engine re-exports only its `name` and registers two components: its mark and
   its install sentence (step 6).
 - A server-only plugin omits `./browser` and `./all.css` from its exports; no

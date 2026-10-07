@@ -73,6 +73,7 @@
     "olai-plugin-test-layout": "workspace:*",
     "olai-plugin-test-counter": "workspace:*",
     "olai-plugin-test-palette": "workspace:*",
+    "olai-plugin-test-page": "workspace:*",
     "olai-plugin-vault-plugins": "workspace:*",
     "@olai/ops": "workspace:*",
     "@olai/surface": "workspace:*",

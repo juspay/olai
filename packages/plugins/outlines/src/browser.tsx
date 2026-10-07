@@ -176,7 +176,7 @@ export const components = {
     const Page = () => <OutlinePageView />
     yield* slots.contribute(pages, { by: { holds: "nodes" }, edits: true, page: Page }, { key: fileKindKey({ holds: "nodes" }) })
     yield* slots.contribute(content, {
-      matches: route => route.kind === "plugin" || (route.kind === "at" && (route.address === null || route.address.kind === "node" || (served.kindOf(route.address.path) === null || served.claims().byKind.get(served.kindOf(route.address.path)!)?.holds === "nodes"))),
+      matches: route => (route.kind === "plugin" && route.source.kind === "node") || (route.kind === "at" && (route.address === null || route.address.kind === "node" || (served.kindOf(route.address.path) === null || served.claims().byKind.get(served.kindOf(route.address.path)!)?.holds === "nodes"))),
       Page,
     }, { children: [...Object.values(slotContracts), datedRows, pageView, titles, propertyRoutes] })
     yield* slots.contribute(linkPreviews, {

@@ -97,6 +97,7 @@ The five ACP agents the chat panel can run. What a conversation is, for all of t
 | [plugins/test-counter.md](plugins/test-counter.md) | A minimal plugin proving the host runs with no vault at all. |
 | [plugins/link-preview.md](plugins/link-preview.md) | Live read-only previews of internal links. |
 | [plugins/test-palette.md](plugins/test-palette.md) | A fixture contributing palette levels through the public adapter location. |
+| [plugins/test-page.md](plugins/test-page.md) | A fixture registering a self-drawn plugin page in the route slot. |
 
 ## For people working on olai
 

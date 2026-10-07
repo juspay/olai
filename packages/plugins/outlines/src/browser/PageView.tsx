@@ -41,7 +41,7 @@ import { drawnBy, requestFor, fileOf } from "./page.ts"
 import { createReading, ReadingProvider, useReadings } from "./reading.tsx"
 import { OutlinePage } from "./OutlinePage.tsx"
 import { useHere, useRouter } from "olai-plugin-navigation/routing"
-import type { MountedAppPage } from "olai-plugin-navigation/routes"
+import type { MountedNodePage } from "olai-plugin-navigation/routes"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { TESTID } from "../testids.ts"
 import { filterOf, hrefOf, narrowable, narrowedTo, routeFace, samePage } from "./routing.ts"
@@ -59,7 +59,7 @@ export function OutlinePageView(props: {readonly render?: (props: import("../ind
   )
 }
 
-function PageAt(props: { readonly source: MountedAppPage | null; readonly render?: (props: import("../index.ts").PageBodyProps) => import("solid-js").JSX.Element }) {
+function PageAt(props: { readonly source: MountedNodePage | null; readonly render?: (props: import("../index.ts").PageBodyProps) => import("solid-js").JSX.Element }) {
   const router = useRouter()
   const here = useHere()
   const today = useToday()

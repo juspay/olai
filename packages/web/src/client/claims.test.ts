@@ -314,6 +314,7 @@ test("a row's line is marked in exactly the module that reads it and the tree th
 // for the heading, `OutlinePage.tsx` for the row). A sixth file spelling it is
 // a new reader, which is a new answer to "which page is this in".
 // The portalled link preview carries its anchor’s pane into nested navigation.
+// Navigation's own self-drawn plugin page host draws a pane like any page.
 test("a pane's index is drawn by the workspace and read where two panes must be told apart", () => {
   expect(filesSpelling(/data-pane/)).toEqual([
     "plugins/layout/src/pane/Panes.tsx",
@@ -321,6 +322,7 @@ test("a pane's index is drawn by the workspace and read where two panes must be 
     "plugins/markdown/src/browser/BodyPage.tsx",
     "plugins/markdown/src/browser/PageView.tsx",
     "plugins/navigation/src/PageView.tsx",
+    "plugins/navigation/src/SelfDrawnPage.tsx",
     "plugins/navigation/src/routing.tsx",
     "plugins/outlines/src/browser/PageView.tsx",
     "plugins/outlines/src/browser/drag/lines.ts"
