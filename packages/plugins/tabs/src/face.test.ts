@@ -1,9 +1,10 @@
 import { expect, test } from "bun:test"
 
+import { defineAppPage, defineAppRoute, defineSelfDrawnPage, defineSelfDrawnRoute, settleRoutePages } from "olai-plugin-navigation/routes"
 import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
 
 import type { Tab } from "./contract.ts"
-import { facesOf } from "./face.ts"
+import { facesOf, glyphOf } from "./face.ts"
 
 const routes = routingIn()
 const tab = (id: string, href: string, title = href): Tab => ({ id, href, title })
@@ -38,4 +39,23 @@ test("two tabs on the same page are one name, not a clash", () => {
 
 test("the tooltip is the address, readable", () => {
   expect(facesOf(routes, [tab("a", "/my%20notes.md")]).get("a")?.tip).toBe("/my notes.md")
+})
+
+test("a plugin page's glyph is read off its kind: a node page's clock, a self-drawn page's diamond", () => {
+  const grammar = (path: `/${string}`) => ({
+    claims: [{ kind: "exact" as const, path }],
+    parse: (pathname: string) => pathname === path ? "page" : null,
+    href: () => path,
+    breadcrumb: () => path,
+    narrowable: false,
+  })
+  const node = defineAppRoute({ ...grammar("/day"), request: () => ({ kind: "trash" } as const), stream: { use: () => () => undefined } })
+  const drawn = defineSelfDrawnRoute(grammar("/drawn"))
+  const mounted = routingIn(settleRoutePages([
+    { plugin: "node", face: defineAppPage(node, () => null) },
+    { plugin: "drawn", face: defineSelfDrawnPage(drawn, () => null) },
+  ]))
+  expect(glyphOf(mounted, "/day")).toBe("◷")
+  expect(glyphOf(mounted, "/drawn")).toBe("◇")
+  expect(glyphOf(mounted, "/")).toBe("⌂")
 })

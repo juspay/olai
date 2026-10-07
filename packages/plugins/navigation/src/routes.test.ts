@@ -11,7 +11,7 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { atElement, atFile, atNode, routingOver, NO_PAGES, labelIn, nameIn, lineFragment, lineAt, defineAppPage, defineAppRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
+import { atElement, atFile, atNode, routingOver, NO_PAGES, labelIn, nameIn, lineFragment, lineAt, defineAppPage, defineAppRoute, defineSelfDrawnPage, defineSelfDrawnRoute, HOME_ROUTE, type Route, settleRoutePages } from "./routes.ts"
 import { ROUTES, routingIn } from "./routes.testlib.ts"
 
 /** No plugin claims a URL — the roster these cases are about, named rather
@@ -415,4 +415,98 @@ test("node addresses keep their identity before the file claims arrive", () => {
   const early = routingOver(() => undefined, () => NO_PAGES)
   expect(early.routeOf("/#herbs")).toEqual(atNode("herbs"))
   expect(early.href(early.routeOf("/zoom/#herbs"))).toBe("/zoom/#herbs")
+})
+
+// ── a self-drawn plugin page ───────────────────────────────────────────
+
+/** A self-drawn tenant: the same grammar a node page has, and no request or
+ *  stream — what `olai-plugin-test-page` registers, in miniature. */
+const drawnRoute = () => defineSelfDrawnRoute<{ readonly word: string }>({
+  claims: [{ kind: "prefix", path: "/drawn/" }],
+  parse: (pathname) => {
+    const word = pathname.slice("/drawn/".length)
+    return /^[a-z]+$/.test(word) ? { word } : null
+  },
+  href: ({ word }) => `/drawn/${word}`,
+  breadcrumb: ({ word }) => `Drawn ${word}`,
+  narrowable: true,
+})
+
+test("a self-drawn page reads, prints and names itself through the same grammar", () => {
+  const route = drawnRoute()
+  const pages = settleRoutePages([{ plugin: "drawn", face: defineSelfDrawnPage(route, () => null) }])
+  const mounted = routingIn(pages)
+  const opened = mounted.routeOf("/drawn/alpha")
+  expect(opened).toEqual(route.to({ word: "alpha" }))
+  expect(route.value(opened)).toEqual({ word: "alpha" })
+  expect(mounted.href(opened)).toBe("/drawn/alpha")
+  expect(mounted.routeIn("/drawn/alpha")).toEqual(opened)
+  expect(mounted.label(opened)).toBe("Drawn alpha")
+  expect(mounted.face(opened)?.kind).toBe("self-drawn")
+  // ...and its narrowing is its own declaration, as a node page's is.
+  expect(mounted.routeOf("/drawn/alpha?q=x")).toEqual({ ...opened, filter: "x" })
+  expect(mounted.href(mounted.narrowedTo(opened, "x y"))).toBe("/drawn/alpha?q=x+y")
+  expect(mounted.samePage(opened, mounted.narrowedTo(opened, "x"))).toBe(true)
+  expect(mounted.samePage(opened, mounted.routeOf("/drawn/beta"))).toBe(false)
+  // The claim reserves its whole prefix: a word the parser refuses is not a
+  // vault path, and the address bar's kindness is the front page.
+  expect(mounted.routeIn("/drawn/Not-A-Word")).toBeNull()
+  expect(mounted.routeOf("/drawn/Not-A-Word")).toEqual(HOME_ROUTE)
+})
+
+test("a self-drawn page's kind rides on its source, so outlines can refuse it even after the tenant has left", () => {
+  const route = drawnRoute()
+  const opened = route.to({ word: "alpha" })
+  expect(opened.kind === "plugin" && opened.source.kind).toBe("self-drawn")
+  // Gone: the URL spells the front page, and the route is still not home.
+  expect(routeFace(opened)).toBeNull()
+  expect(hrefOf(opened)).toBe(hrefOf(HOME_ROUTE))
+  expect(samePage(opened, HOME_ROUTE)).toBe(false)
+  expect(routes.label(opened)).toBe("Page")
+  // A node page's source says so too.
+  const node = defineAppRoute({
+    claims: [{ kind: "exact", path: "/node" }],
+    parse: () => "node",
+    href: () => "/node" as const,
+    breadcrumb: () => "node",
+    narrowable: false,
+    request: () => ({ kind: "trash" } as const),
+    stream: { use: () => () => undefined },
+  })
+  const nodeRoute = node.to("node")
+  expect(nodeRoute.kind === "plugin" && nodeRoute.source.kind).toBe("node")
+})
+
+test("self-drawn and node claims settle in one table, colliding as one", () => {
+  const node = defineAppRoute({
+    claims: [{ kind: "exact", path: "/drawn/alpha" }],
+    parse: () => "node",
+    href: () => "/drawn/alpha" as const,
+    breadcrumb: () => "node",
+    narrowable: false,
+    request: () => ({ kind: "trash" } as const),
+    stream: { use: () => () => undefined },
+  })
+  const logged: Array<string> = []
+  const settled = settleRoutePages([
+    { plugin: "drawn", face: defineSelfDrawnPage(drawnRoute(), () => null) },
+    { plugin: "node", face: defineAppPage(node, () => null) },
+  ], (message) => logged.push(message))
+  expect(settled.map((one) => [one.plugin, one.page.kind])).toEqual([["drawn", "self-drawn"]])
+  expect(logged).toEqual([
+    "app route exact /drawn/alpha from node overlaps drawn's prefix /drawn/; keeping drawn and dropping node",
+  ])
+})
+
+test("an app.route entry not built by a definer is dropped, whichever kind it claims to be", () => {
+  const logged: Array<string> = []
+  const route = drawnRoute()
+  const forged = { kind: "self-drawn" as const, route: { ...route.source }, face: () => null }
+  const mismatched = { ...defineSelfDrawnPage(route, () => null), kind: "node" as const } as unknown as Parameters<typeof settleRoutePages>[0][number]["face"]
+  const settled = settleRoutePages([
+    { plugin: "forged", face: forged },
+    { plugin: "mismatched", face: mismatched },
+  ], (message) => logged.push(message))
+  expect(settled).toEqual([])
+  expect(logged).toHaveLength(2)
 })
