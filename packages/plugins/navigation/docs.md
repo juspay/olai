@@ -26,6 +26,8 @@ and not this row.
 
 Content handlers register in `navigation.content`. A route remains in browser
 history when its provider disappears and can be handled again when it returns.
+Navigation's own handler draws self-drawn plugin pages ([Plugin
+pages](#plugin-pages)).
 The public `page(index)` outlet lets another layout draw the same content
 without importing the navigation implementation.
 
@@ -40,6 +42,33 @@ contributions. Disabling capture removes its command and makes `+` ordinary
 query text. Duplicate prefixes are reported and resolved in contribution order.
 The keyboard-settling observer belongs to navigation, so keyboard workflows and
 their observable completion work with alternative layouts too.
+
+## Plugin pages
+
+A plugin owns a page by registering `app.route` from its browser half. The
+entry carries one grammar — `claims` (exact words and prefixes, checked against
+every other mounted claim), `parse`, `href`, `breadcrumb` and `narrowable` — and
+one of two kinds of face, each with its own typed definer in `./routes`:
+
+| Kind | Definers | Face | Hosted by |
+| --- | --- | --- | --- |
+| node page | `defineAppRoute` / `defineAppPage` | `{ page: Shown, drawn: Drawn, today }`, from a `request` into `@olai/format`'s `PageRequest` and a `stream` answering a `PageReading` | outlines, whose `navigation.content` handler claims only node-page routes |
+| self-drawn page | `defineSelfDrawnRoute` / `defineSelfDrawnPage` | `{ value, filter }`: the route's own value and its `?q=` | navigation, through the content handler its `renderer` component contributes beside the claim table it settles |
+
+Each definer is the one place its kind's value type is erased; consumers never
+cast. The kind rides on the route's `source`, so a host can tell which routes
+are its own even after the tenant has left. Both kinds get the same
+treatment from everything that keys off `Route`: tabs (the glyph is `◷` for a
+node page, `◇` for a self-drawn one), pane labels and breadcrumbs, link
+intents, the palette and lanes. A self-drawn page names its own services (a
+clock, a wire) as any component of its plugin does; navigation hands it nothing
+else.
+
+When a tenant leaves, its page unmounts and the open addresses are read again
+against the claims that remain — usually the front page, since a plugin's path
+names no file. The address stays in the bar and in history, so the page comes
+back when the tenant does. A pane still holding a departed tenant's route draws
+`Page not found` with `Go home`, whichever kind it was.
 
 ## Links
 
