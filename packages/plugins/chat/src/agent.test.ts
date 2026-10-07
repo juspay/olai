@@ -224,6 +224,21 @@ describe("the environment a spawned child gets", () => {
   test("an adapter that unset nothing inherits exactly what it was given", () => {
     expect(childEnvOf({ PATH: "/bin" }, undefined, undefined)).toEqual({ PATH: "/bin" })
   })
+
+  test("an engine's env entry beats the same name in the base environment", () => {
+    // The rule the own-memory switches depend on: olai inherits an operator's
+    // exports, and a spawn merges the ROW's answer over them — so
+    // `CLAUDE_CODE_DISABLE_AUTO_MEMORY` (or a `CODEX_CONFIG` overlay) set by
+    // the engine wins over the value that was already there. `unset` can only
+    // take away; winning is what `env` is for.
+    expect(
+      childEnvOf(
+        { CLAUDE_CODE_DISABLE_AUTO_MEMORY: "0", PATH: "/bin" },
+        { CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1" },
+        undefined,
+      ),
+    ).toEqual({ CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1", PATH: "/bin" })
+  })
 })
 
 describe("who gets a sign-in attempt", () => {
