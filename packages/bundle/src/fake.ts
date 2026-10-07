@@ -47,7 +47,7 @@ export interface Fake {
   }) => Readonly<Record<string, string>>;
   /** Further tags this fake answers to (`@<variant>`), each a different
    *  machine the same row can be on — the browsing row's real Chromium beside
-   *  its scripted MCP. Voted exactly like the word, so a server's fingerprint
+   *  its scripted tool server. Voted exactly like the word, so a server's fingerprint
    *  carries them and two scenarios asking differently never share one. */
   readonly variants?: ReadonlyArray<string>;
 }

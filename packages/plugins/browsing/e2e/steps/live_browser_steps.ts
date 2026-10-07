@@ -18,7 +18,7 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 import { TESTID as CHAT } from "olai-plugin-chat/testids"
 import { TESTID } from "olai-plugin-browsing/testids"
 
-const id = (name: string) => `[data-testid="${name}"]`
+const id = (name: string) => attr("data-testid", name)
 const paneAt = (world: OlaiWorld, index: number) =>
   world.frontLane().locator(`[data-testid="pane"]${attr("data-pane", String(index))}`)
 const pageIn = (world: OlaiWorld, index: number) => paneAt(world, index).locator(id(TESTID.browserPage))
