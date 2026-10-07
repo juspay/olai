@@ -213,12 +213,15 @@ export const defineAppPage = <Value, Request extends PageRequest>(
     readonly drawn: Drawn
     readonly today: string
   }) => JSX.Element,
-): AppPage => ({
-  [APP_PAGE]: true,
-  kind: "node",
-  route: route.source as unknown as AppRoute,
-  face: face as Extract<AppPage, { readonly kind: "node" }>["face"],
-})
+): AppPage => {
+  const page = {
+    [APP_PAGE]: true,
+    kind: "node" as const,
+    route: route.source as unknown as AppRoute,
+    face: face as Extract<AppPage, { readonly kind: "node" }>["face"],
+  }
+  return page
+}
 
 export type DefinedSelfDrawnRoute<Value> = DefinedGrammar<Value, SelfDrawnPageRoute>
 
@@ -235,12 +238,15 @@ export const defineSelfDrawnRoute = <Value>(spec: GrammarSpec<Value>): DefinedSe
 export const defineSelfDrawnPage = <Value>(
   route: DefinedSelfDrawnRoute<Value>,
   face: (props: { readonly value: Value; readonly filter: string }) => JSX.Element,
-): AppPage => ({
-  [APP_PAGE]: true,
-  kind: "self-drawn",
-  route: route.source as unknown as AppRouteGrammar,
-  face: face as Extract<AppPage, { readonly kind: "self-drawn" }>["face"],
-})
+): AppPage => {
+  const page = {
+    [APP_PAGE]: true,
+    kind: "self-drawn" as const,
+    route: route.source as unknown as AppRouteGrammar,
+    face: face as Extract<AppPage, { readonly kind: "self-drawn" }>["face"],
+  }
+  return page
+}
 
 /** The front page: the address that names no place at all, and what every
  *  string this cannot read comes back as. */

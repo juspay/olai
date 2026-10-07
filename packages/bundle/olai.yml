@@ -293,6 +293,13 @@
   quiet: true
   disabled: true
   profiles: [test-minimal]
+- id: test-page
+  name: olai-plugin-test-page
+  section: Test fixtures
+  label: Test page
+  quiet: true
+  disabled: true
+  profiles: [test-minimal]
 - id: vault-plugins
   name: olai-plugin-vault-plugins/server
   section: Notes
