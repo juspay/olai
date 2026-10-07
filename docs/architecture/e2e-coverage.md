@@ -371,8 +371,14 @@ real MCP is attached (the MCP losing its browser mid-session; the e2e switches
 the row off with only the pane attached), a Chromium that crashes under a
 running row (unit-tested only), a page's own title changes that repaint
 nothing (read on the next load or picture), keyboard composition (IME),
-drag-and-drop and file upload into a page, and the aarch64-darwin Chromium
-path (taken from Playwright's registry, never launched on a Mac).
+drag-and-drop and file upload into a page, and macOS beyond the build check.
+The aarch64-darwin Chromium path is exercised only by the Nix surface check on
+GitHub's `macos-latest-xlarge` (single-user Nix, no darwin build sandbox), where
+Chromium launches, the MCP attaches and browses, and frames arrive. Not
+covered: a sandboxed darwin builder (the check allows loopback for one but none
+has run it), the e2e suite on macOS, and olai's own launch under launchd, where
+`--use-mock-keychain` is what keeps the profile's cookie store from waiting on
+the Keychain (`packages/plugins/browsing/default.nix` records the evidence).
 
 `browsing.feature` uses a scripted MCP executable and the existing ACP fixture.
 The lifecycle workflow verifies the engine's received server list, two distinct

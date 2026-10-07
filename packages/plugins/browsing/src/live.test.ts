@@ -67,7 +67,7 @@ const double = () => {
         const held = { exited: Deferred.makeUnsafe<string>(), released: false }
         launches.push(held)
         yield* Effect.addFinalizer(() => Effect.sync(() => { held.released = true }))
-        return { pid: 4000 + launches.length, endpoint: `ws://127.0.0.1:1/devtools/browser/${launches.length}`, pipe: undefined as never, exited: Deferred.await(held.exited), said: () => "" }
+        return { pid: 4000 + launches.length, endpoint: `ws://127.0.0.1:1/devtools/browser/${launches.length}`, pipe: undefined as never, exited: Deferred.await(held.exited) }
       }),
       connect: () => Effect.succeed(cdp),
       ...overrides,

@@ -30,14 +30,27 @@ in
   # profile, the pinned MCP attaches over CDP and browses pages the check
   # serves itself, and the plugin's own CDP client receives screencast frames.
   # Loopback only; no network.
+  #
+  # WHAT THE GITHUB BUILDERS TAUGHT IT (PR #654, so the next person starts
+  # from evidence):
+  # - ubuntu-latest: no user namespaces in the build, so Chromium's own
+  #   sandbox aborts (SIGABRT, "No usable sandbox!"). The check alone launches
+  #   with WITHOUT_ITS_OWN_SANDBOX (`src/chromium.ts`).
+  # - macos-latest-xlarge (single-user Nix, Chrome for Testing 149): Chromium
+  #   came up, DevTools answered over HTTP and websocket, the MCP attached,
+  #   and its first browser_navigate never answered within 60 s. Verbose
+  #   Chromium logs showed no request for the page at all while Chromium's
+  #   own updater reached the network: the profile's cookie store was waiting
+  #   on the macOS Keychain, which a process with no UI cannot answer.
+  #   `--use-mock-keychain` in the RUNTIME flags fixed it (olai runs Chromium
+  #   as a service too); `--no-proxy-server` was tried first and was not it.
   checks = { tree }: {
     surface = pkgs.runCommand "olai-plugin-browsing-surface"
       {
         nativeBuildInputs = [ pkgs.bun ];
         # Loopback only: the MCP reaches Chromium's DevTools port and the
-        # check serves its pages on 127.0.0.1. The macOS build sandbox refuses
-        # local networking without this (the MCP's CDP dial was reset); it
-        # changes nothing on Linux.
+        # check serves its pages on 127.0.0.1, which a sandboxed darwin
+        # builder refuses without this. It changes nothing on Linux.
         __darwinAllowLocalNetworking = true;
       }
       ''

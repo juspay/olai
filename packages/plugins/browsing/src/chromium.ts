@@ -38,9 +38,6 @@ export interface Launched {
   readonly pipe: DevToolsPipe
   /** Settles with a sentence when the process exits, by any hand. */
   readonly exited: Effect.Effect<string>
-  /** What Chromium has said so far, as a failure sentence would quote it,
-   *  with up to `chars` of its latest words. */
-  readonly said: (chars?: number) => string
 }
 
 export const FLAGS = (profile: string): ReadonlyArray<string> => [
@@ -114,8 +111,8 @@ const DIAGNOSTIC = /FATAL|ERROR:|Check failed|No usable sandbox/i
 /** What Chromium said, for a failure sentence: its first diagnostic lines,
  *  kept as they arrived however much followed, then the last of the rest —
  *  and, when the reason is its sandbox, the knob that answers it. */
-export const tail = (diagnostics: ReadonlyArray<string>, said: string, chars = 300): string => {
-  const rest = said.trim().slice(-chars)
+export const tail = (diagnostics: ReadonlyArray<string>, said: string): string => {
+  const rest = said.trim().slice(-300)
   const words = [...diagnostics, ...(rest === "" ? [] : [`… ${rest}`])]
   const hint = diagnostics.some((line) => /No usable sandbox/i.test(line)) ? NO_SANDBOX_HINT : ""
   return words.length === 0 ? hint : ` Chromium said: ${words.join(" ")}${hint}`
@@ -197,5 +194,5 @@ export const launchChromium = (
     Effect.map(({ code, signal }) => `${exitSentence(code, signal)}.${tail(diagnostics, child.err())}`),
   )
   const pipe = { calls: child.stdio[3] as Writable, answers: child.stdio[4] as Readable }
-  return { pid: child.pid!, endpoint, pipe, exited, said: (chars) => tail(diagnostics, child.err(), chars) }
+  return { pid: child.pid!, endpoint, pipe, exited }
 })
