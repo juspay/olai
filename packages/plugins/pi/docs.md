@@ -29,6 +29,7 @@ Every reading was captured live against **pi-acp 0.0.33** driving **pi 0.84.2**.
 - **so no permission question comes back over ACP.** A tool's spelling of *ours* is pi's own; pi's settings govern what it may do, the way the other agents' govern theirs. The servers strip's rows stand at **handed** and there is no per-server tick to move them.
 - **the stored list is one page.** `session/list` answers in pages of fifty, newest first; olai sends no limit and follows no cursor, so a directory with more than fifty stored pi conversations draws the newest page and loses the rest.
 - **bash output streams under its tool row**, using the adapter's terminal metadata, and remains readable with its exit status. Edits draw fully, as diffs with `path:line` locations.
+- **no harness memory built in.** pi's memory is opt-in packages pi loads from its own config, and olai installs none — the node's subtree is the only memory.
 
 ## The adapter, and its patch
 
