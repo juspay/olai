@@ -24,8 +24,10 @@ the right, as any link does) and its page title is the pane's title.
   whether the browser is not running, starting, or stopped with the reason.
 - **Tabs.** The strip lists every open page, yours and the agents'. **+** opens
   a new tab and goes to it; **×** closes one.
-- **Address bar.** Shows the tab's live URL; type a URL (or words, which
-  search) and press Enter to go there.
+- **Address bar.** Shows the tab's live URL; type a URL and press Enter to go
+  there. Words that are not a URL are searched on **DuckDuckGo**
+  (`https://duckduckgo.com/?q=…`) — the one place the pane sends what you
+  typed to a third party, and only because you pressed Enter on it.
 - **The page.** A live picture of the tab. Press, drag and scroll on it as on a
   page. Click it and **keys go to the page** — the line under it says so — and
   pasting sends the clipboard's text. **Esc** gives the keys back to olai.
@@ -35,7 +37,9 @@ the right, as any link does) and its page title is the pane's title.
 
 The picture is the browser's own screencast of that tab, so a pane that nobody
 is looking at costs nothing: the screencast starts when the first pane opens on
-a tab and stops when the last one closes. Several panes on one tab share it.
+a tab and stops when the last one closes. Several panes on one tab share it,
+and panes on different tabs each stay live: every tab is kept painting even
+when another is in front, so watching an agent's tab never freezes yours.
 
 This is the one live face in olai that writes back to what it shows. A
 terminal pane is read-only because the terminal is the agent's hand; this

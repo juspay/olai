@@ -219,7 +219,11 @@ export const LOCAL_DIRECTORY_MARK = ".olai-cwd"
  *
  * The mode is re-asserted on every open rather than only at `mkdir`: a
  * directory that already existed keeps whatever mode it was made with, and the
- * promise is owner-only.
+ * promise is owner-only. That includes the PLUGIN's directory above it,
+ * `<state>/olai/<plugin>/`, which also holds that plugin's JSON records:
+ * `writeLocal` makes it 0700 when it creates it, but one that already existed
+ * with a looser mode kept it, and a private tree under a listable parent still
+ * names whose vaults it serves. The chmod there is deliberate, not a stray.
  */
 export const openLocalDirectory = (
   at: string,

@@ -158,7 +158,6 @@ export const surface = defineSurface({
       navigate: { input: Schema.Struct({ targetId: Schema.String, url: Schema.String }), error: BrowserRefused },
       open: { input: Nothing, output: OnTab, error: BrowserRefused },
       close: { input: OnTab, error: BrowserRefused },
-      activate: { input: OnTab, error: BrowserRefused },
     },
     browser: {
       start: { input: Nothing, error: BrowserRefused },
@@ -185,7 +184,6 @@ export const faces = {
     "tab.navigate": "tool",
     "tab.open": "tool",
     "tab.close": "tool",
-    "tab.activate": "tool",
     "browser.start": "tool",
     "browser.forgetSignIns": "tool",
   },

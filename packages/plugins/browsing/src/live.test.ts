@@ -251,7 +251,6 @@ test("the person's gestures reach the tab's session as CDP input", () => run(Eff
   yield* live.navigate("T1", "x.com")
   expect((yield* Effect.flip(live.navigate("T1", "https://refused.example"))).says).toContain("ERR_NAME_NOT_RESOLVED")
   expect(yield* live.open).toEqual({ targetId: "T9" })
-  yield* live.activate("T1")
   expect((yield* Effect.flip(live.close("gone"))).says).toContain("No target")
   const onSession = browser.calls.filter((call) => call.sessionId === "S-T1").map(({ method, params }) => ({ method, params }))
   expect(onSession).toEqual([
@@ -296,7 +295,7 @@ test("forgetting sign-ins stops a running browser first, then removes its profil
 
 test("a tab's title is read again after its loads and its new pictures, which Chromium announces no other way", () => run(Effect.gen(function*() {
   const browser = double()
-  const live = yield* openLive(browser.options())
+  const live = yield* openLive(browser.options({ titleEveryMs: 20 }))
   yield* live.start
   yield* Effect.sleep("10 millis")
   // Every page is attached as it appears, so its loads reach the strip.
@@ -312,7 +311,7 @@ test("a tab's title is read again after its loads and its new pictures, which Ch
   expect(browser.calls.filter((call) => call.method === "Target.getTargetInfo").length).toBe(asked)
   browser.retitle("T1", "clicked")
   browser.emit(frame("S-T1", 1))
-  yield* Effect.sleep("10 millis")
+  yield* Effect.sleep("40 millis")
   expect(live.tabs().get("T1")?.title).toBe("clicked")
   // A tab that appears later is followed too.
   browser.emit({ method: "Target.targetCreated", sessionId: null, params: { targetInfo: { targetId: "T2", type: "page", title: "", url: "about:blank" } } })
@@ -344,4 +343,23 @@ test("over the pipe, calls answer by id, events reach listeners, and a closed pi
   expect((yield* Fiber.join(hanging)).why).toBe("the browser's DevTools pipe closed")
   yield* cdp.closed
   expect((yield* Effect.flip(cdp.send("Browser.getVersion"))).why).toBe("the browser's DevTools pipe closed")
+})))
+
+test("a stream of pictures asks for the title at most once per interval, and once more after the last", () => run(Effect.gen(function*() {
+  const browser = double()
+  const live = yield* openLive(browser.options({ titleEveryMs: 200 }))
+  yield* live.start
+  yield* Effect.sleep("10 millis")
+  const reads = () => browser.calls.filter((call) => call.method === "Target.getTargetInfo").length
+  const before = reads()
+  for (let n = 1; n <= 30; n++) {
+    browser.emit(frame("S-T1", n))
+    yield* Effect.sleep("5 millis")
+  }
+  // ~150ms of frames: the first asks at once, the rest wait for one trailing read.
+  expect(reads() - before).toBe(1)
+  browser.retitle("T1", "after the burst")
+  yield* Effect.sleep("250 millis")
+  expect(reads() - before).toBe(2)
+  expect(live.tabs().get("T1")?.title).toBe("after the burst")
 })))

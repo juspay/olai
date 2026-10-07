@@ -72,6 +72,74 @@ Feature: The person sees and uses the browser their agents use
     And the picture in pane 0 changes
     And there should be no page errors
 
+  Scenario: Two panes on two different tabs both stay live, whichever was used last
+    # Every tab lives in one headless window, where only the front tab is
+    # visible and a background tab paints nothing. Each pane must keep its
+    # own tab's picture moving anyway, in either order of use.
+    When I open the address "/browser"
+    And I start the browser from the pane
+    And I go to the site's "fixture" page in the browser's address bar
+    Then the shown browser tab in pane 0 is titled "Fixture"
+    When I open a new browser tab from the pane
+    Then the browser pane shows 2 tabs
+    When I go to the site's "second" page in the browser's address bar
+    Then the shown browser tab in pane 0 is titled "Second"
+    When I Alt-press the browser tab titled "Fixture" in pane 0
+    Then there are 2 panes
+    And the shown browser tab in pane 1 is titled "Fixture"
+    And pane 0 draws a picture of the page
+    And pane 1 draws a picture of the page
+    When I note the picture in pane 1
+    And I press the page's button through pane 1
+    Then the shown browser tab in pane 1 is titled "clicked"
+    And the picture in pane 1 changes
+    When I note the picture in pane 0
+    And I press the page's button through pane 0
+    Then the shown browser tab in pane 0 is titled "second clicked"
+    And the picture in pane 0 changes
+    When I note the picture in pane 1
+    And I type "back" into the page's box through pane 1
+    Then the shown browser tab in pane 1 is titled "typed:back"
+    And the picture in pane 1 changes
+    When I note the picture in pane 0
+    And I type "front" into the page's box through pane 0
+    Then the shown browser tab in pane 0 is titled "second typed:front"
+    And the picture in pane 0 changes
+    And there should be no page errors
+
+  Scenario: The person's tab and an agent's tab, side by side, both stay live
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    And I ask the agent to open the site's "agent" page with its browser tools
+    Then the agent's answer mentions "Agent page"
+    When I press the chat's browser chip
+    Then pane 0 draws the browser page
+    # The agent's MCP took the browser's first, blank tab; the person opens
+    # one of their own beside it.
+    And the browser pane shows 1 tab
+    When I open a new browser tab from the pane
+    Then the browser pane shows 2 tabs
+    When I go to the site's "fixture" page in the browser's address bar
+    Then the shown browser tab in pane 0 is titled "Fixture"
+    When I Alt-press the browser tab titled "Agent page" in pane 0
+    Then there are 2 panes
+    And the shown browser tab in pane 1 is titled "Agent page"
+    And pane 0 draws a picture of the page
+    And pane 1 draws a picture of the page
+    When I note the picture in pane 0
+    And I press the page's button through pane 0
+    Then the shown browser tab in pane 0 is titled "clicked"
+    And the picture in pane 0 changes
+    When I note the picture in pane 1
+    And I press the page's button through pane 1
+    Then the shown browser tab in pane 1 is titled "agent clicked"
+    And the picture in pane 1 changes
+    When I note the picture in pane 0
+    And I type "mine" into the page's box through pane 0
+    Then the shown browser tab in pane 0 is titled "typed:mine"
+    And the picture in pane 0 changes
+    And there should be no page errors
+
   Scenario: An agent's browser tools attach to the person's browser, and the roster chip leads to it
     # The agent's own Playwright MCP is the real one, handed `--cdp-endpoint`
     # at session open: its page lands in the person's tab strip, and its

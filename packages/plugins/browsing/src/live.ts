@@ -49,6 +49,8 @@ export interface LiveOptions {
     readonly tab: (tab: Tab) => void
     readonly untab: (id: string) => void
   }
+  /** The least time between two picture-driven title reads of one tab. */
+  readonly titleEveryMs?: number
   readonly launch?: typeof launchChromium
   readonly connect?: (launched: Launched) => Effect.Effect<Cdp, never, Scope.Scope>
 }
@@ -67,7 +69,6 @@ export interface Live {
   readonly navigate: (targetId: string, url: string) => Effect.Effect<void, BrowserRefused>
   readonly open: Effect.Effect<{ readonly targetId: string }, BrowserRefused>
   readonly close: (targetId: string) => Effect.Effect<void, BrowserRefused>
-  readonly activate: (targetId: string) => Effect.Effect<void, BrowserRefused>
 }
 
 export interface Attach {
@@ -95,6 +96,10 @@ interface Instance {
   /** Whose info is being re-read: a tab with a read in flight is marked
    *  `dirty` instead of asked twice, and read once more when it lands. */
   readonly reading: Map<string, "busy" | "dirty">
+  /** When each tab's info was last asked for, and which tabs have a
+   *  picture-driven ask already waiting. */
+  readonly lastRead: Map<string, number>
+  readonly soon: Set<string>
 }
 
 const refused = (says: string) => new BrowserRefused({ says })
@@ -122,6 +127,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
   const row = yield* Effect.scope
   const launch = options.launch ?? launchChromium
   const connect = options.connect ?? ((launched: Launched) => openCdp(launched.pipe))
+  const titleEveryMs = options.titleEveryMs ?? 1_000
   const transitions = yield* Semaphore.make(1)
 
   let standing: Standing = options.chromium === null ? { kind: "absent", why: options.absentWhy } : DOWN
@@ -154,11 +160,16 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
   }
 
   /**
-   * RE-READ ONE TAB'S INFO. Chromium announces a target's URL changes but not
-   * its TITLE — a page's `<title>` and every `document.title =` arrive on no
-   * event at all — so the strip asks again whenever the tab's own session
-   * says something happened: a load, a navigation, or a new picture. One read
-   * in flight per tab; anything that lands meanwhile asks for one more.
+   * RE-READ ONE TAB'S INFO. Measured against the pinned Chromium (1228,
+   * `--headless=new`): `Target.targetInfoChanged` carries a tab's URL changes,
+   * and its title only once, for the foreground tab's first load. A background
+   * tab's `<title>` and every `document.title =` arrive on no event at all,
+   * and the protocol has no other title event. So the strip asks again when
+   * the tab's own session says something happened. A load or navigation asks
+   * at once; a new picture — the one sign a script retitled the page — asks at
+   * most once per {@link LiveOptions.titleEveryMs}, trailing, so a page
+   * streaming frames costs one call a second, not one a frame. One read in
+   * flight per tab; anything that lands meanwhile asks for one more.
    */
   const reread = (instance: Instance, targetId: string) => {
     if (instance.reading.has(targetId)) {
@@ -166,6 +177,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       return
     }
     instance.reading.set(targetId, "busy")
+    instance.lastRead.set(targetId, Date.now())
     const once: Effect.Effect<void> = Effect.gen(function*() {
       const answer = yield* Effect.result(instance.cdp.send("Target.getTargetInfo", { targetId }))
       const info = Result.isSuccess(answer) ? answer.success["targetInfo"] as Record<string, unknown> | undefined : undefined
@@ -177,6 +189,19 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       instance.reading.delete(targetId)
     })
     own(instance, once)
+  }
+
+  /** ...and the throttled ask a new picture makes: now if the last read was
+   *  long enough ago, otherwise once, when it will have been. */
+  const glance = (instance: Instance, targetId: string) => {
+    if (instance.soon.has(targetId)) return
+    const wait = (instance.lastRead.get(targetId) ?? -Infinity) + titleEveryMs - Date.now()
+    if (wait <= 0) return reread(instance, targetId)
+    instance.soon.add(targetId)
+    own(instance, Effect.andThen(Effect.sleep(wait), Effect.sync(() => {
+      instance.soon.delete(targetId)
+      if (tabs.has(targetId)) reread(instance, targetId)
+    })))
   }
 
   /** Attach to a tab as soon as it appears, so its loads reach `reread`. */
@@ -222,8 +247,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       // Every frame is acknowledged, whoever is watching: an unacknowledged
       // screencast stops sending.
       own(instance, instance.cdp.send("Page.screencastFrameAck", { sessionId: params.sessionId }, event.sessionId))
-      // A new picture is the one sign a script retitled the page.
-      reread(instance, targetId)
+      glance(instance, targetId)
       const cast = instance.casts.get(targetId)
       if (cast === undefined) return
       const meta = params.metadata
@@ -279,7 +303,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       yield* Scope.close(scope, Exit.void)
       return yield* refused(whyOf(opened.cause, "The browser launch was interrupted."))
     }
-    const instance: Instance = { scope, ...opened.value, sessions: new Map(), targets: new Map(), casts: new Map(), reading: new Map() }
+    const instance: Instance = { scope, ...opened.value, sessions: new Map(), targets: new Map(), casts: new Map(), reading: new Map(), lastRead: new Map(), soon: new Set() }
     yield* instance.cdp.listen(onEvent(instance)).pipe(Scope.provide(scope))
     const seeded = yield* Effect.exit(Effect.gen(function*() {
       yield* instance.cdp.send("Target.setDiscoverTargets", { discover: true })
@@ -353,9 +377,14 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       const { sessionId } = (yield* instance.cdp.send("Target.attachToTarget", { targetId, flatten: true })) as { readonly sessionId: string }
       instance.targets.set(sessionId, targetId)
       yield* instance.cdp.send("Page.enable", {}, sessionId)
-      // A headless page is never focused, and a page that thinks it is not
-      // focused drops caret and key handling the person expects.
-      yield* Effect.ignore(instance.cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true }, sessionId))
+      // LOAD-BEARING, measured against the pinned Chromium: every tab lives
+      // in one headless window, so only the foreground tab is `visible` and
+      // a background tab paints no screencast frames at all. Focus emulation
+      // keeps each tab visible and focused whatever is in front — so two
+      // panes on two tabs, or the person's tab while an agent works in
+      // another, both paint, with no `activateTarget` tug of war. It is also
+      // what keeps caret and key handling alive on a page nobody focused.
+      yield* instance.cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true }, sessionId)
       return sessionId
     }).pipe(
       Effect.mapError((failure: CdpFailure) => refused(`The browser would not attach to this tab: ${failure.why}.`)),
@@ -366,6 +395,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
   const forgetSessions = (instance: Instance, targetId: string) => {
     instance.sessions.delete(targetId)
     instance.reading.delete(targetId)
+    instance.lastRead.delete(targetId)
     for (const [sessionId, held] of instance.targets) if (held === targetId) instance.targets.delete(sessionId)
   }
 
@@ -472,6 +502,5 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       (answer) => ({ targetId: String(answer["targetId"]) }),
     )),
     close: (targetId) => onBrowser((instance) => Effect.asVoid(instance.cdp.send("Target.closeTarget", { targetId }))),
-    activate: (targetId) => onBrowser((instance) => Effect.asVoid(instance.cdp.send("Target.activateTarget", { targetId }))),
   }
 })

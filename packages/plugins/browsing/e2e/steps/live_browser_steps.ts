@@ -23,11 +23,18 @@ const paneAt = (world: OlaiWorld, index: number) =>
   world.frontLane().locator(`[data-testid="pane"]${attr("data-pane", String(index))}`)
 const pageIn = (world: OlaiWorld, index: number) => paneAt(world, index).locator(id(TESTID.browserPage))
 
-/** The page a scenario drives: a button that renames the tab, and a box whose
- *  words become the tab's title. */
-const FIXTURE = `<!doctype html><title>Fixture</title><body style="margin:0;font:32px sans-serif">
-<button style="position:fixed;left:0;top:0;width:50vw;height:30vh;font-size:32px" onclick="document.title='clicked'">Rename</button>
-<input style="position:fixed;left:0;top:40vh;width:50vw;height:20vh;font-size:32px" oninput="document.title='typed:'+this.value">`
+/** The pages a scenario drives: a button that renames the tab, and a box
+ *  whose words become the tab's title. Each name has its own titles, so two
+ *  tabs watched at once can be told apart. */
+const DRIVEN: Readonly<Record<string, readonly [title: string, pressed: string, typed: string]>> = {
+  fixture: ["Fixture", "clicked", "typed:"],
+  second: ["Second", "second clicked", "second typed:"],
+  agent: ["Agent page", "agent clicked", "agent typed:"],
+}
+const drivenPage = ([title, pressed, typed]: readonly [string, string, string]) =>
+  `<!doctype html><title>${title}</title><body style="margin:0;font:32px sans-serif">
+<button style="position:fixed;left:0;top:0;width:50vw;height:30vh;font-size:32px" onclick="document.title='${pressed}'">Rename</button>
+<input style="position:fixed;left:0;top:40vh;width:50vw;height:20vh;font-size:32px" oninput="document.title='${typed}'+this.value">`
 
 /** ...and one that remembers a choice in its origin's storage, which is the
  *  stand-in for a sign-in: the title says what the browser kept. */
@@ -46,10 +53,8 @@ After(async function (this: OlaiWorld) {
 
 Given("a web site the browser can visit", async function (this: OlaiWorld) {
   const server = createServer((request, response) => {
-    const path = request.url ?? "/"
-    const body = path.startsWith("/remember") ? REMEMBERING
-      : path.startsWith("/agent") ? "<!doctype html><title>Agent page</title><p>opened by an agent</p>"
-      : FIXTURE
+    const name = (request.url ?? "/").slice(1)
+    const body = name === "remember" ? REMEMBERING : drivenPage(DRIVEN[name] ?? DRIVEN["fixture"]!)
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" })
     response.end(body)
   })

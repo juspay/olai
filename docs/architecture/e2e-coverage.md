@@ -328,7 +328,12 @@ browser is down, Start, a tab appearing, the address bar, a decoded frame,
 pressing a page's button and typing and pasting into its box through the
 picture (asserted by the tab title the page sets), Escape handing the keys
 back, opening and closing a tab, a second pane (Alt) on the same tab streaming
-and the first staying live after the second closes, the chat roster's
+and the first staying live after the second closes, two panes on two
+DIFFERENT tabs — two of the person's, and the person's beside one an agent's
+MCP opened — each picture moving when its own page is pressed or typed into,
+in either order of use (every tab shares one headless window, where only the
+front tab paints; without the row's focus emulation the person's two-tab case
+stalls, which was checked by removing it), the chat roster's
 `browser` chip linking to the pane, an agent's real MCP navigating in the
 person's browser and its `browser_close` leaving the browser and the tab up,
 site storage surviving an olai restart (and Chromium dying with the stopped
@@ -344,14 +349,23 @@ shared launch under concurrent demands, a failed launch retried, a crash
 taking the browser to `failed` with its tabs cleared and panes told, row
 withdrawal releasing the browser and interrupting a launch, the screencast
 refcount (one per tab, every frame acknowledged, the last frame handed to a
-joining pane, stopped with the last pane), titles re-read on loads and new
-pictures, every gesture's CDP shape, forgetting sign-ins, the address bar's
+joining pane, stopped with the last pane), titles re-read at once on loads and
+at most once a second (trailing) on a stream of pictures, every gesture's CDP
+shape, forgetting sign-ins, the address bar's
 URL reading, the pane's pointer and key mapping, the attached handoff's args
 and env, and core's local directory door. The Nix surface check launches the
 pinned Chromium, attaches the pinned MCP over CDP twice to prove one shared
 cookie jar, checks `browser_close` leaves the browser running, and receives
 screencast frames through the plugin's own client, printing their size
 against the surface frame cap.
+
+Open, not driven end to end: switching the row off while a conversation's
+real MCP is attached (the MCP losing its browser mid-session; the e2e switches
+the row off with only the pane attached), a Chromium that crashes under a
+running row (unit-tested only), a page's own title changes that repaint
+nothing (read on the next load or picture), keyboard composition (IME),
+drag-and-drop and file upload into a page, and the aarch64-darwin Chromium
+path (taken from Playwright's registry, never launched on a Mac).
 
 `browsing.feature` uses a scripted MCP executable and the existing ACP fixture.
 The lifecycle workflow verifies the engine's received server list, two distinct

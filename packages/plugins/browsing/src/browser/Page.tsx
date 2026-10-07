@@ -78,7 +78,6 @@ export function BrowserPage(props: {
   createEffect(on([shown, up, () => tab() !== undefined] as const, ([targetId, pid, open]) => {
     show(null)
     if (targetId === null || pid === null || !open) return
-    void run(calls.tab.activate({ targetId }))
     const fiber = Effect.runFork(Stream.runForEach(props.browsing.watch({ targetId, ...ASK }), (got) => Effect.sync(() => {
       if (got._tag === "frame") show({ src: pictureOf(got.jpeg), meta: got.meta })
       else say(got.says)

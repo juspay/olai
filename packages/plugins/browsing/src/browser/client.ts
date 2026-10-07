@@ -29,7 +29,6 @@ export interface BrowsingClient {
       readonly navigate: Call<{ readonly targetId: string; readonly url: string }>
       readonly open: Call<Record<string, never>, { readonly targetId: string }>
       readonly close: Call<{ readonly targetId: string }>
-      readonly activate: Call<{ readonly targetId: string }>
     }
     readonly browser: {
       readonly start: Call<Record<string, never>>

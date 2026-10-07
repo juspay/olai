@@ -76,7 +76,6 @@ export default definePlugin({
             navigate: ({ input }) => live.navigate(input.targetId, input.url),
             open: () => live.open,
             close: ({ input }) => live.close(input.targetId),
-            activate: ({ input }) => live.activate(input.targetId),
           },
           browser: {
             start: () => live.start,
