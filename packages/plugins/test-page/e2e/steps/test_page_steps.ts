@@ -5,15 +5,16 @@
  */
 import * as assert from "node:assert";
 import { Then, When } from "@olai/tests/harness/runner.ts";
+import { attr } from "@olai/tests/harness/selectors.ts";
 import { POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 const PAGE = 'section[aria-label="Fixture page"]';
 const paneAt = (world: OlaiWorld, index: number) =>
-  world.frontLane().locator(`[data-testid="pane"][data-pane="${index}"]`);
+  world.frontLane().locator(`[data-testid="pane"]${attr("data-pane", String(index))}`);
 
 Then("pane {int} draws the fixture page for {string}", async function (this: OlaiWorld, index: number, word: string) {
-  await paneAt(this, index).locator(`${PAGE}[data-word="${word}"]`)
+  await paneAt(this, index).locator(`${PAGE}${attr("data-word", word)}`)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.strictEqual(
     await paneAt(this, index).getByLabel("Fixture word").innerText(),
