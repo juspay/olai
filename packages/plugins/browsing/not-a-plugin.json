@@ -27,5 +27,9 @@
   "ws": [
     "src/chromium.ts"
   ],
-  "//ws": "The `ws://` scheme of Chromium's DevTools socket."
+  "//ws": "The `ws://` scheme of Chromium's DevTools socket.",
+  "sidebar": [
+    "src/browser.tsx"
+  ],
+  "//sidebar": "The `sidebar.entry` slot key the Browser door is registered under."
 }

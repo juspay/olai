@@ -1,6 +1,7 @@
 /**
  * THE BROWSING ROW'S BROWSER HALF — the `/browser` page, its row in the bar's
- * health popover, and a palette row that opens it.
+ * health popover, its door in the sidebar column and rail (the way there on a
+ * phone), and a palette row that opens it.
  *
  * One reactive root per activation holds the row's readings — the standing
  * and the tab set, one subscription each however many panes draw them — and
@@ -12,8 +13,10 @@ import { Effect } from "effect"
 import { defineSelfDrawnPage, defineSelfDrawnRoute } from "olai-plugin-navigation/routes"
 import type {} from "olai-plugin-layout/slots"
 import type {} from "olai-plugin-navigation/slots"
+import type {} from "olai-plugin-sidebar/slots"
 import { createRoot } from "solid-js"
 import { type BrowsingClient, createBrowsing } from "./browser/client.ts"
+import { BrowserEntry, BrowserRail, type Door } from "./browser/Entry.tsx"
 import { BrowserHeader } from "./browser/Header.tsx"
 import { BrowserPage, type Shown } from "./browser/Page.tsx"
 import { lookOf } from "./browser/said.ts"
@@ -65,6 +68,16 @@ export default definePlugin({
         const look = lookOf(browsing.standing())
         return { tone: look.tone, label: look.label }
       },
+    })
+    const door: Door = {
+      route: route.to({ targetId: null }),
+      showing: (shown) => route.value(shown) !== null,
+      standing: browsing.standing,
+    }
+    yield* slots.register("sidebar.entry", {
+      place: "top",
+      body: () => <BrowserEntry door={door} />,
+      rail: () => <BrowserRail door={door} />,
     })
     yield* slots.register("app.palette", {
       id: "browsing-open",

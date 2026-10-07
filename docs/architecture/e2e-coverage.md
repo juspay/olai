@@ -323,8 +323,10 @@ that the sidebar action itself has drawn its destination.
 `the_agents_browser.feature` (`@browsing-live`) runs the e2e shell's pinned
 Chromium as the row's own browser and the real Playwright MCP as each
 conversation's tools; the scenario serves its pages on loopback. It covers
-opening `/browser` from the health popover and from the palette while the
-browser is down, Start, a tab appearing, the address bar, a decoded frame,
+opening `/browser` from the health popover, the palette, the sidebar's Browser
+door (current while the pane shows) and the collapsed rail's, and on a phone
+from the drawer's door through Start to a decoded frame, while the browser is
+down, Start, a tab appearing, the address bar, a decoded frame,
 pressing a page's button and typing and pasting into its box through the
 picture (asserted by the tab title the page sets), Escape handing the keys
 back, opening and closing a tab, a second pane (Alt) on the same tab streaming

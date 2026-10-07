@@ -271,3 +271,25 @@ When("I ask the agent to close its browser", async function (this: OlaiWorld) {
 Then("the address is a browser tab's own", async function (this: OlaiWorld) {
   await this.waitUntil(async () => /^\/browser\/[\w-]+$/.test(this.place()), "the address to name one browser tab", HYDRATION_TIMEOUT)
 })
+
+When("I press the sidebar's Browser door", async function (this: OlaiWorld) {
+  await this.showSidebar()
+  await this.press(this.page.locator(id(TESTID.browserEntry)))
+})
+
+When("I press the rail's Browser door", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(id(TESTID.railBrowser)))
+})
+
+When("I tap the drawer's Browser door", async function (this: OlaiWorld) {
+  await this.press(this.page.locator(id(TESTID.browserEntry)), "tap")
+})
+
+When("I tap Start in the browser pane", async function (this: OlaiWorld) {
+  await this.press(pageIn(this, 0).locator(id(TESTID.browserStart)), "tap")
+})
+
+Then("the sidebar's Browser door is current", async function (this: OlaiWorld) {
+  await this.page.locator(`${id(TESTID.browserEntry)}${attr("aria-current", "page")}`)
+    .waitFor({ state: "attached", timeout: POLL_TIMEOUT })
+})

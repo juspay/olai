@@ -13,9 +13,12 @@ are guests in it.
 
 ## The pane
 
-Open it from the **Browser** row in the bar's health popover, from the palette
-(**Open browser**), or from the **browser** chip on a conversation's tool
-roster, which links here. `/browser` shows the first tab; `/browser/<id>` is
+Open it from the **Browser** door in the sidebar (beside Agenda and Today; its
+icon on the collapsed rail, and the way there on a phone, in the drawer), the
+**Browser** row in the bar's health popover, the palette (**Open browser**), or
+the **browser** chip on a conversation's tool roster, which links here. The
+door's dot shows where the browser stands when that needs saying (a failed
+launch); a quiet door has none. `/browser` shows the first tab; `/browser/<id>` is
 one tab's own address, so a tab can sit in a pane of its own (Alt opens it to
 the right, as any link does) and its page title is the pane's title.
 
