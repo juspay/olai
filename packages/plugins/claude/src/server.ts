@@ -53,6 +53,15 @@ export const REMOTE_SIGNALS: ReadonlyArray<string> = [
   "CLAUDE_CODE_REMOTE",
 ]
 
+/**
+ * THE ADAPTER'S OWN-MEMORY SWITCH, set unconditionally on its spawn — the
+ * variable that tells Claude Code its automatic memory is OFF.
+ *
+ * Exporting the name lets tests, the scripted fake and this file's docs share
+ * one spelling of it, the way {@link REMOTE_SIGNALS} is shared.
+ */
+export const DISABLE_AUTO_MEMORY_ENV = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
+
 /** The plugin's word, re-exported for the reason every tenant's server door
  *  re-exports it: one entry per plugin, and one spelling of the key — and
  *  because `@olai/bundle` reads it off the module its ROW names to prove that a
@@ -94,6 +103,13 @@ export const ENGINE: Registering = {
       // told nothing about where it is running, and it offers the
       // paste-a-code methods this panel can run instead (`olai-plugin-chat`'s
       // `agent.ts` is where they become a row).
+
+      // ... AND ITS OWN MEMORY IS SWITCHED OFF, unconditionally — the node's
+      // subtree is the only memory, and a second one the panel cannot see
+      // would drift from it. The env var wins over `autoMemoryEnabled` in the
+      // adapter's own `settings.json`; an operator's contrary export beyond
+      // this door loses on purpose, exactly as the strip above loses.
+      env: { [DISABLE_AUTO_MEMORY_ENV]: "1" },
       //
       // STRIPPED RATHER THAN GUESSED AT, because a variable that happens to be
       // set on somebody's host is not a fact about the person using the panel:

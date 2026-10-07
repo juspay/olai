@@ -61,6 +61,20 @@ export interface Adapter {
    *  read a third one, its child's. Omitted for adapters that want nothing, so a
    *  child inherits exactly what olai has. */
   readonly env?: Readonly<Record<string, string>>
+  /** WHERE AN ENGINE'S OWN MEMORY IS SWITCHED OFF. An engine under olai keeps
+   *  no memory of its own: the node's subtree is the only memory, and a second
+   *  one the panel cannot see would drift from it. A harness that persists
+   *  across sessions by itself (Claude Code's automatic memory, Codex's
+   *  `features.memories`) is told here how it is off — the variable that
+   *  switches it, merged over anything an operator exported. A harness with no
+   *  such memory (opencode, pi, omp's default) documents that it has none. This
+   *  file does not name any of them; each engine's `at` says what its own wire
+   *  does.
+   *
+   *  Besides the original door above, this is the other use of `env`: a value
+   *  set here wins over the same name in olai's own environment, which is what
+   *  makes the switch enforceable from the spawn.
+   */
   /**
    * ... AND THE VARIABLES IT MUST NOT SEE, removed from that same spawn.
    *
