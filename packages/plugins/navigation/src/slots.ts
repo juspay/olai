@@ -52,6 +52,7 @@ export type AppPage =
     readonly face: (props: {
       readonly value: unknown
       readonly filter: string
+      readonly narrow: (filter: string) => void
     }) => JSX.Element
   }
 

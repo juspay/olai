@@ -6,7 +6,8 @@
  *
  * `/fixture/<word>` is the page for one lowercase word. It links to its
  * neighbours with real anchors, so navigation's own link listener answers a
- * plain click, Alt and Alt-Shift on them as it does any link. */
+ * plain click, Alt and Alt-Shift on them as it does any link. It is narrowable,
+ * and draws its own filter box over the `filter` and `narrow` it is handed. */
 import { definePlugin, Slots } from "@olai/plugin-api"
 import { Effect } from "effect"
 import { defineSelfDrawnPage, defineSelfDrawnRoute } from "olai-plugin-navigation/routes"
@@ -24,14 +25,23 @@ const fixture = defineSelfDrawnRoute<{ readonly word: string }>({
   },
   href: ({ word }) => `/fixture/${encodeURIComponent(word)}`,
   breadcrumb: ({ word }) => `Fixture ${word}`,
-  narrowable: false,
+  narrowable: true,
 })
 
-function FixturePage(props: { readonly value: { readonly word: string }; readonly filter: string }) {
+function FixturePage(props: {
+  readonly value: { readonly word: string }
+  readonly filter: string
+  readonly narrow: (filter: string) => void
+}) {
   return (
     <section aria-label="Fixture page" data-word={props.value.word} class="p-8">
       <h1 class="text-xl">Fixture page</h1>
       <p>Word: <output aria-label="Fixture word">{props.value.word}</output></p>
+      {/* The page's own filter box: the `?q=` arrives as `filter`, and a
+          keystroke goes back through `narrow`. */}
+      <input aria-label="Fixture filter" class="border px-2" value={props.filter}
+        onInput={(event) => props.narrow(event.currentTarget.value)} />
+      <p>Narrowed by: <output aria-label="Fixture narrowing">{props.filter}</output></p>
       <nav aria-label="Fixture links" class="flex gap-3">
         <For each={WORDS.filter(word => word !== props.value.word)}>
           {(word) => <a href={fixture.href({ word })} class="underline">{`Fixture ${word}`}</a>}

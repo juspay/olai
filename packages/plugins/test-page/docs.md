@@ -12,7 +12,9 @@ of them.
 `gamma`); anything else under `/fixture/` is claimed and refused. The page
 shows its word and links to the other two with real anchors, so navigation's
 link listener answers plain click, Alt and Alt-Shift on them like any link. Its
-breadcrumb, and so its tab title and pane label, is `Fixture <word>`.
+breadcrumb, and so its tab title and pane label, is `Fixture <word>`. It is
+narrowable: its own filter box writes the address's `?q=` through the `narrow`
+it is handed, and the page shows the `filter` it is given back.
 
 `self_drawn_pages.feature` ([navigation.md](navigation.md#plugin-pages)) drives
 it. This is not a feature anyone turns on.

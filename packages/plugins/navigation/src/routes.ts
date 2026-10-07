@@ -84,6 +84,7 @@ export interface MountedSelfDrawnPage {
   readonly face: (props: {
     readonly value: unknown
     readonly filter: string
+    readonly narrow: (filter: string) => void
   }) => JSX.Element
 }
 
@@ -233,11 +234,17 @@ export const defineSelfDrawnRoute = <Value>(spec: GrammarSpec<Value>): DefinedSe
   definedOver<Value, SelfDrawnPageRoute>({ ...erasedGrammar(spec), kind: "self-drawn" }, spec)
 
 /** Join a self-drawn route to the component that draws it. Navigation mounts
- * the face in the pane, handing it the route's value and its `?q=` (always
- * `""` unless the route is narrowable). */
+ * the face in the pane, handing it the route's value, its `?q=` (always `""`
+ * unless the route is narrowable) and `narrow`, which replaces this pane's
+ * address with the same page narrowed by a new filter — the verb outlines'
+ * filter box spends, so a self-drawn page may draw a box of its own. */
 export const defineSelfDrawnPage = <Value>(
   route: DefinedSelfDrawnRoute<Value>,
-  face: (props: { readonly value: Value; readonly filter: string }) => JSX.Element,
+  face: (props: {
+    readonly value: Value
+    readonly filter: string
+    readonly narrow: (filter: string) => void
+  }) => JSX.Element,
 ): AppPage => {
   const page = {
     [APP_PAGE]: true,

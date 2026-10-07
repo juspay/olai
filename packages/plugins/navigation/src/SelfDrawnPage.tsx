@@ -13,6 +13,11 @@
  * claim table and the host of what it claims share one lifetime.
  *
  * A route whose tenant has left draws `Page not found`, as a node page's does.
+ *
+ * It reports `pending: false` always, and that is deliberate: a self-drawn
+ * page owns its own loading state (a frame stream, a socket) and says so in
+ * what it draws. Navigation has no reading of its own to wait on, so there is
+ * no `pending` prop on the face to report back through.
  */
 import { createMemo, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
@@ -38,6 +43,9 @@ export function SelfDrawnPage() {
   })
   const value = (): unknown => { const at = opened(); return at.kind === "plugin" ? at.value : undefined }
   router.report(here, () => ({ pending: false, title: router.routes.label(route()) }))
+  // A REPLACE, as outlines' filter box does: narrowing is the same page at
+  // another address, not a place to go Back to.
+  const narrow = (filter: string): void => router.replaceIn(here(), router.routes.narrowedTo(route(), filter))
   return (
     <main
       class="relative flex min-w-0 flex-1 flex-col"
@@ -56,7 +64,7 @@ export function SelfDrawnPage() {
           />
         </div>
       }>
-        {(mounted) => <Dynamic component={mounted.face} value={value()} filter={router.routes.filterOf(route())} />}
+        {(mounted) => <Dynamic component={mounted.face} value={value()} filter={router.routes.filterOf(route())} narrow={narrow} />}
       </Show>
     </main>
   )

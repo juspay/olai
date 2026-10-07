@@ -202,6 +202,18 @@ Then(
   },
 );
 
+/** ...and the same claim about one pane by its index, for a split whose panes
+ *  are drawn by different hosts. */
+Then(
+  "pane {int} is drawing the outline {string}",
+  async function (this: OlaiWorld, index: number, file: string) {
+    await this.frontLane()
+      .locator(`${PANE}${attr("data-pane", String(index))}${attr("data-drawn-file", file)}`)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
 Given(
   "I open the outline {string}",
   async function (this: OlaiWorld, file: string) {

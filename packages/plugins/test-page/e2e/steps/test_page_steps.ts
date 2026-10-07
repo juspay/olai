@@ -43,3 +43,46 @@ When(
     await anchor.click({ modifiers: gesture === "Alt" ? ["Alt"] : gesture === "Alt-Shift" ? ["Alt", "Shift"] : [] });
   },
 );
+
+const filterIn = (world: OlaiWorld, index: number) => paneAt(world, index).getByLabel("Fixture filter");
+
+When("I type {string} into the fixture filter in pane {int}", async function (this: OlaiWorld, text: string, index: number) {
+  const box = filterIn(this, index);
+  await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await box.click();
+  // A key at a time: each keystroke narrows the address, and a face remounted
+  // by one would lose the caret before the next.
+  await box.pressSequentially(text);
+});
+
+When("I clear the fixture filter in pane {int}", async function (this: OlaiWorld, index: number) {
+  const box = filterIn(this, index);
+  await box.click();
+  await box.press("ControlOrMeta+a");
+  await box.press("Backspace");
+});
+
+Then("pane {int}'s fixture page is narrowed by {string}", async function (this: OlaiWorld, index: number, filter: string) {
+  const shown = paneAt(this, index).getByLabel("Fixture narrowing");
+  await this.waitUntil(
+    async () => (await shown.textContent()) === filter && (await filterIn(this, index).inputValue()) === filter,
+    `pane ${index}'s fixture page to be narrowed by ${JSON.stringify(filter)}`,
+  );
+});
+
+Then("the fixture filter in pane {int} has the caret", async function (this: OlaiWorld, index: number) {
+  assert.ok(await filterIn(this, index).evaluate((box) => box === document.activeElement), "the fixture filter lost the caret");
+});
+
+/** A DOM-identity probe on one pane's page element: a page that was torn
+ *  down and drawn again is a new element, without the tag. */
+When("I tag the page drawn in pane {int}", async function (this: OlaiWorld, index: number) {
+  await paneAt(this, index).first().evaluate((page) => { (page as HTMLElement & { olaiTagged?: true }).olaiTagged = true; });
+});
+
+Then("pane {int} still draws the page it was tagged on", async function (this: OlaiWorld, index: number) {
+  assert.ok(
+    await paneAt(this, index).first().evaluate((page) => (page as HTMLElement & { olaiTagged?: true }).olaiTagged === true),
+    `pane ${index}'s page was drawn again`,
+  );
+});
