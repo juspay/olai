@@ -83,7 +83,11 @@ export function BrowserPage(props: {
     show(null)
     if (targetId === null || pid === null || !open) return
     const fiber = Effect.runFork(Stream.runForEach(props.browsing.watch({ targetId, ...ASK }), (got) => Effect.sync(() => {
-      if (got._tag === "frame") show({ src: pictureOf(got.jpeg), meta: got.meta })
+      if (got._tag === "frame") {
+        show({ src: pictureOf(got.jpeg), meta: got.meta })
+        // The first frame after the row answered a resize is the new size.
+        if (answered) { answered = false; settle(false) }
+      }
       else say(got.says)
     })).pipe(Effect.catchCause(() => Effect.void)))
     onCleanup(() => { void Effect.runPromise(Fiber.interrupt(fiber)) })
@@ -99,9 +103,9 @@ export function BrowserPage(props: {
 
   let picture: HTMLImageElement | undefined
   let viewer: HTMLDivElement | undefined
-  const at = (event: { readonly clientX: number; readonly clientY: number }) => {
+  const at = (event: { readonly clientX: number; readonly clientY: number }, settled = true) => {
     const held = frame()
-    if (held === null || picture === undefined) return null
+    if (held === null || picture === undefined || (settled && settling())) return null
     return pagePoint(picture.getBoundingClientRect(), held.meta, event.clientX, event.clientY)
   }
   let moving = 0
@@ -125,23 +129,45 @@ export function BrowserPage(props: {
   // rather than a 16:10 picture with nothing under it. Per tab: two panes on
   // one tab, the box asked last wins.
   const [box, setBox] = createSignal<{ readonly width: number; readonly height: number } | null>(null)
+  // WHILE A RESIZE IS IN FLIGHT the picture is the old layout and the page is
+  // the new one, so a press mapped through the picture would land somewhere
+  // the person never pointed. From asking until the first frame after the row
+  // answers, pointer presses are dropped (keys do not depend on geometry and
+  // still go). `asked` is what this pane last asked for, so it can say when
+  // its picture is the size it wanted (`data-sized`).
+  const [settling, settle] = createSignal(false)
+  const [asked, setAsked] = createSignal<{ readonly width: number; readonly height: number } | null>(null)
+  let answered = false
   createEffect(on([shown, up, box] as const, ([targetId, pid, size]) => {
     if (targetId === null || pid === null || size === null) return
-    void run(calls.tab.resize({ targetId, ...size }))
+    settle(true)
+    answered = false
+    setAsked(size)
+    const done = window.setTimeout(() => settle(false), 2_000)
+    onCleanup(() => clearTimeout(done))
+    void Effect.runPromise(calls.tab.resize({ targetId, ...size })).then(
+      () => { answered = true },
+      (failure) => { settle(false); say(sayOf(failure)) },
+    )
   }))
+  const sized = () => {
+    const want = asked()
+    const now = box()
+    return !settling() && want !== null && now !== null && want.width === now.width && want.height === now.height
+  }
   const measure = (element: HTMLElement) => {
-    let settle = 0
+    let quiet = 0
     const observer = new ResizeObserver(([entry]) => {
       if (entry === undefined) return
-      clearTimeout(settle)
-      settle = window.setTimeout(() => {
+      clearTimeout(quiet)
+      quiet = window.setTimeout(() => {
         const next = clampViewport(entry.contentRect)
         const held = box()
         if (held === null || held.width !== next.width || held.height !== next.height) setBox(next)
       }, SETTLE_MS)
     })
     observer.observe(element)
-    onCleanup(() => { clearTimeout(settle); observer.disconnect() })
+    onCleanup(() => { clearTimeout(quiet); observer.disconnect() })
   }
 
   const [holding, hold] = createSignal(false)
@@ -216,7 +242,7 @@ export function BrowserPage(props: {
                 onCleanup(() => element.removeEventListener("wheel", onWheel))
               }}
                 class="relative min-h-0 flex-1 overflow-hidden rounded border border-rule outline-none focus:border-ink"
-                tabindex={0} aria-label="Page" data-testid={TESTID.browserViewer} data-keys={holding() ? "page" : "app"}
+                tabindex={0} aria-label="Page" data-testid={TESTID.browserViewer} data-keys={holding() ? "page" : "app"} data-sized={sized() ? "true" : "false"}
                 onFocus={() => hold(true)} onBlur={() => hold(false)}
                 onKeyDown={onKey("keyDown")} onKeyUp={onKey("keyUp")} onPaste={onPaste}
                 onContextMenu={(event) => event.preventDefault()}>
@@ -234,7 +260,7 @@ export function BrowserPage(props: {
                         send(mouseOf("mouseMoved", point, event))
                         send(mouseOf("mousePressed", point, event))
                       }}
-                      onPointerUp={(event) => { const point = at(event); if (point !== null) send(mouseOf("mouseReleased", point, event)) }}
+                      onPointerUp={(event) => { const point = at(event, false); if (point !== null) send(mouseOf("mouseReleased", point, event)) }}
                       onPointerMove={onMove} />
                   )}
                 </Show>

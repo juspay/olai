@@ -331,7 +331,10 @@ down; every page seeing a headed Chrome's user agent (`Chrome/`, never
 person's page and an agent's MCP page alike; on a phone, whose pane is taller
 than 16:10, the viewport following the pane so the picture's natural size is
 the viewer's within a few px, and a press on a button at the page's bottom
-landing; Start, a tab appearing, the address bar, a decoded frame,
+landing (every press step first waits for the pane to say its picture is the
+size it asked for, since the pane drops presses while a resize is in flight;
+the person-and-agent two-pane scenario is what showed a press during that
+window misdirected); Start, a tab appearing, the address bar, a decoded frame,
 pressing a page's button and typing and pasting into its box through the
 picture (asserted by the tab title the page sets), Escape handing the keys
 back, opening and closing a tab, a second pane (Alt) on the same tab streaming

@@ -166,6 +166,10 @@ Then("the browser's address bar shows the site's {string} page", async function 
 const pressAt = async (world: OlaiWorld, index: number, fx: number, fy: number, modifiers: Array<"Alt"> = []) => {
   const frame = frameIn(world, index)
   await frame.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  // As a person waits for the picture to settle after a pane changes size:
+  // a press while the page is being resized is dropped by the pane.
+  await pageIn(world, index).locator(`${id(TESTID.browserViewer)}${attr("data-sized", "true")}`)
+    .waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT })
   const box = await frame.boundingBox()
   assert.ok(box, "the picture has no box")
   await frame.click({ position: { x: box.width * fx, y: box.height * fy }, modifiers })
