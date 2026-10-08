@@ -133,11 +133,17 @@ function Chip(props: { readonly server: ChatServer }) {
       // pixels, and a test that pinned it would fail the next time somebody
       // improved it. Tests assert behaviour, not styling.
       data-standing={props.server.standing.kind}
+      data-at={props.server.at}
       title={`${props.server.name} ${said().sentence}${
         props.server.where === null ? "" : ` — ${props.server.where}`
       }`}
     >
-      <span>{props.server.name}</span>
+      {/* A server whose plugin has a page for it is a LINK to that page —
+          an ordinary app address, so navigation answers a press on it as it
+          does any link. What the page shows is the plugin's business. */}
+      <Show when={props.server.at} fallback={<span>{props.server.name}</span>}>
+        {(at) => <a href={at()} class="underline decoration-rule underline-offset-2 hover:decoration-ink">{props.server.name}</a>}
+      </Show>
       <Show when={mark()}>
         {(one) => <span class={one().tint} aria-hidden="true">{one().glyph}</span>}
       </Show>

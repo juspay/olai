@@ -58,6 +58,13 @@ describe("the roster as olai composed it", () => {
     ])
   })
 
+  test("a handed server whose plugin named a page carries it, and keeps it as the agent reports", () => {
+    const roster = rosterOf([OLAI, ALPHA], [ABSENT], new Map([["alpha", "/alpha"], ["absent-elsewhere", "/x"]]))
+    expect(roster.map((server) => server.at)).toEqual([undefined, "/alpha", undefined])
+    const moved = movedBy(roster, [{ name: "alpha", attached: true, said: "" }] as never)
+    expect(moved?.[1]).toEqual({ name: "alpha", where: ALPHA.command, standing: { kind: "connected" }, at: "/alpha" })
+  })
+
   test("handing a server over is not the same as the agent having it", () => {
     // The whole layering, in one assertion. Olai knows what it put on the wire
     // and cannot know what the session did with it, so nothing here is

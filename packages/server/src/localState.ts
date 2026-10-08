@@ -8,6 +8,11 @@
  *
  * The caller mints this door once per plugin name. Two doors would mean two
  * chains writing the same path; `openPlugins` keeps the name-to-door map.
+ *
+ * The DIRECTORY beside the record is opened on each read rather than once:
+ * the open is idempotent and re-asserts the owner-only mode, and a home
+ * somebody cleaned out mid-serve comes back on the next ask instead of being a
+ * path that no longer exists.
  */
 
 import { Effect, Semaphore } from "effect"
@@ -15,7 +20,9 @@ import { Effect, Semaphore } from "effect"
 import type { LocalState } from "@olai/plugin-api/services"
 import {
   canonical,
+  directoryForLocal,
   fileForLocal,
+  openLocalDirectory,
   readLocal,
   writeLocal,
   type LocalRecord,
@@ -54,7 +61,13 @@ export const localStateFor = (
       return value
     }))
 
+  const directory = Effect.tapError(
+    Effect.suspend(() => openLocalDirectory(directoryForLocal(plugin, cwd), cwd)),
+    (failure) => Effect.sync(() => warn(`plugin ${plugin}: local directory unavailable (${failure.why})`)),
+  )
+
   return {
+    directory,
     load: gate.withPermit(loadOnce),
     save: (value) =>
       gate.withPermit(Effect.gen(function*() {

@@ -228,7 +228,7 @@ terms that need an example.
 | **mark** | the plugin's logo: a small glyph beside a message it delivered into a conversation, and beside an engine's name in the picker and header |
 | **engine install row** | one engine's line on the screen shown when the machine has no coding agent. The plugin supplies a `NotHere` value (the words); core draws every stroke, including whether the name is a link |
 | **watching** (`Watching`) | a push service: core tells a plugin what happened in a conversation — a delivery that landed, an orchestrator reply that settled, a turn that started or ended. Human messages are not included |
-| **local state** (`LocalState`) | one opaque document per plugin and served directory, in the state home rather than the vault. Core owns its path and ordered write chain; each save settles with the write's outcome |
+| **local state** (`LocalState`) | one opaque document per plugin and served directory, in the state home rather than the vault. Core owns its path and ordered write chain; each save settles with the write's outcome. Its `directory` reading is the record's sibling for state that is a tree of files another program writes — `<state>/olai/<plugin>/<digest>/`, created owner-only, marked with the served path, refused if it belongs to another one, and swept with the records once that path is gone. The browsing row keeps its Chromium profile there; what goes inside is the plugin's |
 | **doorbell** (`Deliveries`) | the write-only service a plugin uses to post a message into a conversation, keyed to the calling plugin's name |
 | **wake** | the plugin's own wording for the control a person uses to point that doorbell at a file |
 | **roster** | which plugins this build has, and which this server is running |

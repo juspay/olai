@@ -320,6 +320,76 @@ that the sidebar action itself has drawn its destination.
 
 ## Browsing tools
 
+`the_agents_browser.feature` (`@browsing-live`) runs the e2e shell's pinned
+Chromium as the row's own browser and the real Playwright MCP as each
+conversation's tools; the scenario serves its pages on loopback. It covers
+opening `/browser` from the health popover, the palette, the sidebar's Browser
+door (current while the pane shows) and the collapsed rail's, and on a phone
+from the drawer's door through Start to a decoded frame, while the browser is
+down; every page seeing a headed Chrome's user agent (`Chrome/`, never
+`Headless`) in its title and in the HTTP header the site recorded, the
+person's page and an agent's MCP page alike; on a phone, whose pane is taller
+than 16:10, the viewport following the pane so the picture's natural size is
+the viewer's within a few px, and a press on a button at the page's bottom
+landing (every press step first waits for the pane to say its picture is the
+size it asked for, since the pane drops presses while a resize is in flight;
+the person-and-agent two-pane scenario is what showed a press during that
+window misdirected); Start, a tab appearing, the address bar, a decoded frame,
+pressing a page's button and typing and pasting into its box through the
+picture (asserted by the tab title the page sets), Escape handing the keys
+back, opening and closing a tab, a second pane (Alt) on the same tab streaming
+and the first staying live after the second closes, two panes on two
+DIFFERENT tabs — two of the person's, and the person's beside one an agent's
+MCP opened — each picture moving when its own page is pressed or typed into,
+in either order of use (every tab shares one headless window, where only the
+front tab paints; without the row's focus emulation the person's two-tab case
+stalls, which was checked by removing it), the chat roster's
+`browser` chip linking to the pane, an agent's real MCP navigating in the
+person's browser and its `browser_close` leaving the browser and the tab up,
+site storage surviving an olai restart (and Chromium dying with the stopped
+server) until **Forget sign-ins** clears it, switching the row off killing the
+Chromium process and on-again Start relaunching a new one, and a dropped
+socket resuming the stream. The first scenario also checks Chromium runs inside
+its own sandbox by default, and one `@browsing-live-unsandboxed` scenario sets
+`OLAI_BROWSER_CHROMIUM_SANDBOX=container` and checks the browser starts with
+`--no-sandbox` on its command line and streams and takes a press. Each ends
+with no page errors. A `browsing.feature`
+scenario covers the blank-Chromium case: the pane says why, the conversation
+keeps its isolated handoff and the chip still links.
+
+Unit tests hold the CDP pipe framing (split and joined frames, refusals,
+events, a closed pipe failing calls in flight), the standing walk and one
+shared launch under concurrent demands, a failed launch retried, a crash
+taking the browser to `failed` with its tabs cleared and panes told, row
+withdrawal releasing the browser and interrupting a launch, the screencast
+refcount (one per tab, every frame acknowledged, the last frame handed to a
+joining pane, stopped with the last pane), titles re-read at once on loads and
+at most once a second (trailing) on a stream of pictures, every gesture's CDP
+shape, forgetting sign-ins, the address bar's
+URL reading, the pane's pointer and key mapping, the attached handoff's args
+and env, and core's local directory door. The Nix surface check launches the
+pinned Chromium, attaches the pinned MCP over CDP twice to prove one shared
+cookie jar, checks `browser_close` leaves the browser running, and receives
+screencast frames through the plugin's own client, printing their size
+against the surface frame cap.
+
+Open, not driven end to end: a host that refuses Chromium's sandbox (the
+`No usable sandbox` sentence naming the knob is unit-tested against a stand-in
+Chromium, and reproduced by hand under `bwrap --disable-userns`); switching the
+row off while a conversation's
+real MCP is attached (the MCP losing its browser mid-session; the e2e switches
+the row off with only the pane attached), a Chromium that crashes under a
+running row (unit-tested only), a page's own title changes that repaint
+nothing (read on the next load or picture), keyboard composition (IME),
+drag-and-drop and file upload into a page, and macOS beyond the build check.
+The aarch64-darwin Chromium path is exercised only by the Nix surface check on
+GitHub's `macos-latest-xlarge` (single-user Nix, no darwin build sandbox), where
+Chromium launches, the MCP attaches and browses, and frames arrive. Not
+covered: a sandboxed darwin builder (the check allows loopback for one but none
+has run it), the e2e suite on macOS, and olai's own launch under launchd, where
+`--use-mock-keychain` is what keeps the profile's cookie store from waiting on
+the Keychain (`packages/plugins/browsing/default.nix` records the evidence).
+
 `browsing.feature` uses a scripted MCP executable and the existing ACP fixture.
 The lifecycle workflow verifies the engine's received server list, two distinct
 0700 conversation output directories and their removal on withdrawal, same-node
@@ -335,9 +405,8 @@ failed probes leaving no conversation directories, missing tools, timeout, early
 exit with bounded stderr diagnostics, non-executable and absent knobs, unexpected
 preparation defects, transport cancellation, pagination, notifications and malformed
 JSON shapes. Private pure protocol tests cover partial-line framing, bounds,
-message parsing, initialization order and immutable pagination state. The sandboxed Nix surface check asks the real pinned executable for
-its tool list without launching Chromium. Live web browsing and live model
-behavior are not exercised by CI.
+message parsing, initialization order and immutable pagination state. Live
+model behavior is not exercised by CI.
 
 The same-node toggle case exposed a product race: a reconnecting reader for the
 old binding could enqueue `session/load` while fresh-start was still opening.

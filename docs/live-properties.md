@@ -70,7 +70,7 @@ The chip's press opens a **pane** beneath the property run — one at a time per
 
 ## What a live face is allowed to be
 
-**Reading, never a hand on the thing.** A live pane is read-only and a run matrix has no buttons in it: watching something must not perturb it. A readout that quietly grew a verb would be the one thing these integrations must not do.
+**Reading, never a hand on the thing.** A live pane is read-only and a run matrix has no buttons in it: watching something must not perturb it. A readout that quietly grew a verb would be the one thing these integrations must not do. The one exception is the [browser pane](plugins/browsing.md): that browser is the person's own, with the agents as guests in it, so the pane is a hand on it by design rather than a readout that grew one.
 
 **No tab dials anything.** The SERVER holds the one connection or takes the one reading, and every browser is a subscriber to it. Twelve tabs on a lanes outline are twelve readers of **one** sweep.
 

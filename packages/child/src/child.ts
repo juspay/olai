@@ -98,6 +98,9 @@ export interface Child {
   readonly stdin: Writable | null
   readonly stdout: Readable | null
   readonly stderr: Readable | null
+  /** Every stdio slot by number, for a caller that asked for pipes past fd 2
+   *  (Chromium's `--remote-debugging-pipe` speaks on fds 3 and 4). */
+  readonly stdio: ReadonlyArray<Readable | Writable | null | undefined>
   /**
    * Settles ONLY if the exec failed. A child that started never settles this,
    * so a caller may race it against its own conversation without the loser
@@ -268,6 +271,7 @@ export const start = (
       return child.exitCode
     },
     stdin: child.stdin,
+    stdio: child.stdio,
     stdout: child.stdout,
     stderr: child.stderr,
     unstartable,

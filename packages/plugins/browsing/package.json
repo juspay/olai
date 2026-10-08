@@ -7,17 +7,27 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./wire": "./src/wire.ts",
     "./server": "./src/server.ts",
+    "./browser": "./src/browser.tsx",
+    "./testids": "./src/testids.ts",
+    "./all.css": "./src/browser/all.css",
     "./e2e/fake": "./e2e/fake/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@olai/child": "workspace:*",
+    "@olai/effect-cordis": "workspace:*",
     "@olai/plugin-api": "workspace:*",
     "@olai/plugin-kit": "workspace:*",
+    "@olai/ui-primitives": "workspace:*",
     "effect": "4.0.0",
-    "@olai/effect-cordis": "workspace:*"
+    "olai-plugin-layout": "workspace:*",
+    "olai-plugin-navigation": "workspace:*",
+    "olai-plugin-sidebar": "workspace:*",
+    "solid-js": "^1.9.0"
   },
   "devDependencies": {
     "@olai/tests": "workspace:*",
@@ -27,7 +37,13 @@
     "knobs": {
       "OLAI_BROWSER_MCP": {
         "kind": "file"
+      },
+      "OLAI_BROWSER_CHROMIUM": {
+        "kind": "file"
       }
-    }
+    },
+    "contracts": [
+      "./testids"
+    ]
   }
 }

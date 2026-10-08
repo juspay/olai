@@ -1,7 +1,9 @@
 @browsing @scratch:chat
-Feature: Conversations receive isolated web browser tools
-  The executable is a scripted MCP double. These scenarios exercise ACP handoff
-  and the visible failure and lifecycle paths without launching Chromium.
+Feature: Conversations receive web browser tools
+  The executable is a scripted MCP double and no Chromium is configured, so
+  each conversation is handed the isolated, self-launching browser. These
+  scenarios exercise ACP handoff and the visible failure and lifecycle paths
+  without launching Chromium; `the_agents_browser.feature` runs the real one.
 
   Background:
     Given the harness keeps distinct sessions on disk
@@ -71,4 +73,16 @@ Feature: Conversations receive isolated web browser tools
     When I ask the agent "servers"
     Then the agent's answer mentions "browser"
     And the browser MCP has been probed 2 times with private scratch
+    And there should be no page errors
+
+  Scenario: With no Chromium configured, the pane says why and conversations keep an isolated browser
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    Then the panel says this conversation has "browser"
+    And the chat's browser chip links to the browser pane
+    And the browser MCP has been probed 1 time with private scratch
+    When I press the chat's browser chip
+    Then pane 0 draws the browser page
+    And the browser pane says the browser is absent
+    And the browser pane says "OLAI_BROWSER_CHROMIUM is empty"
     And there should be no page errors

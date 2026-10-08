@@ -89,6 +89,7 @@ test("recordOf is what snapshotOf reads back", () => {
 test("simultaneous channel writes share one lane", async () => {
   let record: Record<string, unknown> = {}
   const door: LocalState = {
+    directory: Effect.fail({ _tag: "StateFailure", why: "unused here" }),
     load: Effect.succeed(null),
     save: (next) => Effect.gen(function*() {
       yield* Effect.yieldNow
@@ -119,6 +120,7 @@ test("a refused write leaves the last landed snapshot in memory", async () => {
     droppedTotal: 0,
   }
   const door: LocalState = {
+    directory: Effect.fail({ _tag: "StateFailure", why: "unused here" }),
     load: Effect.succeed(recordOf(before)),
     save: () => Effect.fail({ _tag: "StateFailure", reason: "the state home is read-only" }),
   }

@@ -122,12 +122,18 @@ import { attr } from "./selectors.ts";
  * page, and an assertion quietly passing for the wrong screen.
  */
 /** WHAT CHROMIUM SAYS WHEN THIS SUITE CUTS ITS WIRE — the exact lines
- *  `setOffline(true)` produces, matched in full so that no product diagnostic
- *  can hide behind them. See `OlaiWorld.offlineFrom`. */
+ *  `setOffline(true)` and a stopped server produce, matched in full so that no
+ *  product diagnostic can hide behind them. See `OlaiWorld.offlineFrom`. */
 const OUTAGE_NOISE = (error: string): boolean =>
   error === "console.error: Failed to load resource: net::ERR_INTERNET_DISCONNECTED" ||
   (error.startsWith("console.error: WebSocket connection to 'ws://127.0.0.1:") &&
-    error.endsWith("failed: Error in connection establishment: net::ERR_INTERNET_DISCONNECTED"))
+    // Offline is the network gone; refused is the server stopped under the
+    // page (`the server stops`), and reset is a redial landing on the port
+    // the harness holds while it is stopped — all the suite's own doing once
+    // noted.
+    (error.endsWith("failed: Error in connection establishment: net::ERR_INTERNET_DISCONNECTED") ||
+      error.endsWith("failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED") ||
+      error.endsWith("failed: Error during WebSocket handshake: net::ERR_CONNECTION_RESET")))
 
 export const placeOf = (url: URL): string => url.pathname + url.hash;
 
