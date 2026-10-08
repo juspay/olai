@@ -82,7 +82,8 @@ Feature: The person sees and uses the browser their agents use
     When I open the address "/browser"
     And I tap Start in the browser pane
     And I go to the site's "fixture" page in the browser's address bar
-    Then pane 0 draws a picture as tall as its viewer
+    Then the shown browser tab in pane 0 is titled "Fixture"
+    And pane 0 draws a picture as tall as its viewer
     When I press the page's bottom button through pane 0
     Then the shown browser tab in pane 0 is titled "bottom"
     And there should be no page errors
@@ -192,7 +193,8 @@ Feature: The person sees and uses the browser their agents use
     Then the browser pane says the browser is up
     And the browser runs without its own sandbox
     When I go to the site's "fixture" page in the browser's address bar
-    Then pane 0 draws a picture of the page
+    Then the shown browser tab in pane 0 is titled "Fixture"
+    And pane 0 draws a picture of the page
     When I note the picture in pane 0
     And I press the page's button through pane 0
     Then the shown browser tab in pane 0 is titled "clicked"
@@ -280,7 +282,8 @@ Feature: The person sees and uses the browser their agents use
     When I open the address "/browser"
     And I start the browser from the pane
     And I go to the site's "fixture" page in the browser's address bar
-    Then pane 0 draws a picture of the page
+    Then the shown browser tab in pane 0 is titled "Fixture"
+    And pane 0 draws a picture of the page
     When I mark the page
     And the browser goes offline
     Then the connection is "reconnecting"
