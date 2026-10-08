@@ -81,6 +81,7 @@ export default definePlugin({
           tab: {
             input: ({ input }) => live.input(input.targetId, input.event),
             navigate: ({ input }) => live.navigate(input.targetId, input.url),
+            resize: ({ input }) => live.resize(input.targetId, { width: input.width, height: input.height }),
             open: () => live.open,
             close: ({ input }) => live.close(input.targetId),
           },

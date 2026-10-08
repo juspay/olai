@@ -38,6 +38,16 @@ the right, as any link does) and its page title is the pane's title.
   profile: every cookie, saved login and site storage it held. The next start
   is a fresh browser.
 
+**The page is the pane's size.** The browser starts at 1280×800, and from
+then on the page's viewport follows the box the pane draws it in: resize a
+split, turn a phone, open a tall pane on the right, and the page is laid out
+again at that size (within 320–3840 by 240–2160 CSS px), so the picture fills
+the pane at one to one rather than shrinking a 16:10 page into it. Each tab is
+sized on its own, so two panes on two tabs each get their own size; two panes
+on one tab share it, and the one that changed last wins. An agent's page is
+resized only while a pane shows it; otherwise it keeps the size its MCP left
+it at.
+
 The picture is the browser's own screencast of that tab, so a pane that nobody
 is looking at costs nothing: the screencast starts when the first pane opens on
 a tab and stops when the last one closes. Several panes on one tab share it,

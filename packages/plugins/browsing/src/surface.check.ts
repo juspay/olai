@@ -77,13 +77,15 @@ const program = Effect.scoped(Effect.gen(function*() {
   try { process.kill(pid, 0) } catch { fail("browser_close stopped the shared browser") }
   const tabs = [...live.tabs().values()]
   const shown = tabs.find((tab) => tab.title === "check") ?? fail(`no tab carries the navigated page: ${JSON.stringify(tabs)}`)
-  for (const [maxWidth, quality] of [[1280, 80], [1280, 60], [640, 50]] as const) {
-    const frame = yield* Stream.runHead(live.screencast({ targetId: shown.id, maxWidth, quality }))
+  for (const [width, quality] of [[1280, 80], [1280, 60], [640, 50]] as const) {
+    yield* live.resize(shown.id, { width, height: Math.round(width * 0.625) })
+    const frame = yield* Stream.runHead(live.screencast({ targetId: shown.id, quality }))
     const got = Option.getOrElse(frame, () => fail("the screencast ended without a frame"))
     if (got._tag !== "frame") fail(`the screencast refused: ${got.says}`)
     if (got._tag === "frame") {
       const bytes = JSON.stringify(got).length
-      console.log(`screencast ${maxWidth}px q${quality}: ${bytes} bytes on the wire (${(100 * bytes / RPC_MAX_FRAME_BYTES).toFixed(2)}% of ${RPC_MAX_FRAME_BYTES})`)
+      if (got.meta.deviceWidth !== width) fail(`the viewport did not follow the resize to ${width}px: ${JSON.stringify(got.meta)}`)
+      console.log(`screencast ${width}px q${quality}: ${bytes} bytes on the wire (${(100 * bytes / RPC_MAX_FRAME_BYTES).toFixed(2)}% of ${RPC_MAX_FRAME_BYTES})`)
     }
   }
   console.log(`Browser MCP attached over CDP to Chromium ${pid}: ${server.command}`)

@@ -17,7 +17,7 @@ import { useGo } from "olai-plugin-navigation/routing"
 import type { Route } from "olai-plugin-navigation/routes"
 import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js"
 import { TESTID } from "../testids.ts"
-import { type FrameMeta, type InputEvent, type Standing, WINDOW } from "../wire.ts"
+import { clampViewport, type FrameMeta, type InputEvent, type Standing } from "../wire.ts"
 import type { Browsing } from "./client.ts"
 import { addressOf, keptByPane, keyOf, mouseOf, pagePoint } from "./gestures.ts"
 
@@ -25,9 +25,13 @@ export interface Shown {
   readonly targetId: string | null
 }
 
-/** The picture is asked at the browser's own window width, so it is never
- *  upscaled; a quality that keeps a busy page near 300 KB a frame. */
-const ASK = { maxWidth: WINDOW.width, quality: 60 } as const
+/** A quality that keeps a busy 1280-wide page near 300 KB a frame. The
+ *  frame's size is the viewport's, which follows this pane's box. */
+const ASK = { quality: 60 } as const
+
+/** How long a box must hold still before the viewport follows it: a drag of
+ *  a split asks once, at the end, rather than once a frame. */
+const SETTLE_MS = 150
 
 const BUTTON = "rounded border border-rule px-2 py-0.5 text-caption hover:bg-ink/5 disabled:opacity-50"
 
@@ -117,6 +121,29 @@ export function BrowserPage(props: {
     send(mouseOf("mouseWheel", point, event, { deltaX: event.deltaX * scale, deltaY: event.deltaY * scale }))
   }
 
+  // THE VIEWPORT FOLLOWS THIS PANE'S BOX, so a tall pane gets a tall page
+  // rather than a 16:10 picture with nothing under it. Per tab: two panes on
+  // one tab, the box asked last wins.
+  const [box, setBox] = createSignal<{ readonly width: number; readonly height: number } | null>(null)
+  createEffect(on([shown, up, box] as const, ([targetId, pid, size]) => {
+    if (targetId === null || pid === null || size === null) return
+    void run(calls.tab.resize({ targetId, ...size }))
+  }))
+  const measure = (element: HTMLElement) => {
+    let settle = 0
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry === undefined) return
+      clearTimeout(settle)
+      settle = window.setTimeout(() => {
+        const next = clampViewport(entry.contentRect)
+        const held = box()
+        if (held === null || held.width !== next.width || held.height !== next.height) setBox(next)
+      }, SETTLE_MS)
+    })
+    observer.observe(element)
+    onCleanup(() => { clearTimeout(settle); observer.disconnect() })
+  }
+
   const [holding, hold] = createSignal(false)
   const onKey = (type: "keyDown" | "keyUp") => (event: KeyboardEvent) => {
     const kept = keptByPane(event)
@@ -184,6 +211,7 @@ export function BrowserPage(props: {
                 }} />
               <div ref={(element) => {
                 viewer = element
+                measure(element)
                 element.addEventListener("wheel", onWheel, { passive: false })
                 onCleanup(() => element.removeEventListener("wheel", onWheel))
               }}

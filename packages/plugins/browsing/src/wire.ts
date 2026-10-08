@@ -25,9 +25,20 @@ export const name = "browsing"
 /** The pane's own address, which chat's roster chip links to. */
 export const BROWSER_PATH = "/browser"
 
-/** The headless window olai launches Chromium at. The pane asks for frames
- *  at its width, so a picture is never upscaled. */
+/** The headless window olai launches Chromium at — its first size only. A
+ *  pane then sizes the viewport to its own box (`tab.resize`). */
 export const WINDOW = { width: 1280, height: 800 } as const
+
+/** The viewport sizes a pane may ask for, in CSS px. The ceiling is also
+ *  every screencast's bound, so a frame always comes at the viewport's own
+ *  size: never upscaled, never letterboxed by a stale bound. */
+export const VIEWPORT = { min: { width: 320, height: 240 }, max: { width: 3840, height: 2160 } } as const
+
+/** A pane's measured box as a viewport: whole CSS px, within {@link VIEWPORT}. */
+export const clampViewport = (size: { readonly width: number; readonly height: number }): { readonly width: number; readonly height: number } => {
+  const one = (value: number, min: number, max: number) => Math.min(max, Math.max(min, Math.round(Number.isFinite(value) ? value : min)))
+  return { width: one(size.width, VIEWPORT.min.width, VIEWPORT.max.width), height: one(size.height, VIEWPORT.min.height, VIEWPORT.max.height) }
+}
 
 /**
  * WHERE THE BROWSER STANDS. `absent` is a serve with no Chromium configured
@@ -60,11 +71,10 @@ export const Tab = Schema.Struct({
 })
 export type Tab = typeof Tab.Type
 
-/** What the pane asks a screencast for. The frame is scaled by the browser to
- *  `maxWidth` CSS px wide at most, JPEG at `quality` (0–100). */
+/** What the pane asks a screencast for: the tab, and JPEG `quality`
+ *  (0–100). Its size is the viewport's ({@link VIEWPORT}). */
 export const ScreencastAsk = Schema.Struct({
   targetId: Schema.String,
-  maxWidth: Schema.Number,
   quality: Schema.Number,
 })
 export type ScreencastAsk = typeof ScreencastAsk.Type
@@ -160,6 +170,9 @@ export const surface = defineSurface({
     tab: {
       input: { input: Schema.Struct({ targetId: Schema.String, event: InputEvent }), error: BrowserRefused },
       navigate: { input: Schema.Struct({ targetId: Schema.String, url: Schema.String }), error: BrowserRefused },
+      /** Size the tab's viewport to a pane's box. Per tab: several panes on
+       *  one tab, the most recent ask wins. */
+      resize: { input: Schema.Struct({ targetId: Schema.String, width: Schema.Number, height: Schema.Number }), error: BrowserRefused },
       open: { input: Nothing, output: OnTab, error: BrowserRefused },
       close: { input: OnTab, error: BrowserRefused },
     },
@@ -186,6 +199,7 @@ export const faces = {
     screencast: "resource",
     "tab.input": "tool",
     "tab.navigate": "tool",
+    "tab.resize": "tool",
     "tab.open": "tool",
     "tab.close": "tool",
     "browser.start": "tool",

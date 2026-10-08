@@ -75,6 +75,18 @@ Feature: The person sees and uses the browser their agents use
     Then pane 0 draws a picture of the page
     And there should be no page errors
 
+  @phone
+  Scenario: A tall pane gets a tall page, and a press near its bottom lands
+    # The viewport follows the pane's box rather than Chromium's first
+    # 1280x800 window, so a pane taller than 16:10 is filled, not letterboxed.
+    When I open the address "/browser"
+    And I tap Start in the browser pane
+    And I go to the site's "fixture" page in the browser's address bar
+    Then pane 0 draws a picture as tall as its viewer
+    When I press the page's bottom button through pane 0
+    Then the shown browser tab in pane 0 is titled "bottom"
+    And there should be no page errors
+
   Scenario: The palette opens the pane, a second pane watches the same tab, and closing one keeps the other live
     When I press the palette shortcut
     And I type "open browser" into the palette

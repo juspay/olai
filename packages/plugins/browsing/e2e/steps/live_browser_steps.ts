@@ -35,7 +35,8 @@ const DRIVEN: Readonly<Record<string, readonly [title: string, pressed: string, 
 const drivenPage = ([title, pressed, typed]: readonly [string, string, string]) =>
   `<!doctype html><title>${title}</title><body style="margin:0;font:32px sans-serif">
 <button style="position:fixed;left:0;top:0;width:50vw;height:30vh;font-size:32px" onclick="document.title='${pressed}'">Rename</button>
-<input style="position:fixed;left:0;top:40vh;width:50vw;height:20vh;font-size:32px" oninput="document.title='${typed}'+this.value">`
+<input style="position:fixed;left:0;top:40vh;width:50vw;height:20vh;font-size:32px" oninput="document.title='${typed}'+this.value">
+<button style="position:fixed;left:0;bottom:0;width:50vw;height:12vh;font-size:32px" onclick="document.title='bottom'">Bottom</button>`
 
 /** ...and one that remembers a choice in its origin's storage, which is the
  *  stand-in for a sign-in: the title says what the browser kept. */
@@ -314,4 +315,26 @@ Then("the site was only ever asked for pages as a headed Chrome", function (this
   const agents = sites.get(this)?.agents ?? []
   assert.ok(agents.length > 0, "the site was asked for nothing")
   for (const agent of agents) assert.ok(headed(agent), `the site was asked by ${JSON.stringify(agent)}`)
+})
+
+When("I press the page's bottom button through pane {int}", async function (this: OlaiWorld, index: number) {
+  await pressAt(this, index, 0.25, 0.95)
+})
+
+Then("pane {int} draws a picture as tall as its viewer", async function (this: OlaiWorld, index: number) {
+  const viewer = pageIn(this, index).locator(id(TESTID.browserViewer))
+  const frame = frameIn(this, index)
+  await frame.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  const sizes = async () => ({
+    box: await viewer.evaluate((element) => ({ width: element.clientWidth, height: element.clientHeight })),
+    picture: await frame.evaluate((img: HTMLImageElement) => ({ width: img.naturalWidth, height: img.naturalHeight })),
+  })
+  await this.waitUntil(async () => {
+    const { box, picture } = await sizes()
+    return Math.abs(picture.height - box.height) <= 4 && Math.abs(picture.width - box.width) <= 4
+  }, `pane ${index}'s picture to be its viewer's size`, HYDRATION_TIMEOUT).catch(async (cause) => {
+    throw new Error(`${String(cause)}; ${JSON.stringify(await sizes())}`)
+  })
+  const { box } = await sizes()
+  assert.ok(box.height / box.width > 0.625, `the viewer is not taller than 16:10: ${JSON.stringify(box)}`)
 })

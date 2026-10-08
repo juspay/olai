@@ -27,6 +27,7 @@ export interface BrowsingClient {
     readonly tab: {
       readonly input: Call<{ readonly targetId: string; readonly event: InputEvent }>
       readonly navigate: Call<{ readonly targetId: string; readonly url: string }>
+      readonly resize: Call<{ readonly targetId: string; readonly width: number; readonly height: number }>
       readonly open: Call<Record<string, never>, { readonly targetId: string }>
       readonly close: Call<{ readonly targetId: string }>
     }

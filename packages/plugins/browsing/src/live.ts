@@ -32,7 +32,7 @@ import { Cause, Deferred, Effect, Exit, Fiber, Queue, Result, Scope, Semaphore, 
 import { rm } from "node:fs/promises"
 import { launchChromium, type Launched, LaunchFailure } from "./chromium.ts"
 import { type Cdp, CdpFailure, type CdpEvent, openCdp } from "./cdp.ts"
-import { BrowserRefused, DOWN, type Frame, type InputEvent, type ScreencastAsk, type Standing, type Tab } from "./wire.ts"
+import { BrowserRefused, clampViewport, DOWN, type Frame, type InputEvent, type ScreencastAsk, type Standing, type Tab, VIEWPORT } from "./wire.ts"
 
 export interface LiveOptions {
   /** The Chromium executable, or `null` for a serve with none configured. */
@@ -67,6 +67,7 @@ export interface Live {
   readonly screencast: (ask: ScreencastAsk) => Stream.Stream<Frame>
   readonly input: (targetId: string, event: InputEvent) => Effect.Effect<void, BrowserRefused>
   readonly navigate: (targetId: string, url: string) => Effect.Effect<void, BrowserRefused>
+  readonly resize: (targetId: string, size: { readonly width: number; readonly height: number }) => Effect.Effect<void, BrowserRefused>
   readonly open: Effect.Effect<{ readonly targetId: string }, BrowserRefused>
   readonly close: (targetId: string) => Effect.Effect<void, BrowserRefused>
 }
@@ -76,11 +77,22 @@ export interface Attach {
   readonly profile: string
 }
 
-/** One running screencast on one tab. */
+/** One running screencast on one tab, and the quality it was started at. */
 interface Cast {
   readonly subscribers: Set<Queue.Queue<Frame, Cause.Done>>
+  readonly quality: number
   last: Frame | null
 }
+
+/** A screencast's parameters. The size is the ceiling, not a size: frames
+ *  come at the tab's own viewport, which follows its pane (`resize`). */
+const castOf = (quality: number) => ({
+  format: "jpeg",
+  quality: Math.max(1, Math.min(100, Math.round(quality))),
+  maxWidth: VIEWPORT.max.width,
+  maxHeight: VIEWPORT.max.height,
+  everyNthFrame: 1,
+})
 
 /** One launch, alive. */
 interface Instance {
@@ -93,6 +105,8 @@ interface Instance {
   /** ...and back, from a session to its tab, for the events it carries. */
   readonly targets: Map<string, string>
   readonly casts: Map<string, Cast>
+  /** The viewport each tab was last sized to by a pane. */
+  readonly sizes: Map<string, { readonly width: number; readonly height: number }>
   /** When each tab's info was last asked for, and which tabs have a
    *  picture-driven ask already waiting. */
   readonly lastRead: Map<string, number>
@@ -181,6 +195,27 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     })))
   }
 
+  /**
+   * SIZE ONE TAB'S VIEWPORT to the box its pane last asked for, with
+   * `Emulation.setDeviceMetricsOverride` on that tab's own session. Measured
+   * on the pinned Chromium: resizing the shared headless window reaches only
+   * the tab in front, so a background tab never followed its pane, while the
+   * override sizes exactly this tab, front or not. A running screencast sends
+   * no frame for the change, so it is restarted, and its first frame comes at
+   * the new size. A cross-process navigation can drop the override (the e2e
+   * saw 361×614 frames turn back into 1280×657 after one), so every
+   * main-frame navigation of a sized tab sizes it again.
+   */
+  const sizeTab = (instance: Instance, targetId: string, sessionId: string): Effect.Effect<void, CdpFailure> => Effect.gen(function*() {
+    const want = instance.sizes.get(targetId)
+    if (want === undefined) return
+    yield* instance.cdp.send("Emulation.setDeviceMetricsOverride", { ...want, deviceScaleFactor: 1, mobile: false }, sessionId)
+    const cast = instance.casts.get(targetId)
+    if (cast === undefined) return
+    yield* instance.cdp.send("Page.stopScreencast", {}, sessionId)
+    yield* instance.cdp.send("Page.startScreencast", castOf(cast.quality), sessionId)
+  })
+
   /** Attach to a tab as soon as it appears, so its loads reach `reread`. */
   const follow = (instance: Instance, targetId: string) => own(instance, sessionFor(instance, targetId))
   const dropTab = (id: string) => {
@@ -216,7 +251,9 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       if (REREAD_ON.has(event.method)) {
         // A sub-frame's navigation is not the tab's.
         const frame = event.params["frame"] as { readonly parentId?: unknown } | undefined
-        if (frame?.parentId === undefined) reread(instance, targetId)
+        if (frame?.parentId !== undefined) return
+        reread(instance, targetId)
+        if (event.method === "Page.frameNavigated") own(instance, sizeTab(instance, targetId, event.sessionId))
         return
       }
       if (event.method !== "Page.screencastFrame") return
@@ -280,7 +317,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       yield* Scope.close(scope, Exit.void)
       return yield* refused(whyOf(opened.cause, "The browser launch was interrupted."))
     }
-    const instance: Instance = { scope, ...opened.value, sessions: new Map(), targets: new Map(), casts: new Map(), lastRead: new Map(), soon: new Set() }
+    const instance: Instance = { scope, ...opened.value, sessions: new Map(), targets: new Map(), casts: new Map(), sizes: new Map(), lastRead: new Map(), soon: new Set() }
     yield* instance.cdp.listen(onEvent(instance)).pipe(Scope.provide(scope))
     const seeded = yield* Effect.exit(Effect.gen(function*() {
       yield* instance.cdp.send("Target.setDiscoverTargets", { discover: true })
@@ -372,6 +409,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
   const forgetSessions = (instance: Instance, targetId: string) => {
     instance.sessions.delete(targetId)
     instance.lastRead.delete(targetId)
+    instance.sizes.delete(targetId)
     for (const [sessionId, held] of instance.targets) if (held === targetId) instance.targets.delete(sessionId)
   }
 
@@ -407,14 +445,8 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
           if (running.last !== null) Queue.offerUnsafe(queue, running.last)
           return
         }
-        instance.casts.set(ask.targetId, { subscribers: new Set([queue]), last: null })
-        const started = yield* Effect.exit(instance.cdp.send("Page.startScreencast", {
-          format: "jpeg",
-          quality: Math.max(1, Math.min(100, Math.round(ask.quality))),
-          maxWidth: Math.max(1, Math.round(ask.maxWidth)),
-          maxHeight: Math.max(1, Math.round(ask.maxWidth * 2)),
-          everyNthFrame: 1,
-        }, sessionId))
+        instance.casts.set(ask.targetId, { subscribers: new Set([queue]), quality: ask.quality, last: null })
+        const started = yield* Effect.exit(instance.cdp.send("Page.startScreencast", castOf(ask.quality), sessionId))
         if (Exit.isFailure(started)) endCast(instance, ask.targetId, "The browser would not show this tab.")
       }),
       () => Effect.suspend(() => {
@@ -468,6 +500,15 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
         typeof answer["errorText"] === "string" && answer["errorText"] !== ""
           ? Effect.fail(new CdpFailure({ why: `${url} did not open (${answer["errorText"]})` }))
           : Effect.void)),
+    /** Size one tab's viewport to a pane's box ({@link sizeTab}); the
+     *  most recent ask wins. */
+    resize: (targetId, size) => onTab(targetId, (instance, sessionId) => Effect.gen(function*() {
+      const want = clampViewport(size)
+      const held = instance.sizes.get(targetId)
+      if (held !== undefined && held.width === want.width && held.height === want.height) return
+      instance.sizes.set(targetId, want)
+      yield* sizeTab(instance, targetId, sessionId)
+    })),
     open: onBrowser((instance) => Effect.map(
       instance.cdp.send("Target.createTarget", { url: "about:blank" }),
       (answer) => ({ targetId: String(answer["targetId"]) }),

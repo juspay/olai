@@ -7,7 +7,7 @@ import { PassThrough } from "node:stream"
 import { type Cdp, type CdpEvent, CdpFailure, decodeMessage, encodeCall, framesOf, openCdp } from "./cdp.ts"
 import { LaunchFailure } from "./chromium.ts"
 import { openLive, type LiveOptions } from "./live.ts"
-import type { Standing } from "./wire.ts"
+import { clampViewport, type Standing } from "./wire.ts"
 
 test("CDP calls frame with or without a session; answers, refusals and events decode", () => {
   expect(encodeCall({ id: 1, method: "Target.getTargets", params: {} })).toBe('{"id":1,"method":"Target.getTargets","params":{}}\0')
@@ -130,7 +130,7 @@ test("a crash takes the browser down to failed, clears its tabs and tells its pa
   const browser = double()
   const live = yield* openLive(browser.options())
   yield* live.start
-  const watching = yield* Effect.forkChild(Stream.runCollect(live.screencast({ targetId: "T1", maxWidth: 800, quality: 60 })))
+  const watching = yield* Effect.forkChild(Stream.runCollect(live.screencast({ targetId: "T1", quality: 60 })))
   yield* Effect.sleep("10 millis")
   yield* Deferred.succeed(browser.launches[0]!.exited, "Chromium was stopped by SIGSEGV.")
   const frames = yield* Fiber.join(watching)
@@ -181,7 +181,7 @@ test("one screencast per tab however many panes watch it; every frame acked; the
   const browser = double()
   const live = yield* openLive(browser.options())
   yield* live.start
-  const ask = { targetId: "T1", maxWidth: 800, quality: 60 }
+  const ask = { targetId: "T1", quality: 60 }
   const first = yield* Effect.forkChild(Stream.runCollect(Stream.take(live.screencast(ask), 2)))
   yield* Effect.sleep("10 millis")
   browser.emit(frame("S-T1", 1))
@@ -196,7 +196,7 @@ test("one screencast per tab however many panes watch it; every frame acked; the
   const methods = (name: string) => browser.calls.filter((call) => call.method === name)
   expect(methods("Target.attachToTarget").length).toBe(1)
   expect(methods("Page.startScreencast").map((call) => call.params)).toEqual([
-    { format: "jpeg", quality: 60, maxWidth: 800, maxHeight: 1600, everyNthFrame: 1 },
+    { format: "jpeg", quality: 60, maxWidth: 3840, maxHeight: 2160, everyNthFrame: 1 },
   ])
   expect(methods("Page.screencastFrameAck").map((call) => call.params["sessionId"])).toEqual([1, 2])
   expect(methods("Page.stopScreencast").length).toBe(1)
@@ -218,12 +218,12 @@ test("tabs follow the browser's page targets; a closed tab ends its panes", () =
   browser.emit({ method: "Target.targetInfoChanged", sessionId: null, params: { targetInfo: { targetId: "T2", type: "page", title: "X", url: "https://x.com/" } } })
   expect([...live.tabs().keys()]).toEqual(["T1", "T2"])
   expect(live.tabs().get("T2")).toEqual({ id: "T2", title: "X", url: "https://x.com/" })
-  const watching = yield* Effect.forkChild(Stream.runCollect(live.screencast({ targetId: "T2", maxWidth: 800, quality: 60 })))
+  const watching = yield* Effect.forkChild(Stream.runCollect(live.screencast({ targetId: "T2", quality: 60 })))
   yield* Effect.sleep("10 millis")
   browser.emit({ method: "Target.targetDestroyed", sessionId: null, params: { targetId: "T2" } })
   expect([...(yield* Fiber.join(watching))]).toEqual([{ _tag: "refused", says: "This tab was closed." }])
   expect([...live.tabs().keys()]).toEqual(["T1"])
-  const missing = yield* Stream.runCollect(live.screencast({ targetId: "nope", maxWidth: 800, quality: 60 }))
+  const missing = yield* Stream.runCollect(live.screencast({ targetId: "nope", quality: 60 }))
   expect([...missing]).toEqual([{ _tag: "refused", says: "There is no such tab in the browser." }])
 })))
 
@@ -352,4 +352,57 @@ test("a stream of pictures asks for the title at most once per interval, and onc
   yield* Effect.sleep("250 millis")
   expect(reads() - before).toBe(2)
   expect(live.tabs().get("T1")?.title).toBe("after the burst")
+})))
+
+test("a pane's box becomes a viewport of whole CSS px within the bounds", () => {
+  expect(clampViewport({ width: 600.4, height: 999.6 })).toEqual({ width: 600, height: 1000 })
+  expect(clampViewport({ width: 10, height: 99999 })).toEqual({ width: 320, height: 2160 })
+  expect(clampViewport({ width: 99999, height: 1 })).toEqual({ width: 3840, height: 240 })
+  // A box that measured nothing usable asks for the least, not the most.
+  expect(clampViewport({ width: Number.NaN, height: Number.POSITIVE_INFINITY })).toEqual({ width: 320, height: 240 })
+})
+
+test("a resize sizes the tab's own viewport, once per size, and restarts a running screencast", () => run(Effect.gen(function*() {
+  const browser = double()
+  const live = yield* openLive(browser.options())
+  expect((yield* Effect.flip(live.resize("T1", { width: 600, height: 1000 }))).says).toBe("The browser is not running. Start it from this pane.")
+  yield* live.start
+  yield* live.resize("T1", { width: 600.4, height: 1000 })
+  // The same size again: nothing to do.
+  yield* live.resize("T1", { width: 600, height: 1000 })
+  const watching = yield* Effect.forkChild(Stream.runCollect(Stream.take(live.screencast({ targetId: "T1", quality: 60 }), 1)))
+  yield* Effect.sleep("10 millis")
+  const before = browser.calls.length
+  yield* live.resize("T1", { width: 10, height: 99999 })
+  const methods = (from: number) => browser.calls.slice(from).filter((call) => call.sessionId === "S-T1").map(({ method, params }) => ({ method, params }))
+  expect(browser.calls.filter((call) => call.method === "Emulation.setDeviceMetricsOverride").map((call) => call.params)).toEqual([
+    { width: 600, height: 1000, deviceScaleFactor: 1, mobile: false },
+    { width: 320, height: 2160, deviceScaleFactor: 1, mobile: false },
+  ])
+  expect(methods(before)).toEqual([
+    { method: "Emulation.setDeviceMetricsOverride", params: { width: 320, height: 2160, deviceScaleFactor: 1, mobile: false } },
+    { method: "Page.stopScreencast", params: {} },
+    { method: "Page.startScreencast", params: { format: "jpeg", quality: 60, maxWidth: 3840, maxHeight: 2160, everyNthFrame: 1 } },
+  ])
+  browser.emit(frame("S-T1", 1))
+  yield* Fiber.join(watching)
+})))
+
+test("a sized tab is sized again after each of its own navigations, which can drop the override", () => run(Effect.gen(function*() {
+  const browser = double()
+  const live = yield* openLive(browser.options())
+  yield* live.start
+  const overrides = () => browser.calls.filter((call) => call.method === "Emulation.setDeviceMetricsOverride").length
+  // A tab nobody sized is left as it is.
+  browser.emit({ method: "Page.frameNavigated", sessionId: "S-T1", params: { frame: { id: "F1" } } })
+  yield* Effect.sleep("10 millis")
+  expect(overrides()).toBe(0)
+  yield* live.resize("T1", { width: 400, height: 900 })
+  browser.emit({ method: "Page.frameNavigated", sessionId: "S-T1", params: { frame: { id: "F1" } } })
+  browser.emit({ method: "Page.frameNavigated", sessionId: "S-T1", params: { frame: { id: "F2", parentId: "F1" } } })
+  yield* Effect.sleep("10 millis")
+  expect(browser.calls.filter((call) => call.method === "Emulation.setDeviceMetricsOverride").map((call) => call.params)).toEqual([
+    { width: 400, height: 900, deviceScaleFactor: 1, mobile: false },
+    { width: 400, height: 900, deviceScaleFactor: 1, mobile: false },
+  ])
 })))

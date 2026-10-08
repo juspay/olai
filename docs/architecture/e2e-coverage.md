@@ -328,7 +328,10 @@ door (current while the pane shows) and the collapsed rail's, and on a phone
 from the drawer's door through Start to a decoded frame, while the browser is
 down; every page seeing a headed Chrome's user agent (`Chrome/`, never
 `Headless`) in its title and in the HTTP header the site recorded, the
-person's page and an agent's MCP page alike; Start, a tab appearing, the address bar, a decoded frame,
+person's page and an agent's MCP page alike; on a phone, whose pane is taller
+than 16:10, the viewport following the pane so the picture's natural size is
+the viewer's within a few px, and a press on a button at the page's bottom
+landing; Start, a tab appearing, the address bar, a decoded frame,
 pressing a page's button and typing and pasting into its box through the
 picture (asserted by the tab title the page sets), Escape handing the keys
 back, opening and closing a tab, a second pane (Alt) on the same tab streaming
