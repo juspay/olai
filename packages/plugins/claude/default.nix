@@ -33,7 +33,7 @@ let
     package = "@agentclientprotocol/claude-agent-acp";
     entry = "dist/index.js";
     bin = "claude-agent-acp";
-    npmDepsHash = "sha256-bTfawcKRtemojbzoD3tnEswhTIIPv13pg1hgCK42R6Y=";
+    npmDepsHash = "sha256-+K7bdHGdwkBJqdWO+1mCPRrEil9SUclKTpzEncYre6I=";
     patches = ./acp/patches;
     # patchelf for the SDK's bun-compiled `claude`; only the interpreter may
     # be touched (see `@olai/plugin-kit`'s `npm-adapter.nix` header).
