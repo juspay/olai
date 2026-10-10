@@ -171,7 +171,9 @@ const faceWith = (
               pr: { kind: "absent" },
               agent: null,
               cwd: `/tmp/${input.key}`,
-              git: null,
+              // The pin's `GitFact`: `null` no longer decodes. `unresolved`
+              // is the honest "sensor has not answered" a fresh record holds.
+              git: { kind: "unresolved" },
               lastActivityAt: null,
             }),
             Stream.never,
@@ -572,7 +574,7 @@ const resizingFace = (id: string, grids: ReadonlyArray<{ cols: number; rows: num
                     pr: { kind: "absent" as const },
                     agent: null,
                     cwd: "/tmp/t",
-                    git: null,
+                    git: { kind: "unresolved" as const },
                     lastActivityAt: null,
                     grid,
                   })),
