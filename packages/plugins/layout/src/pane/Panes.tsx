@@ -51,7 +51,7 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
   const focused = createSelector(router.focusIndex)
   let host: HTMLDivElement | undefined
   const [laneBox, setLaneBox] = createSignal<DOMRect>()
-  const scrolls = new Map<HTMLElement, { top: number; left: number }>()
+  const scrolls = new Map<HTMLElement, Scroll>()
   let alive = true
   onCleanup(() => { alive = false; scrolls.clear() })
   // Read positions and the lane box before hiding its contents. Restore after
@@ -61,13 +61,13 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
     if (!shown) {
       const box = host?.getBoundingClientRect()
       if (box && box.width > 0 && box.height > 0) setLaneBox(box)
-      for (const host of scrolls.keys()) scrolls.set(host, { top: host.scrollTop, left: host.scrollLeft })
+      for (const host of scrolls.keys()) scrolls.set(host, readScroll(host))
     }
   }))
   createEffect(on(visible, shown => {
     if (shown) queueMicrotask(() => {
       if (!alive || !router.shown()) return
-      for (const [host, at] of scrolls) { host.scrollTop = at.top; host.scrollLeft = at.left }
+      for (const [host, at] of scrolls) restoreScroll(host, at)
     })
   }))
   let row: HTMLDivElement | undefined
@@ -106,7 +106,7 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
             style={{ display: drawn() ? undefined : "none", "flex-grow": columns() ? String(share()) : "1", "flex-basis": "0" }}
             classList={{ "ring-2 ring-inset ring-accent": columns() && focused(pane.index()) }}>
             <Show when={columns()}><Header index={pane.index()} pane={reading()} row={() => row} focused={() => focused(pane.index())} /></Show>
-            <div ref={host => { scrolls.set(host, { top: 0, left: 0 }); onCleanup(() => scrolls.delete(host)) }} class="flex min-h-0 flex-1 flex-col" classList={{ "overflow-y-auto": columns() }}
+            <div ref={host => { scrolls.set(host, { top: 0, left: 0, anchor: undefined }); onCleanup(() => scrolls.delete(host)) }} class="flex min-h-0 flex-1 flex-col" classList={{ "overflow-y-auto": columns() }}
               style={{ "--height-chrome": columns() ? "0px" : undefined }}>
               <ShownProvider shown={shown}>
                 <PaneProvider index={pane.index()} id={pane.id} element={element}>{props.page(pane.index)}</PaneProvider>
@@ -117,6 +117,44 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
       }}</For>
     </div>
   </div>
+}
+
+/** Where a hidden pane was read, and the element the reader was reading. */
+type Scroll = { readonly top: number; readonly left: number; readonly anchor: { readonly element: Element; readonly y: number } | undefined }
+
+/** The browser's scroll anchoring does not run for a hidden lane: its
+ * content is not laid out. Something above the reader that resizes meanwhile
+ * (a pinned head losing its "Working…" line) would move the text under a
+ * restored pixel offset. So remember the deepest in-flow element at the top
+ * of the scrollport, as the browser picks one, and put it back where it was.
+ * Like the browser's, a scrollport at its very top has no anchor. */
+function readScroll(host: HTMLElement): Scroll {
+  if (host.scrollTop === 0) return { top: 0, left: host.scrollLeft, anchor: undefined }
+  const top = host.getBoundingClientRect().top
+  const below = (parent: Element): Element | undefined => {
+    for (const child of parent.children) {
+      const style = getComputedStyle(child)
+      if (style.display === "contents") {
+        const inner = below(child)
+        if (inner !== undefined) return inner
+        continue
+      }
+      const box = child.getBoundingClientRect()
+      if (box.height > 0 && box.bottom > top && !/sticky|fixed/.test(style.position)) return child
+    }
+    return undefined
+  }
+  let anchor: Element | undefined
+  for (let next = below(host); next !== undefined; next = below(next)) anchor = next
+  return { top: host.scrollTop, left: host.scrollLeft, anchor: anchor && { element: anchor, y: anchor.getBoundingClientRect().top - top } }
+}
+
+function restoreScroll(host: HTMLElement, at: Scroll): void {
+  host.scrollTop = at.top
+  host.scrollLeft = at.left
+  const anchor = at.anchor
+  if (anchor === undefined || !anchor.element.isConnected || !host.contains(anchor.element)) return
+  host.scrollTop += anchor.element.getBoundingClientRect().top - host.getBoundingClientRect().top - anchor.y
 }
 
 function Header(props: { readonly index: number; readonly pane: Pane; readonly row: () => HTMLDivElement | undefined; readonly focused: () => boolean }) {
