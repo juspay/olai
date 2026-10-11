@@ -19,4 +19,6 @@ test("retired policy and row-selection flags are refused before serving", () => 
     expect(result.stdout + result.stderr).not.toContain('message="serving"')
     expect(result.stdout + result.stderr).toContain(flag.split("=")[0]!)
   }
-}, 15000)
+  // Seven cold `olai web` boots in a row: 12s of a 15s budget on a loaded CI
+  // box. A budget for a hang, not for speed.
+}, 60_000)

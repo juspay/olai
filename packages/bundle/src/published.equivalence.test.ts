@@ -311,7 +311,9 @@ test("a generated vault under two hundred writes publishes the same frames", () 
     differential(vault, steps, publishedOf),
     { upserts: 300, removes: 10, reused: 200, rebuilt: 40, minted: 4 },
   )
-}, { timeout: 15_000 })
+  // A budget for a hang, not a speed claim: a few seconds of CPU alone, which
+  // a shared CI box running other legs beside it stretched to 15s and 19.7s.
+}, { timeout: 60_000 })
 
 // ── the real vault ─────────────────────────────────────────────────────
 
