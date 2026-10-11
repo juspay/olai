@@ -337,7 +337,10 @@ test("over the pipe, calls answer by id, events reach listeners, and a closed pi
 
 test("a stream of pictures asks for the title at most once per interval, and once more after the last", () => run(Effect.gen(function*() {
   const browser = double()
-  const live = yield* openLive(browser.options({ titleEveryMs: 200 }))
+  // The interval is far longer than the burst, so a loaded box stretching the
+  // burst's 5ms sleeps cannot carry it past the trailing read (CI saw 2 reads
+  // mid-burst with a 200ms interval).
+  const live = yield* openLive(browser.options({ titleEveryMs: 1_000 }))
   yield* live.start
   yield* Effect.sleep("10 millis")
   const reads = () => browser.calls.filter((call) => call.method === "Target.getTargetInfo").length
@@ -349,7 +352,8 @@ test("a stream of pictures asks for the title at most once per interval, and onc
   // ~150ms of frames: the first asks at once, the rest wait for one trailing read.
   expect(reads() - before).toBe(1)
   browser.retitle("T1", "after the burst")
-  yield* Effect.sleep("250 millis")
+  for (let waited = 0; reads() - before < 2 && waited < 3_000; waited += 20) yield* Effect.sleep("20 millis")
+  yield* Effect.sleep("20 millis")
   expect(reads() - before).toBe(2)
   expect(live.tabs().get("T1")?.title).toBe("after the burst")
 })))
