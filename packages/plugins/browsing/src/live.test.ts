@@ -388,18 +388,21 @@ test("a resize sizes the tab's own viewport, once per size, and restarts a runni
   yield* Fiber.join(watching)
 })))
 
-test("a sized tab is sized again after each of its own navigations, which can drop the override", () => run(Effect.gen(function*() {
+test("a sized tab is sized again once each of its own new pages has loaded, which a navigation's screencast drops", () => run(Effect.gen(function*() {
   const browser = double()
   const live = yield* openLive(browser.options())
   yield* live.start
   const overrides = () => browser.calls.filter((call) => call.method === "Emulation.setDeviceMetricsOverride").length
   // A tab nobody sized is left as it is.
-  browser.emit({ method: "Page.frameNavigated", sessionId: "S-T1", params: { frame: { id: "F1" } } })
+  browser.emit({ method: "Page.domContentEventFired", sessionId: "S-T1", params: { timestamp: 1 } })
   yield* Effect.sleep("10 millis")
   expect(overrides()).toBe(0)
   yield* live.resize("T1", { width: 400, height: 900 })
+  // The commit is too early: the page being replaced may still take it.
   browser.emit({ method: "Page.frameNavigated", sessionId: "S-T1", params: { frame: { id: "F1" } } })
-  browser.emit({ method: "Page.frameNavigated", sessionId: "S-T1", params: { frame: { id: "F2", parentId: "F1" } } })
+  yield* Effect.sleep("10 millis")
+  expect(overrides()).toBe(1)
+  browser.emit({ method: "Page.domContentEventFired", sessionId: "S-T1", params: { timestamp: 2 } })
   yield* Effect.sleep("10 millis")
   expect(browser.calls.filter((call) => call.method === "Emulation.setDeviceMetricsOverride").map((call) => call.params)).toEqual([
     { width: 400, height: 900, deviceScaleFactor: 1, mobile: false },
