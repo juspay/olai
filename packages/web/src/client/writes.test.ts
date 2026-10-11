@@ -16,7 +16,7 @@ import { Effect, Result } from "effect"
 import { NotFoundFailure } from "@olai/format"
 import type { EditWriters } from "@olai/plugin-api"
 
-import { heldWrites } from "./writes.ts"
+import { heldWrites, writingWith } from "./writes.ts"
 
 const table = (said: string): EditWriters => ({
   register: () => Effect.void as never,
@@ -52,4 +52,20 @@ test("a replacement is not cleared by the activation it replaced", async () => {
   const answer = await sent(held)
   expect(Result.isFailure(answer) && (answer.failure as NotFoundFailure).message).toBe("second")
   second()
+})
+
+test("a pointer's write reserves its undo entry before the reply arrives", async () => {
+  const reply = Promise.withResolvers<void>()
+  const inverse = [{ verb: "title", id: "a", title: "old" }]
+  const { applied } = writingWith(() =>
+    Effect.promise(() => reply.promise).pipe(Effect.as({ undo: inverse } as never)))
+  const recorded: Array<unknown> = []
+  const done = applied({ verb: "title", id: "a", title: "b" } as never, (step) => void recorded.push(step))
+  // The frame that redraws a write can land before its answer, and a ⌘Z in
+  // that gap has to find this entry on the stack to wait behind.
+  expect(recorded).toHaveLength(1)
+  expect(recorded[0]).toBeInstanceOf(Promise)
+  reply.resolve()
+  await done
+  expect(await recorded[0]).toBe(inverse)
 })

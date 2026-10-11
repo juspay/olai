@@ -222,6 +222,49 @@ When(
 );
 
 /**
+ * A write's REPLY held back while everything else on the socket passes — so
+ * the revision that redraws the shelf arrives and the answer that carries the
+ * drop's inverse does not, which is the gap a fast ⌘Z can land in. Installed
+ * before the page opens its socket, held only once asked.
+ */
+const replies = new WeakMap<OlaiWorld, { held: boolean; pending: Array<() => void> }>();
+
+Given("pin write replies can be held", async function (this: OlaiWorld) {
+  const state = { held: false, pending: [] as Array<() => void> };
+  replies.set(this, state);
+  await this.page.routeWebSocket((url) => url.pathname === "/rpc/ws", (client) => {
+    const server = client.connectToServer();
+    const writes = new Set<string>();
+    client.onMessage((message) => {
+      for (const line of String(message).split("\n").filter(Boolean)) {
+        const frame = JSON.parse(line);
+        if (frame._tag === "Request" && /\/edit\/apply$/.test(frame.tag)) writes.add(String(frame.id));
+      }
+      server.send(message);
+    });
+    server.onMessage((message) => {
+      for (const line of String(message).split("\n").filter(Boolean)) {
+        const frame = JSON.parse(line);
+        const send = () => client.send(`${line}\n`);
+        if (state.held && frame._tag === "Exit" && writes.has(String(frame.requestId))) state.pending.push(send);
+        else send();
+      }
+    });
+  });
+});
+
+When("I hold the next pin write reply", function (this: OlaiWorld) {
+  replies.get(this)!.held = true;
+});
+
+When("I release the held pin write reply", async function (this: OlaiWorld) {
+  const state = replies.get(this)!;
+  await this.waitUntil(async () => state.pending.length > 0, "the drop's write reply to be held");
+  state.held = false;
+  for (const send of state.pending.splice(0)) send();
+});
+
+/**
  * The same drag, with the DOCUMENT SCROLLING under it mid-gesture — which is
  * the one shape that tells the two coordinate spaces apart.
  *

@@ -28,6 +28,16 @@ export const withOfflineFocus = (open: () => void): void => {
  * same one an editor's own caret bookkeeping rides — so a control that keeps
  * the keyboard across a redraw is remembered at its newest element.
  *
+ * …AND FORGOTTEN WHEN THE PERSON PUT THE CARET DOWN. A press on a row's title,
+ * the page, anything that takes no focus, blurs the control to nothing; from
+ * then on nobody had the caret, so a freeze that begins later has nothing to
+ * hand back. Remembering past that handed a later reconnect's keyboard to a
+ * sidebar link clicked minutes earlier, which opened that link's preview card
+ * over the page and spent the next Escape on closing it — the multi-selection
+ * the person was holding stayed picked. Only THAT blur forgets: the roster
+ * disabling the control under the caret is the case this memory exists for,
+ * and a window losing focus leaves the element focused in its document.
+ *
  * ## Why the memory is an OBJECT and not a variable in this file
  *
  * It used to be module state, and that is three defects in one: it outlived the
@@ -77,11 +87,19 @@ export const rememberFocus = (watch: EventTarget = window): FocusMemory => {
     if (target instanceof HTMLDialogElement || target.closest("dialog") !== null) return
     last = target
   }
+  const forget = (event: Event): void => {
+    const target = event.target
+    if (target !== last || last === undefined || (event as FocusEvent).relatedTarget !== null) return
+    if (last.ownerDocument.activeElement === last || frozen(last)) return
+    last = undefined
+  }
   watch.addEventListener("focusin", remember)
+  watch.addEventListener("focusout", forget)
   return {
     last: () => last,
     dispose: () => {
       watch.removeEventListener("focusin", remember)
+      watch.removeEventListener("focusout", forget)
       last = undefined
     },
   }
@@ -120,6 +138,9 @@ const idle = (page: FocusPage): boolean => {
   if (active === null || active === page.body()) return true
   return active instanceof HTMLDialogElement && !active.open
 }
+/** Not focusable for now: disabled, or inside something inert. */
+const frozen = (element: HTMLElement): boolean =>
+  element.closest("[inert]") !== null || element.matches(":disabled,[inert]")
 /** What a hand-back did: `waiting` means the element that had the caret is
  *  still FROZEN (a control the roster disabled), which passes — so the attempt
  *  is repeated rather than dropped. */
@@ -128,7 +149,7 @@ export const returnFocus = (memory: FocusMemory, page: FocusPage = browserPage()
   const wanted = memory.last()
   if (wanted === undefined || !wanted.isConnected) return "given"
   if (!idle(page)) return "given"
-  if (wanted.closest("[inert]") !== null || wanted.matches(":disabled,[inert]")) return "waiting"
+  if (frozen(wanted)) return "waiting"
   wanted.focus()
   return page.active() === wanted ? "done" : "given"
 }

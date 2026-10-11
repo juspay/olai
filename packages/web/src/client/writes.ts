@@ -150,9 +150,13 @@ const applied = async (
   edit: Edit,
   record: Undo["record"],
 ): Promise<Result.Result<Applied, OpFailure>> => {
-  const outcome = await runAsync(write(edit))
-  if (Result.isSuccess(outcome)) record(outcome.success.undo)
-  return outcome
+  const pending = runAsync(write(edit))
+  // Reserved BEFORE the reply, as the editor's `send` does: the frame that
+  // redraws the write can arrive ahead of its answer, and a ⌘Z pressed in that
+  // gap must wait for this inverse rather than spend an older one or say there
+  // is nothing to undo.
+  record(pending.then((outcome) => Result.isSuccess(outcome) ? outcome.success.undo : undefined))
+  return await pending
 }
 
   return { applying, applyingAll, applied }
