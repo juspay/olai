@@ -622,6 +622,10 @@ waits for each capability's actual contribution to leave or return in the
 editing tab, then verifies the offline dialog has closed and the surviving
 editor has regained keyboard focus. The test never refocuses that editor.
 Row identity, exact draft text, and the committed file remain separate claims.
+The same holds within one tab for anything another plugin republishes after
+the switch: chat's engine table lands on its own, so the row menu's `Start an
+agent` is waited into its one-engine or several-engine shape
+(`node_menu_agent_steps.ts`), never read once after the panel closes.
 
 Pending-write scenarios hold incoming WebSocket messages only after the control
 under test is ready. The route matcher compares `/rpc/ws` by pathname: a redial
