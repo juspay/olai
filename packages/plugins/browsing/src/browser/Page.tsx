@@ -65,9 +65,11 @@ export function BrowserPage(props: {
   const up = createMemo(() => { const now = standing(); return now.kind === "up" ? now.pid : null })
   const shown = createMemo(() => props.browsing.shown(props.value.targetId))
   const tab = () => { const id = shown(); return id === null ? undefined : props.browsing.tab(id) }
+  // A memo, so a retitled tab is not a reason to reopen its screencast.
+  const present = createMemo(() => tab() !== undefined)
 
-  // ONE SCREENCAST SUBSCRIPTION per pane, reopened when the shown tab or the
-  // running browser changes and closed with the pane.
+  // ONE SCREENCAST SUBSCRIPTION per pane, reopened when the shown tab, its
+  // being open or the running browser changes, and closed with the pane.
   //
   // Each picture is an OBJECT URL: the shell's image policy admits `blob:`
   // and, on purpose, not `data:`. A frame's URL is revoked as soon as the
@@ -79,7 +81,7 @@ export function BrowserPage(props: {
     if (before !== null) URL.revokeObjectURL(before.src)
   }
   onCleanup(() => show(null))
-  createEffect(on([shown, up, () => tab() !== undefined] as const, ([targetId, pid, open]) => {
+  createEffect(on([shown, up, present] as const, ([targetId, pid, open]) => {
     show(null)
     if (targetId === null || pid === null || !open) return
     const fiber = Effect.runFork(Stream.runForEach(props.browsing.watch({ targetId, ...ASK }), (got) => Effect.sync(() => {
