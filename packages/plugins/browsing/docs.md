@@ -53,7 +53,10 @@ rather than landing somewhere you did not point.
 
 The picture is the browser's own screencast of that tab, so a pane that nobody
 is looking at costs nothing: the screencast starts when the first pane opens on
-a tab and stops when the last one closes. Several panes on one tab share it,
+a tab and stops when the last one closes. A pane that is hidden — its tab in
+the background, or its column folded away — counts as closed: it keeps its last
+picture, watches nothing, and its size does not steer the page, so it never
+shrinks the page a pane on screen is showing. Several panes on one tab share it,
 and panes on different tabs each stay live: every tab is kept painting even
 when another is in front, so watching an agent's tab never freezes yours.
 
