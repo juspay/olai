@@ -13,9 +13,9 @@
  * words line and is never thrown.
  */
 import { Effect, Fiber, Stream } from "effect"
-import { useGo } from "olai-plugin-navigation/routing"
+import { useGo, useShown } from "olai-plugin-navigation/routing"
 import type { Route } from "olai-plugin-navigation/routes"
-import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js"
+import { batch, createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js"
 import { TESTID } from "../testids.ts"
 import { clampViewport, type FrameMeta, type InputEvent, type Standing } from "../wire.ts"
 import type { Browsing } from "./client.ts"
@@ -65,9 +65,16 @@ export function BrowserPage(props: {
   const up = createMemo(() => { const now = standing(); return now.kind === "up" ? now.pid : null })
   const shown = createMemo(() => props.browsing.shown(props.value.targetId))
   const tab = () => { const id = shown(); return id === null ? undefined : props.browsing.tab(id) }
+  // A memo, so a retitled tab is not a reason to reopen its screencast.
+  const present = createMemo(() => tab() !== undefined)
+  // Whether this pane is on screen at all: a retained tab or a pane hidden by
+  // the layout keeps its last picture but watches nothing and asks for no size.
+  const visible = useShown()
 
-  // ONE SCREENCAST SUBSCRIPTION per pane, reopened when the shown tab or the
-  // running browser changes and closed with the pane.
+  // ONE SCREENCAST SUBSCRIPTION per pane, reopened when the shown tab, its
+  // being open or the running browser changes, closed while the pane is hidden
+  // (keeping its last picture, so a return does not flash empty), and closed
+  // with the pane.
   //
   // Each picture is an OBJECT URL: the shell's image policy admits `blob:`
   // and, on purpose, not `data:`. A frame's URL is revoked as soon as the
@@ -79,14 +86,16 @@ export function BrowserPage(props: {
     if (before !== null) URL.revokeObjectURL(before.src)
   }
   onCleanup(() => show(null))
-  createEffect(on([shown, up, () => tab() !== undefined] as const, ([targetId, pid, open]) => {
-    show(null)
-    if (targetId === null || pid === null || !open) return
+  createEffect(on([shown, up, present, visible] as const, ([targetId, pid, open, seen], before) => {
+    if (before === undefined || before[0] !== targetId || before[1] !== pid || before[2] !== open) show(null)
+    if (!seen || targetId === null || pid === null || !open) return
     const fiber = Effect.runFork(Stream.runForEach(props.browsing.watch({ targetId, ...ASK }), (got) => Effect.sync(() => {
       if (got._tag === "frame") {
         show({ src: pictureOf(got.jpeg), meta: got.meta })
-        // The first frame after the row answered a resize is the new size.
-        if (answered) { answered = false; settle(false) }
+        // The first frame AT THE SIZE ASKED, once the row has answered, is the
+        // new layout. Not merely the first one after the answer: frames the
+        // pane had not yet taken can still be on their way at the old size.
+        if (answered && fits(got.meta)) { answered = false; settle(false) }
       }
       else say(got.says)
     })).pipe(Effect.catchCause(() => Effect.void)))
@@ -105,7 +114,7 @@ export function BrowserPage(props: {
   let viewer: HTMLDivElement | undefined
   const at = (event: { readonly clientX: number; readonly clientY: number }, settled = true) => {
     const held = frame()
-    if (held === null || picture === undefined || (settled && settling())) return null
+    if (held === null || picture === undefined || (settled && (settling() || reshaping()))) return null
     return pagePoint(picture.getBoundingClientRect(), held.meta, event.clientX, event.clientY)
   }
   let moving = 0
@@ -129,14 +138,25 @@ export function BrowserPage(props: {
   // rather than a 16:10 picture with nothing under it. Per tab: two panes on
   // one tab, the box asked last wins.
   const [box, setBox] = createSignal<{ readonly width: number; readonly height: number } | null>(null)
+  // WHILE THE BOX IS STILL MOVING — from the first change the observer sees
+  // until it has held still and been asked for — the page is about to change
+  // size under a press mapped through the current picture, so presses are
+  // dropped then too, and the picture does not say it is sized.
+  const [reshaping, reshape] = createSignal(false)
   // WHILE A RESIZE IS IN FLIGHT the picture is the old layout and the page is
   // the new one, so a press mapped through the picture would land somewhere
-  // the person never pointed. From asking until the first frame after the row
-  // answers, pointer presses are dropped (keys do not depend on geometry and
-  // still go). `asked` is what this pane last asked for, so it can say when
-  // its picture is the size it wanted (`data-sized`).
+  // the person never pointed. From asking until the first frame of the asked
+  // size after the row answers, pointer presses are dropped (keys do not
+  // depend on geometry and still go). `asked` is what this pane last asked
+  // for, so it can say when its picture is the size it wanted (`data-sized`).
+  // Two panes on one tab: the one asked last wins, and the other's frames
+  // never fit it, so it settles on the clock instead.
   const [settling, settle] = createSignal(false)
   const [asked, setAsked] = createSignal<{ readonly width: number; readonly height: number } | null>(null)
+  const fits = (meta: FrameMeta) => {
+    const want = asked()
+    return want !== null && meta.deviceWidth === want.width && meta.deviceHeight === want.height
+  }
   let answered = false
   createEffect(on([shown, up, box] as const, ([targetId, pid, size]) => {
     if (targetId === null || pid === null || size === null) return
@@ -153,20 +173,37 @@ export function BrowserPage(props: {
   const sized = () => {
     const want = asked()
     const now = box()
-    return !settling() && want !== null && now !== null && want.width === now.width && want.height === now.height
+    return !settling() && !reshaping() && want !== null && now !== null && want.width === now.width && want.height === now.height
   }
+  // A hidden pane's box is no size anyone sees (a `display: none` one reads
+  // 0×0, which would clamp to the smallest viewport and, asked last, win the
+  // tab from a pane on screen), so only a shown pane's box counts, and it is
+  // read again as the pane comes back.
   const measure = (element: HTMLElement) => {
     let quiet = 0
+    let latest: { readonly width: number; readonly height: number } | undefined
+    const consider = () => {
+      clearTimeout(quiet)
+      if (latest === undefined || !visible()) return reshape(false)
+      const next = clampViewport(latest)
+      const held = box()
+      const changed = held === null || held.width !== next.width || held.height !== next.height
+      reshape(changed)
+      if (!changed) return
+      // One batch, so the resize's own settling begins as the move ends.
+      quiet = window.setTimeout(() => batch(() => { reshape(false); setBox(next) }), SETTLE_MS)
+    }
     const observer = new ResizeObserver(([entry]) => {
       if (entry === undefined) return
-      clearTimeout(quiet)
-      quiet = window.setTimeout(() => {
-        const next = clampViewport(entry.contentRect)
-        const held = box()
-        if (held === null || held.width !== next.width || held.height !== next.height) setBox(next)
-      }, SETTLE_MS)
+      latest = entry.contentRect
+      consider()
     })
     observer.observe(element)
+    createEffect(on(visible, (seen) => {
+      // The content box, as the observer reports it: inside the border.
+      if (seen) latest = { width: element.clientWidth, height: element.clientHeight }
+      consider()
+    }, { defer: true }))
     onCleanup(() => { clearTimeout(quiet); observer.disconnect() })
   }
 

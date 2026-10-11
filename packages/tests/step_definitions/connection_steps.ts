@@ -208,6 +208,16 @@ Then("the overlay is gone", async function (this: OlaiWorld) {
     .waitFor({ state: "hidden", timeout: HYDRATION_TIMEOUT });
 });
 
+/** The hand-back is made in the same effect that closes the overlay, so once
+ *  it is gone the caret is wherever the hand-back left it. A press on a row
+ *  takes focus off whatever had it; the reconnect must not give it back. */
+Then("nothing holds the keyboard", async function (this: OlaiWorld) {
+  await this.waitForFrame();
+  const holder = await this.page.evaluate(() =>
+    document.activeElement === document.body ? null : document.activeElement?.outerHTML.slice(0, 120) ?? null);
+  assert.strictEqual(holder, null, "the reconnect handed the keyboard to an element the reader had left");
+});
+
 /** The retired wire's own half: the one state that has something to offer
  *  besides waiting keeps offering it, on the overlay rather than on a screen of
  *  its own (`client/connection/Offline.tsx`). */

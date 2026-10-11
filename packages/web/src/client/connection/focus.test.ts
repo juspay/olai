@@ -43,6 +43,11 @@ class StandInElement {
     return this.disabled && selector.includes(":disabled")
   }
   inert = false
+  /** The document's own answer to who holds the caret, which a window blur
+   *  leaves on the element. */
+  get ownerDocument(): { readonly activeElement: Element | null } {
+    return { activeElement: page.held() }
+  }
 }
 class StandInDialog extends StandInElement {
   open = true
@@ -102,7 +107,7 @@ test("the memory records a person's caret and forgets it with its owner", () => 
   expect(memory.last()).toBe(el)
   memory.dispose()
   expect(memory.last()).toBeUndefined()
-  expect(watcher.counts).toEqual({ added: 1, removed: 1 })
+  expect(watcher.counts).toEqual({ added: 2, removed: 2 })
   // …and it is FORGOTTEN, not merely stopped: a stale answer outliving the
   // mount that recorded it is what module state did.
   watcher.fire(el)
@@ -115,9 +120,35 @@ test("the watcher is registered under a Solid owner and goes with it", () => {
     watchFocus(watcher.target)
     return dispose
   })
-  expect(watcher.counts).toEqual({ added: 1, removed: 0 })
+  expect(watcher.counts).toEqual({ added: 2, removed: 0 })
   dispose()
-  expect(watcher.counts).toEqual({ added: 1, removed: 1 })
+  expect(watcher.counts).toEqual({ added: 2, removed: 2 })
+})
+
+test("a caret the person put down is forgotten; one taken from them is not", () => {
+  const memory = rememberFocus(watcher.target)
+  const { el, stand } = element()
+  watcher.fire(el)
+  // The dialog's grab moves focus TO something: still the caret to hand back.
+  watcher.leave(el, new StandInDialog())
+  expect(memory.last()).toBe(el)
+  // The window lost focus: the element still holds its document's caret.
+  page.state.holds = el as unknown as Element
+  watcher.leave(el)
+  expect(memory.last()).toBe(el)
+  // The roster disabled it under the caret — the case the memory is for.
+  page.state.holds = null
+  stand.disabled = true
+  watcher.leave(el)
+  expect(memory.last()).toBe(el)
+  // A press on something that takes no focus: nobody has the caret now, and a
+  // later freeze must not hand it to this element (a stale sidebar link).
+  stand.disabled = false
+  watcher.leave(el)
+  expect(memory.last()).toBeUndefined()
+  expect(returnFocus(memory, page.page)).toBe("given")
+  expect(stand.focused).toBe(0)
+  memory.dispose()
 })
 
 test("the hand-back lands as soon as the element is allowed", () => {
@@ -166,26 +197,29 @@ test("somebody else's caret is left alone", () => {
 /** A stand-in for `window`: the handler is kept so a test can fire it, and the
  *  add/remove pair is counted, which is the whole assertion about ownership. */
 const watcher = (() => {
-  const handlers: Array<(event: Event) => void> = []
+  const handlers: Array<{ type: string; handler: (event: Event) => void }> = []
   const counts = { added: 0, removed: 0 }
+  const dispatch = (type: string, event: object) => {
+    for (const each of [...handlers]) if (each.type === type) each.handler(event as Event)
+  }
   return {
     counts,
     /** The counts are the file's, and each test that asserts on them says what
      *  IT added and removed rather than reading another test's total. */
     reset: () => { counts.added = 0; counts.removed = 0 },
     target: {
-      addEventListener: (_type: string, handler: EventListenerOrEventListenerObject) => {
+      addEventListener: (type: string, handler: EventListenerOrEventListenerObject) => {
         counts.added++
-        handlers.push(handler as (event: Event) => void)
+        handlers.push({ type, handler: handler as (event: Event) => void })
       },
-      removeEventListener: (_type: string, handler: EventListenerOrEventListenerObject) => {
+      removeEventListener: (type: string, handler: EventListenerOrEventListenerObject) => {
         counts.removed++
-        const at = handlers.indexOf(handler as (event: Event) => void)
+        const at = handlers.findIndex((each) => each.type === type && each.handler === handler)
         if (at >= 0) handlers.splice(at, 1)
       },
     } as unknown as EventTarget,
-    fire: (target: unknown) => {
-      for (const handler of [...handlers]) handler({ target } as unknown as Event)
-    },
+    fire: (target: unknown) => dispatch("focusin", { target }),
+    /** `target` loses focus to `to` — `null` being nothing focusable at all. */
+    leave: (target: unknown, to: unknown = null) => dispatch("focusout", { target, relatedTarget: to }),
   }
 })()

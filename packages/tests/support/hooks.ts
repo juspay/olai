@@ -1455,6 +1455,19 @@ AfterAll(async () => {
   }
 });
 
+/** A worker leaves a feature for good once it is handed the next one —
+ *  cucumber deals scenarios out in feature order — so the shared servers of
+ *  every OTHER feature go when a sharing scenario starts. Kept until AfterAll
+ *  instead, an unsharded run held one olai per sharing feature per worker
+ *  (~160, 42 GB on a localhost CI leg) and starved the box it ran on. If a
+ *  feature does come back, `sharedScratchFor` starts it a fresh copy, which is
+ *  what After's restore promises the next scenario anyway. */
+const leaveOtherFeatures = async (uri: string): Promise<void> => {
+  const leaving = [...sharedScratches].filter(([key]) => !key.startsWith(`${uri}::`));
+  for (const [key] of leaving) sharedScratches.delete(key);
+  await Promise.all(leaving.map(([, entry]) => forgetShared(entry)));
+};
+
 const sharedScratchFor = (
   key: string,
   corpus: string,
@@ -1739,6 +1752,7 @@ Before(
         this.serverLog = own.said;
       };
       if (asked.mode === "share") {
+        await leaveOtherFeatures(scenario.pickle.uri);
         const featureKey = `${scenario.pickle.uri}::${asked.corpus}::${spawnFingerprint(spawnOptions)}`;
         const slot = await sharedScratchFor(featureKey, asked.corpus, spawnOptions);
         // A retry of a sharing scenario would inherit its first attempt's

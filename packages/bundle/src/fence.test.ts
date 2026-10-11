@@ -903,7 +903,8 @@ describe("only the registry knows a plugin's name", () => {
     }
     expect([...new Set(violations)]).toEqual([])
     // Walks every cross-plugin contract graph; 1.8 s on a loaded box, and it timed out at 8–14 s in a CI shard before the per-run reads.
-  }, { timeout: 15_000 })
+    // Still 12.7 s of a 15 s budget on an unsharded localhost CI box running other legs beside it: a budget for a hang, not for speed.
+  }, { timeout: 60_000 })
 
   test("general production packages name no plugins; test readers use explicit static doors", () => {
     for (const pkg of packages) {

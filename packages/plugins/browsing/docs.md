@@ -46,14 +46,17 @@ the pane at one to one rather than shrinking a 16:10 page into it. Each tab is
 sized on its own, so two panes on two tabs each get their own size; two panes
 on one tab share it, and the one that changed last wins. An agent's page is
 resized only while a pane shows it; otherwise it keeps the size its MCP left
-it at. While a page is being laid out again the picture still shows the old
-layout, so a press in that moment (a split being dragged, a second pane
-opening) is ignored rather than landing somewhere you did not point; the next
-picture is the new size.
+it at. From the moment a pane starts changing size until a picture at its new
+size arrives, the picture still shows the old layout, so a press in that
+moment (a split being dragged, a second pane opening or closing) is ignored
+rather than landing somewhere you did not point.
 
 The picture is the browser's own screencast of that tab, so a pane that nobody
 is looking at costs nothing: the screencast starts when the first pane opens on
-a tab and stops when the last one closes. Several panes on one tab share it,
+a tab and stops when the last one closes. A pane that is hidden — its tab in
+the background, or its column folded away — counts as closed: it keeps its last
+picture, watches nothing, and its size does not steer the page, so it never
+shrinks the page a pane on screen is showing. Several panes on one tab share it,
 and panes on different tabs each stay live: every tab is kept painting even
 when another is in front, so watching an agent's tab never freezes yours.
 

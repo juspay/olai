@@ -172,7 +172,11 @@ The frame renders one host per live navigation lane and one subtree per stable
 pane object. A tab switch changes visibility. Splitting, reordering, closing a
 neighbour, collapsing to a rail and crossing the desktop breakpoint preserve
 the surviving page elements. A lone lane scrolls the window; split columns
-scroll independently. Navigation owns window scroll restoration.
+scroll independently. Navigation owns window scroll restoration. A split
+column hidden behind another tab restores what its reader was reading, not
+just its pixel offset: the browser does not anchor a lane it is not laying
+out, so the frame remembers the in-flow element at the top of the column and
+puts it back where it was, absorbing a pinned head that resized meanwhile.
 
 After its first ready state the content-status gate keeps those hosts mounted
 through reading and failure states, but hides them and withdraws their shown

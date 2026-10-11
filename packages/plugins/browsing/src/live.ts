@@ -202,9 +202,19 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
    * the tab in front, so a background tab never followed its pane, while the
    * override sizes exactly this tab, front or not. A running screencast sends
    * no frame for the change, so it is restarted, and its first frame comes at
-   * the new size. A cross-process navigation can drop the override (the e2e
-   * saw 361×614 frames turn back into 1280×657 after one), so every
-   * main-frame navigation of a sized tab sizes it again.
+   * the new size.
+   *
+   * A cross-process navigation keeps the override for the page's layout but
+   * not for its screencast: measured on the pinned Chromium, a tab whose
+   * `innerWidth` still answered 361 went on sending 1280×657 frames — the
+   * whole headless window, the page drawn in its corner — until the override
+   * was set again once the new page was in place. `Page.frameNavigated` comes
+   * too early for that: set again there, it came before the new page showed
+   * (`Page.screencastVisibilityChanged`) about half the time under load, and
+   * a still page then streamed the window's size for good (the e2e's
+   * tall-pane flake). The main frame's `Page.domContentEventFired` is said by
+   * the new page itself, so it comes after: every one sizes a sized tab
+   * again.
    */
   const sizeTab = (instance: Instance, targetId: string, sessionId: string): Effect.Effect<void, CdpFailure> => Effect.gen(function*() {
     const want = instance.sizes.get(targetId)
@@ -253,7 +263,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
         const frame = event.params["frame"] as { readonly parentId?: unknown } | undefined
         if (frame?.parentId !== undefined) return
         reread(instance, targetId)
-        if (event.method === "Page.frameNavigated") own(instance, sizeTab(instance, targetId, event.sessionId))
+        if (event.method === "Page.domContentEventFired") own(instance, sizeTab(instance, targetId, event.sessionId))
         return
       }
       if (event.method !== "Page.screencastFrame") return

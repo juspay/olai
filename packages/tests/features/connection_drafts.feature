@@ -72,3 +72,23 @@ Feature: Reconnecting preserves unfinished work and its conflict baseline
     Then "house.olai" holds a node titled "measure after reconnect"
     And the node titled "measure after reconnect" comes before "hinges"
     And the page has not reloaded
+
+  Scenario: A reconnect does not hand the keyboard to a link the reader had left
+    # Opening the outline clicks its sidebar link; picking rows takes the focus
+    # off it. The overlay closing must not focus that link again: its preview
+    # card would open and spend the next Escape, leaving the rows picked.
+    Given I open the outline "house.olai"
+    And I mark the page
+    When I pick the title of "hinges"
+    And I shift-click the title of "knobs"
+    Then 2 rows are picked
+    When the browser goes offline
+    Then the connection is "reconnecting"
+    And the app is frozen under the offline overlay
+    When the browser comes back online
+    Then the connection is "live"
+    And the overlay is gone
+    And nothing holds the keyboard
+    When I press "Escape"
+    Then no rows are picked
+    And the page has not reloaded

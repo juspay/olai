@@ -148,21 +148,27 @@ Then(
   },
 );
 
+/** WAITED FOR, not read once: the entry's shape follows chat's engine table,
+ *  which the serve republishes on its own after a plugin switch — the panel's
+ *  switch flipping is not a receipt that it has. The open menu redraws the
+ *  entry live when the table lands, so wait for that. */
+const shaped = async (world: OlaiWorld, label: string, opens: boolean, said: string): Promise<void> => {
+  const { trigger } = await submenuOf(world, label);
+  await world.waitUntil(async () => ((await trigger.getAttribute("data-opens")) !== null) === opens, said);
+  assert.ok((await trigger.getAttribute("data-action"))?.startsWith("chat:"), `${label} should be chat's`);
+};
+
 Then(
   "chat's {string} in the node menu opens a submenu",
   async function (this: OlaiWorld, label: string) {
-    const { trigger } = await submenuOf(this, label);
-    assert.equal(await trigger.getAttribute("data-opens"), "", `${label} should open a submenu`);
-    assert.ok((await trigger.getAttribute("data-action"))?.startsWith("chat:"), `${label} should be chat's`);
+    await shaped(this, label, true, `${label} to open a submenu`);
   },
 );
 
 Then(
   "chat's {string} in the node menu runs at once",
   async function (this: OlaiWorld, label: string) {
-    const { trigger } = await submenuOf(this, label);
-    assert.equal(await trigger.getAttribute("data-opens"), null, `${label} should run at once`);
-    assert.ok((await trigger.getAttribute("data-action"))?.startsWith("chat:"), `${label} should be chat's`);
+    await shaped(this, label, false, `${label} to run at once`);
   },
 );
 

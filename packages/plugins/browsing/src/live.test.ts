@@ -337,7 +337,10 @@ test("over the pipe, calls answer by id, events reach listeners, and a closed pi
 
 test("a stream of pictures asks for the title at most once per interval, and once more after the last", () => run(Effect.gen(function*() {
   const browser = double()
-  const live = yield* openLive(browser.options({ titleEveryMs: 200 }))
+  // The interval is far longer than the burst, so a loaded box stretching the
+  // burst's 5ms sleeps cannot carry it past the trailing read (CI saw 2 reads
+  // mid-burst with a 200ms interval).
+  const live = yield* openLive(browser.options({ titleEveryMs: 1_000 }))
   yield* live.start
   yield* Effect.sleep("10 millis")
   const reads = () => browser.calls.filter((call) => call.method === "Target.getTargetInfo").length
@@ -349,7 +352,8 @@ test("a stream of pictures asks for the title at most once per interval, and onc
   // ~150ms of frames: the first asks at once, the rest wait for one trailing read.
   expect(reads() - before).toBe(1)
   browser.retitle("T1", "after the burst")
-  yield* Effect.sleep("250 millis")
+  for (let waited = 0; reads() - before < 2 && waited < 3_000; waited += 20) yield* Effect.sleep("20 millis")
+  yield* Effect.sleep("20 millis")
   expect(reads() - before).toBe(2)
   expect(live.tabs().get("T1")?.title).toBe("after the burst")
 })))
@@ -388,18 +392,21 @@ test("a resize sizes the tab's own viewport, once per size, and restarts a runni
   yield* Fiber.join(watching)
 })))
 
-test("a sized tab is sized again after each of its own navigations, which can drop the override", () => run(Effect.gen(function*() {
+test("a sized tab is sized again once each of its own new pages has loaded, which a navigation's screencast drops", () => run(Effect.gen(function*() {
   const browser = double()
   const live = yield* openLive(browser.options())
   yield* live.start
   const overrides = () => browser.calls.filter((call) => call.method === "Emulation.setDeviceMetricsOverride").length
   // A tab nobody sized is left as it is.
-  browser.emit({ method: "Page.frameNavigated", sessionId: "S-T1", params: { frame: { id: "F1" } } })
+  browser.emit({ method: "Page.domContentEventFired", sessionId: "S-T1", params: { timestamp: 1 } })
   yield* Effect.sleep("10 millis")
   expect(overrides()).toBe(0)
   yield* live.resize("T1", { width: 400, height: 900 })
+  // The commit is too early: the page being replaced may still take it.
   browser.emit({ method: "Page.frameNavigated", sessionId: "S-T1", params: { frame: { id: "F1" } } })
-  browser.emit({ method: "Page.frameNavigated", sessionId: "S-T1", params: { frame: { id: "F2", parentId: "F1" } } })
+  yield* Effect.sleep("10 millis")
+  expect(overrides()).toBe(1)
+  browser.emit({ method: "Page.domContentEventFired", sessionId: "S-T1", params: { timestamp: 2 } })
   yield* Effect.sleep("10 millis")
   expect(browser.calls.filter((call) => call.method === "Emulation.setDeviceMetricsOverride").map((call) => call.params)).toEqual([
     { width: 400, height: 900, deviceScaleFactor: 1, mobile: false },

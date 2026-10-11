@@ -113,7 +113,10 @@ test("a scope and a candidate list compose over a vault with depth in it", () =>
   } finally {
     index.close()
   }
-})
+  // Two whole differentials over a 60-file vault: ~4s of CPU alone, waiting on
+  // nothing, so bun's 5s default only measured how busy the box was (CI timed
+  // it out at 6.7s beside the other legs).
+}, 30_000)
 
 test("a write leaves the two narrowings still agreeing", () => {
   const index = opened()

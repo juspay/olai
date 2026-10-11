@@ -58,35 +58,51 @@ When("I drag pane header {int} to pane header {int}", async function (this: Olai
   await this.page.mouse.up()
 })
 
-const savedPaneScroll = new WeakMap<OlaiWorld, Map<number, number>>()
+// The reader's place is WHAT they were reading, not a pixel offset: a pinned
+// head that shrinks above it while the tab is away (an agent's "Working…"
+// line ending) moves the text and must move the offset with it.
+const savedPaneScroll = new WeakMap<OlaiWorld, Map<number, { readonly element: ElementHandle; readonly y: number }>>()
 When("I leave pane {int} halfway down", async function (this: OlaiWorld, index: number) {
-  const top = await this.pane(index).evaluate(root => {
+  const read = await this.pane(index).evaluateHandle(root => {
     let host = root.parentElement
     while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
     if (!host) throw new Error("no pane scroller")
     host.scrollTop = (host.scrollHeight - host.clientHeight) / 2
-    return host.scrollTop
+    // The in-flow element at the scrollport's middle, under any pinned head
+    // or foot drawn over it there.
+    const box = host.getBoundingClientRect()
+    const pinned = (element: Element) => {
+      for (let at: Element | null = element; at && at !== host; at = at.parentElement) {
+        if (/sticky|fixed/.test(getComputedStyle(at).position)) return true
+      }
+      return false
+    }
+    const element = document.elementsFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+      .find(element => host.contains(element) && element !== host && !pinned(element))
+    if (!element) throw new Error("nothing in flow at the pane's middle")
+    return { top: host.scrollTop, element, y: element.getBoundingClientRect().top - box.top }
   })
-  assert.ok(top > 50, "the pane must overflow enough to prove its scroll survives")
+  assert.ok(await read.evaluate(read => read.top) > 50, "the pane must overflow enough to prove its scroll survives")
+  const element = (await read.getProperty("element")).asElement()
+  assert.ok(element)
   let saved = savedPaneScroll.get(this)
   if (!saved) { saved = new Map(); savedPaneScroll.set(this, saved) }
-  saved.set(index, top)
+  saved.set(index, { element: element as ElementHandle, y: await read.evaluate(read => read.y) })
   await this.waitForFrame()
 })
 Then("pane {int} keeps its nonzero scroll position", async function (this: OlaiWorld, index: number) {
   const expected = savedPaneScroll.get(this)?.get(index)
-  assert.ok(expected !== undefined && expected > 50)
-  await this.waitUntil(() => this.pane(index).evaluate((root, expected) => {
+  assert.ok(expected)
+  const read = () => this.pane(index).evaluate((root, element) => {
     let host = root.parentElement
     while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
-    return host !== null && Math.abs(host.scrollTop - expected) < 2
-  }, expected), "the split column to retain the reader's position").catch(async cause => {
-    const actual = await this.pane(index).evaluate(root => {
-      let host = root.parentElement
-      while (host && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement
-      return host && { top: host.scrollTop, height: host.scrollHeight, viewport: host.clientHeight }
-    })
-    throw new Error(`${cause}; expected top ${expected}, actual ${JSON.stringify(actual)}`)
+    return host && { top: host.scrollTop, mounted: host.contains(element), y: element.getBoundingClientRect().top - host.getBoundingClientRect().top }
+  }, expected.element)
+  await this.waitUntil(async () => {
+    const at = await read()
+    return at !== null && at.top > 50 && at.mounted && Math.abs(at.y - expected.y) < 2
+  }, "the split column to retain the reader's position").catch(async cause => {
+    throw new Error(`${cause}; expected the element read ${expected.y}px down, actual ${JSON.stringify(await read())}`)
   })
 })
 
