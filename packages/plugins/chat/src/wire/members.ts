@@ -2038,6 +2038,19 @@ export const ChatState = Schema.Struct({
    * ends.
    */
   sleep: Schema.Boolean,
+  /**
+   * THE TURN THAT JUST ENDED WAS CANCELLED, and it is on the state for the same
+   * reason {@link sleep} is: the pass needs to tell a turn that ENDED from a
+   * turn somebody STOPPED.
+   *
+   * A cancelled turn moves to `idle` with no `trouble` (`chat.ts`'s cancel
+   * arm), so a pass reading only the status would call it a finished sleep —
+   * stamping the memo on a rewrite that stopped halfway and committing it as a
+   * completed pass, and the memo would then keep the node from being tried
+   * again. `true` from the moment a cancel ends a turn (a person's press, or the
+   * agent stopping itself), and cleared by the next turn's `begin`.
+   */
+  cancelled: Schema.Boolean,
   /** The agent is running and would not open a conversation — see
    *  {@link Unopened}. `null` on every panel that has one.
    *
@@ -2128,6 +2141,7 @@ export const CHAT_OFF: ChatState = {
   // NO PASS IS RUNNING: a page that has not been told anything is not watching
   // a machine turn, and the panel that would start one is on the server.
   sleep: false,
+  cancelled: false,
   unopened: null,
   servers: [],
   wake: [],

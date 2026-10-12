@@ -466,3 +466,23 @@ test("a pass asked for on a node whose turn is running is refused", () =>
       expect(arms.commits).toEqual([])
     }
   })))
+
+test("a turn somebody cancelled writes nothing, and is not remembered", () =>
+  onTheClock(Effect.gen(function*() {
+    // A PERSON'S CANCEL — or an agent stopping its own turn — lands on `idle`
+    // with no `trouble`, which is what a turn that ENDED looks like, so the
+    // state carries the difference (`ChatState.cancelled`). Read as a finished
+    // sleep, this pass would stamp the memo on a rewrite that stopped halfway
+    // and commit it as a completed pass.
+    const arms = yield* withStubs({
+      states: [thinking({ asking: 0 }), { ...CHAT_OFF, status: "idle", cancelled: true }],
+    })
+    expect(yield* arms.tick).toBe(true)
+    expect(arms.memos).toEqual([])
+    expect(arms.commits).toEqual([])
+    expect(arms.warnings.join("\n")).toContain("its turn was cancelled before it finished")
+    // ...AND NOTHING IS REMEMBERED AGAINST THE NODE: the back-off is for a node
+    // that fails on its own, and the next look is entitled to try again.
+    expect(yield* arms.tick).toBe(true)
+    expect(arms.commits).toHaveLength(1)
+  })))

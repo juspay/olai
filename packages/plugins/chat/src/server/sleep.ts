@@ -117,6 +117,14 @@ export type Verdict =
   | "trouble"
   /** The turn sat on a question past `sleep-question` and was cancelled. */
   | "question"
+  /**
+   * SOMEBODY ELSE STOPPED IT — a person pressed Cancel, or the agent stopped
+   * its own turn. Nothing was written and nothing is remembered: the rewrite is
+   * half done, so there is no memo and no commit, and no back-off either,
+   * because the next tick is entitled to try again and a person's press is not
+   * a failure to wait out.
+   */
+  | "cancelled"
   /** The turn never started, so there was nothing to wait for. */
   | "unstarted"
 
@@ -127,6 +135,7 @@ const WHY: Record<Exclude<Verdict, "slept">, string> = {
   gone: "the conversation is not there any more",
   trouble: "the turn went wrong, or the memo could not be written",
   question: "it asked a question nobody is there to answer, so it was stopped",
+  cancelled: "its turn was cancelled before it finished, so nothing was written",
   unstarted: "the turn never started",
 }
 
@@ -385,6 +394,12 @@ export const makeSleeper = (
           // where a failed turn says so.
           if (state.sleep !== true || state.status !== "thinking") {
             if (state.status !== "idle") return "gone"
+            // CANCELLED FIRST, and it is why the state carries the flag: a
+            // cancelled turn lands on `idle` with no `trouble`, which is what a
+            // turn that ENDED looks like — and calling it a finished sleep would
+            // stamp the memo on a rewrite that stopped halfway and keep the node
+            // from being tried again.
+            if (state.cancelled) return "cancelled"
             return state.trouble === null ? "slept" : "trouble"
           }
           if (state.trouble !== null) return "trouble"
@@ -529,7 +544,12 @@ export const makeSleeper = (
       if (next === null) return false
       yield* doors.log(`sleep: ${next.agent.id} is being tidied`)
       const verdict = yield* one(next.agent, next.files)
-      if (verdict !== "slept") failures.set(next.agent.id, yield* Clock.currentTimeMillis)
+      // NOTHING IS REMEMBERED AGAINST A NODE SOMEBODY STOPPED: the back-off is
+      // for a node that fails on its own, and a person's Cancel (or an agent
+      // stopping itself) is not that — the next tick is entitled to try again.
+      if (verdict !== "slept" && verdict !== "cancelled") {
+        failures.set(next.agent.id, yield* Clock.currentTimeMillis)
+      }
       return true
     }))
 

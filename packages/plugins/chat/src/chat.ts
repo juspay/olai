@@ -2513,7 +2513,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           publish(transcript.begins())
           watched()
         }
-        move({ status: "thinking", trouble: null, ...(turn.sleep === true ? { sleep: true } : {}) })
+        move({ status: "thinking", trouble: null, cancelled: false, ...(turn.sleep === true ? { sleep: true } : {}) })
         // How much the agent had SHOWN before this turn was asked for — the
         // narrow count ({@link EVIDENCE}), and it answers one question in both
         // directions the turn can end. On a turn that FAILED: whether the
@@ -2707,7 +2707,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
                 stopSaid = ticket.stopped
                 publish(transcript.add("notice", "cancelled"))
               }
-              if (current) move({ status: "idle", trouble: null })
+              // ...AND THE CANCELLATION IS CARRIED, because `idle` with no
+              // `trouble` is exactly what a turn that ENDED looks like: a pass
+              // watching this conversation would otherwise record a stopped
+              // rewrite as a finished sleep.
+              if (current) move({ status: "idle", trouble: null, cancelled: true })
               return
             }
             // A TURN THAT SAID NOTHING is not a turn that went well, and until

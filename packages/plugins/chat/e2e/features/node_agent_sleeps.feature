@@ -187,3 +187,22 @@ Feature: A node agent tidies its own memory when nobody is looking
     When the agent is released
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
     Then olai has recorded 1 commit here
+
+  @sleep-fast @scratch:chat @git:repo
+  Scenario: A sleep a person cancels writes nothing, and is not remembered
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    When the next sleep holds its turn open
+    And the memory under "install" has moved
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    Then the node agent "install" has been tidied
+    # A PERSON STOPS IT, which is the one press the pass must not read as a
+    # finished sleep: a cancelled turn lands on `idle` with no trouble.
+    When I cancel the turn
+    Then the server log warns that "install" did not finish: "its turn was cancelled before it finished, so nothing was written"
+    # ...AND THE NODE IS NOT LEFT ALONE FOR A DAY: the loop's own next look tries
+    # again, and THAT pass completes — which is what says nothing was remembered
+    # against a node somebody stopped.
+    And node "install" carries the sleep memo
+    And olai has recorded 1 commit here
