@@ -200,7 +200,7 @@ import { createHash } from "node:crypto"
 import { basename, join } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
-import { emitter, MARKER, RELEASE, released as releasedIn, speaking } from "../support/scripted.ts"
+import { emitter, MARKER, RELEASE, released as releasedIn, SLEEP_STAMP, speaking } from "../support/scripted.ts"
 import { sessionStore } from "./session-store.ts"
 import { commandLine, commandWords } from "./command.ts"
 
@@ -1569,6 +1569,10 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
         reply(id, { stopReason: "end_turn" })
         return
       }
+      // ...AND THE MARKER, BEFORE THE ASK: the request goes to a panel whose
+      // reader may be looking elsewhere, and this is what a scenario waits for
+      // to know there was something to alert about.
+      appendFileSync(`${cwd}/${MARKER.sleepAsked}`, "")
       await request("elicitation/create", {
         mode: "form",
         sessionId,
@@ -1595,7 +1599,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       const refused = await useTool("outlines_prop", {
         id: node,
         key: "chat-agent-slept",
-        value: "2026-01-01T00:00:00+00:00",
+        value: SLEEP_STAMP,
       })
       // SAID OUT LOUD, like the `set property` verb above and for the same
       // reason: the refusal's own sentence is the assertion, and an olai tool's
@@ -1605,14 +1609,32 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       reply(id, { stopReason: "end_turn" })
       return
     }
-    // THE TIDY ITSELF, and it is a NOTE rewrite rather than a retitle: the
-    // node's title is what the commit names and what a scenario addresses the
-    // row by, and a fake that moved it would make its own assertions
-    // unanswerable.
-    await useTool("outlines_desc", {
-      id: node,
-      desc: "Consolidated: the September rows are under the Archive child.",
-    })
+    // THE TIDY ITSELF, AND IT IS A WRITE INTO THE SUBTREE — a child of the node
+    // is retitled, which is what a pass over a memory does. It is deliberately
+    // NOT the node's own record: the node's title is what the commit names and
+    // what a scenario addresses the row by, and a write there would also make
+    // the scenario's "and it is not tidied again" a statement about a record the
+    // pass never counts (`@olai/format`'s `changedUnder` excludes it) rather
+    // than about the memo.
+    const read = await useTool("outlines_subtree", { id: node, depth: 1, withDesc: false })
+    const answer = read["structuredContent"] as
+      | { readonly children?: ReadonlyArray<{ readonly id?: string; readonly title?: string }> }
+      | undefined
+    const child = answer?.children?.[0]
+    if (child?.id === undefined) {
+      say("that node has no children to tidy.")
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+    await useTool("outlines_title", { id: child.id, title: "tidied" })
+    // ...AND THEN, IF THE SCENARIO ASKED FOR IT, THE TURN IS HELD OPEN — after
+    // the write, so what the quiet window would have recorded is already
+    // waiting. This is the only way a scenario can give that window its full run
+    // in the middle of a pass.
+    if (existsSync(`${cwd}/${MARKER.sleepHold}`)) {
+      rmSync(`${cwd}/${MARKER.sleepHold}`, { force: true })
+      await released()
+    }
     reply(id, { stopReason: "end_turn" })
     return
   }

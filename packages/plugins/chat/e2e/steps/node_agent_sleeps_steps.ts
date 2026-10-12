@@ -18,9 +18,12 @@
  */
 
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { findLogfmt } from "@olai/log/testlib";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
-import { MARKER } from "@olai/tests/harness/scripted.ts";
+import { MARKER, SLEEP_STAMP } from "@olai/tests/harness/scripted.ts";
 import { selector } from "@olai/web/testlib";
 import { attr, HYDRATION_TIMEOUT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
@@ -81,6 +84,25 @@ Then("the node agent {string} has been tidied", async function (this: OlaiWorld,
     "the sleep row in the transcript",
     HYDRATION_TIMEOUT,
   );
+  // ...AND IT IS DRAWN AS A MACHINE'S ROW, RUNG BY THE PASS: the attribution is
+  // the word the delivery was made under (`olai · sleep`), and the row FOLDS —
+  // one essence line with a chevron, the instruction behind it, which is what a
+  // reader is owed before they press anything.
+  const rang = fold(this, node)
+    .locator(`${selector(PLUGIN_TESTID.chatRang)}${attr("data-rang-by", "sleep")}`);
+  await rang.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const chevron = rang.locator(selector(PLUGIN_TESTID.chatRangFold));
+  await chevron.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.notStrictEqual(
+    await chevron.getAttribute("aria-expanded"),
+    "true",
+    "the instruction was already open, so this row is not the folded one a reader meets",
+  );
+  assert.strictEqual(
+    await rang.locator(selector(PLUGIN_TESTID.chatRangBody)).count(),
+    0,
+    "the row drew its whole account before anybody pressed the chevron",
+  );
 });
 
 /** ... and its absence, which is the half that regresses: a pass that never ran
@@ -115,20 +137,6 @@ Then("node {string} carries no sleep memo", async function (this: OlaiWorld, nod
 /** THE TWO THINGS A SLEEP TURN CAN DO THAT A SCENARIO WANTS TO WATCH, both of
  *  them cases the PRODUCT decides: a question nobody is there to answer, and an
  *  attempt to write the memo itself. */
-/**
- * THE PASS OFF — the chat row's own `sleep: off`, written the way an operator
- * writes it, and read by the row on the vault's change like every other setting
- * (`olai-plugin-chat`'s `settings.ts`). The scenario's own short spans are
- * already in the file, so this MERGES rather than replacing.
- */
-Given("the sleep pass is off", function (this: OlaiWorld) {
-  const rows = this.servedNodes("_olai/Settings.olai");
-  const chat = rows.find((row) => row["title"] === "chat");
-  assert.ok(chat !== undefined, "the fixture policy wrote no chat row to turn the pass off in");
-  chat["custom"] = { ...(chat["custom"] as Record<string, string> | undefined), sleep: "off" };
-  this.writeServed("_olai/Settings.olai", rows.map((row) => JSON.stringify(row)).join("\n"));
-});
-
 When("the next sleep asks a question", function (this: OlaiWorld) {
   this.writeServed(MARKER.sleepAsk, "");
 });
@@ -137,20 +145,92 @@ When("the next sleep writes the memo itself", function (this: OlaiWorld) {
   this.writeServed(MARKER.sleepStamp, "");
 });
 
+/** ...and one that WRITES and then holds its turn open, so a scenario can give
+ *  the quiet window its full run in the middle of a pass. */
+When("the next sleep holds its turn open", function (this: OlaiWorld) {
+  this.writeServed(MARKER.sleepHold, "");
+});
+
 /**
- * WHAT THE SERVER SAID ABOUT IT — the pass's own line, off the logfmt the
- * harness collects from the spawned server.
- *
- * The one assertion a browser cannot make: the pass cancels a question and says
- * so, and the node it gave up on is a thing only the log records.
+ * THE QUESTION IS ON THE WIRE — the absence assertions below are about a
+ * question that EXISTS, and with the fold shut there is nothing else to read.
+ * The agent leaves the marker as it asks (`MARKER.sleepAsked`).
  */
-Then("the server log says {string}", async function (this: OlaiWorld, words: string) {
+Then("the sleep's question is waiting", async function (this: OlaiWorld) {
   await this.waitUntil(
-    async () => this.serverLog.text.includes(words),
-    `the server log to say "${words}"`,
+    () => existsSync(join(this.scratch(), MARKER.sleepAsked)),
+    "the sleep's question to reach the panel",
     HYDRATION_TIMEOUT,
   );
 });
+
+/**
+ * THE PASS'S OWN MEMO, AND NOT THE AGENT'S — the half of the reserved key that
+ * only the value can show: the scripted agent tries to write
+ * {@link SLEEP_STAMP} and is refused, and what is on the node afterwards is the
+ * instant the pass wrote.
+ */
+Then("the memo on node {string} is the pass's own", async function (this: OlaiWorld, node: string) {
+  await this.waitUntil(
+    async () => typeof memoOf(this, node) === "string",
+    `node ${node} to carry the pass's memo`,
+    HYDRATION_TIMEOUT,
+  );
+  const memo = memoOf(this, node);
+  assert.notStrictEqual(memo, SLEEP_STAMP, "the agent's own value landed on the node");
+  assert.match(
+    String(memo),
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/,
+    `the memo is ${String(memo)}, which is not an instant`,
+  );
+});
+
+/**
+ * THE COMMIT, WAITED FOR — the machine row appears when the TURN starts, so an
+ * assertion about the commit read straight after it would be a race with the
+ * commit itself. `git`'s own "the last commit is …" step is the immediate read,
+ * and it is right for a commit a person just made.
+ */
+Then(
+  "the last commit becomes {string} by {string}",
+  async function (this: OlaiWorld, subject: string, writer: string) {
+    await this.waitUntil(
+      () => {
+        try {
+          return this.git("log", "--format=%s", "-1").trim() === subject
+            && this.git("log", "--format=%(trailers:key=X-Olai-Writer,valueonly)", "-1").trim() === writer;
+        } catch {
+          // A repository with no commits yet is "not yet", not a failure.
+          return false;
+        }
+      },
+      `the last commit to become ${JSON.stringify(subject)} by ${JSON.stringify(writer)}`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+/**
+ * WHAT THE SERVER SAID ABOUT IT — the pass's own line, at the level an operator
+ * reads, off the logfmt the harness collects from the spawned server.
+ *
+ * The one assertion a browser cannot make: the pass cancels a question and says
+ * so, and the node it gave up on is a thing only the log records. It is the
+ * WARNING and not a substring of the log: `findLogfmt` matches the message
+ * exactly and answers the fields, so a line that moved to INFO — or a message
+ * that changed wording — fails here rather than passing on a fragment.
+ */
+Then(
+  "the server log warns that {string} did not finish: {string}",
+  async function (this: OlaiWorld, node: string, why: string) {
+    const message = `sleep: ${this.nodeId(node)} did not finish: ${why}`;
+    await this.waitUntil(
+      () => findLogfmt(this.serverLog.text, message)?.level === "WARN",
+      `the server log to warn: ${message}`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
 
 /**
  * Give the pass its full chance and look afterwards — the only way to say a

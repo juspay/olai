@@ -757,6 +757,9 @@ interface Spawn {
    *  (`@sleep-fast`). Carried for `fastNodeIdle`'s reason: a restart has to
    *  reproduce the first boot. */
   readonly fastSleep?: boolean;
+  /** ...and whether it runs one at all (`@sleep-off`), written into the settings
+   *  file before the server boots. */
+  readonly sleepOff?: boolean;
 
   /** The fakes this server is configured to see — the tag words a roster row
    *  answers to. Each descriptor with an `adapter` contributes a knob, each
@@ -1128,6 +1131,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       stored: world.storedSessions,
       fastNodeIdle: world.fastNodeIdle,
       fastSleep: world.fastSleep,
+      sleepOff: world.sleepOff,
       agent: world.hasAgent,
       fakes: world.fakes,
       agentSearchPath: world.agentSearchPath,
@@ -1267,6 +1271,7 @@ const scratchServerFor = async (
       without: spawnOptions.rowsOff, avatar: spawnOptions.avatar,
       idle: spawnOptions.fastNodeIdle ? FAST_NODE_IDLE_MS : undefined,
       sleep: spawnOptions.fastSleep ? FAST_SLEEP : undefined,
+      sleepOff: spawnOptions.sleepOff,
     });
     if (spawnOptions.git === "repo") makeRepository(root);
     const server = await startServerChild(
@@ -1522,6 +1527,14 @@ Before(
           "@scratch:<corpus>; use @own-scratch when the feature shares its scratch.",
       );
     }
+    // THE PASS OFF IS ALSO A PROPERTY OF THE SERVER, so it takes the same rule.
+    this.sleepOff = scenario.pickle.tags.some((tag) => tag.name === "@sleep-off");
+    if (this.sleepOff && asked.mode !== "own") {
+      throw new Error(
+        "@sleep-off writes the chat row's own switch and requires a private " +
+          "@scratch:<corpus>; use @own-scratch when the feature shares its scratch.",
+      );
+    }
     this.storedSessions = scenario.pickle.tags.some(
       (tag) => tag.name === STORED_TAG,
     );
@@ -1729,6 +1742,7 @@ Before(
         stored: this.storedSessions,
         fastNodeIdle: this.fastNodeIdle,
         fastSleep: this.fastSleep,
+        sleepOff: this.sleepOff,
         agent: this.hasAgent,
         fakes: this.fakes,
         // THE FIRST BOOT gets it, not just the restart: what this scenario is

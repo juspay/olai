@@ -18,6 +18,10 @@ export interface FixturePolicy {
    *  six hours for one (`@sleep-fast`). The same three words a person writes in
    *  `_olai/Settings.olai`, because that is the only door they have. */
   readonly sleep?: { readonly after: string; readonly tick: string; readonly question: string }
+  /** The pass turned off IN THE FILE, at boot (`@sleep-off`) — rather than
+   *  written into a running serve, which would test the setting's re-application
+   *  instead of the pass being absent. */
+  readonly sleepOff?: boolean
   readonly avatar?: string
 }
 export const writeFixturePolicy = (root: string, policy: FixturePolicy): void => {
@@ -56,6 +60,7 @@ export const writeFixturePolicy = (root: string, policy: FixturePolicy): void =>
     put("chat", "sleep-tick", policy.sleep.tick)
     put("chat", "sleep-question", policy.sleep.question)
   }
+  put("chat", "sleep", policy.sleepOff === true ? "off" : undefined)
   if (changed) {
     fs.mkdirSync(path.dirname(file), { recursive: true })
     fs.writeFileSync(file, nodes.map(node => JSON.stringify(node)).join("\n") + "\n")
