@@ -35,13 +35,17 @@ test("a bare row offers one start choice of every startable engine", () => {
   expect(rowVerbs("one", roster()).every(action => action.writes)).toBe(true)
 })
 
-test("a node talking through a conversation offers fresh start, its own engine first, then close", () => {
+test("a node talking through a conversation offers fresh start, its own engine first, then tidy and close", () => {
   const bound: NodeAgentRow = { ...node, engine: "codex", session: "existing" }
   expect(drawn(rowVerbs("one", roster(bound)))).toEqual([
     { id: "fresh-start", label: "Fresh start", choices: [
       { id: "fresh-start-codex", label: "Codex" },
       { id: "fresh-start-claude", label: "Claude" },
     ] },
+    // THE PASS BY HAND, on the rows that have a conversation and above the
+    // release: tidying a node's memory is not being done with its agent, and
+    // `Close the agent` is the one that takes the binding away.
+    { id: "tidy-memory", label: "Tidy memory now" },
     { id: "close-agent", label: "Close the agent" },
   ])
 })
