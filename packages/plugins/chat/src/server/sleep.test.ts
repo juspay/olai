@@ -152,6 +152,10 @@ const withBench = async (
     /** The vault the pass reads, for the case where WHEN the memory moved is
      *  what is under test. */
     readonly vault?: Record<string, string>
+    /** THE VAULT THE SECOND READ SEES, for the case about what the turn DID to
+     *  the memory: the pass reads again after the turn, and this is that
+     *  reading (`server/sleep.ts`). */
+    readonly reread?: Record<string, string>
   },
   body: (bench: Bench) => Promise<void>,
 ): Promise<void> => {
@@ -160,6 +164,7 @@ const withBench = async (
   const commits: Array<{ message: string; paths: ReadonlyArray<string> }> = []
   const warnings: Array<string> = []
   const events: Array<string> = []
+  let reads = 0
   const chat = await run(make({
     // THE BENCH'S OWN RUNTIME, said out loud: `Options.fork` has no default.
     fork: (work) => Effect.runFork(work),
@@ -199,7 +204,12 @@ const withBench = async (
       // may do to the conversation it watches is stop its turn.
       watch: (to, observer) =>
         Effect.map(chat.reading(to, observer), (panel) => ({ cancel: panel.cancel })),
-      read: reading(over.vault),
+      // READ EVERY TIME, and answered with the vault of the moment: the second
+      // read is a real second reading rather than the first one replayed.
+      read: Effect.suspend(() => {
+        reads += 1
+        return reading(reads === 1 ? over.vault : (over.reread ?? over.vault))
+      }),
       write: over.write ?? ((request) => Effect.sync(() => {
         writes.push(request)
         return {}
@@ -272,6 +282,39 @@ test("a finished pass writes the memo and then commits it", async () => {
     // reverse of the order they were registered.
     expect(bench.events).toEqual(["hold", "delivered", "committed", "withdrawn", "released"])
   })
+})
+
+test("the commit names a file the agent moved a record into during the pass", async () => {
+  // THE RE-READ, and why the candidate's set is not enough: an agent that
+  // tidies by moving a record into another file leaves its memory there, and
+  // that file was not in the set taken before the turn — so without the second
+  // read the record it moved stays waiting, which is the direction the header
+  // says cannot happen.
+  await withBench(
+    {
+      vault: {
+        "Work.olai": [
+          `{"id":"health","ord":"a0","title":"Health"}`,
+          `{"id":"note","parent":"health","ord":"a0","title":"sleep was fine","changed":"2026-10-01T09:00:00+00:00"}`,
+        ].join("\n") + "\n",
+      },
+      // ...WHAT THE TURN DID: the record is in another file by the time the
+      // pass reads again, and the file it left behind is empty of memory.
+      reread: {
+        "Work.olai": `{"id":"health","ord":"a0","title":"Health"}\n`,
+        "Archive.olai": `{"id":"note","parent":"health","ord":"a0","title":"moved out","changed":"2026-10-01T09:00:00+00:00"}\n`,
+      },
+    },
+    async (bench) => {
+      expect(await run(bench.tick)).toBe(true)
+      // The first read saw Work.olai alone; the commit names Archive.olai
+      // because the second one did.
+      expect(bench.commits).toEqual([{
+        message: "sleep: Health",
+        paths: ["docs/Work.olai", "docs/Archive.olai"],
+      }])
+    },
+  )
 })
 
 test("the memo is what keeps a quiet node from sleeping again", async () => {

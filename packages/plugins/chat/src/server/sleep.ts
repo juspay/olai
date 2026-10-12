@@ -452,8 +452,22 @@ export const makeSleeper = (
         // spelling git takes. Anything else waiting — a person's parked edits
         // in another file, another agent's work — is left exactly where it was,
         // because this commit is the undo of THIS pass and nothing else.
+        //
+        // THE FILES ARE READ AGAIN, so the commit names where the memory is NOW
+        // rather than where it was when the node was picked: a row the agent
+        // MOVED has its record in a file the candidate-time set never had, and
+        // the record it moved would stay waiting — the one direction the header
+        // promises cannot happen. The UNION, because the pass may also have
+        // written where the fresh reading no longer looks (a `move` that took a
+        // record out of this subtree leaves a file this pass edited). A re-read
+        // that fails costs the union and nothing else: the candidate's set is
+        // still the files this pass may name.
+        const reread = yield* Effect.result(doors.read)
+        const named = reread._tag === "Success"
+          ? new Set([...files, ...memoryFiles(reread.success.derived, agent.id)])
+          : files
         const waiting = yield* doors.waiting
-        const paths = waiting.filter((one) => files.has(one.file)).map((one) => one.path)
+        const paths = waiting.filter((row) => named.has(row.file)).map((row) => row.path)
         const refusal = yield* doors.commit(`sleep: ${agent.title}`, paths)
         yield* doors.log(refusal === null
           ? `sleep: ${agent.id} finished and committed`
