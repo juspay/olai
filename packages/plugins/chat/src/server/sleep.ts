@@ -2,64 +2,37 @@
  * THE PASS THAT PUTS A NODE AGENT'S MEMORY IN ORDER — the loop, and the one
  * turn it takes when a node has been left alone.
  *
- * A node's subtree is its only memory and nothing ever compacts it: a day's
- * whole report ends up in a title, standing facts are re-derived by hand, and
- * nothing is archived. This is the offline pass every long-lived memory system
- * has, and the words are `../sleep.ts` — what lives HERE is when it runs, what
- * it is allowed to touch, and what happens to a turn nobody is watching.
+ * WHAT LIVES HERE is when the pass runs, what it may touch, and what happens to
+ * a turn nobody is watching. The words it sends are `../sleep.ts`, and the
+ * design — the undo story, the settings an operator reads, what a person sees —
+ * is `docs/chat.md`.
  *
  * ## A scope-owned fiber, beside the filer
  *
- * Not a Cordis component, and not a service anything declares: it needs chat's
- * OWN doors — the roster, the scheduler's deliver, a conversation's reading,
- * and the write gate — and chat's server row already holds all four. A separate
- * row would have had to be handed a machine-turn door with no turn end, no
- * commit with a writer word and no reading, which is to say it would have had
- * to be handed chat. So it is forked with `Effect.forkScoped` in the same fork
- * as the filer (`server.ts`), in the same scope, and it stops when that scope
- * closes: the loop dies, an in-flight turn is cancelled by the pass's own
- * finalizer, and no memo is written.
+ * Not a component and not a service: it needs chat's OWN doors — the roster, the
+ * scheduler's deliver, a conversation's reading and the write gate — and chat's
+ * server row already holds all four, so a row of its own would have had to be
+ * handed chat. It is forked with `Effect.forkScoped` in the same fork as the
+ * filer and dies with that scope (`docs/architecture/cordis.md` argues the
+ * shape, and the one resource here whose owner is another row's).
  *
  * ## One pass, one SCOPE
  *
- * Each pass runs inside its own `Effect.scoped`, and everything it acquires
- * there is released by closing it — the hold on the quiet window, the reading
- * of the node's conversation, and the turn itself. The order is the LIFO order
- * of the registrations below:
+ * Each pass runs inside its own `Effect.scoped`, and everything it acquires is
+ * released by closing it — in the LIFO order of the registrations below:
  *
- *   1. THE HOLD (`@olai/plugin-api`'s `Ledger.hold`), taken first so it is
- *      released LAST. Under `commit: auto` the pass writes a subtree over
- *      minutes and then commits it as one commit; without a hold the window
- *      would record the first half of that as `auto` while the pass was still
- *      going, and the commit a person reverts would not be the whole pass.
+ *   1. THE HOLD on git's quiet window, taken first so it is released LAST: the
+ *      pass writes a subtree over minutes and then commits it as one commit, and
+ *      without the hold the window would record the first half of that as `auto`
+ *      while the pass was still going.
  *   2. THE READING of the node's conversation, which is also what keeps the
  *      node scope from being reaped while its agent works.
  *   3. THE CANCELLATION, registered last so it runs FIRST: a pass that is
- *      stopped (a settings flip, a serve shutting down) stops the TURN rather
- *      than walking away from it. A turn left running would write into the
- *      subtree with nobody watching and no commit of its own to be undone by —
- *      the one outcome worse than not sleeping at all.
+ *      stopped stops the TURN rather than walking away from it. A turn left
+ *      running would write into the subtree with nobody watching and no commit
+ *      of its own to be undone by — the one outcome worse than not sleeping.
  *
  * The memo and the turn therefore end on the same path, however the pass ends.
- *
- * ## One commit, and the one thing it may not sweep
- *
- * The commit names the files the node's memory LIVES IN — its own outline, and
- * every file holding a record under it — because a sleep is one commit a person
- * can `git revert`, and a revert of somebody else's parked edits is not an undo
- * of anything this pass did. `@olai/plugin-api`'s `Ledger.waiting` is what makes
- * that nameable at all: a plugin knows its files by their served names, and a
- * commit request names them as git does, and the two are the same string only
- * when olai serves the repository root.
- *
- * WHAT IT STILL SWEEPS, written down rather than left to be found: other rows of
- * those same files that a person edited are inside the commit too. Narrowing
- * further would mean a node-level selection, which git does not have — and the
- * alternative, committing nothing, is the outcome worse than a commit nobody
- * asked for (a machine that edits at night and leaves the edits waiting). A file
- * the agent creates OUTSIDE that set — which the instruction forbids, and which
- * a `move` inside the subtree does not produce — is left waiting rather than
- * swept, which is the safe direction.
  *
  * ## What it is NOT
  *
@@ -73,12 +46,15 @@ import {
   memoryFiles,
   type NodeAgent,
   type NodeAgents,
+  othersOf,
   type OpFailure,
   type Reading,
   stampOf,
   type WriteRequest,
 } from "@olai/format"
 import { Clock, Duration, Effect, Queue, Semaphore, type Scope } from "effect"
+
+import type { WaitingOutline } from "@olai/plugin-api/services"
 
 import type { Conversing } from "../sessions.ts"
 import type { LiveSession, ReadingObserver } from "../scoped.ts"
@@ -89,12 +65,12 @@ import type { ChatState } from "../wire/members.ts"
  * HOW LONG A DELIVERED TURN MAY TAKE TO START before the pass stops waiting for
  * it — THE ONE DEADLINE THAT IS NOT A SETTING.
  *
- * The pass's three SPANS are the vault's (`./settings.ts`): `sleep-after`,
- * `sleep-tick` and `sleep-question` are written by an operator and shortened by
- * the harness through the same declared config, because a slow engine and a
- * short one want different patience and a test cannot wait six hours. This one
- * is different: it exists so that a BUG cannot wedge the loop for ever, and
- * there is no user-facing meaning in it to configure.
+ * The pass's other spans are the vault's (`./settings.ts`), written by an
+ * operator and shortened by the harness through the same declared config,
+ * because a slow engine and a short one want different patience and a test
+ * cannot wait hours. This one is different: it exists so that a BUG cannot
+ * wedge the loop for ever, and there is no user-facing meaning in it to
+ * configure.
  *
  * A machine turn that was HELD rather than handed is the case it covers: the
  * body waits for a turn boundary, and if there is no turn to bound it, it waits
@@ -102,7 +78,7 @@ import type { ChatState } from "../wire/members.ts"
  * must not be less: a node asleep for a week boots a process before it can
  * answer anything.
  */
-export const START_MS = Duration.toMillis(Duration.minutes(2))
+export const START = Duration.minutes(2)
 
 /** HOW LONG A NODE THAT FAILED IS LEFT ALONE, in memory and only in memory. */
 export const SKIP_MS = Duration.toMillis(Duration.hours(24))
@@ -163,11 +139,9 @@ export interface Sleeping {
    *  doorbell does — the row it writes carries this feature's own word. */
   readonly deliver: (to: Conversing, say: () => string | null) => Effect.Effect<void>
   /** TAKE BACK THE WORDS THIS PASS HANDED OVER, for one conversation — what the
-   *  scope's finalizer does with a delivery it never saw delivered. A body the
-   *  scheduler or a panel is still holding would otherwise fire as a machine
-   *  turn with no hold, no observer, no memo and no commit
-   *  ({@link @olai/plugin-api}'s `Deliveries` and `olai-plugin-chat`'s
-   *  `Chat.withdraw` argue the whole of it). */
+   *  scope's finalizer does with a delivery it never saw delivered, which would
+   *  otherwise fire as a machine turn with no hold, no observer, no memo and no
+   *  commit (`Chat.withdraw` and `@olai/plugin-api`'s `Deliveries` argue it). */
   readonly withdraw: (to: Conversing) => Effect.Effect<void>
   /**
    * OBSERVE ONE NODE'S CONVERSATION, and answer with the ONE THING the pass may
@@ -188,19 +162,18 @@ export interface Sleeping {
   readonly read: Effect.Effect<Reading & { readonly outlineRow: string }, OpFailure>
   /** One write, under this feature's own writer word. */
   readonly write: (request: WriteRequest) => Effect.Effect<unknown, OpFailure>
-  /** WHAT IS WAITING, in the two names every outline has — so the commit below
-   *  can name the files the pass wrote in the spelling git wants
-   *  (`@olai/plugin-api`'s `Ledger.waiting`). */
-  readonly waiting: Effect.Effect<ReadonlyArray<{ readonly file: string; readonly path: string }>>
+  /** WHAT IS WAITING, in the two names every outline has, so the commit below
+   *  can name the files the pass wrote in ({@link WaitingOutline}). */
+  readonly waiting: Effect.Effect<ReadonlyArray<WaitingOutline>>
   /** One commit OF EXACTLY THESE PATHS, under the same word, answering with the
    *  reason it did NOT happen — `null` when it did. A commit that could not
    *  happen is not a failed pass: under `commit: off`, and with no repository at
    *  all, the memo has still landed and waits like anybody else's write.
    *
-   * PATHS AND NEVER A BARE MESSAGE, and that is the promise this feature is
-   * built on: a sleep is one commit a person can `git revert`, so it may not
-   *  sweep in somebody else's parked work: the paths are the files that memory
-   *  lives in ({@link @olai/format}'s `memoryFiles`), and nothing else. */
+   * PATHS AND NEVER A BARE MESSAGE: a sleep is one commit a person can
+   *  `git revert`, so it may not sweep in somebody else's parked work — the
+   *  paths are the files that memory lives in (`docs/chat.md`), and nothing
+   *  else. */
   readonly commit: (
     message: string,
     paths: ReadonlyArray<string>,
@@ -216,16 +189,11 @@ export interface Sleeping {
   readonly tick: Duration.Duration
   /** How long a turn may sit on an unanswered question (`sleep-question`). */
   readonly question: Duration.Duration
-  /**
-   * HOW LONG ONE TURN MAY RUN AT ALL (`sleep-limit`).
-   *
-   * The other three spans bound WAITING — for a start, for a boundary, for an
-   * answer. This one bounds the turn itself, and it exists because a turn that
-   * never ends holds the quiet window shut for the whole vault, wedges the loop
-   * on the permit and makes every *Sleep now* answer "busy" — with the git pill
-   * still promising a commit that cannot come. An hour is generous for a
-   * tidying pass and far short of "for ever".
-   */
+  /** HOW LONG ONE TURN MAY RUN AT ALL (`sleep-limit`), because a turn that
+   *  never ends holds the quiet window shut for the whole vault, wedges the loop
+   *  on the permit and makes every *Sleep now* answer "busy". An hour is
+   *  generous for a tidying pass and far short of "for ever" — and the git pill
+   *  does not know about it (`docs/chat.md`). */
   readonly limit: Duration.Duration
   /** How long a delivered turn may take to start ({@link START_MS}). */
   readonly start: Duration.Duration
@@ -265,6 +233,23 @@ export const makeSleeper = (
      *  node that is going to fail again anyway. */
     const failures = new Map<string, number>()
 
+    /**
+     * IS ANYTHING ELSE GOING ON IN THIS NODE'S CONVERSATION — the state half of
+     * being a candidate, asked by the loop and by a person's own press.
+     *
+     * A CONVERSATION THAT IS UP IS NOT ASLEEP: working is a turn, `booting` is a
+     * handshake, and a question is somebody's to answer. `off` and `gone` are
+     * NOT that — they are a process that died, or an engine that left — and the
+     * delivery path wakes one: the pass's own reading reopens the conversation
+     * before it hands the turn over. A slot left `gone` would otherwise be
+     * unsleepable for as long as it sat in the pool, which is the idle window —
+     * 48 hours by default. No entry at all is the sleeping agent a doorbell
+     * wakes, which is the ordinary candidate.
+     */
+    const busy = (standing: LiveSession | undefined): boolean =>
+      standing !== undefined && standing.status !== "off" && standing.status !== "gone" &&
+      (standing.status !== "idle" || standing.asking > 0 || standing.unopened === true)
+
     const skipped = (node: string, now: number): boolean => {
       const at = failures.get(node)
       if (at === undefined) return false
@@ -302,29 +287,22 @@ export const makeSleeper = (
      * read it would find its own last sleep and never sleep again
      * (`@olai/format`'s `changedUnder`).
      */
-    const candidate = (): Effect.Effect<{ readonly agent: NodeAgent; readonly files: ReadonlySet<string> } | null> =>
+    const candidate = (): Effect.Effect<
+      { readonly agent: NodeAgent; readonly files: ReadonlySet<string>; readonly others: ReadonlySet<string> } | null
+    > =>
       Effect.gen(function*() {
         const observed = yield* Effect.result(doors.read)
         if (observed._tag === "Failure") return null
         const derived = observed.success.derived
         const live = doors.live()
+        const roster = doors.nodes()
         const now = yield* Clock.currentTimeMillis
         const after = Duration.toMillis(doors.after)
-        for (const agent of doors.nodes()) {
+        for (const agent of roster) {
           if (agent.session === null) continue
           if (skipped(agent.id, now)) continue
-          // A CONVERSATION THAT IS UP IS NOT ASLEEP: working is a turn, booting
-          // is a handshake, and a question is somebody's to answer. `off` and
-          // `gone` are NOT that — they are a process that died, or an engine
-          // that left — and the delivery path wakes one: the pass's own reading
-          // reopens the conversation before it hands the turn over. A slot left
-          // `gone` would otherwise be unsleepable for as long as it sat in the
-          // pool, which is the idle window — 48 hours by default.
           const standing = live.get(agent.id)
-          const dead = standing !== undefined && (standing.status === "off" || standing.status === "gone")
-          if (standing !== undefined && !dead) {
-            if (standing.status !== "idle" || standing.asking > 0 || standing.unopened === true) continue
-          }
+          if (busy(standing)) continue
           // QUIET FOR `sleep-after`, and BOTH READINGS OF QUIET ARE ASKED. The
           // conversation's own idle instant where there is one — how long since
           // this agent last stopped working — and the memory's newest stamp
@@ -343,17 +321,73 @@ export const makeSleeper = (
             const at = Date.parse(since)
             if (!Number.isNaN(at) && now - at < after) continue
           }
-          // EVERY OTHER NODE AGENT IS A DOOR THIS PASS DOES NOT OPEN: a subtree
-          // with another agent seated in it would otherwise have each sleep
-          // re-stamp the other for ever (`@olai/format`'s `changedUnder`).
-          const others = new Set(
-            doors.nodes().filter((one) => one.id !== agent.id).map((one) => one.id),
-          )
+          // EVERY OTHER NODE AGENT IS A DOOR THIS PASS DOES NOT OPEN, and the
+          // set is the one `@olai/format`'s walks and the write door's fence are
+          // both handed (`othersOf`): a subtree with another agent seated in it
+          // would otherwise have each sleep re-stamp the other for ever.
+          const others = othersOf(roster, agent.id)
           if (changedUnder(derived, agent.id, stampOf(new Date(now - after)), others)) continue
           if (!changedUnder(derived, agent.id, doors.sleptAt(agent.id), others)) continue
-          return { agent, files: memoryFiles(derived, agent.id, others) }
+          return { agent, files: memoryFiles(derived, agent.id, others), others }
         }
         return null
+      })
+
+    /**
+     * WHAT ONE STATE SAYS ABOUT THE TURN — `null` while it is still running.
+     *
+     * THE TURN IS OVER when the mark went off or the status left `thinking`, and
+     * both are read because `idle` is published a frame BEFORE the mark is
+     * cleared (`chat.ts`'s `ensuring`): a state without the mark is not this
+     * pass's turn whatever it says. `idle` is the one ending that says nothing
+     * went wrong; a boot or a lost process is not a finished pass, and the
+     * panel's own `trouble` is where a failed turn says so.
+     *
+     * CANCELLED BEFORE TROUBLE, and it is why the state carries the flag: a
+     * cancelled turn lands on `idle` with no `trouble`, which is what a turn that
+     * ENDED looks like — and calling it a finished sleep would stamp the memo on
+     * a rewrite that stopped halfway and keep the node from being tried again.
+     */
+    const ended = (state: ChatState): Verdict | null => {
+      if (state.sleep === true && state.status === "thinking") return state.trouble === null ? null : "trouble"
+      if (state.status !== "idle") return "gone"
+      if (state.cancelled) return "cancelled"
+      return state.trouble === null ? "slept" : "trouble"
+    }
+
+    /**
+     * HOW THE TURN ENDS, once it has begun — the question's clock, and nothing
+     * else: the limit is raced around the whole of this ({@link watchTurn}), so
+     * a silence here is always the question's span.
+     *
+     * A QUESTION ARMS A CLOCK rather than cancelling at once: an agent that asks
+     * and answers itself in the same breath is not a failure, and the span is
+     * the same one the alert would have given a person.
+     */
+    const waited = (states: Queue.Queue<ChatState>): Effect.Effect<Verdict> =>
+      Effect.gen(function*() {
+        /** WHEN THE QUESTION NOW OPEN WAS ASKED, or `null` for none: the instant
+         *  `sleep-question` is measured from. */
+        let asked: number | null = null
+        for (;;) {
+          const taken = Effect.map(Queue.take(states), (state) => ({ state, silence: false } as const))
+          const next: { readonly state: ChatState | null; readonly silence: boolean } = asked === null
+            ? yield* taken
+            : yield* Effect.raceFirst(
+              taken,
+              Effect.as(
+                Effect.sleep(Duration.millis(Math.max(
+                  0,
+                  Duration.toMillis(doors.question) - ((yield* Clock.currentTimeMillis) - asked),
+                ))),
+                { state: null, silence: true } as const,
+              ),
+            )
+          if (next.silence || next.state === null) return "question"
+          const verdict = ended(next.state)
+          if (verdict !== null) return verdict
+          asked = next.state.asking > 0 ? (asked ?? (yield* Clock.currentTimeMillis)) : null
+        }
       })
 
     /**
@@ -366,9 +400,10 @@ export const makeSleeper = (
      * delivery, the candidate had no turn running, and `begin` marks the panel
      * thinking in the same step that writes the row.
      *
-     * A QUESTION ARMS A CLOCK rather than cancelling at once: an agent that
-     * asks and answers itself in the same breath is not a failure, and the
-     * deadline is the same twenty minutes the alert would have given a person.
+     * THE TWO DEADLINES ARE TWO, each around what it bounds: the turn's own
+     * length is a race around the whole wait, and the question's span is the one
+     * clock {@link waited} keeps. Folded into one timer they had to be told
+     * apart afterwards, by going back to the clock to see which had expired.
      */
     const watchTurn = (states: Queue.Queue<ChatState>): Effect.Effect<Verdict> =>
       Effect.gen(function*() {
@@ -382,7 +417,7 @@ export const makeSleeper = (
         // on the state for exactly as long as olai's own turn lasts
         // (`olai-plugin-chat`'s `chat.ts`), so the mark is what this waits for —
         // and a body that was held for a person's turn never produces one, which
-        // is what {@link START_MS} is left to answer.
+        // is what {@link START} is left to answer.
         const began = yield* Effect.raceFirst(
           Effect.gen(function*() {
             for (;;) {
@@ -394,56 +429,10 @@ export const makeSleeper = (
           Effect.as(Effect.sleep(doors.start), "unstarted" as const),
         )
         if (began !== "running") return began
-        // ...AND EVERY WAIT AFTER IT IS BOUNDED, the quiet one included: a turn
-        // that stops reporting holds the window shut for the whole vault and
-        // wedges the permit, which is what `sleep-limit` is for.
-        const started = yield* Clock.currentTimeMillis
-        let asking = 0
-        for (;;) {
-          const now = yield* Clock.currentTimeMillis
-          const left = Duration.toMillis(doors.limit) - (now - started)
-          if (left <= 0) return "limit"
-          const taken = Effect.map(Queue.take(states), (state) => ({ state, silence: false } as const))
-          const next = asking === 0
-            ? yield* Effect.raceFirst(
-              taken,
-              Effect.as(Effect.sleep(Duration.millis(left)), { state: null, silence: true } as const),
-            )
-            : yield* Effect.raceFirst(
-              taken,
-              Effect.as(
-                Effect.sleep(Duration.millis(Math.min(left, Math.max(0, Duration.toMillis(doors.question) - (now - asking))))),
-                { state: null, silence: true } as const,
-              ),
-            )
-          if (next.silence || next.state === null) {
-            // WHICH DEADLINE RAN OUT, because they mean different things: a
-            // question is an agent waiting for somebody who is not there, and
-            // the limit is a turn that has stopped making progress at all.
-            const over = Duration.toMillis(doors.limit) - ((yield* Clock.currentTimeMillis) - started)
-            return over <= 0 ? "limit" : "question"
-          }
-          const state = next.state
-          // THE TURN IS OVER — the mark went off, or the status left
-          // `thinking`. Both are read, because `idle` is published a frame
-          // BEFORE the mark is cleared (`chat.ts`'s `ensuring`), and a state
-          // without the mark is not this pass's turn whatever it says. `idle` is
-          // the one ending that says nothing went wrong; a boot or a lost
-          // process is not a finished pass, and the panel's own `trouble` is
-          // where a failed turn says so.
-          if (state.sleep !== true || state.status !== "thinking") {
-            if (state.status !== "idle") return "gone"
-            // CANCELLED FIRST, and it is why the state carries the flag: a
-            // cancelled turn lands on `idle` with no `trouble`, which is what a
-            // turn that ENDED looks like — and calling it a finished sleep would
-            // stamp the memo on a rewrite that stopped halfway and keep the node
-            // from being tried again.
-            if (state.cancelled) return "cancelled"
-            return state.trouble === null ? "slept" : "trouble"
-          }
-          if (state.trouble !== null) return "trouble"
-          asking = state.asking > 0 ? (asking === 0 ? yield* Clock.currentTimeMillis : asking) : 0
-        }
+        // ...AND THE TURN ITSELF IS BOUNDED, the quiet one included: a turn that
+        // stops reporting holds the window shut for the whole vault and wedges
+        // the permit, which is what `sleep-limit` is for.
+        return yield* Effect.raceFirst(waited(states), Effect.as(Effect.sleep(doors.limit), "limit" as const))
       })
 
     /**
@@ -469,6 +458,11 @@ export const makeSleeper = (
     const one = (
       agent: NodeAgent,
       files: ReadonlySet<string>,
+      /** THE SET THE NODE WAS PICKED UNDER, and it is not a detail: the re-read
+       *  below decides which files the commit may name, and a file that holds
+       *  only a NESTED agent's records is not this memory's — naming it would
+       *  sweep another agent's work into this pass's commit. */
+      others: ReadonlySet<string>,
     ): Effect.Effect<Verdict, never, Scope.Scope> =>
       Effect.scoped(Effect.gen(function*() {
         const to = { agent: agent.engine, session: agent.session as string }
@@ -564,7 +558,7 @@ export const makeSleeper = (
         // still the files this pass may name.
         const reread = yield* Effect.result(doors.read)
         const named = reread._tag === "Success"
-          ? new Set([...files, ...memoryFiles(reread.success.derived, agent.id)])
+          ? new Set([...files, ...memoryFiles(reread.success.derived, agent.id, others)])
           : files
         const waiting = yield* doors.waiting
         const paths = waiting.filter((row) => named.has(row.file)).map((row) => row.path)
@@ -595,7 +589,7 @@ export const makeSleeper = (
       const next = yield* candidate()
       if (next === null) return false
       yield* doors.log(`sleep: ${next.agent.id} is being tidied`)
-      const verdict = yield* one(next.agent, next.files)
+      const verdict = yield* one(next.agent, next.files, next.others)
       // NOTHING IS REMEMBERED AGAINST A NODE SOMEBODY STOPPED: the back-off is
       // for a node that fails on its own, and a person's Cancel (or an agent
       // stopping itself) is not that — the next tick is entitled to try again.
@@ -643,17 +637,13 @@ export const makeSleeper = (
         // because the body this pass hands over would be HELD behind that turn
         // and then watch a turn that is not its own
         // ({@link watchTurn} says what that costs).
-        const standing = doors.live().get(agent.id)
-        if (standing !== undefined) {
-          const dead = standing.status === "off" || standing.status === "gone"
-          if (!dead && (standing.status !== "idle" || standing.asking > 0 || standing.unopened === true)) return "busy"
-        }
+        if (busy(doors.live().get(agent.id))) return "busy"
         // THE SET IS READ FRESH, and a set that cannot be read is a node whose
         // memory cannot be named: the commit would name nothing, so nothing is
         // tidied. (The loop's reading failing is simply "no candidate".)
         const observed = yield* Effect.result(doors.read)
         if (observed._tag === "Failure") return "unknown"
-        const others = new Set(doors.nodes().filter((one) => one.id !== agent.id).map((one) => one.id))
+        const others = othersOf(doors.nodes(), agent.id)
         // TAKEN, LOGGED AND FORKED AS ONE STEP, uninterruptibly: the fiber that
         // hands the permit back is the one this forks, so a request interrupted
         // between the take and the fork would leave a permit nobody owns and
@@ -663,7 +653,7 @@ export const makeSleeper = (
           if (!(yield* Semaphore.takeIfAvailable(passes, 1))) return "busy" as const
           yield* doors.log(`sleep: ${agent.id} was asked for, and is being tidied`)
           yield* Effect.forkScoped(
-            one(agent, memoryFiles(observed.success.derived, agent.id, others)).pipe(
+            one(agent, memoryFiles(observed.success.derived, agent.id, others), others).pipe(
               // THE PERMIT GOES BACK WHEN THE PASS ENDS, whichever way it ends:
               // the pass is a fiber of its own now, so nothing else can hand it
               // back.

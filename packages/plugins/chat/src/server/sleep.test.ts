@@ -8,6 +8,7 @@
  * `olai-plugin-git`'s business and is asserted where it lives, in that row's
  * own window tests and in `node_agent_sleeps.feature`.
  */
+import type { WaitingOutline } from "@olai/plugin-api/services"
 import type { NodeAgent, NodeAgents, OpFailure, WriteRequest } from "@olai/format"
 import { UsageFailure } from "@olai/format"
 import { readingOf, setOf } from "@olai/format/testlib"
@@ -156,6 +157,9 @@ const withBench = async (
      *  the memory: the pass reads again after the turn, and this is that
      *  reading (`server/sleep.ts`). */
     readonly reread?: Record<string, string>
+    /** What the ledger says is waiting, for the case about WHICH of those files
+     *  the commit may name. */
+    readonly waiting?: ReadonlyArray<WaitingOutline>
   },
   body: (bench: Bench) => Promise<void>,
 ): Promise<void> => {
@@ -214,7 +218,7 @@ const withBench = async (
         writes.push(request)
         return {}
       })),
-      waiting: Effect.succeed(WAITING),
+      waiting: Effect.succeed(over.waiting ?? WAITING),
       commit: (message, paths) => Effect.sync(() => {
         events.push("committed")
         commits.push({ message, paths })
@@ -316,6 +320,36 @@ test("the commit names a file the agent moved a record into during the pass", as
         message: "sleep: Health",
         paths: ["docs/Work.olai", "docs/Archive.olai"],
       }])
+    },
+  )
+})
+
+test("a nested node agent's own file is not swept into the commit", async () => {
+  // WHERE A MEMORY ENDS IS ONE LINE, and the re-read is the place it was
+  // forgotten: the files the commit may name are the ones `memoryFiles` finds
+  // under the node with the SAME exclusions the node was picked under, so a file
+  // holding only a NESTED agent's records is not this pass's to commit —
+  // reverting a sleep must not take another agent's memory with it.
+  await withBench(
+    {
+      vault: {
+        "Work.olai": [
+          `{"id":"health","ord":"a0","title":"Health"}`,
+          `{"id":"note","parent":"health","ord":"a0","title":"sleep was fine","changed":"2026-10-01T09:00:00+00:00"}`,
+          `{"id":"helper","parent":"health","ord":"a1","title":"Helper"}`,
+        ].join("\n") + "\n",
+        "Helper.olai":
+          `{"id":"helper-note","parent":"helper","ord":"a0","title":"the helper's own","changed":"2026-10-01T09:00:00+00:00"}\n`,
+      },
+      nodes: [agent("health", "sess-1"), agent("helper", "sess-2", { file: "Helper.olai" })],
+      waiting: [
+        { file: "Work.olai", path: "docs/Work.olai" },
+        { file: "Helper.olai", path: "docs/Helper.olai" },
+      ],
+    },
+    async (bench) => {
+      expect(await run(bench.tick)).toBe(true)
+      expect(bench.commits).toEqual([{ message: "sleep: Health", paths: ["docs/Work.olai"] }])
     },
   )
 })
