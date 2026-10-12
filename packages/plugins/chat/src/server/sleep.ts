@@ -581,17 +581,24 @@ export const makeSleeper = (
         // tidied. (The loop's reading failing is simply "no candidate".)
         const observed = yield* Effect.result(doors.read)
         if (observed._tag === "Failure") return "unknown"
-        if (!(yield* Semaphore.takeIfAvailable(passes, 1))) return "busy"
-        yield* doors.log(`sleep: ${agent.id} was asked for, and is being tidied`)
-        yield* Effect.forkScoped(
-          one(agent, memoryFiles(observed.success.derived, agent.id)).pipe(
-            // THE PERMIT GOES BACK WHEN THE PASS ENDS, whichever way it ends:
-            // the pass is a fiber of its own now, so nothing else can hand it
-            // back.
-            Effect.ensuring(Semaphore.release(passes, 1)),
-          ),
-        )
-        return "started"
+        // TAKEN, LOGGED AND FORKED AS ONE STEP, uninterruptibly: the fiber that
+        // hands the permit back is the one this forks, so a request interrupted
+        // between the take and the fork would leave a permit nobody owns and
+        // wedge the loop for the life of the process — every tick after it would
+        // wait for ever, and every Sleep now would answer "busy".
+        return yield* Effect.uninterruptible(Effect.gen(function*() {
+          if (!(yield* Semaphore.takeIfAvailable(passes, 1))) return "busy" as const
+          yield* doors.log(`sleep: ${agent.id} was asked for, and is being tidied`)
+          yield* Effect.forkScoped(
+            one(agent, memoryFiles(observed.success.derived, agent.id)).pipe(
+              // THE PERMIT GOES BACK WHEN THE PASS ENDS, whichever way it ends:
+              // the pass is a fiber of its own now, so nothing else can hand it
+              // back.
+              Effect.ensuring(Semaphore.release(passes, 1)),
+            ),
+          )
+          return "started" as const
+        }))
       })
 
     yield* Effect.forkScoped(Effect.gen(function*() {
