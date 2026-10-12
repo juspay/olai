@@ -462,7 +462,7 @@ test("a pass asked for on a node whose turn is running is refused", () =>
       { status: "idle" as const, asking: 0, unopened: true },
     ]) {
       const arms = yield* withStubs({
-        live: () => new Map([[AGENT.id, { ...standing, sleep: false }]]),
+        live: new Map([[AGENT.id, { ...standing, sleep: false }]]),
       })
       expect(yield* arms.now("health")).toBe("busy")
       expect(arms.delivers).toEqual([])

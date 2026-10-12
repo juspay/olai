@@ -478,6 +478,10 @@ export const makeSleeper = (
         // against ({@link stopping}), because a cancel can arrive long after the
         // state that earned it.
         let last: ChatState | null = null
+        /** Read through a call: the assignment happens in the observer below, and
+         *  the checker cannot see through a callback — a bare `last` at the
+         *  cancel sites narrows to `null`. */
+        const lastState = (): ChatState | null => last
         const observed = yield* Effect.result(doors.watch(to, {
           state: (state) => {
             last = state
@@ -501,7 +505,7 @@ export const makeSleeper = (
           if (running) {
             running = false
             yield* doors.warn(`sleep: ${agent.id}: the pass was stopped, so its turn was cancelled`)
-            yield* stopping(stoppable, agent.id, last?.sleep === true)
+            yield* stopping(stoppable, agent.id, lastState()?.sleep === true)
           }
           // ...AND ITS OWN WORDS, WITHDRAWN. A delivery this pass handed over and
           // never saw delivered is work with no owner: it would sit in the
@@ -528,7 +532,7 @@ export const makeSleeper = (
         // is a turn that has already ended, and `cancel` is a no-op there.
         if (verdict === "question" || verdict === "trouble" || verdict === "limit") {
           running = false
-          yield* stopping(stoppable, agent.id, last?.sleep === true)
+          yield* stopping(stoppable, agent.id, lastState()?.sleep === true)
         }
         running = false
         if (verdict !== "slept") {

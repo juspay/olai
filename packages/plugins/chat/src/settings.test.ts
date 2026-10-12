@@ -16,6 +16,7 @@ test("the pass is on, and left alone for six hours, by default", () => {
   expect(config["sleep-after"]).toBe("6h")
   expect(config["sleep-tick"]).toBe("15m")
   expect(config["sleep-question"]).toBe("20m")
+  expect(config["sleep-limit"]).toBe("1h")
   // ... and the three become the durations the pass waits, from ONE reading:
   // the decoded config, so nothing downstream has to know which spelling a
   // person wrote.
@@ -23,6 +24,7 @@ test("the pass is on, and left alone for six hours, by default", () => {
     after: Duration.hours(6),
     tick: Duration.minutes(15),
     question: Duration.minutes(20),
+    limit: Duration.hours(1),
   })
 })
 
