@@ -138,3 +138,44 @@ Feature: A node agent tidies its own memory when nobody is looking
     When the agent is released
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
     Then olai has recorded 1 commit here
+
+  @sleep-fast @scratch:chat @git:repo
+  Scenario: Tidy memory now tidies a node the loop would never have picked up
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    # NOTHING HERE IS DUE, and that is the half that makes the verb the thing
+    # that did it: the corpus's rows carry no stamps, so the loop's "the memory
+    # has moved" test is false for this node and it is never a candidate — the
+    # other scenarios write `the memory under … has moved` for exactly that.
+    When the sleep pass has had its chance
+    Then olai has recorded 0 commits here
+    And the node agent "install" has not been tidied
+    # ...AND A PERSON ASKS, from ⌘K — the surface their hands are already on.
+    When I press the palette shortcut
+    And I type "tidy memory" into the palette
+    And I pick the palette's "Tidy memory now" row for "install"
+    Then the node agent "install" has been tidied
+    And node "install" carries the sleep memo
+    And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
+    And olai has recorded 1 commit here
+
+  @sleep-fast @scratch:chat @git:repo
+  Scenario: The verb is refused, and starts nothing, while olai is tidying
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    When the next sleep holds its turn open
+    And the memory under "install" has moved
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    # THE PASS IS MID-TURN: the fake holds its turn open, so the permit is held
+    # and this node's turn is marked as olai's own.
+    Then the node agent "install" has been tidied
+    # ...AND A SECOND ASK IS REFUSED, in the row's own said line — naming the
+    # node it is already tidying, which is what a person is waiting for.
+    When I open the node menu of "install"
+    And I choose "Tidy memory now" from the node menu
+    Then the node menu of "install" says "olai is already tidying install the cabinets; wait for it to finish"
+    # ...AND NOTHING SECOND STARTED: the one commit here is the held pass's own,
+    # which lands when the fake lets go.
+    When the agent is released
+    Then olai has recorded 1 commit here

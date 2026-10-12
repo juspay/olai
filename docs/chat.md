@@ -855,6 +855,16 @@ own: when it has been left alone for six hours and its subtree has changed
 since it last slept, it is asked to tidy, distill and tuck away — in its own
 conversation, with the tools it already has.
 
+**A person can ask for the same pass now.** A node agent with a session offers
+*Tidy memory now* on its row's menu and in ⌘K, and pressing it runs the pass the
+loop would have run — the same machine row, the same memo and the same one
+commit. What it skips is the two tests that decide whether a node is DUE: the
+idle window and "the subtree has changed since it last slept" are how the loop
+chooses, and somebody pressing the verb has chosen. One pass runs at a time per
+directory, so a press while olai is already tidying is refused in words rather
+than queued, and a manual pass that fails is not remembered for a day the way a
+loop's failure is: a person can ask again.
+
 **The turn is the conversation you already read.** One machine-sent row appears
 in the left column, opening with who is speaking and when, its instruction
 folded behind one press, exactly as a mail digest is drawn. Under it the
@@ -896,7 +906,9 @@ on a column of its own name, like any other.
 entry under Needs you: the turn is olai's own, so a question asked inside it is
 not somebody's to answer and is not counted as waiting. If the agent does ask
 something, the pass waits twenty minutes and then stops the turn — a question
-nobody is there to answer is cancelled, never announced.
+nobody is there to answer is cancelled, never announced. A pass a person asked
+for is marked the same way and stopped the same way: the reader who pressed the
+verb is very likely watching, and the turn is olai's own either way.
 
 **A pass that does not finish is left alone for a day**, in the server's memory
 only, so a restart forgets it: the conversation was gone, the turn went wrong,
