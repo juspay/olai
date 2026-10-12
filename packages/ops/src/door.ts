@@ -129,14 +129,19 @@ export const barred = (
   if (confined !== null) {
     // THE SUBTREE, walked off the reading this call was already handed: the
     // node and every descendant of it, by the same parent links the pass's own
-    // `changedUnder` walks.
+    // `changedUnder` walks. The set IS the guard — a node already inside is not
+    // descended into again — so the walk is total over a set whose links close a
+    // loop, and a memory is as deep as its agent's tree rather than as deep as
+    // some round count (`./door.test.ts` walks a chain ten deep).
     const inside = new Set<string>([confined.under])
-    for (let round = 0; round < 8; round++) {
-      for (const [parent, children] of derived.children) {
-        if (!inside.has(parent)) continue
-        for (const child of children) inside.add(child.node.id)
+    const descend = (at: string): void => {
+      for (const child of derived.children.get(at) ?? []) {
+        if (inside.has(child.node.id)) continue
+        inside.add(child.node.id)
+        descend(child.node.id)
       }
     }
+    descend(confined.under)
     // WHAT THE PLAN ACTUALLY CHANGES, and not every node of the files it
     // touches: a subtree lives in files that hold other work, and refusing a
     // write because a sibling of the file is outside would refuse the pass's own

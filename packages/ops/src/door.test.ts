@@ -64,9 +64,24 @@ const asked = (request: Request, keys: ReadonlyMap<string, string> = forbidden) 
   return barred(keys, at.derived, planned.success)
 }
 
+/** A chain eleven nodes long — the confined node at its head and ten levels
+ *  under it — written DEEPEST FIRST.
+ *
+ *  The order is the point. `derived.children` is keyed in the order the rows
+ *  are read, so a file written in tree order lets one round of a round-counted
+ *  walk cascade the whole chain, and a round count only bites where a real
+ *  outline bites: rows are matched by ID across the corpus and moves, edits and
+ *  splits leave a memory in no order at all. */
+const deep = (): OutlineSet => setOf({
+  "chain.olai": Array.from({ length: 11 }, (_, at) => 10 - at)
+    .map((level) =>
+      `{"id":"d${level}"${level === 0 ? "" : `,"parent":"d${level - 1}"`},"ord":"a0","title":"level ${level}"}`)
+    .join("\n"),
+}, [["spare.md", "a document the door may rewrite\n"]])
+
 /** The same judgement, with a fence up over one node's subtree. */
-const askedUnder = (request: Request, under: string) => {
-  const at = readingOf(vault())
+const askedUnder = (request: Request, under: string, set: OutlineSet = vault()) => {
+  const at = readingOf(set)
   const planned = plan(scoping(at, steady(), NO_KINDS, "outline-olai"), request)
   if (Result.isFailure(planned)) throw new Error(planned.failure.message)
   return barred(forbidden, at.derived, planned.success, undefined, { under, says: SAYS_TIDY })
@@ -103,6 +118,17 @@ describe("a confined session", () => {
       .toEqual({ why: "outside", id: "sink", title: "the sink", says: SAYS_TIDY })
     // ...and a move that stays inside is the pass's own work.
     expect(askedUnder({ op: "move", id: "sink", parent: "tap" }, "kitchen")).toBeNull()
+  })
+
+  test("the fence reaches the bottom of a chain ten deep", () => {
+    // The descent used to be eight rounds of the children map, so a row deeper
+    // than eight was judged outside and a legitimate write down there refused.
+    expect(askedUnder({ op: "done", id: "d10" }, "d0", deep())).toBeNull()
+    expect(askedUnder({ op: "add", parent: "d10", title: "one deeper" }, "d0", deep())).toBeNull()
+    // ...and it is still a fence: the head of the same chain is outside when the
+    // fence is up over the node at its bottom.
+    expect(askedUnder({ op: "done", id: "d0" }, "d10", deep()))
+      .toEqual({ why: "outside", id: "d0", title: "level 0", says: SAYS_TIDY })
   })
 
   test("the refusal says why, in the fence's own words", () => {
