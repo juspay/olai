@@ -236,10 +236,12 @@ test("a failed node is left alone for a day, and is due again after that", () =>
     const arms = yield* withStubs({ writes: false })
     expect(yield* arms.tick).toBe(true)
     expect(arms.warnings.join("\n")).toContain("the memo could not be written")
-    // THE BACK-OFF, exactly: a day less a minute is still inside it.
-    yield* TestClock.adjust(Duration.millis(23 * HOUR))
+    // THE BACK-OFF IS EXACTLY `SKIP_MS`, tested at its boundary rather than
+    // near it: a millisecond short of a day the node is still left alone, and
+    // the millisecond it is due, it is tried again.
+    yield* TestClock.adjust(Duration.millis(24 * HOUR - 1))
     expect(yield* arms.tick).toBe(false)
-    yield* TestClock.adjust(Duration.millis(HOUR + 1))
+    yield* TestClock.adjust(Duration.millis(1))
     expect(yield* arms.tick).toBe(true)
   })))
 
