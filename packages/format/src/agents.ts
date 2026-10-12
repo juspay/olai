@@ -212,6 +212,20 @@ export const memoryOf = (agent: Pick<NodeAgent, "memory">): string =>
 export const NodeAgents = Schema.Array(NodeAgent)
 export type NodeAgents = typeof NodeAgents.Type
 
+/**
+ * EVERY OTHER NODE AGENT OF A SET, as the ids a walk stops at — the `stop` set
+ * {@link ./derive.ts}'s `changedUnder`, `memoryFiles` and `idsUnder` take, and
+ * the exclusions a tidying pass's fence carries.
+ *
+ * BESIDE THE ROSTER for `memoryOf`'s reason: one fact, and four readers in two
+ * packages (`olai-plugin-chat`'s pass asks it of three walks, `@olai/ops`'
+ * write door of the fence) that agreed by hand until the day one of them was
+ * forgotten. A node agent's subtree is its own memory, and the rule that no
+ * other pass writes inside it is one rule however many times it is enforced.
+ */
+export const othersOf = (roster: NodeAgents, id: string): ReadonlySet<string> =>
+  new Set(roster.filter((one) => one.id !== id).map((one) => one.id))
+
 /** A directory with no node agent in it, and a server that has never loaded —
  *  one value, because both draw nothing. */
 export const NO_AGENTS: NodeAgents = []

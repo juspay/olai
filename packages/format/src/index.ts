@@ -477,6 +477,9 @@ export {
    *  spends a turn on it (`olai-plugin-chat`'s `server/sleep.ts`), which is why
    *  this walk lives beside {@link under} rather than in that plugin. */
   changedUnder,
+  /** THE IDS UNDER A NODE — where a memory ends, which is the same line
+   *  {@link memoryFiles} commits and `@olai/ops`' write door fences off. */
+  idsUnder,
   countedChildren,
   derive,
   /** The containment graph: what drawing a record leads to drawing. Exported
@@ -1077,6 +1080,9 @@ export {
   NO_AGENTS,
   NodeAgent,
   NodeAgents,
+  /** EVERY OTHER NODE AGENT OF A SET — the `stop` set the memory walks take,
+   *  and the exclusions a tidying pass's fence carries. */
+  othersOf,
   sameAgents,
   seatableIn,
   sessionIn,

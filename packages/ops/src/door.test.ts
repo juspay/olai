@@ -79,12 +79,13 @@ const deep = (): OutlineSet => setOf({
     .join("\n"),
 }, [["spare.md", "a document the door may rewrite\n"]])
 
-/** The same judgement, with a fence up over one node's subtree. */
-const askedUnder = (request: Request, under: string, set: OutlineSet = vault()) => {
+/** The same judgement, with a fence up over one node's subtree — and, where a
+ *  case needs it, the other node agents whose own subtrees are not this one's. */
+const askedUnder = (request: Request, under: string, set: OutlineSet = vault(), stop?: ReadonlySet<string>) => {
   const at = readingOf(set)
   const planned = plan(scoping(at, steady(), NO_KINDS, "outline-olai"), request)
   if (Result.isFailure(planned)) throw new Error(planned.failure.message)
-  return barred(forbidden, at.derived, planned.success, undefined, { under, says: SAYS_TIDY })
+  return barred(forbidden, at.derived, planned.success, undefined, { under, says: SAYS_TIDY, stop })
 }
 
 /**
@@ -129,6 +130,18 @@ describe("a confined session", () => {
     // fence is up over the node at its bottom.
     expect(askedUnder({ op: "done", id: "d0" }, "d10", deep()))
       .toEqual({ why: "outside", id: "d0", title: "level 0", says: SAYS_TIDY })
+  })
+
+  test("a nested node agent's own subtree is outside the fence", () => {
+    // WHERE A MEMORY ENDS IS ONE LINE: the commit the pass makes names exactly
+    // the files the walk finds with the same exclusions, so a fence that stopped
+    // only at the outer boundary would permit the one write the instruction
+    // forbids — a write into a nested agent's memory, landing outside the commit
+    // that is the undo.
+    const others = new Set(["sink"])
+    expect(askedUnder({ op: "done", id: "tap" }, "kitchen", vault(), others)).toBeNull()
+    expect(askedUnder({ op: "done", id: "sink" }, "kitchen", vault(), others))
+      .toEqual({ why: "outside", id: "sink", title: "the sink", says: SAYS_TIDY })
   })
 
   test("the refusal says why, in the fence's own words", () => {

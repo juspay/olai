@@ -1754,8 +1754,42 @@ const descendants = (
 }
 
 /**
+ * THE IDS UNDER A NODE — the node's descendants by the same parent links every
+ * other walk here uses, and TOTAL over a set the validator would condemn:
+ * `seen` is the guard, for {@link unfinishedWithin}'s reason, because a forest's
+ * links are a cache and one whose links close a loop must still answer rather
+ * than recur for ever.
+ *
+ * `stop` is {@link changedUnder}'s, and this walk exists because three
+ * questions are one question: WHERE THIS AGENT'S MEMORY ENDS. It is asked by
+ * the walk that decides what is due ({@link changedUnder}), the walk that
+ * decides what a pass may commit ({@link memoryFiles}) and the FENCE a pass
+ * raises while it runs (`@olai/ops`' `Confinement`, whose own descent used to be
+ * this code again — and drifted, missing `stop` the day it was added).
+ */
+export const idsUnder = (
+  derived: Pick<Derived, "children">,
+  id: string,
+  stop: ReadonlySet<string> = new Set(),
+  seen: Set<string> = new Set([id]),
+): ReadonlySet<string> => {
+  const under = new Set<string>()
+  const descend = (at: string): void => {
+    for (const child of derived.children.get(at) ?? []) {
+      const below = child.node.id
+      if (seen.has(below) || stop.has(below)) continue
+      seen.add(below)
+      under.add(below)
+      descend(below)
+    }
+  }
+  descend(id)
+  return under
+}
+
+/**
  * THE FILES A NODE AGENT'S MEMORY LIVES IN — the outline its own record is
- * written in, and every file holding a record under it.
+ * written in, and every file holding a record under it ({@link idsUnder}).
  *
  * WHY IT IS A READING OF THE SET rather than of the file: an outline's
  * children are matched by ID across the whole corpus, so a node's subtree can
@@ -1770,9 +1804,6 @@ const descendants = (
  * pass, so counting it would make a node permanently due), while this one is
  * about what the pass's work can be WRITTEN IN — and the memo it leaves behind
  * is a property on the node's own record.
- *
- * TOTAL over a set the validator would condemn, by {@link changedUnder}'s guard
- * and for its reason.
  */
 export const memoryFiles = (
   derived: Pick<Derived, "children" | "byId">,
@@ -1788,16 +1819,10 @@ export const memoryFiles = (
   const files = new Set<string>()
   const own = derived.byId.get(id)
   if (own !== undefined) files.add(own.file)
-  const descend = (at: string): void => {
-    for (const child of derived.children.get(at) ?? []) {
-      const under = child.node.id
-      if (seen.has(under) || stop.has(under)) continue
-      seen.add(under)
-      files.add(child.file)
-      descend(under)
-    }
+  for (const under of idsUnder(derived, id, stop, seen)) {
+    const at = derived.byId.get(under)
+    if (at !== undefined) files.add(at.file)
   }
-  descend(id)
   return files
 }
 
@@ -1828,6 +1853,11 @@ export const memoryFiles = (
  * ever. Mirrors carry no stamps of their own, so only a regular child can be the
  * news — but the walk goes through a mirror's id all the same, because what
  * hangs under a placement is still under this node.
+ *
+ * ITS OWN DESCENT, and not {@link idsUnder} with the stamps asked of the set:
+ * this one stops at the FIRST news, and building the whole set to then ask
+ * whether anything in it moved is strictly more work on the path that matters —
+ * a node with a row written under it, which is the common case.
  */
 export const changedUnder = (
   derived: Pick<Derived, "children">,

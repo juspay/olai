@@ -74,6 +74,7 @@ import { inMemoryStore } from "@kolu/surface/server"
 import {
   documentAt,
   type OpFailure,
+  othersOf,
   type Reading,
   UsageFailure,
 } from "@olai/format"
@@ -107,7 +108,7 @@ import type { PanelAddress } from "./wire/session.ts"
 import { forLocalState as modelsIn } from "./models.ts"
 import type { Ops as WriteGate } from "@olai/ops"
 import { makeFiler } from "./server/filer.ts"
-import { type Asked, makeSleeper, START_MS } from "./server/sleep.ts"
+import { type Asked, makeSleeper, START } from "./server/sleep.ts"
 import { readings } from "./server/readings.ts"
 import type { Change } from "./transcript.ts"
 import * as Chat from "./scoped.ts"
@@ -205,8 +206,8 @@ export default definePlugin({
     const bundle = yield* Bundle
     const env = yield* Env
     const nodeIdle = settings["idle-ms"]
-    // ...AND WHETHER THE PASS RUNS AT ALL, with its three spans decoded once
-    // here rather than per tick (`./settings.ts` holds the words and the rule).
+    // ...AND WHETHER THE PASS RUNS AT ALL, with its spans decoded once here
+    // rather than per tick (`./settings.ts` holds the words and the rule).
     const sleeping = settings.sleep === "on"
     const spans = sleepingPolicy(settings)
     const kindsDoor = yield* Kinds
@@ -950,6 +951,12 @@ export default definePlugin({
               ? {
                 under: node,
                 says: "olai is tidying this node's memory, and a turn nobody is watching writes only inside it",
+                // ...AND THE FENCE STOPS WHERE THE MEMORY DOES: another node
+                // agent's own subtree is not this one's, and the pass's commit
+                // cannot name its files, so a write inside one would land
+                // outside the undo (`@olai/format`'s `othersOf` is the one
+                // definition; the pass's own walks are handed the same set).
+                stop: othersOf(nodeAgents.nodes(), node),
               }
               : null,
           ),
@@ -1047,7 +1054,7 @@ export default definePlugin({
           tick: spans.tick,
           question: spans.question,
           limit: spans.limit,
-          start: Duration.millis(START_MS),
+          start: START,
           log: (line) => Effect.logInfo(line),
           warn: (line) => Effect.logWarning(line),
         })

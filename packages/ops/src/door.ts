@@ -25,6 +25,7 @@ import {
   changesOf,
   customText,
   type Derived,
+  idsUnder,
   isMirror,
   type Node,
   nodesOf,
@@ -56,6 +57,19 @@ export interface Confinement {
   readonly under: string
   /** The clause that says why, in the words of whoever raised the fence. */
   readonly says: string
+  /**
+   * THE NODES WHOSE OWN SUBTREES ARE NOT THIS ONE'S — every other node agent
+   * in the set ({@link @olai/format}'s `othersOf`).
+   *
+   * WHERE THE MEMORY ENDS IS ONE LINE, and the fence is not allowed its own:
+   * the commit the pass makes names exactly the files `memoryFiles` finds under
+   * this node with this same set, so a fence that stopped only at the outer
+   * boundary would permit a write into a NESTED agent's memory — the one write
+   * the instruction forbids, landing outside the commit that is the undo. What
+   * is outside this fence and what the commit cannot name are the same thing,
+   * and the way to keep them the same is to hand both the same set.
+   */
+  readonly stop?: ReadonlySet<string>
 }
 
 export type SessionRule =
@@ -127,21 +141,11 @@ export const barred = (
   // THE FENCE FIRST, because it is about WHERE rather than about WHICH KEY, and
   // a plan that lands outside is refused whatever it writes.
   if (confined !== null) {
-    // THE SUBTREE, walked off the reading this call was already handed: the
-    // node and every descendant of it, by the same parent links the pass's own
-    // `changedUnder` walks. The set IS the guard — a node already inside is not
-    // descended into again — so the walk is total over a set whose links close a
-    // loop, and a memory is as deep as its agent's tree rather than as deep as
-    // some round count (`./door.test.ts` walks a chain ten deep).
-    const inside = new Set<string>([confined.under])
-    const descend = (at: string): void => {
-      for (const child of derived.children.get(at) ?? []) {
-        if (inside.has(child.node.id)) continue
-        inside.add(child.node.id)
-        descend(child.node.id)
-      }
-    }
-    descend(confined.under)
+    // THE SUBTREE, off the reading this call was already handed — the SAME walk
+    // the pass's own due-ness test and its commit's file set are taken off, with
+    // the same exclusions, so what this fence refuses and what that commit
+    // cannot name are one line (`@olai/format`'s `idsUnder`).
+    const inside = new Set<string>([confined.under, ...idsUnder(derived, confined.under, confined.stop)])
     // WHAT THE PLAN ACTUALLY CHANGES, and not every node of the files it
     // touches: a subtree lives in files that hold other work, and refusing a
     // write because a sibling of the file is outside would refuse the pass's own
