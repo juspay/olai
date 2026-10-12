@@ -166,8 +166,10 @@ const onTheClock = <A>(body: Effect.Effect<A, never, Scope.Scope>): Promise<A> =
     })).pipe(Effect.provide(TestClock.layer())),
   )
 
-/** Let the fibers the clock just woke run before anything is asserted. */
-const settle = Effect.yieldNow()
+/** Let the fibers the clock just woke run before anything is asserted.
+ *  `Effect.yieldNow` is a VALUE in this Effect — the callable one is
+ *  `yieldNowWith`. */
+const settle = Effect.yieldNow
 
 test("a question past its deadline is cancelled, said out loud, and writes nothing", () =>
   onTheClock(Effect.gen(function*() {

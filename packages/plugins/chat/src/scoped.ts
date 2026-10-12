@@ -717,6 +717,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }
       return {
         scopes,
+        // THE SAME OPERATION AS {@link Chat.withdraw}, for a caller that reached
+        // a plugin's door rather than the scheduler's: this one has the plugin
+        // closed over already, which is the whole difference.
+        withdraw: (to: { readonly agent: string; readonly session: string }) => withdraw(plugin, to),
         deliver: (
           to: { readonly agent: string; readonly session: string; readonly current?: () => boolean },
           say: () => string | null,
