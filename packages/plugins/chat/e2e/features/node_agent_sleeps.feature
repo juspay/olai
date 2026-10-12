@@ -60,9 +60,13 @@ Feature: A node agent tidies its own memory when nobody is looking
 
   @alerts @scratch:chat @git:repo
   Scenario: A question inside a sleep is never announced, and is stopped
-    Given the notification worker is ready
-    And the harness keeps distinct sessions on disk
+    Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
+    # AFTER the outline is open, and that is not tidiness: the worker step reads
+    # `navigator.serviceWorker`, which a page still on `about:blank` does not
+    # have — every other `@alerts` scenario reaches the app in its Background
+    # first, and this one has none.
+    And the notification worker is ready
     And the memory under "install" has moved
     When the next sleep asks a question
     And I open the "claude" agent on node "install"
