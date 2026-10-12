@@ -1340,11 +1340,11 @@ const sleep = (millis: number) => new Promise<void>((done) => setTimeout(done, m
  *  not by the one after it. The marker, the limit and the loop are shared with
  *  the other scripted agent ({@link ../support/scripted.ts}); what is on each
  *  tick is this one's. */
-const released = async (onTick?: () => void): Promise<void> => {
+const released = async (onTick?: () => void, stopped?: () => boolean): Promise<void> => {
   const let_go = await releasedIn(cwd, async () => {
     await takeSteering()
     onTick?.()
-  })
+  }, stopped)
   if (!let_go) noise("fake agent: nothing released the held turn; going on anyway")
 }
 
@@ -1658,7 +1658,12 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // in the middle of a pass.
     if (existsSync(`${cwd}/${MARKER.sleepHold}`)) {
       rmSync(`${cwd}/${MARKER.sleepHold}`, { force: true })
-      await released()
+      // ...AND A HELD TURN ENDS WHEN IT IS CANCELLED, like any other: a real
+      // agent's loop stops when the cancel arrives, and a fake that held through
+      // one would be a turn no person could stop — which is a case of its own
+      // (`a sleep a person cancels writes nothing, and is not remembered`).
+      await released(() => void 0, () => cancelled)
+      if (endedCancelled(id)) return
     }
     reply(id, { stopReason: "end_turn" })
     return
