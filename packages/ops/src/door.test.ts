@@ -21,7 +21,7 @@ import {
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { barred, doorRefusal } from "./door.ts"
+import { type Barred, barred, doorRefusal } from "./door.ts"
 
 import { plan, scoping } from "./plan.ts"
 
@@ -195,11 +195,16 @@ describe("file-scoped agent reservation", () => {
     return barred(keys, at.derived, result.success, at.set.documents.map(one => one.path))
   }
 
+  /** The KEY arm's own key, for the assertions below: `Barred` gained two arms
+   *  that are not about a key at all (`./door.ts`'s confinement). */
+  const keyOf = (reached: Barred | null): string | undefined =>
+    reached !== null && reached.why === "key" ? reached.key : undefined
+
   test("both directions, removal, and a batch reach the same reservation", () => {
     for (const value of ["yes", "no", null]) {
-      expect(check({ op: "prop", id: "example", key: "on", value }, value === "yes" ? "no" : "yes")?.key).toBe("on")
+      expect(keyOf(check({ op: "prop", id: "example", key: "on", value }, value === "yes" ? "no" : "yes"))).toBe("on")
     }
-    expect(check({ op: "apply", ops: [{ op: "prop", id: "example", key: "on", value: "yes" }] })?.key).toBe("on")
+    expect(keyOf(check({ op: "apply", ops: [{ op: "prop", id: "example", key: "on", value: "yes" }] }))).toBe("on")
   })
 
   test("behaviour knobs and ordinary files remain writable", () => {
@@ -208,19 +213,19 @@ describe("file-scoped agent reservation", () => {
   })
 
   test("moving or trashing its namespace cannot remove the choice", () => {
-    expect(check({ op: "trash", id: "example" }, "yes")?.key).toBe("on")
-    expect(check({ op: "move", id: "example", parent: "notes" }, "yes")?.key).toBe("on")
+    expect(keyOf(check({ op: "trash", id: "example" }, "yes"))).toBe("on")
+    expect(keyOf(check({ op: "move", id: "example", parent: "notes" }, "yes"))).toBe("on")
   })
 
   test("a duplicate namespace cannot shadow an existing choice", () => {
     const at = readingOf(setOf({ [file]: '{"id":"example","ord":"a1","title":"example","custom":{"on":"no"}}' }))
     const nodes = at.derived.nodes.map(one => one.node)
     const shadow = readingOf(setOf({ [file]: '{"id":"shadow","ord":"a0","title":"example"}' })).derived.nodes[0]!.node
-    expect(barred(keys, at.derived, { files: [{ file, nodes: [shadow, ...nodes] }], id: "shadow", title: "example", file, summary: "shadow" })?.key).toBe("on")
+    expect(keyOf(barred(keys, at.derived, { files: [{ file, nodes: [shadow, ...nodes] }], id: "shadow", title: "example", file, summary: "shadow" }))).toBe("on")
   })
 
   test("a shallower empty file cannot mask an existing choice", () => {
     const at = readingOf(setOf({ [file]: '{"id":"example","ord":"a0","title":"example","custom":{"on":"no"}}' }))
-    expect(barred(keys, at.derived, { files: [{ file: "SETTINGS.olai", nodes: [] }], id: "", title: "", file: "SETTINGS.olai", summary: "mask file" })?.key).toBe("on")
+    expect(keyOf(barred(keys, at.derived, { files: [{ file: "SETTINGS.olai", nodes: [] }], id: "", title: "", file: "SETTINGS.olai", summary: "mask file" }))).toBe("on")
   })
 })

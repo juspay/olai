@@ -231,6 +231,9 @@ const withBench = async (
       // hand, so the fork sleeps for as long as the test could possibly run.
       tick: Duration.minutes(10),
       question: Duration.millis(400),
+      // LONG ENOUGH NOT TO BE WHAT ANY CASE IS ABOUT: the limit is a span of its
+      // own (`sleep-limit`), and every case here drives its own ending.
+      limit: Duration.minutes(10),
       start: Duration.millis(over.start ?? 5_000),
       log: () => Effect.void,
       warn: (line) => Effect.sync(() => void warnings.push(line)),

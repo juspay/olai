@@ -21,6 +21,7 @@ import {
   standingBefore,
   type Status,
   isTagName,
+  memoryFiles,
   mayHoldTag,
   nearestAtOrAbove,
   TAG_SIGILS,

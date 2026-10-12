@@ -5,6 +5,8 @@ export interface TicketMint {
   readonly mint: (
     forbidden: () => readonly { readonly key: string; readonly says: string }[],
     writer: string,
+    /** The fence, read per call — see `@olai/plugin-api`'s `Tools.ticket`. */
+    confined?: () => { readonly under: string; readonly says: string } | null,
   ) => { readonly bearer: string; readonly release: () => void }
 }
 export const ticketMint = serviceTag<TicketMint>("mcp.ticket-mint")
