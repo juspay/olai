@@ -1854,6 +1854,30 @@ test("changedUnder reads the newest stamp under a node, and never the node's own
   expect(changedUnder(derived, "health", null)).toBe(true)
 })
 
+/**
+ * STAMPS ARE COMPARED AS INSTANTS, not as text.
+ *
+ * A stamp carries the offset it was taken at ({@link ./stamp.ts}), so two
+ * moments written in two zones order by their SPELLING: this edit's instant is
+ * half past four in the afternoon UTC and the memo's is half past two, and the
+ * text of the edit sorts BEFORE the memo's. Read as text, the walk would answer
+ * "nothing has moved" about work that arrived after the last sleep — and the
+ * other direction, a memo that only looks older, tidies a subtree under
+ * somebody's hands.
+ */
+test("a stamp in another zone is compared by its instant, not its spelling", () => {
+  const derived = derive(TEST_CLAIMS, nodesOf([
+    `{"id":"health","ord":"a0","title":"health"}`,
+    // 16:00 UTC, spelled so that it sorts BEFORE the memo below.
+    `{"id":"note","parent":"health","ord":"a0","title":"synced","changed":"2026-10-12T09:00:00-07:00"}`,
+  ].join("\n")))
+
+  // 14:30 UTC — earlier than the edit, and the text says the opposite.
+  expect(changedUnder(derived, "health", "2026-10-12T20:00:00+05:30")).toBe(true)
+  // ...and a memo that really is later than it is not news, whatever it spells.
+  expect(changedUnder(derived, "health", "2026-10-12T20:00:00+00:00")).toBe(false)
+})
+
 test("changedUnder answers false for a subtree nothing has ever stamped", () => {
   const derived = derive(TEST_CLAIMS, nodesOf([
     `{"id":"health","ord":"a0","title":"health"}`,

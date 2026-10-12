@@ -1841,16 +1841,40 @@ export const changedUnder = (
 
 /** The later of a record's two stamps — the record's own `changed` when it has
  *  one, since a write re-stamps it, and `created` otherwise — or `undefined`
- *  for a record nothing has ever stamped. */
+ *  for a record nothing has ever stamped.
+ *
+ *  COMPARED AS INSTANTS and not as text: {@link ./stamp.ts} mints a stamp with
+ *  the offset it was taken at inside the value, so two stamps from two zones
+ *  order by their SPELLING rather than by their moment — `+05:30` sorts after
+ *  `-07:00` at the same instant. */
 const stampedAt = (node: RegularNode): string | undefined =>
-  node.changed !== undefined && (node.created === undefined || node.changed > node.created)
+  node.changed !== undefined && (node.created === undefined || instantOf(node.changed) >= instantOf(node.created))
     ? node.changed
     : node.created
 
-/** Is this stamp news against {@link changedUnder}'s `since` — `null` counting
- *  every stamp as news. */
-const newerThan = (stamp: string | undefined, since: string | null): boolean =>
-  stamp !== undefined && (since === null || stamp > since)
+/**
+ * Is this stamp news against {@link changedUnder}'s `since` — `null` counting
+ * every stamp as news.
+ *
+ * INSTANTS, for {@link stampedAt}'s reason, and it is the difference between a
+ * node being tidied and a node being tidied UNDER somebody's hands: an edit
+ * synced from another zone can spell an earlier moment than the memo that is
+ * supposed to be older than it, and a text comparison then answers "nothing has
+ * moved" about work that just arrived. A stamp neither side can place is news —
+ * the fail-safe direction, and the one the `null` arm already takes.
+ */
+const newerThan = (stamp: string | undefined, since: string | null): boolean => {
+  if (stamp === undefined) return false
+  if (since === null) return true
+  const at = instantOf(stamp)
+  const from = instantOf(since)
+  if (Number.isNaN(at) || Number.isNaN(from)) return true
+  return at > from
+}
+
+/** A stamp as the instant it names — `NaN` for a string that is not one, which
+ *  every caller here treats as "cannot be placed". */
+const instantOf = (stamp: string): number => Date.parse(stamp)
 
 /** The rows of one outline: the roots of `file`, expanded. Mirrors are
  *  expanded in place, because a pointer the reader has to go and follow is not
