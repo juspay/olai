@@ -42,6 +42,25 @@
  *
  * The memo and the turn therefore end on the same path, however the pass ends.
  *
+ * ## One commit, and the one thing it may not sweep
+ *
+ * The commit names the files the node's memory LIVES IN — its own outline, and
+ * every file holding a record under it — because a sleep is one commit a person
+ * can `git revert`, and a revert of somebody else's parked edits is not an undo
+ * of anything this pass did. `@olai/plugin-api`'s `Ledger.waiting` is what makes
+ * that nameable at all: a plugin knows its files by their served names, and a
+ * commit request names them as git does, and the two are the same string only
+ * when olai serves the repository root.
+ *
+ * WHAT IT STILL SWEEPS, written down rather than left to be found: other rows of
+ * those same files that a person edited are inside the commit too. Narrowing
+ * further would mean a node-level selection, which git does not have — and the
+ * alternative, committing nothing, is the outcome worse than a commit nobody
+ * asked for (a machine that edits at night and leaves the edits waiting). A file
+ * the agent creates OUTSIDE that set — which the instruction forbids, and which
+ * a `move` inside the subtree does not produce — is left waiting rather than
+ * swept, which is the safe direction.
+ *
  * ## What it is NOT
  *
  * Nothing new is declared on the row, nothing is registered, and nothing is
@@ -51,6 +70,7 @@
 
 import {
   changedUnder,
+  memoryFiles,
   type NodeAgent,
   type NodeAgents,
   type OpFailure,
@@ -159,11 +179,20 @@ export interface Sleeping {
   readonly read: Effect.Effect<Reading & { readonly outlineRow: string }, OpFailure>
   /** One write, under this feature's own writer word. */
   readonly write: (request: WriteRequest) => Effect.Effect<unknown, OpFailure>
-  /** One commit, under the same word, answering with the reason it did NOT
-   *  happen — `null` when it did. A commit that could not happen is not a
-   *  failed pass: under `commit: off`, and with no repository at all, the memo
-   *  has still landed and waits like anybody else's write. */
-  readonly commit: (message: string) => Effect.Effect<string | null>
+  /** WHAT IS WAITING, in the two names every outline has — so the commit below
+   *  can name the files the pass wrote in the spelling git wants
+   *  (`@olai/plugin-api`'s `Ledger.waiting`). */
+  readonly waiting: Effect.Effect<ReadonlyArray<{ readonly file: string; readonly path: string }>>
+  /** One commit OF EXACTLY THESE PATHS, under the same word, answering with the
+   *  reason it did NOT happen — `null` when it did. A commit that could not
+   *  happen is not a failed pass: under `commit: off`, and with no repository at
+   *  all, the memo has still landed and waits like anybody else's write.
+   *
+   * PATHS AND NEVER A BARE MESSAGE, and that is the promise this feature is
+   * built on: a sleep is one commit a person can `git revert`, so it may not
+   *  sweep in somebody else's parked work: the paths are the files that memory
+   *  lives in ({@link @olai/format}'s `memoryFiles`), and nothing else. */
+  readonly commit: (message: string, paths: ReadonlyArray<string>) => Effect.Effect<string | null>
   /** Keep the quiet window shut for this scope — see the header's order. */
   readonly hold: Effect.Effect<void, never, Scope.Scope>
   /** A line at the level an operator reads: a pass that did not finish is a
@@ -230,7 +259,7 @@ export const makeSleeper = (
      * read it would find its own last sleep and never sleep again
      * (`@olai/format`'s `changedUnder`).
      */
-    const candidate = (): Effect.Effect<{ readonly agent: NodeAgent } | null> =>
+    const candidate = (): Effect.Effect<{ readonly agent: NodeAgent; readonly files: ReadonlySet<string> } | null> =>
       Effect.gen(function*() {
         const observed = yield* Effect.result(doors.read)
         if (observed._tag === "Failure") return null
@@ -250,7 +279,7 @@ export const makeSleeper = (
             continue
           }
           if (!changedUnder(derived, agent.id, doors.sleptAt(agent.id))) continue
-          return { agent }
+          return { agent, files: memoryFiles(derived, agent.id) }
         }
         return null
       })
@@ -317,7 +346,10 @@ export const makeSleeper = (
       )
 
     /** ONE PASS, in its own scope — the header's three acquisitions in order. */
-    const one = (agent: NodeAgent): Effect.Effect<Verdict, never, Scope.Scope> =>
+    const one = (
+      agent: NodeAgent,
+      files: ReadonlySet<string>,
+    ): Effect.Effect<Verdict, never, Scope.Scope> =>
       Effect.scoped(Effect.gen(function*() {
         const to = { agent: agent.engine, session: agent.session as string }
         yield* doors.hold
@@ -364,7 +396,13 @@ export const makeSleeper = (
           yield* doors.warn(`sleep: ${agent.id}: the memo could not be written: ${wrote.failure.message}`)
           return "trouble"
         }
-        const refusal = yield* doors.commit(`sleep: ${agent.title}`)
+        // ... AND ONE COMMIT OF THE FILES THAT MEMORY LIVES IN, named in the
+        // spelling git takes. Anything else waiting — a person's parked edits
+        // in another file, another agent's work — is left exactly where it was,
+        // because this commit is the undo of THIS pass and nothing else.
+        const waiting = yield* doors.waiting
+        const paths = waiting.filter((one) => files.has(one.file)).map((one) => one.path)
+        const refusal = yield* doors.commit(`sleep: ${agent.title}`, paths)
         yield* doors.log(refusal === null
           ? `sleep: ${agent.id} finished and committed`
           : `sleep: ${agent.id} finished; the memo is written and waiting: ${refusal}`)
@@ -380,7 +418,7 @@ export const makeSleeper = (
       const next = yield* candidate()
       if (next === null) return false
       yield* doors.log(`sleep: ${next.agent.id} is being tidied`)
-      const verdict = yield* one(next.agent)
+      const verdict = yield* one(next.agent, next.files)
       if (verdict !== "slept") failures.set(next.agent.id, yield* Clock.currentTimeMillis)
       return true
     })

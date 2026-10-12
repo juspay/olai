@@ -924,11 +924,36 @@ export interface Asked {
  * import the floor, and a request that has a message and a list of paths is
  * the whole of what a record needs.
  */
+/** One waiting outline, in the two names it has — see {@link Ledger.waiting}. */
+export interface WaitingOutline {
+  /** Served-root-relative: the store's own key, and what a plugin knows a file
+   *  by. */
+  readonly file: string
+  /** Repository-root-relative: what a commit request names. */
+  readonly path: string
+}
+
 export interface Ledger {
   /** A write landed and is waiting. No-op when the ledger has not yet opened. */
   readonly wrote: (writer: string) => void
   /** Why that write is not in the history — always a sentence. */
   readonly whyWaiting: (writer: string) => Effect.Effect<string>
+  /**
+   * WHAT IS WAITING, IN BOTH NAMES EVERY OUTLINE HAS — the name olai's own set
+   * uses (served-root-relative, which is the only name a plugin knows its files
+   * by) and the name git and a commit request use (repository-root-relative).
+   *
+   * THE PAIR RATHER THAN ONE OF THEM, and this is the whole of why the member
+   * exists: a caller that wants to commit exactly the files it wrote knows them
+   * as the set does, and the commit door takes them as git does, and the two are
+   * the same string only when olai serves the repository root. A caller left to
+   * build the other spelling itself would be guessing at a subdirectory.
+   *
+   * UNFAILING and empty where nobody records anything: what is waiting is a
+   * question a reader is entitled to an answer to, and "nothing" is the honest
+   * one for a directory with no history.
+   */
+  readonly waiting: Effect.Effect<ReadonlyArray<WaitingOutline>>
   /** Record what is waiting, or exactly these paths, signed by this writer. */
   readonly record: (
     request: { readonly message?: string; readonly paths?: ReadonlyArray<string> },

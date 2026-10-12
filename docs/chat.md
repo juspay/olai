@@ -865,10 +865,14 @@ no prose answer and no summary of what it did.
 **One sleep is one commit, and that commit is the undo.** The pass commits its
 own writes as `olai: sleep: <title>`, with `X-Olai-Writer: sleep` in the
 trailer, so `git log --grep '^olai'` shows it beside everything else olai
-recorded and `git revert` puts the memory back exactly as it was. Under
-`commit: auto` the writes do not appear in an `auto` commit first: the pass
-holds the quiet window shut for as long as it is running
-([git](git.md) has the window, and
+recorded and `git revert` puts the memory back exactly as it was. It names the
+files the node's memory lives in — its own outline, and every file holding a row
+under it — so a person's parked edits in another file are left exactly where they
+were. The limit is rows of those same files: git has no node-level selection, so
+another row of a file the memory is written in, edited by somebody else, is
+inside the commit too. Under `commit: auto` the writes do not appear in an
+`auto` commit first: the pass holds the quiet window shut for as long as it is
+running ([git](git.md) has the window, and
 [architecture/cordis](architecture/cordis.md) the ownership rule).
 
 **Nothing is deleted, and nothing is summarised away.** Rows move — under an

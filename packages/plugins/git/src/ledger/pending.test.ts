@@ -52,7 +52,7 @@ const HOUSE = [
 
 type GitOps = Ops.Ops & Pick<
   Committing,
-  "pending" | "status" | "observe" | "hold" | "loop" | "git" | "catchUp"
+  "pending" | "waiting" | "status" | "observe" | "hold" | "loop" | "git" | "catchUp"
 >
 
 interface Fixture {
@@ -178,11 +178,13 @@ const withRepo = <A>(
           push: ledger.push,
           resume: ledger.resume,
           hold: ledger.hold,
+          waiting: ledger.waiting,
         },
         context: { mint: () => "minted", now: () => "2026-08-10T09:00:00-04:00" },
       }),
       pending: ledger.pending,
       status: ledger.status,
+      waiting: ledger.waiting,
       observe: ledger.observe,
       hold: ledger.hold,
       loop: ledger.loop,
@@ -770,6 +772,32 @@ describe("a served subdirectory reports on the whole repository", () => {
           // And the commit olai just made is what it reports as last, even
           // though half of it lives outside the served directory.
           expect((yield* fixture.ops.pending).last).not.toBe(null)
+        }),
+      { serve: "docs" },
+    ))
+
+  /**
+   * WHAT IS WAITING, IN BOTH NAMES — the member a pass that knows only served
+   * names needs to name a commit (`@olai/plugin-api`'s `Ledger.waiting`).
+   *
+   * It is asserted where the two names DIFFER, because that is the whole of
+   * what the member is for: at the repository root they are one string and any
+   * implementation would look right.
+   */
+  test("what is waiting carries the served name and the repository one", () =>
+    withRepo(
+      { "docs/house.olai": HOUSE, "docs/notes.md": "as it was\n" },
+      (fixture) =>
+        Effect.gen(function*() {
+          fixture.write("docs/house.olai", `${HOUSE}{"id":"later","parent":"kitchen","ord":"a9","title":"later"}\n`)
+          yield* fixture.refresh
+          // A file olai does NOT serve is waiting too, and it is deliberately
+          // not here: nobody could ask about it by a served name.
+          fixture.write("docs/notes.md", "and another thing\n")
+          yield* fixture.refresh
+          expect(yield* fixture.ops.waiting).toEqual([
+            { file: "house.olai", path: "docs/house.olai" },
+          ])
         }),
       { serve: "docs" },
     ))

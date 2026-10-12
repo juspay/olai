@@ -81,6 +81,9 @@ import { asking, type Asking } from "./tools.ts"
 export interface Ledger {
   readonly wrote: (writer: Writer) => void
   readonly whyWaiting: (writer: Writer) => Effect.Effect<string>
+  /** See `@olai/plugin-api`'s `Ledger.waiting` — what is waiting, in the two
+   *  names every outline has. */
+  readonly waiting: Effect.Effect<ReadonlyArray<{ readonly file: string; readonly path: string }>>
   readonly record: (
     request: CommitRequest,
     writer: Writer,
@@ -159,6 +162,8 @@ export const NO_SEARCH: Search = {
 
 export const NO_LEDGER: Ledger = {
   wrote: () => {},
+  // Nobody records anything, so nothing is waiting anywhere.
+  waiting: Effect.succeed([]),
   whyWaiting: () =>
     Effect.succeed("nobody is recording writes here, so they land and wait for nobody"),
   record: () =>
@@ -392,6 +397,10 @@ export interface Ops extends Asking {
   ) => Effect.Effect<CommitResult>
   /** Send the current branch to its upstream — through the ledger, or refuse. */
   readonly push: Effect.Effect<PushResult>
+  /** WHAT IS WAITING, in the two names every outline has — through the ledger,
+   *  and empty where nobody stands behind it (`@olai/plugin-api`'s
+   *  `Ledger.waiting` argues the pair). */
+  readonly waiting: Effect.Effect<ReadonlyArray<{ readonly file: string; readonly path: string }>>
   /** Start the quiet-window loop again after git stopped it. */
   readonly resume: Effect.Effect<void>
   /**
@@ -1041,6 +1050,10 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
     push: Effect.suspend(() => closed
       ? Effect.succeed({ _tag: "Failed" as const, said: NO_DIRECTORY.reason })
       : ledger.push),
+    // NOT a refusal when this layer is closed: a caller asking what is waiting
+    // is asking about a directory nobody is serving, and the answer to that is
+    // nothing rather than a failure to render.
+    waiting: Effect.suspend(() => closed ? Effect.succeed([]) : ledger.waiting),
     resume: Effect.suspend(() => closed ? Effect.void : ledger.resume),
     // Each of the three above refuses a closed layer in this layer's own words
     // rather than the ledger's, and this one does not: a hold that cannot be

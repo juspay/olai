@@ -947,18 +947,20 @@ export default definePlugin({
           watch: (to, observer) => serving.reading(to, observer),
           read: gate.read,
           write: (request) => gate.run(request, "sleep"),
-          commit: (message) => Effect.map(gate.commit({ message }, "sleep"), (result) => {
+          waiting: gate.waiting,
+          commit: (message, paths) => Effect.map(gate.commit({ message, paths }, "sleep"), (result) => {
             // EXHAUSTIVE over the ledger's own answer, so an arm added there is
             // a decision here rather than a silent "it worked".
             switch (result._tag) {
               case "Committed":
-              // Nothing waiting is the memo already being in the history —
-              // which is a pass that recorded what it wrote, said the other way
-              // round.
-              case "NothingToCommit":
                 return null
               case "Blocked":
                 return "olai is not committing here, so the memo is on disk and waiting"
+              // The subtree's own files had nothing waiting — which after a
+              // memo write means the memo was already in the history, and is
+              // said rather than reported as a commit that happened.
+              case "NothingToCommit":
+                return "nothing of the subtree's was waiting to be recorded"
               case "Failed":
                 return result.said
             }

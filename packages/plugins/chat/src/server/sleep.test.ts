@@ -58,7 +58,26 @@ const VAULT = {
     `{"id":"shipping","ord":"a1","title":"Shipping"}`,
     `{"id":"ship-note","parent":"shipping","ord":"a0","title":"late again","changed":"2026-10-01T09:00:00+00:00"}`,
   ].join("\n") + "\n",
+  // A CHILD OF `health` IN ANOTHER FILE, because a subtree is matched by id
+  // across the corpus and can span files: the pass's commit must name every
+  // file its memory lives in, not just the node's own.
+  "Archive.olai": `{"id":"old-note","parent":"health","ord":"a0","title":"the old rows","changed":"2026-10-01T09:00:00+00:00"}\n`,
 }
+
+/**
+ * WHAT THE LEDGER WOULD SAY IS WAITING — in the two names each file has, and
+ * deliberately in a SERVED SUBDIRECTORY: the pass knows files by their served
+ * names and a commit request takes them as git does, so a test that made the two
+ * spellings equal would prove nothing about the mapping.
+ *
+ * `Notes.olai` is a person's own file, waiting and NOT part of the memory — the
+ * one that must not end up in the commit.
+ */
+const WAITING = [
+  { file: "Work.olai", path: "docs/Work.olai" },
+  { file: "Archive.olai", path: "docs/Archive.olai" },
+  { file: "Notes.olai", path: "docs/Notes.olai" },
+]
 
 const reading = () => Effect.succeed(readingOf(setOf(VAULT)))
 
@@ -74,8 +93,9 @@ interface Bench {
   /** Every `prop` the pass asked for, in order — the door's own union, so a
    *  reader is told which arm each one is. */
   readonly writes: ReadonlyArray<WriteRequest>
-  /** Every message the pass asked to commit, in order. */
-  readonly commits: ReadonlyArray<string>
+  /** Every commit the pass asked for, in order: the message and the paths it
+   *  named. */
+  readonly commits: ReadonlyArray<{ readonly message: string; readonly paths: ReadonlyArray<string> }>
   /** Every line the pass said at the operator's level. */
   readonly warnings: Array<string>
   /** One pass of the loop, as the case under test drives it. */
@@ -123,7 +143,7 @@ const withBench = async (
 ): Promise<void> => {
   const nodes = over.nodes ?? [agent("health", "sess-1")]
   const writes: Array<WriteRequest> = []
-  const commits: Array<string> = []
+  const commits: Array<{ message: string; paths: ReadonlyArray<string> }> = []
   const warnings: Array<string> = []
   const chat = await run(make({
     // THE BENCH'S OWN RUNTIME, said out loud: `Options.fork` has no default.
@@ -157,8 +177,9 @@ const withBench = async (
         writes.push(request)
         return {}
       })),
-      commit: (message) => Effect.gen(function*() {
-        commits.push(message)
+      waiting: Effect.succeed(WAITING),
+      commit: (message, paths) => Effect.sync(() => {
+        commits.push({ message, paths })
         return null
       }),
       hold: Effect.void,
@@ -201,7 +222,12 @@ test("a finished pass writes the memo and then commits it", async () => {
       key: "chat-agent-slept",
       value: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/),
     }])
-    expect(bench.commits).toEqual(["sleep: Health"])
+    // THE COMMIT NAMES THE FILES THAT MEMORY LIVES IN — both of them, in git's
+    // spelling — and leaves the person's own waiting file exactly where it was.
+    expect(bench.commits).toEqual([{
+      message: "sleep: Health",
+      paths: ["docs/Work.olai", "docs/Archive.olai"],
+    }])
     expect(bench.warnings).toEqual([])
     // ... and the pass left the conversation idle rather than holding it open.
     expect(bench.chat.live().get("health")?.status).toBe("idle")

@@ -109,6 +109,7 @@ export default definePlugin({
       record: (request, writer) => commits.commit(request, writer as Writer),
       push: commits.push,
       resume: commits.resume,
+      waiting: commits.waiting,
       // The hold is the ledger's own, and it is why `Committing` carries one at
       // all: a caller that is about to write and then commit those writes
       // itself must not have the quiet window record half of them as `auto`

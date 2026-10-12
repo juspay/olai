@@ -417,6 +417,17 @@ export interface Committing {
   readonly status: Effect.Effect<Status>
   /** What is waiting, alone. */
   readonly pending: Effect.Effect<Pending>
+  /**
+   * THE WAITING OUTLINES IN BOTH NAMES EACH FILE HAS — {@link Pending}'s own
+   * `outlines`, reduced to the pair a caller that knows only one of the two
+   * names needs (`@olai/plugin-api`'s `Ledger.waiting` argues why).
+   *
+   * The `others` are deliberately not here: they are files olai does not serve,
+   * so a caller that knows a file by its served name has no way to ask about
+   * one — and a member that answered with a name nobody could have matched
+   * would only invite a caller to guess.
+   */
+  readonly waiting: Effect.Effect<ReadonlyArray<{ readonly file: string; readonly path: string }>>
   /** A commit somebody asked for: everything waiting — or exactly the paths
    *  they picked — with a message. */
   readonly commit: (
@@ -1459,6 +1470,8 @@ export const make = (options: Options): Committing => {
   return {
     status,
     pending: Effect.map(status, (both) => both.pending),
+    waiting: Effect.map(status, (both) =>
+      both.pending.outlines.map((one) => ({ file: one.file, path: one.path }))),
     commit,
     push,
     whyWaiting,

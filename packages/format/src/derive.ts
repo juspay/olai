@@ -1754,6 +1754,48 @@ const descendants = (
 }
 
 /**
+ * THE FILES A NODE AGENT'S MEMORY LIVES IN — the outline its own record is
+ * written in, and every file holding a record under it.
+ *
+ * WHY IT IS A READING OF THE SET rather than of the file: an outline's
+ * children are matched by ID across the whole corpus, so a node's subtree can
+ * span files. A pass that commits "the node's file" would leave half of what it
+ * tidied waiting, and one that commits "everything waiting" would sweep a
+ * person's own parked edits into a commit named after somebody else's work
+ * (`olai-plugin-chat`'s `server/sleep.ts`, which is the one caller).
+ *
+ * THE NODE'S OWN FILE IS INCLUDED, deliberately and against {@link
+ * changedUnder}'s rule, because the two questions are different: the walk there
+ * is about what has MOVED (and the node's own record is re-stamped by every
+ * pass, so counting it would make a node permanently due), while this one is
+ * about what the pass's work can be WRITTEN IN — and the memo it leaves behind
+ * is a property on the node's own record.
+ *
+ * TOTAL over a set the validator would condemn, by {@link changedUnder}'s guard
+ * and for its reason.
+ */
+export const memoryFiles = (
+  derived: Pick<Derived, "children" | "byId">,
+  id: string,
+  seen: Set<string> = new Set([id]),
+): ReadonlySet<string> => {
+  const files = new Set<string>()
+  const own = derived.byId.get(id)
+  if (own !== undefined) files.add(own.file)
+  const descend = (at: string): void => {
+    for (const child of derived.children.get(at) ?? []) {
+      const under = child.node.id
+      if (seen.has(under)) continue
+      seen.add(under)
+      files.add(child.file)
+      descend(under)
+    }
+  }
+  descend(id)
+  return files
+}
+
+/**
  * HAS ANYTHING UNDER THIS NODE BEEN WRITTEN SINCE `since` — the question a
  * node agent's own tidying pass asks before it runs
  * (`olai-plugin-chat`'s `server/sleep.ts`).
