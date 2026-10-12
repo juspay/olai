@@ -68,6 +68,8 @@ const thinking = (over: Partial<ChatState> = {}): ChatState => ({
 interface Arms {
   /** One pass, driven by hand. */
   readonly tick: Effect.Effect<boolean, never, Scope.Scope>
+  /** One pass, asked for by name — what the verb's door answers. */
+  readonly now: (node: string) => Effect.Effect<"started" | "busy" | "unknown", never, Scope.Scope>
   /** What the pass did, in order. */
   readonly events: Array<string>
   /** One entry per turn handed to a conversation. */
@@ -83,6 +85,8 @@ interface Arms {
 const withStubs = (over: {
   /** What the conversation reports once the turn is handed over. */
   readonly states?: ReadonlyArray<ChatState>
+  /** The roster, for the cases about WHICH nodes a door answers for. */
+  readonly nodes?: ReadonlyArray<NodeAgent>
   readonly live?: ReadonlyMap<string, LiveSession>
   readonly changed?: string
   readonly after?: Duration.Duration
@@ -115,7 +119,7 @@ const withStubs = (over: {
       { ...CHAT_OFF, status: "idle", trouble: null },
     ]
     const doors: Sleeping = {
-      nodes: () => [AGENT],
+      nodes: () => over.nodes ?? [AGENT],
       sleptAt: () => memo,
       sleptKey: () => "chat-agent-slept",
       live: () => over.live ?? new Map(),
@@ -166,7 +170,7 @@ const withStubs = (over: {
       warn: (line) => Effect.sync(() => void warnings.push(line)),
     }
     const sleeper = yield* makeSleeper(doors)
-    return { tick: sleeper.tick, events, delivers, memos, commits, warnings, reads: () => reads }
+    return { tick: sleeper.tick, now: sleeper.now, events, delivers, memos, commits, warnings, reads: () => reads }
   })
 
 /** One case, on a test clock started at {@link NOW}. */
@@ -182,6 +186,21 @@ const onTheClock = <A>(body: Effect.Effect<A, never, Scope.Scope>): Promise<A> =
  *  `Effect.yieldNow` is a VALUE in this Effect — the callable one is
  *  `yieldNowWith`. */
 const settle = Effect.yieldNow
+
+/**
+ * WAIT FOR A PASS SOMEBODY ASKED FOR, which is not this fiber: `now` forks it
+ * into the caller's scope, so what the pass DID is a thing to wait for rather
+ * than to read. A yield per try, and one more once the predicate holds — the
+ * step after the one that answered is the permit going back.
+ */
+const until = (ready: () => boolean): Effect.Effect<void> =>
+  Effect.gen(function*() {
+    for (let tries = 0; tries < 500; tries++) {
+      if (ready()) return yield* settle
+      yield* settle
+    }
+    throw new Error("the pass never got there")
+  })
 
 test("a question past its deadline is cancelled, said out loud, and writes nothing", () =>
   onTheClock(Effect.gen(function*() {
@@ -321,4 +340,57 @@ test("the loop stops when the scope it was forked into closes", () =>
     yield* TestClock.adjust(Duration.millis(2 * HOUR))
     yield* settle
     expect(arms.reads()).toBe(awake)
+  })))
+
+test("a pass asked for by hand does not ask whether the node is due", () =>
+  onTheClock(Effect.gen(function*() {
+    // THE GATES THE LOOP ASKS AND THE VERB DOES NOT: the newest stamp under this
+    // node is a minute old and the span is six hours, so the loop finds nothing
+    // to do — and the node carries no memo either, which is the other half of
+    // "due" (`candidate`).
+    const arms = yield* withStubs({ changed: stamp(NOW - MIN), after: Duration.hours(6) })
+    expect(yield* arms.tick).toBe(false)
+    expect(yield* arms.now("health")).toBe("started")
+    yield* until(() => arms.commits.length === 1)
+    expect(arms.commits).toHaveLength(1)
+    expect(arms.memos).toEqual(["memo"])
+  })))
+
+test("a pass asked for while one is running is refused, and nothing queues", () =>
+  onTheClock(Effect.gen(function*() {
+    const arms = yield* withStubs({ states: [thinking({ asking: 0 }), thinking({ asking: 1 })] })
+    const pass = yield* Effect.forkChild(arms.tick)
+    yield* TestClock.adjust(Duration.millis(MIN))
+    yield* settle
+    expect(arms.delivers).toHaveLength(1)
+    // THE PERMIT IS HELD, and the answer is a refusal rather than a place in a
+    // queue: somebody who pressed a row is owed an answer now.
+    expect(yield* arms.now("health")).toBe("busy")
+    yield* TestClock.adjust(Duration.millis(19 * MIN))
+    expect(yield* Fiber.join(pass)).toBe(true)
+    expect(arms.delivers).toHaveLength(1)
+  })))
+
+test("a pass asked for on a node that is not one, or has no conversation, is unknown", () =>
+  onTheClock(Effect.gen(function*() {
+    const arms = yield* withStubs({ nodes: [AGENT, { ...AGENT, id: "bare", session: null }] })
+    expect(yield* arms.now("nowhere")).toBe("unknown")
+    // ...AND A SESSIONLESS ROW IS THE SAME ANSWER: there is no conversation to
+    // hand a turn to, which is the other thing the verb's row is chosen on.
+    expect(yield* arms.now("bare")).toBe("unknown")
+    expect(arms.delivers).toEqual([])
+    expect(arms.commits).toEqual([])
+  })))
+
+test("a manual pass that failed is not remembered as a node to leave alone", () =>
+  onTheClock(Effect.gen(function*() {
+    // THE 24-HOUR BACK-OFF IS THE LOOP'S: it exists so a broken node is not
+    // retried every tick. A person can ask again, and so can the next tick.
+    const arms = yield* withStubs({ writes: false })
+    expect(yield* arms.now("health")).toBe("started")
+    yield* until(() => arms.warnings.length > 0)
+    expect(arms.warnings.join("\n")).toContain("the memo could not be written")
+    // THE LOOP'S OWN NEXT LOOK still finds this node: had the manual failure
+    // been remembered, the map would answer `false` here.
+    expect(yield* arms.tick).toBe(true)
   })))
