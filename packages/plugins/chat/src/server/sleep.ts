@@ -212,13 +212,27 @@ export interface Stoppable {
   readonly cancel: Effect.Effect<void, OpFailure>
 }
 
+/** WHAT A REQUEST FOR A PASS RIGHT NOW WAS TOLD — see {@link makeSleeper}'s
+ *  `now`. Three answers, and not the pass's verdict: a verdict exists when the
+ *  pass ENDS, and the person who pressed the row is owed an answer while it
+ *  runs. */
+export type Asked = "started" | "busy" | "unknown"
+
 /**
- * THE LOOP, forked into the caller's scope — and the ONE PASS it takes, handed
- * back so a test can drive it without waiting for a tick.
+ * THE LOOP, forked into the caller's scope — and the TWO passes it takes, handed
+ * back: the loop's own (`tick`, which a test drives by hand) and the one a
+ * person asks for (`now`, the verb's door).
  */
 export const makeSleeper = (
   doors: Sleeping,
-): Effect.Effect<{ readonly tick: Effect.Effect<boolean, never, Scope.Scope> }, never, Scope.Scope> =>
+): Effect.Effect<
+  {
+    readonly tick: Effect.Effect<boolean, never, Scope.Scope>
+    readonly now: (node: string) => Effect.Effect<Asked, never, Scope.Scope>
+  },
+  never,
+  Scope.Scope
+> =>
   Effect.gen(function*() {
     /** THE NODES THIS ACTIVATION HAS GIVEN UP ON, by node id, and when. In
      *  memory, so a restart forgets — which costs one retry per restart on a
@@ -471,11 +485,10 @@ export const makeSleeper = (
       }))
 
     /**
-     * ONE PASS AT A TIME, BY THE PERMIT — and the loop is `tick`'s only
-     * production caller, so what the permit is for is the OTHER one: `tick` is
-     * handed back so a test can drive a pass by hand, and two callers of it
-     * would be two passes over one directory at once, which is the promise "the
-     * next candidate waits for the current one to end" is about.
+     * ONE PASS AT A TIME, BY THE PERMIT — three callers, and the permit is what
+     * keeps them from overlapping: the loop (a tick), the verb (a person
+     * pressing *Tidy memory now*), and the test door, which is `tick` handed
+     * back so a case can drive a pass without waiting for a span.
      */
     const passes = Semaphore.makeUnsafe(1)
     const tick: Effect.Effect<boolean, never, Scope.Scope> = passes.withPermit(Effect.gen(function*() {
@@ -487,6 +500,55 @@ export const makeSleeper = (
       return true
     }))
 
+    /**
+     * ONE PASS, ASKED FOR BY NAME — a person's own gesture, and the loop's other
+     * production caller.
+     *
+     * THE SAME PERMIT, TAKEN WITHOUT WAITING. A request that arrives while a
+     * pass is running is refused in words rather than queued: somebody who
+     * pressed a button is owed an answer now, and a queue of machine turns
+     * nobody asked for is the thing this refuses to become.
+     *
+     * WHAT IT DOES NOT ASK is `candidate()`'s opinion. The idle window and the
+     * "memory has moved" test are about whether a node is DUE, and a person
+     * pressing *Tidy memory now* has answered that themselves. Everything the
+     * pass then does with the node — the hold on the quiet window, the mark on
+     * the turn, the cancel when a turn goes wrong or sits on a question, the
+     * memo and the commit — is `one`, unchanged.
+     *
+     * NOT REMEMBERED WHEN IT FAILS: the failure map is for a LOOP that would
+     * otherwise retry a broken node every tick, and a person can ask again.
+     *
+     * IT ANSWERS WHEN THE PASS HAS BEGUN, not when it ends — a tidying turn
+     * runs for minutes, and what is waiting on this answer is a palette row a
+     * person pressed. So the pass is forked into the CALLER's scope, which for
+     * the verb is the chat server's own, exactly as the loop's fiber is; and
+     * what comes back is what happened to the REQUEST: it started, or it did not
+     * and why. The verdict is nobody's answer here — `one` says it in the log
+     * and, when a turn went wrong, in a warning.
+     */
+    const now = (node: string): Effect.Effect<Asked, never, Scope.Scope> =>
+      Effect.gen(function*() {
+        const agent = doors.nodes().find((one) => one.id === node)
+        if (agent === undefined || agent.session === null) return "unknown"
+        // THE SET IS READ FRESH, and a set that cannot be read is a node whose
+        // memory cannot be named: the commit would name nothing, so nothing is
+        // tidied. (The loop's reading failing is simply "no candidate".)
+        const observed = yield* Effect.result(doors.read)
+        if (observed._tag === "Failure") return "unknown"
+        if (!(yield* Semaphore.takeIfAvailable(passes, 1))) return "busy"
+        yield* doors.log(`sleep: ${agent.id} was asked for, and is being tidied`)
+        yield* Effect.forkScoped(
+          one(agent, memoryFiles(observed.success.derived, agent.id)).pipe(
+            // THE PERMIT GOES BACK WHEN THE PASS ENDS, whichever way it ends:
+            // the pass is a fiber of its own now, so nothing else can hand it
+            // back — and a permit nobody returns would wedge the loop for ever.
+            Effect.ensuring(Semaphore.release(passes, 1)),
+          ),
+        )
+        return "started"
+      })
+
     yield* Effect.forkScoped(Effect.gen(function*() {
       for (;;) {
         yield* Effect.sleep(doors.tick)
@@ -494,5 +556,5 @@ export const makeSleeper = (
           doors.warn(`sleep: the pass failed: ${String(cause)}`))
       }
     }))
-    return { tick }
+    return { tick, now }
   })
