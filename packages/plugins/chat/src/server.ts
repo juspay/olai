@@ -101,7 +101,7 @@ import {
 } from "@olai/plugin-api/services"
 import type { Engine, Registering } from "@olai/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
-import { Deferred, Duration, Effect, type Scope, Semaphore } from "effect"
+import { Deferred, Duration, Effect, Scope, Semaphore } from "effect"
 
 import type { PanelAddress } from "./wire/session.ts"
 import { forLocalState as modelsIn } from "./models.ts"
