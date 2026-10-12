@@ -2942,7 +2942,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       to: Deliveries.Addressed,
       say: () => string | null,
       from: string,
-      how?: { readonly coalesce?: string },
+      how?: { readonly coalesce?: string; readonly sleep?: true },
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
         held.hold(to, from, say, how?.coalesce, how?.sleep)

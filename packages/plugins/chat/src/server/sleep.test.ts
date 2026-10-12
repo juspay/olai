@@ -185,9 +185,12 @@ const withBench = async (
       sleptAt: over.sleptAt ?? (() => null),
       sleptKey: () => "chat-agent-slept",
       live: over.live ?? (() => chat.live()),
+      // THE PASS'S OWN DELIVERY, exactly as the wiring makes it — including the
+      // option that marks the turn as olai's own (`@olai/plugin-api`'s
+      // `Deliveries.deliver`).
       deliver: (to, say) => over.deliver === undefined
         ? Effect.tap(
-          chat.doorFor("sleep").deliver(to, say),
+          chat.doorFor("sleep").deliver(to, say, { sleep: true }),
           () => Effect.sync(() => void events.push("delivered")),
         )
         : over.deliver(to),
