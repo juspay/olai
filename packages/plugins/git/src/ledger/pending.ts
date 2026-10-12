@@ -341,6 +341,12 @@ export const commitDoor = (writer: Writer): string => {
       return COMMIT_TOOL
     case "chat-agent":
       return `${COMMIT_TOOL} or ${COMMIT_BUTTON}`
+    // `sleep` is the server's own pass over a node agent's subtree, and it
+    // commits what it wrote itself — so a person only ever reads this sentence
+    // about a sleep whose own commit did not happen (no ledger yet, a git that
+    // refused). The button is then the one door on it that a person has.
+    case "sleep":
+      return COMMIT_BUTTON
   }
 }
 

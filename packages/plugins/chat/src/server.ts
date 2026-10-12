@@ -176,6 +176,19 @@ const asFailure = (refusal: Refusal): OpFailure => refusal as OpFailure
 const SEATS =
   "it is what seats a conversation on a node, and that is a person's gesture in the panel"
 
+/**
+ * ...AND WHY IT MAY NOT WRITE THE MEMO OF ITS OWN SLEEP, which is the second
+ * key a seated session is refused.
+ *
+ * The memo is olai's record of when the LAST pass finished, and the pass is
+ * what writes it — an agent that stamped its own would be the tidy-up pass
+ * deciding it had tidied, and the next pass would skip a subtree nothing had
+ * touched. The agent is told which of the two keys it is about through this
+ * clause, exactly as {@link SEATS} tells it the other.
+ */
+const MEMO =
+  "olai writes it when it tidies this node agent's memory, so a session that stamped it would be claiming a pass nobody ran"
+
 export default definePlugin({
   environment: [
     {"key": "OLAI_AGENT_PATH", "secret": false, "says": "the directories containing agent executables"},
@@ -866,7 +879,15 @@ export default definePlugin({
             // was a general package writing prose about a word only this
             // package owns — invisible while there was one forbidden key and
             // untrue of half its subjects the moment there were two.
-            () => nodeAgents.keys().map((key) => ({ key, says: SEATS })),
+            //
+            // TWO KINDS, TWO CLAUSES: the binding and the sleep memo are
+            // forbidden for different reasons, and a table (a MAP on the rule)
+            // rather than a set is what lets each carry the reason it is one
+            // (`@olai/ops`' `door.ts` argues the shape).
+            () => [
+              ...nodeAgents.keys().map((key) => ({ key, says: SEATS })),
+              ...nodeAgents.sleptKeys().map((key) => ({ key, says: MEMO })),
+            ],
             "chat-agent",
           ),
         onState: () => {},

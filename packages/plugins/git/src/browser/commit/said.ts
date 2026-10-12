@@ -566,6 +566,10 @@ export const WHO: Readonly<Record<Writer, string>> = {
   // the thing they turned on, and a commit trailer saying `web` here would have
   // told them they made it.
   auto: "auto-commit",
+  // The server's own pass over a node agent's memory, out of hours. Named for
+  // the thing that happened rather than for the process that did it: this is a
+  // line in a person's history they did not write and may want to undo.
+  sleep: "olai put a node agent's memory in order",
 }
 
 /** Pending counts are Ops writes, including the Chats root, not a count of

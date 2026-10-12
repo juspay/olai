@@ -63,11 +63,11 @@
  * would be two answers about one string.
  */
 
-import { sessionIn } from "@olai/format"
+import { canonicalDate, sessionIn } from "@olai/format"
 
 /** Internal words; other plugins ask chat.seating for the reading. */
-export { SESSION_KIND, SESSION_TYPE } from "./binding.ts"
-import { SESSION_KIND, SESSION_TYPE } from "./binding.ts"
+export { SESSION_KIND, SESSION_TYPE, SLEPT_KIND, SLEPT_TYPE } from "./binding.ts"
+import { SLEPT_KIND, SLEPT_TYPE, SESSION_KIND, SESSION_TYPE } from "./binding.ts"
 
 /**
  * The contribution, as `@olai/plugin-api`'s registry reads it — spent by the
@@ -79,28 +79,53 @@ import { SESSION_KIND, SESSION_TYPE } from "./binding.ts"
  * (`@olai/plugin-api`'s `services.ts`), which is what makes a built-in
  * declaration safe — enabling chat can only ever declare `chat-agent-session`,
  * so a column somebody else calls `agent-session` is untouchable by a flag on
- * the machine.
+ * the machine. The same holds twice over for the memo below.
  *
- * \`SESSION_KIND\` — the BARE word, the second half of the composition — is
- * emphatically not a second claim: a bare \`agent-session\` is a word any vault
+ * `SESSION_KIND` — the BARE word, the second half of the composition — is
+ * emphatically not a second claim: a bare `agent-session` is a word any vault
  * might be using for something of its own, so olai declares it for nobody. A
  * board that wants its bindings under that column declares it there itself.
  */
-export const kinds = [{
+const SESSION = {
   kind: SESSION_KIND,
   takes: `\`${SESSION_TYPE}\` (an engine, optionally \`:\` and a session id)`,
   admits: (value: string) => sessionIn(value) !== null,
-}] as const
+} as const
+
+/**
+ * WHEN A NODE AGENT LAST TIDIED ITS SUBTREE, as a kind — the second word this
+ * plugin contributes, and a DATE: the value is the instant the pass finished,
+ * written the way every other instant olai stores is written
+ * (`@olai/format`'s `stampOf`).
+ *
+ * IT REUSES THE FORMAT'S OWN DATE RULE rather than spelling a second one
+ * ({@link @olai/format}'s `canonicalDate`, which is the one stored spelling and
+ * the same reading the built-in `date` kind is held to). Two readings of "is
+ * this a date" is the bug family `@olai/format`'s `meaning.ts` exists to close,
+ * and a memo every serve reads is the last place to open it again.
+ *
+ * WHY A KIND RATHER THAN A PINNED KEY is `./binding.ts`'s argument for the
+ * binding, one field over: a key's spelling is not a licence, so a vault that
+ * keeps its memos under a column of its own name declares that column this kind
+ * and olai reads and writes there.
+ */
+const SLEPT = {
+  kind: SLEPT_KIND,
+  takes: `\`${SLEPT_TYPE}\` (an ISO day or instant)`,
+  admits: (value: string) => canonicalDate(value.trim(), null) === value.trim(),
+} as const
+
+export const kinds = [SESSION, SLEPT] as const
 
 /**
  * THIS PLUGIN'S OWN VOCABULARY, as `@olai/format` takes one — for the readings
- * in this package, which ask the vault's declarations and must see the claim
+ * in this package, which ask the vault's declarations and must see the claims
  * above folded in exactly as every other reader does.
  *
  * It is `olai-plugin-kolu`'s `ownKinds` and `olai-plugin-odu`'s, word for word,
  * and for their reason: BOTH HALVES ARE THE SAME TABLE, which is honest rather
  * than a shortcut — a reading in this package runs only on a serve that composed
- * this plugin, so its own kind is enabled by construction. What it must NOT do
+ * this plugin, so its own kinds are enabled by construction. What it must NOT do
  * is spell the precedence itself; it hands this to the shared fold
  * (`@olai/format`'s `withClaims`) and gets back one map, like every consumer in
  * the tree, so a vault's own row wins here exactly as it does everywhere else.
@@ -110,7 +135,8 @@ export const kinds = [{
  * The rows ride along unchanged, so the reading a bench drives and the reading a
  * serve drives fold the claim the same way.
  */
-const OWN = new Map(
-  kinds.map((one) => [SESSION_TYPE, { ...one, kind: SESSION_TYPE, claims: SESSION_TYPE }]),
-)
+const OWN = new Map([
+  [SESSION_TYPE, { ...SESSION, kind: SESSION_TYPE, claims: SESSION_TYPE }],
+  [SLEPT_TYPE, { ...SLEPT, kind: SLEPT_TYPE, claims: SLEPT_TYPE }],
+])
 export const ownKinds = { built: OWN, enabled: OWN }

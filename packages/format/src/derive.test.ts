@@ -8,6 +8,7 @@ import {
   ancestorsOf,
   ancestryOver,
   blockersOf,
+  changedUnder,
   countedChildren,
   derive,
   type Derived,
@@ -1826,4 +1827,63 @@ test("the stopping rules travelled with the walk, not with the derivation", () =
   // An id NOTHING in the index claims has no ancestry rather than an error,
   // which is what a plan that removed a record leaves behind.
   expect(ids(ancestryOver(walkOver(nodesOf(HOUSE)), "nobody"))).toEqual([])
+})
+/**
+ * WHAT IS UNDER A NODE, SINCE WHEN — the walk a node agent's tidying pass asks
+ * before it spends a turn (`olai-plugin-chat`'s `server/sleep.ts`).
+ *
+ * The whole of the reading is here rather than in that plugin because the
+ * subtree is this package's, and because the one rule that is easy to get wrong
+ * is a rule about THIS walk: the node's own record is not in the comparison.
+ */
+test("changedUnder reads the newest stamp under a node, and never the node's own", () => {
+  const derived = derive(TEST_CLAIMS, nodesOf([
+    `{"id":"health","ord":"a0","title":"health","created":"2026-08-01T09:00:00+00:00","changed":"2026-08-30T09:00:00+00:00"}`,
+    `{"id":"old","parent":"health","ord":"a0","title":"old","changed":"2026-08-02T09:00:00+00:00"}`,
+    `{"id":"deep","parent":"old","ord":"a0","title":"deep","changed":"2026-08-10T09:00:00+00:00"}`,
+  ].join("\n")))
+
+  // A stamp deeper than a child is still under the node, which is the whole
+  // point of walking rather than reading one level.
+  expect(changedUnder(derived, "health", "2026-08-09T00:00:00+00:00")).toBe(true)
+  // ... and NOTHING under it is newer than a stamp that outranks every one of
+  // them: the node's own record is excluded, so its own later `changed` — which
+  // is what writing the memo over it produced — is not news.
+  expect(changedUnder(derived, "health", "2026-08-30T09:00:00+00:00")).toBe(false)
+  // ... and a node that has never held a memo takes ANY stamp as news.
+  expect(changedUnder(derived, "health", null)).toBe(true)
+})
+
+test("changedUnder answers false for a subtree nothing has ever stamped", () => {
+  const derived = derive(TEST_CLAIMS, nodesOf([
+    `{"id":"health","ord":"a0","title":"health"}`,
+    `{"id":"note","parent":"health","ord":"a0","title":"note"}`,
+  ].join("\n")))
+  expect(changedUnder(derived, "health", null)).toBe(false)
+  expect(changedUnder(derived, "health", "2026-01-01T00:00:00+00:00")).toBe(false)
+  // ... and one level down asks the same question about its own subtree.
+  expect(changedUnder(derived, "note", null)).toBe(false)
+})
+
+test("changedUnder walks through a mirror and terminates on a loop", () => {
+  const derived = derive(TEST_CLAIMS, nodesOf([
+    `{"id":"health","ord":"a0","title":"health"}`,
+    `{"id":"placed","parent":"health","ord":"a0","mirror":"elsewhere"}`,
+    `{"id":"deep","parent":"placed","ord":"a0","title":"deep","changed":"2026-09-01T09:00:00+00:00"}`,
+  ].join("\n")))
+  // A placement carries no stamp of its own, and what hangs under it is still
+  // under the node that placed it.
+  expect(changedUnder(derived, "health", "2026-08-01T00:00:00+00:00")).toBe(true)
+
+  // A parent loop is a set the validator refuses, and this walk still answers:
+  // from `two` the only descendant is the stamped `one`, and from `one` the only
+  // descendant is the unstamped `two` — which is the node's-own-record rule
+  // seen from the other side of a cycle.
+  const looped = derive(TEST_CLAIMS, nodesOf([
+    `{"id":"one","parent":"two","ord":"a0","title":"one","changed":"2026-09-01T09:00:00+00:00"}`,
+    `{"id":"two","parent":"one","ord":"a1","title":"two"}`,
+  ].join("\n")))
+  expect(changedUnder(looped, "two", null)).toBe(true)
+  expect(changedUnder(looped, "one", null)).toBe(false)
+  expect(changedUnder(looped, "two", "2026-09-01T09:00:00+00:00")).toBe(false)
 })

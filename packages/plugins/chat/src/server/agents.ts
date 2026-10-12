@@ -70,11 +70,12 @@ import {
   type NodeAgent,
   type NodeAgents,
   seatableIn,
+  textDeclaredAs,
 } from "@olai/format"
 import { type Agents, NO_AGENT_ROSTER } from "olai-plugin-chat/wire"
 
 import { seatingIn } from "../seating.ts"
-import { ownKinds, SESSION_TYPE } from "../kinds.ts"
+import { ownKinds, SLEPT_TYPE, SESSION_TYPE } from "../kinds.ts"
 
 export interface Roster {
   /**
@@ -157,6 +158,29 @@ export interface Roster {
    * is the key a write with nothing declared would land on.
    */
   readonly keys: () => ReadonlyArray<string>
+  /**
+   * WHICH KEY A SLEEP MEMO IS WRITTEN UNDER — {@link key}'s rule read for the
+   * other kind this plugin teaches, one field over: the vault's own column
+   * where it declared one, and the word this kind claims where it has not.
+   */
+  readonly sleptKey: () => string
+  /**
+   * ...AND EVERY KEY THAT MEMO COULD BE READ FROM, which is the same list
+   * {@link keys} keeps and for the same reason: a board mid-migration declares
+   * two keys of this kind, and the door that refuses a seated agent's writes
+   * must forbid both or leave the other as a way in.
+   */
+  readonly sleptKeys: () => ReadonlyArray<string>
+  /**
+   * WHEN THIS NODE AGENT LAST TIDIED ITS SUBTREE, off whichever of this vault's
+   * keys for that kind carries one — `null` for a node that is not an agent and
+   * for one that has never slept.
+   *
+   * HERE rather than at the pass that reads it because the answer is a fact
+   * about the vault's declarations, and this is the module that holds them:
+   * the pass asks about fifteen nodes a tick and may not spell the key.
+   */
+  readonly sleptAt: (node: string) => string | null
   /** The nearest candidate node at or above an arbitrary node. */
   readonly nearestAt: (node: string, candidates: ReadonlySet<string>) => string | null
   /** The rows the cell carries: the vault's half, wearing what olai overheard
@@ -180,6 +204,9 @@ export const roster = (): Roster => {
   // breath as the rows and off the same fold. The claimed word is what a store
   // that has never loaded answers with — see {@link Roster.keys}.
   let keys: ReadonlyArray<string> = [SESSION_TYPE]
+  // ...and the same pair for the sleep memo, resolved off the same fold and in
+  // the same breath — see {@link Roster.sleptKey}.
+  let sleptKeys: ReadonlyArray<string> = [SLEPT_TYPE]
   const nearest = (node: string, candidates: ReadonlySet<string>): string | null =>
     reading === null ? null : nearestAtOrAbove(reading, node, candidates)
   return {
@@ -188,6 +215,7 @@ export const roster = (): Roster => {
       if (derived === null) {
         held = NO_AGENTS
         keys = [SESSION_TYPE]
+        sleptKeys = [SLEPT_TYPE]
         return
       }
       // ONE FOLD, read twice. `declarationsOf` is a memo on the derivation, so
@@ -198,6 +226,8 @@ export const roster = (): Roster => {
       held = seatingIn(derived)
       const declared = keysDeclaredAs(declarations, SESSION_TYPE)
       keys = declared.length === 0 ? [SESSION_TYPE] : declared
+      const declaredSlept = keysDeclaredAs(declarations, SLEPT_TYPE)
+      sleptKeys = declaredSlept.length === 0 ? [SLEPT_TYPE] : declaredSlept
     },
     agentAt: (to) =>
       held.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
@@ -206,6 +236,14 @@ export const roster = (): Roster => {
     nodes: () => held,
     key: () => keys[0] ?? SESSION_TYPE,
     keys: () => keys,
+    sleptKey: () => sleptKeys[0] ?? SLEPT_TYPE,
+    sleptKeys: () => sleptKeys,
+    sleptAt: (node) => {
+      if (reading === null) return null
+      const at = reading.byId.get(node)
+      if (at === undefined || !isRegular(at)) return null
+      return textDeclaredAs(declarationsOf(reading, ownKinds), at.node, SLEPT_TYPE) ?? null
+    },
     nearestAt: nearest,
     rowsWith: (overheard, live) => joined(held, overheard, live).map(row => {
       const located = reading?.byId.get(row.id)

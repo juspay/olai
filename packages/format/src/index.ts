@@ -468,6 +468,11 @@ export {
    *  to disagree with this one about what unfinished work is. */
   blockersOf,
   byOrd,
+  /** HAS ANYTHING UNDER THIS NODE MOVED since an instant, or ever — the one
+   *  question a node agent's tidying pass asks about its own subtree before it
+   *  spends a turn on it (`olai-plugin-chat`'s `server/sleep.ts`), which is why
+   *  this walk lives beside {@link under} rather than in that plugin. */
+  changedUnder,
   countedChildren,
   derive,
   /** The containment graph: what drawing a record leads to drawing. Exported

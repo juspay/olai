@@ -280,12 +280,12 @@ test("a plugin's own composed word is the one the bundle composes", async () => 
     return [...built.keys()].filter((word) => word.startsWith(`${row.id}-`))
   })
   expect([...built.keys()].sort()).toEqual([...expected].sort())
-  // Not vacuous: three plugins teach a word — kolu's `terminal`, odu's
-  // `run` and chat's `agent-session` — so the walk above compared
-  // something. A COUNT and not a floor, for this file's usual reason: a
-  // derivation that came back short would satisfy the equality by comparing
-  // less, and the number is one line to move when a fourth word arrives.
-  expect(expected.length).toBe(3)
+  // Not vacuous: four words are taught — kolu's `terminal`, odu's `run`,
+  // chat's `agent-session` and chat's `agent-slept` — so the walk above
+  // compared something. A COUNT and not a floor, for this file's usual reason:
+  // a derivation that came back short would satisfy the equality by comparing
+  // less, and the number is one line to move when a fifth word arrives.
+  expect(expected.length).toBe(4)
   // ...and each plugin's own constant is on that list, which is the half a
   // fixture cannot check — `takes` is written with it, and so is the walk that
   // finds the keys a vault declared.

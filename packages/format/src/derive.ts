@@ -1753,6 +1753,63 @@ const descendants = (
   return count
 }
 
+/**
+ * HAS ANYTHING UNDER THIS NODE BEEN WRITTEN SINCE `since` — the question a
+ * node agent's own tidying pass asks before it runs
+ * (`olai-plugin-chat`'s `server/sleep.ts`).
+ *
+ * THE NODE'S OWN RECORD IS NOT IN THE COMPARISON, and that is not a detail: the
+ * memo of a previous pass is a property on that record, so every write to it
+ * re-stamps its `changed` — a walk that included the node would find its own
+ * last sleep and never sleep again. Descendants only, the same line
+ * {@link under} draws between a node and what hangs under it.
+ *
+ * `since` is the instant the caller last recorded for this node, or `null` for
+ * a node that has never been recorded — and `null` means ANY stamp is news,
+ * which is the reader's rule rather than this walk's: "never slept" is not "slept
+ * at the beginning of time", it is a subtree nothing has ever been written to.
+ *
+ * THE COMPARISON IS TEXTUAL, like every other reading of a stamp this package
+ * does ({@link ./filter.ts}'s `stampWithin`): the two instants are
+ * {@link ./stamp.ts}'s one spelling, minted locally with the offset named
+ * inside the value, so plain string comparison orders them.
+ *
+ * TOTAL over a set the validator would condemn. `seen` is {@link
+ * unfinishedWithin}'s guard for the same reason: a forest's links are a cache,
+ * and one whose links close a loop must still answer rather than recur for
+ * ever. Mirrors carry no stamps of their own, so only a regular child can be the
+ * news — but the walk goes through a mirror's id all the same, because what
+ * hangs under a placement is still under this node.
+ */
+export const changedUnder = (
+  derived: Pick<Derived, "children">,
+  id: string,
+  since: string | null,
+  seen: Set<string> = new Set([id]),
+): boolean => {
+  for (const child of derived.children.get(id) ?? []) {
+    const at = child.node.id
+    if (seen.has(at)) continue
+    seen.add(at)
+    if (isRegular(child) && newerThan(stampedAt(child.node), since)) return true
+    if (changedUnder(derived, at, since, seen)) return true
+  }
+  return false
+}
+
+/** The later of a record's two stamps — the record's own `changed` when it has
+ *  one, since a write re-stamps it, and `created` otherwise — or `undefined`
+ *  for a record nothing has ever stamped. */
+const stampedAt = (node: RegularNode): string | undefined =>
+  node.changed !== undefined && (node.created === undefined || node.changed > node.created)
+    ? node.changed
+    : node.created
+
+/** Is this stamp news against {@link changedUnder}'s `since` — `null` counting
+ *  every stamp as news. */
+const newerThan = (stamp: string | undefined, since: string | null): boolean =>
+  stamp !== undefined && (since === null || stamp > since)
+
 /** The rows of one outline: the roots of `file`, expanded. Mirrors are
  *  expanded in place, because a pointer the reader has to go and follow is not
  *  a second location — it is a footnote. */
