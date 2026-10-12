@@ -1594,6 +1594,31 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       reply(id, { stopReason: "end_turn" })
       return
     }
+    if (existsSync(`${cwd}/${MARKER.sleepOutside}`) || existsSync(`${cwd}/${MARKER.sleepTrash}`)) {
+      // TWO WRITES THE FENCE MUST REFUSE, in one turn: a property on a node
+      // outside this subtree, and a trash of it. The marker's own content names
+      // that node, because a scenario names nodes and this file knows only the
+      // row it was handed.
+      const said: Array<string> = []
+      const outside = `${cwd}/${MARKER.sleepOutside}`
+      if (existsSync(outside)) {
+        const target = readFileSync(outside, "utf8").trim()
+        rmSync(outside, { force: true })
+        said.push(JSON.stringify(await useTool("outlines_prop", { id: target, key: "tidy-probe", value: "1" })))
+      }
+      const trash = `${cwd}/${MARKER.sleepTrash}`
+      if (existsSync(trash)) {
+        const target = readFileSync(trash, "utf8").trim()
+        rmSync(trash, { force: true })
+        said.push(JSON.stringify(await useTool("outlines_trash", { id: target })))
+      }
+      // SAID OUT LOUD, like the other refusals: an olai tool's result is not
+      // drawn into the call's detail, so the sentence has to come back as prose
+      // to be read.
+      say(said.join("\n"))
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
     if (existsSync(`${cwd}/${MARKER.sleepStamp}`)) {
       rmSync(`${cwd}/${MARKER.sleepStamp}`, { force: true })
       const refused = await useTool("outlines_prop", {

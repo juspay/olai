@@ -709,7 +709,15 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
               reason: doorRefusal({ why: "closed" }),
             })
           }
-          const reached = barred(rule.forbidden, snapshot.value.derived, planned.success, snapshot.value.set.documents.map((doc) => doc.path))
+          // THE CONFINEMENT'S OTHER HALF, and it is checked here because the
+          // OP is what says it: a `trash`, a delete or an emptied Trash is the
+          // one direction a tidy may not take, whatever it names.
+          if (rule.confined != null && (request.op === "trash" || request.op === "empty" || request.op === "delete")) {
+            return yield* new UsageFailure({
+              reason: doorRefusal({ why: "trash", says: rule.confined.says }),
+            })
+          }
+          const reached = barred(rule.forbidden, snapshot.value.derived, planned.success, snapshot.value.set.documents.map((doc) => doc.path), rule.confined ?? null)
           if (reached !== null) {
             return yield* new UsageFailure({
               reason: doorRefusal(reached),

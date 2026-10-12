@@ -206,3 +206,23 @@ Feature: A node agent tidies its own memory when nobody is looking
     # against a node somebody stopped.
     And node "install" carries the sleep memo
     And olai has recorded 1 commit here
+
+  @sleep-fast @scratch:chat @git:repo
+  Scenario: A sleep cannot write outside its own subtree
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    # THE FENCE'S TWO CASES, in one turn: a property on a node that is NOT under
+    # the one being tidied, and a trash of it. Both would land outside the pass's
+    # own commit — under `auto` once the hold releases, or waiting — so reverting
+    # the sleep would not undo them.
+    When the next sleep writes outside its subtree at "kitchen"
+    And the next sleep trashes "kitchen"
+    And the memory under "install" has moved
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    # BOTH REFUSED, in the fence's own words — and the pass still finishes: what
+    # it was asked to do was inside the subtree.
+    Then the chat shows a failed tool call
+    And the agent's answer mentions "olai is tidying this node's memory"
+    And node "install" carries the sleep memo
+    And olai has recorded 1 commit here

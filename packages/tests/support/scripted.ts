@@ -155,6 +155,11 @@ export const MARKER = {
    *  scenario can give the quiet window its full run in the middle of a pass —
    *  the only way the hold on that window can be shown to be doing anything. */
   sleepHold: ".agent-sleep-hold",
+  /** ...AND MAKE IT TRY ONE WRITE OUTSIDE ITS SUBTREE AND ONE TRASH, in the
+   *  same turn: the file's CONTENT names the node to write to, and the pass's
+   *  fence (`@olai/ops`' `Confinement`) is what must refuse both. */
+  sleepOutside: ".agent-sleep-outside",
+  sleepTrash: ".agent-sleep-trash",
   /** WHAT THE AGENT LEAVES WHEN ITS SLEEP QUESTION IS ON THE WIRE. A scenario
    *  that asserts an alert did NOT fire has to establish that there was
    *  something to alert about, and with the fold shut there is nothing else to

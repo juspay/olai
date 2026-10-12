@@ -151,6 +151,16 @@ When("the next sleep holds its turn open", function (this: OlaiWorld) {
   this.writeServed(MARKER.sleepHold, "");
 });
 
+/** THE FENCE'S TWO CASES, and the marker's content is the node to aim at: a
+ *  scenario names nodes, and the fake knows only the row it was handed. */
+When("the next sleep writes outside its subtree at {string}", function (this: OlaiWorld, node: string) {
+  this.writeServed(MARKER.sleepOutside, this.nodeId(node));
+});
+
+When("the next sleep trashes {string}", function (this: OlaiWorld, node: string) {
+  this.writeServed(MARKER.sleepTrash, this.nodeId(node));
+});
+
 /**
  * THE QUESTION IS ON THE WIRE — the absence assertions below are about a
  * question that EXISTS, and with the fold shut there is nothing else to read.

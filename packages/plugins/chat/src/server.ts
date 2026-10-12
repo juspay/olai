@@ -920,7 +920,7 @@ export default definePlugin({
         // key would leave the other as a way a seated agent could re-seat
         // itself. A THUNK, so the answer follows the revision — a
         // migration row landing mid-conversation moves what the ticket forbids.
-        ticket: (_node) =>
+        ticket: (node) =>
           tools.ticket(
             // ...AND THE SENTENCE IS THIS PLUGIN'S, beside the keys it is
             // about. It used to be composed inside `@olai/ops`' refusal, which
@@ -937,6 +937,21 @@ export default definePlugin({
               ...nodeAgents.sleptKeys().map((key) => ({ key, says: MEMO })),
             ],
             "chat-agent",
+            // ...AND WHERE IT MAY WRITE WHILE A PASS IS TIDYING THIS NODE. The
+            // pass's turn is the one moment this session's writes are not its
+            // own to choose: an injected row can talk an unattended turn with
+            // suppressed alerts into rewriting or trashing anything in the
+            // directory, and those writes land OUTSIDE the pass's commit — under
+            // `auto` when the hold releases, or waiting — so reverting the sleep
+            // would not undo them. The fence is up exactly while the mark is
+            // (`@olai/ops`' `Confinement` is where it is enforced), and it is a
+            // THUNK because the ticket outlives the turn.
+            () => chat?.live().get(node)?.sleep === true
+              ? {
+                under: node,
+                says: "olai is tidying this node's memory, and a turn nobody is watching writes only inside it",
+              }
+              : null,
           ),
         onState: () => {},
         onConversationState: publishState,

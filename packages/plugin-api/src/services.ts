@@ -1348,6 +1348,13 @@ export interface Tools {
   readonly ticket: (
     forbidden: () => ReadonlyArray<Forbidden>,
     writer: string,
+    /** WHERE THIS SESSION'S WRITES MAY LAND, read per call: absent is the
+     *  ordinary rule — the whole vault — and a value is a fence somebody raised
+     *  for the span of their own work. Structurally `@olai/ops`' `Confinement`,
+     *  which is where the fence is enforced and the argument for it is written;
+     *  spelled out here because this package does not depend on that one. The
+     *  caller that owns the sessions is the one that knows; core does not. */
+    confined?: () => { readonly under: string; readonly says: string } | null,
   ) => MintedTicket
 }
 export const Tools = serviceTag<Tools>("tools")
@@ -1589,6 +1596,7 @@ export interface PluginsConfig {
   readonly ticketFor?: (
     forbidden: () => ReadonlyArray<Forbidden>,
     writer: string,
+    confined?: () => { readonly under: string; readonly says: string } | null,
   ) => MintedTicket | null
   /** Optional live display lookup; absence means no tool is recognized as ours. */
   readonly advertisedFor?: Tools["advertised"]
@@ -1781,7 +1789,7 @@ export const openPlugins = (
       // with no MCP face seats a session with no remaining write rule, which is
       // the state it was already in ({@link PluginsConfig.ticketFor}).
       advertised: (server, tool) => config.advertisedFor?.(server, tool) ?? null,
-      ticket: (forbidden, writer) => config.ticketFor?.(forbidden, writer) ?? NO_TICKET,
+      ticket: (forbidden, writer, confined) => config.ticketFor?.(forbidden, writer, confined) ?? NO_TICKET,
     }))
 
     yield* provide(host, Bundle, () => ({ rank: config.rank ?? (() => 0) }))

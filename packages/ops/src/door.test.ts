@@ -54,12 +54,62 @@ const SAYS_APPROVES = "it is a person's approval of code"
 
 const forbidden = new Map([[SEATING, SAYS_SEATS], [APPROVAL, SAYS_APPROVES]])
 
+/** The clause a fence carries, in the words whoever raised it wrote. */
+const SAYS_TIDY = "olai is tidying this node's memory, and a turn nobody is watching writes only inside it"
+
 const asked = (request: Request, keys: ReadonlyMap<string, string> = forbidden) => {
   const at = readingOf(vault())
   const planned = plan(scoping(at, steady(), NO_KINDS, "outline-olai"), request)
   if (Result.isFailure(planned)) throw new Error(planned.failure.message)
   return barred(keys, at.derived, planned.success)
 }
+
+/** The same judgement, with a fence up over one node's subtree. */
+const askedUnder = (request: Request, under: string) => {
+  const at = readingOf(vault())
+  const planned = plan(scoping(at, steady(), NO_KINDS, "outline-olai"), request)
+  if (Result.isFailure(planned)) throw new Error(planned.failure.message)
+  return barred(forbidden, at.derived, planned.success, undefined, { under, says: SAYS_TIDY })
+}
+
+/**
+ * THE FENCE A PASS RAISES over the node it is tidying: while its turn runs, the
+ * session that turn belongs to writes inside that subtree and nowhere else. The
+ * reason is in `./door.ts`'s `Confinement`: an injected row can talk an
+ * unattended turn with suppressed alerts into rewriting or trashing anything in
+ * the directory, and those writes land outside the pass's own commit.
+ */
+describe("a confined session", () => {
+  test("writes inside the subtree land, wherever the file is", () => {
+    expect(askedUnder({ op: "done", id: "kitchen" }, "kitchen")).toBeNull()
+    expect(askedUnder({ op: "done", id: "sink" }, "kitchen")).toBeNull()
+    expect(askedUnder({ op: "add", parent: "sink", title: "buy a washer" }, "kitchen")).toBeNull()
+    // The key table still applies inside the fence: the two rules are not
+    // alternatives.
+    expect(askedUnder({ op: "prop", id: "tap", key: APPROVAL, value: "always" }, "kitchen"))
+      .toEqual({ why: "key", id: "tap", title: "the tap", key: APPROVAL, says: SAYS_APPROVES })
+  })
+
+  test("a write outside is refused, and so is a row carried out of it", () => {
+    expect(askedUnder({ op: "done", id: "roof" }, "kitchen"))
+      .toEqual({ why: "outside", id: "roof", title: "the roof", says: SAYS_TIDY })
+    expect(askedUnder({ op: "done", id: "house" }, "kitchen"))
+      .toEqual({ why: "outside", id: "house", title: "House", says: SAYS_TIDY })
+    // THE DESTINATION COUNTS TOO: this changes only `sink`'s own record, and
+    // `sink` is inside — but the parent it lands under is not, so the row would
+    // be written into a file the pass's commit does not name.
+    expect(askedUnder({ op: "move", id: "sink", parent: "roof" }, "kitchen"))
+      .toEqual({ why: "outside", id: "sink", title: "the sink", says: SAYS_TIDY })
+    // ...and a move that stays inside is the pass's own work.
+    expect(askedUnder({ op: "move", id: "sink", parent: "tap" }, "kitchen")).toBeNull()
+  })
+
+  test("the refusal says why, in the fence's own words", () => {
+    expect(doorRefusal({ why: "outside", id: "roof", title: "the roof", says: SAYS_TIDY }))
+      .toContain(SAYS_TIDY)
+    expect(doorRefusal({ why: "trash", says: SAYS_TIDY })).toContain(SAYS_TIDY)
+  })
+})
 
 describe("node-agent write rule", () => {
   test("writes land anywhere in the vault, including outside the seat's subtree", () => {
