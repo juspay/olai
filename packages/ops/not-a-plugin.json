@@ -48,8 +48,11 @@
     "src/standing.bench.ts"
   ],
   "trash": [
+    "src/door.ts",
+    "src/ops.ts",
     "src/plan.ts"
   ],
+  "//trash": "`trash` is a REQUEST OP and a `Barred` arm — the door refuses the op by name and the name is the format's — not the trash row.",
   "vault": [
     "src/documents.bench.ts",
     "src/plan.ts",
