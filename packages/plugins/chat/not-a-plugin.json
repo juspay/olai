@@ -14,7 +14,8 @@
     "src/browser/chat/DropTarget.tsx",
     "src/browser/chat/holding.ts",
     "src/browser/chat/naming.ts",
-    "src/chat.ts"
+    "src/chat.ts",
+    "src/server/sleep.ts"
   ],
   "identity": [
     "src/browser/chat/attention/watching.ts"

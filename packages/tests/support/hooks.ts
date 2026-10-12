@@ -1531,7 +1531,7 @@ Before(
     this.sleepOff = scenario.pickle.tags.some((tag) => tag.name === "@sleep-off");
     if (this.sleepOff && asked.mode !== "own") {
       throw new Error(
-        "@sleep-off writes the chat row's own switch and requires a private " +
+        "@sleep-off turns a plugin off in the file before boot and requires a private " +
           "@scratch:<corpus>; use @own-scratch when the feature shares its scratch.",
       );
     }
