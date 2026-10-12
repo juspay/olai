@@ -21,6 +21,7 @@ Feature: A node agent tidies its own memory when nobody is looking
   said to it: the pass always sends the same words, so there is no verb a
   scenario could type (`packages/tests/agent/scripted-acp.ts` reads them).
 
+
   @scratch:chat @git:repo
   Scenario: A node agent whose memory moved sleeps, and the pass is one commit
     Given the harness keeps distinct sessions on disk
@@ -67,22 +68,32 @@ Feature: A node agent tidies its own memory when nobody is looking
     # have — every other `@alerts` scenario reaches the app in its Background
     # first, and this one has none.
     And the notification worker is ready
-    And the memory under "install" has moved
-    When the next sleep asks a question
-    And I open the "claude" agent on node "install"
+    # THE CONVERSATION IS OPENED, THEN SHUT, AND THE QUESTION COMES AFTER IT.
+    # Nobody is watching when the turn is handed over, which is the state these
+    # assertions are about: `alarmFor` chimes on a count that RISES while
+    # unwatched, so a fold opened first and closed afterwards would raise no
+    # alarm either way and the three silences below would prove nothing.
+    When I open the "claude" agent on node "install"
     And the node agent's fold is ready
+    And I close the agent fold
+    # ...AND THE MARKER COMES BEFORE THE NEWS, which is what keeps the pass from
+    # taking an ordinary turn first (the header says why).
+    When the next sleep asks a question
+    And the memory under "install" has moved
     Then the sleep's question is waiting
-    And the chat shows a question
-    When I close the agent fold
-    # THE READER LOOKS AWAY, so the alert faces are live — and the pass is then
-    # given its chance, which is what makes the silence below an absence rather
-    # than a race with a banner that has not been drawn yet.
     And the sleep pass has had its chance
     Then no chime rang
     And no notification has been raised
     And the tab says nothing is waiting
     And the agent "install" stands "working"
     And Needs you is absent
+    # ...AND THE QUESTION IS REALLY THERE, which the fold has to open for — a
+    # count that has not risen raises nothing, so this costs the silence above
+    # nothing and is the only face a page has for a question the mark keeps out
+    # of the alert faces.
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And the chat shows a question
     And the server log warns that "install" did not finish: "it asked a question nobody is there to answer, so it was stopped"
     Then node "install" carries no sleep memo
     And olai has recorded 0 commits here
