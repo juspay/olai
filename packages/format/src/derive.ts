@@ -1777,6 +1777,12 @@ const descendants = (
 export const memoryFiles = (
   derived: Pick<Derived, "children" | "byId">,
   id: string,
+  /** THE NODES WHOSE OWN SUBTREES ARE NOT THIS ONE'S — every other node agent
+   *  in the set. A pass over a memory stops at another agent's door for the
+   *  reason {@link changedUnder} states: two agents seated under one another
+   *  would otherwise each be re-stamped by the other's sleep, and neither would
+   *  ever be quiet. */
+  stop: ReadonlySet<string> = new Set(),
   seen: Set<string> = new Set([id]),
 ): ReadonlySet<string> => {
   const files = new Set<string>()
@@ -1785,7 +1791,7 @@ export const memoryFiles = (
   const descend = (at: string): void => {
     for (const child of derived.children.get(at) ?? []) {
       const under = child.node.id
-      if (seen.has(under)) continue
+      if (seen.has(under) || stop.has(under)) continue
       seen.add(under)
       files.add(child.file)
       descend(under)
@@ -1827,14 +1833,24 @@ export const changedUnder = (
   derived: Pick<Derived, "children">,
   id: string,
   since: string | null,
+  /** THE NODES WHOSE OWN SUBTREES ARE NOT THIS ONE'S — see {@link memoryFiles}.
+   *
+   *  A NODE AGENT UNDER THIS ONE OWNS ITS OWN MEMORY, and the walk has to stop
+   *  at it for a reason that is not tidiness: agent B's memo is a write to B's
+   *  own record, which is a DESCENDANT of A — so B's sleep re-stamps A, A's pass
+   *  is told to tidy its whole subtree (B's memory included), and B is due
+   *  again. Two agents seated under one another would wake each other for ever.
+   *  The instruction says the same thing in words; this is the half a rule can
+   *  hold. */
+  stop: ReadonlySet<string> = new Set(),
   seen: Set<string> = new Set([id]),
 ): boolean => {
   for (const child of derived.children.get(id) ?? []) {
     const at = child.node.id
-    if (seen.has(at)) continue
+    if (seen.has(at) || stop.has(at)) continue
     seen.add(at)
     if (isRegular(child) && newerThan(stampedAt(child.node), since)) return true
-    if (changedUnder(derived, at, since, seen)) return true
+    if (changedUnder(derived, at, since, stop, seen)) return true
   }
   return false
 }

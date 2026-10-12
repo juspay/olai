@@ -340,9 +340,15 @@ export const makeSleeper = (
             const at = Date.parse(since)
             if (!Number.isNaN(at) && now - at < after) continue
           }
-          if (changedUnder(derived, agent.id, stampOf(new Date(now - after)))) continue
-          if (!changedUnder(derived, agent.id, doors.sleptAt(agent.id))) continue
-          return { agent, files: memoryFiles(derived, agent.id) }
+          // EVERY OTHER NODE AGENT IS A DOOR THIS PASS DOES NOT OPEN: a subtree
+          // with another agent seated in it would otherwise have each sleep
+          // re-stamp the other for ever (`@olai/format`'s `changedUnder`).
+          const others = new Set(
+            doors.nodes().filter((one) => one.id !== agent.id).map((one) => one.id),
+          )
+          if (changedUnder(derived, agent.id, stampOf(new Date(now - after)), others)) continue
+          if (!changedUnder(derived, agent.id, doors.sleptAt(agent.id), others)) continue
+          return { agent, files: memoryFiles(derived, agent.id, others) }
         }
         return null
       })
@@ -631,6 +637,7 @@ export const makeSleeper = (
         // tidied. (The loop's reading failing is simply "no candidate".)
         const observed = yield* Effect.result(doors.read)
         if (observed._tag === "Failure") return "unknown"
+        const others = new Set(doors.nodes().filter((one) => one.id !== agent.id).map((one) => one.id))
         // TAKEN, LOGGED AND FORKED AS ONE STEP, uninterruptibly: the fiber that
         // hands the permit back is the one this forks, so a request interrupted
         // between the take and the fork would leave a permit nobody owns and
@@ -640,7 +647,7 @@ export const makeSleeper = (
           if (!(yield* Semaphore.takeIfAvailable(passes, 1))) return "busy" as const
           yield* doors.log(`sleep: ${agent.id} was asked for, and is being tidied`)
           yield* Effect.forkScoped(
-            one(agent, memoryFiles(observed.success.derived, agent.id)).pipe(
+            one(agent, memoryFiles(observed.success.derived, agent.id, others)).pipe(
               // THE PERMIT GOES BACK WHEN THE PASS ENDS, whichever way it ends:
               // the pass is a fiber of its own now, so nothing else can hand it
               // back.

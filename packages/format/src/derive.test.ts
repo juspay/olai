@@ -1911,3 +1911,33 @@ test("changedUnder walks through a mirror and terminates on a loop", () => {
   expect(changedUnder(looped, "one", null)).toBe(false)
   expect(changedUnder(looped, "two", "2026-09-01T09:00:00+00:00")).toBe(false)
 })
+
+/**
+ * A NODE AGENT UNDER ANOTHER OWNS ITS OWN MEMORY.
+ *
+ * Agent B's memo is a write to B's own record, which is a DESCENDANT of A — so
+ * without a stop, B's sleep re-stamps A, A's pass is told to tidy its whole
+ * subtree (B's memory included), and B is due again. Two agents seated under one
+ * another would wake each other for ever, and neither would ever be quiet.
+ */
+test("a node agent under another is not part of its memory", () => {
+  const derived = derive(TEST_CLAIMS, [
+    ...nodesOf([
+      `{"id":"health","ord":"a0","title":"health"}`,
+      `{"id":"helper","parent":"health","ord":"a0","title":"helper","custom":{"agent-session":"claude:h"}}`,
+    ].join("\n"), "Work.olai"),
+    ...nodesOf(
+      `{"id":"note","parent":"helper","ord":"a0","title":"the helper's own","changed":"2026-10-12T09:00:00+00:00"}`,
+      "Helper.olai",
+    ),
+  ])
+  const stop = new Set(["helper"])
+
+  expect(changedUnder(derived, "health", "2026-10-12T08:00:00+00:00", stop)).toBe(false)
+  expect([...memoryFiles(derived, "health", stop)].sort()).toEqual(["Work.olai"])
+
+  // ...AND WITHOUT THE STOP BOTH ANSWERS ARE THE OTHER WAY ROUND, which is the
+  // bug this is written against.
+  expect(changedUnder(derived, "health", "2026-10-12T08:00:00+00:00")).toBe(true)
+  expect([...memoryFiles(derived, "health")].sort()).toEqual(["Helper.olai", "Work.olai"])
+})
