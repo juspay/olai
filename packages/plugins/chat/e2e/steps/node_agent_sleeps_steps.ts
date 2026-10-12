@@ -158,7 +158,7 @@ When("the next sleep holds its turn open", function (this: OlaiWorld) {
  */
 Then("the sleep's question is waiting", async function (this: OlaiWorld) {
   await this.waitUntil(
-    () => existsSync(join(this.scratch(), MARKER.sleepAsked)),
+    async () => existsSync(join(this.scratch(), MARKER.sleepAsked)),
     "the sleep's question to reach the panel",
     HYDRATION_TIMEOUT,
   );
@@ -195,7 +195,7 @@ Then(
   "the last commit becomes {string} by {string}",
   async function (this: OlaiWorld, subject: string, writer: string) {
     await this.waitUntil(
-      () => {
+      async () => {
         try {
           return this.git("log", "--format=%s", "-1").trim() === subject
             && this.git("log", "--format=%(trailers:key=X-Olai-Writer,valueonly)", "-1").trim() === writer;
@@ -225,7 +225,7 @@ Then(
   async function (this: OlaiWorld, node: string, why: string) {
     const message = `sleep: ${this.nodeId(node)} did not finish: ${why}`;
     await this.waitUntil(
-      () => findLogfmt(this.serverLog.text, message)?.level === "WARN",
+      async () => findLogfmt(this.serverLog.text, message)?.level === "WARN",
       `the server log to warn: ${message}`,
       HYDRATION_TIMEOUT,
     );
