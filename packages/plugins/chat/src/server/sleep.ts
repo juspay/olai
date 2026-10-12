@@ -86,7 +86,8 @@ import { sleepFor } from "../sleep.ts"
 import type { ChatState } from "../wire/members.ts"
 
 /**
- * THE ONE DEADLINE THAT IS NOT A SETTING.
+ * HOW LONG A DELIVERED TURN MAY TAKE TO START before the pass stops waiting for
+ * it — THE ONE DEADLINE THAT IS NOT A SETTING.
  *
  * The pass's three SPANS are the vault's (`./settings.ts`): `sleep-after`,
  * `sleep-tick` and `sleep-question` are written by an operator and shortened by
@@ -94,18 +95,12 @@ import type { ChatState } from "../wire/members.ts"
  * short one want different patience and a test cannot wait six hours. This one
  * is different: it exists so that a BUG cannot wedge the loop for ever, and
  * there is no user-facing meaning in it to configure.
- */
-
-/**
- * HOW LONG A DELIVERED TURN MAY TAKE TO START before the pass stops waiting for
- * it.
  *
- * A machine turn that was HELD rather than handed is the case this covers: the
+ * A machine turn that was HELD rather than handed is the case it covers: the
  * body waits for a turn boundary, and if there is no turn to bound it, it waits
  * forever. Two minutes is a wake plus a handshake on a slow machine, and it
  * must not be less: a node asleep for a week boots a process before it can
- * answer anything. NOT a setting — there is no user-facing meaning in it, and
- * it exists so that a bug cannot wedge the loop for ever.
+ * answer anything.
  */
 export const START_MS = Duration.toMillis(Duration.minutes(2))
 
