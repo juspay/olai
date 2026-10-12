@@ -155,7 +155,11 @@ export const barred = (
       // of the node that moved, so a row inside the subtree could be carried
       // OUT of it by a plan that changes nothing else — and the pass's commit
       // names the subtree's files, so that write would land outside the undo.
+      // ...AND THE NODE THE FENCE IS NAMED FOR IS THE ONE EXCEPTION: its own
+      // parent is outside its subtree by definition, and writing the node itself
+      // is exactly what the pass is there to do.
       const parent = landed(change.id)?.parent
+      if (change.id === confined.under) continue
       if (inside.has(change.id) && (parent === undefined || inside.has(parent))) continue
       return { why: "outside", id: change.id, title: change.title, says: confined.says }
     }
