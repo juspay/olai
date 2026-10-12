@@ -52,6 +52,21 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
         confirm: freshStartQuestion(bound.title), run: startOn(engine),
       })),
     },
+    // THE PASS, ASKED FOR BY HAND. A node agent's memory is tidied on olai's own
+    // clock (`../sleep.ts` argues the spans), and this is the same pass with a
+    // person's hand on it: the idle window and the "memory has moved" test are
+    // the loop's way of deciding a node is DUE, and somebody pressing this has
+    // decided. What comes back is either nothing or the sentence saying why it
+    // could not begin — another pass is running, or `sleep` is off here
+    // (`../wire.ts`'s `sleepNow`).
+    {
+      id: "tidy-memory", writes: true, label: "Tidy memory now",
+      run: async (node: string) => {
+        const outcome = await runAsync(chatWire().procedures.conversation.sleepNow({ node }))
+        if (Result.isFailure(outcome)) return outcome.failure.message
+        return outcome.success._tag === "Refused" ? outcome.success.said : undefined
+      },
+    },
     {
       id: "close-agent", writes: true, label: "Close the agent",
       run: async (node: string) => {
