@@ -85,8 +85,9 @@ describe("a confined session", () => {
     expect(askedUnder({ op: "done", id: "sink" }, "kitchen")).toBeNull()
     expect(askedUnder({ op: "add", parent: "sink", title: "buy a washer" }, "kitchen")).toBeNull()
     // The key table still applies inside the fence: the two rules are not
-    // alternatives.
-    expect(askedUnder({ op: "prop", id: "tap", key: APPROVAL, value: "always" }, "kitchen"))
+    // alternatives. (`tap` already carries `approved: "always"`, so this is a
+    // movement — writing the same value back is nothing at all.)
+    expect(askedUnder({ op: "prop", id: "tap", key: APPROVAL, value: "no" }, "kitchen"))
       .toEqual({ why: "key", id: "tap", title: "the tap", key: APPROVAL, says: SAYS_APPROVES })
   })
 
