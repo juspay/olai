@@ -182,8 +182,15 @@ export const SLEEP_STAMP = "1999-01-01T00:00:00+00:00"
 
 /** Long enough that a slow machine is not the reason a scenario fails, short
  *  enough that a scenario which forgot to release fails on its own assertion
- *  rather than on the runner's timeout. */
-export const HOLD_LIMIT_MS = 30_000
+ *  rather than on the runner's timeout.
+ *
+ *  A MINUTE, and the margin is stated rather than left to be rediscovered: the
+ *  sleep scenario that holds a turn open gives the quiet window its full run
+ *  from the turn's start, which is 22 s of the scenario's own spans, and a fake
+ *  that gave up at thirty would end the turn and commit before that scenario
+ *  read "0 commits". Nothing passes falsely by waiting longer — a release that
+ *  never comes still ends the scenario on its own assertion. */
+export const HOLD_LIMIT_MS = 60_000
 
 const sleep = (millis: number) => new Promise<void>((done) => setTimeout(done, millis));
 
