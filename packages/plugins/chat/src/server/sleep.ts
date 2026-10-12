@@ -87,28 +87,15 @@ import { sleepFor } from "../sleep.ts"
 import type { ChatState } from "../wire/members.ts"
 
 /**
- * THE PRODUCTION DEADLINES, as the values the wiring passes in.
+ * THE ONE DEADLINE THAT IS NOT A SETTING.
  *
- * They are doors policy rather than constants spent here for one reason: the
- * harness cannot wait twenty minutes, and a shortened span smuggled in behind a
- * module variable would be a hidden hook — which is the thing this repo refuses
- * where a declared value would do. What each one is FOR is what follows.
+ * The pass's three SPANS are the vault's (`./settings.ts`): `sleep-after`,
+ * `sleep-tick` and `sleep-question` are written by an operator and shortened by
+ * the harness through the same declared config, because a slow engine and a
+ * short one want different patience and a test cannot wait six hours. This one
+ * is different: it exists so that a BUG cannot wedge the loop for ever, and
+ * there is no user-facing meaning in it to configure.
  */
-
-/**
- * HOW LONG A TURN MAY SIT ON AN UNANSWERED QUESTION before the pass gives up on
- * it. Operator-settable (`sleep-question`), because a slow engine and a short
- * one want different patience and only the person watching knows which they
- * have.
- *
- * A sleep turn asks nothing in the ordinary case — the instruction says not to
- * reply and there is nobody to answer — so a question here means the agent has
- * wandered off the contract. A person's turn in that state waits indefinitely,
- * which is the point of the alert; a machine turn must not, because the alert
- * for it is suppressed (`server/agents.ts`) and there is nobody to see it. It
- * is cancelled instead, and the node is left alone for a day.
- */
-export const QUESTION_MS = Duration.toMillis(Duration.minutes(20))
 
 /**
  * HOW LONG A DELIVERED TURN MAY TAKE TO START before the pass stops waiting for
@@ -134,7 +121,7 @@ export type Verdict =
   | "gone"
   /** Something went wrong mid-turn, or the memo could not be written. */
   | "trouble"
-  /** The turn sat on a question past {@link QUESTION_MS} and was cancelled. */
+  /** The turn sat on a question past `sleep-question` and was cancelled. */
   | "question"
   /** The turn never started, so there was nothing to wait for. */
   | "unstarted"
@@ -277,14 +264,37 @@ export const makeSleeper = (
         for (const agent of doors.nodes()) {
           if (agent.session === null) continue
           if (skipped(agent.id, now)) continue
+          // A CONVERSATION THAT IS UP IS NOT ASLEEP: working is a turn, booting
+          // is a handshake, and a question is somebody's to answer. `off` and
+          // `gone` are NOT that — they are a process that died, or an engine
+          // that left — and the delivery path wakes one: the pass's own reading
+          // reopens the conversation before it hands the turn over. A slot left
+          // `gone` would otherwise be unsleepable for as long as it sat in the
+          // pool, which is the idle window — 48 hours by default.
           const standing = live.get(agent.id)
-          if (standing !== undefined) {
+          const dead = standing !== undefined && (standing.status === "off" || standing.status === "gone")
+          if (standing !== undefined && !dead) {
             if (standing.status !== "idle" || standing.asking > 0 || standing.unopened === true) continue
-            const since = standing.since === undefined ? Number.NaN : Date.parse(standing.since)
-            if (Number.isNaN(since) || now - since < after) continue
-          } else if (changedUnder(derived, agent.id, stampOf(new Date(now - after)))) {
-            continue
           }
+          // QUIET FOR `sleep-after`, and BOTH READINGS OF QUIET ARE ASKED. The
+          // conversation's own idle instant where there is one — how long since
+          // this agent last stopped working — and the memory's newest stamp
+          // always, because those are different facts: a person editing this
+          // subtree in the outline at 22:00 while the agent has been idle since
+          // 14:00 is a node nobody should be tidying.
+          //
+          // A `since` this reading cannot place — absent, or not a date — costs
+          // the CONVERSATION's half of the test and nothing else. It used to
+          // disqualify the node for ever, which is a state nothing could leave:
+          // the scheduler always sets `since` at acquisition and on every status
+          // change, so the arm is unreachable in a serve, and a rule whose
+          // failure mode is "never" is worse than one that falls back.
+          const since = standing?.since
+          if (since !== undefined) {
+            const at = Date.parse(since)
+            if (!Number.isNaN(at) && now - at < after) continue
+          }
+          if (changedUnder(derived, agent.id, stampOf(new Date(now - after)))) continue
           if (!changedUnder(derived, agent.id, doors.sleptAt(agent.id))) continue
           return { agent, files: memoryFiles(derived, agent.id) }
         }

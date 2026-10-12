@@ -79,7 +79,7 @@ const WAITING = [
   { file: "Notes.olai", path: "docs/Notes.olai" },
 ]
 
-const reading = () => Effect.succeed(readingOf(setOf(VAULT)))
+const reading = (vault: Record<string, string> = VAULT) => Effect.succeed(readingOf(setOf(vault)))
 
 /** WHICH NODES THE PASS WROTE TO, asked of the door's own union rather than
  *  asserted into one: `prop` is the only arm this pass ever uses. */
@@ -148,6 +148,9 @@ const withBench = async (
     /** How long a turn may take to start, in milliseconds, for the test that
      *  wants that deadline reached. */
     readonly start?: number
+    /** The vault the pass reads, for the case where WHEN the memory moved is
+     *  what is under test. */
+    readonly vault?: Record<string, string>
   },
   body: (bench: Bench) => Promise<void>,
 ): Promise<void> => {
@@ -189,7 +192,7 @@ const withBench = async (
         : over.deliver(to),
       withdraw: () => Effect.sync(() => void events.push("withdrawn")),
       watch: (to, observer) => chat.reading(to, observer),
-      read: reading(),
+      read: reading(over.vault),
       write: over.write ?? ((request) => Effect.sync(() => {
         writes.push(request)
         return {}
@@ -275,14 +278,14 @@ test("an unbound node, a working one and one with a question are left alone", as
   await withBench({ nodes: [agent("health", null)] }, async (bench) => {
     expect(await run(bench.tick)).toBe(false)
   })
-  // A CONVERSATION THAT IS UP IS NOT ASLEEP: working, booting and a question
-  // are all somebody's business, and the last one is not a person's to answer
-  // only because this pass suppresses the alert.
+  // A CONVERSATION THAT IS UP IS NOT ASLEEP: working, booting, a question and a
+  // refused open are all somebody's business — and the question is not a
+  // person's to answer only because this pass suppresses the alert.
   for (const standing of [
     { status: "thinking" as const, asking: 0 },
     { status: "idle" as const, asking: 1 },
     { status: "booting" as const, asking: 0 },
-    { status: "gone" as const, asking: 0 },
+    { status: "idle" as const, asking: 0, unopened: true },
   ]) {
     await withBench(
       { live: () => new Map([["health", { ...standing, since: "2026-01-01T00:00:00.000Z" }]]) },
@@ -291,6 +294,59 @@ test("an unbound node, a working one and one with a question are left alone", as
       },
     )
   }
+})
+
+test("a conversation that DIED is woken rather than left alone", async () => {
+  // `gone` is a process that died, not somebody's business — and a slot left
+  // gone is unsleepable for as long as it sits in the pool, which is the idle
+  // window (48 hours by default). The pass's own reading reopens it, so the
+  // turn goes out exactly as it does for a node with no conversation at all.
+  await withBench(
+    { live: () => new Map([["health", { status: "gone" as const, asking: 0 }]]) },
+    async (bench) => {
+      expect(await run(bench.tick)).toBe(true)
+      expect(bench.marked(".sleep-asked")).toBe(true)
+      expect(bench.commits).toHaveLength(1)
+    },
+  )
+})
+
+test("a subtree somebody is editing keeps its node awake", async () => {
+  // THE CASE THE CONVERSATION'S OWN CLOCK CANNOT SEE: the agent has been idle
+  // for two hours, and a person is editing this subtree right now. Tidying under
+  // somebody's cursor is the thing this test is for.
+  await withBench(
+    {
+      vault: {
+        "Work.olai": [
+          `{"id":"health","ord":"a0","title":"Health"}`,
+          `{"id":"note","parent":"health","ord":"a0","title":"just edited","changed":"${new Date().toISOString()}"}`,
+        ].join("\n") + "\n",
+      },
+      after: Duration.toMillis(Duration.hours(1)),
+      live: () => new Map([["health", {
+        status: "idle" as const,
+        asking: 0,
+        since: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+      }]]),
+    },
+    async (bench) => {
+      expect(await run(bench.tick)).toBe(false)
+    },
+  )
+})
+
+test("a live conversation with no idle instant falls back to the memory", async () => {
+  // `since` is always set by the scheduler, so this arm is unreachable in a
+  // serve — and a rule whose failure mode was "never sleeps again" is worse than
+  // one that falls back to the reading that is always there.
+  await withBench(
+    { live: () => new Map([["health", { status: "idle" as const, asking: 0 }]]) },
+    async (bench) => {
+      expect(await run(bench.tick)).toBe(true)
+      expect(bench.commits).toHaveLength(1)
+    },
+  )
 })
 
 test("a node that has not been left alone long enough waits", async () => {
