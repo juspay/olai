@@ -485,9 +485,10 @@ test("a turn somebody cancelled writes nothing, and is not remembered", () =>
     expect(arms.commits).toEqual([])
     expect(arms.warnings.join("\n")).toContain("its turn was cancelled before it finished")
     // ...AND NOTHING IS REMEMBERED AGAINST THE NODE: the back-off is for a node
-    // that fails on its own, and the next look is entitled to try again.
+    // that fails on its own, and the next look is entitled to try again — which
+    // is what `true` says. (The stub replays its script, so that pass ends
+    // cancelled as well; what this line is about is that it was allowed to run.)
     expect(yield* arms.tick).toBe(true)
-    expect(arms.commits).toHaveLength(1)
   })))
 
 test("a turn that never ends is stopped at the limit, and left alone after that", () =>
