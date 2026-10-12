@@ -21,6 +21,12 @@ Feature: A node agent tidies its own memory when nobody is looking
   said to it: the pass always sends the same words, so there is no verb a
   scenario could type (`packages/tests/agent/scripted-acp.ts` reads them).
 
+  THE NEWS COMES LAST. `the memory under <node> has moved` is the only thing that
+  makes a node a candidate — the corpus's rows carry no stamps, and a subtree
+  nobody has written to is one the pass correctly leaves alone — so a marker a
+  scenario writes after it is a marker the pass may race on its next `sleep-tick`
+  (250 ms here) and take an ordinary turn before. Every scenario below therefore
+  writes its marker first and moves the memory after it.
 
   @scratch:chat @git:repo
   Scenario: A node agent whose memory moved sleeps, and the pass is one commit
@@ -109,8 +115,8 @@ Feature: A node agent tidies its own memory when nobody is looking
   Scenario: A session may not write the memo of its own sleep
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
-    And the memory under "install" has moved
     When the next sleep writes the memo itself
+    And the memory under "install" has moved
     And I open the "claude" agent on node "install"
     And the node agent's fold is ready
     Then the chat shows a failed tool call
@@ -123,8 +129,8 @@ Feature: A node agent tidies its own memory when nobody is looking
   Scenario: Under commit: auto the pass's writes are its own commit
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
-    And the memory under "install" has moved
     When the next sleep holds its turn open
+    And the memory under "install" has moved
     And I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And the quiet window is given its full run
