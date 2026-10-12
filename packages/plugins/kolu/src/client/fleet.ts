@@ -115,9 +115,10 @@ export const claimsIn = (
   return claims
 }
 
-/** padi's git half, narrowed — `null` on a terminal that is not in a
- *  repository, which is most shells. */
-const gitOf = (record: TerminalMetadata) => record.git
+/** The git half of the row's join, narrowed to the sensor's answered repo:
+ *  the record's `git` is a THREE-case `GitFact` (`unresolved | none | repo`),
+ *  and a row may only read a repo the sensor resolved — `null` for
+ *  `unresolved` and `none` alike, which is most shells. */
 
 /**
  * One row — the JOIN of three clocks.
@@ -162,7 +163,9 @@ export const rowOf = (
   owner: FleetOwner = UNOWNED,
   attention: TerminalAttention = { klass: "idle", live: false },
 ): FleetTerminal => {
-  const git = gitOf(record)
+  // The git half of the join, narrowed to the sensor's answered repo (the
+  // `GitFact` comment above `rowOf`): `null` on `unresolved` and `none` alike.
+  const git = record.git.kind === "repo" ? record.git.info : null
   const branch = git?.branch ?? ""
   // THE THREE FACTS A ROW READS OFF ONE RECORD, taken from one read and
   // returned together. Spelled separately they are three chances to pair one

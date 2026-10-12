@@ -34,7 +34,7 @@ let
     package = "pi-acp";
     entry = "dist/index.js";
     bin = "pi-acp";
-    npmDepsHash = "sha256-AQW+KKIHTMfTKtr7VooOswlpVDVwj6diicoKR+c5vcY=";
+    npmDepsHash = "sha256-foHioYWfwsZwBM02gAuDP5BQJmgIHooHhHOiMKWLP+U=";
     # This plugin's patches, beside the sources they are generated from.
     patches = ./acp/patches;
     # esbuild bundles the MCP bridge into one self-contained file (below),

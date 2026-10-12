@@ -31,10 +31,15 @@ const record = (over: Record<string, unknown> = {}): TerminalMetadata =>
     state: "active",
     agent: { kind: "claude-code", state: "thinking" },
     cwd: "/home/srid/code/olai",
+    // The pin's THREE-case `GitFact` (`fleet.ts`'s own comment): the repo arm
+    // carries the `GitInfo` the row's join reads.
     git: {
-      repoName: "olai",
-      branch: "terminal-door",
-      worktreePath: "/home/srid/code/olai/.worktrees/terminal-door",
+      kind: "repo",
+      info: {
+        repoName: "olai",
+        branch: "terminal-door",
+        worktreePath: "/home/srid/code/olai/.worktrees/terminal-door",
+      },
     },
     // A real record always carries the forge axis; `activePr` reads it without
     // guarding, so a fixture that omits it is testing a record padi never sends.

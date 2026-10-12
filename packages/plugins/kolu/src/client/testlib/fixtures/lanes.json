@@ -18,13 +18,16 @@
       },
       "cwd": "/home/srid/code/olai/.worktrees/terminal-door",
       "git": {
-        "repoRoot": "/home/srid/code/olai",
-        "repoName": "olai",
-        "worktreePath": "/home/srid/code/olai/.worktrees/terminal-door",
-        "branch": "terminal-door",
-        "isWorktree": true,
-        "mainRepoRoot": "/home/srid/code/olai",
-        "remoteUrl": "https://github.com/srid/olai"
+        "kind": "repo",
+        "info": {
+          "repoRoot": "/home/srid/code/olai",
+          "repoName": "olai",
+          "worktreePath": "/home/srid/code/olai/.worktrees/terminal-door",
+          "branch": "terminal-door",
+          "isWorktree": true,
+          "mainRepoRoot": "/home/srid/code/olai",
+          "remoteUrl": "https://github.com/srid/olai"
+        }
       },
       "pr": {
         "kind": "absent"
@@ -53,13 +56,16 @@
       },
       "cwd": "/home/srid/code/olai/.worktrees/review-grok",
       "git": {
-        "repoRoot": "/home/srid/code/olai",
-        "repoName": "olai",
-        "worktreePath": "/home/srid/code/olai/.worktrees/review-grok",
-        "branch": "review-grok",
-        "isWorktree": true,
-        "mainRepoRoot": "/home/srid/code/olai",
-        "remoteUrl": "https://github.com/srid/olai"
+        "kind": "repo",
+        "info": {
+          "repoRoot": "/home/srid/code/olai",
+          "repoName": "olai",
+          "worktreePath": "/home/srid/code/olai/.worktrees/review-grok",
+          "branch": "review-grok",
+          "isWorktree": true,
+          "mainRepoRoot": "/home/srid/code/olai",
+          "remoteUrl": "https://github.com/srid/olai"
+        }
       },
       "pr": {
         "kind": "absent"
@@ -78,13 +84,16 @@
       "state": "sleeping",
       "cwd": "/home/srid/code/olai",
       "git": {
-        "repoRoot": "/home/srid/code/olai",
-        "repoName": "olai",
-        "worktreePath": "/home/srid/code/olai",
-        "branch": "master",
-        "isWorktree": false,
-        "mainRepoRoot": "/home/srid/code/olai",
-        "remoteUrl": "https://github.com/srid/olai"
+        "kind": "repo",
+        "info": {
+          "repoRoot": "/home/srid/code/olai",
+          "repoName": "olai",
+          "worktreePath": "/home/srid/code/olai",
+          "branch": "master",
+          "isWorktree": false,
+          "mainRepoRoot": "/home/srid/code/olai",
+          "remoteUrl": "https://github.com/srid/olai"
+        }
       },
       "pr": {
         "kind": "absent"

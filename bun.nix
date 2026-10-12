@@ -1602,13 +1602,13 @@
       hasInstallScript = false;
     };
   };
-  "@modelcontextprotocol/sdk@1.30.0" = fetchurl
+  "@modelcontextprotocol/sdk@1.32.1" = fetchurl
     {
-      url = "https://registry.npmjs.org/@modelcontextprotocol/sdk/-/sdk-1.30.0.tgz";
-      hash = "sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==";
+      url = "https://registry.npmjs.org/@modelcontextprotocol/sdk/-/sdk-1.32.1.tgz";
+      hash = "sha512-2DdE+SJDtzLEEWzY1ZjY7Q+VcPhcV1KisD3zI4u0XZyktsjHum1mwbMI+JaulUBi2OZk+KJAi2uPXzxichPkdw==";
     } // {
     manifest = {
-      tarballUrl = "https://registry.npmjs.org/@modelcontextprotocol/sdk/-/sdk-1.30.0.tgz";
+      tarballUrl = "https://registry.npmjs.org/@modelcontextprotocol/sdk/-/sdk-1.32.1.tgz";
       dependencies = {
         "@hono/node-server" = "^1.19.9 || ^2.0.5";
         "ajv" = "^8.17.1";
@@ -2056,13 +2056,13 @@
       hasInstallScript = false;
     };
   };
-  "@simple-git/args-pathspec@1.0.3" = fetchurl
+  "@simple-git/args-pathspec@1.0.4" = fetchurl
     {
-      url = "https://registry.npmjs.org/@simple-git/args-pathspec/-/args-pathspec-1.0.3.tgz";
-      hash = "sha512-ngJMaHlsWDTfjyq9F3VIQ8b7NXbBLq5j9i5bJ6XLYtD6qlDXT7fdKY2KscWWUF8t18xx052Y/PUO1K1TRc9yKA==";
+      url = "https://registry.npmjs.org/@simple-git/args-pathspec/-/args-pathspec-1.0.4.tgz";
+      hash = "sha512-EtMX6XjRWSastG2SdkmSQByPtJ9dx/NIjnHbpQPCYt62j4RmSx5rgLTGpw0YCjF5h191gZOmBfheOT23cRSFdw==";
     } // {
     manifest = {
-      tarballUrl = "https://registry.npmjs.org/@simple-git/args-pathspec/-/args-pathspec-1.0.3.tgz";
+      tarballUrl = "https://registry.npmjs.org/@simple-git/args-pathspec/-/args-pathspec-1.0.4.tgz";
       dependencies = { };
       peerDependencies = { };
       optionalDependencies = { };
@@ -2073,15 +2073,15 @@
       hasInstallScript = false;
     };
   };
-  "@simple-git/argv-parser@1.1.1" = fetchurl
+  "@simple-git/argv-parser@2.0.1" = fetchurl
     {
-      url = "https://registry.npmjs.org/@simple-git/argv-parser/-/argv-parser-1.1.1.tgz";
-      hash = "sha512-Q9lBcfQ+VQCpQqGJFHe5yooOS5hGdLFFbJ5R+R5aDsnkPCahtn1hSkMcORX65J2Z5lxSkD0lQorMsncuBQxYUw==";
+      url = "https://registry.npmjs.org/@simple-git/argv-parser/-/argv-parser-2.0.1.tgz";
+      hash = "sha512-M++IaVWrN+vYalilOHfwvT2IL3wYZtVEBQpmX6DLSOJLtxbZ+SUeIDE3IiPogzhPACLajwtxfa5rp+ZX1FczzQ==";
     } // {
     manifest = {
-      tarballUrl = "https://registry.npmjs.org/@simple-git/argv-parser/-/argv-parser-1.1.1.tgz";
+      tarballUrl = "https://registry.npmjs.org/@simple-git/argv-parser/-/argv-parser-2.0.1.tgz";
       dependencies = {
-        "@simple-git/args-pathspec" = "^1.0.3";
+        "@simple-git/args-pathspec" = "^1.0.4";
       };
       peerDependencies = { };
       optionalDependencies = { };
@@ -8553,18 +8553,18 @@
       hasInstallScript = false;
     };
   };
-  "simple-git@3.36.0" = fetchurl
+  "simple-git@4.0.2" = fetchurl
     {
-      url = "https://registry.npmjs.org/simple-git/-/simple-git-3.36.0.tgz";
-      hash = "sha512-cGQjLjK8bxJw4QuYT7gxHw3/IouVESbhahSsHrX97MzCL1gu2u7oy38W6L2ZIGECEfIBG4BabsWDPjBxJENv9Q==";
+      url = "https://registry.npmjs.org/simple-git/-/simple-git-4.0.2.tgz";
+      hash = "sha512-l0sIsv9VrPwovKELFDBOj/lhmIcbMvxBk2B+hRhsMM4/VL3gKtuZvYnBNixVo+N/0HnqQx2cBdLvxnAbygHpqA==";
     } // {
     manifest = {
-      tarballUrl = "https://registry.npmjs.org/simple-git/-/simple-git-3.36.0.tgz";
+      tarballUrl = "https://registry.npmjs.org/simple-git/-/simple-git-4.0.2.tgz";
       dependencies = {
         "@kwsites/file-exists" = "^1.1.1";
         "@kwsites/promise-deferred" = "^1.1.1";
-        "@simple-git/args-pathspec" = "^1.0.3";
-        "@simple-git/argv-parser" = "^1.1.0";
+        "@simple-git/args-pathspec" = "1.0.4";
+        "@simple-git/argv-parser" = "2.0.1";
         "debug" = "^4.4.0";
       };
       peerDependencies = { };
