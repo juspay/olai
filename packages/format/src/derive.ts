@@ -1756,16 +1756,12 @@ const descendants = (
 /**
  * THE IDS UNDER A NODE — the node's descendants by the same parent links every
  * other walk here uses, and TOTAL over a set the validator would condemn:
- * `seen` is the guard, for {@link unfinishedWithin}'s reason, because a forest's
- * links are a cache and one whose links close a loop must still answer rather
- * than recur for ever.
+ * `seen` is the guard, for {@link unfinishedWithin}'s reason.
  *
- * `stop` is {@link changedUnder}'s, and this walk exists because three
- * questions are one question: WHERE THIS AGENT'S MEMORY ENDS. It is asked by
- * the walk that decides what is due ({@link changedUnder}), the walk that
- * decides what a pass may commit ({@link memoryFiles}) and the FENCE a pass
- * raises while it runs (`@olai/ops`' `Confinement`, whose own descent used to be
- * this code again — and drifted, missing `stop` the day it was added).
+ * `stop` is {@link changedUnder}'s, and this walk exists because three questions
+ * are one — WHERE A MEMORY ENDS — asked by the walk that decides what is due,
+ * the walk that decides what a pass may commit and the FENCE a pass raises while
+ * it runs (`@olai/ops`' `Confinement`, whose own descent was this code again).
  */
 export const idsUnder = (
   derived: Pick<Derived, "children">,

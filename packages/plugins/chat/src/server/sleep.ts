@@ -3,9 +3,8 @@
  * turn it takes when a node has been left alone.
  *
  * WHAT LIVES HERE is when the pass runs, what it may touch, and what happens to
- * a turn nobody is watching. The words it sends are `../sleep.ts`, and the
- * design — the undo story, the settings an operator reads, what a person sees —
- * is `docs/chat.md`.
+ * a turn nobody is watching; the design — the undo story, the settings, what a
+ * person sees — is `docs/chat.md`.
  *
  * ## A scope-owned fiber, beside the filer
  *
@@ -238,13 +237,10 @@ export const makeSleeper = (
      * being a candidate, asked by the loop and by a person's own press.
      *
      * A CONVERSATION THAT IS UP IS NOT ASLEEP: working is a turn, `booting` is a
-     * handshake, and a question is somebody's to answer. `off` and `gone` are
-     * NOT that — they are a process that died, or an engine that left — and the
-     * delivery path wakes one: the pass's own reading reopens the conversation
-     * before it hands the turn over. A slot left `gone` would otherwise be
-     * unsleepable for as long as it sat in the pool, which is the idle window —
-     * 48 hours by default. No entry at all is the sleeping agent a doorbell
-     * wakes, which is the ordinary candidate.
+     * handshake, and a question is somebody's to answer. `off` and `gone` are NOT
+     * that — a process that died, or an engine that left — and the delivery path
+     * wakes one, which is why a slot left `gone` is not unsleepable for the idle
+     * window's 48 hours. No entry at all is the sleeping agent a doorbell wakes.
      */
     const busy = (standing: LiveSession | undefined): boolean =>
       standing !== undefined && standing.status !== "off" && standing.status !== "gone" &&
@@ -338,15 +334,13 @@ export const makeSleeper = (
      *
      * THE TURN IS OVER when the mark went off or the status left `thinking`, and
      * both are read because `idle` is published a frame BEFORE the mark is
-     * cleared (`chat.ts`'s `ensuring`): a state without the mark is not this
-     * pass's turn whatever it says. `idle` is the one ending that says nothing
-     * went wrong; a boot or a lost process is not a finished pass, and the
-     * panel's own `trouble` is where a failed turn says so.
+     * cleared (`chat.ts`'s `ensuring`). `idle` is the one ending that says
+     * nothing went wrong, and the panel's own `trouble` is where a failed turn
+     * says so.
      *
      * CANCELLED BEFORE TROUBLE, and it is why the state carries the flag: a
-     * cancelled turn lands on `idle` with no `trouble`, which is what a turn that
-     * ENDED looks like — and calling it a finished sleep would stamp the memo on
-     * a rewrite that stopped halfway and keep the node from being tried again.
+     * cancelled turn lands on `idle` with no `trouble`, and calling that a
+     * finished sleep would stamp the memo on a rewrite that stopped halfway.
      */
     const ended = (state: ChatState): Verdict | null => {
       if (state.sleep === true && state.status === "thinking") return state.trouble === null ? null : "trouble"
@@ -355,15 +349,11 @@ export const makeSleeper = (
       return state.trouble === null ? "slept" : "trouble"
     }
 
-    /**
-     * HOW THE TURN ENDS, once it has begun — the question's clock, and nothing
-     * else: the limit is raced around the whole of this ({@link watchTurn}), so
-     * a silence here is always the question's span.
-     *
-     * A QUESTION ARMS A CLOCK rather than cancelling at once: an agent that asks
-     * and answers itself in the same breath is not a failure, and the span is
-     * the same one the alert would have given a person.
-     */
+    /** HOW THE TURN ENDS, once it has begun — the question's clock and nothing
+     *  else, because the limit is raced around the whole of this
+     *  ({@link watchTurn}). A QUESTION ARMS A CLOCK rather than cancelling at
+     *  once: an agent that asks and answers itself in the same breath is not a
+     *  failure. */
     const waited = (states: Queue.Queue<ChatState>): Effect.Effect<Verdict> =>
       Effect.gen(function*() {
         /** WHEN THE QUESTION NOW OPEN WAS ASKED, or `null` for none: the instant
@@ -400,10 +390,8 @@ export const makeSleeper = (
      * delivery, the candidate had no turn running, and `begin` marks the panel
      * thinking in the same step that writes the row.
      *
-     * THE TWO DEADLINES ARE TWO, each around what it bounds: the turn's own
-     * length is a race around the whole wait, and the question's span is the one
-     * clock {@link waited} keeps. Folded into one timer they had to be told
-     * apart afterwards, by going back to the clock to see which had expired.
+     * THE TWO DEADLINES ARE TWO, each around what it bounds; folded into one
+     * timer they had to be told apart afterwards, by asking the clock again.
      */
     const watchTurn = (states: Queue.Queue<ChatState>): Effect.Effect<Verdict> =>
       Effect.gen(function*() {
@@ -431,7 +419,7 @@ export const makeSleeper = (
         if (began !== "running") return began
         // ...AND THE TURN ITSELF IS BOUNDED, the quiet one included: a turn that
         // stops reporting holds the window shut for the whole vault and wedges
-        // the permit, which is what `sleep-limit` is for.
+        // the permit (`sleep-limit`).
         return yield* Effect.raceFirst(waited(states), Effect.as(Effect.sleep(doors.limit), "limit" as const))
       })
 
@@ -458,10 +446,9 @@ export const makeSleeper = (
     const one = (
       agent: NodeAgent,
       files: ReadonlySet<string>,
-      /** THE SET THE NODE WAS PICKED UNDER, and it is not a detail: the re-read
-       *  below decides which files the commit may name, and a file that holds
-       *  only a NESTED agent's records is not this memory's — naming it would
-       *  sweep another agent's work into this pass's commit. */
+      /** THE SET THE NODE WAS PICKED UNDER: the re-read below decides which
+       *  files the commit may name, and a file holding only a NESTED agent's
+       *  records is not this memory's. */
       others: ReadonlySet<string>,
     ): Effect.Effect<Verdict, never, Scope.Scope> =>
       Effect.scoped(Effect.gen(function*() {

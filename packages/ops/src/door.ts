@@ -58,16 +58,13 @@ export interface Confinement {
   /** The clause that says why, in the words of whoever raised the fence. */
   readonly says: string
   /**
-   * THE NODES WHOSE OWN SUBTREES ARE NOT THIS ONE'S — every other node agent
-   * in the set ({@link @olai/format}'s `othersOf`).
+   * THE NODES WHOSE OWN SUBTREES ARE NOT THIS ONE'S — every other node agent in
+   * the set ({@link @olai/format}'s `othersOf`).
    *
-   * WHERE THE MEMORY ENDS IS ONE LINE, and the fence is not allowed its own:
-   * the commit the pass makes names exactly the files `memoryFiles` finds under
-   * this node with this same set, so a fence that stopped only at the outer
-   * boundary would permit a write into a NESTED agent's memory — the one write
-   * the instruction forbids, landing outside the commit that is the undo. What
-   * is outside this fence and what the commit cannot name are the same thing,
-   * and the way to keep them the same is to hand both the same set.
+   * WHERE THE MEMORY ENDS IS ONE LINE, and the fence is not allowed its own: the
+   * commit the pass makes names exactly the files `memoryFiles` finds under this
+   * node with this same set, so a fence stopping only at the outer boundary would
+   * permit a write into a NESTED agent's memory — landing outside the undo.
    */
   readonly stop?: ReadonlySet<string>
 }
