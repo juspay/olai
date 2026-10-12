@@ -874,6 +874,13 @@ before the pass's own path-scoped commit, and reverting the sleep would not undo
 it. A named commit is untouched, and so is every other writer: the Commit button
 is a person's.
 
+**While a pass runs, the session that turn belongs to writes only inside that
+subtree.** The instruction says so, and the write door holds it for the span of
+the turn: a write outside the node's memory — or inside ANOTHER node agent's own
+subtree, which is that agent's memory and not this one's — is refused in the
+fence's own words. What the door refuses and what the pass's commit can name are
+the same line, so nothing a sleep writes can land outside the undo.
+
 **One turn has an upper bound, and the git panel does not know about it.**
 `sleep-limit` — an hour by default — stops a tidying turn that has stopped making
 progress, with the usual warning and the day's back-off, so a wedged turn cannot
@@ -945,7 +952,7 @@ the engines compact, and a sleep turn is mostly tool calls. If that proves
 wrong the change is local — the pass would run in a fresh session under the
 assigned-session contract, and the loop that drives it would not move.
 
-**Two of these are an operator's, and two exist for the harness.** `sleep:
+**Two of these are a person's, and three exist for the harness.** `sleep:
 on|off` turns the pass off, and `sleep-after` is how long a node agent is left
 alone before it is tidied — the only two with a meaning a person would choose.
 `sleep-tick` (how often olai looks), `sleep-question` (how long a tidying turn

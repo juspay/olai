@@ -99,6 +99,7 @@ import {
   Writer,
   type Wrote,
 } from "@olai/format"
+import type { WaitingOutline } from "@olai/plugin-api/services"
 import type { Ops } from "@olai/ops"
 import * as Git from "../git/git.ts"
 import { Duration, Effect, Scope, Semaphore, Stream, SubscriptionRef } from "effect"
@@ -420,14 +421,14 @@ export interface Committing {
   /**
    * THE WAITING OUTLINES IN BOTH NAMES EACH FILE HAS — {@link Pending}'s own
    * `outlines`, reduced to the pair a caller that knows only one of the two
-   * names needs (`@olai/plugin-api`'s `Ledger.waiting` argues why).
+   * names needs ({@link WaitingOutline}).
    *
    * The `others` are deliberately not here: they are files olai does not serve,
    * so a caller that knows a file by its served name has no way to ask about
    * one — and a member that answered with a name nobody could have matched
    * would only invite a caller to guess.
    */
-  readonly waiting: Effect.Effect<ReadonlyArray<{ readonly file: string; readonly path: string }>>
+  readonly waiting: Effect.Effect<ReadonlyArray<WaitingOutline>>
   /** A commit somebody asked for: everything waiting — or exactly the paths
    *  they picked — with a message. */
   readonly commit: (

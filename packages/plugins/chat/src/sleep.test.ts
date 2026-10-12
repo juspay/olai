@@ -40,10 +40,14 @@ test("the instruction keeps the verbatim rule and the two prohibitions", () => {
   expect(SLEEP).toContain("never delete anything")
   expect(SLEEP).toContain("never trash anything")
   expect(SLEEP).toContain("Move only")
-  // ... and the keys olai writes are not the agent's to write, which is the
-  // refusal its own ticket also carries.
-  expect(SLEEP).toContain("`chat-agent-session`")
-  expect(SLEEP).toContain("`chat-agent-slept`")
+  // ... and olai's own bookkeeping is not the agent's to write — named by its
+  // ROLE and never by a key: a vault may keep either under a column of its own
+  // name (`docs/format.md`), so a literal here would name nothing in exactly the
+  // vaults that renamed them, while the ticket refuses the real key whatever it
+  // is called.
+  expect(SLEEP).toContain("do not write the property olai seats a conversation on")
+  expect(SLEEP).toContain("the one it records a sleep under")
+  expect(SLEEP).not.toContain("chat-agent-slept")
 })
 
 test("the instruction keeps the cap, the archive shape and the silent ending", () => {

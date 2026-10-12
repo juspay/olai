@@ -407,13 +407,12 @@ export interface Ops extends Asking {
    * KEEP THE QUIET WINDOW SHUT for as long as this scope is open — through the
    * ledger, and a no-op where nobody stands behind it.
    *
-   * On this door rather than only on the ledger because the caller that needs
-   * it is a plugin holding this layer's gate and nothing else: a node agent's
-   * tidying pass writes a subtree and then commits it as one commit
-   * (`olai-plugin-chat`'s `server/sleep.ts`), and under `commit: auto` the
-   * window would otherwise record the first half of its work as `auto` while it
-   * was still going. See `@olai/plugin-api`'s `Ledger.hold` for the contract and
-   * `docs/architecture/cordis.md` for what a ledger replaced mid-hold means.
+   * ON THIS DOOR and not only on the ledger because the caller that needs it is
+   * a plugin holding this layer's gate and nothing else: a node agent's tidying
+   * pass writes a subtree and then commits it as one commit
+   * (`olai-plugin-chat`'s `server/sleep.ts`). `@olai/plugin-api`'s `Ledger.hold`
+   * is the contract, and `docs/architecture/cordis.md` what a ledger replaced
+   * mid-hold means.
    */
   readonly hold: Effect.Effect<void, never, Scope.Scope>
   /**

@@ -3,13 +3,12 @@ import { Duration, Effect, Schema } from "effect"
 import { DEFAULT_IDLE } from "./scoped.ts"
 
 /**
- * WHAT THE SLEEP PASS RUNS ON — three spans, for the harness and for an
- * operator, and never something a person has to touch.
+ * WHAT THE SLEEP PASS RUNS ON — the spans, for the harness and for an operator,
+ * and never something a person has to touch.
  *
- * THE DEFAULTS ARE THE DESIGN: a node agent is left alone for six hours, olai
- * looks every fifteen minutes, and a tidying turn that sits on a question for
- * twenty minutes is stopped. Everything here is a way of making those shorter
- * for a test or a slow machine, which is why the words are the plain duration
+ * THE DEFAULTS ARE THE DESIGN, and the table below is where they are written:
+ * everything here is a way of making them shorter for a test or a slow machine,
+ * which is why the words are the plain duration
  * spells a person already writes in `_olai/Settings.olai` (`30s`, `6h`, `2d`)
  * and why an unreadable one WARNS AND FALLS BACK rather than stopping the row:
  * the file adapter decodes each leaf on its own
@@ -83,7 +82,7 @@ export const Config = Schema.Struct({
   "sleep-limit": span("sleep-limit"),
 })
 
-/** The three spans as the durations the pass waits, off the decoded config —
+/** The spans as the durations the pass waits, off the decoded config —
  *  the one place the spellings become numbers, so a caller cannot read one of
  *  them in milliseconds and another in words. The fallback is the same default
  *  the schema carries, read off the same table, because a second spelling of it

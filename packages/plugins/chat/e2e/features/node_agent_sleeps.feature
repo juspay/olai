@@ -5,17 +5,16 @@ Feature: A node agent tidies its own memory when nobody is looking
   month a health log is hundreds of kilobytes of records whose titles are whole
   daily reports, the standing facts they support have to be re-derived by hand,
   and nothing is archived. So olai gives the agent one machine turn of its own:
-  a node left alone for six hours whose memory has moved since it last slept is
+  a node left alone long enough whose memory has moved since it last slept is
   asked to tidy, distill and tuck away — in its own conversation, with the tools
   it already has — and the whole pass is one commit a person can revert.
 
   These scenarios hold the four things a person could check: the row in the
   transcript, the memo on the node, the commit in the log, and the one thing a
   sleep must never do, which is wake somebody. The spans are the scenario's own
-  (`@sleep-fast` writes `sleep-after`, `sleep-tick` and `sleep-question` into
-  the chat row, the same words an operator would write), because the product's
-  are six hours, fifteen minutes and twenty minutes — and `@sleep-off` writes
-  the pass's own switch into the same row before the server boots.
+  (`@sleep-fast` writes them into the chat row, the same words an operator would
+  write), because the product's are hours — and `@sleep-off` writes the pass's
+  own switch into the same row before the server boots.
 
   The fake agent's behaviour is chosen by marker files rather than by anything
   said to it: the pass always sends the same words, so there is no verb a
