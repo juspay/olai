@@ -48,9 +48,10 @@ const agent = (id: string, session: string | null, over: Partial<NodeAgent> = {}
   ...over,
 })
 
-/** The vault the pass reads: a stamped row under each node, so every node
- *  agent in these fixtures has memory that has moved and something to sleep
- *  over. */
+/** The vault the pass reads: a stamped row under each node, so every node agent
+ *  in these fixtures has memory that has moved and something to sleep over —
+ *  and one child in ANOTHER file, so a subtree that spans files is the ordinary
+ *  case rather than a special one. */
 const VAULT = {
   "Work.olai": [
     `{"id":"health","ord":"a0","title":"Health"}`,
@@ -401,7 +402,6 @@ test("a turn that sits on a question is cancelled, said out loud, and not retrie
     expect(bench.warnings.join("\n")).toContain("asked a question nobody is there to answer")
     // THE RETRY RULE, in memory: a node that failed once is left alone, so the
     // very next pass is not a second turn.
-    await until("the fixture to be quiet", () => true, 50)
     expect(await run(bench.tick)).toBe(false)
   })
 })

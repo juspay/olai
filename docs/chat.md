@@ -896,18 +896,28 @@ on a column of its own name, like any other.
 entry under Needs you: the turn is olai's own, so a question asked inside it is
 not somebody's to answer and is not counted as waiting. If the agent does ask
 something, the pass waits twenty minutes and then stops the turn — a question
-nobody is there to answer is cancelled, never announced. A turn that dies, or
-whose memo cannot be written, is left alone for a day rather than retried.
+nobody is there to answer is cancelled, never announced.
+
+**A pass that does not finish is left alone for a day**, in the server's memory
+only, so a restart forgets it: the conversation was gone, the turn went wrong,
+the memo could not be written, the turn never started, or it sat on a question
+past its span. That is one retry per restart on a node that is going to fail
+again anyway, and it is what keeps a broken node from being tried every quarter
+of an hour.
 
 **What it costs is context in a long-lived conversation**, which is accepted:
 the engines compact, and a sleep turn is mostly tool calls. If that proves
 wrong the change is local — the pass would run in a fresh session under the
 assigned-session contract, and the loop that drives it would not move.
 
-The harness and an operator can turn the pass off and shorten its spans with
-`sleep: on|off`, `sleep-after`, `sleep-tick` and `sleep-question` on the chat
-node in `_olai/Settings.olai` — for a test or a slow machine, never for the
-user, who has nothing to do either way.
+**Two of these are an operator's, and two exist for the harness.** `sleep:
+on|off` turns the pass off, and `sleep-after` is how long a node agent is left
+alone before it is tidied — the only two with a meaning a person would choose.
+`sleep-tick` (how often olai looks) and `sleep-question` (how long a tidying turn
+may sit on a question) are there so a test can run a pass in seconds rather than
+in hours, and so a slow machine can be given more patience; they are declared in
+the same row, in the same words, because the harness has no door the product does
+not have. None of it is for the user, who has nothing to do either way.
 
 ## Moving the chats you already have
 

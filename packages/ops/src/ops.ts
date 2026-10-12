@@ -91,8 +91,8 @@ export interface Ledger {
   readonly push: Effect.Effect<PushResult>
   readonly resume: Effect.Effect<void>
   /** See `@olai/plugin-api`'s `Ledger.hold` — the quiet window kept shut for
-   *  the caller's scope, counted per directory, and a no-op where nobody
-   *  records anything. */
+   *  the caller's scope, counted per ledger, and a no-op where nobody records
+   *  anything. */
   readonly hold: Effect.Effect<void, never, Scope.Scope>
 }
 

@@ -35,11 +35,13 @@ test("only `auto`, an unpaused loop, no hold and a ready repository arm the wind
 
 test("a hold is a term of the rule rather than a second check beside it", () => {
   // WHICH IS THE WHOLE POINT OF IT BEING A PARAMETER: the loop asks this
-  // expression at the moment it fires as well as when it arms, so a hold that
-  // is taken or released inside a window is honoured by the same sentence that
-  // honours the policy and the pause.
-  expect(armedOn("auto", null, true, WAITING)).toBe("")
+  // expression at the moment it fires as well as when it arms, so a hold that is
+  // taken or released inside a window is honoured by the same sentence that
+  // honours the policy and the pause. The arms above already read the held case
+  // as part of the whole rule; what is here is the ONE thing they cannot show —
+  // that taking a hold is what empties a window that was armed a line earlier.
   expect(armedOn("auto", null, false, WAITING)).not.toBe("")
+  expect(armedOn("auto", null, true, WAITING)).toBe("")
 })
 
 test("a ready repository with nothing waiting is not armed", () => {

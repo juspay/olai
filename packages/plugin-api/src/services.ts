@@ -969,9 +969,10 @@ export interface Ledger {
    *
    * AN ACQUISITION, so it is taken and released by the ordinary scope rules and
    * there is no way to leave one out: the release is registered in the same step
-   * that takes it (`@olai/plugin-api`'s acquisition rule). HELD PER DIRECTORY at
-   * the ledger, and it NESTS — a count rather than a flag, so a second holder
-   * cannot release the first's.
+   * that takes it (`@olai/plugin-api`'s acquisition rule). HELD PER LEDGER — a
+   * count rather than a flag, so a second holder cannot release the first's —
+   * which is what makes the replacement note below a fact about this door rather
+   * than a caveat about directories.
    *
    * TWO FACTS A CALLER MUST KNOW. Where nobody stands behind {@link Ledger} the
    * acquisition succeeds and holds nothing (there is no window to keep shut);

@@ -53,6 +53,14 @@ test("the instruction keeps the cap, the archive shape and the silent ending", (
   expect(SLEEP).toContain("Do not reply in prose")
 })
 
+test("the instruction carries no naming clause, which is the split's whole point", () => {
+  // `SLEEP` is the same words for every node agent — the part a test can hold
+  // constant — and the pointer is {@link sleepFor}'s. A clause that drifted back
+  // into the constant would be a node's title in the words every agent is sent.
+  expect(SLEEP).not.toContain("You are the node agent for")
+  expect(SLEEP).not.toContain("Health")
+})
+
 test("what one agent is sent names it, restates the memory line, and is the instruction", () => {
   const said = sleepFor(AGENT)
   expect(said).toStartWith("[olai] Sleep.")

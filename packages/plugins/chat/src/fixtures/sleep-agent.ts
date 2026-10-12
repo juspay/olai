@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 /**
  * A tiny ACP agent for the sleep pass's own tests: initialize, session/new,
- * session/load, session/prompt, session/cancel — and a turn it can hold, ask a
- * question in, or die in.
+ * session/load, session/prompt, session/cancel — and a turn it can hold or die
+ * in.
  *
  * WHY MARKER FILES AND NOT PROMPT VERBS. The pass always sends the SAME words
  * (`../sleep.ts`), so there is no argument a test could put in the prompt to
@@ -14,14 +14,15 @@
  *
  *   `.sleep-ask`     — ask a structured question and wait for the answer, the
  *                      shape the panel draws as an open `ask` row. Nobody
- *                      answers it in a sleep, which is the whole case.
+ *                      answers it in a sleep, which is the whole case — the
+ *                      pass cancels the turn, and an answer is not a state this
+ *                      fixture needs to reach.
  *   `.sleep-hold`    — take the prompt and answer nothing at all, so a turn is
  *                      still running when something else happens.
  *   `.sleep-vanish`  — die on the prompt: the conversation is gone mid-turn.
  *
- * ...and three it writes, so a test can watch from outside:
- *
- *   `.sleep-asked`, `.sleep-cancelled`, `.sleep-answered`.
+ * ...and two it writes, so a test can watch from outside: `.sleep-asked` (once
+ * per prompt, appended) and `.sleep-cancelled`.
  *
  * With no marker at all it ends the turn at once, which is the ordinary sleep.
  */
@@ -76,16 +77,6 @@ process.stdin.on("data", (chunk: string) => {
         readonly prompt?: ReadonlyArray<{ readonly text?: string }>
       }
     }
-    // AN ANSWER TO OUR OWN QUESTION. The panel settles the ask row and this is
-    // the turn carrying on, which is the ending a sleep never reaches.
-    if (message.method === undefined && message.id !== undefined && message.result !== undefined) {
-      if (running.has(message.id)) {
-        running.delete(message.id)
-        touch(".sleep-answered")
-        respond(message.id, { stopReason: "end_turn" })
-      }
-      continue
-    }
     switch (message.method) {
       case "initialize":
         respond(message.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } })
@@ -105,7 +96,6 @@ process.stdin.on("data", (chunk: string) => {
       }
       case "session/prompt": {
         touch(".sleep-asked")
-        if (typeof message.params?.cwd === "string") cwd = message.params.cwd
         const id = message.id
         running.add(id)
         if (has(".sleep-vanish")) {
