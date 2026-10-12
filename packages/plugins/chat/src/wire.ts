@@ -286,7 +286,7 @@ export const surface = defineSurface({
       },
       /**
        * RUN A SLEEP PASS ON ONE NODE NOW — the verb a person presses
-       * (*Tidy memory now*), and the only way into the pass that is not the
+       * (*Sleep now*), and the only way into the pass that is not the
        * loop's own clock.
        *
        * IT ANSWERS WHEN THE PASS HAS BEGUN, not when it ends: a tidying turn

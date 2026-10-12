@@ -60,7 +60,7 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
     // could not begin — another pass is running, or `sleep` is off here
     // (`../wire.ts`'s `sleepNow`).
     {
-      id: "tidy-memory", writes: true, label: "Tidy memory now",
+      id: "sleep-now", writes: true, label: "Sleep now",
       run: async (node: string) => {
         const outcome = await runAsync(chatWire().procedures.conversation.sleepNow({ node }))
         if (Result.isFailure(outcome)) return outcome.failure.message

@@ -97,7 +97,7 @@ export const sleepingPolicy = (config: typeof Config.Type) => {
  * WHAT A PERSON IS TOLD WHEN THEY ASK FOR A PASS WITH THE SWITCH OFF.
  *
  * The verb stays on the row and says why rather than disappearing: a person who
- * looked for *Tidy memory now* and found nothing would go looking for a bug,
+ * looked for *Sleep now* and found nothing would go looking for a bug,
  * and the row that hides itself is the row whose absence has no explanation
  * (`olai-plugin-chat`'s `server.ts` refuses with this).
  */

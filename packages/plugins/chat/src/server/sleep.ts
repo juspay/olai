@@ -487,7 +487,7 @@ export const makeSleeper = (
     /**
      * ONE PASS AT A TIME, BY THE PERMIT — three callers, and the permit is what
      * keeps them from overlapping: the loop (a tick), the verb (a person
-     * pressing *Tidy memory now*), and the test door, which is `tick` handed
+     * pressing *Sleep now*), and the test door, which is `tick` handed
      * back so a case can drive a pass without waiting for a span.
      */
     const passes = Semaphore.makeUnsafe(1)
@@ -511,7 +511,7 @@ export const makeSleeper = (
      *
      * WHAT IT DOES NOT ASK is `candidate()`'s opinion. The idle window and the
      * "memory has moved" test are about whether a node is DUE, and a person
-     * pressing *Tidy memory now* has answered that themselves. Everything the
+     * pressing *Sleep now* has answered that themselves. Everything the
      * pass then does with the node — the hold on the quiet window, the mark on
      * the turn, the cancel when a turn goes wrong or sits on a question, the
      * memo and the commit — is `one`, unchanged.

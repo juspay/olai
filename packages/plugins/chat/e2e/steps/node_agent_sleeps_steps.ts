@@ -25,7 +25,7 @@ import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
 import { MARKER, SLEEP_STAMP } from "@olai/tests/harness/scripted.ts";
 import { selector } from "@olai/web/testlib";
-import { attr, HYDRATION_TIMEOUT, oneLine, PALETTE_ITEM, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
+import { attr, HYDRATION_TIMEOUT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import { CHAT_TRANSCRIPT } from "../selectors.ts";
 import { openFold } from "./node_agent_folds_steps.ts";
@@ -245,27 +245,3 @@ Then(
 When("the sleep pass has had its chance", async function (this: OlaiWorld) {
   await this.page.waitForTimeout(2_000);
 });
-
-/**
- * THE PASS, ASKED FOR FROM ⌘K — the palette row chat contributes for each node
- * agent with a session (`../../src/browser/agents/AgentPalette.ts`), whose id
- * names the NODE. A step of its own rather than the palette's press-by-id,
- * because a scenario names a node the way every other step here does — by its
- * title — and the id is this side's to resolve.
- *
- * The palette is already open and filtered by the scenario (`the palette
- * shortcut`, then a query), which is how a person finds one row among a dozen
- * agents' worth.
- */
-When(
-  "I pick the palette's {string} row for {string}",
-  async function (this: OlaiWorld, label: string, node: string) {
-    const row = this.page.locator(`${PALETTE_ITEM}${attr("data-id", `tidy-${this.nodeId(node)}`)}`);
-    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.ok(
-      oneLine(await row.innerText()).includes(label),
-      `the row for ${node} reads ${JSON.stringify(oneLine(await row.innerText()))}, and this step names ${JSON.stringify(label)}`,
-    );
-    await this.press(row);
-  },
-);

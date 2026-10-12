@@ -140,20 +140,25 @@ Feature: A node agent tidies its own memory when nobody is looking
     Then olai has recorded 1 commit here
 
   @sleep-fast @scratch:chat @git:repo
-  Scenario: Tidy memory now tidies a node the loop would never have picked up
+  Scenario: Sleep now sleeps a node the loop would never have picked up
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     # NOTHING HERE IS DUE, and that is the half that makes the verb the thing
     # that did it: the corpus's rows carry no stamps, so the loop's "the memory
     # has moved" test is false for this node and it is never a candidate — the
     # other scenarios write `the memory under … has moved` for exactly that.
-    When the sleep pass has had its chance
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    And the sleep pass has had its chance
     Then olai has recorded 0 commits here
     And the node agent "install" has not been tidied
-    # ...AND A PERSON ASKS, from ⌘K — the surface their hands are already on.
+    And node "install" carries no sleep memo
+    # ...AND A PERSON ASKS, from ⌘K. The conversation on screen IS this node's,
+    # which is what the palette's one row is about: it names the node it would
+    # act on, and with no node agent's conversation shown there is no row at all.
     When I press the palette shortcut
-    And I type "tidy memory" into the palette
-    And I pick the palette's "Tidy memory now" row for "install"
+    And I type "sleep now" into the palette
+    And I press the palette row "sleep-now"
     Then the node agent "install" has been tidied
     And node "install" carries the sleep memo
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
@@ -173,7 +178,7 @@ Feature: A node agent tidies its own memory when nobody is looking
     # ...AND A SECOND ASK IS REFUSED, in the row's own said line — naming the
     # node it is already tidying, which is what a person is waiting for.
     When I open the node menu of "install"
-    And I choose "Tidy memory now" from the node menu
+    And I choose "Sleep now" from the node menu
     Then the node menu of "install" says "olai is already tidying install the cabinets; wait for it to finish"
     # ...AND NOTHING SECOND STARTED: the one commit here is the held pass's own,
     # which lands when the fake lets go. The wait is the one every scenario uses

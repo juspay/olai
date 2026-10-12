@@ -856,8 +856,9 @@ since it last slept, it is asked to tidy, distill and tuck away — in its own
 conversation, with the tools it already has.
 
 **A person can ask for the same pass now.** A node agent with a session offers
-*Tidy memory now* on its row's menu and in ⌘K, and pressing it runs the pass the
-loop would have run — the same machine row, the same memo and the same one
+*Sleep now* on its row's menu, and ⌘K offers one such row while a node agent's
+conversation is the one on screen — the row names the node it would act on.
+Pressing either runs the pass the loop would have run — the same machine row, the same memo and the same one
 commit. What it skips is the two tests that decide whether a node is DUE: the
 idle window and "the subtree has changed since it last slept" are how the loop
 chooses, and somebody pressing the verb has chosen. One pass runs at a time per
