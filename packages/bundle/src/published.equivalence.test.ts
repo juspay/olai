@@ -345,7 +345,9 @@ test("the real vault, edited, publishes the same frames", () => {
     differential(vault, steps, publishedOf),
     { upserts: 100, removes: 3, reused: 80, rebuilt: 20, minted: 2 },
   )
-})
+  // Its generated sibling's reason: ~1.6s of CPU alone, 6.5s beside the other
+  // legs on a localhost CI box — past bun's 5s default. A budget for a hang.
+}, { timeout: 30_000 })
 
 // ── the harness can see the hazard ─────────────────────────────────────
 
