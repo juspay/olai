@@ -421,7 +421,16 @@ export const makeSleeper = (
         }))
         yield* doors.deliver(to, () => sleepFor(agent))
         const verdict = yield* watchTurn(states)
-        if (verdict === "question") {
+        // THE TWO VERDICTS THAT LEAVE A TURN RUNNING, and both of them stop it.
+        // A question is an agent waiting for somebody who is not there; a
+        // `trouble` from a `thinking` state (`watchTurn` answers that arm off a
+        // turn whose `trouble` is already set) is an agent still working on
+        // something that went wrong. Either way this scope is about to close
+        // and the hold with it, so a turn left running would carry on
+        // unobserved, with no memo and no commit — the outcome the header calls
+        // worse than not sleeping at all. A `trouble` read off an `idle` state
+        // is a turn that has already ended, and `cancel` is a no-op there.
+        if (verdict === "question" || verdict === "trouble") {
           running = false
           yield* stopping(stoppable, agent.id)
         }

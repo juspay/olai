@@ -216,12 +216,16 @@ test("a turn that never starts is given up on, and its words taken back", () =>
     expect(arms.warnings.join("\n")).toContain("the turn never started")
   })))
 
-test("trouble mid-turn is a failed pass, and writes nothing", () =>
+test("trouble mid-turn is a failed pass, stopped and said out loud", () =>
   onTheClock(Effect.gen(function*() {
     const arms = yield* withStubs({
       states: [thinking(), thinking({ trouble: "the agent died" })],
     })
     expect(yield* arms.tick).toBe(true)
+    // THE TURN IS STOPPED, exactly as a question's is: the pass is about to
+    // let go of the hold, and a turn left running would write into the subtree
+    // with nobody watching and nothing to undo.
+    expect(arms.events).toEqual(["hold", "delivered", "cancelled", "withdrawn", "released"])
     expect(arms.memos).toEqual([])
     expect(arms.commits).toEqual([])
     expect(arms.warnings.join("\n")).toContain("the turn went wrong")
