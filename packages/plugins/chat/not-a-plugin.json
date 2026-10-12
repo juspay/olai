@@ -74,5 +74,9 @@
   ],
   "//alerts": "The wake strip's accessible label says `alerts` as an ordinary word, not the alerts row.",
   "//files": "The completion menu's section heading reads `Files`: the vault's files, not the files row.",
-  "//markdown": "Markdown is the shared renderer component, including the read-only conversation preview, not a runtime lookup of the markdown plugin."
+  "//markdown": "Markdown is the shared renderer component, including the read-only conversation preview, not a runtime lookup of the markdown plugin.",
+  "//trash": "The sleep instruction tells an agent never to trash a row it is tidying: `olai-plugin-chat`'s own words to an agent, not the trash row.",
+  "trash": [
+    "src/sleep.ts"
+  ]
 }
