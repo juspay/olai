@@ -249,9 +249,9 @@ When("the sleep pass has had its chance", async function (this: OlaiWorld) {
 /**
  * THE PASS, ASKED FOR FROM ⌘K — the palette row chat contributes for each node
  * agent with a session (`../../src/browser/agents/AgentPalette.ts`), whose id
- * names the NODE. A step of its own rather than the palette's press-by-id
- * (`olai-plugin-navigation`'s), because a scenario names a node the way every
- * other step here does — by its title — and the id is this side's to resolve.
+ * names the NODE. A step of its own rather than the palette's press-by-id,
+ * because a scenario names a node the way every other step here does — by its
+ * title — and the id is this side's to resolve.
  *
  * The palette is already open and filtered by the scenario (`the palette
  * shortcut`, then a query), which is how a person finds one row among a dozen
