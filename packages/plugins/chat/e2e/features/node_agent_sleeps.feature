@@ -204,6 +204,10 @@ Feature: A node agent tidies its own memory when nobody is looking
     # again, and THAT pass completes — which is what says nothing was remembered
     # against a node somebody stopped.
     And node "install" carries the sleep memo
+    # ...AND THE RETRY'S COMMIT, waited for: the memo above is written BEFORE the
+    # commit, and the count below is an immediate read — the race the step above
+    # exists to lose.
+    And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
     And olai has recorded 1 commit here
 
   @sleep-fast @scratch:chat @git:repo
@@ -224,4 +228,5 @@ Feature: A node agent tidies its own memory when nobody is looking
     Then the chat shows a failed tool call
     And the agent's answer mentions "olai is tidying this node's memory"
     And node "install" carries the sleep memo
+    And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
     And olai has recorded 1 commit here
