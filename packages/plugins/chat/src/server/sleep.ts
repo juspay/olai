@@ -78,9 +78,8 @@ import {
   stampOf,
   type WriteRequest,
 } from "@olai/format"
-import { Clock, Duration, Effect, Queue, type Scope } from "effect"
+import { Clock, Duration, Effect, Queue, Semaphore, type Scope } from "effect"
 
-import type { Panel } from "../chat.ts"
 import type { Conversing } from "../sessions.ts"
 import type { LiveSession, ReadingObserver } from "../scoped.ts"
 import { sleepFor } from "../sleep.ts"
@@ -163,12 +162,21 @@ export interface Sleeping {
    *  ({@link @olai/plugin-api}'s `Deliveries` and `olai-plugin-chat`'s
    *  `Chat.withdraw` argue the whole of it). */
   readonly withdraw: (to: Conversing) => Effect.Effect<void>
-  /** Observe one node's conversation and answer with the panel that owns it,
-   *  for as long as this scope is open. */
+  /**
+   * OBSERVE ONE NODE'S CONVERSATION, and answer with the ONE THING the pass may
+   * do to it: stop its turn.
+   *
+   * A CONTRACT AND NOT A PANEL, which is the difference between the pass's
+   * dependency and the whole of chat's: what it watches arrives through
+   * {@link ReadingObserver}, and what it does at the end is `cancel`. Handing
+   * over a `Panel` would be handing over thirty members nobody here may use —
+   * and would put a subprocess behind every test of the pass's own judgement,
+   * which is the argument `./turns.ts` makes for its own small state machines.
+   */
   readonly watch: (
     to: Conversing,
     observer: ReadingObserver,
-  ) => Effect.Effect<Panel, OpFailure, Scope.Scope>
+  ) => Effect.Effect<Stoppable, OpFailure, Scope.Scope>
   /** The set as a reader sees it — what the subtree walk is taken off. */
   readonly read: Effect.Effect<Reading & { readonly outlineRow: string }, OpFailure>
   /** One write, under this feature's own writer word. */
@@ -201,6 +209,12 @@ export interface Sleeping {
   /** How long a delivered turn may take to start ({@link START_MS}). */
   readonly start: Duration.Duration
   readonly log: (line: string) => Effect.Effect<void>
+}
+
+/** WHAT THE PASS MAY DO TO THE CONVERSATION IT IS WATCHING: stop the turn it
+ *  started, and nothing else ({@link Sleeping.watch}). */
+export interface Stoppable {
+  readonly cancel: Effect.Effect<void, OpFailure>
 }
 
 /**
@@ -356,9 +370,9 @@ export const makeSleeper = (
       })
 
     /** Say why a turn would not stop, without taking the pass down with it. */
-    const stopping = (panel: Panel, node: string): Effect.Effect<void> =>
+    const stopping = (stoppable: Stoppable, node: string): Effect.Effect<void> =>
       Effect.catch(
-        panel.cancel,
+        stoppable.cancel,
         (failure) => doors.log(`sleep: ${node}: the turn would not stop: ${failure.message}`),
       )
 
@@ -381,7 +395,7 @@ export const makeSleeper = (
           yield* doors.warn(`sleep: ${agent.id}: its conversation could not be read: ${observed.failure.message}`)
           return "gone"
         }
-        const panel = observed.success
+        const stoppable = observed.success
         // TRUE FROM HERE, and the finalizer is why: whatever ends this scope —
         // the loop being interrupted, the row unloading, a settings flip — the
         // turn it may have started is stopped before the scope lets go of the
@@ -391,7 +405,7 @@ export const makeSleeper = (
           if (running) {
             running = false
             yield* doors.warn(`sleep: ${agent.id}: the pass was stopped, so its turn was cancelled`)
-            yield* stopping(panel, agent.id)
+            yield* stopping(stoppable, agent.id)
           }
           // ...AND ITS OWN WORDS, WITHDRAWN. A delivery this pass handed over and
           // never saw delivered is work with no owner: it would sit in the
@@ -409,7 +423,7 @@ export const makeSleeper = (
         const verdict = yield* watchTurn(states)
         if (verdict === "question") {
           running = false
-          yield* stopping(panel, agent.id)
+          yield* stopping(stoppable, agent.id)
         }
         running = false
         if (verdict !== "slept") {
@@ -443,14 +457,24 @@ export const makeSleeper = (
      * this one to END — which is what "one sleep at a time" means here, said by
      * the loop's own shape rather than by a lock.
      */
-    const tick: Effect.Effect<boolean, never, Scope.Scope> = Effect.gen(function*() {
+    /**
+     * ONE PASS AT A TIME, BY CONSTRUCTION — not by the loop's shape.
+     *
+     * The loop's own fiber runs passes in sequence, so a serve never overlaps
+     * two of them. What the permit is for is the OTHER caller: `tick` is handed
+     * back so a test can drive a pass by hand, and two callers of it would be two
+     * passes over one directory at once — the thing "the next candidate waits for
+     * the current one to end" is a promise about.
+     */
+    const passes = Semaphore.makeUnsafe(1)
+    const tick: Effect.Effect<boolean, never, Scope.Scope> = passes.withPermit(Effect.gen(function*() {
       const next = yield* candidate()
       if (next === null) return false
       yield* doors.log(`sleep: ${next.agent.id} is being tidied`)
       const verdict = yield* one(next.agent, next.files)
       if (verdict !== "slept") failures.set(next.agent.id, yield* Clock.currentTimeMillis)
       return true
-    })
+    }))
 
     yield* Effect.forkScoped(Effect.gen(function*() {
       for (;;) {

@@ -191,7 +191,10 @@ const withBench = async (
         )
         : over.deliver(to),
       withdraw: () => Effect.sync(() => void events.push("withdrawn")),
-      watch: (to, observer) => chat.reading(to, observer),
+      // THE PASS'S OWN CONTRACT, narrowed here as the wiring narrows it: what it
+      // may do to the conversation it watches is stop its turn.
+      watch: (to, observer) =>
+        Effect.map(chat.reading(to, observer), (panel) => ({ cancel: panel.cancel })),
       read: reading(over.vault),
       write: over.write ?? ((request) => Effect.sync(() => {
         writes.push(request)

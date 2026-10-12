@@ -948,7 +948,11 @@ export default definePlugin({
           // `sleep` must not become a machine turn whose questions nobody is
           // told about (`@olai/plugin-api`'s `Deliveries.deliver`).
           deliver: (to, say) => serving.doorFor(SLEEP_WORD).deliver(to, say, { sleep: true }),
-          watch: (to, observer) => serving.reading(to, observer),
+          // THE NARROWING IS THE WIRING'S, and it is where the panel's own
+          // contract meets the pass's: what the pass may do to the conversation
+          // it watches is stop its turn (`./server/sleep.ts`'s `Stoppable`).
+          watch: (to, observer) =>
+            Effect.map(serving.reading(to, observer), (panel) => ({ cancel: panel.cancel })),
           withdraw: (to) => serving.withdraw(SLEEP_WORD, to),
           read: gate.read,
           write: (request) => gate.run(request, "sleep"),
