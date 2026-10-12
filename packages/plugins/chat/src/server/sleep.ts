@@ -340,11 +340,22 @@ export const makeSleeper = (
      */
     const watchTurn = (states: Queue.Queue<ChatState>): Effect.Effect<Verdict> =>
       Effect.gen(function*() {
+        // THE TURN IS OURS ONLY WHEN THE MARK SAYS SO. A reader attached to a
+        // conversation is handed its current state at once, so the first
+        // `thinking` this sees can be a PERSON's turn, another plugin's
+        // doorbell, or a boot — and a body this pass handed over is HELD while
+        // any of those run, then flushed at the boundary they end at. Reading
+        // the wrong turn as its own is how a pass would stamp the memo and
+        // commit somebody else's writes as `sleep`. `begin` puts `sleep: true`
+        // on the state for exactly as long as olai's own turn lasts
+        // (`olai-plugin-chat`'s `chat.ts`), so the mark is what this waits for —
+        // and a body that was held for a person's turn never produces one, which
+        // is what {@link START_MS} is left to answer.
         const began = yield* Effect.raceFirst(
           Effect.gen(function*() {
             for (;;) {
               const state = yield* Queue.take(states)
-              if (state.status === "thinking") return "running" as const
+              if (state.sleep === true) return "running" as const
               if (state.status === "off" || state.status === "gone") return "gone" as const
             }
           }),
@@ -365,11 +376,14 @@ export const makeSleeper = (
             )
           if (next.silence || next.state === null) return "question"
           const state = next.state
-          if (state.status !== "thinking") {
-            // ANYTHING ELSE IS THE TURN BEING OVER. `idle` is the one ending
-            // that says nothing went wrong; a boot or a lost process is not a
-            // finished pass, and the panel's own `trouble` is where a failed
-            // turn says so.
+          // THE TURN IS OVER — the mark went off, or the status left
+          // `thinking`. Both are read, because `idle` is published a frame
+          // BEFORE the mark is cleared (`chat.ts`'s `ensuring`), and a state
+          // without the mark is not this pass's turn whatever it says. `idle` is
+          // the one ending that says nothing went wrong; a boot or a lost
+          // process is not a finished pass, and the panel's own `trouble` is
+          // where a failed turn says so.
+          if (state.sleep !== true || state.status !== "thinking") {
             if (state.status !== "idle") return "gone"
             return state.trouble === null ? "slept" : "trouble"
           }
@@ -378,12 +392,24 @@ export const makeSleeper = (
         }
       })
 
-    /** Say why a turn would not stop, without taking the pass down with it. */
-    const stopping = (stoppable: Stoppable, node: string): Effect.Effect<void> =>
-      Effect.catch(
-        stoppable.cancel,
-        (failure) => doors.log(`sleep: ${node}: the turn would not stop: ${failure.message}`),
-      )
+    /**
+     * STOP THE TURN — and only while it is still OURS, which is the mark again.
+     *
+     * A question's deadline or a stop can arrive after olai's own turn has ended
+     * and a person's has begun in its place (`chat.ts` hands the next body over
+     * at the boundary), and `cancel` stops whatever is running: a cancel aimed
+     * at "the conversation" would kill that person's turn. So the last state the
+     * panel reported decides, and a turn that is not marked is left alone — said
+     * out loud rather than silently, because a pass that decided not to stop
+     * something is a thing an operator should be able to read.
+     */
+    const stopping = (stoppable: Stoppable, node: string, ours: boolean): Effect.Effect<void> =>
+      ours
+        ? Effect.catch(
+          stoppable.cancel,
+          (failure) => doors.log(`sleep: ${node}: the turn would not stop: ${failure.message}`),
+        )
+        : doors.log(`sleep: ${node}: its turn had already ended, so nothing was cancelled`)
 
     /** ONE PASS, in its own scope — the header's three acquisitions in order. */
     const one = (
@@ -394,8 +420,15 @@ export const makeSleeper = (
         const to = { agent: agent.engine, session: agent.session as string }
         yield* doors.hold
         const states = yield* Queue.unbounded<ChatState>()
+        // THE PANEL'S LAST WORD, kept beside the queue: what a cancel is judged
+        // against ({@link stopping}), because a cancel can arrive long after the
+        // state that earned it.
+        let last: ChatState | null = null
         const observed = yield* Effect.result(doors.watch(to, {
-          state: (state) => Queue.offerUnsafe(states, state),
+          state: (state) => {
+            last = state
+            Queue.offerUnsafe(states, state)
+          },
           // The transcript is the panel's business; nothing about a pass is
           // decided by a row.
           transcript: () => {},
@@ -414,7 +447,7 @@ export const makeSleeper = (
           if (running) {
             running = false
             yield* doors.warn(`sleep: ${agent.id}: the pass was stopped, so its turn was cancelled`)
-            yield* stopping(stoppable, agent.id)
+            yield* stopping(stoppable, agent.id, last?.sleep === true)
           }
           // ...AND ITS OWN WORDS, WITHDRAWN. A delivery this pass handed over and
           // never saw delivered is work with no owner: it would sit in the
@@ -441,7 +474,7 @@ export const makeSleeper = (
         // is a turn that has already ended, and `cancel` is a no-op there.
         if (verdict === "question" || verdict === "trouble") {
           running = false
-          yield* stopping(stoppable, agent.id)
+          yield* stopping(stoppable, agent.id, last?.sleep === true)
         }
         running = false
         if (verdict !== "slept") {
@@ -531,6 +564,18 @@ export const makeSleeper = (
       Effect.gen(function*() {
         const agent = doors.nodes().find((one) => one.id === node)
         if (agent === undefined || agent.session === null) return "unknown"
+        // WHAT `candidate()` ASKS ABOUT A NODE'S STATE, and nothing else: a
+        // person pressing a button has answered "is this node DUE", and has not
+        // answered "is anything else going on here". A node whose turn is
+        // running, whose question is open, or whose open was refused is "busy" —
+        // because the body this pass hands over would be HELD behind that turn
+        // and then watch a turn that is not its own
+        // ({@link watchTurn} says what that costs).
+        const standing = doors.live().get(agent.id)
+        if (standing !== undefined) {
+          const dead = standing.status === "off" || standing.status === "gone"
+          if (!dead && (standing.status !== "idle" || standing.asking > 0 || standing.unopened === true)) return "busy"
+        }
         // THE SET IS READ FRESH, and a set that cannot be read is a node whose
         // memory cannot be named: the commit would name nothing, so nothing is
         // tidied. (The loop's reading failing is simply "no candidate".)
@@ -542,7 +587,7 @@ export const makeSleeper = (
           one(agent, memoryFiles(observed.success.derived, agent.id)).pipe(
             // THE PERMIT GOES BACK WHEN THE PASS ENDS, whichever way it ends:
             // the pass is a fiber of its own now, so nothing else can hand it
-            // back — and a permit nobody returns would wedge the loop for ever.
+            // back.
             Effect.ensuring(Semaphore.release(passes, 1)),
           ),
         )

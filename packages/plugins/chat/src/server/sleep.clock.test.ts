@@ -58,10 +58,16 @@ const vault = (changed: string): Record<string, string> => ({
   ].join("\n") + "\n",
 })
 
-/** One state the conversation reports, as the panel would. */
+/**
+ * One state the conversation reports, as the panel would — AND MARKED, because
+ * that is what the panel does with a turn olai's own body began
+ * (`chat.ts`'s `begin`): `sleep: true` for exactly as long as that turn lasts.
+ * A case about a PERSON's turn says `sleep: false` and means it.
+ */
 const thinking = (over: Partial<ChatState> = {}): ChatState => ({
   ...CHAT_OFF,
   status: "thinking",
+  sleep: true,
   ...over,
 })
 
@@ -393,4 +399,70 @@ test("a manual pass that failed is not remembered as a node to leave alone", () 
     // THE LOOP'S OWN NEXT LOOK still finds this node: had the manual failure
     // been remembered, the map would answer `false` here.
     expect(yield* arms.tick).toBe(true)
+  })))
+
+test("a person's turn is not the pass's turn, and the pass waits for its own", () =>
+  onTheClock(Effect.gen(function*() {
+    // THE STATE A READER IS HANDED FIRST IS THE CONVERSATION'S NOW, and a body
+    // the pass hands over is HELD while somebody else's turn runs. So a pass
+    // that read the first `thinking` as its own would report a finished sleep —
+    // memo, commit and all — over a person's writes, and then hand its own turn
+    // over at that person's boundary with nobody watching it. The mark is the
+    // only thing that says whose turn it is.
+    const arms = yield* withStubs({
+      states: [thinking({ sleep: false }), thinking({ sleep: false })],
+      start: Duration.minutes(2),
+    })
+    const pass = yield* Effect.forkChild(arms.tick)
+    yield* TestClock.adjust(Duration.millis(MIN))
+    yield* settle
+    expect(arms.memos).toEqual([])
+    expect(arms.commits).toEqual([])
+    yield* TestClock.adjust(Duration.millis(MIN + 1))
+    expect(yield* Fiber.join(pass)).toBe(true)
+    // ...AND IT SAYS SO: a body that never became a turn is the same ending as a
+    // conversation that never reported one, which is what `START_MS` is for.
+    expect(arms.warnings.join("\n")).toContain("the turn never started")
+    expect(arms.events).not.toContain("cancelled")
+  })))
+
+test("a cancel is never aimed at a turn that is not marked", () =>
+  onTheClock(Effect.gen(function*() {
+    // THE MARK CAN GO OFF UNDER A QUESTION'S DEADLINE: olai's turn ends, a
+    // person's begins at the boundary it ended at, and `cancel` stops whatever
+    // is running. The pass has to read the mark it is about to act on.
+    const arms = yield* withStubs({
+      states: [thinking({ asking: 0 }), thinking({ asking: 1 }), thinking({ sleep: false })],
+    })
+    const pass = yield* Effect.forkChild(arms.tick)
+    yield* TestClock.adjust(Duration.millis(MIN))
+    yield* settle
+    expect(arms.delivers).toHaveLength(1)
+    yield* TestClock.adjust(Duration.millis(20 * MIN))
+    expect(yield* Fiber.join(pass)).toBe(true)
+    expect(arms.events).not.toContain("cancelled")
+    expect(arms.events).toEqual(["hold", "delivered", "withdrawn", "released"])
+    expect(arms.memos).toEqual([])
+    expect(arms.commits).toEqual([])
+  })))
+
+test("a pass asked for on a node whose turn is running is refused", () =>
+  onTheClock(Effect.gen(function*() {
+    // THE GATE `candidate()` KEEPS AND THE VERB MUST KEEP TOO: a node with a
+    // turn running has a conversation that would HOLD this pass's body, and the
+    // pass would then watch a turn that is not its own (see the case above).
+    // A question open, or an open refused, is the same answer for the same
+    // reason.
+    for (const standing of [
+      { status: "thinking" as const, asking: 0 },
+      { status: "idle" as const, asking: 1 },
+      { status: "idle" as const, asking: 0, unopened: true },
+    ]) {
+      const arms = yield* withStubs({
+        live: () => new Map([[AGENT.id, { ...standing, sleep: false }]]),
+      })
+      expect(yield* arms.now("health")).toBe("busy")
+      expect(arms.delivers).toEqual([])
+      expect(arms.commits).toEqual([])
+    }
   })))
