@@ -169,6 +169,13 @@ export interface Sleeping {
   /** Send one machine turn into a node agent's own conversation, exactly as a
    *  doorbell does — the row it writes carries this feature's own word. */
   readonly deliver: (to: Conversing, say: () => string | null) => Effect.Effect<void>
+  /** TAKE BACK THE WORDS THIS PASS HANDED OVER, for one conversation — what the
+   *  scope's finalizer does with a delivery it never saw delivered. A body the
+   *  scheduler or a panel is still holding would otherwise fire as a machine
+   *  turn with no hold, no observer, no memo and no commit
+   *  ({@link @olai/plugin-api}'s `Deliveries` and `olai-plugin-chat`'s
+   *  `Chat.withdraw` argue the whole of it). */
+  readonly withdraw: (to: Conversing) => Effect.Effect<void>
   /** Observe one node's conversation and answer with the panel that owns it,
    *  for as long as this scope is open. */
   readonly watch: (
@@ -371,10 +378,22 @@ export const makeSleeper = (
         // hold.
         let running = true
         yield* Effect.addFinalizer(() => Effect.gen(function*() {
-          if (!running) return
-          running = false
-          yield* doors.warn(`sleep: ${agent.id}: the pass was stopped, so its turn was cancelled`)
-          yield* stopping(panel, agent.id)
+          if (running) {
+            running = false
+            yield* doors.warn(`sleep: ${agent.id}: the pass was stopped, so its turn was cancelled`)
+            yield* stopping(panel, agent.id)
+          }
+          // ...AND ITS OWN WORDS, WITHDRAWN. A delivery this pass handed over and
+          // never saw delivered is work with no owner: it would sit in the
+          // scheduler's queue and fire days later as a machine turn with no hold
+          // on the quiet window, nobody observing it, no memo and no commit. The
+          // pass's own sentence is the one thing that can take it back, and this
+          // is where it is about to stop being there to.
+          //
+          // UNCONDITIONAL, and it is a no-op on a pass that handed its turn over:
+          // a body the agent has already been given is not in the holding at all
+          // (`olai-plugin-chat`'s `deliveries.ts`).
+          yield* doors.withdraw(to)
         }))
         yield* doors.deliver(to, () => sleepFor(agent))
         const verdict = yield* watchTurn(states)

@@ -57,6 +57,23 @@ export interface Chat extends Panel {
   /** Apply a browser gesture only to the conversation it was drawn for. */
   readonly inConversation: <A>(to: PanelAddress, scope: string | null | undefined, use: (panel: Panel) => Effect.Effect<A, OpFailure>) => Effect.Effect<A, OpFailure>
   readonly live: () => ReadonlyMap<string, LiveSession>
+  /**
+   * TAKE BACK ONE PLUGIN'S UNDELIVERED WORDS for one conversation — BOTH HOLDS,
+   * because a body can be waiting in either of them.
+   *
+   * The scheduler holds a delivery whose WAKE failed (`flush` replays it on the
+   * next `ensureNode`), and the panel holds one that arrived while a turn was
+   * running or while nobody was in the conversation. A caller that is going away
+   * — the pass over a node agent's memory, whose scope closes with it — must be
+   * able to withdraw its own words from both, or they fire later as a turn
+   * nothing owns (`Panel.doorFor`'s `withdraw` argues the whole of it).
+   *
+   * EVERY PANEL, and that is the same fan-out {@link Chat.enginesMoved} makes
+   * for the same reason: the conversation this is about may be in any of them,
+   * and a body held by the one a person is not looking at is exactly the case
+   * that would otherwise be missed. It costs a map walk over the live scopes.
+   */
+  readonly withdraw: (plugin: string, to: Conversing) => Effect.Effect<void>
   /** Compatibility metadata verb; assignment never opens or relocates a process. */
   readonly assignedTo: (node: string, to: Conversing) => Effect.Effect<void>
   readonly startAgentSession: (
@@ -650,6 +667,30 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }
     }
 
+    /**
+     * {@link Chat.withdraw}, over both holds — see that member for what it is
+     * for and why it reaches every panel.
+     *
+     * THE SCHEDULER'S OWN HALF is `discardPending`'s rule narrowed to one
+     * plugin and one conversation, and it is written here rather than reusing
+     * that helper because the two ask different questions: `discardPending`
+     * takes the picks a person replaced (a list of rows), this takes one pair.
+     */
+    const withdraw = (plugin: string, to: Conversing): Effect.Effect<void> =>
+      Effect.suspend(() => {
+        for (const [node, held] of pending) {
+          const keep = held.filter((one) =>
+            !(one.plugin === plugin && one.to.agent === to.agent && one.to.session === to.session))
+          if (keep.length === 0) pending.delete(node)
+          else pending.set(node, keep)
+        }
+        return Effect.forEach(
+          [...nodes.values()].map((slot) => slot.panel).concat(root),
+          (panel) => panel.doorFor(plugin).withdraw(to),
+          { discard: true },
+        )
+      })
+
     const refreshWakes: Panel["refreshWakes"] = (left) => {
       discardPending(left)
       root.refreshWakes(left)
@@ -826,6 +867,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       reading,
       entries: () => panelOf().entries(),
       state: () => panelOf().state(),
+      withdraw,
       live: () => new Map(
         [...nodes.values()].filter((slot) => !slot.history).map((slot) => [slot.node, {
           status: slot.state.status,

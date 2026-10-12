@@ -98,6 +98,10 @@ interface Bench {
   readonly commits: ReadonlyArray<{ readonly message: string; readonly paths: ReadonlyArray<string> }>
   /** Every line the pass said at the operator's level. */
   readonly warnings: Array<string>
+  /** WHAT THE PASS DID, IN ORDER — the seam's own account of itself, which is
+   *  what the ordering claims are about: the hold spans the turn and the commit,
+   *  and the delivery is withdrawn when the pass stops being there. */
+  readonly events: Array<string>
   /** One pass of the loop, as the case under test drives it. */
   readonly tick: Effect.Effect<boolean>
   readonly marker: (name: string) => void
@@ -138,6 +142,12 @@ const withBench = async (
     readonly after?: number
     /** The write door, for the case where the vault refuses the memo. */
     readonly write?: (request: WriteRequest) => Effect.Effect<unknown, OpFailure>
+    /** The delivery door, for the case where the turn is never handed over at
+     *  all — the one that leaves a body waiting somewhere. */
+    readonly deliver?: (to: { readonly agent: string; readonly session: string }) => Effect.Effect<void>
+    /** How long a turn may take to start, in milliseconds, for the test that
+     *  wants that deadline reached. */
+    readonly start?: number
   },
   body: (bench: Bench) => Promise<void>,
 ): Promise<void> => {
@@ -145,6 +155,7 @@ const withBench = async (
   const writes: Array<WriteRequest> = []
   const commits: Array<{ message: string; paths: ReadonlyArray<string> }> = []
   const warnings: Array<string> = []
+  const events: Array<string> = []
   const chat = await run(make({
     // THE BENCH'S OWN RUNTIME, said out loud: `Options.fork` has no default.
     fork: (work) => Effect.runFork(work),
@@ -170,7 +181,13 @@ const withBench = async (
       sleptAt: over.sleptAt ?? (() => null),
       sleptKey: () => "chat-agent-slept",
       live: over.live ?? (() => chat.live()),
-      deliver: (to, say) => chat.doorFor("sleep").deliver(to, say),
+      deliver: (to, say) => over.deliver === undefined
+        ? Effect.tap(
+          chat.doorFor("sleep").deliver(to, say),
+          () => Effect.sync(() => void events.push("delivered")),
+        )
+        : over.deliver(to),
+      withdraw: () => Effect.sync(() => void events.push("withdrawn")),
       watch: (to, observer) => chat.reading(to, observer),
       read: reading(),
       write: over.write ?? ((request) => Effect.sync(() => {
@@ -179,16 +196,22 @@ const withBench = async (
       })),
       waiting: Effect.succeed(WAITING),
       commit: (message, paths) => Effect.sync(() => {
+        events.push("committed")
         commits.push({ message, paths })
         return null
       }),
-      hold: Effect.void,
+      // THE HOLD, AS AN ACQUISITION — so the order it is taken and released in
+      // is a thing this bench can assert rather than a thing it assumes.
+      hold: Effect.acquireRelease(
+        Effect.sync(() => void events.push("hold")),
+        () => Effect.sync(() => void events.push("released")),
+      ),
       after: Duration.millis(over.after ?? 0),
       // THE LOOP ITSELF IS NOT WHAT IS UNDER TEST: every case drives `tick` by
       // hand, so the fork sleeps for as long as the test could possibly run.
       tick: Duration.minutes(10),
       question: Duration.millis(400),
-      start: Duration.seconds(5),
+      start: Duration.millis(over.start ?? 5_000),
       log: () => Effect.void,
       warn: (line) => Effect.sync(() => void warnings.push(line)),
     }), Scope.Scope, scope))
@@ -198,6 +221,7 @@ const withBench = async (
       writes,
       commits,
       warnings,
+      events,
       // THE BENCH'S OWN SCOPE, so a pass driven by hand runs (and is stopped)
       // with the bench rather than in a scope nobody owns.
       tick: Effect.provideService(sleeper.tick, Scope.Scope, scope),
@@ -231,6 +255,12 @@ test("a finished pass writes the memo and then commits it", async () => {
     expect(bench.warnings).toEqual([])
     // ... and the pass left the conversation idle rather than holding it open.
     expect(bench.chat.live().get("health")?.status).toBe("idle")
+    // THE HOLD SPANS THE WHOLE PASS: taken before the turn is handed over,
+    // released only after the memo has been committed — which is the one thing
+    // that makes the commit the pass's own rather than the quiet window's. The
+    // withdrawal comes between them because a scope's finalizers run in the
+    // reverse of the order they were registered.
+    expect(bench.events).toEqual(["hold", "delivered", "committed", "withdrawn", "released"])
   })
 })
 
@@ -315,6 +345,24 @@ test("a turn that sits on a question is cancelled, said out loud, and not retrie
     await until("the fixture to be quiet", () => true, 50)
     expect(await run(bench.tick)).toBe(false)
   })
+})
+
+test("a delivery the pass never saw handed is withdrawn when it stops", async () => {
+  // THE HAZARD THIS CLOSES: a body the scheduler or a panel is still holding
+  // would fire days later as a machine turn with no hold on the quiet window,
+  // nobody observing it, no memo and no commit — work with no owner.
+  await withBench(
+    { deliver: () => Effect.void, start: 200 },
+    async (bench) => {
+      expect(await run(bench.tick)).toBe(true)
+      expect(bench.events).toEqual(["hold", "withdrawn", "released"])
+      expect(bench.writes).toEqual([])
+      expect(bench.commits).toEqual([])
+      expect(bench.warnings.join("\n")).toContain("the turn never started")
+      // ... and the node is left alone for a day, like every other failure.
+      expect(await run(bench.tick)).toBe(false)
+    },
+  )
 })
 
 test("a conversation that dies mid-turn is a failed pass, with no memo", async () => {

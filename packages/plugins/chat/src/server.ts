@@ -945,6 +945,7 @@ export default definePlugin({
           // turn boundary is what the pass then watches.
           deliver: (to, say) => serving.doorFor(SLEEP_WORD).deliver(to, say),
           watch: (to, observer) => serving.reading(to, observer),
+          withdraw: (to) => serving.withdraw(SLEEP_WORD, to),
           read: gate.read,
           write: (request) => gate.run(request, "sleep"),
           waiting: gate.waiting,

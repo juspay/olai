@@ -531,6 +531,26 @@ export interface Panel {
         readonly coalesce?: string
       },
     ) => Effect.Effect<void>
+    /**
+     * TAKE BACK THIS PLUGIN'S UNDELIVERED WORDS for one conversation.
+     *
+     * WHAT IT IS FOR: a caller that hands over a body and then stops being there
+     * — a fiber whose scope is closing — has no way to know whether the body was
+     * handed to the agent or is still waiting for a boundary that may come days
+     * later. A doorbell does not care: its body is a fresh derivation of what is
+     * standing, so a later delivery says everything the lost one would have. A
+     * MACHINE TURN does care, which is why this verb exists: a sleep delivery
+     * that fires next week would run as a turn with no hold on the quiet window,
+     * nobody observing it, no memo and no commit
+     * (`olai-plugin-chat`'s `server/sleep.ts`).
+     *
+     * THE SAME VERB A CLEARED DOORBELL USES (`./deliveries.ts`'s `dropped`),
+     * reached from the other end: there a person took the words away, here the
+     * caller that wrote them is going. Nothing is lost by it, for the reason
+     * above — and a body that was already HANDED is not in the holding at all,
+     * so this cannot unsay anything the agent has seen.
+     */
+    readonly withdraw: (to: Deliveries.Addressed) => Effect.Effect<void>
   }
   /** THIS conversation wakes on THAT file, for that plugin's doorbell — or, with
    *  `file: null`, on nothing. The one write behind the strip's scope control.
@@ -3578,6 +3598,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         return {
           scopes,
           deliver: (to, say, how) => deliverTo(to, say, plugin, how),
+          withdraw: (to) =>
+            Effect.sync(() => {
+              held.dropped(to, plugin)
+              // ...AND THE STRIP'S COUNT WITH IT, when this panel is the one
+              // drawing that conversation: the same republish a cleared doorbell
+              // does, and the same guard against a frame that says nothing new.
+              const wake = wakeOf()
+              if (!sameWake(wake, state.wake)) move({ wake })
+            }),
         }
       },
       /**
