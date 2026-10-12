@@ -437,6 +437,10 @@ test("one pass sleeps one node, and the next waits its turn", async () => {
 })
 
 test("a turn that sits on a question is cancelled, said out loud, and not retried", async () => {
+  // THE JUDGEMENT IS THE CLOCK SUITE'S (`sleep.clock.test.ts`) and is not what
+  // this case is for: what only this bench can show is the STOP reaching a real
+  // process — the fixture's own `.sleep-cancelled` marker, over the wire —
+  // where the clock suite's cancel is a stub's event.
   await withBench({ nodes: [agent("health", "sess-1")] }, async (bench) => {
     bench.marker(".sleep-ask")
     expect(await run(bench.tick)).toBe(true)
