@@ -67,15 +67,19 @@ Feature: A node agent tidies its own memory when nobody is looking
     When the next sleep asks a question
     And I open the "claude" agent on node "install"
     And the node agent's fold is ready
-    And I close the agent fold
     Then the sleep's question is waiting
-    And the agent "install" stands "working"
-    And no chime rang
+    And the chat shows a question
+    When I close the agent fold
+    # THE READER LOOKS AWAY, so the alert faces are live — and the pass is then
+    # given its chance, which is what makes the silence below an absence rather
+    # than a race with a banner that has not been drawn yet.
+    And the sleep pass has had its chance
+    Then no chime rang
     And no notification has been raised
     And the tab says nothing is waiting
+    And the agent "install" stands "working"
     And Needs you is absent
     And the server log warns that "install" did not finish: "it asked a question nobody is there to answer, so it was stopped"
-    When the sleep pass has had its chance
     Then node "install" carries no sleep memo
     And olai has recorded 0 commits here
     And the agent "install" stands "idle"

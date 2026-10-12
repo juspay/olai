@@ -22,7 +22,7 @@
 import { type NodeAgent, UsageFailure } from "@olai/format"
 import { readingOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
-import { Duration, Effect, Exit, Fiber, Scope } from "effect"
+import { Clock, Duration, Effect, Exit, Fiber, Scope } from "effect"
 import { TestClock } from "effect/testing"
 
 import type { LiveSession, ReadingObserver } from "../scoped.ts"
@@ -90,6 +90,13 @@ const withStubs = (over: {
   readonly question?: Duration.Duration
   /** Whether the vault takes the memo. `false` is the pass's other failure. */
   readonly writes?: boolean
+  /**
+   * THE FORKED LOOP'S OWN CADENCE, and it is a YEAR by default on purpose: a
+   * test that moves the clock by hours would otherwise have the loop run a pass
+   * every fifteen minutes of it, which is not what any of these cases is about.
+   * The one test that is about the loop asks for a real span.
+   */
+  readonly loopTick?: Duration.Duration
 } = {}): Effect.Effect<Arms, never, Scope.Scope> =>
   Effect.gen(function*() {
     const events: Array<string> = []
@@ -99,13 +106,17 @@ const withStubs = (over: {
     const warnings: Array<string> = []
     let reads = 0
     let observer: ReadingObserver | null = null
+    /** THE MEMO, as a vault would keep it — written by the pass, read by the
+     *  next candidate question, so "not tidied again" is a statement these
+     *  cases can make. */
+    let memo: string | null = null
     const states = over.states ?? [
       thinking(),
       { ...CHAT_OFF, status: "idle", trouble: null },
     ]
     const doors: Sleeping = {
       nodes: () => [AGENT],
-      sleptAt: () => null,
+      sleptAt: () => memo,
       sleptKey: () => "chat-agent-slept",
       live: () => over.live ?? new Map(),
       read: Effect.sync(() => {
@@ -132,7 +143,8 @@ const withStubs = (over: {
       withdraw: () => Effect.sync(() => void events.push("withdrawn")),
       write: () => over.writes === false
         ? Effect.fail(new UsageFailure({ reason: "the vault refused the write" }))
-        : Effect.sync(() => {
+        : Effect.gen(function*() {
+          memo = stamp(yield* Clock.currentTimeMillis)
           memos.push("memo")
           return {}
         }),
@@ -147,7 +159,7 @@ const withStubs = (over: {
         () => Effect.sync(() => void events.push("released")),
       ),
       after: over.after ?? Duration.millis(0),
-      tick: Duration.minutes(15),
+      tick: over.loopTick ?? Duration.days(365),
       question: over.question ?? Duration.minutes(20),
       start: over.start ?? Duration.minutes(2),
       log: () => Effect.void,
@@ -241,6 +253,11 @@ test("an asleep node whose memory moved inside the span waits, and sleeps once i
     yield* TestClock.adjust(Duration.millis(HOUR + 1))
     expect(yield* arms.tick).toBe(true)
     expect(arms.commits).toHaveLength(1)
+    // ...AND THE MEMO IS WHAT KEEPS IT FROM BEING DONE AGAIN: hours later, with
+    // the memory exactly as the pass left it, the node is not due.
+    yield* TestClock.adjust(Duration.days(3))
+    expect(yield* arms.tick).toBe(false)
+    expect(arms.commits).toHaveLength(1)
   })))
 
 test("a conversation with a question open, and one that refused to open, are left alone", () =>
@@ -285,7 +302,11 @@ test("the loop stops when the scope it was forked into closes", () =>
     // THE PASS'S OWN SCOPE, as a serve gives it: the chat row's fork. A loop
     // that outlived that scope would be work nobody owns.
     const scope = yield* Scope.make()
-    const arms = yield* Effect.provideService(withStubs(), Scope.Scope, scope)
+    const arms = yield* Effect.provideService(
+      withStubs({ loopTick: Duration.minutes(15) }),
+      Scope.Scope,
+      scope,
+    )
     yield* TestClock.adjust(Duration.millis(16 * MIN))
     yield* settle
     const awake = arms.reads()
