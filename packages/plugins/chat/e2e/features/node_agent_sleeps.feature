@@ -95,6 +95,11 @@ Feature: A node agent tidies its own memory when nobody is looking
     And the node agent's fold is ready
     And the chat shows a question
     And the server log warns that "install" did not finish: "it asked a question nobody is there to answer, so it was stopped"
+    # A TICK'S WORTH AFTER THE CANCEL, and it is what the reads below are timed
+    # against: the fake deletes its marker once it has read it, so a pass that
+    # had not remembered the question would come back at the next tick as an
+    # ORDINARY sleep and write the memo this scenario says is not there.
+    When the sleep pass has had its chance
     Then node "install" carries no sleep memo
     And olai has recorded 0 commits here
     And the agent "install" stands "idle"

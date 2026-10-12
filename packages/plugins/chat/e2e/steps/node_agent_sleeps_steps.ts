@@ -240,7 +240,7 @@ Then(
  * wanted to still be true, and the value of the step is that a pass has
  * demonstrably had several of the scenario's own `sleep-tick`s to happen in.
  * `git`'s own "the quiet window is given its full run" is the same step for the
- * same reason, and this is the one scenario that needs it.
+ * same reason.
  */
 When("the sleep pass has had its chance", async function (this: OlaiWorld) {
   await this.page.waitForTimeout(2_000);
