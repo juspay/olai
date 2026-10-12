@@ -866,6 +866,14 @@ directory, so a press while olai is already tidying is refused in words rather
 than queued, and a manual pass that fails is not remembered for a day the way a
 loop's failure is: a person can ask again.
 
+**A tidying agent may not commit.** The instruction says so, and the ledger's
+door refuses it too: while a pass holds the quiet window shut, a `chat-agent`
+commit that names no paths is refused in words, because a sweep would record the
+whole repository — a person's parked edits among it — under the agent's name
+before the pass's own path-scoped commit, and reverting the sleep would not undo
+it. A named commit is untouched, and so is every other writer: the Commit button
+is a person's.
+
 **One turn has an upper bound, and the git panel does not know about it.**
 `sleep-limit` — an hour by default — stops a tidying turn that has stopped making
 progress, with the usual warning and the day's back-off, so a wedged turn cannot

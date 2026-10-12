@@ -482,9 +482,15 @@ export interface Committing {
    * KEEP THE WINDOW SHUT until this scope closes — the ledger door's `hold`
    * (`@olai/plugin-api`), where the whole contract is stated.
    *
-   * It is the WINDOW this closes and not the door: the Commit button, the agent
-   * tool and `resume` are untouched by one, because what a hold says is "these
+   * It is the WINDOW this closes and not the door: the Commit button, a NAMED
+   * commit and `resume` are untouched by one, because what a hold says is "these
    * writes are somebody's to record", never "nobody may record anything".
+   *
+   * THE ONE EXCEPTION IS A SWEEPING COMMIT FROM AN AGENT, and it is
+   * {@link commit}'s own paragraph: while a hold is out — a tidying pass, for
+   * the span of its turn — a `chat-agent` commit that names no paths would
+   * record the whole repository under the agent's name, a person's parked edits
+   * included, and the pass's own path-scoped commit could not undo it.
    */
   readonly hold: Effect.Effect<void, never, Scope.Scope>
   /**
@@ -1016,6 +1022,24 @@ export const make = (options: Options): Committing => {
     writer: Writer,
   ): Effect.Effect<CommitResult> =>
     Effect.gen(function*() {
+      // A SWEEPING COMMIT FROM AN AGENT IS REFUSED WHILE A HOLD IS OUT, and
+      // this is the one place that can see both halves: the writer every agent
+      // tool call carries, and whether somebody is holding the window. The
+      // instruction tells a tidying agent not to commit, but prose is not a
+      // door: an agent that commits anyway would sweep the WHOLE repository —
+      // a person's parked edits among it — under `chat-agent`, before the pass's
+      // own path-scoped commit, and a `git revert` of the sleep would not undo
+      // it. A NAMED commit is left alone (the pass's own spelling), and so is
+      // every other writer: the Commit button is a person's.
+      if (holding > 0 && request.paths === undefined && writer === "chat-agent") {
+        return {
+          _tag: "Failed",
+          said: "olai is tidying this directory's memory, so a commit that names no paths " +
+            "would record work the pass does not own — the pass commits its own writes when " +
+            "its turn ends, and a named commit is still yours",
+        } as const
+      }
+
       const looked = yield* survey
       if (looked.repo._tag !== "Ready" || looked.git === null) {
         return { _tag: "Blocked", repo: looked.repo } as const

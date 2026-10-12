@@ -1385,6 +1385,25 @@ describe("commit: auto: the quiet window", () => {
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
       }), { commits: "auto", quiet: 40 }))
 
+  test("a hold DOES stop an agent's sweeping commit, and a named one still goes", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "chat-agent"))
+        yield* Effect.scoped(Effect.gen(function*() {
+          yield* fixture.ops.hold
+          // THE AGENT'S TOOL, and only while a hold is out: a commit that names
+          // no paths sweeps the WHOLE repository — a person's parked edits among
+          // it — under the agent's own name, before the pass's path-scoped
+          // commit, and reverting the sleep would not undo it.
+          const swept = yield* fixture.ops.commit({}, "chat-agent")
+          expect(swept._tag).toBe("Failed")
+          expect(swept._tag === "Failed" ? swept.said : "").toContain("names no paths")
+          // ...AND A NAMED ONE IS UNTOUCHED: `paths` is the pass's own spelling,
+          // and a person's Commit button is not this writer at all.
+          expect((yield* fixture.ops.commit({ paths: ["house.olai"] }, "chat-agent"))._tag).toBe("Committed")
+        }))
+      }), { commits: "auto", quiet: 40 }))
+
   test("a hold does not stop a commit somebody asked for", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
