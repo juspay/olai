@@ -101,13 +101,13 @@ import {
 } from "@olai/plugin-api/services"
 import type { Engine, Registering } from "@olai/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
-import { Deferred, Duration, Effect, Semaphore } from "effect"
+import { Deferred, Duration, Effect, type Scope, Semaphore } from "effect"
 
 import type { PanelAddress } from "./wire/session.ts"
 import { forLocalState as modelsIn } from "./models.ts"
 import type { Ops as WriteGate } from "@olai/ops"
 import { makeFiler } from "./server/filer.ts"
-import { makeSleeper, START_MS } from "./server/sleep.ts"
+import { type Asked, makeSleeper, START_MS } from "./server/sleep.ts"
 import { readings } from "./server/readings.ts"
 import type { Change } from "./transcript.ts"
 import * as Chat from "./scoped.ts"
@@ -117,7 +117,7 @@ import { openLocalState } from "./local.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { seatingIn } from "./seating.ts"
-import { Config, sleepingPolicy } from "./settings.ts"
+import { Config, SLEEP_OFF, sleepingPolicy } from "./settings.ts"
 export { Config } from "./settings.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
@@ -393,6 +393,21 @@ export default definePlugin({
     /** This sibling's own write face, the moment the runtime has minted it. */
     let mine: Ctx | null = null
     let filer: { readonly full: Effect.Effect<void>; readonly settled: (agent: string) => Effect.Effect<void> } | null = null
+    /**
+     * THE PASS, once this row has wired it — `null` before that and after the
+     * scope closes, which is what makes a request that arrives in either window
+     * a sentence rather than a call into something that is not there
+     * ({@link conversation.sleepNow}).
+     */
+    let sleeper: { readonly now: (node: string) => Effect.Effect<Asked, never, Scope.Scope> } | null = null
+    /**
+     * THE SCOPE THE PASS IS FORKED INTO, captured here rather than read when a
+     * request arrives: a procedure runs long after this effect has finished, and
+     * a pass a person asked for must be owned by THIS row — the same owner the
+     * loop's fiber has, so a settings flip or a serve shutting down stops its
+     * turn rather than leaving it writing with nobody watching.
+     */
+    const owned = yield* Effect.scope
     let sessionsRevision = 0
 
     /** THE VAULT'S HALF OF THE AGENTS ROSTER, held across revisions: which node
@@ -650,6 +665,33 @@ export default definePlugin({
             if (filer !== null) yield* filer.full
           })),
         ),
+      /**
+       * THE PASS, ASKED FOR BY HAND — the row verb's half, and the only way into
+       * the pass that is not the loop's own clock.
+       *
+       * THE SCOPE IS THE ROW'S, not the request's: the pass outlives the press by
+       * minutes, and the same owner the loop's fiber has is what makes a settings
+       * flip or a serve shutting down stop its turn rather than leave it writing
+       * with nobody watching (`./server/sleep.ts`'s `now` argues the door).
+       */
+      sleepNow: ({ input }: { input: { node: string } }) =>
+        Effect.gen(function*() {
+          const pass = sleeper
+          if (pass === null) return { _tag: "Refused" as const, said: SLEEP_OFF }
+          const asked = yield* Effect.provideService(pass.now(input.node), Scope.Scope, owned)
+          if (asked === "started") return { _tag: "Started" as const }
+          if (asked === "unknown") {
+            return { _tag: "Refused" as const, said: "that node is not a node agent with a conversation" }
+          }
+          // WHO IT IS ALREADY TIDYING, off the live reading: `sleep` is olai's own
+          // mark on a turn, so the node it is true for is the one a person is
+          // waiting for. A pass in the moment before its delivery marks nothing
+          // yet, and the node they asked about stands in.
+          const live = chat?.live() ?? new Map<string, Chat.LiveSession>()
+          const at = [...live].find(([, one]) => one.sleep === true)?.[0] ?? input.node
+          const title = nodeAgents.nodes().find((one) => one.id === at)?.title ?? at
+          return { _tag: "Refused" as const, said: `olai is already tidying ${title}; wait for it to finish` }
+        }),
       reopen: ({ input }: { input: { conv: PanelAddress; scope: string | null } }) =>
         withChat((open) => open.inConversation(input.conv, input.scope ?? undefined, (panel) => panel.state().unopened === null ? Effect.void : panel.reopen)),
       sessions: () => withChat((open) => open.sessions),
@@ -935,7 +977,13 @@ export default definePlugin({
       // beside, not a variable something may empty.
       const serving = chat
       if (sleeping) {
-        yield* makeSleeper({
+        // THE HANDLE IS KEPT, unlike the loop's, and for the reason `filer`'s
+        // is: a request that arrives after this scope closes has to be refused
+        // in words rather than run against a sleeper that is gone. The
+        // finalizer is what makes the window between the two unobservable —
+        // null BEFORE the pass exists and null AFTER it is gone, both of which
+        // are "no pass to ask for" (`conversation.sleepNow`).
+        sleeper = yield* makeSleeper({
           nodes: () => nodeAgents.nodes(),
           sleptAt: (node) => nodeAgents.sleptAt(node),
           sleptKey: () => nodeAgents.sleptKey(),
@@ -982,6 +1030,7 @@ export default definePlugin({
           log: (line) => Effect.logInfo(line),
           warn: (line) => Effect.logWarning(line),
         })
+        yield* Effect.addFinalizer(() => Effect.sync(() => { sleeper = null }))
       }
       yield* Effect.annotateLogs(Effect.logDebug("chat agent commands"), {
         agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
