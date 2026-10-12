@@ -64,8 +64,10 @@
     "src/browser/chat/Model.tsx",
     "src/chat.ts",
     "src/server.ts",
+    "src/settings.ts",
     "src/wire/members.ts"
   ],
+  "//settings": "The sentence a person is told when the pass is switched off reads `sleep is off in this directory's settings`: the directory's own settings, not the settings row.",
   "sidebar": [
     "src/browser.tsx"
   ],
