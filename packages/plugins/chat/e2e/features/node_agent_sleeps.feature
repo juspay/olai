@@ -176,6 +176,9 @@ Feature: A node agent tidies its own memory when nobody is looking
     And I choose "Tidy memory now" from the node menu
     Then the node menu of "install" says "olai is already tidying install the cabinets; wait for it to finish"
     # ...AND NOTHING SECOND STARTED: the one commit here is the held pass's own,
-    # which lands when the fake lets go.
+    # which lands when the fake lets go. The wait is the one every scenario uses
+    # for a commit a MACHINE made — the count below is an immediate read, and a
+    # commit is a moment after the turn ends.
     When the agent is released
+    And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
     Then olai has recorded 1 commit here
