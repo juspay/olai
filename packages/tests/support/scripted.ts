@@ -144,6 +144,13 @@ export const MARKER = {
   /** Say the person has finished at a vendor's page — what a device-code or an
    *  OAuth elicitation waits for, since this suite cannot visit one. */
   atThePage: ".agent-at-the-page",
+  /** Make the next SLEEP TURN ask a structured question and wait for it: the
+   *  shape a person's alert fires on, and the one case the pass itself decides
+   *  — a question nobody is there to answer is cancelled, not announced. */
+  sleepAsk: ".agent-sleep-ask",
+  /** ...and make it try to write the memo of its own sleep, which its session
+   *  credential refuses (`olai-plugin-chat`'s reserved key). */
+  sleepStamp: ".agent-sleep-stamp",
   /** WHICH PROCESS THE LOGIN COMMAND IS, written by the command itself as it
    *  starts (`./fake-login.ts`). The one way the suite can hold the panel to
    *  "the scope going away kills it": a killed process leaves nothing else to

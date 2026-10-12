@@ -1508,6 +1508,10 @@ export class OlaiWorld extends World {
    *  server the first boot had. */
   storedSessions = false;
   fastNodeIdle = false;
+  /** Whether this scenario's server runs the sleep pass on test-sized spans
+   *  (`@sleep-fast`) — carried on the world so a restart mid-scenario spawns
+   *  the same shape of server the first boot had. */
+  fastSleep = false;
   /** Whether this scenario's server has an agent at all — false for
    *  `@no-agent`, which is how the panel's no-agent state is reached. Carried
    *  for the same reason: a restart has to reproduce the first boot. */

@@ -14,6 +14,10 @@ export interface FixturePolicy {
   readonly without?: string
   readonly identity?: Readonly<Record<string, string | undefined>>
   readonly idle?: number
+  /** The chat row's own spans for the sleep pass, when a scenario cannot wait
+   *  six hours for one (`@sleep-fast`). The same three words a person writes in
+   *  `_olai/Settings.olai`, because that is the only door they have. */
+  readonly sleep?: { readonly after: string; readonly tick: string; readonly question: string }
   readonly avatar?: string
 }
 export const writeFixturePolicy = (root: string, policy: FixturePolicy): void => {
@@ -47,6 +51,11 @@ export const writeFixturePolicy = (root: string, policy: FixturePolicy): void =>
   for (const [key, value] of Object.entries(policy.identity ?? {})) put("identity", key, value)
   put("identity", "avatar-template", policy.avatar)
   put("chat", "idle-ms", policy.idle === undefined ? undefined : String(policy.idle))
+  if (policy.sleep !== undefined) {
+    put("chat", "sleep-after", policy.sleep.after)
+    put("chat", "sleep-tick", policy.sleep.tick)
+    put("chat", "sleep-question", policy.sleep.question)
+  }
   if (changed) {
     fs.mkdirSync(path.dirname(file), { recursive: true })
     fs.writeFileSync(file, nodes.map(node => JSON.stringify(node)).join("\n") + "\n")

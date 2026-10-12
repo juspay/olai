@@ -202,7 +202,7 @@ import { basename, join } from "node:path"
 import { readMessages } from "../support/ndjson.ts"
 import { emitter, MARKER, RELEASE, released as releasedIn, speaking } from "../support/scripted.ts"
 import { sessionStore } from "./session-store.ts"
-import { commandWords } from "./command.ts"
+import { commandLine, commandWords } from "./command.ts"
 
 const OUT = process.stdout
 
@@ -1539,6 +1539,80 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (mailCall) {
     const answer = await useTool(`mail_${mailCall.name}`, mailCall.args)
     say("```json\n" + JSON.stringify(answer) + "\n```")
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
+  /**
+   * THE SLEEP PASS — olai's own turn over a node agent's memory, recognised by
+   * the sentence the row opens with (`olai-plugin-chat`'s `sleep.ts` authors
+   * it, so there is no verb a scenario could type).
+   *
+   * What a tidying agent does is what this does: one write into the subtree,
+   * and the turn ends. Two markers change that, and both are cases the PRODUCT
+   * decides rather than the scenario: `.agent-sleep-ask` makes it ask a
+   * question nobody is there to answer, and `.agent-sleep-stamp` makes it try
+   * to write the memo of its own sleep — which the session credential refuses.
+   */
+  if (commandLine(text).startsWith("[olai] Sleep.")) {
+    const named = /the node `([^`]+)` in `([^`]+)`/.exec(text)
+    const node = named?.[1]
+    if (node === undefined) {
+      say("that row names no node agent.")
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+    if (existsSync(`${cwd}/${MARKER.sleepAsk}`)) {
+      rmSync(`${cwd}/${MARKER.sleepAsk}`, { force: true })
+      if (!canElicit()) {
+        say("the client cannot draw a form, so there is nothing to ask")
+        reply(id, { stopReason: "end_turn" })
+        return
+      }
+      await request("elicitation/create", {
+        mode: "form",
+        sessionId,
+        toolCallId: `call-${++nextMcpId}`,
+        message: "Which rows should I archive?",
+        requestedSchema: {
+          type: "object",
+          properties: {
+            question_0: {
+              type: "string",
+              title: "Archive",
+              oneOf: [{ const: "all", title: "all" }, { const: "none", title: "none" }],
+            },
+          },
+        },
+      })
+      if (endedCancelled(id)) return
+      say("you answered.")
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+    if (existsSync(`${cwd}/${MARKER.sleepStamp}`)) {
+      rmSync(`${cwd}/${MARKER.sleepStamp}`, { force: true })
+      const refused = await useTool("outlines_prop", {
+        id: node,
+        key: "chat-agent-slept",
+        value: "2026-01-01T00:00:00+00:00",
+      })
+      // SAID OUT LOUD, like the `set property` verb above and for the same
+      // reason: the refusal's own sentence is the assertion, and an olai tool's
+      // result is not drawn into the call's detail (`chat/src/agent.ts`'s
+      // `detailOf`), so the words have to come back as prose to be read.
+      say(JSON.stringify(refused))
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+    // THE TIDY ITSELF, and it is a NOTE rewrite rather than a retitle: the
+    // node's title is what the commit names and what a scenario addresses the
+    // row by, and a fake that moved it would make its own assertions
+    // unanswerable.
+    await useTool("outlines_desc", {
+      id: node,
+      desc: "Consolidated: the September rows are under the Archive child.",
+    })
     reply(id, { stopReason: "end_turn" })
     return
   }

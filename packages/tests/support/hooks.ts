@@ -122,6 +122,7 @@ import {
 import type { GitMode } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 import { FAST_NODE_IDLE_MS } from "./node_idle.ts";
+import { FAST_SLEEP } from "./sleep_fast.ts";
 import {
   holdPort,
   isolateEnv,
@@ -752,6 +753,10 @@ interface Spawn {
   readonly port?: number;
   readonly stored?: boolean;
   readonly fastNodeIdle?: boolean;
+  /** Whether this scenario's server runs the sleep pass on test-sized spans
+   *  (`@sleep-fast`). Carried for `fastNodeIdle`'s reason: a restart has to
+   *  reproduce the first boot. */
+  readonly fastSleep?: boolean;
 
   /** The fakes this server is configured to see — the tag words a roster row
    *  answers to. Each descriptor with an `adapter` contributes a knob, each
@@ -1122,6 +1127,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       port,
       stored: world.storedSessions,
       fastNodeIdle: world.fastNodeIdle,
+      fastSleep: world.fastSleep,
       agent: world.hasAgent,
       fakes: world.fakes,
       agentSearchPath: world.agentSearchPath,
@@ -1260,6 +1266,7 @@ const scratchServerFor = async (
       push: spawnOptions.pin?.push, only: spawnOptions.plugins, extra: spawnOptions.rowsOn,
       without: spawnOptions.rowsOff, avatar: spawnOptions.avatar,
       idle: spawnOptions.fastNodeIdle ? FAST_NODE_IDLE_MS : undefined,
+      sleep: spawnOptions.fastSleep ? FAST_SLEEP : undefined,
     });
     if (spawnOptions.git === "repo") makeRepository(root);
     const server = await startServerChild(
@@ -1504,6 +1511,17 @@ Before(
           "@scratch:<corpus>; use @own-scratch when the feature shares its scratch.",
       );
     }
+    // THE SAME RULE for the sleep pass's own spans, and for the same reason:
+    // what the tag changes is the SERVER's behaviour, so a scratch it shares
+    // with another scenario is a scratch where a pass may run while somebody
+    // else is reading it.
+    this.fastSleep = scenario.pickle.tags.some((tag) => tag.name === "@sleep-fast");
+    if (this.fastSleep && asked.mode !== "own") {
+      throw new Error(
+        "@sleep-fast shortens the server's sleep spans and requires a private " +
+          "@scratch:<corpus>; use @own-scratch when the feature shares its scratch.",
+      );
+    }
     this.storedSessions = scenario.pickle.tags.some(
       (tag) => tag.name === STORED_TAG,
     );
@@ -1710,6 +1728,7 @@ Before(
       const spawnOptions = {
         stored: this.storedSessions,
         fastNodeIdle: this.fastNodeIdle,
+        fastSleep: this.fastSleep,
         agent: this.hasAgent,
         fakes: this.fakes,
         // THE FIRST BOOT gets it, not just the restart: what this scenario is
