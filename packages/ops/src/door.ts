@@ -158,9 +158,15 @@ export const barred = (
       // ...AND THE NODE THE FENCE IS NAMED FOR IS THE ONE EXCEPTION: its own
       // parent is outside its subtree by definition, and writing the node itself
       // is exactly what the pass is there to do.
-      const parent = landed(change.id)?.parent
       if (change.id === confined.under) continue
-      if (inside.has(change.id) && (parent === undefined || inside.has(parent))) continue
+      const known = derived.byId.get(change.id) !== undefined
+      const parent = landed(change.id)?.parent
+      // A RECORD THAT WAS ALREADY THERE IS JUDGED BY WHERE IT IS; ONE THE PLAN
+      // MINTED (`add`, `capture`, a split's tail) by where it LANDS, because a
+      // fresh id is in no walk of the reading yet.
+      const here = known ? inside.has(change.id) : parent !== undefined && inside.has(parent)
+      const lands = parent === undefined || inside.has(parent)
+      if (here && lands) continue
       return { why: "outside", id: change.id, title: change.title, says: confined.says }
     }
   }
