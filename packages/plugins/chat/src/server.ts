@@ -107,6 +107,7 @@ import type { PanelAddress } from "./wire/session.ts"
 import { forLocalState as modelsIn } from "./models.ts"
 import type { Ops as WriteGate } from "@olai/ops"
 import { makeFiler } from "./server/filer.ts"
+import { makeSleeper, START_MS } from "./server/sleep.ts"
 import { readings } from "./server/readings.ts"
 import type { Change } from "./transcript.ts"
 import * as Chat from "./scoped.ts"
@@ -116,7 +117,7 @@ import { openLocalState } from "./local.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { seatingIn } from "./seating.ts"
-import { Config } from "./settings.ts"
+import { Config, sleepingPolicy } from "./settings.ts"
 export { Config } from "./settings.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
@@ -128,6 +129,7 @@ import type { ChatEntry, ChatState } from "./wire/members.ts"
 import { type Agents, NO_AGENT_ROSTER } from "./wire/agents.ts"
 import { faces, name, surface } from "./wire.ts"
 import { CHARTER } from "./charter.ts"
+import { SLEEP_WORD } from "./sleep.ts"
 
 /** The kinds this plugin teaches a vault — see {@link ./kinds.ts} for the word
  *  and the migration row an existing vault needs. */
@@ -203,6 +205,10 @@ export default definePlugin({
     const bundle = yield* Bundle
     const env = yield* Env
     const nodeIdle = settings["idle-ms"]
+    // ...AND WHETHER THE PASS RUNS AT ALL, with its three spans decoded once
+    // here rather than per tick (`./settings.ts` holds the words and the rule).
+    const sleeping = settings.sleep === "on"
+    const spans = sleepingPolicy(settings)
     const kindsDoor = yield* Kinds
     const localState = yield* openLocalState(yield* LocalState)
     const offers = yield* Offers
@@ -918,6 +924,54 @@ export default definePlugin({
         log: line => Effect.logInfo(line),
       }, vault.inbox, { all: chat.sessions, one: chat.sessionsFor })
       yield* Effect.addFinalizer(() => Effect.sync(() => { filer = null }))
+      // ... AND THE PASS THAT TIDIES A NODE AGENT'S MEMORY, in the same scope
+      // and by the same rules as the filer above: it is chat's own server half,
+      // it holds chat's own doors, and it stops when this fork's scope closes —
+      // which is what cancels a turn that is still running
+      // (`./server/sleep.ts` states the order).
+      //
+      // `serving` rather than `chat`, because these closures are called long
+      // after this block: what the pass is handed is the scheduler it was built
+      // beside, not a variable something may empty.
+      const serving = chat
+      if (sleeping) {
+        yield* makeSleeper({
+          nodes: () => nodeAgents.nodes(),
+          sleptAt: (node) => nodeAgents.sleptAt(node),
+          sleptKey: () => nodeAgents.sleptKey(),
+          live: () => serving.live(),
+          // THE SAME ROUTE A DOORBELL TAKES, with this feature's own word: the
+          // scheduler wakes the node, the panel writes the machine row, and the
+          // turn boundary is what the pass then watches.
+          deliver: (to, say) => serving.doorFor(SLEEP_WORD).deliver(to, say),
+          watch: (to, observer) => serving.reading(to, observer),
+          read: gate.read,
+          write: (request) => gate.run(request, "sleep"),
+          commit: (message) => Effect.map(gate.commit({ message }, "sleep"), (result) => {
+            // EXHAUSTIVE over the ledger's own answer, so an arm added there is
+            // a decision here rather than a silent "it worked".
+            switch (result._tag) {
+              case "Committed":
+              // Nothing waiting is the memo already being in the history —
+              // which is a pass that recorded what it wrote, said the other way
+              // round.
+              case "NothingToCommit":
+                return null
+              case "Blocked":
+                return "olai is not committing here, so the memo is on disk and waiting"
+              case "Failed":
+                return result.said
+            }
+          }),
+          hold: gate.hold,
+          after: spans.after,
+          tick: spans.tick,
+          question: spans.question,
+          start: Duration.millis(START_MS),
+          log: (line) => Effect.logInfo(line),
+          warn: (line) => Effect.logWarning(line),
+        })
+      }
       yield* Effect.annotateLogs(Effect.logDebug("chat agent commands"), {
         agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
         // ...AND THE MISSING, at the debug level the commands line lives at:

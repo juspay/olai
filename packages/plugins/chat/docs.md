@@ -69,6 +69,20 @@ A kind claims the key equal to its own composed word, so `chat-agent-session` ne
 
 olai never writes that row for you, and it never reads an undeclared column as a binding either. A plugin may only ever declare a key carrying its own name, which is what makes enabling a plugin unable to take over a column you have been using for something of your own — a bare `agent-session` is a word any vault might mean something else by. Your board says which column it means; a release does not decide for you. Renaming the key to `chat-agent-session` works just as well and needs no row.
 
+## The property a sleep leaves behind
+
+Chat contributes a **second** kind, `chat-agent-slept`: the instant olai last
+tidied that node agent's own memory for it ([chat](../chat.md)). It is a date,
+it is written by the pass and by nothing else — a seated session may not write
+it, exactly as it may not write its own binding — and it is what keeps a node
+whose subtree has not moved from spending a turn on nothing. The same two rules
+apply: the kind claims `chat-agent-slept` with no declaration needed, and a
+column of your own name can carry it with one row.
+
+```json
+{"title":"last-consolidated","custom":{"type":"chat-agent-slept"}}
+```
+
 ## Where it hangs in the tab
 
 Each seat is declared by the plugin that owns the place it is in, and chat brings the face. That split is worth knowing if you are reading the code rather than using it:

@@ -845,6 +845,66 @@ The preamble also says so, in both contracts: a node agent is told that it has
 no memory of its own here, and that this subtree is the only memory, so it
 does not go looking for a second one.
 
+### A node agent tidies its own memory when nobody is looking
+
+A subtree is a node agent's only memory, and nothing ever compacts it. After a
+month a health log is hundreds of kilobytes of records whose titles are whole
+daily reports, the standing facts they support have to be re-derived by hand,
+and nothing is archived. So olai gives a node agent one machine turn of its
+own: when it has been left alone for six hours and its subtree has changed
+since it last slept, it is asked to tidy, distill and tuck away — in its own
+conversation, with the tools it already has.
+
+**The turn is the conversation you already read.** One machine-sent row appears
+in the left column, opening with who is speaking and when, its instruction
+folded behind one press, exactly as a mail digest is drawn. Under it the
+agent's edits arrive as the ordinary structural diffs of an outline write —
+retitled, note rewritten, moved under `Archive` — each a pressable id. There is
+no prose answer and no summary of what it did.
+
+**One sleep is one commit, and that commit is the undo.** The pass commits its
+own writes as `olai: sleep: <title>`, with `X-Olai-Writer: sleep` in the
+trailer, so `git log --grep '^olai'` shows it beside everything else olai
+recorded and `git revert` puts the memory back exactly as it was. Under
+`commit: auto` the writes do not appear in an `auto` commit first: the pass
+holds the quiet window shut for as long as it is running
+([git](git.md) has the window, and
+[architecture/cordis](architecture/cordis.md) the ownership rule).
+
+**Nothing is deleted, and nothing is summarised away.** Rows move — under an
+`Archive` child grouped by month — and never into the trash. A fact that
+changes keeps its earlier wording as a dated line in the note. A distilled fact
+gets `see` edges to the rows it rests on, so a reader can check it. The
+instruction says all three, and says it in the terms that survive a machine
+pass: numbers, dates, times, doses, measurements and names are copied exactly,
+never paraphrased. It also caps a single sleep at about a fifth of the subtree,
+because a machine turn nobody is watching should do the most valuable part and
+stop rather than rewrite everything.
+
+**A sleep is recorded on the node as a date.** The pass writes
+`chat-agent-slept` — an instant, drawn in the property drawer as a date beside
+the binding — and that property is what keeps a quiet vault from spending a
+turn an hour on nothing. A node agent's session may not write it, exactly as it
+may not write its own binding; only the pass may. A vault can declare that kind
+on a column of its own name, like any other.
+
+**A sleep can never wake a person.** No chime, no notification, no badge and no
+entry under Needs you: the turn is olai's own, so a question asked inside it is
+not somebody's to answer and is not counted as waiting. If the agent does ask
+something, the pass waits twenty minutes and then stops the turn — a question
+nobody is there to answer is cancelled, never announced. A turn that dies, or
+whose memo cannot be written, is left alone for a day rather than retried.
+
+**What it costs is context in a long-lived conversation**, which is accepted:
+the engines compact, and a sleep turn is mostly tool calls. If that proves
+wrong the change is local — the pass would run in a fresh session under the
+assigned-session contract, and the loop that drives it would not move.
+
+The harness and an operator can turn the pass off and shorten its spans with
+`sleep: on|off`, `sleep-after`, `sleep-tick` and `sleep-question` on the chat
+node in `_olai/Settings.olai` — for a test or a slow machine, never for the
+user, who has nothing to do either way.
+
 ## Moving the chats you already have
 
 ### Filing stored conversations into the Inbox

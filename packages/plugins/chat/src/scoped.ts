@@ -37,6 +37,15 @@ export interface LiveSession {
   readonly status: ReturnType<Panel["state"]>["status"]
   readonly asking: number
   readonly unopened?: boolean
+  /**
+   * THE TURN IN FLIGHT IS OLAI'S OWN — a pass over this node agent's own
+   * memory, not anybody's question to answer ({@link
+   * ./wire/members.ts}'s `ChatState.sleep`, which is where the reason lives).
+   *
+   * Carried out of the panel's state rather than derived here, because it is
+   * decided there: only the delivery knows which turn it started.
+   */
+  readonly sleep?: boolean
 }
 
 /** The public chat is the scheduler over panels, with every acquired node
@@ -823,6 +832,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           since: slot.since,
           asking: slot.state.asking,
           unopened: slot.state.unopened !== null,
+          // ... AND WHOSE TURN IT IS, which is the one thing on this reading
+          // that is about olai rather than about the agent.
+          sleep: slot.state.sleep,
         } satisfies LiveSession]),
       ),
       overheard: () => root.overheard(),

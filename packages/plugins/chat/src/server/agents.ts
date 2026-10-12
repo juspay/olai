@@ -282,7 +282,12 @@ export const joined = (
     ...agent,
     standing: standingOf(agent, live.get(agent.id)),
     ...(live.get(agent.id)?.since === undefined ? {} : { since: live.get(agent.id)!.since }),
-    waiting: live.get(agent.id)?.asking ?? 0,
+    // A PASS'S OWN QUESTION IS NOT SOMEBODY'S TO ANSWER, so it is not counted
+    // here — and this one line is the whole of what keeps a sleep from waking a
+    // person. The four faces that alert (the chime, the OS notification, the
+    // badge and the Needs-you listing) all derive from this count or from the
+    // standing below, which is why nothing else had to learn about the mark.
+    waiting: live.get(agent.id)?.sleep === true ? 0 : live.get(agent.id)?.asking ?? 0,
     ...(live.get(agent.id)?.unopened === true ? { unopened: true } : {}),
     // The one fact olai writes back that a face draws, `null`-on-the-wire
     // where the record carries an absent key: the wire is a decoded value a
@@ -304,6 +309,12 @@ const standingOf = (
   if (live === undefined) return "asleep"
   if (live.status === "off" || live.status === "gone") return "gone"
   if (live.status === "booting") return "waking"
+  // ... AND OLAI'S OWN TURN IS WORK, never a question — ABOVE the count, so a
+  // pass that asks something is still drawn as working rather than as needing
+  // anybody. Below `gone` and `waking`, because a pass whose conversation died
+  // is a conversation that died, and the mark only ever suppresses the one
+  // thing it is for.
+  if (live.sleep === true && live.status === "thinking") return "working"
   if (live.asking > 0) return "needs-you"
   return live.status === "thinking" ? "working" : "idle"
 }

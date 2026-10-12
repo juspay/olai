@@ -57,6 +57,26 @@ import type { NodeAgent } from "@olai/format"
 import { HARNESS_MEMORY_OFF } from "./teaching.ts"
 
 /**
+ * THE WORD THIS FEATURE RINGS UNDER — one word for one door, and the same word
+ * a commit's trailer carries (`@olai/format`'s `Writer`). It reaches three
+ * places and they are one statement: the machine row's `rang`, which the panel
+ * draws beside the mark and reads as who is speaking (`olai · sleep · 03:12`);
+ * the plugin name the delivery is made through; and `X-Olai-Writer: sleep`, so
+ * a person reading `git log` and a person reading the transcript are being told
+ * about the same thing.
+ *
+ * IT IS A PLUGIN-SHAPED WORD WITHOUT A PLUGIN, which is stated because it is
+ * the one thing here that looks like a mistake: `doorFor` takes a plugin's
+ * name, and chat's own server half passes this one — there is no `sleep` row in
+ * the bundle, and a name a panel has never heard of is answered with an empty
+ * pick list and a `deliver` that works, which is exactly what this feature
+ * wants and the whole of what it uses. A plugin named `sleep` would take this
+ * word's place in both readers' eyes; nothing in the tree has that name, and
+ * the collision would be visible rather than silent if it arrived.
+ */
+export const SLEEP_WORD = "sleep"
+
+/**
  * THE INSTRUCTION, WITHOUT THE NAMING CLAUSE — the part that is the same words
  * for every node agent, which is the whole of what a test can hold constant.
  *

@@ -2018,6 +2018,26 @@ export const ChatState = Schema.Struct({
   /** The last thing that went wrong where no caller was waiting — a boot that
    *  failed, an agent that died mid-turn. `null` once a turn succeeds. */
   trouble: Schema.NullOr(Schema.String),
+  /**
+   * THE TURN IN FLIGHT IS OLAI'S OWN, and not anybody's question to answer.
+   *
+   * `true` for exactly the span of a machine turn olai took on a node agent's
+   * behalf (`olai-plugin-chat`'s `sleep.ts`), and `false` at every other
+   * moment of every other conversation. It is on the state rather than
+   * inferred, because the two things that read it cannot infer it: the roster
+   * fold that decides whether a question raises the alert
+   * ({@link ../server/agents.ts}), and the pass itself, which needs to know
+   * that the `thinking` it is watching is its own turn rather than something a
+   * person started.
+   *
+   * WHAT IT SUPPRESSES IS SAID, because a suppressed alert is a promise: a
+   * question asked inside a pass is CANCELLED by that pass's own deadline, so
+   * alerting on it would be telling a person about a message nobody can answer
+   * and nobody has to. What it must never do is hide a question a person can
+   * answer — which is why it is cleared the moment the turn ends, however it
+   * ends.
+   */
+  sleep: Schema.Boolean,
   /** The agent is running and would not open a conversation — see
    *  {@link Unopened}. `null` on every panel that has one.
    *
@@ -2105,6 +2125,9 @@ export const CHAT_OFF: ChatState = {
   asking: 0,
   watching: [],
   trouble: null,
+  // NO PASS IS RUNNING: a page that has not been told anything is not watching
+  // a machine turn, and the panel that would start one is on the server.
+  sleep: false,
   unopened: null,
   servers: [],
   wake: [],

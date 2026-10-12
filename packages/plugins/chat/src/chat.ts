@@ -91,6 +91,8 @@
 import type { Advertised } from "@olai/plugin-api/services"
 
 import { type Attached, type AttachChunk, type AuthMethod, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type SignIn, type Talking } from "olai-plugin-chat/wire"
+
+import { SLEEP_WORD } from "./sleep.ts"
 import { type OpFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
@@ -2306,7 +2308,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             return undeliverable(key, prompt, { gone: "refused", why: CANCELLED_UNDER_IT })
           }
         }
-        yield* begin(at, key, prompt, first)
+        yield* begin(at, key, prompt, { first })
       }))
 
     /**
@@ -2418,7 +2420,18 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       at: Bound,
       key: string,
       prompt: string,
-      first?: Effect.Effect<void>,
+      /**
+       * TWO FACTS ABOUT THIS ONE TURN, which is why they travel together rather
+       * than as two optional positions.
+       *
+       * `first` is an act to run before the prompt crosses the wire — a
+       * contract's mark, which `send` needs — and `sleep` says the turn is
+       * OLAI'S OWN: a pass over a node agent's own memory, whose question
+       * nobody is there to answer and whose alert is therefore suppressed
+       * ({@link ChatState.sleep}). Only a delivery says the second
+       * ({@link offer}), and the mark lives exactly as long as this turn does.
+       */
+      turn: { readonly first?: Effect.Effect<void>; readonly sleep?: boolean } = {},
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
         /** A turn was ALREADY running when this one started — which, since
@@ -2477,7 +2490,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           publish(transcript.begins())
           watched()
         }
-        move({ status: "thinking", trouble: null })
+        move({ status: "thinking", trouble: null, ...(turn.sleep === true ? { sleep: true } : {}) })
         // How much the agent had SHOWN before this turn was asked for — the
         // narrow count ({@link EVIDENCE}), and it answers one question in both
         // directions the turn can end. On a turn that FAILED: whether the
@@ -2529,8 +2542,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // agent could say — the shape `send`'s once-a-conversation
             // teaching needs, and the one place it can hold by construction
             // ({@link deliver}).
-            if (first !== undefined) {
-              yield* Effect.ensuring(first, Deferred.succeed(hailed, undefined))
+            if (turn.first !== undefined) {
+              yield* Effect.ensuring(turn.first, Deferred.succeed(hailed, undefined))
             }
             const outcome = yield* Effect.result(at.agent.prompt(prompt))
             // Whether this turn was the LAST one running. The notices go in
@@ -2708,6 +2721,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // reaches that line.
             Effect.ensuring(Effect.sync(() => {
               turns.leave(ticket)
+              // THE PASS'S MARK GOES WITH THE TURN IT DESCRIBES, on every way
+              // a turn can end — including an interrupt, which never reaches
+              // the line above. A question asked inside a sleep must not go on
+              // being suppressed after the turn that asked it is over.
+              if (turn.sleep === true) move({ sleep: false })
             })),
           ),
         )
@@ -2717,7 +2735,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // Raced against the fiber's own exit (`await`, not `join`) so a
         // `running` interrupted before `ensuring` installed cannot park this
         // waiter on the deferred alone, holding `opening` and `sending`.
-        if (first !== undefined) {
+        if (turn.first !== undefined) {
           yield* Effect.race(
             Deferred.await(hailed),
             Effect.asVoid(Fiber.await(running)),
@@ -2816,7 +2834,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // `rang`).
           const row = transcript.user(body, { rang: from })
           publish(row.change)
-          yield* begin(at, row.key, body)
+          yield* begin(at, row.key, body, { sleep: from === SLEEP_WORD })
           return "handed" as const
         }))
       }))
