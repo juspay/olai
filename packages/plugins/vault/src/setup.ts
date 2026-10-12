@@ -63,6 +63,12 @@ export const setup = definePlugin({
         record: (request, writer) => ledger().record(request, writer),
         get push() { return ledger().push },
         get resume() { return ledger().resume },
+        // ...and the HOLD is the one member that must be read at the moment it
+        // is taken rather than when this object was built: it is an acquisition
+        // on whichever ledger is standing then, and the whole point of the
+        // hold is that it belongs to that ledger's own window
+        // (`@olai/plugin-api`'s `Ledger.hold`).
+        get hold() { return ledger().hold },
       },
       search: { nodes: ask => search().nodes(ask) },
     }

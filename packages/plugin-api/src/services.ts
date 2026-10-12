@@ -936,6 +936,29 @@ export interface Ledger {
   ) => Effect.Effect<unknown>
   readonly push: Effect.Effect<unknown>
   readonly resume: Effect.Effect<void>
+  /**
+   * KEEP THE QUIET WINDOW SHUT for as long as the caller's scope is open, so a
+   * caller that is about to write several times and then commit them itself does
+   * not have the window commit half of it in between — under `commit: auto`,
+   * where the window is what records writes nobody asked about.
+   *
+   * AN ACQUISITION, so it is taken and released by the ordinary scope rules and
+   * there is no way to leave one out: the release is registered in the same step
+   * that takes it (`@olai/plugin-api`'s acquisition rule). HELD PER DIRECTORY at
+   * the ledger, and it NESTS — a count rather than a flag, so a second holder
+   * cannot release the first's.
+   *
+   * TWO FACTS A CALLER MUST KNOW. Where nobody stands behind {@link Ledger} the
+   * acquisition succeeds and holds nothing (there is no window to keep shut);
+   * and a ledger REPLACED while a hold is out starts unheld, because the hold
+   * was state on the ledger that left — so a git restart mid-hold may produce
+   * one `auto` commit beside the caller's own. Both are argued in
+   * `docs/architecture/cordis.md`.
+   *
+   * A person's Commit button is never blocked by one: this closes the TIMER,
+   * not the door. Holding is a statement about writes nobody asked about.
+   */
+  readonly hold: Effect.Effect<void, never, Scope.Scope>
 }
 export const Ledger = serviceTag<Ledger>("ledger")
 

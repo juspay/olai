@@ -34,7 +34,7 @@ import type { Reading, Verdict } from "@olai/format"
 import type * as StoreModule from "@olai/store"
 import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt, writerOf } from "../git/fixtures.testlib.ts"
 import * as Ops from "@olai/ops"
-import { COMMIT_TOOL, make as makeLedger, whyOf } from "./pending.ts"
+import { COMMIT_TOOL, type Committing, make as makeLedger, whyOf } from "./pending.ts"
 
 type OutlineStore = StoreModule.Store<Reading, Verdict>
 
@@ -51,8 +51,8 @@ const HOUSE = [
 ].join("\n")
 
 type GitOps = Ops.Ops & Pick<
-  ReturnType<typeof makeLedger>,
-  "pending" | "status" | "observe" | "loop" | "git" | "catchUp"
+  Committing,
+  "pending" | "status" | "observe" | "hold" | "loop" | "git" | "catchUp"
 >
 
 interface Fixture {
@@ -177,12 +177,14 @@ const withRepo = <A>(
           record: ledger.commit,
           push: ledger.push,
           resume: ledger.resume,
+          hold: ledger.hold,
         },
         context: { mint: () => "minted", now: () => "2026-08-10T09:00:00-04:00" },
       }),
       pending: ledger.pending,
       status: ledger.status,
       observe: ledger.observe,
+      hold: ledger.hold,
       loop: ledger.loop,
       git: ledger.git,
       catchUp: ledger.catchUp,
@@ -1300,6 +1302,72 @@ describe("commit: auto: the quiet window", () => {
         yield* fixture.settled(resumed)
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
         expect((yield* fixture.ops.git).paused).toBeNull()
+      }), { commits: "auto", quiet: 40 }))
+
+  /**
+   * THE HOLD — what a caller that writes and then commits those writes itself
+   * takes, so the window does not record half of its work as `auto` while it is
+   * still going. See `@olai/plugin-api`'s `Ledger.hold`.
+   */
+  test("nothing records while a hold is out, and releasing it records what waited", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        yield* Effect.forkScoped(fixture.ops.loop)
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "chat-agent"))
+
+        // FOUR WINDOWS' worth, so this is a statement about the hold and not
+        // about a race with the debounce.
+        yield* Effect.scoped(Effect.gen(function*() {
+          yield* fixture.ops.hold
+          yield* Effect.orDie(fixture.ops.run({ op: "done", id: "install" }, "sleep"))
+          yield* fixture.observe
+          yield* Effect.sleep(160)
+          expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(0)
+        }))
+
+        // RELEASED, and the window arms off the last survey — which is what
+        // makes the release the thing that records, rather than the next write
+        // somebody happens to make.
+        const released = fixture.settlements()
+        yield* fixture.observe
+        yield* fixture.settled(released)
+        expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
+        expect((yield* fixture.ops.pending).wrote).toEqual([])
+      }), { commits: "auto", quiet: 40 }))
+
+  test("a second hold does not release the first's", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        yield* Effect.forkScoped(fixture.ops.loop)
+        yield* Effect.scoped(Effect.gen(function*() {
+          yield* fixture.ops.hold
+          yield* Effect.scoped(Effect.gen(function*() {
+            yield* fixture.ops.hold
+            yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "sleep"))
+            yield* fixture.observe
+          }))
+          // The inner one is out; the window is still shut.
+          yield* Effect.sleep(120)
+          expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(0)
+        }))
+
+        const released = fixture.settlements()
+        yield* fixture.observe
+        yield* fixture.settled(released)
+        expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
+      }), { commits: "auto", quiet: 40 }))
+
+  test("a hold does not stop a commit somebody asked for", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+        yield* Effect.scoped(Effect.gen(function*() {
+          yield* fixture.ops.hold
+          // The button, the agent's tool and `resume` are untouched by a hold:
+          // what a hold closes is the TIMER.
+          expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Committed")
+        }))
+        expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
       }), { commits: "auto", quiet: 40 }))
 })
 

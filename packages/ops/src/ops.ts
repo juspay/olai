@@ -61,7 +61,7 @@ import {
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
-import { Effect, Result, SubscriptionRef } from "effect"
+import { Effect, Result, Scope, SubscriptionRef } from "effect"
 
 import type { Snapshot } from "@olai/store"
 import type { Store } from "./deps.ts"
@@ -87,6 +87,10 @@ export interface Ledger {
   ) => Effect.Effect<CommitResult>
   readonly push: Effect.Effect<PushResult>
   readonly resume: Effect.Effect<void>
+  /** See `@olai/plugin-api`'s `Ledger.hold` — the quiet window kept shut for
+   *  the caller's scope, counted per directory, and a no-op where nobody
+   *  records anything. */
+  readonly hold: Effect.Effect<void, never, Scope.Scope>
 }
 
 /**
@@ -167,6 +171,10 @@ export const NO_LEDGER: Ledger = {
     said: "nobody is recording writes here, so there is nobody to push",
   }),
   resume: Effect.void,
+  // Nobody records anything here, so there is no window to keep shut and no
+  // state to hold — the acquisition succeeds and holds nothing, which is the
+  // contract `@olai/plugin-api`'s `Ledger.hold` states.
+  hold: Effect.void,
 }
 
 export interface Options {
@@ -386,6 +394,19 @@ export interface Ops extends Asking {
   readonly push: Effect.Effect<PushResult>
   /** Start the quiet-window loop again after git stopped it. */
   readonly resume: Effect.Effect<void>
+  /**
+   * KEEP THE QUIET WINDOW SHUT for as long as this scope is open — through the
+   * ledger, and a no-op where nobody stands behind it.
+   *
+   * On this door rather than only on the ledger because the caller that needs
+   * it is a plugin holding this layer's gate and nothing else: a node agent's
+   * tidying pass writes a subtree and then commits it as one commit
+   * (`olai-plugin-chat`'s `server/sleep.ts`), and under `commit: auto` the
+   * window would otherwise record the first half of its work as `auto` while it
+   * was still going. See `@olai/plugin-api`'s `Ledger.hold` for the contract and
+   * `docs/architecture/cordis.md` for what a ledger replaced mid-hold means.
+   */
+  readonly hold: Effect.Effect<void, never, Scope.Scope>
   /**
    * The set as a reader sees it, or the one refusal for a directory that has
    * never loaded.
@@ -1021,5 +1042,11 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
       ? Effect.succeed({ _tag: "Failed" as const, said: NO_DIRECTORY.reason })
       : ledger.push),
     resume: Effect.suspend(() => closed ? Effect.void : ledger.resume),
+    // Each of the three above refuses a closed layer in this layer's own words
+    // rather than the ledger's, and this one does not: a hold that cannot be
+    // taken because there is nothing to hold is a caller with nothing to do, not
+    // a caller being told no. So a closed layer opens a scope that holds
+    // nothing, which is what a caller may rely on.
+    hold: Effect.suspend(() => closed ? Effect.void : ledger.hold),
   }
 }

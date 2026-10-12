@@ -1062,6 +1062,7 @@ test("discovery follows plugin-owned offers without publishing internal core doo
         yield* offers.offer(Ledger, () => ({
           wrote: () => {}, whyWaiting: () => Effect.succeed(""),
           record: () => Effect.void, push: Effect.void, resume: Effect.void,
+          hold: Effect.void,
         }))
         yield* offers.own("history", () => ({}))
       }),

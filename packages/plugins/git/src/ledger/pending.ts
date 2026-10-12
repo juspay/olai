@@ -101,7 +101,7 @@ import {
 } from "@olai/format"
 import type { Ops } from "@olai/ops"
 import * as Git from "../git/git.ts"
-import { Duration, Effect, Semaphore, Stream, SubscriptionRef } from "effect"
+import { Duration, Effect, Scope, Semaphore, Stream, SubscriptionRef } from "effect"
 
 import { type Committed, remembering } from "./committed.ts"
 import { AUDIT, signed } from "./message.ts"
@@ -467,6 +467,15 @@ export interface Committing {
    * from being pushed out by a clock nobody typed on.
    */
   readonly observe: (pending: Pending) => Effect.Effect<void>
+  /**
+   * KEEP THE WINDOW SHUT until this scope closes — the ledger door's `hold`
+   * (`@olai/plugin-api`), where the whole contract is stated.
+   *
+   * It is the WINDOW this closes and not the door: the Commit button, the agent
+   * tool and `resume` are untouched by one, because what a hold says is "these
+   * writes are somebody's to record", never "nobody may record anything".
+   */
+  readonly hold: Effect.Effect<void, never, Scope.Scope>
   /**
    * THE LOOP ITSELF, as one effect to fork and never return from.
    *
@@ -1322,10 +1331,48 @@ export const make = (options: Options): Committing => {
    */
   let looked: Pending = NOTHING_PENDING
 
+  /**
+   * HOW MANY CALLERS ARE HOLDING THE WINDOW OPEN — a count and not a flag, so
+   * two holders cannot release each other's hold, and per LEDGER rather than
+   * per directory, which is the half `docs/architecture/cordis.md` states: a
+   * git row reloaded mid-hold takes this number with it, and the ledger that
+   * replaces it starts at zero.
+   */
+  let holding = 0
+
   const observe = (pending: Pending): Effect.Effect<void> => {
     looked = pending
-    return SubscriptionRef.set(arming, armedOn(mode(), settled.paused, pending))
+    return SubscriptionRef.set(arming, armedOn(mode(), settled.paused, holding > 0, pending))
   }
+
+  /**
+   * THE HOLD, as an acquisition — taken and released by the ordinary scope
+   * rules, with the release registered in the step that takes it.
+   *
+   * IT SETS THE ARMING STREAM ITSELF rather than waiting for the next survey to
+   * notice: clearing the window is what a hold IS, and a caller is about to
+   * write on the next line — a republish that arrived when the sweep got round
+   * to it would be a window still armed over the first of those writes.
+   *
+   * RELEASING RE-ARMS off the last survey, which is the same rule the window
+   * uses at its own fire time and for the same reason: a reading that said
+   * anything new would have re-armed it already, so what can have moved in the
+   * meantime is the hold itself (and the policy, which {@link armedOn} reads
+   * fresh). Setting the string back is what puts the loop on the stream again —
+   * and it is a genuine change in both directions, since taking the hold
+   * cleared it.
+   */
+  const hold: Effect.Effect<void, never, Scope.Scope> = Effect.acquireRelease(
+    Effect.gen(function*() {
+      holding += 1
+      yield* SubscriptionRef.set(arming, "")
+    }),
+    () =>
+      Effect.gen(function*() {
+        holding = Math.max(0, holding - 1)
+        if (holding === 0) yield* observe(looked)
+      }),
+  )
 
   /**
    * The commit the window makes, asked for exactly as the button asks for it.
@@ -1349,7 +1396,7 @@ export const make = (options: Options): Committing => {
    * the window rather than let it close.
    */
   const record: Effect.Effect<void> = Effect.gen(function*() {
-    if (armedOn(mode(), settled.paused, looked) === "") return
+    if (armedOn(mode(), settled.paused, holding > 0, looked) === "") return
     yield* commit({}, "auto")
   })
 
@@ -1417,6 +1464,7 @@ export const make = (options: Options): Committing => {
     whyWaiting,
     wrote,
     observe,
+    hold,
     loop,
     catchUp,
     resume,
