@@ -1026,15 +1026,20 @@ export default definePlugin({
             switch (result._tag) {
               case "Committed":
                 return null
+              // ...AND WHICH KIND OF "NO" IT WAS, because two of these are
+              // ordinary and one is not: `Failed` is git refusing, which is the
+              // pass's writes never being recorded and the one thing here an
+              // operator has to be able to find (`./server/sleep.ts` warns on
+              // it).
               case "Blocked":
-                return "olai is not committing here, so the memo is on disk and waiting"
+                return { said: "olai is not committing here, so the memo is on disk and waiting", failed: false }
               // The subtree's own files had nothing waiting — which after a
               // memo write means the memo was already in the history, and is
               // said rather than reported as a commit that happened.
               case "NothingToCommit":
-                return "nothing of the subtree's was waiting to be recorded"
+                return { said: "nothing of the subtree's was waiting to be recorded", failed: false }
               case "Failed":
-                return result.said
+                return { said: result.said, failed: true }
             }
           }),
           hold: gate.hold,

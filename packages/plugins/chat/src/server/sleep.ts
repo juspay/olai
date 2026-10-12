@@ -201,7 +201,10 @@ export interface Sleeping {
    * built on: a sleep is one commit a person can `git revert`, so it may not
    *  sweep in somebody else's parked work: the paths are the files that memory
    *  lives in ({@link @olai/format}'s `memoryFiles`), and nothing else. */
-  readonly commit: (message: string, paths: ReadonlyArray<string>) => Effect.Effect<string | null>
+  readonly commit: (
+    message: string,
+    paths: ReadonlyArray<string>,
+  ) => Effect.Effect<{ readonly said: string; readonly failed: boolean } | null>
   /** Keep the quiet window shut for this scope — see the header's order. */
   readonly hold: Effect.Effect<void, never, Scope.Scope>
   /** A line at the level an operator reads: a pass that did not finish is a
@@ -562,9 +565,18 @@ export const makeSleeper = (
         const waiting = yield* doors.waiting
         const paths = waiting.filter((row) => named.has(row.file)).map((row) => row.path)
         const refusal = yield* doors.commit(`sleep: ${agent.title}`, paths)
-        yield* doors.log(refusal === null
-          ? `sleep: ${agent.id} finished and committed`
-          : `sleep: ${agent.id} finished; the memo is written and waiting: ${refusal}`)
+        if (refusal === null) {
+          yield* doors.log(`sleep: ${agent.id} finished and committed`)
+        } else if (refusal.failed) {
+          // A COMMIT GIT ITSELF REFUSED IS A WARNING, and it is the one failure
+          // here that nothing retries: the memo is already written, so the node
+          // is not due again, and the log is the only place a person can find
+          // out that the pass's writes were never recorded. `docs/chat.md` says
+          // where to look.
+          yield* doors.warn(`sleep: ${agent.id} finished, but the commit was refused: ${refusal.said}`)
+        } else {
+          yield* doors.log(`sleep: ${agent.id} finished; the memo is written and waiting: ${refusal.said}`)
+        }
         return "slept"
       }))
 

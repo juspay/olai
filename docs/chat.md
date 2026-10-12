@@ -927,6 +927,12 @@ nobody is there to answer is cancelled, never announced. A pass a person asked
 for is marked the same way and stopped the same way: the reader who pressed the
 verb is very likely watching, and the turn is olai's own either way.
 
+**A commit git refused is a warning.** The pass writes the memo and then commits
+its own paths; when git says no, the memo is already on disk, so nothing retries
+the node — the serve's log is the only place it is said, at the level an operator
+reads (`sleep: <node> finished, but the commit was refused: …`), beside the
+warnings for a pass that did not finish.
+
 **A pass that does not finish is left alone for a day**, in the server's memory
 only, so a restart forgets it: the conversation was gone, the turn went wrong,
 the memo could not be written, the turn never started, or it sat on a question
