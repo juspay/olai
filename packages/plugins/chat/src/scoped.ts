@@ -169,7 +169,10 @@ interface PendingDelivery {
   readonly plugin: string
   readonly to: { readonly agent: string; readonly session: string }
   readonly say: () => string | null
-  readonly options?: { readonly coalesce?: string }
+  /** The caller's own options, verbatim — the coalescing key AND whether this
+   *  body is olai's own turn, which the panel reads when it finally hands it
+   *  over (`@olai/plugin-api`'s `Deliveries.deliver`). */
+  readonly options?: { readonly coalesce?: string; readonly sleep?: true }
 }
 
 const empty: Change = { upserts: [], removes: [], appends: [] }
@@ -717,7 +720,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         deliver: (
           to: { readonly agent: string; readonly session: string; readonly current?: () => boolean },
           say: () => string | null,
-          how?: { readonly coalesce?: string },
+          how?: { readonly coalesce?: string; readonly sleep?: true },
         ): Effect.Effect<void> => {
           // Capture before startup, queuing or another Effect yield. The body
           // carries this one authority through every owner and checks it at

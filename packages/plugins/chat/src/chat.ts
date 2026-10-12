@@ -92,7 +92,6 @@ import type { Advertised } from "@olai/plugin-api/services"
 
 import { type Attached, type AttachChunk, type AuthMethod, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type SignIn, type Talking } from "olai-plugin-chat/wire"
 
-import { SLEEP_WORD } from "./sleep.ts"
 import { type OpFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
@@ -529,6 +528,10 @@ export interface Panel {
         /** Bodies sharing a key, WHILE STILL HELD, replace each other in place —
          *  see {@link ./deliveries.ts}. A body with no key never replaces. */
         readonly coalesce?: string
+        /** Whether this body is OLAI'S OWN TURN — see
+         *  `@olai/plugin-api`'s `Deliveries.deliver`, which argues the option,
+         *  and {@link ChatState.sleep} for what the panel does with it. */
+        readonly sleep?: true
       },
     ) => Effect.Effect<void>
     /**
@@ -2831,6 +2834,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
        */
       say: () => string | null,
       from: string,
+      /** Whether this turn is olai's own — carried rather than inferred from
+       *  `from`, so a plugin named `sleep` cannot become one
+       *  (`@olai/plugin-api`'s `Deliveries.deliver`). */
+      sleep: boolean,
     ): Effect.Effect<"handed" | "held" | "nothing"> =>
       opening.withPermit(Effect.gen(function*() {
         const at = talking
@@ -2854,7 +2861,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // `rang`).
           const row = transcript.user(body, { rang: from })
           publish(row.change)
-          yield* begin(at, row.key, body, { sleep: from === SLEEP_WORD })
+          yield* begin(at, row.key, body, { sleep })
           return "handed" as const
         }))
       }))
@@ -2894,7 +2901,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // batch whose turn is still running is not composed and thrown away,
           // and a plugin counting its own deliveries never counts an ask that
           // did not land.
-          const arm = yield* offer(to, () => Deliveries.joined(mine), oldest.from)
+          const arm = yield* offer(to, () => Deliveries.joined(mine), oldest.from, oldest.sleep === true)
           if (arm === "held") return
           // `"handed"` wrote a row; `"nothing"` found every body settled and
           // wrote none. Both take the slots — the second so the next pass does
@@ -2938,7 +2945,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       how?: { readonly coalesce?: string },
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
-        held.hold(to, from, say, how?.coalesce)
+        held.hold(to, from, say, how?.coalesce, how?.sleep)
         // The strip's count moves the moment the body is held, which is the
         // panel's own rule: the alternative to holding words out of sight is
         // not dropping them, it is showing that they are waiting.

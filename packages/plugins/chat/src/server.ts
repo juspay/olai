@@ -943,7 +943,11 @@ export default definePlugin({
           // THE SAME ROUTE A DOORBELL TAKES, with this feature's own word: the
           // scheduler wakes the node, the panel writes the machine row, and the
           // turn boundary is what the pass then watches.
-          deliver: (to, say) => serving.doorFor(SLEEP_WORD).deliver(to, say),
+          // ...WITH THE TURN MARKED AS OLAI'S OWN, explicitly and not by the
+          // word the door was opened under: a plugin that happened to be called
+          // `sleep` must not become a machine turn whose questions nobody is
+          // told about (`@olai/plugin-api`'s `Deliveries.deliver`).
+          deliver: (to, say) => serving.doorFor(SLEEP_WORD).deliver(to, say, { sleep: true }),
           watch: (to, observer) => serving.reading(to, observer),
           withdraw: (to) => serving.withdraw(SLEEP_WORD, to),
           read: gate.read,

@@ -466,6 +466,25 @@ export interface Deliveries {
     say: () => string | null,
     options?: {
       /**
+       * THIS TURN IS OLAI'S OWN, and not anybody's question to answer.
+       *
+       * A machine turn olai takes on a node agent's behalf is the one delivery
+       * that is not a message TO somebody: it is a pass over that agent's own
+       * memory, and a question asked inside it is cancelled by the pass rather
+       * than answered by a person. The panel and the roster both read this flag
+       * for the span of the turn — it suppresses the alert faces and keeps the
+       * busy cue saying "working" — and it is cleared when the turn ends,
+       * however it ends.
+       *
+       * AN EXPLICIT OPTION RATHER THAN A NAME CORE RECOGNISES, which is the
+       * difference between a contract and a coincidence: a plugin that happened
+       * to be called `sleep` would otherwise become a machine turn whose
+       * questions nobody is told about. Who may deliver one is still the
+       * panel's own door (`olai-plugin-chat`'s `doorFor`), which is where the
+       * keying lives.
+       */
+      readonly sleep?: true
+      /**
        * MESSAGES SHARING A KEY, WHILE STILL UNDELIVERED, REPLACE EACH OTHER —
        * in place, so the one that lands keeps the position the first one took
        * and arrival order survives the replacing.

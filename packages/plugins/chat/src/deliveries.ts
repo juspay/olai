@@ -101,6 +101,11 @@ export interface Slot {
    *  `@olai/plugin-api`'s `Deliveries.deliver` for why this is not a string. */
   readonly say: () => string | null
   readonly under: string | undefined
+  /** Whether this body is OLAI'S OWN TURN rather than a message to somebody —
+   *  carried through the holding because the flag is about the turn the body
+   *  becomes, and a body can wait
+   *  (`@olai/plugin-api`'s `Deliveries.deliver` argues the option). */
+  readonly sleep?: true
 }
 
 /**
@@ -153,6 +158,7 @@ export interface Holding {
     from: string,
     say: () => string | null,
     coalesce: string | undefined,
+    sleep: true | undefined,
   ) => void
   /**
    * What is waiting for that conversation, oldest first.
@@ -272,7 +278,7 @@ export const holding = (): Holding => {
   }
 
   return {
-    hold: (to, from, say, coalesce) => {
+    hold: (to, from, say, coalesce, sleep) => {
       const slots = listFor(keyOf(to))
       // THE PAIR, compared rather than spelled: a body replaces one already
       // waiting only when the SAME plugin named the SAME word. A body sent with
@@ -281,7 +287,12 @@ export const holding = (): Holding => {
       const at = coalesce === undefined
         ? -1
         : slots.findIndex((slot) => slot.from === from && slot.under === coalesce)
-      const slot: Slot = { from, say, under: coalesce }
+      const slot: Slot = {
+        from,
+        say,
+        under: coalesce,
+        ...(sleep === undefined ? {} : { sleep }),
+      }
       // IN PLACE, which is the whole of the coalescing rule: the newest words
       // land where the first ones under this key landed, so a plugin that
       // re-derives its sentence does not walk to the back of the queue.

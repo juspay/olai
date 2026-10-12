@@ -65,6 +65,11 @@ import { HARNESS_MEMORY_OFF } from "./teaching.ts"
  * a person reading `git log` and a person reading the transcript are being told
  * about the same thing.
  *
+ * WHAT IT IS NOT is the thing that marks the turn as olai's own: that travels as
+ * an explicit option on the delivery (`@olai/plugin-api`'s `Deliveries.deliver`),
+ * so a plugin that happened to be called `sleep` cannot become a machine turn
+ * whose questions nobody is told about.
+ *
  * IT IS A PLUGIN-SHAPED WORD WITHOUT A PLUGIN, which is stated because it is
  * the one thing here that looks like a mistake: `doorFor` takes a plugin's
  * name, and chat's own server half passes this one — there is no `sleep` row in

@@ -60,5 +60,13 @@ export const busyIn = (state: ChatState): Busy | null => {
   const who = () => agentIn(state)?.name ?? null
   if (state.status === "booting") return { kind: "starting", agent: who() }
   if (state.status !== "thinking") return null
+  // ...AND OLAI'S OWN TURN NEVER WAITS ON A PERSON. A question asked inside a
+  // pass over a node agent's memory is cancelled by that pass — nobody is there
+  // to answer it, and the alert for it is suppressed — so a panel saying
+  // "waiting on you" would be offering a form nobody has to fill in, beside a
+  // roster row that deliberately does not say needs-you
+  // ({@link ../../wire/members.ts}'s `ChatState.sleep` is the mark, and
+  // `../../server/agents.ts` the roster's half of it).
+  if (state.sleep) return { kind: "working", agent: who() }
   return state.asking > 0 ? { kind: "waiting" } : { kind: "working", agent: who() }
 }

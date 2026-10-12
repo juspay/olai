@@ -67,6 +67,16 @@ describe("a turn in flight", () => {
     // working" without this arm tells somebody to wait for themselves.
     expect(busyIn({ ...LIVE, status: "thinking", asking: 1 })).toEqual({ kind: "waiting" })
   })
+
+  test("...UNLESS THE TURN IS OLAI'S OWN, and then nobody is being waited on", () => {
+    // A pass over a node agent's memory asks questions nobody answers: the pass
+    // cancels them, and the roster deliberately does not say needs-you. A panel
+    // saying "waiting on you" would be offering a form nobody has to fill in.
+    expect(busyIn({ ...LIVE, status: "thinking", asking: 1, sleep: true })).toEqual({
+      kind: "working",
+      agent: "opencode",
+    })
+  })
 })
 
 describe("an agent starting", () => {
