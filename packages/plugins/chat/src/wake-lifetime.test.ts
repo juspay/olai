@@ -91,6 +91,32 @@ for (const replacement of [null, "Other.olai", "Work.olai"]) {
   }
 }
 
+test("a delivery held for a node that would not wake is taken back, and never lands", async () => {
+  // WHAT THE PASS'S SCOPE'S FINALIZER IS FOR (`Chat.withdraw`): a body the
+  // scheduler is holding for a node whose wake failed fires when that node is
+  // next opened — days later, with no hold on the quiet window, nobody
+  // observing it, no memo and no commit. The unit suites stub this verb as an
+  // event push; this is the real one, over both of the holds it reaches.
+  const executable = join(cwd, "withdrawn-agent")
+  const it = await bench({ command: () => executable, wake: () => undefined })
+  try {
+    // THE WAKE FAILS — the command is a path that does not exist yet — so both
+    // bodies are HELD rather than handed over.
+    await run(it.chat.doorFor("sleep").deliver(TO, () => "the pass's own words", { sleep: true }))
+    await run(it.chat.doorFor("agenda").deliver(TO, () => "a body nobody took back"))
+    await run(it.chat.withdraw("sleep", TO))
+    // ...AND THE NODE WAKES ANYWAY, which is what replays a held body.
+    symlinkSync(process.execPath, executable)
+    await run(it.chat.loadSession(TO.agent, TO.session))
+    // THE CONTROL IS THE OTHER BODY, held by the same failed wake and NOT taken
+    // back: it lands, which is what says the flush ran and the node is up. Only
+    // then is the absent one evidence of the withdrawal rather than of a
+    // delivery that never happened.
+    await until(() => it.text().includes("a body nobody took back"))
+    expect(it.text()).not.toContain("the pass's own words")
+  } finally { await run(it.chat.stop) }
+}, 20_000)
+
 for (const replacement of [null, "Other.olai", "Work.olai"]) {
   test(`recipients retained by a plugin are revoked by pick ${replacement}`, async () => {
     const it = await bench()
