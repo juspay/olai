@@ -476,18 +476,11 @@ export const makeSleeper = (
       }))
 
     /**
-     * ONE PASS OF THE LOOP: at most one node, so the next candidate waits for
-     * this one to END — which is what "one sleep at a time" means here, said by
-     * the loop's own shape rather than by a lock.
-     */
-    /**
-     * ONE PASS AT A TIME, BY CONSTRUCTION — not by the loop's shape.
-     *
-     * The loop's own fiber runs passes in sequence, so a serve never overlaps
-     * two of them. What the permit is for is the OTHER caller: `tick` is handed
-     * back so a test can drive a pass by hand, and two callers of it would be two
-     * passes over one directory at once — the thing "the next candidate waits for
-     * the current one to end" is a promise about.
+     * ONE PASS AT A TIME, BY THE PERMIT — and the loop is `tick`'s only
+     * production caller, so what the permit is for is the OTHER one: `tick` is
+     * handed back so a test can drive a pass by hand, and two callers of it
+     * would be two passes over one directory at once, which is the promise "the
+     * next candidate waits for the current one to end" is about.
      */
     const passes = Semaphore.makeUnsafe(1)
     const tick: Effect.Effect<boolean, never, Scope.Scope> = passes.withPermit(Effect.gen(function*() {
