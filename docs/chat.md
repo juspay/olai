@@ -866,6 +866,14 @@ directory, so a press while olai is already tidying is refused in words rather
 than queued, and a manual pass that fails is not remembered for a day the way a
 loop's failure is: a person can ask again.
 
+**One turn has an upper bound, and the git panel does not know about it.**
+`sleep-limit` — an hour by default — stops a tidying turn that has stopped making
+progress, with the usual warning and the day's back-off, so a wedged turn cannot
+hold the quiet window shut for the whole vault. The git panel's armed pill reads
+the commit policy and not the ledger's hold, so while a pass holds that window
+shut the pill still says olai will record the work on its own: true, and not
+until the pass ends or the limit stops it.
+
 **The turn is the conversation you already read.** One machine-sent row appears
 in the left column, opening with who is speaking and when, its instruction
 folded behind one press, exactly as a mail digest is drawn. Under it the
@@ -926,9 +934,9 @@ assigned-session contract, and the loop that drives it would not move.
 **Two of these are an operator's, and two exist for the harness.** `sleep:
 on|off` turns the pass off, and `sleep-after` is how long a node agent is left
 alone before it is tidied — the only two with a meaning a person would choose.
-`sleep-tick` (how often olai looks) and `sleep-question` (how long a tidying turn
-may sit on a question) are there so a test can run a pass in seconds rather than
-in hours, and so a slow machine can be given more patience; they are declared in
+`sleep-tick` (how often olai looks), `sleep-question` (how long a tidying turn
+may sit on a question) and `sleep-limit` (how long one may run at all) are there
+so a test can run a pass in seconds rather than in hours, and so a slow machine can be given more patience; they are declared in
 the same row, in the same words, because the harness has no door the product does
 not have. None of it is for the user, who has nothing to do either way.
 

@@ -1026,6 +1026,7 @@ export default definePlugin({
           after: spans.after,
           tick: spans.tick,
           question: spans.question,
+          limit: spans.limit,
           start: Duration.millis(START_MS),
           log: (line) => Effect.logInfo(line),
           warn: (line) => Effect.logWarning(line),

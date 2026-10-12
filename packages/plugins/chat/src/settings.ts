@@ -29,6 +29,10 @@ const SPANS = {
     default: "20m",
     says: "How long a tidying turn may sit on a question before olai stops it",
   },
+  "sleep-limit": {
+    default: "1h",
+    says: "How long one tidying turn may run before olai stops it",
+  },
 } as const
 
 type SpanKey = keyof typeof SPANS
@@ -76,6 +80,7 @@ export const Config = Schema.Struct({
   "sleep-after": span("sleep-after"),
   "sleep-tick": span("sleep-tick"),
   "sleep-question": span("sleep-question"),
+  "sleep-limit": span("sleep-limit"),
 })
 
 /** The three spans as the durations the pass waits, off the decoded config —
@@ -90,6 +95,7 @@ export const sleepingPolicy = (config: typeof Config.Type) => {
     after: of("sleep-after", config["sleep-after"]),
     tick: of("sleep-tick", config["sleep-tick"]),
     question: of("sleep-question", config["sleep-question"]),
+    limit: of("sleep-limit", config["sleep-limit"]),
   }
 }
 

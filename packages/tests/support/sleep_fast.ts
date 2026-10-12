@@ -12,4 +12,4 @@
  * pass cancels it when the span runs out. Fifteen seconds is a comfortable
  * window for those assertions under load and still nothing like the product's
  * twenty minutes. */
-export const FAST_SLEEP = { after: "1ms", tick: "250ms", question: "15s" } as const;
+export const FAST_SLEEP = { after: "1ms", tick: "250ms", question: "15s", limit: "2m" } as const;

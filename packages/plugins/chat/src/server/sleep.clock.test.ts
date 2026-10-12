@@ -98,6 +98,8 @@ const withStubs = (over: {
   readonly after?: Duration.Duration
   readonly start?: Duration.Duration
   readonly question?: Duration.Duration
+  /** How long one turn may run — a span the cases about a stuck turn move. */
+  readonly limit?: Duration.Duration
   /** Whether the vault takes the memo. `false` is the pass's other failure. */
   readonly writes?: boolean
   /**
@@ -171,6 +173,7 @@ const withStubs = (over: {
       after: over.after ?? Duration.millis(0),
       tick: over.loopTick ?? Duration.days(365),
       question: over.question ?? Duration.minutes(20),
+      limit: over.limit ?? Duration.hours(1),
       start: over.start ?? Duration.minutes(2),
       log: () => Effect.void,
       warn: (line) => Effect.sync(() => void warnings.push(line)),
@@ -485,4 +488,30 @@ test("a turn somebody cancelled writes nothing, and is not remembered", () =>
     // that fails on its own, and the next look is entitled to try again.
     expect(yield* arms.tick).toBe(true)
     expect(arms.commits).toHaveLength(1)
+  })))
+
+test("a turn that never ends is stopped at the limit, and left alone after that", () =>
+  onTheClock(Effect.gen(function*() {
+    // THE QUIET WAIT IS BOUNDED TOO, and this is why it must be: a turn that
+    // stops reporting holds the quiet window shut for the whole vault, wedges
+    // the permit, and makes every *Sleep now* answer "busy" — with the git pill
+    // still promising a commit that cannot come.
+    const arms = yield* withStubs({
+      states: [thinking({ asking: 0 })],
+      limit: Duration.minutes(10),
+    })
+    const pass = yield* Effect.forkChild(arms.tick)
+    yield* TestClock.adjust(Duration.millis(9 * MIN))
+    yield* settle
+    expect(arms.events).not.toContain("cancelled")
+    yield* TestClock.adjust(Duration.millis(MIN + 1))
+    expect(yield* Fiber.join(pass)).toBe(true)
+    expect(arms.events).toEqual(["hold", "delivered", "cancelled", "withdrawn", "released"])
+    expect(arms.memos).toEqual([])
+    expect(arms.commits).toEqual([])
+    expect(arms.warnings.join("\n")).toContain("the turn ran past its limit")
+    // ...AND IT IS A FAILURE LIKE ANY OTHER: the node is left alone for a day,
+    // which the loop's own next look is what shows.
+    yield* TestClock.adjust(Duration.millis(MIN))
+    expect(yield* arms.tick).toBe(false)
   })))

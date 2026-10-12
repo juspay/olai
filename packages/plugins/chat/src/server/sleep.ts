@@ -125,6 +125,8 @@ export type Verdict =
    * a failure to wait out.
    */
   | "cancelled"
+  /** The turn ran past `sleep-limit`, so it was stopped. */
+  | "limit"
   /** The turn never started, so there was nothing to wait for. */
   | "unstarted"
 
@@ -136,6 +138,7 @@ const WHY: Record<Exclude<Verdict, "slept">, string> = {
   trouble: "the turn went wrong, or the memo could not be written",
   question: "it asked a question nobody is there to answer, so it was stopped",
   cancelled: "its turn was cancelled before it finished, so nothing was written",
+  limit: "the turn ran past its limit, so it was stopped",
   unstarted: "the turn never started",
 }
 
@@ -210,6 +213,17 @@ export interface Sleeping {
   readonly tick: Duration.Duration
   /** How long a turn may sit on an unanswered question (`sleep-question`). */
   readonly question: Duration.Duration
+  /**
+   * HOW LONG ONE TURN MAY RUN AT ALL (`sleep-limit`).
+   *
+   * The other three spans bound WAITING — for a start, for a boundary, for an
+   * answer. This one bounds the turn itself, and it exists because a turn that
+   * never ends holds the quiet window shut for the whole vault, wedges the loop
+   * on the permit and makes every *Sleep now* answer "busy" — with the git pill
+   * still promising a commit that cannot come. An hour is generous for a
+   * tidying pass and far short of "for ever".
+   */
+  readonly limit: Duration.Duration
   /** How long a delivered turn may take to start ({@link START_MS}). */
   readonly start: Duration.Duration
   readonly log: (line: string) => Effect.Effect<void>
@@ -371,19 +385,35 @@ export const makeSleeper = (
           Effect.as(Effect.sleep(doors.start), "unstarted" as const),
         )
         if (began !== "running") return began
+        // ...AND EVERY WAIT AFTER IT IS BOUNDED, the quiet one included: a turn
+        // that stops reporting holds the window shut for the whole vault and
+        // wedges the permit, which is what `sleep-limit` is for.
+        const started = yield* Clock.currentTimeMillis
         let asking = 0
         for (;;) {
+          const now = yield* Clock.currentTimeMillis
+          const left = Duration.toMillis(doors.limit) - (now - started)
+          if (left <= 0) return "limit"
           const taken = Effect.map(Queue.take(states), (state) => ({ state, silence: false } as const))
           const next = asking === 0
-            ? yield* taken
+            ? yield* Effect.raceFirst(
+              taken,
+              Effect.as(Effect.sleep(Duration.millis(left)), { state: null, silence: true } as const),
+            )
             : yield* Effect.raceFirst(
               taken,
               Effect.as(
-                Effect.sleep(Duration.millis(Math.max(0, Duration.toMillis(doors.question) - ((yield* Clock.currentTimeMillis) - asking)))),
+                Effect.sleep(Duration.millis(Math.min(left, Math.max(0, Duration.toMillis(doors.question) - (now - asking))))),
                 { state: null, silence: true } as const,
               ),
             )
-          if (next.silence || next.state === null) return "question"
+          if (next.silence || next.state === null) {
+            // WHICH DEADLINE RAN OUT, because they mean different things: a
+            // question is an agent waiting for somebody who is not there, and
+            // the limit is a turn that has stopped making progress at all.
+            const over = Duration.toMillis(doors.limit) - ((yield* Clock.currentTimeMillis) - started)
+            return over <= 0 ? "limit" : "question"
+          }
           const state = next.state
           // THE TURN IS OVER — the mark went off, or the status left
           // `thinking`. Both are read, because `idle` is published a frame
@@ -487,7 +517,7 @@ export const makeSleeper = (
         // unobserved, with no memo and no commit — the outcome the header calls
         // worse than not sleeping at all. A `trouble` read off an `idle` state
         // is a turn that has already ended, and `cancel` is a no-op there.
-        if (verdict === "question" || verdict === "trouble") {
+        if (verdict === "question" || verdict === "trouble" || verdict === "limit") {
           running = false
           yield* stopping(stoppable, agent.id, last?.sleep === true)
         }
