@@ -1,7 +1,6 @@
 {
   "alerts": [
     "src/browser.tsx",
-    "src/browser/chat/Wake.tsx",
     "src/browser/chat/attention/attention.ts"
   ],
   "capture": [
@@ -62,12 +61,14 @@
     "src/agents/settings.ts",
     "src/browser/agents/AgentLine.tsx",
     "src/browser/chat/Model.tsx",
+    "src/browser/chat/Sleeping.tsx",
+    "src/browser/chat/sleeping.ts",
     "src/chat.ts",
     "src/server.ts",
     "src/settings.ts",
     "src/wire/members.ts"
   ],
-  "//settings": "The sentence a person is told when the pass is switched off reads `sleep is off in this directory's settings`: the directory's own settings, not the settings row.",
+  "//settings": "The sentence a person is told when the pass is switched off reads `sleep is off in this directory's settings`: the directory's own settings, not the settings row. The sleep item's own sentence reads `off in Settings` and names the file it comes from (`_olai/Settings.olai`), which is a vault file and not the settings row.",
   "sidebar": [
     "src/browser.tsx"
   ],
@@ -75,7 +76,7 @@
     "src/browser/chat/outline.ts",
     "src/server.ts"
   ],
-  "//alerts": "The wake strip's accessible label says `alerts` as an ordinary word, not the alerts row.",
+  "//alerts": "The words chat's own surfaces use for somebody else's alarm: the wake strip used to carry `alerts` as its accessible label and does not any more, and what remains is chat's browser entry and its attention line, which say the word as ordinary English rather than naming the alerts row.",
   "//files": "The completion menu's section heading reads `Files`: the vault's files, not the files row.",
   "//markdown": "Markdown is the shared renderer component, including the read-only conversation preview, not a runtime lookup of the markdown plugin.",
   "//trash": "The sleep instruction tells an agent never to trash a row it is tidying: `olai-plugin-chat`'s own words to an agent, not the trash row.",

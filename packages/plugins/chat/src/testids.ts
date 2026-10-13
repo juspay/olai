@@ -547,11 +547,13 @@ export const TESTID = {
    *  uses. It names the DURATION alone, so what a scenario reads back is the
    *  number rather than the sentence around it. */
   chatWatchingFor: "chat-watching-for",
-  /** THE STRIP under that one: what this conversation WAKES ON. One line per
-   *  running plugin that declares a doorbell (`@olai/surface`'s `BuiltPlugin`'s
-   *  `wake`), saying in that plugin's own words what the wake is on and which
-   *  file a person pointed it at. Absent where there is no conversation to be
-   *  scoped, which is the roster strip's own rule. */
+  /** THE WAKE ITEMS on that line, after the sleep one: what this conversation
+   *  WAKES ON. One item per running plugin that declares a doorbell
+   *  (`@olai/surface`'s `BuiltPlugin`'s `wake`), saying in that plugin's own words
+   *  what the wake is on and which file a person pointed it at. The group carries
+   *  this testid so a scenario can still address the wake half of the line, and
+   *  it is absent where there is no conversation to be scoped, which is the
+   *  roster strip's own rule. */
   chatWake: "chat-wake",
   /** THE LINE UNDER THE TOOLS ROSTER: what this conversation has STANDING that
    *  is not a tool — whether olai tidies its memory on its own clock, and what

@@ -108,6 +108,7 @@ import type { PanelAddress } from "./wire/session.ts"
 import { forLocalState as modelsIn } from "./models.ts"
 import type { Ops as WriteGate } from "@olai/ops"
 import { makeFiler } from "./server/filer.ts"
+import type { Forecast } from "./wire.ts"
 import { type Asked, makeSleeper, START } from "./server/sleep.ts"
 import { readings } from "./server/readings.ts"
 import type { Change } from "./transcript.ts"
@@ -413,7 +414,12 @@ export default definePlugin({
      * a sentence rather than a call into something that is not there
      * ({@link conversation.sleepNow}).
      */
-    let sleeper: { readonly now: (node: string) => Effect.Effect<Asked, never, Scope.Scope> } | null = null
+    let sleeper: {
+      readonly now: (node: string) => Effect.Effect<Asked, never, Scope.Scope>
+      /** WHAT THIS NODE'S SLEEP IS DOING — read by the roster join below, which
+       *  is synchronous and runs long after this block (`./server/sleep.ts`). */
+      readonly forecast: (node: string) => Forecast | null
+    } | null = null
     /**
      * THE SCOPE THE PASS IS FORKED INTO, captured here rather than read when a
      * request arrives: a procedure runs long after this effect has finished, and
