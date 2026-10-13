@@ -82,6 +82,31 @@ export const START = Duration.minutes(2)
 /** HOW LONG A NODE THAT FAILED IS LEFT ALONE, in memory and only in memory. */
 export const SKIP_MS = Duration.toMillis(Duration.hours(24))
 
+/**
+ * WHAT ONE NODE'S SLEEP IS DOING, as `judge` answers it — the whole of the
+ * judgement, so a reader (the loop today, the strip under a conversation next)
+ * renders it rather than re-deriving it.
+ *
+ * `lastSlept` is the memo as the vault stores it and `after` is the rhythm
+ * (`sleep-after`) in milliseconds: the words a person reads ("last 3h ago", "next
+ * in 4h") are those two plus a clock. THIS IS WHERE IT LIVES UNTIL THE ROW
+ * CARRIES IT: the wire will declare the schema when the roster sends it, and this
+ * type is what that schema is built from.
+ */
+export type Forecast = {
+  readonly lastSlept: string | null
+  readonly after: number
+  readonly next:
+    | { readonly kind: "off" }
+    | { readonly kind: "unmarked" }
+    | { readonly kind: "unbound" }
+    | { readonly kind: "unchanged" }
+    | { readonly kind: "busy" }
+    | { readonly kind: "due"; readonly at: string }
+    | { readonly kind: "running" }
+    | { readonly kind: "skipped"; readonly until: string }
+}
+
 /** WHAT A PASS CONCLUDED, which is what the loop does next about it. */
 export type Verdict =
   /** The turn ended with nothing wrong: the memo is written and committed. */
