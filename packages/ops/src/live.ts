@@ -23,7 +23,7 @@ const noGate: Ops = {
   moving: () => refused,
   tags: () => refused,
   idle: Effect.void,
-  commit: () => Effect.succeed({ _tag: "Failed", said: NO_DIRECTORY.reason }),
+  commit: () => Effect.succeed({ _tag: "Failed", said: NO_DIRECTORY.reason, lock: null }),
   push: Effect.succeed({ _tag: "Failed", said: NO_DIRECTORY.reason }),
   resume: Effect.void,
 }

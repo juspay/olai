@@ -32,6 +32,7 @@ import {
   NOTHING_PENDING,
   type Pending,
   type PushResult,
+  type UnlockResult,
 } from "@olai/format"
 import { GIT_OFF } from "@olai/format"
 import { type Accessor, createSignal } from "solid-js"
@@ -64,7 +65,7 @@ export interface GitPolicySeam {
    */
   readonly git: Accessor<GitState>
   /**
-   * WHAT THE SERVER WOULD NOT TAKE FROM THIS TAB, or `null`.
+   * WHAT THE SERVER WOULD NOT TAKE FROM THE RESUME PRESS, or `null`.
    *
    * The one refusal that is genuinely this tab's, and the reason it survived
    * the move: git's own refusals are the directory's and arrive on the cell,
@@ -73,17 +74,39 @@ export interface GitPolicySeam {
    * Nothing on the cell can say so, and a control that silently did nothing is
    * the failure this whole feature is about.
    *
-   * It belongs to the SEAM the press went through, and is drawn beside the
-   * control that made it: the preferences panel draws its own, the commit panel
-   * draws the pill's.
-   *
    * Cleared when the next request starts, so what is on screen is about the
    * press a reader just made.
    */
-  readonly refused: Accessor<string | null>
+  readonly resumeRefused: Accessor<string | null>
   /** Start a stopped loop again — the Resume button's verb, and the one way
    *  out. */
   readonly resume: () => void
+  /**
+   * ... AND THE SAME FOR THE UNLOCK PRESS, which is its OWN signal rather than
+   * a share of the one above.
+   *
+   * The two controls can be on screen together — a lock refusal under
+   * `commit: auto` pauses the loop as well, so both buttons are drawn — and one
+   * signal between them would put a message about a press nobody made under
+   * whichever button the reader was not looking at. It is the rule
+   * {@link Commit.refused} already follows for the Commit and Push pair.
+   */
+  readonly unlockRefused: Accessor<string | null>
+  /**
+   * REMOVE THE STALE `index.lock` a commit refused over, and say what came of
+   * it — the unlock button's verb.
+   *
+   * The answer is handed back rather than acted on here, because what follows
+   * from it is a COMMIT and this factory knows nothing about drafts or ticks:
+   * `Removed` and `Absent` are the panel retrying the commit it was refused,
+   * `Held` is the sentence beside the button. A CALL that never reached the
+   * server, AND a removal the server could not make — the file was there and
+   * the git directory would not let go of it — arrive on
+   * {@link unlockRefused}, exactly as {@link resume}'s does on its own:
+   * `onAnswer` is the SUCCESS edge, and a failure is drawn beside the button
+   * that made it.
+   */
+  readonly unlock: (onAnswer: (answer: UnlockResult) => void) => void
 }
 
 export interface Commit extends GitPolicySeam {
@@ -108,6 +131,16 @@ export interface Commit extends GitPolicySeam {
   /** True between asking and being answered. A second press while a commit is
    *  in flight would be a second commit. */
   readonly working: Accessor<boolean>
+  /**
+   * WHAT THE SERVER WOULD NOT TAKE FROM A COMMIT OR PUSH PRESS, or `null`.
+   *
+   * Git's own refusals are the directory's and arrive on the cell; a CALL that
+   * never reached git — the wire dropped it, or the server answered a usage
+   * refusal — happened to this press and to nobody else's. Nothing on the cell
+   * can say so, and a control that silently did nothing is the failure this
+   * whole feature is about.
+   */
+  readonly refused: Accessor<string | null>
   /**
    * Record what is waiting.
    *
@@ -143,25 +176,38 @@ export const canRecord = (working: boolean, pushing: boolean): boolean =>
   !working && !pushing
 
 /**
- * The `git` cell and the Resume verb — no `pending`, no committer, and nothing
- * else this browser owns beyond whether ITS OWN resume request is still out.
+ * The `git` cell and the two verbs that act on the DIRECTORY — no `pending`, no
+ * committer, and nothing else this browser owns beyond whether one of ITS OWN
+ * presses of those two is still out.
  *
- * The preferences panel takes this one. Each `.use()` is a subscription of its
- * own, so handing that panel the whole committer meant a second full `Pending`
- * frame decoded per publish for a component that never draws one — and it is
- * mounted inside a `<Show>`, so the pair was set up and torn down on every
- * open and close of the popover.
+ * The smaller half of {@link Commit}, and its own factory because a consumer
+ * that draws no rows should not pay for them: each `.use()` is a subscription
+ * of its own, so handing one the whole committer means a full `Pending` frame
+ * decoded per publish for a component that never draws one.
  */
 export const createGitPolicy = (): GitPolicySeam => {
   const git = gitWire().cells.git.use()
-  const [refused, setRefused] = createSignal<string | null>(null)
+  const [resumeRefused, setResumeRefused] = createSignal<string | null>(null)
+  const [unlockRefused, setUnlockRefused] = createSignal<string | null>(null)
 
   return {
     git: () => git.value() ?? GIT_OFF,
-    refused,
+    resumeRefused,
     resume: () => {
-      setRefused(null)
-      run(gitWire().procedures.git.resume({}), (failure) => setRefused(failure.message))
+      setResumeRefused(null)
+      run(
+        gitWire().procedures.git.resume({}),
+        (failure) => setResumeRefused(failure.message),
+      )
+    },
+    unlockRefused,
+    unlock: (onAnswer) => {
+      setUnlockRefused(null)
+      run(
+        gitWire().procedures.git.unlock({}),
+        (failure) => setUnlockRefused(failure.message),
+        onAnswer,
+      )
     },
   }
 }
@@ -195,10 +241,8 @@ export const createCommit = (): Commit => {
 
   return {
     ...policy,
-    // This committer's OWN refusals rather than the seam's: a press of Commit
-    // or Push is drawn beside those buttons, and a Resume is drawn beside the
-    // control that made it. One signal for both would be a message under
-    // whichever control the reader was not looking at.
+    // THE COMMIT AND PUSH PAIR'S OWN refusals — the line at the foot of this
+    // panel. The seam keeps its two separately; see `unlockRefused`.
     refused,
     pending,
     heard: () => cell.value() !== undefined,

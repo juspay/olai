@@ -159,12 +159,31 @@ export const DEFAULT_POLICY: GitPolicy = {
 }
 
 /**
+ * A GIT LOCK FILE IN THE WAY — which file it is, and when it was left.
+ *
+ * `index.lock` is what git holds while it rewrites the index, and it REMOVES it
+ * on the way out of every exit it controls — but not out of a killed process, a
+ * full disk, or a machine that went down mid-write. What is left behind refuses
+ * every write in that repository, with git's own words (`Unable to create
+ * '…/index.lock': File exists`), until somebody removes the file by hand.
+ *
+ * THE MTIME IS ALL THERE IS TO GO ON: git's `index.lock` carries no pid, so
+ * nothing can ask whether the process that left it is still alive. What olai
+ * does with the age is `@olai/git`'s `unlock`.
+ */
+export const Lock = Schema.Struct({
+  /** When the lock file was last written, in milliseconds since the epoch. */
+  since: Schema.Number,
+})
+export type Lock = typeof Lock.Type
+
+/**
  * What git is doing for the served directory, for the git indicator in the app
  * header (`git-invisible`, #108) and for the agent that reads the same cell
  * over MCP.
  *
- * FLAT — a status, the words that go with it, the resolved policy, and what
- * the loop last came to — because this value
+ * FLAT — a status, the words that go with it, the lock file that may be behind
+ * them, the resolved policy, and what the loop last came to — because this value
  * TRAVELS:
  * the ops layer derives it from its own survey's `RepoState` (`gitOf`, which
  * owns the one-survey coherence argument), the surface declares it as the
@@ -181,6 +200,17 @@ export const GitState = Schema.Struct({
    *  reader gets rather than "something went wrong". `null` otherwise: a
    *  healthy repository is not quoting anything. */
   said: Schema.NullOr(Schema.String),
+  /**
+   * The `index.lock` that stopped the last COMMIT, or `null` — the file, and
+   * how long ago it was left.
+   *
+   * Its own field beside {@link GitState.said} for the reason `pushSaid` has
+   * one: the words say what happened, and this says what a reader can do about
+   * it — a file to remove, rather than a path to parse out of git's prose.
+   * `null` on every refusal that was not about a lock, and on every state that
+   * is not a refusal at all.
+   */
+  lock: Schema.NullOr(Lock),
   /** What this activation does about commit and push, including defaults. */
   policy: GitPolicy,
   /**
@@ -227,6 +257,7 @@ export type GitState = typeof GitState.Type
 export const GIT_OFF: GitState = {
   status: "off",
   said: null,
+  lock: null,
   policy: DEFAULT_POLICY,
   pushSaid: null,
   paused: null,
@@ -605,6 +636,9 @@ export type CommitRequest = typeof CommitRequest.Type
  * Four arms rather than a boolean, because the four are four different things
  * to say to a person and to an agent: it happened, there was nothing to do, the
  * repository is busy, git said no.
+ *
+ * `Failed` carries git's words AND, when the words are about a lock file, the
+ * file itself — the one refusal with a gesture behind it.
  */
 export const CommitResult = Schema.Union([
   Schema.Struct({
@@ -620,9 +654,45 @@ export const CommitResult = Schema.Union([
   }),
   Schema.Struct({ _tag: Schema.Literal("NothingToCommit") }),
   Schema.Struct({ _tag: Schema.Literal("Blocked"), repo: RepoState }),
-  Schema.Struct({ _tag: Schema.Literal("Failed"), said: Schema.String }),
+  Schema.Struct({
+    _tag: Schema.Literal("Failed"),
+    said: Schema.String,
+    /** The `index.lock` the refusal was about, or `null` for a refusal about
+     *  anything else — see {@link Lock}. It rides the answer rather than being
+     *  looked up by the reader, because what a reader would be looking up is a
+     *  race: the file can go between the refusal and the press, and this is
+     *  what git had in its way at the moment it said no. */
+    lock: Schema.NullOr(Lock),
+  }),
 ])
 export type CommitResult = typeof CommitResult.Type
+
+/**
+ * WHAT REMOVING A STALE LOCK FILE ANSWERED — three ways of the file not being
+ * in the way any more, and the one where it still is.
+ *
+ * `Held` is the GUARD and the only refusal on this verb: a lock younger than a
+ * git command's own budget may belong to a git that is still writing, and olai
+ * does not remove somebody else's file out from under them. Past that budget
+ * nothing on this machine can still be holding it for a reason, and the human
+ * decides — the sentence tells them to check first.
+ *
+ * Its own union rather than a boolean, because `Removed` and `Absent` are the
+ * two ways the retry is worth making and `Held` is the one where it is not;
+ * collapsing them would make "I could not remove it" and "there was nothing to
+ * remove" the same answer to the button.
+ */
+export const UnlockResult = Schema.Union([
+  Schema.Struct({ _tag: Schema.Literal("Removed") }),
+  Schema.Struct({
+    _tag: Schema.Literal("Held"),
+    /** When the lock still in the way was last written — the same stamp
+     *  {@link Lock} carries, so the sentence can say how young it is. */
+    since: Schema.Number,
+  }),
+  Schema.Struct({ _tag: Schema.Literal("Absent") }),
+])
+export type UnlockResult = typeof UnlockResult.Type
 
 /**
  * What asking for a PUSH answers with — the same four shapes as a commit, and

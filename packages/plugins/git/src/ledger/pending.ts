@@ -68,6 +68,7 @@
 import {
   armedOn,
   brokenBy,
+  BusyFailure,
   COMMIT_BUTTON,
   COMMIT_MODES,
   COMMIT_TOOL,
@@ -83,10 +84,12 @@ import {
   type How,
   isReady,
   type LastCommit,
+  type Lock,
   type Node,
   nodesOf,
   NOTHING_PENDING,
   type Other,
+  type OpFailure,
   type OutlineError,
   outlineNames,
   type Pending,
@@ -95,6 +98,7 @@ import {
   type Reading,
   type Reason,
   type RepoState,
+  type UnlockResult,
   type Unpushed,
   Writer,
   type Wrote,
@@ -162,9 +166,15 @@ const gitOf = (
     policy,
     pushSaid: settled.pushSaid,
     paused: settled.paused,
+    lock: null,
   }
   if (settled.refusal !== null) {
-    return { status: "error", said: settled.refusal, ...rest }
+    return {
+      status: "error",
+      said: settled.refusal.said,
+      ...rest,
+      lock: settled.refusal.lock,
+    }
   }
   switch (repo._tag) {
     case "Off":
@@ -177,6 +187,21 @@ const gitOf = (
     case "Blocked":
       return { status: "repo", said: null, ...rest }
   }
+}
+
+/**
+ * A COMMIT GIT REFUSED, as this layer remembers it: the words, and the lock
+ * file they were about when they were about one.
+ *
+ * The lock rides the refusal rather than being looked up again, because the
+ * lookup is a race — the file can go between git saying no and a person
+ * pressing the button — and what the panel draws is what git had in its way at
+ * the moment it said no (`@olai/git`'s `lockBehind` classifies it there, from
+ * the one place that observed it).
+ */
+interface Refusal {
+  readonly said: string
+  readonly lock: Lock | null
 }
 
 /**
@@ -196,9 +221,10 @@ const gitOf = (
  * else) and the readers take one argument.
  */
 interface Settled {
-  /** What git said when it last refused a COMMIT, or `null` — cleared by the
-   *  next commit that works. #108's, and the reason this is remembered at all. */
-  readonly refusal: string | null
+  /** What git said when it last refused a COMMIT — and the lock file the
+   *  refusal was about, when it was about one. `null` for a commit that
+   *  worked, and the reason this is remembered at all (#108's). */
+  readonly refusal: Refusal | null
   /**
    * WHY THE LAST PUSH DID NOT GO — git's words, and olai's where olai has
    *  something to add.
@@ -516,6 +542,23 @@ export interface Committing {
    * retry wearing a different hat.
    */
   readonly resume: Effect.Effect<void>
+  /**
+   * REMOVE THE STALE LOCK FILE a commit refused over — the human's second
+   * gesture, and the only verb in this file that acts on a file rather than
+   * through git.
+   *
+   * It answers {@link UnlockResult} rather than clearing and returning, because
+   * the caller has a commit to retry and only two of the three answers mean it
+   * should: `Removed` and `Absent` clear the refusal and the pause and say so,
+   * `Held` says the lock is younger than a git command's own budget and rewrites
+   * the age on the cell to the one the guard saw. The guard is in `@olai/git`'s
+   * `unlock`, which is the only place that touches the file.
+   *
+   * IT FAILS when the file was there and could not be removed, carrying the
+   * errno — `@olai/git`'s `UnlockRefused` owns that argument. Nothing is
+   * cleared on the way past.
+   */
+  readonly unlock: Effect.Effect<UnlockResult, OpFailure>
 }
 
 /** The one state git is never asked about, so it is spelled once. */
@@ -656,8 +699,8 @@ export const make = (options: Options): Committing => {
    * that failed, which the panel already draws, and marking the directory
    * "auto-commit paused" over it would be chrome about a loop nobody armed.
    */
-  const committed = (said: string | null): void => {
-    settled = { ...settled, refusal: said, paused: stopBy(said) }
+  const committed = (refusal: Refusal | null): void => {
+    settled = { ...settled, refusal, paused: stopBy(refusal?.said ?? null) }
   }
 
   /**
@@ -1007,6 +1050,8 @@ export const make = (options: Options): Committing => {
           _tag: "Failed",
           said: `nothing is waiting on ${picked.missing.join(", ")}, so nothing was ` +
             `committed — ask again with what \`pending\` lists`,
+          // Not a lock file: this refusal never reached git at all.
+          lock: null,
         } as const
       }
       if (picked.outlines.length + picked.others.length === 0) {
@@ -1035,7 +1080,7 @@ export const make = (options: Options): Committing => {
         message: signed(request.message ?? composed((yield* options.at)?.claims ?? claims([]), changes, others), writer),
       })
       if (done._tag === "Failed") {
-        committed(done.said)
+        committed({ said: done.said, lock: done.lock })
         // A refusal changes what a reader is owed without moving one byte, and
         // for thirty seconds nothing said so. THIS is the republish that was
         // missing: the words are on the cell the moment git says them.
@@ -1287,7 +1332,7 @@ export const make = (options: Options): Committing => {
       if (opening._tag !== "Opened") return whyOf(mode(), opening, null, writer)
 
       const repo = yield* opening.repo.state
-      return whyOf(mode(), repo, settled.refusal, writer)
+      return whyOf(mode(), repo, settled.refusal?.said ?? null, writer)
     })
 
   // ── the quiet window ───────────────────────────────────────────────────
@@ -1393,6 +1438,54 @@ export const make = (options: Options): Committing => {
     options.onSettled?.()
   })
 
+  /**
+   * THE STALE LOCK FILE, REMOVED — and with it the refusal and the pause it
+   * left, because the two were only ever about that file being in the way.
+   *
+   * The ONE gesture that acts on a file rather than through git, and it is a
+   * procedure for `resume`'s reason: what it clears is a fact about the
+   * DIRECTORY, so a reload, a second tab or a row switched off and on again
+   * must not be what clears it — and the browser then retries the commit it was
+   * refused, which is what makes one press recover.
+   *
+   * `Held` clears NOTHING, and it is where the one STAMP lives: the guard
+   * answered with a fresher mtime than the refusal recorded, so the cell's copy
+   * of the age is rewritten to it. Two ages for one file on one screen is a
+   * contradiction a reader has to resolve, and the cell is the copy every tab
+   * and every reload reads — a `createSignal` in the panel would be a second
+   * copy of a server fact, and the older of the two.
+   *
+   * A FAILURE clears nothing either, and reaches the caller as a refusal it can
+   * draw — see `@olai/git`'s `UnlockRefused`.
+   */
+  const unlock: Effect.Effect<UnlockResult, OpFailure> = Effect.gen(function*() {
+    const opening = yield* repository
+    if (opening._tag !== "Opened") return { _tag: "Absent" } as const
+    const answer = yield* Effect.mapError(
+      opening.repo.unlock,
+      // The wire's closed union has no arm for "the filesystem said no", and
+      // `BusyFailure` is the one that is words alone — the same shape the
+      // browser's own `asFailure` gives a failure it does not recognise. What a
+      // reader draws is `message`, which is the errno's own words.
+      (cause) => new BusyFailure({ reason: cause.message }),
+    )
+    if (answer._tag === "Held") {
+      if (settled.refusal !== null) {
+        settled = {
+          ...settled,
+          refusal: { ...settled.refusal, lock: { since: answer.since } },
+        }
+        options.onSettled?.()
+      }
+      return answer
+    }
+    settled = { ...settled, refusal: null, paused: null }
+    // The republish, exactly as `resume` needs one: what is waiting has not
+    // moved, so nothing else would tell the panel that the fault is over.
+    options.onSettled?.()
+    return answer
+  })
+
   /** The repository's state on its own — what {@link Committing.git} wants,
    *  without the status walk and the parsing {@link pending} does for the
    *  panel. */
@@ -1414,6 +1507,7 @@ export const make = (options: Options): Committing => {
     loop,
     catchUp,
     resume,
+    unlock,
     /**
      * This value's answer on its own, for a caller that wants only it: the
      * directory's own state, plus the four facts no probe of it can see

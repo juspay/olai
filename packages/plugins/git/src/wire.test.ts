@@ -8,6 +8,7 @@ import { surface } from "./wire.ts"
 const GIT_OFF_REPO: GitState = {
   status: "repo",
   said: null,
+  lock: null,
   policy: DEFAULT_POLICY,
   pushSaid: null,
   paused: null,
@@ -30,17 +31,22 @@ test("what git is doing knows when it has not changed", () => {
       { policy: { commit: "auto", push: "off" } },
       { pushSaid: "! [rejected] main -> main" },
       { paused: "! [rejected] main -> main" },
+      // The lock a refusal was about, which the panel draws a button beside —
+      // a cell that swallowed a repeat of it would leave the button saying
+      // nothing about a different file.
+      { lock: { since: 1_760_000_000_000 } },
     ] as const
   ) {
     expect(surface.spec.cells.git.equals?.(healthy, { ...healthy, ...moved })).toBe(false)
   }
 })
 
-test("the three verbs sit on this spec, not on core's", () => {
+test("the four verbs sit on this spec, not on core's", () => {
   expect(Object.keys(surface.spec.procedures?.git ?? {}).sort()).toEqual([
     "commit",
     "push",
     "resume",
+    "unlock",
   ])
 })
 

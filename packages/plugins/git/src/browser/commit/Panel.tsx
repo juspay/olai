@@ -39,7 +39,7 @@
  */
 import { servedDirectory } from "../vault.ts"
 import { isReady } from "@olai/format"
-import { Show } from "solid-js"
+import { createSignal, Show } from "solid-js"
 
 import { agoOf } from "@olai/web/client/ago.ts"
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
@@ -49,6 +49,9 @@ import {
   AUTO_STOPPED,
   because,
   commitRefused,
+  LOCK_HELD,
+  lockRefused,
+  lockSays,
   scopeOf,
   verbatim,
   waitingIn,
@@ -113,6 +116,44 @@ export function Panel(props: {
   /** Whether the quiet window would record this list on its own — the loop's
    *  OWN gate, asked rather than re-derived (`./said.ts`). */
   const promised = () => willRecord(pending(), props.commit.git())
+
+  /** The `index.lock` the last refusal was about, or `null` — the one refusal
+   *  with a gesture behind it (`./said.ts`). */
+  const lock = () => lockRefused(props.commit.git())
+
+  /** The stamp the GUARD answered about, or `null` — the one fact about a lock
+   *  the cell cannot carry: "there is a lock in the way" and "olai has been
+   *  asked about this one and would not touch it" are the same cell and two
+   *  different sentences.
+   *
+   *  A STAMP rather than a flag, because the guard REWRITES the cell's stamp
+   *  when it answers (`@olai/plugin-git`'s `unlock`, so that one file has one
+   *  age): the sentence draws while the cell's lock is the one the guard
+   *  answered about, and a different lock cannot inherit it. */
+  const [guarded, setGuarded] = createSignal<number | null>(null)
+  const held = () => {
+    const stopped = lock()
+    return stopped !== null && guarded() === stopped.since
+  }
+
+  /**
+   * The refusal line: what it SAYS, and what it is titled with.
+   *
+   * One derivation rather than two readings of the same fault. `says` is olai's
+   * lock sentence when the refusal was about a lock file — with the age phrased
+   * against THIS panel's clock, which ticks — and git's own words otherwise;
+   * `title` is always git's own, which names the path a person with a terminal
+   * is looking for.
+   */
+  const refusal = () => {
+    const said = commitRefused(props.commit.git())
+    if (said === null) return null
+    const stopped = lock()
+    return {
+      says: stopped === null ? said : lockSays(stopped.since, props.now),
+      title: said,
+    }
+  }
 
   return (
     <section
@@ -217,6 +258,19 @@ export function Panel(props: {
         >
           Resume
         </button>
+        {/* ... and what the SERVER would not take from THAT press — a call that
+            never reached it. Its own line, because the seam keeps one refusal
+            per control (`GitPolicySeam.unlockRefused` has the argument). */}
+        <Show when={props.commit.resumeRefused()}>
+          {(said) => (
+            <p
+              class="wrap-anywhere text-label text-alarm"
+              data-testid={TESTID.commitResumeRefused}
+            >
+              {said()}
+            </p>
+          )}
+        </Show>
       </Show>
 
       {/* Why the button is disabled — said, rather than left for somebody to
@@ -257,19 +311,77 @@ export function Panel(props: {
           is the same words in every tab and after a reload — and so a commit
           the agent or the quiet window made and git refused is readable by the
           person who opens this panel, who need not be the one who was looking
-          when it happened. */}
-      <Show when={commitRefused(props.commit.git())}>
-        {(said) => (
-          <p class="wrap-anywhere text-label text-alarm" data-testid={TESTID.commitRefused}>
-            {said()}
+          when it happened.
+
+          A LOCK FILE is the one refusal with a gesture behind it, so it reads
+          as olai's sentence rather than as a `fatal:` line naming a path — with
+          git's own words on the `title`, which is where that path stays. */}
+      <Show when={refusal()}>
+        {(line) => (
+          <p
+            class="wrap-anywhere text-label text-alarm"
+            data-testid={TESTID.commitRefused}
+            title={line().title}
+          >
+            {line().says}
           </p>
         )}
       </Show>
 
+      {/* ... AND THE ONE GESTURE THAT ANSWERS IT. Drawn only while the refusal
+          was about a lock file, because it is the only fault a button can
+          clear: the sentence above asks the reader to check that no git
+          command is running, and this is them saying they have. It never runs
+          on olai's own initiative, and an agent has no way to reach it.
+
+          ONE PRESS RECOVERS: `Removed` and `Absent` mean the file is not in
+          the way any more, so the commit this panel was refused is made again
+          with the draft and the ticks it is holding. `Held` is the guard saying
+          the lock is younger than a git command's own budget, and nothing is
+          retried. */}
+      <Show when={lock()}>
+        <button
+          type="button"
+          class="self-start rounded-control border border-rule px-3 py-1.5 text-label hover:text-ink"
+          data-testid={TESTID.commitUnlock}
+          onClick={() =>
+            props.commit.unlock((answer) => {
+              if (answer._tag === "Held") {
+                setGuarded(answer.since)
+                return
+              }
+              setGuarded(null)
+              props.commit.commit(draft(), selection.paths())
+            })}
+        >
+          Remove lock file & retry
+        </button>
+        {/* ... and the same for this press: a call that never arrived, or a file
+            that is there and a git directory that will not let go of it — where
+            the errno IS the reason. */}
+        <Show when={props.commit.unlockRefused()}>
+          {(said) => (
+            <p
+              class="wrap-anywhere text-label text-alarm"
+              data-testid={TESTID.commitUnlockRefused}
+            >
+              {said()}
+            </p>
+          )}
+        </Show>
+        <Show when={held()}>
+          <p class="text-label text-doing" data-testid={TESTID.commitLockHeld}>
+            {LOCK_HELD}
+          </p>
+        </Show>
+      </Show>
+
       {/* ... and what the SERVER would not take from this tab: a call the wire
-          dropped, or a usage refusal. Its own line because it is about this
-          press rather than about the directory, and a control that silently
-          did nothing is the failure this whole feature is about. */}
+          dropped, a usage refusal, or a lock file that was there and could not
+          be removed — where the errno is the whole of what a reader can act on.
+          Its own line because it is about this press rather than about the
+          directory, and a control that silently did nothing is the failure this
+          whole feature is about. */}
       <Show when={props.commit.refused()}>
         {(said) => (
           <p class="wrap-anywhere text-label text-alarm" data-testid={TESTID.commitCallRefused}>

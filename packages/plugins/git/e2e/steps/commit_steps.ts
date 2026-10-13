@@ -54,6 +54,10 @@ import {
   COMMIT_OTHER,
   COMMIT_PUSH,
   COMMIT_PUSH_REFUSED,
+  COMMIT_REFUSED,
+  COMMIT_LOCK_HELD,
+  COMMIT_UNLOCK,
+  COMMIT_UNLOCK_REFUSED,
   COMMIT_SCOPE,
   COMMIT_TICK,
   COMMIT_UNPUSHED,
@@ -660,6 +664,154 @@ Then("the repository is clean", function (this: OlaiWorld) {
 
 When("HEAD is detached in the served repository", function (this: OlaiWorld) {
   this.git("checkout", "--quiet", "--detach", "HEAD");
+});
+
+// ── the stale lock file ────────────────────────────────────────────────
+
+/** Where the served repository's GIT DIRECTORY is — asked of git rather than
+ *  assumed, because a linked worktree's is not `.git`. */
+const gitDirIn = (world: OlaiWorld): string =>
+  world.git("rev-parse", "--absolute-git-dir").trim();
+
+/**
+ * Plant a lock file of a given age.
+ *
+ * WHERE THE LOCK LIVES comes from {@link gitDirIn}, which is the case the
+ * verb's path pinning exists for: `.git/index.lock` is right for a work tree at
+ * the repository root and wrong for a linked one.
+ */
+const plantLock = (world: OlaiWorld, ageMs: number): void => {
+  const at = path.join(gitDirIn(world), "index.lock");
+  fs.writeFileSync(at, "");
+  const stamp = (Date.now() - ageMs) / 1000;
+  fs.utimesSync(at, stamp, stamp);
+};
+
+/**
+ * A LOCK FILE NOBODY IS HOLDING — the bug, as a fixture: git removes
+ * `index.lock` on the way out of every exit it controls, and a killed process,
+ * a full disk or a machine that went down mid-write leaves one behind that
+ * refuses every write in the repository until somebody removes it.
+ */
+Given("a stale lock file sits in the repository", function (this: OlaiWorld) {
+  plantLock(this, 10 * 60_000);
+});
+
+/** ... and the other one: younger than a git command's own budget, so it may
+ *  belong to a git that is still writing it. */
+Given("a fresh lock file sits in the repository", function (this: OlaiWorld) {
+  plantLock(this, 0);
+});
+
+/**
+ * THE GIT DIRECTORY, MADE UNWRITABLE — the one shape of "the file is there and
+ * the unlink is refused" a test can produce on any machine that is not root.
+ *
+ * Root can unlink from a directory it cannot write, so the step is PENDING
+ * there rather than inverted (`@olai/plugins/vault`'s `live_steps.ts` makes the
+ * same call for an unreadable file).
+ */
+Given("the git directory cannot be written to", async function (this: OlaiWorld) {
+  if (typeof process.getuid === "function" && process.getuid() === 0) {
+    return "pending";
+  }
+  fs.chmodSync(gitDirIn(this), 0o500);
+});
+
+/** ... and writable again, which is the half that turns the failure into a
+ *  press that works. */
+When("the git directory can be written to again", async function (this: OlaiWorld) {
+  if (typeof process.getuid === "function" && process.getuid() === 0) {
+    return "pending";
+  }
+  fs.chmodSync(gitDirIn(this), 0o700);
+});
+
+Then("the commit panel says a lock file is in the way", async function (this: OlaiWorld) {
+  const line = this.page.locator(COMMIT_REFUSED);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = oneLine(await line.innerText());
+  assert.ok(
+    said.includes("lock file is in the way"),
+    `the refusal line says "${said}", which is not the sentence about a lock file`,
+  );
+  // ... AND GIT'S OWN WORDS ARE ONE HOVER AWAY. The sentence says what to do
+  // about the file; the `title` is where the path git actually refused over
+  // survives, which is what a person with a terminal is looking for.
+  const title = (await line.getAttribute("title")) ?? "";
+  assert.ok(
+    title.includes("index.lock"),
+    `the refusal line's title is "${title}", which does not carry git's own words`,
+  );
+});
+
+/**
+ * HOW OLD THE PANEL SAYS THE LOCK IS — the one stamp, and the assertion that
+ * two ages cannot be on screen at once.
+ *
+ * Waited for rather than read once: the guard answers a press by REWRITING the
+ * cell's copy of the age to the one it saw, so the sentence a scenario is
+ * waiting for arrives a republish after the click.
+ */
+Then(
+  "the commit panel says the lock was left {string}",
+  async function (this: OlaiWorld, ago: string) {
+    const words = `(left ${ago})`;
+    try {
+      await this.page
+        .locator(`${COMMIT_REFUSED}:has-text(${JSON.stringify(words)})`)
+        .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    } catch {
+      const said = await this.page.locator(COMMIT_REFUSED).textContent({ timeout: POLL_TIMEOUT });
+      assert.fail(
+        `the refusal line to say the lock was left ${JSON.stringify(ago)}, ` +
+          `and it says ${JSON.stringify(oneLine(said ?? ""))}`,
+      );
+    }
+  },
+);
+
+Then("the commit panel offers to remove the lock file", async function (this: OlaiWorld) {
+  await this.page.locator(COMMIT_UNLOCK)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the commit panel does not offer to remove a lock file", async function (this: OlaiWorld) {
+  await this.page.locator(COMMIT_UNLOCK)
+    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+/** THE ONE GESTURE, and the press that makes it: the file goes, the refusal and
+ *  the pause go with it, and the panel makes the commit it was refused. */
+When("I remove the lock file and retry", async function (this: OlaiWorld) {
+  await this.page.locator(COMMIT_UNLOCK).click({ timeout: POLL_TIMEOUT });
+});
+
+/** ... and the answer when it is too early to make: the guard says so. */
+Then("the panel says a git process may still be writing", async function (this: OlaiWorld) {
+  const line = this.page.locator(COMMIT_LOCK_HELD);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = oneLine(await line.innerText());
+  assert.ok(
+    said.includes("may still be writing"),
+    `the held line says "${said}", which does not say why nothing was removed`,
+  );
+});
+
+/**
+ * WHAT THE SERVER COULD NOT DO, on the line under the button that asked.
+ *
+ * Asserted by its ERRNO, because that is the whole of what a reader can act on
+ * — the difference between a permission, a full disk and a read-only mount.
+ */
+Then("the panel says the lock could not be removed", async function (this: OlaiWorld) {
+  const line = this.page.locator(COMMIT_UNLOCK_REFUSED);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = oneLine(await line.innerText());
+  assert.ok(
+    said.includes("permission denied"),
+    `the unlock refusal says "${said}", which does not name the errno`,
+  );
 });
 
 // ── the whole repository ───────────────────────────────────────────────

@@ -14,7 +14,7 @@
 
 import { collector, findSaid } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
-import { Effect, Exit, Fiber } from "effect"
+import { Cause, Effect, Exit, Fiber } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -50,19 +50,27 @@ const repo = (
 
 /** Every question below is asked of a repository, so this is the prologue they
  *  share: open the directory, or fail the test saying it is not one. */
-const asEffect = <A>(
+const asEffect = <A, E = never>(
   root: string,
-  use: (git: Repo) => Effect.Effect<A>,
-): Effect.Effect<A> =>
+  use: (git: Repo) => Effect.Effect<A, E>,
+): Effect.Effect<A, E> =>
   Effect.flatMap(open(root), (opening) =>
     opening._tag !== "Opened"
       ? Effect.die(new Error(`${root} is not a work tree: ${opening._tag}`))
       : use(opening.repo))
 
+/**
+ * ... and the same, run for its ANSWER.
+ *
+ * `unknown` rather than `never`, because one verb can genuinely fail — the one
+ * that removes a lock file. A test that expects an answer dies on a failure,
+ * which is what it meant; a test that is ABOUT the failure asks through
+ * `Effect.runPromiseExit` instead.
+ */
 const asked = <A>(
   root: string,
-  use: (git: Repo) => Effect.Effect<A>,
-): Promise<A> => Effect.runPromise(asEffect(root, use))
+  use: (git: Repo) => Effect.Effect<A, unknown>,
+): Promise<A> => Effect.runPromise(Effect.orDie(asEffect(root, use)))
 
 /** The survey, for the tests that are about what it FOUND rather than about a
  *  git that could not answer — which has its own test, and which every one of
@@ -684,6 +692,10 @@ test("git refusing is a warning with git's own words in a field, and a Failed", 
 
   // Never fails the write, and never claims to have committed.
   expect(done._tag).toBe("Failed")
+  // ... AND NO LOCK, which is the half the panel needs: a refusal about a path
+  // that is not in this repository has no file behind it, and offering to
+  // remove one would be offering to remove somebody else's.
+  expect(done._tag === "Failed" ? done.lock : undefined).toBe(null)
 
   const warned = findSaid(said, "could not stage the write")
   expect(warned?.level).toBe("Warn")
@@ -762,6 +774,9 @@ test("a refused commit puts the index back exactly as it was", async () => {
   expect(done._tag).toBe("Failed")
   // Git's own words about the signature, not a sentence of ours.
   expect(done._tag === "Failed" ? done.said : "").not.toBe("")
+  // And no lock: a signature nothing can produce refuses every commit and has
+  // no file behind it.
+  expect(done._tag === "Failed" ? done.lock : undefined).toBe(null)
   expect(run("log", "--format=%s").trim()).toBe("fixtures")
 
   // BIT-IDENTICAL, which is the strongest way to say "untouched" — and the
@@ -776,6 +791,147 @@ test("a refused commit puts the index back exactly as it was", async () => {
   // And the outline is MODIFIED rather than staged: the `add` this call made
   // has been taken back out.
   expect(before.status).toContain(" M a.olai")
+})
+
+/*******************************************************************************
+ * the stale lock file — the one refusal with a gesture behind it.           *
+ ******************************************************************************/
+
+/**
+ * Plant a lock file of a given age, and answer with the stamp it really got.
+ *
+ * The AGE is the whole signal there is: git's `index.lock` carries no pid, so
+ * nothing can ask whether the process that left it is still alive, and `utimes`
+ * is how a test makes an old one without waiting.
+ */
+const plantLock = (at: string, ageMs: number): number => {
+  fs.writeFileSync(at, "")
+  const stamp = (Date.now() - ageMs) / 1000
+  fs.utimesSync(at, stamp, stamp)
+  return fs.statSync(at).mtimeMs
+}
+
+/** The lock file git refuses a write over, in a repository at `root`. */
+const lockAt = (root: string): string => path.join(root, ".git", "index.lock")
+
+test("a commit git refused over a lock file carries the file and when it was left", async () => {
+  const { root, file } = repo()
+  const run = git(root)
+  const lock = lockAt(root)
+  const planted = plantLock(lock, 10 * 60_000)
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
+
+  const done = await asked(root, (git) =>
+    git.commit({ paths: [file], message: "olai: one edit" }))
+
+  expect(done._tag).toBe("Failed")
+  if (done._tag !== "Failed") throw new Error("unreachable")
+  // git's own words, whole — what a person would paste into a search.
+  expect(done.said).toContain("index.lock")
+  // ... AND THE FILE, which is the half no sentence can be acted on: the age is
+  // what tells a reader whether a git process could still be writing it. The
+  // path is never parsed out of the words — it is this handle's own git
+  // directory — so what is asserted is the stamp of the file that was planted.
+  expect(done.lock).not.toBe(null)
+  expect(Math.abs((done.lock?.since ?? 0) - planted)).toBeLessThan(5_000)
+  // Nothing was committed, and the lock olai did not put there is still there.
+  expect(run("log", "--format=%s").trim()).toBe("fixtures")
+  expect(fs.existsSync(lock)).toBe(true)
+  fs.rmSync(lock)
+})
+
+test("unlock holds a fresh lock, removes a stale one, and is Absent with none at all", async () => {
+  const { root } = repo()
+  const lock = lockAt(root)
+
+  // Nothing there at all — an answer rather than a failure.
+  expect(await asked(root, (git) => git.unlock)).toEqual({ _tag: "Absent" })
+
+  // FRESH: younger than a git command's own budget, so it may belong to a git
+  // that is still writing it. olai does not touch it, and says when it was
+  // left.
+  const fresh = plantLock(lock, 1_000)
+  const held = await asked(root, (git) => git.unlock)
+  expect(held._tag).toBe("Held")
+  expect(held._tag === "Held" ? Math.abs(held.since - fresh) : 0).toBeLessThan(5_000)
+  expect(fs.existsSync(lock)).toBe(true)
+
+  // STALE: past the budget, so nothing on this machine could still be holding
+  // it for a reason and the human's press decides. The file goes.
+  plantLock(lock, 10 * 60_000)
+  expect(await asked(root, (git) => git.unlock)).toEqual({ _tag: "Removed" })
+  expect(fs.existsSync(lock)).toBe(false)
+
+  // ... and pressing again is `Absent` rather than a second `Removed`.
+  expect(await asked(root, (git) => git.unlock)).toEqual({ _tag: "Absent" })
+})
+
+test("a lock that cannot be removed fails with the errno's own words, and stays", async () => {
+  // A git directory olai cannot write: a permission that is not its, a read-only
+  // mount. THIS IS A FAILURE AND NOT AN ANSWER, and the difference is the whole
+  // reason it is one: `Absent` would say the file is gone when it is not, and
+  // the ledger clears the remembered refusal on `Absent` — so the panel would
+  // drop the fault, retry, and meet the same refusal again with nothing on
+  // screen saying why. Root ignores the mode, so the test skips there.
+  if (typeof process.getuid === "function" && process.getuid() === 0) return
+  const { root } = repo()
+  const at = lockAt(root)
+  plantLock(at, 10 * 60_000)
+
+  const dir = path.dirname(at)
+  fs.chmodSync(dir, 0o500)
+  try {
+    const exit = await Effect.runPromiseExit(asEffect(root, (git) => git.unlock))
+    expect(Exit.isFailure(exit)).toBe(true)
+    // The errno's own words, which is what tells a reader whether this is a
+    // permission, a full disk or a read-only mount.
+    if (Exit.isFailure(exit)) {
+      expect(Cause.pretty(exit.cause)).toContain("permission denied")
+    }
+  } finally {
+    fs.chmodSync(dir, 0o700)
+  }
+
+  // ... and the file is still there, which is the fact the failure means.
+  expect(fs.existsSync(at)).toBe(true)
+  fs.rmSync(at)
+})
+
+test("a lock in a linked worktree is found under that worktree's own git directory", async () => {
+  const { root } = repo()
+  const run = git(root)
+  const where = fs.mkdtempSync(path.join(os.tmpdir(), "olai-git-linked-"))
+  const linked = path.join(where, "linked")
+  run("worktree", "add", "--quiet", "--detach", linked)
+
+  // A LINKED WORKTREE'S GIT DIRECTORY IS NOT THE MAIN ONE: `rev-parse
+  // --absolute-git-dir` answers `.git/worktrees/<name>` there, and that is
+  // where its own `index.lock` lives. A handle opened on the worktree must find
+  // the lock git actually refused over rather than the main repository's —
+  // which is what pinning the path to `gitDir` buys, and what parsing a path
+  // out of git's sentence would get wrong.
+  const theirs = lockAt(root)
+  const mine = path.join(root, ".git", "worktrees", path.basename(linked), "index.lock")
+  const planted = plantLock(mine, 10 * 60_000)
+  plantLock(theirs, 10 * 60_000)
+
+  const added = path.join(linked, "linked.olai")
+  fs.writeFileSync(added, `{"id":"l","ord":"a0","title":"l"}\n`)
+  const done = await asked(linked, (git) =>
+    git.commit({ paths: [added], message: "olai: linked" }))
+
+  expect(done._tag).toBe("Failed")
+  expect(done._tag === "Failed" ? Math.abs((done.lock?.since ?? 0) - planted) : 0)
+    .toBeLessThan(5_000)
+
+  // ... and the verb removes exactly that file, leaving the main repository's
+  // lock alone.
+  expect(await asked(linked, (git) => git.unlock)).toEqual({ _tag: "Removed" })
+  expect(fs.existsSync(mine)).toBe(false)
+  expect(fs.existsSync(theirs)).toBe(true)
+
+  fs.rmSync(theirs)
+  fs.rmSync(where, { recursive: true, force: true })
 })
 
 /**

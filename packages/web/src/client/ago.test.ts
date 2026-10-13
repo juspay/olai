@@ -32,4 +32,17 @@ describe("how long ago", () => {
     expect(agoOf("", now)).toBe("")
     expect(agoOf("not a date", now)).toBe("")
   })
+
+  /**
+   * A STAMP THAT IS ALREADY A NUMBER, which is the encoding one caller hands
+   * over: a git lock file is stamped in milliseconds by `stat`, and spelling it
+   * into ISO text so this could parse it back would be a value laundered
+   * through a string on every read. `./clock.ts`'s `instantOf` is what makes it
+   * the identity case, and this is the pin on that claim.
+   */
+  test("a millisecond stamp is read as itself", () => {
+    expect(agoOf(now - 12 * 60_000, now)).toBe("12m ago")
+    expect(agoOf(now + 60_000, now)).toBe("just now")
+    expect(agoOf(Number.NaN, now)).toBe("")
+  })
 })

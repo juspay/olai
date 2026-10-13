@@ -34,6 +34,9 @@ import {
   saysOf,
   isInert,
   isNews,
+  LOCK_HELD,
+  lockRefused,
+  lockSays,
   localOf,
   FACE_TONE,
   readingOf,
@@ -58,7 +61,7 @@ const surveyed = (repo: RepoState, over: Partial<Pending> = {}): Pending => ({
 const READY: RepoState = { _tag: "Ready", branch: "main" }
 
 /** A healthy git cell, and the one field a case is about, over it. Every
- *  scenario here moves ONE of the six things this value carries, which is what
+ *  scenario here moves ONE of the seven things this value carries, which is what
  *  keeps a sentence about a refused push from being a sentence about a broken
  *  repository. */
 const git = (over: Partial<GitState> = {}): GitState => ({
@@ -311,6 +314,55 @@ test("a git failure hands over git's own words", () => {
 test("a fault that arrived with nothing to say still reads as a sentence", () => {
   expect(explain("error", surveyed(READY), git({ status: "error", said: "" })))
     .toBe(DETAIL.error)
+})
+
+/**
+ * THE STALE LOCK FILE, in words.
+ *
+ * git's own sentence for one is a `fatal:` line naming a path: accurate, and
+ * telling a reader nothing they can do. This is the one refusal with a gesture
+ * behind it, so it reads as olai's sentence instead — and the AGE is phrased
+ * against whichever clock the reader has, because the two readers differ: the
+ * panel ticks, the pill re-reads only when the directory changes (see
+ * {@link lockSays}).
+ */
+test("a lock file in the way reads as olai's sentence, aged only where a clock is", () => {
+  const now = 1_760_000_000_000
+  const left = { since: now - 12 * 60_000 }
+  const stopped = git({
+    status: "error",
+    said: "fatal: Unable to create '/srv/notes/.git/index.lock': File exists.",
+    lock: left,
+  })
+
+  // The panel's copy, against this panel's own clock.
+  expect(lockSays(left.since, now)).toBe(
+    "A git lock file is in the way (left 12m ago). " +
+      "If no git command is running, remove it and retry.",
+  )
+  // ... and the pill's, which has no clock: the same sentence, with no age
+  // that would sit there reading "12m ago" for the rest of the afternoon.
+  expect(explain("error", surveyed(READY), stopped))
+    .toBe("A git lock file is in the way. If no git command is running, remove it and retry.")
+
+  // THE FILE is on the reading too, which is what the button is drawn from —
+  // and a refusal that was about something else carries none, so the panel
+  // falls back to git's own words.
+  expect(lockRefused(stopped)).toEqual(left)
+  expect(lockRefused(git({ status: "error", said: "fatal: gpg failed" }))).toBe(null)
+  expect(explain("error", surveyed(READY), gitSaid("fatal: gpg failed")))
+    .toContain("fatal: gpg failed")
+})
+
+/**
+ * ... AND THE OTHER ANSWER THE BUTTON GETS: the lock is younger than a git
+ * command's own budget, so olai will not remove it and the sentence says why.
+ * No age on it — the line above already says how young the lock is, and the
+ * guard rewrites that stamp on the cell when it answers (`@olai/plugin-git`'s
+ * `unlock`), so a second one here could only contradict it.
+ */
+test("the answer when the lock is too young to remove says git may still be writing it", () => {
+  expect(LOCK_HELD).toBe("A git process may still be writing; try again in a moment.")
 })
 
 test("the sentence counts what the label counts", () => {
