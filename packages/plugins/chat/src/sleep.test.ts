@@ -3,15 +3,16 @@
  *
  * The instruction is prose an agent reads, so the tests here are about the
  * things that must SURVIVE an edit: the three verbs in order, the verbatim
- * rule, the two things never to do, the fifth cap, and the one teaching line
- * restated in front of it. Everything else about the wording is a person's to
- * change.
+ * rule, the two things never to do, the fifth cap, the one teaching line
+ * restated in front of it, and the ask that hands the whole brief to ONE
+ * subagent between two rules. Everything else about the wording is a person's
+ * to change.
  */
 import { expect, test } from "bun:test"
 
 import type { NodeAgent } from "@olai/format"
 
-import { SLEEP, sleepFor } from "./sleep.ts"
+import { DELEGATE, SLEEP, briefFor, sleepFor } from "./sleep.ts"
 import { HARNESS_MEMORY_OFF } from "./teaching.ts"
 
 const AGENT: NodeAgent = {
@@ -74,5 +75,40 @@ test("what one agent is sent names it, restates the memory line, and is the inst
   // THE SAME SENTENCE every first turn ends on, not a paraphrase of it: an
   // agent that has been told once is being reminded.
   expect(said).toContain(HARNESS_MEMORY_OFF)
-  expect(said).toEndWith(SLEEP)
+  // THE INSTRUCTION IS IN THE MESSAGE, after the ask: the message now ends on the
+  // closing rule line, and the words it hands over are held below.
+  expect(said).toContain(SLEEP)
+})
+
+test("the turn asks for one subagent before it says what the subagent is to do", () => {
+  const said = sleepFor(AGENT)
+  const ask = said.indexOf(DELEGATE)
+  const opens = said.indexOf("\n----\n")
+  // THE ASK IS THE TURN'S OWN PARAGRAPH, and it comes before the brief: the
+  // fallback sentence ("do the brief yourself") is the node agent's, not the
+  // subagent's, and a subagent that read the rules first would be reading an
+  // instruction addressed to somebody else.
+  expect(ask).toBeGreaterThan(-1)
+  expect(opens).toBeGreaterThan(ask)
+})
+
+test("the brief is fenced, whole, and addressed to the subagent", () => {
+  const said = sleepFor(AGENT)
+  const opens = said.indexOf("\n----\n")
+  const closes = said.lastIndexOf("\n----")
+  expect(opens).toBeGreaterThan(-1)
+  expect(closes).toBeGreaterThan(opens)
+  // WHAT IS BETWEEN THE RULES IS THE BRIEF EXACTLY, which is the one part of the
+  // wording the ask tells the agent to hand over word for word.
+  expect(said.slice(opens + 6, closes)).toBe(briefFor(AGENT))
+  const brief = briefFor(AGENT)
+  // THE SUBAGENT'S OWN SECOND PERSON, carrying the pointer the node agent's own
+  // opening line carries: it has not been taught this node and it sees none of
+  // the conversation it was started from.
+  expect(brief).toStartWith("You are tidying the memory of the node agent for “Health” — the node `health` in `house.olai`")
+  expect(brief).toContain(HARNESS_MEMORY_OFF)
+  // ...AND THE INSTRUCTION IS THE SAME WORDS rather than a second version of
+  // them: the steps, the verbatim rule, the prohibitions and the silent ending
+  // are `SLEEP`'s and are asserted there.
+  expect(brief).toEndWith(SLEEP)
 })
