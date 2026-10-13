@@ -73,7 +73,7 @@ export const Config = Schema.Struct({
   sleep: Schema.Literals(["on", "off"]).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed("on")),
     Schema.annotate({
-      description: "Whether olai tidies a node agent's memory for it once it has been left alone",
+      description: "Whether olai may tidy a chat's memory on its own clock at all — each chat still has to ask",
     }),
   ),
   "sleep-after": span("sleep-after"),
@@ -99,7 +99,10 @@ export const sleepingPolicy = (config: typeof Config.Type) => {
 }
 
 /**
- * WHAT A PERSON IS TOLD WHEN THEY ASK FOR A PASS WITH THE SWITCH OFF.
+ * WHAT A PERSON IS TOLD WHEN THEY ASK FOR A PASS WITH THE SWITCH OFF — and the
+ *  same sentence the mark's own verb is refused with, because a mark written
+ *  while the pass cannot run at all would be a promise the row's label does not
+ *  keep.
  *
  * The verb stays on the row and says why rather than disappearing: a person who
  * looked for *Sleep now* and found nothing would go looking for a bug,

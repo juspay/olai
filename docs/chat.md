@@ -855,9 +855,21 @@ own: when it has been left alone for six hours and its subtree has changed
 since it last slept, it is asked to tidy, distill and tuck away — in its own
 conversation, with the tools it already has.
 
-**A person can ask for the same pass now.** A node agent with a session offers
-*Sleep now* on its row's menu, and ⌘K offers one such row while a node agent's
-conversation is the one on screen — the row names the node it would act on.
+**Nothing sleeps until you say so.** The pass is opt-in per chat, and off by
+default: a node agent with a session offers **Sleep when idle** on its row's
+menu, and ⌘K offers the same row for the conversation on screen. Pressing it
+writes `chat-agent-sleep: on` on the node — a property like any other, which you
+can type in the drawer instead — and the verb then reads **Stop sleeping when
+idle** and pressing it takes the mark off. Absent and `off` are the same answer,
+so a vault that never hears about this feature is a vault where nothing is
+tidied. `sleep: on` in `_olai/Settings.olai` stays the default and means "the
+loop runs for the chats that asked"; `sleep: off` turns everything off, the verb
+included, and pressing either verb is refused with the sentence saying so.
+
+**A person can ask for the pass now, marked or not.** *Sleep now* on the row's
+menu — and the same row in ⌘K while a node agent's conversation is the one on
+screen — runs the pass on that node whatever the mark says: a press is a choice,
+exactly as it skips the two tests below.
 Pressing either runs the pass the loop would have run — the same machine row, the same memo and the same one
 commit. What it skips is the two tests that decide whether a node is DUE: the
 idle window and "the subtree has changed since it last slept" are how the loop
