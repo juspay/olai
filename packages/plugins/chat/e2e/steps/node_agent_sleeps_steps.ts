@@ -150,16 +150,18 @@ When("I narrow the window to a phone's width", async function (this: OlaiWorld) 
 });
 
 Then("the standing line has wrapped", async function (this: OlaiWorld) {
-  const box = await line(this).evaluate((node) => {
-    const items = node.querySelectorAll("[data-testid]");
-    const first = node.firstElementChild as HTMLElement | null;
-    const wake = node.querySelector(`[data-testid="${TESTID.chatWake}"]`);
+  const box = await line(this).evaluate((node, wakeId) => {
+    // THE CHILD IS FOUND BY ITS ATTRIBUTE rather than by a selector built in a
+    // step: `packages/tests/selectors.test.ts` holds that line, and a step is
+    // where it is easiest to cross it.
+    const children = [...node.children] as Array<HTMLElement>;
+    const first = children[0] ?? null;
+    const wake = children.find((one) => one.getAttribute("data-testid") === wakeId) ?? null;
     return {
-      items: items.length,
       sleep: first === null ? null : first.getBoundingClientRect().bottom,
-      wake: wake === null ? null : (wake as HTMLElement).getBoundingClientRect().top,
+      wake: wake === null ? null : wake.getBoundingClientRect().top,
     };
-  });
+  }, TESTID.chatWake);
   assert.ok(box.wake !== null && box.sleep !== null, "the line should carry both kinds of item");
   assert.ok(
     box.wake >= box.sleep - 1,

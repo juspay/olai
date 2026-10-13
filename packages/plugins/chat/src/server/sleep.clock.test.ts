@@ -27,7 +27,7 @@ import { TestClock } from "effect/testing"
 
 import type { LiveSession, ReadingObserver } from "../scoped.ts"
 import { CHAT_OFF, type ChatState } from "../wire/members.ts"
-import type { Judged, Sleeping } from "./sleep.ts"
+import type { Forecast, Judged, Sleeping } from "./sleep.ts"
 import { forecastOf, makeSleeper, SKIP_MS } from "./sleep.ts"
 
 /** THE INSTANT EVERY CASE STARTS AT, and one the fixture's stamps are older
@@ -589,6 +589,12 @@ test("a turn that never ends is stopped at the limit, and left alone after that"
  * answer from here.
  */
 test("the judgement answers each state a node can be in, and none of them is a guess", () => {
+  /** THE MOMENT A `due` OR `skipped` CARRIES, as a number: the spelling on the
+   *  wire is the server's, and a test asserting that string would be asserting
+   *  the format rather than the instant a person is being told about. */
+  const when = (next: Forecast["next"]): number | null => next.kind === "due"
+    ? Date.parse(next.at)
+    : next.kind === "skipped" ? Date.parse(next.until) : null
   const doors = (over: {
     readonly sleeps?: boolean
     readonly sleptAt?: string | null
@@ -620,8 +626,9 @@ test("the judgement answers each state a node can be in, and none of them is a g
   // makes the session `thinking` and `busy` would mask it.
   expect(of(AGENT, judged({ inFlight: AGENT.id }), doors()).next).toEqual({ kind: "running" })
   // A FAILED PASS, for a day — and the instant is the backoff's own end.
-  expect(of(AGENT, judged({ failedAt: NOW - HOUR }), doors()).next)
-    .toEqual({ kind: "skipped", until: stamp(NOW - HOUR + SKIP_MS) })
+  const skipped = of(AGENT, judged({ failedAt: NOW - HOUR }), doors()).next
+  expect(skipped.kind).toBe("skipped")
+  expect(when(skipped)).toBe(NOW - HOUR + SKIP_MS)
   // ...AND DUE AGAIN ONCE THE DAY IS UP, because the expiry is pruned rather
   // than remembered for ever.
   expect(of(AGENT, judged({ failedAt: NOW - SKIP_MS }), doors()).next.kind).toBe("due")
@@ -638,8 +645,9 @@ test("the judgement answers each state a node can be in, and none of them is a g
   // exists.
   expect(of(AGENT, judged(), doors({ sleptAt: stamp(NOW - MIN) })).next).toEqual({ kind: "unchanged" })
   // DUE, and the instant is when the quiet window closes.
-  expect(of(AGENT, judged(), doors({ sleptAt: stamp(NOW - HOUR) })).next)
-    .toEqual({ kind: "due", at: stamp(NOW) })
+  const due = of(AGENT, judged(), doors({ sleptAt: stamp(NOW - HOUR) })).next
+  expect(due.kind).toBe("due")
+  expect(when(due)).toBe(NOW)
 })
 
 /**
@@ -660,8 +668,9 @@ test("a subtree somebody is editing keeps its node awake, whatever the conversat
   const live = new Map<string, LiveSession>([["health", { status: "idle", asking: 0, since: stamp(NOW - 7 * HOUR) }]])
   // THE IDLE WINDOW ALONE WOULD SAY YES — it ran out six hours into the seven —
   // and the edit an hour ago says no.
-  expect(forecastOf(AGENT, NOW, live, held.derived, { inFlight: null, failedAt: undefined }, doors).next)
-    .toEqual({ kind: "due", at: stamp(NOW + 5 * HOUR) })
+  const next = forecastOf(AGENT, NOW, live, held.derived, { inFlight: null, failedAt: undefined }, doors).next
+  expect(next.kind).toBe("due")
+  expect(next.kind === "due" ? Date.parse(next.at) : null).toBe(NOW + 5 * HOUR)
 })
 
 test("the strip's forecast is null for a node that is not one, and judges the one that is", () =>
