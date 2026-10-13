@@ -202,6 +202,100 @@ Feature: Committing on purpose
     And the commit button is disabled
     And there should be no page errors
 
+  Scenario: A stale lock file is removed from the panel, and the commit lands
+    # THE BUG, in one scenario. git refuses the write with `Unable to create
+    # '…/index.lock': File exists. Another git process seems to be running in
+    # this repository, or the lock file may be stale` — and that sentence over
+    # a button that failed again was the whole of what olai offered. The only
+    # cure was a terminal, and under `commit: auto` the loop simply stopped.
+    #
+    # A lock does NOT stop the SURVEY: `git status` answers with one in place,
+    # so what is waiting is still listed and there is something to commit once
+    # the file is gone. Only the write verbs refuse.
+    Given a stale lock file sits in the repository
+    When I rewrite "notes.md" as:
+      """
+      the herb bed needs splitting again
+      """
+    And I open the commit panel
+    And I commit with the message "the herb bed needs splitting"
+    # git's words and the FILE behind them, on the cell: the panel says what is
+    # in the way and offers the one gesture that clears it.
+    Then the commit panel says a lock file is in the way
+    And the commit pill says "error"
+    And the commit panel offers to remove the lock file
+    # ONE PRESS: the file goes, the refusal goes with it, and the commit it was
+    # refused is made with the message this panel is holding.
+    When I remove the lock file and retry
+    Then the last commit is "olai: the herb bed needs splitting" by "web"
+    And the repository is clean
+    And the commit panel does not offer to remove a lock file
+    And there should be no page errors
+
+  Scenario: A lock a git process may still be writing is not removed
+    # THE GUARD, and the only refusal on the verb. A lock younger than a git
+    # command's own budget may belong to a git that is still writing it, and
+    # removing somebody else's lock mid-write is how two writers corrupt one
+    # index. Past that budget nothing on this machine could still be holding it
+    # for a reason, so the person decides — which is why the sentence tells them
+    # to check that no git command is running before they press.
+    Given a fresh lock file sits in the repository
+    When I rewrite "notes.md" as:
+      """
+      the herb bed needs splitting again
+      """
+    And I open the commit panel
+    And I commit with the message "the herb bed needs splitting"
+    Then the commit panel says a lock file is in the way
+    # RE-TOUCHED first, so the guard's window has not run out while the steps
+    # above were happening: what is under test is the guard, not how long the
+    # scenario takes to run.
+    Given a fresh lock file sits in the repository
+    When I remove the lock file and retry
+    Then the panel says a git process may still be writing
+    # Nothing was removed, so the offer is still there and the work is still
+    # waiting — the whole of what `Held` means.
+    And the commit panel offers to remove the lock file
+    And there should be no page errors
+
+  @policy:git.commit=auto
+  Scenario: A stale lock pauses auto-commit, and one press starts the loop again
+    # THE SECOND DOOR, and the half the panel cannot do alone. Under
+    # `commit: auto` the lock stops the LOOP as well as refusing the commit,
+    # because the pause is what a refusal sets — so the work sits on disk with
+    # the pill saying so and nothing going round again. Clearing the refusal
+    # clears the pause with it, which is what puts the loop back on the arming
+    # stream.
+    Given a stale lock file sits in the repository
+    When I rewrite "notes.md" as:
+      """
+      the herb bed needs splitting again
+      """
+    # The window's own commit is what meets the lock, and that is the whole of
+    # what a person meets: nothing else is attempted while the pause is on.
+    When the quiet window is given its full run
+    Then the commit pill says auto-commit is "paused"
+    And the commit pill says 1 uncommitted
+    When I open the commit panel
+    Then the commit panel offers to remove the lock file
+    When I remove the lock file and retry
+    # The retry records what was waiting — the panel's own press, so `web`...
+    Then the commit pill says auto-commit is "armed"
+    And the last commit is "olai: 1 file — notes.md" by "web"
+    # ... AND THE LOOP IS RUNNING AGAIN, which is the half the pause hid: the
+    # next write is recorded by the window, with no browser asking. `auto` is
+    # the writer on it, which is what says the loop and not the panel made it.
+    When I rewrite "later.md" as:
+      """
+      and the frames want glazing
+      """
+    Then the commit pill says 1 uncommitted
+    And the flurry records itself
+    And olai has recorded 2 commit(s) here
+    And the last commit is "olai: 1 file — later.md" by "auto"
+    And the repository is clean
+    And there should be no page errors
+
   @policy:git.commit=auto @policy:git.push=auto
   Scenario: A flurry of edits records itself as one commit, and is pushed
     # The whole of the quiet window, end to end, with the push beside it: the

@@ -54,6 +54,9 @@ import {
   COMMIT_OTHER,
   COMMIT_PUSH,
   COMMIT_PUSH_REFUSED,
+  COMMIT_REFUSED,
+  COMMIT_LOCK_HELD,
+  COMMIT_UNLOCK,
   COMMIT_SCOPE,
   COMMIT_TICK,
   COMMIT_UNPUSHED,
@@ -660,6 +663,76 @@ Then("the repository is clean", function (this: OlaiWorld) {
 
 When("HEAD is detached in the served repository", function (this: OlaiWorld) {
   this.git("checkout", "--quiet", "--detach", "HEAD");
+});
+
+// ── the stale lock file ────────────────────────────────────────────────
+
+/**
+ * Plant a lock file of a given age.
+ *
+ * WHERE THE LOCK LIVES is asked of git rather than assumed: `.git/index.lock`
+ * is right for a work tree at the repository root and wrong for a linked one,
+ * whose git directory is `.git/worktrees/<name>` — the case the verb's path
+ * pinning exists for, so the fixture asks the same question the code does.
+ */
+const plantLock = (world: OlaiWorld, ageMs: number): void => {
+  const at = path.join(world.git("rev-parse", "--absolute-git-dir").trim(), "index.lock");
+  fs.writeFileSync(at, "");
+  const stamp = (Date.now() - ageMs) / 1000;
+  fs.utimesSync(at, stamp, stamp);
+};
+
+/**
+ * A LOCK FILE NOBODY IS HOLDING — the bug, as a fixture: git removes
+ * `index.lock` on the way out of every exit it controls, and a killed process,
+ * a full disk or a machine that went down mid-write leaves one behind that
+ * refuses every write in the repository until somebody removes it.
+ */
+Given("a stale lock file sits in the repository", function (this: OlaiWorld) {
+  plantLock(this, 10 * 60_000);
+});
+
+/** ... and the other one: younger than a git command's own budget, so it may
+ *  belong to a git that is still writing it. */
+Given("a fresh lock file sits in the repository", function (this: OlaiWorld) {
+  plantLock(this, 0);
+});
+
+Then("the commit panel says a lock file is in the way", async function (this: OlaiWorld) {
+  const line = this.page.locator(COMMIT_REFUSED);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = oneLine(await line.innerText());
+  assert.ok(
+    said.includes("lock file is in the way"),
+    `the refusal line says "${said}", which is not the sentence about a lock file`,
+  );
+});
+
+Then("the commit panel offers to remove the lock file", async function (this: OlaiWorld) {
+  await this.page.locator(COMMIT_UNLOCK)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the commit panel does not offer to remove a lock file", async function (this: OlaiWorld) {
+  await this.page.locator(COMMIT_UNLOCK)
+    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+});
+
+/** THE ONE GESTURE, and the press that makes it: the file goes, the refusal and
+ *  the pause go with it, and the panel makes the commit it was refused. */
+When("I remove the lock file and retry", async function (this: OlaiWorld) {
+  await this.page.locator(COMMIT_UNLOCK).click({ timeout: POLL_TIMEOUT });
+});
+
+/** ... and the answer when it is too early to make: the guard says so. */
+Then("the panel says a git process may still be writing", async function (this: OlaiWorld) {
+  const line = this.page.locator(COMMIT_LOCK_HELD);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = oneLine(await line.innerText());
+  assert.ok(
+    said.includes("may still be writing"),
+    `the held line says "${said}", which does not say why nothing was removed`,
+  );
 });
 
 // ── the whole repository ───────────────────────────────────────────────

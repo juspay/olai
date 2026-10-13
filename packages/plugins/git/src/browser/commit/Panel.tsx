@@ -49,7 +49,7 @@ import {
   AUTO_STOPPED,
   because,
   commitRefused,
-  LOCK_HELD,
+  lockHeld,
   lockRefused,
   lockSays,
   scopeOf,
@@ -329,7 +329,7 @@ export function Panel(props: {
         <Show when={held()}>
           {(since) => (
             <p class="text-label text-doing" data-testid={TESTID.commitLockHeld}>
-              {LOCK_HELD} (left {agoOf(since(), props.now)})
+              {lockHeld(since(), props.now)}
             </p>
           )}
         </Show>

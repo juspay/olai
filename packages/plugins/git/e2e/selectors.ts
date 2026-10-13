@@ -49,6 +49,9 @@ export const COMMIT_PUSH = selector(TESTID.commitPush);
  *  it is there for whoever opens the panel rather than only for the tab that
  *  made the request. */
 export const COMMIT_PUSH_REFUSED = selector(TESTID.commitPushRefused);
+/** What git said when it last refused a COMMIT here — git's own words, or
+ *  olai's sentence when the refusal was about a lock file. */
+export const COMMIT_REFUSED = selector(TESTID.commitRefused);
 /** Remove the stale `index.lock` git refused the last commit over — the one
  *  gesture that clears a refusal without a terminal. */
 export const COMMIT_UNLOCK = selector(TESTID.commitUnlock);

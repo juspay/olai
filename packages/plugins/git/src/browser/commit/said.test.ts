@@ -35,6 +35,7 @@ import {
   isInert,
   isNews,
   LOCK_HELD,
+  lockHeld,
   lockRefused,
   lockSays,
   localOf,
@@ -356,10 +357,15 @@ test("a lock file in the way reads as olai's sentence, aged only where a clock i
 
 /**
  * ... AND THE OTHER ANSWER THE BUTTON GETS: the lock is younger than a git
- * command's own budget, so olai will not remove it and the sentence says why.
+ * command's own budget, so olai will not remove it and the sentence says why —
+ * with how young it is, in the seconds a lock this fresh is measured in.
  */
 test("the answer when the lock is too young to remove says git may still be writing it", () => {
+  const now = 1_760_000_000_000
   expect(LOCK_HELD).toBe("A git process may still be writing; try again in a moment.")
+  expect(lockHeld(now - 4_000, now)).toBe(
+    "A git process may still be writing; try again in a moment. (left 4s ago)",
+  )
 })
 
 test("the sentence counts what the label counts", () => {

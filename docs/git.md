@@ -97,6 +97,18 @@ That is a change worth saying out loud, because the old behaviour looked like a 
 
 A repository that cannot take a commit *at all* — mid-merge, mid-rebase, a detached HEAD — is the other thing and is a **pause rather than a stop**: nothing is attempted while it lasts, the readout says which state it is in exactly as it always has, and what is waiting is recorded once you have finished. There is nothing to Resume for that one. Never attempting is also the point: an automatic commit landing in the middle of a conflict is how a resolution gets swallowed.
 
+#### A lock file in the way
+
+git refuses every write in a repository while `index.lock` exists, and it removes that file on the way out of every exit it controls — not out of a killed process, a full disk, or a machine that went down mid-write. What is left behind refuses olai's commits for ever, with git's own words and nothing to press: the panel showed `fatal: Unable to create '…/index.lock': File exists. Another git process seems to be running in this repository, or the lock file may be stale`, the Commit button failed again, and under Auto-commit the loop stopped on it. The only cure was a terminal.
+
+The panel now says what is in the way and how long ago it was left, and offers the one gesture that clears it — **Remove lock file & retry**. Press it and the file goes, the refusal and the pause go with it, and the commit you were refused is made with the message and the ticks the panel is holding: one press recovers.
+
+**olai removes it only when it is old.** A lock younger than ten seconds may belong to a git that is still writing it — olai's own commits hold it for milliseconds, but an `add` running a slow filter or a commit inside a hook is well inside that window — and removing somebody else's lock mid-write is how two writers corrupt one index. Before that window the button is answered with *a git process may still be writing; try again in a moment*, and nothing is touched. Past it, nothing on your machine could still be holding it for a reason and the decision is yours, which is why the sentence asks you to check that no git command is running before you press.
+
+Nothing is ever removed on olai's own initiative, and there is no verb for it on the agent face: a person saying they have checked that no git command is running is not a judgement an agent makes on their behalf. The file removed is the one in the git directory of the repository olai serves — a linked worktree's lock lives under `.git/worktrees/<name>` rather than in the main repository — and never a path read out of git's own sentence.
+
+A lock does not stop the SURVEY: `git status` answers with one in place, so what is waiting is still listed and there is something to commit once the file is gone. Only the write verbs refuse.
+
 ## Pushing
 
 One verb, and it is the only reason left to open a terminal for this: the current branch, to the upstream it already tracks. No remote to pick, no refspec, never a force. The panel offers it when there is something to send (`2 commits not on origin/master · Push`), and the same count is on the readout.
