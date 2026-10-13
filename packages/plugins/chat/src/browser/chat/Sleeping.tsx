@@ -36,11 +36,15 @@ export function Sleeping(props: { readonly chat: Chat }) {
   const to = createMemo(() => addressOf(props.chat.state()), undefined, { equals: sameAddress })
   const row = createMemo(() => nodeAgentOf(agentReadings()?.agents.rows() ?? [], to()))
   const [problem, setProblem] = createSignal<string>()
-  // THE STRIP’S OWN CLOCK, at the resolution the phrases need ({@link ./elapsed.ts}),
-  // and it runs only while this item is on screen — which is what `Standing`’s
-  // own gate buys: a conversation with no node agent costs a tab nothing.
-  const now = createNow(() => true)
   return <Show when={row()}>{(held) => {
+    // THE ITEM'S OWN CLOCK, at the resolution the phrases need
+    // ({@link ./elapsed.ts}) — and created HERE rather than in the component body,
+    // because the ticking has to be owned by the thing that needs it. `Standing`
+    // draws the line whenever there is anything on it, and a wake-only
+    // conversation — no node agent, so no sleep item — would otherwise keep a
+    // minute timer running to recompute nothing. `Show`'s children run in their own
+    // owner, so the tick starts with the item and stops when it goes.
+    const now = createNow(() => true)
     const said = () => saidOf(held().sleep, now())
     // ONE SOURCE FOR THE MARK, and it is the row's: `sleeps` is what the vault
     // says and what the verb writes, so the switch's state, its word and its press
