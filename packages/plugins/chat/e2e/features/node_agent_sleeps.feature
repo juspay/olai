@@ -305,11 +305,12 @@ Feature: A node agent tidies its own memory when nobody is looking
     # satisfied and this node would be tidied on the next tick — and the mark is
     # the one thing missing, which is the whole of what the opt-in is.
     And the memory under "install" has moved
-    # ...AND THE ITEM SAYS WHY, which is the switch: nobody has asked, so there is
-    # nothing to say about when it will sleep.
-    Then the sleep item says "unmarked"
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
+    # ...AND THE ITEM SAYS WHY, which is the switch: nobody has asked, so there is
+    # nothing to say about when it will sleep. Read AFTER the fold is open, which
+    # is what makes the item addressable at all.
+    Then the sleep item says "unmarked"
     And the sleep pass has had its chance
     Then the node agent "install" has not been tidied
     And node "install" carries no sleep memo
