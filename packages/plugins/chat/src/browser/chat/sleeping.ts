@@ -178,11 +178,10 @@ export const saidOf = (forecast: Forecast | null, now: number): SleepSaid => {
         title,
       }
     }
-    // UNREACHABLE FROM HERE — the arm above answers it before the switch — and
-    // present so that the table is EXHAUSTIVE rather than nearly so: a kind added
-    // to the wire has to be a decision here, not a silent `undefined`.
-    case "off":
-      return { kind: next.kind, on: null, said: [], title }
+    // `off` IS ALREADY ANSWERED, and TypeScript knows it: the guard above narrows
+    // this switch to the seven kinds a JUDGEMENT can return, so the table is
+    // exhaustive here and a kind added to the wire is a decision rather than a
+    // silent `undefined` — the arm below would not compile if it were not.
     case "due": {
       const soon = inWords(next.at, now)
       return {
