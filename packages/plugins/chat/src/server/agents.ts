@@ -324,7 +324,7 @@ export const joined = (
    *  caller can answer: whether this chat is tidied on its own clock is a fact
    *  about the vault's DECLARATIONS, which this walk is not handed
    *  ({@link Roster.sleeps} is, and {@link Roster.rowsWith} joins it on). */
-): Array<Omit<Agents[number], "sleeps">> => {
+): ReadonlyArray<Omit<Agents[number], "sleeps">> => {
   if (agents.length === 0) return NO_AGENT_ROSTER
   return agents.map((agent) => ({
     ...agent,

@@ -249,7 +249,7 @@ test("a refused fresh start signs in through the node while keeping the previous
   }, () => true) }))
   const activation = Scope.makeUnsafe()
   await Effect.runPromise(holdChatWire(() => wire.client).pipe(Effect.provideService(Scope.Scope, activation)))
-  const [row, setRow] = createSignal<Row>({ id: "one", file: "Work.olai", title: "one", engine: "alpha", session: "old", memory: 1, standing: "idle", waiting: 0, said: null })
+  const [row, setRow] = createSignal<Row>({ id: "one", file: "Work.olai", title: "one", engine: "alpha", session: "old", memory: 1, standing: "idle", waiting: 0, said: null, sleeps: false })
   const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({ at: () => row(), rows: () => [row()], engines: () => [], standings: () => [], only: () => null, missing: () => null, chats: () => null, unreachable: () => [], chatsRefusal: () => null, askChats: () => {} }) }))
   const view = createRoot(dispose => ({ dispose, reading: createConversation(owner.reading, () => "one", () => true) }))
   try {
