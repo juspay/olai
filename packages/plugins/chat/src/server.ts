@@ -678,10 +678,13 @@ export default definePlugin({
         // row's own label does not keep (`./settings.ts`'s `SLEEP_OFF`).
         sleeping
           ? bindingPermit.withPermit(setSleeping(binding, input)).pipe(
-            Effect.tap(() => Effect.gen(function*() {
-              mine?.cells.sessionsRevision.set(++sessionsRevision)
-              if (filer !== null) yield* filer.full
-            })),
+            // THE REVISION IS BUMPED AND THE FILER IS NOT ASKED, which is the one
+            // thing this gesture does not share with the binding's: the mark
+            // decides whether olai TIDIES a chat, and the filer is about which
+            // conversations are CLAIMED — a node is no more or less an agent for
+            // being opted in, so there is nothing for it to file. The revision is
+            // what republishes the roster, which is where `sleeps` rides.
+            Effect.tap(() => Effect.sync(() => void mine?.cells.sessionsRevision.set(++sessionsRevision))),
           )
           : Effect.fail(new UsageFailure({ reason: SLEEP_OFF })),
       closeAgent: ({ input }: { input: { node: string } }) =>
