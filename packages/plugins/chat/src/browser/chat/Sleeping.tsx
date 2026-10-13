@@ -4,7 +4,8 @@
  * without being asked.
  *
  * ITS OWN COMPONENT, AND NOT A ROW INSIDE {@link ./Wake.tsx}, because the two are
- * different things wearing the same bar: that one is PLUGIN FACES hung through
+ * different things wearing the same bar: that one is other plugins' faces hung
+ * through
  * the `conversation.wake` slot, with chat persisting each face's per-session
  * pick, and this one is CHAT'S OWN, per NODE, already persisted as a vault
  * property (`chat-agent-sleep`). One is a doorbell somebody else rang; the other
@@ -13,9 +14,10 @@
  * pick store is not this mark's home: the vault is, and this keeps nothing but
  * the refusal a press may come back with.
  *
- * It is drawn in {@link ./Strips.tsx} beside the wake strip, in the same classes,
- * so the bar reads as one; the wake strip keeps its own rule (no hung faces, no
- * strip) exactly as it was.
+ * It is drawn in {@link ./Strips.tsx} beside the wake strip, in the same classes
+ * and the same shape a plugin's own switch uses (a label, a rule, a
+ * `role="switch"`, a refusal in a `role="alert"`), so the bar reads as one; the
+ * wake strip keeps its own rule — no hung faces, no strip — exactly as it was.
  */
 
 import { Result } from "effect"

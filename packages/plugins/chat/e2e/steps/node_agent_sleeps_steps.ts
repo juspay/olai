@@ -76,14 +76,14 @@ Given("the memory under {string} has moved", function (this: OlaiWorld, node: st
 
 /**
  * THE OPT-IN, PRESSED IN THE STRIP — the switch under the conversation, which is
- * where a person looks for what this chat wakes on (`browser/chat/Wake.tsx`,
- * beside the mail plugin's *Alert on new mail*). The same door the row menu and
- * the palette press; `aria-checked` IS the mark, so the wait after the press is
- * the assertion, and the words beside it are the same fact for a reader.
+ * where a person looks for what this chat wakes on (`browser/chat/Sleeping.tsx`,
+ * in the bar the wake strip sits in). The same door the row menu and the palette
+ * press; `aria-checked` IS the mark, so the wait after the press is the
+ * assertion, and the words beside it are the same fact for a reader.
  *
- * THE MAIL ROW'S OWN STEP, word for word (`mail/e2e/steps/mail_inbox_steps.ts`),
- * including the literal testid: a plugin's own switch is addressed by its own
- * name there, and this is chat's.
+ * THE SHAPE OF THE ROW THAT ALREADY HAD A SWITCH there, word for word, including
+ * the literal testid: a plugin's own switch is addressed by its own name in the
+ * row that owns it, and this is chat's.
  */
 const switchSleep = async (world: OlaiWorld, on: boolean) => {
   const button = world.chat('[data-testid="chat-sleep-switch"]');
