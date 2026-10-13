@@ -129,6 +129,13 @@ export interface Roster {
   readonly seatableAt: (node: string) => boolean
   /** Every durable row, including sleeping agents with no acquired scope. */
   readonly nodes: () => NodeAgents
+  /** THE SET THE ROWS WERE JUST BUILT FROM, or `null` before the first revision
+   *  — the same `reading` {@link Roster.sleeps} and {@link Roster.sleptAt} answer
+   *  out of. Handed to the sleeper so its forecast is judged over the set a
+   *  person is looking at rather than over whatever the LOOP last read: the loop
+   *  reads once a tick, and a strip a quarter of an hour behind an edit would say
+   *  "nothing new to tidy" about a memory somebody is writing. */
+  readonly reading: () => Derived | null
   /**
    * WHICH KEY A BINDING IS WRITTEN UNDER — the vault's own row where it has
    * one, and the word this kind claims where it has not.
@@ -277,6 +284,7 @@ export const roster = (): Roster => {
     nodeAt: (node) => held.find((one) => one.id === node) ?? null,
     seatableAt: (node) => reading !== null && seatableIn(reading, node),
     nodes: () => held,
+    reading: () => reading,
     key: () => keys[0] ?? SESSION_TYPE,
     keys: () => keys,
     sleptKey: () => sleptKeys[0] ?? SLEPT_TYPE,

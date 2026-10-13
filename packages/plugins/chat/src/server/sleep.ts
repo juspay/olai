@@ -217,6 +217,9 @@ export interface Sleeping {
   readonly limit: Duration.Duration
   /** How long a delivered turn may take to start ({@link START_MS}). */
   readonly start: Duration.Duration
+  /** THE SET A STRIP'S FORECAST IS JUDGED OVER — the roster's current reading,
+   *  never the loop's last one ({@link makeSleeper}'s `forecast` says why). */
+  readonly reading: () => Derived | null
   /** WHAT TO DO WHEN THE FORECAST MOVES: the strip reads `judge`'s answer off the
    *  roster row, so a pass starting, a pass ending and a failure being recorded
    *  each have to reach the wire. One hook, wired to the revision bump the roster
@@ -249,9 +252,8 @@ export const makeSleeper = (
     readonly tick: Effect.Effect<boolean, never, Scope.Scope>
     readonly now: (node: string) => Effect.Effect<Asked, never, Scope.Scope>
     /** WHAT THIS NODE'S SLEEP IS DOING, or `null` for a node that is not one —
-     *  the same `judge` the loop picks with, over the last reading the sleeper
-     *  took, so the strip and the loop can never disagree about when a node is
-     *  due. */
+     *  the same `judge` the loop picks with, so the strip and the loop can never
+     *  disagree about when a node is due. */
     readonly forecast: (node: string) => Forecast | null
   },
   never,
@@ -268,11 +270,6 @@ export const makeSleeper = (
      *  `judge` BEFORE the busy test: a running pass makes the session `thinking`,
      *  and `busy` would mask the one state a person most wants to see. */
     let inFlight: string | null = null
-
-    /** THE SET AS THE SLEEPER LAST READ IT — what `forecast` judges over, since a
-     *  roster publish is synchronous and a reading is not. Refreshed on every read
-     *  the loop takes. */
-    let seen: Derived | null = null
 
     /** A LINE AT THE REVISION, when there is one — the forecast moved. */
     const moved = doors.changed ?? Effect.void
@@ -403,7 +400,6 @@ export const makeSleeper = (
         const observed = yield* Effect.result(doors.read)
         if (observed._tag === "Failure") return null
         const derived = observed.success.derived
-        seen = derived
         const live = doors.live()
         const roster = doors.nodes()
         const now = yield* Clock.currentTimeMillis
@@ -746,14 +742,22 @@ export const makeSleeper = (
       })
 
     /**
-     * WHAT ONE NODE'S SLEEP IS DOING, off the last reading — the same `judge`,
+     * WHAT ONE NODE'S SLEEP IS DOING, off the CURRENT set — the same `judge`,
      * with the wall clock a strip's words are about ("next in 4h" is a statement
      * about now, not about the pass's own clock).
+      *
+     *  THE READING IS THE ROSTER'S, NOT THE LOOP'S (`doors.reading`): the loop
+     *  reads once a tick, and judging over that would leave the strip saying
+     *  "nothing new to tidy" for a tick after somebody edited the memory — a
+     *  quarter of an hour of the strip being wrong about the one thing it is for.
+     *  The set the rows were just built from is the one a person is looking at,
+     *  and it is the walk the rows already paid for.
      */
     const forecast = (node: string): Forecast | null => {
       const agent = doors.nodes().find((one) => one.id === node)
-      if (agent === undefined || seen === null) return null
-      return judge(agent, Date.now(), doors.live(), seen)
+      const derived = doors.reading()
+      if (agent === undefined || derived === null) return null
+      return judge(agent, Date.now(), doors.live(), derived)
     }
 
     yield* Effect.forkScoped(Effect.gen(function*() {

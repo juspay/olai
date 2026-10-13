@@ -1041,6 +1041,9 @@ export default definePlugin({
         // are "no pass to ask for" (`conversation.sleepNow`).
         sleeper = yield* makeSleeper({
           nodes: () => nodeAgents.nodes(),
+          // THE READING THE STRIP'S FORECAST IS JUDGED OVER: the set the rows
+          // were just built from, not whatever the loop last read a tick ago.
+          reading: () => nodeAgents.reading(),
           sleptAt: (node) => nodeAgents.sleptAt(node),
           sleptKey: () => nodeAgents.sleptKey(),
           sleeps: (node) => nodeAgents.sleeps(node),
