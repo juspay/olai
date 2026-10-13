@@ -259,6 +259,22 @@ export function Panel(props: {
         >
           Resume
         </button>
+        {/* ... AND WHAT THE SERVER WOULD NOT TAKE FROM THAT PRESS. Its own
+            line, because a call that never reached the server is about this
+            press rather than about the directory — and because the two buttons
+            the seam carries are on screen together whenever a lock refusal has
+            paused the loop, so a shared signal would print one press's failure
+            under the other's. */}
+        <Show when={props.commit.resumeRefused()}>
+          {(said) => (
+            <p
+              class="wrap-anywhere text-label text-alarm"
+              data-testid={TESTID.commitResumeRefused}
+            >
+              {said()}
+            </p>
+          )}
+        </Show>
       </Show>
 
       {/* Why the button is disabled — said, rather than left for somebody to
@@ -350,6 +366,21 @@ export function Panel(props: {
         >
           Remove lock file & retry
         </button>
+        {/* ... AND WHAT THE SERVER WOULD NOT TAKE FROM THAT PRESS: a call that
+            never arrived, or a file that is there and a git directory that will
+            not let go of it — where the errno IS the reason, and the only thing
+            a reader can act on. Under this button and not the Resume one, for
+            the reason above. */}
+        <Show when={props.commit.unlockRefused()}>
+          {(said) => (
+            <p
+              class="wrap-anywhere text-label text-alarm"
+              data-testid={TESTID.commitUnlockRefused}
+            >
+              {said()}
+            </p>
+          )}
+        </Show>
         <Show when={held()}>
           <p class="text-label text-doing" data-testid={TESTID.commitLockHeld}>
             {LOCK_HELD}

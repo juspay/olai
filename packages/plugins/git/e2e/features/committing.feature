@@ -268,6 +268,38 @@ Feature: Committing on purpose
     And the commit panel offers to remove the lock file
     And there should be no page errors
 
+  Scenario: A lock file that cannot be removed says why, and the press can be repeated
+    # THE GUARD IS NOT THE ONLY ANSWER THE BUTTON CAN GET. Where the file is
+    # there and the git directory will not let go of it, the errno is the whole
+    # of what a reader can act on — a permission, a full disk or a read-only
+    # mount are three different things to go and fix.
+    #
+    # AND IT IS DRAWN, which is the half this scenario exists for: the seam
+    # keeps one refusal per control, and a signal no line reads is a press that
+    # silently does nothing.
+    Given a stale lock file sits in the repository
+    When I rewrite "notes.md" as:
+      """
+      the herb bed needs splitting again
+      """
+    And I open the commit panel
+    And I commit with the message "the herb bed needs splitting"
+    Then the commit panel says a lock file is in the way
+    Given the git directory cannot be written to
+    When I remove the lock file and retry
+    Then the panel says the lock could not be removed
+    # NOTHING WAS CLEARED: the file is still in the way, so the refusal is still
+    # true and the button is still the offer.
+    And the commit panel offers to remove the lock file
+    # ... AND THE PRESS WORKS ONCE THE DIRECTORY CAN TAKE IT, which is the
+    # difference between a failure that is reported and one that is stuck.
+    When the git directory can be written to again
+    And I remove the lock file and retry
+    Then the commit pill says "committed"
+    And the last commit is "olai: the herb bed needs splitting" by "web"
+    And the repository is clean
+    And there should be no page errors
+
   @policy:git.commit=auto
   Scenario: A stale lock pauses auto-commit, and one press starts the loop again
     # THE SECOND DOOR, and the half the panel cannot do alone. Under

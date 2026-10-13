@@ -57,6 +57,7 @@ import {
   COMMIT_REFUSED,
   COMMIT_LOCK_HELD,
   COMMIT_UNLOCK,
+  COMMIT_UNLOCK_REFUSED,
   COMMIT_SCOPE,
   COMMIT_TICK,
   COMMIT_UNPUSHED,
@@ -667,16 +668,20 @@ When("HEAD is detached in the served repository", function (this: OlaiWorld) {
 
 // ── the stale lock file ────────────────────────────────────────────────
 
+/** Where the served repository's GIT DIRECTORY is — asked of git rather than
+ *  assumed, because a linked worktree's is not `.git`. */
+const gitDirIn = (world: OlaiWorld): string =>
+  world.git("rev-parse", "--absolute-git-dir").trim();
+
 /**
  * Plant a lock file of a given age.
  *
- * WHERE THE LOCK LIVES is asked of git rather than assumed: `.git/index.lock`
- * is right for a work tree at the repository root and wrong for a linked one,
- * whose git directory is `.git/worktrees/<name>` — the case the verb's path
- * pinning exists for, so the fixture asks the same question the code does.
+ * WHERE THE LOCK LIVES comes from {@link gitDirIn}, which is the case the
+ * verb's path pinning exists for: `.git/index.lock` is right for a work tree at
+ * the repository root and wrong for a linked one.
  */
 const plantLock = (world: OlaiWorld, ageMs: number): void => {
-  const at = path.join(world.git("rev-parse", "--absolute-git-dir").trim(), "index.lock");
+  const at = path.join(gitDirIn(world), "index.lock");
   fs.writeFileSync(at, "");
   const stamp = (Date.now() - ageMs) / 1000;
   fs.utimesSync(at, stamp, stamp);
@@ -696,6 +701,30 @@ Given("a stale lock file sits in the repository", function (this: OlaiWorld) {
  *  belong to a git that is still writing it. */
 Given("a fresh lock file sits in the repository", function (this: OlaiWorld) {
   plantLock(this, 0);
+});
+
+/**
+ * THE GIT DIRECTORY, MADE UNWRITABLE — the one shape of "the file is there and
+ * the unlink is refused" a test can produce on any machine that is not root.
+ *
+ * Root can unlink from a directory it cannot write, so the step is PENDING
+ * there rather than inverted (`@olai/plugins/vault`'s `live_steps.ts` makes the
+ * same call for an unreadable file).
+ */
+Given("the git directory cannot be written to", async function (this: OlaiWorld) {
+  if (typeof process.getuid === "function" && process.getuid() === 0) {
+    return "pending";
+  }
+  fs.chmodSync(gitDirIn(this), 0o500);
+});
+
+/** ... and writable again, which is the half that turns the failure into a
+ *  press that works. */
+When("the git directory can be written to again", async function (this: OlaiWorld) {
+  if (typeof process.getuid === "function" && process.getuid() === 0) {
+    return "pending";
+  }
+  fs.chmodSync(gitDirIn(this), 0o700);
 });
 
 Then("the commit panel says a lock file is in the way", async function (this: OlaiWorld) {
@@ -766,6 +795,25 @@ Then("the panel says a git process may still be writing", async function (this: 
   assert.ok(
     said.includes("may still be writing"),
     `the held line says "${said}", which does not say why nothing was removed`,
+  );
+});
+
+/**
+ * WHAT THE SERVER COULD NOT DO, on the line under the button that asked.
+ *
+ * Asserted by its ERRNO, because that is the whole of what a reader can act on
+ * — the difference between a permission, a full disk and a read-only mount —
+ * and because a failure that reached no line at all is the bug this step is
+ * here to catch: the two signals a seam's verbs write into are read by nobody
+ * unless the panel draws them.
+ */
+Then("the panel says the lock could not be removed", async function (this: OlaiWorld) {
+  const line = this.page.locator(COMMIT_UNLOCK_REFUSED);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = oneLine(await line.innerText());
+  assert.ok(
+    said.includes("permission denied"),
+    `the unlock refusal says "${said}", which does not name the errno`,
   );
 });
 

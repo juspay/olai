@@ -55,6 +55,9 @@ export const COMMIT_REFUSED = selector(TESTID.commitRefused);
 /** Remove the stale `index.lock` git refused the last commit over — the one
  *  gesture that clears a refusal without a terminal. */
 export const COMMIT_UNLOCK = selector(TESTID.commitUnlock);
+/** What the SERVER would not take from the unlock press: a call that failed, or
+ *  a lock file that was there and could not be removed — the errno, verbatim. */
+export const COMMIT_UNLOCK_REFUSED = selector(TESTID.commitUnlockRefused);
 /** The answer when that removal is too early to make: a git process may still
  *  be writing the lock. */
 export const COMMIT_LOCK_HELD = selector(TESTID.commitLockHeld);
