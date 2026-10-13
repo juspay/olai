@@ -40,6 +40,8 @@
  * so a restart forgets it. That is the whole of this module's state.
  */
 
+import type { Forecast } from "../wire/agents.ts"
+
 import {
   changedUnder,
   type Derived,
