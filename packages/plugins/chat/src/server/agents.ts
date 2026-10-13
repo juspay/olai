@@ -338,11 +338,12 @@ export const joined = (
   agents: NodeAgents,
   overheard: ReadonlyArray<Overheard>,
   live: ReadonlyMap<string, LiveSession> = new Map(),
-  /** THE ROW AS THE VAULT AND THIS MACHINE KNOW IT, minus the one field only the
+  /** THE ROW AS THE VAULT AND THIS MACHINE KNOW IT, minus the TWO fields only the
    *  caller can answer: whether this chat is tidied on its own clock is a fact
-   *  about the vault's DECLARATIONS, which this walk is not handed
-   *  ({@link Roster.sleeps} is, and {@link Roster.rowsWith} joins it on). */
-): ReadonlyArray<Omit<Agents[number], "sleeps">> => {
+   *  about the vault's DECLARATIONS, and what its sleep is doing is the pass's own
+   *  judgement — neither of which this walk is handed ({@link Roster.sleeps} and
+   *  the sleeper are, and {@link Roster.rowsWith} joins both on). */
+): ReadonlyArray<Omit<Agents[number], "sleeps" | "sleep">> => {
   if (agents.length === 0) return NO_AGENT_ROSTER
   return agents.map((agent) => ({
     ...agent,
