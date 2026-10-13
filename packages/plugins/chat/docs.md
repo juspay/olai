@@ -83,6 +83,25 @@ column of your own name can carry it with one row.
 {"title":"last-consolidated","custom":{"type":"chat-agent-slept"}}
 ```
 
+## The property that says whether olai may tidy at all
+
+Chat contributes a **third** kind, `chat-agent-sleep`, and it is the only one a
+person writes: `on` means olai may tidy that node agent's memory on its own
+clock, and the key being absent or `off` means it may not. **Nothing is tidied
+until you say so** — the pass is opt-in per chat, and this is the whole of the
+state. The row menu's **Sleep when idle** writes it, **Stop sleeping when idle**
+takes it off, and either can be typed here instead:
+
+```json
+{"title":"agent-sleep","custom":{"type":"chat-agent-sleep"}}
+```
+
+A seated session may not write it, exactly as it may not write its own binding:
+an agent that opted itself in would be authorising its own wake-up. The switch in
+`_olai/Settings.olai` is the other half — `sleep: on` (the default) lets the loop
+run for the chats that asked, and `sleep: off` stops all of it, this verb
+included.
+
 ## Where it hangs in the tab
 
 Each seat is declared by the plugin that owns the place it is in, and chat brings the face. That split is worth knowing if you are reading the code rather than using it:
