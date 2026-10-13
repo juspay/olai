@@ -8,7 +8,7 @@
  * would be pulling a renderer in to ask a question about an array.
  */
 
-import type { NodeAgentRow } from "olai-plugin-chat/wire"
+import type { NodeAgentRow } from "../../wire.ts"
 
 /** WHICH ROW OF THE AGENTS ROSTER THIS CONVERSATION IS, or `undefined` — the
  *  node agent whose engine and conversation are the ones on screen.

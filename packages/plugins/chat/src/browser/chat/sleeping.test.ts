@@ -9,7 +9,7 @@
  */
 
 import { expect, test } from "bun:test"
-import type { NodeAgentRow } from "olai-plugin-chat/wire"
+import type { NodeAgentRow } from "../../wire.ts"
 
 import { nodeAgentOf, sleepWords } from "./sleeping.ts"
 

@@ -20,7 +20,7 @@
 
 import { Result } from "effect"
 import { createMemo, createSignal, Show } from "solid-js"
-import { agentIn } from "olai-plugin-chat/wire"
+import { agentIn } from "../../wire.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { agentReadings } from "../agents/reading.ts"
 import { chatWire } from "../wire.ts"
