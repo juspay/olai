@@ -1,7 +1,11 @@
 /**
- * THE ITEM'S PURE QUESTIONS — which conversation the panel is showing, which
- * roster row that is, what the switch beside it says, and WHAT THE ITEM SAYS
- * about when this chat last slept and when it will next.
+ * THE ITEM'S PURE QUESTIONS — which roster row a conversation is, what the switch
+ * beside it says, and WHAT THE ITEM SAYS about when this chat last slept and when
+ * it will next.
+ *
+ * WHICH CONVERSATION IS ON SCREEN is not one of them: that is the panel's own
+ * address, and it lives in {@link ./address.ts} because the wake faces and the line
+ * itself read it too.
  *
  * A PLAIN MODULE BESIDE THE COMPONENT rather than exports of it, because
  * `bun test` resolves SolidJS's server build (`justfile` says so where the
@@ -9,33 +13,10 @@
  * would be pulling a renderer in to ask a question about an array.
  */
 
-import { type ChatState, agentIn } from "olai-plugin-chat/wire"
-
 import { agoOf } from "@olai/web/client/ago.ts"
 import { DAY, HOUR, MINUTE, SECOND, instantOf } from "@olai/web/client/clock.ts"
 import type { Forecast, NodeAgentRow } from "../../wire.ts"
-
-/** WHICH CONVERSATION THIS PANEL IS SHOWING, or `undefined` for a panel with no
- *  agent — the one memo both items on the standing line read.
- *
- *  IT WAS TWO COPIES, one in `Sleeping.tsx` and one in `Wake.tsx`, word for word
- *  and with the same `equals`: the two components were asked the same question
- *  about the same state, so the answer is computed once and both read it. The
- *  `equals` is what makes it a memo rather than a recomputation — a chat frame
- *  arrives several times a turn, and an item that re-resolved its row on every
- *  one of them would be re-reading the roster to learn nothing.
- */
-export const addressOf = (state: ChatState): { readonly agent: string; readonly session: string } | undefined => {
-  const agent = agentIn(state)
-  return agent && state.session ? { agent: agent.id, session: state.session.id } : undefined
-}
-
-/** The memo’s own equality: two addresses are the same when they name the same
- *  agent and the same conversation, never because a frame re-built the object. */
-export const sameAddress = (
-  before: { readonly agent: string; readonly session: string } | undefined,
-  after: { readonly agent: string; readonly session: string } | undefined,
-): boolean => before?.agent === after?.agent && before?.session === after?.session
+import type { Address } from "./address.ts"
 
 /** WHICH ROW OF THE AGENTS ROSTER THIS CONVERSATION IS, or `undefined` — the
  *  node agent whose engine and conversation are the ones on screen.
@@ -47,7 +28,7 @@ export const sameAddress = (
  */
 export const nodeAgentOf = (
   rows: ReadonlyArray<NodeAgentRow>,
-  to: { readonly agent: string; readonly session: string } | undefined,
+  to: Address | undefined,
 ): NodeAgentRow | undefined =>
   to === undefined
     ? undefined

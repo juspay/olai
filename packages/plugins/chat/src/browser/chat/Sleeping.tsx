@@ -29,7 +29,8 @@ import { chatWire } from "../wire.ts"
 import { TESTID } from "../../testids.ts"
 import { createNow } from "./elapsed.ts"
 import type { Chat } from "./state.ts"
-import { addressOf, nodeAgentOf, saidOf, sameAddress, sleepWords } from "./sleeping.ts"
+import { addressOf, sameAddress } from "./address.ts"
+import { nodeAgentOf, saidOf, sleepWords } from "./sleeping.ts"
 
 export function Sleeping(props: { readonly chat: Chat }) {
   const to = createMemo(() => addressOf(props.chat.state()), undefined, { equals: sameAddress })

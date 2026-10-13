@@ -11,7 +11,7 @@
  */
 import { Effect, Schema } from "effect"
 import { createMemo, For, Show } from "solid-js"
-import { addressOf, sameAddress } from "./sleeping.ts"
+import { addressOf, sameAddress } from "./address.ts"
 import { faces } from "../faces.ts"
 import { olai } from "@olai/web/client/wire.ts"
 import { TESTID } from "../../testids.ts"
