@@ -35,19 +35,34 @@ test("a bare row offers one start choice of every startable engine", () => {
   expect(rowVerbs("one", roster()).every(action => action.writes)).toBe(true)
 })
 
-test("a node talking through a conversation offers fresh start, its own engine first, then sleep and close", () => {
+test("a node talking through a conversation offers fresh start, its own engine first, then the two sleeps and close", () => {
   const bound: NodeAgentRow = { ...node, engine: "codex", session: "existing" }
   expect(drawn(rowVerbs("one", roster(bound)))).toEqual([
     { id: "fresh-start", label: "Fresh start", choices: [
       { id: "fresh-start-codex", label: "Codex" },
       { id: "fresh-start-claude", label: "Claude" },
     ] },
-    // THE PASS BY HAND, on the rows that have a conversation and above the
-    // release: sleeping on a node's memory is not being done with its agent, and
-    // `Close the agent` is the one that takes the binding away.
+    // THE OPT-IN FIRST, because it is the answer that lets the loop do anything
+    // at all — and its LABEL is the indicator, read off the row.
+    { id: "sleep-when-idle", label: "Sleep when idle" },
+    // ...THEN THE PASS BY HAND, on the rows that have a conversation and above
+    // the release: sleeping on a node's memory is not being done with its agent,
+    // and `Close the agent` is the one that takes the binding away.
     { id: "sleep-now", label: "Sleep now" },
     { id: "close-agent", label: "Close the agent" },
   ])
+})
+
+test("the opt-in's label is the mark itself, in both directions", () => {
+  // ONE ROW, TWO SENTENCES, and nothing else on screen changes: a person reads
+  // which way the press will go off the menu they are standing in.
+  const marked: NodeAgentRow = { ...node, session: "existing", sleeps: true }
+  const label = (row: NodeAgentRow) =>
+    drawn(rowVerbs("one", roster(row))).find(verb => verb.id === "sleep-when-idle")?.label
+  expect(label(marked)).toBe("Stop sleeping when idle")
+  expect(label({ ...node, session: "existing" })).toBe("Sleep when idle")
+  // ...AND A BARE ROW HAS NO SUCH ROW AT ALL: there is no conversation to tidy.
+  expect(drawn(rowVerbs("one", roster()))).not.toContainEqual(expect.objectContaining({ id: "sleep-when-idle" }))
 })
 
 test("only fresh-start choices ask first", () => {

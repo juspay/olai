@@ -52,6 +52,21 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
         confirm: freshStartQuestion(bound.title), run: startOn(engine),
       })),
     },
+    // THE OPT-IN, AND THE LABEL IS THE INDICATOR: nothing is tidied on its own
+    // until somebody says so for a chat, and this is where they say it. `sleeps`
+    // is the roster's answer, joined onto the row this menu hangs off, so the
+    // label says which way the press will go without a second reading — and the
+    // mark is a property a person can also type in the drawer.
+    {
+      id: "sleep-when-idle", writes: true,
+      label: bound.sleeps ? "Stop sleeping when idle" : "Sleep when idle",
+      run: async (node: string) => {
+        const outcome = await runAsync(
+          chatWire().procedures.conversation.setSleeping({ node, on: !bound.sleeps }),
+        )
+        if (Result.isFailure(outcome)) return outcome.failure.message
+      },
+    },
     // THE PASS, ASKED FOR BY HAND. A node agent's memory is tidied on olai's own
     // clock (`../sleep.ts` argues the spans), and this is the same pass with a
     // person's hand on it: the idle window and the "memory has moved" test are

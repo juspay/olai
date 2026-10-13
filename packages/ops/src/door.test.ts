@@ -52,7 +52,18 @@ const APPROVAL = "approved"
 const SAYS_SEATS = "it is what seats a conversation on a node"
 const SAYS_APPROVES = "it is a person's approval of code"
 
-const forbidden = new Map([[SEATING, SAYS_SEATS], [APPROVAL, SAYS_APPROVES]])
+/** ...and a third, which is what the table being a MAP is FOR: the word a
+ *  person's opt-in for a chat's tidying is written under, forbidden to the
+ *  session for a third reason again — an agent must not give itself permission
+ *  to be tidied, nor quietly stop being. */
+const SLEEPING = "chat-agent-sleep"
+const SAYS_SLEEPING = "it is whether olai may tidy this chat on its own"
+
+const forbidden = new Map([
+  [SEATING, SAYS_SEATS],
+  [APPROVAL, SAYS_APPROVES],
+  [SLEEPING, SAYS_SLEEPING],
+])
 
 /** The clause a fence carries, in the words whoever raised it wrote. */
 const SAYS_TIDY = "olai is tidying this node's memory, and a turn nobody is watching writes only inside it"
@@ -203,6 +214,15 @@ describe("node-agent write rule", () => {
    *  the rule has to hold for a capability nothing asks for. */
   test("...and taking one off is writing it, because the rule reads a movement", () => {
     expect(asked({ op: "prop", id: "tap", key: APPROVAL, value: null })?.why).toBe("key")
+  })
+
+  test("...and the sleeping mark is refused on the agent's own node too", () => {
+    expect(asked({ op: "prop", id: "kitchen", key: SLEEPING, value: "on" }))
+      .toEqual({ why: "key", id: "kitchen", title: "Kitchen", key: SLEEPING, says: SAYS_SLEEPING })
+    // Taking it OFF is writing it, exactly as un-approving is: the rule reads a
+    // movement, and an agent that cleared its own mark would be opting itself
+    // out.
+    expect(asked({ op: "prop", id: "kitchen", key: SLEEPING, value: null })?.why).toBe("key")
   })
 
   test("a closed rule's refusal does not walk the plan", () => {

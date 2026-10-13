@@ -22,39 +22,62 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
   // the palette the same object, so its open path and drawing stay put.
   const newChat = creation === undefined ? undefined : newChatRow(creation, agents, memory)
   /**
-   * THE PASS, ASKED FOR BY HAND — ONE row, and it acts on the conversation a
-   * person is LOOKING AT (`../verbs.tsx` has the menu's half).
+   * THE PASS, AND THE ANSWER THAT LETS IT RUN — two rows, both about the
+   * conversation a person is LOOKING AT (`../verbs.tsx` has the menu's halves).
    *
    * WHICH CONVERSATION IS NOT A QUESTION THIS LIST CAN ASK: the `•••` hangs off
    * a row and knows its node, and a palette is opened from anywhere and knows
    * nothing. What it CAN see is what the tab is showing — `agentReadings()`'s
    * `shownChat`, the same reading the attention circuit asks before it decides a
-   * question is being watched — so the row is offered exactly while a node
-   * agent's conversation is on screen, and it names that node. With none shown
-   * there is no row at all, which is the rule the op rows already keep: a
+   * question is being watched — so the rows are offered exactly while a node
+   * agent's conversation is on screen, and they name that node. With none shown
+   * there are no rows at all, which is the rule the op rows already keep: a
    * palette acts on the page, never on a guess.
    *
-   * THE REFUSAL IS THE PALETTE'S OWN LINE, in the palette's own mood
+   * THE FIRST IS THE OPT-IN, and its LABEL is the indicator: nothing is tidied
+   * on its own until somebody says so, and the row says which way the press will
+   * go (`sleeps`, joined onto the roster row). The second is the pass itself,
+   * asked for now, on a node the loop would never have picked up.
+   *
+   * A REFUSAL IS THE PALETTE'S OWN LINE, in the palette's own mood
    * (`{@link PaletteRunResult}`), and the sentence is the server's: a pass is
-   * already running, or `sleep` is off in this directory's settings. Nothing is
-   * drawn differently for it — a row that vanished when it could not run would
-   * be a row whose absence has no explanation.
+   * already running, nothing is bound there, or `sleep` is off in this
+   * directory's settings. Nothing is drawn differently for it — a row that
+   * vanished when it could not run would be a row whose absence has no
+   * explanation.
    */
   const sleeping = (): ReadonlyArray<PaletteItem> => {
     const held = agentReadings()
     if (held === undefined) return []
     const shown = agents.rows().find((row) => held.shownChat(row.id) !== undefined)
     if (shown === undefined) return []
-    return [{
-      id: "sleep-now", label: "Sleep now", place: `on “${shown.title}”`,
-      search: `sleep now ${shown.title}`.toLowerCase(), taking: atOnce,
-      action: { kind: "run", run: async () => {
-        const outcome = await runAsync(chatWire().procedures.conversation.sleepNow({ node: shown.id }))
-        if (Result.isFailure(outcome)) return { keepOpen: true, said: { tone: "alarm" as const, text: outcome.failure.message } }
-        if (outcome.success._tag === "Started") return {}
-        return { keepOpen: true, said: { tone: "alarm" as const, text: outcome.success.said } }
-      } },
-    }]
+    return [
+      {
+        id: "sleep-when-idle",
+        label: shown.sleeps ? "Stop sleeping when idle" : "Sleep when idle",
+        place: `on “${shown.title}”`,
+        search: `sleep when idle ${shown.title}`.toLowerCase(), taking: atOnce,
+        action: { kind: "run", run: async () => {
+          const outcome = await runAsync(
+            chatWire().procedures.conversation.setSleeping({ node: shown.id, on: !shown.sleeps }),
+          )
+          if (Result.isFailure(outcome)) {
+            return { keepOpen: true, said: { tone: "alarm" as const, text: outcome.failure.message } }
+          }
+          return {}
+        } },
+      },
+      {
+        id: "sleep-now", label: "Sleep now", place: `on “${shown.title}”`,
+        search: `sleep now ${shown.title}`.toLowerCase(), taking: atOnce,
+        action: { kind: "run", run: async () => {
+          const outcome = await runAsync(chatWire().procedures.conversation.sleepNow({ node: shown.id }))
+          if (Result.isFailure(outcome)) return { keepOpen: true, said: { tone: "alarm" as const, text: outcome.failure.message } }
+          if (outcome.success._tag === "Started") return {}
+          return { keepOpen: true, said: { tone: "alarm" as const, text: outcome.success.said } }
+        } },
+      },
+    ]
   }
   return { items: (): ReadonlyArray<PaletteItem> => {
     // ONLY WHAT WORKS: with no engine this machine can start, there is no
