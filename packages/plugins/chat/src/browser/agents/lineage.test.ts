@@ -51,6 +51,7 @@ const bound = (session: string | null, engine = "claude"): Agents => [{
   waiting: 0,
   said: null,
   sleeps: false,
+  sleep: null,
 }]
 
 // ── the chain behind a conversation ────────────────────────────────────
