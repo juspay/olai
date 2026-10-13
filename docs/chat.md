@@ -856,11 +856,14 @@ since it last slept, it is asked to tidy, distill and tuck away — in its own
 conversation, with the tools it already has.
 
 **Nothing sleeps until you say so.** The pass is opt-in per chat, and off by
-default: a node agent with a session offers **Sleep when idle** on its row's
-menu, and ⌘K offers the same row for the conversation on screen. Pressing it
-writes `chat-agent-sleep: on` on the node — a property like any other, which you
-can type in the drawer instead — and the verb then reads **Stop sleeping when
-idle** and pressing it takes the mark off. Absent and `off` are the same answer,
+default. There are three ways to say it, and the first is the one a person
+looking for "what does this chat do on its own" will find: the **Alerts** strip
+under the conversation — where *Alert on new mail* already sits — gains
+**Sleep when idle · Off**, a switch whose `aria-checked` is the mark itself.
+Pressing it writes `chat-agent-sleep: on` on the node — a property like any
+other, which you can type in the drawer instead — and the switch then reads
+**On**, as the verb on the node's row menu reads **Stop sleeping when idle** and
+⌘K offers the same row for the conversation on screen. Absent and `off` are the same answer,
 so a vault that never hears about this feature is a vault where nothing is
 tidied. `sleep: on` in `_olai/Settings.olai` stays the default and means "the
 loop runs for the chats that asked"; `sleep: off` turns everything off, the verb

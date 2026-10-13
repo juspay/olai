@@ -553,6 +553,11 @@ export const TESTID = {
    *  file a person pointed it at. Absent where there is no conversation to be
    *  scoped, which is the roster strip's own rule. */
   chatWake: "chat-wake",
+  /** THE OPT-IN, in that strip and drawn FIRST: whether olai tidies this chat's
+   *  memory on its own clock at all. A `role="switch"` whose text is `On`/`Off`
+   *  and whose `aria-checked` is the mark, so a scenario reads the state as
+   *  DATA; a refusal is drawn beside it in a `role="alert"`. */
+  chatSleepSwitch: "chat-sleep-switch",
   /** One plugin's control on it: the trigger that opens the file list, wearing
    *  the picked file's name or `off`. `data-plugin` is WHOSE doorbell and
    *  `data-file` is the file or `off` — the state as DATA, because the words

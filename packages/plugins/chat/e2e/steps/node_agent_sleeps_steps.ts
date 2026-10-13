@@ -74,6 +74,43 @@ Given("the memory under {string} has moved", function (this: OlaiWorld, node: st
   this.writeServed(FILE, moved.map((row) => JSON.stringify(row)).join("\n"));
 });
 
+/**
+ * THE OPT-IN, PRESSED IN THE STRIP — the switch under the conversation, which is
+ * where a person looks for what this chat wakes on (`browser/chat/Wake.tsx`,
+ * beside the mail plugin's *Alert on new mail*). The same door the row menu and
+ * the palette press; `aria-checked` IS the mark, so the wait after the press is
+ * the assertion, and the words beside it are the same fact for a reader.
+ *
+ * THE MAIL ROW'S OWN STEP, word for word (`mail/e2e/steps/mail_inbox_steps.ts`),
+ * including the literal testid: a plugin's own switch is addressed by its own
+ * name there, and this is chat's.
+ */
+const switchSleep = async (world: OlaiWorld, on: boolean) => {
+  const button = world.chat('[data-testid="chat-sleep-switch"]');
+  await world.waitUntil(async () => await button.count() === 1, "the sleep switch in the strip");
+  if ((await button.getAttribute("aria-checked") === "true") !== on) await button.click();
+  await world.waitUntil(
+    async () => (await button.getAttribute("aria-checked") === "true") === on,
+    `sleep when idle ${on ? "on" : "off"}`,
+  );
+};
+
+When("I switch sleep when idle on for this conversation", async function (this: OlaiWorld) {
+  await switchSleep(this, true);
+});
+
+When("I switch sleep when idle off for this conversation", async function (this: OlaiWorld) {
+  await switchSleep(this, false);
+});
+
+Then("sleep when idle is on for this conversation", async function (this: OlaiWorld) {
+  assert.equal(await this.chat('[data-testid="chat-sleep-switch"]').getAttribute("aria-checked"), "true");
+});
+
+Then("sleep when idle is off for this conversation", async function (this: OlaiWorld) {
+  assert.equal(await this.chat('[data-testid="chat-sleep-switch"]').getAttribute("aria-checked"), "false");
+});
+
 /** The machine row, waited for — the pass is asynchronous by construction, so
  *  every assertion about it is a wait. */
 Then("the node agent {string} has been tidied", async function (this: OlaiWorld, node: string) {

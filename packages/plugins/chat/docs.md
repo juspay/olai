@@ -89,8 +89,10 @@ Chat contributes a **third** kind, `chat-agent-sleep`, and it is the only one a
 person writes: `on` means olai may tidy that node agent's memory on its own
 clock, and the key being absent or `off` means it may not. **Nothing is tidied
 until you say so** — the pass is opt-in per chat, and this is the whole of the
-state. The row menu's **Sleep when idle** writes it, **Stop sleeping when idle**
-takes it off, and either can be typed here instead:
+state. The **Alerts** strip under a node agent's conversation carries it as a
+switch (**Sleep when idle · Off/On**), the row menu's **Sleep when idle** writes
+it and **Stop sleeping when idle** takes it off, ⌘K offers the same row for the
+conversation on screen — and any of them can be typed here instead:
 
 ```json
 {"title":"agent-sleep","custom":{"type":"chat-agent-sleep"}}

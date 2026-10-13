@@ -42,15 +42,13 @@ Feature: A node agent tidies its own memory when nobody is looking
     # row's menu has no chat verbs until it is.
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
-    # ...AND THE OPT-IN, PRESSED ON SCREEN: the verb on the row's menu, read back
-    # twice — the vault holds the mark, and the menu that comes back says the
-    # other thing, because the label IS the indicator.
-    When I open the node menu of "install"
-    And I choose "Sleep when idle" from the node menu
-    Then the vault node "install" has property "chat-agent-sleep" holding "on"
-    When I open the node menu of "install"
-    And the node menu offers "Stop sleeping when idle"
-    And I click away from the node menu
+    # ...AND THE OPT-IN, PRESSED WHERE A PERSON LOOKS FOR IT: the switch in the
+    # Alerts strip under this conversation, beside *Alert on new mail*. Read back
+    # twice — `aria-checked` is the mark and the vault is the fact under it — and
+    # the row menu's own leg is the next scenario, so both ways in stay covered.
+    When I switch sleep when idle on for this conversation
+    Then sleep when idle is on for this conversation
+    And the vault node "install" has property "chat-agent-sleep" holding "on"
     And the memory under "install" has moved
     Then the node agent "install" has been tidied
     And the node "hinges" has the title "tidied"
@@ -63,8 +61,12 @@ Feature: A node agent tidies its own memory when nobody is looking
     And I open the outline "house.olai"
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
+    # THE ROW MENU'S OWN WAY IN, so the strip is not the only one a suite holds.
     When I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
+    And I open the node menu of "install"
+    And the node menu offers "Stop sleeping when idle"
+    And I click away from the node menu
     And the memory under "install" has moved
     Then the node agent "install" has been tidied
     And node "install" carries the sleep memo
@@ -303,18 +305,18 @@ Feature: A node agent tidies its own memory when nobody is looking
     # has no chat verbs until one is seated.
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
-    # ON, THEN OFF, through the two labels the one verb carries — and each press
-    # is read back off the menu that comes after it, because the label IS the
-    # indicator: `chat-agent-sleep` is gone when the row says "Sleep when idle"
-    # again.
-    When I open the node menu of "install"
-    And I choose "Sleep when idle" from the node menu
+    # ON THROUGH THE STRIP, OFF THROUGH THE ROW MENU — the two ways in, each
+    # read back where it is pressed: `aria-checked` is the mark, and the menu
+    # that comes after the second press says the row is back to "Sleep when idle".
+    When I switch sleep when idle on for this conversation
+    Then sleep when idle is on for this conversation
     When I open the node menu of "install"
     And the node menu offers "Stop sleeping when idle"
     And I choose "Stop sleeping when idle" from the node menu
     When I open the node menu of "install"
     And the node menu offers "Sleep when idle"
     And I click away from the node menu
+    And sleep when idle is off for this conversation
     # ...AND THE NEWS COMES AFTER THE MARK IS OFF, which is the order that makes
     # this about the mark: the node is due on every test the loop has, and it is
     # still left alone.
