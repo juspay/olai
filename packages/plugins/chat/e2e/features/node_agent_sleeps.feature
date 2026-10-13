@@ -352,9 +352,10 @@ Feature: A node agent tidies its own memory when nobody is looking
     And I open the outline "house.olai"
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
-    # THE HEAD IS TWO STRIPS, NOT THREE: the tools roster, and the line that carries
-    # the sleep item and the wake faces together.
-    Then the head has exactly two strips
+    # ONE LINE, TWO KINDS OF ITEM: the sleep mark and the wake faces are standing
+    # facts of the same kind and share the head's second strip rather than wearing
+    # one each.
+    Then the sleep item and the wake faces share one strip
     # ...AND NOBODY HAS ASKED, which is the switch's own answer.
     And the sleep item says "unmarked"
     When I switch sleep when idle on for this conversation

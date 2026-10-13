@@ -123,17 +123,20 @@ Then("the sleep item has no memo", async function (this: OlaiWorld) {
 });
 
 /**
- * THE HEAD'S STRIPS, COUNTED — and the count is the claim: the sleep item and the
- * wake faces are per-conversation standing facts of the same kind and share ONE
- * line, so the head above the transcript is two strips (the tools roster and that
- * line) and not three. The sections are the panel's own children, which is what
- * makes this a count rather than a guess.
+ * ONE STRIP, TWO KINDS OF ITEM — which is the claim: the sleep item and the wake
+ * faces are per-conversation standing facts of the same kind and share one line,
+ * rather than wearing a bordered strip each. Asserted by DESCENT, because that is
+ * what "on the same line" means here, and with the head's strip count held at two
+ * — the tools roster (absent in a conversation that was handed no servers) and
+ * this line, never a third.
  */
-Then("the head has exactly two strips", async function (this: OlaiWorld) {
+Then("the sleep item and the wake faces share one strip", async function (this: OlaiWorld) {
   const strips = this.chat(`${selector(TESTID.chatPanel)} > section`);
-  await this.waitUntil(async () => await strips.count() === 2, "the head to have exactly two strips");
-  assert.equal(await this.chat(`${selector(TESTID.chatPanel)} > ${selector(TESTID.chatRoster)}`).count(), 1);
+  await this.waitUntil(async () => await strips.count() >= 1, "the standing line to be drawn");
+  assert.ok(await strips.count() <= 2, "the head should be the tools roster and the standing line, no more");
   assert.equal(await this.chat(`${selector(TESTID.chatPanel)} > ${selector(TESTID.chatStanding)}`).count(), 1);
+  assert.equal(await this.chat(`${selector(TESTID.chatStanding)} ${selector(TESTID.chatSleeping)}`).count(), 1);
+  assert.equal(await this.chat(`${selector(TESTID.chatStanding)} ${selector(TESTID.chatWake)}`).count(), 1);
 });
 
 /**

@@ -177,6 +177,11 @@ export const saidOf = (forecast: Forecast | null, now: number): SleepSaid => {
         title,
       }
     }
+    // UNREACHABLE FROM HERE — the arm above answers it before the switch — and
+    // present so that the table is EXHAUSTIVE rather than nearly so: a kind added
+    // to the wire has to be a decision here, not a silent `undefined`.
+    case "off":
+      return { kind: next.kind, on: null, said: [], title }
     case "due": {
       const soon = inWords(next.at, now)
       return {
