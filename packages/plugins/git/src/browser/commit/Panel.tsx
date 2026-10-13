@@ -49,7 +49,7 @@ import {
   AUTO_STOPPED,
   because,
   commitRefused,
-  lockHeld,
+  LOCK_HELD,
   lockRefused,
   lockSays,
   scopeOf,
@@ -121,9 +121,24 @@ export function Panel(props: {
    *  with a gesture behind it (`./said.ts`). */
   const lock = () => lockRefused(props.commit.git())
 
-  /** When the unlock button was told the lock is too young to remove — the
-   *  stamp the guard answered with, so the sentence can say how young. */
-  const [held, setHeld] = createSignal<number | null>(null)
+  /** The stamp the GUARD answered about, or `null` — the one fact about a lock
+   *  the cell cannot carry: "there is a lock in the way" and "olai has been
+   *  asked about this one and would not touch it" are the same cell and two
+   *  different sentences.
+   *
+   *  KEYED ON THE STAMP rather than a boolean cleared when the lock changes,
+   *  and the difference is not a refinement: the guard REWRITES the cell's
+   *  stamp when it answers (`@olai/plugin-git`'s `unlock`, so that the two ages
+   *  on screen are one age), which means the republish that brings this
+   *  sentence is itself a change of the lock — a boolean reset by that change
+   *  would erase the sentence it was just set for. A stamp keeps the rule the
+   *  boolean was for: the sentence draws while the cell's lock is the one the
+   *  guard answered about, and a different lock cannot inherit it. */
+  const [guarded, setGuarded] = createSignal<number | null>(null)
+  const held = () => {
+    const stopped = lock()
+    return stopped !== null && guarded() === stopped.since
+  }
 
   /**
    * What the refusal line says.
@@ -289,10 +304,16 @@ export function Panel(props: {
           A LOCK FILE is the one refusal with a gesture behind it, so it reads
           as olai's sentence — how long ago the file was left, and what to
           check before removing it — rather than as a `fatal:` line naming a
-          path. */}
+          path. GIT'S OWN WORDS ARE STILL HERE, on the `title`, because that
+          path is what the person who does have a terminal needs: the sentence
+          says what to do, and the hover says which file git actually named. */}
       <Show when={refusalSays()}>
         {(said) => (
-          <p class="wrap-anywhere text-label text-alarm" data-testid={TESTID.commitRefused}>
+          <p
+            class="wrap-anywhere text-label text-alarm"
+            data-testid={TESTID.commitRefused}
+            title={commitRefused(props.commit.git()) ?? undefined}
+          >
             {said()}
           </p>
         )}
@@ -308,7 +329,10 @@ export function Panel(props: {
           the way any more, so the commit this panel was refused is made again
           with the draft and the ticks it is holding. `Held` is the guard
           saying the lock is younger than a git command's own budget — it may
-          belong to a git that is still writing it — and nothing is retried. */}
+          belong to a git that is still writing it — and nothing is retried. A
+          FAILURE is the file having been there and not removable, and it draws
+          itself in `refused` beside this button, which is why it is the seam's
+          own signal and not this panel's. */}
       <Show when={lock()}>
         <button
           type="button"
@@ -317,28 +341,28 @@ export function Panel(props: {
           onClick={() =>
             props.commit.unlock((answer) => {
               if (answer._tag === "Held") {
-                setHeld(answer.since)
+                setGuarded(answer.since)
                 return
               }
-              setHeld(null)
+              setGuarded(null)
               props.commit.commit(draft(), selection.paths())
             })}
         >
           Remove lock file & retry
         </button>
         <Show when={held()}>
-          {(since) => (
-            <p class="text-label text-doing" data-testid={TESTID.commitLockHeld}>
-              {lockHeld(since(), props.now)}
-            </p>
-          )}
+          <p class="text-label text-doing" data-testid={TESTID.commitLockHeld}>
+            {LOCK_HELD}
+          </p>
         </Show>
       </Show>
 
       {/* ... and what the SERVER would not take from this tab: a call the wire
-          dropped, or a usage refusal. Its own line because it is about this
-          press rather than about the directory, and a control that silently
-          did nothing is the failure this whole feature is about. */}
+          dropped, a usage refusal, or a lock file that was there and could not
+          be removed — where the errno is the whole of what a reader can act on.
+          Its own line because it is about this press rather than about the
+          directory, and a control that silently did nothing is the failure this
+          whole feature is about. */}
       <Show when={props.commit.refused()}>
         {(said) => (
           <p class="wrap-anywhere text-label text-alarm" data-testid={TESTID.commitCallRefused}>

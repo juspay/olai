@@ -29,8 +29,6 @@ import type { GitState } from "@olai/format"
 import type { BarStatus, BarTone } from "olai-plugin-layout/slots"
 
 import { agoOf } from "@olai/web/client/ago.ts"
-import { SECOND } from "@olai/web/client/clock.ts"
-import { wordsOf } from "@olai/web/client/duration.ts"
 
 /**
  * Which of the eight things the pill is saying right now.
@@ -303,23 +301,15 @@ export const lockSays = (since: number, now: number | null): string =>
  * unlock button can be refused with, in the words of the guard that refused it:
  * the lock is younger than a git command's own budget, so it may belong to a
  * git that is still writing.
+ *
+ * No age on it, and that is deliberate: the guard REWRITES the age on the cell
+ * to the stamp it saw (`@olai/plugin-git`'s `unlock`), so the sentence above
+ * this one is already saying how young the lock is — and a lock olai ever
+ * refuses to remove is under ten seconds old, so a second age here could only
+ * read "0s ago" under a line that says "12m ago" a moment earlier.
  */
 export const LOCK_HELD =
   "A git process may still be writing; try again in a moment."
-
-/**
- * ... the same sentence with HOW YOUNG it is, which is the one fact a reader
- * can act on: a lock left a second ago is almost certainly a live git, and one
- * left nine seconds ago is very probably not.
- *
- * Seconds-resolution rather than {@link agoOf}'s minutes, and that is not a
- * preference: a lock olai ever refuses to remove is under ten seconds old, so
- * the coarser phrase could only ever read "just now" — a clause that says
- * nothing dressed as one that does. `@olai/web/client/duration.ts`'s `wordsOf`
- * is the seconds ladder the ⏱ chip already draws.
- */
-export const lockHeld = (since: number, now: number): string =>
-  `${LOCK_HELD} (left ${wordsOf((now - since) / SECOND)} ago)`
 
 /** The lock file that stopped the last commit, or `null` — the companion of
  *  {@link commitRefused}, gated the same way so the two cannot come to disagree

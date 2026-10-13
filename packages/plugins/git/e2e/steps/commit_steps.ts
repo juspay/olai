@@ -706,7 +706,41 @@ Then("the commit panel says a lock file is in the way", async function (this: Ol
     said.includes("lock file is in the way"),
     `the refusal line says "${said}", which is not the sentence about a lock file`,
   );
+  // ... AND GIT'S OWN WORDS ARE ONE HOVER AWAY. The sentence says what to do
+  // about the file; the `title` is where the path git actually refused over
+  // survives, which is what a person with a terminal is looking for.
+  const title = (await line.getAttribute("title")) ?? "";
+  assert.ok(
+    title.includes("index.lock"),
+    `the refusal line's title is "${title}", which does not carry git's own words`,
+  );
 });
+
+/**
+ * HOW OLD THE PANEL SAYS THE LOCK IS — the one stamp, and the assertion that
+ * two ages cannot be on screen at once.
+ *
+ * Waited for rather than read once: the guard answers a press by REWRITING the
+ * cell's copy of the age to the one it saw, so the sentence a scenario is
+ * waiting for arrives a republish after the click.
+ */
+Then(
+  "the commit panel says the lock was left {string}",
+  async function (this: OlaiWorld, ago: string) {
+    const words = `(left ${ago})`;
+    try {
+      await this.page
+        .locator(`${COMMIT_REFUSED}:has-text(${JSON.stringify(words)})`)
+        .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    } catch {
+      const said = await this.page.locator(COMMIT_REFUSED).textContent({ timeout: POLL_TIMEOUT });
+      assert.fail(
+        `the refusal line to say the lock was left ${JSON.stringify(ago)}, ` +
+          `and it says ${JSON.stringify(oneLine(said ?? ""))}`,
+      );
+    }
+  },
+);
 
 Then("the commit panel offers to remove the lock file", async function (this: OlaiWorld) {
   await this.page.locator(COMMIT_UNLOCK)

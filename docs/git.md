@@ -107,6 +107,8 @@ The panel now says what is in the way and how long ago it was left, and offers t
 
 Nothing is ever removed on olai's own initiative, and there is no verb for it on the agent face: a person saying they have checked that no git command is running is not a judgement an agent makes on their behalf. The file removed is the one in the git directory of the repository olai serves — a linked worktree's lock lives under `.git/worktrees/<name>` rather than in the main repository — and never a path read out of git's own sentence.
 
+It never says *done* on a guess, either. Where the file cannot be removed at all — a git directory olai has no permission to write — the errno is drawn beside the button rather than a report that the lock is gone. And where the file turns out to be younger than the window, the age on the sentence is updated to the one olai just read, so the panel cannot be showing two ages for one file.
+
 A lock does not stop the SURVEY: `git status` answers with one in place, so what is waiting is still listed and there is something to commit once the file is gone. Only the write verbs refuse.
 
 ## Pushing

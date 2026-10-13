@@ -242,7 +242,7 @@ Feature: Committing on purpose
     # index. Past that budget nothing on this machine could still be holding it
     # for a reason, so the person decides — which is why the sentence tells them
     # to check that no git command is running before they press.
-    Given a fresh lock file sits in the repository
+    Given a stale lock file sits in the repository
     When I rewrite "notes.md" as:
       """
       the herb bed needs splitting again
@@ -250,12 +250,19 @@ Feature: Committing on purpose
     And I open the commit panel
     And I commit with the message "the herb bed needs splitting"
     Then the commit panel says a lock file is in the way
-    # RE-TOUCHED first, so the guard's window has not run out while the steps
-    # above were happening: what is under test is the guard, not how long the
-    # scenario takes to run.
+    And the commit panel says the lock was left "10m ago"
+    # THE SAME FILE, WRITTEN AGAIN JUST NOW: younger than a git command's own
+    # budget, so the guard will not touch it — and it answers with the stamp it
+    # saw, which is the age the panel then draws. ONE age, on the cell, in every
+    # tab: the two contradictory ones this replaced were the recorded refusal's
+    # and a copy the panel was keeping for itself.
     Given a fresh lock file sits in the repository
     When I remove the lock file and retry
-    Then the panel says a git process may still be writing
+    Then the commit panel says the lock was left "just now"
+    # ... AND THE SENTENCE IS STILL THERE UNDER IT, which is the half a boolean
+    # reset by "the lock changed" would have lost: the guard's own rewrite IS a
+    # change of the lock.
+    And the panel says a git process may still be writing
     # Nothing was removed, so the offer is still there and the work is still
     # waiting — the whole of what `Held` means.
     And the commit panel offers to remove the lock file
