@@ -857,9 +857,10 @@ conversation, with the tools it already has.
 
 **Nothing sleeps until you say so.** The pass is opt-in per chat, and off by
 default. There are three ways to say it, and the first is the one a person
-looking for "what does this chat do on its own" will find: the **Alerts** strip
-under the conversation — where *Alert on new mail* already sits — gains
-**Sleep when idle · Off**, a switch whose `aria-checked` is the mark itself.
+looking for "what does this chat do on its own" will find: under a node agent's
+conversation, in the strip bar where *Alert on new mail* already sits, chat draws
+its own strip — **Sleep when idle · Off**, a switch whose `aria-checked` is the
+mark itself.
 Pressing it writes `chat-agent-sleep: on` on the node — a property like any
 other, which you can type in the drawer instead — and the switch then reads
 **On**, as the verb on the node's row menu reads **Stop sleeping when idle** and

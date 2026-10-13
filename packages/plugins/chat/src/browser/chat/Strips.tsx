@@ -14,10 +14,15 @@
 
 import { Plan } from "./Plan.tsx"
 import { Roster } from "./Roster.tsx"
+import { Sleeping } from "./Sleeping.tsx"
 import type { Chat } from "./state.ts"
 import { Wake } from "./Wake.tsx"
 import { Watching } from "./Watching.tsx"
 
 export function Strips(props: { readonly chat: Chat }) {
-  return <><Plan chat={props.chat} /><Roster chat={props.chat} /><Watching chat={props.chat} /><Wake chat={props.chat} /></>
+  // ...AND SLEEPING FIRST OF THE TWO, because it is the answer the other one
+  // depends on: whether this chat is tidied at all is what decides whether a
+  // wake can be acted on. They are separate components and separate strips
+  // ({@link ./Sleeping.tsx} argues why) that happen to share a bar.
+  return <><Plan chat={props.chat} /><Roster chat={props.chat} /><Watching chat={props.chat} /><Sleeping chat={props.chat} /><Wake chat={props.chat} /></>
 }

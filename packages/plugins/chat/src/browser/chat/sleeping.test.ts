@@ -1,19 +1,17 @@
 /**
- * THE STRIP'S OPT-IN, as two pure questions: which roster row a conversation is,
- * and what the switch beside it says.
+ * THE STRIP'S OPT-IN, as the two pure questions behind it: which roster row a
+ * conversation is, and what the switch beside it says.
  *
- * A PLAIN FUNCTION TEST rather than a drawn component, and that is not a
- * shortcut: `bun test` resolves SolidJS's SERVER build, where a memo never
- * re-runs (`justfile` says so where the browser tests are counted), so a test
- * that rendered the strip would be asserting a first frame and calling it
- * reactivity. What the drawing adds is covered where a browser is real — the
- * scenarios press the switch and read `aria-checked` back.
+ * What the DRAWING adds is covered where a browser is real — the scenarios press
+ * the switch and read `aria-checked` back — and a test that rendered it here
+ * would be asserting a first frame under SolidJS's server build and calling it
+ * reactivity (`justfile` says so where the browser tests are counted).
  */
 
 import { expect, test } from "bun:test"
 import type { NodeAgentRow } from "olai-plugin-chat/wire"
 
-import { nodeAgentOf, sleepWords } from "./Wake.tsx"
+import { nodeAgentOf, sleepWords } from "./sleeping.ts"
 
 /** One roster row, as the wire sends it. */
 const row = (over: Partial<NodeAgentRow> = {}): NodeAgentRow => ({

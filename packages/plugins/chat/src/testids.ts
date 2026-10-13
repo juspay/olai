@@ -553,10 +553,14 @@ export const TESTID = {
    *  file a person pointed it at. Absent where there is no conversation to be
    *  scoped, which is the roster strip's own rule. */
   chatWake: "chat-wake",
-  /** THE OPT-IN, in that strip and drawn FIRST: whether olai tidies this chat's
-   *  memory on its own clock at all. A `role="switch"` whose text is `On`/`Off`
-   *  and whose `aria-checked` is the mark, so a scenario reads the state as
-   *  DATA; a refusal is drawn beside it in a `role="alert"`. */
+  /** THE OPT-IN'S OWN STRIP, drawn beside the wake one in the same bar: whether
+   *  olai tidies this chat's memory on its own clock at all. Chat's own, per
+   *  node, and already a vault property — not a plugin face, which is why it is
+   *  a sibling strip rather than a row in that one (`Sleeping.tsx` argues it). */
+  chatSleeping: "chat-sleeping",
+  /** ...and the switch on it: a `role="switch"` whose text is `On`/`Off` and
+   *  whose `aria-checked` is the mark, so a scenario reads the state as DATA. A
+   *  refusal is drawn beside it in a `role="alert"`. */
   chatSleepSwitch: "chat-sleep-switch",
   /** One plugin's control on it: the trigger that opens the file list, wearing
    *  the picked file's name or `off`. `data-plugin` is WHOSE doorbell and
