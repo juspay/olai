@@ -554,12 +554,9 @@ export interface Committing {
    * the age on the cell to the one the guard saw. The guard is in `@olai/git`'s
    * `unlock`, which is the only place that touches the file.
    *
-   * IT FAILS when the file was there and could not be removed — a git directory
-   * olai cannot write. That is not an arm of the answer for the reason it is not
-   * an arm in `@olai/git` either: an answer would have to claim the lock is gone
-   * when it is not, and clearing the refusal on the way past is exactly the
-   * false report the panel would then have to explain. The failure carries the
-   * errno's own words, which is what the button draws beside itself.
+   * IT FAILS when the file was there and could not be removed, carrying the
+   * errno — `@olai/git`'s `UnlockRefused` owns that argument. Nothing is
+   * cleared on the way past.
    */
   readonly unlock: Effect.Effect<UnlockResult, OpFailure>
 }
@@ -1458,9 +1455,8 @@ export const make = (options: Options): Committing => {
    * and every reload reads — a `createSignal` in the panel would be a second
    * copy of a server fact, and the older of the two.
    *
-   * A FAILURE (the file was there and could not be removed) clears nothing
-   * either, and reaches the caller as a refusal it can draw: see
-   * `@olai/git`'s `UnlockRefused`.
+   * A FAILURE clears nothing either, and reaches the caller as a refusal it can
+   * draw — see `@olai/git`'s `UnlockRefused`.
    */
   const unlock: Effect.Effect<UnlockResult, OpFailure> = Effect.gen(function*() {
     const opening = yield* repository

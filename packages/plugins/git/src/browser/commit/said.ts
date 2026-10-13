@@ -302,11 +302,8 @@ export const lockSays = (since: number, now: number | null): string =>
  * the lock is younger than a git command's own budget, so it may belong to a
  * git that is still writing.
  *
- * No age on it, and that is deliberate: the guard REWRITES the age on the cell
- * to the stamp it saw (`@olai/plugin-git`'s `unlock`), so the sentence above
- * this one is already saying how young the lock is — and a lock olai ever
- * refuses to remove is under ten seconds old, so a second age here could only
- * read "0s ago" under a line that says "12m ago" a moment earlier.
+ * No age on it: the guard rewrites the age on the sentence above, so a second
+ * one here could only contradict it.
  */
 export const LOCK_HELD =
   "A git process may still be writing; try again in a moment."

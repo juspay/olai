@@ -126,14 +126,10 @@ export function Panel(props: {
    *  asked about this one and would not touch it" are the same cell and two
    *  different sentences.
    *
-   *  KEYED ON THE STAMP rather than a boolean cleared when the lock changes,
-   *  and the difference is not a refinement: the guard REWRITES the cell's
-   *  stamp when it answers (`@olai/plugin-git`'s `unlock`, so that the two ages
-   *  on screen are one age), which means the republish that brings this
-   *  sentence is itself a change of the lock — a boolean reset by that change
-   *  would erase the sentence it was just set for. A stamp keeps the rule the
-   *  boolean was for: the sentence draws while the cell's lock is the one the
-   *  guard answered about, and a different lock cannot inherit it. */
+   *  A STAMP rather than a flag, because the guard REWRITES the cell's stamp
+   *  when it answers (`@olai/plugin-git`'s `unlock`, so that one file has one
+   *  age): the sentence draws while the cell's lock is the one the guard
+   *  answered about, and a different lock cannot inherit it. */
   const [guarded, setGuarded] = createSignal<number | null>(null)
   const held = () => {
     const stopped = lock()
@@ -141,19 +137,22 @@ export function Panel(props: {
   }
 
   /**
-   * What the refusal line says.
+   * The refusal line: what it SAYS, and what it is titled with.
    *
-   * Olai's lock sentence when the refusal was about a lock file — with the age
-   * phrased against THIS panel's clock, which ticks — and git's own words
-   * otherwise. One line either way, because the panel draws one fault at a
-   * time: what git said, and what a reader can do about it, are the same
-   * question.
+   * One derivation rather than two readings of the same fault. `says` is olai's
+   * lock sentence when the refusal was about a lock file — with the age phrased
+   * against THIS panel's clock, which ticks — and git's own words otherwise;
+   * `title` is always git's own, which names the path a person with a terminal
+   * is looking for.
    */
-  const refusalSays = () => {
+  const refusal = () => {
     const said = commitRefused(props.commit.git())
     if (said === null) return null
     const stopped = lock()
-    return stopped === null ? said : lockSays(stopped.since, props.now)
+    return {
+      says: stopped === null ? said : lockSays(stopped.since, props.now),
+      title: said,
+    }
   }
 
   return (
@@ -259,12 +258,9 @@ export function Panel(props: {
         >
           Resume
         </button>
-        {/* ... AND WHAT THE SERVER WOULD NOT TAKE FROM THAT PRESS. Its own
-            line, because a call that never reached the server is about this
-            press rather than about the directory — and because the two buttons
-            the seam carries are on screen together whenever a lock refusal has
-            paused the loop, so a shared signal would print one press's failure
-            under the other's. */}
+        {/* ... and what the SERVER would not take from THAT press — a call that
+            never reached it. Its own line, because the seam keeps one refusal
+            per control (`GitPolicySeam.unlockRefused` has the argument). */}
         <Show when={props.commit.resumeRefused()}>
           {(said) => (
             <p
@@ -318,19 +314,16 @@ export function Panel(props: {
           when it happened.
 
           A LOCK FILE is the one refusal with a gesture behind it, so it reads
-          as olai's sentence — how long ago the file was left, and what to
-          check before removing it — rather than as a `fatal:` line naming a
-          path. GIT'S OWN WORDS ARE STILL HERE, on the `title`, because that
-          path is what the person who does have a terminal needs: the sentence
-          says what to do, and the hover says which file git actually named. */}
-      <Show when={refusalSays()}>
-        {(said) => (
+          as olai's sentence rather than as a `fatal:` line naming a path — with
+          git's own words on the `title`, which is where that path stays. */}
+      <Show when={refusal()}>
+        {(line) => (
           <p
             class="wrap-anywhere text-label text-alarm"
             data-testid={TESTID.commitRefused}
-            title={commitRefused(props.commit.git()) ?? undefined}
+            title={line().title}
           >
-            {said()}
+            {line().says}
           </p>
         )}
       </Show>
@@ -343,12 +336,9 @@ export function Panel(props: {
 
           ONE PRESS RECOVERS: `Removed` and `Absent` mean the file is not in
           the way any more, so the commit this panel was refused is made again
-          with the draft and the ticks it is holding. `Held` is the guard
-          saying the lock is younger than a git command's own budget — it may
-          belong to a git that is still writing it — and nothing is retried. A
-          FAILURE is the file having been there and not removable, and it draws
-          itself in `refused` beside this button, which is why it is the seam's
-          own signal and not this panel's. */}
+          with the draft and the ticks it is holding. `Held` is the guard saying
+          the lock is younger than a git command's own budget, and nothing is
+          retried. */}
       <Show when={lock()}>
         <button
           type="button"
@@ -366,11 +356,9 @@ export function Panel(props: {
         >
           Remove lock file & retry
         </button>
-        {/* ... AND WHAT THE SERVER WOULD NOT TAKE FROM THAT PRESS: a call that
-            never arrived, or a file that is there and a git directory that will
-            not let go of it — where the errno IS the reason, and the only thing
-            a reader can act on. Under this button and not the Resume one, for
-            the reason above. */}
+        {/* ... and the same for this press: a call that never arrived, or a file
+            that is there and a git directory that will not let go of it — where
+            the errno IS the reason. */}
         <Show when={props.commit.unlockRefused()}>
           {(said) => (
             <p

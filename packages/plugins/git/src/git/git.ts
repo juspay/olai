@@ -906,9 +906,8 @@ const keptIndex = (placed: Placement): Index => {
   }
 }
 
-/** The one file git refuses a write over, spelled once: both the sentence that
- *  is recognised as a refusal about it and the path {@link unlock} unlinks come
- *  from here, so the two cannot come to mean different files. */
+/** The file git refuses a write over — the name {@link LOCK_SAID} recognises
+ *  and the only path {@link unlock} ever unlinks. */
 const INDEX_LOCK = "index.lock"
 
 /**
@@ -919,13 +918,12 @@ const INDEX_LOCK = "index.lock"
  * the lock is not in the way any more, and this is the one where it still is
  * and olai could do nothing about it. An answer would have to lie in one
  * direction or the other — `Absent` says the file is gone when it is not, and
- * `Removed` says olai removed it when it did not — and both clear the ledger's
- * remembered refusal on the way past.
+ * `Removed` says olai removed it when it did not — and the ledger clears its
+ * remembered refusal on both.
  *
  * The words are the errno's own (`EACCES: permission denied, unlink …`), which
  * is what tells a reader whether this is a permission, a full disk or a
- * read-only mount. `@olai/git` decides nothing about what a caller draws from
- * it; the ledger turns it into the refusal a panel can show.
+ * read-only mount.
  */
 export class UnlockRefused extends Error {
   constructor(why: string) {
@@ -939,12 +937,12 @@ export class UnlockRefused extends Error {
  * `LC_ALL=C` the runner sets — the same kind of string match {@link NOT_A_REPO}
  * is, and for the same reason.
  *
- * ONLY EVER A TEST: the path inside it is never used. What olai stats and what
- * olai unlinks is `join(gitDir, INDEX_LOCK)`, because a path read out of a
- * sentence is a path somebody else chose. A linked worktree is why that matters
+ * ONLY EVER A TEST, and the path inside it is never used: what olai stats and
+ * what olai unlinks is `join(gitDir, INDEX_LOCK)`, because a path read out of a
+ * sentence is a path somebody else chose. A LINKED WORKTREE is why that matters
  * rather than merely being tidy — its `--absolute-git-dir` is
- * `.git/worktrees/<name>`, and the lock git refused over is the one in THERE,
- * which is the git directory this handle already has.
+ * `.git/worktrees/<name>`, so its lock is the one in THERE, which is the git
+ * directory this handle already has.
  */
 const LOCK_SAID = /Unable to create '.+\/index\.lock': File exists/
 
@@ -979,23 +977,18 @@ const lockBehind = (placed: Placement, said: string): Lock | null => {
  *
  * THE GUARD IS THE ONLY REFUSAL, and it is a budget rather than a judgement: a
  * lock younger than {@link BUDGET} may belong to a git that is still writing
- * it — olai's own commits hold it for milliseconds, but an `add` running a slow
- * filter or a commit inside a hook is well within the window — and removing
- * somebody else's lock mid-write is how two writers corrupt one index. Past the
- * budget nothing on this machine could still be holding it for a reason, so the
- * refusal stops being olai's and becomes the human's: the sentence tells them
- * to make sure no git command is running first.
+ * it — olai's own git gets exactly that long — and removing somebody else's
+ * lock mid-write is how two writers corrupt one index. Past the budget nothing
+ * on this machine could still be holding it for a reason, so the decision is
+ * the human's.
  *
  * NEVER A PATH FROM THE SENTENCE — see {@link LOCK_SAID} — and never a guess
  * from liveness either: git's `index.lock` carries no pid, so nothing can ask
  * whether the process that left it is alive, and the mtime is the only signal
  * there is.
  *
- * AN UNLINK THAT FAILS IS A FAILURE and not an answer — see
- * {@link UnlockRefused}. Reporting it as `Absent` would be a false answer with
- * a side effect: the ledger clears the remembered refusal on `Absent`, so the
- * panel would drop the fault, retry, and meet the same refusal again with
- * nothing on screen saying why.
+ * AND IT FAILS RATHER THAN ANSWERING when the file will not go — see
+ * {@link UnlockRefused}.
  */
 const unlock = (placed: Placement): Effect.Effect<UnlockResult, UnlockRefused> =>
   Effect.gen(function*() {

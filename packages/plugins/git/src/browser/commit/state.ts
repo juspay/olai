@@ -139,12 +139,6 @@ export interface Commit extends GitPolicySeam {
    * refusal — happened to this press and to nobody else's. Nothing on the cell
    * can say so, and a control that silently did nothing is the failure this
    * whole feature is about.
-   *
-   * Declared here rather than inherited, and that is the half a reader has to
-   * be able to see: the seam's two accessors are for the Resume and unlock
-   * buttons ({@link GitPolicySeam.resumeRefused}, `unlockRefused`), and a
-   * `refused` that came from the seam would be a signal the Panel never read
-   * while these two presses wrote into it.
    */
   readonly refused: Accessor<string | null>
   /**
@@ -193,10 +187,6 @@ export const canRecord = (working: boolean, pushing: boolean): boolean =>
  */
 export const createGitPolicy = (): GitPolicySeam => {
   const git = gitWire().cells.git.use()
-  // ONE SIGNAL PER CONTROL, which is the rule the committer's own refusals
-  // follow: these two buttons are on screen together whenever a lock refusal
-  // has paused the loop, so a shared signal would draw a press's failure under
-  // the button that did not make it.
   const [resumeRefused, setResumeRefused] = createSignal<string | null>(null)
   const [unlockRefused, setUnlockRefused] = createSignal<string | null>(null)
 
@@ -251,12 +241,8 @@ export const createCommit = (): Commit => {
 
   return {
     ...policy,
-    // THE COMMIT AND PUSH PAIR'S OWN refusals — the one line at the foot of
-    // this panel. The seam carries its own two (`resumeRefused`,
-    // `unlockRefused`) rather than sharing this signal, because those two
-    // buttons are drawn TOGETHER whenever a lock refusal has paused the loop:
-    // one signal would print a press's failure under the button that did not
-    // make it.
+    // THE COMMIT AND PUSH PAIR'S OWN refusals — the line at the foot of this
+    // panel. The seam keeps its two separately; see `unlockRefused`.
     refused,
     pending,
     heard: () => cell.value() !== undefined,

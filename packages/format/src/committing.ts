@@ -167,11 +167,9 @@ export const DEFAULT_POLICY: GitPolicy = {
  * every write in that repository, with git's own words (`Unable to create
  * '…/index.lock': File exists`), until somebody removes the file by hand.
  *
- * THE MTIME IS THE ONLY SIGNAL THERE IS: git's `index.lock` carries no pid, so
- * nothing can ask whether the process that left it is still alive. Age is what
- * there is to go on, and it is the whole of what olai is willing to act on —
- * see `@olai/git`'s `unlock`, which refuses a lock younger than a git command's
- * own budget.
+ * THE MTIME IS ALL THERE IS TO GO ON: git's `index.lock` carries no pid, so
+ * nothing can ask whether the process that left it is still alive. What olai
+ * does with the age is `@olai/git`'s `unlock`.
  */
 export const Lock = Schema.Struct({
   /** When the lock file was last written, in milliseconds since the epoch. */
@@ -207,12 +205,10 @@ export const GitState = Schema.Struct({
    * how long ago it was left.
    *
    * Its own field beside {@link GitState.said} for the reason `pushSaid` has
-   * one: the words say what happened and this says what a reader can do about
-   * it. A panel that knew only the sentence would have to parse a path out of
-   * git's prose to find the file, and the path olai acts on is pinned to its
-   * own git directory rather than to anything git printed. `null` on every
-   * refusal that was not about a lock, and on every state that is not a
-   * refusal at all.
+   * one: the words say what happened, and this says what a reader can do about
+   * it — a file to remove, rather than a path to parse out of git's prose.
+   * `null` on every refusal that was not about a lock, and on every state that
+   * is not a refusal at all.
    */
   lock: Schema.NullOr(Lock),
   /** What this activation does about commit and push, including defaults. */

@@ -802,10 +802,7 @@ Then("the panel says a git process may still be writing", async function (this: 
  * WHAT THE SERVER COULD NOT DO, on the line under the button that asked.
  *
  * Asserted by its ERRNO, because that is the whole of what a reader can act on
- * — the difference between a permission, a full disk and a read-only mount —
- * and because a failure that reached no line at all is the bug this step is
- * here to catch: the two signals a seam's verbs write into are read by nobody
- * unless the panel draws them.
+ * — the difference between a permission, a full disk and a read-only mount.
  */
 Then("the panel says the lock could not be removed", async function (this: OlaiWorld) {
   const line = this.page.locator(COMMIT_UNLOCK_REFUSED);

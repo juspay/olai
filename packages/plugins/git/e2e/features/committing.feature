@@ -254,14 +254,13 @@ Feature: Committing on purpose
     # THE SAME FILE, WRITTEN AGAIN JUST NOW: younger than a git command's own
     # budget, so the guard will not touch it — and it answers with the stamp it
     # saw, which is the age the panel then draws. ONE age, on the cell, in every
-    # tab: the two contradictory ones this replaced were the recorded refusal's
-    # and a copy the panel was keeping for itself.
+    # tab.
     Given a fresh lock file sits in the repository
     When I remove the lock file and retry
     Then the commit panel says the lock was left "just now"
-    # ... AND THE SENTENCE IS STILL THERE UNDER IT, which is the half a boolean
-    # reset by "the lock changed" would have lost: the guard's own rewrite IS a
-    # change of the lock.
+    # ... AND THE SENTENCE IS STILL THERE UNDER IT: the guard's own answer
+    # rewrites the lock, so the line that says the removal was held has to
+    # outlive that republish.
     And the panel says a git process may still be writing
     # Nothing was removed, so the offer is still there and the work is still
     # waiting — the whole of what `Held` means.
@@ -272,11 +271,8 @@ Feature: Committing on purpose
     # THE GUARD IS NOT THE ONLY ANSWER THE BUTTON CAN GET. Where the file is
     # there and the git directory will not let go of it, the errno is the whole
     # of what a reader can act on — a permission, a full disk or a read-only
-    # mount are three different things to go and fix.
-    #
-    # AND IT IS DRAWN, which is the half this scenario exists for: the seam
-    # keeps one refusal per control, and a signal no line reads is a press that
-    # silently does nothing.
+    # mount are three different things to go and fix, and it is drawn under the
+    # button that asked.
     Given a stale lock file sits in the repository
     When I rewrite "notes.md" as:
       """
