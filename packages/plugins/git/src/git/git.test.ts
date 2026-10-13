@@ -14,7 +14,7 @@
 
 import { collector, findSaid } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
-import { Effect, Exit, Fiber } from "effect"
+import { Cause, Effect, Exit, Fiber } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
@@ -50,19 +50,27 @@ const repo = (
 
 /** Every question below is asked of a repository, so this is the prologue they
  *  share: open the directory, or fail the test saying it is not one. */
-const asEffect = <A>(
+const asEffect = <A, E = never>(
   root: string,
-  use: (git: Repo) => Effect.Effect<A>,
-): Effect.Effect<A> =>
+  use: (git: Repo) => Effect.Effect<A, E>,
+): Effect.Effect<A, E> =>
   Effect.flatMap(open(root), (opening) =>
     opening._tag !== "Opened"
       ? Effect.die(new Error(`${root} is not a work tree: ${opening._tag}`))
       : use(opening.repo))
 
+/**
+ * ... and the same, run for its ANSWER.
+ *
+ * `unknown` rather than `never`, because one verb can genuinely fail — the one
+ * that removes a lock file. A test that expects an answer dies on a failure,
+ * which is what it meant; a test that is ABOUT the failure asks through
+ * `Effect.runPromiseExit` instead.
+ */
 const asked = <A>(
   root: string,
-  use: (git: Repo) => Effect.Effect<A>,
-): Promise<A> => Effect.runPromise(asEffect(root, use))
+  use: (git: Repo) => Effect.Effect<A, unknown>,
+): Promise<A> => Effect.runPromise(Effect.orDie(asEffect(root, use)))
 
 /** The survey, for the tests that are about what it FOUND rather than about a
  *  git that could not answer — which has its own test, and which every one of
@@ -856,6 +864,37 @@ test("unlock holds a fresh lock, removes a stale one, and is Absent with none at
 
   // ... and pressing again is `Absent` rather than a second `Removed`.
   expect(await asked(root, (git) => git.unlock)).toEqual({ _tag: "Absent" })
+})
+
+test("a lock that cannot be removed fails with the errno's own words, and stays", async () => {
+  // A git directory olai cannot write: a permission that is not its, a read-only
+  // mount. THIS IS A FAILURE AND NOT AN ANSWER, and the difference is the whole
+  // reason it is one: `Absent` would say the file is gone when it is not, and
+  // the ledger clears the remembered refusal on `Absent` — so the panel would
+  // drop the fault, retry, and meet the same refusal again with nothing on
+  // screen saying why. Root ignores the mode, so the test skips there.
+  if (typeof process.getuid === "function" && process.getuid() === 0) return
+  const { root } = repo()
+  const at = lockAt(root)
+  plantLock(at, 10 * 60_000)
+
+  const dir = path.dirname(at)
+  fs.chmodSync(dir, 0o500)
+  try {
+    const exit = await Effect.runPromiseExit(asEffect(root, (git) => git.unlock))
+    expect(Exit.isFailure(exit)).toBe(true)
+    // The errno's own words, which is what tells a reader whether this is a
+    // permission, a full disk or a read-only mount.
+    if (Exit.isFailure(exit)) {
+      expect(Cause.pretty(exit.cause)).toContain("permission denied")
+    }
+  } finally {
+    fs.chmodSync(dir, 0o700)
+  }
+
+  // ... and the file is still there, which is the fact the failure means.
+  expect(fs.existsSync(at)).toBe(true)
+  fs.rmSync(at)
 })
 
 test("a lock in a linked worktree is found under that worktree's own git directory", async () => {

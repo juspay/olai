@@ -93,7 +93,10 @@ export interface GitPolicySeam {
    * from it is a COMMIT and this factory knows nothing about drafts or ticks:
    * `Removed` and `Absent` are the panel retrying the commit it was refused,
    * `Held` is the sentence beside the button. A CALL that never reached the
-   * server is this seam's own `refused`, exactly as {@link resume}'s is.
+   * server, AND a removal the server could not make — the file was there and
+   * the git directory would not let go of it — are this seam's own `refused`,
+   * exactly as {@link resume}'s is: `onAnswer` is the SUCCESS edge, and a
+   * failure is drawn beside the button that made it.
    */
   readonly unlock: (onAnswer: (answer: UnlockResult) => void) => void
 }

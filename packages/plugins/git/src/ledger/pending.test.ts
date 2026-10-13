@@ -27,7 +27,7 @@ import { NodeServices } from "@effect/platform-node"
 import { DEFAULT_POLICY, NO_KINDS, Writer } from "@olai/format"
 import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
-import { Effect, type Scope } from "effect"
+import { Cause, Effect, Exit, type Scope } from "effect"
 
 import { codecFor } from "@olai/ops"
 import type { Reading, Verdict } from "@olai/format"
@@ -1150,7 +1150,7 @@ describe("the stale lock file", () => {
         expect(before.lock).not.toBe(null)
 
         const settlements = fixture.settlements()
-        expect(yield* fixture.ops.unlock).toEqual({ _tag: "Removed" })
+        expect(yield* Effect.orDie(fixture.ops.unlock)).toEqual({ _tag: "Removed" })
         expect(fs.existsSync(lock)).toBe(false)
         // The republish, which is the whole of how the panel hears about it.
         yield* fixture.settled(settlements)
@@ -1165,28 +1165,74 @@ describe("the stale lock file", () => {
         expect(subjects(fixture)[0]).toBe("olai: the lock is gone")
 
         // ... and pressing again is `Absent`, which clears the same nothing.
-        expect(yield* fixture.ops.unlock).toEqual({ _tag: "Absent" })
+        expect(yield* Effect.orDie(fixture.ops.unlock)).toEqual({ _tag: "Absent" })
         expect((yield* fixture.ops.git).status).toBe("repo")
       })))
 
-  test("unlock holds a lock a git process may still be writing, and clears nothing", () =>
+  test("unlock on a lock a git process may still be writing rewrites the age on the cell", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
         yield* fixture.refresh
-        // FRESH: younger than a git command's own budget.
-        const lock = path.join(fixture.root, ".git", "index.lock")
-        fs.writeFileSync(lock, "")
-
+        // The refusal is recorded against an OLD lock — which is the state the
+        // panel is drawn in when somebody left a stale file and a git then
+        // touched it again.
+        const lock = staleLock(fixture)
         expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Failed")
+        const before = yield* fixture.ops.git
+        expect(before.lock?.since).toBeLessThan(Date.now() - 60_000)
+
+        // ... and now it is FRESH: younger than a git command's own budget, so
+        // the guard will not touch it and answers with the stamp it saw.
+        const fresh = (Date.now() - 1_000) / 1000
+        fs.utimesSync(lock, fresh, fresh)
         const settlements = fixture.settlements()
 
-        const held = yield* fixture.ops.unlock
-        expect(held._tag).toBe("Held")
-        // Nothing removed, nothing cleared, and nothing republished — the
-        // sentence beside the button is the whole of what a person gets.
+        expect((yield* Effect.orDie(fixture.ops.unlock))._tag).toBe("Held")
+
+        // NOTHING CLEARED — the file is still in the way, so the refusal is
+        // still true and the button is still the answer...
         expect(fs.existsSync(lock)).toBe(true)
         expect((yield* fixture.ops.git).status).toBe("error")
+        // ... AND THE AGE MOVED, on the CELL. Two ages for one file on one
+        // screen is a contradiction a reader has to resolve, and the cell is
+        // the copy every tab and every reload reads.
+        yield* fixture.settled(settlements)
+        const after = yield* fixture.ops.git
+        expect(after.lock?.since ?? 0).toBeGreaterThan(Date.now() - 10_000)
+        // ... and it is the FRESHER of the two, not the stamp the refusal was
+        // recorded against.
+        expect(after.lock?.since ?? 0).toBeGreaterThan(before.lock?.since ?? 0)
+      })))
+
+  test("an unlock that could not remove the file fails, and clears nothing", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        // Root ignores the mode, so the test skips there.
+        if (typeof process.getuid === "function" && process.getuid() === 0) return
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+        yield* fixture.refresh
+        const lock = staleLock(fixture)
+        expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Failed")
+
+        const dir = path.dirname(lock)
+        fs.chmodSync(dir, 0o500)
+        const settlements = fixture.settlements()
+        const failed = yield* Effect.exit(fixture.ops.unlock)
+        fs.chmodSync(dir, 0o700)
+
+        // A FAILURE and not one of the three arms: the file is still there, so
+        // any answer would have to claim otherwise — and `Absent` would clear
+        // the refusal on the way past, leaving the panel to retry into the same
+        // refusal with nothing on screen saying why. The errno's own words are
+        // what the button draws beside itself.
+        expect(Exit.isFailure(failed)).toBe(true)
+        const why = Exit.isFailure(failed) ? Cause.squash(failed.cause) : undefined
+        expect((why as Error | undefined)?.message ?? "").toContain("permission denied")
+        // NOTHING CLEARED, and nothing republished.
+        expect(fs.existsSync(lock)).toBe(true)
+        expect((yield* fixture.ops.git).status).toBe("error")
+        expect((yield* fixture.ops.git).lock).not.toBe(null)
         expect(fixture.settlements()).toBe(settlements)
       })))
 
@@ -1204,7 +1250,7 @@ describe("the stale lock file", () => {
         expect(before.paused).not.toBe(null)
         expect(before.lock).not.toBe(null)
 
-        expect((yield* fixture.ops.unlock)._tag).toBe("Removed")
+        expect((yield* Effect.orDie(fixture.ops.unlock))._tag).toBe("Removed")
         const after = yield* fixture.ops.git
         expect(after.paused).toBe(null)
         expect(after.lock).toBe(null)

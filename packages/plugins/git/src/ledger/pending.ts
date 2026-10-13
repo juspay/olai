@@ -68,6 +68,7 @@
 import {
   armedOn,
   brokenBy,
+  BusyFailure,
   COMMIT_BUTTON,
   COMMIT_MODES,
   COMMIT_TOOL,
@@ -88,6 +89,7 @@ import {
   nodesOf,
   NOTHING_PENDING,
   type Other,
+  type OpFailure,
   type OutlineError,
   outlineNames,
   type Pending,
@@ -548,11 +550,18 @@ export interface Committing {
    * It answers {@link UnlockResult} rather than clearing and returning, because
    * the caller has a commit to retry and only two of the three answers mean it
    * should: `Removed` and `Absent` clear the refusal and the pause and say so,
-   * `Held` says the lock is younger than a git command's own budget and leaves
-   * everything where it is. The guard is in `@olai/git`'s `unlock`, which is
-   * the only place that touches the file.
+   * `Held` says the lock is younger than a git command's own budget and rewrites
+   * the age on the cell to the one the guard saw. The guard is in `@olai/git`'s
+   * `unlock`, which is the only place that touches the file.
+   *
+   * IT FAILS when the file was there and could not be removed — a git directory
+   * olai cannot write. That is not an arm of the answer for the reason it is not
+   * an arm in `@olai/git` either: an answer would have to claim the lock is gone
+   * when it is not, and clearing the refusal on the way past is exactly the
+   * false report the panel would then have to explain. The failure carries the
+   * errno's own words, which is what the button draws beside itself.
    */
-  readonly unlock: Effect.Effect<UnlockResult>
+  readonly unlock: Effect.Effect<UnlockResult, OpFailure>
 }
 
 /** The one state git is never asked about, so it is spelled once. */
@@ -1442,21 +1451,42 @@ export const make = (options: Options): Committing => {
    * must not be what clears it — and the browser then retries the commit it was
    * refused, which is what makes one press recover.
    *
-   * `Held` is the guard and clears nothing: the lock is younger than a git
-   * command's budget, so it may belong to a git that is still writing, and the
-   * answer the caller draws is "try again in a moment" (see
-   * `@olai/git`'s `unlock`).
+   * `Held` clears NOTHING, and it is where the one STAMP lives: the guard
+   * answered with a fresher mtime than the refusal recorded, so the cell's copy
+   * of the age is rewritten to it. Two ages for one file on one screen is a
+   * contradiction a reader has to resolve, and the cell is the copy every tab
+   * and every reload reads — a `createSignal` in the panel would be a second
+   * copy of a server fact, and the older of the two.
+   *
+   * A FAILURE (the file was there and could not be removed) clears nothing
+   * either, and reaches the caller as a refusal it can draw: see
+   * `@olai/git`'s `UnlockRefused`.
    */
-  const unlock: Effect.Effect<UnlockResult> = Effect.gen(function*() {
+  const unlock: Effect.Effect<UnlockResult, OpFailure> = Effect.gen(function*() {
     const opening = yield* repository
     if (opening._tag !== "Opened") return { _tag: "Absent" } as const
-    const answer = yield* opening.repo.unlock
-    if (answer._tag === "Removed" || answer._tag === "Absent") {
-      settled = { ...settled, refusal: null, paused: null }
-      // The republish, exactly as `resume` needs one: what is waiting has not
-      // moved, so nothing else would tell the panel that the fault is over.
-      options.onSettled?.()
+    const answer = yield* Effect.mapError(
+      opening.repo.unlock,
+      // The wire's closed union has no arm for "the filesystem said no", and
+      // `BusyFailure` is the one that is words alone — the same shape the
+      // browser's own `asFailure` gives a failure it does not recognise. What a
+      // reader draws is `message`, which is the errno's own words.
+      (cause) => new BusyFailure({ reason: cause.message }),
+    )
+    if (answer._tag === "Held") {
+      if (settled.refusal !== null) {
+        settled = {
+          ...settled,
+          refusal: { ...settled.refusal, lock: { since: answer.since } },
+        }
+        options.onSettled?.()
+      }
+      return answer
     }
+    settled = { ...settled, refusal: null, paused: null }
+    // The republish, exactly as `resume` needs one: what is waiting has not
+    // moved, so nothing else would tell the panel that the fault is over.
+    options.onSettled?.()
     return answer
   })
 

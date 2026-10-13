@@ -318,8 +318,12 @@ export interface Repo {
    * unlinks is the git directory THIS handle opened: `join(gitDir,
    * index.lock)` is the same file {@link commit} refused over, whatever kind of
    * worktree that directory belongs to. See {@link unlock} for the guard.
+   *
+   * FAILS, rather than answering, when the file could not be removed — see
+   * {@link UnlockRefused}, which is the one outcome that is neither "gone" nor
+   * "too young to touch".
    */
-  readonly unlock: Effect.Effect<UnlockResult>
+  readonly unlock: Effect.Effect<UnlockResult, UnlockRefused>
 }
 
 /**
@@ -908,6 +912,29 @@ const keptIndex = (placed: Placement): Index => {
 const INDEX_LOCK = "index.lock"
 
 /**
+ * THE LOCK FILE WAS THERE AND COULD NOT BE REMOVED — a git directory olai
+ * cannot write, a read-only mount, a permission that is not its.
+ *
+ * Deliberately NOT an arm of {@link UnlockResult}: those three are three ways
+ * the lock is not in the way any more, and this is the one where it still is
+ * and olai could do nothing about it. An answer would have to lie in one
+ * direction or the other — `Absent` says the file is gone when it is not, and
+ * `Removed` says olai removed it when it did not — and both clear the ledger's
+ * remembered refusal on the way past.
+ *
+ * The words are the errno's own (`EACCES: permission denied, unlink …`), which
+ * is what tells a reader whether this is a permission, a full disk or a
+ * read-only mount. `@olai/git` decides nothing about what a caller draws from
+ * it; the ledger turns it into the refusal a panel can show.
+ */
+export class UnlockRefused extends Error {
+  constructor(why: string) {
+    super(why)
+    this.name = "UnlockRefused"
+  }
+}
+
+/**
  * GIT'S OWN WORDS WHEN A LOCK FILE IS IN THE WAY, pinned to English by the
  * `LC_ALL=C` the runner sets — the same kind of string match {@link NOT_A_REPO}
  * is, and for the same reason.
@@ -963,24 +990,24 @@ const lockBehind = (placed: Placement, said: string): Lock | null => {
  * from liveness either: git's `index.lock` carries no pid, so nothing can ask
  * whether the process that left it is alive, and the mtime is the only signal
  * there is.
+ *
+ * AN UNLINK THAT FAILS IS A FAILURE and not an answer — see
+ * {@link UnlockRefused}. Reporting it as `Absent` would be a false answer with
+ * a side effect: the ledger clears the remembered refusal on `Absent`, so the
+ * panel would drop the fault, retry, and meet the same refusal again with
+ * nothing on screen saying why.
  */
-const unlock = (placed: Placement): Effect.Effect<UnlockResult> =>
-  Effect.sync(() => {
+const unlock = (placed: Placement): Effect.Effect<UnlockResult, UnlockRefused> =>
+  Effect.gen(function*() {
     const at = join(placed.gitDir, INDEX_LOCK)
     const since = mtimeOf(at)
     if (since === null) return { _tag: "Absent" } as const
     if (Date.now() - since < BUDGET) return { _tag: "Held", since } as const
-    try {
-      fs.unlinkSync(at)
-    } catch {
-      // Nothing was removed, and the retry that follows is what tells the two
-      // cases apart: a lock still in the way refuses the commit again, with the
-      // same words and the same button. Why an unlink failed is not a question
-      // this verb has an answer to — a directory olai cannot write is not a
-      // fact about the lock — so it is reported as the lock not having been
-      // olai's to remove.
-      return { _tag: "Absent" } as const
-    }
+    yield* Effect.try({
+      try: () => fs.unlinkSync(at),
+      catch: (cause) =>
+        new UnlockRefused(cause instanceof Error ? cause.message : String(cause)),
+    })
     return { _tag: "Removed" } as const
   })
 
