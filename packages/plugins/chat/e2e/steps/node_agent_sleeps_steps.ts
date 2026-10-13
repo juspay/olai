@@ -126,23 +126,6 @@ Then("node {string} carries the sleep memo", async function (this: OlaiWorld, no
   );
 });
 
-/** THE MARK A SESSION MAY NOT WRITE, and its absence is the assertion: the
- *  scenario's turn tries `chat-agent-sleep` with the memo, and whichever door
- *  refuses it, the node must not come out of that turn opted in — an agent that
- *  marked itself would be authorising its own wake-up.
- *
- *  READ OFF THE SERVED FILE rather than the menu, so this says what the VAULT
- *  holds: the label a menu shows is the indicator, and this is the fact under
- *  it. */
-Then("node {string} carries no sleeping mark", function (this: OlaiWorld, node: string) {
-  const marked = (record(this, node)?.["custom"] as Record<string, unknown> | undefined)?.["chat-agent-sleep"];
-  assert.strictEqual(
-    marked,
-    undefined,
-    `node ${node} carries a sleeping mark, and this scenario says a session may not write one`,
-  );
-});
-
 Then("node {string} carries no sleep memo", async function (this: OlaiWorld, node: string) {
   assert.strictEqual(
     memoOf(this, node),

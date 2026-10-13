@@ -148,13 +148,15 @@ Feature: A node agent tidies its own memory when nobody is looking
     # substring of `chat-agent-slept`, so an assertion without them would pass on
     # the memo's refusal alone.
     And the agent's answer mentions "`chat-agent-slept` is a property"
-    # ...AND THE SECOND KEY IS TRIED IN THE SAME TURN (the fake writes
-    # `chat-agent-sleep` too). What that key's refusal looks like on the wire is
-    # NOT asserted here: the door's rule is held by `@olai/ops`' own case (a
-    # session write to this key is refused, both directions) and by
-    # `server.ts`'s third clause, and the live ticket a node agent's tools carry
-    # does not yet forbid it — an open finding, reported on the PR rather than
-    # asserted as if it held.
+    # ...AND THE SECOND KEY, in the same turn: the fake TAKES THE MARK OFF (the
+    # node carries `on` going in, so writing `on` again would be no movement at
+    # all and would never reach the door). Refused in the door's own words, with
+    # the backticks load-bearing — `chat-agent-sleep` is a substring of
+    # `chat-agent-slept`, so a bare assertion would pass on the memo's refusal
+    # alone — and the mark is still there afterwards, which is the claim: an
+    # agent cannot opt itself out of being tidied.
+    And the agent's answer mentions "`chat-agent-sleep` is a property"
+    And the vault node "install" has property "chat-agent-sleep" holding "on"
     And the memo on node "install" is the pass's own
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
     And olai has recorded 1 commit here

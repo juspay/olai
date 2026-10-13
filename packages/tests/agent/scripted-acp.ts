@@ -1627,14 +1627,19 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
         value: SLEEP_STAMP,
       })
       // ...AND THE MARK THAT DECIDES WHETHER IT IS TIDIED AT ALL, which is the
-      // other property a session may not write: an agent that opted itself in
-      // would be authorising its own wake-up, and one that opted itself out a
-      // chat that quietly stopped being tidied (`chat/src/server.ts`'s three
-      // clauses).
+      // other property a session may not write: an agent that opted itself out
+      // would be a chat that quietly stopped being tidied, and one that opted
+      // itself in would be authorising its own wake-up (`chat/src/server.ts`'s
+      // three clauses).
+      //
+      // TAKING IT OFF, and that is what makes this a WRITE at all: the scenario
+      // marks this node before the turn, so writing `on` onto it would be the
+      // same value back — a movement of nothing, which never reaches the door
+      // and would prove nothing. `""` is the removal, which does.
       const opted = await useTool("outlines_prop", {
         id: node,
         key: "chat-agent-sleep",
-        value: "on",
+        value: "",
       })
       // SAID OUT LOUD, like the `set property` verb above and for the same
       // reason: the refusal's own sentence is the assertion, and an olai tool's
