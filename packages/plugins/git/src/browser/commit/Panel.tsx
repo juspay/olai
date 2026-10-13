@@ -39,7 +39,7 @@
  */
 import { servedDirectory } from "../vault.ts"
 import { isReady } from "@olai/format"
-import { Show } from "solid-js"
+import { createSignal, Show } from "solid-js"
 
 import { agoOf } from "@olai/web/client/ago.ts"
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
@@ -49,6 +49,9 @@ import {
   AUTO_STOPPED,
   because,
   commitRefused,
+  LOCK_HELD,
+  lockRefused,
+  lockSays,
   scopeOf,
   verbatim,
   waitingIn,
@@ -113,6 +116,30 @@ export function Panel(props: {
   /** Whether the quiet window would record this list on its own — the loop's
    *  OWN gate, asked rather than re-derived (`./said.ts`). */
   const promised = () => willRecord(pending(), props.commit.git())
+
+  /** The `index.lock` the last refusal was about, or `null` — the one refusal
+   *  with a gesture behind it (`./said.ts`). */
+  const lock = () => lockRefused(props.commit.git())
+
+  /** When the unlock button was told the lock is too young to remove — the
+   *  stamp the guard answered with, so the sentence can say how young. */
+  const [held, setHeld] = createSignal<number | null>(null)
+
+  /**
+   * What the refusal line says.
+   *
+   * Olai's lock sentence when the refusal was about a lock file — with the age
+   * phrased against THIS panel's clock, which ticks — and git's own words
+   * otherwise. One line either way, because the panel draws one fault at a
+   * time: what git said, and what a reader can do about it, are the same
+   * question.
+   */
+  const refusalSays = () => {
+    const said = commitRefused(props.commit.git())
+    if (said === null) return null
+    const stopped = lock()
+    return stopped === null ? said : lockSays(stopped.since, props.now)
+  }
 
   return (
     <section
@@ -257,13 +284,55 @@ export function Panel(props: {
           is the same words in every tab and after a reload — and so a commit
           the agent or the quiet window made and git refused is readable by the
           person who opens this panel, who need not be the one who was looking
-          when it happened. */}
-      <Show when={commitRefused(props.commit.git())}>
+          when it happened.
+
+          A LOCK FILE is the one refusal with a gesture behind it, so it reads
+          as olai's sentence — how long ago the file was left, and what to
+          check before removing it — rather than as a `fatal:` line naming a
+          path. */}
+      <Show when={refusalSays()}>
         {(said) => (
           <p class="wrap-anywhere text-label text-alarm" data-testid={TESTID.commitRefused}>
             {said()}
           </p>
         )}
+      </Show>
+
+      {/* ... AND THE ONE GESTURE THAT ANSWERS IT. Drawn only while the refusal
+          was about a lock file, because it is the only fault a button can
+          clear: the sentence above asks the reader to check that no git
+          command is running, and this is them saying they have. It never runs
+          on olai's own initiative, and an agent has no way to reach it.
+
+          ONE PRESS RECOVERS: `Removed` and `Absent` mean the file is not in
+          the way any more, so the commit this panel was refused is made again
+          with the draft and the ticks it is holding. `Held` is the guard
+          saying the lock is younger than a git command's own budget — it may
+          belong to a git that is still writing it — and nothing is retried. */}
+      <Show when={lock()}>
+        <button
+          type="button"
+          class="self-start rounded-control border border-rule px-3 py-1.5 text-label hover:text-ink"
+          data-testid={TESTID.commitUnlock}
+          onClick={() =>
+            props.commit.unlock((answer) => {
+              if (answer._tag === "Held") {
+                setHeld(answer.since)
+                return
+              }
+              setHeld(null)
+              props.commit.commit(draft(), selection.paths())
+            })}
+        >
+          Remove lock file & retry
+        </button>
+        <Show when={held()}>
+          {(since) => (
+            <p class="text-label text-doing" data-testid={TESTID.commitLockHeld}>
+              {LOCK_HELD} (left {agoOf(since(), props.now)})
+            </p>
+          )}
+        </Show>
       </Show>
 
       {/* ... and what the SERVER would not take from this tab: a call the wire

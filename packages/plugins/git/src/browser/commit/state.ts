@@ -32,6 +32,7 @@ import {
   NOTHING_PENDING,
   type Pending,
   type PushResult,
+  type UnlockResult,
 } from "@olai/format"
 import { GIT_OFF } from "@olai/format"
 import { type Accessor, createSignal } from "solid-js"
@@ -84,6 +85,17 @@ export interface GitPolicySeam {
   /** Start a stopped loop again — the Resume button's verb, and the one way
    *  out. */
   readonly resume: () => void
+  /**
+   * REMOVE THE STALE `index.lock` a commit refused over, and say what came of
+   * it — the unlock button's verb.
+   *
+   * The answer is handed back rather than acted on here, because what follows
+   * from it is a COMMIT and this factory knows nothing about drafts or ticks:
+   * `Removed` and `Absent` are the panel retrying the commit it was refused,
+   * `Held` is the sentence beside the button. A CALL that never reached the
+   * server is this seam's own `refused`, exactly as {@link resume}'s is.
+   */
+  readonly unlock: (onAnswer: (answer: UnlockResult) => void) => void
 }
 
 export interface Commit extends GitPolicySeam {
@@ -162,6 +174,14 @@ export const createGitPolicy = (): GitPolicySeam => {
     resume: () => {
       setRefused(null)
       run(gitWire().procedures.git.resume({}), (failure) => setRefused(failure.message))
+    },
+    unlock: (onAnswer) => {
+      setRefused(null)
+      run(
+        gitWire().procedures.git.unlock({}),
+        (failure) => setRefused(failure.message),
+        onAnswer,
+      )
     },
   }
 }

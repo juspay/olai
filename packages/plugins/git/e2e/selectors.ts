@@ -49,6 +49,12 @@ export const COMMIT_PUSH = selector(TESTID.commitPush);
  *  it is there for whoever opens the panel rather than only for the tab that
  *  made the request. */
 export const COMMIT_PUSH_REFUSED = selector(TESTID.commitPushRefused);
+/** Remove the stale `index.lock` git refused the last commit over — the one
+ *  gesture that clears a refusal without a terminal. */
+export const COMMIT_UNLOCK = selector(TESTID.commitUnlock);
+/** The answer when that removal is too early to make: a git process may still
+ *  be writing the lock. */
+export const COMMIT_LOCK_HELD = selector(TESTID.commitLockHeld);
 /** Why the quiet-window loop stopped, in git's own words. Absent while the loop
  *  is running, which is what makes its PRESENCE the fact a scenario asserts. */
 export const COMMIT_AUTO_PAUSED = selector(TESTID.commitAutoPaused);

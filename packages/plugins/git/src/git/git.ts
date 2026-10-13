@@ -3,16 +3,17 @@
  *
  * {@link open} is the socket: it answers with an {@link Opening} — a
  * {@link Repo}, a directory that is not a work tree, or a git that could not be
- * asked — and everything else is a method on the handle. SIX questions and
- * FOUR verbs, each a subprocess and each total: whether the repository can take
- * a commit right now, what has moved in it and how far ahead of its upstream it
+ * asked — and everything else is a method on the handle. SIX questions and FIVE
+ * verbs, each a subprocess and each total: whether the repository can take a
+ * commit right now, what has moved in it and how far ahead of its upstream it
  * is, which commit HEAD names, what THAT commit had in one of the repository's
  * files, what was last recorded under a caller's own audit filter, and where
  * the branch stands against the upstream AFTER the fetch — then commit exactly
  * these paths with exactly this message, fetch the upstream bare, integrate it
  * (rebase the unpushed commits onto it, in a worktree of olai's own, and move
- * the served tree), and push the current branch. What those answers MEAN is
- * this plugin's `ledger/pending.ts`.
+ * the served tree), push the current branch, and remove the stale lock file a
+ * refusal was about. What those answers MEAN is this plugin's
+ * `ledger/pending.ts`.
  *
  * THE INTEGRATION is {@link Repo.integrate}, and it is the one verb this file
  * does not own end to end: it moves a ref and a working tree together, which
@@ -84,7 +85,7 @@ import { Effect, Semaphore } from "effect"
 import * as fs from "node:fs"
 import { join, resolve } from "node:path"
 
-import type { How, Reason, RepoState } from "@olai/format"
+import type { How, Lock, Reason, RepoState, UnlockResult } from "@olai/format"
 
 /** How long git gets. A commit in a notes directory is milliseconds; the
  *  budget is here so a wedged hook or a lock held by another process cannot
@@ -309,6 +310,16 @@ export interface Repo {
   readonly integrate: (onto: Standing) => Effect.Effect<Integrated>
   /** Send the current branch to its upstream, and say what git said. */
   readonly push: Effect.Effect<Sent>
+  /**
+   * Remove the stale `index.lock` that made the last commit refuse, or say why
+   * not — the one verb here that acts on a file rather than through git.
+   *
+   * A member rather than a procedure of this file's own so that the path it
+   * unlinks is the git directory THIS handle opened: `join(gitDir,
+   * index.lock)` is the same file {@link commit} refused over, whatever kind of
+   * worktree that directory belongs to. See {@link unlock} for the guard.
+   */
+  readonly unlock: Effect.Effect<UnlockResult>
 }
 
 /**
@@ -348,6 +359,7 @@ export const open = (root: string): Effect.Effect<Opening> =>
         integrate: (onto: Standing) =>
           integrate(root, placing.placement, onto),
         push: push(root),
+        unlock: unlock(placing.placement),
       },
     }
   })
@@ -774,10 +786,12 @@ const last = (
 
 /** What committing did. Deliberately not `CommitResult`: that one carries a
  *  change count and a repository state, and neither is a thing this file
- *  knows. */
+ *  knows. The `lock` on the refusal is the one thing it does know and the
+ *  ledger cannot find out for itself without parsing git's prose — see
+ *  {@link lockBehind}. */
 export type Done =
   | { readonly _tag: "Committed"; readonly sha: string }
-  | { readonly _tag: "Failed"; readonly said: string }
+  | { readonly _tag: "Failed"; readonly said: string; readonly lock: Lock | null }
 
 /**
  * Whether a path has working-tree content to stage.
@@ -888,6 +902,88 @@ const keptIndex = (placed: Placement): Index => {
   }
 }
 
+/** The one file git refuses a write over, spelled once: both the sentence that
+ *  is recognised as a refusal about it and the path {@link unlock} unlinks come
+ *  from here, so the two cannot come to mean different files. */
+const INDEX_LOCK = "index.lock"
+
+/**
+ * GIT'S OWN WORDS WHEN A LOCK FILE IS IN THE WAY, pinned to English by the
+ * `LC_ALL=C` the runner sets — the same kind of string match {@link NOT_A_REPO}
+ * is, and for the same reason.
+ *
+ * ONLY EVER A TEST: the path inside it is never used. What olai stats and what
+ * olai unlinks is `join(gitDir, INDEX_LOCK)`, because a path read out of a
+ * sentence is a path somebody else chose. A linked worktree is why that matters
+ * rather than merely being tidy — its `--absolute-git-dir` is
+ * `.git/worktrees/<name>`, and the lock git refused over is the one in THERE,
+ * which is the git directory this handle already has.
+ */
+const LOCK_SAID = /Unable to create '.+\/index\.lock': File exists/
+
+/** When the file at `at` was last written, or `null` where there is none to
+ *  stat — which is the whole of the answer for a lock that is already gone. */
+const mtimeOf = (at: string): number | null => {
+  try {
+    return fs.statSync(at).mtimeMs
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The lock file a refusal was ABOUT, or `null` for a refusal about anything
+ * else.
+ *
+ * AT THE REFUSAL, because that is the only moment it can be answered: the file
+ * can go between git saying no and a reader acting on it, and what the reader
+ * is owed is what git had in its way at the instant it said so. The stat
+ * failing is `null` rather than a fault — a lock git then cleared itself is a
+ * refusal with nothing left to remove, and `null` is the honest answer to that.
+ */
+const lockBehind = (placed: Placement, said: string): Lock | null => {
+  if (!LOCK_SAID.test(said)) return null
+  const since = mtimeOf(join(placed.gitDir, INDEX_LOCK))
+  return since === null ? null : { since }
+}
+
+/**
+ * Remove the stale `index.lock` git refused a write over, or say why not.
+ *
+ * THE GUARD IS THE ONLY REFUSAL, and it is a budget rather than a judgement: a
+ * lock younger than {@link BUDGET} may belong to a git that is still writing
+ * it — olai's own commits hold it for milliseconds, but an `add` running a slow
+ * filter or a commit inside a hook is well within the window — and removing
+ * somebody else's lock mid-write is how two writers corrupt one index. Past the
+ * budget nothing on this machine could still be holding it for a reason, so the
+ * refusal stops being olai's and becomes the human's: the sentence tells them
+ * to make sure no git command is running first.
+ *
+ * NEVER A PATH FROM THE SENTENCE — see {@link LOCK_SAID} — and never a guess
+ * from liveness either: git's `index.lock` carries no pid, so nothing can ask
+ * whether the process that left it is alive, and the mtime is the only signal
+ * there is.
+ */
+const unlock = (placed: Placement): Effect.Effect<UnlockResult> =>
+  Effect.sync(() => {
+    const at = join(placed.gitDir, INDEX_LOCK)
+    const since = mtimeOf(at)
+    if (since === null) return { _tag: "Absent" } as const
+    if (Date.now() - since < BUDGET) return { _tag: "Held", since } as const
+    try {
+      fs.unlinkSync(at)
+    } catch {
+      // Nothing was removed, and the retry that follows is what tells the two
+      // cases apart: a lock still in the way refuses the commit again, with the
+      // same words and the same button. Why an unlink failed is not a question
+      // this verb has an answer to — a directory olai cannot write is not a
+      // fact about the lock — so it is reported as the lock not having been
+      // olai's to remove.
+      return { _tag: "Absent" } as const
+    }
+    return { _tag: "Removed" } as const
+  })
+
 /**
  * Commit exactly these paths, and say what happened.
  *
@@ -974,7 +1070,14 @@ const commit = (
               Effect.logWarning("olai git: could not stage the write"),
               { said: staged.said },
             )
-            return { _tag: "Failed", said: staged.said } as const
+            // ... and the LOCK, when the refusal was about one: the one refusal
+            // with a gesture behind it, classified here because this is the
+            // instant git said no (see {@link lockBehind}).
+            return {
+              _tag: "Failed",
+              said: staged.said,
+              lock: lockBehind(placed, staged.said),
+            } as const
           }
         }
 
@@ -1030,7 +1133,11 @@ const commit = (
             Effect.logWarning("olai git: the write was not committed"),
             { commitMessage: what.message.split("\n")[0] ?? "", said: committed.said },
           )
-          return { _tag: "Failed", said: committed.said } as const
+          return {
+            _tag: "Failed",
+            said: committed.said,
+            lock: lockBehind(placed, committed.said),
+          } as const
         }
 
         const head = yield* git(root, ["rev-parse", "HEAD"])

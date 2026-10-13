@@ -1,11 +1,12 @@
 /**
- * GIT'S OWN SURFACE — what git is doing, what is waiting, and the three verbs,
+ * GIT'S OWN SURFACE — what git is doing, what is waiting, and the four verbs,
  * under git's own sibling key.
  *
  * The members used to sit in `@olai/surface`'s own spec: a `git` cell, a
  * `pending` cell, and `git.commit` / `git.push` / `git.resume`. They are here
- * now. Procedures are a group then a verb, so composed they read
- * `surface/git/git/get`, `surface/git/pending/get`, `surface/git/git/commit`.
+ * now — with `git.unlock`, which is the commit panel's other button. Procedures
+ * are a group then a verb, so composed they read `surface/git/git/get`,
+ * `surface/git/pending/get`, `surface/git/git/commit`.
  * The browser face binds `git.commit` as `"web"` itself.
  *
  * ## THIS ENTRY'S OWN FENCE
@@ -27,6 +28,7 @@ import {
   PushResult,
   sameGit,
   samePending,
+  UnlockResult,
 } from "@olai/format"
 import { Schema } from "effect"
 
@@ -68,6 +70,11 @@ export const surface = defineSurface({
         output: Schema.Struct({}),
         error: OpFailure,
       },
+      unlock: {
+        input: Schema.Struct({}),
+        output: UnlockResult,
+        error: OpFailure,
+      },
     },
   },
 })
@@ -75,7 +82,7 @@ export const surface = defineSurface({
 /**
  * WHICH FACE SEES WHAT.
  *
- * Browser sees the two cells and the three verbs. THIS ROW PUTS NOTHING ON THE
+ * Browser sees the two cells and the four verbs. THIS ROW PUTS NOTHING ON THE
  * AGENT FACE, and that is still true now that it carries its own tools
  * ({@link ./tools.ts}): `git_commit` and `git_push` are entries in THIS row's table
  * since #546 — there is no `@olai/ops` table left for them to sit in — but they
@@ -83,7 +90,10 @@ export const surface = defineSurface({
  * `ops.push`), not through these members. The adapter has no sibling segment for
  * `surface://` cells either way, so what an agent gets is the two tools and none
  * of this surface. `resume` is the browser's alone: it is the commit panel's
- * button, and an agent has no loop of its own to restart.
+ * button, and an agent has no loop of its own to restart. `unlock` is too, and
+ * for a stronger reason: removing a lock file is a person saying they have
+ * checked that no git command is running, which is not a judgement an agent
+ * gets to make on their behalf.
  */
 export const faces = {
   browser: {
@@ -93,5 +103,6 @@ export const faces = {
     "git.commit": "tool",
     "git.push": "tool",
     "git.resume": "tool",
+    "git.unlock": "tool",
   },
 } as const

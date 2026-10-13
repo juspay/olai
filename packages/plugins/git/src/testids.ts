@@ -23,6 +23,13 @@ export const TESTID = {
   commitMessage: "commit-message",
   commitNow: "commit-now",
   commitRefused: "commit-refused",
+  /** Remove the stale `index.lock` git refused the last commit over. On the
+   *  commit panel, drawn only while a refusal was about a lock file — the one
+   *  refusal with a gesture behind it. */
+  commitUnlock: "commit-unlock",
+  /** ... and the sentence the unlock button is answered with when the lock is
+   *  too young to touch: a git process may still be writing it. */
+  commitLockHeld: "commit-lock-held",
   commitCallRefused: "commit-call-refused",
   commitAutoPaused: "commit-auto-paused",
   commitAutoArmed: "commit-auto-armed",

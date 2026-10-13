@@ -25,8 +25,14 @@ import { createTicking, DAY, HOUR, instantOf, MINUTE } from "./clock.ts"
  * something that just happened and nothing else does. A future stamp — a clock
  * that disagrees with the repository's, which happens across machines — reads
  * as "just now" rather than as a negative number.
+ *
+ * A STAMP THAT IS ALREADY A NUMBER passes through, which is
+ * {@link ./clock.ts}'s `instantOf` doing its one job over one more encoding
+ * rather than this function doing two: a git lock file is stamped in
+ * milliseconds by `stat`, and spelling it into ISO text to parse it back would
+ * be a value laundered through a string on every read.
  */
-export const agoOf = (at: string, now: number): string => {
+export const agoOf = (at: string | number, now: number): string => {
   const then = instantOf(at)
   if (then === null) return ""
   const since = now - then

@@ -161,6 +161,7 @@ export const NO_LEDGER: Ledger = {
     Effect.succeed({
       _tag: "Failed",
       said: "nobody is recording writes here, so there is nobody to record a write",
+      lock: null,
     }),
   push: Effect.succeed({
     _tag: "Failed",
@@ -1015,7 +1016,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
     tags: (request) =>
       Effect.map(read, (at) => Query.tags(at.derived, request)),
     commit: (request, writer) => Effect.suspend(() => closed
-      ? Effect.succeed({ _tag: "Failed" as const, said: NO_DIRECTORY.reason })
+      ? Effect.succeed({ _tag: "Failed" as const, said: NO_DIRECTORY.reason, lock: null })
       : ledger.record(request, writer)),
     push: Effect.suspend(() => closed
       ? Effect.succeed({ _tag: "Failed" as const, said: NO_DIRECTORY.reason })
