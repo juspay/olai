@@ -122,7 +122,7 @@ import { Config, SLEEP_OFF, sleepingPolicy } from "./settings.ts"
 export { Config } from "./settings.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
-import { closeAgent, type Binding, startAgentSession } from "./server/binding.ts"
+import { closeAgent, type Binding, setSleeping, startAgentSession } from "./server/binding.ts"
 import { scopeThrough } from "./server/doorbell.ts"
 import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
@@ -191,6 +191,19 @@ const SEATS =
  */
 const MEMO =
   "olai writes it when it tidies this node agent's memory, so a session that stamped it would be claiming a pass nobody ran"
+
+/**
+ * ...AND WHY IT MAY NOT TURN ITS OWN SLEEPING ON OR OFF, which is the third.
+ *
+ * The mark is a PERSON's answer about whether olai may tidy this chat at all
+ * (`./agents.ts`'s `sleeps`), and the whole point of it being opt-in is that the
+ * agent does not get to give itself permission: a session that wrote `on` would
+ * be the tidy-up pass authorising its own wake-up, and one that wrote `off`
+ * would be a chat that quietly stopped being tidied. Neither is a machine's
+ * decision, and the row-menu verb is where it is made.
+ */
+const SLEEPING_MARK =
+  "it is whether olai may tidy this chat on its own, which is a person's choice in the panel"
 
 export default definePlugin({
   environment: [
@@ -563,6 +576,8 @@ export default definePlugin({
         Effect.mapError(ops.prop({ node, key: nodeAgents.key(), value }), asFailure),
       remove: (node) =>
         Effect.mapError(ops.prop({ node, key: nodeAgents.key(), value: "" }), asFailure),
+      mark: (node, value) =>
+        Effect.mapError(ops.prop({ node, key: nodeAgents.sleepKey(), value }), asFailure),
     }
 
     /** WHICH PLUGINS RING AT ALL — core's registry, read afresh at every use.
@@ -657,6 +672,18 @@ export default definePlugin({
             if (filer !== null) yield* filer.full
           })),
         ),
+      setSleeping: ({ input }: { input: { node: string; on: boolean } }) =>
+        // SLEEP OFF IS THE SETTINGS' ANSWER, and it comes before the write: a
+        // mark written while the pass cannot run at all would be a promise the
+        // row's own label does not keep (`./settings.ts`'s `SLEEP_OFF`).
+        sleeping
+          ? bindingPermit.withPermit(setSleeping(binding, input)).pipe(
+            Effect.tap(() => Effect.gen(function*() {
+              mine?.cells.sessionsRevision.set(++sessionsRevision)
+              if (filer !== null) yield* filer.full
+            })),
+          )
+          : Effect.fail(new UsageFailure({ reason: SLEEP_OFF })),
       closeAgent: ({ input }: { input: { node: string } }) =>
         bindingPermit.withPermit(closeAgent(binding, input)).pipe(
           // Publish after the binding is gone: the seat closes and the roster
@@ -936,6 +963,7 @@ export default definePlugin({
             () => [
               ...nodeAgents.keys().map((key) => ({ key, says: SEATS })),
               ...nodeAgents.sleptKeys().map((key) => ({ key, says: MEMO })),
+              ...nodeAgents.sleepKeys().map((key) => ({ key, says: SLEEPING_MARK })),
             ],
             "chat-agent",
             // ...AND WHERE IT MAY WRITE WHILE A PASS IS TIDYING THIS NODE. The

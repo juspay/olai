@@ -25,7 +25,7 @@ import { Effect } from "effect"
 import { CHAT_OFF } from "../wire/members.ts"
 import { SESSION_TYPE } from "../kinds.ts"
 import type { Chat } from "../scoped.ts"
-import { closeAgent, type Binding, startAgentSession } from "./binding.ts"
+import { closeAgent, type Binding, setSleeping, startAgentSession } from "./binding.ts"
 
 /** Every member no gesture here reaches. A DEATH rather than a refusal: a case
  *  that called one would be asking about something this module does not own,
@@ -108,12 +108,15 @@ const binding = (
 ): Binding & {
   readonly wrote: ReadonlyArray<{ node: string; value: string }>
   readonly removed: ReadonlyArray<string>
+  readonly marked: ReadonlyArray<{ node: string; value: string }>
 } => {
   const wrote: Array<{ node: string; value: string }> = []
   const removed: Array<string> = []
+  const marked: Array<{ node: string; value: string }> = []
   return {
     wrote,
     removed,
+    marked,
     boundAt: () => bound,
     // The key the roster would resolve on a vault that has declared nothing —
     // the word this kind claims (`../kinds.ts`). It is spent by the refusal
@@ -122,6 +125,7 @@ const binding = (
     exclusive: work => work,
     write: (node, value) => Effect.sync(() => void wrote.push({ node, value })),
     remove: (node) => Effect.sync(() => void removed.push(node)),
+    mark: (node, value) => Effect.sync(() => void marked.push({ node, value })),
   }
 }
 
@@ -244,3 +248,25 @@ for (const changed of [false, true]) {
     expect(writes).toEqual(changed ? ["codex"] : ["codex", "codex:opened"])
   })
 }
+
+/**
+ * THE SLEEPING MARK, in the two directions a person presses it: `on` written,
+ * and "off" as the key REMOVED — absent and `off` are one answer to the reading,
+ * so the drawer keeps one spelling of no.
+ */
+test("the sleeping mark is written as `on`, and taken off by removing the key", async () => {
+  const at = binding({ engine: "claude", session: "s1", title: "a" })
+  await Effect.runPromise(setSleeping(at, { node: "a", on: true }))
+  await Effect.runPromise(setSleeping(at, { node: "a", on: false }))
+  expect(at.marked).toEqual([{ node: "a", value: "on" }, { node: "a", value: "" }])
+  expect(at.wrote).toEqual([])
+})
+
+/** ...AND NOTHING IS MARKED WHERE THERE IS NO CHAT TO MARK: a mark on a row with
+ *  no conversation would be a promise about something that is not there. */
+test("marking a node that is not an agent refuses, and writes nothing", async () => {
+  const at = binding(null)
+  const said = await Effect.runPromise(Effect.flip(setSleeping(at, { node: "a", on: true })))
+  expect(said.reason).toContain("no node agent")
+  expect(at.marked).toEqual([])
+})

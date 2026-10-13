@@ -80,6 +80,12 @@ export interface Binding {
    *  way: an empty value removes the key exactly as `null` does. Refuses,
    *  like any removal of a key that is not there, when no binding exists. */
   readonly remove: (node: string) => Effect.Effect<void, OpFailure>
+  /**
+   * THE SLEEPING MARK, WRITTEN — a third kind, one field over from the binding
+   * and the same door: `on` marks this chat, and an empty value takes the mark
+   * off, which is what "off" means (`./agents.ts`'s `sleeps` reads the absence).
+   */
+  readonly mark: (node: string, value: string) => Effect.Effect<void, OpFailure>
 }
 
 /** RELEASE a node agent: take the binding property off. Nothing else happens —
@@ -102,6 +108,32 @@ export const closeAgent = (
       return yield* new UsageFailure({ reason: `no node agent is bound to this node to close` })
     }
     yield* binding.remove(input.node)
+  })
+
+/**
+ * SAY WHETHER THIS CHAT IS TIDIED ON ITS OWN — the mark *Sleep when idle* sets
+ * and *Stop sleeping when idle* takes off.
+ *
+ * ONE ACT, like {@link closeAgent}: the property IS the state, so there is
+ * nothing to open and nothing to record, and a write that then failed would
+ * leave the mark exactly where it was. Taking it off is the key REMOVED rather
+ * than written as `off`, because the reading treats the two as one answer and a
+ * drawer with one spelling of "no" is one thing for a person to find.
+ *
+ * Refuses when no node agent is bound there, for {@link closeAgent}'s reason: a
+ * mark on a row with no conversation is a promise about a chat that is not
+ * there — and a person who pressed the verb would be told so rather than left
+ * wondering which row the mark landed on.
+ */
+export const setSleeping = (
+  binding: Binding,
+  input: { readonly node: string; readonly on: boolean },
+): Effect.Effect<void, OpFailure> =>
+  Effect.gen(function*() {
+    if (binding.boundAt(input.node) === null) {
+      return yield* new UsageFailure({ reason: `no node agent is bound to this node to mark` })
+    }
+    yield* binding.mark(input.node, input.on ? "on" : "")
   })
 
 /**
