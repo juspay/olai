@@ -148,7 +148,11 @@ Feature: A node agent tidies its own memory when nobody is looking
     # substring of `chat-agent-slept`, so an assertion without them would pass on
     # the memo's refusal alone.
     And the agent's answer mentions "`chat-agent-slept` is a property"
-    And the agent's answer mentions "`chat-agent-sleep` is a property"
+    # ...AND THE MARK IS NOT THERE AT THE END, which is the second key's real
+    # claim: the answer above proves the memo's refusal in words, and this proves
+    # that the write to the mark did not land — whichever door refused it, and
+    # the vault is where that is checked.
+    And node "install" carries no sleeping mark
     And the memo on node "install" is the pass's own
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
     And olai has recorded 1 commit here
