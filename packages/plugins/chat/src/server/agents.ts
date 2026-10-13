@@ -75,7 +75,7 @@ import {
 import { type Agents, NO_AGENT_ROSTER } from "olai-plugin-chat/wire"
 
 import { seatingIn } from "../seating.ts"
-import { ownKinds, SLEPT_TYPE, SESSION_TYPE } from "../kinds.ts"
+import { ownKinds, SLEEPING_TYPE, SLEPT_TYPE, SESSION_TYPE } from "../kinds.ts"
 
 export interface Roster {
   /**
@@ -181,6 +181,30 @@ export interface Roster {
    * the pass asks about fifteen nodes a tick and may not spell the key.
    */
   readonly sleptAt: (node: string) => string | null
+  /**
+   * WHICH KEY THIS CHAT'S SLEEPING MARK IS WRITTEN UNDER — {@link sleptKey}'s
+   * rule read for the third kind this plugin teaches, one field over: the vault's
+   * own column where it declared one, and the word this kind claims where it has
+   * not.
+   */
+  readonly sleepKey: () => string
+  /**
+   * ...AND EVERY KEY THAT MARK COULD BE READ FROM, which is the same list
+   * {@link keys} keeps and for the same reason: a board mid-migration declares
+   * two keys of this kind, and the door that refuses a seated agent's writes
+   * must forbid both or leave the other as a way in.
+   */
+  readonly sleepKeys: () => ReadonlyArray<string>
+  /**
+   * WHETHER THIS CHAT IS TIDIED ON ITS OWN CLOCK — a person's answer, read off
+   * whichever of this vault's keys for that kind carries one.
+   *
+   * ABSENT AND `off` ARE THE SAME ANSWER, and the whole feature rests on it:
+   * nothing is tidied until somebody says so. HERE rather than at the loop, for
+   * {@link sleptAt}'s reason — the answer is a fact about the vault's
+   * declarations, and this is the module that holds them.
+   */
+  readonly sleeps: (node: string) => boolean
   /** The nearest candidate node at or above an arbitrary node. */
   readonly nearestAt: (node: string, candidates: ReadonlySet<string>) => string | null
   /** The rows the cell carries: the vault's half, wearing what olai overheard
@@ -207,8 +231,19 @@ export const roster = (): Roster => {
   // ...and the same pair for the sleep memo, resolved off the same fold and in
   // the same breath — see {@link Roster.sleptKey}.
   let sleptKeys: ReadonlyArray<string> = [SLEPT_TYPE]
+  // ...and the same pair for the sleeping mark, off the same fold and in the
+  // same breath — see {@link Roster.sleepKey}.
+  let sleepingKeys: ReadonlyArray<string> = [SLEEPING_TYPE]
   const nearest = (node: string, candidates: ReadonlySet<string>): string | null =>
     reading === null ? null : nearestAtOrAbove(reading, node, candidates)
+  /** See {@link Roster.sleeps} — and read through one closure, because the row
+   *  join wants the same answer the loop does. */
+  const sleeping = (node: string): boolean => {
+    if (reading === null) return false
+    const at = reading.byId.get(node)
+    if (at === undefined || !isRegular(at)) return false
+    return textDeclaredAs(declarationsOf(reading, ownKinds), at.node, SLEEPING_TYPE)?.trim() === "on"
+  }
   return {
     seen: (derived) => {
       reading = derived
@@ -216,6 +251,7 @@ export const roster = (): Roster => {
         held = NO_AGENTS
         keys = [SESSION_TYPE]
         sleptKeys = [SLEPT_TYPE]
+        sleepingKeys = [SLEEPING_TYPE]
         return
       }
       // ONE FOLD, read twice. `declarationsOf` is a memo on the derivation, so
@@ -228,6 +264,8 @@ export const roster = (): Roster => {
       keys = declared.length === 0 ? [SESSION_TYPE] : declared
       const declaredSlept = keysDeclaredAs(declarations, SLEPT_TYPE)
       sleptKeys = declaredSlept.length === 0 ? [SLEPT_TYPE] : declaredSlept
+      const declaredSleeping = keysDeclaredAs(declarations, SLEEPING_TYPE)
+      sleepingKeys = declaredSleeping.length === 0 ? [SLEEPING_TYPE] : declaredSleeping
     },
     agentAt: (to) =>
       held.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
@@ -244,11 +282,17 @@ export const roster = (): Roster => {
       if (at === undefined || !isRegular(at)) return null
       return textDeclaredAs(declarationsOf(reading, ownKinds), at.node, SLEPT_TYPE) ?? null
     },
+    sleepKey: () => sleepingKeys[0] ?? SLEEPING_TYPE,
+    sleepKeys: () => sleepingKeys,
+    sleeps: sleeping,
     nearestAt: nearest,
     rowsWith: (overheard, live) => joined(held, overheard, live).map(row => {
       const located = reading?.byId.get(row.id)
       const changed = located !== undefined && isRegular(located) ? located.node.changed : undefined
-      return changed === undefined ? row : { ...row, changed }
+      // ...AND WHETHER THIS ONE IS TIDIED ON ITS OWN CLOCK, joined here for
+      // {@link Roster.sleeps}'s reason: the row is what a verb labels itself
+      // off, and a browser cannot ask the vault's declarations.
+      return { ...row, sleeps: sleeping(row.id), ...(changed === undefined ? {} : { changed }) }
     }),
   }
 }
@@ -276,7 +320,11 @@ export const joined = (
   agents: NodeAgents,
   overheard: ReadonlyArray<Overheard>,
   live: ReadonlyMap<string, LiveSession> = new Map(),
-): Agents => {
+  /** THE ROW AS THE VAULT AND THIS MACHINE KNOW IT, minus the one field only the
+   *  caller can answer: whether this chat is tidied on its own clock is a fact
+   *  about the vault's DECLARATIONS, which this walk is not handed
+   *  ({@link Roster.sleeps} is, and {@link Roster.rowsWith} joins it on). */
+): Array<Omit<Agents[number], "sleeps">> => {
   if (agents.length === 0) return NO_AGENT_ROSTER
   return agents.map((agent) => ({
     ...agent,

@@ -59,6 +59,13 @@ export const NodeAgentRow = Schema.Struct({
   ...NodeAgent.fields,
   /** The vault edit stamp, for activity ordering before this machine hears a turn. */
   changed: Schema.optionalKey(Schema.String),
+  /**
+   * WHETHER THIS CHAT IS TIDIED ON ITS OWN CLOCK — the vault's own mark
+   * (`chat-agent-sleep`), a person's answer, joined onto the row so a row-menu
+   * verb can label itself off the row it was drawn on. Absent and `off` are the
+   * same answer, and both are "leave this one alone".
+   */
+  sleeps: Schema.Boolean,
   /** Session lifecycle is per node, so it travels on the row rather than being
    * inferred from whichever conversation the foreground panel happens to show. */
   standing: AgentStanding,
