@@ -95,19 +95,7 @@ export const SKIP_MS = Duration.toMillis(Duration.hours(24))
  * CARRIES IT: the wire will declare the schema when the roster sends it, and this
  * type is what that schema is built from.
  */
-export type Forecast = {
-  readonly lastSlept: string | null
-  readonly after: number
-  readonly next:
-    | { readonly kind: "off" }
-    | { readonly kind: "unmarked" }
-    | { readonly kind: "unbound" }
-    | { readonly kind: "unchanged" }
-    | { readonly kind: "busy" }
-    | { readonly kind: "due"; readonly at: string }
-    | { readonly kind: "running" }
-    | { readonly kind: "skipped"; readonly until: string }
-}
+export type { Forecast } from "../wire/agents.ts"
 
 /** WHAT A PASS CONCLUDED, which is what the loop does next about it. */
 export type Verdict =
@@ -227,6 +215,11 @@ export interface Sleeping {
   readonly limit: Duration.Duration
   /** How long a delivered turn may take to start ({@link START_MS}). */
   readonly start: Duration.Duration
+  /** WHAT TO DO WHEN THE FORECAST MOVES: the strip reads `judge`'s answer off the
+   *  roster row, so a pass starting, a pass ending and a failure being recorded
+   *  each have to reach the wire. One hook, wired to the revision bump the roster
+   *  already republishes on — no polling, no second store. */
+  readonly changed?: Effect.Effect<void>
   readonly log: (line: string) => Effect.Effect<void>
 }
 
@@ -253,6 +246,11 @@ export const makeSleeper = (
   {
     readonly tick: Effect.Effect<boolean, never, Scope.Scope>
     readonly now: (node: string) => Effect.Effect<Asked, never, Scope.Scope>
+    /** WHAT THIS NODE'S SLEEP IS DOING, or `null` for a node that is not one —
+     *  the same `judge` the loop picks with, over the last reading the sleeper
+     *  took, so the strip and the loop can never disagree about when a node is
+     *  due. */
+    readonly forecast: (node: string) => Forecast | null
   },
   never,
   Scope.Scope
@@ -268,6 +266,14 @@ export const makeSleeper = (
      *  `judge` BEFORE the busy test: a running pass makes the session `thinking`,
      *  and `busy` would mask the one state a person most wants to see. */
     let inFlight: string | null = null
+
+    /** THE SET AS THE SLEEPER LAST READ IT — what `forecast` judges over, since a
+     *  roster publish is synchronous and a reading is not. Refreshed on every read
+     *  the loop takes. */
+    let seen: Derived | null = null
+
+    /** A LINE AT THE REVISION, when there is one — the forecast moved. */
+    const moved = doors.changed ?? Effect.void
 
     /**
      * IS ANYTHING ELSE GOING ON IN THIS NODE'S CONVERSATION — the state half of
@@ -395,6 +401,7 @@ export const makeSleeper = (
         const observed = yield* Effect.result(doors.read)
         if (observed._tag === "Failure") return null
         const derived = observed.success.derived
+        seen = derived
         const live = doors.live()
         const roster = doors.nodes()
         const now = yield* Clock.currentTimeMillis
@@ -534,6 +541,7 @@ export const makeSleeper = (
       Effect.scoped(Effect.gen(function*() {
         const to = { agent: agent.engine, session: agent.session as string }
         inFlight = agent.id
+        yield* moved
         yield* Effect.addFinalizer(() => Effect.sync(() => void (inFlight = null)))
         yield* doors.hold
         const states = yield* Queue.unbounded<ChatState>()
@@ -659,11 +667,13 @@ export const makeSleeper = (
       if (next === null) return false
       yield* doors.log(`sleep: ${next.agent.id} is being tidied`)
       const verdict = yield* one(next.agent, next.files, next.others)
+      yield* moved
       // NOTHING IS REMEMBERED AGAINST A NODE SOMEBODY STOPPED: the back-off is
       // for a node that fails on its own, and a person's Cancel (or an agent
       // stopping itself) is not that — the next tick is entitled to try again.
       if (verdict !== "slept" && verdict !== "cancelled") {
         failures.set(next.agent.id, yield* Clock.currentTimeMillis)
+        yield* moved
       }
       return true
     }))
@@ -733,6 +743,17 @@ export const makeSleeper = (
         }))
       })
 
+    /**
+     * WHAT ONE NODE'S SLEEP IS DOING, off the last reading — the same `judge`,
+     * with the wall clock a strip's words are about ("next in 4h" is a statement
+     * about now, not about the pass's own clock).
+     */
+    const forecast = (node: string): Forecast | null => {
+      const agent = doors.nodes().find((one) => one.id === node)
+      if (agent === undefined || seen === null) return null
+      return judge(agent, Date.now(), doors.live(), seen)
+    }
+
     yield* Effect.forkScoped(Effect.gen(function*() {
       for (;;) {
         yield* Effect.sleep(doors.tick)
@@ -740,5 +761,5 @@ export const makeSleeper = (
           doors.warn(`sleep: the pass failed: ${String(cause)}`))
       }
     }))
-    return { tick, now }
+    return { tick, now, forecast }
   })

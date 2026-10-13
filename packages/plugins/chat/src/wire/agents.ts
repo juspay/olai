@@ -40,6 +40,31 @@ export const AgentStanding = Schema.Union([
 export type AgentStanding = typeof AgentStanding.Type
 
 /**
+ * WHAT A NODE'S SLEEP IS DOING — one server-side judgement
+ * (`olai-plugin-chat`'s `server/sleep.ts`, `judge`), carried whole so the strip
+ * under a conversation renders it rather than re-deriving it.
+ *
+ * `lastSlept` is the memo as stored and `after` is the rhythm (`sleep-after`) in
+ * milliseconds: the words a person reads ("last 3h ago", "next in 4h") are those
+ * two plus a clock the strip already ticks on. FIXED INSTANTS, never a rule.
+ */
+export const Forecast = Schema.Struct({
+  lastSlept: Schema.NullOr(Schema.String),
+  after: Schema.Number,
+  next: Schema.Union([
+    Schema.Struct({ kind: Schema.Literal("off") }),
+    Schema.Struct({ kind: Schema.Literal("unmarked") }),
+    Schema.Struct({ kind: Schema.Literal("unbound") }),
+    Schema.Struct({ kind: Schema.Literal("unchanged") }),
+    Schema.Struct({ kind: Schema.Literal("busy") }),
+    Schema.Struct({ kind: Schema.Literal("due"), at: Schema.String }),
+    Schema.Struct({ kind: Schema.Literal("running") }),
+    Schema.Struct({ kind: Schema.Literal("skipped"), until: Schema.String }),
+  ]),
+})
+export type Forecast = typeof Forecast.Type
+
+/**
  * ONE ROW OF THE ROSTER: the node agent as the set knows it, plus what this
  * machine knows about its session.
  *
@@ -66,6 +91,9 @@ export const NodeAgentRow = Schema.Struct({
    * same answer, and both are "leave this one alone".
    */
   sleeps: Schema.Boolean,
+  /** {@link Forecast}, or `null` where there is none to give — `sleep: off` in
+   *  this directory's settings, or a sleeper that has not read the set yet. */
+  sleep: Schema.NullOr(Forecast),
   /** Session lifecycle is per node, so it travels on the row rather than being
    * inferred from whichever conversation the foreground panel happens to show. */
   standing: AgentStanding,

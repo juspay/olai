@@ -75,6 +75,7 @@ import {
 import { type Agents, NO_AGENT_ROSTER } from "olai-plugin-chat/wire"
 
 import { seatingIn } from "../seating.ts"
+import type { Forecast } from "../wire/agents.ts"
 import { ownKinds, SLEEPING_TYPE, SLEPT_TYPE, SESSION_TYPE } from "../kinds.ts"
 
 export interface Roster {
@@ -212,6 +213,10 @@ export interface Roster {
   readonly rowsWith: (
     overheard: ReadonlyArray<Overheard>,
     live?: ReadonlyMap<string, LiveSession>,
+    /** WHAT THE PASS IS DOING FOR A NODE, or `null` — the sleeper's answer, handed
+     *  in because this carrier is about the vault and the roster, and the forecast
+     *  belongs to the pass (`./sleep.ts`). */
+    sleep?: (node: string) => Forecast | null,
   ) => Agents
 }
 
@@ -286,13 +291,18 @@ export const roster = (): Roster => {
     sleepKeys: () => sleepingKeys,
     sleeps: sleeping,
     nearestAt: nearest,
-    rowsWith: (overheard, live) => joined(held, overheard, live).map(row => {
+    rowsWith: (overheard, live, sleep) => joined(held, overheard, live).map(row => {
       const located = reading?.byId.get(row.id)
       const changed = located !== undefined && isRegular(located) ? located.node.changed : undefined
       // ...AND WHETHER THIS ONE IS TIDIED ON ITS OWN CLOCK, joined here for
       // {@link Roster.sleeps}'s reason: the row is what a verb labels itself
       // off, and a browser cannot ask the vault's declarations.
-      return { ...row, sleeps: sleeping(row.id), ...(changed === undefined ? {} : { changed }) }
+      return {
+        ...row,
+        sleeps: sleeping(row.id),
+        sleep: sleep?.(row.id) ?? null,
+        ...(changed === undefined ? {} : { changed }),
+      }
     }),
   }
 }

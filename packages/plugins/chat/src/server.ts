@@ -456,6 +456,9 @@ export default definePlugin({
         nodeAgents.rowsWith(
           chat === null ? [] : chat.overheard(),
           chat === null ? new Map() : chat.live(),
+          // THE FORECAST RIDES THE ROW, from the one judgement the loop picks
+          // with — `null` while there is no sleeper, which is `sleep: off` here.
+          (node) => sleeper?.forecast(node) ?? null,
         ),
       )
     }
@@ -1041,6 +1044,9 @@ export default definePlugin({
           sleptAt: (node) => nodeAgents.sleptAt(node),
           sleptKey: () => nodeAgents.sleptKey(),
           sleeps: (node) => nodeAgents.sleeps(node),
+          // ...AND WHEN IT MOVES: a pass starting, ending or failing is neither a
+          // vault revision nor a chat frame, so the sleeper says so itself.
+          changed: Effect.sync(() => republishAgents()),
           live: () => serving.live(),
           // THE SAME ROUTE A DOORBELL TAKES, with this feature's own word: the
           // scheduler wakes the node, the panel writes the machine row, and the
