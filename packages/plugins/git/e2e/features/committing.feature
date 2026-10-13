@@ -225,9 +225,12 @@ Feature: Committing on purpose
     And the commit pill says "error"
     And the commit panel offers to remove the lock file
     # ONE PRESS: the file goes, the refusal goes with it, and the commit it was
-    # refused is made with the message this panel is holding.
+    # refused is made with the message this panel is holding. The pill first,
+    # because it is the thing that POLLS: the log is read synchronously below,
+    # and `committed` is the commit having landed.
     When I remove the lock file and retry
-    Then the last commit is "olai: the herb bed needs splitting" by "web"
+    Then the commit pill says "committed"
+    And the last commit is "olai: the herb bed needs splitting" by "web"
     And the repository is clean
     And the commit panel does not offer to remove a lock file
     And there should be no page errors
@@ -291,7 +294,7 @@ Feature: Committing on purpose
       """
     Then the commit pill says 1 uncommitted
     And the flurry records itself
-    And olai has recorded 2 commit(s) here
+    And olai has recorded 2 commits here
     And the last commit is "olai: 1 file — later.md" by "auto"
     And the repository is clean
     And there should be no page errors
