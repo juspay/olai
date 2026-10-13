@@ -56,7 +56,11 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
         id: "sleep-when-idle",
         label: shown.sleeps ? "Stop sleeping when idle" : "Sleep when idle",
         place: `on “${shown.title}”`,
-        search: `sleep when idle ${shown.title}`.toLowerCase(), taking: atOnce,
+        // THE WORDS THAT ARE ON SCREEN, both of them: the label flips with the
+        // mark, and a search that spelled only the "on" one left a person who
+        // typed what they could see — "stop" — with no row at all.
+        search: `${shown.sleeps ? "stop sleeping when idle" : "sleep when idle"} ${shown.title}`.toLowerCase(),
+        taking: atOnce,
         action: { kind: "run", run: async () => {
           const outcome = await runAsync(
             chatWire().procedures.conversation.setSleeping({ node: shown.id, on: !shown.sleeps }),
