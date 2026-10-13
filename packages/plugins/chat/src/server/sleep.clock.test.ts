@@ -102,6 +102,9 @@ const withStubs = (over: {
   readonly limit?: Duration.Duration
   /** Whether the vault takes the memo. `false` is the pass's other failure. */
   readonly writes?: boolean
+  /** WHETHER THIS CHAT ASKED TO BE TIDIED — `true` everywhere but the cases
+   *  about the mark's absence. */
+  readonly sleeps?: boolean
   /**
    * THE FORKED LOOP'S OWN CADENCE, and it is a YEAR by default on purpose: a
    * test that moves the clock by hours would otherwise have the loop run a pass
@@ -130,6 +133,9 @@ const withStubs = (over: {
       nodes: () => over.nodes ?? [AGENT],
       sleptAt: () => memo,
       sleptKey: () => "chat-agent-slept",
+      // A CHAT THAT ASKED, by default: what the mark's absence means is a case
+      // of its own below.
+      sleeps: () => over.sleeps ?? true,
       live: () => over.live ?? new Map(),
       read: Effect.sync(() => {
         reads += 1
@@ -292,6 +298,37 @@ test("an asleep node whose memory moved inside the span waits, and sleeps once i
     yield* TestClock.adjust(Duration.days(3))
     expect(yield* arms.tick).toBe(false)
     expect(arms.commits).toHaveLength(1)
+  })))
+
+test("a node nobody asked for is never picked, and the same node marked is", () =>
+  onTheClock(Effect.gen(function*() {
+    // THE DEFAULT THE WHOLE FEATURE RESTS ON: a node whose memory has moved and
+    // which has been left alone for hours is still left alone until somebody
+    // says otherwise — no turn, no memo, nothing committed.
+    const quiet = yield* withStubs({ changed: stamp(NOW - HOUR), sleeps: false })
+    expect(yield* quiet.tick).toBe(false)
+    expect(quiet.delivers).toEqual([])
+    expect(quiet.memos).toEqual([])
+    expect(quiet.commits).toEqual([])
+    expect(quiet.warnings).toEqual([])
+
+    // ...AND THE SAME NODE, MARKED, IS A CANDIDATE: the mark is the only thing
+    // that changed, and the pass that was not allowed to begin now finishes.
+    const asked = yield* withStubs({ changed: stamp(NOW - HOUR), sleeps: true })
+    expect(yield* asked.tick).toBe(true)
+    expect(asked.commits).toHaveLength(1)
+  })))
+
+test("a pass asked for by hand sleeps a node nobody asked for", () =>
+  onTheClock(Effect.gen(function*() {
+    // A PRESS IS A CHOICE, exactly as it already skips the idle window and the
+    // "memory has moved" test: the mark decides whether the LOOP may pick a node
+    // up, and `now` does not ask it.
+    const arms = yield* withStubs({ sleeps: false })
+    expect(yield* arms.tick).toBe(false)
+    expect(yield* arms.now("health")).toBe("started")
+    yield* until(() => arms.commits.length === 1)
+    expect(arms.memos).toEqual(["memo"])
   })))
 
 test("a conversation with a question open, and one that refused to open, are left alone", () =>

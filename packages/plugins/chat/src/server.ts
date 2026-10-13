@@ -1009,6 +1009,7 @@ export default definePlugin({
           nodes: () => nodeAgents.nodes(),
           sleptAt: (node) => nodeAgents.sleptAt(node),
           sleptKey: () => nodeAgents.sleptKey(),
+          sleeps: (node) => nodeAgents.sleeps(node),
           live: () => serving.live(),
           // THE SAME ROUTE A DOORBELL TAKES, with this feature's own word: the
           // scheduler wakes the node, the panel writes the machine row, and the

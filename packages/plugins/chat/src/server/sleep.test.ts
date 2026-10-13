@@ -193,6 +193,9 @@ const withBench = async (
       nodes: () => nodes,
       sleptAt: over.sleptAt ?? (() => null),
       sleptKey: () => "chat-agent-slept",
+      // THE BENCH'S NODES HAVE ALL ASKED: what the mark's absence means is a
+      // case of its own (`sleep.clock.test.ts`).
+      sleeps: () => true,
       live: over.live ?? (() => chat.live()),
       // THE PASS'S OWN DELIVERY, exactly as the wiring makes it — including the
       // option that marks the turn as olai's own (`@olai/plugin-api`'s

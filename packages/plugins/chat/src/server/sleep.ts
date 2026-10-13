@@ -131,6 +131,10 @@ export interface Sleeping {
   /** THE KEY THE MEMO IS WRITTEN UNDER — the vault's own column where it has
    *  one, and the word this plugin's kind claims where it has not. */
   readonly sleptKey: () => string
+  /** WHETHER THIS CHAT HAS ASKED TO BE TIDIED — a person's mark, read off
+   *  whichever column the vault declares that kind on. Absent and `off` are the
+   *  same answer, and the reading is where that is decided. */
+  readonly sleeps: (node: string) => boolean
   /** The standing of every acquired node scope, keyed by node id. A node with
    *  no entry is ASLEEP: no conversation, no process, nothing to interrupt. */
   readonly live: () => ReadonlyMap<string, LiveSession>
@@ -261,6 +265,12 @@ export const makeSleeper = (
      *
      *   - A NODE WITH NO CONVERSATION (`session: null`) is not asleep, it is
      *     unbound: there is nothing to hand a turn to.
+     *   - A NODE NOBODY HAS ASKED FOR. The mark is a person's answer
+     *     (`./agents.ts`'s `sleeps`), and the default is that nothing is tidied:
+     *     a node whose memory has moved and which has been left alone for a week
+     *     is still left alone until somebody says otherwise. `now` does NOT ask
+     *     this — a press is a choice, exactly as it already skips the idle and
+     *     changed tests.
      *   - A NODE THAT FAILED, for {@link SKIP_MS}.
      *   - A NODE THAT IS NOT IDLE. `live` present means a process is up, so
      *     the standing has to be exactly idle: working is a turn, `booting` is
@@ -296,6 +306,7 @@ export const makeSleeper = (
         const after = Duration.toMillis(doors.after)
         for (const agent of roster) {
           if (agent.session === null) continue
+          if (!doors.sleeps(agent.id)) continue
           if (skipped(agent.id, now)) continue
           const standing = live.get(agent.id)
           if (busy(standing)) continue
