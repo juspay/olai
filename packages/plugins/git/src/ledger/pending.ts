@@ -1081,6 +1081,8 @@ export const make = (options: Options): Committing => {
           said: "olai is tidying this directory's memory, so a commit that names no paths " +
             "would record work the pass does not own — the pass commits its own writes when " +
             "its turn ends, and a named commit is still yours",
+          // Not a lock file: this refusal never reached git at all.
+          lock: null,
         } as const
       }
 
