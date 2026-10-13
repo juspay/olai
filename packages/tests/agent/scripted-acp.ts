@@ -1626,11 +1626,21 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
         key: "chat-agent-slept",
         value: SLEEP_STAMP,
       })
+      // ...AND THE MARK THAT DECIDES WHETHER IT IS TIDIED AT ALL, which is the
+      // other property a session may not write: an agent that opted itself in
+      // would be authorising its own wake-up, and one that opted itself out a
+      // chat that quietly stopped being tidied (`chat/src/server.ts`'s three
+      // clauses).
+      const opted = await useTool("outlines_prop", {
+        id: node,
+        key: "chat-agent-sleep",
+        value: "on",
+      })
       // SAID OUT LOUD, like the `set property` verb above and for the same
       // reason: the refusal's own sentence is the assertion, and an olai tool's
       // result is not drawn into the call's detail (`chat/src/agent.ts`'s
       // `detailOf`), so the words have to come back as prose to be read.
-      say(JSON.stringify(refused))
+      say([JSON.stringify(refused), JSON.stringify(opted)].join("\n"))
       reply(id, { stopReason: "end_turn" })
       return
     }
