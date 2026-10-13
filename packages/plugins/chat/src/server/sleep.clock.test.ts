@@ -131,7 +131,7 @@ const withStubs = (over: {
     /** THE SET BOTH READERS ARE HANDED — the loop's own read and the roster's
      *  current one are the same object here, which is what a served revision
      *  looks like from inside the server. */
-    const held = readingOf(setOf(vault(over.changed ?? stamp(NOW - HOUR))))
+    const reading = readingOf(setOf(vault(over.changed ?? stamp(NOW - HOUR))))
     const states = over.states ?? [
       thinking(),
       { ...CHAT_OFF, status: "idle", trouble: null },
@@ -146,9 +146,12 @@ const withStubs = (over: {
       live: () => over.live ?? new Map(),
       read: Effect.sync(() => {
         reads += 1
-        return held
+        return reading
       }),
-      reading: () => held,
+      // ...AND THE SET ITSELF, which is what a forecast is judged over: the
+      // door answers with the derivation, the loop's own read with the reading
+      // that carries it (`server/sleep.ts` says why they are two doors).
+      reading: () => reading.derived,
       // THE CONVERSATION, AS THE PANEL PRESENTS IT: the state it is in when the
       // reading is taken, and then whatever the script says once the turn is
       // handed over. A turn's ENDING is a state rather than a clock, which is
@@ -606,7 +609,7 @@ test("the judgement answers each state a node can be in, and none of them is a g
     state: Judged,
     held: ReturnType<typeof doors>,
     live: ReadonlyMap<string, LiveSession> = none,
-  ) => forecastOf(agent, NOW, live, readingOf(setOf(vault(stamp(NOW - HOUR)))), state, held)
+  ) => forecastOf(agent, NOW, live, readingOf(setOf(vault(stamp(NOW - HOUR)))).derived, state, held)
 
   // NO CONVERSATION: there is nothing to hand a turn to, however due it is.
   expect(of({ ...AGENT, session: null }, judged(), doors()).next).toEqual({ kind: "unbound" })
@@ -657,7 +660,7 @@ test("a subtree somebody is editing keeps its node awake, whatever the conversat
   const live = new Map<string, LiveSession>([["health", { status: "idle", asking: 0, since: stamp(NOW - 7 * HOUR) }]])
   // THE IDLE WINDOW ALONE WOULD SAY YES — it ran out six hours into the seven —
   // and the edit an hour ago says no.
-  expect(forecastOf(AGENT, NOW, live, held, { inFlight: null, failedAt: undefined }, doors).next)
+  expect(forecastOf(AGENT, NOW, live, held.derived, { inFlight: null, failedAt: undefined }, doors).next)
     .toEqual({ kind: "due", at: stamp(NOW + 5 * HOUR) })
 })
 

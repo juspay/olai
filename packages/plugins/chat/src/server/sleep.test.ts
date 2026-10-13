@@ -217,6 +217,9 @@ const withBench = async (
         reads += 1
         return reading(reads === 1 ? over.vault : (over.reread ?? over.vault))
       }),
+      // THE SET A STRIP'S FORECAST IS JUDGED OVER, which is the roster's own
+      // reading and not the loop's: the same vault this bench serves, derived.
+      reading: () => readingOf(setOf(over.vault ?? VAULT)).derived,
       write: over.write ?? ((request) => Effect.sync(() => {
         writes.push(request)
         return {}
