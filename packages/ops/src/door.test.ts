@@ -30,9 +30,9 @@ const vault = (): OutlineSet => setOf({
     `{"id":"house","ord":"a0","title":"House"}`,
     `{"id":"kitchen","parent":"house","ord":"a0","title":"Kitchen"}`,
     `{"id":"sink","parent":"kitchen","ord":"a0","title":"the sink"}`,
-    // A node that already CARRIES a forbidden key, so the removal arm has
-    // something to remove.
-    `{"id":"tap","parent":"kitchen","ord":"a1","title":"the tap","custom":{"approved":"always"}}`,
+    // A node that already CARRIES forbidden keys, so the removal arm has
+    // something to remove — one of each kind the table forbids.
+    `{"id":"tap","parent":"kitchen","ord":"a1","title":"the tap","custom":{"approved":"always","chat-agent-sleep":"on"}}`,
     `{"id":"roof","parent":"house","ord":"a1","title":"the roof"}`,
   ].join("\n"),
 }, [["spare.md", "a document the door may rewrite\n"]])
@@ -221,8 +221,9 @@ describe("node-agent write rule", () => {
       .toEqual({ why: "key", id: "kitchen", title: "Kitchen", key: SLEEPING, says: SAYS_SLEEPING })
     // Taking it OFF is writing it, exactly as un-approving is: the rule reads a
     // movement, and an agent that cleared its own mark would be opting itself
-    // out.
-    expect(asked({ op: "prop", id: "kitchen", key: SLEEPING, value: null })?.why).toBe("key")
+    // out. (`tap` is the row that carries one, because a removal of a key that
+    // is not there never reaches this door at all.)
+    expect(asked({ op: "prop", id: "tap", key: SLEEPING, value: null })?.why).toBe("key")
   })
 
   test("a closed rule's refusal does not walk the plan", () => {
