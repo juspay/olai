@@ -480,6 +480,9 @@ export {
   /** THE IDS UNDER A NODE — where a memory ends, which is the same line
    *  {@link memoryFiles} commits and `@olai/ops`' write door fences off. */
   idsUnder,
+  /** THE NEWEST INSTANT UNDER A NODE — the quiet half of a due-ness test: a
+   *  subtree somebody is editing right now is not one to tidy. */
+  newestUnder,
   countedChildren,
   derive,
   /** The containment graph: what drawing a record leads to drawing. Exported

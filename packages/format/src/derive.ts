@@ -1784,6 +1784,41 @@ export const idsUnder = (
 }
 
 /**
+ * THE NEWEST INSTANT ANY ROW UNDER THIS NODE CARRIES, or `null` for a subtree
+ * nothing has ever stamped — {@link changedUnder}'s walk, asked for the VALUE
+ * rather than for a yes.
+ *
+ * WHY IT EXISTS BESIDE THAT ONE: "has anything under here moved" answers the
+ * due-ness test, and "how long ago did anything under here move" answers the
+ * QUIET one — a person editing this subtree in the outline at 22:00 while the
+ * agent has been idle since 14:00 is a node nobody should be tidying, and the
+ * conversation's own idle instant cannot see that edit at all.
+ *
+ * THE SAME DESCENT AND THE SAME `stop` SET, through {@link idsUnder}: a memory
+ * stops at another agent's door here for {@link changedUnder}'s reason, and
+ * sharing the walk is what keeps the two answers about one line.
+ *
+ * INSTANTS, not the stored spellings: a stamp carries the offset it was taken
+ * at, so the newest is the greatest moment rather than the greatest text.
+ */
+export const newestUnder = (
+  derived: Pick<Derived, "children" | "byId">,
+  id: string,
+  stop: ReadonlySet<string> = new Set(),
+): number | null => {
+  let newest: number | null = null
+  for (const under of idsUnder(derived, id, stop)) {
+    const at = derived.byId.get(under)
+    if (at === undefined || !isRegular(at)) continue
+    const stamp = stampedAt(at.node)
+    if (stamp === undefined) continue
+    const instant = instantOf(stamp)
+    if (newest === null || instant > newest) newest = instant
+  }
+  return newest
+}
+
+/**
  * THE FILES A NODE AGENT'S MEMORY LIVES IN — the outline its own record is
  * written in, and every file holding a record under it ({@link idsUnder}).
  *

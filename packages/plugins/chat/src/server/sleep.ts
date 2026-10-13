@@ -44,6 +44,7 @@ import {
   changedUnder,
   type Derived,
   memoryFiles,
+  newestUnder,
   type NodeAgent,
   type NodeAgents,
   othersOf,
@@ -262,6 +263,12 @@ export const makeSleeper = (
      *  node that is going to fail again anyway. */
     const failures = new Map<string, number>()
 
+    /** WHOSE PASS IS IN FLIGHT, if any — the permit serializes passes, so one id
+     *  is the whole of it. Set in `one`, cleared by its finalizer, and read by
+     *  `judge` BEFORE the busy test: a running pass makes the session `thinking`,
+     *  and `busy` would mask the one state a person most wants to see. */
+    let inFlight: string | null = null
+
     /**
      * IS ANYTHING ELSE GOING ON IN THIS NODE'S CONVERSATION — the state half of
      * being a candidate, asked by the loop and by a person's own press.
@@ -348,6 +355,7 @@ export const makeSleeper = (
       const at = (next: Forecast["next"]): Forecast => ({ lastSlept, after, next })
       if (agent.session === null) return at({ kind: "unbound" })
       if (!doors.sleeps(agent.id)) return at({ kind: "unmarked" })
+      if (inFlight === agent.id) return at({ kind: "running" })
       const failed = failures.get(agent.id)
       if (failed !== undefined) {
         if (now - failed < SKIP_MS) return at({ kind: "skipped", until: stampOf(new Date(failed + SKIP_MS)) })
@@ -361,14 +369,22 @@ export const makeSleeper = (
       if (!changedUnder(derived, agent.id, lastSlept, othersOf(doors.nodes(), agent.id))) {
         return at({ kind: "unchanged" })
       }
-      // QUIET FOR `sleep-after`: the conversation's own idle instant where there
-      // is one, and a `since` this reading cannot place costs the conversation's
-      // half of the test and nothing else (a rule whose failure mode is "never"
-      // is worse than one that falls back).
+      // QUIET FOR `sleep-after`, AND BOTH READINGS OF QUIET ARE ASKED — the
+      // conversation's own idle instant where there is one, and the memory's
+      // newest stamp ALWAYS: a person editing this subtree at 22:00 while the
+      // agent has been idle since 14:00 is a node nobody should be tidying, and
+      // the conversation cannot see that edit at all. A `since` this reading
+      // cannot place costs the conversation's half and nothing else (a rule whose
+      // failure mode is "never" is worse than one that falls back).
+      const others = othersOf(doors.nodes(), agent.id)
+      const newest = newestUnder(derived, agent.id, others)
       const since = standing?.since
       const idleAt = since === undefined ? Number.NaN : Date.parse(since)
-      const dueAt = Number.isNaN(idleAt) ? now : idleAt + after
-      return at({ kind: "due", at: stampOf(new Date(Math.max(now, dueAt))) })
+      const quiet = Math.max(
+        Number.isNaN(idleAt) ? now - after : idleAt + after,
+        newest === null ? now - after : newest + after,
+      )
+      return at({ kind: "due", at: stampOf(new Date(Math.max(now, quiet))) })
     }
 
     /** THE FIRST NODE THAT IS DUE NOW, with the sets its pass is handed. */
@@ -517,6 +533,8 @@ export const makeSleeper = (
     ): Effect.Effect<Verdict, never, Scope.Scope> =>
       Effect.scoped(Effect.gen(function*() {
         const to = { agent: agent.engine, session: agent.session as string }
+        inFlight = agent.id
+        yield* Effect.addFinalizer(() => Effect.sync(() => void (inFlight = null)))
         yield* doors.hold
         const states = yield* Queue.unbounded<ChatState>()
         // THE PANEL'S LAST WORD, kept beside the queue: what a cancel is judged
