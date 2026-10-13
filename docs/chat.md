@@ -855,12 +855,34 @@ own: when it has been left alone for six hours and its subtree has changed
 since it last slept, it is asked to tidy, distill and tuck away — in its own
 conversation, with the tools it already has.
 
+**One line under the tools says what this chat does on its own.** Sleep and the
+plugin wakes are per-conversation standing facts of the same kind, so they share
+one line that wraps rather than a bordered strip each: the head above a
+conversation is two strips, the tools roster and this one. Sleep comes first —
+whether olai tidies this chat at all is what decides whether a wake can be acted
+on — and it reads, by state:
+
+| the chat is | the item says |
+| --- | --- |
+| not asked for | **Sleep · Off · last 2d ago** (the age is left out when it has never slept) |
+| asked for, due later | **Sleep · On · last 3h ago · next in 4h if left alone · Sleep now** |
+| asked for, nothing moved since the memo | **Sleep · On · last 3h ago · nothing new to tidy · Sleep now** |
+| asked for, due but the chat is talking | **Sleep · On · last 3h ago · when this chat is quiet · Sleep now** |
+| being tidied right now | **Sleep · On · tidying now** |
+| after a pass that failed | **Sleep · On · last pass failed · not before 14:05 · Sleep now** |
+| `sleep: off` in `_olai/Settings.olai` | **Sleep · off in Settings** |
+| never slept, asked for, due later | **Sleep · On · never · next in 4h if left alone · Sleep now** |
+
+Hovering the item gives the whole sentence, rhythm and all: *olai tidies this
+chat's memory after 6 h alone and when it has changed since the last pass
+(sleep-after in `_olai/Settings.olai`)*. The times tick — "3h ago" becomes "4h
+ago" on its own — off fixed instants the server sends; the browser re-derives no
+rule, and the words above and the pass's own judgement are one function.
+
 **Nothing sleeps until you say so.** The pass is opt-in per chat, and off by
 default. There are three ways to say it, and the first is the one a person
-looking for "what does this chat do on its own" will find: under a node agent's
-conversation, in the strip bar where *Alert on new mail* already sits, chat draws
-its own strip — **Sleep when idle · Off**, a switch whose `aria-checked` is the
-mark itself.
+looking for "what does this chat do on its own" will find: the **On**/**Off**
+switch on that line, whose `aria-checked` is the mark itself.
 Pressing it writes `chat-agent-sleep: on` on the node — a property like any
 other, which you can type in the drawer instead — and the switch then reads
 **On**, as the verb on the node's row menu reads **Stop sleeping when idle** and
@@ -871,8 +893,9 @@ loop runs for the chats that asked"; `sleep: off` turns everything off, the verb
 included, and pressing either verb is refused with the sentence saying so.
 
 **A person can ask for the pass now, marked or not.** *Sleep now* on the row's
-menu — and the same row in ⌘K while a node agent's conversation is the one on
-screen — runs the pass on that node whatever the mark says: a press is a choice,
+menu, on ⌘K while a node agent's conversation is the one on screen, and at the end
+of the item on the line above — the same verb in the three places a person may be
+looking — runs the pass on that node whatever the mark says: a press is a choice,
 exactly as it skips the two tests below.
 Pressing either runs the pass the loop would have run — the same machine row, the same memo and the same one
 commit. What it skips is the two tests that decide whether a node is DUE: the

@@ -228,6 +228,91 @@ export interface Sleeping {
   readonly log: (line: string) => Effect.Effect<void>
 }
 
+/**
+ * ONE NODE'S ANSWER — WHEN IT WILL SLEEP AND WHY NOT, the whole of what the
+ * strip under a conversation says and the whole of what the loop picks with.
+ *
+ * PURE OVER WHAT IT IS HANDED, and top-level for that reason: `now` is an
+ * argument, the reading is a parameter, and the pass's own memory of a node
+ * ({@link Judged}) is handed in rather than read — so a bench can hold the whole
+ * table of answers without a server, which is what `sleep.clock.test.ts` does.
+ *
+ * TWO CONSUMERS, which is why it is not inlined into either: the loop picks with
+ * it, and the strip under a conversation says what it says. A strip that
+ * re-derived the rule from the memo, the standing and the stamps would be a
+ * second opinion about when a node is due, and the two would disagree the first
+ * time either moved.
+ *
+ * `due` CARRIES THE INSTANT, which is not decoration: a node whose quiet window
+ * has not run out is not a candidate yet, and the instant is what the loop
+ * declines to act on until.
+ */
+export const forecastOf = (
+  agent: NodeAgent,
+  now: number,
+  live: ReadonlyMap<string, LiveSession>,
+  derived: Derived,
+  judged: Judged,
+  doors: Pick<Sleeping, "nodes" | "sleeps" | "sleptAt" | "after">,
+): Forecast => {
+  const lastSlept = doors.sleptAt(agent.id)
+  const after = Duration.toMillis(doors.after)
+  const at = (next: Forecast["next"]): Forecast => ({ lastSlept, after, next })
+  if (agent.session === null) return at({ kind: "unbound" })
+  if (!doors.sleeps(agent.id)) return at({ kind: "unmarked" })
+  if (judged.inFlight === agent.id) return at({ kind: "running" })
+  const failed = judged.failedAt
+  if (failed !== undefined && now - failed < SKIP_MS) {
+    return at({ kind: "skipped", until: stampOf(new Date(failed + SKIP_MS)) })
+  }
+  const standing = live.get(agent.id)
+  if (busySession(standing)) return at({ kind: "busy" })
+  // EVERY OTHER NODE AGENT IS A DOOR THIS PASS DOES NOT OPEN, and the set is the
+  // one `@olai/format`'s walks and the write door's fence are both handed
+  // (`othersOf`).
+  const others = othersOf(doors.nodes(), agent.id)
+  if (!changedUnder(derived, agent.id, lastSlept, others)) return at({ kind: "unchanged" })
+  // QUIET FOR `sleep-after`, AND BOTH READINGS OF QUIET ARE ASKED — the
+  // conversation's own idle instant where there is one, and the memory's newest
+  // stamp ALWAYS: a person editing this subtree at 22:00 while the agent has been
+  // idle since 14:00 is a node nobody should be tidying, and the conversation
+  // cannot see that edit at all. A `since` this reading cannot place costs the
+  // conversation's half and nothing else (a rule whose failure mode is "never" is
+  // worse than one that falls back).
+  const newest = newestUnder(derived, agent.id, others)
+  const since = standing?.since
+  const idleAt = since === undefined ? Number.NaN : Date.parse(since)
+  const quiet = Math.max(
+    Number.isNaN(idleAt) ? now - after : idleAt + after,
+    newest === null ? now - after : newest + after,
+  )
+  return at({ kind: "due", at: stampOf(new Date(Math.max(now, quiet))) })
+}
+
+/**
+ * IS ANYTHING ELSE GOING ON IN THIS NODE'S CONVERSATION — the state half of being
+ * a candidate, asked by the loop and by a person's own press.
+ *
+ * A CONVERSATION THAT IS UP IS NOT ASLEEP: working is a turn, `booting` is a
+ * handshake, and a question is somebody's to answer. `off` and `gone` are NOT
+ * that — a process that died, or an engine that left — and the delivery path
+ * wakes one, which is why a slot left `gone` is not unsleepable for the idle
+ * window's 48 hours. No entry at all is the sleeping agent a doorbell wakes.
+ */
+const busySession = (standing: LiveSession | undefined): boolean =>
+  standing !== undefined && standing.status !== "off" && standing.status !== "gone" &&
+  (standing.status !== "idle" || standing.asking > 0 || standing.unopened === true)
+
+/** WHAT THE PASS ITSELF REMEMBERS ABOUT A NODE, handed to {@link forecastOf} so
+ *  that the judgement stays pure: whose pass is in flight, and when this node
+ *  last failed. */
+export interface Judged {
+  /** The node whose pass is in flight, if any. */
+  readonly inFlight: string | null
+  /** When this node last failed, if it did — the 24 h backoff. */
+  readonly failedAt: number | undefined
+}
+
 /** WHAT THE PASS MAY DO TO THE CONVERSATION IT IS WATCHING: stop the turn it
  *  started, and nothing else ({@link Sleeping.watch}). */
 export interface Stoppable {
@@ -274,19 +359,8 @@ export const makeSleeper = (
     /** A LINE AT THE REVISION, when there is one — the forecast moved. */
     const moved = doors.changed ?? Effect.void
 
-    /**
-     * IS ANYTHING ELSE GOING ON IN THIS NODE'S CONVERSATION — the state half of
-     * being a candidate, asked by the loop and by a person's own press.
-     *
-     * A CONVERSATION THAT IS UP IS NOT ASLEEP: working is a turn, `booting` is a
-     * handshake, and a question is somebody's to answer. `off` and `gone` are NOT
-     * that — a process that died, or an engine that left — and the delivery path
-     * wakes one, which is why a slot left `gone` is not unsleepable for the idle
-     * window's 48 hours. No entry at all is the sleeping agent a doorbell wakes.
-     */
-    const busy = (standing: LiveSession | undefined): boolean =>
-      standing !== undefined && standing.status !== "off" && standing.status !== "gone" &&
-      (standing.status !== "idle" || standing.asking > 0 || standing.unopened === true)
+    /** See {@link busySession} — the same rule, named where the pass asks it. */
+    const busy = busySession
 
     const skipped = (node: string, now: number): boolean => {
       const at = failures.get(node)
@@ -332,64 +406,17 @@ export const makeSleeper = (
      * (`@olai/format`'s `changedUnder`).
      */
     /**
-     * ONE NODE'S ANSWER — WHEN IT WILL SLEEP AND WHY NOT, the whole of what the
-     * strip under a conversation says and the whole of what the loop picks with.
-     *
-     * SPLIT OUT OF THE LOOP so that it CAN have two consumers: the loop picks
-     * with it today, and the strip under a conversation will say what it says
-     * tomorrow — a strip that re-derived the rule from the memo, the standing and
-     * the stamps would be a second opinion about when a node is due, and the two
-     * would disagree the first time either moved.
-     *
-     * PURE OVER WHAT IT IS HANDED — `now` is an argument and the reading is a
-     * parameter — so a bench can hold the whole table of answers without a
-     * server.
-     *
-     * `due` CARRIES THE INSTANT, which is not decoration: a node whose idle
-     * window has not run out is not a candidate yet, and the instant is what the
-     * loop declines to act on until.
+     * ONE NODE'S ANSWER, with the pass's own memory folded in — the judgement is
+     * {@link forecastOf}, and the two things this adds are the two things only
+     * the sleeper knows: whose pass is in flight, and when this node last failed.
+     * An expiry is PRUNED here rather than inside the judgement, because a pure
+     * function has no business forgetting anything.
      */
-    const judge = (
-      agent: NodeAgent,
-      now: number,
-      live: ReadonlyMap<string, LiveSession>,
-      derived: Derived,
-    ): Forecast => {
-      const lastSlept = doors.sleptAt(agent.id)
-      const after = Duration.toMillis(doors.after)
-      const at = (next: Forecast["next"]): Forecast => ({ lastSlept, after, next })
-      if (agent.session === null) return at({ kind: "unbound" })
-      if (!doors.sleeps(agent.id)) return at({ kind: "unmarked" })
-      if (inFlight === agent.id) return at({ kind: "running" })
-      const failed = failures.get(agent.id)
-      if (failed !== undefined) {
-        if (now - failed < SKIP_MS) return at({ kind: "skipped", until: stampOf(new Date(failed + SKIP_MS)) })
-        failures.delete(agent.id)
-      }
-      const standing = live.get(agent.id)
-      if (busy(standing)) return at({ kind: "busy" })
-      // EVERY OTHER NODE AGENT IS A DOOR THIS PASS DOES NOT OPEN, and the set is
-      // the one `@olai/format`'s walks and the write door's fence are both handed
-      // (`othersOf`).
-      if (!changedUnder(derived, agent.id, lastSlept, othersOf(doors.nodes(), agent.id))) {
-        return at({ kind: "unchanged" })
-      }
-      // QUIET FOR `sleep-after`, AND BOTH READINGS OF QUIET ARE ASKED — the
-      // conversation's own idle instant where there is one, and the memory's
-      // newest stamp ALWAYS: a person editing this subtree at 22:00 while the
-      // agent has been idle since 14:00 is a node nobody should be tidying, and
-      // the conversation cannot see that edit at all. A `since` this reading
-      // cannot place costs the conversation's half and nothing else (a rule whose
-      // failure mode is "never" is worse than one that falls back).
-      const others = othersOf(doors.nodes(), agent.id)
-      const newest = newestUnder(derived, agent.id, others)
-      const since = standing?.since
-      const idleAt = since === undefined ? Number.NaN : Date.parse(since)
-      const quiet = Math.max(
-        Number.isNaN(idleAt) ? now - after : idleAt + after,
-        newest === null ? now - after : newest + after,
-      )
-      return at({ kind: "due", at: stampOf(new Date(Math.max(now, quiet))) })
+    const judge = (agent: NodeAgent, now: number, live: ReadonlyMap<string, LiveSession>, derived: Derived): Forecast => {
+      const failedAt = failures.get(agent.id)
+      const verdict = forecastOf(agent, now, live, derived, { inFlight, failedAt }, doors)
+      if (failedAt !== undefined && verdict.next.kind !== "skipped") failures.delete(agent.id)
+      return verdict
     }
 
     /** THE FIRST NODE THAT IS DUE NOW, with the sets its pass is handed. */

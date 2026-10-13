@@ -89,10 +89,12 @@ Chat contributes a **third** kind, `chat-agent-sleep`, and it is the only one a
 person writes: `on` means olai may tidy that node agent's memory on its own
 clock, and the key being absent or `off` means it may not. **Nothing is tidied
 until you say so** — the pass is opt-in per chat, and this is the whole of the
-state. Under a node agent's conversation, in the strip bar beside the wake strip,
-chat draws its own (**Sleep when idle · Off/On**); the row menu's **Sleep when
-idle** writes it and **Stop sleeping when idle** takes it off; ⌘K offers the same
-row for the conversation on screen — and any of them can be typed here instead:
+state. Under a node agent's conversation, on the one standing line chat draws
+under the tools roster, the mark is the **On**/**Off** switch of the sleep item
+(**Sleep · On · last 3h ago · next in 4h if left alone**); the row menu's **Sleep
+when idle** writes it and **Stop sleeping when idle** takes it off; ⌘K offers the
+same row for the conversation on screen — and any of them can be typed here
+instead:
 
 ```json
 {"title":"agent-sleep","custom":{"type":"chat-agent-sleep"}}
@@ -103,6 +105,33 @@ an agent that opted itself in would be authorising its own wake-up. The switch i
 `_olai/Settings.olai` is the other half — `sleep: on` (the default) lets the loop
 run for the chats that asked, and `sleep: off` stops all of it, this verb
 included.
+
+## What the line says about a sleep
+
+The pass's judgement is **one function on the server** and one shape on the wire:
+the roster row carries a `sleep` forecast beside `sleeps`, judged by
+`forecastOf` in `src/server/sleep.ts` — the same judgement the loop picks a
+candidate with — and `src/browser/chat/sleeping.ts` turns it into words. So the
+line a person reads and the pass that acts cannot disagree about when a node is
+due, and the browser re-derives nothing:
+
+```ts
+{ lastSlept: "2026-10-12T06:00:00+00:00"   // the memo, as stored
+, after: 21600000                          // sleep-after, the rhythm
+, next: { kind: "due", at: "…T15:00:00Z" } // one of eight states
+}
+```
+
+`next.kind` is `off` (the directory's setting, so there is no sleeper to ask),
+`unmarked` (nobody has said yes), `unbound` (no conversation to hand a turn to),
+`unchanged` (the memory has not moved since the memo), `busy` (a turn, a question
+or an unanswered open), `due` (with the instant its quiet window closes),
+`running` (this node's pass is in flight) or `skipped` (a failed pass, with the
+end of its 24 h backoff). It rides the row as DATA — `data-next` on the item is
+that same `kind` — because the words are a sentence and a scenario should be
+asserting the state. The item's own clock is the strip's
+(`src/browser/chat/elapsed.ts`), and the relative times are read off fixed
+instants: `lastSlept` and `next.at` are the server's, never the reader's.
 
 ## Where it hangs in the tab
 

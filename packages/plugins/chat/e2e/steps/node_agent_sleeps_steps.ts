@@ -25,9 +25,10 @@ import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
 import { MARKER, SLEEP_STAMP } from "@olai/tests/harness/scripted.ts";
 import { selector } from "@olai/web/testlib";
-import { attr, HYDRATION_TIMEOUT } from "@olai/tests/harness/world.ts";
+import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import { CHAT_TRANSCRIPT } from "../selectors.ts";
+import { TESTID } from "../../src/testids.ts";
 import { openFold } from "./node_agent_folds_steps.ts";
 
 /** The vault every sleep scenario runs over. */
@@ -72,6 +73,105 @@ Given("the memory under {string} has moved", function (this: OlaiWorld, node: st
       : row,
   );
   this.writeServed(FILE, moved.map((row) => JSON.stringify(row)).join("\n"));
+});
+
+/** THE ITEM ON THE STANDING LINE, addressed by the plugin's own testid — the
+ *  sleep mark and the forecast are chat's, so the line's items are too. */
+const item = (world: OlaiWorld) => world.chat(selector(TESTID.chatSleeping));
+
+/** THE STANDING LINE ITSELF, for the two layout claims a scenario makes about
+ *  it: that it is ONE line under the tools roster, and that it wraps. */
+const line = (world: OlaiWorld) => world.chat(selector(TESTID.chatStanding));
+
+/**
+ * WHAT THE ITEM SAYS, AS DATA — `data-next` is the forecast's own `kind`, so a
+ * scenario asserts the FACT and the words are free to change.
+ *
+ * POLLED IN THE BROWSER, once a frame, and that is not an optimisation: the pass
+ * runs on a 250 ms tick in these scenarios, so `due` is a window of a quarter of
+ * a second and a round trip per try would step over it. Read from inside the
+ * page, the state is caught in the frame it arrives in — and a state that never
+ * arrives still fails, at the budget below.
+ */
+const says = async (world: OlaiWorld, next: string): Promise<void> => {
+  const seen = await item(world).evaluate(async (node, want) => {
+    const until = Date.now() + 10_000;
+    for (;;) {
+      if (node.getAttribute("data-next") === want) return true;
+      if (Date.now() > until) return false;
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+  }, next);
+  assert.ok(seen, `the sleep item should say ${next}`);
+};
+
+Then("the sleep item says {string}", async function (this: OlaiWorld, next: string) {
+  await says(this, next);
+});
+
+/** THE MEMO AS THE ITEM SEES IT — the same instant the node carries, on the row
+ *  a person is looking at. */
+Then("the sleep item has a memo", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await item(this).getAttribute("data-last")) !== null,
+    "the sleep item to carry the memo",
+  );
+});
+
+Then("the sleep item has no memo", async function (this: OlaiWorld) {
+  assert.equal(await item(this).getAttribute("data-last"), null);
+});
+
+/**
+ * THE HEAD'S STRIPS, COUNTED — and the count is the claim: the sleep item and the
+ * wake faces are per-conversation standing facts of the same kind and share ONE
+ * line, so the head above the transcript is two strips (the tools roster and that
+ * line) and not three. The sections are the panel's own children, which is what
+ * makes this a count rather than a guess.
+ */
+Then("the head has exactly two strips", async function (this: OlaiWorld) {
+  const strips = this.chat(`${selector(TESTID.chatPanel)} > section`);
+  await this.waitUntil(async () => await strips.count() === 2, "the head to have exactly two strips");
+  assert.equal(await this.chat(`${selector(TESTID.chatPanel)} > ${selector(TESTID.chatRoster)}`).count(), 1);
+  assert.equal(await this.chat(`${selector(TESTID.chatPanel)} > ${selector(TESTID.chatStanding)}`).count(), 1);
+});
+
+/**
+ * ...AND THAT IT WRAPS AT A PHONE'S WIDTH, which is the whole reason the two
+ * items are one line rather than two strips: the sleep item is first and the wake
+ * faces drop to the line below it, rather than the line overflowing sideways or
+ * the head growing another row of chrome.
+ */
+When("I narrow the window to a phone's width", async function (this: OlaiWorld) {
+  await this.page.setViewportSize({ width: 420, height: 800 });
+});
+
+Then("the standing line has wrapped", async function (this: OlaiWorld) {
+  const box = await line(this).evaluate((node) => {
+    const items = node.querySelectorAll("[data-testid]");
+    const first = node.firstElementChild as HTMLElement | null;
+    const wake = node.querySelector(`[data-testid="${TESTID.chatWake}"]`);
+    return {
+      items: items.length,
+      sleep: first === null ? null : first.getBoundingClientRect().bottom,
+      wake: wake === null ? null : (wake as HTMLElement).getBoundingClientRect().top,
+    };
+  });
+  assert.ok(box.wake !== null && box.sleep !== null, "the line should carry both kinds of item");
+  assert.ok(
+    box.wake >= box.sleep - 1,
+    `the wake faces should be on the line below the sleep item: ${box.wake} vs ${box.sleep}`,
+  );
+});
+
+/**
+ * THE PASS, ASKED FOR FROM THE STRIP — the item's own button, which is the same
+ * verb the row menu and ⌘K carry.
+ */
+When("I press Sleep now on the strip", async function (this: OlaiWorld) {
+  const button = this.chat(selector(TESTID.chatSleepNow));
+  await button.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await button.click();
 });
 
 /**

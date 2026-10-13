@@ -54,6 +54,10 @@ Feature: A node agent tidies its own memory when nobody is looking
     And the node "hinges" has the title "tidied"
     And node "install" carries the sleep memo
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
+    # ...AND AFTERWARDS IT SAYS NOTHING NEW TO TIDY, with the memo on the row —
+    # the same fact the node carries, read where a person reads it.
+    And the sleep item says "unchanged"
+    And the sleep item has a memo
 
   @scratch:chat @git:repo
   Scenario: A sleep is not repeated while the memory has not moved again
@@ -81,6 +85,9 @@ Feature: A node agent tidies its own memory when nobody is looking
     And the memory under "install" has moved
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
+    # NO PASS AT ALL here, so there is no forecast to read: the item says where the
+    # answer lives instead of offering a switch that could only fail.
+    Then the sleep item says "off"
     And the sleep pass has had its chance
     Then the node agent "install" has not been tidied
     And node "install" carries no sleep memo
@@ -124,6 +131,10 @@ Feature: A node agent tidies its own memory when nobody is looking
     And the node agent's fold is ready
     And the chat shows a question
     And the server log warns that "install" did not finish: "it asked a question nobody is there to answer, so it was stopped"
+    # ...AND THE ITEM SAYS WHAT THAT COST: a failed pass leaves the node alone for
+    # a day, and the strip is where that is readable rather than inferred from a
+    # log line.
+    Then the sleep item says "skipped"
     # A TICK'S WORTH AFTER THE CANCEL, and it is what the reads below are timed
     # against: the fake deletes its marker once it has read it, so a pass that
     # had not remembered the question would come back at the next tick as an
@@ -174,7 +185,11 @@ Feature: A node agent tidies its own memory when nobody is looking
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
     And the quiet window is given its full run
-    Then olai has recorded 0 commits here
+    # THE PASS IS MID-TURN, so the item says so rather than "due": a person looking
+    # at the strip while olai tidies is owed the one state that says somebody is
+    # working on their memory.
+    Then the sleep item says "running"
+    And olai has recorded 0 commits here
     When the agent is released
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
     Then olai has recorded 1 commit here
@@ -290,6 +305,9 @@ Feature: A node agent tidies its own memory when nobody is looking
     # satisfied and this node would be tidied on the next tick — and the mark is
     # the one thing missing, which is the whole of what the opt-in is.
     And the memory under "install" has moved
+    # ...AND THE ITEM SAYS WHY, which is the switch: nobody has asked, so there is
+    # nothing to say about when it will sleep.
+    Then the sleep item says "unmarked"
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
     And the sleep pass has had its chance
@@ -327,3 +345,32 @@ Feature: A node agent tidies its own memory when nobody is looking
     Then the node agent "install" has not been tidied
     And node "install" carries no sleep memo
     And olai has recorded 0 commits here
+
+  @scratch:chat @git:repo
+  Scenario: The line says when this chat last slept, and takes a press
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    # THE HEAD IS TWO STRIPS, NOT THREE: the tools roster, and the line that carries
+    # the sleep item and the wake faces together.
+    Then the head has exactly two strips
+    # ...AND NOBODY HAS ASKED, which is the switch's own answer.
+    And the sleep item says "unmarked"
+    When I switch sleep when idle on for this conversation
+    # NOTHING HAS MOVED, so there is nothing to tidy — said in words rather than
+    # left blank.
+    Then the sleep item says "unchanged"
+    And the sleep item has no memo
+    # A PHONE'S WIDTH, where the line has to wrap rather than overflow: the sleep
+    # item first, the wake faces on the line below it.
+    When I narrow the window to a phone's width
+    Then the standing line has wrapped
+    # ...AND A PERSON ASKS, from the item itself rather than from a menu — the same
+    # verb, where they are looking. NOTHING IS DUE, deliberately: the loop would not
+    # have touched this node, which is what makes the press the thing that did it.
+    When I press Sleep now on the strip
+    Then the node agent "install" has been tidied
+    And the sleep item has a memo
+    And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
+    And olai has recorded 1 commit here

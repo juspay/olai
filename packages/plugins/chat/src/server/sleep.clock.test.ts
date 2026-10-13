@@ -27,8 +27,8 @@ import { TestClock } from "effect/testing"
 
 import type { LiveSession, ReadingObserver } from "../scoped.ts"
 import { CHAT_OFF, type ChatState } from "../wire/members.ts"
-import type { Sleeping } from "./sleep.ts"
-import { makeSleeper } from "./sleep.ts"
+import type { Judged, Sleeping } from "./sleep.ts"
+import { forecastOf, makeSleeper, SKIP_MS } from "./sleep.ts"
 
 /** THE INSTANT EVERY CASE STARTS AT, and one the fixture's stamps are older
  *  than: a reading whose stamps were in the future would make every candidate
@@ -76,6 +76,9 @@ interface Arms {
   readonly tick: Effect.Effect<boolean, never, Scope.Scope>
   /** One pass, asked for by name — what the verb's door answers. */
   readonly now: (node: string) => Effect.Effect<"started" | "busy" | "unknown", never, Scope.Scope>
+  /** What the strip under a conversation reads — the same judgement the loop
+   *  picks with, off the roster's reading. */
+  readonly forecast: (node: string) => ReturnType<typeof forecastOf> | null
   /** What the pass did, in order. */
   readonly events: Array<string>
   /** One entry per turn handed to a conversation. */
@@ -125,6 +128,10 @@ const withStubs = (over: {
      *  next candidate question, so "not tidied again" is a statement these
      *  cases can make. */
     let memo: string | null = null
+    /** THE SET BOTH READERS ARE HANDED — the loop's own read and the roster's
+     *  current one are the same object here, which is what a served revision
+     *  looks like from inside the server. */
+    const held = readingOf(setOf(vault(over.changed ?? stamp(NOW - HOUR))))
     const states = over.states ?? [
       thinking(),
       { ...CHAT_OFF, status: "idle", trouble: null },
@@ -139,8 +146,9 @@ const withStubs = (over: {
       live: () => over.live ?? new Map(),
       read: Effect.sync(() => {
         reads += 1
-        return readingOf(setOf(vault(over.changed ?? stamp(NOW - HOUR))))
+        return held
       }),
+      reading: () => held,
       // THE CONVERSATION, AS THE PANEL PRESENTS IT: the state it is in when the
       // reading is taken, and then whatever the script says once the turn is
       // handed over. A turn's ENDING is a state rather than a clock, which is
@@ -185,7 +193,17 @@ const withStubs = (over: {
       warn: (line) => Effect.sync(() => void warnings.push(line)),
     }
     const sleeper = yield* makeSleeper(doors)
-    return { tick: sleeper.tick, now: sleeper.now, events, delivers, memos, commits, warnings, reads: () => reads }
+    return {
+      tick: sleeper.tick,
+      now: sleeper.now,
+      forecast: sleeper.forecast,
+      events,
+      delivers,
+      memos,
+      commits,
+      warnings,
+      reads: () => reads,
+    }
   })
 
 /** One case, on a test clock started at {@link NOW}. */
@@ -552,4 +570,100 @@ test("a turn that never ends is stopped at the limit, and left alone after that"
     // which the loop's own next look is what shows.
     yield* TestClock.adjust(Duration.millis(MIN))
     expect(yield* arms.tick).toBe(false)
+  })))
+
+/**
+ * THE JUDGEMENT ITSELF, AS A TABLE.
+ *
+ * `forecastOf` is pure — `now` is an argument, the reading is a parameter and the
+ * pass's own memory of a node is handed in — so every state a node can be in is a
+ * row here rather than a scenario somebody has to run a pass to reach. What the
+ * LOOP does with these answers is the cases above; what the STRIP says about them
+ * is `browser/chat/sleeping.test.ts`.
+ *
+ * ONE KIND IS NOT A JUDGEMENT AT ALL: `off` is the directory's own setting, read
+ * before a sleeper exists, which is why it is `null` on the wire rather than an
+ * answer from here.
+ */
+test("the judgement answers each state a node can be in, and none of them is a guess", () => {
+  const doors = (over: {
+    readonly sleeps?: boolean
+    readonly sleptAt?: string | null
+    readonly after?: Duration.Duration
+  } = {}) => ({
+    nodes: () => [AGENT],
+    sleeps: () => over.sleeps ?? true,
+    sleptAt: () => over.sleptAt ?? null,
+    after: over.after ?? Duration.millis(0),
+  })
+  const judged = (over: Partial<Judged> = {}): Judged => ({ inFlight: null, failedAt: undefined, ...over })
+  const none = new Map<string, LiveSession>()
+  const of = (
+    agent: NodeAgent,
+    state: Judged,
+    held: ReturnType<typeof doors>,
+    live: ReadonlyMap<string, LiveSession> = none,
+  ) => forecastOf(agent, NOW, live, readingOf(setOf(vault(stamp(NOW - HOUR)))), state, held)
+
+  // NO CONVERSATION: there is nothing to hand a turn to, however due it is.
+  expect(of({ ...AGENT, session: null }, judged(), doors()).next).toEqual({ kind: "unbound" })
+  // NOBODY HAS ASKED: the mark is a person's answer, and nothing is tidied until
+  // they give it.
+  expect(of(AGENT, judged(), doors({ sleeps: false })).next).toEqual({ kind: "unmarked" })
+  // THE PASS IS IN FLIGHT — asked BEFORE the busy test, because a running pass
+  // makes the session `thinking` and `busy` would mask it.
+  expect(of(AGENT, judged({ inFlight: AGENT.id }), doors()).next).toEqual({ kind: "running" })
+  // A FAILED PASS, for a day — and the instant is the backoff's own end.
+  expect(of(AGENT, judged({ failedAt: NOW - HOUR }), doors()).next)
+    .toEqual({ kind: "skipped", until: stamp(NOW - HOUR + SKIP_MS) })
+  // ...AND DUE AGAIN ONCE THE DAY IS UP, because the expiry is pruned rather
+  // than remembered for ever.
+  expect(of(AGENT, judged({ failedAt: NOW - SKIP_MS }), doors()).next.kind).toBe("due")
+  // THE CONVERSATION IS UP: a turn, a question, or a handshake nobody has
+  // answered yet.
+  expect(of(AGENT, judged(), doors(), new Map([["health", { status: "thinking", asking: 0 }]] as const)).next)
+    .toEqual({ kind: "busy" })
+  expect(of(AGENT, judged(), doors(), new Map([["health", { status: "idle", asking: 1 }]] as const)).next)
+    .toEqual({ kind: "busy" })
+  expect(of(AGENT, judged(), doors(), new Map([["health", { status: "idle", asking: 0, unopened: true }]] as const)).next)
+    .toEqual({ kind: "busy" })
+  // A DEAD PROCESS IS NOT BUSY: `off` and `gone` are a conversation to be woken,
+  // which is what the delivery path does.
+  expect(of(AGENT, judged(), doors(), new Map([["health", { status: "off", asking: 0 }]] as const)).next.kind)
+    .toBe("due")
+  // THE MEMORY HAS NOT MOVED since the memo — which is the whole reason the memo
+  // exists.
+  expect(of(AGENT, judged(), doors({ sleptAt: stamp(NOW - MIN) })).next).toEqual({ kind: "unchanged" })
+  // DUE, and the instant is when the quiet window closes.
+  expect(of(AGENT, judged(), doors({ sleptAt: stamp(NOW - HOUR) })).next)
+    .toEqual({ kind: "due", at: stamp(NOW) })
+})
+
+/**
+ * THE SECOND QUIET READING, which is the one the conversation cannot see: an
+ * agent idle for seven hours whose SUBTREE somebody edited an hour ago is a node
+ * nobody should be tidying, and it becomes due six hours after the edit — not
+ * when the idle window ran out. A rule that read only the conversation's `since`
+ * would tidy a memory somebody is writing.
+ */
+test("a subtree somebody is editing keeps its node awake, whatever the conversation is doing", () => {
+  const held = readingOf(setOf(vault(stamp(NOW - HOUR))))
+  const doors = {
+    nodes: () => [AGENT],
+    sleeps: () => true,
+    sleptAt: () => stamp(NOW - DAY),
+    after: Duration.hours(6),
+  }
+  const live = new Map([["health", { status: "idle", asking: 0, since: stamp(NOW - 7 * HOUR) }]] as const)
+  // THE IDLE WINDOW ALONE WOULD SAY YES — it ran out six hours into the seven —
+  // and the edit an hour ago says no.
+  expect(forecastOf(AGENT, NOW, live, held, { inFlight: null, failedAt: undefined }, doors).next)
+    .toEqual({ kind: "due", at: stamp(NOW + 5 * HOUR) })
+})
+
+test("the strip's forecast is null for a node that is not one, and judges the one that is", () =>
+  onTheClock(Effect.gen(function*() {
+    const arms = yield* withStubs()
+    expect(arms.forecast("nobody")).toBeNull()
+    expect(arms.forecast("health")?.next.kind).toBe("due")
   })))
