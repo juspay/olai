@@ -644,8 +644,11 @@ test("the judgement answers each state a node can be in, and none of them is a g
   // THE MEMORY HAS NOT MOVED since the memo — which is the whole reason the memo
   // exists.
   expect(of(AGENT, judged(), doors({ sleptAt: stamp(NOW - MIN) })).next).toEqual({ kind: "unchanged" })
-  // DUE, and the instant is when the quiet window closes.
-  const due = of(AGENT, judged(), doors({ sleptAt: stamp(NOW - HOUR) })).next
+  // DUE, and the instant is when the quiet window closes. THE MEMO IS OLDER THAN
+  // THE ROW'S STAMP, which is what "the memory has moved since it last slept"
+  // means — a memo written at the same instant as the row is not a move at all,
+  // and is the case above.
+  const due = of(AGENT, judged(), doors({ sleptAt: stamp(NOW - DAY) })).next
   expect(due.kind).toBe("due")
   expect(when(due)).toBe(NOW)
 })
