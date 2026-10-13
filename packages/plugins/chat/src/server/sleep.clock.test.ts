@@ -598,6 +598,9 @@ test("the judgement answers each state a node can be in, and none of them is a g
   })
   const judged = (over: Partial<Judged> = {}): Judged => ({ inFlight: null, failedAt: undefined, ...over })
   const none = new Map<string, LiveSession>()
+  /** ONE LIVE CONVERSATION, as the panel reports it — typed at the map so the
+   *  literal is checked against `LiveSession` rather than widened into it. */
+  const up = (standing: LiveSession) => new Map<string, LiveSession>([["health", standing]])
   const of = (
     agent: NodeAgent,
     state: Judged,
@@ -621,16 +624,13 @@ test("the judgement answers each state a node can be in, and none of them is a g
   expect(of(AGENT, judged({ failedAt: NOW - SKIP_MS }), doors()).next.kind).toBe("due")
   // THE CONVERSATION IS UP: a turn, a question, or a handshake nobody has
   // answered yet.
-  expect(of(AGENT, judged(), doors(), new Map([["health", { status: "thinking", asking: 0 }]] as const)).next)
-    .toEqual({ kind: "busy" })
-  expect(of(AGENT, judged(), doors(), new Map([["health", { status: "idle", asking: 1 }]] as const)).next)
-    .toEqual({ kind: "busy" })
-  expect(of(AGENT, judged(), doors(), new Map([["health", { status: "idle", asking: 0, unopened: true }]] as const)).next)
+  expect(of(AGENT, judged(), doors(), up({ status: "thinking", asking: 0 })).next).toEqual({ kind: "busy" })
+  expect(of(AGENT, judged(), doors(), up({ status: "idle", asking: 1 })).next).toEqual({ kind: "busy" })
+  expect(of(AGENT, judged(), doors(), up({ status: "idle", asking: 0, unopened: true })).next)
     .toEqual({ kind: "busy" })
   // A DEAD PROCESS IS NOT BUSY: `off` and `gone` are a conversation to be woken,
   // which is what the delivery path does.
-  expect(of(AGENT, judged(), doors(), new Map([["health", { status: "off", asking: 0 }]] as const)).next.kind)
-    .toBe("due")
+  expect(of(AGENT, judged(), doors(), up({ status: "off", asking: 0 })).next.kind).toBe("due")
   // THE MEMORY HAS NOT MOVED since the memo — which is the whole reason the memo
   // exists.
   expect(of(AGENT, judged(), doors({ sleptAt: stamp(NOW - MIN) })).next).toEqual({ kind: "unchanged" })
@@ -654,7 +654,7 @@ test("a subtree somebody is editing keeps its node awake, whatever the conversat
     sleptAt: () => stamp(NOW - DAY),
     after: Duration.hours(6),
   }
-  const live = new Map([["health", { status: "idle", asking: 0, since: stamp(NOW - 7 * HOUR) }]] as const)
+  const live = new Map<string, LiveSession>([["health", { status: "idle", asking: 0, since: stamp(NOW - 7 * HOUR) }]])
   // THE IDLE WINDOW ALONE WOULD SAY YES — it ran out six hours into the seven —
   // and the edit an hour ago says no.
   expect(forecastOf(AGENT, NOW, live, held, { inFlight: null, failedAt: undefined }, doors).next)
