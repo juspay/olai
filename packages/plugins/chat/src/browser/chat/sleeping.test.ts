@@ -73,20 +73,23 @@ test("the item says when it last slept, when it will next, and on what rhythm", 
   // OFF IN SETTINGS: no forecast at all, because no sleeper was built — and no
   // switch, because the answer is in a file this browser cannot write.
   const off = saidOf(null, NOW)
-  expect([off.kind, off.on, off.said]).toEqual(["off", null, []])
-  expect(saidOf(forecast({ kind: "off" }), NOW).on).toBeNull()
+  expect([off.kind, off.switch, off.said]).toEqual(["off", false, []])
+  expect(saidOf(forecast({ kind: "off" }), NOW).switch).toBe(false)
   // ...AND THE TITLE SAYS WHERE, which is the whole of what a person can do about
   // it.
   expect(off.title).toContain("sleep is off in _olai/Settings.olai")
 
   // NOBODY HAS ASKED: the switch is off, and what it did say is when it last did
   // — the fact a person deciding whether to turn it on wants.
-  expect(saidOf(forecast({ kind: "unmarked" }), NOW)).toMatchObject({ on: false, said: ["last 3h ago"] })
+  // ...AND THE SWITCH IS THERE, whatever the mark says: this type is the forecast,
+  // and whether the chat asked to be tidied is the row's `sleeps`
+  // (`Sleeping.tsx` reads it for `aria-checked`, the word and the press).
+  expect(saidOf(forecast({ kind: "unmarked" }), NOW)).toMatchObject({ switch: true, said: ["last 3h ago"] })
   // ...AND NOTHING WHEN IT NEVER HAS, rather than a row of words about nothing.
   expect(saidOf(forecast({ kind: "unmarked" }, { lastSlept: null }), NOW).said).toEqual([])
 
   // A NODE WITH NO CONVERSATION cannot be slept however due it is.
-  expect(saidOf(forecast({ kind: "unbound" }), NOW)).toMatchObject({ on: true, said: ["no conversation yet"] })
+  expect(saidOf(forecast({ kind: "unbound" }), NOW)).toMatchObject({ switch: true, said: ["no conversation yet"] })
 
   // THE MEMORY HAS NOT MOVED, AND THE CHAT IS QUIET — the two silences that are
   // not failures.

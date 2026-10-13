@@ -41,7 +41,12 @@ export function Sleeping(props: { readonly chat: Chat }) {
   const now = createNow(() => true)
   return <Show when={row()}>{(held) => {
     const said = () => saidOf(held().sleep, now())
-    const on = () => said().on ?? held().sleeps
+    // ONE SOURCE FOR THE MARK, and it is the row's: `sleeps` is what the vault
+    // says and what the verb writes, so the switch's state, its word and its press
+    // all read it and nothing else. What `said` answers is the FORECAST — when this
+    // chat slept and when it will next — and it is deliberately not asked whether
+    // the mark is on.
+    const on = () => held().sleeps
     return <span
       class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
       data-testid={TESTID.chatSleeping}
@@ -57,7 +62,7 @@ export function Sleeping(props: { readonly chat: Chat }) {
     >
       <span class="text-muted">Sleep</span>
       <span aria-hidden="true" class="text-muted">·</span>
-      <Show when={said().on === null} fallback={
+      <Show when={!said().switch} fallback={
         <button type="button" role="switch" aria-label="Sleep when idle" aria-checked={on()} data-testid={TESTID.chatSleepSwitch} onClick={() => {
           setProblem(undefined)
           void runAsync(chatWire().procedures.conversation.setSleeping({ node: held().id, on: !on() })).then(outcome => {
@@ -78,7 +83,7 @@ export function Sleeping(props: { readonly chat: Chat }) {
           the rhythm. NOT WHILE IT IS ALREADY RUNNING on this node (the words
           beside it say so, and a press could only be refused), and not where
           there is no pass to ask for at all. */}
-      <Show when={said().on === true && said().kind !== "running"}>
+      <Show when={said().switch && on() && said().kind !== "running"}>
         <span aria-hidden="true" class="text-muted">·</span>
         <button type="button" data-testid={TESTID.chatSleepNow} onClick={() => {
           setProblem(undefined)

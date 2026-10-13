@@ -81,9 +81,15 @@ export type SleepSaid = {
   /** The forecast’s own kind, so a scenario can assert the state as DATA. `off`
    *  covers both “no sleeper” and a forecast that says so. */
   readonly kind: Forecast["next"]["kind"]
-  /** WHAT THE SWITCH READS, or `null` where there is no switch to press — `off
-   *  in Settings`, which a person changes in a file rather than by pressing. */
-  readonly on: boolean | null
+  /** IS THERE A SWITCH TO PRESS — false only for `off in Settings`, where the
+   *  answer is in a file a browser cannot write.
+   *
+   *  THE MARK IS NOT HERE, deliberately: whether this chat is tidied is the
+   *  roster row's `sleeps`, and the switch's own `aria-checked` and its press read
+   *  that and nothing else. This type is the FORECAST, and re-encoding the mark
+   *  through a forecast kind would be two sources for one fact — they would
+   *  disagree the first time one of them moved without the other. */
+  readonly switch: boolean
   /** The words after the switch, in order. */
   readonly said: ReadonlyArray<string>
   /** The whole sentence, rhythm and all — what hovering the item gives. */
@@ -149,7 +155,7 @@ export const saidOf = (forecast: Forecast | null, now: number): SleepSaid => {
   if (forecast === null || forecast.next.kind === "off") {
     // THE WORDS LIVE WHERE THE SWITCH WOULD BE, so this arm has nothing after it:
     // a person reads `Sleep · off in Settings` and the sentence is complete.
-    return { kind: "off", on: null, said: [], title }
+    return { kind: "off", switch: false, said: [], title }
   }
   const { lastSlept, next } = forecast
   const last = lastOf(lastSlept, now)
@@ -158,22 +164,22 @@ export const saidOf = (forecast: Forecast | null, now: number): SleepSaid => {
     // say about when it will sleep. What it did say is when it last did, which
     // is the fact a person deciding whether to turn it on wants.
     case "unmarked":
-      return { kind: next.kind, on: false, said: last === "never" ? [] : [last], title }
+      return { kind: next.kind, switch: true, said: last === "never" ? [] : [last], title }
     // A NODE WITH NO CONVERSATION is not asleep, it is unbound: there is nothing
     // to hand a turn to, and the pass cannot act however due it is.
     case "unbound":
-      return { kind: next.kind, on: true, said: ["no conversation yet"], title }
+      return { kind: next.kind, switch: true, said: ["no conversation yet"], title }
     case "unchanged":
-      return { kind: next.kind, on: true, said: [last, "nothing new to tidy"], title }
+      return { kind: next.kind, switch: true, said: [last, "nothing new to tidy"], title }
     case "busy":
-      return { kind: next.kind, on: true, said: [last, "when this chat is quiet"], title }
+      return { kind: next.kind, switch: true, said: [last, "when this chat is quiet"], title }
     case "running":
-      return { kind: next.kind, on: true, said: [last, "tidying now"], title }
+      return { kind: next.kind, switch: true, said: [last, "tidying now"], title }
     case "skipped": {
       const before = clockOf(next.until)
       return {
         kind: next.kind,
-        on: true,
+        switch: true,
         said: before === null ? ["last pass failed"] : ["last pass failed", `not before ${before}`],
         title,
       }
@@ -186,7 +192,7 @@ export const saidOf = (forecast: Forecast | null, now: number): SleepSaid => {
       const soon = inWords(next.at, now)
       return {
         kind: next.kind,
-        on: true,
+        switch: true,
         said: [last, soon === null ? "due now" : `next ${soon} if left alone`],
         title,
       }
