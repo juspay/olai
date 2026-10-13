@@ -66,8 +66,8 @@
 import { canonicalDate, sessionIn } from "@olai/format"
 
 /** Internal words; other plugins ask chat.seating for the reading. */
-export { SESSION_KIND, SESSION_TYPE, SLEPT_KIND, SLEPT_TYPE } from "./binding.ts"
-import { SLEPT_KIND, SLEPT_TYPE, SESSION_KIND, SESSION_TYPE } from "./binding.ts"
+export { SESSION_KIND, SESSION_TYPE, SLEEPING_KIND, SLEEPING_TYPE, SLEPT_KIND, SLEPT_TYPE } from "./binding.ts"
+import { SLEEPING_KIND, SLEEPING_TYPE, SLEPT_KIND, SLEPT_TYPE, SESSION_KIND, SESSION_TYPE } from "./binding.ts"
 
 /**
  * The contribution, as `@olai/plugin-api`'s registry reads it — spent by the
@@ -115,7 +115,26 @@ const SLEPT = {
   admits: (value: string) => canonicalDate(value.trim(), null) === value.trim(),
 } as const
 
-export const kinds = [SESSION, SLEPT] as const
+/**
+ * WHETHER THIS NODE AGENT IS TIDIED ON ITS OWN CLOCK, as a kind — the third
+ * word this plugin contributes, and the only one a PERSON writes.
+ *
+ * TWO WORDS RATHER THAN A BOOLEAN, because this is a declaration a vault can
+ * spell by hand and a property drawer shows: `on` and `off` read as what they
+ * mean, and the key being ABSENT is the same as `off` ({@link ./server/agents.ts}
+ * asks it). The admission is spent here rather than at each reader, so a value
+ * this kind took and the reading rejected would be two answers about one string.
+ */
+const SLEEPING = {
+  kind: SLEEPING_KIND,
+  takes: `\`${SLEEPING_TYPE}\` (\`on\` or \`off\`)`,
+  admits: (value: string) => {
+    const word = value.trim()
+    return word === "on" || word === "off"
+  },
+} as const
+
+export const kinds = [SESSION, SLEPT, SLEEPING] as const
 
 /**
  * THIS PLUGIN'S OWN VOCABULARY, as `@olai/format` takes one — for the readings
@@ -138,5 +157,6 @@ export const kinds = [SESSION, SLEPT] as const
 const OWN = new Map([
   [SESSION_TYPE, { ...SESSION, kind: SESSION_TYPE, claims: SESSION_TYPE }],
   [SLEPT_TYPE, { ...SLEPT, kind: SLEPT_TYPE, claims: SLEPT_TYPE }],
+  [SLEEPING_TYPE, { ...SLEEPING, kind: SLEEPING_TYPE, claims: SLEEPING_TYPE }],
 ])
 export const ownKinds = { built: OWN, enabled: OWN }

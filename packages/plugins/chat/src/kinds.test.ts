@@ -25,13 +25,14 @@ import { expect, test } from "bun:test"
 
 import { kindWordOf } from "@olai/plugin-api"
 
-import { SLEPT_KIND, SLEPT_TYPE, SESSION_KIND, SESSION_TYPE } from "./binding.ts"
+import { SLEEPING_KIND, SLEEPING_TYPE, SLEPT_KIND, SLEPT_TYPE, SESSION_KIND, SESSION_TYPE } from "./binding.ts"
 import { kinds } from "./kinds.ts"
 import { name } from "./wire.ts"
 
 test("the word `./binding.ts` writes out is the word the registry composes", () => {
   expect(SESSION_TYPE).toBe(kindWordOf(name, SESSION_KIND))
   expect(SLEPT_TYPE).toBe(kindWordOf(name, SLEPT_KIND))
+  expect(SLEEPING_TYPE).toBe(kindWordOf(name, SLEEPING_KIND))
 })
 
 test("...and it decomposes back to this plugin and this kind, hyphen and all", () => {
@@ -42,7 +43,13 @@ test("...and it decomposes back to this plugin and this kind, hyphen and all", (
   // the composition stays injective. Asserted rather than assumed, because the
   // whole safety of a built-in declaration rests on a claimed key carrying this
   // plugin's name and nobody else's.
-  for (const [bare, composed] of [[SESSION_KIND, SESSION_TYPE], [SLEPT_KIND, SLEPT_TYPE]] as const) {
+  for (
+    const [bare, composed] of [
+      [SESSION_KIND, SESSION_TYPE],
+      [SLEPT_KIND, SLEPT_TYPE],
+      [SLEEPING_KIND, SLEEPING_TYPE],
+    ] as const
+  ) {
     expect(composed.slice(0, composed.indexOf("-"))).toBe(name)
     expect(composed.slice(composed.indexOf("-") + 1)).toBe(bare)
   }
@@ -59,6 +66,24 @@ test("the contribution names the bare word, and its clause names the composed on
   const slept = kinds[1]
   expect(slept.kind).toBe(SLEPT_KIND)
   expect(slept.takes).toContain(SLEPT_TYPE)
+  const sleeping = kinds[2]
+  expect(sleeping.kind).toBe(SLEEPING_KIND)
+  expect(sleeping.takes).toContain(SLEEPING_TYPE)
+})
+
+test("the sleeping mark admits the two words a person writes, and nothing else", () => {
+  // THE ONE KIND A PERSON WRITES BY HAND, so its admission is the one a vault
+  // can get wrong in the drawer: `on` and `off` are the value, the key being
+  // absent is the same as `off` (the reading's business, not this one's), and a
+  // sentence about sleeping is not an answer to whether to sleep.
+  const sleeping = kinds[2]
+  expect(sleeping.admits("on")).toBe(true)
+  expect(sleeping.admits("off")).toBe(true)
+  expect(sleeping.admits(" on ")).toBe(true)
+  expect(sleeping.admits("ON")).toBe(false)
+  expect(sleeping.admits("true")).toBe(false)
+  expect(sleeping.admits("")).toBe(false)
+  expect(sleeping.admits("on, but not on Fridays")).toBe(false)
 })
 
 test("the memo kind admits what the format's own instant is, and refuses prose", () => {

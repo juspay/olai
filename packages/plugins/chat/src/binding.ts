@@ -43,3 +43,25 @@ export const SLEPT_KIND = "agent-slept"
 /** ...and what a declaration writes for it:
  *  `{"title":"agent-slept","custom":{"type":"chat-agent-slept"}}`. */
 export const SLEPT_TYPE = "chat-agent-slept"
+
+/**
+ * WHETHER THIS CHAT IS TIDIED ON ITS OWN CLOCK — the third kind this plugin
+ * teaches a vault, and the same two-layer composition: the bare
+ * {@link SLEEPING_KIND} this plugin contributes, and the word a declaration
+ * writes, `chat-agent-sleep`.
+ *
+ * THE SAME WORD-BUILDING RULES AND THE SAME REASON FOR A KIND as the two above:
+ * a key's spelling is not a licence, so a vault that keeps this mark under a
+ * column of its own name declares that column this kind, and olai reads and
+ * writes there. `kinds.test.ts` holds the literal to the real composition.
+ *
+ * WHAT IT MEANS IS A PERSON'S ANSWER RATHER THAN A MACHINE'S: absent or `off` is
+ * "leave this one alone", `on` is "tidy it when it has been quiet". Nothing else
+ * about the pass changes — the words are `./sleep.ts`, the loop is
+ * `./server/sleep.ts`, and `docs/chat.md` says it in a person's terms.
+ */
+export const SLEEPING_KIND = "agent-sleep"
+
+/** ...and what a declaration writes for it:
+ *  `{"title":"agent-sleep","custom":{"type":"chat-agent-sleep"}}`. */
+export const SLEEPING_TYPE = "chat-agent-sleep"
