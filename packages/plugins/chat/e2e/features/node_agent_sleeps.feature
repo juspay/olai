@@ -37,8 +37,14 @@ Feature: A node agent tidies its own memory when nobody is looking
   Scenario: A node agent whose memory moved sleeps, and the pass is one commit
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
-    # THE OPT-IN, PRESSED ON SCREEN — the verb on the row's menu, and the menu
-    # that comes back saying the other thing, because the label IS the indicator.
+    # THE CONVERSATION FIRST, and that is not staging: the corpus carries no
+    # binding at all, so opening this node's agent is what SEATS one — and the
+    # row's menu has no chat verbs until it is.
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    # ...AND THE OPT-IN, PRESSED ON SCREEN: the verb on the row's menu, read back
+    # twice — the vault holds the mark, and the menu that comes back says the
+    # other thing, because the label IS the indicator.
     When I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
     Then the vault node "install" has property "chat-agent-sleep" holding "on"
@@ -46,8 +52,6 @@ Feature: A node agent tidies its own memory when nobody is looking
     And the node menu offers "Stop sleeping when idle"
     And I click away from the node menu
     And the memory under "install" has moved
-    When I open the "claude" agent on node "install"
-    And the node agent's fold is ready
     Then the node agent "install" has been tidied
     And the node "hinges" has the title "tidied"
     And node "install" carries the sleep memo
@@ -57,11 +61,11 @@ Feature: A node agent tidies its own memory when nobody is looking
   Scenario: A sleep is not repeated while the memory has not moved again
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
     When I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
-    When I open the "claude" agent on node "install"
-    And the node agent's fold is ready
     Then the node agent "install" has been tidied
     And node "install" carries the sleep memo
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
@@ -133,11 +137,11 @@ Feature: A node agent tidies its own memory when nobody is looking
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When the next sleep writes the memo itself
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
     And I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
-    And I open the "claude" agent on node "install"
-    And the node agent's fold is ready
     Then the chat shows a failed tool call
     And the agent's answer mentions "is a property this door may not write"
     # BOTH KEYS, and the backticks are load-bearing: `chat-agent-sleep` is a
@@ -154,11 +158,11 @@ Feature: A node agent tidies its own memory when nobody is looking
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When the next sleep holds its turn open
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
     And I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
-    And I open the "claude" agent on node "install"
-    And the node agent's fold is ready
     And the quiet window is given its full run
     Then olai has recorded 0 commits here
     When the agent is released
@@ -199,11 +203,11 @@ Feature: A node agent tidies its own memory when nobody is looking
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When the next sleep holds its turn open
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
     And I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
-    And I open the "claude" agent on node "install"
-    And the node agent's fold is ready
     # THE PASS IS MID-TURN: the fake holds its turn open, so the permit is held
     # and this node's turn is marked as olai's own.
     Then the node agent "install" has been tidied
@@ -225,11 +229,11 @@ Feature: A node agent tidies its own memory when nobody is looking
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     When the next sleep holds its turn open
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
     And I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
-    And I open the "claude" agent on node "install"
-    And the node agent's fold is ready
     Then the node agent "install" has been tidied
     # A PERSON STOPS IT, which is the one press the pass must not read as a
     # finished sleep: a cancelled turn lands on `idle` with no trouble.
@@ -255,11 +259,11 @@ Feature: A node agent tidies its own memory when nobody is looking
     # the sleep would not undo them.
     When the next sleep writes outside its subtree at "kitchen"
     And the next sleep trashes "kitchen"
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
     And I open the node menu of "install"
     And I choose "Sleep when idle" from the node menu
     And the memory under "install" has moved
-    And I open the "claude" agent on node "install"
-    And the node agent's fold is ready
     # BOTH REFUSED, in the fence's own words — and the pass still finishes: what
     # it was asked to do was inside the subtree.
     Then the chat shows a failed tool call
@@ -287,6 +291,10 @@ Feature: A node agent tidies its own memory when nobody is looking
   Scenario: Stop sleeping when idle stops it, and nothing is tidied after that
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
+    # THE CONVERSATION FIRST: the corpus carries no binding, and the row's menu
+    # has no chat verbs until one is seated.
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
     # ON, THEN OFF, through the two labels the one verb carries — and each press
     # is read back off the menu that comes after it, because the label IS the
     # indicator: `chat-agent-sleep` is gone when the row says "Sleep when idle"
