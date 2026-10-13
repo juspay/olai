@@ -571,6 +571,11 @@ export const TESTID = {
    *  whose `aria-checked` is the mark, so a scenario reads the state as DATA. A
    *  refusal is drawn beside it in a `role="alert"`. */
   chatSleepSwitch: "chat-sleep-switch",
+  /** THE PASS, ASKED FOR BY HAND, at the end of the item: the same verb the row
+   *  menu and ⌘K carry (`conversation.sleepNow`), for a person who is looking at
+   *  the strip and does not want to wait for the rhythm. Absent where the pass is
+   *  already running on this node, and where there is no pass to ask for. */
+  chatSleepNow: "chat-sleep-now",
   /** One plugin's control on it: the trigger that opens the file list, wearing
    *  the picked file's name or `off`. `data-plugin` is WHOSE doorbell and
    *  `data-file` is the file or `off` — the state as DATA, because the words

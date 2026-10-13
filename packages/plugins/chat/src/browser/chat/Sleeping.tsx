@@ -73,6 +73,21 @@ export function Sleeping(props: { readonly chat: Chat }) {
         <span aria-hidden="true" class="text-muted">·</span>
         <span class="text-muted">{part}</span>
       </>}</For>
+      {/* THE PASS, ASKED FOR BY HAND — the same verb the row menu and ⌘K carry,
+          here for a person who is reading the strip and does not want to wait for
+          the rhythm. NOT WHILE IT IS ALREADY RUNNING on this node (the words
+          beside it say so, and a press could only be refused), and not where
+          there is no pass to ask for at all. */}
+      <Show when={said().on === true && said().kind !== "running"}>
+        <span aria-hidden="true" class="text-muted">·</span>
+        <button type="button" data-testid={TESTID.chatSleepNow} onClick={() => {
+          setProblem(undefined)
+          void runAsync(chatWire().procedures.conversation.sleepNow({ node: held().id })).then(outcome => {
+            if (Result.isFailure(outcome)) { setProblem(outcome.failure.message); return }
+            if (outcome.success._tag === "Refused") setProblem(outcome.success.said)
+          })
+        }}>Sleep now</button>
+      </Show>
       <Show when={problem()}><span role="alert">{problem()}</span></Show>
     </span>
   }}</Show>
