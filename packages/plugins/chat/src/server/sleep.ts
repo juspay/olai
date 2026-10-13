@@ -42,6 +42,7 @@
 
 import {
   changedUnder,
+  type Derived,
   memoryFiles,
   type NodeAgent,
   type NodeAgents,
