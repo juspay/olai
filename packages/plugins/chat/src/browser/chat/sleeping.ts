@@ -1,6 +1,7 @@
 /**
- * THE OPT-IN'S TWO PURE QUESTIONS — which roster row a conversation is, and what
- * the switch beside it says.
+ * THE ITEM'S PURE QUESTIONS — which conversation the panel is showing, which
+ * roster row that is, what the switch beside it says, and WHAT THE ITEM SAYS
+ * about when this chat last slept and when it will next.
  *
  * A PLAIN MODULE BESIDE THE COMPONENT rather than exports of it, because
  * `bun test` resolves SolidJS's server build (`justfile` says so where the
