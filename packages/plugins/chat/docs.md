@@ -75,7 +75,9 @@ Chat contributes a **second** kind, `chat-agent-slept`: the instant olai last
 tidied that node agent's own memory for it ([chat](../chat.md)). It is a date,
 it is written by the pass and by nothing else — a seated session may not write
 it, exactly as it may not write its own binding — and it is what keeps a node
-whose subtree has not moved from spending a turn on nothing. The same two rules
+whose subtree has not moved from spending a turn on nothing. The turn itself hands
+the whole job to one subagent (`src/sleep.ts`), so the tidying's reads and rewrites
+stay out of the conversation a person goes on using. The same two rules
 apply: the kind claims `chat-agent-slept` with no declaration needed, and a
 column of your own name can carry it with one row.
 

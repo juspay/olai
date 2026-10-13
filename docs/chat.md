@@ -853,7 +853,8 @@ daily reports, the standing facts they support have to be re-derived by hand,
 and nothing is archived. So olai gives a node agent one machine turn of its
 own: when it has been left alone for six hours and its subtree has changed
 since it last slept, it is asked to tidy, distill and tuck away — in its own
-conversation, with the tools it already has.
+conversation, through one subagent, so the tidying's reads and rewrites do not
+become part of what the agent remembers of you.
 
 **One line under the tools says what this chat does on its own.** Sleep and the
 plugin wakes are per-conversation standing facts of the same kind, so they share
@@ -986,10 +987,17 @@ past its span. That is one retry per restart on a node that is going to fail
 again anyway, and it is what keeps a broken node from being tried every quarter
 of an hour.
 
-**What it costs is context in a long-lived conversation**, which is accepted:
-the engines compact, and a sleep turn is mostly tool calls. If that proves
-wrong the change is local — the pass would run in a fresh session under the
-assigned-session contract, and the loop that drives it would not move.
+**What it costs is context in a long-lived conversation, and the turn hands that
+cost to somebody else.** A tidying pass reads and rewrites dozens of rows, and
+those calls used to be the conversation's — the agent carried them into the
+person's next message. So the words ask for exactly ONE subagent and hand it the
+whole brief, and what this conversation keeps is the ask, one call and a short
+report. It is an ASK rather than a mechanism, and the words say so to the agent:
+ACP gives olai no way to see whether a subagent was started, so an engine without
+subagents — or an agent that ignores the sentence — tidies inline exactly as it
+did before, and pays the old cost. If that proves wrong the change is still local:
+the pass would run in a fresh session under the assigned-session contract, and the
+loop that drives it would not move.
 
 **Two of these are a person's, and three exist for the harness.** `sleep:
 on|off` turns the pass off, and `sleep-after` is how long a node agent is left
