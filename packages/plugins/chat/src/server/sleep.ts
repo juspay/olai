@@ -293,6 +293,59 @@ export const makeSleeper = (
      * read it would find its own last sleep and never sleep again
      * (`@olai/format`'s `changedUnder`).
      */
+    /**
+     * ONE NODE'S ANSWER — WHEN IT WILL SLEEP AND WHY NOT, the whole of what the
+     * strip under a conversation says and the whole of what the loop picks with.
+     *
+     * SPLIT OUT OF THE LOOP so that it CAN have two consumers: the loop picks
+     * with it today, and the strip under a conversation will say what it says
+     * tomorrow — a strip that re-derived the rule from the memo, the standing and
+     * the stamps would be a second opinion about when a node is due, and the two
+     * would disagree the first time either moved.
+     *
+     * PURE OVER WHAT IT IS HANDED — `now` is an argument and the reading is a
+     * parameter — so a bench can hold the whole table of answers without a
+     * server.
+     *
+     * `due` CARRIES THE INSTANT, which is not decoration: a node whose idle
+     * window has not run out is not a candidate yet, and the instant is what the
+     * loop declines to act on until.
+     */
+    const judge = (
+      agent: NodeAgent,
+      now: number,
+      live: ReadonlyMap<string, LiveSession>,
+      derived: Derived,
+    ): Forecast => {
+      const lastSlept = doors.sleptAt(agent.id)
+      const after = Duration.toMillis(doors.after)
+      const at = (next: Forecast["next"]): Forecast => ({ lastSlept, after, next })
+      if (agent.session === null) return at({ kind: "unbound" })
+      if (!doors.sleeps(agent.id)) return at({ kind: "unmarked" })
+      const failed = failures.get(agent.id)
+      if (failed !== undefined) {
+        if (now - failed < SKIP_MS) return at({ kind: "skipped", until: stampOf(new Date(failed + SKIP_MS)) })
+        failures.delete(agent.id)
+      }
+      const standing = live.get(agent.id)
+      if (busy(standing)) return at({ kind: "busy" })
+      // EVERY OTHER NODE AGENT IS A DOOR THIS PASS DOES NOT OPEN, and the set is
+      // the one `@olai/format`'s walks and the write door's fence are both handed
+      // (`othersOf`).
+      if (!changedUnder(derived, agent.id, lastSlept, othersOf(doors.nodes(), agent.id))) {
+        return at({ kind: "unchanged" })
+      }
+      // QUIET FOR `sleep-after`: the conversation's own idle instant where there
+      // is one, and a `since` this reading cannot place costs the conversation's
+      // half of the test and nothing else (a rule whose failure mode is "never"
+      // is worse than one that falls back).
+      const since = standing?.since
+      const idleAt = since === undefined ? Number.NaN : Date.parse(since)
+      const dueAt = Number.isNaN(idleAt) ? now : idleAt + after
+      return at({ kind: "due", at: stampOf(new Date(Math.max(now, dueAt))) })
+    }
+
+    /** THE FIRST NODE THAT IS DUE NOW, with the sets its pass is handed. */
     const candidate = (): Effect.Effect<
       { readonly agent: NodeAgent; readonly files: ReadonlySet<string>; readonly others: ReadonlySet<string> } | null
     > =>
@@ -303,38 +356,12 @@ export const makeSleeper = (
         const live = doors.live()
         const roster = doors.nodes()
         const now = yield* Clock.currentTimeMillis
-        const after = Duration.toMillis(doors.after)
         for (const agent of roster) {
-          if (agent.session === null) continue
-          if (!doors.sleeps(agent.id)) continue
-          if (skipped(agent.id, now)) continue
-          const standing = live.get(agent.id)
-          if (busy(standing)) continue
-          // QUIET FOR `sleep-after`, and BOTH READINGS OF QUIET ARE ASKED. The
-          // conversation's own idle instant where there is one — how long since
-          // this agent last stopped working — and the memory's newest stamp
-          // always, because those are different facts: a person editing this
-          // subtree in the outline at 22:00 while the agent has been idle since
-          // 14:00 is a node nobody should be tidying.
-          //
-          // A `since` this reading cannot place — absent, or not a date — costs
-          // the CONVERSATION's half of the test and nothing else. It used to
-          // disqualify the node for ever, which is a state nothing could leave:
-          // the scheduler always sets `since` at acquisition and on every status
-          // change, so the arm is unreachable in a serve, and a rule whose
-          // failure mode is "never" is worse than one that falls back.
-          const since = standing?.since
-          if (since !== undefined) {
-            const at = Date.parse(since)
-            if (!Number.isNaN(at) && now - at < after) continue
-          }
-          // EVERY OTHER NODE AGENT IS A DOOR THIS PASS DOES NOT OPEN, and the
-          // set is the one `@olai/format`'s walks and the write door's fence are
-          // both handed (`othersOf`): a subtree with another agent seated in it
-          // would otherwise have each sleep re-stamp the other for ever.
+          const next = judge(agent, now, live, derived).next
+          // DUE NOW AND NOT MERELY SOONER OR LATER: the instant is the idle
+          // window's end, and a node still inside it is not a candidate.
+          if (next.kind !== "due" || Date.parse(next.at) > now) continue
           const others = othersOf(roster, agent.id)
-          if (changedUnder(derived, agent.id, stampOf(new Date(now - after)), others)) continue
-          if (!changedUnder(derived, agent.id, doors.sleptAt(agent.id), others)) continue
           return { agent, files: memoryFiles(derived, agent.id, others), others }
         }
         return null
