@@ -19,6 +19,7 @@
 import {
   armedOn,
   type How,
+  type Lock,
   type Pending,
   type Reason,
   type RepoState,
@@ -26,6 +27,8 @@ import {
 } from "@olai/format"
 import type { GitState } from "@olai/format"
 import type { BarStatus, BarTone } from "olai-plugin-layout/slots"
+
+import { agoOf } from "@olai/web/client/ago.ts"
 
 /**
  * Which of the eight things the pill is saying right now.
@@ -279,6 +282,39 @@ export const DETAIL: Readonly<Record<Face, string>> = {
 }
 
 /**
+ * WHAT A GIT LOCK FILE IN THE WAY IS CALLED, and how long it has been there.
+ *
+ * ONE SENTENCE for the two places it is drawn, and the AGE is optional because
+ * the two readers differ: the panel has a ticking clock
+ * (`@olai/web/client/ago.ts`) and phrases the age against that, while the
+ * header pill re-reads when the DIRECTORY changes and not on the minute — an
+ * age on it would freeze, which is the "12m ago for four hours" `agoOf` exists
+ * to prevent. `null` is the pill's case: no clock to phrase this against.
+ */
+export const lockSays = (since: number, now: number | null): string =>
+  `A git lock file is in the way${
+    now === null ? "" : ` (left ${agoOf(since, now)})`
+  }. If no git command is running, remove it and retry.`
+
+/**
+ * ... AND WHAT A REMOVAL THAT WAS TOO EARLY TO MAKE GETS — the one answer the
+ * unlock button can be refused with, in the words of the guard that refused it:
+ * the lock is younger than a git command's own budget, so it may belong to a
+ * git that is still writing.
+ *
+ * No age on it: the guard rewrites the age on the sentence above, so a second
+ * one here could only contradict it.
+ */
+export const LOCK_HELD =
+  "A git process may still be writing; try again in a moment."
+
+/** The lock file that stopped the last commit, or `null` — the companion of
+ *  {@link commitRefused}, gated the same way so the two cannot come to disagree
+ *  about whether there was a fault at all. */
+export const lockRefused = (git: GitState): Lock | null =>
+  git.status === "error" ? git.lock : null
+
+/**
  * The whole sentence, for the one face being worn.
  *
  * Three of the eight have something the table cannot hold: the fault carries
@@ -291,6 +327,11 @@ export const explain = (face: Face, pending: Pending, git: GitState): string =>
 const sentence = (face: Face, pending: Pending, git: GitState): string => {
   switch (face) {
     case "error": {
+      // A LOCK FILE is the one fault with a gesture behind it, so it gets
+      // olai's sentence rather than git's paragraph — which is a `fatal:` line
+      // naming a path and telling nobody what to do about it. The AGE is on the
+      // panel's copy alone: this reading has no clock (see {@link lockSays}).
+      if (git.lock !== null) return lockSays(git.lock.since, null)
       // The cell's words first — they are the remembered refusal, which is the
       // half a survey cannot see — and the survey's own as the fallback.
       const words = git.said === null || git.said === ""

@@ -27,7 +27,7 @@ import { NodeServices } from "@effect/platform-node"
 import { DEFAULT_POLICY, NO_KINDS, Writer } from "@olai/format"
 import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
-import { Effect, type Scope } from "effect"
+import { Cause, Effect, Exit, type Scope } from "effect"
 
 import { codecFor } from "@olai/ops"
 import type { Reading, Verdict } from "@olai/format"
@@ -52,7 +52,7 @@ const HOUSE = [
 
 type GitOps = Ops.Ops & Pick<
   Committing,
-  "pending" | "waiting" | "status" | "observe" | "hold" | "loop" | "git" | "catchUp"
+  "pending" | "waiting" | "status" | "observe" | "hold" | "loop" | "git" | "catchUp" | "unlock"
 >
 
 interface Fixture {
@@ -190,6 +190,7 @@ const withRepo = <A>(
       loop: ledger.loop,
       git: ledger.git,
       catchUp: ledger.catchUp,
+      unlock: ledger.unlock,
     }
     return yield* use({
       ops,
@@ -1128,6 +1129,163 @@ describe("a repository that cannot take a commit", () => {
         // resolution; now the resolution is still there to be finished.
         expect(subjects(fixture)[0]).not.toStartWith("olai:")
       })))
+})
+
+/**
+ * THE STALE LOCK FILE — the one refusal a person can clear without a terminal.
+ *
+ * git refuses every write in a repository while `index.lock` exists, and it
+ * removes that file on the way out of every exit it CONTROLS — not out of a
+ * killed process, a full disk, or a machine that went down mid-write. What is
+ * left refuses olai's commits for ever, with git's own words and no way past
+ * them from the panel; `unlock` is the way past.
+ *
+ * The two things it must get right are here: the git CELL carries the file
+ * (which is what the panel draws a button beside), and the refusal — and the
+ * pause it left — are cleared on exactly the two answers that mean the file is
+ * not in the way any more.
+ *
+ * A lock does NOT stop the SURVEY: `git status` answers happily with one in
+ * place, so what is waiting is still listed and the panel has something to
+ * commit once the file is gone. Only the write verbs refuse.
+ */
+describe("the stale lock file", () => {
+  /** An old lock in the served repository — old enough that the guard lets it
+   *  go, which is the case this feature exists for. */
+  const staleLock = (fixture: Fixture): string => {
+    const at = path.join(fixture.root, ".git", "index.lock")
+    fs.writeFileSync(at, "")
+    const stamp = (Date.now() - 10 * 60_000) / 1000
+    fs.utimesSync(at, stamp, stamp)
+    return at
+  }
+
+  test("a refusal over a lock puts the file on the cell, and unlock removes it and clears it", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+        yield* fixture.refresh
+        const lock = staleLock(fixture)
+
+        const refused = yield* fixture.ops.commit({}, "web")
+        expect(refused._tag).toBe("Failed")
+        // The FILE rides the answer, so a caller need not parse git's prose.
+        expect(refused._tag === "Failed" ? refused.lock?.since : undefined).toBeNumber()
+
+        // ... and the cell carries both halves, which is what the panel draws
+        // from: the sentence, and the lock a button can act on.
+        const before = yield* fixture.ops.git
+        expect(before.status).toBe("error")
+        expect(before.said).toContain("index.lock")
+        expect(before.lock).not.toBe(null)
+
+        const settlements = fixture.settlements()
+        expect(yield* Effect.orDie(fixture.ops.unlock)).toEqual({ _tag: "Removed" })
+        expect(fs.existsSync(lock)).toBe(false)
+        // The republish, which is the whole of how the panel hears about it.
+        yield* fixture.settled(settlements)
+        const after = yield* fixture.ops.git
+        expect(after.status).toBe("repo")
+        expect(after.said).toBe(null)
+        expect(after.lock).toBe(null)
+
+        // ONE PRESS RECOVERS: the commit it was refused is made now.
+        expect((yield* fixture.ops.commit({ message: "the lock is gone" }, "web"))._tag)
+          .toBe("Committed")
+        expect(subjects(fixture)[0]).toBe("olai: the lock is gone")
+
+        // ... and pressing again is `Absent`, which clears the same nothing.
+        expect(yield* Effect.orDie(fixture.ops.unlock)).toEqual({ _tag: "Absent" })
+        expect((yield* fixture.ops.git).status).toBe("repo")
+      })))
+
+  test("unlock on a lock a git process may still be writing rewrites the age on the cell", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+        yield* fixture.refresh
+        // The refusal is recorded against an OLD lock — which is the state the
+        // panel is drawn in when somebody left a stale file and a git then
+        // touched it again.
+        const lock = staleLock(fixture)
+        expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Failed")
+        const before = yield* fixture.ops.git
+        expect(before.lock?.since).toBeLessThan(Date.now() - 60_000)
+
+        // ... and now it is FRESH: younger than a git command's own budget, so
+        // the guard will not touch it and answers with the stamp it saw.
+        const fresh = (Date.now() - 1_000) / 1000
+        fs.utimesSync(lock, fresh, fresh)
+        const settlements = fixture.settlements()
+
+        expect((yield* Effect.orDie(fixture.ops.unlock))._tag).toBe("Held")
+
+        // NOTHING CLEARED — the file is still in the way, so the refusal is
+        // still true and the button is still the answer...
+        expect(fs.existsSync(lock)).toBe(true)
+        expect((yield* fixture.ops.git).status).toBe("error")
+        // ... AND THE AGE MOVED, on the CELL. Two ages for one file on one
+        // screen is a contradiction a reader has to resolve, and the cell is
+        // the copy every tab and every reload reads.
+        yield* fixture.settled(settlements)
+        const after = yield* fixture.ops.git
+        expect(after.lock?.since ?? 0).toBeGreaterThan(Date.now() - 10_000)
+        // ... and it is the FRESHER of the two, not the stamp the refusal was
+        // recorded against.
+        expect(after.lock?.since ?? 0).toBeGreaterThan(before.lock?.since ?? 0)
+      })))
+
+  test("an unlock that could not remove the file fails, and clears nothing", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        // Root ignores the mode, so the test skips there.
+        if (typeof process.getuid === "function" && process.getuid() === 0) return
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+        yield* fixture.refresh
+        const lock = staleLock(fixture)
+        expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Failed")
+
+        const dir = path.dirname(lock)
+        fs.chmodSync(dir, 0o500)
+        const settlements = fixture.settlements()
+        const failed = yield* Effect.exit(fixture.ops.unlock)
+        fs.chmodSync(dir, 0o700)
+
+        // A FAILURE and not one of the three arms: the file is still there, so
+        // any answer would have to claim otherwise — and `Absent` would clear
+        // the refusal on the way past, leaving the panel to retry into the same
+        // refusal with nothing on screen saying why. The errno's own words are
+        // what the button draws beside itself.
+        expect(Exit.isFailure(failed)).toBe(true)
+        const why = Exit.isFailure(failed) ? Cause.squash(failed.cause) : undefined
+        expect((why as Error | undefined)?.message ?? "").toContain("permission denied")
+        // NOTHING CLEARED, and nothing republished.
+        expect(fs.existsSync(lock)).toBe(true)
+        expect((yield* fixture.ops.git).status).toBe("error")
+        expect((yield* fixture.ops.git).lock).not.toBe(null)
+        expect(fixture.settlements()).toBe(settlements)
+      })))
+
+  test("unlock clears the pause the refusal left, so auto-commit is armed again", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+        yield* fixture.refresh
+        const lock = staleLock(fixture)
+
+        // Under `commit: auto` a refused commit STOPS the loop, which is the
+        // second thing the refusal leaves behind.
+        expect((yield* fixture.ops.commit({}, "web"))._tag).toBe("Failed")
+        const before = yield* fixture.ops.git
+        expect(before.paused).not.toBe(null)
+        expect(before.lock).not.toBe(null)
+
+        expect((yield* Effect.orDie(fixture.ops.unlock))._tag).toBe("Removed")
+        const after = yield* fixture.ops.git
+        expect(after.paused).toBe(null)
+        expect(after.lock).toBe(null)
+        expect(after.status).toBe("repo")
+      }), { commits: "auto" }))
 })
 
 describe("the agent's door", () => {

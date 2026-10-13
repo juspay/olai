@@ -1,6 +1,6 @@
 /**
  * GIT'S SERVER HALF — the plumbing, what is waiting, the quiet-window loop,
- * and the three verbs, as a row.
+ * and the four verbs, as a row.
  *
  * `@olai/server`'s `runtime.ts` held the git cells, the three clocks that
  * republish them, and `gitWiring`. They are here now. Core defines a Ledger
@@ -148,6 +148,7 @@ export default definePlugin({
             commit: ({ input }) => commits.commit(input, "web"),
             push: () => commits.push,
             resume: () => Effect.as(commits.resume, {}),
+            unlock: () => commits.unlock,
           },
         },
       } satisfies ImplementSurfaceDeps<typeof surface.spec>,
