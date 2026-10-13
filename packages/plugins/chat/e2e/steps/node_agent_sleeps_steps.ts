@@ -151,10 +151,14 @@ When("I narrow the window to a phone's width", async function (this: OlaiWorld) 
 
 Then("the standing line has wrapped", async function (this: OlaiWorld) {
   const box = await line(this).evaluate((node, wakeId) => {
-    // THE CHILD IS FOUND BY ITS ATTRIBUTE rather than by a selector built in a
-    // step: `packages/tests/selectors.test.ts` holds that line, and a step is
-    // where it is easiest to cross it.
-    const children = [...node.children] as Array<HTMLElement>;
+    // THE ITEMS ARE THE LINE'S OWN CHILDREN, which is the `<p>` inside the
+    // section: the sleep item first, then the wake group. Each is found BY ITS
+    // ATTRIBUTE rather than by a selector built in a step —
+    // `packages/tests/selectors.test.ts` holds that line, and a step is where it
+    // is easiest to cross it.
+    const items = node.querySelector("p");
+    if (items === null) return { sleep: null, wake: null };
+    const children = [...items.children] as Array<HTMLElement>;
     const first = children[0] ?? null;
     const wake = children.find((one) => one.getAttribute("data-testid") === wakeId) ?? null;
     return {
