@@ -1640,7 +1640,13 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       // reason: the refusal's own sentence is the assertion, and an olai tool's
       // result is not drawn into the call's detail (`chat/src/agent.ts`'s
       // `detailOf`), so the words have to come back as prose to be read.
-      say([JSON.stringify(refused), JSON.stringify(opted)].join("\n"))
+      //
+      // ONE MESSAGE EACH, and that is the scenario's business rather than
+      // tidiness: two long results in one row is one row whose prose a reader —
+      // or an assertion — sees the front of, and the sentence about the second
+      // key has to be in the text a scenario can read.
+      say(JSON.stringify(refused))
+      say(JSON.stringify(opted))
       reply(id, { stopReason: "end_turn" })
       return
     }
