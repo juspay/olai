@@ -553,10 +553,19 @@ export const TESTID = {
    *  file a person pointed it at. Absent where there is no conversation to be
    *  scoped, which is the roster strip's own rule. */
   chatWake: "chat-wake",
-  /** THE OPT-IN'S OWN STRIP, drawn beside the wake one in the same bar: whether
-   *  olai tidies this chat's memory on its own clock at all. Chat's own, per
-   *  node, and already a vault property — not a plugin face, which is why it is
-   *  a sibling strip rather than a row in that one (`Sleeping.tsx` argues it). */
+  /** THE LINE UNDER THE TOOLS ROSTER: what this conversation has STANDING that
+   *  is not a tool — whether olai tidies its memory on its own clock, and what
+   *  may ring it — as one wrapping line rather than one bordered strip each
+   *  (`Strips.tsx` argues it). Exactly one of these per conversation, and
+   *  absent when there is nothing to put on it. */
+  chatStanding: "chat-standing",
+  /** THE SLEEP ITEM ON THAT LINE: `Sleep`, the switch, when this chat last slept
+   *  and when it will next. Chat’s own, per node, and already a vault property —
+   *  not a plugin face, which is why it is an item beside them rather than one of
+   *  them (`Sleeping.tsx` argues it). `data-next` is the state as DATA (the
+   *  forecast’s own `kind`) and `data-last` is the memo’s instant where there is
+   *  one, because the words around them are a sentence a scenario should not be
+   *  asserting. */
   chatSleeping: "chat-sleeping",
   /** ...and the switch on it: a `role="switch"` whose text is `On`/`Off` and
    *  whose `aria-checked` is the mark, so a scenario reads the state as DATA. A

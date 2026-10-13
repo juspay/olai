@@ -1,56 +1,79 @@
 /**
- * THE OPT-IN AS A STRIP OF ITS OWN — whether olai tidies this chat's memory on
- * its own clock, under the conversation where a person looks for what it does
- * without being asked.
+ * THE OPT-IN AS AN ITEM ON THE STANDING LINE — whether olai tidies this chat’s
+ * memory on its own clock, under the conversation where a person looks for what
+ * it does without being asked.
  *
- * ITS OWN COMPONENT, AND NOT A ROW INSIDE {@link ./Wake.tsx}, because the two are
- * different things wearing the same bar: that one is other plugins' faces hung
- * through
- * the `conversation.wake` slot, with chat persisting each face's per-session
- * pick, and this one is CHAT'S OWN, per NODE, already persisted as a vault
- * property (`chat-agent-sleep`). One is a doorbell somebody else rang; the other
- * is whether olai rings at all. Braiding them would make a plugin's wake and
- * chat's own mark one component that changes for two unrelated reasons — and the
- * pick store is not this mark's home: the vault is, and this keeps nothing but
- * the refusal a press may come back with.
+ * ITS OWN COMPONENT, AND NOT A FACE HUNG THROUGH THE WAKE SLOT
+ * ({@link ./Wake.tsx}), because the two are different things wearing the same
+ * line: that one is other plugins’ faces, with chat persisting each face’s
+ * per-session pick, and this one is CHAT’S OWN, per NODE, already persisted as a
+ * vault property (`chat-agent-sleep`). One is a doorbell somebody else rang; the
+ * other is whether olai rings at all. Braiding them would make a plugin’s wake
+ * and chat’s own mark one component that changes for two unrelated reasons — and
+ * the pick store is not this mark’s home: the vault is, and this keeps nothing
+ * but the refusal a press may come back with.
  *
- * It is drawn in {@link ./Strips.tsx} beside the wake strip, in the same classes
- * and the same shape a plugin's own switch uses (a label, a rule, a
- * `role="switch"`, a refusal in a `role="alert"`), so the bar reads as one; the
- * wake strip keeps its own rule — no hung faces, no strip — exactly as it was.
+ * IT IS AN ITEM, NOT A STRIP: the bar is drawn once ({@link ./Standing.tsx}) and
+ * this is the first thing on it, in the same classes a plugin’s own switch uses
+ * (a label, a rule, a `role="switch"`, a refusal in a `role="alert"`), so the
+ * line reads as one. Its `aria-label` is its own — a screen reader told that the
+ * sleep item is "Alerts" would be told that olai tidying a memory on a schedule
+ * is an alarm, which it is the opposite of.
  */
 
 import { Result } from "effect"
-import { createMemo, createSignal, Show } from "solid-js"
-import { agentIn } from "../../wire.ts"
+import { createMemo, createSignal, For, Show } from "solid-js"
 import { runAsync } from "@olai/web/client/run.ts"
 import { agentReadings } from "../agents/reading.ts"
 import { chatWire } from "../wire.ts"
 import { TESTID } from "../../testids.ts"
+import { createNow } from "./elapsed.ts"
 import type { Chat } from "./state.ts"
-import { nodeAgentOf, sleepWords } from "./sleeping.ts"
+import { addressOf, nodeAgentOf, saidOf, sameAddress, sleepWords } from "./sleeping.ts"
 
 export function Sleeping(props: { readonly chat: Chat }) {
-  const to = createMemo(() => {
-    const state = props.chat.state()
-    const agent = agentIn(state)
-    return agent && state.session ? { agent: agent.id, session: state.session.id } : undefined
-  }, undefined, { equals: (before, after) => before?.agent === after?.agent && before?.session === after?.session })
+  const to = createMemo(() => addressOf(props.chat.state()), undefined, { equals: sameAddress })
   const row = createMemo(() => nodeAgentOf(agentReadings()?.agents.rows() ?? [], to()))
   const [problem, setProblem] = createSignal<string>()
+  // THE STRIP’S OWN CLOCK, at the resolution the phrases need ({@link ./elapsed.ts}),
+  // and it runs only while this item is on screen — which is what `Standing`’s
+  // own gate buys: a conversation with no node agent costs a tab nothing.
+  const now = createNow(() => true)
   return <Show when={row()}>{(held) => {
-    const on = () => held().sleeps
-    return <section class="relative shrink-0 border-b border-rule/60 bg-panel px-3 py-1.5 text-caption leading-snug" data-testid={TESTID.chatSleeping} aria-label="Alerts">
-      <p class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span class="text-muted">Sleep when idle</span><span aria-hidden="true" class="text-muted">·</span>
+    const said = () => saidOf(held().sleep, now())
+    const on = () => said().on ?? held().sleeps
+    return <span
+      class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
+      data-testid={TESTID.chatSleeping}
+      role="group"
+      aria-label="Sleep"
+      // THE STATE AS DATA, for the same reason the wake picker’s is: the words
+      // around it are a sentence, and a scenario asserting that would be
+      // asserting the phrasing rather than the fact.
+      data-next={said().kind}
+      data-last={held().sleep?.lastSlept ?? undefined}
+      // THE WHOLE SENTENCE, rhythm and all, where a person hovers.
+      title={said().title}
+    >
+      <span class="text-muted">Sleep</span>
+      <span aria-hidden="true" class="text-muted">·</span>
+      <Show when={said().on === null} fallback={
         <button type="button" role="switch" aria-label="Sleep when idle" aria-checked={on()} data-testid={TESTID.chatSleepSwitch} onClick={() => {
           setProblem(undefined)
           void runAsync(chatWire().procedures.conversation.setSleeping({ node: held().id, on: !on() })).then(outcome => {
             if (Result.isFailure(outcome)) setProblem(outcome.failure.message)
           })
         }}>{sleepWords(on())}</button>
-        <Show when={problem()}><span role="alert">{problem()}</span></Show>
-      </p>
-    </section>
+      }>
+        {/* NO SWITCH, because the answer is in a file this browser cannot write:
+            `sleep` is off in the directory’s settings. */}
+        <span class="text-muted">off in Settings</span>
+      </Show>
+      <For each={said().said}>{(part) => <>
+        <span aria-hidden="true" class="text-muted">·</span>
+        <span class="text-muted">{part}</span>
+      </>}</For>
+      <Show when={problem()}><span role="alert">{problem()}</span></Show>
+    </span>
   }}</Show>
 }

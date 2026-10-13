@@ -14,15 +14,13 @@
 
 import { Plan } from "./Plan.tsx"
 import { Roster } from "./Roster.tsx"
-import { Sleeping } from "./Sleeping.tsx"
+import { Standing } from "./Standing.tsx"
 import type { Chat } from "./state.ts"
-import { Wake } from "./Wake.tsx"
 import { Watching } from "./Watching.tsx"
 
 export function Strips(props: { readonly chat: Chat }) {
-  // ...AND SLEEPING FIRST OF THE TWO, because it is the answer the other one
-  // depends on: whether this chat is tidied at all is what decides whether a
-  // wake can be acted on. They are separate components and separate strips
-  // ({@link ./Sleeping.tsx} argues why) that happen to share a bar.
-  return <><Plan chat={props.chat} /><Roster chat={props.chat} /><Watching chat={props.chat} /><Sleeping chat={props.chat} /><Wake chat={props.chat} /></>
+  // ...AND STANDING LAST, because it is the one line the per-conversation marks
+  // share: sleep first on it, the wake faces after ({@link ./Standing.tsx}
+  // argues why the two are items of one bar rather than a strip each).
+  return <><Plan chat={props.chat} /><Roster chat={props.chat} /><Watching chat={props.chat} /><Standing chat={props.chat} /></>
 }
