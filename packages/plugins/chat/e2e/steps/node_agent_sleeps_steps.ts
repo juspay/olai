@@ -88,12 +88,21 @@ const under = (world: OlaiWorld, node: string): ReadonlySet<string> => {
  * (year to seconds, plus the offset it was taken at), and a fixture that spelled
  * one with MILLISECONDS would be comparing `:44.900` with olai's own `:44` — so a
  * row stamped in the same second as the memo that followed it reads as NEWER than
- * that memo, and stays "moved" for ever. With `sleep-after` at a millisecond in
- * these scenarios, the pass really does end inside the move's own second: the
- * symptom was a node that read `little` one row short of the floor immediately
- * after being tidied. One spelling of a stamp, and it is the product's.
+ * that memo, and stays "moved" for ever. One spelling of a stamp, and it is the
+ * product's.
+ *
+ * ...AND STRICTLY AFTER THE MEMO, which is the same precision cutting the other
+ * way: a move a moment after a pass spells the SAME stamp that pass left behind,
+ * and the rule counts only what is NEWER than the memo — so the row does not count
+ * as moved at all, and a scenario about the floor reads `unchanged` where it wants
+ * `little`. With `sleep-after` at a millisecond these scenarios really do end
+ * inside the memo's own second. So a stamp taken after a pass is the memo's second
+ * plus one: at most a second ahead of the clock, and exactly what the step means.
  */
-const movedAt = (): string => stampOf(new Date());
+const movedAt = (memo?: string): string => {
+  const next = memo === undefined ? Number.NaN : Date.parse(memo) + 1_000;
+  return stampOf(new Date(Number.isNaN(next) ? Date.now() : Math.max(Date.now(), next)));
+};
 
 /** Stamp the rows under a node the caller picked, at one instant it names — ONE
  *  instant, because "has this row moved yet" is asked of it below and two calls
@@ -139,10 +148,14 @@ Given("the memory under {string} has moved", function (this: OlaiWorld, node: st
  * would be a move the rule deliberately does not count.
  */
 Given("one row under {string} has moved", function (this: OlaiWorld, node: string) {
-  const at = movedAt();
   const rows = this.servedNodes(FILE);
   const below = under(this, node);
   const memo = memoOf(this, node);
+  // STRICTLY AFTER THE MEMO, which is what the step means: see `movedAt`. The
+  // untouched clause below reads that same memo, so a row that has moved since the
+  // last sleep is never picked twice — even when the move was milliseconds after a
+  // pass that ended in the same second.
+  const at = movedAt(typeof memo === "string" ? memo : undefined);
   const untouched = (row: Record<string, unknown>): boolean => {
     const changed = row["changed"];
     if (changed === undefined) return true;
