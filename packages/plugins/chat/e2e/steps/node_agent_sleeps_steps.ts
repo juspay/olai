@@ -55,24 +55,79 @@ const memoOf = (world: OlaiWorld, node: string): unknown =>
  * subtree nobody has ever written to is a subtree the pass correctly leaves
  * alone. So the scenario writes one, the way a day of real work would have.
  */
-Given("the memory under {string} has moved", function (this: OlaiWorld, node: string) {
-  const id = this.nodeId(node);
-  const under = new Set<string>([id]);
-  // The subtree, resolved off the file: a row is under the node when its parent
-  // chain reaches it. A few passes, because a child may be met before its
-  // parent — and the corpus is three rows deep at most.
+/** THE SUBTREE UNDER A NODE, off the served file: a row is under it when its
+ *  parent chain reaches it. A few passes, because a child may be met before its
+ *  parent — and the corpus is three rows deep at most. */
+const under = (world: OlaiWorld, node: string): ReadonlySet<string> => {
+  const id = world.nodeId(node);
+  const below = new Set<string>([id]);
   for (let round = 0; round < 4; round++) {
-    for (const row of this.servedNodes(FILE)) {
+    for (const row of world.servedNodes(FILE)) {
       const parent = row["parent"];
-      if (typeof parent === "string" && under.has(parent)) under.add(String(row["id"]));
+      if (typeof parent === "string" && below.has(parent)) below.add(String(row["id"]));
     }
   }
-  const moved = this.servedNodes(FILE).map((row) =>
-    under.has(String(row["id"])) && row["id"] !== id
-      ? { ...row, changed: "2026-10-01T09:00:00+00:00" }
-      : row,
+  return below;
+};
+
+/**
+ * WHEN A MOVED ROW MOVED — THE READER'S OWN CLOCK, and not a fixed date, which is
+ * the one thing this fixture changed when the pressure rule arrived.
+ *
+ * `the memory under … has moved` used to stamp every row at `2026-10-01`, which
+ * was a past date the rule did not care about while a pass needed only "something
+ * moved". It cares now: the third way to be due is a moved row OLDER than
+ * `sleep-latest`, and a stamp from last October is older than any sensible
+ * backstop — so every scenario would be due by that clause, and the state a
+ * scenario about the floor wants to read (`little`) would never be reachable at
+ * all. Stamped at now, a moved row is younger than the week the fast policy
+ * waits, and the backstop is what the unit table holds instead.
+ */
+const movedAt = (): string => new Date().toISOString().replace("Z", "+00:00");
+
+/** Stamp the rows under a node the caller picked, at one instant it names — ONE
+ *  instant, because "has this row moved yet" is asked of it below and two calls
+ *  to the clock would leave a row that had just moved looking unmoved. */
+const stampUnder = (
+  world: OlaiWorld,
+  node: string,
+  at: string,
+  picked: (row: Record<string, unknown>) => boolean,
+): void => {
+  const id = world.nodeId(node);
+  const below = under(world, node);
+  const rows = world.servedNodes(FILE);
+  const moved = rows.map((row) =>
+    below.has(String(row["id"])) && row["id"] !== id && picked(row) ? { ...row, changed: at } : row,
   );
-  this.writeServed(FILE, moved.map((row) => JSON.stringify(row)).join("\n"));
+  world.writeServed(FILE, moved.map((row) => JSON.stringify(row)).join("\n"));
+};
+
+Given("the memory under {string} has moved", function (this: OlaiWorld, node: string) {
+  stampUnder(this, node, movedAt(), () => true);
+});
+
+/**
+ * ONE ROW, AND ONE THAT HAS NOT MOVED YET — so calling this twice is TWO moved
+ * rows, which is what a scenario about the floor has to say. The node's own
+ * record is never stamped: the memo lives on it, and a write there would be a
+ * move the rule deliberately does not count.
+ */
+Given("one row under {string} has moved", function (this: OlaiWorld, node: string) {
+  const at = movedAt();
+  const rows = this.servedNodes(FILE);
+  const below = under(this, node);
+  const next = rows.find((row) =>
+    below.has(String(row["id"])) && row["id"] !== this.nodeId(node) && row["changed"] !== at);
+  assert.ok(next !== undefined, `every row under ${node} has already moved in this scenario`);
+  stampUnder(this, node, at, (row) => row === next);
+});
+
+/** ...AND WHAT THE ITEM SAYS, for the states whose point is the sentence rather
+ *  than the state: a floor is only visible as "1 of 2 rows". */
+Then("the sleep item mentions {string}", async function (this: OlaiWorld, words: string) {
+  const said = await item(this).innerText();
+  assert.ok(said.includes(words), `the sleep item should mention ${words}: ${said}`);
 });
 
 /** THE ITEM ON THE STANDING LINE, addressed by the plugin's own testid — the

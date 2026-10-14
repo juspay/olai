@@ -376,3 +376,32 @@ Feature: A node agent tidies its own memory when nobody is looking
     And the sleep item has a memo
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
     And olai has recorded 1 commit here
+
+  @sleep-fast @scratch:chat @git:repo
+  Scenario: Too few rows is not a sleep, and the line says so
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "house.olai"
+    When I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    When I switch sleep when idle on for this conversation
+    # A PASS FIRST, so this node HAS a memo: the first tidy of a store that has
+    # never had one is due on a single moved row by design — that is what
+    # switching the pass on for old memory is for — and this scenario is about
+    # every pass AFTER that one.
+    When I press Sleep now on the strip
+    Then the node agent "install" has been tidied
+    And node "install" carries the sleep memo
+    # ONE ROW IS NOT PRESSURE: the fast policy's floor is two, so the loop leaves
+    # this node alone and the line says so — how many rows moved, and what the
+    # floor is, because "not being tidied" and "nothing to tidy" look the same
+    # otherwise.
+    When one row under "install" has moved
+    Then the sleep item says "little"
+    And the sleep item mentions "1 of 2 rows"
+    # ...AND A SECOND ROW IS: the loop takes it on its next look, and the instant
+    # the item names closes with it. `due` is a window of one tick here, which is
+    # why the step that reads it polls from inside the page.
+    When one row under "install" has moved
+    Then the sleep item says "due"
+    Then the node agent "install" has been tidied
+    And olai has recorded 2 commits here

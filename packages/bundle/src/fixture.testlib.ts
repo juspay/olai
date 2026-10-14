@@ -17,7 +17,17 @@ export interface FixturePolicy {
   /** The chat row's own spans for the sleep pass, when a scenario cannot wait
    *  six hours for one (`@sleep-fast`). The same three words a person writes in
    *  `_olai/Settings.olai`, because that is the only door they have. */
-  readonly sleep?: { readonly after: string; readonly tick: string; readonly question: string; readonly limit: string }
+  readonly sleep?: {
+    readonly after: string
+    readonly tick: string
+    readonly question: string
+    readonly limit: string
+    /** HOW MANY MOVED ROWS MAKE A PASS WORTH IT (`sleep-floor`), and how long one
+     *  may wait (`sleep-latest`) — the pressure half of the due-ness rule, which
+     *  a scenario sets so that a pass happens on two rows instead of five. */
+    readonly floor: string
+    readonly latest: string
+  }
   /** The pass turned off IN THE FILE, at boot (`@sleep-off`) — rather than
    *  written into a running serve, which would test the setting's re-application
    *  instead of the pass being absent. */
@@ -60,6 +70,8 @@ export const writeFixturePolicy = (root: string, policy: FixturePolicy): void =>
     put("chat", "sleep-tick", policy.sleep.tick)
     put("chat", "sleep-question", policy.sleep.question)
     put("chat", "sleep-limit", policy.sleep.limit)
+    put("chat", "sleep-floor", policy.sleep.floor)
+    put("chat", "sleep-latest", policy.sleep.latest)
   }
   put("chat", "sleep", policy.sleepOff === true ? "off" : undefined)
   if (changed) {
