@@ -91,18 +91,12 @@ const under = (world: OlaiWorld, node: string): ReadonlySet<string> => {
  * that memo, and stays "moved" for ever. One spelling of a stamp, and it is the
  * product's.
  *
- * ...AND STRICTLY AFTER THE MEMO, which is the same precision cutting the other
- * way: a move a moment after a pass spells the SAME stamp that pass left behind,
- * and the rule counts only what is NEWER than the memo — so the row does not count
- * as moved at all, and a scenario about the floor reads `unchanged` where it wants
- * `little`. With `sleep-after` at a millisecond these scenarios really do end
- * inside the memo's own second. So a stamp taken after a pass is the memo's second
- * plus one: at most a second ahead of the clock, and exactly what the step means.
+ * AND NEVER A STAMP IN THE FUTURE, which is why the step that has a memo to
+ * outrank WAITS for the clock to leave that memo's own second rather than writing
+ * the second after it: a row stamped ahead of the reader is not a row that moved,
+ * it is a row from tomorrow, and the reading is entitled to say so.
  */
-const movedAt = (memo?: string): string => {
-  const next = memo === undefined ? Number.NaN : Date.parse(memo) + 1_000;
-  return stampOf(new Date(Number.isNaN(next) ? Date.now() : Math.max(Date.now(), next)));
-};
+const movedAt = (): string => stampOf(new Date());
 
 /** Stamp the rows under a node the caller picked, at one instant it names — ONE
  *  instant, because "has this row moved yet" is asked of it below and two calls
@@ -147,15 +141,25 @@ Given("the memory under {string} has moved", function (this: OlaiWorld, node: st
  * The node's own record is never stamped: the memo lives on it, and a write there
  * would be a move the rule deliberately does not count.
  */
-Given("one row under {string} has moved", function (this: OlaiWorld, node: string) {
+Given("one row under {string} has moved", async function (this: OlaiWorld, node: string) {
+  const memo = memoOf(this, node);
+  // WAIT OUT THE MEMO'S OWN SECOND. olai stamps to the second, so a move a moment
+  // after a pass spells the SAME stamp that pass left — and the rule counts only
+  // what is NEWER than the memo, so the row would not count as moved at all and
+  // this scenario would read `unchanged` where it wants `little`. The alternative,
+  // writing the memo's second plus one, is a stamp from the FUTURE, which is not a
+  // move either. Waiting is the price of the product's own resolution, and these
+  // scenarios run on a millisecond quiet window, so it is the only cost.
+  if (typeof memo === "string") {
+    const past = Date.parse(memo) + 1_000;
+    while (Date.now() < past) await new Promise<void>((resolve) => setTimeout(resolve, 25));
+  }
   const rows = this.servedNodes(FILE);
   const below = under(this, node);
-  const memo = memoOf(this, node);
-  // STRICTLY AFTER THE MEMO, which is what the step means: see `movedAt`. The
-  // untouched clause below reads that same memo, so a row that has moved since the
-  // last sleep is never picked twice — even when the move was milliseconds after a
-  // pass that ended in the same second.
-  const at = movedAt(typeof memo === "string" ? memo : undefined);
+  // ...AND THE UNTOUCHED CLAUSE READS THAT SAME MEMO, so nothing that has moved
+  // since the last sleep is picked twice: the row a pass retitled carries that
+  // pass's own second, and is the first thing here to be moved.
+  const at = movedAt();
   const untouched = (row: Record<string, unknown>): boolean => {
     const changed = row["changed"];
     if (changed === undefined) return true;
