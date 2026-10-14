@@ -56,6 +56,7 @@ const HOUR = 3_600_000
 const forecast = (next: Forecast["next"], over: Partial<Forecast> = {}): Forecast => ({
   lastSlept: new Date(NOW - 3 * HOUR).toISOString(),
   after: 6 * HOUR,
+  floor: 5,
   next,
   ...over,
 })
@@ -74,7 +75,6 @@ test("the item says when it last slept, when it will next, and on what rhythm", 
   // switch, because the answer is in a file this browser cannot write.
   const off = saidOf(null, NOW)
   expect([off.kind, off.switch, off.said]).toEqual(["off", false, []])
-  expect(saidOf(forecast({ kind: "off" }), NOW).switch).toBe(false)
   // ...AND THE TITLE SAYS WHERE, which is the whole of what a person can do about
   // it.
   expect(off.title).toContain("sleep is off in _olai/Settings.olai")

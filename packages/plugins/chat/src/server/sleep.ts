@@ -204,6 +204,14 @@ export interface Sleeping {
   readonly warn: (line: string) => Effect.Effect<void>
   /** How long a node must have been left alone (`sleep-after`). */
   readonly after: Duration.Duration
+  /** HOW MANY ROWS MUST HAVE MOVED FOR A TIDY TO BE WORTH A TURN (`sleep-floor`)
+   *  — the pressure half of the due-ness rule, and the reason one edited row no
+   *  longer costs a whole pass. */
+  readonly floor: number
+  /** HOW LONG A MOVED ROW MAY WAIT (`sleep-latest`) — the backstop, so a
+   *  trickle still gets tidied and rows TUCK AWAY would archive eventually
+   *  reach the age it looks for. */
+  readonly latest: Duration.Duration
   /** How often the loop looks (`sleep-tick`, shortened in the harness). */
   readonly tick: Duration.Duration
   /** How long a turn may sit on an unanswered question (`sleep-question`). */
@@ -252,11 +260,12 @@ export const forecastOf = (
   live: ReadonlyMap<string, LiveSession>,
   derived: Derived,
   judged: Judged,
-  doors: Pick<Sleeping, "nodes" | "sleeps" | "sleptAt" | "after">,
+  doors: Pick<Sleeping, "nodes" | "sleeps" | "sleptAt" | "after" | "floor" | "latest">,
 ): Forecast => {
   const lastSlept = doors.sleptAt(agent.id)
   const after = Duration.toMillis(doors.after)
-  const at = (next: Forecast["next"]): Forecast => ({ lastSlept, after, next })
+  const floor = doors.floor
+  const at = (next: Forecast["next"]): Forecast => ({ lastSlept, after, floor, next })
   if (agent.session === null) return at({ kind: "unbound" })
   if (!doors.sleeps(agent.id)) return at({ kind: "unmarked" })
   if (judged.inFlight === agent.id) return at({ kind: "running" })
@@ -272,6 +281,26 @@ export const forecastOf = (
   const others = othersOf(doors.nodes(), agent.id)
   const moved = changesUnder(derived, agent.id, lastSlept, others)
   if (moved.rows === 0) return at({ kind: "unchanged" })
+  // PRESSURE, WHICH IS NOT QUIET: quiet says the moment is right, and this says
+  // there is enough behind it to be worth a turn. Consolidation is a lossy
+  // rewrite whose utility rises and then falls BELOW no-memory when it is fired
+  // after every interaction, so a node is due when one of:
+  //
+  //   - it has never slept and a row has moved — the FIRST tidy of a store that
+  //     has never had one, which is the whole point of switching the pass on for
+  //     old memory;
+  //   - enough rows have moved (`sleep-floor`, five by default);
+  //   - or the oldest of them has waited too long (`sleep-latest`, a week),
+  //     which is the backstop that keeps a trickle from never being tidied and
+  //     keeps TUCK AWAY's thirty-day rows reaching the age it looks for.
+  //
+  // Otherwise `little`: the words a person reads are "too little to tidy", with
+  // how many moved and what the floor is, because a node quietly not being tidied
+  // looks exactly like a node that has nothing to tidy.
+  const pressured = lastSlept === null ||
+    moved.rows >= floor ||
+    (moved.oldest !== null && now - moved.oldest > Duration.toMillis(doors.latest))
+  if (!pressured) return at({ kind: "little", rows: moved.rows })
   // QUIET FOR `sleep-after`, AND BOTH READINGS OF QUIET ARE ASKED — the
   // conversation's own idle instant where there is one, and the memory's newest
   // stamp ALWAYS: a person editing this subtree at 22:00 while the agent has been
@@ -285,7 +314,7 @@ export const forecastOf = (
     Number.isNaN(idleAt) ? now - after : idleAt + after,
     moved.newest === null ? now - after : moved.newest + after,
   )
-  return at({ kind: "due", at: stampOf(new Date(Math.max(now, quiet))) })
+  return at({ kind: "due", rows: moved.rows, at: stampOf(new Date(Math.max(now, quiet))) })
 }
 
 /**

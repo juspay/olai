@@ -99,6 +99,10 @@ const withStubs = (over: {
   readonly live?: ReadonlyMap<string, LiveSession>
   readonly changed?: string
   readonly after?: Duration.Duration
+  /** The pressure settings. ONE row by default, so the cases above are about the
+   *  states they name rather than about the floor. */
+  readonly floor?: number
+  readonly latest?: Duration.Duration
   readonly start?: Duration.Duration
   readonly question?: Duration.Duration
   /** How long one turn may run — a span the cases about a stuck turn move. */
@@ -188,6 +192,8 @@ const withStubs = (over: {
         () => Effect.sync(() => void events.push("released")),
       ),
       after: over.after ?? Duration.millis(0),
+      floor: over.floor ?? 1,
+      latest: over.latest ?? Duration.days(7),
       tick: over.loopTick ?? Duration.days(365),
       question: over.question ?? Duration.minutes(20),
       limit: over.limit ?? Duration.hours(1),
@@ -586,7 +592,7 @@ test("a turn that never ends is stopped at the limit, and left alone after that"
  *
  * ONE KIND IS NOT A JUDGEMENT AT ALL: `off` is the directory's own setting, read
  * before a sleeper exists, which is why it is `null` on the wire rather than an
- * answer from here.
+ * answer from here — and why the wire has no `off` arm.
  */
 test("the judgement answers each state a node can be in, and none of them is a guess", () => {
   /** THE MOMENT A `due` OR `skipped` CARRIES, as a number: the spelling on the
@@ -599,11 +605,18 @@ test("the judgement answers each state a node can be in, and none of them is a g
     readonly sleeps?: boolean
     readonly sleptAt?: string | null
     readonly after?: Duration.Duration
+    /** THE PRESSURE SETTINGS. ONE by default, so a row of this table is about
+     *  the state it names rather than about the floor — the rows that are about
+     *  the floor say so. */
+    readonly floor?: number
+    readonly latest?: Duration.Duration
   } = {}) => ({
     nodes: () => [AGENT],
     sleeps: () => over.sleeps ?? true,
     sleptAt: () => over.sleptAt ?? null,
     after: over.after ?? Duration.millis(0),
+    floor: over.floor ?? 1,
+    latest: over.latest ?? Duration.days(7),
   })
   const judged = (over: Partial<Judged> = {}): Judged => ({ inFlight: null, failedAt: undefined, ...over })
   const none = new Map<string, LiveSession>()
@@ -616,6 +629,26 @@ test("the judgement answers each state a node can be in, and none of them is a g
     held: ReturnType<typeof doors>,
     live: ReadonlyMap<string, LiveSession> = none,
   ) => forecastOf(agent, NOW, live, readingOf(setOf(vault(stamp(NOW - HOUR)))).derived, state, held)
+  /** A SUBTREE OF `rows` STAMPED ROWS, the newest at `newest` and each one a day
+   *  older than the next — so a case can say how many moved and how long the
+   *  oldest of them has waited. */
+  const rowsUnder = (rows: number, newest: number, at: ReturnType<typeof doors>, state: Judged) =>
+    forecastOf(
+      AGENT,
+      NOW,
+      none,
+      readingOf(setOf({
+        "Work.olai": [
+          `{"id":"health","ord":"a0","title":"Health"}`,
+          ...Array.from({ length: rows }, (_, index) =>
+            `{"id":"note${index}","parent":"health","ord":"a${index}","title":"a note","changed":"${
+              stamp(newest - index * DAY)
+            }"}`),
+        ].join("\n") + "\n",
+      })).derived,
+      state,
+      at,
+    )
 
   // NO CONVERSATION: there is nothing to hand a turn to, however due it is.
   expect(of({ ...AGENT, session: null }, judged(), doors()).next).toEqual({ kind: "unbound" })
@@ -651,6 +684,27 @@ test("the judgement answers each state a node can be in, and none of them is a g
   const due = of(AGENT, judged(), doors({ sleptAt: stamp(NOW - DAY) })).next
   expect(due.kind).toBe("due")
   expect(when(due)).toBe(NOW)
+  expect(due.kind === "due" ? due.rows : null).toBe(1)
+
+  // LITTLE: one row moved, the memo is fresh, and the floor is five — so this
+  // node has nothing worth a turn, whatever its quiet window says.
+  const little = rowsUnder(1, NOW - HOUR, doors({ sleptAt: stamp(NOW - DAY), floor: 5 }), judged()).next
+  expect(little).toEqual({ kind: "little", rows: 1 })
+  // ...AND THE FLOOR IS A COUNT OF MOVED ROWS, not of rows: five moved is due,
+  // and one of those five being old does not change the count.
+  expect(rowsUnder(5, NOW - HOUR, doors({ sleptAt: stamp(NOW - DAY), floor: 5 }), judged()).next.kind).toBe("due")
+
+  // THE BACKSTOP, AT ITS EXACT BOUNDARY: a moved row that has waited precisely
+  // `sleep-latest` is not yet due, and one millisecond more is — which is the
+  // direction that keeps a node from being tidied a moment early.
+  const waited = (age: number) => rowsUnder(1, NOW - age, doors({ sleptAt: stamp(NOW - DAY), floor: 5 }), judged()).next.kind
+  expect(waited(Duration.toMillis(Duration.days(7)))).toBe("little")
+  expect(waited(Duration.toMillis(Duration.days(7)) + 1)).toBe("due")
+
+  // THE FIRST SLEEP OF A STORE THAT HAS NEVER HAD ONE: one moved row is enough,
+  // however high the floor is, which is what switching the pass on for old memory
+  // is for.
+  expect(rowsUnder(1, NOW - HOUR, doors({ floor: 5 }), judged()).next.kind).toBe("due")
 })
 
 /**

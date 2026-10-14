@@ -59,9 +59,11 @@ export const sleepWords = (sleeps: boolean): "On" | "Off" => sleeps ? "On" : "Of
  * built. That is the state the switch cannot express and the words have to.
  */
 export type SleepSaid = {
-  /** The forecast’s own kind, so a scenario can assert the state as DATA. `off`
-   *  covers both “no sleeper” and a forecast that says so. */
-  readonly kind: Forecast["next"]["kind"]
+  /** The forecast’s own kind, so a scenario can assert the state as DATA — or
+   *  `off`, which is the one state the WIRE cannot carry: `sleep: off` in the
+   *  directory's settings is no sleeper at all, so it is a `null` forecast and
+   *  there is no `off` arm on the wire to say so. This union is the words'. */
+  readonly kind: Forecast["next"]["kind"] | "off"
   /** IS THERE A SWITCH TO PRESS — false only for `off in Settings`, where the
    *  answer is in a file a browser cannot write.
    *
@@ -130,10 +132,10 @@ const lastOf = (lastSlept: string | null, now: number): string => {
  * fail would be worse than telling them where the answer lives.
  */
 export const saidOf = (forecast: Forecast | null, now: number): SleepSaid => {
-  const title = forecast === null || forecast.next.kind === "off"
+  const title = forecast === null
     ? `olai does not tidy this chat’s memory: sleep is off in ${SETTINGS}`
     : `olai tidies this chat’s memory after ${rhythmOf(forecast.after)} alone and when it has changed since the last pass (sleep-after in ${SETTINGS})`
-  if (forecast === null || forecast.next.kind === "off") {
+  if (forecast === null) {
     // THE WORDS LIVE WHERE THE SWITCH WOULD BE, so this arm has nothing after it:
     // a person reads `Sleep · off in Settings` and the sentence is complete.
     return { kind: "off", switch: false, said: [], title }
@@ -152,6 +154,17 @@ export const saidOf = (forecast: Forecast | null, now: number): SleepSaid => {
       return { kind: next.kind, switch: true, said: ["no conversation yet"], title }
     case "unchanged":
       return { kind: next.kind, switch: true, said: [last, "nothing new to tidy"], title }
+    // NOT ENOUGH HAS MOVED — the pressure half of the rule, and the reason this
+    // state exists: a node that is not being tidied looks exactly like a node
+    // that has nothing to tidy, so the item says how many rows did move and what
+    // the floor is.
+    case "little":
+      return {
+        kind: next.kind,
+        switch: true,
+        said: [last, `too little to tidy · ${next.rows} of ${forecast.floor} rows`],
+        title,
+      }
     case "busy":
       return { kind: next.kind, switch: true, said: [last, "when this chat is quiet"], title }
     case "running":

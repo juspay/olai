@@ -1098,6 +1098,8 @@ export default definePlugin({
           }),
           hold: gate.hold,
           after: spans.after,
+          floor: spans.floor,
+          latest: spans.latest,
           tick: spans.tick,
           question: spans.question,
           limit: spans.limit,

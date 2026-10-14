@@ -51,13 +51,22 @@ export type AgentStanding = typeof AgentStanding.Type
 export const Forecast = Schema.Struct({
   lastSlept: Schema.NullOr(Schema.String),
   after: Schema.Number,
+  /** HOW MANY MOVED ROWS MAKE A TIDY WORTH IT (`sleep-floor`) — carried so the
+   *  strip can say "2 of 5 rows" without a second reading of the settings. */
+  floor: Schema.Number,
+  /** THERE IS NO `off` ARM, deliberately: `sleep: off` in a directory's settings
+   *  is no sleeper at all, so it is a `null` forecast and not a sentence the
+   *  judgement never says (`judge` has no arm for it and never had). */
   next: Schema.Union([
-    Schema.Struct({ kind: Schema.Literal("off") }),
     Schema.Struct({ kind: Schema.Literal("unmarked") }),
     Schema.Struct({ kind: Schema.Literal("unbound") }),
     Schema.Struct({ kind: Schema.Literal("unchanged") }),
+    /** NOT ENOUGH HAS MOVED — the pressure half of the due-ness rule, with how
+     *  many rows did. */
+    Schema.Struct({ kind: Schema.Literal("little"), rows: Schema.Number }),
     Schema.Struct({ kind: Schema.Literal("busy") }),
-    Schema.Struct({ kind: Schema.Literal("due"), at: Schema.String }),
+    /** DUE AT AN INSTANT, with how many rows moved to make it so. */
+    Schema.Struct({ kind: Schema.Literal("due"), at: Schema.String, rows: Schema.Number }),
     Schema.Struct({ kind: Schema.Literal("running") }),
     Schema.Struct({ kind: Schema.Literal("skipped"), until: Schema.String }),
   ]),

@@ -3,22 +3,33 @@ import { Duration, Effect, Schema } from "effect"
 import { DEFAULT_IDLE } from "./scoped.ts"
 
 /**
- * WHAT THE SLEEP PASS RUNS ON — the spans, for the harness and for an operator,
- * and never something a person has to touch.
+ * WHAT THE SLEEP PASS RUNS ON — the spans, and the two numbers that decide WHEN
+ * there is enough to do: for the harness and for an operator, and the last two
+ * are a person's.
  *
- * THE DEFAULTS ARE THE DESIGN, and the table below is where they are written:
- * everything here is a way of making them shorter for a test or a slow machine,
+ * THE DEFAULTS ARE THE DESIGN, and the tables below are where they are written:
+ * the spans are ways of making the pass quicker for a test or a slow machine,
  * which is why the words are the plain duration
  * spells a person already writes in `_olai/Settings.olai` (`30s`, `6h`, `2d`)
  * and why an unreadable one WARNS AND FALLS BACK rather than stopping the row:
  * the file adapter decodes each leaf on its own
  * (`@olai/plugin-api`'s `decodePolicy`), so a typo here costs the default and
  * a sentence in the panel and nothing else.
+ *
+ * `sleep-floor` AND `sleep-latest` ARE NOT SPANS AND ARE NOT ONLY THE HARNESS'S:
+ * they are what says how much has to have MOVED before a tidy is worth a turn,
+ * because consolidation is a lossy rewrite and one that runs after every edit
+ * costs more than it returns (`docs/chat.md`). A person who wants their memory
+ * tidied sooner lowers the floor or shortens the backstop.
  */
 const SPANS = {
   "sleep-after": {
     default: "6h",
     says: "How long a node agent is left alone before olai tidies its memory for it",
+  },
+  "sleep-latest": {
+    default: "7d",
+    says: "How long a moved row may wait untidied before olai tidies anyway, however few have moved",
   },
   "sleep-tick": {
     default: "15m",
@@ -77,6 +88,19 @@ export const Config = Schema.Struct({
     }),
   ),
   "sleep-after": span("sleep-after"),
+  "sleep-latest": span("sleep-latest"),
+  // THE SAME SHAPE AS `idle-ms`, and for its reason: a number a person types in
+  // the vault arrives as text, so the schema takes either spelling and the
+  // bounds are the ones the row can actually act on.
+  "sleep-floor": Schema.Union([
+    Schema.Int,
+    Schema.NumberFromString.check(Schema.isInt()),
+  ]).check(Schema.isBetween({ minimum: 1, maximum: 2147483647 })).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(5)),
+    Schema.annotate({
+      description: "How many rows must have moved since the last sleep before olai tidies a chat's memory",
+    }),
+  ),
   "sleep-tick": span("sleep-tick"),
   "sleep-question": span("sleep-question"),
   "sleep-limit": span("sleep-limit"),
@@ -92,6 +116,8 @@ export const sleepingPolicy = (config: typeof Config.Type) => {
     Duration.millis(spanMillis(raw) ?? spanMillis(SPANS[key].default)!)
   return {
     after: of("sleep-after", config["sleep-after"]),
+    latest: of("sleep-latest", config["sleep-latest"]),
+    floor: config["sleep-floor"],
     tick: of("sleep-tick", config["sleep-tick"]),
     question: of("sleep-question", config["sleep-question"]),
     limit: of("sleep-limit", config["sleep-limit"]),

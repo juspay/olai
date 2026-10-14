@@ -237,6 +237,12 @@ const withBench = async (
         () => Effect.sync(() => void events.push("released")),
       ),
       after: Duration.millis(over.after ?? 0),
+      // THE PRESSURE SETTINGS AT THEIR LOWEST: these cases are about what a pass
+      // DOES, and every one of them has moved a row, so a floor above one would
+      // be a rule under test rather than a setup (`sleep.clock.test.ts` holds the
+      // floor and the backstop).
+      floor: 1,
+      latest: Duration.days(7),
       // THE LOOP ITSELF IS NOT WHAT IS UNDER TEST: every case drives `tick` by
       // hand, so the fork sleeps for as long as the test could possibly run.
       tick: Duration.minutes(10),
