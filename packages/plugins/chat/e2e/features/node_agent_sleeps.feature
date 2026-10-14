@@ -408,4 +408,8 @@ Feature: A node agent tidies its own memory when nobody is looking
     When one row under "install" has moved
     Then the sleep item says "due"
     Then the node agent "install" has been tidied
-    And olai has recorded 2 commits here
+    # THE COMMIT IS THE LAST THING A PASS DOES, and the machine row above appears
+    # when its turn STARTS — so the count is read after the pass has had its
+    # chance, not the moment the turn began.
+    When the sleep pass has had its chance
+    Then olai has recorded 2 commits here
