@@ -57,6 +57,7 @@ const forecast = (next: Forecast["next"], over: Partial<Forecast> = {}): Forecas
   lastSlept: new Date(NOW - 3 * HOUR).toISOString(),
   after: 6 * HOUR,
   floor: 5,
+  latest: 7 * 24 * HOUR,
   next,
   ...over,
 })
@@ -94,6 +95,9 @@ test("the item says when it last slept, when it will next, and on what rhythm", 
   // THE MEMORY HAS NOT MOVED, AND THE CHAT IS QUIET — the two silences that are
   // not failures.
   expect(saidOf(forecast({ kind: "unchanged" }), NOW).said).toEqual(["last 3h ago", "nothing new to tidy"])
+  // TOO LITTLE MOVED — how many rows did, against the floor, because a node that
+  // is not being tidied and a node with nothing to tidy read the same otherwise.
+  expect(saidOf(forecast({ kind: "little", rows: 2 }), NOW).said).toEqual(["last 3h ago", "too little to tidy · 2 of 5 rows"])
   expect(saidOf(forecast({ kind: "busy" }), NOW).said).toEqual(["last 3h ago", "when this chat is quiet"])
 
   // THE PASS IS RUNNING ON THIS NODE.
@@ -122,5 +126,5 @@ test("the item says when it last slept, when it will next, and on what rhythm", 
   // THE RHYTHM IS IN THE TITLE, with the file it comes from — the sentence the
   // item is a compression of.
   expect(saidOf(forecast({ kind: "unchanged" }), NOW).title)
-    .toBe("olai tidies this chat’s memory after 6 h alone and when it has changed since the last pass (sleep-after in _olai/Settings.olai)")
+    .toBe("olai tidies this chat’s memory after 6 h alone, once 5 rows have moved since the last pass or any moved row has waited 7 d (sleep-after, sleep-floor, sleep-latest in _olai/Settings.olai)")
 })

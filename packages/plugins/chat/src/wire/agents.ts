@@ -52,8 +52,13 @@ export const Forecast = Schema.Struct({
   lastSlept: Schema.NullOr(Schema.String),
   after: Schema.Number,
   /** HOW MANY MOVED ROWS MAKE A TIDY WORTH IT (`sleep-floor`) — carried so the
-   *  strip can say "2 of 5 rows" without a second reading of the settings. */
+   *  strip can say "2 of 5 rows" without a second reading of the settings, which
+   *  the browser cannot see. */
   floor: Schema.Number,
+  /** HOW LONG A MOVED ROW MAY WAIT (`sleep-latest`), in milliseconds, for the
+   *  same reason: the item's hovered sentence states the whole rule, and the
+   *  rule's third clause is this span. */
+  latest: Schema.Number,
   /** THERE IS NO `off` ARM, deliberately: `sleep: off` in a directory's settings
    *  is no sleeper at all, so it is a `null` forecast and not a sentence the
    *  judgement never says (`judge` has no arm for it and never had). */

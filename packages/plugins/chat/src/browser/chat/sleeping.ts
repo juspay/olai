@@ -83,12 +83,13 @@ export type SleepSaid = {
  *  because that is where the words above come from. */
 const SETTINGS = "_olai/Settings.olai"
 
-/** HOW LONG THE PASS WAITS, in a person’s words — `6 h` for the product’s own
- *  span, and the same words at whatever a test writes. */
-const rhythmOf = (after: number): string => {
-  if (after >= HOUR) return `${Math.round(after / HOUR)} h`
-  if (after >= MINUTE) return `${Math.round(after / MINUTE)} min`
-  return `${Math.round(after / SECOND)} s`
+/** A SPAN IN A PERSON’S WORDS — `6 h` for the quiet window the product ships,
+ *  `7 d` for the backstop, and the same words at whatever a test writes. */
+const rhythmOf = (span: number): string => {
+  if (span >= DAY) return `${Math.round(span / DAY)} d`
+  if (span >= HOUR) return `${Math.round(span / HOUR)} h`
+  if (span >= MINUTE) return `${Math.round(span / MINUTE)} min`
+  return `${Math.round(span / SECOND)} s`
 }
 
 /** WHEN A DUE INSTANT ARRIVES, or `null` for one that has already arrived — the
@@ -134,7 +135,9 @@ const lastOf = (lastSlept: string | null, now: number): string => {
 export const saidOf = (forecast: Forecast | null, now: number): SleepSaid => {
   const title = forecast === null
     ? `olai does not tidy this chat’s memory: sleep is off in ${SETTINGS}`
-    : `olai tidies this chat’s memory after ${rhythmOf(forecast.after)} alone and when it has changed since the last pass (sleep-after in ${SETTINGS})`
+    : `olai tidies this chat’s memory after ${rhythmOf(forecast.after)} alone, once ` +
+      `${forecast.floor} rows have moved since the last pass or any moved row has waited ` +
+      `${rhythmOf(forecast.latest)} (sleep-after, sleep-floor, sleep-latest in ${SETTINGS})`
   if (forecast === null) {
     // THE WORDS LIVE WHERE THE SWITCH WOULD BE, so this arm has nothing after it:
     // a person reads `Sleep · off in Settings` and the sentence is complete.

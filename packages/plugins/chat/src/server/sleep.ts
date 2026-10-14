@@ -267,7 +267,8 @@ export const forecastOf = (
   const lastSlept = doors.sleptAt(agent.id)
   const after = Duration.toMillis(doors.after)
   const floor = doors.floor
-  const at = (next: Forecast["next"]): Forecast => ({ lastSlept, after, floor, next })
+  const latest = Duration.toMillis(doors.latest)
+  const at = (next: Forecast["next"]): Forecast => ({ lastSlept, after, floor, latest, next })
   if (agent.session === null) return at({ kind: "unbound" })
   if (!doors.sleeps(agent.id)) return at({ kind: "unmarked" })
   if (judged.inFlight === agent.id) return at({ kind: "running" })
@@ -301,7 +302,7 @@ export const forecastOf = (
   // looks exactly like a node that has nothing to tidy.
   const pressured = lastSlept === null ||
     moved.rows >= floor ||
-    (moved.oldest !== null && now - moved.oldest > Duration.toMillis(doors.latest))
+    (moved.oldest !== null && now - moved.oldest > latest)
   if (!pressured) return at({ kind: "little", rows: moved.rows })
   // QUIET FOR `sleep-after`, AND BOTH READINGS OF QUIET ARE ASKED — the
   // conversation's own idle instant where there is one, and the memory's newest
