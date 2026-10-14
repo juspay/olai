@@ -8,7 +8,7 @@ import {
   ancestorsOf,
   ancestryOver,
   blockersOf,
-  changedUnder,
+  changesUnder,
   countedChildren,
   derive,
   type Derived,
@@ -1834,10 +1834,11 @@ test("the stopping rules travelled with the walk, not with the derivation", () =
  * before it spends a turn (`olai-plugin-chat`'s `server/sleep.ts`).
  *
  * The whole of the reading is here rather than in that plugin because the
- * subtree is this package's, and because the one rule that is easy to get wrong
- * is a rule about THIS walk: the node's own record is not in the comparison.
+ * subtree is this package's, and because the rules that are easy to get wrong
+ * are rules about THIS walk: the node's own record is not in any of the three
+ * answers, and the count is of MOVED rows while `newest` is of every stamped one.
  */
-test("changedUnder reads the newest stamp under a node, and never the node's own", () => {
+test("changesUnder counts what moved under a node, and never the node's own record", () => {
   const derived = derive(TEST_CLAIMS, nodesOf([
     `{"id":"health","ord":"a0","title":"health","created":"2026-08-01T09:00:00+00:00","changed":"2026-08-30T09:00:00+00:00"}`,
     `{"id":"old","parent":"health","ord":"a0","title":"old","changed":"2026-08-02T09:00:00+00:00"}`,
@@ -1845,14 +1846,31 @@ test("changedUnder reads the newest stamp under a node, and never the node's own
   ].join("\n")))
 
   // A stamp deeper than a child is still under the node, which is the whole
-  // point of walking rather than reading one level.
-  expect(changedUnder(derived, "health", "2026-08-09T00:00:00+00:00")).toBe(true)
+  // point of walking rather than reading one level — and the count is of the
+  // rows past the memo, with the OLDEST of those.
+  expect(changesUnder(derived, "health", "2026-08-09T00:00:00+00:00"))
+    .toEqual({ rows: 1, newest: Date.parse("2026-08-10T09:00:00+00:00"), oldest: Date.parse("2026-08-10T09:00:00+00:00") })
   // ... and NOTHING under it is newer than a stamp that outranks every one of
   // them: the node's own record is excluded, so its own later `changed` — which
-  // is what writing the memo over it produced — is not news.
-  expect(changedUnder(derived, "health", "2026-08-30T09:00:00+00:00")).toBe(false)
-  // ... and a node that has never held a memo takes ANY stamp as news.
-  expect(changedUnder(derived, "health", null)).toBe(true)
+  // is what writing the memo over it produced — is not news. THE NEWEST IS STILL
+  // THE NEWEST THING UNDER IT, which is the quiet window's question and not the
+  // count's.
+  expect(changesUnder(derived, "health", "2026-08-30T09:00:00+00:00"))
+    .toEqual({ rows: 0, newest: Date.parse("2026-08-10T09:00:00+00:00"), oldest: null })
+  // ... and a node that has never held a memo takes ANY stamp as moved, which is
+  // the whole difference between "never slept" and "slept at the beginning of
+  // time".
+  expect(changesUnder(derived, "health", null)).toEqual({
+    rows: 2,
+    newest: Date.parse("2026-08-10T09:00:00+00:00"),
+    oldest: Date.parse("2026-08-02T09:00:00+00:00"),
+  })
+  // ...AND ONE LEVEL DOWN IS ITS OWN SUBTREE, asked the same way.
+  expect(changesUnder(derived, "old", null)).toEqual({
+    rows: 1,
+    newest: Date.parse("2026-08-10T09:00:00+00:00"),
+    oldest: Date.parse("2026-08-10T09:00:00+00:00"),
+  })
 })
 
 /**
@@ -1874,23 +1892,23 @@ test("a stamp in another zone is compared by its instant, not its spelling", () 
   ].join("\n")))
 
   // 14:30 UTC — earlier than the edit, and the text says the opposite.
-  expect(changedUnder(derived, "health", "2026-10-12T20:00:00+05:30")).toBe(true)
+  expect(changesUnder(derived, "health", "2026-10-12T20:00:00+05:30").rows).toBe(1)
   // ...and a memo that really is later than it is not news, whatever it spells.
-  expect(changedUnder(derived, "health", "2026-10-12T20:00:00+00:00")).toBe(false)
+  expect(changesUnder(derived, "health", "2026-10-12T20:00:00+00:00").rows).toBe(0)
 })
 
-test("changedUnder answers false for a subtree nothing has ever stamped", () => {
+test("changesUnder answers nothing at all for a subtree nothing has ever stamped", () => {
   const derived = derive(TEST_CLAIMS, nodesOf([
     `{"id":"health","ord":"a0","title":"health"}`,
     `{"id":"note","parent":"health","ord":"a0","title":"note"}`,
   ].join("\n")))
-  expect(changedUnder(derived, "health", null)).toBe(false)
-  expect(changedUnder(derived, "health", "2026-01-01T00:00:00+00:00")).toBe(false)
+  expect(changesUnder(derived, "health", null)).toEqual({ rows: 0, newest: null, oldest: null })
+  expect(changesUnder(derived, "health", "2026-01-01T00:00:00+00:00")).toEqual({ rows: 0, newest: null, oldest: null })
   // ... and one level down asks the same question about its own subtree.
-  expect(changedUnder(derived, "note", null)).toBe(false)
+  expect(changesUnder(derived, "note", null).rows).toBe(0)
 })
 
-test("changedUnder walks through a mirror and terminates on a loop", () => {
+test("changesUnder walks through a mirror and terminates on a loop", () => {
   const derived = derive(TEST_CLAIMS, nodesOf([
     `{"id":"health","ord":"a0","title":"health"}`,
     `{"id":"placed","parent":"health","ord":"a0","mirror":"elsewhere"}`,
@@ -1898,7 +1916,7 @@ test("changedUnder walks through a mirror and terminates on a loop", () => {
   ].join("\n")))
   // A placement carries no stamp of its own, and what hangs under it is still
   // under the node that placed it.
-  expect(changedUnder(derived, "health", "2026-08-01T00:00:00+00:00")).toBe(true)
+  expect(changesUnder(derived, "health", "2026-08-01T00:00:00+00:00").rows).toBe(1)
 
   // A parent loop is a set the validator refuses, and this walk still answers:
   // from `two` the only descendant is the stamped `one`, and from `one` the only
@@ -1908,9 +1926,9 @@ test("changedUnder walks through a mirror and terminates on a loop", () => {
     `{"id":"one","parent":"two","ord":"a0","title":"one","changed":"2026-09-01T09:00:00+00:00"}`,
     `{"id":"two","parent":"one","ord":"a1","title":"two"}`,
   ].join("\n")))
-  expect(changedUnder(looped, "two", null)).toBe(true)
-  expect(changedUnder(looped, "one", null)).toBe(false)
-  expect(changedUnder(looped, "two", "2026-09-01T09:00:00+00:00")).toBe(false)
+  expect(changesUnder(looped, "two", null).rows).toBe(1)
+  expect(changesUnder(looped, "one", null).rows).toBe(0)
+  expect(changesUnder(looped, "two", "2026-09-01T09:00:00+00:00").rows).toBe(0)
 })
 
 /**
@@ -1934,11 +1952,11 @@ test("a node agent under another is not part of its memory", () => {
   ])
   const stop = new Set(["helper"])
 
-  expect(changedUnder(derived, "health", "2026-10-12T08:00:00+00:00", stop)).toBe(false)
+  expect(changesUnder(derived, "health", "2026-10-12T08:00:00+00:00", stop).rows).toBe(0)
   expect([...memoryFiles(derived, "health", stop)].sort()).toEqual(["Work.olai"])
 
   // ...AND WITHOUT THE STOP BOTH ANSWERS ARE THE OTHER WAY ROUND, which is the
   // bug this is written against.
-  expect(changedUnder(derived, "health", "2026-10-12T08:00:00+00:00")).toBe(true)
+  expect(changesUnder(derived, "health", "2026-10-12T08:00:00+00:00").rows).toBe(1)
   expect([...memoryFiles(derived, "health")].sort()).toEqual(["Helper.olai", "Work.olai"])
 })

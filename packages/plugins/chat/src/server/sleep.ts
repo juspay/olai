@@ -43,10 +43,9 @@
 import type { Forecast } from "../wire/agents.ts"
 
 import {
-  changedUnder,
+  changesUnder,
   type Derived,
   memoryFiles,
-  newestUnder,
   type NodeAgent,
   type NodeAgents,
   othersOf,
@@ -271,7 +270,8 @@ export const forecastOf = (
   // one `@olai/format`'s walks and the write door's fence are both handed
   // (`othersOf`).
   const others = othersOf(doors.nodes(), agent.id)
-  if (!changedUnder(derived, agent.id, lastSlept, others)) return at({ kind: "unchanged" })
+  const moved = changesUnder(derived, agent.id, lastSlept, others)
+  if (moved.rows === 0) return at({ kind: "unchanged" })
   // QUIET FOR `sleep-after`, AND BOTH READINGS OF QUIET ARE ASKED — the
   // conversation's own idle instant where there is one, and the memory's newest
   // stamp ALWAYS: a person editing this subtree at 22:00 while the agent has been
@@ -279,12 +279,11 @@ export const forecastOf = (
   // cannot see that edit at all. A `since` this reading cannot place costs the
   // conversation's half and nothing else (a rule whose failure mode is "never" is
   // worse than one that falls back).
-  const newest = newestUnder(derived, agent.id, others)
   const since = standing?.since
   const idleAt = since === undefined ? Number.NaN : Date.parse(since)
   const quiet = Math.max(
     Number.isNaN(idleAt) ? now - after : idleAt + after,
-    newest === null ? now - after : newest + after,
+    moved.newest === null ? now - after : moved.newest + after,
   )
   return at({ kind: "due", at: stampOf(new Date(Math.max(now, quiet))) })
 }
@@ -403,7 +402,7 @@ export const makeSleeper = (
      * THE NODE'S OWN RECORD IS NEVER CONSULTED: the memo is a property on the
      * node, so every pass re-stamps that node's own `changed`, and a walk that
      * read it would find its own last sleep and never sleep again
-     * (`@olai/format`'s `changedUnder`).
+     * (`@olai/format`'s `changesUnder`).
      */
     /**
      * ONE NODE'S ANSWER, with the pass's own memory folded in — the judgement is

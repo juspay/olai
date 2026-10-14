@@ -472,17 +472,15 @@ export {
    *  in, and every file holding a record under it. The one caller is the pass
    *  that tidies it, which must commit what it wrote and nothing else. */
   memoryFiles,
-  /** HAS ANYTHING UNDER THIS NODE MOVED since an instant, or ever — the one
-   *  question a node agent's tidying pass asks about its own subtree before it
-   *  spends a turn on it (`olai-plugin-chat`'s `server/sleep.ts`), which is why
-   *  this walk lives beside {@link under} rather than in that plugin. */
-  changedUnder,
+  /** WHAT HAS MOVED UNDER THIS NODE — how many rows are newer than the memo, and
+   *  the newest and oldest stamps under it. The whole of what a node agent's
+   *  tidying pass asks about its own subtree before it spends a turn on it
+   *  (`olai-plugin-chat`'s `server/sleep.ts`), which is why this walk lives
+   *  beside {@link under} rather than in that plugin. */
+  changesUnder,
   /** THE IDS UNDER A NODE — where a memory ends, which is the same line
    *  {@link memoryFiles} commits and `@olai/ops`' write door fences off. */
   idsUnder,
-  /** THE NEWEST INSTANT UNDER A NODE — the quiet half of a due-ness test: a
-   *  subtree somebody is editing right now is not one to tidy. */
-  newestUnder,
   countedChildren,
   derive,
   /** The containment graph: what drawing a record leads to drawing. Exported
