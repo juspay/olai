@@ -20,6 +20,7 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { stampOf } from "@olai/format";
 import { findLogfmt } from "@olai/log/testlib";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
@@ -71,8 +72,8 @@ const under = (world: OlaiWorld, node: string): ReadonlySet<string> => {
 };
 
 /**
- * WHEN A MOVED ROW MOVED — THE READER'S OWN CLOCK, and not a fixed date, which is
- * the one thing this fixture changed when the pressure rule arrived.
+ * WHEN A MOVED ROW MOVED — THE READER'S OWN CLOCK, in the PRODUCT'S OWN SPELLING,
+ * which is the one thing this fixture changed when the pressure rule arrived.
  *
  * `the memory under … has moved` used to stamp every row at `2026-10-01`, which
  * was a past date the rule did not care about while a pass needed only "something
@@ -82,8 +83,17 @@ const under = (world: OlaiWorld, node: string): ReadonlySet<string> => {
  * scenario about the floor wants to read (`little`) would never be reachable at
  * all. Stamped at now, a moved row is younger than the week the fast policy
  * waits, and the backstop is what the unit table holds instead.
+ *
+ * `stampOf` AND NOT `toISOString()`: olai mints every stamp at SECOND precision
+ * (year to seconds, plus the offset it was taken at), and a fixture that spelled
+ * one with MILLISECONDS would be comparing `:44.900` with olai's own `:44` — so a
+ * row stamped in the same second as the memo that followed it reads as NEWER than
+ * that memo, and stays "moved" for ever. With `sleep-after` at a millisecond in
+ * these scenarios, the pass really does end inside the move's own second: the
+ * symptom was a node that read `little` one row short of the floor immediately
+ * after being tidied. One spelling of a stamp, and it is the product's.
  */
-const movedAt = (): string => new Date().toISOString().replace("Z", "+00:00");
+const movedAt = (): string => stampOf(new Date());
 
 /** Stamp the rows under a node the caller picked, at one instant it names — ONE
  *  instant, because "has this row moved yet" is asked of it below and two calls
