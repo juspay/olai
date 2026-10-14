@@ -851,10 +851,25 @@ A subtree is a node agent's only memory, and nothing ever compacts it. After a
 month a health log is hundreds of kilobytes of records whose titles are whole
 daily reports, the standing facts they support have to be re-derived by hand,
 and nothing is archived. So olai gives a node agent one machine turn of its
-own: when it has been left alone for six hours and its subtree has changed
-since it last slept, it is asked to tidy, distill and tuck away — in its own
-conversation, through one subagent, so the tidying's reads and rewrites do not
-become part of what the agent remembers of you.
+own: when it has been left alone for six hours **and there is enough to be worth
+a turn**, it is asked to tidy, distill and tuck away — in its own conversation,
+through one subagent, so the tidying's reads and rewrites do not become part of
+what the agent remembers of you.
+
+Enough is one of three things: the chat has never been tidied and a row has moved
+(the first tidy of a store that has never had one); five rows have moved since the
+last pass (`sleep-floor`); or the oldest of them has waited a week
+(`sleep-latest`). Otherwise the line under the conversation says **too little to
+tidy** — with how many rows did move — and the pass leaves this chat alone. **One
+edit is not a reason to rewrite a memory.**
+
+**Why pressure rather than only quiet.** Consolidation is a lossy rewrite: its
+value rises with what has accumulated and then falls *below* not remembering at
+all when it is run after every interaction, which is what a rule that fired on one
+edited row was doing. So what a pass waits for is not only a quiet moment but
+enough having CHANGED — and the case where a single row is enough is the one where
+nothing has ever been compacted. It is also why the pass moves and never deletes:
+a rewrite that turns out wrong is one to put back, not one to reconstruct.
 
 **One line under the tools says what this chat does on its own.** Sleep and the
 plugin wakes are per-conversation standing facts of the same kind, so they share
@@ -868,6 +883,7 @@ on — and it reads, by state:
 | not asked for | **Sleep · Off · last 2d ago** (the age is left out when it has never slept) |
 | asked for, due later | **Sleep · On · last 3h ago · next in 4h if left alone · Sleep now** |
 | asked for, nothing moved since the memo | **Sleep · On · last 3h ago · nothing new to tidy · Sleep now** |
+| asked for, too little has moved | **Sleep · On · last 3h ago · too little to tidy · 2 of 5 rows · Sleep now** |
 | asked for, due but the chat is talking | **Sleep · On · last 3h ago · when this chat is quiet · Sleep now** |
 | being tidied right now | **Sleep · On · tidying now** |
 | after a pass that failed | **Sleep · On · last pass failed · not before 14:05 · Sleep now** |
@@ -999,9 +1015,11 @@ did before, and pays the old cost. If that proves wrong the change is still loca
 the pass would run in a fresh session under the assigned-session contract, and the
 loop that drives it would not move.
 
-**Two of these are a person's, and three exist for the harness.** `sleep:
-on|off` turns the pass off, and `sleep-after` is how long a node agent is left
-alone before it is tidied — the only two with a meaning a person would choose.
+**Four of these are a person's, and three exist for the harness.** `sleep:
+on|off` turns the pass off, `sleep-after` is how long a node agent is left alone
+before it is tidied, `sleep-floor` is how many rows must have moved for a tidy to
+be worth the turn, and `sleep-latest` is how long a moved row may wait before olai
+tidies anyway — the four with a meaning a person would choose.
 `sleep-tick` (how often olai looks), `sleep-question` (how long a tidying turn
 may sit on a question) and `sleep-limit` (how long one may run at all) are there
 so a test can run a pass in seconds rather than in hours, and so a slow machine can be given more patience; they are declared in

@@ -118,18 +118,23 @@ line a person reads and the pass that acts cannot disagree about when a node is
 due, and the browser re-derives nothing:
 
 ```ts
-{ lastSlept: "2026-10-12T06:00:00+00:00"   // the memo, as stored
-, after: 21600000                          // sleep-after, the rhythm
-, next: { kind: "due", at: "…T15:00:00Z" } // one of eight states
+{ lastSlept: "2026-10-12T06:00:00+00:00"      // the memo, as stored
+, after: 21600000                             // sleep-after, the rhythm
+, floor: 5                                    // sleep-floor, the pressure
+, latest: 604800000                           // sleep-latest, the backstop
+, next: { kind: "due", at: "…T15:00:00Z", rows: 6 }  // one of eight states
 }
 ```
 
-`next.kind` is `off` (the directory's setting, so there is no sleeper to ask),
-`unmarked` (nobody has said yes), `unbound` (no conversation to hand a turn to),
-`unchanged` (the memory has not moved since the memo), `busy` (a turn, a question
-or an unanswered open), `due` (with the instant its quiet window closes),
-`running` (this node's pass is in flight) or `skipped` (a failed pass, with the
-end of its 24 h backoff). It rides the row as DATA — `data-next` on the item is
+`next.kind` is `unmarked` (nobody has said yes), `unbound` (no conversation to
+hand a turn to), `unchanged` (nothing has moved since the memo — zero rows),
+`little` (with how many did move: not enough for a pass yet), `busy` (a turn, a
+question or an unanswered open), `due` (with the number of moved rows and the
+instant its quiet window closes), `running` (this node's pass is in flight) or
+`skipped` (a failed pass, with the end of its 24 h backoff). **There is no `off`
+arm**: `sleep: off` in a directory's settings is no sleeper at all, so it is a
+`null` forecast, and an arm no judgement produces would be a claim the wire cannot
+keep. It rides the row as DATA — `data-next` on the item is
 that same `kind` — because the words are a sentence and a scenario should be
 asserting the state. The item's own clock is the strip's
 (`src/browser/chat/elapsed.ts`), and the relative times are read off fixed

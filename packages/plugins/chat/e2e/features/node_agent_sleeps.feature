@@ -20,10 +20,14 @@ Feature: A node agent tidies its own memory when nobody is looking
   said to it: the pass always sends the same words, so there is no verb a
   scenario could type (`packages/tests/agent/scripted-acp.ts` reads them).
 
-  THE NEWS COMES LAST. `the memory under <node> has moved` is the only thing that
-  makes a node a candidate — the corpus's rows carry no stamps, and a subtree
-  nobody has written to is one the pass correctly leaves alone — so a marker a
-  scenario writes after it is a marker the pass may race on its next `sleep-tick`
+  THE NEWS COMES LAST, AND IT IS NOT ENOUGH ON ITS OWN. A subtree nobody has
+  written to is one the pass correctly leaves alone, so `the memory under <node>
+  has moved` is what makes a node a candidate at all — the corpus's rows carry no
+  stamps. What makes it DUE is pressure: enough rows moved (`sleep-floor`, two in
+  a fast scenario), one row on a node that has never slept, or one row that has
+  waited `sleep-latest`. The rows a scenario moves are stamped at the clock's now
+  for that last clause's sake, and a marker a scenario writes afterwards is a
+  marker the pass may race on its next `sleep-tick`
   (250 ms here) and take an ordinary turn before. Every scenario below therefore
   writes its marker first and moves the memory after it.
 
