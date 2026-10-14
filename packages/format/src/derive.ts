@@ -1861,8 +1861,16 @@ export const memoryFiles = (
   return files
 }
 
+/** WHAT MOVED UNDER A NODE, as {@link changesUnder} counts it — `Changes` and not
+ *  `Moved`, which the outlines plugin already has a meaning for (a row a person
+ *  dragged, with its file and its parent): two shapes of one word would be one
+ *  name to whoever imports both. */
 /** WHAT MOVED UNDER A NODE, as {@link changesUnder} counts it: how many rows are
  *  newer than the memo, and the extremes of the stamps under the node.
+ *
+ *  `CHANGES` AND NOT `MOVED`, which this package also exports and the outlines
+ *  plugin means something else by: a row a person dragged, with its file and its
+ *  parent. One word for two shapes is one name to whoever imports both.
  *
  *  `newest` IS OVER EVERY STAMPED ROW and not over the moved ones: it answers
  *  "is anybody editing here", which is the QUIET window's question, and a row
@@ -1870,7 +1878,7 @@ export const memoryFiles = (
  *  recently. `oldest` is over the moved rows only: it answers "has this waited
  *  long enough", which is the backstop's question.
  */
-export interface Moved {
+export interface Changes {
   readonly rows: number
   readonly newest: number | null
   readonly oldest: number | null
@@ -1926,7 +1934,7 @@ export const changesUnder = (
   id: string,
   since: string | null,
   stop: ReadonlySet<string> = new Set(),
-): Moved => {
+): Changes => {
   let rows = 0
   let newest: number | null = null
   let oldest: number | null = null

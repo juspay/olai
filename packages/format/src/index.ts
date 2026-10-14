@@ -344,7 +344,7 @@ export {
 } from "./node.ts"
 export { MirrorNode, RegularNode } from "./node.ts"
 export type { LocatedRegular, Node } from "./node.ts"
-export type { Moved, MovedRow } from "./derive.ts"
+export type { Changes, MovedRow } from "./derive.ts"
 /** A mark that ends the wait, as a type — the narrowing `settles` above hands
  *  back, so a consumer can hold one without re-spelling the pair. */
 export type { Settled } from "./node.ts"
