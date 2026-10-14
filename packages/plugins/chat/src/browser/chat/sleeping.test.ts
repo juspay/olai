@@ -105,15 +105,15 @@ test("the item says when it last slept, when it will next, and on what rhythm", 
 
   // DUE LATER, and the words are a statement about now rather than a rule: the
   // instant is the server’s and the arithmetic is one subtraction.
-  expect(saidOf(forecast({ kind: "due", at: new Date(NOW + 4 * HOUR).toISOString() }), NOW).said)
+  expect(saidOf(forecast({ kind: "due", at: new Date(NOW + 4 * HOUR).toISOString(), rows: 6 }), NOW).said)
     .toEqual(["last 3h ago", "next in 4h if left alone"])
   // ...AND DUE NOW, which is a node the pass will take on its next look — “next
   // in 0s” is not a thing that can be true.
-  expect(saidOf(forecast({ kind: "due", at: new Date(NOW).toISOString() }), NOW).said)
+  expect(saidOf(forecast({ kind: "due", at: new Date(NOW).toISOString(), rows: 6 }), NOW).said)
     .toEqual(["last 3h ago", "due now"])
   // ...AND NEVER SLEPT, said as such rather than omitted: on a chat that IS
   // tidied, “never” is the answer to “when did it last”.
-  expect(saidOf(forecast({ kind: "due", at: new Date(NOW + 4 * HOUR).toISOString() }, { lastSlept: null }), NOW).said)
+  expect(saidOf(forecast({ kind: "due", at: new Date(NOW + 4 * HOUR).toISOString(), rows: 6 }, { lastSlept: null }), NOW).said)
     .toEqual(["never", "next in 4h if left alone"])
 
   // A FAILED PASS, with the backoff’s own end as a clock time — the reader’s
