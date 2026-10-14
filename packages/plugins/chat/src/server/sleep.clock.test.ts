@@ -721,6 +721,10 @@ test("a subtree somebody is editing keeps its node awake, whatever the conversat
     sleeps: () => true,
     sleptAt: () => stamp(NOW - DAY),
     after: Duration.hours(6),
+    // ...AND THE PRESSURE SETTINGS AT THEIR LOWEST, because this case is about
+    // the two QUIET readings and not about how much has moved.
+    floor: 1,
+    latest: Duration.days(7),
   }
   const live = new Map<string, LiveSession>([["health", { status: "idle", asking: 0, since: stamp(NOW - 7 * HOUR) }]])
   // THE IDLE WINDOW ALONE WOULD SAY YES — it ran out six hours into the seven —
