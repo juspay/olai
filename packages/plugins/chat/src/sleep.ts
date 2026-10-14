@@ -25,6 +25,16 @@
  * exactly as it did before — {@link DELEGATE} tells the agent so, in the words,
  * because the words are the whole of what can say it.
  *
+ * ## WHY THE BRIEF NAMES THE ROWS THAT MOVED
+ *
+ * A pass that rewrites a whole memory when two rows changed is the lossy rewrite
+ * the floor exists to prevent (`settings.ts`): a consolidation that runs over
+ * everything is the one whose utility falls below no-memory at all. So the brief
+ * says which rows moved and where to start, and leaves the rest of the subtree
+ * for the standing facts those rows bear on. The rows come from
+ * `@olai/format`'s `movedUnder`, which is the same walk the due-ness judgement
+ * counted — the judgement reads it for its numbers, this reads it for its names.
+ *
  * ## WHY IT REPEATS A LINE THE AGENT HAS ALREADY BEEN TOLD
  *
  * Teaching goes out on a session's FIRST message and is written down as done
@@ -99,6 +109,26 @@ export const DELEGATE = `Nobody is talking to you; this turn is yours to tidy th
  *  only thing in it that is not addressed to the node agent. */
 const RULE = "----"
 
+/** HOW MANY MOVED ROWS THE BRIEF NAMES, at most. A person's memory can move a
+ *  hundred rows at once — a re-import, a rename sweep — and a brief that lists
+ *  them all is a brief nobody reads, which costs the pass the one thing it has
+ *  just been given: where to start. The rest is a count, so the agent knows the
+ *  list was cut rather than complete. */
+const NAMED = 40
+
+/** WHAT MOVED, as the paragraph the brief starts the work with — or nothing at
+ *  all for a pass nobody had to be due for (`Sleep now` on a memory that has not
+ *  moved), where the whole subtree is the person's ask. */
+const whereOf = (moved: ReadonlyArray<{ readonly id: string; readonly title: string }>): string => {
+  if (moved.length === 0) return ""
+  const named = moved.slice(0, NAMED)
+  const rest = moved.length - named.length
+  return `\n\nThese are the rows that moved since the last sleep: start there.\n` +
+    named.map((row) => `- \`${row.id}\` — ${row.title}`).join("\n") +
+    (rest > 0 ? `\n...and ${rest} more.` : "") +
+    `\nThe rest of the subtree is yours to touch only where a standing fact these rows bear on lives.`
+}
+
 /**
  * WHAT THE SUBAGENT IS HANDED, whole and self-contained: it has not been taught
  * this node and it sees none of the conversation it was started from, so it is
@@ -108,8 +138,11 @@ const RULE = "----"
  * Exported so a test can hold the fence's contents against the message, which is
  * the one part of the wording that has to be handed over VERBATIM.
  */
-export const briefFor = (agent: NodeAgent): string =>
-  `You are tidying the memory of the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`; that subtree is the whole of its memory. ${HARNESS_MEMORY_OFF}\n\n${SLEEP}`
+export const briefFor = (
+  agent: NodeAgent,
+  moved: ReadonlyArray<{ readonly id: string; readonly title: string }> = [],
+): string =>
+  `You are tidying the memory of the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`; that subtree is the whole of its memory. ${HARNESS_MEMORY_OFF}${whereOf(moved)}\n\n${SLEEP}`
 
 /**
  * WHAT ONE NODE AGENT IS SENT, as the words that arrive in its conversation:
@@ -121,5 +154,8 @@ export const briefFor = (agent: NodeAgent): string =>
  * told again is being reminded, not introduced. It is the FIRST backticked
  * pointer in the message, which is what the scripted engine reads.
  */
-export const sleepFor = (agent: NodeAgent): string =>
-  `[olai] Sleep. You are the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`; its subtree is your memory. ${HARNESS_MEMORY_OFF}\n\n${DELEGATE}\n\n${RULE}\n${briefFor(agent)}\n${RULE}`
+export const sleepFor = (
+  agent: NodeAgent,
+  moved: ReadonlyArray<{ readonly id: string; readonly title: string }> = [],
+): string =>
+  `[olai] Sleep. You are the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`; its subtree is your memory. ${HARNESS_MEMORY_OFF}\n\n${DELEGATE}\n\n${RULE}\n${briefFor(agent, moved)}\n${RULE}`

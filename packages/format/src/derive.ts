@@ -1783,6 +1783,45 @@ export const idsUnder = (
   return under
 }
 
+/** ONE ROW THAT MOVED UNDER A NODE — what a briefing names, and the two things
+ *  a name is: the id a reader can point at, and the title they recognise it by. */
+export interface MovedRow {
+  readonly id: string
+  readonly title: string
+}
+
+/**
+ * THE ROWS THAT MOVED UNDER A NODE, in the order the walk meets them — {@link
+ * changesUnder}'s own descent, its `since` and its `stop`, asked for the rows
+ * themselves rather than for its three numbers.
+ *
+ * WHY THERE ARE TWO: a caller that wants to know WHETHER to work (the due-ness
+ * rule) wants the numbers and nothing else — counting and taking extremes is
+ * cheaper than building a list — and a caller that is about to WORK wants to say
+ * WHICH rows moved, because a consolidation pass that rewrites a whole memory
+ * when two rows changed is the lossy rewrite the floor exists to prevent. They
+ * are one rule read twice, and a rule that drifted between them would be a brief
+ * naming rows the judgement did not count.
+ *
+ * `stop` stops at another agent's door here for {@link changesUnder}'s reason.
+ */
+export const movedUnder = (
+  derived: Pick<Derived, "children" | "byId">,
+  id: string,
+  since: string | null,
+  stop: ReadonlySet<string> = new Set(),
+): ReadonlyArray<MovedRow> => {
+  const moved: Array<MovedRow> = []
+  for (const under of idsUnder(derived, id, stop)) {
+    const at = derived.byId.get(under)
+    if (at === undefined || !isRegular(at)) continue
+    const stamp = stampedAt(at.node)
+    if (stamp === undefined || !newerThan(stamp, since)) continue
+    moved.push({ id: under, title: at.node.title })
+  }
+  return moved
+}
+
 /**
  * THE FILES A NODE AGENT'S MEMORY LIVES IN — the outline its own record is
  * written in, and every file holding a record under it ({@link idsUnder}).

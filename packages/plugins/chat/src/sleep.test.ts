@@ -112,3 +112,36 @@ test("the brief is fenced, whole, and addressed to the subagent", () => {
   // are `SLEEP`'s and are asserted there.
   expect(brief).toEndWith(SLEEP)
 })
+
+test("the brief names the rows that moved, and says when the list was cut", () => {
+  const moved = Array.from({ length: 44 }, (_, index) => ({ id: `note${index}`, title: `a note ${index}` }))
+  const brief = briefFor(AGENT, moved)
+  // THE PARAGRAPH IS IN THE BRIEF AND BEFORE THE STEPS: the subagent is the one
+  // doing the work, and a list that came after the instructions would be read
+  // after the agent had decided what to do.
+  const paragraph = brief.indexOf("These are the rows that moved")
+  expect(paragraph).toBeGreaterThan(brief.indexOf(HARNESS_MEMORY_OFF))
+  expect(paragraph).toBeLessThan(brief.indexOf("1. TIDY"))
+  // ...AND IT NAMES ROWS A SUBAGENT CAN POINT AT, with the titles a reader
+  // recognises their own memory by.
+  expect(brief).toContain("- `note0` — a note 0")
+  expect(brief).toContain("- `note39` — a note 39")
+  // THE CAP IS FORTY, and what it cut is a COUNT rather than a silence: a memory
+  // that moved a hundred rows would otherwise be a brief nobody reads.
+  expect(brief).not.toContain("note40")
+  expect(brief).toContain("...and 4 more.")
+  // ...AND THE REST OF THE SUBTREE IS STILL THEIRS, which is the half that keeps
+  // the pass from being an errand: a standing fact is rewritten where the rows
+  // that bear on it are.
+  expect(brief).toContain("The rest of the subtree is yours to touch only where a standing fact these rows bear on lives.")
+  expect(brief).toEndWith(SLEEP)
+})
+
+test("a pass nobody had to be due for names no rows at all", () => {
+  // `Sleep now` on a memory nothing has happened in: the whole subtree is the
+  // person's ask, and a list of nothing would be a paragraph saying nothing.
+  const brief = briefFor(AGENT)
+  expect(brief).not.toContain("These are the rows that moved")
+  expect(brief).toContain(HARNESS_MEMORY_OFF)
+  expect(brief).toEndWith(SLEEP)
+})

@@ -478,6 +478,10 @@ export {
    *  (`olai-plugin-chat`'s `server/sleep.ts`), which is why this walk lives
    *  beside {@link under} rather than in that plugin. */
   changesUnder,
+  /** ...AND THE ROWS THEMSELVES, for the caller that is about to work rather than
+   *  to decide: a brief that names what moved is what keeps a consolidation pass
+   *  from rewriting a memory nothing happened in. */
+  movedUnder,
   /** THE IDS UNDER A NODE — where a memory ends, which is the same line
    *  {@link memoryFiles} commits and `@olai/ops`' write door fences off. */
   idsUnder,
