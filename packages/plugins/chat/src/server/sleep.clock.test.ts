@@ -690,14 +690,18 @@ test("the judgement answers each state a node can be in, and none of them is a g
   // node has nothing worth a turn, whatever its quiet window says.
   const little = rowsUnder(1, NOW - HOUR, doors({ sleptAt: stamp(NOW - DAY), floor: 5 }), judged()).next
   expect(little).toEqual({ kind: "little", rows: 1 })
-  // ...AND THE FLOOR IS A COUNT OF MOVED ROWS, not of rows: five moved is due,
-  // and one of those five being old does not change the count.
-  expect(rowsUnder(5, NOW - HOUR, doors({ sleptAt: stamp(NOW - DAY), floor: 5 }), judged()).next.kind).toBe("due")
+  // ...AND THE FLOOR IS A COUNT OF MOVED ROWS, not of rows: five moved is due.
+  // THE MEMO IS OLDER THAN ALL FIVE — the helper spaces them a day apart — or the
+  // ones it outranks would not count as moved and the floor would be reached by
+  // rows that never moved at all.
+  expect(rowsUnder(5, NOW - HOUR, doors({ sleptAt: stamp(NOW - 6 * DAY), floor: 5 }), judged()).next.kind).toBe("due")
 
   // THE BACKSTOP, AT ITS EXACT BOUNDARY: a moved row that has waited precisely
   // `sleep-latest` is not yet due, and one millisecond more is — which is the
-  // direction that keeps a node from being tidied a moment early.
-  const waited = (age: number) => rowsUnder(1, NOW - age, doors({ sleptAt: stamp(NOW - DAY), floor: 5 }), judged()).next.kind
+  // direction that keeps a node from being tidied a moment early. THE MEMO IS
+  // MONTHS OLD, deliberately: the row has to be OLDER than the backstop and still
+  // NEWER than the memo, or it would not be a moved row at all.
+  const waited = (age: number) => rowsUnder(1, NOW - age, doors({ sleptAt: stamp(NOW - 30 * DAY), floor: 5 }), judged()).next.kind
   expect(waited(Duration.toMillis(Duration.days(7)))).toBe("little")
   expect(waited(Duration.toMillis(Duration.days(7)) + 1)).toBe("due")
 
