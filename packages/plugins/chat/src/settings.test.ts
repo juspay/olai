@@ -9,23 +9,42 @@ test("idle-ms decodes property strings within the Node timer range", () => {
   for (const value of ["0", "-1", "2147483648", "1.5", "NaN", "forever", ""]) expect(() => decode({ "idle-ms": value })).toThrow()
 })
 
-test("the pass is on, and left alone for six hours, by default", () => {
+test("the pass is on, left alone for six hours, and needs five moved rows", () => {
   const decode = Schema.decodeUnknownSync(Config)
   const config = decode({})
   expect(config.sleep).toBe("on")
   expect(config["sleep-after"]).toBe("6h")
+  expect(config["sleep-floor"]).toBe(5)
+  expect(config["sleep-latest"]).toBe("7d")
   expect(config["sleep-tick"]).toBe("15m")
   expect(config["sleep-question"]).toBe("20m")
   expect(config["sleep-limit"]).toBe("1h")
-  // ... and the three become the durations the pass waits, from ONE reading:
-  // the decoded config, so nothing downstream has to know which spelling a
-  // person wrote.
+  // ... and they become the numbers the pass reads, from ONE reading: the decoded
+  // config, so nothing downstream has to know which spelling a person wrote.
   expect(sleepingPolicy(config)).toEqual({
     after: Duration.hours(6),
+    latest: Duration.days(7),
+    floor: 5,
     tick: Duration.minutes(15),
     question: Duration.minutes(20),
     limit: Duration.hours(1),
   })
+})
+
+test("the floor is a whole number of rows, and zero or a fraction is refused", () => {
+  const decode = Schema.decodeUnknownSync(Config)
+  // A NUMBER A PERSON TYPED ARRIVES AS TEXT, like `idle-ms`, and a floor of one
+  // is the lowest setting that still means "a row has moved".
+  expect(decode({ "sleep-floor": "2" })["sleep-floor"]).toBe(2)
+  expect(decode({ "sleep-floor": 1 })["sleep-floor"]).toBe(1)
+  for (const value of ["0", "-1", "1.5", "many", ""]) {
+    expect(() => decode({ "sleep-floor": value })).toThrow()
+  }
+  // ...AND THE BACKSTOP IS A SPAN, refused and spelled like the others.
+  expect(decode({ "sleep-latest": "12h" })["sleep-latest"]).toBe("12h")
+  for (const value of ["0", "7", "a week", ""]) {
+    expect(() => decode({ "sleep-latest": value })).toThrow()
+  }
 })
 
 test("`off` is a word, and a span is a duration or it is refused", () => {
