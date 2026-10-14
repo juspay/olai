@@ -105,13 +105,19 @@ const stampUnder = (
   world: OlaiWorld,
   node: string,
   at: string,
-  picked: (row: Record<string, unknown>) => boolean,
+  /** WHICH ROW, BY ID — and by ID because the rows a caller picked from are the
+   *  records of ANOTHER read: `servedNodes` parses the file afresh every call, so
+   *  two reads of one file hold two sets of objects and an identity test against
+   *  one of them is false for every row of the other. The first version of this
+   *  compared objects and stamped NOTHING, which is the kind of bug a scenario
+   *  reports as a state that never arrives. */
+  wanted: (id: string) => boolean,
 ): void => {
   const id = world.nodeId(node);
   const below = under(world, node);
   const rows = world.servedNodes(FILE);
   const moved = rows.map((row) =>
-    below.has(String(row["id"])) && row["id"] !== id && picked(row) ? { ...row, changed: at } : row,
+    below.has(String(row["id"])) && row["id"] !== id && wanted(String(row["id"])) ? { ...row, changed: at } : row,
   );
   world.writeServed(FILE, moved.map((row) => JSON.stringify(row)).join("\n"));
 };
@@ -168,7 +174,12 @@ Given("one row under {string} has moved", async function (this: OlaiWorld, node:
   const next = rows.find((row) =>
     below.has(String(row["id"])) && row["id"] !== this.nodeId(node) && untouched(row));
   assert.ok(next !== undefined, `every row under ${node} has moved since the last sleep`);
-  stampUnder(this, node, at, (row) => row === next);
+  const one = String(next["id"]);
+  assert.ok(
+    this.servedNodes(FILE).filter((row) => below.has(String(row["id"])) && String(row["id"]) === one).length === 1,
+    `the row ${one} should be the one this node's file holds`,
+  );
+  stampUnder(this, node, at, (id) => id === one);
 });
 
 /** ...AND WHAT THE ITEM SAYS, for the states whose point is the sentence rather
