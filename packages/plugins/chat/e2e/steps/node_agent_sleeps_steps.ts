@@ -108,18 +108,39 @@ Given("the memory under {string} has moved", function (this: OlaiWorld, node: st
 });
 
 /**
- * ONE ROW, AND ONE THAT HAS NOT MOVED YET — so calling this twice is TWO moved
- * rows, which is what a scenario about the floor has to say. The node's own
- * record is never stamped: the memo lives on it, and a write there would be a
- * move the rule deliberately does not count.
+ * ONE ROW, AND ONE THE JUDGEMENT DOES NOT COUNT YET — so calling this twice is
+ * TWO moved rows, which is what a scenario about the floor has to say.
+ *
+ * "NOT COUNTED YET" IS MEASURED AGAINST THE MEMO, and that is the whole subtlety:
+ * the memo is what the rule compares a row with (`@olai/format`'s `changesUnder`),
+ * so a row is untouched when it carries no `changed` at all, or when that stamp's
+ * instant is at or before the memo's. Comparing with the instant THIS step
+ * happens to write would be comparing with a fresh value every call — the row the
+ * first call stamped carries an EARLIER instant, never an equal one — so the
+ * second call would pick that same row, restamp it, and the count would stay at
+ * one for ever: exactly the shape of a scenario that can never reach `due`.
+ *
+ * In this scenario's own terms, after its `Sleep now`: `hinges` carries the
+ * retitle the fake wrote, which is OLDER than the memo written at the end of that
+ * pass, so it is picked first and the next row under the node second — two moved
+ * rows, and the floor of two is met.
+ *
+ * The node's own record is never stamped: the memo lives on it, and a write there
+ * would be a move the rule deliberately does not count.
  */
 Given("one row under {string} has moved", function (this: OlaiWorld, node: string) {
   const at = movedAt();
   const rows = this.servedNodes(FILE);
   const below = under(this, node);
+  const memo = memoOf(this, node);
+  const untouched = (row: Record<string, unknown>): boolean => {
+    const changed = row["changed"];
+    if (changed === undefined) return true;
+    return typeof memo === "string" && Date.parse(String(changed)) <= Date.parse(memo);
+  };
   const next = rows.find((row) =>
-    below.has(String(row["id"])) && row["id"] !== this.nodeId(node) && row["changed"] !== at);
-  assert.ok(next !== undefined, `every row under ${node} has already moved in this scenario`);
+    below.has(String(row["id"])) && row["id"] !== this.nodeId(node) && untouched(row));
+  assert.ok(next !== undefined, `every row under ${node} has moved since the last sleep`);
   stampUnder(this, node, at, (row) => row === next);
 });
 
