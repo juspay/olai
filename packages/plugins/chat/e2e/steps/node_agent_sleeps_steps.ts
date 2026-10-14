@@ -173,12 +173,16 @@ const says = async (world: OlaiWorld, next: string): Promise<void> => {
   const seen = await item(world).evaluate(async (node, want) => {
     const until = Date.now() + 10_000;
     for (;;) {
-      if (node.getAttribute("data-next") === want) return true;
-      if (Date.now() > until) return false;
+      const now = node.getAttribute("data-next");
+      if (now === want) return true;
+      if (Date.now() > until) return now;
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     }
   }, next);
-  assert.ok(seen, `the sleep item should say ${next}`);
+  // WHAT IT DID SAY, when it never said what the scenario wanted: the state is the
+  // whole of the diagnosis, and "expected little, got false" would send the next
+  // reader back to the browser to find out.
+  assert.ok(seen === true, `the sleep item should say ${next}, and it says ${String(seen)}`);
 };
 
 Then("the sleep item says {string}", async function (this: OlaiWorld, next: string) {
