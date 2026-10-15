@@ -654,17 +654,18 @@ export default definePlugin({
       setModel: ({ input }: { input: { agent: string; session: string; value: string } }) =>
         withChat((open) => open.inConversation(input, undefined, panel => panel.setModel(input.agent, input.session, input.value))),
       // THE ONE VERB NOBODY PRESSED, routed through the pair exactly like the
-      // gestures above it — and through the door that will NOT open a
-      // conversation to apply it (`inOpenConversation` argues why: this call is
-      // older than the roster frame it came from, so the conversation may be
-      // gone, and booting an agent to acknowledge a dead one is not reading).
+      // gestures above it — and through the `Chat` verb that will NOT open a
+      // conversation to apply it (`scoped.ts`'s `Chat.seen` argues why: this
+      // call is older than the roster frame it came from, so the conversation
+      // may be gone, and booting an agent to acknowledge a dead one is not
+      // reading).
       //
       // THEN THE ROSTER, because that is where this fact is DRAWN: the write is
       // on disk and in the record's mirror (`../sessions.ts`), while every tab's
       // mark is read off the cell this republishes. A frame that moved nothing
       // is free — the cell's `equals` is the schema's own equivalence.
       seen: ({ input }: { input: { agent: string; session: string; at: string } }) =>
-        withChat((open) => open.inOpenConversation(input, panel => panel.seen(input, input.at)))
+        withChat((open) => open.seen(input, input.at))
           .pipe(Effect.tap(() => Effect.sync(republishAgents))),
       locations: ({ input }: { input: LocationQuery }) => Effect.map(ops.reading, reading => chatLocations(reading as Reading, input, vault.inbox.current())),
       newChat: ({ input }: { input: NewChatInput }) =>

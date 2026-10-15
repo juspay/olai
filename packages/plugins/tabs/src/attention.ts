@@ -35,7 +35,7 @@ import { type Attention, type AttentionRow, isCurrent, NEEDS_YOU_DOT, UNREAD_DOT
 import type { Routing } from "olai-plugin-navigation/routes"
 import { panesOf, workspaceOf } from "olai-plugin-navigation/workspace"
 
-import type { Dots, Tab } from "./contract.ts"
+import type { Dots, Mark, Tab } from "./contract.ts"
 
 /**
  * THE MARKS A TAB CAN WEAR, over one walk of the strip.
@@ -55,12 +55,14 @@ export const marksOver = (
    *  and the readings are both derived from it: a third mark cannot arrive
    *  without the gate widening with it, and cannot arrive with a look that no
    *  reading draws. */
-  const marks: ReadonlyArray<Omit<Dots, "ids"> & { readonly about: (row: AttentionRow) => boolean }> = [
+  const marks: ReadonlyArray<Mark & { readonly about: (row: AttentionRow) => boolean }> = [
     { about: row => row.standing === "needs-you", paint: NEEDS_YOU_DOT, label: "Needs you", rank: 2 },
     { about: row => row.unread, paint: UNREAD_DOT, label: "Unread", rank: 1 },
   ]
   /** Whether anything is on a tab at all: with no such row, NO tab's address is
-   *  read — which is every directory whose agents are idle and read. */
+   *  read — which is every directory whose agents are idle and read. The parse
+   *  is gated HERE rather than in each mark, which is why the guards below only
+   *  have to answer *is this tab showing one of MY rows*. */
   const active = createMemo(() => rows().some(row => marks.some(({ about }) => about(row))))
   const parsed = keyArray(tabs, tab => tab.id, tab => {
     const id = tab().id
@@ -70,13 +72,10 @@ export const marksOver = (
   })
 
   /** One mark, wired to the walk: the tabs showing one of the rows it is about. */
-  const wearing = (
-    about: (row: AttentionRow) => boolean,
-    mark: Pick<Dots, "paint" | "label" | "rank">,
-  ): Dots => ({
+  const wearing = (about: (row: AttentionRow) => boolean, mark: Mark): Dots => ({
     ...mark,
     ids: createMemo(() => {
-      const mine = active() ? rows().filter(about) : []
+      const mine = rows().filter(about)
       if (mine.length === 0) return new Set<string>()
       return new Set(parsed().filter((tab) => tab.panes().some(({ route }) =>
         mine.some((row) => isCurrent(route, row, chat.folding.unfolded(row.id))))).map((tab) => tab.id))

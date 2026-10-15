@@ -27,7 +27,7 @@ import type { Navigation } from "olai-plugin-navigation/contract"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { hrefOfWorkspace, lone, panesOf, type Workspace, workspaceOf } from "olai-plugin-navigation/workspace"
 
-import type { Dots, Tab, TabsState } from "./contract.ts"
+import type { Dots, Mark, Tab, TabsState } from "./contract.ts"
 import {
   closeOthers,
   closeTab,
@@ -80,12 +80,12 @@ export const createTabs = (router: Navigation): TabsStore => {
   const [draws, setDraws] = createSignal<ReadonlyArray<{ readonly desktop: Accessor<boolean> }>>([])
   const [dots, setDots] = createSignal<ReadonlyArray<{ readonly dots: Dots }>>([])
   const drawn = createMemo(() => draws().some((row) => row.desktop()))
-  const dotted = createMemo<ReadonlyMap<string, Dots>>(() => {
+  const dotted = createMemo<ReadonlyMap<string, Mark>>(() => {
     // ONE MARK PER TAB, and WHICH one is decided by `rank` rather than by the
     // order these readings were registered in — a strip whose dot depended on
     // which component mounted first would be a rule nobody could read off
     // either reading, and two rows contributing marks would be the end of it.
-    const marked = new Map<string, Dots>()
+    const marked = new Map<string, Mark>()
     for (const { dots: one } of dots()) {
       for (const id of one.ids()) {
         const held = marked.get(id)

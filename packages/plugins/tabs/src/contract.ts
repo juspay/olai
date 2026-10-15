@@ -29,17 +29,14 @@ export interface Tab {
 }
 
 /**
- * ONE READING OF WHICH TABS WEAR A MARK, handed to the set by whoever knows.
+ * ONE MARK, as everything that draws or ranks one reads it: how it is painted,
+ * what it is called, and how it outranks the others a tab may be caught by.
  *
- * It is a WHOLE LOOK rather than a set of ids: what a tab wears is a paint, a
- * name a reader is given where they cannot see it, and — where a tab is caught
- * by more than one reading — which of them wins. The last is what makes the
- * result a decision the set can make instead of an accident of registration
- * order: a tab whose conversation is both waiting and unread wears the mark
- * with the HIGHER {@link Dots.rank}, and a tie leaves the earlier reading's.
+ * ITS OWN NAME, because a mark outlives the reading that found it: the set
+ * keeps one mark per tab (`{@link TabsState.dotted}`), the strip draws one, and
+ * neither of them has any use for the accessor that produced it.
  */
-export interface Dots {
-  readonly ids: Accessor<ReadonlySet<string>>
+export interface Mark {
   /** The utility classes the mark is painted with. */
   readonly paint: string
   /** What the mark is CALLED, drawn where nothing can be seen (a screen
@@ -47,6 +44,19 @@ export interface Dots {
   readonly label: string
   /** How this mark outranks the others a tab may be caught by. */
   readonly rank: number
+}
+
+/**
+ * ONE READING OF WHICH TABS WEAR A MARK, handed to the set by whoever knows.
+ *
+ * It is a WHOLE LOOK rather than a set of ids: the tabs it is about, and the
+ * {@link Mark} each of them wears. Where a tab is caught by more than one
+ * reading the mark with the HIGHER {@link Mark.rank} wins, and a tie leaves the
+ * earlier reading's — which is what makes the result a decision the set can
+ * make instead of an accident of registration order.
+ */
+export interface Dots extends Mark {
+  readonly ids: Accessor<ReadonlySet<string>>
 }
 
 export interface OpenOptions {
@@ -83,8 +93,9 @@ export interface TabsState {
    *  its release. */
   readonly draw: (desktop: Accessor<boolean>) => () => void
   /** The tabs wearing a dot, by id, with how it is painted and what it is
-   *  called — ONE reading per tab, the highest-ranked of those that caught it. */
-  readonly dotted: Accessor<ReadonlyMap<string, Dots>>
+   *  called — ONE {@link Mark} per tab, the highest-ranked of those that caught
+   *  it. */
+  readonly dotted: Accessor<ReadonlyMap<string, Mark>>
   /** A reading of which tabs wear a dot and how it is painted, from whoever
    *  knows; the answer is its release. */
   readonly dot: (dots: Dots) => () => void

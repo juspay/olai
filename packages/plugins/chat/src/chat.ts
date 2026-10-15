@@ -438,18 +438,17 @@ export interface Panel {
    *
    * ON THE PANEL, beside the turn-boundary write that puts the line there, and
    * for the same reason: this is the other half of ONE record keyed on ONE
-   * conversation, and the panel is the object that knows which conversation it
-   * is in. A caller reaching the record directly would be reaching past the
-   * door that decides whether the gesture is even about this conversation.
+   * conversation, and the panel is the object that owns that conversation's half
+   * of it. It is NOT the place that decides whether a caller may name this
+   * conversation — that is the scheduler's matching, once ({@link Chat.seen}) —
+   * so a panel that is handed a pair writes it.
    *
-   * IT REFUSES NOTHING, deliberately, unlike every verb around it: nobody made
-   * a gesture and there is nobody to tell, so an acknowledgement that names a
-   * conversation this panel is not in, and a record that will not write, are
-   * both SAID IN THE LOG and carried on ({@link ./sessions.ts} argues the
-   * discipline). What never happens is a success reported over a write that did
-   * not occur. Its declared failure is the one every conversation verb here
-   * carries — the aggregate reaches its panel through the same door the others
-   * do — and the refusal a stale tab meets is the door's, one level up.
+   * IT REFUSES NOTHING, deliberately, unlike every verb around it: nobody made a
+   * gesture and there is nobody to tell, so a record that will not write is SAID
+   * IN THE LOG and carried on ({@link ./sessions.ts} argues the discipline).
+   * What never happens is a success reported over a write that did not occur.
+   * Its declared failure is the one every conversation verb here carries, and
+   * the refusal a stale tab meets is the door's, one level up.
    */
   readonly seen: (to: Conversing, at: string) => Effect.Effect<void, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
@@ -3450,35 +3449,25 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * WHAT SOMEBODY HAS READ, written on the same row the line itself is on
      * ({@link ./sessions.ts}'s `Sessions.seen`, {@link Panel.seen}).
      *
-     * THE PANEL MUST BE IN THE CONVERSATION, and the test is the DOOR'S OWN —
-     * `inConversation` matches a panel that is in the pair OR one holding a
-     * REFUSED OPEN for it (`state.unopened.what`), which is a face a person can
-     * be looking at with nothing in it to read. Asking a narrower question here
-     * would drop, silently and with a success reported, an acknowledgement the
-     * door had already decided was about this panel; a conversation with no
-     * line written down is unread by definition (`./attention.ts`'s `unreadOf`),
-     * so accepting it writes a mark with nothing to mark and can never hide a
-     * line. `state.status` is deliberately NOT part of it: unlike
+     * THE PANEL IS HANDED A PAIR THE MATCHER ALREADY NAMED FOR IT
+     * ({@link Chat.seen}), so it does NOT ask again whether this conversation is
+     * the one it is in: a second copy of that rule here would be spelled in
+     * different words (`talking?.row.id` over this panel's state rather than
+     * `agentIn` over the panel) and could drift from the one the door matches
+     * by, which is a conversation marked read that nobody was looking at.
+     * `state.status` is deliberately not consulted either: unlike
      * {@link setSetting}, reading a line is not a change to the agent's settings
      * and a turn in flight does not make it wrong.
      *
-     * A FAILED WRITE IS LOGGED AND CARRIED ON, for {@link Panel.seen}'s reason:
-     * the caller is a tab that will try again when what it is looking at moves,
-     * and the alternative — a refusal nobody asked for — would be a person's
-     * sidebar reporting an error about their own attention.
+     * A RECORD THAT WILL NOT WRITE IS LOGGED AND CARRIED ON, for
+     * {@link Panel.seen}'s reason: the caller is a tab that will try again when
+     * what it is looking at moves, and the alternative — a refusal nobody asked
+     * for — would be a person's sidebar reporting an error about their own
+     * attention.
      */
     const seen = (to: Conversing, at: string): Effect.Effect<void> => Effect.gen(function*() {
       const overheard = options.overheard
       if (overheard === undefined || overheard === null) return
-      const inIt = talking?.row.id === to.agent
-        && (state.session?.id === to.session || state.unopened?.what === to.session)
-      if (!inIt) {
-        yield* Effect.logWarning(
-          `an acknowledgement named a conversation this panel is not in ` +
-            `(${to.agent}/${to.session}); nothing was written down`,
-        )
-        return
-      }
       const done = yield* Effect.result(overheard.seen(to, at))
       if (done._tag === "Failure") {
         yield* Effect.logWarning(

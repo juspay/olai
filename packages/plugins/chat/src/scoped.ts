@@ -57,25 +57,26 @@ export interface Chat extends Panel {
   /** Apply a browser gesture only to the conversation it was drawn for. */
   readonly inConversation: <A>(to: PanelAddress, scope: string | null | undefined, use: (panel: Panel) => Effect.Effect<A, OpFailure>) => Effect.Effect<A, OpFailure>
   /**
-   * THE SAME MATCHING, WITH THE ARM THAT OPENS REMOVED — for the one call in
-   * this package that nobody made.
+   * WRITE DOWN THAT A PERSON HAS READ THE LINE THIS CONVERSATION'S AGENT LAST
+   * SAID — `at` being the ISO instant that was on screen
+   * ({@link ./sessions.ts}'s `Sessions.seen`), and `to` the pair the caller read
+   * it off.
    *
-   * {@link Chat.inConversation} answers a gesture about a conversation the
-   * serve may not have open, and it may OPEN it to apply the gesture: a person
-   * asked for that conversation, so a process on their behalf is the point.
-   * Acknowledging a line is not a gesture about the conversation — a tab says
-   * it has read a line off a roster frame that is already a round trip old —
-   * and by the time the call arrives the conversation may be GONE (the agent
-   * crashed, its scope was reaped). Opening one to acknowledge it would start
-   * an agent nobody asked for and report a node as `idle` whose agent is not
-   * running at all. So this refuses, and the mark stays up until somebody looks
-   * at a conversation that is there.
+   * THE SAME MATCHING AS {@link Chat.inConversation} WITH THE ARM THAT OPENS
+   * REMOVED, and that is the whole of what makes this a verb about READING: a
+   * gesture may open the conversation it names (a person asked for it), where
+   * an acknowledgement arrives off a roster frame that is already a round trip
+   * old and may name a conversation that has GONE — the agent crashed, its scope
+   * was reaped. Opening one to acknowledge it would start an agent nobody asked
+   * for and report a node as `idle` whose agent is not running at all. So a pair
+   * nothing has open is REFUSED, and the mark stays up until somebody looks at a
+   * conversation that is there.
    *
-   * IT TAKES A PAIR rather than a {@link PanelAddress}: a node address names no
-   * conversation, so there is nothing it could have read, and the type says so
-   * rather than the refusal saying it at runtime.
+   * It is here, on the scheduler, rather than on a door of its own: a caller
+   * reaching a panel itself would be re-deciding which conversation that panel
+   * is in, a second copy of the one rule this file keeps.
    */
-  readonly inOpenConversation: <A>(to: Conversing, use: (panel: Panel) => Effect.Effect<A, OpFailure>) => Effect.Effect<A, OpFailure>
+  readonly seen: (to: Conversing, at: string) => Effect.Effect<void, OpFailure>
   readonly live: () => ReadonlyMap<string, LiveSession>
   /**
    * TAKE BACK ONE PLUGIN'S UNDELIVERED WORDS for one conversation — BOTH HOLDS,
@@ -1013,29 +1014,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       resend: (id) => foreground((panel) => panel.resend(id)),
       cancel: foreground((panel) => panel.cancel),
       inConversation: (to, scope, use) => conversationIn(to, scope, use, "open-if-needed"),
-      /**
-       * ...AND THE SAME MATCHING WITH THE OPENING ARM TAKEN OUT, for the one
-       * call in this package that nobody made ({@link Chat.inOpenConversation}).
-       *
-       * THE DIFFERENCE IS NOT PEDANTRY, which this repo learned from a red
-       * suite rather than from a review: a tab acknowledges a line off a roster
-       * frame that is already a round trip old, so the acknowledgment can
-       * arrive after the conversation it names has GONE — the agent crashed,
-       * the scope was reaped. Through {@link Chat.inConversation} that
-       * acknowledgment OPENED the conversation again: an agent nobody asked for
-       * started, and the roster reported `idle` about a node whose truth was
-       * that its agent was not running at all. Refusing leaves the mark up
-       * until somebody looks at a conversation that is actually there.
-       */
-      inOpenConversation: (to, use) => conversationIn(to, undefined, use, "only-if-open"),
       setSetting: (agent, session, config, value) => foreground((panel) => panel.setSetting(agent, session, config, value)),
       setModel: (agent, session, value) => foreground((panel) => panel.setModel(agent, session, value)),
-      // THE AGGREGATE'S OWN ARM, and the interface is the only thing that asks
-      // for it: the server routes an acknowledgement through
-      // `inOpenConversation`, which calls the PANEL it matched rather than this
-      // one. A `Chat` is a `Panel`, so the member has to be here; nothing in
-      // this package would otherwise call it.
-      seen: (to, at) => foreground((panel) => panel.seen(to, at)),
+      // ONE HOME FOR THE PAIR RULE: this is the routing an acknowledgement
+      // takes, and the panel it hands the write to is the panel the MATCHER
+      // named — so `Panel.seen` never re-decides which conversation its panel is
+      // in (`inConversation` above is the same helper with the opening arm on).
+      seen: (to, at) => conversationIn(to, undefined, (panel) => panel.seen(to, at), "only-if-open"),
       // Private Panel compatibility for scheduler benches. The browser wire
       // exposes only node-bound creation and conversation-keyed gestures.
       newSession: (agent) => Effect.gen(function*() {

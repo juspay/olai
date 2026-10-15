@@ -213,7 +213,10 @@ reading and replays its transcript.
 conversation tells the serve which of the agent's lines it has read, by the
 exact instant it was drawn from. It is keyed on the engine/session pair like
 every other conversation verb and refuses a stale one, so it can never attach
-somebody's reading to a conversation they were not looking at. The write lands
+somebody's reading to a conversation they were not looking at — the refusal is
+the scheduler's own matching of a conversation-keyed call, the one a gesture
+goes through, with the arm that would OPEN the conversation it names left out
+(a read is not a request for a process). The write lands
 in the machine-local heard record (below), not in the vault: a serve that
 restarts keeps it, and so does every other tab of this olai.
 

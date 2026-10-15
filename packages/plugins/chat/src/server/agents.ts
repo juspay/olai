@@ -345,36 +345,37 @@ export const joined = (
    *  the sleeper are, and {@link Roster.rowsWith} joins both on). */
 ): ReadonlyArray<Omit<Agents[number], "sleeps" | "sleep">> => {
   if (agents.length === 0) return NO_AGENT_ROSTER
-  return agents.map((agent) => ({
-    ...agent,
-    standing: standingOf(agent, live.get(agent.id)),
-    ...(live.get(agent.id)?.since === undefined ? {} : { since: live.get(agent.id)!.since }),
-    // A PASS'S OWN QUESTION IS NOT SOMEBODY'S TO ANSWER, so it is not counted
-    // here — and this one line is the whole of what keeps a sleep from waking a
-    // person. The four faces that alert (the chime, the OS notification, the
-    // badge and the Needs-you listing) all derive from this count or from the
-    // standing below, which is why nothing else had to learn about the mark.
-    waiting: live.get(agent.id)?.sleep === true ? 0 : live.get(agent.id)?.asking ?? 0,
-    ...(live.get(agent.id)?.unopened === true ? { unopened: true } : {}),
-    // The one fact olai writes back that a face draws, `null`-on-the-wire
-    // where the record carries an absent key: the wire is a decoded value a
-    // browser reads per frame, and an optional key there would be one more
-    // state for a face to have an opinion about — the same line `Wake.fault`
-    // is drawn on one cell over.
-    said: (agent.session === null
+  return agents.map((agent) => {
+    // THE ROW OLAI OVERHEARD, FOUND ONCE. Both halves of it are read below, and
+    // a second `find` would be the pair rule spelled twice over the same array —
+    // on the walk that runs per revision and per chat frame.
+    const heard = agent.session === null
       ? undefined
       : overheard.find((row) => row.agent === agent.engine && row.session === agent.session)
-        ?.said) ?? null,
-    // ...AND THE OTHER HALF OF THAT LINE, matched on the same PAIR for the same
-    // reason: what somebody acknowledged in one conversation says nothing about
-    // another. `null`-on-the-wire where the record carries none, so a reader
-    // compares one instant against `said.at` and never has to hold a third
-    // state for "no answer at all" ({@link olai-plugin-chat/wire}'s `seen`).
-    seen: (agent.session === null
-      ? undefined
-      : overheard.find((row) => row.agent === agent.engine && row.session === agent.session)
-        ?.seen) ?? null,
-  }))
+    return {
+      ...agent,
+      standing: standingOf(agent, live.get(agent.id)),
+      ...(live.get(agent.id)?.since === undefined ? {} : { since: live.get(agent.id)!.since }),
+      // A PASS'S OWN QUESTION IS NOT SOMEBODY'S TO ANSWER, so it is not counted
+      // here — and this one line is the whole of what keeps a sleep from waking a
+      // person. The four faces that alert (the chime, the OS notification, the
+      // badge and the Needs-you listing) all derive from this count or from the
+      // standing below, which is why nothing else had to learn about the mark.
+      waiting: live.get(agent.id)?.sleep === true ? 0 : live.get(agent.id)?.asking ?? 0,
+      ...(live.get(agent.id)?.unopened === true ? { unopened: true } : {}),
+      // The one fact olai writes back that a face draws, `null`-on-the-wire
+      // where the record carries an absent key: the wire is a decoded value a
+      // browser reads per frame, and an optional key there would be one more
+      // state for a face to have an opinion about — the same line `Wake.fault`
+      // is drawn on one cell over.
+      said: heard?.said ?? null,
+      // ...AND THE OTHER HALF OF THAT LINE, off the same row: what a person has
+      // acknowledged in this conversation. `null`-on-the-wire where none was
+      // written, so a reader compares one instant against `said.at` and never
+      // holds a third state for "no answer at all" (`olai-plugin-chat/wire`).
+      seen: heard?.seen ?? null,
+    }
+  })
 }
 
 const standingOf = (
