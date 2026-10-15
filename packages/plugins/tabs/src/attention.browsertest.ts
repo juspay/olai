@@ -31,6 +31,12 @@ test("tab attention parses no addresses until a conversation needs one, and repa
     expect(parsed).toBe(0)
     setTabs(all => all.map(tab => ({ ...tab, title: "renamed" })))
     expect(parsed).toBe(0)
+    // A ROSTER WITH NOTHING ON IT reads no address either: an agent that is
+    // neither waiting nor unread is not something a tab is marked for, and the
+    // gate is derived from what the marks are ABOUT rather than from there being
+    // any agent at all.
+    setRows([{ id: "node", file: "house.olai", standing: "idle", unread: false }])
+    expect(parsed).toBe(0)
     setRows([{ id: "node", file: "house.olai", standing: "needs-you", unread: false }])
     expect([...needing.ids()]).toEqual(["a"])
     // ONE PARSE PER TAB, whoever is reading: the two marks share the walk, so

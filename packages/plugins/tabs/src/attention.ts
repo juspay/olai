@@ -51,7 +51,17 @@ export const marksOver = (
   tabs: Accessor<ReadonlyArray<Tab>>,
 ): ReadonlyArray<Dots> => {
   const rows = chat.agents.rows
-  const active = createMemo(() => rows().length > 0)
+  /** EVERY MARK, and the rows it is about — ONE table, because the walk's gate
+   *  and the readings are both derived from it: a third mark cannot arrive
+   *  without the gate widening with it, and cannot arrive with a look that no
+   *  reading draws. */
+  const marks: ReadonlyArray<Omit<Dots, "ids"> & { readonly about: (row: AttentionRow) => boolean }> = [
+    { about: row => row.standing === "needs-you", paint: NEEDS_YOU_DOT, label: "Needs you", rank: 2 },
+    { about: row => row.unread, paint: UNREAD_DOT, label: "Unread", rank: 1 },
+  ]
+  /** Whether anything is on a tab at all: with no such row, NO tab's address is
+   *  read — which is every directory whose agents are idle and read. */
+  const active = createMemo(() => rows().some(row => marks.some(({ about }) => about(row))))
   const parsed = keyArray(tabs, tab => tab.id, tab => {
     const id = tab().id
     const href = createMemo(() => tab().href)
@@ -59,23 +69,19 @@ export const marksOver = (
     return { id, panes }
   })
 
-  /** One mark: the rows it is about, how it looks, and the tabs showing one. */
+  /** One mark, wired to the walk: the tabs showing one of the rows it is about. */
   const wearing = (
     about: (row: AttentionRow) => boolean,
     mark: Pick<Dots, "paint" | "label" | "rank">,
   ): Dots => ({
     ...mark,
     ids: createMemo(() => {
-      if (!active()) return new Set<string>()
-      const mine = rows().filter(about)
+      const mine = active() ? rows().filter(about) : []
       if (mine.length === 0) return new Set<string>()
       return new Set(parsed().filter((tab) => tab.panes().some(({ route }) =>
         mine.some((row) => isCurrent(route, row, chat.folding.unfolded(row.id))))).map((tab) => tab.id))
     }),
   })
 
-  return [
-    wearing(row => row.standing === "needs-you", { paint: NEEDS_YOU_DOT, label: "Needs you", rank: 2 }),
-    wearing(row => row.unread, { paint: UNREAD_DOT, label: "Unread", rank: 1 }),
-  ]
+  return marks.map(({ about, ...mark }) => wearing(about, mark))
 }
