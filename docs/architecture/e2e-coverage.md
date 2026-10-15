@@ -639,7 +639,7 @@ opening it beside the current panes; `pin_migration` starts from a legacy
 shelf, checks the rewritten titles on disk, adds a new reveal pin and restarts
 the server to prove the migration runs once.
 
-## Unread conversations (#NNN)
+## Unread conversations (#661)
 
 `unread.feature` (chat) is five scenarios over a scripted agent, and the mark
 they are about is the one thing in this app that is written by NOBODY: a tab
