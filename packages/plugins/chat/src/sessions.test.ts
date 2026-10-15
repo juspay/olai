@@ -253,6 +253,21 @@ describe("what olai writes back", () => {
     expect(heard.at(IN)?.said?.at).not.toBe(heard.at(IN)?.seen)
   })
 
+  test("an acknowledgement that arrives LATE does not move the mark backwards", async () => {
+    // Two tabs of one olai a frame apart: the second one is still holding the
+    // roster from before the agent's newest line, so what it hands back is the
+    // instant BEFORE it. Taking that would un-read a line somebody has already
+    // read — the one direction this may never move.
+    const heard = await run(forDirectory(HERE))
+    await run(heard.said(IN, { text: "on it", at: AT }))
+    await run(heard.said(IN, { text: "and done", at: LATER }))
+    await run(heard.seen(IN, LATER))
+    const after = written(HERE)
+    await run(heard.seen(IN, AT))
+    expect(heard.at(IN)?.seen).toBe(LATER)
+    expect(written(HERE)).toEqual(after)
+  })
+
   test("acknowledging a conversation olai has heard nothing from makes the row rather than refusing", async () => {
     // The row is the pair plus whatever is known about it, and a `seen` write
     // is one of the writers that can bring it into being — the same shape the

@@ -25,7 +25,7 @@ import { navigation } from "olai-plugin-navigation/contract"
 import type {} from "olai-plugin-navigation/slots"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 
-import { needingYou, unreadIn } from "./attention.ts"
+import { marksOver } from "./attention.ts"
 import { chordsOf } from "./chords.ts"
 import type { TabsState } from "./contract.ts"
 import { name, tabsState } from "./index.ts"
@@ -82,8 +82,7 @@ export const components = {
       const router = yield* navigation
       yield* Effect.acquireRelease(
         Effect.sync(() => createRoot((dispose) => {
-          const releases = [needingYou(chat, router.routes, tabs.tabs), unreadIn(chat, router.routes, tabs.tabs)]
-            .map((reading) => tabs.dot(reading))
+          const releases = marksOver(chat, router.routes, tabs.tabs).map((reading) => tabs.dot(reading))
           return () => {
             // Released in reverse, like every other list of acquisitions here:
             // the second reading's row goes before the first's.

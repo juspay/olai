@@ -400,19 +400,27 @@ Only shown conversation surfaces count as watched for badges, chimes and
 notifications. A hidden tab can therefore acquire its needs-you dot, and a
 notification reveals a shown copy or requests a visible conversation.
 
-**The same watched reading is what writes down what has been read.** The
-machine-local `heard` record (`src/sessions.ts`) carries, beside the last line
-olai heard from a conversation, the instant of that line a person has SEEN. A
-tab that is showing the conversation tells the serve so
-(`conversation.seen`), and `unreadOf` — one pure predicate in
-`src/attention.ts` — is what every face reads off the roster row: a conversation
-whose agent has said something since that instant is unread, and a conversation
-that has said nothing is never unread. The row is not a per-node flag and not
-config: the record is keyed on the engine/session pair, it outlives the tab that
-wrote it, and it is capped with the rest of that file. Only a WATCHED row
-acknowledges, which is why a folded conversation, a background tab and a
-backgrounded window all leave the mark up, and why looking at it clears it
-everywhere at once.
+**What has been read is written down by THIS document, and the two questions are
+deliberately not one.** `watching.ts` answers both: `watched` — this surface, or
+another window of this olai saying it is on it — decides whether a question
+deserves a chime, because a form on a screen somebody is already reading
+somewhere else is delivered; `here` — this document is showing the conversation
+and its window is in front — decides what may be acknowledged. The wider answer
+is a beat that decays over `WATCHED_LAPSE`, so an acknowledgement gated on it
+would write a line down as read on the strength of a window that had already
+looked away.
+
+The machine-local `heard` record (`src/sessions.ts`) carries, beside the last
+line olai heard from a conversation, the instant of that line a person has SEEN.
+A tab that is showing the conversation tells the serve so (`conversation.seen`),
+which keeps the LATER of two acknowledgements, and `unreadOf` — one pure
+predicate in `src/attention.ts` — is what every face reads off the roster row: a
+conversation whose agent has said something since that instant is unread, and a
+conversation that has said nothing is never unread. The row is not a per-node
+flag and not config: the record is keyed on the engine/session pair, it outlives
+the tab that wrote it, and it is capped with the rest of that file. So a folded
+conversation, a tab behind another tab and a backgrounded window all leave the
+mark up, and looking at it clears it everywhere at once.
 
 Hidden transcripts never scroll. On return they follow the latest line only
 if the reader had been following before hiding. Completion key handlers obey

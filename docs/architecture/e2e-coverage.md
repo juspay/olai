@@ -641,7 +641,7 @@ the server to prove the migration runs once.
 
 ## Unread conversations (#661)
 
-`unread.feature` (chat) is five scenarios over a scripted agent, and the mark
+`unread.feature` (chat) is six scenarios over a scripted agent, and the mark
 they are about is the one thing in this app that is written by NOBODY: a tab
 that is showing a conversation tells the serve which line it has read.
 
@@ -656,25 +656,36 @@ that is showing a conversation tells the serve which line it has read.
   counted on the wire (`conversation/seen`), because a row that was never marked
   and one whose mark was cleared read the same from the DOM. Coming back to the
   tab acknowledges it and both marks go.
-- **A second tab reading it.** The node's own page is opened as a tab of its own
-  (`Open in new tab` on the row's bullet), and that tab reading the conversation
-  clears the mark for the first one too.
-- **Surviving a reload.** Read, then reloaded with the fold shut: a row that came
-  back unread would be a record kept in the tab that did the looking rather than
-  one the serve holds for every tab of this olai.
+- **Another tab reading it.** Three tabs: the node's own page (the other page a
+  conversation is drawn on) and a file's page opened behind, with the file
+  brought forward — so the tab holding the conversation is behind another one and
+  wears the dot, and the acknowledgement comes from a tab showing the same
+  conversation somewhere else. The first tab's own dot coming off is what says
+  the read reached it.
+- **Surviving a reload, both ways.** Read, then reloaded with the fold shut: a
+  row that came back unread would be a record kept in the tab that did the
+  looking rather than one the serve holds for every tab of this olai. And the
+  other direction: a row left UNREAD across a reload stays unread, with the wire
+  counted across it — a boot that acknowledged anything without a conversation on
+  screen, or read the mark off the wrong pair, fails here.
 - **Already in front.** A reply that arrives with the conversation on screen is
   acknowledged as it lands, so no mark is ever left behind — the same wire count,
   with the assertion that the mark clears after it.
 
 Unit cases beside the code: `sessions.test.ts` (the `seen` write, its no-op for a
-line already acknowledged, a later line making the row unread again, an older
-file with no `seen` at all, and a `seen` that will not read as absent),
-`attention.test.ts` (`unreadOf`'s five states), `server/agents.test.ts` (the join
-on the engine/session pair, and `null` rather than an absent key),
-`tabs/attention.browsertest.ts` and `tabs/store.browsertest.ts` (the second
-reading, and the rank that decides which mark a tab wears when both apply).
+line already acknowledged, a later line making the row unread again, an
+acknowledgement that arrives LATE leaving the later mark standing, an older file
+with no `seen` at all, and a `seen` that will not read as absent),
+`attention.test.ts` (`unreadOf`'s states), `watching.browsertest.ts` (a sibling
+document's beat making `watched` true and `here` false, which is what the
+acknowledgement is gated on), `server/agents.test.ts` (the join on the
+engine/session pair, and `null` rather than an absent key),
+`scoped.test.ts` (a read arriving after its conversation was reaped is refused),
+and `tabs/attention.browsertest.ts` + `tabs/store.browsertest.ts` (one walk for
+both marks, and the rank that decides which one a tab wears when both apply).
 
 Open: an acknowledgement from a second BROWSER WINDOW — a second document is
 what `elsewhere.ts` covers for the alerts, and no scenario yet reads a
-conversation from one; and a conversation whose node agent is reaped between the
-line being heard and the tab acknowledging it.
+conversation from one (the watching unit case is the closest thing); and a
+conversation whose node agent is reaped between the line being heard and the tab
+acknowledging it.

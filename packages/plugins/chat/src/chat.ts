@@ -442,12 +442,14 @@ export interface Panel {
    * is in. A caller reaching the record directly would be reaching past the
    * door that decides whether the gesture is even about this conversation.
    *
-   * IT NEVER REFUSES, deliberately, unlike every verb around it: nobody made a
-   * gesture and there is nobody to tell, so a record that will not write is
-   * logged and carried on ({@link ./sessions.ts} argues the discipline). Its
-   * declared failure is the one every conversation verb here carries — the
-   * aggregate reaches its panel through the same door the others do — and the
-   * refusal a stale tab meets is `inConversation`'s, one level up.
+   * IT REFUSES NOTHING, deliberately, unlike every verb around it: nobody made
+   * a gesture and there is nobody to tell, so an acknowledgement that names a
+   * conversation this panel is not in, and a record that will not write, are
+   * both SAID IN THE LOG and carried on ({@link ./sessions.ts} argues the
+   * discipline). What never happens is a success reported over a write that did
+   * not occur. Its declared failure is the one every conversation verb here
+   * carries — the aggregate reaches its panel through the same door the others
+   * do — and the refusal a stale tab meets is the door's, one level up.
    */
   readonly seen: (to: Conversing, at: string) => Effect.Effect<void, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
@@ -3448,23 +3450,35 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * WHAT SOMEBODY HAS READ, written on the same row the line itself is on
      * ({@link ./sessions.ts}'s `Sessions.seen`, {@link Panel.seen}).
      *
-     * THE PAIR IS CHECKED HERE FIRST, and that is not a duplicate of the door's
-     * own matching: this is the panel's last chance to notice that the
-     * conversation moved between the frame the mark was drawn from and this
-     * call, and the cost of not asking is a mark written onto a conversation
-     * nobody was looking at. `state.status` is deliberately NOT part of it —
-     * unlike {@link setSetting}, reading a line is not a change to the agent's
-     * settings and a turn in flight does not make it wrong.
+     * THE PANEL MUST BE IN THE CONVERSATION, and the test is the DOOR'S OWN —
+     * `inConversation` matches a panel that is in the pair OR one holding a
+     * REFUSED OPEN for it (`state.unopened.what`), which is a face a person can
+     * be looking at with nothing in it to read. Asking a narrower question here
+     * would drop, silently and with a success reported, an acknowledgement the
+     * door had already decided was about this panel; a conversation with no
+     * line written down is unread by definition (`./attention.ts`'s `unreadOf`),
+     * so accepting it writes a mark with nothing to mark and can never hide a
+     * line. `state.status` is deliberately NOT part of it: unlike
+     * {@link setSetting}, reading a line is not a change to the agent's settings
+     * and a turn in flight does not make it wrong.
      *
      * A FAILED WRITE IS LOGGED AND CARRIED ON, for {@link Panel.seen}'s reason:
-     * the caller is a tab that will try again on the next frame, and the
-     * alternative — a refusal nobody asked for — would be a person's sidebar
-     * reporting an error about their own attention.
+     * the caller is a tab that will try again when what it is looking at moves,
+     * and the alternative — a refusal nobody asked for — would be a person's
+     * sidebar reporting an error about their own attention.
      */
     const seen = (to: Conversing, at: string): Effect.Effect<void> => Effect.gen(function*() {
       const overheard = options.overheard
       if (overheard === undefined || overheard === null) return
-      if (talking?.row.id !== to.agent || state.session?.id !== to.session) return
+      const inIt = talking?.row.id === to.agent
+        && (state.session?.id === to.session || state.unopened?.what === to.session)
+      if (!inIt) {
+        yield* Effect.logWarning(
+          `an acknowledgement named a conversation this panel is not in ` +
+            `(${to.agent}/${to.session}); nothing was written down`,
+        )
+        return
+      }
       const done = yield* Effect.result(overheard.seen(to, at))
       if (done._tag === "Failure") {
         yield* Effect.logWarning(

@@ -65,19 +65,30 @@ Feature: The conversations you have not read yet
 
   @scratch:chat @alerts @wire
   Scenario: Another tab reading the conversation reads it for this one
+    # THREE TABS IS WHAT MAKES THIS A CLAIM ABOUT A TAB THAT IS NOT FRONT: the
+    # node's own page (the other page a conversation is drawn on) and a file's
+    # page are opened behind, and the FILE is brought forward — so the tab that
+    # holds the conversation is behind another one, and the read comes from a tab
+    # whose page has no dot of its own to lose.
     When I ask the agent "hold"
-    And I close the agent fold
+    And I open node "kitchen" in another tab
+    And I choose "Open in new tab" from the menu of the outline link "yard.olai"
+    And there are 3 tabs
+    And I press tab 1
+    And I mark the wire
     And the agent is released
     Then the Chats row "kitchen" is unread
-    # THE NODE'S OWN PAGE IS THE OTHER PAGE A CONVERSATION IS DRAWN ON, and it
-    # is opened as a tab of its own — which is what makes this a claim about a
-    # SECOND tab rather than about the same one twice.
+    And tab 0 wears the unread dot
+    And the tab has not marked the conversation as read
+    # AND THE THIRD TAB READS IT FOR THE FIRST, which the first one's own dot is
+    # what says: nobody is looking, the mark is up, and the acknowledgement comes
+    # from a tab that has the same conversation on screen instead.
     When I mark the wire
-    And I open node "kitchen" in another tab
-    And I press tab 1
-    Then the tab has marked the conversation as read
+    And I press tab 2
+    Then the node page conversation is ready for "kitchen"
+    And the tab has marked the conversation as read
     And the Chats row "kitchen" is not unread
-    And tab 1 wears no dot
+    And tab 0 wears no dot
 
   @scratch:chat @alerts @wire
   Scenario: What you have read stays read after a reload
@@ -95,6 +106,23 @@ Feature: The conversations you have not read yet
     And the Chats row "kitchen" is not unread
     When I reload the page
     Then the Chats row "kitchen" is not unread
+
+  @scratch:chat @alerts @wire
+  Scenario: What you have NOT read is still unread after a reload
+    # THE OTHER DIRECTION, and the one that pins where the record sits: a boot
+    # that read the mark off the wrong pair, or acknowledged anything without a
+    # conversation on screen, would come back with this row cleared. The wire is
+    # counted ACROSS the reload (`@wire` records per socket, and a reload opens
+    # another), so an acknowledgement on boot is a failure here rather than
+    # something nobody looked for.
+    When I ask the agent "hold"
+    And I close the agent fold
+    And the agent is released
+    Then the Chats row "kitchen" is unread
+    When I mark the wire
+    And I reload the page
+    Then the Chats row "kitchen" is unread
+    And the tab has not marked the conversation as read
 
   @scratch:chat @alerts @wire
   Scenario: An answer that arrives in front of you is read as it lands

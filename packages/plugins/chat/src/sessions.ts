@@ -297,6 +297,13 @@ export interface Sessions {
    *
    * A no-op for one already acknowledged, so a conversation kept on screen
    * costs one write in its life rather than one per frame.
+   *
+   * AND THE LATER OF TWO ACKNOWLEDGEMENTS IS THE ONE THAT STANDS. Two tabs of
+   * one olai can both be looking, and the one whose roster frame is older names
+   * the instant BEFORE the line the other has already read — so a write that
+   * simply took what it was handed would move the mark BACKWARDS and leave the
+   * row saying it is unread again until something healed it. "How much of this
+   * has a person seen" only ever grows.
    */
   readonly seen: (to: Conversing, at: string) => Effect.Effect<void, MemoryFailure>
 }
@@ -453,6 +460,18 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
       said: (to, said) =>
         write(to, (row) => (row?.said?.text === said.text ? undefined : { ...row, ...to, said })),
       seen: (to, at) =>
-        write(to, (row) => (row?.seen === at ? undefined : { ...row, ...to, seen: at })),
+        write(to, (row) =>
+          // THE LATER MARK WINS, and the comparison is on the STRINGS because
+          // the stamps are one shape: every one of them is minted by
+          // `Date#toISOString` (`./transcript.ts`'s `stamp`), fixed-width UTC,
+          // so `>=` on the words is the order of the instants they spell.
+          //
+          // WHY IT MATTERS: two tabs a frame apart both acknowledge, and the
+          // one still holding the roster before the agent's newest line names
+          // the instant BEFORE it. A write that took that one would move the
+          // mark backwards — the row would say it is unread again until the
+          // next frame happened to heal it — which is the one direction an
+          // acknowledgement must never move.
+          row?.seen !== undefined && row.seen >= at ? undefined : { ...row, ...to, seen: at }),
     }
   })

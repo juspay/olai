@@ -40,12 +40,13 @@ nothing about the other tabs.
 **A tab can wear one dot, and what it means is chat's to say.** The `attention`
 component asks `chat.state` which of its pages hold a conversation that needs
 you and which hold one whose agent has said something nobody has read, and
-registers one reading per mark. The needs-you dot is drawn in the alert colour;
-the unread dot is muted, because a question is asking for something and a
-finished turn is only news. A tab caught by both wears the question. The strip
-itself reads `dotted()` — one mark per tab, already decided — and names it for
-assistive technology. It is a dot and nothing more: no tab comes forward because
-of one.
+registers one reading per mark — over ONE walk of the strip, so a tab's address
+is parsed once however many marks are asking. The needs-you dot is drawn in the
+alert colour; the unread dot is muted, because a question is asking for
+something and a finished turn is only news. A tab caught by both wears the
+question. The strip itself reads `dotted()` — one mark per tab, already decided —
+and names it for assistive technology. It is a dot and nothing more: no tab comes
+forward because of one.
 
 - Press a tab to bring it to the front.
 - Middle-click a tab, or press its ×, to close it. Closing the tab in front
