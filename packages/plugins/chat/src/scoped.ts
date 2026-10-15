@@ -894,15 +894,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * WHERE A CONVERSATION-KEYED CALL LANDS — the matching the two doors below
      * share, written once so they cannot disagree about which panel a pair names.
      *
-     * `opening` is the one thing they differ in: whether a pair that matches
+     * `how` is the one thing they differ in: whether a pair that matches
      * nothing may OPEN the conversation it named.
      */
     const conversationIn = <A>(
       to: PanelAddress,
       scope: string | null | undefined,
       use: (panel: Panel) => Effect.Effect<A, OpFailure>,
-      opening: boolean,
+      how: "open-if-needed" | "only-if-open",
     ): Effect.Effect<A, OpFailure> => Effect.suspend(() => {
+        const mayOpen = how === "open-if-needed"
         if ("node" in to) {
           const slot = nodes.get(JSON.stringify([to.node, null, null]))
           if (slot === undefined || slot.closing || scope !== slot.panel.state().uploadScope) {
@@ -923,16 +924,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           : refuse()
         const held = [...nodes.values()].find(slot => matches(slot.panel))
         if (held !== undefined) return working(held.node, held.history ? to : undefined, ({ slot }) =>
-          // ... AND NOT to a slot that is on its way out either: a non-opening
-          // caller has nothing to say to a conversation whose process is
-          // mid-close, and the acquisition this runs inside would put a fresh
-          // one behind it.
-          !opening && slot.closing ? refuse() : apply(slot.panel))
+          // A slot that is on its way OUT is not one a caller that has nothing
+          // to say to it — a read — may hold, and the acquisition this runs
+          // inside would put a fresh process behind the closing one.
+          !mayOpen && slot.closing ? refuse() : apply(slot.panel))
         if (matches(root)) return apply(root)
         // An upload/send names an already acquired lifetime. Reopening a stale
         // pair here could replace a freshly opened session while its binding
         // write is still landing; no new process can satisfy the old token.
-        if (scope !== undefined || !opening) return refuse()
+        if (scope !== undefined || !mayOpen) return refuse()
         return Effect.scoped(Effect.flatMap(reading(to, { state: () => {}, transcript: () => {} }), apply))
       })
 
@@ -1012,7 +1012,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       attach: (chunk) => foreground((panel) => panel.attach(chunk)),
       resend: (id) => foreground((panel) => panel.resend(id)),
       cancel: foreground((panel) => panel.cancel),
-      inConversation: (to, scope, use) => conversationIn(to, scope, use, true),
+      inConversation: (to, scope, use) => conversationIn(to, scope, use, "open-if-needed"),
       /**
        * ...AND THE SAME MATCHING WITH THE OPENING ARM TAKEN OUT, for the one
        * call in this package that nobody made ({@link Chat.inOpenConversation}).
@@ -1027,7 +1027,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        * that its agent was not running at all. Refusing leaves the mark up
        * until somebody looks at a conversation that is actually there.
        */
-      inOpenConversation: (to, use) => conversationIn(to, undefined, use, false),
+      inOpenConversation: (to, use) => conversationIn(to, undefined, use, "only-if-open"),
       setSetting: (agent, session, config, value) => foreground((panel) => panel.setSetting(agent, session, config, value)),
       setModel: (agent, session, value) => foreground((panel) => panel.setModel(agent, session, value)),
       // THE AGGREGATE'S OWN ARM, reached only through `inConversation`: the
