@@ -65,10 +65,14 @@ export function Chats() {
             reader who cannot see the weight of the type. */}
         <span class="min-w-0 flex-1 truncate" classList={{ "font-semibold": row().unread }}>{row().title}</span>
         <span class="inline-flex shrink-0 items-center gap-2">
-          <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} title={LOOK[row().standing].detail} />
+          {/* THE MARK IS ON THE STANDING DOT'S OTHER SIDE FROM THE AGE, and
+              that is a layout rule rather than a taste: the standing dot is
+              documented — and asserted — as the dot immediately before the age,
+              so the news sits before it rather than between the two. */}
           <Show when={row().unread}>
             <span data-testid={TESTID.agentUnread} class={`${DOT} ${UNREAD_DOT}`} role="img" aria-label="Unread" title="Said something since you last looked" />
           </Show>
+          <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} title={LOOK[row().standing].detail} />
           <Show when={row().said?.at ?? row().changed}>{at => <span class="tabular-nums text-label text-paper/60">{agoOf(at(), now())}</span>}</Show>
         </span>
       </a>

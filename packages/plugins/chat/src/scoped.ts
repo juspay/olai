@@ -56,6 +56,26 @@ export interface Chat extends Panel {
   readonly reading: (to: PanelAddress, observer: ReadingObserver) => Effect.Effect<Panel, OpFailure, Scope.Scope>
   /** Apply a browser gesture only to the conversation it was drawn for. */
   readonly inConversation: <A>(to: PanelAddress, scope: string | null | undefined, use: (panel: Panel) => Effect.Effect<A, OpFailure>) => Effect.Effect<A, OpFailure>
+  /**
+   * THE SAME MATCHING, WITH THE ARM THAT OPENS REMOVED — for the one call in
+   * this package that nobody made.
+   *
+   * {@link Chat.inConversation} answers a gesture about a conversation the
+   * serve may not have open, and it may OPEN it to apply the gesture: a person
+   * asked for that conversation, so a process on their behalf is the point.
+   * Acknowledging a line is not a gesture about the conversation — a tab says
+   * it has read a line off a roster frame that is already a round trip old —
+   * and by the time the call arrives the conversation may be GONE (the agent
+   * crashed, its scope was reaped). Opening one to acknowledge it would start
+   * an agent nobody asked for and report a node as `idle` whose agent is not
+   * running at all. So this refuses, and the mark stays up until somebody looks
+   * at a conversation that is there.
+   *
+   * IT TAKES A PAIR rather than a {@link PanelAddress}: a node address names no
+   * conversation, so there is nothing it could have read, and the type says so
+   * rather than the refusal saying it at runtime.
+   */
+  readonly inOpenConversation: <A>(to: Conversing, use: (panel: Panel) => Effect.Effect<A, OpFailure>) => Effect.Effect<A, OpFailure>
   readonly live: () => ReadonlyMap<string, LiveSession>
   /**
    * TAKE BACK ONE PLUGIN'S UNDELIVERED WORDS for one conversation — BOTH HOLDS,
@@ -870,6 +890,52 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         }))
       })
 
+    /**
+     * WHERE A CONVERSATION-KEYED CALL LANDS — the matching the two doors below
+     * share, written once so they cannot disagree about which panel a pair names.
+     *
+     * `opening` is the one thing they differ in: whether a pair that matches
+     * nothing may OPEN the conversation it named.
+     */
+    const conversationIn = <A>(
+      to: PanelAddress,
+      scope: string | null | undefined,
+      use: (panel: Panel) => Effect.Effect<A, OpFailure>,
+      opening: boolean,
+    ): Effect.Effect<A, OpFailure> => Effect.suspend(() => {
+        if ("node" in to) {
+          const slot = nodes.get(JSON.stringify([to.node, null, null]))
+          if (slot === undefined || slot.closing || scope !== slot.panel.state().uploadScope) {
+            return Effect.fail(new UsageFailure({ reason: "the conversation changed; this action was not applied" }))
+          }
+          return working(to.node, undefined, ({ slot: held }) => held === slot && scope === held.panel.state().uploadScope
+            ? use(held.panel)
+            : Effect.fail(new UsageFailure({ reason: "the conversation changed; this action was not applied" })))
+        }
+        const matches = (panel: Panel) => {
+          const state = panel.state()
+          return agentIn(state)?.id === to.agent
+            && (state.session?.id === to.session || state.unopened?.what === to.session)
+        }
+        const refuse = () => Effect.fail(new UsageFailure({ reason: "the conversation changed; this action was not applied" }))
+        const apply = (panel: Panel) => matches(panel) && (scope === undefined || scope === panel.state().uploadScope)
+          ? use(panel)
+          : refuse()
+        const held = [...nodes.values()].find(slot => matches(slot.panel))
+        if (held !== undefined) return working(held.node, held.history ? to : undefined, ({ slot }) =>
+          // ... AND NOT to a slot that is on its way out either: a non-opening
+          // caller has nothing to say to a conversation whose process is
+          // mid-close, and the acquisition this runs inside would put a fresh
+          // one behind it.
+          !opening && slot.closing ? refuse() : apply(slot.panel))
+        if (matches(root)) return apply(root)
+        // An upload/send names an already acquired lifetime. Reopening a stale
+        // pair here could replace a freshly opened session while its binding
+        // write is still landing; no new process can satisfy the old token.
+        if (scope !== undefined || !opening) return refuse()
+        return Effect.scoped(Effect.flatMap(reading(to, { state: () => {}, transcript: () => {} }), apply))
+      })
+
     return {
       reading,
       entries: () => panelOf().entries(),
@@ -946,35 +1012,22 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       attach: (chunk) => foreground((panel) => panel.attach(chunk)),
       resend: (id) => foreground((panel) => panel.resend(id)),
       cancel: foreground((panel) => panel.cancel),
-      inConversation: (to, scope, use) => Effect.suspend(() => {
-        if ("node" in to) {
-          const slot = nodes.get(JSON.stringify([to.node, null, null]))
-          if (slot === undefined || slot.closing || scope !== slot.panel.state().uploadScope) {
-            return Effect.fail(new UsageFailure({ reason: "the conversation changed; this action was not applied" }))
-          }
-          return working(to.node, undefined, ({ slot: held }) => held === slot && scope === held.panel.state().uploadScope
-            ? use(held.panel)
-            : Effect.fail(new UsageFailure({ reason: "the conversation changed; this action was not applied" })))
-        }
-        const matches = (panel: Panel) => {
-          const state = panel.state()
-          return agentIn(state)?.id === to.agent
-            && (state.session?.id === to.session || state.unopened?.what === to.session)
-        }
-        const apply = (panel: Panel) => matches(panel) && (scope === undefined || scope === panel.state().uploadScope)
-          ? use(panel)
-          : Effect.fail(new UsageFailure({ reason: "the conversation changed; this action was not applied" }))
-        const held = [...nodes.values()].find(slot => matches(slot.panel))
-        if (held !== undefined) return working(held.node, held.history ? to : undefined, ({ slot }) => apply(slot.panel))
-        if (matches(root)) return apply(root)
-        // An upload/send names an already acquired lifetime. Reopening a stale
-        // pair here could replace a freshly opened session while its binding
-        // write is still landing; no new process can satisfy the old token.
-        if (scope !== undefined) return Effect.fail(new UsageFailure({
-          reason: "the conversation changed; this action was not applied",
-        }))
-        return Effect.scoped(Effect.flatMap(reading(to, { state: () => {}, transcript: () => {} }), apply))
-      }),
+      inConversation: (to, scope, use) => conversationIn(to, scope, use, true),
+      /**
+       * ...AND THE SAME MATCHING WITH THE OPENING ARM TAKEN OUT, for the one
+       * call in this package that nobody made ({@link Chat.inOpenConversation}).
+       *
+       * THE DIFFERENCE IS NOT PEDANTRY, which this repo learned from a red
+       * suite rather than from a review: a tab acknowledges a line off a roster
+       * frame that is already a round trip old, so the acknowledgment can
+       * arrive after the conversation it names has GONE — the agent crashed,
+       * the scope was reaped. Through {@link Chat.inConversation} that
+       * acknowledgment OPENED the conversation again: an agent nobody asked for
+       * started, and the roster reported `idle` about a node whose truth was
+       * that its agent was not running at all. Refusing leaves the mark up
+       * until somebody looks at a conversation that is actually there.
+       */
+      inOpenConversation: (to, use) => conversationIn(to, undefined, use, false),
       setSetting: (agent, session, config, value) => foreground((panel) => panel.setSetting(agent, session, config, value)),
       setModel: (agent, session, value) => foreground((panel) => panel.setModel(agent, session, value)),
       // THE AGGREGATE'S OWN ARM, reached only through `inConversation`: the

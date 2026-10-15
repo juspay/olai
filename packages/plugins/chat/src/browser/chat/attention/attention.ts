@@ -69,11 +69,11 @@ export const createAttention = (router: Router): void => {
          *
          * A FAILURE IS SAID AND CARRIED ON, which is the only thing that can be
          * done here: the write is bookkeeping about somebody's attention, nobody
-         * made a gesture, and the cost of losing one is that the mark stays up
-         * until the next frame tries again. It reports through the client's one
-         * edge rather than being dropped — an app that silently failed to
-         * remember what you read would go on doing it with nothing anywhere
-         * saying why.
+         * made a gesture, and the cost of losing one is a mark that stays up
+         * until something moves the roster and this tries again. It reports
+         * through the client's one edge rather than being dropped — an app that
+         * silently failed to remember what you read would go on doing it with
+         * nothing anywhere saying why.
          */
         createEffect(() => {
           const now = reading()

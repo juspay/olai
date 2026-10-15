@@ -72,7 +72,8 @@ Feature: The conversations you have not read yet
     # THE NODE'S OWN PAGE IS THE OTHER PAGE A CONVERSATION IS DRAWN ON, and it
     # is opened as a tab of its own — which is what makes this a claim about a
     # SECOND tab rather than about the same one twice.
-    When I open node "kitchen" in another tab
+    When I mark the wire
+    And I open node "kitchen" in another tab
     And I press tab 1
     Then the tab has marked the conversation as read
     And the Chats row "kitchen" is not unread
