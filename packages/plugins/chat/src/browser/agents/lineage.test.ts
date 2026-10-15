@@ -50,6 +50,7 @@ const bound = (session: string | null, engine = "claude"): Agents => [{
   standing: session === null ? "unbound" : "asleep",
   waiting: 0,
   said: null,
+  seen: null,
   sleeps: false,
   sleep: null,
 }]

@@ -977,6 +977,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }),
       setSetting: (agent, session, config, value) => foreground((panel) => panel.setSetting(agent, session, config, value)),
       setModel: (agent, session, value) => foreground((panel) => panel.setModel(agent, session, value)),
+      // THE AGGREGATE'S OWN ARM, reached only through `inConversation`: the
+      // panel it matched is the one whose `seen` is called, so this is the arm
+      // an AGGREGATE-level call would take rather than the node slot's — the
+      // same shape `setSetting` beside it has, and the same reason.
+      seen: (to, at) => foreground((panel) => panel.seen(to, at)),
       // Private Panel compatibility for scheduler benches. The browser wire
       // exposes only node-bound creation and conversation-keyed gestures.
       newSession: (agent) => Effect.gen(function*() {

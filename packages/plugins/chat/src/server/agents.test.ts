@@ -59,6 +59,7 @@ test("the VAULT leads: every node agent is a row, with a session or without one"
       standing: "asleep",
       waiting: 0,
       said: { text: "the mirror lane is in flight", at: "2026-09-01T16:41:00Z" },
+      seen: null,
     },
     {
       id: "odu",
@@ -70,6 +71,7 @@ test("the VAULT leads: every node agent is a row, with a session or without one"
       standing: "unbound",
       waiting: 0,
       said: null,
+      seen: null,
     },
   ])
 })
@@ -121,6 +123,20 @@ test("a reaped node scope reads asleep while its binding remains durable", () =>
 test("the fact olai writes back travels as null rather than as an absent key", () => {
   const bare: Overheard = { agent: "grok", session: "sess-1" }
   expect(joined(AGENTS, [bare])[0]?.said).toBe(null)
+  // ...and the other half of it travels the same way, so a reader compares two
+  // instants and never has a third state for "nothing was ever written".
+  expect(joined(AGENTS, [bare])[0]?.seen).toBe(null)
+})
+
+test("what a person has READ is joined on the PAIR, exactly as the line is", () => {
+  const acknowledged: Overheard = { ...HEARD, seen: "2026-09-01T16:41:00Z" }
+  const rows = joined(AGENTS, [acknowledged])
+  expect(rows[0]?.seen).toBe("2026-09-01T16:41:00Z")
+  // A node with no session has no conversation to have read anything in.
+  expect(rows[1]?.seen).toBe(null)
+  // ...and the same session under another engine is another conversation's
+  // acknowledgement, which is the pair rule read from the other end.
+  expect(joined(AGENTS, [{ ...acknowledged, agent: "claude" }])[0]?.seen).toBe(null)
 })
 
 // ── the reading that points the other way ──────────────────────────────

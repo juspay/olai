@@ -5,7 +5,7 @@
  * THE ROW activates with navigation and nothing that draws: the set, its
  * stored copy, the lane and the chords are all it holds. What DRAWS is on
  * components, each waiting for what it needs — the strip for the layout's
- * shell and a renderer, the link menu for a renderer, and the needs-you dot
+ * shell and a renderer, the link menu for a renderer, and the dots a tab wears
  * for the chat row.
  *
  * ACQUIRED in this order and released in the reverse: the state's root, the
@@ -25,7 +25,7 @@ import { navigation } from "olai-plugin-navigation/contract"
 import type {} from "olai-plugin-navigation/slots"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 
-import { needingYou } from "./attention.ts"
+import { needingYou, unreadIn } from "./attention.ts"
 import { chordsOf } from "./chords.ts"
 import type { TabsState } from "./contract.ts"
 import { name, tabsState } from "./index.ts"
@@ -69,7 +69,10 @@ export const components = {
       yield* Effect.acquireRelease(Effect.sync(() => tabs.draw(geometry.desktop)), (release) => Effect.sync(release))
     }),
   }),
-  /** The needs-you dot, over chat's roster (`./attention.ts`). */
+  /** The dots a tab can wear, over chat's roster (`./attention.ts`): the
+   *  needs-you mark and the quieter one for a conversation nobody has read.
+   *  Two readings rather than one — the set keeps one mark per tab and ranks
+   *  them (`./contract.ts`'s `Dots.rank`). */
   attention: definePlugin({
     name: "attention",
     needs: [tabsState, chatState, navigation],
@@ -79,9 +82,12 @@ export const components = {
       const router = yield* navigation
       yield* Effect.acquireRelease(
         Effect.sync(() => createRoot((dispose) => {
-          const release = tabs.dot(needingYou(chat, router.routes, tabs.tabs))
+          const releases = [needingYou(chat, router.routes, tabs.tabs), unreadIn(chat, router.routes, tabs.tabs)]
+            .map((reading) => tabs.dot(reading))
           return () => {
-            release()
+            // Released in reverse, like every other list of acquisitions here:
+            // the second reading's row goes before the first's.
+            for (const release of releases.reverse()) release()
             dispose()
           }
         })),

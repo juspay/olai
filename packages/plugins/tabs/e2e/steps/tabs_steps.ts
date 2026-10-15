@@ -149,6 +149,29 @@ Then("tab {int} wears no dot", async function (this: OlaiWorld, index: number) {
   await this.waitUntil(async () => (await tabAt(this, index).locator(DOT).count()) === 0, `tab ${index} to wear no dot`);
 });
 
+/**
+ * THE OTHER MARK, named rather than read off a colour — the dot itself is one
+ * element whatever it means, and which word it answers to is what tells the
+ * question apart from the news.
+ */
+Then("tab {int} wears the unread dot", async function (this: OlaiWorld, index: number) {
+  await tabAt(this, index).getByRole("img", { name: "Unread", exact: true })
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/**
+ * A NODE'S OWN PAGE IN A TAB OF ITS OWN — the bullet in front of a row is the
+ * link to it (`outlines`' zoom control), so this is that link's menu, which is
+ * where *open in new tab* lives. The new tab goes BEHIND, exactly as the link
+ * menu's own scenario pins: pressing it is the next step.
+ */
+When("I open node {string} in another tab", async function (this: OlaiWorld, id: string) {
+  const bullet = this.within(id, ZOOM);
+  await bullet.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await bullet.click({ button: "right" });
+  await chooseFromMenu(this, "Open in new tab");
+});
+
 // ── pressing it ────────────────────────────────────────────────────────
 
 When("I press tab {int}", async function (this: OlaiWorld, index: number) {

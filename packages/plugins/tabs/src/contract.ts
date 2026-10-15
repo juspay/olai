@@ -28,6 +28,27 @@ export interface Tab {
   readonly key?: string
 }
 
+/**
+ * ONE READING OF WHICH TABS WEAR A MARK, handed to the set by whoever knows.
+ *
+ * It is a WHOLE LOOK rather than a set of ids: what a tab wears is a paint, a
+ * name a reader is given where they cannot see it, and — where a tab is caught
+ * by more than one reading — which of them wins. The last is what makes the
+ * result a decision the set can make instead of an accident of registration
+ * order: a tab whose conversation is both waiting and unread wears the mark
+ * with the HIGHER {@link Dots.rank}, and a tie leaves the earlier reading's.
+ */
+export interface Dots {
+  readonly ids: Accessor<ReadonlySet<string>>
+  /** The utility classes the mark is painted with. */
+  readonly paint: string
+  /** What the mark is CALLED, drawn where nothing can be seen (a screen
+   *  reader, and the one fact a scenario about *which* mark is present reads). */
+  readonly label: string
+  /** How this mark outranks the others a tab may be caught by. */
+  readonly rank: number
+}
+
 export interface OpenOptions {
   /** Keep the tab in front where it is. Ignored below the desktop breakpoint,
    *  where there is no strip to find the new tab in. */
@@ -61,16 +82,12 @@ export interface TabsState {
   /** The strip saying it draws the tabs, and at which breakpoint; the answer is
    *  its release. */
   readonly draw: (desktop: Accessor<boolean>) => () => void
-  /** The tabs wearing a dot, by id, with the dot's paint (utility classes). */
-  readonly dotted: Accessor<ReadonlyMap<string, string>>
+  /** The tabs wearing a dot, by id, with how it is painted and what it is
+   *  called — ONE reading per tab, the highest-ranked of those that caught it. */
+  readonly dotted: Accessor<ReadonlyMap<string, Dots>>
   /** A reading of which tabs wear a dot and how it is painted, from whoever
    *  knows; the answer is its release. */
   readonly dot: (dots: Dots) => () => void
-}
-
-export interface Dots {
-  readonly ids: Accessor<ReadonlySet<string>>
-  readonly paint: string
 }
 
 /** The live tab set, offered by the row for its activation. */

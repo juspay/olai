@@ -130,6 +130,22 @@ export const NodeAgentRow = Schema.Struct({
     /** ISO 8601 — the door says how long ago off the reader's own clock. */
     at: Schema.String,
   })),
+  /**
+   * ... AND THE INSTANT OF THAT LINE A PERSON HAS SEEN, or `null` for a
+   * conversation nobody has looked at since it was heard.
+   *
+   * The other half of {@link said}, and it travels for the same reason it is
+   * written down at all: the tab that did the looking is usually not the tab
+   * that draws the mark — every tab of this olai reads this row, and so does
+   * the next boot.
+   *
+   * IT IS AN INSTANT AND NOT A BOOLEAN, deliberately, so that what a reader
+   * draws is ONE comparison rather than a judgement about ordering. `unread` is
+   * therefore not on this wire: it is derived where the fact is read, by the
+   * one predicate that defines it ({@link ../attention.ts}'s `unreadOf`), so
+   * the sidebar and the tab strip cannot disagree about a row.
+   */
+  seen: Schema.NullOr(Schema.String),
 })
 export type NodeAgentRow = typeof NodeAgentRow.Type
 

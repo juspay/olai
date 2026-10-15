@@ -22,6 +22,7 @@ import {
   type Unreachable,
 } from "olai-plugin-chat/wire"
 import { run } from "@olai/web/client/run.ts"
+import { unreadOf } from "../../attention.ts"
 import type { Row } from "./roster.ts"
 import { chatWire } from "../wire.ts"
 
@@ -57,7 +58,13 @@ export interface Roster {
 export function createAgents(): Roster {
   const engineCell = chatWire().cells.engines.use()
   const cell = chatWire().cells.agents.use()
-  const rows = createMemo(() => cell.value() ?? NO_AGENT_ROSTER)
+  // `unread` IS DERIVED HERE, once per frame — the wire carries the two
+  // instants and nothing compares them for a reader
+  // (`../../attention.ts`'s `unreadOf`). One map per roster frame, and a frame
+  // that moved no row never arrives at all: the cell's `equals` is what keeps
+  // this off the paint path of a directory whose agents are sitting still.
+  const rows = createMemo(() => (cell.value() ?? NO_AGENT_ROSTER)
+    .map(row => ({ ...row, unread: unreadOf(row) })))
   const byNode = createMemo(() => new Map(rows().map(row => [row.id, row])))
   let active = true
   onCleanup(() => { active = false })

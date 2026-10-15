@@ -13,7 +13,7 @@ const roster = (bound?: NodeAgentRow, installed = engines): Roster => ({
   missing: () => null,
   chats: () => null, unreachable: () => [], chatsRefusal: () => null, askChats: () => {},
 })
-const node: NodeAgentRow = { id: "one", title: "One", file: "house.olai", engine: "claude", session: null, memory: 0, standing: "unbound", waiting: 0, said: null, sleeps: false, sleep: null }
+const node: NodeAgentRow = { id: "one", title: "One", file: "house.olai", engine: "claude", session: null, memory: 0, standing: "unbound", waiting: 0, said: null, seen: null, sleeps: false, sleep: null }
 
 /** What a menu draws of the answer: each entry's words, and a choice's options. */
 const drawn = (actions: ReadonlyArray<RowAction>) => actions.map(action => "choices" in action

@@ -431,6 +431,23 @@ export interface Panel {
   readonly signInCancel: Effect.Effect<void, OpFailure>
   readonly setSetting: (agent: string, session: string, config: string, value: string | boolean) => Effect.Effect<void, OpFailure>
   readonly setModel: (agent: string, session: string, value: string) => Effect.Effect<void, OpFailure>
+  /**
+   * WRITE DOWN THAT SOMEBODY HAS READ THE LINE THIS CONVERSATION'S AGENT LAST
+   * SAID — `at` being the ISO instant that was on screen
+   * ({@link ./sessions.ts}'s `Sessions.seen`).
+   *
+   * ON THE PANEL, beside the turn-boundary write that puts the line there, and
+   * for the same reason: this is the other half of ONE record keyed on ONE
+   * conversation, and the panel is the object that knows which conversation it
+   * is in. A caller reaching the record directly would be reaching past the
+   * door that decides whether the gesture is even about this conversation.
+   *
+   * IT NEVER REFUSES, deliberately, unlike every verb around it: nobody made a
+   * gesture and there is nobody to tell, so a record that will not write is
+   * logged and carried on ({@link ./sessions.ts} argues the discipline). The
+   * refusal a stale tab meets is `inConversation`'s, one level up.
+   */
+  readonly seen: (to: Conversing, at: string) => Effect.Effect<void>
   readonly cancel: Effect.Effect<void, OpFailure>
   /** Start a fresh conversation with the named agent
    *  ({@link ./agents/roster.ts}). The agent is an ARGUMENT because every new
@@ -3425,6 +3442,36 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         yield* onAgent((at) => Effect.mapError(at.setSetting(session, config, value), asFailure))
       })))
 
+    /**
+     * WHAT SOMEBODY HAS READ, written on the same row the line itself is on
+     * ({@link ./sessions.ts}'s `Sessions.seen`, {@link Panel.seen}).
+     *
+     * THE PAIR IS CHECKED HERE FIRST, and that is not a duplicate of the door's
+     * own matching: this is the panel's last chance to notice that the
+     * conversation moved between the frame the mark was drawn from and this
+     * call, and the cost of not asking is a mark written onto a conversation
+     * nobody was looking at. `state.status` is deliberately NOT part of it —
+     * unlike {@link setSetting}, reading a line is not a change to the agent's
+     * settings and a turn in flight does not make it wrong.
+     *
+     * A FAILED WRITE IS LOGGED AND CARRIED ON, for {@link Panel.seen}'s reason:
+     * the caller is a tab that will try again on the next frame, and the
+     * alternative — a refusal nobody asked for — would be a person's sidebar
+     * reporting an error about their own attention.
+     */
+    const seen = (to: Conversing, at: string): Effect.Effect<void> => Effect.gen(function*() {
+      const overheard = options.overheard
+      if (overheard === undefined || overheard === null) return
+      if (talking?.row.id !== to.agent || state.session?.id !== to.session) return
+      const done = yield* Effect.result(overheard.seen(to, at))
+      if (done._tag === "Failure") {
+        yield* Effect.logWarning(
+          `what a person had read could not be written down (${done.failure.why}) — ` +
+            `that conversation goes on saying it has something new`,
+        )
+      }
+    })
+
     const stopWithReason = (reason: AcpAgent.StopReason) => Effect.gen(function*() {
       closing = true
       // End the transport before joining work which may be waiting on it.
@@ -3519,6 +3566,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       setSetting,
       setModel: (agent, session, value) => setSetting(agent, session,
         talking?.row.leg.models?.config ?? "", value),
+      // NOT under a permit, and not gated on the panel being idle: this changes
+      // nothing about the agent, and a conversation that is mid-answer is
+      // exactly the one somebody is reading (`seen` above argues the rest).
+      seen,
       // WITH the agent that was chosen, always: every new chat asks, so there
       // is no arm here that picks one. An id off a stale tab is refused in
       // words rather than started.

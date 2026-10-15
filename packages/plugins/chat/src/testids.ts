@@ -106,6 +106,12 @@ export const TESTID = {
    *  `data-standing` is how it stands — the two facts a scenario needs, and
    *  neither is readable off a colour (`./browser/agents/roster.ts`'s `SAID`). */
   agentRow: "agent-row",
+  /** The mark on a Chats row whose agent has SAID SOMETHING since anybody last
+   *  looked at the conversation — the quieter sibling of the standing dot
+   *  beside it, and named "Unread" for assistive technology. The row itself
+   *  carries `data-unread`, which is the fact a scenario usually asserts; this
+   *  is the mark, for the scenario that asserts a reader can name it. */
+  agentUnread: "agent-unread",
   /** How many questions that agent's conversation is waiting on you to answer.
    *  Hidden at zero, which is where every agent but the open one is. */
   agentWaiting: "agent-waiting",

@@ -48,12 +48,27 @@
  *     and wrote down, in the same sense the model note is a switch olai saw
  *     ({@link ./memory.ts}), and a conversation somebody drove from a terminal
  *     moves it not at all.
+ *   - {@link Overheard.seen} — the last of those lines a PERSON SAW. It is the
+ *     other half of `said` and the whole of "unread": a conversation is unread
+ *     while its agent has said something since the instant written here
+ *     ({@link ./attention.ts}'s `unreadOf`). Bookkeeping for `said`'s reason
+ *     exactly, and NOT config: nothing in the vault can re-derive it, the
+ *     gesture that moves it is a conversation being on screen in a focused
+ *     window, and writing it to the board would be a commit per glance. What
+ *     makes it the record's business rather than a browser's is that it is
+ *     PER CONVERSATION and PER MACHINE — one person reads a conversation once
+ *     wherever they are sitting, and the tab that did the looking is usually
+ *     not the one that draws the mark.
  *
  * None of them could be put in the vault without writing to the board on every
  * turn, which is a commit on every turn — so the ruling's line is kept where it
  * is drawn: config in the vault, bookkeeping on the machine. WHICH node a
  * session belongs to is the config half and is the property; that a chat was
- * assigned, and what replaced it, are things that HAPPENED here.
+ * assigned, and what replaced it, are things that HAPPENED here. `seen` is the
+ * same argument in its sharpest form: it is the one field here nobody could
+ * hand-write even if they wanted to, because "I have read this" is not a
+ * statement about the conversation at all — it is a statement about the PERSON,
+ * and a person is not in the vault.
  *
  * ## KEYED ON THE CONVERSATION, which is the whole shape change
  *
@@ -71,7 +86,7 @@
  * Nobody hand-writes this file — the gesture that binds a node writes a
  * property now, and these rows appear behind turns a person is having and
  * behind the two gestures that move a binding. So it grows one row per session
- * that is ever taught, assigned or replaced, and it is capped the way
+ * that is ever taught, assigned, replaced or overheard, and it is capped the way
  * {@link ./scopes.ts} is and for the same reason: {@link ROWS} rows,
  * least-recently-touched evicted, because a count cap costs no probe and cannot
  * be wrong about a conversation it has never asked about. What an eviction
@@ -88,7 +103,7 @@
  * Every writer here is a read-modify-write over one in-memory mirror: read
  * `rows`, replace one, assign back. Two of those interleaved lose a write, and
  * no staging name at the leaf has anything to say about it — the hazard is over
- * MEMORY. Both writers are on one permit, and the record goes to disk before
+ * MEMORY. Every writer is on one permit, and the record goes to disk before
  * the mirror moves, so a failure a caller is handed means nothing stuck
  * anywhere.
  *
@@ -97,11 +112,12 @@
  * A read at boot that fails is an EMPTY MIRROR and one warning, never a refusal
  * to serve — the discipline this package's other two records already keep. A
  * WRITE that fails is different in the other direction from theirs: nobody made
- * a gesture, so there is nobody to tell, and both writers here are bookkeeping
- * behind a turn a person is watching for something else. They FAIL, with a
+ * a gesture, so there is nobody to tell, and every writer here is bookkeeping
+ * behind something a person is watching for its own sake. They FAIL, with a
  * reason, and the caller logs it and carries on ({@link ./chat.ts}) — the cost
- * of a lost write is a contract the next message carries instead or a door line
- * one turn stale, which is not worth taking a turn away from somebody over.
+ * of a lost write is a contract the next message carries instead, a door line
+ * one turn stale, or a conversation drawn as unread once more, and none of
+ * those is worth taking a turn away from somebody over.
  * The teaching's caller goes one further and HOLDS THE NOTICE BACK on a failed
  * write: a notice is the report of the mark, and a pane must never read a
  * contract the record cannot keep.
@@ -176,10 +192,28 @@ export interface Overheard extends Conversing {
   readonly superseded?: Conversing
   /** The last line olai heard from it. Absent until olai has heard one. */
   readonly said?: Said
+  /**
+   * THE INSTANT OF {@link said} THAT A PERSON HAS SEEN — the ISO `said.at` that
+   * was acknowledged, so the MARK is a comparison rather than a second clock:
+   * a conversation is unread while `said.at` is newer than this.
+   *
+   * A STAMP AND NOT A FLAG, and that is what makes the comparison total rather
+   * than a guess about ordering. Two turns may finish between one look and the
+   * next, and a row that only said "seen as of some moment I did not write
+   * down" could not tell whether the line it holds now is the line that was
+   * acknowledged — this record would have to compare Clocks to answer, on the
+   * one feature whose whole claim is that nothing is inferred.
+   *
+   * ABSENT IS NEVER SEEN, which is every conversation until somebody looks at
+   * it and the honest reading of a row that has just been discovered: a door
+   * with a line on it that nobody has read is unread.
+   */
+  readonly seen?: string
 }
 
 /**
- * The table, and the three things anybody does with it.
+ * The table, and what anybody does with it: the rows, one lookup, and the five
+ * writers.
  *
  * A MIRROR plus a write, for {@link ./scopes.ts}'s reason: the roster is
  * assembled SYNCHRONOUSLY, per revision and per chat frame, by a composition
@@ -249,6 +283,22 @@ export interface Sessions {
     to: Conversing,
     said: Said,
   ) => Effect.Effect<void, MemoryFailure>
+  /**
+   * ... and write down that a PERSON HAS SEEN the line this conversation's
+   * agent last said — the ISO `said.at` that was on screen, handed back
+   * verbatim.
+   *
+   * THE INSTANT AND NEVER THE CLOCK. A caller that wrote `now` would be
+   * claiming somebody had seen whatever arrived until that moment, including
+   * a line that landed between the frame it was drawn from and the write —
+   * which is exactly the line nobody has read. An instant handed back is
+   * exact, is idempotent (two tabs looking at one conversation write the same
+   * value), and needs no agreement about whose clock is right.
+   *
+   * A no-op for one already acknowledged, so a conversation kept on screen
+   * costs one write in its life rather than one per frame.
+   */
+  readonly seen: (to: Conversing, at: string) => Effect.Effect<void, MemoryFailure>
 }
 
 /** What one of these files looks like written. */
@@ -265,7 +315,10 @@ interface Written {
  * reads as absent — the same rule {@link ./memory.ts}'s `word` is. A `taught`
  * that is not `true` is untaught, which costs one extra teaching; a `said` that
  * will not parse is a door with no line on it, which is what every door starts
- * as.
+ * as; a `seen` that will not parse is a conversation nothing has been
+ * acknowledged in, which costs one unread mark that a look at the conversation
+ * clears — and it is the right way round, since the other reading would be a
+ * conversation marked read that nobody has looked at.
  */
 const read = (held: Record<string, unknown>): ReadonlyArray<Overheard> => {
   const written = (held as Written).heard
@@ -277,6 +330,7 @@ const read = (held: Record<string, unknown>): ReadonlyArray<Overheard> => {
     const agent = word(one["agent"])
     const session = word(one["session"])
     if (agent === null || session === null) continue
+    const seen = word(one["seen"])
     rows.push({
       agent,
       session,
@@ -285,6 +339,7 @@ const read = (held: Record<string, unknown>): ReadonlyArray<Overheard> => {
       ...(one["wakesCleared"] === true ? { wakesCleared: true as const } : {}),
       ...supersededIn(one["superseded"], agent),
       ...saidIn(one["said"]),
+      ...(seen === null ? {} : { seen }),
     })
   }
   return rows
@@ -397,5 +452,7 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
         ),
       said: (to, said) =>
         write(to, (row) => (row?.said?.text === said.text ? undefined : { ...row, ...to, said })),
+      seen: (to, at) =>
+        write(to, (row) => (row?.seen === at ? undefined : { ...row, ...to, seen: at })),
     }
   })

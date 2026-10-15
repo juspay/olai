@@ -198,6 +198,59 @@ When("I press the agent {string}", async function (this: OlaiWorld, node: string
   await this.press(rowFor(this, node));
 });
 
+// ── what nobody has read, on the Chats row ─────────────────────────────
+
+/**
+ * THE MARK ON A CHATS ROW, read off `data-unread` rather than off the weight of
+ * the type or the mark's paint — the same rule the standing is read on: which
+ * colour says *unread* is a decision about pixels.
+ *
+ * And WAITED FOR in both directions, which here is more than politeness: the
+ * fact is written by the server at a tab's request, so a row that is unread
+ * becomes read a round trip later, and a row that is read is never read once —
+ * an assertion about the frame before the write landed would be an assertion
+ * about nothing. Neither direction is a "wait for it to change": an unread row
+ * stays unread until somebody looks, so a run that never acknowledges it fails
+ * by TIMEOUT rather than by luck.
+ */
+Then(
+  "the Chats row {string} is unread",
+  async function (this: OlaiWorld, node: string) {
+    await this.showSidebar();
+    const row = rowFor(this, node);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await row.getAttribute("data-unread")) === "true",
+      `the Chats row for ${node} to be marked unread`,
+    );
+  },
+);
+
+Then(
+  "the Chats row {string} is not unread",
+  async function (this: OlaiWorld, node: string) {
+    await this.showSidebar();
+    const row = rowFor(this, node);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await row.getAttribute("data-unread")) === null,
+      `the Chats row for ${node} to stop being marked unread`,
+    );
+  },
+);
+
+/** ...AND THE MARK NAMES ITSELF, which is the half a person who cannot see the
+ *  weight of the type is owed. */
+Then(
+  "the Chats row {string} says it is unread",
+  async function (this: OlaiWorld, node: string) {
+    await this.showSidebar();
+    const mark = rowFor(this, node).getByTestId(PLUGIN_TESTID.agentUnread);
+    await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await mark.getAttribute("aria-label"), "Unread");
+  },
+);
+
 /** ... and the one claim that gesture may only make by NOT drawing: a press
  *  that could not do something says so on the roster's own refused line
  *  (`PLUGIN_TESTID.agentRefused`), so an unbound row — pressed the way it is

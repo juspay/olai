@@ -5,7 +5,7 @@ import { Show } from "solid-js"
 import { CHIP_QUIET } from "olai-plugin-layout/chip"
 import { ENTRY_SHAPE, REGION, REGION_HEAD, REGION_LABEL } from "olai-plugin-layout/entry"
 import { useShown, useRouter } from "olai-plugin-navigation/routing"
-import { isCurrent } from "../../attention.ts"
+import { isCurrent, UNREAD_DOT } from "../../attention.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { agoOf, createNow } from "@olai/web/client/ago.ts"
 import { TESTID } from "../../testids.ts"
@@ -56,10 +56,19 @@ export function Chats() {
     <ul class="m-0 list-none p-0"><Key each={rows()} by="id">{row => <li>
       <a href={focus.href(row())} class={`${ENTRY_SHAPE} w-full gap-2 text-left`} data-testid={TESTID.agentRow}
         data-agent={row().id} data-engine={row().engine} data-standing={row().standing} aria-current={current(row()) ? "page" : undefined}
+        data-unread={row().unread ? "true" : undefined}
         title={row().title} on:olai-navigated={() => focus.visit(row())}>
-        <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span><span class="min-w-0 flex-1 truncate">{row().title}</span>
+        <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span>
+        {/* THE TITLE SAYS IT FIRST, in the one way a list can: this row has
+            something in it that nobody has read — see the section's own note in
+            `docs`. The mark beside the age is what names WHICH fact it is for a
+            reader who cannot see the weight of the type. */}
+        <span class="min-w-0 flex-1 truncate" classList={{ "font-semibold": row().unread }}>{row().title}</span>
         <span class="inline-flex shrink-0 items-center gap-2">
           <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} title={LOOK[row().standing].detail} />
+          <Show when={row().unread}>
+            <span data-testid={TESTID.agentUnread} class={`${DOT} ${UNREAD_DOT}`} role="img" aria-label="Unread" title="Said something since you last looked" />
+          </Show>
           <Show when={row().said?.at ?? row().changed}>{at => <span class="tabular-nums text-label text-paper/60">{agoOf(at(), now())}</span>}</Show>
         </span>
       </a>

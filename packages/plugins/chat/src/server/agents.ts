@@ -365,6 +365,15 @@ export const joined = (
       ? undefined
       : overheard.find((row) => row.agent === agent.engine && row.session === agent.session)
         ?.said) ?? null,
+    // ...AND THE OTHER HALF OF THAT LINE, matched on the same PAIR for the same
+    // reason: what somebody acknowledged in one conversation says nothing about
+    // another. `null`-on-the-wire where the record carries none, so a reader
+    // compares one instant against `said.at` and never has to hold a third
+    // state for "no answer at all" ({@link olai-plugin-chat/wire}'s `seen`).
+    seen: (agent.session === null
+      ? undefined
+      : overheard.find((row) => row.agent === agent.engine && row.session === agent.session)
+        ?.seen) ?? null,
   }))
 }
 

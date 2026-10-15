@@ -285,6 +285,34 @@ Then(
   },
 );
 
+/**
+ * How many times this tab has TOLD THE SERVE IT HAS READ a conversation, since
+ * the mark — the one wire call in this whole app that nobody made, and the only
+ * observable of it that is not a race.
+ *
+ * WHY THE WIRE rather than the row: the row's mark clears when the write lands,
+ * and a row that was never marked and a row whose mark was cleared look the
+ * same from the DOM. The CALL is what says which of the two happened, and it
+ * happens exactly when a tab that is looking at a conversation sees that
+ * conversation has something new — which is the whole of the rule.
+ */
+Then("the tab has marked the conversation as read", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    () => this.socketAskedSince("conversation/seen") >= 1,
+    "the tab to acknowledge the conversation it is showing",
+  );
+});
+
+/** ... and the negative half, which is a rule rather than an absence: a
+ *  conversation nobody is looking at is never acknowledged by anybody. */
+Then("the tab has not marked the conversation as read", function (this: OlaiWorld) {
+  assert.strictEqual(
+    this.socketAskedSince("conversation/seen"),
+    0,
+    "how many times this tab acknowledged a conversation since the mark",
+  );
+});
+
 /** Send WHAT IS IN THE BOX, rather than typing a message and sending it in one
  *  gesture (`I ask the agent`). A scenario that got the words there some other
  *  way — a completion taken, a draft put back — has to be able to press the
