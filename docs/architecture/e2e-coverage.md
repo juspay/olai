@@ -646,7 +646,7 @@ they are about is the one thing in this app that is written by NOBODY: a tab
 that is showing a conversation tells the serve which line it has read.
 
 - **The mark and its clearing.** A reply that lands with the conversation folded
-  away leaves the Chats row bold and marked, names itself *Unread* for assistive
+  away leaves the Chats row in the bold weight, saying *Unread* for assistive
   technology, and rings nothing — no chime and no notification, which is the
   ruling "a turn merely finishing is silent" asked as a scenario. Unfolding it
   acknowledges the conversation, and the row clears behind that round trip.

@@ -81,7 +81,10 @@ export const NEEDS_YOU_DOT = "bg-doing"
 
 /**
  * ... AND THE PAINT OF THE UNREAD DOT, for {@link NEEDS_YOU_DOT}'s reason: the
- * look of a fact chat owns, drawn on a tab by somebody else.
+ * look of a fact chat owns, drawn on a TAB by somebody else — the one place this
+ * fact is still a dot. On the Chats row it is the title's weight and no mark at
+ * all (`browser/agents/Agents.tsx`), because a list that puts a second dot
+ * beside a row's standing says two standings.
  *
  * MUTED, and that is the whole design of the pair. A conversation that needs an
  * answer is asking for something, and an agent that has merely finished talking

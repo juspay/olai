@@ -5,7 +5,7 @@ import { Show } from "solid-js"
 import { CHIP_QUIET } from "olai-plugin-layout/chip"
 import { ENTRY_SHAPE, REGION, REGION_HEAD, REGION_LABEL } from "olai-plugin-layout/entry"
 import { useShown, useRouter } from "olai-plugin-navigation/routing"
-import { isCurrent, UNREAD_DOT } from "../../attention.ts"
+import { isCurrent } from "../../attention.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { agoOf, createNow } from "@olai/web/client/ago.ts"
 import { TESTID } from "../../testids.ts"
@@ -59,19 +59,16 @@ export function Chats() {
         data-unread={row().unread ? "true" : undefined}
         title={row().title} on:olai-navigated={() => focus.visit(row())}>
         <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span>
-        {/* THE TITLE SAYS IT FIRST, in the one way a list can: this row has
-            something in it that nobody has read — see the section's own note in
-            `docs`. The mark beside the age is what names WHICH fact it is for a
-            reader who cannot see the weight of the type. */}
-        <span class="min-w-0 flex-1 truncate" classList={{ "font-semibold": row().unread }}>{row().title}</span>
+        {/* ONE FACT PER ROW, AND THE TITLE'S WEIGHT IS THIS ONE. A row has a
+            dot for how its agent STANDS (`data-standing`, the dot before the
+            age) and nothing else: a second mark beside it read as a second
+            standing, and "bold means there is something here you have not read"
+            is a convention a list can carry alone — with the `sr-only` word
+            naming it for a reader who cannot see the weight. */}
+        <span class="min-w-0 flex-1 truncate" classList={{ "font-semibold": row().unread }}>
+          {row().title}<Show when={row().unread}><span class="sr-only"> Unread</span></Show>
+        </span>
         <span class="inline-flex shrink-0 items-center gap-2">
-          {/* THE MARK IS ON THE STANDING DOT'S OTHER SIDE FROM THE AGE, and
-              that is a layout rule rather than a taste: the standing dot is
-              documented — and asserted — as the dot immediately before the age,
-              so the news sits before it rather than between the two. */}
-          <Show when={row().unread}>
-            <span data-testid={TESTID.agentUnread} class={`${DOT} ${UNREAD_DOT}`} role="img" aria-label="Unread" title="Said something since you last looked" />
-          </Show>
           <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} title={LOOK[row().standing].detail} />
           <Show when={row().said?.at ?? row().changed}>{at => <span class="tabular-nums text-label text-paper/60">{agoOf(at(), now())}</span>}</Show>
         </span>

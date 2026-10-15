@@ -239,17 +239,38 @@ Then(
   },
 );
 
-/** ...AND THE MARK NAMES ITSELF, which is the half a person who cannot see the
- *  weight of the type is owed. */
+/** ...AND THE ROW NAMES IT OUT LOUD, which is the half a person who cannot see
+ *  the weight of the type is owed — and now the only half there is: the row
+ *  wears no second dot, so the word in its text is the whole of the mark. */
 Then(
   "the Chats row {string} says it is unread",
   async function (this: OlaiWorld, node: string) {
     await this.showSidebar();
-    const mark = rowFor(this, node).getByTestId(PLUGIN_TESTID.agentUnread);
-    await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(await mark.getAttribute("aria-label"), "Unread");
+    const row = rowFor(this, node);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await row.innerText()).includes("Unread"),
+      `the Chats row for ${node} to say it is unread, and it reads ` +
+        `${JSON.stringify((await row.innerText()).replaceAll("\n", " "))}`,
+    );
   },
 );
+
+/** ...AND THE ROW WEARS ONE DOT WHATEVER ELSE IS TRUE OF IT — the rule this
+ *  face settled on: the dot is how the agent STANDS, and unread is the title's
+ *  weight, so a row can never show two standings side by side. Counted by the
+ *  role the dot answers to (`role="img"`; the engine's own glyph is
+ *  `aria-hidden`), which is what a scenario can count that a reader can see. */
+Then("the Chats row {string} wears exactly one dot", async function (this: OlaiWorld, node: string) {
+  await this.showSidebar();
+  const row = rowFor(this, node);
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(
+    await row.getByRole("img").count(),
+    1,
+    `the Chats row for ${node} should draw one mark, its standing`,
+  );
+});
 
 /** ... and the one claim that gesture may only make by NOT drawing: a press
  *  that could not do something says so on the roster's own refused line

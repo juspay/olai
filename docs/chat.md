@@ -573,7 +573,7 @@ A turn that finishes is silent, and that is deliberate — but silence is not th
 
 Two places carry it:
 
-- **its row in Chats**, drawn bold with a small muted dot in front of the standing dot, and named *unread* for assistive technology. The age line is still the last line that was heard, so the row says when the agent spoke as well as that you have not read it.
+- **its row in Chats**, drawn in the bold weight — one fact per row, so the row's single dot goes on meaning how its agent STANDS — and named *unread* for assistive technology. The age line is still the last line that was heard, so the row says when the agent spoke as well as that you have not read it.
 - **the tab holding that conversation**, with a muted dot — deliberately quieter than the needs-you dot, because a question is asking you for something and a finished turn is only news. Where both apply, the question's dot is the one drawn.
 
 **What clears it is looking.** The moment the conversation is on screen in a focused window, the tab that is reading it says so and the mark comes off: for every tab of this olai at once, and across a reload, because what was acknowledged is a record the serve keeps and not something a tab remembers. A conversation you are already reading never shows the mark at all — the reply is read as it lands.
@@ -764,8 +764,9 @@ their vault edit time. These rows show an engine mark, title, and standing dot i
 age. The dot uses the same standing colors and working animation as the outline
 aside, so active chats remain visible here. No standing word is drawn; the dot
 names its standing for assistive technology. A row whose agent has said something
-since you last looked at its conversation is drawn bold, with a small unread dot
-beside the standing one — [what you have not read yet](#what-you-have-not-read-yet).
+since you last looked at its conversation is drawn in the bold weight — and says
+so for assistive technology — because the row's one dot is the standing's
+([what you have not read yet](#what-you-have-not-read-yet)).
 An agent may appear in both regions.
 
 Pressing either row navigates to the node in its outline and unfolds it; an

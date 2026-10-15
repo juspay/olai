@@ -148,7 +148,7 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 
 | Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
-| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); each Chats row puts its standing dot before its age, and its unread mark before the standing dot |
+| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); each Chats row puts its standing dot before its age, and puts ONE fact on that dot — an unread conversation is drawn in the row's title weight instead |
 | `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
 | `outline.row.aside` | outlines, after the row's date and repeat pills | a bound row's standing, always; otherwise the start pill, only while an agent is available (on phones only on the tapped or focused row) |
 | `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
@@ -421,7 +421,11 @@ predicate in `src/attention.ts` — is what every face reads off the roster row:
 conversation whose agent has said something since that instant is unread, and a
 conversation that has said nothing is never unread. The row is not a per-node
 flag and not config: the record is keyed on the engine/session pair, it outlives
-the tab that wrote it, and it is capped with the rest of that file. So a folded
+the tab that wrote it, and it is capped with the rest of that file. Where it is
+DRAWN is each face's own business and no dot's: the Chats row carries it in the
+title's weight (with the word for assistive technology), and the tabs row carries
+it as the quieter of the two marks a tab can wear.
+So a folded
 conversation, a tab behind another tab and a backgrounded window all leave the
 mark up, and looking at it clears it everywhere at once.
 
