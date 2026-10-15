@@ -26,7 +26,6 @@ const row = (over: Partial<NodeAgentRow> = {}): NodeAgentRow => ({
   waiting: 0,
   said: null,
   seen: null,
-  unread: false,
   sleeps: false,
   sleep: null,
   ...over,

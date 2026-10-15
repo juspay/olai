@@ -228,7 +228,7 @@ describe("what olai writes back", () => {
     const row = (await run(forDirectory(HERE))).at(IN)
     expect(row?.seen).toBe(AT)
     expect(row?.said?.at).toBe(AT)
-    expect({ ...IN, said: { text: "on it", at: AT }, seen: AT }).toEqual(row)
+    expect(row).toEqual({ ...IN, said: { text: "on it", at: AT }, seen: AT })
   })
 
   test("acknowledging one line twice writes nothing at all", async () => {

@@ -298,7 +298,7 @@ Then(
  */
 Then("the tab has marked the conversation as read", async function (this: OlaiWorld) {
   await this.waitUntil(
-    () => this.socketAskedSince("conversation/seen") >= 1,
+    async () => this.socketAskedSince("conversation/seen") >= 1,
     "the tab to acknowledge the conversation it is showing",
   );
 });

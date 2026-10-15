@@ -444,10 +444,12 @@ export interface Panel {
    *
    * IT NEVER REFUSES, deliberately, unlike every verb around it: nobody made a
    * gesture and there is nobody to tell, so a record that will not write is
-   * logged and carried on ({@link ./sessions.ts} argues the discipline). The
+   * logged and carried on ({@link ./sessions.ts} argues the discipline). Its
+   * declared failure is the one every conversation verb here carries — the
+   * aggregate reaches its panel through the same door the others do — and the
    * refusal a stale tab meets is `inConversation`'s, one level up.
    */
-  readonly seen: (to: Conversing, at: string) => Effect.Effect<void>
+  readonly seen: (to: Conversing, at: string) => Effect.Effect<void, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
   /** Start a fresh conversation with the named agent
    *  ({@link ./agents/roster.ts}). The agent is an ARGUMENT because every new

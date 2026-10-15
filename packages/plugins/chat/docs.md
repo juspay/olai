@@ -37,12 +37,14 @@ Every plugin that could reach a conversation names one of the five doors this ro
 
 In the browser, the row publishes its roster as `chat.state`. The static door
 `olai-plugin-chat/attention` names it (`chatState`) with a narrow shape — the
-rows and the tab-local folds — and carries `isCurrent`, the predicate the Chats
-section lights a row with, and `NEEDS_YOU_DOT`, the one paint of a standing
-another row draws. The rest of a standing's look and the sidebar's ordering stay
-in chat's browser modules. The tabs row's `attention`
+rows, the one `unread` fact about what a person has read, and the tab-local
+folds — and carries `isCurrent`, the predicate the Chats section lights a row
+with, and the two paints another row draws: `NEEDS_YOU_DOT` and `UNREAD_DOT`.
+The rest of a standing's look and the sidebar's ordering stay in chat's browser
+modules. The tabs row's `attention`
 component names it to put a dot on a tab whose page is a conversation that needs
-you. The door holds no live value.
+you, and a quieter one on a tab whose page holds something nobody has read. The
+door holds no live value.
 
 So **a serve with no chat row leaves all of them `waiting`**, and the plugins panel says so per row, on whose account. That is not a failure and it is not silent: a plugin holding a door that nobody offers is a plugin that has not started, which is a legitimate state the runtime resolves the moment the door arrives.
 
@@ -206,6 +208,14 @@ questions, retries and the sign-in trio all carry their conversation identity;
 stale scope tokens refuse rather than acting on another conversation. Multiple browser readers
 share the server's conversation scope. A server restart reopens each retained
 reading and replays its transcript.
+
+`conversation.seen` is the one procedure nobody pressed: a tab that is showing a
+conversation tells the serve which of the agent's lines it has read, by the
+exact instant it was drawn from. It is keyed on the engine/session pair like
+every other conversation verb and refuses a stale one, so it can never attach
+somebody's reading to a conversation they were not looking at. The write lands
+in the machine-local heard record (below), not in the vault: a serve that
+restarts keeps it, and so does every other tab of this olai.
 
 `conversation.newChat` takes the engine, title and nullable parent (null means
 the current Inbox's Chats container). Under the existing creation permit it
@@ -389,6 +399,20 @@ when folded shut; closing the row or pane releases that reading. Unvisited resto
 Only shown conversation surfaces count as watched for badges, chimes and
 notifications. A hidden tab can therefore acquire its needs-you dot, and a
 notification reveals a shown copy or requests a visible conversation.
+
+**The same watched reading is what writes down what has been read.** The
+machine-local `heard` record (`src/sessions.ts`) carries, beside the last line
+olai heard from a conversation, the instant of that line a person has SEEN. A
+tab that is showing the conversation tells the serve so
+(`conversation.seen`), and `unreadOf` — one pure predicate in
+`src/attention.ts` — is what every face reads off the roster row: a conversation
+whose agent has said something since that instant is unread, and a conversation
+that has said nothing is never unread. The row is not a per-node flag and not
+config: the record is keyed on the engine/session pair, it outlives the tab that
+wrote it, and it is capped with the rest of that file. Only a WATCHED row
+acknowledges, which is why a folded conversation, a background tab and a
+backgrounded window all leave the mark up, and why looking at it clears it
+everywhere at once.
 
 Hidden transcripts never scroll. On return they follow the latest line only
 if the reader had been following before hiding. Completion key handlers obey

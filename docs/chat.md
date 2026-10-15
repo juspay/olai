@@ -567,6 +567,23 @@ The notification is the one part that needs the browser's permission. olai asks 
 
 **The honest limit: olai has to be running.** The alerts ride the same live connection everything else in this app does, so they reach you with the window in the background, on another desktop, or behind everything — but a completely closed olai is not listening, and nothing wakes it. There is no push server, and adding one is its own decision rather than a detail of this.
 
+## What you have not read yet
+
+A turn that finishes is silent, and that is deliberate — but silence is not the same as saying nothing. An agent that answers while you are not looking at its conversation leaves a mark where you will meet it, and the mark is bookkeeping rather than an alert.
+
+Two places carry it:
+
+- **its row in Chats**, drawn bold with a small dot beside the standing dot, and named *unread* for assistive technology. The age line is still the last line that was heard, so the row says when the agent spoke as well as that you have not read it.
+- **the tab holding that conversation**, with a muted dot — deliberately quieter than the needs-you dot, because a question is asking you for something and a finished turn is only news. Where both apply, the question's dot is the one drawn.
+
+**What clears it is looking.** The moment the conversation is on screen in a focused window, the tab that is reading it says so and the mark comes off: for every tab of this olai at once, and across a reload, because what was acknowledged is a record the serve keeps and not something a tab remembers. A conversation you are already reading never shows the mark at all — the reply is read as it lands.
+
+A folded conversation, a tab behind another tab, and a window behind an editor are all the same thing here: nobody is looking, so the mark stays until somebody does. Nothing rings for any of it — no chime, no notification, no mark on the app's icon. Those belong to questions ([when it is waiting on you](#when-it-is-waiting-on-you)).
+
+**Two honest limits, both inherited.** Olai marks what it HEARD: a conversation somebody drove from a terminal, or one no node agent claims, has no line to be unread about. And a turn that adds no prose of its own re-offers the line before it, so an agent that repeats itself word for word does not make its row unread again — understating how fresh a line is, never overstating it.
+
+Reading is also not reported anywhere. The agent is not told, no other machine hears about it, and no plugin sees it: it is one record on the machine that did the looking, of which lines a person has met.
+
 ## Attachments
 
 The same panel also takes outline rows as context, transcript rows as quotes, and sidebar files as paths.
@@ -746,7 +763,10 @@ standing, capped at ten: last-heard activity first, then nodes without speech by
 their vault edit time. These rows show an engine mark, title, and standing dot immediately before the
 age. The dot uses the same standing colors and working animation as the outline
 aside, so active chats remain visible here. No standing word is drawn; the dot
-names its standing for assistive technology. An agent may appear in both regions.
+names its standing for assistive technology. A row whose agent has said something
+since you last looked at its conversation is drawn bold, with a small unread dot
+beside the standing one — [what you have not read yet](#what-you-have-not-read-yet).
+An agent may appear in both regions.
 
 Pressing either row navigates to the node in its outline and unfolds it; an
 unbound agent navigates only. The open row is marked current. Search **Agents**
