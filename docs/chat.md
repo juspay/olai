@@ -551,7 +551,7 @@ That counts ANOTHER TAB of the same olai, too. Two tabs are two documents and on
 **If it is not** — the window behind an editor, the conversation folded away, olai on another desktop — three things happen at once:
 
 - **one short chime.** Two notes, a third of a second.
-- **a system notification**, naming the conversation and the question when a live reading has its text. An unread conversation is reported without quoting stale text. Clicking brings olai forward and unfolds the first agent in Needs you order. With nothing waiting it opens no fold.
+- **a system notification**, naming the conversation and the question when a live reading has its text. A conversation with no live reading here is reported without quoting stale text. Clicking brings olai forward and unfolds the first agent in Needs you order. With nothing waiting it opens no fold.
 - **a mark on the app's icon** for waiting questions, plus the tab-title and favicon attention mark. The server roster supplies each current session's count, so several conversations can contribute. Looking at the conversation acknowledges its attention; dismissing a system banner does not answer the question.
 
 **A turn merely FINISHING is silent, on purpose.** An agent that has finished will still have finished in five minutes; a chime for every turn is a chime people switch off, and it would take the one that matters with it.
@@ -573,7 +573,7 @@ A turn that finishes is silent, and that is deliberate — but silence is not th
 
 Two places carry it:
 
-- **its row in Chats**, drawn bold with a small dot beside the standing dot, and named *unread* for assistive technology. The age line is still the last line that was heard, so the row says when the agent spoke as well as that you have not read it.
+- **its row in Chats**, drawn bold with a small muted dot in front of the standing dot, and named *unread* for assistive technology. The age line is still the last line that was heard, so the row says when the agent spoke as well as that you have not read it.
 - **the tab holding that conversation**, with a muted dot — deliberately quieter than the needs-you dot, because a question is asking you for something and a finished turn is only news. Where both apply, the question's dot is the one drawn.
 
 **What clears it is looking.** The moment the conversation is on screen in a focused window, the tab that is reading it says so and the mark comes off: for every tab of this olai at once, and across a reload, because what was acknowledged is a record the serve keeps and not something a tab remembers. A conversation you are already reading never shows the mark at all — the reply is read as it lands.

@@ -148,7 +148,7 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 
 | Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
-| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); each Chats row puts its standing dot before its age |
+| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); each Chats row puts its standing dot before its age, and its unread mark before the standing dot |
 | `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
 | `outline.row.aside` | outlines, after the row's date and repeat pills | a bound row's standing, always; otherwise the start pill, only while an agent is available (on phones only on the tapped or focused row) |
 | `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
