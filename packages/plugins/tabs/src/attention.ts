@@ -40,10 +40,11 @@ import type { Dots, Mark, Tab } from "./contract.ts"
 /**
  * THE MARKS A TAB CAN WEAR, over one walk of the strip.
  *
- * `active` gates the walk on there being ANY row to be about — a directory with
- * no node agent parses no address at all — and each mark then filters the rows
- * it is about out of the roster it already holds. `parsed` is the shared half:
- * one memo per tab, rebuilt only when that tab's own address changes.
+ * `active` gates the walk on there being a ROW SOME MARK IS ABOUT — a directory
+ * whose agents are all idle and read parses no address at all — and each mark
+ * then filters the rows it is about out of the roster it already holds. `parsed`
+ * is the shared half: one memo per tab, rebuilt only when that tab's own address
+ * changes.
  */
 export const marksOver = (
   chat: Attention,
