@@ -125,8 +125,14 @@ export const teachingFor = (
  * to switch off. Either way, this subtree is the only memory, and the sentence
  * says so without naming one engine's mechanism — the same words under every
  * agent, so a reader comparing two first turns sees one contract.
+ *
+ * EXPORTED, and the third caller is why: a sleep turn arrives in a conversation
+ * that has already been taught, so the sentence cannot come with a preamble
+ * that will not be sent — it is restated by the instruction instead
+ * (`./sleep.ts`). One spelling, three turns, and an agent that has been told
+ * once reads the same words again rather than a paraphrase of them.
  */
-const HARNESS_MEMORY_OFF =
+export const HARNESS_MEMORY_OFF =
   "You have no memory of your own here: this subtree is the only memory."
 
 /**

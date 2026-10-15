@@ -17,3 +17,51 @@ export const SESSION_KIND = "agent-session"
  *  header argues why it is a literal rather than a composition, and which bench
  *  holds it to the real one. */
 export const SESSION_TYPE = "chat-agent-session"
+
+/**
+ * WHEN A NODE AGENT LAST TIDIED ITS OWN SUBTREE — the second kind this plugin
+ * teaches a vault, and the same two-layer composition: the bare
+ * {@link SLEPT_KIND} this plugin contributes, and the word a declaration writes,
+ * `chat-agent-slept`.
+ *
+ * THE SAME WORD-BUILDING RULES AS THE BINDING'S, which is why they are one
+ * module rather than two: a plugin's own name prefixed, a bare word that may
+ * carry a hyphen of its own, and the first hyphen the separator — so
+ * `chat-agent-slept` decomposes to `chat` and `agent-slept`. `kinds.test.ts`
+ * holds both literals to the real composition.
+ *
+ * WHY IT IS A KIND AT ALL, when olai could have pinned one key: the key's
+ * spelling is not a licence (`@olai/format`'s `agents.ts` argues the whole of
+ * it one floor down). A vault that keeps its own `agent-slept` column, or
+ * calls it `last-consolidated`, says so with one row and this plugin reads the
+ * memo off whatever key the vault declared — and a vault that has said nothing
+ * gets the composed word. {@link ./sleep.ts} is the value's rule; {@link
+ * ./server/sleep.ts} is the only writer.
+ */
+export const SLEPT_KIND = "agent-slept"
+
+/** ...and what a declaration writes for it:
+ *  `{"title":"agent-slept","custom":{"type":"chat-agent-slept"}}`. */
+export const SLEPT_TYPE = "chat-agent-slept"
+
+/**
+ * WHETHER THIS CHAT IS TIDIED ON ITS OWN CLOCK — the third kind this plugin
+ * teaches a vault, and the same two-layer composition: the bare
+ * {@link SLEEPING_KIND} this plugin contributes, and the word a declaration
+ * writes, `chat-agent-sleep`.
+ *
+ * THE SAME WORD-BUILDING RULES AND THE SAME REASON FOR A KIND as the two above:
+ * a key's spelling is not a licence, so a vault that keeps this mark under a
+ * column of its own name declares that column this kind, and olai reads and
+ * writes there. `kinds.test.ts` holds the literal to the real composition.
+ *
+ * WHAT IT MEANS IS A PERSON'S ANSWER RATHER THAN A MACHINE'S: absent or `off` is
+ * "leave this one alone", `on` is "tidy it when it has been quiet". Nothing else
+ * about the pass changes — the words are `./sleep.ts`, the loop is
+ * `./server/sleep.ts`, and `docs/chat.md` says it in a person's terms.
+ */
+export const SLEEPING_KIND = "agent-sleep"
+
+/** ...and what a declaration writes for it:
+ *  `{"title":"agent-sleep","custom":{"type":"chat-agent-sleep"}}`. */
+export const SLEEPING_TYPE = "chat-agent-sleep"

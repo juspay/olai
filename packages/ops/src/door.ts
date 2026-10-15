@@ -25,6 +25,7 @@ import {
   changesOf,
   customText,
   type Derived,
+  idsUnder,
   isMirror,
   type Node,
   nodesOf,
@@ -35,9 +36,47 @@ import type { Plan } from "./plan.ts"
 
 export type ReservedKey = string | { readonly says: string; readonly file: string }
 
+/**
+ * WHERE THE WRITES MAY LAND, for a session that is in the middle of somebody
+ * else's work.
+ *
+ * The pass that tidies a node agent's memory holds the quiet window shut for
+ * minutes and asks that agent to rewrite a subtree. Its session's rule is
+ * otherwise the ordinary one — the vault is the agent's to act on — and for the
+ * span of that turn it must not be: an injected row can talk an unattended turn
+ * with suppressed alerts into rewriting or trashing anything in the directory,
+ * and those writes land OUTSIDE the pass's own commit (under `auto` when the
+ * hold releases, or waiting), so reverting the sleep would not undo them.
+ *
+ * A THUNK, on the rule rather than on the caller, because the ticket that mints
+ * the rule outlives the turn: read per call, like {@link SessionRule}'s
+ * `forbidden`, so the fence is up exactly while the turn is.
+ */
+export interface Confinement {
+  /** The node whose subtree the writes are confined to, by id. */
+  readonly under: string
+  /** The clause that says why, in the words of whoever raised the fence. */
+  readonly says: string
+  /**
+   * THE NODES WHOSE OWN SUBTREES ARE NOT THIS ONE'S — every other node agent in
+   * the set ({@link @olai/format}'s `othersOf`).
+   *
+   * WHERE THE MEMORY ENDS IS ONE LINE, and the fence is not allowed its own: the
+   * commit the pass makes names exactly the files `memoryFiles` finds under this
+   * node with this same set, so a fence stopping only at the outer boundary would
+   * permit a write into a NESTED agent's memory — landing outside the undo.
+   */
+  readonly stop?: ReadonlySet<string>
+}
+
 export type SessionRule =
   | { readonly _tag: "closed" }
-  | { readonly _tag: "open"; readonly forbidden: ReadonlyMap<string, ReservedKey> }
+  | {
+    readonly _tag: "open"
+    readonly forbidden: ReadonlyMap<string, ReservedKey>
+    /** Absent or `null` is the ordinary rule: the whole vault. */
+    readonly confined?: Confinement | null
+  }
 
 export interface Caller {
   readonly writer: Writer
@@ -55,10 +94,27 @@ export type Barred =
     /** The clause the open rule carried for this key. */
     readonly says: string
   }
+  /** A record the plan changes that is not under the confined node. */
+  | {
+    readonly why: "outside"
+    readonly id: string
+    readonly title: string
+    readonly says: string
+  }
+  /** A plan that trashes or empties: the one direction a tidy may not take. */
+  | { readonly why: "trash"; readonly says: string }
 
 export const doorRefusal = (reached: Barred): string => {
   if (reached.why === "closed") {
     return "this conversation has been reaped, so the door it was handed is closed and nothing may be written through it."
+  }
+  // THE TWO CONFINEMENTS, and their sentences are the fence's own: whoever put
+  // the fence up says why, the way a forbidden key's clause does.
+  if (reached.why === "outside") {
+    return `“${reached.title}” (\`${reached.id}\`) is outside the subtree this door is confined to — ${reached.says}.`
+  }
+  if (reached.why === "trash") {
+    return `nothing may be trashed or deleted through this door right now — ${reached.says}.`
   }
   // THE CLAUSE IS THE RULE'S, carried on the ticket beside the key it is
   // about. It used to be written in `./refusals.ts`, in a drawer of shared
@@ -68,6 +124,8 @@ export const doorRefusal = (reached: Barred): string => {
   return `\`${reached.key}\` is a property this door may not write — ${reached.says}, on “${reached.title}” (\`${reached.id}\`) as anywhere else.`
 }
 
+
+
 /** Judge the records a plan actually changes for the keys an open session
  *  may not write. Closed is refused at `run` without a plan walk. */
 export const barred = (
@@ -75,7 +133,49 @@ export const barred = (
   derived: Derived,
   plan: Plan,
   paths: ReadonlyArray<string> = [...derived.byFile.keys()],
-): Extract<Barred, { why: "key" }> | null => {
+  confined: Confinement | null = null,
+): Barred | null => {
+  // THE FENCE FIRST, because it is about WHERE rather than about WHICH KEY, and
+  // a plan that lands outside is refused whatever it writes.
+  if (confined !== null) {
+    // THE SUBTREE, off the reading this call was already handed — the SAME walk
+    // the pass's own due-ness test and its commit's file set are taken off, with
+    // the same exclusions, so what this fence refuses and what that commit
+    // cannot name are one line (`@olai/format`'s `idsUnder`).
+    const inside = new Set<string>([confined.under, ...idsUnder(derived, confined.under, confined.stop)])
+    // WHAT THE PLAN ACTUALLY CHANGES, and not every node of the files it
+    // touches: a subtree lives in files that hold other work, and refusing a
+    // write because a sibling of the file is outside would refuse the pass's own
+    // tidying.
+    const before = new Map(plan.files.map((one) => [one.file, nodesOf(derived, one.file).map((at) => at.node)]))
+    const after = new Map(plan.files.map((one) => [one.file, one.nodes]))
+    const landed = (id: string): Node | undefined => {
+      for (const nodes of after.values()) {
+        const found = nodes.find((node) => node.id === id)
+        if (found !== undefined) return found
+      }
+      return undefined
+    }
+    for (const change of changesOf(derived.claims, before, after)) {
+      // ...AND WHERE IT LANDS, not only where it was: a move rewrites the record
+      // of the node that moved, so a row inside the subtree could be carried
+      // OUT of it by a plan that changes nothing else — and the pass's commit
+      // names the subtree's files, so that write would land outside the undo.
+      // ...AND THE NODE THE FENCE IS NAMED FOR IS THE ONE EXCEPTION: its own
+      // parent is outside its subtree by definition, and writing the node itself
+      // is exactly what the pass is there to do.
+      if (change.id === confined.under) continue
+      const known = derived.byId.get(change.id) !== undefined
+      const parent = landed(change.id)?.parent
+      // A RECORD THAT WAS ALREADY THERE IS JUDGED BY WHERE IT IS; ONE THE PLAN
+      // MINTED (`add`, `capture`, a split's tail) by where it LANDS, because a
+      // fresh id is in no walk of the reading yet.
+      const here = known ? inside.has(change.id) : parent !== undefined && inside.has(parent)
+      const lands = parent === undefined || inside.has(parent)
+      if (here && lands) continue
+      return { why: "outside", id: change.id, title: change.title, says: confined.says }
+    }
+  }
   if (forbidden.size === 0) return null
 
   // File-scoped reservations compare the selected namespace as a whole. This

@@ -215,6 +215,29 @@ describe("an agent mid-turn", () => {
     })
   }, 20_000)
 
+  test("... and a plugin that is going away takes its own back", async () => {
+    // THE OTHER END OF THE SAME RULE (`olai-plugin-chat`'s `Chat.withdraw`): a
+    // caller that handed a body over and is now stopping — a fiber whose scope
+    // is closing — leaves words nobody owns, and the boundary that would have
+    // let them in lets in nothing. What a cleared pick does from the panel's
+    // end (`dropped`), this does from the caller's.
+    const chat = await panel({ scoping: SCOPED })
+    await closing(chat, async () => {
+      await holding(chat)
+      await run(chat.doorFor(KOLU).deliver(open(chat), () => RANG))
+      expect(chat.state().wake).toEqual([{ name: KOLU, pick: "Fleet.olai", waiting: 1 }])
+      await run(chat.doorFor(KOLU).withdraw(open(chat)))
+      // THE COUNT GOES WITH THEM, which is the strip's half of the same
+      // withdrawal — the republish a cleared doorbell does.
+      await until("the strip to let the count go", () =>
+        chat.state().wake.every((row) => row.waiting === 0))
+      expect(chat.state().wake).toEqual([{ name: KOLU, pick: "Fleet.olai", waiting: 0 }])
+      // ...AND THE BOUNDARY THIS TURN ENDS AT LETS IN NOTHING.
+      await until("the turn to end", () => chat.state().status !== "thinking")
+      expect(rung(chat)).toEqual([])
+    })
+  }, 20_000)
+
   test("lets in ONE row, the bodies joined by a blank line in arrival order", async () => {
     const chat = await panel()
     await closing(chat, async () => {

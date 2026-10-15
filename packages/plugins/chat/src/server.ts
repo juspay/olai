@@ -74,6 +74,7 @@ import { inMemoryStore } from "@kolu/surface/server"
 import {
   documentAt,
   type OpFailure,
+  othersOf,
   type Reading,
   UsageFailure,
 } from "@olai/format"
@@ -101,12 +102,14 @@ import {
 } from "@olai/plugin-api/services"
 import type { Engine, Registering } from "@olai/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
-import { Deferred, Duration, Effect, Semaphore } from "effect"
+import { Deferred, Duration, Effect, Scope, Semaphore } from "effect"
 
 import type { PanelAddress } from "./wire/session.ts"
 import { forLocalState as modelsIn } from "./models.ts"
 import type { Ops as WriteGate } from "@olai/ops"
 import { makeFiler } from "./server/filer.ts"
+import type { Forecast } from "./wire.ts"
+import { type Asked, makeSleeper, START } from "./server/sleep.ts"
 import { readings } from "./server/readings.ts"
 import type { Change } from "./transcript.ts"
 import * as Chat from "./scoped.ts"
@@ -116,11 +119,11 @@ import { openLocalState } from "./local.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { seatingIn } from "./seating.ts"
-import { Config } from "./settings.ts"
+import { Config, SLEEP_OFF, sleepingPolicy } from "./settings.ts"
 export { Config } from "./settings.ts"
 import { kinds } from "./kinds.ts"
 import { roster as agentsRoster } from "./server/agents.ts"
-import { closeAgent, type Binding, startAgentSession } from "./server/binding.ts"
+import { closeAgent, type Binding, setSleeping, startAgentSession } from "./server/binding.ts"
 import { scopeThrough } from "./server/doorbell.ts"
 import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
@@ -128,6 +131,7 @@ import type { ChatEntry, ChatState } from "./wire/members.ts"
 import { type Agents, NO_AGENT_ROSTER } from "./wire/agents.ts"
 import { faces, name, surface } from "./wire.ts"
 import { CHARTER } from "./charter.ts"
+import { SLEEP_WORD } from "./sleep.ts"
 
 /** The kinds this plugin teaches a vault — see {@link ./kinds.ts} for the word
  *  and the migration row an existing vault needs. */
@@ -176,6 +180,32 @@ const asFailure = (refusal: Refusal): OpFailure => refusal as OpFailure
 const SEATS =
   "it is what seats a conversation on a node, and that is a person's gesture in the panel"
 
+/**
+ * ...AND WHY IT MAY NOT WRITE THE MEMO OF ITS OWN SLEEP, which is the second
+ * key a seated session is refused.
+ *
+ * The memo is olai's record of when the LAST pass finished, and the pass is
+ * what writes it — an agent that stamped its own would be the tidy-up pass
+ * deciding it had tidied, and the next pass would skip a subtree nothing had
+ * touched. The agent is told which of the two keys it is about through this
+ * clause, exactly as {@link SEATS} tells it the other.
+ */
+const MEMO =
+  "olai writes it when it tidies this node agent's memory, so a session that stamped it would be claiming a pass nobody ran"
+
+/**
+ * ...AND WHY IT MAY NOT TURN ITS OWN SLEEPING ON OR OFF, which is the third.
+ *
+ * The mark is a PERSON's answer about whether olai may tidy this chat at all
+ * (`./agents.ts`'s `sleeps`), and the whole point of it being opt-in is that the
+ * agent does not get to give itself permission: a session that wrote `on` would
+ * be the tidy-up pass authorising its own wake-up, and one that wrote `off`
+ * would be a chat that quietly stopped being tidied. Neither is a machine's
+ * decision, and the row-menu verb is where it is made.
+ */
+const SLEEPING_MARK =
+  "it is whether olai may tidy this chat on its own, which is a person's choice in the panel"
+
 export default definePlugin({
   environment: [
     {"key": "OLAI_AGENT_PATH", "secret": false, "says": "the directories containing agent executables"},
@@ -190,6 +220,10 @@ export default definePlugin({
     const bundle = yield* Bundle
     const env = yield* Env
     const nodeIdle = settings["idle-ms"]
+    // ...AND WHETHER THE PASS RUNS AT ALL, with its spans decoded once here
+    // rather than per tick (`./settings.ts` holds the words and the rule).
+    const sleeping = settings.sleep === "on"
+    const spans = sleepingPolicy(settings)
     const kindsDoor = yield* Kinds
     const localState = yield* openLocalState(yield* LocalState)
     const offers = yield* Offers
@@ -374,6 +408,26 @@ export default definePlugin({
     /** This sibling's own write face, the moment the runtime has minted it. */
     let mine: Ctx | null = null
     let filer: { readonly full: Effect.Effect<void>; readonly settled: (agent: string) => Effect.Effect<void> } | null = null
+    /**
+     * THE PASS, once this row has wired it — `null` before that and after the
+     * scope closes, which is what makes a request that arrives in either window
+     * a sentence rather than a call into something that is not there
+     * ({@link conversation.sleepNow}).
+     */
+    let sleeper: {
+      readonly now: (node: string) => Effect.Effect<Asked, never, Scope.Scope>
+      /** WHAT THIS NODE'S SLEEP IS DOING — read by the roster join below, which
+       *  is synchronous and runs long after this block (`./server/sleep.ts`). */
+      readonly forecast: (node: string) => Forecast | null
+    } | null = null
+    /**
+     * THE SCOPE THE PASS IS FORKED INTO, captured here rather than read when a
+     * request arrives: a procedure runs long after this effect has finished, and
+     * a pass a person asked for must be owned by THIS row — the same owner the
+     * loop's fiber has, so a settings flip or a serve shutting down stops its
+     * turn rather than leaving it writing with nobody watching.
+     */
+    const owned = yield* Effect.scope
     let sessionsRevision = 0
 
     /** THE VAULT'S HALF OF THE AGENTS ROSTER, held across revisions: which node
@@ -408,6 +462,9 @@ export default definePlugin({
         nodeAgents.rowsWith(
           chat === null ? [] : chat.overheard(),
           chat === null ? new Map() : chat.live(),
+          // THE FORECAST RIDES THE ROW, from the one judgement the loop picks
+          // with — `null` while there is no sleeper, which is `sleep: off` here.
+          (node) => sleeper?.forecast(node) ?? null,
         ),
       )
     }
@@ -528,6 +585,8 @@ export default definePlugin({
         Effect.mapError(ops.prop({ node, key: nodeAgents.key(), value }), asFailure),
       remove: (node) =>
         Effect.mapError(ops.prop({ node, key: nodeAgents.key(), value: "" }), asFailure),
+      mark: (node, value) =>
+        Effect.mapError(ops.prop({ node, key: nodeAgents.sleepKey(), value }), asFailure),
     }
 
     /** WHICH PLUGINS RING AT ALL — core's registry, read afresh at every use.
@@ -622,6 +681,21 @@ export default definePlugin({
             if (filer !== null) yield* filer.full
           })),
         ),
+      setSleeping: ({ input }: { input: { node: string; on: boolean } }) =>
+        // SLEEP OFF IS THE SETTINGS' ANSWER, and it comes before the write: a
+        // mark written while the pass cannot run at all would be a promise the
+        // row's own label does not keep (`./settings.ts`'s `SLEEP_OFF`).
+        sleeping
+          ? bindingPermit.withPermit(setSleeping(binding, input)).pipe(
+            // THE REVISION IS BUMPED AND THE FILER IS NOT ASKED, which is the one
+            // thing this gesture does not share with the binding's: the mark
+            // decides whether olai TIDIES a chat, and the filer is about which
+            // conversations are CLAIMED — a node is no more or less an agent for
+            // being opted in, so there is nothing for it to file. The revision is
+            // what republishes the roster, which is where `sleeps` rides.
+            Effect.tap(() => Effect.sync(() => void mine?.cells.sessionsRevision.set(++sessionsRevision))),
+          )
+          : Effect.fail(new UsageFailure({ reason: SLEEP_OFF })),
       closeAgent: ({ input }: { input: { node: string } }) =>
         bindingPermit.withPermit(closeAgent(binding, input)).pipe(
           // Publish after the binding is gone: the seat closes and the roster
@@ -631,6 +705,33 @@ export default definePlugin({
             if (filer !== null) yield* filer.full
           })),
         ),
+      /**
+       * THE PASS, ASKED FOR BY HAND — the row verb's half, and the only way into
+       * the pass that is not the loop's own clock.
+       *
+       * THE SCOPE IS THE ROW'S, not the request's: the pass outlives the press by
+       * minutes, and the same owner the loop's fiber has is what makes a settings
+       * flip or a serve shutting down stop its turn rather than leave it writing
+       * with nobody watching (`./server/sleep.ts`'s `now` argues the door).
+       */
+      sleepNow: ({ input }: { input: { node: string } }) =>
+        Effect.gen(function*() {
+          const pass = sleeper
+          if (pass === null) return { _tag: "Refused" as const, said: SLEEP_OFF }
+          const asked = yield* Effect.provideService(pass.now(input.node), Scope.Scope, owned)
+          if (asked === "started") return { _tag: "Started" as const }
+          if (asked === "unknown") {
+            return { _tag: "Refused" as const, said: "that node is not a node agent with a conversation" }
+          }
+          // WHO IT IS ALREADY TIDYING, off the live reading: `sleep` is olai's own
+          // mark on a turn, so the node it is true for is the one a person is
+          // waiting for. A pass in the moment before its delivery marks nothing
+          // yet, and the node they asked about stands in.
+          const live = chat?.live() ?? new Map<string, Chat.LiveSession>()
+          const at = [...live].find(([, one]) => one.sleep === true)?.[0] ?? input.node
+          const title = nodeAgents.nodes().find((one) => one.id === at)?.title ?? at
+          return { _tag: "Refused" as const, said: `olai is already tidying ${title}; wait for it to finish` }
+        }),
       reopen: ({ input }: { input: { conv: PanelAddress; scope: string | null } }) =>
         withChat((open) => open.inConversation(input.conv, input.scope ?? undefined, (panel) => panel.state().unopened === null ? Effect.void : panel.reopen)),
       sessions: () => withChat((open) => open.sessions),
@@ -859,15 +960,45 @@ export default definePlugin({
         // key would leave the other as a way a seated agent could re-seat
         // itself. A THUNK, so the answer follows the revision — a
         // migration row landing mid-conversation moves what the ticket forbids.
-        ticket: (_node) =>
+        ticket: (node) =>
           tools.ticket(
             // ...AND THE SENTENCE IS THIS PLUGIN'S, beside the keys it is
             // about. It used to be composed inside `@olai/ops`' refusal, which
             // was a general package writing prose about a word only this
             // package owns — invisible while there was one forbidden key and
             // untrue of half its subjects the moment there were two.
-            () => nodeAgents.keys().map((key) => ({ key, says: SEATS })),
+            //
+            // TWO KINDS, TWO CLAUSES: the binding and the sleep memo are
+            // forbidden for different reasons, and a table (a MAP on the rule)
+            // rather than a set is what lets each carry the reason it is one
+            // (`@olai/ops`' `door.ts` argues the shape).
+            () => [
+              ...nodeAgents.keys().map((key) => ({ key, says: SEATS })),
+              ...nodeAgents.sleptKeys().map((key) => ({ key, says: MEMO })),
+              ...nodeAgents.sleepKeys().map((key) => ({ key, says: SLEEPING_MARK })),
+            ],
             "chat-agent",
+            // ...AND WHERE IT MAY WRITE WHILE A PASS IS TIDYING THIS NODE. The
+            // pass's turn is the one moment this session's writes are not its
+            // own to choose: an injected row can talk an unattended turn with
+            // suppressed alerts into rewriting or trashing anything in the
+            // directory, and those writes land OUTSIDE the pass's commit — under
+            // `auto` when the hold releases, or waiting — so reverting the sleep
+            // would not undo them. The fence is up exactly while the mark is
+            // (`@olai/ops`' `Confinement` is where it is enforced), and it is a
+            // THUNK because the ticket outlives the turn.
+            () => chat?.live().get(node)?.sleep === true
+              ? {
+                under: node,
+                says: "olai is tidying this node's memory, and a turn nobody is watching writes only inside it",
+                // ...AND THE FENCE STOPS WHERE THE MEMORY DOES: another node
+                // agent's own subtree is not this one's, and the pass's commit
+                // cannot name its files, so a write inside one would land
+                // outside the undo (`@olai/format`'s `othersOf` is the one
+                // definition; the pass's own walks are handed the same set).
+                stop: othersOf(nodeAgents.nodes(), node),
+              }
+              : null,
           ),
         onState: () => {},
         onConversationState: publishState,
@@ -897,6 +1028,87 @@ export default definePlugin({
         log: line => Effect.logInfo(line),
       }, vault.inbox, { all: chat.sessions, one: chat.sessionsFor })
       yield* Effect.addFinalizer(() => Effect.sync(() => { filer = null }))
+      // ... AND THE PASS THAT TIDIES A NODE AGENT'S MEMORY, in the same scope
+      // and by the same rules as the filer above: it is chat's own server half,
+      // it holds chat's own doors, and it stops when this fork's scope closes —
+      // which is what cancels a turn that is still running
+      // (`./server/sleep.ts` states the order).
+      //
+      // `serving` rather than `chat`, because these closures are called long
+      // after this block: what the pass is handed is the scheduler it was built
+      // beside, not a variable something may empty.
+      const serving = chat
+      if (sleeping) {
+        // THE HANDLE IS KEPT, unlike the loop's, and for the reason `filer`'s
+        // is: a request that arrives after this scope closes has to be refused
+        // in words rather than run against a sleeper that is gone. The
+        // finalizer is what makes the window between the two unobservable —
+        // null BEFORE the pass exists and null AFTER it is gone, both of which
+        // are "no pass to ask for" (`conversation.sleepNow`).
+        sleeper = yield* makeSleeper({
+          nodes: () => nodeAgents.nodes(),
+          // THE READING THE STRIP'S FORECAST IS JUDGED OVER: the set the rows
+          // were just built from, not whatever the loop last read a tick ago.
+          reading: () => nodeAgents.reading(),
+          sleptAt: (node) => nodeAgents.sleptAt(node),
+          sleptKey: () => nodeAgents.sleptKey(),
+          sleeps: (node) => nodeAgents.sleeps(node),
+          // ...AND WHEN IT MOVES: a pass starting, ending or failing is neither a
+          // vault revision nor a chat frame, so the sleeper says so itself.
+          changed: Effect.sync(() => republishAgents()),
+          live: () => serving.live(),
+          // THE SAME ROUTE A DOORBELL TAKES, with this feature's own word: the
+          // scheduler wakes the node, the panel writes the machine row, and the
+          // turn boundary is what the pass then watches.
+          // ...WITH THE TURN MARKED AS OLAI'S OWN, explicitly and not by the
+          // word the door was opened under: a plugin that happened to be called
+          // `sleep` must not become a machine turn whose questions nobody is
+          // told about (`@olai/plugin-api`'s `Deliveries.deliver`).
+          deliver: (to, say) => serving.doorFor(SLEEP_WORD).deliver(to, say, { sleep: true }),
+          // THE NARROWING IS THE WIRING'S, and it is where the panel's own
+          // contract meets the pass's: what the pass may do to the conversation
+          // it watches is stop its turn (`./server/sleep.ts`'s `Stoppable`).
+          watch: (to, observer) =>
+            Effect.map(serving.reading(to, observer), (panel) => ({ cancel: panel.cancel })),
+          withdraw: (to) => serving.withdraw(SLEEP_WORD, to),
+          read: gate.read,
+          write: (request) => gate.run(request, "sleep"),
+          waiting: gate.waiting,
+          commit: (message, paths) => Effect.map(gate.commit({ message, paths }, "sleep"), (result) => {
+            // EXHAUSTIVE over the ledger's own answer, so an arm added there is
+            // a decision here rather than a silent "it worked".
+            switch (result._tag) {
+              case "Committed":
+                return null
+              // ...AND WHICH KIND OF "NO" IT WAS, because two of these are
+              // ordinary and one is not: `Failed` is git refusing, which is the
+              // pass's writes never being recorded and the one thing here an
+              // operator has to be able to find (`./server/sleep.ts` warns on
+              // it).
+              case "Blocked":
+                return { said: "olai is not committing here, so the memo is on disk and waiting", failed: false }
+              // The subtree's own files had nothing waiting — which after a
+              // memo write means the memo was already in the history, and is
+              // said rather than reported as a commit that happened.
+              case "NothingToCommit":
+                return { said: "nothing of the subtree's was waiting to be recorded", failed: false }
+              case "Failed":
+                return { said: result.said, failed: true }
+            }
+          }),
+          hold: gate.hold,
+          after: spans.after,
+          floor: spans.floor,
+          latest: spans.latest,
+          tick: spans.tick,
+          question: spans.question,
+          limit: spans.limit,
+          start: START,
+          log: (line) => Effect.logInfo(line),
+          warn: (line) => Effect.logWarning(line),
+        })
+        yield* Effect.addFinalizer(() => Effect.sync(() => { sleeper = null }))
+      }
       yield* Effect.annotateLogs(Effect.logDebug("chat agent commands"), {
         agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
         // ...AND THE MISSING, at the debug level the commands line lives at:

@@ -21,6 +21,19 @@ export const createAgentReadings = (agents: Roster) => {
   type View = { node: () => string; chat: () => Chat | null; shown: () => boolean }
   const [views, setViews] = createSignal<readonly View[]>([])
   const isShown = (chat: Chat) => views().some(view => view.chat() === chat && view.shown())
+  /** THE CONVERSATION OF A NODE AGENT THAT THE PAGE IS SHOWING, if any: the
+   *  node's bound session, and a reading of it that is on screen.
+   *
+   *  ONE QUESTION WITH ONE ANSWER. The attention circuit asks it to know whether
+   *  a question is being watched, and the palette asks it to name the node a
+   *  *Sleep now* row would act on; both used to assemble it from the same four
+   *  terms, in two files, which is the disagreement this exists to end. */
+  const shownChat = (node: string): Chat | undefined => {
+    const current = agents.at(node)
+    if (current?.session == null) return undefined
+    return [...(readings().get(node) ?? [])].find(chat =>
+      isShown(chat) && chat.state().session?.id === current.session)
+  }
   const owner = getOwner()
   const cache = new Map<string, { to: PanelAddress; value: ReturnType<typeof createConversationUI>; dispose: () => void }>()
   const conversations = new Map<string, { value: Chat; dispose: () => void; leases: number }>()
@@ -146,6 +159,7 @@ export const createAgentReadings = (agents: Roster) => {
     },
     at: (node: string) => readings().get(node),
     isShown,
+    shownChat,
     join: (node: () => string, chat: () => Chat | null, visible: () => boolean) => {
       // The view registers once at mount. Its changing conversation is a
       // derivation, not a memo publishing into another store.

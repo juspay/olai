@@ -38,7 +38,7 @@
 
 export { codecFor } from "./codec.ts"
 export type { Directory, Store, VaultSettings, RuntimePaths } from "./deps.ts"
-export { type Caller, type SessionRule, type Barred, doorRefusal } from "./door.ts"
+export { type Caller, type Confinement, type SessionRule, type Barred, doorRefusal } from "./door.ts"
 export {
   make,
   NO_DIRECTORY,

@@ -20,12 +20,7 @@ export const createAttention = (router: Router): void => {
   const circuits = mapArray(() => agentReadings()?.agents.rows().map(row => row.id) ?? [], id => {
         onCleanup(() => { badges.delete(id); wear() })
         const reading = () => agentReadings()?.agents.at(id)
-        const currentChat = () => {
-          const held = agentReadings()
-          const current = reading()
-          if (held === undefined || current?.session == null) return undefined
-          return [...(held.at(id) ?? [])].find(chat => held.isShown(chat) && chat.state().session?.id === current.session)
-        }
+        const currentChat = () => agentReadings()?.shownChat(id)
         const watched = createWatching(() => currentChat() !== undefined, id)
         createEffect<Awaiting | undefined>(before => {
           const now: Row | undefined = reading()

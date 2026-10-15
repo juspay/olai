@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { byActivity } from "./activity-order.ts"
 import { needing } from "./attention-order.ts"
 import type { Row } from "./roster.ts"
-const row = (id: string, over: Partial<Row> = {}): Row => ({ id, file: "a.olai", title: id, engine: "one", session: id, memory: 0, waiting: 0, standing: "asleep", said: null, ...over })
+const row = (id: string, over: Partial<Row> = {}): Row => ({ id, file: "a.olai", title: id, engine: "one", session: id, memory: 0, waiting: 0, standing: "asleep", said: null, sleeps: false, sleep: null, ...over })
 
 test("activity keeps every standing; speech leads vault edits and only the sidebar caps it", () => {
   const rows = [row("unbound", { session: null, standing: "unbound", changed: "2026-03-01" }),

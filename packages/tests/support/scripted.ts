@@ -144,6 +144,28 @@ export const MARKER = {
   /** Say the person has finished at a vendor's page — what a device-code or an
    *  OAuth elicitation waits for, since this suite cannot visit one. */
   atThePage: ".agent-at-the-page",
+  /** Make the next SLEEP TURN ask a structured question and wait for it: the
+   *  shape a person's alert fires on, and the one case the pass itself decides
+   *  — a question nobody is there to answer is cancelled, not announced. */
+  sleepAsk: ".agent-sleep-ask",
+  /** ...and make it try to write the memo of its own sleep, which its session
+   *  credential refuses (`olai-plugin-chat`'s reserved key). */
+  sleepStamp: ".agent-sleep-stamp",
+  /** ...and make it WRITE and then hold the turn open until released, so a
+   *  scenario can give the quiet window its full run in the middle of a pass —
+   *  the only way the hold on that window can be shown to be doing anything. */
+  sleepHold: ".agent-sleep-hold",
+  /** ...AND MAKE IT TRY ONE WRITE OUTSIDE ITS SUBTREE AND ONE TRASH, in the
+   *  same turn: the file's CONTENT names the node to write to, and the pass's
+   *  fence (`@olai/ops`' `Confinement`) is what must refuse both. */
+  sleepOutside: ".agent-sleep-outside",
+  sleepTrash: ".agent-sleep-trash",
+  /** WHAT THE AGENT LEAVES WHEN ITS SLEEP QUESTION IS ON THE WIRE. A scenario
+   *  that asserts an alert did NOT fire has to establish that there was
+   *  something to alert about, and with the fold shut there is nothing else to
+   *  read (`packages/plugins/alerts/e2e/steps/alerts_steps.ts` says the same
+   *  thing about its own absences). */
+  sleepAsked: ".agent-sleep-asked",
   /** WHICH PROCESS THE LOGIN COMMAND IS, written by the command itself as it
    *  starts (`./fake-login.ts`). The one way the suite can hold the panel to
    *  "the scope going away kills it": a killed process leaves nothing else to
@@ -155,10 +177,25 @@ export const MARKER = {
 /** The release marker, by its old name — {@link MARKER}'s `release`. */
 export const RELEASE = MARKER.release
 
+/** THE MEMO THE SCRIPTED AGENT TRIES TO WRITE FOR ITSELF, and cannot: a session
+ *  may not write the record of its own pass (`olai-plugin-chat`'s reserved key).
+ *  A value from another century, so a scenario can say which of the two landed —
+ *  the agent's or the pass's — by reading the node. Spelled here rather than in
+ *  each file for {@link MARKER}'s reason: it is a value two files that never
+ *  meet have to agree about. */
+export const SLEEP_STAMP = "1999-01-01T00:00:00+00:00"
+
 /** Long enough that a slow machine is not the reason a scenario fails, short
  *  enough that a scenario which forgot to release fails on its own assertion
- *  rather than on the runner's timeout. */
-export const HOLD_LIMIT_MS = 30_000
+ *  rather than on the runner's timeout.
+ *
+ *  A MINUTE, and the margin is stated rather than left to be rediscovered: the
+ *  sleep scenario that holds a turn open gives the quiet window its full run
+ *  from the turn's start, which is 22 s of the scenario's own spans, and a fake
+ *  that gave up at thirty would end the turn and commit before that scenario
+ *  read "0 commits". Nothing passes falsely by waiting longer — a release that
+ *  never comes still ends the scenario on its own assertion. */
+export const HOLD_LIMIT_MS = 60_000
 
 const sleep = (millis: number) => new Promise<void>((done) => setTimeout(done, millis));
 

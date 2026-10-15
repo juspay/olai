@@ -69,6 +69,77 @@ A kind claims the key equal to its own composed word, so `chat-agent-session` ne
 
 olai never writes that row for you, and it never reads an undeclared column as a binding either. A plugin may only ever declare a key carrying its own name, which is what makes enabling a plugin unable to take over a column you have been using for something of your own — a bare `agent-session` is a word any vault might mean something else by. Your board says which column it means; a release does not decide for you. Renaming the key to `chat-agent-session` works just as well and needs no row.
 
+## The property a sleep leaves behind
+
+Chat contributes a **second** kind, `chat-agent-slept`: the instant olai last
+tidied that node agent's own memory for it ([chat](../chat.md)). It is a date,
+it is written by the pass and by nothing else — a seated session may not write
+it, exactly as it may not write its own binding — and it is what keeps a node
+whose subtree has not moved from spending a turn on nothing. The turn itself hands
+the whole job to one subagent (`src/sleep.ts`), so the tidying's reads and rewrites
+stay out of the conversation a person goes on using. The same two rules
+apply: the kind claims `chat-agent-slept` with no declaration needed, and a
+column of your own name can carry it with one row.
+
+```json
+{"title":"last-consolidated","custom":{"type":"chat-agent-slept"}}
+```
+
+## The property that says whether olai may tidy at all
+
+Chat contributes a **third** kind, `chat-agent-sleep`, and it is the only one a
+person writes: `on` means olai may tidy that node agent's memory on its own
+clock, and the key being absent or `off` means it may not. **Nothing is tidied
+until you say so** — the pass is opt-in per chat, and this is the whole of the
+state. Under a node agent's conversation, on the one standing line chat draws
+under the tools roster, the mark is the **On**/**Off** switch of the sleep item
+(**Sleep · On · last 3h ago · next in 4h if left alone**); the row menu's **Sleep
+when idle** writes it and **Stop sleeping when idle** takes it off; ⌘K offers the
+same row for the conversation on screen — and any of them can be typed here
+instead:
+
+```json
+{"title":"agent-sleep","custom":{"type":"chat-agent-sleep"}}
+```
+
+A seated session may not write it, exactly as it may not write its own binding:
+an agent that opted itself in would be authorising its own wake-up. The switch in
+`_olai/Settings.olai` is the other half — `sleep: on` (the default) lets the loop
+run for the chats that asked, and `sleep: off` stops all of it, this verb
+included.
+
+## What the line says about a sleep
+
+The pass's judgement is **one function on the server** and one shape on the wire:
+the roster row carries a `sleep` forecast beside `sleeps`, judged by
+`forecastOf` in `src/server/sleep.ts` — the same judgement the loop picks a
+candidate with — and `src/browser/chat/sleeping.ts` turns it into words. So the
+line a person reads and the pass that acts cannot disagree about when a node is
+due, and the browser re-derives nothing:
+
+```ts
+{ lastSlept: "2026-10-12T06:00:00+00:00"      // the memo, as stored
+, after: 21600000                             // sleep-after, the rhythm
+, floor: 5                                    // sleep-floor, the pressure
+, latest: 604800000                           // sleep-latest, the backstop
+, next: { kind: "due", at: "…T15:00:00Z", rows: 6 }  // one of eight states
+}
+```
+
+`next.kind` is `unmarked` (nobody has said yes), `unbound` (no conversation to
+hand a turn to), `unchanged` (nothing has moved since the memo — zero rows),
+`little` (with how many did move: not enough for a pass yet), `busy` (a turn, a
+question or an unanswered open), `due` (with the number of moved rows and the
+instant its quiet window closes), `running` (this node's pass is in flight) or
+`skipped` (a failed pass, with the end of its 24 h backoff). **There is no `off`
+arm**: `sleep: off` in a directory's settings is no sleeper at all, so it is a
+`null` forecast, and an arm no judgement produces would be a claim the wire cannot
+keep. It rides the row as DATA — `data-next` on the item is
+that same `kind` — because the words are a sentence and a scenario should be
+asserting the state. The item's own clock is the strip's
+(`src/browser/chat/elapsed.ts`), and the relative times are read off fixed
+instants: `lastSlept` and `next.at` are the server's, never the reader's.
+
 ## Where it hangs in the tab
 
 Each seat is declared by the plugin that owns the place it is in, and chat brings the face. That split is worth knowing if you are reading the code rather than using it:

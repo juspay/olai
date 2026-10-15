@@ -1753,6 +1753,242 @@ const descendants = (
   return count
 }
 
+/**
+ * THE IDS UNDER A NODE — the node's descendants by the same parent links every
+ * other walk here uses, and TOTAL over a set the validator would condemn:
+ * `seen` is the guard, for {@link unfinishedWithin}'s reason.
+ *
+ * `stop` is {@link changesUnder}'s, and this walk exists because three questions
+ * are one — WHERE A MEMORY ENDS — asked by the walk that decides what is due,
+ * the walk that decides what a pass may commit and the FENCE a pass raises while
+ * it runs (`@olai/ops`' `Confinement`, whose own descent was this code again).
+ */
+export const idsUnder = (
+  derived: Pick<Derived, "children">,
+  id: string,
+  stop: ReadonlySet<string> = new Set(),
+  seen: Set<string> = new Set([id]),
+): ReadonlySet<string> => {
+  const under = new Set<string>()
+  const descend = (at: string): void => {
+    for (const child of derived.children.get(at) ?? []) {
+      const below = child.node.id
+      if (seen.has(below) || stop.has(below)) continue
+      seen.add(below)
+      under.add(below)
+      descend(below)
+    }
+  }
+  descend(id)
+  return under
+}
+
+/** ONE ROW THAT MOVED UNDER A NODE — what a briefing names, and the two things
+ *  a name is: the id a reader can point at, and the title they recognise it by. */
+export interface MovedRow {
+  readonly id: string
+  readonly title: string
+}
+
+/**
+ * THE ROWS THAT MOVED UNDER A NODE, in the order the walk meets them — {@link
+ * changesUnder}'s own descent, its `since` and its `stop`, asked for the rows
+ * themselves rather than for its three numbers.
+ *
+ * WHY THERE ARE TWO: a caller that wants to know WHETHER to work (the due-ness
+ * rule) wants the numbers and nothing else — counting and taking extremes is
+ * cheaper than building a list — and a caller that is about to WORK wants to say
+ * WHICH rows moved, because a consolidation pass that rewrites a whole memory
+ * when two rows changed is the lossy rewrite the floor exists to prevent. They
+ * are one rule read twice, and a rule that drifted between them would be a brief
+ * naming rows the judgement did not count.
+ *
+ * `stop` stops at another agent's door here for {@link changesUnder}'s reason.
+ */
+export const movedUnder = (
+  derived: Pick<Derived, "children" | "byId">,
+  id: string,
+  since: string | null,
+  stop: ReadonlySet<string> = new Set(),
+): ReadonlyArray<MovedRow> => {
+  const moved: Array<MovedRow> = []
+  for (const under of idsUnder(derived, id, stop)) {
+    const at = derived.byId.get(under)
+    if (at === undefined || !isRegular(at)) continue
+    const stamp = stampedAt(at.node)
+    if (stamp === undefined || !newerThan(stamp, since)) continue
+    moved.push({ id: under, title: at.node.title })
+  }
+  return moved
+}
+
+/**
+ * THE FILES A NODE AGENT'S MEMORY LIVES IN — the outline its own record is
+ * written in, and every file holding a record under it ({@link idsUnder}).
+ *
+ * WHY IT IS A READING OF THE SET rather than of the file: an outline's
+ * children are matched by ID across the whole corpus, so a node's subtree can
+ * span files. A pass that commits "the node's file" would leave half of what it
+ * tidied waiting, and one that commits "everything waiting" would sweep a
+ * person's own parked edits into a commit named after somebody else's work
+ * (`olai-plugin-chat`'s `server/sleep.ts`, which is the one caller).
+ *
+ * THE NODE'S OWN FILE IS INCLUDED, deliberately and against {@link
+ * changesUnder}'s rule, because the two questions are different: the walk there
+ * is about what has MOVED (and the node's own record is re-stamped by every
+ * pass, so counting it would make a node permanently due), while this one is
+ * about what the pass's work can be WRITTEN IN — and the memo it leaves behind
+ * is a property on the node's own record.
+ */
+export const memoryFiles = (
+  derived: Pick<Derived, "children" | "byId">,
+  id: string,
+  /** THE NODES WHOSE OWN SUBTREES ARE NOT THIS ONE'S — every other node agent
+   *  in the set. A pass over a memory stops at another agent's door for the
+   *  reason {@link changesUnder} states: two agents seated under one another
+   *  would otherwise each be re-stamped by the other's sleep, and neither would
+   *  ever be quiet. */
+  stop: ReadonlySet<string> = new Set(),
+  seen: Set<string> = new Set([id]),
+): ReadonlySet<string> => {
+  const files = new Set<string>()
+  const own = derived.byId.get(id)
+  if (own !== undefined) files.add(own.file)
+  for (const under of idsUnder(derived, id, stop, seen)) {
+    const at = derived.byId.get(under)
+    if (at !== undefined) files.add(at.file)
+  }
+  return files
+}
+
+/** WHAT MOVED UNDER A NODE, as {@link changesUnder} counts it — `Changes` and not
+ *  `Moved`, which the outlines plugin already has a meaning for (a row a person
+ *  dragged, with its file and its parent): two shapes of one word would be one
+ *  name to whoever imports both. */
+/** WHAT MOVED UNDER A NODE, as {@link changesUnder} counts it: how many rows are
+ *  newer than the memo, and the extremes of the stamps under the node.
+ *
+ *  `CHANGES` AND NOT `MOVED`, which this package also exports and the outlines
+ *  plugin means something else by: a row a person dragged, with its file and its
+ *  parent. One word for two shapes is one name to whoever imports both.
+ *
+ *  `newest` IS OVER EVERY STAMPED ROW and not over the moved ones: it answers
+ *  "is anybody editing here", which is the QUIET window's question, and a row
+ *  written before the last sleep still says a person was in this subtree
+ *  recently. `oldest` is over the moved rows only: it answers "has this waited
+ *  long enough", which is the backstop's question.
+ */
+export interface Changes {
+  readonly rows: number
+  readonly newest: number | null
+  readonly oldest: number | null
+}
+
+/**
+ * WHAT HAS MOVED UNDER THIS NODE — how many rows are newer than the memo, how
+ * long ago the newest thing under it was written, and when the OLDEST of the
+ * moved rows was: the whole of what a node agent's tidying pass asks about its
+ * own subtree before it spends a turn (`olai-plugin-chat`'s `server/sleep.ts`).
+ *
+ * ONE WALK FOR THREE QUESTIONS, and it replaced two that walked the same line:
+ * "has anything under here moved" and "how long ago did anything under here
+ * move" were a short-circuiting descent and a value descent over the same
+ * children, and the due-ness rule that needs a COUNT as well (`server/sleep.ts`'s
+ * floor) would have been a third. THE SHORT CIRCUIT WENT WITH THEM: a walk that
+ * counts cannot stop at the first news, and what it saved was the walk's own
+ * work — a set of children, not a scan of the vault.
+ *
+ * THE NODE'S OWN RECORD IS NOT IN ANY OF IT, and that is not a detail: the memo
+ * of a previous pass is a property on that record, so every write to it
+ * re-stamps its `changed` — a walk that included the node would find its own
+ * last sleep and never sleep again. Descendants only, the same line
+ * {@link under} draws between a node and what hangs under it.
+ *
+ * `since` IS THE MEMO — the instant the caller last recorded for this node, or
+ * `null` for a node that has never been recorded, where EVERY stamped row counts
+ * as moved: "never slept" is not "slept at the beginning of time", it is a
+ * subtree nobody has written to, and the rule built on those rows reads the
+ * difference.
+ *
+ * INSTANTS, NOT THE STORED SPELLINGS: a stamp carries the offset it was taken at
+ * ({@link ./stamp.ts}), so the two extremes are moments rather than texts, and a
+ * stamp neither side can place counts as moved — the fail-safe direction
+ * ({@link newerThan}).
+ *
+ * TOTAL over a set the validator would condemn: the descent is {@link idsUnder},
+ * whose own guard is what makes a forest whose links close a loop answer rather
+ * than recur for ever. A mirror's placement carries no stamp of its own and the
+ * walk goes through its id all the same, because what hangs under a placement is
+ * still under this node.
+ *
+ * `stop` is {@link memoryFiles}'s, and it matters here for a reason that is not
+ * tidiness: A NODE AGENT UNDER THIS ONE OWNS ITS OWN MEMORY. Agent B's memo is a
+ * write to B's own record, which is a DESCENDANT of A — so without the stop, B's
+ * sleep re-stamps A, A's pass is told to tidy its whole subtree (B's memory
+ * included), and B is due again. Two agents seated under one another would wake
+ * each other for ever. The instruction says the same thing in words; this is the
+ * half a rule can hold.
+ */
+export const changesUnder = (
+  derived: Pick<Derived, "children" | "byId">,
+  id: string,
+  since: string | null,
+  stop: ReadonlySet<string> = new Set(),
+): Changes => {
+  let rows = 0
+  let newest: number | null = null
+  let oldest: number | null = null
+  for (const under of idsUnder(derived, id, stop)) {
+    const at = derived.byId.get(under)
+    if (at === undefined || !isRegular(at)) continue
+    const stamp = stampedAt(at.node)
+    if (stamp === undefined) continue
+    const instant = instantOf(stamp)
+    if (newest === null || instant > newest) newest = instant
+    if (!newerThan(stamp, since)) continue
+    rows += 1
+    if (oldest === null || instant < oldest) oldest = instant
+  }
+  return { rows, newest, oldest }
+}
+
+/** The later of a record's two stamps — the record's own `changed` when it has
+ *  one, since a write re-stamps it, and `created` otherwise — or `undefined`
+ *  for a record nothing has ever stamped.
+ *
+ *  COMPARED AS INSTANTS and not as text: {@link ./stamp.ts} mints a stamp with
+ *  the offset it was taken at inside the value, so two stamps from two zones
+ *  order by their SPELLING rather than by their moment — `+05:30` sorts after
+ *  `-07:00` at the same instant. */
+const stampedAt = (node: RegularNode): string | undefined =>
+  node.changed !== undefined && (node.created === undefined || instantOf(node.changed) >= instantOf(node.created))
+    ? node.changed
+    : node.created
+
+/**
+ * Is this stamp news against {@link changesUnder}'s `since` — `null` counting
+ * every stamp as news.
+ *
+ * INSTANTS, for {@link stampedAt}'s reason, and it is the difference between a
+ * node being tidied and a node being tidied UNDER somebody's hands: an edit
+ * synced from another zone can spell an earlier moment than the memo that is
+ * supposed to be older than it, and a text comparison then answers "nothing has
+ * moved" about work that just arrived. A stamp neither side can place is news —
+ * the fail-safe direction, and the one the `null` arm already takes.
+ */
+const newerThan = (stamp: string | undefined, since: string | null): boolean => {
+  if (stamp === undefined) return false
+  if (since === null) return true
+  const at = instantOf(stamp)
+  const from = instantOf(since)
+  if (Number.isNaN(at) || Number.isNaN(from)) return true
+  return at > from
+}
+
+/** A stamp as the instant it names — `NaN` for a string that is not one, which
+ *  every caller here treats as "cannot be placed". */
+const instantOf = (stamp: string): number => Date.parse(stamp)
+
 /** The rows of one outline: the roots of `file`, expanded. Mirrors are
  *  expanded in place, because a pointer the reader has to go and follow is not
  *  a second location — it is a footnote. */

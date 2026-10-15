@@ -845,6 +845,187 @@ The preamble also says so, in both contracts: a node agent is told that it has
 no memory of its own here, and that this subtree is the only memory, so it
 does not go looking for a second one.
 
+### A node agent tidies its own memory when nobody is looking
+
+A subtree is a node agent's only memory, and nothing ever compacts it. After a
+month a health log is hundreds of kilobytes of records whose titles are whole
+daily reports, the standing facts they support have to be re-derived by hand,
+and nothing is archived. So olai gives a node agent one machine turn of its
+own: when it has been left alone for six hours **and there is enough to be worth
+a turn**, it is asked to tidy, distill and tuck away — in its own conversation,
+through one subagent, so the tidying's reads and rewrites do not become part of
+what the agent remembers of you.
+
+Enough is one of three things: the chat has never been tidied and a row has moved
+(the first tidy of a store that has never had one); five rows have moved since the
+last pass (`sleep-floor`); or the oldest of them has waited a week
+(`sleep-latest`). Otherwise the line under the conversation says **too little to
+tidy** — with how many rows did move — and the pass leaves this chat alone. **One
+edit is not a reason to rewrite a memory.**
+
+**Why pressure rather than only quiet.** Consolidation is a lossy rewrite: its
+value rises with what has accumulated and then falls *below* not remembering at
+all when it is run after every interaction, which is what a rule that fired on one
+edited row was doing. So what a pass waits for is not only a quiet moment but
+enough having CHANGED — and the case where a single row is enough is the one where
+nothing has ever been compacted. It is also why the pass moves and never deletes:
+a rewrite that turns out wrong is one to put back, not one to reconstruct.
+
+**One line under the tools says what this chat does on its own.** Sleep and the
+plugin wakes are per-conversation standing facts of the same kind, so they share
+one line that wraps rather than a bordered strip each: the head above a
+conversation is two strips, the tools roster and this one. Sleep comes first —
+whether olai tidies this chat at all is what decides whether a wake can be acted
+on — and it reads, by state:
+
+| the chat is | the item says |
+| --- | --- |
+| not asked for | **Sleep · Off · last 2d ago** (the age is left out when it has never slept) |
+| asked for, due later | **Sleep · On · last 3h ago · next in 4h if left alone · Sleep now** |
+| asked for, nothing moved since the memo | **Sleep · On · last 3h ago · nothing new to tidy · Sleep now** |
+| asked for, too little has moved | **Sleep · On · last 3h ago · too little to tidy · 2 of 5 rows · Sleep now** |
+| asked for, due but the chat is talking | **Sleep · On · last 3h ago · when this chat is quiet · Sleep now** |
+| being tidied right now | **Sleep · On · tidying now** |
+| after a pass that failed | **Sleep · On · last pass failed · not before 14:05 · Sleep now** |
+| `sleep: off` in `_olai/Settings.olai` | **Sleep · off in Settings** |
+| never slept, asked for, due later | **Sleep · On · never · next in 4h if left alone · Sleep now** |
+
+Hovering the item gives the whole sentence, rhythm and all: *olai tidies this
+chat's memory after 6 h alone and when it has changed since the last pass
+(sleep-after in `_olai/Settings.olai`)*. The times tick — "3h ago" becomes "4h
+ago" on its own — off fixed instants the server sends; the browser re-derives no
+rule, and the words above and the pass's own judgement are one function.
+
+**Nothing sleeps until you say so.** The pass is opt-in per chat, and off by
+default. There are three ways to say it, and the first is the one a person
+looking for "what does this chat do on its own" will find: the **On**/**Off**
+switch on that line, whose `aria-checked` is the mark itself.
+Pressing it writes `chat-agent-sleep: on` on the node — a property like any
+other, which you can type in the drawer instead — and the switch then reads
+**On**, as the verb on the node's row menu reads **Stop sleeping when idle** and
+⌘K offers the same row for the conversation on screen. Absent and `off` are the same answer,
+so a vault that never hears about this feature is a vault where nothing is
+tidied. `sleep: on` in `_olai/Settings.olai` stays the default and means "the
+loop runs for the chats that asked"; `sleep: off` turns everything off, the verb
+included, and pressing either verb is refused with the sentence saying so.
+
+**A person can ask for the pass now, marked or not.** *Sleep now* on the row's
+menu, on ⌘K while a node agent's conversation is the one on screen, and at the end
+of the item on the line above — the same verb in the three places a person may be
+looking — runs the pass on that node whatever the mark says: a press is a choice,
+exactly as it skips the two tests below.
+Pressing either runs the pass the loop would have run — the same machine row, the same memo and the same one
+commit. What it skips is the two tests that decide whether a node is DUE: the
+idle window and "the subtree has changed since it last slept" are how the loop
+chooses, and somebody pressing the verb has chosen. One pass runs at a time per
+directory, so a press while olai is already tidying is refused in words rather
+than queued, and a manual pass that fails is not remembered for a day the way a
+loop's failure is: a person can ask again.
+
+**A tidying agent may not commit.** The instruction says so, and the ledger's
+door refuses it too: while a pass holds the quiet window shut, a `chat-agent`
+commit that names no paths is refused in words, because a sweep would record the
+whole repository — a person's parked edits among it — under the agent's name
+before the pass's own path-scoped commit, and reverting the sleep would not undo
+it. A named commit is untouched, and so is every other writer: the Commit button
+is a person's.
+
+**While a pass runs, the session that turn belongs to writes only inside that
+subtree.** The instruction says so, and the write door holds it for the span of
+the turn: a write outside the node's memory — or inside ANOTHER node agent's own
+subtree, which is that agent's memory and not this one's — is refused in the
+fence's own words. What the door refuses and what the pass's commit can name are
+the same line, so nothing a sleep writes can land outside the undo.
+
+**One turn has an upper bound, and the git panel does not know about it.**
+`sleep-limit` — an hour by default — stops a tidying turn that has stopped making
+progress, with the usual warning and the day's back-off, so a wedged turn cannot
+hold the quiet window shut for the whole vault. The git panel's armed pill reads
+the commit policy and not the ledger's hold, so while a pass holds that window
+shut the pill still says olai will record the work on its own: true, and not
+until the pass ends or the limit stops it.
+
+**The turn is the conversation you already read.** One machine-sent row appears
+in the left column, opening with who is speaking and when, its instruction
+folded behind one press, exactly as a mail digest is drawn. Under it the
+agent's edits arrive as the ordinary structural diffs of an outline write —
+retitled, note rewritten, moved under `Archive` — each a pressable id. There is
+no prose answer and no summary of what it did.
+
+**One sleep is one commit, and that commit is the undo.** The pass commits its
+own writes as `olai: sleep: <title>`, with `X-Olai-Writer: sleep` in the
+trailer, so `git log --grep '^olai'` shows it beside everything else olai
+recorded and `git revert` puts the memory back exactly as it was. It names the
+files the node's memory lives in — its own outline, and every file holding a row
+under it — so a person's parked edits in another file are left exactly where they
+were. The limit is rows of those same files: git has no node-level selection, so
+another row of a file the memory is written in, edited by somebody else, is
+inside the commit too. Under `commit: auto` the writes do not appear in an
+`auto` commit first: the pass holds the quiet window shut for as long as it is
+running ([git](git.md) has the window, and
+[architecture/cordis](architecture/cordis.md) the ownership rule).
+
+**Nothing is deleted, and nothing is summarised away.** Rows move — under an
+`Archive` child grouped by month — and never into the trash. A fact that
+changes keeps its earlier wording as a dated line in the note. A distilled fact
+gets `see` edges to the rows it rests on, so a reader can check it. The
+instruction says all three, and says it in the terms that survive a machine
+pass: numbers, dates, times, doses, measurements and names are copied exactly,
+never paraphrased. It also caps a single sleep at about a fifth of the subtree,
+because a machine turn nobody is watching should do the most valuable part and
+stop rather than rewrite everything.
+
+**A sleep is recorded on the node as a date.** The pass writes
+`chat-agent-slept` — an instant, drawn in the property drawer as a date beside
+the binding — and that property is what keeps a quiet vault from spending a
+turn an hour on nothing. A node agent's session may not write it, exactly as it
+may not write its own binding; only the pass may. A vault can declare that kind
+on a column of its own name, like any other.
+
+**A sleep can never wake a person.** No chime, no notification, no badge and no
+entry under Needs you: the turn is olai's own, so a question asked inside it is
+not somebody's to answer and is not counted as waiting. If the agent does ask
+something, the pass waits twenty minutes and then stops the turn — a question
+nobody is there to answer is cancelled, never announced. A pass a person asked
+for is marked the same way and stopped the same way: the reader who pressed the
+verb is very likely watching, and the turn is olai's own either way.
+
+**A commit git refused is a warning.** The pass writes the memo and then commits
+its own paths; when git says no, the memo is already on disk, so nothing retries
+the node — the serve's log is the only place it is said, at the level an operator
+reads (`sleep: <node> finished, but the commit was refused: …`), beside the
+warnings for a pass that did not finish.
+
+**A pass that does not finish is left alone for a day**, in the server's memory
+only, so a restart forgets it: the conversation was gone, the turn went wrong,
+the memo could not be written, the turn never started, or it sat on a question
+past its span. That is one retry per restart on a node that is going to fail
+again anyway, and it is what keeps a broken node from being tried every quarter
+of an hour.
+
+**What it costs is context in a long-lived conversation, and the turn hands that
+cost to somebody else.** A tidying pass reads and rewrites dozens of rows, and
+those calls used to be the conversation's — the agent carried them into the
+person's next message. So the words ask for exactly ONE subagent and hand it the
+whole brief, and what this conversation keeps is the ask, one call and a short
+report. It is an ASK rather than a mechanism, and the words say so to the agent:
+ACP gives olai no way to see whether a subagent was started, so an engine without
+subagents — or an agent that ignores the sentence — tidies inline exactly as it
+did before, and pays the old cost. If that proves wrong the change is still local:
+the pass would run in a fresh session under the assigned-session contract, and the
+loop that drives it would not move.
+
+**Four of these are a person's, and three exist for the harness.** `sleep:
+on|off` turns the pass off, `sleep-after` is how long a node agent is left alone
+before it is tidied, `sleep-floor` is how many rows must have moved for a tidy to
+be worth the turn, and `sleep-latest` is how long a moved row may wait before olai
+tidies anyway — the four with a meaning a person would choose.
+`sleep-tick` (how often olai looks), `sleep-question` (how long a tidying turn
+may sit on a question) and `sleep-limit` (how long one may run at all) are there
+so a test can run a pass in seconds rather than in hours, and so a slow machine can be given more patience; they are declared in
+the same row, in the same words, because the harness has no door the product does
+not have. None of it is for the user, who has nothing to do either way.
+
 ## Moving the chats you already have
 
 ### Filing stored conversations into the Inbox

@@ -7,6 +7,7 @@ import { NO_DIRECTORY, type Ops } from "./ops.ts"
 const refused = Effect.fail(NO_DIRECTORY)
 const noGate: Ops = {
   parserFor: () => null,
+  waiting: Effect.succeed([]),
   read: refused,
   run: () => refused,
   outlines: refused,
@@ -26,6 +27,9 @@ const noGate: Ops = {
   commit: () => Effect.succeed({ _tag: "Failed", said: NO_DIRECTORY.reason, lock: null }),
   push: Effect.succeed({ _tag: "Failed", said: NO_DIRECTORY.reason }),
   resume: Effect.void,
+  // Nothing is offered, so there is no window to hold shut: the acquisition
+  // succeeds and holds nothing, which is what the caller may rely on.
+  hold: Effect.void,
 }
 
 export const liveOps = (offered: () => Ops | undefined): Ops => {
@@ -50,6 +54,11 @@ export const liveOps = (offered: () => Ops | undefined): Ops => {
     idle: Effect.suspend(() => current().idle),
     commit: (...args) => Effect.suspend(() => current().commit(...args)),
     push: Effect.suspend(() => current().push),
+    waiting: Effect.suspend(() => current().waiting),
     resume: Effect.suspend(() => current().resume),
+    // Resolved when the hold is TAKEN rather than when this object was built,
+    // for the reason it is a hold at all: it belongs to the offered gate's own
+    // quiet window, and the gate behind this transport can be replaced.
+    hold: Effect.suspend(() => current().hold),
   }
 }

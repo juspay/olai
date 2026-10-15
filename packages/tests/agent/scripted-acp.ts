@@ -200,9 +200,9 @@ import { createHash } from "node:crypto"
 import { basename, join } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
-import { emitter, MARKER, RELEASE, released as releasedIn, speaking } from "../support/scripted.ts"
+import { emitter, MARKER, RELEASE, released as releasedIn, SLEEP_STAMP, speaking } from "../support/scripted.ts"
 import { sessionStore } from "./session-store.ts"
-import { commandWords } from "./command.ts"
+import { commandLine, commandWords } from "./command.ts"
 
 const OUT = process.stdout
 
@@ -1340,11 +1340,11 @@ const sleep = (millis: number) => new Promise<void>((done) => setTimeout(done, m
  *  not by the one after it. The marker, the limit and the loop are shared with
  *  the other scripted agent ({@link ../support/scripted.ts}); what is on each
  *  tick is this one's. */
-const released = async (onTick?: () => void): Promise<void> => {
+const released = async (onTick?: () => void, stopped?: () => boolean): Promise<void> => {
   const let_go = await releasedIn(cwd, async () => {
     await takeSteering()
     onTick?.()
-  })
+  }, stopped)
   if (!let_go) noise("fake agent: nothing released the held turn; going on anyway")
 }
 
@@ -1539,6 +1539,153 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (mailCall) {
     const answer = await useTool(`mail_${mailCall.name}`, mailCall.args)
     say("```json\n" + JSON.stringify(answer) + "\n```")
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
+  /**
+   * THE SLEEP PASS — olai's own turn over a node agent's memory, recognised by
+   * the sentence the row opens with (`olai-plugin-chat`'s `sleep.ts` authors
+   * it, so there is no verb a scenario could type).
+   *
+   * What a tidying agent does is what this does: one write into the subtree,
+   * and the turn ends. Two markers change that, and both are cases the PRODUCT
+   * decides rather than the scenario: `.agent-sleep-ask` makes it ask a
+   * question nobody is there to answer, and `.agent-sleep-stamp` makes it try
+   * to write the memo of its own sleep — which the session credential refuses.
+   */
+  if (commandLine(text).startsWith("[olai] Sleep.")) {
+    const named = /the node `([^`]+)` in `([^`]+)`/.exec(text)
+    const node = named?.[1]
+    if (node === undefined) {
+      say("that row names no node agent.")
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+    if (existsSync(`${cwd}/${MARKER.sleepAsk}`)) {
+      rmSync(`${cwd}/${MARKER.sleepAsk}`, { force: true })
+      if (!canElicit()) {
+        say("the client cannot draw a form, so there is nothing to ask")
+        reply(id, { stopReason: "end_turn" })
+        return
+      }
+      // ...AND THE MARKER, BEFORE THE ASK: the request goes to a panel whose
+      // reader may be looking elsewhere, and this is what a scenario waits for
+      // to know there was something to alert about.
+      appendFileSync(`${cwd}/${MARKER.sleepAsked}`, "")
+      await request("elicitation/create", {
+        mode: "form",
+        sessionId,
+        toolCallId: `call-${++nextMcpId}`,
+        message: "Which rows should I archive?",
+        requestedSchema: {
+          type: "object",
+          properties: {
+            question_0: {
+              type: "string",
+              title: "Archive",
+              oneOf: [{ const: "all", title: "all" }, { const: "none", title: "none" }],
+            },
+          },
+        },
+      })
+      if (endedCancelled(id)) return
+      say("you answered.")
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+    if (existsSync(`${cwd}/${MARKER.sleepOutside}`) || existsSync(`${cwd}/${MARKER.sleepTrash}`)) {
+      // TWO WRITES THE FENCE MUST REFUSE, in one turn: a property on a node
+      // outside this subtree, and a trash of it. The marker's own content names
+      // that node, because a scenario names nodes and this file knows only the
+      // row it was handed.
+      const said: Array<string> = []
+      const outside = `${cwd}/${MARKER.sleepOutside}`
+      if (existsSync(outside)) {
+        const target = readFileSync(outside, "utf8").trim()
+        rmSync(outside, { force: true })
+        said.push(JSON.stringify(await useTool("outlines_prop", { id: target, key: "tidy-probe", value: "1" })))
+      }
+      const trash = `${cwd}/${MARKER.sleepTrash}`
+      if (existsSync(trash)) {
+        const target = readFileSync(trash, "utf8").trim()
+        rmSync(trash, { force: true })
+        said.push(JSON.stringify(await useTool("outlines_trash", { id: target })))
+      }
+      // SAID OUT LOUD, like the other refusals: an olai tool's result is not
+      // drawn into the call's detail, so the sentence has to come back as prose
+      // to be read.
+      say(said.join("\n"))
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+    if (existsSync(`${cwd}/${MARKER.sleepStamp}`)) {
+      rmSync(`${cwd}/${MARKER.sleepStamp}`, { force: true })
+      const refused = await useTool("outlines_prop", {
+        id: node,
+        key: "chat-agent-slept",
+        value: SLEEP_STAMP,
+      })
+      // ...AND THE MARK THAT DECIDES WHETHER IT IS TIDIED AT ALL, which is the
+      // other property a session may not write: an agent that opted itself out
+      // would be a chat that quietly stopped being tidied, and one that opted
+      // itself in would be authorising its own wake-up (`chat/src/server.ts`'s
+      // three clauses).
+      //
+      // TAKING IT OFF, and that is what makes this a WRITE at all: the scenario
+      // marks this node before the turn, so writing `on` onto it would be the
+      // same value back — a movement of nothing, which never reaches the door
+      // and would prove nothing. `""` is the removal, which does.
+      const opted = await useTool("outlines_prop", {
+        id: node,
+        key: "chat-agent-sleep",
+        value: "",
+      })
+      // SAID OUT LOUD, like the `set property` verb above and for the same
+      // reason: the refusal's own sentence is the assertion, and an olai tool's
+      // result is not drawn into the call's detail (`chat/src/agent.ts`'s
+      // `detailOf`), so the words have to come back as prose to be read.
+      //
+      // ONE MESSAGE EACH, and that is the scenario's business rather than
+      // tidiness: two long results in one row is one row whose prose a reader —
+      // or an assertion — sees the front of, and the sentence about the second
+      // key has to be in the text a scenario can read.
+      say(JSON.stringify(refused))
+      say(JSON.stringify(opted))
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+    // THE TIDY ITSELF, AND IT IS A WRITE INTO THE SUBTREE — a child of the node
+    // is retitled, which is what a pass over a memory does. It is deliberately
+    // NOT the node's own record: the node's title is what the commit names and
+    // what a scenario addresses the row by, and a write there would also make
+    // the scenario's "and it is not tidied again" a statement about a record the
+    // pass never counts (`@olai/format`'s `changedUnder` excludes it) rather
+    // than about the memo.
+    const read = await useTool("outlines_subtree", { id: node, depth: 1, withDesc: false })
+    const answer = read["structuredContent"] as
+      | { readonly children?: ReadonlyArray<{ readonly id?: string; readonly title?: string }> }
+      | undefined
+    const child = answer?.children?.[0]
+    if (child?.id === undefined) {
+      say("that node has no children to tidy.")
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+    await useTool("outlines_title", { id: child.id, title: "tidied" })
+    // ...AND THEN, IF THE SCENARIO ASKED FOR IT, THE TURN IS HELD OPEN — after
+    // the write, so what the quiet window would have recorded is already
+    // waiting. This is the only way a scenario can give that window its full run
+    // in the middle of a pass.
+    if (existsSync(`${cwd}/${MARKER.sleepHold}`)) {
+      rmSync(`${cwd}/${MARKER.sleepHold}`, { force: true })
+      // ...AND A HELD TURN ENDS WHEN IT IS CANCELLED, like any other: a real
+      // agent's loop stops when the cancel arrives, and a fake that held through
+      // one would be a turn no person could stop — which is a case of its own
+      // (`a sleep a person cancels writes nothing, and is not remembered`).
+      await released(() => void 0, () => cancelled)
+      if (endedCancelled(id)) return
+    }
     reply(id, { stopReason: "end_turn" })
     return
   }

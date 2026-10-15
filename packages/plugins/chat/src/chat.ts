@@ -91,6 +91,7 @@
 import type { Advertised } from "@olai/plugin-api/services"
 
 import { type Attached, type AttachChunk, type AuthMethod, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type SignIn, type Talking } from "olai-plugin-chat/wire"
+
 import { type OpFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
@@ -527,8 +528,32 @@ export interface Panel {
         /** Bodies sharing a key, WHILE STILL HELD, replace each other in place —
          *  see {@link ./deliveries.ts}. A body with no key never replaces. */
         readonly coalesce?: string
+        /** Whether this body is OLAI'S OWN TURN — see
+         *  `@olai/plugin-api`'s `Deliveries.deliver`, which argues the option,
+         *  and {@link ChatState.sleep} for what the panel does with it. */
+        readonly sleep?: true
       },
     ) => Effect.Effect<void>
+    /**
+     * TAKE BACK THIS PLUGIN'S UNDELIVERED WORDS for one conversation.
+     *
+     * WHAT IT IS FOR: a caller that hands over a body and then stops being there
+     * — a fiber whose scope is closing — has no way to know whether the body was
+     * handed to the agent or is still waiting for a boundary that may come days
+     * later. A doorbell does not care: its body is a fresh derivation of what is
+     * standing, so a later delivery says everything the lost one would have. A
+     * MACHINE TURN does care, which is why this verb exists: a sleep delivery
+     * that fires next week would run as a turn with no hold on the quiet window,
+     * nobody observing it, no memo and no commit
+     * (`olai-plugin-chat`'s `server/sleep.ts`).
+     *
+     * THE SAME VERB A CLEARED DOORBELL USES (`./deliveries.ts`'s `dropped`),
+     * reached from the other end: there a person took the words away, here the
+     * caller that wrote them is going. Nothing is lost by it, for the reason
+     * above — and a body that was already HANDED is not in the holding at all,
+     * so this cannot unsay anything the agent has seen.
+     */
+    readonly withdraw: (to: Deliveries.Addressed) => Effect.Effect<void>
   }
   /** THIS conversation wakes on THAT file, for that plugin's doorbell — or, with
    *  `file: null`, on nothing. The one write behind the strip's scope control.
@@ -2306,7 +2331,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             return undeliverable(key, prompt, { gone: "refused", why: CANCELLED_UNDER_IT })
           }
         }
-        yield* begin(at, key, prompt, first)
+        yield* begin(at, key, prompt, { first })
       }))
 
     /**
@@ -2418,7 +2443,18 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       at: Bound,
       key: string,
       prompt: string,
-      first?: Effect.Effect<void>,
+      /**
+       * TWO FACTS ABOUT THIS ONE TURN, which is why they travel together rather
+       * than as two optional positions.
+       *
+       * `first` is an act to run before the prompt crosses the wire — a
+       * contract's mark, which `send` needs — and `sleep` says the turn is
+       * OLAI'S OWN: a pass over a node agent's own memory, whose question
+       * nobody is there to answer and whose alert is therefore suppressed
+       * ({@link ChatState.sleep}). Only a delivery says the second
+       * ({@link offer}), and the mark lives exactly as long as this turn does.
+       */
+      turn: { readonly first?: Effect.Effect<void>; readonly sleep?: boolean } = {},
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
         /** A turn was ALREADY running when this one started — which, since
@@ -2477,7 +2513,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           publish(transcript.begins())
           watched()
         }
-        move({ status: "thinking", trouble: null })
+        move({ status: "thinking", trouble: null, cancelled: false, ...(turn.sleep === true ? { sleep: true } : {}) })
         // How much the agent had SHOWN before this turn was asked for — the
         // narrow count ({@link EVIDENCE}), and it answers one question in both
         // directions the turn can end. On a turn that FAILED: whether the
@@ -2529,8 +2565,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // agent could say — the shape `send`'s once-a-conversation
             // teaching needs, and the one place it can hold by construction
             // ({@link deliver}).
-            if (first !== undefined) {
-              yield* Effect.ensuring(first, Deferred.succeed(hailed, undefined))
+            if (turn.first !== undefined) {
+              yield* Effect.ensuring(turn.first, Deferred.succeed(hailed, undefined))
             }
             const outcome = yield* Effect.result(at.agent.prompt(prompt))
             // Whether this turn was the LAST one running. The notices go in
@@ -2671,7 +2707,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
                 stopSaid = ticket.stopped
                 publish(transcript.add("notice", "cancelled"))
               }
-              if (current) move({ status: "idle", trouble: null })
+              // ...AND THE CANCELLATION IS CARRIED, because `idle` with no
+              // `trouble` is exactly what a turn that ENDED looks like: a pass
+              // watching this conversation would otherwise record a stopped
+              // rewrite as a finished sleep.
+              if (current) move({ status: "idle", trouble: null, cancelled: true })
               return
             }
             // A TURN THAT SAID NOTHING is not a turn that went well, and until
@@ -2708,6 +2748,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // reaches that line.
             Effect.ensuring(Effect.sync(() => {
               turns.leave(ticket)
+              // THE PASS'S MARK GOES WITH THE TURN IT DESCRIBES, on every way
+              // a turn can end — including an interrupt, which never reaches
+              // the line above. A question asked inside a sleep must not go on
+              // being suppressed after the turn that asked it is over.
+              if (turn.sleep === true) move({ sleep: false })
             })),
           ),
         )
@@ -2717,7 +2762,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // Raced against the fiber's own exit (`await`, not `join`) so a
         // `running` interrupted before `ensuring` installed cannot park this
         // waiter on the deferred alone, holding `opening` and `sending`.
-        if (first !== undefined) {
+        if (turn.first !== undefined) {
           yield* Effect.race(
             Deferred.await(hailed),
             Effect.asVoid(Fiber.await(running)),
@@ -2793,6 +2838,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
        */
       say: () => string | null,
       from: string,
+      /** Whether this turn is olai's own — carried rather than inferred from
+       *  `from`, so a plugin named `sleep` cannot become one
+       *  (`@olai/plugin-api`'s `Deliveries.deliver`). */
+      sleep: boolean,
     ): Effect.Effect<"handed" | "held" | "nothing"> =>
       opening.withPermit(Effect.gen(function*() {
         const at = talking
@@ -2816,7 +2865,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // `rang`).
           const row = transcript.user(body, { rang: from })
           publish(row.change)
-          yield* begin(at, row.key, body)
+          yield* begin(at, row.key, body, { sleep })
           return "handed" as const
         }))
       }))
@@ -2856,7 +2905,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // batch whose turn is still running is not composed and thrown away,
           // and a plugin counting its own deliveries never counts an ask that
           // did not land.
-          const arm = yield* offer(to, () => Deliveries.joined(mine), oldest.from)
+          const arm = yield* offer(to, () => Deliveries.joined(mine), oldest.from, oldest.sleep === true)
           if (arm === "held") return
           // `"handed"` wrote a row; `"nothing"` found every body settled and
           // wrote none. Both take the slots — the second so the next pass does
@@ -2897,10 +2946,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       to: Deliveries.Addressed,
       say: () => string | null,
       from: string,
-      how?: { readonly coalesce?: string },
+      how?: { readonly coalesce?: string; readonly sleep?: true },
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
-        held.hold(to, from, say, how?.coalesce)
+        held.hold(to, from, say, how?.coalesce, how?.sleep)
         // The strip's count moves the moment the body is held, which is the
         // panel's own rule: the alternative to holding words out of sight is
         // not dropping them, it is showing that they are waiting.
@@ -3560,6 +3609,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         return {
           scopes,
           deliver: (to, say, how) => deliverTo(to, say, plugin, how),
+          withdraw: (to) =>
+            Effect.sync(() => {
+              held.dropped(to, plugin)
+              // ...AND THE STRIP'S COUNT WITH IT, when this panel is the one
+              // drawing that conversation: the same republish a cleared doorbell
+              // does, and the same guard against a frame that says nothing new.
+              const wake = wakeOf()
+              if (!sameWake(wake, state.wake)) move({ wake })
+            }),
         }
       },
       /**

@@ -344,6 +344,7 @@ export {
 } from "./node.ts"
 export { MirrorNode, RegularNode } from "./node.ts"
 export type { LocatedRegular, Node } from "./node.ts"
+export type { Changes, MovedRow } from "./derive.ts"
 /** A mark that ends the wait, as a type — the narrowing `settles` above hands
  *  back, so a consumer can hold one without re-spelling the pair. */
 export type { Settled } from "./node.ts"
@@ -468,6 +469,23 @@ export {
    *  to disagree with this one about what unfinished work is. */
   blockersOf,
   byOrd,
+  /** THE FILES A NODE AGENT'S MEMORY LIVES IN — the outline its own record is
+   *  in, and every file holding a record under it. The one caller is the pass
+   *  that tidies it, which must commit what it wrote and nothing else. */
+  memoryFiles,
+  /** WHAT HAS MOVED UNDER THIS NODE — how many rows are newer than the memo, and
+   *  the newest and oldest stamps under it. The whole of what a node agent's
+   *  tidying pass asks about its own subtree before it spends a turn on it
+   *  (`olai-plugin-chat`'s `server/sleep.ts`), which is why this walk lives
+   *  beside {@link under} rather than in that plugin. */
+  changesUnder,
+  /** ...AND THE ROWS THEMSELVES, for the caller that is about to work rather than
+   *  to decide: a brief that names what moved is what keeps a consolidation pass
+   *  from rewriting a memory nothing happened in. */
+  movedUnder,
+  /** THE IDS UNDER A NODE — where a memory ends, which is the same line
+   *  {@link memoryFiles} commits and `@olai/ops`' write door fences off. */
+  idsUnder,
   countedChildren,
   derive,
   /** The containment graph: what drawing a record leads to drawing. Exported
@@ -1070,6 +1088,9 @@ export {
   NO_AGENTS,
   NodeAgent,
   NodeAgents,
+  /** EVERY OTHER NODE AGENT OF A SET — the `stop` set the memory walks take,
+   *  and the exclusions a tidying pass's fence carries. */
+  othersOf,
   sameAgents,
   seatableIn,
   sessionIn,

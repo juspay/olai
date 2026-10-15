@@ -3,7 +3,7 @@
 import { Schema } from "effect"
 import { Writer } from "@olai/format"
 import type { FaceExposure } from "@kolu/surface/expose"
-import type { SessionRule, Ops } from "@olai/ops"
+import type { Confinement, SessionRule, Ops } from "@olai/ops"
 import { randomBytes } from "node:crypto"
 
 import { type Bound } from "./authority.ts"
@@ -63,6 +63,8 @@ export interface Tickets {
   readonly mint: (
     forbidden: () => ReadonlyArray<{ readonly key: string; readonly says: string }>,
     writer: string,
+    /** The fence, read per call — see `@olai/plugin-api`'s `Tools.ticket`. */
+    confined?: () => Confinement | null,
   ) => Ticket
   readonly doorAt: (held: RootedSurfaceClients) => RootedSurfaceClients
 }
@@ -108,12 +110,17 @@ export const ticketing = (options: {
   const closed = composed({ _tag: "closed" }, "mcp")
 
   return {
-    mint: (forbidden, writer) => {
+    mint: (forbidden, writer, confined) => {
       const bearer = `${prefix}${randomBytes(24).toString("hex")}`
       let released = false
       const rule = {
         get _tag(): SessionRule["_tag"] {
           return released ? "closed" : "open"
+        },
+        // READ PER CALL, like the table above it: the fence is up exactly while
+        // the caller's own work is, and the ticket outlives that.
+        get confined(): Confinement | null {
+          return released || confined === undefined ? null : confined()
         },
         get forbidden() {
           return new Map(

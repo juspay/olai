@@ -924,11 +924,36 @@ export interface Asked {
  * import the floor, and a request that has a message and a list of paths is
  * the whole of what a record needs.
  */
+/** One waiting outline, in the two names it has — see {@link Ledger.waiting}. */
+export interface WaitingOutline {
+  /** Served-root-relative: the store's own key, and what a plugin knows a file
+   *  by. */
+  readonly file: string
+  /** Repository-root-relative: what a commit request names. */
+  readonly path: string
+}
+
 export interface Ledger {
   /** A write landed and is waiting. No-op when the ledger has not yet opened. */
   readonly wrote: (writer: string) => void
   /** Why that write is not in the history — always a sentence. */
   readonly whyWaiting: (writer: string) => Effect.Effect<string>
+  /**
+   * WHAT IS WAITING, IN BOTH NAMES EVERY OUTLINE HAS — the name olai's own set
+   * uses (served-root-relative, which is the only name a plugin knows its files
+   * by) and the name git and a commit request use (repository-root-relative).
+   *
+   * THE PAIR RATHER THAN ONE OF THEM, and this is the whole of why the member
+   * exists: a caller that wants to commit exactly the files it wrote knows them
+   * as the set does, and the commit door takes them as git does, and the two are
+   * the same string only when olai serves the repository root. A caller left to
+   * build the other spelling itself would be guessing at a subdirectory.
+   *
+   * UNFAILING and empty where nobody records anything: what is waiting is a
+   * question a reader is entitled to an answer to, and "nothing" is the honest
+   * one for a directory with no history.
+   */
+  readonly waiting: Effect.Effect<ReadonlyArray<WaitingOutline>>
   /** Record what is waiting, or exactly these paths, signed by this writer. */
   readonly record: (
     request: { readonly message?: string; readonly paths?: ReadonlyArray<string> },
@@ -936,6 +961,30 @@ export interface Ledger {
   ) => Effect.Effect<unknown>
   readonly push: Effect.Effect<unknown>
   readonly resume: Effect.Effect<void>
+  /**
+   * KEEP THE QUIET WINDOW SHUT for as long as the caller's scope is open, so a
+   * caller that is about to write several times and then commit them itself does
+   * not have the window commit half of it in between — under `commit: auto`,
+   * where the window is what records writes nobody asked about.
+   *
+   * AN ACQUISITION, so it is taken and released by the ordinary scope rules and
+   * there is no way to leave one out: the release is registered in the same step
+   * that takes it (`@olai/plugin-api`'s acquisition rule). HELD PER LEDGER — a
+   * count rather than a flag, so a second holder cannot release the first's —
+   * which is what makes the replacement note below a fact about this door rather
+   * than a caveat about directories.
+   *
+   * TWO FACTS A CALLER MUST KNOW. Where nobody stands behind {@link Ledger} the
+   * acquisition succeeds and holds nothing (there is no window to keep shut);
+   * and a ledger REPLACED while a hold is out starts unheld, because the hold
+   * was state on the ledger that left — so a git restart mid-hold may produce
+   * one `auto` commit beside the caller's own. Both are argued in
+   * `docs/architecture/cordis.md`.
+   *
+   * A person's Commit button is never blocked by one: this closes the TIMER,
+   * not the door. Holding is a statement about writes nobody asked about.
+   */
+  readonly hold: Effect.Effect<void, never, Scope.Scope>
 }
 export const Ledger = serviceTag<Ledger>("ledger")
 
@@ -1299,6 +1348,13 @@ export interface Tools {
   readonly ticket: (
     forbidden: () => ReadonlyArray<Forbidden>,
     writer: string,
+    /** WHERE THIS SESSION'S WRITES MAY LAND, read per call: absent is the
+     *  ordinary rule — the whole vault — and a value is a fence somebody raised
+     *  for the span of their own work. Structurally `@olai/ops`' `Confinement`,
+     *  which is where the fence is enforced and the argument for it is written;
+     *  spelled out here because this package does not depend on that one. The
+     *  caller that owns the sessions is the one that knows; core does not. */
+    confined?: () => { readonly under: string; readonly says: string } | null,
   ) => MintedTicket
 }
 export const Tools = serviceTag<Tools>("tools")
@@ -1540,6 +1596,7 @@ export interface PluginsConfig {
   readonly ticketFor?: (
     forbidden: () => ReadonlyArray<Forbidden>,
     writer: string,
+    confined?: () => { readonly under: string; readonly says: string } | null,
   ) => MintedTicket | null
   /** Optional live display lookup; absence means no tool is recognized as ours. */
   readonly advertisedFor?: Tools["advertised"]
@@ -1732,7 +1789,7 @@ export const openPlugins = (
       // with no MCP face seats a session with no remaining write rule, which is
       // the state it was already in ({@link PluginsConfig.ticketFor}).
       advertised: (server, tool) => config.advertisedFor?.(server, tool) ?? null,
-      ticket: (forbidden, writer) => config.ticketFor?.(forbidden, writer) ?? NO_TICKET,
+      ticket: (forbidden, writer, confined) => config.ticketFor?.(forbidden, writer, confined) ?? NO_TICKET,
     }))
 
     yield* provide(host, Bundle, () => ({ rank: config.rank ?? (() => 0) }))

@@ -21,7 +21,7 @@ import {
 import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { barred, doorRefusal } from "./door.ts"
+import { type Barred, barred, doorRefusal } from "./door.ts"
 
 import { plan, scoping } from "./plan.ts"
 
@@ -30,9 +30,9 @@ const vault = (): OutlineSet => setOf({
     `{"id":"house","ord":"a0","title":"House"}`,
     `{"id":"kitchen","parent":"house","ord":"a0","title":"Kitchen"}`,
     `{"id":"sink","parent":"kitchen","ord":"a0","title":"the sink"}`,
-    // A node that already CARRIES a forbidden key, so the removal arm has
-    // something to remove.
-    `{"id":"tap","parent":"kitchen","ord":"a1","title":"the tap","custom":{"approved":"always"}}`,
+    // A node that already CARRIES forbidden keys, so the removal arm has
+    // something to remove — one of each kind the table forbids.
+    `{"id":"tap","parent":"kitchen","ord":"a1","title":"the tap","custom":{"approved":"always","chat-agent-sleep":"on"}}`,
     `{"id":"roof","parent":"house","ord":"a1","title":"the roof"}`,
   ].join("\n"),
 }, [["spare.md", "a document the door may rewrite\n"]])
@@ -52,7 +52,21 @@ const APPROVAL = "approved"
 const SAYS_SEATS = "it is what seats a conversation on a node"
 const SAYS_APPROVES = "it is a person's approval of code"
 
-const forbidden = new Map([[SEATING, SAYS_SEATS], [APPROVAL, SAYS_APPROVES]])
+/** ...and a third, which is what the table being a MAP is FOR: the word a
+ *  person's opt-in for a chat's tidying is written under, forbidden to the
+ *  session for a third reason again — an agent must not give itself permission
+ *  to be tidied, nor quietly stop being. */
+const SLEEPING = "chat-agent-sleep"
+const SAYS_SLEEPING = "it is whether olai may tidy this chat on its own"
+
+const forbidden = new Map([
+  [SEATING, SAYS_SEATS],
+  [APPROVAL, SAYS_APPROVES],
+  [SLEEPING, SAYS_SLEEPING],
+])
+
+/** The clause a fence carries, in the words whoever raised it wrote. */
+const SAYS_TIDY = "olai is tidying this node's memory, and a turn nobody is watching writes only inside it"
 
 const asked = (request: Request, keys: ReadonlyMap<string, string> = forbidden) => {
   const at = readingOf(vault())
@@ -60,6 +74,93 @@ const asked = (request: Request, keys: ReadonlyMap<string, string> = forbidden) 
   if (Result.isFailure(planned)) throw new Error(planned.failure.message)
   return barred(keys, at.derived, planned.success)
 }
+
+/** A chain eleven nodes long — the confined node at its head and ten levels
+ *  under it — written DEEPEST FIRST.
+ *
+ *  The order is the point. `derived.children` is keyed in the order the rows
+ *  are read, so a file written in tree order lets one round of a round-counted
+ *  walk cascade the whole chain, and a round count only bites where a real
+ *  outline bites: rows are matched by ID across the corpus and moves, edits and
+ *  splits leave a memory in no order at all. */
+const deep = (): OutlineSet => setOf({
+  "chain.olai": Array.from({ length: 11 }, (_, at) => 10 - at)
+    .map((level) =>
+      `{"id":"d${level}"${level === 0 ? "" : `,"parent":"d${level - 1}"`},"ord":"a0","title":"level ${level}"}`)
+    .join("\n"),
+}, [["spare.md", "a document the door may rewrite\n"]])
+
+/** The same judgement, with a fence up over one node's subtree — and, where a
+ *  case needs it, the other node agents whose own subtrees are not this one's. */
+const askedUnder = (request: Request, under: string, set: OutlineSet = vault(), stop?: ReadonlySet<string>) => {
+  const at = readingOf(set)
+  const planned = plan(scoping(at, steady(), NO_KINDS, "outline-olai"), request)
+  if (Result.isFailure(planned)) throw new Error(planned.failure.message)
+  return barred(forbidden, at.derived, planned.success, undefined, { under, says: SAYS_TIDY, stop })
+}
+
+/**
+ * THE FENCE A PASS RAISES over the node it is tidying: while its turn runs, the
+ * session that turn belongs to writes inside that subtree and nowhere else. The
+ * reason is in `./door.ts`'s `Confinement`: an injected row can talk an
+ * unattended turn with suppressed alerts into rewriting or trashing anything in
+ * the directory, and those writes land outside the pass's own commit.
+ */
+describe("a confined session", () => {
+  test("writes inside the subtree land, wherever the file is", () => {
+    expect(askedUnder({ op: "done", id: "kitchen" }, "kitchen")).toBeNull()
+    expect(askedUnder({ op: "done", id: "sink" }, "kitchen")).toBeNull()
+    expect(askedUnder({ op: "add", parent: "sink", title: "buy a washer" }, "kitchen")).toBeNull()
+    // The key table still applies inside the fence: the two rules are not
+    // alternatives. (`tap` already carries `approved: "always"`, so this is a
+    // movement — writing the same value back is nothing at all.)
+    expect(askedUnder({ op: "prop", id: "tap", key: APPROVAL, value: "no" }, "kitchen"))
+      .toEqual({ why: "key", id: "tap", title: "the tap", key: APPROVAL, says: SAYS_APPROVES })
+  })
+
+  test("a write outside is refused, and so is a row carried out of it", () => {
+    expect(askedUnder({ op: "done", id: "roof" }, "kitchen"))
+      .toEqual({ why: "outside", id: "roof", title: "the roof", says: SAYS_TIDY })
+    expect(askedUnder({ op: "done", id: "house" }, "kitchen"))
+      .toEqual({ why: "outside", id: "house", title: "House", says: SAYS_TIDY })
+    // THE DESTINATION COUNTS TOO: this changes only `sink`'s own record, and
+    // `sink` is inside — but the parent it lands under is not, so the row would
+    // be written into a file the pass's commit does not name.
+    expect(askedUnder({ op: "move", id: "sink", parent: "roof" }, "kitchen"))
+      .toEqual({ why: "outside", id: "sink", title: "the sink", says: SAYS_TIDY })
+    // ...and a move that stays inside is the pass's own work.
+    expect(askedUnder({ op: "move", id: "sink", parent: "tap" }, "kitchen")).toBeNull()
+  })
+
+  test("the fence reaches the bottom of a chain ten deep", () => {
+    // The descent used to be eight rounds of the children map, so a row deeper
+    // than eight was judged outside and a legitimate write down there refused.
+    expect(askedUnder({ op: "done", id: "d10" }, "d0", deep())).toBeNull()
+    expect(askedUnder({ op: "add", parent: "d10", title: "one deeper" }, "d0", deep())).toBeNull()
+    // ...and it is still a fence: the head of the same chain is outside when the
+    // fence is up over the node at its bottom.
+    expect(askedUnder({ op: "done", id: "d0" }, "d10", deep()))
+      .toEqual({ why: "outside", id: "d0", title: "level 0", says: SAYS_TIDY })
+  })
+
+  test("a nested node agent's own subtree is outside the fence", () => {
+    // WHERE A MEMORY ENDS IS ONE LINE: the commit the pass makes names exactly
+    // the files the walk finds with the same exclusions, so a fence that stopped
+    // only at the outer boundary would permit the one write the instruction
+    // forbids — a write into a nested agent's memory, landing outside the commit
+    // that is the undo.
+    const others = new Set(["sink"])
+    expect(askedUnder({ op: "done", id: "tap" }, "kitchen", vault(), others)).toBeNull()
+    expect(askedUnder({ op: "done", id: "sink" }, "kitchen", vault(), others))
+      .toEqual({ why: "outside", id: "sink", title: "the sink", says: SAYS_TIDY })
+  })
+
+  test("the refusal says why, in the fence's own words", () => {
+    expect(doorRefusal({ why: "outside", id: "roof", title: "the roof", says: SAYS_TIDY }))
+      .toContain(SAYS_TIDY)
+    expect(doorRefusal({ why: "trash", says: SAYS_TIDY })).toContain(SAYS_TIDY)
+  })
+})
 
 describe("node-agent write rule", () => {
   test("writes land anywhere in the vault, including outside the seat's subtree", () => {
@@ -115,6 +216,16 @@ describe("node-agent write rule", () => {
     expect(asked({ op: "prop", id: "tap", key: APPROVAL, value: null })?.why).toBe("key")
   })
 
+  test("...and the sleeping mark is refused on the agent's own node too", () => {
+    expect(asked({ op: "prop", id: "kitchen", key: SLEEPING, value: "on" }))
+      .toEqual({ why: "key", id: "kitchen", title: "Kitchen", key: SLEEPING, says: SAYS_SLEEPING })
+    // Taking it OFF is writing it, exactly as un-approving is: the rule reads a
+    // movement, and an agent that cleared its own mark would be opting itself
+    // out. (`tap` is the row that carries one, because a removal of a key that
+    // is not there never reaches this door at all.)
+    expect(asked({ op: "prop", id: "tap", key: SLEEPING, value: null })?.why).toBe("key")
+  })
+
   test("a closed rule's refusal does not walk the plan", () => {
     expect(doorRefusal({ why: "closed" })).toContain("conversation has been reaped")
   })
@@ -145,11 +256,16 @@ describe("file-scoped agent reservation", () => {
     return barred(keys, at.derived, result.success, at.set.documents.map(one => one.path))
   }
 
+  /** The KEY arm's own key, for the assertions below: `Barred` gained two arms
+   *  that are not about a key at all (`./door.ts`'s confinement). */
+  const keyOf = (reached: Barred | null): string | undefined =>
+    reached !== null && reached.why === "key" ? reached.key : undefined
+
   test("both directions, removal, and a batch reach the same reservation", () => {
     for (const value of ["yes", "no", null]) {
-      expect(check({ op: "prop", id: "example", key: "on", value }, value === "yes" ? "no" : "yes")?.key).toBe("on")
+      expect(keyOf(check({ op: "prop", id: "example", key: "on", value }, value === "yes" ? "no" : "yes"))).toBe("on")
     }
-    expect(check({ op: "apply", ops: [{ op: "prop", id: "example", key: "on", value: "yes" }] })?.key).toBe("on")
+    expect(keyOf(check({ op: "apply", ops: [{ op: "prop", id: "example", key: "on", value: "yes" }] }))).toBe("on")
   })
 
   test("behaviour knobs and ordinary files remain writable", () => {
@@ -158,19 +274,19 @@ describe("file-scoped agent reservation", () => {
   })
 
   test("moving or trashing its namespace cannot remove the choice", () => {
-    expect(check({ op: "trash", id: "example" }, "yes")?.key).toBe("on")
-    expect(check({ op: "move", id: "example", parent: "notes" }, "yes")?.key).toBe("on")
+    expect(keyOf(check({ op: "trash", id: "example" }, "yes"))).toBe("on")
+    expect(keyOf(check({ op: "move", id: "example", parent: "notes" }, "yes"))).toBe("on")
   })
 
   test("a duplicate namespace cannot shadow an existing choice", () => {
     const at = readingOf(setOf({ [file]: '{"id":"example","ord":"a1","title":"example","custom":{"on":"no"}}' }))
     const nodes = at.derived.nodes.map(one => one.node)
     const shadow = readingOf(setOf({ [file]: '{"id":"shadow","ord":"a0","title":"example"}' })).derived.nodes[0]!.node
-    expect(barred(keys, at.derived, { files: [{ file, nodes: [shadow, ...nodes] }], id: "shadow", title: "example", file, summary: "shadow" })?.key).toBe("on")
+    expect(keyOf(barred(keys, at.derived, { files: [{ file, nodes: [shadow, ...nodes] }], id: "shadow", title: "example", file, summary: "shadow" }))).toBe("on")
   })
 
   test("a shallower empty file cannot mask an existing choice", () => {
     const at = readingOf(setOf({ [file]: '{"id":"example","ord":"a0","title":"example","custom":{"on":"no"}}' }))
-    expect(barred(keys, at.derived, { files: [{ file: "SETTINGS.olai", nodes: [] }], id: "", title: "", file: "SETTINGS.olai", summary: "mask file" })?.key).toBe("on")
+    expect(keyOf(barred(keys, at.derived, { files: [{ file: "SETTINGS.olai", nodes: [] }], id: "", title: "", file: "SETTINGS.olai", summary: "mask file" }))).toBe("on")
   })
 })

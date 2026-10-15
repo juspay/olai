@@ -40,6 +40,45 @@ export const AgentStanding = Schema.Union([
 export type AgentStanding = typeof AgentStanding.Type
 
 /**
+ * WHAT A NODE'S SLEEP IS DOING — one server-side judgement
+ * (`olai-plugin-chat`'s `server/sleep.ts`, `judge`), carried whole so the strip
+ * under a conversation renders it rather than re-deriving it.
+ *
+ * `lastSlept` is the memo as stored and `after` is the rhythm (`sleep-after`) in
+ * milliseconds: the words a person reads ("last 3h ago", "next in 4h") are those
+ * two plus a clock the strip already ticks on. FIXED INSTANTS, never a rule.
+ */
+export const Forecast = Schema.Struct({
+  lastSlept: Schema.NullOr(Schema.String),
+  after: Schema.Number,
+  /** HOW MANY MOVED ROWS MAKE A TIDY WORTH IT (`sleep-floor`) — carried so the
+   *  strip can say "2 of 5 rows" without a second reading of the settings, which
+   *  the browser cannot see. */
+  floor: Schema.Number,
+  /** HOW LONG A MOVED ROW MAY WAIT (`sleep-latest`), in milliseconds, for the
+   *  same reason: the item's hovered sentence states the whole rule, and the
+   *  rule's third clause is this span. */
+  latest: Schema.Number,
+  /** THERE IS NO `off` ARM, deliberately: `sleep: off` in a directory's settings
+   *  is no sleeper at all, so it is a `null` forecast and not a sentence the
+   *  judgement never says (`judge` has no arm for it and never had). */
+  next: Schema.Union([
+    Schema.Struct({ kind: Schema.Literal("unmarked") }),
+    Schema.Struct({ kind: Schema.Literal("unbound") }),
+    Schema.Struct({ kind: Schema.Literal("unchanged") }),
+    /** NOT ENOUGH HAS MOVED — the pressure half of the due-ness rule, with how
+     *  many rows did. */
+    Schema.Struct({ kind: Schema.Literal("little"), rows: Schema.Number }),
+    Schema.Struct({ kind: Schema.Literal("busy") }),
+    /** DUE AT AN INSTANT, with how many rows moved to make it so. */
+    Schema.Struct({ kind: Schema.Literal("due"), at: Schema.String, rows: Schema.Number }),
+    Schema.Struct({ kind: Schema.Literal("running") }),
+    Schema.Struct({ kind: Schema.Literal("skipped"), until: Schema.String }),
+  ]),
+})
+export type Forecast = typeof Forecast.Type
+
+/**
  * ONE ROW OF THE ROSTER: the node agent as the set knows it, plus what this
  * machine knows about its session.
  *
@@ -59,6 +98,16 @@ export const NodeAgentRow = Schema.Struct({
   ...NodeAgent.fields,
   /** The vault edit stamp, for activity ordering before this machine hears a turn. */
   changed: Schema.optionalKey(Schema.String),
+  /**
+   * WHETHER THIS CHAT IS TIDIED ON ITS OWN CLOCK — the vault's own mark
+   * (`chat-agent-sleep`), a person's answer, joined onto the row so a row-menu
+   * verb can label itself off the row it was drawn on. Absent and `off` are the
+   * same answer, and both are "leave this one alone".
+   */
+  sleeps: Schema.Boolean,
+  /** {@link Forecast}, or `null` where there is none to give — `sleep: off` in
+   *  this directory's settings, or a sleeper that has not read the set yet. */
+  sleep: Schema.NullOr(Forecast),
   /** Session lifecycle is per node, so it travels on the row rather than being
    * inferred from whichever conversation the foreground panel happens to show. */
   standing: AgentStanding,

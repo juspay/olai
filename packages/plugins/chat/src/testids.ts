@@ -547,12 +547,37 @@ export const TESTID = {
    *  uses. It names the DURATION alone, so what a scenario reads back is the
    *  number rather than the sentence around it. */
   chatWatchingFor: "chat-watching-for",
-  /** THE STRIP under that one: what this conversation WAKES ON. One line per
-   *  running plugin that declares a doorbell (`@olai/surface`'s `BuiltPlugin`'s
-   *  `wake`), saying in that plugin's own words what the wake is on and which
-   *  file a person pointed it at. Absent where there is no conversation to be
-   *  scoped, which is the roster strip's own rule. */
+  /** THE WAKE ITEMS on that line, after the sleep one: what this conversation
+   *  WAKES ON. One item per running plugin that declares a doorbell
+   *  (`@olai/surface`'s `BuiltPlugin`'s `wake`), saying in that plugin's own words
+   *  what the wake is on and which file a person pointed it at. The group carries
+   *  this testid so a scenario can still address the wake half of the line, and
+   *  it is absent where there is no conversation to be scoped, which is the
+   *  roster strip's own rule. */
   chatWake: "chat-wake",
+  /** THE LINE UNDER THE TOOLS ROSTER: what this conversation has STANDING that
+   *  is not a tool — whether olai tidies its memory on its own clock, and what
+   *  may ring it — as one wrapping line rather than one bordered strip each
+   *  (`Strips.tsx` argues it). Exactly one of these per conversation, and
+   *  absent when there is nothing to put on it. */
+  chatStanding: "chat-standing",
+  /** THE SLEEP ITEM ON THAT LINE: `Sleep`, the switch, when this chat last slept
+   *  and when it will next. Chat’s own, per node, and already a vault property —
+   *  not a plugin face, which is why it is an item beside them rather than one of
+   *  them (`Sleeping.tsx` argues it). `data-next` is the state as DATA (the
+   *  forecast’s own `kind`) and `data-last` is the memo’s instant where there is
+   *  one, because the words around them are a sentence a scenario should not be
+   *  asserting. */
+  chatSleeping: "chat-sleeping",
+  /** ...and the switch on it: a `role="switch"` whose text is `On`/`Off` and
+   *  whose `aria-checked` is the mark, so a scenario reads the state as DATA. A
+   *  refusal is drawn beside it in a `role="alert"`. */
+  chatSleepSwitch: "chat-sleep-switch",
+  /** THE PASS, ASKED FOR BY HAND, at the end of the item: the same verb the row
+   *  menu and ⌘K carry (`conversation.sleepNow`), for a person who is looking at
+   *  the strip and does not want to wait for the rhythm. Absent where the pass is
+   *  already running on this node, and where there is no pass to ask for. */
+  chatSleepNow: "chat-sleep-now",
   /** One plugin's control on it: the trigger that opens the file list, wearing
    *  the picked file's name or `off`. `data-plugin` is WHOSE doorbell and
    *  `data-file` is the file or `off` — the state as DATA, because the words

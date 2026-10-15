@@ -145,6 +145,13 @@ dispatched  2026-08-25 10:06 (sweep queue #5; the slot freed by #387's merge)
 {"id":"prop-run","ord":"a7","title":"run","custom":{"type":"odu-run"}}
 ```
 
+**Chat contributes three**, and they are the same mechanism: `chat-agent-session`,
+which seats a conversation on a node; `chat-agent-slept`, the instant olai last
+tidied that node agent's own memory; and `chat-agent-sleep`, a person's `on` or
+`off` answer to whether olai may tidy that chat on its own clock at all
+([chat](chat.md)). None is a shape anything else could guess at, and a vault may
+keep any of them under a column of its own name.
+
 **THE DECLARATION IS THE LICENCE, and it comes from one of two places.** A key declared `kolu-terminal` gets the Dock row and the live pane ([plugins/kolu.md](plugins/kolu.md)); a key declared `odu-run` is a run id olai will ask the odu service about ([plugins/odu.md](plugins/odu.md)). Both are LIVE PROPERTIES and the seam is one ([live-properties.md](live-properties.md)).
 
 **An enabled plugin declares its own key for you**, so a row carrying `kolu-terminal 303dc985` works out of the box and olai writes nothing to your vault to make it. The claimed key is always the kind's own word, which carries the plugin's name — a column *you* call `terminal` can never be taken over by turning a plugin on. **A row of yours always wins**, which is how you move a kind onto a short key (`{"title":"terminal","custom":{"type":"kolu-terminal"}}`) and how you take a face away again (declare it `text`).

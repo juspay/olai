@@ -21,6 +21,7 @@
   "files": [
     "src/conventions.bench.ts",
     "src/dates.bench.ts",
+    "src/derive.ts",
     "src/errors.ts",
     "src/filter.bench.ts",
     "src/message.ts",
@@ -124,5 +125,6 @@
     "src/validate.bench.ts",
     "src/vocabulary.bench.ts",
     "src/writing.ts"
-  ]
+  ],
+  "//files": "`memoryFiles` and the local `files` in derive.ts name the FILES a node's memory lives in: the set's own word, not the files row."
 }

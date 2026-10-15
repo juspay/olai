@@ -125,10 +125,22 @@ export const armedOn = (
   /** Why the loop stopped, or `null` while it is running. A refused commit or
    *  push sets it and nothing clears it on olai's own initiative. */
   paused: string | null,
+  /** Whether somebody is HOLDING the window — a caller that is about to write
+   *  and wants those writes recorded as its own commit rather than as whatever
+   *  the window happened to catch. Counted by the ledger rather than stated as
+   *  an instant, and `false` for every caller that has no opinion.
+   *
+   * INSIDE THE RULE rather than beside it, and the difference is the reason
+   * this is a parameter here at all: the loop asks this expression twice — when
+   * it arms and when it fires — so a hold that starts or ends inside fifteen
+   * seconds is honoured by the SAME sentence that honours the policy and the
+   * pause. A second check in the loop would be a rule the browser's reading of
+   * it (`git`'s `willRecord`) does not have. */
+  held: boolean,
   /** The last survey — what is waiting, and whether the repository could take a
    *  commit at all. */
   pending: Pending,
 ): string =>
-  commit !== "auto" || paused !== null || !isReady(pending.repo)
+  commit !== "auto" || paused !== null || held || !isReady(pending.repo)
     ? ""
     : flurryOf(pending)

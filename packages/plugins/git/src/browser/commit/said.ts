@@ -476,9 +476,18 @@ export const AUTO_STOPPED =
  * `commit: auto` the committed pill printed {@link AUTO_ARMED} over an empty
  * list, while the server's own answer was `""` precisely because there was
  * nothing to record.
+ *
+ * `held` IS `false` HERE, and this is the one term the browser does not have. A
+ * hold belongs to a caller inside the server (a node agent's tidying pass,
+ * `olai-plugin-chat`'s `server/sleep.ts`) and travels nowhere: what the pill
+ * promises is that these writes ARE recorded once the directory goes quiet, and
+ * a hold changes WHO records them — the pass commits them itself a moment later
+ * — rather than whether they are. An `armed` pill over a held window is
+ * therefore still true, and a third state here would be a lie the panel cannot
+ * keep in step with the server.
  */
 export const willRecord = (pending: Pending, git: GitState): boolean =>
-  armedOn(git.policy.commit, git.paused, pending) !== ""
+  armedOn(git.policy.commit, git.paused, false, pending) !== ""
 
 /** What an ARMED loop is about to do with what the panel is listing. Drawn only
  *  while it is really going to happen, so it is a promise rather than a
@@ -607,6 +616,10 @@ export const WHO: Readonly<Record<Writer, string>> = {
   // the thing they turned on, and a commit trailer saying `web` here would have
   // told them they made it.
   auto: "auto-commit",
+  // The server's own pass over a node agent's memory, out of hours. Named for
+  // the thing that happened rather than for the process that did it: this is a
+  // line in a person's history they did not write and may want to undo.
+  sleep: "olai put a node agent's memory in order",
 }
 
 /** Pending counts are Ops writes, including the Chats root, not a count of

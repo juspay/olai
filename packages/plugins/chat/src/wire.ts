@@ -284,6 +284,59 @@ export const surface = defineSurface({
         }),
         error: ChatFailure,
       },
+      /**
+       * SAY WHETHER THIS CHAT IS TIDIED ON ITS OWN — the mark *Sleep when idle*
+       * sets and *Stop sleeping when idle* takes off.
+       *
+       * IT IS A PERSON'S ANSWER AND NOT A MACHINE'S, which is why it is a verb
+       * rather than something the pass decides: nothing is tidied until somebody
+       * turns it on for a chat, and the property it writes (`chat-agent-sleep`,
+       * `on` or absent) is the whole of the state — a person can type it in the
+       * drawer instead. `off` and absent are the same answer.
+       *
+       * IT REFUSES WHERE THERE IS NOTHING TO MARK (no node agent bound there),
+       * and with the settings sentence when sleep is off in this directory: a
+       * mark written while the pass cannot run at all would be a promise the
+       * row's own label does not keep.
+       */
+      setSleeping: {
+        input: Schema.Struct({
+          /** The node whose chat is being marked — the id the roster answers
+           *  with, which is what the row the verb was drawn on names. */
+          node: Schema.String,
+          /** `true` marks it, `false` takes the mark off. */
+          on: Schema.Boolean,
+        }),
+        error: ChatFailure,
+      },
+      /**
+       * RUN A SLEEP PASS ON ONE NODE NOW — the verb a person presses
+       * (*Sleep now*), and the only way into the pass that is not the
+       * loop's own clock.
+       *
+       * IT ANSWERS WHEN THE PASS HAS BEGUN, not when it ends: a tidying turn
+       * runs for minutes, and what is waiting on this answer is a palette row
+       * somebody pressed. `Started` therefore means the turn has been handed
+       * over — the memo and the commit are still to come — and `Refused` carries
+       * the sentence a person reads when the pass could not begin: another pass
+       * is already running, the node is not a node agent with a conversation, or
+       * `sleep` is off in this directory's settings.
+       *
+       * A REFUSAL IS AN ANSWER HERE rather than a failed call, and that is the
+       * same shape `closeAgent`'s failure sentence has: nothing went wrong, a
+       * person asked for something that is not available now.
+       */
+      sleepNow: {
+        input: Schema.Struct({
+          /** The node whose memory is to be tidied — the id the roster answers
+           *  with, which is what the row the verb was drawn on names. */
+          node: Schema.String,
+        }),
+        output: Schema.Union([
+          Schema.Struct({ _tag: Schema.Literal("Started") }),
+          Schema.Struct({ _tag: Schema.Literal("Refused"), said: Schema.String }),
+        ]),
+      },
       /** Try the OPEN that was refused again — the one the panel is holding a
        *  {@link ChatState.unopened} for, whichever it was.
        *
@@ -428,6 +481,8 @@ export const faces = {
     "conversation.locations": "tool",
     "conversation.startAgentSession": "tool",
     "conversation.closeAgent": "tool",
+    "conversation.setSleeping": "tool",
+    "conversation.sleepNow": "tool",
     "conversation.reopen": "tool",
     "conversation.sessions": "tool",
     "conversation.answer": "tool",

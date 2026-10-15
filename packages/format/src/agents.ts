@@ -212,6 +212,16 @@ export const memoryOf = (agent: Pick<NodeAgent, "memory">): string =>
 export const NodeAgents = Schema.Array(NodeAgent)
 export type NodeAgents = typeof NodeAgents.Type
 
+/**
+ * EVERY OTHER NODE AGENT OF A SET, as the `stop` set the memory walks take and
+ * the exclusions a tidying pass's fence carries.
+ *
+ * BESIDE THE ROSTER for `memoryOf`'s reason: one fact with four readers in two
+ * packages, which agreed by hand until one of them was forgotten.
+ */
+export const othersOf = (roster: NodeAgents, id: string): ReadonlySet<string> =>
+  new Set(roster.filter((one) => one.id !== id).map((one) => one.id))
+
 /** A directory with no node agent in it, and a server that has never loaded —
  *  one value, because both draw nothing. */
 export const NO_AGENTS: NodeAgents = []

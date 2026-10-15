@@ -61,7 +61,7 @@ import {
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
-import { Effect, Result, SubscriptionRef } from "effect"
+import { Effect, Result, Scope, SubscriptionRef } from "effect"
 
 import type { Snapshot } from "@olai/store"
 import type { Store } from "./deps.ts"
@@ -81,12 +81,19 @@ import { asking, type Asking } from "./tools.ts"
 export interface Ledger {
   readonly wrote: (writer: Writer) => void
   readonly whyWaiting: (writer: Writer) => Effect.Effect<string>
+  /** See `@olai/plugin-api`'s `Ledger.waiting` — what is waiting, in the two
+   *  names every outline has. */
+  readonly waiting: Effect.Effect<ReadonlyArray<{ readonly file: string; readonly path: string }>>
   readonly record: (
     request: CommitRequest,
     writer: Writer,
   ) => Effect.Effect<CommitResult>
   readonly push: Effect.Effect<PushResult>
   readonly resume: Effect.Effect<void>
+  /** See `@olai/plugin-api`'s `Ledger.hold` — the quiet window kept shut for
+   *  the caller's scope, counted per ledger, and a no-op where nobody records
+   *  anything. */
+  readonly hold: Effect.Effect<void, never, Scope.Scope>
 }
 
 /**
@@ -155,6 +162,8 @@ export const NO_SEARCH: Search = {
 
 export const NO_LEDGER: Ledger = {
   wrote: () => {},
+  // Nobody records anything, so nothing is waiting anywhere.
+  waiting: Effect.succeed([]),
   whyWaiting: () =>
     Effect.succeed("nobody is recording writes here, so they land and wait for nobody"),
   record: () =>
@@ -168,6 +177,10 @@ export const NO_LEDGER: Ledger = {
     said: "nobody is recording writes here, so there is nobody to push",
   }),
   resume: Effect.void,
+  // Nobody records anything here, so there is no window to keep shut and no
+  // state to hold — the acquisition succeeds and holds nothing, which is the
+  // contract `@olai/plugin-api`'s `Ledger.hold` states.
+  hold: Effect.void,
 }
 
 export interface Options {
@@ -385,8 +398,24 @@ export interface Ops extends Asking {
   ) => Effect.Effect<CommitResult>
   /** Send the current branch to its upstream — through the ledger, or refuse. */
   readonly push: Effect.Effect<PushResult>
+  /** WHAT IS WAITING, in the two names every outline has — through the ledger,
+   *  and empty where nobody stands behind it (`@olai/plugin-api`'s
+   *  `Ledger.waiting` argues the pair). */
+  readonly waiting: Effect.Effect<ReadonlyArray<{ readonly file: string; readonly path: string }>>
   /** Start the quiet-window loop again after git stopped it. */
   readonly resume: Effect.Effect<void>
+  /**
+   * KEEP THE QUIET WINDOW SHUT for as long as this scope is open — through the
+   * ledger, and a no-op where nobody stands behind it.
+   *
+   * ON THIS DOOR and not only on the ledger because the caller that needs it is
+   * a plugin holding this layer's gate and nothing else: a node agent's tidying
+   * pass writes a subtree and then commits it as one commit
+   * (`olai-plugin-chat`'s `server/sleep.ts`). `@olai/plugin-api`'s `Ledger.hold`
+   * is the contract, and `docs/architecture/cordis.md` what a ledger replaced
+   * mid-hold means.
+   */
+  readonly hold: Effect.Effect<void, never, Scope.Scope>
   /**
    * The set as a reader sees it, or the one refusal for a directory that has
    * never loaded.
@@ -680,7 +709,15 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
               reason: doorRefusal({ why: "closed" }),
             })
           }
-          const reached = barred(rule.forbidden, snapshot.value.derived, planned.success, snapshot.value.set.documents.map((doc) => doc.path))
+          // THE CONFINEMENT'S OTHER HALF, and it is checked here because the
+          // OP is what says it: a `trash`, a delete or an emptied Trash is the
+          // one direction a tidy may not take, whatever it names.
+          if (rule.confined != null && (request.op === "trash" || request.op === "empty" || request.op === "delete")) {
+            return yield* new UsageFailure({
+              reason: doorRefusal({ why: "trash", says: rule.confined.says }),
+            })
+          }
+          const reached = barred(rule.forbidden, snapshot.value.derived, planned.success, snapshot.value.set.documents.map((doc) => doc.path), rule.confined ?? null)
           if (reached !== null) {
             return yield* new UsageFailure({
               reason: doorRefusal(reached),
@@ -1021,6 +1058,16 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
     push: Effect.suspend(() => closed
       ? Effect.succeed({ _tag: "Failed" as const, said: NO_DIRECTORY.reason })
       : ledger.push),
+    // NOT a refusal when this layer is closed: a caller asking what is waiting
+    // is asking about a directory nobody is serving, and the answer to that is
+    // nothing rather than a failure to render.
+    waiting: Effect.suspend(() => closed ? Effect.succeed([]) : ledger.waiting),
     resume: Effect.suspend(() => closed ? Effect.void : ledger.resume),
+    // Each of the three above refuses a closed layer in this layer's own words
+    // rather than the ledger's, and this one does not: a hold that cannot be
+    // taken because there is nothing to hold is a caller with nothing to do, not
+    // a caller being told no. So a closed layer opens a scope that holds
+    // nothing, which is what a caller may rely on.
+    hold: Effect.suspend(() => closed ? Effect.void : ledger.hold),
   }
 }
