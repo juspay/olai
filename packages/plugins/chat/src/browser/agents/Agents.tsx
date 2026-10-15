@@ -59,19 +59,16 @@ export function Chats() {
         data-unread={row().unread ? "true" : undefined}
         title={row().title} on:olai-navigated={() => focus.visit(row())}>
         <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span>
-        {/* ONE FACT PER ROW, AND THE TITLE'S WEIGHT IS THIS ONE. A row has a
-            dot for how its agent STANDS (`data-standing`, the dot before the
-            age) and nothing else: a second mark beside it read as a second
-            standing, and "bold means there is something here you have not read"
-            is a convention a list can carry alone — with the `sr-only` word
-            naming it for a reader who cannot see the weight. */}
+        {/* A LIST OF CHATS IS A LIST OF WHAT IS THERE, so this row draws no dot
+            at all: what its agent is DOING is `data-standing` — the fact, drawn
+            in the regions that are about standing (Needs you, the outline
+            aside) — and what is left here is the name, whether there is
+            something in it nobody has read (the weight, with the word for a
+            reader who cannot see it), and when it was last heard. */}
         <span class="min-w-0 flex-1 truncate" classList={{ "font-semibold": row().unread }}>
           {row().title}<Show when={row().unread}><span class="sr-only"> Unread</span></Show>
         </span>
-        <span class="inline-flex shrink-0 items-center gap-2">
-          <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} title={LOOK[row().standing].detail} />
-          <Show when={row().said?.at ?? row().changed}>{at => <span class="tabular-nums text-label text-paper/60">{agoOf(at(), now())}</span>}</Show>
-        </span>
+        <Show when={row().said?.at ?? row().changed}>{at => <span class="shrink-0 tabular-nums text-label text-paper/60">{agoOf(at(), now())}</span>}</Show>
       </a>
     </li>}</Key></ul>
   </section>

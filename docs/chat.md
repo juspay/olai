@@ -573,7 +573,7 @@ A turn that finishes is silent, and that is deliberate — but silence is not th
 
 Two places carry it:
 
-- **its row in Chats**, drawn in the bold weight — one fact per row, so the row's single dot goes on meaning how its agent STANDS — and named *unread* for assistive technology. The age line is still the last line that was heard, so the row says when the agent spoke as well as that you have not read it.
+- **its row in Chats**, drawn in the bold weight and named *unread* for assistive technology. A Chats row carries no dot at all, so the weight is the whole of the mark. The age line is still the last line that was heard, so the row says when the agent spoke as well as that you have not read it.
 - **the tab holding that conversation**, with a muted dot — deliberately quieter than the needs-you dot, because a question is asking you for something and a finished turn is only news. Where both apply, the question's dot is the one drawn.
 
 **What clears it is looking.** The moment the conversation is on screen in a focused window, the tab that is reading it says so and the mark comes off: for every tab of this olai at once, and across a reload, because what was acknowledged is a record the serve keeps and not something a tab remembers. A conversation you are already reading never shows the mark at all — the reply is read as it lands.
@@ -758,16 +758,19 @@ its conversation, or **close the agent** to release it back to the unclaimed cha
 ### Needs you, Chats, and the palette
 **Needs you** lists agents waiting for answers before agents that are not
 running, newest activity first within each group. A row shows its question count
-or **not running**. The region disappears when empty. **Chats** lists every
-standing, capped at ten: last-heard activity first, then nodes without speech by
-their vault edit time. These rows show an engine mark, title, and standing dot immediately before the
-age. The dot uses the same standing colors and working animation as the outline
-aside, so active chats remain visible here. No standing word is drawn; the dot
-names its standing for assistive technology. A row whose agent has said something
-since you last looked at its conversation is drawn in the bold weight — and says
-so for assistive technology — because the row's one dot is the standing's
-([what you have not read yet](#what-you-have-not-read-yet)).
-An agent may appear in both regions.
+or **not running**. The region disappears when empty, and it is the region that
+carries a standing dot — the coloured one, with the working animation and the
+standing's name for assistive technology.
+
+**Chats** lists every standing, capped at ten: last-heard activity first, then
+nodes without speech by their vault edit time. A row is its engine's mark, its
+title, and its age — no dot: a list of chats is a list of what is there, and what
+each agent is doing is drawn where it is being *watched* (Needs you, and the
+outline row's aside). The title is drawn in the bold weight when the agent has
+said something since you last looked at the conversation, and the row says
+*Unread* for assistive technology
+([what you have not read yet](#what-you-have-not-read-yet)). An agent may appear
+in both regions.
 
 Pressing either row navigates to the node in its outline and unfolds it; an
 unbound agent navigates only. The open row is marked current. Search **Agents**

@@ -19,8 +19,11 @@ export type Standing = AgentStanding
  */
 export type Row = NodeAgentRow & { readonly unread: boolean }
 
-/** What each standing is called, how it is painted, and what it means. One
- * table is read by both the sidebar row and the aside on the outline. */
+/** What each standing is called, how it is painted, and what it means. One table
+ *  is read by the faces that ARE about standing — the Needs you region's dot, the
+ *  aside on the outline row, and the palette row's hint. The Chats column draws
+ *  no dot (a list of chats is a list of what is there, `./Agents.tsx`), so it
+ *  reads the standing as `data-standing` and none of this. */
 export const LOOK: Record<Standing, { readonly dot: string; readonly label: string; readonly detail: string }> = {
   "needs-you": {
     dot: NEEDS_YOU_DOT,

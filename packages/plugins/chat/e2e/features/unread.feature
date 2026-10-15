@@ -32,7 +32,7 @@ Feature: The conversations you have not read yet
     And the agent is released
     Then the Chats row "kitchen" is unread
     And the Chats row "kitchen" says it is unread
-    And the Chats row "kitchen" wears exactly one dot
+    And the Chats row "kitchen" wears no dot
     And the tab has not marked the conversation as read
     And no chime rang
     And no notification has been raised

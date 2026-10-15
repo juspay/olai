@@ -256,19 +256,20 @@ Then(
   },
 );
 
-/** ...AND THE ROW WEARS ONE DOT WHATEVER ELSE IS TRUE OF IT — the rule this
- *  face settled on: the dot is how the agent STANDS, and unread is the title's
- *  weight, so a row can never show two standings side by side. Counted by the
- *  role the dot answers to (`role="img"`; the engine's own glyph is
- *  `aria-hidden`), which is what a scenario can count that a reader can see. */
-Then("the Chats row {string} wears exactly one dot", async function (this: OlaiWorld, node: string) {
+/** ...AND THE ROW WEARS NO DOT WHATEVER ELSE IS TRUE OF IT — the rule this face
+ *  settled on: a list of chats is a list of what is THERE, so the standing is
+ *  data (`data-standing`, asserted where it is drawn) and unread is the title's
+ *  weight. Counted by the role a dot answers to (`role="img"`; the engine's own
+ *  glyph is `aria-hidden`), which is what a scenario can count that a reader can
+ *  see. */
+Then("the Chats row {string} wears no dot", async function (this: OlaiWorld, node: string) {
   await this.showSidebar();
   const row = rowFor(this, node);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.strictEqual(
     await row.getByRole("img").count(),
-    1,
-    `the Chats row for ${node} should draw one mark, its standing`,
+    0,
+    `the Chats row for ${node} should draw no mark at all`,
   );
 });
 
