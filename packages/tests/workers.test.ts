@@ -36,12 +36,14 @@ test("PIN (default): unset derives from availableParallelism, not 1", () => {
   expect(workerCount({}, () => 16)).not.toBe(1);
 });
 
-test("derivation: cores-1 at most 4, a worker per four cores past sixteen", () => {
+test("derivation: cores-1 at most 4; from 20 cores, one worker per four", () => {
   expect(defaultWorkers(1)).toBe(1);
   expect(defaultWorkers(2)).toBe(1);
   expect(defaultWorkers(4)).toBe(3);
   expect(defaultWorkers(8)).toBe(4);
   expect(defaultWorkers(16)).toBe(4);
+  expect(defaultWorkers(19)).toBe(4);
+  expect(defaultWorkers(20)).toBe(5);
   expect(defaultWorkers(32)).toBe(WORKER_CAP);
   expect(defaultWorkers(64)).toBe(WORKER_CAP);
 });

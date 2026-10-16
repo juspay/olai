@@ -191,7 +191,7 @@ Which server the suite drives is two decisions, not one — **who owns the proce
 | `OLAI_TEST_VERBOSE` | Stream the server child's stdout/stderr into the test output. |
 | `OLAI_TEST_SLOW` | The multiplier Chromium slows this scenario's RENDERER by (`Emulation.setCPUThrottlingRate`). Unset, or `1`, is a browser nobody touched and no CDP session at all. It is how a race only a loaded box loses is reproduced on a quiet one — see *Making it flake on purpose*. |
 | `CUCUMBER_TAGS` | Replaces the default tag filter (`not @skip`). `CUCUMBER_TAGS='@corpus:tangled'` runs only the tangled-corpus scenarios. |
-| `CUCUMBER_PARALLEL` | Worker count. Unset, the suite sizes itself to the machine (`os.availableParallelism() - 1`, floored at 1, capped at 4; a box past 16 cores gets one worker per four cores instead, up to 8) so a laptop and a CI box both run parallel by default without a flag. Set it to override, including `=1` for a serial run. |
+| `CUCUMBER_PARALLEL` | Worker count. Unset, the suite sizes itself to the machine (`os.availableParallelism() - 1`, floored at 1, capped at 4; from 20 cores up it is one worker per four cores instead, at most 8) so a laptop and a CI box both run parallel by default without a flag. Set it to override, including `=1` for a serial run. |
 | `CUCUMBER_RETRY` | Scenario retry budget. Default 0 — a local run should show a real failure the first time. |
 | `CUCUMBER_SHARD` | Cucumber's native one-based `<index>/<total>` scenario shard. The `e2e` recipe derives it from Odu's zero-based `ODU_SHARD_INDEX` and actual `ODU_SHARD_TOTAL`; ordinary `just e2e` runs leave it unset. |
 

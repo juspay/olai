@@ -9,30 +9,33 @@
 
 import { availableParallelism } from "node:os";
 
-/** The most workers any box gets — a wide box takes more of them, never
- *  dozens: each worker is a browser plus a handful of olai processes.
+/** The most workers any box gets — a choice for the first fleet run, not a
+ *  measurement. Each worker is a browser plus a handful of olai processes, so
+ *  a wide box takes more of them and never dozens; eight is where this landing
+ *  spot is, and what would move it is the ledger's own per-slice durations —
+ *  `e2e[k]` on the 64-core host (`kolu-ci-2`) against the 32-core boxes.
  *
- *  Measured on a 16-core box, shard 1/6: four workers took 350s and eight took
- *  294s, with every scenario 64% longer — the same work over twice the workers,
- *  a saturated machine. So the count moves with cores, but only this far. */
+ *  The other arm IS measured, and it is what keeps the derivation at four
+ *  below 20 cores: on a 16-core box, shard 1/6, four workers took 350s and
+ *  eight took 294s with every scenario 64% longer — the same work spread over
+ *  twice the workers, each one waiting on the machine. */
 /** @type {number} */
 export const WORKER_CAP = 8;
 
 /** Where the derivation anyone recognises stops: cores minus one, at most
  *  four. Minus one leaves a core for the kernel, the compositor and this
  *  coordinator process — a 2-core box still runs, serially, rather than
- *  fighting itself. Sixteen cores is the arm that keeps four: eight workers
- *  there were green and every scenario 64% slower for a 56s slice gain, which
- *  is a saturated box rather than a faster one. */
+ *  fighting itself — and four is where it stays until a worker per four cores
+ *  beats it ({@link CORES_PER_WORKER}, i.e. from 20 cores up). */
 const SMALL_BOX_CAP = 4;
 
-/** Cores per worker for a box too big for the rule above: a 32-core CI box at
- *  four workers is a box three quarters idle, so `cpus / 4` is a floor the
- *  derivation raises the ordinary count to when it is the larger — 8 at 32
- *  cores, and 8 rather than 15 at 64. */
+/** Cores per worker for a box too big for the rule above. The arithmetic is
+ *  the whole of it: four workers on 32 cores is one worker per eight cores,
+ *  where this rule gives one per four — 8 at 32 cores, and 8 rather than 15 at
+ *  64. */
 const CORES_PER_WORKER = 4;
 
-/** The derivation a laptop and every box up to 16 cores gets. */
+/** The derivation a laptop and every box below 20 cores gets. */
 /** @param {number} cpus
  *  @returns {number} */
 const smallBoxWorkers = (cpus) =>
@@ -40,7 +43,7 @@ const smallBoxWorkers = (cpus) =>
 
 /** How many workers to start on a machine of `cpus` cores: the ordinary
  *  derivation, or one per {@link CORES_PER_WORKER} cores when that is larger,
- *  capped at {@link WORKER_CAP}. Nothing changes at or below 16 cores. */
+ *  capped at {@link WORKER_CAP}. Nothing changes below 20 cores. */
 /** @param {number} cpus
  *  @returns {number} */
 export const defaultWorkers = (cpus) =>

@@ -10,9 +10,9 @@
 
 import { workerCount } from "./support/parallelism.js";
 
-// Unset: derived from the machine (cores-1 capped at 4, one worker per four
-// cores past 16, at most 8). `CUCUMBER_PARALLEL` is the override, including
-// `=1` for a serial run.
+// Unset: derived from the machine (cores-1 capped at 4; from 20 cores up, one
+// worker per four cores instead, at most 8). `CUCUMBER_PARALLEL` is the
+// override, including `=1` for a serial run.
 const parallel = workerCount();
 
 // Only set default paths when no feature file was passed on the CLI. A profile
