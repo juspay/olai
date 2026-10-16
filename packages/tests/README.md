@@ -146,14 +146,14 @@ packages/tests/
 ## Running
 
 ```bash
-odu run                       # full CI; E2E borrows up to six execution slots
+odu run                       # full CI; E2E borrows up to nine execution slots
 just e2e                      # the whole E2E suite on this machine
 just e2e-fast-remote          # only E2E through this tree's pinned Odu
 ```
 
 `just e2e` is the leg `just check` runs. It is parallel by default, sized to the machine — see `CUCUMBER_PARALLEL` below. To iterate faster, run the suite yourself inside the e2e dev shell (which is the default shell plus Playwright's browsers):
 
-`odu run` is the one full-CI command: it expands `just check`, fans the platform legs out to the configured SSH/Nix machines, posts the stable logical contexts to GitHub, and opportunistically borrows up to six free slots for `e2e`. Six is a ceiling, not a fleet reservation. If only three slots are available, Odu tells Cucumber to run three complete, non-overlapping slices; a one-slot run is the whole suite. Every leased lane immediately dispatches its own `install` and `nix` prerequisites in parallel; Odu reports the burst copies as nodes such as `e2e[2-of-3]::install`, so a slow shard start is visible instead of being charged to E2E. The logical E2E duration is the slowest slice's execution time. The ordinary platform lease remains held for the CI run, while each extra E2E lease is released as its slice finishes. `just e2e-fast-remote` is only a thin pinned-Odu spelling of `odu run e2e --platform x86_64-linux`; it contains no SSH scheduler of its own. It has a 10-minute wall-clock backstop (`ODU_E2E_REMOTE_TIMEOUT` to override) and interrupts Odu cleanly before forcing termination.
+`odu run` is the one full-CI command: it expands `just check`, fans the platform legs out to the configured SSH/Nix machines, posts the stable logical contexts to GitHub, and opportunistically borrows up to nine free slots for `e2e` — one per fleet host. Nine is a ceiling, not a fleet reservation. If only three slots are available, Odu tells Cucumber to run three complete, non-overlapping slices; a one-slot run is the whole suite. Every leased lane immediately dispatches its own `install` prerequisite in parallel; Odu reports the burst copies as nodes such as `e2e[2-of-3]::install`, so a slow shard start is visible instead of being charged to E2E. The logical E2E duration is the slowest slice's execution time. The ordinary platform lease remains held for the CI run, while each extra E2E lease is released as its slice finishes. `just e2e-fast-remote` is only a thin pinned-Odu spelling of `odu run e2e --platform x86_64-linux`; it contains no SSH scheduler of its own. It has a 10-minute wall-clock backstop (`ODU_E2E_REMOTE_TIMEOUT` to override) and interrupts Odu cleanly before forcing termination.
 
 ```bash
 export OLAI_BIN="$(nix build .#olai --no-link --print-out-paths)/bin/olai"
@@ -191,7 +191,7 @@ Which server the suite drives is two decisions, not one — **who owns the proce
 | `OLAI_TEST_VERBOSE` | Stream the server child's stdout/stderr into the test output. |
 | `OLAI_TEST_SLOW` | The multiplier Chromium slows this scenario's RENDERER by (`Emulation.setCPUThrottlingRate`). Unset, or `1`, is a browser nobody touched and no CDP session at all. It is how a race only a loaded box loses is reproduced on a quiet one — see *Making it flake on purpose*. |
 | `CUCUMBER_TAGS` | Replaces the default tag filter (`not @skip`). `CUCUMBER_TAGS='@corpus:tangled'` runs only the tangled-corpus scenarios. |
-| `CUCUMBER_PARALLEL` | Worker count. Unset, the suite sizes itself to the machine (`os.availableParallelism() - 1`, floored at 1, capped at 4) so a laptop and a CI box both run parallel by default without a flag. Set it to override, including `=1` for a serial run. |
+| `CUCUMBER_PARALLEL` | Worker count. Unset, the suite sizes itself to the machine (`os.availableParallelism() - 1`, floored at 1, capped at 4; a box past 16 cores gets one worker per four cores instead, up to 8) so a laptop and a CI box both run parallel by default without a flag. Set it to override, including `=1` for a serial run. |
 | `CUCUMBER_RETRY` | Scenario retry budget. Default 0 — a local run should show a real failure the first time. |
 | `CUCUMBER_SHARD` | Cucumber's native one-based `<index>/<total>` scenario shard. The `e2e` recipe derives it from Odu's zero-based `ODU_SHARD_INDEX` and actual `ODU_SHARD_TOTAL`; ordinary `just e2e` runs leave it unset. |
 
