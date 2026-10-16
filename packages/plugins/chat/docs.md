@@ -37,12 +37,14 @@ Every plugin that could reach a conversation names one of the five doors this ro
 
 In the browser, the row publishes its roster as `chat.state`. The static door
 `olai-plugin-chat/attention` names it (`chatState`) with a narrow shape — the
-rows and the tab-local folds — and carries `isCurrent`, the predicate the Chats
-section lights a row with, and `NEEDS_YOU_DOT`, the one paint of a standing
-another row draws. The rest of a standing's look and the sidebar's ordering stay
-in chat's browser modules. The tabs row's `attention`
+rows, the one `unread` fact about what a person has read, and the tab-local
+folds — and carries `isCurrent`, the predicate the Chats section lights a row
+with, and the two paints another row draws: `NEEDS_YOU_DOT` and `UNREAD_DOT`.
+The rest of a standing's look and the sidebar's ordering stay in chat's browser
+modules. The tabs row's `attention`
 component names it to put a dot on a tab whose page is a conversation that needs
-you. The door holds no live value.
+you, and a quieter one on a tab whose page holds something nobody has read. The
+door holds no live value.
 
 So **a serve with no chat row leaves all of them `waiting`**, and the plugins panel says so per row, on whose account. That is not a failure and it is not silent: a plugin holding a door that nobody offers is a plugin that has not started, which is a legitimate state the runtime resolves the moment the door arrives.
 
@@ -146,7 +148,7 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 
 | Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
-| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); each Chats row puts its standing dot before its age |
+| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); a Chats row is engine mark, title and age and draws NO dot — its standing is data (`data-standing`) and unread is the title's weight; Needs you keeps its dot |
 | `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
 | `outline.row.aside` | outlines, after the row's date and repeat pills | a bound row's standing, always; otherwise the start pill, only while an agent is available (on phones only on the tapped or focused row) |
 | `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
@@ -206,6 +208,17 @@ questions, retries and the sign-in trio all carry their conversation identity;
 stale scope tokens refuse rather than acting on another conversation. Multiple browser readers
 share the server's conversation scope. A server restart reopens each retained
 reading and replays its transcript.
+
+`conversation.seen` is the one procedure nobody pressed: a tab that is showing a
+conversation tells the serve which of the agent's lines it has read, by the
+exact instant it was drawn from. It is keyed on the engine/session pair like
+every other conversation verb and refuses a stale one, so it can never attach
+somebody's reading to a conversation they were not looking at — the refusal is
+the scheduler's own matching of a conversation-keyed call, the one a gesture
+goes through, with the arm that would OPEN the conversation it names left out
+(a read is not a request for a process). The write lands
+in the machine-local heard record (below), not in the vault: a serve that
+restarts keeps it, and so does every other tab of this olai.
 
 `conversation.newChat` takes the engine, title and nullable parent (null means
 the current Inbox's Chats container). Under the existing creation permit it
@@ -389,6 +402,32 @@ when folded shut; closing the row or pane releases that reading. Unvisited resto
 Only shown conversation surfaces count as watched for badges, chimes and
 notifications. A hidden tab can therefore acquire its needs-you dot, and a
 notification reveals a shown copy or requests a visible conversation.
+
+**What has been read is written down by THIS document, and the two questions are
+deliberately not one.** `watching.ts` answers both: `watched` — this surface, or
+another window of this olai saying it is on it — decides whether a question
+deserves a chime, because a form on a screen somebody is already reading
+somewhere else is delivered; `here` — this document is showing the conversation
+and its window is in front — decides what may be acknowledged. The wider answer
+is a beat that decays over `WATCHED_LAPSE`, so an acknowledgement gated on it
+would write a line down as read on the strength of a window that had already
+looked away.
+
+The machine-local `heard` record (`src/sessions.ts`) carries, beside the last
+line olai heard from a conversation, the instant of that line a person has SEEN.
+A tab that is showing the conversation tells the serve so (`conversation.seen`),
+which keeps the LATER of two acknowledgements, and `unreadOf` — one pure
+predicate in `src/attention.ts` — is what every face reads off the roster row: a
+conversation whose agent has said something since that instant is unread, and a
+conversation that has said nothing is never unread. The row is not a per-node
+flag and not config: the record is keyed on the engine/session pair, it outlives
+the tab that wrote it, and it is capped with the rest of that file. Where it is
+DRAWN is each face's own business and no dot's: the Chats row carries it in the
+title's weight (with the word for assistive technology), and the tabs row carries
+it as the quieter of the two marks a tab can wear.
+So a folded
+conversation, a tab behind another tab and a backgrounded window all leave the
+mark up, and looking at it clears it everywhere at once.
 
 Hidden transcripts never scroll. On return they follow the latest line only
 if the reader had been following before hiding. Completion key handlers obey

@@ -180,8 +180,8 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
               }</Show>
               <span aria-hidden="true" class="shrink-0 text-label opacity-75">{glyph()}</span>
               <span data-testid={TESTID.tabsTitle} class="min-w-0 flex-1 truncate">{title()}</span>
-              <Show when={dot()}>{(paint) =>
-                <span data-testid={TESTID.tabsDot} data-tab-dot="true" role="img" aria-label="Needs you" class={`${DOT} ${paint()}`} />
+              <Show when={dot()}>{(mark) =>
+                <span data-testid={TESTID.tabsDot} data-tab-dot="true" role="img" aria-label={mark().label} class={`${DOT} ${mark().paint}`} />
               }</Show>
               <button
                 type="button"

@@ -167,6 +167,22 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
       throw new Error(`the reap released ${JSON.stringify(afterReap)}`)
     }
 
+    // AND A READ THAT WAS ON ITS WAY WHEN THAT CONVERSATION WENT IS REFUSED,
+    // not applied by opening the process the reap just released. This is the
+    // shape of the defect it pins: a tab acknowledges a line off a roster frame
+    // that is a round trip older than the conversation, so an agent that crashed
+    // — or a scope that was reaped — is exactly the case where the
+    // acknowledgement is in flight. An agent no person asked for must not come
+    // back to life to have somebody's reading written on it (`Chat.seen`, which
+    // is `inConversation` with the arm that opens removed). The instant is the
+    // line the frame it came from was holding; what is asserted is the routing.
+    const lateRead = await run(Effect.result(
+      chat.seen({ agent: "alpha", session: oneSession! }, "2026-09-01T16:41:00Z"),
+    ))
+    expect(lateRead._tag).toBe("Failure")
+    expect(chat.live().has("one")).toBe(false)
+    expect(released).toHaveLength(1)
+
     await run(chat.doorFor("kolu").deliver(
       { agent: "alpha", session: oneSession! },
       () => "wake in the background",

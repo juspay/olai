@@ -1,19 +1,20 @@
 import { expect, test } from "bun:test"
 import { rowVerbs } from "./verbs.tsx"
 import type { Roster } from "./agents/answered.tsx"
-import type { AgentChoice, NodeAgentRow } from "../wire.ts"
+import type { AgentChoice } from "../wire.ts"
+import type { Row } from "./agents/roster.ts"
 import type { RowAction } from "olai-plugin-outlines/slots"
 import { freshStartQuestion } from "./agents/fresh-start.ts"
 
 const engines: ReadonlyArray<AgentChoice> = [{ id: "claude", name: "Claude", standing: "here" }, { id: "codex", name: "Codex", standing: "here" }]
-const roster = (bound?: NodeAgentRow, installed = engines): Roster => ({
+const roster = (bound?: Row, installed = engines): Roster => ({
   at: () => bound, engines: () => installed, rows: () => bound ? [bound] : [],
   standings: () => installed,
   only: () => installed.length === 1 ? installed[0]! : null,
   missing: () => null,
   chats: () => null, unreachable: () => [], chatsRefusal: () => null, askChats: () => {},
 })
-const node: NodeAgentRow = { id: "one", title: "One", file: "house.olai", engine: "claude", session: null, memory: 0, standing: "unbound", waiting: 0, said: null, sleeps: false, sleep: null }
+const node: Row = { id: "one", title: "One", file: "house.olai", engine: "claude", session: null, memory: 0, standing: "unbound", waiting: 0, said: null, seen: null, unread: false, sleeps: false, sleep: null }
 
 /** What a menu draws of the answer: each entry's words, and a choice's options. */
 const drawn = (actions: ReadonlyArray<RowAction>) => actions.map(action => "choices" in action
@@ -36,7 +37,7 @@ test("a bare row offers one start choice of every startable engine", () => {
 })
 
 test("a node talking through a conversation offers fresh start, its own engine first, then the two sleeps and close", () => {
-  const bound: NodeAgentRow = { ...node, engine: "codex", session: "existing" }
+  const bound: Row = { ...node, engine: "codex", session: "existing" }
   expect(drawn(rowVerbs("one", roster(bound)))).toEqual([
     { id: "fresh-start", label: "Fresh start", choices: [
       { id: "fresh-start-codex", label: "Codex" },
@@ -56,8 +57,8 @@ test("a node talking through a conversation offers fresh start, its own engine f
 test("the opt-in's label is the mark itself, in both directions", () => {
   // ONE ROW, TWO SENTENCES, and nothing else on screen changes: a person reads
   // which way the press will go off the menu they are standing in.
-  const marked: NodeAgentRow = { ...node, session: "existing", sleeps: true }
-  const label = (row: NodeAgentRow) =>
+  const marked: Row = { ...node, session: "existing", sleeps: true }
+  const label = (row: Row) =>
     drawn(rowVerbs("one", roster(row))).find(verb => verb.id === "sleep-when-idle")?.label
   expect(label(marked)).toBe("Stop sleeping when idle")
   expect(label({ ...node, session: "existing" })).toBe("Sleep when idle")

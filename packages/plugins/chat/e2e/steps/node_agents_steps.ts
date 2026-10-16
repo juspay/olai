@@ -198,6 +198,81 @@ When("I press the agent {string}", async function (this: OlaiWorld, node: string
   await this.press(rowFor(this, node));
 });
 
+// ── what nobody has read, on the Chats row ─────────────────────────────
+
+/**
+ * THE MARK ON A CHATS ROW, read off `data-unread` rather than off the weight of
+ * the type or the mark's paint — the same rule the standing is read on: which
+ * colour says *unread* is a decision about pixels.
+ *
+ * And WAITED FOR in both directions, which here is more than politeness: the
+ * fact is written by the server at a tab's request, so a row that is unread
+ * becomes read a round trip later, and a row that is read is never read once —
+ * an assertion about the frame before the write landed would be an assertion
+ * about nothing. Neither direction is a "wait for it to change": an unread row
+ * stays unread until somebody looks, so a run that never acknowledges it fails
+ * by TIMEOUT rather than by luck.
+ */
+Then(
+  "the Chats row {string} is unread",
+  async function (this: OlaiWorld, node: string) {
+    await this.showSidebar();
+    const row = rowFor(this, node);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await row.getAttribute("data-unread")) === "true",
+      `the Chats row for ${node} to be marked unread`,
+    );
+  },
+);
+
+Then(
+  "the Chats row {string} is not unread",
+  async function (this: OlaiWorld, node: string) {
+    await this.showSidebar();
+    const row = rowFor(this, node);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await row.getAttribute("data-unread")) === null,
+      `the Chats row for ${node} to stop being marked unread`,
+    );
+  },
+);
+
+/** ...AND THE ROW NAMES IT OUT LOUD, which is the half a person who cannot see
+ *  the weight of the type is owed — and now the only half there is: the row
+ *  wears no second dot, so the word in its text is the whole of the mark. */
+Then(
+  "the Chats row {string} says it is unread",
+  async function (this: OlaiWorld, node: string) {
+    await this.showSidebar();
+    const row = rowFor(this, node);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await row.innerText()).includes("Unread"),
+      `the Chats row for ${node} to say it is unread, and it reads ` +
+        `${JSON.stringify((await row.innerText()).replaceAll("\n", " "))}`,
+    );
+  },
+);
+
+/** ...AND THE ROW WEARS NO DOT WHATEVER ELSE IS TRUE OF IT — the rule this face
+ *  settled on: a list of chats is a list of what is THERE, so the standing is
+ *  data (`data-standing`, asserted where it is drawn) and unread is the title's
+ *  weight. Counted by the role a dot answers to (`role="img"`; the engine's own
+ *  glyph is `aria-hidden`), which is what a scenario can count that a reader can
+ *  see. */
+Then("the Chats row {string} wears no dot", async function (this: OlaiWorld, node: string) {
+  await this.showSidebar();
+  const row = rowFor(this, node);
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(
+    await row.getByRole("img").count(),
+    0,
+    `the Chats row for ${node} should draw no mark at all`,
+  );
+});
+
 /** ... and the one claim that gesture may only make by NOT drawing: a press
  *  that could not do something says so on the roster's own refused line
  *  (`PLUGIN_TESTID.agentRefused`), so an unbound row — pressed the way it is

@@ -188,12 +188,36 @@ test("two strips holding the same breakpoint are two registrations, and releasin
 
 test("two dot readings with the same paint are two registrations", () => {
   withStore("/house.olai", ({ tabs }) => {
-    const reading = { ids: () => new Set(["t1"]), paint: "bg-doing" }
+    const reading = { ids: () => new Set(["t1"]), paint: "bg-doing", label: "Needs you", rank: 2 }
     const first = tabs.dot(reading)
     const second = tabs.dot(reading)
     first()
-    expect(tabs.dotted().get("t1")).toBe("bg-doing")
+    expect(tabs.dotted().get("t1")?.paint).toBe("bg-doing")
     second()
+    expect(tabs.dotted().size).toBe(0)
+  })
+})
+
+test("the higher-ranked reading wins a tab, whatever order they were registered in", () => {
+  // A conversation can be BOTH waiting and unread, and which mark a tab then
+  // wears has to be a rule rather than the order two components mounted in:
+  // the question is the one asking for something (`./contract.ts`'s `Dots.rank`).
+  withStore("/house.olai", ({ tabs }) => {
+    const unread = { ids: () => new Set(["t1"]), paint: "bg-muted/60", label: "Unread", rank: 1 }
+    const needing = { ids: () => new Set(["t1"]), paint: "bg-doing", label: "Needs you", rank: 2 }
+    const first = tabs.dot(unread)
+    const second = tabs.dot(needing)
+    expect(tabs.dotted().get("t1")?.label).toBe("Needs you")
+    // ...and the quieter mark is still there for the tab that only it catches.
+    const quiet = { ...unread, ids: () => new Set(["t2"]) }
+    const third = tabs.dot(quiet)
+    expect(tabs.dotted().get("t1")?.label).toBe("Needs you")
+    expect(tabs.dotted().get("t2")?.label).toBe("Unread")
+    // The winner going away leaves the other standing on the tab it caught.
+    second()
+    expect(tabs.dotted().get("t1")?.label).toBe("Unread")
+    third()
+    first()
     expect(tabs.dotted().size).toBe(0)
   })
 })

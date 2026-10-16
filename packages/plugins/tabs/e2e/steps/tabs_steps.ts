@@ -2,9 +2,11 @@
  * THE TAB STRIP, driven and read.
  *
  * A tab is found by `data-tab` (its index in the strip) and asserted by
- * `data-tab-front`, `data-href` and `data-tab-dot` — facts, never a colour. A
- * menu entry is found by its role and its words, which are what a reader
- * picks it by.
+ * `data-tab-front` and `data-href` — facts, never a colour. `data-tab-dot` says
+ * a tab wears SOMETHING, and which mark it is is read off the NAME it answers
+ * to (its accessible name), because one dot element is all either mark is: a
+ * locator that only asked for a dot would pass on the other one. A menu entry is
+ * found by its role and its words, which are what a reader picks it by.
  */
 
 import assert from "node:assert/strict";
@@ -141,12 +143,37 @@ Then("there is no tab strip", async function (this: OlaiWorld) {
   await this.waitUntil(async () => (await this.page.locator(STRIP).count()) === 0, "no tab strip in the document");
 });
 
+/**
+ * THE MARK, by the word it answers to — NOT by the dot element, which is one
+ * element whatever it means: a tab wearing the unread dot would have satisfied
+ * a locator that only asked for a dot, which is half of what these two are for.
+ */
 Then("tab {int} wears the needs-you dot", async function (this: OlaiWorld, index: number) {
-  await tabAt(this, index).locator(DOT).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await tabAt(this, index).getByRole("img", { name: "Needs you", exact: true })
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 Then("tab {int} wears no dot", async function (this: OlaiWorld, index: number) {
   await this.waitUntil(async () => (await tabAt(this, index).locator(DOT).count()) === 0, `tab ${index} to wear no dot`);
+});
+
+/** ...and the other one, on the same terms. */
+Then("tab {int} wears the unread dot", async function (this: OlaiWorld, index: number) {
+  await tabAt(this, index).getByRole("img", { name: "Unread", exact: true })
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/**
+ * A NODE'S OWN PAGE IN A TAB OF ITS OWN — the bullet in front of a row is the
+ * link to it (`outlines`' zoom control), so this is that link's menu, which is
+ * where *open in new tab* lives. The new tab goes BEHIND, exactly as the link
+ * menu's own scenario pins: pressing it is the next step.
+ */
+When("I open node {string} in another tab", async function (this: OlaiWorld, id: string) {
+  const bullet = this.within(id, ZOOM);
+  await bullet.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await bullet.click({ button: "right" });
+  await chooseFromMenu(this, "Open in new tab");
 });
 
 // ── pressing it ────────────────────────────────────────────────────────

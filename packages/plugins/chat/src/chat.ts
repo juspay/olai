@@ -431,6 +431,26 @@ export interface Panel {
   readonly signInCancel: Effect.Effect<void, OpFailure>
   readonly setSetting: (agent: string, session: string, config: string, value: string | boolean) => Effect.Effect<void, OpFailure>
   readonly setModel: (agent: string, session: string, value: string) => Effect.Effect<void, OpFailure>
+  /**
+   * WRITE DOWN THAT SOMEBODY HAS READ THE LINE THIS CONVERSATION'S AGENT LAST
+   * SAID — `at` being the ISO instant that was on screen
+   * ({@link ./sessions.ts}'s `Sessions.seen`).
+   *
+   * ON THE PANEL, beside the turn-boundary write that puts the line there, and
+   * for the same reason: this is the other half of ONE record keyed on ONE
+   * conversation, and the panel is the object that owns that conversation's half
+   * of it. It is NOT the place that decides whether a caller may name this
+   * conversation — that is the scheduler's matching, once ({@link Chat.seen}) —
+   * so a panel that is handed a pair writes it.
+   *
+   * IT REFUSES NOTHING, deliberately, unlike every verb around it: nobody made a
+   * gesture and there is nobody to tell, so a record that will not write is SAID
+   * IN THE LOG and carried on ({@link ./sessions.ts} argues the discipline).
+   * What never happens is a success reported over a write that did not occur.
+   * Its declared failure is the one every conversation verb here carries, and
+   * the refusal a stale tab meets is the door's, one level up.
+   */
+  readonly seen: (to: Conversing, at: string) => Effect.Effect<void, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
   /** Start a fresh conversation with the named agent
    *  ({@link ./agents/roster.ts}). The agent is an ARGUMENT because every new
@@ -3425,6 +3445,38 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         yield* onAgent((at) => Effect.mapError(at.setSetting(session, config, value), asFailure))
       })))
 
+    /**
+     * WHAT SOMEBODY HAS READ, written on the same row the line itself is on
+     * ({@link ./sessions.ts}'s `Sessions.seen`, {@link Panel.seen}).
+     *
+     * THE PANEL IS HANDED A PAIR THE MATCHER ALREADY NAMED FOR IT
+     * ({@link Chat.seen}), so it does NOT ask again whether this conversation is
+     * the one it is in: a second copy of that rule here would be spelled in
+     * different words (`talking?.row.id` over this panel's state rather than
+     * `agentIn` over the panel) and could drift from the one the door matches
+     * by, which is a conversation marked read that nobody was looking at.
+     * `state.status` is deliberately not consulted either: unlike
+     * {@link setSetting}, reading a line is not a change to the agent's settings
+     * and a turn in flight does not make it wrong.
+     *
+     * A RECORD THAT WILL NOT WRITE IS LOGGED AND CARRIED ON, for
+     * {@link Panel.seen}'s reason: the caller is a tab that will try again when
+     * what it is looking at moves, and the alternative — a refusal nobody asked
+     * for — would be a person's sidebar reporting an error about their own
+     * attention.
+     */
+    const seen = (to: Conversing, at: string): Effect.Effect<void> => Effect.gen(function*() {
+      const overheard = options.overheard
+      if (overheard === undefined || overheard === null) return
+      const done = yield* Effect.result(overheard.seen(to, at))
+      if (done._tag === "Failure") {
+        yield* Effect.logWarning(
+          `what a person had read could not be written down (${done.failure.why}) — ` +
+            `that conversation goes on saying it has something new`,
+        )
+      }
+    })
+
     const stopWithReason = (reason: AcpAgent.StopReason) => Effect.gen(function*() {
       closing = true
       // End the transport before joining work which may be waiting on it.
@@ -3519,6 +3571,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       setSetting,
       setModel: (agent, session, value) => setSetting(agent, session,
         talking?.row.leg.models?.config ?? "", value),
+      // NOT under a permit, and not gated on the panel being idle: this changes
+      // nothing about the agent, and a conversation that is mid-answer is
+      // exactly the one somebody is reading (`seen` above argues the rest).
+      seen,
       // WITH the agent that was chosen, always: every new chat asks, so there
       // is no arm here that picks one. An id off a stale tab is refused in
       // words rather than started.

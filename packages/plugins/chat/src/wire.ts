@@ -247,6 +247,41 @@ export const surface = defineSurface({
         input: Schema.Struct({ agent: Schema.String, session: Schema.String, value: Schema.String }),
         error: ChatFailure,
       },
+      /**
+       * MARK THE LINE THIS CONVERSATION'S AGENT LAST SAID AS SEEN — the one
+       * verb here that nobody pressed.
+       *
+       * It is a verb rather than a write smuggled into another call because
+       * THAT is what it is: a tab telling the serve a fact only the tab knows
+       * (this conversation is on screen in a focused window, and the line it is
+       * showing is the one it has read). The fact is per conversation and per
+       * MACHINE, so it cannot live in the tab — the mark is drawn by every tab
+       * of this olai and by the next boot, and a record kept in one document's
+       * memory would show unread to the tab next door.
+       *
+       * THE PAIR, exactly as {@link send} takes it, and a stale one REFUSES
+       * rather than marking whichever conversation happens to be in front: a
+       * session id means nothing to the wrong agent, and a node re-pointed at a
+       * fresh session has a row here that is no longer on the wire. What the
+       * call can never do is attach somebody's reading to a conversation they
+       * were not looking at.
+       *
+       * `at` is the ISO instant of the line that was seen, handed back
+       * verbatim — never the caller's clock, and never "now" on this end:
+       * a line that landed between the frame and the write is exactly the line
+       * nobody has read, and a stale stamp would swallow it. The write is
+       * idempotent, so two tabs of one olai looking at one conversation cost
+       * one write rather than a race.
+       *
+       * IT REFUSES ONLY WHERE THE CONVERSATION IS NOT THIS ONE, and never for
+       * the bookkeeping itself: a record that will not write is logged and
+       * carried on (`../sessions.ts`'s failure discipline), because the cost of
+       * one is a mark that stays up rather than anything a person lost.
+       */
+      seen: {
+        input: Schema.Struct({ agent: Schema.String, session: Schema.String, at: Schema.String }),
+        error: ChatFailure,
+      },
       /** Mint under the visible location and return the node even if start refuses. */
       newChat: {
         input: Schema.Struct({ agent: Schema.String, title: Schema.String, parent: Schema.NullOr(Schema.String) }),
@@ -477,6 +512,7 @@ export const faces = {
     "conversation.signInCancel": "tool",
     "conversation.setModel": "tool",
     "conversation.setSetting": "tool",
+    "conversation.seen": "tool",
     "conversation.newChat": "tool",
     "conversation.locations": "tool",
     "conversation.startAgentSession": "tool",

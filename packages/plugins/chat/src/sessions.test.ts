@@ -41,6 +41,11 @@ const ELSEWHERE = "/tmp/olai-heard-elsewhere"
 
 const IN = { agent: "claude", session: "sess-1" }
 
+/** One instant, spelled once: what `said` and `seen` are compared as. */
+const AT = "2026-09-01T16:41:00Z"
+/** ... and one the next turn lands on, which is what makes a row unread again. */
+const LATER = "2026-09-01T16:44:00Z"
+
 /** A section already handed through the door, in an older shape. */
 const already = (cwd: string, heard: unknown): void => {
   local.write(cwd, "heard", { heard })
@@ -102,6 +107,24 @@ describe("what it does with a file it cannot make sense of", () => {
     const row = (await run(forDirectory(HERE))).at(IN)
     expect(row?.session).toBe("sess-1")
     expect(row?.said).toBeUndefined()
+  })
+
+  test("a `seen` that will not read is a conversation nobody has acknowledged", async () => {
+    // Which is the safe direction: the other reading — an instant nothing can
+    // parse taken as an acknowledgement — would mark a line read that nobody
+    // has looked at.
+    already(HERE, [{ agent: "claude", session: "sess-1", said: { text: "hello", at: AT }, seen: 1750000000 }])
+    const row = (await run(forDirectory(HERE))).at(IN)
+    expect(row?.said?.at).toBe(AT)
+    expect(row?.seen).toBeUndefined()
+  })
+
+  test("an older olai's file has no `seen` at all, and every line in it is unread", async () => {
+    // The field arrived later than `said`, so a row written before it existed
+    // has a line and no acknowledgement — which is exactly what a person
+    // coming back to a conversation they have not opened since would see.
+    already(HERE, [{ agent: "claude", session: "sess-1", said: { text: "still working", at: AT } }])
+    expect((await run(forDirectory(HERE))).at(IN)?.seen).toBeUndefined()
   })
 })
 
@@ -194,6 +217,64 @@ describe("what olai writes back", () => {
       taught: true,
       superseded: { agent: "claude", session: "sess-2" },
     })
+  })
+
+  test("what a person has READ is written down beside the line, and comes back", async () => {
+    const heard = await run(forDirectory(HERE))
+    await run(heard.said(IN, { text: "on it", at: AT }))
+    await run(heard.seen(IN, AT))
+    // ... and the pair is what the whole word is: the same instant said and
+    // seen, which is the comparison `unreadOf` makes (`./attention.ts`).
+    const row = (await run(forDirectory(HERE))).at(IN)
+    expect(row?.seen).toBe(AT)
+    expect(row?.said?.at).toBe(AT)
+    expect(row).toEqual({ ...IN, said: { text: "on it", at: AT }, seen: AT })
+  })
+
+  test("acknowledging one line twice writes nothing at all", async () => {
+    // A conversation kept on screen is acknowledged on every roster frame, so
+    // the no-op is what keeps a person's attention off the disk.
+    const heard = await run(forDirectory(HERE))
+    await run(heard.said(IN, { text: "on it", at: AT }))
+    await run(heard.seen(IN, AT))
+    const after = written(HERE)
+    await run(heard.seen(IN, AT))
+    expect(written(HERE)).toEqual(after)
+  })
+
+  test("a line said AFTER the acknowledgement is unread again, which is the point", async () => {
+    // The comparison is on the two instants and not on a flag, so a turn that
+    // lands later is unread without anything having to clear a mark.
+    const heard = await run(forDirectory(HERE))
+    await run(heard.said(IN, { text: "on it", at: AT }))
+    await run(heard.seen(IN, AT))
+    await run(heard.said(IN, { text: "and done", at: LATER }))
+    expect(heard.at(IN)?.seen).toBe(AT)
+    expect(heard.at(IN)?.said?.at).not.toBe(heard.at(IN)?.seen)
+  })
+
+  test("an acknowledgement that arrives LATE does not move the mark backwards", async () => {
+    // Two tabs of one olai a frame apart: the second one is still holding the
+    // roster from before the agent's newest line, so what it hands back is the
+    // instant BEFORE it. Taking that would un-read a line somebody has already
+    // read — the one direction this may never move.
+    const heard = await run(forDirectory(HERE))
+    await run(heard.said(IN, { text: "on it", at: AT }))
+    await run(heard.said(IN, { text: "and done", at: LATER }))
+    await run(heard.seen(IN, LATER))
+    const after = written(HERE)
+    await run(heard.seen(IN, AT))
+    expect(heard.at(IN)?.seen).toBe(LATER)
+    expect(written(HERE)).toEqual(after)
+  })
+
+  test("acknowledging a conversation olai has heard nothing from makes the row rather than refusing", async () => {
+    // The row is the pair plus whatever is known about it, and a `seen` write
+    // is one of the writers that can bring it into being — the same shape the
+    // first `said` has.
+    const heard = await run(forDirectory(HERE))
+    await run(heard.seen(IN, AT))
+    expect(heard.rows()).toEqual([{ ...IN, seen: AT }])
   })
 
   test("the last line an agent said is written down, and comes back", async () => {

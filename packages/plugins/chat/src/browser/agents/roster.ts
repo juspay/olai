@@ -6,10 +6,24 @@ import type { AgentStanding, NodeAgentRow } from "olai-plugin-chat/wire"
 import { NEEDS_YOU_DOT } from "../../attention.ts"
 
 export type Standing = AgentStanding
-export type Row = NodeAgentRow
 
-/** What each standing is called, how it is painted, and what it means. One
- * table is read by both the sidebar row and the aside on the outline. */
+/**
+ * ONE ROW, as everything in the browser reads it: the wire's row plus the ONE
+ * fact derived from it rather than drawn by the server.
+ *
+ * `unread` is computed where the roster is MINTED (`./answered.tsx`) out of the
+ * pair of instants the wire carries, by chat's one predicate for it
+ * ({@link ../../attention.ts}'s `unreadOf`) — so the sidebar row, the tab strip
+ * and the acknowledgement circuit all read one boolean that was decided once,
+ * and the roster's own identity (`rows()`) moves when it moves.
+ */
+export type Row = NodeAgentRow & { readonly unread: boolean }
+
+/** What each standing is called, how it is painted, and what it means. One table
+ *  is read by the faces that ARE about standing — the Needs you region's dot, the
+ *  aside on the outline row, and the palette row's hint. The Chats column draws
+ *  no dot (a list of chats is a list of what is there, `./Agents.tsx`), so it
+ *  reads the standing as `data-standing` and none of this. */
 export const LOOK: Record<Standing, { readonly dot: string; readonly label: string; readonly detail: string }> = {
   "needs-you": {
     dot: NEEDS_YOU_DOT,

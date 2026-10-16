@@ -56,12 +56,19 @@ export function Chats() {
     <ul class="m-0 list-none p-0"><Key each={rows()} by="id">{row => <li>
       <a href={focus.href(row())} class={`${ENTRY_SHAPE} w-full gap-2 text-left`} data-testid={TESTID.agentRow}
         data-agent={row().id} data-engine={row().engine} data-standing={row().standing} aria-current={current(row()) ? "page" : undefined}
+        data-unread={row().unread ? "true" : undefined}
         title={row().title} on:olai-navigated={() => focus.visit(row())}>
-        <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span><span class="min-w-0 flex-1 truncate">{row().title}</span>
-        <span class="inline-flex shrink-0 items-center gap-2">
-          <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} title={LOOK[row().standing].detail} />
-          <Show when={row().said?.at ?? row().changed}>{at => <span class="tabular-nums text-label text-paper/60">{agoOf(at(), now())}</span>}</Show>
+        <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span>
+        {/* A LIST OF CHATS IS A LIST OF WHAT IS THERE, so this row draws no dot
+            at all: what its agent is DOING is `data-standing` — the fact, drawn
+            in the regions that are about standing (Needs you, the outline
+            aside) — and what is left here is the name, whether there is
+            something in it nobody has read (the weight, with the word for a
+            reader who cannot see it), and when it was last heard. */}
+        <span class="min-w-0 flex-1 truncate" classList={{ "font-semibold": row().unread }}>
+          {row().title}<Show when={row().unread}><span class="sr-only"> Unread</span></Show>
         </span>
+        <Show when={row().said?.at ?? row().changed}>{at => <span class="shrink-0 tabular-nums text-label text-paper/60">{agoOf(at(), now())}</span>}</Show>
       </a>
     </li>}</Key></ul>
   </section>

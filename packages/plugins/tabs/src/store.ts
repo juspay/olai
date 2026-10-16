@@ -15,9 +15,10 @@
  *
  * TWO READINGS ARRIVE FROM COMPONENTS, because the row may not want what they
  * need: whether a strip draws the tabs on a desktop (`draw`, from the strip,
- * which names `layout.shell`) and which tabs wear the needs-you dot (`dot`,
- * from the attention component, which names `chat.state`). Each is registered
- * by its owner and released with it.
+ * which names `layout.shell`) and which tabs wear a dot and how (`dot`, from the
+ * attention component, which names `chat.state`). Each is registered by its
+ * owner and released with it — and one component may register SEVERAL, which is
+ * why a mark carries its own rank rather than the set remembering an order.
  */
 import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, mapArray, on, untrack } from "solid-js"
 
@@ -26,7 +27,7 @@ import type { Navigation } from "olai-plugin-navigation/contract"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { hrefOfWorkspace, lone, panesOf, type Workspace, workspaceOf } from "olai-plugin-navigation/workspace"
 
-import type { Dots, Tab, TabsState } from "./contract.ts"
+import type { Dots, Mark, Tab, TabsState } from "./contract.ts"
 import {
   closeOthers,
   closeTab,
@@ -79,8 +80,20 @@ export const createTabs = (router: Navigation): TabsStore => {
   const [draws, setDraws] = createSignal<ReadonlyArray<{ readonly desktop: Accessor<boolean> }>>([])
   const [dots, setDots] = createSignal<ReadonlyArray<{ readonly dots: Dots }>>([])
   const drawn = createMemo(() => draws().some((row) => row.desktop()))
-  const dotted = createMemo<ReadonlyMap<string, string>>(() =>
-    new Map(dots().flatMap(({ dots: one }) => [...one.ids()].map((id) => [id, one.paint] as const))))
+  const dotted = createMemo<ReadonlyMap<string, Mark>>(() => {
+    // ONE MARK PER TAB, and WHICH one is decided by `rank` rather than by the
+    // order these readings were registered in — a strip whose dot depended on
+    // which component mounted first would be a rule nobody could read off
+    // either reading, and two rows contributing marks would be the end of it.
+    const marked = new Map<string, Mark>()
+    for (const { dots: one } of dots()) {
+      for (const id of one.ids()) {
+        const held = marked.get(id)
+        if (held === undefined || one.rank > held.rank) marked.set(id, one)
+      }
+    }
+    return marked
+  })
 
   /** Whether THIS store holds the lane — its own claim, taken and given back
    *  below. Not read off the router: a release must undo only what its owner

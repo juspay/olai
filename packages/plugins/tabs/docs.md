@@ -37,6 +37,17 @@ A tab's tooltip is the address it holds. The strip draws no address of its
 own. The browser's address bar shows the address of the tab in front and
 nothing about the other tabs.
 
+**A tab can wear one dot, and what it means is chat's to say.** The `attention`
+component asks `chat.state` which of its pages hold a conversation that needs
+you and which hold one whose agent has said something nobody has read, and
+registers one reading per mark — over ONE walk of the strip, so a tab's address
+is parsed once however many marks are asking. The needs-you dot is drawn in the
+alert colour; the unread dot is muted, because a question is asking for
+something and a finished turn is only news. A tab caught by both wears the
+question. The strip itself reads `dotted()` — one mark per tab, already decided —
+and names it for assistive technology. It is a dot and nothing more: no tab comes
+forward because of one.
+
 - Press a tab to bring it to the front.
 - Middle-click a tab, or press its ×, to close it. Closing the tab in front
   brings the tab to its right forward, or the one to its left when it was the
@@ -131,7 +142,7 @@ window's own history. The chords do nothing.
   background pages are disposed, and Back and Forward
   walk the window's whole history again. Switching it back on restores the
   stored set.
-- **chat** off: tabs have no needs-you dot.
+- **chat** off: tabs wear no dot. Both marks are chat's facts.
 - **outlines** off: tabs holding other kinds of page are still named as above.
 - **pins** off: nothing changes here; pinned layouts are the pins row's.
 - **layout** off: no strip is drawn. The set is kept, the chords do nothing, and
@@ -143,9 +154,12 @@ The row offers `tabs.state` (`olai-plugin-tabs`'s `tabsState`, typed by
 `olai-plugin-tabs/contract`): the tabs, the id in front, and `open(workspace,
 { behind })`, `show`, `step`, `close`, `closeOthers`, `duplicate` and
 `reorder`. `drawn` says whether a strip is drawing the tabs on a desktop; the
-strip registers that with `draw(desktop)`. `dot({ ids, paint })` registers a
-reading of which tabs wear a dot, which the `attention` component uses. Name
-`tabs.state` on a component of your own, so your row still works without tabs.
+strip registers that with `draw(desktop)`. `dot({ ids, paint, label, rank })`
+registers a reading of which tabs wear a mark, how it is painted and what it is
+called; `dotted()` is the collapse of every registered reading into one mark per
+tab, the highest `rank` winning. The `attention` component registers chat's two.
+Name `tabs.state` on a component of your own, so your row still works without
+tabs.
 
 A tab's name is read from `navigation.state` as well: the page's reported
 title, and `routes.name(route)`, navigation's name for a document (the same
