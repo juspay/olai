@@ -22,24 +22,21 @@ import { availableParallelism } from "node:os";
 /** @type {number} */
 export const WORKER_CAP = 8;
 
-/** Where the derivation anyone recognises stops: cores minus one, at most
- *  four. Minus one leaves a core for the kernel, the compositor and this
- *  coordinator process — a 2-core box still runs, serially, rather than
- *  fighting itself — and four is where it stays until a worker per four cores
- *  beats it ({@link CORES_PER_WORKER}, i.e. from 20 cores up). */
-const SMALL_BOX_CAP = 4;
-
-/** Cores per worker for a box too big for the rule above. The arithmetic is
+/** Cores per worker for a box too big for the rule below. The arithmetic is
  *  the whole of it: four workers on 32 cores is one worker per eight cores,
  *  where this rule gives one per four — 8 at 32 cores, and 8 rather than 15 at
  *  64. */
 const CORES_PER_WORKER = 4;
 
-/** The derivation a laptop and every box below 20 cores gets. */
+/** The ordinary derivation, for a laptop and every box below 20 cores: cores
+ *  minus one, capped at four, floored at one. The minus one leaves a core for
+ *  the kernel, the compositor and this coordinator process, and the floor
+ *  keeps a 2-core box running, serially, rather than fighting itself. Four is
+ *  where it stays until a worker per four cores beats it
+ *  ({@link CORES_PER_WORKER}, i.e. from 20 cores up). */
 /** @param {number} cpus
  *  @returns {number} */
-const smallBoxWorkers = (cpus) =>
-  Math.max(1, Math.min(SMALL_BOX_CAP, cpus - 1));
+const smallBoxWorkers = (cpus) => Math.max(1, Math.min(4, cpus - 1));
 
 /** How many workers to start on a machine of `cpus` cores: the ordinary
  *  derivation, or one per {@link CORES_PER_WORKER} cores when that is larger,
