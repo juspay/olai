@@ -749,18 +749,21 @@ dev-bin:
     echo "$dir/bin"
 
 # The browser tests: Cucumber features driven through Playwright against the
-# nix-built binary, which is what a user actually runs. `nix` is a dependency
-# as well as the shell so the binary is an already-realised lookup here rather
-# than a Nix build racing the one that leg is doing.
+# nix-built binary, which is what a user actually runs. The `nix` leg is NOT a
+# dependency of this one: the edge guarded nothing (`nix-out.sh` realises the
+# same derivation for `$bin` below, and Nix's per-derivation build lock makes
+# the two wait on one build rather than race) and it put 17–43s of replay on
+# every borrowed box's critical path.
 #
-# Odu may borrow up to SIX free execution slots for this leaf. Six is a ceiling,
-# not a reservation: Odu tells every slice the total it actually obtained, and
-# Cucumber's native sharder therefore still covers the whole suite when fewer
-# slots are free. Odu numbers slices from zero; Cucumber numbers them from one.
-# The conditional keeps `just e2e` the ordinary unsharded local command.
-[metadata("odu:shard=6")]
+# Odu may borrow up to NINE free execution slots for this leaf — one per fleet
+# host. Nine is a ceiling, not a reservation: Odu tells every slice the total it
+# actually obtained, and Cucumber's native sharder therefore still covers the
+# whole suite when fewer slots are free. Odu numbers slices from zero; Cucumber
+# numbers them from one. The conditional keeps `just e2e` the ordinary unsharded
+# local command.
+[metadata("odu:shard=9")]
 [doc("Run browser tests against the Nix-packaged binary")]
-e2e: install nix
+e2e: install
     #!/usr/bin/env bash
     # NOT `-e`: a failing suite is this recipe's whole subject, and the evidence
     # below has to be printed BEFORE the status is handed on.
