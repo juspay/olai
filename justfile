@@ -752,8 +752,9 @@ dev-bin:
 # nix-built binary, which is what a user actually runs. The `nix` leg is NOT a
 # dependency of this one: the edge guarded nothing (`nix-out.sh` realises the
 # same derivation for `$bin` below, and Nix's per-derivation build lock makes
-# the two wait on one build rather than race) and it put 17–43s of replay on
-# every borrowed box's critical path.
+# the two wait on one build rather than race), and it ran that leg again in
+# front of every borrowed box's slice start — 17–43s each in the `a4349b4`
+# ledger (`.ci/a4349b4/timings.jsonl`, the `e2e[k]::nix` nodes).
 #
 # Odu may borrow up to NINE free execution slots for this leaf — one per fleet
 # host. Nine is a ceiling, not a reservation: Odu tells every slice the total it
