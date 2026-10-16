@@ -9,24 +9,45 @@
 
 import { availableParallelism } from "node:os";
 
-/** Past this, another Chromium + its olai children costs more than it
- *  saves. Each worker is a browser plus a handful of olai processes;
- *  four was already green under `CUCUMBER_PARALLEL=4`, and eight starved
- *  keystrokes (⌘Z landing in a picker or a draft that had not yet gone).
- *  A 64-core CI box is not a reason to spawn 63 browsers. */
-/** @type {number} */
-export const WORKER_CAP = 4;
-
-/** `os.availableParallelism()` minus one, floored at 1, capped at
- *  {@link WORKER_CAP}.
+/** The most workers any box gets — a choice for the first fleet run, not a
+ *  measurement. Each worker is a browser plus a handful of olai processes, so
+ *  a wide box takes more of them and never dozens; eight is where this landing
+ *  spot is, and what would move it is the ledger's own per-slice durations —
+ *  `e2e[k]` on the 64-core host (`kolu-ci-2`) against the 32-core boxes.
  *
- *  Minus one leaves a core for the kernel, the compositor, and this
- *  coordinator process — a 2-core box still runs, serially, rather than
- *  fighting itself. The cap is the other bound: see {@link WORKER_CAP}. */
+ *  The other arm IS measured, and it is what keeps the derivation at four
+ *  below 20 cores: on a 16-core box, shard 1/6, four workers took 350s and
+ *  eight took 294s with every scenario 64% longer — the same work spread over
+ *  twice the workers, each one waiting on the machine. */
+/** @type {number} */
+export const WORKER_CAP = 8;
+
+/** Cores per worker for a box too big for the rule below. The arithmetic is
+ *  the whole of it: four workers on 32 cores is one worker per eight cores,
+ *  where this rule gives one per four — 8 at 32 cores, and 8 rather than 15 at
+ *  64. */
+const CORES_PER_WORKER = 4;
+
+/** The ordinary derivation, for a laptop and every box below 20 cores: cores
+ *  minus one, capped at four, floored at one. The minus one leaves a core for
+ *  the kernel, the compositor and this coordinator process, and the floor
+ *  keeps a 2-core box running, serially, rather than fighting itself. Four is
+ *  where it stays until a worker per four cores beats it
+ *  ({@link CORES_PER_WORKER}, i.e. from 20 cores up). */
+/** @param {number} cpus
+ *  @returns {number} */
+const smallBoxWorkers = (cpus) => Math.max(1, Math.min(4, cpus - 1));
+
+/** How many workers to start on a machine of `cpus` cores: the ordinary
+ *  derivation, or one per {@link CORES_PER_WORKER} cores when that is larger,
+ *  capped at {@link WORKER_CAP}. Nothing changes below 20 cores. */
 /** @param {number} cpus
  *  @returns {number} */
 export const defaultWorkers = (cpus) =>
-  Math.max(1, Math.min(WORKER_CAP, cpus - 1));
+  Math.min(
+    WORKER_CAP,
+    Math.max(smallBoxWorkers(cpus), Math.floor(cpus / CORES_PER_WORKER)),
+  );
 
 /**
  * How many Cucumber workers this run should start.

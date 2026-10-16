@@ -32,20 +32,24 @@ test("PIN (override): CUCUMBER_PARALLEL is taken as the count", () => {
 });
 
 test("PIN (default): unset derives from availableParallelism, not 1", () => {
-  expect(workerCount({}, () => 16)).toBe(WORKER_CAP);
+  expect(workerCount({}, () => 16)).toBe(4);
   expect(workerCount({}, () => 16)).not.toBe(1);
 });
 
-test("derivation is cores-1, floored at 1, capped at WORKER_CAP", () => {
+test("derivation: cores-1 at most 4; from 20 cores, one worker per four", () => {
   expect(defaultWorkers(1)).toBe(1);
   expect(defaultWorkers(2)).toBe(1);
   expect(defaultWorkers(4)).toBe(3);
-  expect(defaultWorkers(16)).toBe(WORKER_CAP);
+  expect(defaultWorkers(8)).toBe(4);
+  expect(defaultWorkers(16)).toBe(4);
+  expect(defaultWorkers(19)).toBe(4);
+  expect(defaultWorkers(20)).toBe(5);
+  expect(defaultWorkers(32)).toBe(WORKER_CAP);
   expect(defaultWorkers(64)).toBe(WORKER_CAP);
 });
 
 test("an empty CUCUMBER_PARALLEL is unset, not serial", () => {
-  expect(workerCount({ CUCUMBER_PARALLEL: "" }, () => 8)).toBe(WORKER_CAP);
+  expect(workerCount({ CUCUMBER_PARALLEL: "" }, () => 8)).toBe(4);
 });
 
 test("a non-integer CUCUMBER_PARALLEL is refused, not silently serial", () => {

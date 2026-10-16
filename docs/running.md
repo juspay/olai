@@ -36,7 +36,8 @@ worker receives the same content commit, recorded as `contentSha` alongside
 the base `sha`. Fast checks never post GitHub statuses, even for clean trees;
 use `just ci` for committed-HEAD CI attribution. An unchanged rerun has the
 same `contentSha` and can reuse worker object caches. Each selects its existing CI leaf, including
-its prerequisites, with up to six available slots. Their ten-minute watch timeouts
+its prerequisites, with up to nine available slots for `e2e` — the leg on the
+critical path — and six for `typecheck` and `test`. Their ten-minute watch timeouts
 can be overridden with `ODU_TYPECHECK_REMOTE_TIMEOUT`, `ODU_TEST_REMOTE_TIMEOUT`
 and `ODU_E2E_REMOTE_TIMEOUT`. The shared Odu service owns the run: Ctrl-C or
 a timeout stops watching while remote work continues. Use
