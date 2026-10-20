@@ -128,20 +128,6 @@ export const surface = defineSurface({
   streams: {
     state: { inputSchema: PanelAddress, outputSchema: ChatState, arrayKey: "name" },
     transcript: { inputSchema: PanelAddress, outputSchema: collectionDeltasSchema(Schema.String, ChatEntry) },
-    /**
-     * HOW MANY ROWS ARE OLDER THAN THE `transcript` WINDOW, as its own stream.
-     *
-     * Its own member rather than a field on the snapshot, and the reason is
-     * mechanical rather than editorial: a `deltas` collection's snapshot is a
-     * FIXED shape (`{kind:"snapshot", entries}`), so anything else on it would
-     * stop being a collection frame at all. The count is the one fact the
-     * window cannot carry, and a number is small; a tab learns both the moment
-     * it subscribes, which is the contract the issue asks for.
-     *
-     * It rides the READING rather than the panel, so it is right in every tab
-     * that has the conversation open, and it moves only when the count does.
-     */
-    earlier: { inputSchema: PanelAddress, outputSchema: Schema.Number },
     saying: { inputSchema: PanelAddress, outputSchema: collectionDeltasSchema(Schema.String, Saying) },
   },
   procedures: {
@@ -579,7 +565,6 @@ export const faces = {
     engines: "resource",
     agents: "resource",
     transcript: "resource",
-    earlier: "resource",
     saying: "resource",
     "conversation.send": "tool",
     "conversation.resend": "tool",

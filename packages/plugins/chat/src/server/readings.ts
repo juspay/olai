@@ -1,14 +1,13 @@
-/** A conversation's four wire members share one reading and one cadence.
+/** A conversation's three wire members share one reading and one cadence.
  * RcMap ties that resource to its subscribers and the chat server's scope.
  *
  * THE TRANSCRIPT HERE IS THE WHOLE CONVERSATION, and the window is a fact about
  * one DELIVERY of it: `transcript.source` ships the newest
- * {@link TRANSCRIPT_WINDOW} rows, `earlier.source` says how many are older, and
- * `page` (below) answers the pages a reader pulls by hand. The reading
- * itself keeps everything — the count and the pages are read off the same map —
- * because what a tab is handed and what the server knows are two different
- * questions, and a window that bounded the READING would make history
- * unfetchable. */
+ * {@link TRANSCRIPT_WINDOW} rows, and `page` (below) answers the older ones a
+ * reader pulls by hand. The reading itself keeps everything — the page is read
+ * off the same map — because what a tab is handed and what the server knows are
+ * two different questions, and a window that bounded the READING would make
+ * history unfetchable. */
 import { Data, Effect, Queue, RcMap, Stream } from "effect"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import type { OpFailure } from "@olai/format"
@@ -29,7 +28,6 @@ interface Reading {
   readonly states: Set<Sink<ChatState>>
   readonly rows: Set<Sink<Rows<ChatEntry>>>
   readonly pieces: Set<Sink<Rows<Saying>>>
-  readonly earlier: Set<Sink<number>>
 }
 
 /** Which reading a `PanelAddress` names — the RcMap key, spelled once so the
@@ -45,10 +43,6 @@ const newest = (entries: ReadonlyMap<string, ChatEntry>): Array<[string, ChatEnt
   const all = [...entries.values()].sort((one, other) => one.seq - other.seq)
   return all.slice(Math.max(0, all.length - TRANSCRIPT_WINDOW)).map((entry) => [entry.id, entry])
 }
-
-/** How many rows are older than that window — `0` while the conversation fits. */
-const olderCount = (entries: ReadonlyMap<string, ChatEntry>): number =>
-  Math.max(0, entries.size - TRANSCRIPT_WINDOW)
 
 /** The newest page of rows strictly below `before`, in conversation order. The
  *  newest `limit` of them, so a reader walking backwards never has to name an
@@ -76,25 +70,12 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.
       const states = new Set<Sink<ChatState>>()
       const rows = new Set<Sink<Rows<ChatEntry>>>()
       const pieces = new Set<Sink<Rows<Saying>>>()
-      const earlier = new Set<Sink<number>>()
-      // The last count every `earlier` sink was told, so a frame that only grew
-      // a row does not republish a number nobody's answer changed.
-      let told = 0
       const clock = yield* Effect.acquireRelease(
         Effect.sync(() => cadence({ onFrame: (frame) => {
           for (const key of frame.rows.removes) entries.delete(key)
           for (const [key, value] of frame.rows.upserts) entries.set(key, value)
           for (const send of rows) send({ kind: "delta", upserts: frame.rows.upserts.map(([key, value]) => [key, value]), removes: [...frame.rows.removes] })
           for (const send of pieces) send({ kind: "delta", upserts: frame.pieces.upserts.map(([key, value]) => [key, value]), removes: [...frame.pieces.removes] })
-          // THE COUNT, and only when it moved: it is a fact about how much is
-          // OLDER than the window, so it changes when a row is born past the
-          // window or the conversation is cleared, and on none of the frames
-          // that merely grow a row.
-          const count = olderCount(entries)
-          if (count !== told) {
-            told = count
-            for (const send of earlier) send(count)
-          }
         } })),
         (clock) => Effect.sync(clock.stop),
       )
@@ -106,7 +87,7 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.
         state = { ...CHAT_OFF, status: "idle", unopened: { what: "session" in to ? to.session : null, why: failure.message } }
         for (const send of states) send(state)
       }))))
-      return { state: () => state, entries, clock, states, rows, pieces, earlier }
+      return { state: () => state, entries, clock, states, rows, pieces }
     }),
   })
 
@@ -133,10 +114,6 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.
     transcript: { source: (to: PanelAddress) => subscribe<Rows<ChatEntry>>(to, (value, send) => {
       send({ kind: "snapshot", entries: newest(value.entries) })
       return value.rows
-    }) },
-    earlier: { source: (to: PanelAddress) => subscribe<number>(to, (value, send) => {
-      send(olderCount(value.entries))
-      return value.earlier
     }) },
     saying: { source: (to: PanelAddress) => subscribe<Rows<Saying>>(to, (value, send) => {
       send({ kind: "snapshot", entries: [...value.clock.onWire()] })

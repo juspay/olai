@@ -602,11 +602,12 @@ Established by reading the pinned sources and proved by
   ship a long conversation as one several-megabyte frame, which takes longer on a
   slow link than Effect RPC's keepalive budget, so the pong queued behind it and
   the socket died (`juspay/olai#663`). The transcript now ships the newest
-  `TRANSCRIPT_WINDOW` rows and a count of the rest (`conversation.earlier`), and
-  a reader pulls older pages by hand. This is the olai half of the fix; the
-  framework half (byte-bounded frames with backpressure, liveness-as-progress,
-  and the graced down-state on the readout) is kolu's, and this pin's
-  `DISCONNECT_OVERLAY_GRACE_MS`/`gracedDown` are what gate the overlay today.
+  `TRANSCRIPT_WINDOW` rows — the oldest `seq` in them says how many are older —
+  and `conversation.earlier` answers those pages for a reader who asks. This is
+  the olai half of the fix; the framework half (byte-bounded frames with
+  backpressure, liveness-as-progress, and the graced down-state on the readout)
+  is kolu's, and this pin's `DISCONNECT_OVERLAY_GRACE_MS`/`gracedDown` are what
+  gate the overlay today.
 - **A call on a departed plugin is refused three ways, never hangs, never
   silently succeeds.** Before the tab redials the server raises
   `SurfaceSiblingDropped`; a call in flight on the superseded connection is

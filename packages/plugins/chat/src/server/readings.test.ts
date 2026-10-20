@@ -84,10 +84,9 @@ test("a subscribe ships the newest window, the count of the rest, and pages read
     if (snapshot.kind !== "snapshot") throw new Error(`expected a snapshot, got a ${snapshot.kind}`)
     expect(snapshot.entries).toHaveLength(TRANSCRIPT_WINDOW)
     // The window is the RECENT end: the oldest row it carries is the one that
-    // leaves exactly `40` older.
+    // leaves exactly `40` older — the oldest `seq` a tab would derive its door
+    // from.
     expect(snapshot.entries[0]?.[1].seq).toBe(40)
-
-    expect(Option.getOrThrow(yield* Stream.runHead(source.earlier.source(to)))).toBe(40)
 
     const page = yield* source.page(to, 40, 10)
     expect(page.map((row) => row.seq)).toEqual([30, 31, 32, 33, 34, 35, 36, 37, 38, 39])

@@ -101,10 +101,10 @@ export interface Chat {
    * number on the "earlier messages" door, and the reason a long chat lands
    * without shipping its whole history (juspay/olai#663).
    *
-   * Off the server's own count of rows below the window
-   * ({@link TRANSCRIPT_WINDOW}) minus the pages this tab has already pulled. It
-   * reaches ZERO when the reader has walked back to the start of the
-   * conversation, which is what hides the door.
+   * It is the oldest `seq` this tab holds: rows carry a dense `seq` from `0`
+   * (`transcript.ts`), so the oldest one names exactly the rows below it that
+   * the tab has never had. It reaches ZERO when the reader has walked back to
+   * the start, which is what hides the door.
    */
   readonly earlier: Accessor<number>
   /** The "earlier messages" fetch is in flight — the door's own pressed state. */
@@ -366,17 +366,10 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
    */
   const [history, setHistory] = createSignal<ReadonlyMap<string, ChatEntry>>(new Map())
   const [earlierLoading, setEarlierLoading] = createSignal(false)
-  /** Set when a fetch proves there is nothing older to pull, whatever the
-   *  server's window-relative count still says — the belt to
-   *  {@link earlier}'s braces, because a count relative to the SERVER's window
-   *  can outlive a client whose window has since grown. */
-  const [drained, setDrained] = createSignal(false)
-  const olderCount = chatWire().streams.earlier.use(() => conv)
 
   createEffect(on(window.generation, () => {
     if (history().size > 0) setHistory(new Map())
     setEarlierLoading(false)
-    setDrained(false)
   }, { defer: true }))
 
   /** The pulled pages, ordered and cut the way the fold cuts its own — one walk,
@@ -446,36 +439,19 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
    * HOW MANY ROWS ARE STILL OLDER THAN WHAT THIS TAB HOLDS — the number on the
    * door, and what hides it.
    *
-   * TWO READINGS, and the smaller one wins. The server's count is how many rows
-   * are older than ITS WINDOW, less the pages this tab pulled; the client's own
-   * {@link oldest} is how many rows are older than EVERYTHING this tab holds.
-   * They agree while the window is exactly what was shipped, and they diverge
-   * once a live turn adds rows to the client's store — the window grows in the
-   * tab, so the server's window-relative count overstates by exactly the rows
-   * since the snapshot. `oldest` is the truth (a row's `seq` is dense from `0`
-   * in a conversation — `transcript.ts` mints them `0, 1, 2…` and only a clear
-   * resets the count), and the server's count is kept because it is what a
-   * subscribe SHIPS (juspay/olai#663) and because it is the honest answer for a
-   * consumer with no rows of its own. `drained` is the floor under both: a fetch
-   * that came back empty is proof, and no count may outlive it.
+   * ONE READING: {@link oldest}. A row's `seq` is dense from `0` in a
+   * conversation (`transcript.ts` mints them `0, 1, 2…`, and only a clear
+   * restarts the count), so the oldest `seq` this tab holds IS the number of
+   * rows below it — the rows it has never had. That is also the boundary the
+   * next page is fetched below ({@link loadEarlier}), so the door's number and
+   * the fetch cannot name two different rows.
    */
-  const earlier = createMemo(() =>
-    drained()
-      ? 0
-      : Math.min(
-        Math.max(0, (olderCount() ?? 0) - history().size),
-        oldest() ?? 0,
-      ))
+  const earlier = createMemo(() => oldest() ?? 0)
 
   const loadEarlier = (): void => {
     if (earlierLoading() || earlier() === 0) return
     const before = oldest()
-    // NOTHING BELOW THE FIRST ROW, whatever a stale count says: the door is
-    // spent rather than left offering a page that does not exist.
-    if (before === undefined || before <= 0) {
-      setDrained(true)
-      return
-    }
+    if (before === undefined || before <= 0) return
     setEarlierLoading(true)
     run(
       chatWire().procedures.conversation.earlier({ conv, before, limit: TRANSCRIPT_PAGE }),
@@ -485,9 +461,6 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
       },
       (page) => {
         setEarlierLoading(false)
-        // A SHORT PAGE IS THE START OF THE CONVERSATION — the last one, and the
-        // door has nothing left to offer.
-        if (page.length < TRANSCRIPT_PAGE) setDrained(true)
         if (page.length === 0) return
         setHistory((was) => {
           const next = new Map(was)

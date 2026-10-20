@@ -24,7 +24,7 @@ test("two Chats read and send to their own conversations and keep refusals separ
         Queue.offerUnsafe(queue, member === "state" ? {
           ...CHAT_OFF, status: "idle", uploadScope: `scope-${to.session}`,
           session: { id: to.session, title: null, updatedAt: null },
-        } : member === "earlier" ? 0 : { kind: "snapshot", entries: member === "transcript" ? [["user:1", {
+        } : { kind: "snapshot", entries: member === "transcript" ? [["user:1", {
           kind: "user", id: "user:1", seq: 1, since: "2026-09-11T00:00:00Z", text: to.session,
         }]] : [] })
         return `${to.session}/${member}`
@@ -45,7 +45,7 @@ test("two Chats read and send to their own conversations and keep refusals separ
     expect(sent).toEqual([{ conv: { agent: "beta", session: "two" }, scope: "scope-two", text: "hello", attachments: [], context: [] }])
     first.dispose()
     await settle()
-    expect(released.toSorted()).toEqual(["one/earlier", "one/saying", "one/state", "one/transcript"])
+    expect(released.toSorted()).toEqual(["one/saying", "one/state", "one/transcript"])
     expect(second.chat.entry("user:1")()?.text).toBe("two")
   } finally {
     first.dispose(); second.dispose(); wire.dispose()
@@ -104,7 +104,7 @@ test("a paragraph opening wakes the row that grows and the row that stopped, not
       Queue.offerUnsafe(queue, member === "state" ? {
         ...CHAT_OFF, status: "idle", uploadScope: `scope-${to.session}`,
         session: { id: to.session, title: null, updatedAt: null },
-      } : member === "earlier" ? 0 : { kind: "snapshot", entries: member === "transcript" ? keys.map((key, seq) => [key, {
+      } : { kind: "snapshot", entries: member === "transcript" ? keys.map((key, seq) => [key, {
         kind: "agent", id: key, seq, since: "2026-09-11T00:00:00Z", text: `said ${seq}`,
       }]) : [] })
     })),
@@ -199,8 +199,7 @@ test("conversation views lease one activation-owned reading until the last view 
     stream: (tag) => Stream.callback<unknown>(queue => Effect.acquireRelease(
       Effect.sync(() => {
         opened++
-        const member = tag.split("/").at(-2)
-        Queue.offerUnsafe(queue, member === "state" ? CHAT_OFF : member === "earlier" ? 0 : { kind: "snapshot", entries: [] })
+        Queue.offerUnsafe(queue, tag.split("/").at(-2) === "state" ? CHAT_OFF : { kind: "snapshot", entries: [] })
       }), () => Effect.sync(() => { released++ }))),
   }, () => true) }))
   const activation = Scope.makeUnsafe()
@@ -217,7 +216,7 @@ test("conversation views lease one activation-owned reading until the last view 
   try {
     await settle()
     expect(first.chat).toBe(second.chat)
-    expect(opened).toBe(4)
+    expect(opened).toBe(3)
     first.setShown(false)
     await settle()
     expect(released).toBe(0)
@@ -226,7 +225,7 @@ test("conversation views lease one activation-owned reading until the last view 
     expect(released).toBe(0)
     second.dispose()
     await settle()
-    expect(released).toBe(4)
+    expect(released).toBe(3)
   } finally {
     first.dispose(); second.dispose(); owner.dispose(); wire.dispose()
     await Effect.runPromise(Scope.close(activation, Exit.void))
