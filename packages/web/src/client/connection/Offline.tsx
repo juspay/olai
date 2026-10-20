@@ -24,6 +24,18 @@
  * anything yet — and §5b names `connecting` as one of the three the overlay
  * draws its words from.
  *
+ * ONE OF THE THREE IS HELD BACK, and it is the one that moves. `reconnecting`
+ * is the transient drop — a forced reconnect, a Wi-Fi roam, the redial after a
+ * dropped socket — and it heals in well under a second, so freezing the whole
+ * page for it is the flash a reader cannot act on. The overlay waits for the
+ * down-state to PRESENT ({@link DISCONNECT_OVERLAY_GRACE_MS}, through kolu's
+ * `gracedDown`); a sustained outage still surfaces promptly, and `retired` and
+ * `connecting` are not graced at all (the reasons are `./status.ts`'s
+ * `isTransientlyDown`). The DOORS disagree with the overlay here on purpose:
+ * `./reaching.ts` stays instantaneous, because a question sent down a socket
+ * that is mid-redial is a question wasted, while a full-screen alarm for that
+ * same blink is noise — two clocks for two costs.
+ *
  * DISMISSAL IS ONLY THE WIRE COMING BACK. There is no close button, `Escape`
  * is refused (`onCancel`), and nothing under it can take a keystroke. The one
  * state that has something else to offer is `retired` — the server that served
@@ -71,11 +83,13 @@
  */
 import { TESTID } from "@olai/web/client/testids.ts"
 import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
+import { DISCONNECT_OVERLAY_GRACE_MS } from "@kolu/surface-app/solid"
+import { gracedDown } from "@kolu/surface/solid"
 import { createEffect, createMemo, onCleanup, Show } from "solid-js"
 
 import { handBackFocus, withOfflineFocus, type FocusMemory } from "./focus.ts"
 import { reachable } from "./reaching.ts"
-import { frozenLookOf, type SurfaceReadout } from "./status.ts"
+import { frozenLookOf, isTransientlyDown, type SurfaceReadout } from "./status.ts"
 import { Reload } from "../Reload.tsx"
 
 
@@ -83,8 +97,8 @@ export function Offline(props: { readonly readout: SurfaceReadout; readonly memo
   let overlay!: HTMLDialogElement
   /**
    * The freeze, as one bit — the reachability rule, read from the one module
-   * that holds it, so the overlay and the doors cannot disagree about whether
-   * the wire carries a question.
+   * that holds it, so the overlay and the doors cannot disagree about whether the
+   * wire carries a question.
    *
    * A MEMO, because the two effects below are the whole of what it drives and
    * what it is derived from moves far more often than it does: a readout
@@ -93,8 +107,28 @@ export function Offline(props: { readonly readout: SurfaceReadout; readonly memo
    * unregistered and re-registered the window's keydown swallower on every
    * attempt, mid-freeze, for a boolean that had not moved
    * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §4.1).
+   *
+   * THE ONE STATE THAT IS HELD BACK is the transient drop. A forced reconnect —
+   * the half-open watchdog recovering, the link riding out a Wi-Fi roam, the
+   * redial after a dropped socket — closes and reopens the socket in well under
+   * a second, and freezing the whole page for that blink is the flash this gate
+   * exists to stop; the framework's `gracedDown` holds the rising edge until the
+   * down-state has PERSISTED its window, and `retired` and `connecting` are
+   * deliberately outside it (see `./status.ts`'s `isTransientlyDown`). So the
+   * overlay and its inertness appear exactly while a question cannot reach the
+   * server — `reachable`'s false — except that the transient drop must first be
+   * PRESENTING. The doors that ask questions keep reading `reachable`
+   * instantaneously (`./reaching.ts`), which is the half of the split worth
+   * keeping: a call and a full-screen alarm want different patience.
    */
-  const frozen = createMemo(() => !reachable(props.readout))
+  const presenting = gracedDown(
+    () => isTransientlyDown(props.readout),
+    DISCONNECT_OVERLAY_GRACE_MS,
+  )
+  const frozen = createMemo(() =>
+    !reachable(props.readout) &&
+    (!isTransientlyDown(props.readout) || presenting()),
+  )
   /** The hand-back in progress, if any. ONE at a time: it is cancelled before a
    *  new one starts, when the freeze goes back up, and when this component
    *  leaves — the three ways a frame could otherwise outlive the dialog that

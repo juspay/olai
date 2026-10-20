@@ -131,3 +131,31 @@ const CONNECTING: SurfaceReadoutStatus = "connecting"
  *  file's table, and `claims.test.ts` holds it shut. */
 export const isDegraded = (readout: SurfaceReadout): boolean =>
   readout.status === DEGRADED
+
+/**
+ * The ONE down state whose freeze is GRACED — the transient drop a redial heals,
+ * and nothing else.
+ *
+ * It is a fact about the WIRE, not about the look, and it is here rather than in
+ * `./reaching.ts` for the spelling alone: `reaching.ts` names its states as
+ * unquoted table keys, and this predicate has to name one of them as a value.
+ * `claims.test.ts` allows the raw state strings in exactly this file and
+ * `wire.ts`, so the alternative would have been a third name on that list for a
+ * second reason.
+ *
+ * `retired` is deliberately NOT here. A server that replaced this tab never
+ * comes back, so holding its overlay back for a second would be a second spent
+ * pretending a reload is not yet owed. `connecting` is not here either: it is
+ * the first dial, not a drop, and §5b names it as one of the states the overlay
+ * draws its words from. The grace belongs to the one state that a redial IS
+ * expected to leave — the fact kolu's own `gracedDown` carries for a transport's
+ * `down`, and the readout bit (kolu's grace-windowed "presenting down") will
+ * carry once this pin moves. Until then `./Offline.tsx` derives it from this
+ * predicate and the framework's own window.
+ */
+export const isTransientlyDown = (readout: SurfaceReadout): boolean =>
+  readout.status === RECONNECTING
+
+/** Its runtime spelling, at the type rather than typed out a second time, for
+ *  the reason {@link DEGRADED} gives one screen up. */
+const RECONNECTING: SurfaceReadoutStatus = "reconnecting"

@@ -15,7 +15,7 @@
 
 import { expect, test } from "bun:test"
 
-import { frozenLookOf, lookOf, LOOK, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
+import { frozenLookOf, isTransientlyDown, lookOf, LOOK, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
 
 /** The states the table answers for, DERIVED from it — which is not a table
  *  checked against itself, because membership is already a type-level
@@ -126,4 +126,12 @@ test("the dot's tone: live is healthy, a first connect is quiet, only a replaced
   for (const state of STATES.filter((s) => s !== "live" && s !== "connecting" && s !== "retired")) {
     expect(lookOf(readoutOf(state)).tone).toBe("notice")
   }
+})
+
+// ONE STATE IS HELD BACK, and the sweep is what keeps it one. The overlay's grace
+// is the wire's fact, so the state it covers is named once here: a sixth state
+// arriving upstream that quietly inherited the grace would be a state nobody
+// decided to be patient with, and that is the error this catches.
+test("exactly the transient drop is the state whose freeze is graced", () => {
+  expect(STATES.filter((state) => isTransientlyDown(readoutOf(state)))).toEqual(["reconnecting"])
 })

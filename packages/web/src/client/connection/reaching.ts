@@ -8,11 +8,18 @@
  * is not a slower answer, it is no answer.
  *
  * IT IS ALSO THE FREEZE. `./Offline.tsx` draws its overlay over the whole app
- * exactly while this says no — the human's §5b ruling — so "a door may not
- * speak" and "the app is frozen" are one predicate rather than two lists of
- * state names that could drift apart. That is why what is left here is a
- * BOOLEAN: a door used to draw its own inert face wearing the pill's sentence,
- * and under an overlay that covers the app there is no door to draw it on.
+ * while this says no — with ONE deliberate exception, added the day a
+ * sub-second blink was seen flashing it: the transient drop (`reconnecting`) is
+ * held back by `./Offline.tsx` until it has PERSISTED the framework's
+ * disconnect grace, so a redial that heals in well under a second never freezes
+ * the page. THIS PREDICATE STAYS INSTANTANEOUS for the reason it exists: a door
+ * that has to ask the server whether to speak cannot wait out a grace that the
+ * alarm can. So "a door may not speak" and "the app is frozen" are one
+ * predicate with two clocks — the same fact, read at the patience each reader
+ * can afford — rather than two lists of state names that could drift apart.
+ * That is why what is left here is a BOOLEAN: a door used to draw its own inert
+ * face wearing the pill's sentence, and under an overlay that covers the app
+ * there is no door to draw it on.
  *
  * A `Record` over the readout's own states rather than a comparison, so a sixth
  * state arriving upstream is a type error here — a door that has to decide

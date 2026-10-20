@@ -3,7 +3,9 @@
  * the same one.
  *
  * `reachable` says whether a question can be sent, and `./Offline.tsx` freezes
- * the app under an overlay for exactly its `false` (§5b's ruling). A browser is
+ * the app under an overlay for exactly its `false` — held back for the one
+ * transient drop (`./status.ts`'s `isTransientlyDown`), whose grace is the
+ * framework's and is covered by the e2e blink scenario, not here. A browser is
  * what shows the overlay; WHICH STATES it covers is a table, and a table
  * belongs in a unit test — the e2e suite re-asserting it through a real socket
  * would be the waste the e2e principle cuts.
