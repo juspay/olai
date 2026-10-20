@@ -366,6 +366,19 @@ Then("the earlier messages door is drawn", async function (this: OlaiWorld) {
   );
 });
 
+/** ... and THE OTHER SIDE OF IT: a reconnect that kept every row leaves nothing
+ *  for the door to offer, so it must not be drawn at all. Asserted as an
+ *  ABSENCE with a positive control — the transcript's own rows are read first,
+ *  so a page that had not painted yet cannot pass this by having no door. */
+Then("there are no earlier messages to load", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => {
+    const door = this.chat(CHAT_EARLIER)
+    if ((await door.count()) === 0) return true
+    const older = await door.first().getAttribute("data-earlier").catch(() => null)
+    return older === null || Number(older) === 0
+  }, "the earlier messages door to go", HYDRATION_TIMEOUT)
+});
+
 /** ... and THE PRESS: the page lands and the door's count moves down (or the
  *  door goes, once the start of the conversation has been reached). */
 When("I load earlier messages", async function (this: OlaiWorld) {

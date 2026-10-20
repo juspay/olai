@@ -36,7 +36,7 @@
 
 import type { ChatEntry } from "olai-plugin-chat/wire"
 import type { CollectionFold, CollectionFoldOptions } from "@kolu/surface/solid"
-import { type Accessor, createMemo, createSignal } from "solid-js"
+import { type Accessor, createMemo } from "solid-js"
 
 import { filedUnder } from "./lanes.ts"
 
@@ -290,35 +290,12 @@ export interface Rows {
   readonly keys: Accessor<ReadonlyArray<string>>
   /** ... and each agent's own calls, by the key of the frame that sent it. */
   readonly lanes: Accessor<ReadonlyMap<string, ReadonlyArray<string>>>
-  /**
-   * HOW MANY TIMES THE COLLECTION HAS BEEN (RE)SEEDED — a snapshot, on the first
-   * subscribe and on every reconnect. `0` before the first.
-   *
-   * It is the one signal the CLIENT-held history has to reset on: a reconnect
-   * re-snapshots the WINDOW, moving its oldest `seq` up and leaving any page the
-   * reader had pulled sitting far below a gap. A monotonic count rather than the
-   * window's oldest `seq`, because two reconnects can land the same boundary and
-   * a reader would keep stale pages through the second.
-   */
-  readonly generation: Accessor<number>
 }
 
 export const createRows = (fold: CollectionFold<string, ChatEntry>): Rows => {
-  // The seed counter, incremented where the fold re-initializes. A closure
-  // rather than a module global so two panels have two counters — each resets
-  // its OWN history — and a signal rather than a number so the history reset can
-  // be an effect.
-  const [generation, setGeneration] = createSignal(0)
-  const order = fold({
-    init: (entries) => {
-      setGeneration((count) => count + 1)
-      return TRANSCRIPT_ORDER.init(entries)
-    },
-    step: TRANSCRIPT_ORDER.step,
-  })
+  const order = fold(TRANSCRIPT_ORDER)
   return {
     keys: createMemo(() => order()?.keys ?? NO_ROWS),
     lanes: createMemo(() => order()?.lanes ?? NO_LANES),
-    generation,
   }
 }

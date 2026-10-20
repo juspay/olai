@@ -147,9 +147,12 @@ never did. The window makes a reconnect cost one screen of rows instead of the
 conversation.
 
 The live half is unchanged: rows that stream in while you watch still arrive as
-batched deltas, and a reconnect re-ships only the window. What you had scrolled
-back to is dropped on that reconnect — the pages sit below a gap the fresh
-window left — and one press loads them again. A sub-second drop no longer freezes
+batched deltas, and a reconnect re-ships only the window. A reconnect never
+takes a row away: the rows that fall below the fresh window move into a
+client-held history and stay on screen, and only a conversation that restarted
+under the tab (a fresh start or a replay) empties it. The door is for rows this
+tab never had — a tab that joined a conversation another tab was already
+holding, whose first frame is the window. A sub-second drop no longer freezes
 the page at all: the offline overlay waits for the down-state to persist, so a
 redial that heals quickly is invisible. See [the connection
 feature](../packages/tests/features/the_connection.feature) for the freeze

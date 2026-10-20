@@ -49,14 +49,14 @@ test("a scheduler refusal is published into the requested reading", async () => 
 })
 
 /**
- * THE WINDOW, THE COUNT AND THE PAGE — the three halves of juspay/olai#663, over
- * one long reading.
+ * THE WINDOW AND THE PAGE — the two halves of juspay/olai#663's delivery.
  *
  * The transcript here is a hundred rows; the delivery is the newest
- * {@link TRANSCRIPT_WINDOW} of them, the count is what was left behind, and the
- * page is the run strictly below the cursor the tab names. None of the three is
- * a claim about the transcript — the reading keeps every row, and `page` reads
- * them — so what is asserted is exactly the boundary the frame moved.
+ * {@link TRANSCRIPT_WINDOW} of them (their oldest `seq` is the count a reader
+ * derives), and the page is the run strictly below the cursor the tab names.
+ * None of it is a claim about the transcript — the reading keeps every row, and
+ * `page` reads them — so what is asserted is exactly the boundary the frame
+ * moved.
  */
 const longRows = (count: number): Array<[string, ChatEntry]> =>
   Array.from({ length: count }, (_, at) => [
@@ -64,7 +64,7 @@ const longRows = (count: number): Array<[string, ChatEntry]> =>
     { kind: "user", id: `m${at}`, seq: at, since: "2020-01-01T00:00:00.000Z", text: `m${at}` },
   ] as const)
 
-test("a subscribe ships the newest window, the count of the rest, and pages read the rest back", async () => {
+test("a subscribe ships the newest window, and pages read the rest back", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const filled = yield* Deferred.make<void>()
     const source = yield* readings(Effect.succeed({

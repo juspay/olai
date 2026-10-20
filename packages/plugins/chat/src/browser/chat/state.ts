@@ -21,7 +21,9 @@ import { Effect } from "effect"
  * newest `TRANSCRIPT_WINDOW` rows — and the rows before it are pulled a page at
  * a time through `conversation.earlier`, which is what keeps a long
  * conversation's reconnect a small frame instead of several MB (juspay/olai#663,
- * {@link ./state.ts} builds both halves into the one `rows` list). Rows are
+ * {@link ./state.ts} builds both halves into the one `rows` list). A RECONNECT
+ * NEVER TAKES A ROW AWAY: the frame the store prunes goes into a client-held
+ * map, and only a conversation that restarted under the tab empties it. Rows are
  * sorted by their own `seq` rather than by the order the
  * keys arrived, because arrival order is a delivery detail and the conversation
  * has an order of its own — and that sort is a FOLD over the frames rather than
@@ -279,10 +281,35 @@ export const createChatState = (conv: PanelAddress, expected?: Conversing | null
   })
 }
 
+/**
+ * DID THE CONVERSATION RESTART UNDER THE TAB WHILE IT WAS AWAY?
+ *
+ * A snapshot that shares NO key with what the tab holds can be two things: a
+ * conversation that restarted while the socket was down (a fresh start or a
+ * replay — `seq` begins again at `0`), or a window that moved entirely past the
+ * rows the tab holds because the conversation merely grew while it was away.
+ * The second KEEPS its rows: its window begins after everything the tab holds.
+ * So the restart is the one whose snapshot begins at or below where the held
+ * rows begin. A snapshot that shares a key is the same conversation, always.
+ */
+const restartedUnderneath = (
+  held: ReadonlyMap<string, ChatEntry>,
+  entries: ReadonlyArray<readonly [string, ChatEntry]>,
+): boolean => {
+  if (entries.length === 0) return false
+  let oldestSnapshot = Infinity
+  for (const [key, row] of entries) {
+    if (held.has(key)) return false
+    if (row.seq < oldestSnapshot) oldestSnapshot = row.seq
+  }
+  let oldestHeld = Infinity
+  for (const row of held.values()) if (row.seq < oldestHeld) oldestHeld = row.seq
+  return oldestSnapshot <= oldestHeld
+}
+
 // A procedure can settle after the drawer that started it was remounted. Its
 // refusal belongs to this tab's gesture, not to that discarded panel instance.
-export const createChat = (conv: PanelAddress, options: { readonly ui?: ConversationUI; readonly expected?: Conversing | null; readonly visit?: (to: Conversing) => void } = {}): Chat => {
-  const ui = options.ui ?? createConversationUI()
+export const createChat = (conv: PanelAddress, options: { readonly ui?: ConversationUI; readonly expected?: Conversing | null; readonly visit?: (to: Conversing) => void } = {}): Chat => {  const ui = options.ui ?? createConversationUI()
   const { closePreview } = ui.previewing
   const [refused, setRefused] = ui.refused
   const served = createChatState(conv, options.expected)
@@ -342,40 +369,71 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
   // instead of the whole transcript being re-read and re-sorted per frame.
   // {@link ./order.ts} is where that shape is argued and where the reader's
   // half of it lives with it. This is the LIVE WINDOW the server ships; the
-  // pages a reader pulls behind it are a second, much simpler source below.
+  // rows a reconnect prunes out of it are kept below.
   const window = createRows(transcript.fold)
 
   /**
-   * THE ROWS OLDER THAN THE WINDOW THIS TAB PULLED — held HERE, in the client,
-   * because that is the whole of what bounded the snapshot (juspay/olai#663).
+   * EVERY ROW THIS TAB HOLDS, ACROSS RE-SEEDS.
    *
-   * The collection ships the recent window; history is a page at a time off the
-   * `conversation.earlier` verb, appended to this map. They are drawn as one
-   * conversation ({@link rows} below) because a reader does not care which side
-   * of the wire a row came from — but they are NOT the same store, and
-   * deliberately: a page is fetched once, never changes, and is strictly older
-   * than the window, so it needs none of the collection's frame machinery
-   * ({@link orderOf} is the one walk it does need).
+   * The collection store is the LIVE WINDOW: a reconnect re-ships the newest
+   * `TRANSCRIPT_WINDOW` rows, and the framework's snapshot arm drops every key
+   * outside it. That is right for the wire and wrong for the reader — a person
+   * four hundred rows up, or one who had just pulled five pages, lost all of it
+   * on a sub-second blink. Rows are immutable history with a dense `seq`, so
+   * this map keeps them: the fold below MERGES a snapshot into it rather than
+   * replacing, and only a conversation that RESTARTED under the tab (a fresh
+   * start or a replay, whose `seq` begins again) empties it.
    *
-   * RESET WHEN THE WINDOW IS RE-SEEDED, which is every reconnect. A fresh
-   * snapshot moves the window's oldest `seq` up and leaves the pulled pages
-   * sitting below a gap; keeping them would draw a conversation with a hole in
-   * it. {@link window}'s `generation` is the one honest edge — it moves exactly
-   * when the collection re-initializes — and the reader loses only the pages
-   * they had scrolled back to, which one press reloads.
+   * A plain `Map` and not a store: rows that have left the window never change
+   * again, and the live ones are read from the collection store for their
+   * per-key reactivity ({@link entry}). {@link history} is the view of this map
+   * outside the window.
    */
-  const [history, setHistory] = createSignal<ReadonlyMap<string, ChatEntry>>(new Map())
+  let held = new Map<string, ChatEntry>()
+  let heldSession: string | null | undefined
+  const [revision, setRevision] = createSignal(0)
+  transcript.fold<void>({
+    init: (entries) => {
+      const session = served().session?.id ?? null
+      const restarted = held.size === 0
+        || session !== heldSession
+        || restartedUnderneath(held, entries)
+      heldSession = session
+      if (restarted) {
+        held = new Map(entries.map(([key, row]) => [key, row]))
+        setRevision((count) => count + 1)
+      } else {
+        for (const [key, row] of entries) held.set(key, row)
+      }
+    },
+    step: (_held, delta) => {
+      for (const key of delta.removes) held.delete(key)
+      for (const [key, row] of delta.upserts) held.set(key, row)
+      // A CLEAR while we are here arrives as removes: those rows are gone, and
+      // the derived history must stop drawing them.
+      if (delta.removes.length > 0) setRevision((count) => count + 1)
+    },
+  })
+
   const [earlierLoading, setEarlierLoading] = createSignal(false)
 
-  createEffect(on(window.generation, () => {
-    if (history().size > 0) setHistory(new Map())
-    setEarlierLoading(false)
-  }, { defer: true }))
+  /**
+   * THE ROWS THIS TAB HOLDS THAT ARE NOT IN THE LIVE WINDOW — what a reconnect
+   * pruned, plus every page pulled. Rebuilt when the window's key set moves (a
+   * re-seed, a new row, a clear) or when a page lands.
+   */
+  const history = createMemo(() => {
+    revision()
+    const inWindow = new Set(window.keys())
+    const rows: Array<ChatEntry> = []
+    for (const row of held.values()) if (!inWindow.has(row.id)) rows.push(row)
+    rows.sort((one, other) => one.seq - other.seq)
+    return new Map(rows.map((row) => [row.id, row]))
+  })
 
-  /** The pulled pages, ordered and cut the way the fold cuts its own — one walk,
-   *  rebuilt only when a page lands (which is rare and visible). */
-  const older = createMemo(() =>
-    orderOf([...history().values()].sort((one, other) => one.seq - other.seq)))
+  /** ... ordered and cut the way the fold cuts its own — one walk, rebuilt only
+   *  when a page lands or the window re-seeds. */
+  const older = createMemo(() => orderOf([...history().values()]))
 
   /**
    * One row's value — with whatever is still being said laid onto it, when it
@@ -393,13 +451,13 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
    * long conversation woke its whole transcript: quadratic over a turn.
    *
    * A HISTORY ROW IS NEVER THE GROWING ONE (it is older than the window the
-   * live row is in), so the pulled map is read first and the join is left to the
-   * window alone.
+   * live row is in), so the live window is read first and the join is left to
+   * it; a key the window no longer holds is answered from {@link history}.
    */
   const entry = (key: string): Accessor<ChatEntry | undefined> => () => {
-    const pulled = history().get(key)
-    if (pulled !== undefined) return pulled
-    return growing(key) ? grown() : transcript.byKey(key)?.()
+    const live = transcript.byKey(key)
+    if (live !== undefined) return growing(key) ? grown() : live()
+    return history().get(key)
   }
 
   /** THE COLUMN, whole: the pulled pages above the live window. Every history
@@ -462,11 +520,8 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
       (page) => {
         setEarlierLoading(false)
         if (page.length === 0) return
-        setHistory((was) => {
-          const next = new Map(was)
-          for (const row of page) next.set(row.id, row)
-          return next
-        })
+        for (const row of page) held.set(row.id, row)
+        setRevision((count) => count + 1)
       },
     )
   }
