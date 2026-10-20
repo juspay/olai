@@ -125,6 +125,10 @@ export const frozenLookOf = (readout: SurfaceReadout): { readonly title: string;
 
 const CONNECTING: SurfaceReadoutStatus = "connecting"
 
+/** The transient drop's runtime spelling, beside {@link CONNECTING} for the same
+ *  reason: a name the table and the grace read cannot be typed out twice. */
+const RECONNECTING: SurfaceReadoutStatus = "reconnecting"
+
 /** The one connection state that is news on a phone while the page is still
  *  usable. Dead-wire states are the freeze overlay; `live` is health. Named
  *  here so a banner does not spell the readout's raw states — that is this
@@ -155,7 +159,3 @@ export const isDegraded = (readout: SurfaceReadout): boolean =>
  */
 export const isTransientlyDown = (readout: SurfaceReadout): boolean =>
   readout.status === RECONNECTING
-
-/** Its runtime spelling, at the type rather than typed out a second time, for
- *  the reason {@link DEGRADED} gives one screen up. */
-const RECONNECTING: SurfaceReadoutStatus = "reconnecting"
