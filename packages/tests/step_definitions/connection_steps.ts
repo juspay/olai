@@ -40,7 +40,8 @@ import type { OlaiWorld } from "../support/world.ts";
 
 Then(
   "the connection is {string}",
-  async function (this: OlaiWorld, state: string) {    // The HYDRATION budget, not the interaction one: every state here is
+  async function (this: OlaiWorld, state: string) {
+    // The HYDRATION budget, not the interaction one: every state here is
     // reached by the wire itself — a dial, a backoff, a handshake — and none of
     // them are a render away.
     //
