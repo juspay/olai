@@ -1,5 +1,14 @@
-/** A conversation's three wire members share one reading and one cadence.
- * RcMap ties that resource to its subscribers and the chat server's scope. */
+/** A conversation's four wire members share one reading and one cadence.
+ * RcMap ties that resource to its subscribers and the chat server's scope.
+ *
+ * THE TRANSCRIPT HERE IS THE WHOLE CONVERSATION, and the window is a fact about
+ * one DELIVERY of it: `transcript.source` ships the newest
+ * {@link TRANSCRIPT_WINDOW} rows, `earlier.source` says how many are older, and
+ * `page` (below) answers the pages a reader pulls by hand. The reading
+ * itself keeps everything — the count and the pages are read off the same map —
+ * because what a tab is handed and what the server knows are two different
+ * questions, and a window that bounded the READING would make history
+ * unfetchable. */
 import { Data, Effect, Queue, RcMap, Stream } from "effect"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import type { OpFailure } from "@olai/format"
@@ -7,7 +16,7 @@ import type { OpFailure } from "@olai/format"
 import { type Cadence, cadence } from "../cadence.ts"
 import type { Chat } from "../scoped.ts"
 import type { PanelAddress } from "../wire/session.ts"
-import { CHAT_OFF, type ChatEntry, type ChatState, type Saying } from "../wire.ts"
+import { CHAT_OFF, type ChatEntry, type ChatState, type Saying, TRANSCRIPT_WINDOW } from "../wire.ts"
 
 class Key extends Data.Class<{ readonly node: string | null; readonly agent: string | null; readonly session: string | null }> {}
 
@@ -20,8 +29,44 @@ interface Reading {
   readonly states: Set<Sink<ChatState>>
   readonly rows: Set<Sink<Rows<ChatEntry>>>
   readonly pieces: Set<Sink<Rows<Saying>>>
+  readonly earlier: Set<Sink<number>>
 }
 
+/** Which reading a `PanelAddress` names — the RcMap key, spelled once so the
+ *  subscribe path and the page path cannot key one conversation two ways. */
+const keyOf = (to: PanelAddress): Key =>
+  new Key("node" in to ? { node: to.node, agent: null, session: null } : { node: null, ...to })
+
+/** The newest {@link TRANSCRIPT_WINDOW} rows, in conversation order — what one
+ *  subscribe ships. Sorted by `seq` rather than trusted to the map's insertion
+ *  order, because the window's meaning is "the recent end of the CONVERSATION"
+ *  and a map's order is a delivery detail. */
+const newest = (entries: ReadonlyMap<string, ChatEntry>): Array<[string, ChatEntry]> => {
+  const all = [...entries.values()].sort((one, other) => one.seq - other.seq)
+  return all.slice(Math.max(0, all.length - TRANSCRIPT_WINDOW)).map((entry) => [entry.id, entry])
+}
+
+/** How many rows are older than that window — `0` while the conversation fits. */
+const olderCount = (entries: ReadonlyMap<string, ChatEntry>): number =>
+  Math.max(0, entries.size - TRANSCRIPT_WINDOW)
+
+/** The newest page of rows strictly below `before`, in conversation order. The
+ *  newest `limit` of them, so a reader walking backwards never has to name an
+ *  upper bound it has already seen. */
+const pageOf = (
+  entries: ReadonlyMap<string, ChatEntry>,
+  before: number,
+  limit: number,
+): ReadonlyArray<ChatEntry> => {
+  const older = [...entries.values()]
+    .filter((entry) => entry.seq < before)
+    .sort((one, other) => one.seq - other.seq)
+  return older.slice(Math.max(0, older.length - limit))
+}
+
+/** What a caller reads off a held reading without subscribing — the last member,
+ *  the `conversation.earlier` verb's answer. It is not a stream: it is one reply
+ *  to one request, and the reader that asked is the only one who wants it. */
 export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.gen(function*() {
   const held = yield* RcMap.make({
     lookup: (key: Key) => Effect.gen(function*() {
@@ -31,12 +76,25 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.
       const states = new Set<Sink<ChatState>>()
       const rows = new Set<Sink<Rows<ChatEntry>>>()
       const pieces = new Set<Sink<Rows<Saying>>>()
+      const earlier = new Set<Sink<number>>()
+      // The last count every `earlier` sink was told, so a frame that only grew
+      // a row does not republish a number nobody's answer changed.
+      let told = 0
       const clock = yield* Effect.acquireRelease(
         Effect.sync(() => cadence({ onFrame: (frame) => {
           for (const key of frame.rows.removes) entries.delete(key)
           for (const [key, value] of frame.rows.upserts) entries.set(key, value)
           for (const send of rows) send({ kind: "delta", upserts: frame.rows.upserts.map(([key, value]) => [key, value]), removes: [...frame.rows.removes] })
           for (const send of pieces) send({ kind: "delta", upserts: frame.pieces.upserts.map(([key, value]) => [key, value]), removes: [...frame.pieces.removes] })
+          // THE COUNT, and only when it moved: it is a fact about how much is
+          // OLDER than the window, so it changes when a row is born past the
+          // window or the conversation is cleared, and on none of the frames
+          // that merely grow a row.
+          const count = olderCount(entries)
+          if (count !== told) {
+            told = count
+            for (const send of earlier) send(count)
+          }
         } })),
         (clock) => Effect.sync(clock.stop),
       )
@@ -48,14 +106,14 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.
         state = { ...CHAT_OFF, status: "idle", unopened: { what: "session" in to ? to.session : null, why: failure.message } }
         for (const send of states) send(state)
       }))))
-      return { state: () => state, entries, clock, states, rows, pieces }
+      return { state: () => state, entries, clock, states, rows, pieces, earlier }
     }),
   })
 
   const subscribe = <A>(to: PanelAddress, connect: (
     value: Reading, send: Sink<A>,
   ) => Set<Sink<A>>) => Stream.callback<A, OpFailure>((queue) => Effect.gen(function*() {
-    const value = yield* RcMap.get(held, new Key("node" in to ? { node: to.node, agent: null, session: null } : { node: null, ...to }))
+    const value = yield* RcMap.get(held, keyOf(to))
     const send: Sink<A> = (frame) => { Queue.offerUnsafe(queue, frame) }
     yield* Effect.acquireRelease(
       Effect.sync(() => {
@@ -73,12 +131,25 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.
       return value.states
     }) },
     transcript: { source: (to: PanelAddress) => subscribe<Rows<ChatEntry>>(to, (value, send) => {
-      send({ kind: "snapshot", entries: [...value.entries] })
+      send({ kind: "snapshot", entries: newest(value.entries) })
       return value.rows
+    }) },
+    earlier: { source: (to: PanelAddress) => subscribe<number>(to, (value, send) => {
+      send(olderCount(value.entries))
+      return value.earlier
     }) },
     saying: { source: (to: PanelAddress) => subscribe<Rows<Saying>>(to, (value, send) => {
       send({ kind: "snapshot", entries: [...value.clock.onWire()] })
       return value.pieces
     }) },
+    page: (to: PanelAddress, before: number, limit: number) =>
+      // SCOPED because an `RcMap.get` ACQUIRES a reference: the scope releases
+      // it when the page is read, so a request does not pin the reading alive
+      // behind the tabs that already hold it. A tab that has the conversation
+      // open holds its own reference through its subscriptions, so the reading
+      // it reads is the same one.
+      Effect.scoped(
+        Effect.map(RcMap.get(held, keyOf(to)), (value) => pageOf(value.entries, before, limit)),
+      ),
   }
 })

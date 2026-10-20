@@ -65,6 +65,38 @@ export const transcriptRows = collection({ name: "transcript", keySchema: Schema
 export const sayingRows = collection({ name: "saying", keySchema: Schema.String, schema: Saying })
 
 /**
+ * HOW MUCH OF A CONVERSATION ONE SUBSCRIBE SHIPS — the recent window, and the
+ * whole reason a long chat stopped killing its own socket.
+ *
+ * The transcript is served as ONE snapshot frame on every subscribe and every
+ * reconnect. It used to be the whole conversation; for the thousands of messages
+ * a long chat holds that is several MB, which takes longer on a slow link than
+ * Effect RPC's keepalive budget, so the pong queued behind it, the socket died
+ * with `ping timeout`, the tab redialled, and the server resent the whole thing
+ * — forever (juspay/olai#663). A reconnect now costs this many rows.
+ *
+ * A ROW COUNT AND NOT A BYTE BUDGET, deliberately: the framework's own
+ * byte-budgeted chunking, when it lands, is what makes a frame bounded whatever
+ * a row weighs, and this constant only has to bound how much of a conversation
+ * a reader lands on. Sixty rows is several screens — enough that opening a chat
+ * shows the end of the conversation and the turn in flight, and small enough
+ * that the frame drains well inside the keepalive. The rest is a press away
+ * ({@link TRANSCRIPT_PAGE}).
+ *
+ * BAKED, not a knob — the same argument the framework makes for its grace
+ * window: a tunable would only be a way to reintroduce the frame that killed
+ * the socket.
+ */
+export const TRANSCRIPT_WINDOW = 60
+
+/** HOW MANY OLDER ROWS ONE "earlier messages" PRESS FETCHES — the `earlier`
+ *  procedure's page size, and the twin of {@link TRANSCRIPT_WINDOW} rather than
+ *  a second policy: a page that fit in one screen would make reading history a
+ *  row-by-row crawl, and one larger than the window would ship on demand what
+ *  the snapshot just refused to. Same number, one meaning. */
+export const TRANSCRIPT_PAGE = TRANSCRIPT_WINDOW
+
+/**
  * THE FOUR MEMBERS AND THE FOURTEEN VERBS, as a surface of their own.
  *
  * The doc blocks travelled with the declarations, because they argue what a
@@ -96,6 +128,20 @@ export const surface = defineSurface({
   streams: {
     state: { inputSchema: PanelAddress, outputSchema: ChatState, arrayKey: "name" },
     transcript: { inputSchema: PanelAddress, outputSchema: collectionDeltasSchema(Schema.String, ChatEntry) },
+    /**
+     * HOW MANY ROWS ARE OLDER THAN THE `transcript` WINDOW, as its own stream.
+     *
+     * Its own member rather than a field on the snapshot, and the reason is
+     * mechanical rather than editorial: a `deltas` collection's snapshot is a
+     * FIXED shape (`{kind:"snapshot", entries}`), so anything else on it would
+     * stop being a collection frame at all. The count is the one fact the
+     * window cannot carry, and a number is small; a tab learns both the moment
+     * it subscribes, which is the contract the issue asks for.
+     *
+     * It rides the READING rather than the panel, so it is right in every tab
+     * that has the conversation open, and it moves only when the count does.
+     */
+    earlier: { inputSchema: PanelAddress, outputSchema: Schema.Number },
     saying: { inputSchema: PanelAddress, outputSchema: collectionDeltasSchema(Schema.String, Saying) },
   },
   procedures: {
@@ -463,6 +509,37 @@ export const surface = defineSurface({
         }),
         error: ChatFailure,
       },
+      /**
+       * FETCH THE ROWS OLDER THAN WHAT THE TAB HOLDS — the page behind "earlier
+       * messages".
+       *
+       * A PROCEDURE and not another frame on the collection, and that is the
+       * whole shape of the fix: the transcript's snapshot is bounded
+       * ({@link TRANSCRIPT_WINDOW}) so a reconnect is cheap, and history is
+       * pulled by the one reader who asked for it rather than broadcast to every
+       * tab that shares the collection. `before` is a row's own `seq` — the
+       * reader's OLDEST — so the server answers the newest page strictly below
+       * it, and the client walks the conversation backwards a page at a time.
+       *
+       * IT IS TOTAL OVER A STALE `before`: a row that moved under a slow press
+       * only shifts which `seq` is the boundary, and a page that overlaps what
+       * the tab already holds is the tab's own to de-duplicate by key. No
+       * conversation check either — `conv` names the reading, and an earlier
+       * page of a conversation somebody left is still that conversation's rows.
+       */
+      earlier: {
+        input: Schema.Struct({
+          conv: PanelAddress,
+          /** The reader's oldest known `seq`; the page is strictly below it. */
+          before: Schema.Number,
+          /** How many rows to answer with — {@link TRANSCRIPT_PAGE} at the one
+           *  call site, and a parameter rather than a constant on the wire so
+           *  the server does not have to hold a second copy of the policy. */
+          limit: Schema.Number,
+        }),
+        output: Schema.Array(ChatEntry),
+        error: ChatFailure,
+      },
     },
   },
 })
@@ -502,6 +579,7 @@ export const faces = {
     engines: "resource",
     agents: "resource",
     transcript: "resource",
+    earlier: "resource",
     saying: "resource",
     "conversation.send": "tool",
     "conversation.resend": "tool",
@@ -524,6 +602,7 @@ export const faces = {
     "conversation.answer": "tool",
     "conversation.decline": "tool",
     "conversation.scope": "tool",
+    "conversation.earlier": "tool",
   },
 } as const
 

@@ -100,6 +100,7 @@ import {
   CHAT_CHOOSE_CANCEL,
   CHAT_DELIVERY,
   CHAT_DROP,
+  CHAT_EARLIER,
   CHAT_ENTRY,
   CHAT_INTERRUPT,
   CHAT_LANE,
@@ -339,6 +340,88 @@ When("I arm late growth on the next stored conversation", function (this: OlaiWo
  *  time, so its history reaches the panel over many frames while it opens. */
 When("I arm a slow replay on the next stored conversation", function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.slowReplay), "");
+});
+
+/** Ask the next `session/load` of `an older conversation` to replay a
+ *  conversation LONG ENOUGH THAT ONE FRAME CANNOT CARRY IT — a hundred
+ *  distinct rows, past the window a subscribe ships (`olai-plugin-chat`'s
+ *  `TRANSCRIPT_WINDOW`). Every other replay of that conversation is short by
+ *  construction, which is what "scrolled to the newest line" needs and what a
+ *  window scenario must NOT be. */
+When("I arm a long history on the next stored conversation", function (this: OlaiWorld) {
+  fs.writeFileSync(path.join(this.scratch(), MARKER.longHistory), "");
+});
+
+/** THE WINDOW'S OTHER HALF IS THE DOOR: a reconnect ships the recent rows and
+ *  leaves the older ones behind a press. This waits for it to be drawn and for
+ *  its own count to be nonzero — the number is the server's answer, so a door
+ *  drawn over a conversation that fits would fail here. */
+Then("the earlier messages door is drawn", async function (this: OlaiWorld) {
+  const door = this.chat(CHAT_EARLIER);
+  await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const older = Number(await door.getAttribute("data-earlier"));
+  assert.ok(
+    Number.isFinite(older) && older > 0,
+    `the earlier messages door drew saying ${older} rows are older — it should name a positive count`,
+  );
+});
+
+/** ... and THE PRESS: the page lands and the door's count moves down (or the
+ *  door goes, once the start of the conversation has been reached). */
+When("I load earlier messages", async function (this: OlaiWorld) {
+  const door = this.chat(CHAT_EARLIER);
+  await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const before = Number(await door.getAttribute("data-earlier"));
+  await door.click();
+  await this.waitUntil(async () => {
+    const now = await this.chat(CHAT_EARLIER).getAttribute("data-earlier").catch(() => null);
+    return now === null || Number(now) < before;
+  }, "the earlier page to land", POLL_TIMEOUT);
+});
+
+/** HOW MUCH OF THE CONVERSATION IS ON SCREEN, as a number — the window is a
+ *  ROW COUNT (`TRANSCRIPT_WINDOW`), so "a reconnect shipped the window and not
+ *  the conversation" is exactly a count of the rows drawn. */
+const transcriptRows = (world: OlaiWorld): Promise<number> => world.chat(CHAT_ENTRY).count();
+
+Then("the transcript holds more than {int} rows", async function (this: OlaiWorld, least: number) {
+  await this.waitUntil(
+    async () => (await transcriptRows(this)) > least,
+    `the transcript to hold more than ${least} rows`,
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the transcript holds at most {int} rows", async function (this: OlaiWorld, most: number) {
+  await this.waitUntil(
+    async () => (await transcriptRows(this)) <= most,
+    `the transcript to hold at most ${most} rows`,
+    HYDRATION_TIMEOUT,
+  );
+});
+
+/**
+ * SLOW THE LINK DOWN — CDP's own network emulation, the way a cellular tether
+ * or library wifi is. The window's whole point is that a reconnect's frame
+ * drains well inside the transport's keepalive even here; measured against a
+ * transcript the server is holding whole, this is the scenario the old
+ * whole-conversation snapshot could not survive.
+ *
+ * The session is parked on a WeakMap so it outlives the step: a CDP session
+ * created and dropped would lift the throttle before the reconnect under test.
+ */
+const throttles = new WeakMap<OlaiWorld, unknown>();
+
+When("I throttle the network", async function (this: OlaiWorld) {
+  const cdp = await this.context.newCDPSession(this.page);
+  await cdp.send("Network.enable");
+  await cdp.send("Network.emulateNetworkConditions", {
+    offline: false,
+    latency: 500,
+    downloadThroughput: 16 * 1024,
+    uploadThroughput: 16 * 1024,
+  });
+  throttles.set(this, cdp);
 });
 
 /** Start writing down every position the transcript scrolls to, with what the

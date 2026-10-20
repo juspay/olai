@@ -117,6 +117,13 @@ export const MARKER = {
    *  time, the way a long history reaches the panel: over many frames, while
    *  the panel is still opening it. */
   slowReplay: ".agent-slow-replay",
+  /** Make the next replay of `an older conversation` hold MANY DISTINCT ROWS —
+   *  a conversation long enough that a subscribe cannot ship it whole. The
+   *  window a transcript ships (`olai-plugin-chat`'s `TRANSCRIPT_WINDOW`) is a
+   *  row count, so "long" here means rows: the replay's own prose grows ONE
+   *  row, and this adds a hundred finished calls so the count crosses the
+   *  window. */
+  longHistory: ".agent-long-history",
   /** ... and the next session OPEN, whichever verb asked for it: the window
    *  between picking an agent and having a conversation. */
   holdOpen: ".agent-hold-open",
