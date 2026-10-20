@@ -414,3 +414,31 @@ Then("the offline overlay never appeared", async function (this: OlaiWorld) {
   )
 });
 
+/**
+ * THE CONNECTION DID NOT FLAP — a sample over a window LONGER than the
+ * transport's fatal silence (5s ping, fatal on the next tick: 10s). `the
+ * connection is "live"` is read once, and a wire that opens and then dies
+ * behind a frame still says `live` at that instant; the defect is the death ten
+ * seconds later, so it has to be watched rather than sampled once.
+ *
+ * The window here is 15s: enough for one keepalive cycle to notice a starved
+ * pong, short enough to sit inside the interaction deadline.
+ */
+Then("the connection stays {string}", async function (this: OlaiWorld, state: string) {
+  const deadline = Date.now() + 15_000
+  for (;;) {
+    const seen = await this.page
+      .locator(OFFLINE)
+      .first()
+      .getAttribute("data-connection", { timeout: 0 })
+      .catch(() => null)
+    assert.strictEqual(
+      seen,
+      state,
+      `the connection left ${JSON.stringify(state)} (it is ${seen === null ? "absent" : `"${seen}"`})`,
+    )
+    if (Date.now() > deadline) return
+    await new Promise((done) => setTimeout(done, 250))
+  }
+});
+

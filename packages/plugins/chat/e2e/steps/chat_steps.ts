@@ -438,16 +438,22 @@ When("I throttle the network", async function (this: OlaiWorld) {
     // The client's own traffic — the keepalive's ping — is not delayed: the
     // point is that its ANSWER queues behind a frame that is still arriving.
     client.onMessage((message) => server.send(message));
-    let owed = 0;
+    // A BANDWIDTH PIPE, not an accumulating debt: each frame is released at
+    // `bytes / rate` after the pipe is free, and IDLE TIME IS FREE — otherwise
+    // a scenario that pauses between two snapshots would pay for both at once
+    // and starve the pong over a link that was never busy.
+    let freeAt = 0;
     server.onMessage((message) => {
-      const bytes = typeof message === "string" ? Buffer.byteLength(message) : message.length;
-      owed += (bytes / SLOW_BYTES_PER_SECOND) * 1000;
-      // A TIMER THAT OUTLIVES THE SOCKET is the offline half of the scenario:
-      // the connection closes while frames are still owed, and a send into the
-      // closed route is dropped rather than thrown at the runner.
+      const body = typeof message === "string" ? message : message.toString("utf8");
+      const now = Date.now();
+      const start = Math.max(now, freeAt);
+      freeAt = start + (Buffer.byteLength(body) / SLOW_BYTES_PER_SECOND) * 1000;
+      // A TIMER THAT OUTLIVES THE SOCKET: the connection closes while frames are
+      // still owed, and a send into the closed route is dropped rather than
+      // thrown at the runner.
       setTimeout(() => {
         try { client.send(message) } catch { /* the socket closed while frames were owed */ }
-      }, owed);
+      }, freeAt - now);
     });
   });
 });
