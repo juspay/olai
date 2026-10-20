@@ -1,4 +1,4 @@
-@scratch:chat
+@agent-stored @scratch:chat
 Feature: A long conversation arrives at its end, and older messages load on demand
   The transcript is a surface collection, and a subscription's first frame is a
   snapshot of the whole set. For a conversation thousands of messages long that
@@ -15,11 +15,14 @@ Feature: A long conversation arrives at its end, and older messages load on dema
   a conversation OPENED for the first time still arrives whole — the window is
   what a RECONNECT costs, and this is where it is measured.
 
-  Scenario: A reconnect ships the window, and the door loads the rest
+  Background:
     Given I open the outline "house.olai"
-    And I open the "claude" agent on node "kitchen"
+    When I open the filed conversation "the last conversation" as node "filed-chat"
     And the node agent's fold is ready
+
+  Scenario: A reconnect ships the window, and the door loads the rest
     When I arm a long history on the next stored conversation
+    And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
     # The conversation opened whole: each replayed row arrived as its own delta.
@@ -38,10 +41,8 @@ Feature: A long conversation arrives at its end, and older messages load on dema
     Then the transcript holds more than 60 rows
 
   Scenario: A long conversation over a throttled link stays live
-    Given I open the outline "house.olai"
-    And I open the "claude" agent on node "kitchen"
-    And the node agent's fold is ready
     When I arm a long history on the next stored conversation
+    And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
     And the transcript holds more than 60 rows
