@@ -414,27 +414,42 @@ Then("the transcript holds at most {int} rows", async function (this: OlaiWorld,
 });
 
 /**
- * SLOW THE LINK DOWN — CDP's own network emulation, the way a cellular tether
- * or library wifi is. The window's whole point is that a reconnect's frame
- * drains well inside the transport's keepalive even here; measured against a
- * transcript the server is holding whole, this is the scenario the old
- * whole-conversation snapshot could not survive.
+ * SLOW THE LINK DOWN — the socket itself, at 16 KiB/s, the way a cellular tether
+ * or library wifi is.
  *
- * The session is parked on a WeakMap so it outlives the step: a CDP session
- * created and dropped would lift the throttle before the reconnect under test.
+ * WHY NOT CDP's `Network.emulateNetworkConditions`: it was measured on this
+ * scenario and it does NOT throttle WebSocket frames. With the window reverted
+ * to the whole conversation the throttled scenario still passed — the frame it
+ * was supposed to starve rode straight through — so the emulation would have
+ * been a green light over a test that could not fail. What is slowed here is the
+ * one link the defect is about: server→client frames are held for their own
+ * bytes at the rate, while client→server traffic (the keepalive's ping) goes out
+ * at once. A frame bigger than the fatal silence therefore queues the pong
+ * behind it exactly as the real link did.
+ *
+ * Registered HERE, after the conversation is open, so it wraps the REDIAL the
+ * scenario is about rather than the first connection (which is already made).
  */
-const throttles = new WeakMap<OlaiWorld, unknown>();
+const SLOW_BYTES_PER_SECOND = 16 * 1024;
 
 When("I throttle the network", async function (this: OlaiWorld) {
-  const cdp = await this.context.newCDPSession(this.page);
-  await cdp.send("Network.enable");
-  await cdp.send("Network.emulateNetworkConditions", {
-    offline: false,
-    latency: 500,
-    downloadThroughput: 16 * 1024,
-    uploadThroughput: 16 * 1024,
+  await this.page.routeWebSocket(url => url.pathname === "/rpc/ws", (client) => {
+    const server = client.connectToServer();
+    // The client's own traffic — the keepalive's ping — is not delayed: the
+    // point is that its ANSWER queues behind a frame that is still arriving.
+    client.onMessage((message) => server.send(message));
+    let owed = 0;
+    server.onMessage((message) => {
+      const bytes = typeof message === "string" ? Buffer.byteLength(message) : message.length;
+      owed += (bytes / SLOW_BYTES_PER_SECOND) * 1000;
+      // A TIMER THAT OUTLIVES THE SOCKET is the offline half of the scenario:
+      // the connection closes while frames are still owed, and a send into the
+      // closed route is dropped rather than thrown at the runner.
+      setTimeout(() => {
+        try { client.send(message) } catch { /* the socket closed while frames were owed */ }
+      }, owed);
+    });
   });
-  throttles.set(this, cdp);
 });
 
 /** Start writing down every position the transcript scrolls to, with what the

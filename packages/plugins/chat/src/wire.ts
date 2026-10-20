@@ -76,12 +76,18 @@ export const sayingRows = collection({ name: "saying", keySchema: Schema.String,
  * — forever (juspay/olai#663). A reconnect now costs this many rows.
  *
  * A ROW COUNT AND NOT A BYTE BUDGET, deliberately: the framework's own
- * byte-budgeted chunking, when it lands, is what makes a frame bounded whatever
- * a row weighs, and this constant only has to bound how much of a conversation
- * a reader lands on. Sixty rows is several screens — enough that opening a chat
- * shows the end of the conversation and the turn in flight, and small enough
- * that the frame drains well inside the keepalive. The rest is a press away
+ * byte-budgeted chunking is what makes a frame bounded whatever a row weighs,
+ * and this constant only has to bound how much of a conversation a reader lands
+ * on. Sixty rows is several screens — enough that opening a chat shows the end
+ * of the conversation and the turn in flight — and small enough that the frame
+ * drains well inside the keepalive. The rest is a press away
  * ({@link TRANSCRIPT_PAGE}).
+ *
+ * WHAT IT DOES NOT BOUND is the FIRST open of a conversation the reading already
+ * holds: that replay goes through `cadence`, which coalesces a tick's rows into
+ * one `delta` frame, so a long stored conversation still lands as one large
+ * frame until kolu's bounded `delta` frames ship. The window is the reconnect's
+ * cost today; the first open's is the kolu PR's.
  *
  * BAKED, not a knob — the same argument the framework makes for its grace
  * window: a tunable would only be a way to reintroduce the frame that killed

@@ -3239,6 +3239,15 @@ const replay = async (): Promise<void> => {
     // scenario asked. Its own prose below grows ONE row (chunks accumulate), so
     // "long" here has to mean distinct rows: a hundred finished calls, each a
     // row of its own, which is what crosses the window a subscribe ships.
+    //
+    // EACH ROW CARRIES A FEW KB OF OUTPUT, and that is the half that lets a
+    // throttled scenario tell the two deliveries apart. The arithmetic: a row's
+    // payload is ~2 KB, so the newest sixty are ~120 KB and the whole hundred
+    // ~200 KB. At the scenario's 16 KiB/s, the window takes ~7.5 s and the whole
+    // set ~12.5 s, either side of Effect RPC's 10 s fatal silence — the whole
+    // conversation starves the pinger, the window does not. The payload lives in
+    // `rawOutput`, which the panel stores as the row's fold — drawn only when a
+    // call is opened, so the transcript does not pay for it in layout.
     if (existsSync(`${cwd}/${MARKER.longHistory}`)) {
       rmSync(`${cwd}/${MARKER.longHistory}`, { force: true })
       for (let call = 0; call < 100; call++) {
@@ -3250,7 +3259,7 @@ const replay = async (): Promise<void> => {
             title: `step ${call}`,
             status: "completed",
             rawInput: { file_path: `${cwd}/notes.md` },
-            rawOutput: { read: true },
+            rawOutput: { read: true, text: "the quick brown fox jumps over the lazy dog. ".repeat(45) },
           },
         })
       }
