@@ -1259,12 +1259,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           const ours = call === null ? null : options.advertised?.(call.server, call.tool) ?? null
           const decoded = ours === null ? undefined : options.leg.replyIn(update.rawOutput)
           const reply = decoded !== undefined && isJson(decoded) ? decoded : undefined
-          // WHAT THIS FRAME SAYS ABOUT A BACKGROUND TASK, read ONCE: the row
-          // wears it, and the terminal block below has to know it too — a
-          // launch's terminal corners are about the launch rather than about
-          // the task, and the comment there is the argument. Two readings of
-          // one `_meta` corner would be two places a later leg could disagree
-          // with itself.
+          // Read ONCE: the row wears it, and the terminal block below turns on
+          // it. Two readings of one `_meta` corner are two places a later leg
+          // could disagree with itself.
           const arming = options.leg.backgroundTask(update._meta)
 
           emit({
@@ -1304,13 +1301,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // agent that says it is read where everything else true of one
             // agent is read.
             armed: arming ?? undefined,
-            // ... and whether the TITLE this frame carried is the adapter's
-            // placeholder rather than the call's name. One adapter announces a
-            // call before the model's arguments have parsed; the row shows the
-            // placeholder and is NAMED by the frame that refines it
-            // (`@olai/acp/engine`'s `Leg`'s `provisionalTitle`, honoured in
-            // `./transcript.ts`). A leg that declares nothing answers
-            // `undefined` and the once-only rule is exactly what it was.
+            // ... and whether the TITLE this frame carried is a placeholder
+            // the adapter has not refined yet, which decides only whether it
+            // may NAME the row (`./transcript.ts`). A leg that declares
+            // nothing answers `undefined` and the once-only rule is unchanged.
             provisional: options.leg.provisionalTitle?.(update),
           })
           {
@@ -1319,33 +1313,25 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             const terminalId = (raw: string): string => activity !== null && !terminals.clientOwned(raw)
               ? activity.toolId(notification.sessionId, raw) : raw
             // A LAUNCH IS NOT THE TASK IT LAUNCHED, and this is the one frame
-            // where a shell tool's terminal corners lie about which of the two
-            // they describe.
+            // whose terminal corners lie about which of the two they describe:
+            // `Bash(run_in_background)` answers the moment the command is
+            // RUNNING, so the adapter — building that answer with the reader it
+            // uses for an ordinary command — sends the harness's "Command
+            // running in background with ID …" notice and `exit_code: 0`, the
+            // exit of the LAUNCH. Olai's patch keeps that `_meta` on the frame
+            // it turns into the call's arming
+            // (`packages/plugins/claude/acp/patches/README.md`). Drawn, it is a pane reading
+            // *Exit 0* under a row the strip beside it says is still running.
             //
-            // A background shell (`Bash(run_in_background)`) answers the moment
-            // the command is RUNNING, and the pinned adapter builds that answer
-            // with the same reader it uses for an ordinary one: `terminal_output`
-            // carrying the harness's "Command running in background with ID …"
-            // notice, and `terminal_exit { exit_code: 0 }` — the exit of the
-            // LAUNCH, which succeeded. The patch olai carries then keeps that
-            // `_meta` on the frame it turns into the call's ARMING
-            // (`packages/plugins/claude/acp/patches/README.md`), because the launch's own output is
-            // honestly what the tool answered. Drawn, it is a pane reading
-            // *Exit 0* under a row the strip beside it says is still running —
-            // the panel contradicting itself about the one fact this whole
-            // feature exists to say.
-            //
-            // So a frame that arms a task contributes NO terminal, and clears
-            // the ones its call had: the pane the announcement opened goes with
-            // it. Nothing is lost — the notice is bookkeeping the row says
-            // better through `armed`, the task's own ending arrives from the
-            // harness, and its output is read by a later `BashOutput` call with
-            // a row of its own. The registry keeps the orphaned record until the
-            // session is cleared; nothing reads it, because `terminalTools` is
-            // what the change callback walks.
-            const meta = (options.leg.terminalOutput && arming === null ? terminalMetaIn(update._meta) : [])
+            // So such a frame contributes no terminal and clears the ones its
+            // call had, taking the pane its announcement opened with them. The
+            // notice is bookkeeping `armed` says better, the ending comes from
+            // the harness, and the command's own output is read back by a later
+            // call with a row of its own.
+            const launching = arming !== null
+            const meta = (options.leg.terminalOutput && !launching ? terminalMetaIn(update._meta) : [])
               .map((item) => ({ ...item, id: terminalId(item.id) }))
-            const refs = arming !== null
+            const refs = launching
               ? []
               : update.content?.flatMap((item) => item.type === "terminal" ? [terminalId(item.terminalId)] : [])
             const ids = [...new Set([...(refs ?? terminalTools.get(id) ?? []), ...meta.map((item) => item.id)])]

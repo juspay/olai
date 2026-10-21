@@ -996,15 +996,12 @@ export class Transcript {
     // renamed by the next frame that carried a different one.
     //
     // A PROVISIONAL TITLE IS DRAWN AND DOES NOT COUNT. One adapter announces a
-    // call the moment a tool use starts, before the model's arguments have
-    // parsed, and titles that frame off arguments it does not have — a shell
-    // command arrives as the bare word "Terminal". The frame says so
-    // (`@olai/acp/engine`'s `Leg`'s `provisionalTitle`, read in `./agent.ts`),
-    // and what the claim buys is exactly one thing: the row wears the
-    // placeholder while the arguments stream, and the frame that refines them
-    // NAMES it. Everything after that is the rule as it always was, which is
-    // what keeps a title an agent rewrites mid-call from renaming a row a
-    // person is reading.
+    // call before the model's arguments have parsed and titles that frame off
+    // arguments it does not have — a shell command arrives as the bare word
+    // "Terminal" — and says so on the frame (`@olai/acp/engine`'s `Leg`'s
+    // `provisionalTitle`). The row wears the placeholder while the arguments
+    // stream; the frame that refines them NAMES it; everything after that is
+    // the rule as it always was.
     const named = this.#named.has(key)
     if (move.title !== undefined && move.provisional !== true) this.#named.add(key)
     const called = (named ? undefined : move.called) ?? held?.called

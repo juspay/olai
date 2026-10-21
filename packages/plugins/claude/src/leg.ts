@@ -750,23 +750,19 @@ const initIn = (params: unknown): { readonly [key: string]: unknown } | undefine
 /**
  * Whether a frame's title is the adapter's PLACEHOLDER rather than the call's
  * name — true for the announcement it writes before the model's arguments have
- * parsed, and false for everything after it.
+ * parsed, false for everything after it.
  *
- * THE SHAPE, exactly: the adapter announces a tool call on the SDK's
+ * THE SHAPE: the adapter announces a tool call on the SDK's
  * `content_block_start` (`acp-agent.js`), when all it has is that a tool use
- * has begun, and the frame it builds carries `rawInput: {}` — an input object
- * with nothing in it, which is a different claim from an absent one. Its title
- * is then derived from no arguments at all, and for the shell tool that is the
- * bare word "Terminal" (`tools.js`: the command is the title when there is a
- * command). The `tool_call_update` that follows, once the arguments have
- * streamed in, carries the real one.
+ * has begun, so the frame carries `rawInput: {}` — an input object with
+ * nothing in it, which is a different claim from an absent one — and a title
+ * derived from no arguments, which for the shell tool is the bare word
+ * "Terminal" (`tools.js`).
  *
- * BOTH FIELDS, not either: `sessionUpdate` alone would call an UPDATE that
- * happened to carry no arguments provisional — the adapter sends those, for a
- * status or a terminal corner — and the empty object alone would be read off
- * frames that are not announcements at all. A call whose arguments really are
- * empty is announced and refined with the same title, so the refinement names
- * the row with the word the announcement already showed and nothing moves.
+ * BOTH FIELDS, not either: the frame kind alone would call an UPDATE carrying
+ * no arguments provisional, and the empty object alone would be read off
+ * frames that are not announcements. A call whose arguments really are empty
+ * is announced and refined with the same title, so nothing moves.
  */
 export const provisionalTitleIn = (update: unknown): boolean => {
   const frame = record(update)
@@ -824,16 +820,13 @@ export const CLAUDE: Leg = {
     modelIn: liveModelIn,
     serversIn: liveServersIn,
   },
-  // A SHELL COMMAND IS A TERMINAL PANE, and saying so is what buys it. Asked
-  // for this (`_meta.terminal_output: true` on the handshake), the adapter
-  // reports Bash and PowerShell as a terminal: `terminal_info` on the
-  // announcement, `terminal_output` as the bytes arrive and `terminal_exit`
-  // with the code, and a `{type: "terminal"}` content block naming the handle.
-  // Not asked, it fences the whole of the output into one markdown block and
-  // sends it as text — which is a person reading ```` ```console ```` and the
-  // closing backticks, with no exit code anywhere (`tools.js`). The handle is
-  // the ADAPTER's, not ours: nothing here creates or releases it, and the
-  // panel only draws what the corners say.
+  // A SHELL COMMAND IS A TERMINAL PANE, and saying so is what buys it: asked
+  // (`_meta.terminal_output: true` on the handshake), the adapter reports Bash
+  // and PowerShell with `terminal_info` / `terminal_output` / `terminal_exit`
+  // and a `{type: "terminal"}` block; not asked, it fences the whole output
+  // into one markdown block and sends it as text — backticks a person reads,
+  // with no exit code anywhere (`tools.js`). The handle is the ADAPTER's:
+  // nothing here creates or releases it.
   terminalOutput: true,
   // ... and the title the announcement carries is not the call's name yet
   // ({@link provisionalTitleIn}).

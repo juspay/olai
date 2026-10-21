@@ -1489,21 +1489,34 @@ const clientCanElicitUrl = (): boolean => {
 }
 
 /**
- * Whether the client ASKED for the terminal-output extension, which is the one
- * capability that changes what a shell call's RESULT looks like rather than
- * what the panel does with it: told yes, the adapter reports Bash as a
- * terminal (`terminal_info` / `terminal_output` / `terminal_exit` plus a
- * `{type: "terminal"}` block); told nothing, it fences the whole output into a
- * markdown `console` block and sends it as text.
- *
- * Read here rather than assumed per verb, because two of them branch on it —
- * an ordinary command and a BACKGROUND one — and a fake that answered the two
- * questions differently would be the one place this suite could not notice a
- * leg that stopped asking.
+ * Whether the client ASKED for the terminal-output extension — the one
+ * capability that changes what a shell call's result IS rather than what the
+ * panel does with it. Read in one place because two verbs branch on it, an
+ * ordinary command and a BACKGROUND one, and a fake that answered the two
+ * differently would be the one place this suite could not notice a leg that
+ * stopped asking.
  */
 const terminalsAdvertised = (): boolean =>
   (capabilities["_meta"] as { terminal_output?: unknown } | null | undefined)
     ?.terminal_output === true
+
+/**
+ * ... and the adapter's own spelling for one shell call, so the two verbs
+ * share a vocabulary rather than a copy. The handle is the CALL's id, which is
+ * what the real one names (`tools.js`); `fenced` is what it sends INSTEAD to a
+ * client that asked for no terminal — the output trimmed at its end with a
+ * newline before the closing backticks, byte for byte.
+ */
+const shellTerminal = (call: string) => ({
+  block: { type: "terminal", terminalId: call },
+  info: { terminal_info: { terminal_id: call } },
+  output: (data: string) => ({ terminal_output: { terminal_id: call, data } }),
+  exit: (code: number) => ({ terminal_exit: { terminal_id: call, exit_code: code, signal: null } }),
+  fenced: (data: string) => ({
+    type: "content",
+    content: { type: "text", text: "```console\n" + data.trimEnd() + "\n```" },
+  }),
+})
 
 /** `… attaching invoice.pdf, notes.txt` — the files a drafting phrase names.
  *  The mail tools take ABSOLUTE paths, which is what an agent holds: a name
@@ -1776,44 +1789,31 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   }
 
   /**
-   * A SHELL COMMAND, in the shape the pinned Claude Code adapter actually
-   * sends one — three frames, and the two things about them that are easy to
-   * get wrong are the whole of what this verb exists to pin.
+   * A SHELL COMMAND, in the frames the pinned Claude Code adapter actually
+   * sends — two of which the panel got wrong.
    *
-   *   1. THE ANNOUNCEMENT HAS NO ARGUMENTS. The adapter emits it on the SDK's
-   *      `content_block_start`, when all it knows is that a tool use has
-   *      begun, so the frame carries `rawInput: {}` and a title derived from
-   *      nothing: the bare word "Terminal" for the shell tool. A panel that
-   *      took that as the call's name drew a row called *Terminal* for the
-   *      rest of the conversation.
-   *   2. THE OUTPUT IS A TERMINAL ONLY IF THE CLIENT ASKED. With
-   *      `_meta.terminal_output: true` on the handshake, the result carries
-   *      `terminal_info` / `terminal_output` / `terminal_exit` and a
-   *      `{type: "terminal"}` block naming the handle. WITHOUT it, the adapter
-   *      fences the whole output into a markdown `console` block and sends it
-   *      as text — which is a person reading backticks, with no exit code
-   *      anywhere. Both arms are written because the second one is the
-   *      regression: a leg that stopped advertising would land here, and the
-   *      scenario would fail on the backticks rather than pass quietly.
+   * THE ANNOUNCEMENT HAS NO ARGUMENTS: the adapter emits it on the SDK's
+   * `content_block_start`, when all it knows is that a tool use has begun, so
+   * its title is derived from nothing and a shell call is announced as the
+   * bare word "Terminal". A panel that took that for the call's name drew a
+   * row called *Terminal* for the rest of the conversation.
    *
-   * `bash long` is the same sequence with an argument long enough to overflow
-   * the fold, because what the detail block has to do with a line that does
-   * not fit is wrap rather than scroll.
+   * THE RESULT IS A TERMINAL ONLY IF THE CLIENT ASKED. Both arms are written
+   * because the second one is the regression: a leg that stopped advertising
+   * lands there, and the scenario fails on the backticks a person would have
+   * read rather than passing quietly.
+   *
+   * `bash long` is the same sequence with an argument longer than the fold,
+   * which the detail block has to wrap rather than scroll.
    */
   if (verb === "bash") {
     const long = rest[0] === "long"
     const command = long ? "cat notes.txt" : "echo hello"
     const output = long ? "line one\n" : "hello\n"
     const toolCallId = `call-${++nextMcpId}`
-    // THE TERMINAL IS THE TOOL USE, in the real adapter: the handle it names is
-    // the call's own id, because that is the id a client created a terminal for
-    // (`tools.js`). Spelled as its own binding anyway, so a reader can see
-    // which of the two ids each corner is about.
-    const terminalId = toolCallId
-    // What the CLIENT said at `initialize`, read back — the fake answers the
-    // handshake it was given rather than a flavour of its own.
     const asTerminal = terminalsAdvertised()
-    const terminalContent = asTerminal ? { content: [{ type: "terminal", terminalId }] } : {}
+    const term = shellTerminal(toolCallId)
+    const names = asTerminal ? { content: [term.block] } : {}
     notify("session/update", { sessionId, update: {
       sessionUpdate: "tool_call",
       toolCallId,
@@ -1821,17 +1821,16 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       kind: "execute",
       status: "pending",
       rawInput: {},
-      ...terminalContent,
+      ...names,
       _meta: {
         ...(isCodex ? {} : { claudeCode: { toolName: "Bash" } }),
-        ...(asTerminal ? { terminal_info: { terminal_id: terminalId } } : {}),
+        ...(asTerminal ? term.info : {}),
       },
     } })
-    // ... and the refinement, once the arguments have finished streaming —
-    // carrying no status, like the real one, because nothing about the call
-    // moved. The `description` rides along because the tool takes one, and
-    // because what the row is called must be the COMMAND rather than the
-    // sentence the model wrote about it.
+    // The refinement carries no status, like the real one: nothing about the
+    // call moved, only what is known about it. The `description` rides along
+    // because the row must be named by the COMMAND rather than by the sentence
+    // the model wrote about it.
     notify("session/update", { sessionId, update: {
       sessionUpdate: "tool_call_update",
       toolCallId,
@@ -1839,34 +1838,26 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       kind: "execute",
       rawInput: { command, description: long ? unbroken("describe") : "Say hello" },
     } })
-    // ... the OUTPUT, on a frame of its own and before any ending — which is
-    // how it arrives for a command that prints while it runs.
+    // Output arrives on a frame of its own, before any ending — the shape a
+    // command that prints while it runs has.
     if (asTerminal) {
       notify("session/update", { sessionId, update: {
         sessionUpdate: "tool_call_update",
         toolCallId,
-        _meta: { terminal_output: { terminal_id: terminalId, data: output } },
+        _meta: term.output(output),
       } })
     }
-    // ... and the ending, with the title MOVED. Once a frame has named the
-    // row, a later one may not rename it — which is the rule the placeholder
-    // is an exception to rather than a repeal of, and the only way to pin that
-    // is to send a title a panel would be wrong to take.
+    // The ending MOVES the title. Once a frame has named the row a later one
+    // may not rename it, and the only way to pin that is to send a title a
+    // panel would be wrong to take.
     notify("session/update", { sessionId, update: {
       sessionUpdate: "tool_call_update",
       toolCallId,
       title: "Bash",
       status: "completed",
       ...(asTerminal
-        ? {
-          ...terminalContent,
-          _meta: { terminal_exit: { terminal_id: terminalId, exit_code: 0, signal: null } },
-        }
-        // Byte for byte the adapter's fallback: the output TRIMMED at its end
-        // and a newline before the closing fence (`tools.js`). A fake that
-        // fenced it loosely would be asserting against its own spelling rather
-        // than against the thing a person had to read.
-        : { content: [{ type: "content", content: { type: "text", text: "```console\n" + output.trimEnd() + "\n```" } }] }),
+        ? { ...names, _meta: term.exit(0) }
+        : { content: [term.fenced(output)] }),
     } })
     say("ran it")
     reply(id, { stopReason: "end_turn" }); return
@@ -2134,15 +2125,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const task = "bwa85c0r2"
     const description = "kolu fleet watch"
     const notice = `Command running in background with ID: ${task}.`
-    // THE SAME BRANCH THE ORDINARY COMMAND TAKES ({@link terminalsAdvertised}),
-    // because the adapter builds a background launch's answer with the very
-    // reader it builds an ordinary one with (`tools.js`'s `Bash` arm): the
-    // launch SUCCEEDED, so the terminal corners say the notice above and
+    // THE LAUNCH SUCCEEDED, so its terminal corners say that notice and
     // `exit_code: 0` — about the launch, while the task it armed runs on. The
-    // patch olai carries keeps that `_meta` on the arming frame, so this is
-    // what a client is actually handed, and what the panel must refuse to draw
-    // as the task's own ending.
+    // adapter builds them with the very reader an ordinary command uses, and
+    // the patch olai carries keeps them on the arming frame, so this is what a
+    // client is really handed and what the panel must refuse to draw as the
+    // task's own ending.
     const asTerminal = terminalsAdvertised()
+    const term = shellTerminal(toolCallId)
     notify("session/update", {
       sessionId,
       update: {
@@ -2151,10 +2141,10 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
         title: "kolu watch --states waiting,awaiting --held-for 60s --nag 10m",
         status: "pending",
         rawInput: { command: "kolu watch --states waiting,awaiting", run_in_background: true },
-        ...(asTerminal ? { content: [{ type: "terminal", terminalId: toolCallId }] } : {}),
+        ...(asTerminal ? { content: [term.block] } : {}),
         _meta: {
           claudeCode: { toolName: "Bash" },
-          ...(asTerminal ? { terminal_info: { terminal_id: toolCallId } } : {}),
+          ...(asTerminal ? term.info : {}),
         },
       },
     })
@@ -2169,18 +2159,10 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
             toolName: "Bash",
             backgroundTask: { taskId: task, taskType: "local_bash", description },
           },
-          ...(asTerminal
-            ? {
-              terminal_info: { terminal_id: toolCallId },
-              terminal_output: { terminal_id: toolCallId, data: notice },
-              terminal_exit: { terminal_id: toolCallId, exit_code: 0, signal: null },
-            }
-            : {}),
+          ...(asTerminal ? { ...term.info, ...term.output(notice), ...term.exit(0) } : {}),
         },
         rawOutput: notice,
-        content: asTerminal
-          ? [{ type: "terminal", terminalId: toolCallId }]
-          : [{ type: "content", content: { type: "text", text: "```console\n" + notice + "\n```" } }],
+        content: asTerminal ? [term.block] : [term.fenced(notice)],
       },
     })
     say("armed the watch; I will keep working.")

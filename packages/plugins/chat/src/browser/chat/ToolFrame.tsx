@@ -121,6 +121,13 @@ const LOOK: Record<ToolStatus, { mark: string; tone: string; said: string }> = {
   failed: { mark: "✗", tone: "text-alarm", said: "Failed" },
 }
 
+/** The fold's two monospace blocks — the arguments and the reply. One name so
+ *  they cannot drift: both scroll vertically and both WRAP, because a call's
+ *  JSON can carry a line longer than the pane and a conversation that grows a
+ *  horizontal scrollbar is a conversation you read sideways. */
+const FOLD_BLOCK =
+  "m-0 max-h-64 overflow-auto whitespace-pre-wrap break-words border-t border-rule px-2 py-1 font-mono text-caption text-muted"
+
 /**
  * WHAT THE CALL IS SAYING, as a pane — drawn in one of two places on one row
  * and never in both, which is why it is a component rather than two `<pre>`s
@@ -444,23 +451,16 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
         <Show when={props.entry.row && props.entry.called}>
           {called => <p class="m-0 border-t border-rule px-2 py-1 font-mono text-label text-muted" data-testid={TESTID.chatToolCalled}>{called()}</p>}
         </Show>
-        {/* BOTH BLOCKS WRAP. They are the only `<pre>`s in the panel that did
-            not, and what lands in them is exactly the text that has no reason
-            to be short: a call's arguments as JSON, a reply as JSON, either of
-            which can carry one unbroken line longer than the pane. Without
-            this the fold grew a horizontal scrollbar and the end of the line
-            was somewhere a reader had to drag to — `overflow-auto` stays for
-            the vertical half, which is what `max-h-64` is for. */}
+        {/* BOTH WRAP ({@link FOLD_BLOCK}): what lands in them is the text with
+            no reason to be short, and an unbroken line longer than the pane
+            used to put its end somewhere a reader had to drag to. */}
         <Show when={props.entry.detail}>
           {(detail) => (
-            <pre
-              class="m-0 max-h-64 overflow-auto whitespace-pre-wrap break-words border-t border-rule px-2 py-1 font-mono text-caption text-muted"
-              data-testid={TESTID.chatToolDetail}
-            >{detail()}</pre>
+            <pre class={FOLD_BLOCK} data-testid={TESTID.chatToolDetail}>{detail()}</pre>
           )}
         </Show>
         <Show when={props.entry.row !== undefined && props.entry.reply !== undefined}>
-          <pre class="m-0 max-h-64 overflow-auto whitespace-pre-wrap break-words border-t border-rule px-2 py-1 font-mono text-caption text-muted" data-testid={TESTID.chatToolReply}>{JSON.stringify(props.entry.reply, null, 2)}</pre>
+          <pre class={FOLD_BLOCK} data-testid={TESTID.chatToolReply}>{JSON.stringify(props.entry.reply, null, 2)}</pre>
         </Show>
       </Show>
     </div>
