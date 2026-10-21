@@ -197,7 +197,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
 
   return (
     <div
-      class="min-w-0 rounded-control border border-rule/60 bg-panel"
+      class="min-w-0 rounded-control border border-rule bg-desk/40"
       data-testid={TESTID.chatTool}
       data-tool-status={status()}
       data-tool-id={props.entry.id}

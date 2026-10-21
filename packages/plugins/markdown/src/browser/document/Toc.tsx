@@ -67,7 +67,7 @@ const INDENT_REM = 0.75
  * for the same reason.
  */
 const LINE =
-  `inline-block ${TARGET} py-3 break-words text-accent no-underline hover:underline md:min-h-0 md:py-0`
+  `inline-block ${TARGET} py-3 break-words text-ink/80 no-underline hover:text-accent md:min-h-0 md:py-0`
 
 export function Toc(props: {
   /** The document these headings came out of. Not drawn — it is what the
@@ -104,13 +104,13 @@ export function Toc(props: {
       <nav aria-label="Contents">
         <details
           open
-          class="mb-6 rounded-control border border-rule px-3 py-2"
+          class="mb-6 rounded-control border border-rule bg-desk/40 px-3 py-2"
           data-testid={TESTID.toc}
         >
-          <summary class="cursor-pointer text-body text-muted select-none">
+          <summary class="cursor-pointer select-none text-caption font-semibold uppercase tracking-[0.08em] text-muted">
             Contents
           </summary>
-          <ol class="mt-2 space-y-0.5 text-body">
+          <ol class="mt-2 space-y-0.5 text-label">
             <Key each={props.headings} by="id">
               {(heading) => (
                 <li style={{ "padding-left": `${(heading().depth - base()) * INDENT_REM}rem` }}>

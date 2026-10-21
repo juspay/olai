@@ -1,8 +1,9 @@
 @corpus:good
 Feature: The theme is a pick, and it is yours
-  Named palettes, as eighteen swatches in the Theme row of the preferences panel
+  Named palettes, as four swatches in the Theme row of the preferences panel
   (`preferences.feature`) — each painted in its own paper with a wedge of its
-  accent, lights first, then darks. Pressing one writes `data-theme` on
+  accent, lights first, then darks — and ahead of them one control that is not
+  a palette: FOLLOW THE SYSTEM. Pressing a swatch writes `data-theme` on
   `<html>`, this browser remembers it, and the sheet repaints — every colour on
   the page is a custom property, so one attribute re-answers all of them at
   once. A swatch carries no word; its name is its tooltip and its accessible
@@ -26,12 +27,12 @@ Feature: The theme is a pick, and it is yours
   loaded. Opening that surface and loading the initial page are separate from
   choosing a palette; every request made by the pick still counts.
 
-  There is no "system" chip. The OS's preference used to choose the palette,
-  which meant two ways to be dark that could disagree, and a page that changed
-  under a reader who had already said what they wanted. A page that has picked
-  nothing reads in the default — `reef`, the lagoon — so the page nobody
-  chose for is the one that is ours. `chalk` is still a pick, and still the
-  one palette that promises AA.
+  THE OS ANSWERS FOR THE PAGE NOBODY ANSWERED FOR. A page that has picked
+  nothing names no theme and reads in `chalk` by day and `basalt` under
+  `prefers-color-scheme: dark` — the sheet carries that one media rule for the
+  bare `:root` only, so a stored pick is never overruled by the OS. The follow
+  control forgets a pick and hands the question back; the Theme row then says
+  `System · Chalk`, naming whose choice it is and what it came to.
 
   The scenario about parsing is the one that catches the regression that
   matters. Everything on this page is deferred; a theme restored by the bundle
@@ -44,23 +45,55 @@ Feature: The theme is a pick, and it is yours
     Then the page names no theme
     And the theme row names the theme in force
     And the lit theme chip is the default
+    And the follow-the-system control is lit
     And every theme chip agrees with what it announces
+
+  Scenario: An unpicked page follows the system between the two defaults
+    # The one media rule in the sheet, and the one thing the OS gets to say.
+    # Emulated rather than real, which is the same `matchMedia` event a real
+    # flip fires; the paper is read off the sheet and compared to the table.
+    When I open the app
+    Then the page paints the "light" default
+    When the system prefers "dark"
+    Then the page names no theme
+    And the page paints the "dark" default
+    And the theme row names the theme in force
+    And the lit theme chip is "basalt"
+    And the browser chrome matches the paper
+    When the system prefers "light"
+    Then the page paints the "light" default
+    And the lit theme chip is the default
+
+  Scenario: A pick is not overruled by the system, and can be handed back
+    When I open the app
+    And I pick the theme "reef"
+    And the system prefers "dark"
+    Then the page is in the theme "reef"
+    And the follow-the-system control is not lit
+    When I hand the theme back to the system
+    Then the page names no theme
+    And this browser has stored no theme
+    And the page paints the "dark" default
+    And the follow-the-system control is lit
+    When I reload the page
+    Then the page names no theme
+    And the page paints the "dark" default
 
   Scenario: Picking a theme repaints the page
     When I open the app
     And I note the paper colour
     And I mark the page
-    And I pick the theme "pitch"
-    Then the page is in the theme "pitch"
+    And I pick the theme "basalt"
+    Then the page is in the theme "basalt"
     And the theme row names the theme in force
-    And the lit theme chip is "pitch"
+    And the lit theme chip is "basalt"
     And the paper colour has changed
     And the page has not reloaded
     And there should be no page errors
 
   Scenario: Every palette paints the page it names
     # The sheet is generated from the table, one block per row, and this is
-    # the round trip: pick each of the eighteen and read the page's own paper
+    # the round trip: pick each of the four and read the page's own paper
     # back. A row whose block was dropped, mistyped, or given another row's
     # values fails here, in the browser that paints it.
     When I open the app
@@ -73,34 +106,34 @@ Feature: The theme is a pick, and it is yours
     # not from the top of the page.
     When I open the app
     And I open the preferences
-    And I Tab to the "pitch" swatch
+    And I Tab to the "basalt" swatch
     And I press "Space"
-    Then the page is in the theme "pitch"
-    And the lit theme chip is "pitch"
+    Then the page is in the theme "basalt"
+    And the lit theme chip is "basalt"
     And the theme row names the theme in force
-    And the "pitch" swatch has the focus
-    When I Tab to the "ember" swatch
+    And the "basalt" swatch has the focus
+    When I Tab to the "abyss" swatch
     And I press "Enter"
-    Then the page is in the theme "ember"
+    Then the page is in the theme "abyss"
     And the theme row names the theme in force
-    And the "ember" swatch has the focus
+    And the "abyss" swatch has the focus
     And every theme chip agrees with what it announces
     And there should be no page errors
 
   Scenario: The pick is there before the page has finished parsing
     When I open the app
-    And I pick the theme "pitch"
+    And I pick the theme "basalt"
     And I watch for the theme landing
     And I reload the page
-    Then the theme "pitch" landed while the page was still parsing
-    And the lit theme chip is "pitch"
+    Then the theme "basalt" landed while the page was still parsing
+    And the lit theme chip is "basalt"
 
   Scenario: Picking the default is a pick like any other
     # Stored explicitly rather than by falling back to it: otherwise the
     # default's name would mean two different things, and a later change of
     # default would silently move everybody who had chosen the old one.
     When I open the app
-    And I pick the theme "pitch"
+    And I pick the theme "basalt"
     And I pick the default theme
     Then the page is in the default theme
     When I reload the page
@@ -127,7 +160,7 @@ Feature: The theme is a pick, and it is yours
     # same table that painted the page.
     When I open the app
     Then the browser chrome matches the paper
-    When I pick the theme "bloom"
+    When I pick the theme "reef"
     Then the browser chrome matches the paper
 
   Scenario: The manifest opens the app in the paper an unpicked page paints
@@ -141,6 +174,6 @@ Feature: The theme is a pick, and it is yours
     When I open the app
     And the appearance controls have finished loading their fonts
     And I watch what the page asks for
-    And I pick the theme "ember"
-    Then the page is in the theme "ember"
+    And I pick the theme "abyss"
+    Then the page is in the theme "abyss"
     And the page asked for nothing at all

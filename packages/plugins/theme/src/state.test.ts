@@ -8,7 +8,8 @@ test("appearance survives without preferences UI, releases observers and metadat
   const first = Scope.makeUnsafe()
   try {
     const state = await Effect.runPromise(Scope.provide(createAppearance, first))
-    expect(state.theme.current().name).toBe("pitch")
+    expect(state.theme.current().name).toBe("basalt")
+    expect(state.theme.following()).toBe(false)
     state.chrome.name("olai [test]")
     state.chrome.waiting(true)
     expect(document.title).toBe("● olai [test]")
@@ -48,8 +49,17 @@ test("unknown stored choices are forgotten and a failed initialization releases 
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const state = yield* createAppearance
     expect(stored.size).toBe(0)
-    expect(state.theme.current().name).toBe("reef")
+    expect(state.theme.current().name).toBe("chalk")
+    expect(state.theme.following()).toBe(true)
     expect(root.getAttribute("data-theme")).toBeNull()
+    state.theme.pick(state.theme.current())
+    expect(state.theme.following()).toBe(false)
+    expect(root.getAttribute("data-theme")).toBe("chalk")
+    expect(stored.get("olai.theme")).toBe("chalk")
+    state.theme.follow()
+    expect(state.theme.following()).toBe(true)
+    expect(root.getAttribute("data-theme")).toBeNull()
+    expect(stored.has("olai.theme")).toBe(false)
   })))
   const create = spyOn(URL, "createObjectURL")
   create.mockImplementationOnce(() => { throw new Error("icon failed") })

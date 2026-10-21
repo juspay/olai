@@ -63,7 +63,7 @@ function AgentStanding(props: { readonly row: Row; readonly record?: string }) {
   const now = createNow(busy)
   const age = createTicking(MINUTE, () => props.row.standing === "asleep")
   const look = () => LOOK[props.row.standing]
-  return <button type="button" class="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-1 text-label text-muted enabled:hover:bg-rule"
+  return <button type="button" class="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-1.5 text-caption text-muted enabled:hover:bg-ink/5 enabled:hover:text-ink"
     classList={{ "text-doing": props.row.standing === "needs-you" }}
     disabled={props.row.session === null && props.row.unopened !== true} title={look().detail}
     data-testid={TESTID.agentStanding} data-agent={props.row.id} data-standing={props.row.standing}

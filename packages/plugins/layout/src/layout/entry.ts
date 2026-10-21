@@ -13,24 +13,26 @@
  * THE INK IS SPLIT OUT, and that is the part to keep: the agenda's entry
  * changes it (`../agenda/owed.ts`), and two utilities setting one property are
  * settled by the order Tailwind emitted its rules in rather than by the order
- * they were written. The ordinary row inherits paper from the spine
- * (`.olai-frame`); the alarm names its own. The trap `../calendar/Day.tsx`
- * composes per-property to avoid.
+ * they were written. The ordinary row is ink at near strength on the desk;
+ * the alarm names its own. The trap `../calendar/Day.tsx` composes
+ * per-property to avoid.
  *
- * THE CURRENT-PAGE ROW READS IN PAPER, not in the accent, and the accent is
- * the WASH behind it. Accent-on-accent-wash is the same hue at two strengths:
- * 2.27:1 in reef, 1.19:1 in aurora — every palette in the table fails AA on
- * it, and it is the one row whose whole job is saying which page you are
- * standing on. Paper on that wash clears AA in every palette. The coral still
- * marks the row; it just no longer has to be legible as type at the same time.
+ * THE CURRENT-PAGE ROW IS A WASH OF INK, not of the accent. On one surface
+ * the accent is spent on what a reader can press next — a link, the focus
+ * ring, the one tab in front — and a row of the directory that wore it would
+ * be the loudest thing in a column whose job is to be quiet. A wash of the
+ * row's own ink, a step up from the hover, says "you are here" the way a
+ * finder does; the weight says it again for a reader who cannot see the wash.
+ * 28px tall beside a pointer, which is a column of names and not a list of
+ * buttons; the 44px finger target below md is `touch.ts`'s rule.
  */
 
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 
 export const ENTRY_SHAPE =
-  `flex min-w-0 ${TARGET} items-center rounded-control px-2.5 py-1 text-body leading-snug ` +
-  "no-underline hover:bg-paper/10 aria-[current=page]:bg-accent/40 " +
-  "aria-[current=page]:text-paper aria-[current=page]:font-semibold md:min-h-0"
+  `flex min-w-0 ${TARGET} items-center rounded-control px-2 py-1 text-body leading-snug ` +
+  "text-ink/85 no-underline hover:bg-ink/5 hover:text-ink aria-[current=page]:bg-ink/8 " +
+  "aria-[current=page]:text-ink aria-[current=page]:font-medium md:min-h-7 md:py-0.5"
 
 /** The space between the things ON a row — a glyph, a name, and whatever the
  *  row has to say after it.
@@ -80,7 +82,7 @@ export const REGION = "mt-4"
  * old budget, so the gap stays one step and not two.
  */
 
-/** …and the words over it. `px-2.5` so the label sits on the same left edge as
+/** …and the words over it. `px-2` so the label sits on the same left edge as
  *  the rows under it — an entry's own padding — rather than hanging a couple of
  *  pixels outside the column of names ({@link ENTRY_SHAPE}).
  *
@@ -92,7 +94,7 @@ export const REGION = "mt-4"
  *  written in the plugin's own case; `uppercase` is paint, so a screen reader
  *  and a `getByRole` name still read "Chats". */
 export const REGION_LABEL =
-  "m-0 px-2.5 font-sans text-caption font-semibold uppercase tracking-[0.08em] text-paper/60"
+  "m-0 px-2 font-sans text-caption font-semibold uppercase tracking-[0.08em] text-muted"
 
 /**
  * A HEADING THAT CARRIES ITS OWN ACTION — the `+` beside Chats and beside
@@ -110,7 +112,6 @@ export const REGION_HEAD = "mb-1 flex min-h-7 items-center justify-between gap-2
  *  a real `<button>`, so Tab reaches it and Enter/Space press it. */
 export const HEAD_ACTION =
   "inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-control " +
-  "border-0 bg-transparent text-paper/60 hover:bg-paper/10 hover:text-paper " +
-  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent " +
+  "border-0 bg-transparent text-muted hover:bg-ink/5 hover:text-ink " +
   "disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent " +
-  "aria-expanded:bg-paper/10 aria-expanded:text-paper md:min-h-6 md:min-w-6"
+  "aria-expanded:bg-ink/8 aria-expanded:text-ink md:min-h-6 md:min-w-6"

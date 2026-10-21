@@ -25,7 +25,7 @@
  */
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 export const QUIET_PILL =
-  "rounded-control border border-rule px-2 py-1 text-label text-muted hover:text-ink"
+  "rounded-control border border-rule px-2 py-0.5 text-label text-muted hover:bg-ink/5 hover:text-ink"
 
 /**
  * Its opposite number: the verb that GOES AHEAD with the one thing a confirm

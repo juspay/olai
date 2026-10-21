@@ -15,12 +15,13 @@ import { holdServed, servedDirectory, useServed } from "./vault.ts"
 import { createMemo,Show } from "solid-js"
 import { Inbox } from "./Inbox.tsx"
 import { capturePalette } from "./Palette.tsx"
+import { captureThumb } from "./Thumb.tsx"
 function Entry(props: SidebarRegionProps & {active:()=>string|undefined}) {
  const count=createInboxHeld(); const served = useServed(); const inbox = createMemo(() => (() => { const claims = servedDirectory()?.claims(); return claims === undefined ? undefined : inboxIn(claims, served()) })())
  const off = () => { const files = servedDirectory(), row = files?.outlineRow(); return row !== undefined && files?.claims().byKind.has(row) === false }
  return <Show when={!off()} fallback={<p class="px-2 py-1 text-body text-muted">Inbox needs {servedDirectory()?.outlineRow()}, which is turned off.</p>}><Show when={inbox()}>{file => <Inbox file={file()} isActive={file => props.active() === file} broken={servedDirectory()?.broken().has(file()) === true} count={count().count}/>}</Show></Show>
 }
-export const components={palette:capturePalette}
+export const components={palette:capturePalette,thumb:captureThumb}
 export default definePlugin({name:"capture", needs:[Wired, Edits, rendererSlots, navigation, fileAccess], apply:Effect.gen(function*(){
   // The served directory, held for this activation — `./vault.ts` on why the
   // inbox entry reads it here rather than out of the vault's own module.

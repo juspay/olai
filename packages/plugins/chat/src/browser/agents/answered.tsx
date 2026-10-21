@@ -13,6 +13,7 @@ import {
   useContext,
   onCleanup,
 } from "solid-js"
+import { createRosterTable } from "./table.ts"
 
 
 import {
@@ -65,7 +66,9 @@ export function createAgents(): Roster {
   // this off the paint path of a directory whose agents are sitting still.
   const rows = createMemo(() => (cell.value() ?? NO_AGENT_ROSTER)
     .map(row => ({ ...row, unread: unreadOf(row) })))
-  const byNode = createMemo(() => new Map(rows().map(row => [row.id, row])))
+  // THE SAME ROWS BY NODE, as a keyed projection rather than a fresh `Map` per
+  // frame — `./table.ts` says why, and its browsertest holds the count.
+  const byNode = createRosterTable(rows)
   let active = true
   onCleanup(() => { active = false })
   // THE WHOLE TABLE FIRST ({@link Roster.standings}), then the fold: a reader
@@ -161,7 +164,7 @@ export function createAgents(): Roster {
   const unreachable = createMemo((): ReadonlyArray<Unreachable> => chats()?.unreachable ?? [])
 
 
-  return { rows, at: node => byNode().get(node), engines, standings, only,
+  return { rows, at: byNode.at, engines, standings, only,
     missing: engine => engine === undefined ? null : missing().get(engine) ?? null,
     chats,
     unreachable, chatsRefusal, askChats }

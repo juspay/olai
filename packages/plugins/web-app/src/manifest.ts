@@ -38,11 +38,11 @@
  * layer answers an unmatched path with the HTML shell, so a stale path here
  * would 200 rather than 404, and only the content type would say otherwise.
  *
- * The colours are the DEFAULT palette's paper — `reef`, which is what a page
- * that has picked no theme reads in — because they are the chrome around the
- * window before it opens, and there is nothing else this file could know: a
- * theme is a pick stored in one browser, and a manifest is read once by an
- * installer. Once the page is up it repaints the chrome from whatever was
+ * The colours are the LIGHT DEFAULT's paper — `chalk`, which is what a page
+ * that has picked no theme reads in by day — because they are the chrome
+ * around the window before it opens, and there is nothing else this file
+ * could know: a theme is a pick stored in one browser, a manifest is read
+ * once by an installer, and a manifest has no media query to ask the OS with. Once the page is up it repaints the chrome from whatever was
  * picked (`packages/web/src/client/theme/state.ts`). The value cannot be
  * imported — the server does not depend on the client, deliberately — so what
  * checks it still agrees is the browser test that compares it against the
@@ -57,8 +57,8 @@ export const manifestOf = (hostname: string): ManifestOptions => ({
   name: appName(hostname),
   short_name: hostname,
   description: "Self-hosted outliner: your files, your agent, a live web view.",
-  themeColor: "#D6F0EA",
-  backgroundColor: "#D6F0EA",
+  themeColor: "#FBFBF9",
+  backgroundColor: "#FBFBF9",
   lang: "en",
   categories: ["productivity", "utilities"],
   icons: [

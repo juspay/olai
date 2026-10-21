@@ -101,8 +101,8 @@ Feature: A plugin's own settings can be marked as this panel's preferences
     When I open the preferences
     Then the preferences are headed "Appearance, Outlines, Notifications"
     And the preferences have no "Git" heading
-    When I pick the theme "pitch"
-    Then the page is in the theme "pitch"
+    When I pick the theme "basalt"
+    Then the page is in the theme "basalt"
     And there should be no page errors
 
   @scratch:good @rows-on:mail @mail-himalaya:mailbox

@@ -30,6 +30,13 @@ import { ElapsedProvider } from "../chat/elapsing.tsx"
 import { Unopened } from "../chat/Unopened.tsx"
 import { SignIn } from "../chat/SignIn.tsx"
 
+/** THE FOLD DOES NOT CLIP. A card wants its corners, and `overflow-hidden`
+ *  is the cheap way to get them — but an overflow-hidden box is a scroll
+ *  container to `scrollIntoView`, and the model list hangs off the agent line
+ *  OVER the rows below it, taller than the fold: a walk down that list
+ *  scrolled the fold itself, and the line slid up under the resting pointer,
+ *  whose `pointerenter` then took the cursor back. The line rounds its own
+ *  top corners instead (`./AgentLine.tsx`). */
 export function Fold(props: { readonly node: string; readonly record?: string }) {
   const agents = useAgents()
   const parentShown = useShown()
@@ -39,7 +46,7 @@ export function Fold(props: { readonly node: string; readonly record?: string })
   return <ShownProvider shown={shown}><Show when={started()}>{_open => {
     const { chat: conversation } = createNodeConversation(() => props.node)
     return <Show when={conversation()}>{current =>
-    <section style={{ display: open() ? undefined : "none" }} class="my-2 rounded-control border border-rule bg-panel" data-testid={TESTID.agentFold} data-agent={props.node} aria-label={agents.at(props.node)?.title}>
+    <section style={{ display: open() ? undefined : "none" }} class="my-2 rounded-surface border border-rule bg-panel shadow-raised" data-testid={TESTID.agentFold} data-agent={props.node} aria-label={agents.at(props.node)?.title}>
       <AgentLine chat={current()} node={props.node} />
       <Show when={conversation()} keyed>{chat => <ConversationUIProvider value={chat.ui}>
         <Conversation chat={chat} node={props.node} />
@@ -51,8 +58,10 @@ export function Fold(props: { readonly node: string; readonly record?: string })
 
 /** `page` is the node page's face: the pane is the scroll, so the transcript is
  * uncapped, the composer pins to the bottom, and the standing strips are drawn
- * in the page's pinned head instead of here. */
-export function Conversation(props: { readonly chat: Chat; readonly page?: boolean; readonly node: string }) {
+ * in the page's pinned head instead of here. `dock` is the seat's: the column
+ * is exactly one viewport tall, so the transcript scrolls inside it, uncapped,
+ * and the composer sits at its foot (`./Dock.tsx`). */
+export function Conversation(props: { readonly chat: Chat; readonly page?: boolean; readonly dock?: boolean; readonly node: string }) {
   let box: HTMLDivElement | undefined
   let insert: ((text: Insertion) => void) | undefined
   const [carrying, setCarrying] = createSignal<string | null>(null)
@@ -74,7 +83,8 @@ export function Conversation(props: { readonly chat: Chat; readonly page?: boole
   })
   const holding = createHolding(props.chat)
   const live = () => props.chat.state().status === "thinking" || props.chat.state().watching.length > 0
-  return <div class="flex min-h-0 flex-col" data-testid={TESTID.chatPanel}
+  return <div class="flex min-h-0 flex-col" classList={{ "flex-1": props.dock === true }} data-testid={TESTID.chatPanel}
+    data-drawn={props.dock === true ? "dock" : props.page === true ? "page" : "fold"}
     data-session-id={props.chat.state().session?.id} data-session-title={props.chat.state().session?.title ?? undefined} data-status={props.chat.state().status} data-pending-sends={props.chat.pendingSends()}>
     <ElapsedProvider live={live()}>
       {/* A page's strips are in its pinned head, where its scroll cannot
@@ -90,7 +100,7 @@ export function Conversation(props: { readonly chat: Chat; readonly page?: boole
           may not be something they have to find (`../chat/SignIn.tsx`). */}
       <SignIn chat={props.chat} />
       <Show when={props.chat.state().unopened} fallback={<DropTarget ref={element => { box = element }} carrying={carrying()} onFiles={files => void holding.take(files)}>
-        <Preview chat={props.chat} page={props.page} /><Transcript chat={props.chat} page={props.page} />
+        <Preview chat={props.chat} page={props.page} /><Transcript chat={props.chat} page={props.page} dock={props.dock} />
         <div class={props.page ? `sticky bottom-0 ${LAYER.row} bg-paper ${CLEARANCE}` : "contents"}>
           <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} onInsert={write => { insert = write; return () => { if (insert === write) insert = undefined } }} />
         </div>

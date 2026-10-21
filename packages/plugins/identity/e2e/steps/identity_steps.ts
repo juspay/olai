@@ -243,25 +243,27 @@ Then("the identity chip draws no picture", async function (this: OlaiWorld) {
 });
 
 /**
- * ONE ROW OF ROUND MARKS at the right end of a desktop bar: the chip is a
- * circle, the size of the preferences gear beside it — whether it draws a
- * picture or the silhouette. Geometry is the claim here (a pill-shaped chip
- * among round marks is the regression), so it is measured, not read off a
- * class.
+ * ONE ROW OF MARKS at the right end of a desktop bar: the chip is a square,
+ * the size of the preferences gear beside it and with the same corners —
+ * whether it draws a picture or the silhouette. Geometry is the claim here (a
+ * pill-shaped chip among square marks is the regression), so it is measured,
+ * not read off a class.
  */
 Then(
-  "the identity chip is a circle the size of the preferences gear",
+  "the identity chip is the size and shape of the preferences gear",
   async function (this: OlaiWorld) {
     const chip = this.page.locator(`${APP_HEADER} ${IDENTITY} [aria-label]`).first();
     await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const gearChip = this.page.locator(`${APP_HEADER} ${selector(PLUGIN_TESTID.prefsTrigger)}`).first();
     const box = await this.box(chip, "the identity chip");
-    const gear = await this.box(this.page.locator(`${APP_HEADER} ${selector(PLUGIN_TESTID.prefsTrigger)}`).first(), "the preferences gear");
+    const gear = await this.box(gearChip, "the preferences gear");
     assert.ok(Math.abs(box.width - box.height) <= 1,
-      `the identity chip is ${box.width}×${box.height}, not a circle`);
+      `the identity chip is ${box.width}×${box.height}, not a square`);
     assert.ok(Math.abs(box.width - gear.width) <= 1 && Math.abs(box.height - gear.height) <= 1,
       `the identity chip is ${box.width}×${box.height} beside a ${gear.width}×${gear.height} gear`);
-    const radius = await chip.evaluate((el) => parseFloat(getComputedStyle(el).borderTopLeftRadius));
-    assert.ok(radius >= box.width / 2 - 1, `the identity chip's corners are ${radius}px on a ${box.width}px chip`);
+    const corners = async (el: typeof chip) => el.evaluate((node) => parseFloat(getComputedStyle(node).borderTopLeftRadius));
+    assert.ok(Math.abs((await corners(chip)) - (await corners(gearChip))) <= 1,
+      `the identity chip's corners are ${await corners(chip)}px beside a gear's ${await corners(gearChip)}px`);
   },
 );
 

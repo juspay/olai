@@ -13,6 +13,7 @@
 import { HOSTED_FILES, woff2Name } from "./hosted.ts"
 
 export { fontCss } from "./css.ts"
+export { fontPreloadHtml, fontPreloads } from "./preload.ts"
 export { FONTS_DIR } from "./hosted.ts"
 
 /** Every file the build copies out of `OLAI_FONTS_DIR`, by the name it has

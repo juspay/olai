@@ -13,6 +13,36 @@ any other link; the transcript has no click or keyboard handler of its own. A
 backticked id streaming in is wrapped in its anchor once the node is known, and
 unwrapped if it stops being one.
 
+## The dock
+
+The agent panel ([chat.md](../chat.md#the-agent-panel)) is chat's `dock`
+component, and it is a component of its own because it needs the shell's seat:
+it declares `layout.shell` and, through it, whether the seat's column is open
+(`panelOpen`, `setPanelOpen`, `togglePanel`) and whether this is a desktop. With
+no shell — content under another layout, a phone-only serve — the component
+pends and nothing it offers is drawn: the `app.panel` face, the bar's toggle
+(`layout.tools`), the ⌘J chord (`app.keys`) and the palette's show/hide row all
+leave with it, and the doors on a Chats row and an agent line read the held
+dock and draw nothing when it answers nothing.
+
+What is chat's is **which** conversation is docked: a node id this browser
+remembers under `olai.chat.dock`, held for the component's activation. The
+column — whether it is open, how wide, the handle on its edge — is the shell's
+(`olai.chat.open`, `olai.chat.width`), and the frame draws it only while the
+seat is taken, the reader has it open, and the viewport is a desktop. The face
+in the column leases the docked node's conversation exactly as a fold does
+(`createNodeConversation`), so a conversation read in the fold and in the dock
+is one reading, released when its last reader leaves.
+
+A phone has no seat, so chat's `thumb` component — the same shape, declaring
+`layout.shell` for the one thing it needs, revealing the drawer — contributes
+the **Chats** door to the frame's thumb bar
+([layout.md](layout.md#the-thumb-bar)). Its badge is `data-waiting`, the count
+of conversations that need somebody (the Needs you rows, `attention-order.ts`'s
+`needing`), drawn only while it is not zero; a tap opens the drawer and puts
+the caret on Needs you (`agentReadings().focusNeeds`), so the agent waiting on a
+person is one tap and a glance away.
+
 ## What turns it on
 
 Nothing. It is on by default, like the appliances and the engines. Two things take it away, and they answer two different questions.
@@ -20,7 +50,7 @@ Nothing. It is on by default, like the appliances and the engines. Two things ta
 Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in `⧉`. The switch writes that same property and the choice survives restart. Turning the row back on restores its services and browser contribution.
 
 Disabling chat removes its wire members, folds, page faces, standings, sidebar
-regions and palette adapter, with any New chat level it had open. Surviving outline and document editors
+regions, palette adapter and the dock, with any New chat level it had open. Surviving outline and document editors
 retain their instances. Enabling it restores the scoped contributions.
 
 ## What waits on it

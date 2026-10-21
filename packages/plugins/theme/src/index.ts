@@ -9,9 +9,18 @@ export interface Choice<T> {
   readonly current: Accessor<T>
   readonly pick: (value: T) => void
 }
+/** The theme's choice has one more face than the font's or the size's: a page
+ *  that has picked nothing FOLLOWS THE OS, reading in the light default by day
+ *  and the dark default under `prefers-color-scheme: dark`. `current` is the
+ *  palette in force either way; `following` says whether that answer is the
+ *  OS's, and `follow` hands the question back to it. */
+export interface ThemeChoice extends Choice<Palette> {
+  readonly following: Accessor<boolean>
+  readonly follow: () => void
+}
 export interface Appearance {
   readonly chrome: { readonly name: (called: string | undefined) => void; readonly waiting: (value: boolean) => void }
-  readonly theme: Choice<Palette>
+  readonly theme: ThemeChoice
   readonly font: Choice<Typeface>
   readonly size: Choice<TypeSize>
 }

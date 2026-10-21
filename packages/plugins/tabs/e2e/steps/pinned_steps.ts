@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { attr } from "@olai/tests/harness/selectors.ts";
 import {
-  APP_HEADER, CHAT_PANEL, CHAT_TOGGLE, NODE, NODE_GUTTER, NODE_MENU,
+  APP_HEADER, CHAT_DOCK, CHAT_PANEL, NODE, NODE_GUTTER, NODE_MENU,
   NODE_MENU_PANEL, NODE_MENU_ITEM, PANEL_RESIZE, PANE_HEADER, TIP,
   ZOOM_TITLE, POLL_TIMEOUT, ZOOM,
 } from "@olai/tests/harness/world.ts";
@@ -175,14 +175,24 @@ Given("legacy dock preferences are open and {word}", async function (this: OlaiW
   }, { openKey: PANEL_OPEN_KEY, widthKey: PANEL_WIDTH_KEY, px: width === "maximum" ? PANEL_MAX_PX : 600 });
 });
 
+/** The fold's conversation stays IN THE READING under the strip whatever the
+ *  stored panel preferences say: the dock is a column of its own beside the
+ *  lanes (`olai-plugin-chat`'s `the_agent_panel.feature`), never something
+ *  drawn over them, and a stored width at the maximum squeezes the lanes
+ *  rather than covering them. The fold is the one the scenario opened, by
+ *  its `data-drawn`; the dock's own root, when the preference opened it, is
+ *  outside the strip and is not this claim's. */
 Then("chat remains in the reading below the strip with no dock", async function (this: OlaiWorld) {
-  const chat = this.page.locator(CHAT_PANEL);
+  const chat = this.frontLane().locator(`${CHAT_PANEL}[data-drawn="fold"]`);
   await chat.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const strip = await stripBox(this);
   const box = await this.box(chat, "inline chat");
   assert.ok(box.y >= bottom(strip) && box.x >= strip.x - 2
     && box.x + box.width <= strip.x + strip.width + 2, JSON.stringify({ box, strip }));
   assert.equal(await chat.evaluate(el => getComputedStyle(el).position), "static");
-  assert.equal(await this.page.locator(PANEL_RESIZE).count(), 0);
-  assert.equal(await this.page.locator(CHAT_TOGGLE).count(), 0);
+  const dock = this.page.locator(CHAT_DOCK);
+  if (await dock.count() > 0) {
+    const column = await this.box(dock, "the dock");
+    assert.ok(column.x >= strip.x + strip.width - 2, `the dock covers the reading: ${JSON.stringify({ column, strip })}`);
+  }
 });

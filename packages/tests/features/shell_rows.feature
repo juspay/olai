@@ -5,7 +5,7 @@ Feature: The renderer and layout are browser rows
 
   Scenario Outline: Removing a shell owner leaves the headless vault available
     When I open the app
-    And I pick the theme "pitch"
+    And I pick the theme "basalt"
     And I press Escape on the preferences
     And I open the plugins panel
     Then the plugins panel says nothing more about "<owner>"

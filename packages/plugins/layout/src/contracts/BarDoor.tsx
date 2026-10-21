@@ -132,12 +132,10 @@ export function BarDoor(props: {
         }}
         class={
           closet()
-            ? `${ENTRY_SHAPE} ${ROW_GAP} w-full text-paper/80`
+            ? `${ENTRY_SHAPE} ${ROW_GAP} w-full`
             : health()
             ? `${STATUS_ROW} ${open() ? "bg-pill/60" : ""}`
-            : `${ICON_BUTTON} size-8 !p-0 border ${
-              open() ? "border-accent text-paper" : "border-paper/20"
-            }`
+            : `${ICON_BUTTON} !px-0 md:!w-7`
         }
         data-testid={props.testid}
         aria-expanded={open()}

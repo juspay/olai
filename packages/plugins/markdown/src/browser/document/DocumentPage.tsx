@@ -76,9 +76,9 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
 
   return (
     <section data-testid={TESTID.documentPage} data-file={props.file}>
-      <header class="mb-8">
+      <header class="mb-6">
         <div class="flex flex-wrap items-baseline justify-between gap-2">
-          <h1 class="m-0 max-w-full break-all font-mono text-body tracking-tight text-muted">{props.file}</h1>
+          <h1 class="m-0 max-w-full break-all font-mono text-label tracking-tight text-muted">{props.file}</h1>
           {/* The control and the draft it opens read ONE value, so a page cannot
               offer an editor it has nothing to open: `served()` is both the
               condition here and the baseline below. The delete beside it reads
@@ -92,7 +92,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
             <div class="flex min-w-0 flex-1 basis-full flex-wrap items-baseline justify-end gap-2 sm:basis-auto">
               <button
                 type="button"
-                class="cursor-pointer rounded-control border border-rule bg-transparent px-2 py-0.5 text-body text-muted hover:bg-rule/60 hover:text-ink"
+                class="cursor-pointer rounded-control border border-rule bg-transparent px-2 py-0.5 text-label text-muted hover:bg-ink/5 hover:text-ink"
                 data-testid={TESTID.documentEdit}
                 onClick={editor.open}
               >

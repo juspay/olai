@@ -23,6 +23,8 @@ import { Effect } from "effect"
 import { AgendaPage } from "./browser/agenda/AgendaPage.tsx"
 import { DayPage } from "./browser/day/DayPage.tsx"
 import { AgendaEntry, JournalRail, TodayEntry } from "./browser/sidebar.tsx"
+import { AgendaThumb, TodayThumb } from "./browser/thumbs.tsx"
+import { thumbs } from "olai-plugin-layout/contract"
 import { followCalendar } from "./browser/calendar/fold.ts"
 import { agenda as agendaKind, agendaRoute, day as dayKind, dayRoute } from "./browser/routes.ts"
 import { type JournalClient, holdJournalWire } from "./browser/wire.ts"
@@ -95,6 +97,9 @@ export default definePlugin({
     // after the plugin sections. Whether the month is open is this browser's
     // preference, followed for as long as this activation stands.
     yield* slots.register("sidebar.entry", { place: "top", body: TodayEntry })
+    // ...AND THE SAME TWO DOORS UNDER A THUMB, on a phone (`./browser/thumbs.tsx`).
+    yield* locations.contribute(thumbs, { order: 10, body: TodayThumb })
+    yield* locations.contribute(thumbs, { order: 20, body: AgendaThumb })
     yield* Effect.acquireRelease(Effect.sync(followCalendar), stop => Effect.sync(stop))
     yield* slots.register("app.palette", {
       id: "nav-today",

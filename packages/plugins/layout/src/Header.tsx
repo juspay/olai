@@ -50,13 +50,13 @@
  * here. That is pre-existing and intentional — a broken client has no chrome
  * to trust — and is the sole exception to "the header is on every screen".
  *
- * The bar is INK, the same ground as the directory spine — `.olai-frame`,
- * the one place that says what the surround is made of, which the sidebar and
- * the rail wear too — and the outline is a paper sheet sitting in it. Its
- * height is `--height-header` and nothing else: the bar WEARS the token that
- * everything under it subtracts, rather than an `h-16` somebody has to keep
- * equal to it. A coral rule along the bottom is the one loud mark the chrome
- * allows itself.
+ * The bar is DESK, the same ground as the directory column — `.olai-frame`,
+ * the one place that says what the furniture is made of, which the sidebar and
+ * the rail wear too — and the page is one step lighter beside it, with a
+ * hairline of rule between. Its height is `--height-header` and nothing else:
+ * the bar WEARS the token that everything under it subtracts, rather than an
+ * `h-11` somebody has to keep equal to it. Nothing in the bar is loud: the
+ * accent is spent on the leaf and on whatever is open.
  *
  * ## It STICKS, and that is what makes the rest of the chrome true
  *
@@ -137,7 +137,12 @@ export function Header(props: {
   return (
     <>
     <header ref={props.ref}
-      class={`sticky top-0 ${LAYER.header} olai-frame flex h-[var(--height-header)] shrink-0 items-center gap-2 border-b-2 border-accent px-3 font-sans md:px-6`}
+      // The rule under the bar is an INSET shadow, not a border: a border is
+      // inside the box, and a 44px finger target centred in a 44px bar with a
+      // 1px border overflowed it by half a pixel — the phone's burger stood at
+      // y=-0.25, which is off the screen to a geometry assertion. The shadow
+      // paints the same hairline and costs the bar no height.
+      class={`sticky top-0 ${LAYER.header} olai-frame flex h-[var(--height-header)] shrink-0 items-center gap-2 px-2 font-sans shadow-[inset_0_-1px_0_var(--color-rule)] md:px-3`}
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}
     >
@@ -146,7 +151,7 @@ export function Header(props: {
           {(menu) => (
             <button
               type="button"
-              class={`${TARGET_BOX} -ml-2 inline-flex items-center justify-center rounded-control text-paper/80 hover:text-paper md:hidden`}
+              class={`${TARGET_BOX} -ml-1 inline-flex items-center justify-center rounded-control text-muted hover:text-ink md:hidden`}
               data-testid={TESTID.sidebarToggle}
               data-open={menu().open}
               aria-expanded={menu().open}
@@ -157,8 +162,8 @@ export function Header(props: {
             </button>
           )}
         </Show>
-        <h1 class={WORDMARK}>
-          <Leaf class="size-4 text-accent md:size-5" />
+        <h1 class={`${WORDMARK} md:pl-1`}>
+          <Leaf class="size-4 text-accent" />
           {/* The deployment's own word once the server has said it
               (`named.ts`): `olai [machine]`, so a laptop's olai and a
               NUC's are two bars a person can tell apart. The shell's word

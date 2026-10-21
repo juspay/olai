@@ -23,7 +23,8 @@ import { TipFloor } from "@olai/web/client/Tip.tsx"
 import { TESTID as LAYOUT_TESTID } from "./testids.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { For } from "solid-js"
-import { contentStatus,overlays,sidebar,strip } from "./index.ts"
+import { contentStatus,overlays,sidebar,strip,thumbs } from "./index.ts"
+import { only } from "./faces.ts"
 import {
 createEffect,
 createMemo,
@@ -38,13 +39,13 @@ import { PluginBanners } from "./Chrome.tsx"
 import { PluginsMounted } from "./Mounted.tsx"
 import { PluginPanel } from "./Seats.tsx"
 import { connectionReadout, rosterChanging } from "@olai/web/client/wire.ts"
-import { desktop } from "./layout/live.ts"
+import { desktop, panelOpen } from "./layout/live.ts"
 import { drawerOpen as menuOpen,setDrawerOpen as setMenuOpen,sidebarOpen,toggleSidebar } from "./layout/live.ts"
 import { SHELL_LONE,SHELL_SPLIT } from "olai-plugin-layout/sheet"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { RouterProvider } from "olai-plugin-navigation/routing"
 import { Header } from "./Header.tsx"
-import { SidebarHandle } from "./layout/Handle.tsx"
+import { PanelHandle, SidebarHandle } from "./layout/Handle.tsx"
 import { Tools } from "./Tools.tsx"
 
 export default function Frame(props: { readonly slots: RendererSlots; readonly router: import("olai-plugin-navigation/contract").Navigation }) {
@@ -70,6 +71,11 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
   })
 
   const split = router.split
+  /** THE SEAT'S COLUMN IS DRAWN when three things hold: somebody is in the
+   *  seat, the reader has it open, and this is a desktop — a phone has no
+   *  width for a column beside the page, and the occupant draws its phone
+   *  faces inside the page instead. */
+  const paneled = createMemo(() => desktop() && panelOpen() && only("app.panel") !== undefined)
   const ready = createMemo(() => props.slots.read(contentStatus).every(({ value }) => value.ready()))
   onCleanup(router.drawContent(ready))
   const started = createMemo((was: boolean) => was || ready(), false)
@@ -93,11 +99,6 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
           composition decides nothing about what it paints over, because it is a
           `<dialog>` in the top layer rather than a box with a number on it. */}
       <Offline readout={connectionReadout()} memory={focus} rosterChanging={rosterChanging} />
-      {/* THE PANEL IN THE SEAT THIS APP RESERVES FOR ONE — whichever plugin took
-          it, or nothing at all where none did. It was `<ChatPanel />`, an import
-          of a feature by name; the shell keeps the seat's geometry and the plugin
-          draws inside it (`./plugins/Seats.tsx`). */}
-      <PluginPanel />
       <For each={props.slots.read(overlays)}>{({value: Overlay})=><Overlay
         toggleDirectory={()=>{if(desktop())toggleSidebar();else setMenuOpen(!menuOpen())}}
       />}</For>
@@ -135,7 +136,13 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                       // Split columns own scrolling. In particular, sticky
                       // children after a resize must not extend document overflow.
                       "md:overflow-clip": split(),
-                      "md:grid-cols-[var(--width-sidebar)_1fr]": props.slots.read(sidebar).length > 0,
+                      // THE COLUMNS: the directory, the page, and — while the
+                      // seat's panel is open — the panel. The widths are the
+                      // tokens `layout/css.ts` publishes, so the grid and the
+                      // columns it holds read one number each.
+                      "md:grid-cols-[var(--width-sidebar)_1fr]": props.slots.read(sidebar).length > 0 && !paneled(),
+                      "md:grid-cols-[var(--width-sidebar)_1fr_var(--width-panel)]": props.slots.read(sidebar).length > 0 && paneled(),
+                      "md:grid-cols-[1fr_var(--width-panel)]": props.slots.read(sidebar).length === 0 && paneled(),
                       [SHELL_LONE]: !split(),
                     }}
                   >
@@ -173,8 +180,46 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                       <For each={props.slots.read(contentStatus)}>{({value})=><value.Message/>}</For>
                       <div style={{ display: ready() ? "contents" : "none" }}><Show when={started()}><Panes/></Show></div>
                     </div>
+                    {/* THE PANEL IN THE SEAT THIS APP RESERVES FOR ONE — whichever
+                        plugin took it, drawn as the third column while the
+                        reader has it open. The shell keeps the seat's geometry
+                        (the column, its width, the handle on its left edge) and
+                        the plugin draws inside it (`./Seats.tsx`). Sticky under
+                        the bar and exactly one viewport tall, like the directory
+                        column on the other side: a conversation scrolls inside
+                        it while the page scrolls the document. */}
+                    <Show when={paneled()}>
+                      <aside
+                        class={`relative ${LAYER.chrome} olai-frame hidden md:sticky md:top-[var(--height-header)] md:flex md:h-[calc(100dvh-var(--height-header))] md:min-w-0 md:flex-col md:border-l md:border-rule`}
+                        data-testid={LAYOUT_TESTID.panelColumn}
+                        data-layout="dock"
+                        aria-label="Panel"
+                      >
+                        <PanelHandle />
+                        <PluginPanel />
+                      </aside>
+                    </Show>
                   </div>
         </div>
+        {/* THE THUMB BAR, on a phone, while somebody is in the seat
+            (`./index.ts`'s `thumbs`): the doors a thumb reaches without the
+            drawer — today, what is owed, the chats, a capture. Pinned to the
+            foot of the viewport at the strip's layer: over the page and the
+            drawer's scrim, under the drawer itself, so a door is pressable
+            with the page dimmed and a drawer sliding over it covers it. The
+            frame publishes its height as `--height-bottom-chrome` for every
+            page's clearance (`./layout/css.ts`). */}
+        <Show when={!desktop() && props.slots.read(thumbs).length > 0}>
+          <nav
+            class={`fixed inset-x-0 bottom-0 ${LAYER.strip} olai-frame flex items-stretch pb-[env(safe-area-inset-bottom,0px)] shadow-[inset_0_1px_0_var(--color-rule)] md:hidden`}
+            data-testid={LAYOUT_TESTID.thumbs}
+            aria-label="Quick access"
+          >
+            <For each={[...props.slots.read(thumbs)].sort((a, b) => a.value.order - b.value.order)}>
+              {({ value: door }) => <door.body />}
+            </For>
+          </nav>
+        </Show>
       </div>
       </PluginsMounted>
       </TipFloor.Provider>

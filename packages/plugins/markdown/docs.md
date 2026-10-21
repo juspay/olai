@@ -10,8 +10,10 @@ Heading fragments remain in each pane's navigation route and scroll history.
 A heading link and a contents entry both encode `/document.md#slug` directly
 (the authored slug; element ids on the page stay namespaced), and there is no
 second destination attribute. A plain click records the heading in the address
-and the router's landing scrolls to it; Alt opens that same destination on the
-right, including from a preview card. A note in an outline keeps its local
+and the router's landing scrolls to it — once the document's faces are in
+(`document.fonts.ready`), because a landing measured in a fallback's metrics is
+somewhere else when the real face swaps in; Alt opens that same destination on
+the right, including from a preview card. A note in an outline keeps its local
 `#fragment` links (footnotes): the renderer scrolls to them in place and the
 address is not touched. Metadata subscriptions depend only
 on the document path, so changing headings retains the document owner.

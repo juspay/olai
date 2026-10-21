@@ -210,9 +210,18 @@ const line = (world: OlaiWorld) => world.chat(selector(TESTID.chatStanding));
 const says = async (world: OlaiWorld, next: string): Promise<void> => {
   const seen = await item(world).evaluate(async (node, want) => {
     const until = Date.now() + 10_000;
+    // `due` IS A WINDOW OF ONE TICK, and on a loaded box the loop's look can
+    // land in the same instant as the revision that made the node due — the
+    // frame the page gets already says `running`, and the one after it a
+    // fresh memo. Both are the window having been there and closed; what the
+    // scenario holds is that the second row made the node due, and a pass
+    // that took it says so as surely as the word. The memo as of the ask is
+    // what a NEWER memo is measured against.
+    const memo = node.getAttribute("data-last");
     for (;;) {
       const now = node.getAttribute("data-next");
       if (now === want) return true;
+      if (want === "due" && (now === "running" || node.getAttribute("data-last") !== memo)) return true;
       if (Date.now() > until) return now;
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     }
@@ -338,6 +347,12 @@ Then("sleep when idle is off for this conversation", async function (this: OlaiW
   assert.equal(await this.chat('[data-testid="chat-sleep-switch"]').getAttribute("aria-checked"), "false");
 });
 
+/** HOW MANY PASSES A SCENARIO HAS SEEN on a node, so the next "has been
+ *  tidied" waits for a NEW machine row rather than finding the last one —
+ *  a scenario that sleeps twice has two rows under the fold, and the second
+ *  claim is about the second. */
+const tidies = new WeakMap<OlaiWorld, Map<string, number>>();
+
 /** The machine row, waited for — the pass is asynchronous by construction, so
  *  every assertion about it is a wait. */
 Then("the node agent {string} has been tidied", async function (this: OlaiWorld, node: string) {
@@ -351,9 +366,16 @@ Then("the node agent {string} has been tidied", async function (this: OlaiWorld,
   // ...AND IT IS DRAWN AS A MACHINE'S ROW, RUNG BY THE PASS: the attribution is
   // the word the delivery was made under (`olai · sleep`), and the row FOLDS —
   // one essence line with a chevron, the instruction behind it, which is what a
-  // reader is owed before they press anything.
-  const rang = fold(this, node)
+  // reader is owed before they press anything. THE NEWEST such row, waited
+  // for: the one this claim is about is the pass after the last one seen.
+  const rungBy = fold(this, node)
     .locator(`${selector(PLUGIN_TESTID.chatRang)}${attr("data-rang-by", "sleep")}`);
+  let seen = tidies.get(this);
+  if (seen === undefined) { seen = new Map(); tidies.set(this, seen); }
+  const before = seen.get(node) ?? 0;
+  await this.waitUntil(async () => (await rungBy.count()) > before, `a ${before + 1}${before === 0 ? "st" : before === 1 ? "nd" : "th"} machine row under ${node}`, HYDRATION_TIMEOUT);
+  seen.set(node, before + 1);
+  const rang = rungBy.nth(before);
   await rang.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   const chevron = rang.locator(selector(PLUGIN_TESTID.chatRangFold));
   await chevron.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });

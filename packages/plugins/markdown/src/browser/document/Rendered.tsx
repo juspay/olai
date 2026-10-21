@@ -140,6 +140,7 @@ export function Rendered(props: { readonly file: string }) {
     const line = sourceLine()
     const entry = served()
     if (!isServed(entry)) return
+    let live = true
     const frame = requestAnimationFrame(() => {
       // Two panes of the SAME file mint the same heading ids. Look
       // under THIS pane's root, not the first copy in document order.
@@ -153,10 +154,19 @@ export function Rendered(props: { readonly file: string }) {
         ? root?.querySelector(`#${CSS.escape(id)}`) ?? null
         : root?.querySelector('[data-search-landing="true"]') ?? null
       if (heading === null) return
-      heading.scrollIntoView({ block: "start" })
-      landing.landed(at)
+      // ONCE THE FACES ARE IN. Drawing the body is what asks for its fonts,
+      // and a swap that lands after the scroll moves every line above the
+      // target by the difference between two faces' metrics — on a machine
+      // with none of its own, the whole document. `fonts.ready` is the
+      // browser's own word for "nothing is still loading", settled at once
+      // when nothing is.
+      void document.fonts.ready.then(() => {
+        if (!live) return
+        heading.scrollIntoView({ block: "start" })
+        landing.landed(at)
+      })
     })
-    onCleanup(() => cancelAnimationFrame(frame))
+    onCleanup(() => { live = false; cancelAnimationFrame(frame) })
   })
 
   // NOTHING UNTIL THE BODY IS HERE, which is the page's old gate moved down to

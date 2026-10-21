@@ -3,9 +3,13 @@
  *
  * One pair of classes, so Agenda, a zoomed node, a day, the Trash and the
  * wordmark cannot drift into four different ideas of "this is the name".
- * Serif because the default typeface keeps jobs distinct (`@olai/fonts`:
- * Literata on the page, Inter on the chrome) — a heading that stayed
- * sans-bold would be chrome shouting over the outline.
+ *
+ * A PAGE TITLE IS SANS now, like the rows under it: the default typeface
+ * keeps the serif for what a person WROTE as prose (`@olai/fonts`: Literata
+ * for a document's body, Inter for the interface), and a page's name is the
+ * interface naming the page. The wordmark keeps the serif italic — it is the
+ * mark, not a heading, and it is the one place the brand's voice is allowed
+ * in the chrome.
  *
  * THE SLANT IS SPLIT OUT, for the reason `layout/entry.ts` splits the ink
  * out of a row: two utilities setting one property are settled by the order
@@ -20,9 +24,8 @@
  *  the size is the constant's, so a page wanting a smaller one is a page
  *  wanting a different thing, not a page appending `text-xl` and hoping. */
 export const PAGE_TITLE =
-  "m-0 font-serif text-display font-medium tracking-tight"
+  "m-0 font-sans text-display font-semibold tracking-tight"
 
-/** The word in the bar. Colour is the header's (`text-paper` on ink);
- *  this is only the face. */
+/** The word in the bar. Colour is the header's; this is only the face. */
 export const WORDMARK =
-  "m-0 flex items-center gap-2 font-serif text-title font-medium italic leading-none tracking-tight md:gap-2.5"
+  "m-0 flex items-center gap-1.5 font-serif text-[1.0625rem] font-medium italic leading-none tracking-tight text-ink"

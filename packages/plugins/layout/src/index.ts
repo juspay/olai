@@ -83,12 +83,30 @@ export const overlays = location<(props:{readonly toggleDirectory:()=>void})=>JS
 export const strip = location<() => JSX.Element>("layout.strip", "one")
 
 /**
+ * THE PHONE'S THUMB BAR — a row of doors pinned to the bottom of a handset,
+ * where a thumb already is.
+ *
+ * Drawn below the breakpoint only, and only while somebody is in it; a desktop
+ * has the sidebar's column for every one of these doors and draws no bar. Each
+ * entry is a plugin's own face (`./contracts/Thumb.tsx` is the shape they
+ * share), ordered by `order` rather than by who registered first. While the
+ * bar is drawn the frame publishes `--height-bottom-chrome` so a page's
+ * bottom clearance and a sticky composer keep clear of it
+ * (`./contracts/clearance.ts`).
+ */
+export interface Thumb {
+  readonly order: number
+  readonly body: () => JSX.Element
+}
+export const thumbs = location<Thumb>("layout.thumbs")
+
+/**
  * THE SHELL'S GEOMETRY, as a row that draws inside it reads it.
  *
  * Six rows want some of this: whether the viewport is at the desktop
- * breakpoint, whether the right panel is open and how wide it is, whether the
- * directory column is a column or a rail, and the drag handle that resizes the
- * panel. Every one of them used to reach a module signal in `./layout/prefs.ts`
+ * breakpoint, whether the right panel is open and how wide it is (and the
+ * verb that opens it), whether the directory column is a column or a rail,
+ * and the drag handle that resizes the panel. Every one of them used to reach a module signal in `./layout/prefs.ts`
  * or `./layout/media.ts` — declared doors carrying live state — so none of them
  * declared a dependency on the shell, none of them stopped asking when it left,
  * and a serve with no layout row answered every question with a default that
@@ -128,6 +146,13 @@ export interface Shell {
   /** Live width, clamped to the current viewport. */
   readonly sidebarWidth: Accessor<number>
   readonly setSidebarWidth: (px: number, opts?: SetOptions) => void
+  /** Whether the seat's panel — the column on the right of the page — is
+   *  open. The frame draws it only while the `app.panel` seat is taken AND
+   *  this says so, on a desktop; the occupant opens it when it has something
+   *  to put there, and closes it from its own face. */
+  readonly panelOpen: Accessor<boolean>
+  readonly setPanelOpen: (open: boolean) => void
+  readonly togglePanel: () => void
   readonly panelWidth: Accessor<number>
   readonly setPanelWidth: (px: number, opts?: SetOptions) => void
   readonly panelSnap: Accessor<ChatSnap>

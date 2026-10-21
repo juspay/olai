@@ -773,7 +773,7 @@ export function Composer(props: {
           their head until a box comes back is work the panel invented. */}
       <textarea
         ref={input}
-        class="w-full resize-none rounded-control border border-rule/80 bg-paper px-3 py-2 text-body outline-none focus:border-accent"
+        class="w-full resize-none rounded-control border border-rule bg-paper px-3 py-2 text-body outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/20"
         data-testid={TESTID.chatInput}
         // THE NODE HALF'S ANSWER, on the box rather than only on the list:
         // a query that named nothing draws no list (`open` is `rows().length

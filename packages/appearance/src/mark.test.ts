@@ -4,10 +4,10 @@ import { describe, expect, test } from "bun:test"
 
 import { markSvg } from "./mark.ts"
 import { paletteNamed, PALETTES } from "./palettes.ts"
-const INSTALL = paletteNamed("leaf")
-if (INSTALL === undefined) {
-  throw new Error("unreachable: no row named leaf")
-}
+import { DEFAULT_PALETTE } from "./palettes.ts"
+/** The install files are drawn in the light default: the one palette a page
+ *  that has picked nothing reads in by day, and the one the manifest names. */
+const INSTALL = DEFAULT_PALETTE
 
 describe("the palm-leaf mark", () => {
   test("every palette paints paper, ink and done into it", () => {
@@ -21,11 +21,11 @@ describe("the palm-leaf mark", () => {
 
   test("two palettes do not draw the same mark", () => {
     const reef = paletteNamed("reef")
-    const pitch = paletteNamed("pitch")
+    const basalt = paletteNamed("basalt")
     expect(reef).toBeDefined()
-    expect(pitch).toBeDefined()
-    if (reef === undefined || pitch === undefined) return
-    expect(markSvg(reef)).not.toBe(markSvg(pitch))
+    expect(basalt).toBeDefined()
+    if (reef === undefined || basalt === undefined) return
+    expect(markSvg(reef)).not.toBe(markSvg(basalt))
   })
 
   test("the waiting dot is the same drawing with one thing added", () => {
@@ -41,9 +41,9 @@ describe("the palm-leaf mark", () => {
     }
   })
 
-  test("the shipped icon is the mark in the leaf palette", async () => {
+  test("the shipped icon is the mark in the light default", async () => {
     // The install files are this drawing in one row. A geometry edit here that
-    // forgot the file, or a leaf retune that forgot the icon, is a tab and a
+    // forgot the file, or a chalk retune that forgot the icon, is a tab and a
     // home screen that no longer agree.
     const shipped = await Bun.file(
       new URL("../../plugins/web-app/src/public/icon.svg", import.meta.url),

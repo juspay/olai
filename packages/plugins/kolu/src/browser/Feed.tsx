@@ -8,8 +8,8 @@ import { name } from "../wire.ts"
 
 function FeedFoot(props: { readonly onLeave: () => void }) {
   return <Show when={configurationPanel()}>{panel =>
-    <footer class="mt-1 flex items-baseline gap-2 border-t border-paper/10 pt-2" data-testid={TESTID.padiFeedFoot}>
-      <button type="button" class="ml-auto flex shrink-0 items-center rounded-control p-0.5 text-muted hover:bg-paper/10 hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+    <footer class="mt-1 flex items-baseline gap-2 border-t border-rule pt-2" data-testid={TESTID.padiFeedFoot}>
+      <button type="button" class="ml-auto flex shrink-0 items-center rounded-control p-0.5 text-muted hover:bg-ink/5 hover:text-ink"
         data-testid={TESTID.padiFeedWrench} aria-label="Edit watch configuration" title="Edit watch configuration"
         onClick={() => { props.onLeave(); panel().open(name) }}>
       <svg

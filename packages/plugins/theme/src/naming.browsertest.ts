@@ -21,7 +21,7 @@ test("withdrawing deployment naming preserves active appearance and simultaneous
     expect(document.title).toBe("● olai")
     expect(apple.getAttribute("content")).toBe("Inherited app")
     expect(listeners.size).toBe(3)
-    expect(root.getAttribute("data-theme")).toBe("pitch")
+    expect(root.getAttribute("data-theme")).toBe("basalt")
     setCalled("stale deployment")
     expect(document.title).toBe("● olai")
     await Effect.runPromise(Scope.provide(followDeployment(state.chrome, () => "olai [second]"), secondLayout))

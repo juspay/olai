@@ -34,7 +34,7 @@ export function Sidebar(props: SidebarRegionProps) {
           // the drawer into flow offsets). Desktop: a STICKY column, pinned
           // under the header (see the note above).
           (props.open ? "flex " : "hidden ") +
-          `${LAYER.chrome} olai-frame flex-col border-r border-paper/20 ` +
+          `${LAYER.chrome} olai-frame flex-col border-r border-rule ` +
           // Wide enough that the month's 7 day cells still hit 44×44.
           "fixed bottom-0 left-0 top-[var(--height-header)] w-[min(22rem,92vw)] " +
           // `top-` above is BOTH positions' offset — the drawer's inset and
@@ -52,7 +52,7 @@ export function Sidebar(props: SidebarRegionProps) {
             cover the calendar's month-step chevrons (top-right of the body). */}
         <button
           type="button"
-          class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded-full border border-paper/20 bg-ink text-paper/60 hover:bg-paper/10 hover:text-paper md:inline-flex md:min-h-8 md:min-w-8`}
+          class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded-control text-muted hover:bg-ink/5 hover:text-ink md:inline-flex md:min-h-7 md:min-w-7`}
           data-testid={TESTID.sidebarCollapse}
           aria-label="Collapse sidebar"
           title="Collapse sidebar"
@@ -67,7 +67,7 @@ export function Sidebar(props: SidebarRegionProps) {
         </div>
 
         <div
-          class="olai-scroll min-h-0 flex-1 overflow-y-auto p-3"
+          class="olai-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-2"
           data-testid={TESTID.sidebarBody}
           // Any navigation (day, outline, document) bubbles here and puts the
           // mobile drawer away. Folder folds stop propagation so a reader can
@@ -99,7 +99,7 @@ export function Sidebar(props: SidebarRegionProps) {
             placement word the entry declared, never by who contributed it; an
             empty foot (the trash row off) takes no room. */}
         <div
-          class="shrink-0 px-3 pb-2 pt-1 empty:hidden md:pr-12"
+          class="shrink-0 px-2 pb-2 pt-1 empty:hidden md:pr-11"
           data-testid={TESTID.sidebarFoot}
           onClick={() => props.onClose()}
         >
@@ -107,7 +107,7 @@ export function Sidebar(props: SidebarRegionProps) {
         </div>
         <Show when={foot()}>
           {(foot) => (
-            <div class="shrink-0 border-t border-paper/10 p-3">
+            <div class="shrink-0 border-t border-rule p-2">
               {foot()}
             </div>
           )}

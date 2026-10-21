@@ -24,8 +24,8 @@ export function History(props: { readonly chat: Chat; readonly node: string }) {
   const isPast = () => visiting() !== undefined && (visiting()?.agent !== agent()?.engine || visiting()?.session !== agent()?.session)
   const opened = () => agents.chats()?.sessions.find(one => one.agent === (visiting()?.agent ?? agent()?.engine) && one.id === (visiting()?.session ?? agent()?.session))
   const count = () => past().every(one => one.messageCount !== null) ? past().reduce((sum, one) => sum + (one.messageCount ?? 0), 0) : null
-  return <div class="relative flex flex-wrap items-center gap-2 border-b border-rule px-3 py-2 text-label text-muted">
-    <span class="italic">Chat</span><span class="h-px min-w-2 flex-1 bg-rule" />
+  return <div class="relative flex flex-wrap items-center gap-2 border-b border-rule px-3 py-1.5 text-caption text-muted">
+    <span class="font-semibold uppercase tracking-[0.08em]">Chat</span><span class="h-px min-w-2 flex-1 bg-rule" />
     <button type="button" ref={picker.setTrigger} class="hover:text-ink"
       data-testid={TESTID.chatSessions} data-count={past().length + 1} aria-expanded={picker.open()} onClick={picker.toggle}>
       <Show when={isPast()} fallback={<>

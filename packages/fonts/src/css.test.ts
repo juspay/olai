@@ -55,3 +55,17 @@ describe("the generated typeface blocks", () => {
     }
   })
 })
+
+import { fontPreloadHtml, fontPreloads } from "./preload.ts"
+import { HOSTED_WOFF2 } from "./build.ts"
+
+test("the default typeface's three regular uprights are preloaded, and nothing else", () => {
+  const names = fontPreloads()
+  // One per voice — sans, serif, mono — each a hosted woff2 the sheet names.
+  expect(names).toHaveLength(3)
+  for (const name of names) expect(HOSTED_WOFF2).toContain(name)
+  expect(names).toEqual(["InterVariable.woff2", "Literata-Regular.woff2", "iAWriterMonoV.woff2"])
+  const html = fontPreloadHtml()
+  expect(html.split("\n")).toHaveLength(3)
+  expect(html).toMatch(/<link rel="preload" as="font" type="font\/woff2" crossorigin href="\/fonts\/InterVariable\.woff2" \/>/)
+})

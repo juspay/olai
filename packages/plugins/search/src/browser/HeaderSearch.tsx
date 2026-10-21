@@ -202,7 +202,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
         <input
           ref={box}
           type="search"
-          class="w-full min-w-0 rounded-full border-0 bg-paper/10 px-3 py-1.5 text-label text-paper outline-none placeholder:text-paper/60 ring-1 ring-paper/20 focus:bg-paper/20 focus:ring-accent/60"
+          class="h-7 w-full min-w-0 rounded-control border border-rule bg-paper px-2.5 text-label text-ink outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/20"
           data-testid={TESTID.headerSearch}
           placeholder="Search"
           aria-label="Search"
@@ -259,7 +259,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
           square sat on the wordmark at 360pt. */}
       <button
         type="button"
-        class={`${TARGET} inline-flex w-8 shrink-0 items-center justify-center rounded-control text-paper/80 hover:text-paper md:hidden`}
+        class={`${TARGET} inline-flex w-8 shrink-0 items-center justify-center rounded-control text-muted hover:text-ink md:hidden`}
         data-testid={TESTID.headerSearchOpen}
         aria-label="Search"
         onClick={() => openPalette()}
@@ -271,7 +271,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
         {(box_) => (
           <Portal>
             <div
-              class={`fixed ${LAYER.over} overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule/40`}
+              class={`fixed ${LAYER.over} overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule`}
               ref={results}
               onFocusOut={event => { if (!(event.relatedTarget instanceof Node && (results?.contains(event.relatedTarget) || event.relatedTarget === box))) setCaret(false) }}
               data-testid={TESTID.headerSearchResults}

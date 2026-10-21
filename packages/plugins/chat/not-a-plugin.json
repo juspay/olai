@@ -46,9 +46,10 @@
   "outlines": [
     "src/adapter.ts"
   ],
-  "//search": "Model.tsx's type=\"search\" names the INPUT ELEMENT the menu's filter box is drawn with, not the search plugin.",
+  "//search": "Model.tsx's type=\"search\" names the INPUT ELEMENT the menu's filter box is drawn with, not the search plugin; the browser entry's palette row carries its `search` words, the palette's own key, as the other palette rows here do.",
   "search": [
     "src/agents/roster.ts",
+    "src/browser.tsx",
     "src/browser/agents/AgentPalette.ts",
     "src/browser/agents/new-chat-level.ts",
     "src/browser/chat/Composer.tsx",

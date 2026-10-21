@@ -16,9 +16,9 @@ import { desktop,panelWidth,sidebarOpen,sidebarWidth } from "./live.ts"
 /** Keep `--width-sidebar` / `--width-panel` in step with the preferences, and
  *  `--height-strip` in step with whether the seat above the panes is filled
  *  (`filled`) on a desktop — the tab strip's token then, nothing otherwise. */
-export const publishLayoutCss = (filled: () => boolean = () => false): void => {
+export const publishLayoutCss = (filled: () => boolean = () => false, thumbed: () => boolean = () => false): void => {
   const style = document.documentElement.style
-  const previous = ["--width-sidebar", "--width-panel", "--height-strip"].map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)] as const)
+  const previous = ["--width-sidebar", "--width-panel", "--height-strip", "--height-bottom-chrome"].map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)] as const)
   onCleanup(() => {
     for (const [name, value, priority] of previous) {
       if (value) style.setProperty(name, value, priority)
@@ -31,5 +31,7 @@ export const publishLayoutCss = (filled: () => boolean = () => false): void => {
     root.style.setProperty("--width-sidebar", `${side}px`)
     root.style.setProperty("--width-panel", `${panelWidth()}px`)
     root.style.setProperty("--height-strip", filled() && desktop() ? "var(--height-tabs)" : "0px")
+    // The thumb bar is the phone's: a desktop reserves nothing at its foot.
+    root.style.setProperty("--height-bottom-chrome", thumbed() && !desktop() ? "var(--height-thumbs)" : "0px")
   })
 }

@@ -170,8 +170,8 @@ export function Result(props: {
     <Dynamic component={props.href === undefined ? "button" : "a"}
       href={props.href}
       type={props.href === undefined ? "button" : undefined}
-      class={`flex w-full min-w-0 flex-col rounded-control px-3 py-2 text-left text-body ${
-        props.active ? "bg-rule text-ink" : "text-ink hover:bg-rule/60"
+      class={`flex w-full min-w-0 flex-col rounded-control px-3 py-1.5 text-left text-body ${
+        props.active ? "bg-ink/8 text-ink" : "text-ink hover:bg-ink/5"
       }`}
       data-testid={props.testids.row}
       data-id={props.id}

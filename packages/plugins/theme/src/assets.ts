@@ -3,7 +3,7 @@
  * A build without this row gets no theme bootstrap, palette CSS or font files. */
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
-import { fontCss, FONTS_DIR, HOSTED_WOFF2 } from "@olai/fonts/build"
+import { fontCss, fontPreloadHtml, FONTS_DIR, HOSTED_WOFF2 } from "@olai/fonts/build"
 import { paletteCss } from "@olai/appearance/css.ts"
 import { sizeCss } from "@olai/appearance/sizes.ts"
 import { scaleCss } from "@olai/appearance/scale.ts"
@@ -52,7 +52,11 @@ const installFonts = (distDir: string): void => {
 }
 
 export default {
-  head: readFileSync(new URL("./head.html", import.meta.url), "utf8"),
+  // ...AND THE DEFAULT TYPEFACE'S THREE FILES, asked for before the sheet
+  // asks for them (`@olai/fonts`'s preload.ts says why a swap after first
+  // paint is a reflow a landing cannot survive).
+  head: `${readFileSync(new URL("./head.html", import.meta.url), "utf8")}
+${fontPreloadHtml()}`,
   css: () => [scaleCss(), sizeCss(), paletteCss(), fontCss()].join("\n"),
   install: installFonts,
 }

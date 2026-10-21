@@ -136,10 +136,17 @@ mark.olai-hit {
 }
 
 /* A compact block is furniture (a note, a chat reply), so it takes the chrome
- * face rather than the page face `.olai-md` just set. A title is `.olai-md`
- * without this class and stays serif. */
+ * face rather than the page face `.olai-md` just set. A TITLE is furniture
+ * too — a line of the outline, read beside the chrome and the chips — so an
+ * inline title inherits the face the row it sits in chose
+ * (`@olai/ui-primitives`'s `ROW_TITLE`), and only a document's body keeps the
+ * serif a person wrote prose in. */
 .olai-md-compact {
   font-family: var(--font-sans);
+}
+
+.olai-md-inline {
+  font-family: inherit;
 }
 
 /* WHILE THE RENDERER IS ON ITS WAY: the source, and NOT A WORD OF IT LEGIBLE.

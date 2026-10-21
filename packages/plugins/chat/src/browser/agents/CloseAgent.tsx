@@ -1,5 +1,5 @@
 import { createSignal, Show } from "solid-js"
-import { QUIET_PILL } from "@olai/web/client/pill.ts"
+import { LINE_VERB } from "./verb.ts"
 import { run } from "@olai/web/client/run.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
@@ -35,7 +35,7 @@ export function CloseAgent(props: { readonly node: string }) {
   }
 
   return <span class="relative">
-    <button type="button" class={QUIET_PILL} data-testid={TESTID.chatCloseAgent}
+    <button type="button" class={LINE_VERB} data-testid={TESTID.chatCloseAgent}
       disabled={closing()} aria-busy={closing()}
       title="Close the agent. The chat moves to Chats."
       onClick={close}>Close</button>

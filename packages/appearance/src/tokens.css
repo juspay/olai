@@ -12,7 +12,7 @@
   /* Named for their job, not their hue, so a palette is the same eleven names
    * with different values and no utility has to know which one is in force.
    *
-   * These eleven are the DEFAULT palette's — `reef` — and they are the one
+   * These eleven are the LIGHT DEFAULT's — `chalk` — and they are the one
    * place the table is spelled twice. Tailwind needs the NAMES here or it will
    * not emit `text-muted` at all; what it does with the VALUES is bake the
    * literal fallback beside every opacity utility (`.bg-alarm/5` gets both
@@ -26,26 +26,26 @@
    * The other palettes are generated from the table into blocks
    * appended to this sheet at build time (`src/client/theme/`,
    * `src/build.ts`). */
-  --color-ink: #133531;
-  --color-paper: #D6F0EA;
-  --color-desk: #C4E6DF;
-  --color-panel: #E7F7F3;
-  --color-pill: #B4DDD5;
-  --color-muted: #45726C;
-  --color-rule: #9BC9C1;
-  --color-accent: #B43C45;
-  --color-done: #1E7656;
-  --color-doing: #8F5A00;
-  --color-alarm: #C13349;
+  --color-ink: #1B1B18;
+  --color-paper: #FBFBF9;
+  --color-desk: #F3F3EF;
+  --color-panel: #FFFFFF;
+  --color-pill: #E9E9E3;
+  --color-muted: #5D5F57;
+  --color-rule: #DBDBD4;
+  --color-accent: #B23A43;
+  --color-done: #1F7A4D;
+  --color-doing: #8A5800;
+  --color-alarm: #C0313F;
 
-  /* Panel widths. Defaults match the pre-rework constants (16rem sidebar,
-   * 26rem chat). The reader owns the live values: layout/css.ts writes pixel
+  /* Panel widths. The reader owns the live values: layout/css.ts writes pixel
    * lengths onto `:root` from localStorage preferences, and both the dock and
    * the padding App reserves for it read the same custom property so they
    * cannot drift. The rail is not a preference — it is the fixed collapsed
-   * face of the sidebar. */
+   * face of the sidebar. The sidebar is 17rem: a column of names and counts,
+   * not a second page. The panel is the chat dock's. */
   --width-panel: 26rem;
-  --width-sidebar: 20rem;
+  --width-sidebar: 17rem;
   --width-rail: 3rem;
 
   /* The app header's height, and the ONLY spelling of it. The bar WEARS this
@@ -57,13 +57,20 @@
    * no styling for it to save. (`--visible-h` and friends DO keep fallbacks —
    * those are written by JS at runtime, so the fallback is what the first
    * paint reads.) */
-  --height-header: 4rem;
+  --height-header: 2.75rem;
 
   /* The tab strip's height, when a row fills the seat above the panes
    * (`olai-plugin-layout`'s `layout.strip`). The pane sheet does not read this
    * directly: layout publishes `--height-strip` as this token while the seat is
    * filled on a desktop, and `0px` otherwise, and the sheet subtracts that. */
-  --height-tabs: 2.625rem;
+  --height-tabs: 2.25rem;
+
+  /* The phone's thumb bar, when a row fills it (`olai-plugin-layout`'s
+   * `layout.thumbs`). The frame publishes `--height-bottom-chrome` as this
+   * token while the bar is drawn and `0px` otherwise; a page's bottom
+   * clearance adds that to what it reserves. 3.25rem clears a 44px target
+   * with its label under it. */
+  --height-thumbs: 3.25rem;
 
   /* THE INTERFACE SCALE. Five type sizes, three corners and two shadows for
    * everything that is chrome rather than document content, named for the
@@ -96,14 +103,14 @@
    * popovers, panels, cards, dialogs). The third is Tailwind's own
    * `rounded-full`, for pills, dots, round buttons and switches. */
   --radius-control: 0.375rem;
-  --radius-surface: 0.75rem;
+  --radius-surface: 0.625rem;
 
   /* Elevation. `raised` for what hangs off a control (menus, popovers,
    * tooltips); `overlay` for what covers the page (the palette, dialogs, a
    * phone sheet). Black at low alpha rather than a palette ink: ink inverts
    * in the dark palettes, and a shadow that glowed would not be one. */
-  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.06), 0 6px 20px -6px rgb(0 0 0 / 0.22);
-  --shadow-overlay: 0 2px 8px rgb(0 0 0 / 0.08), 0 24px 64px -12px rgb(0 0 0 / 0.4);
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px -8px rgb(0 0 0 / 0.18);
+  --shadow-overlay: 0 2px 8px rgb(0 0 0 / 0.06), 0 24px 64px -12px rgb(0 0 0 / 0.32);
 }
 
 /* The main column reserves the header plus the occupied strip. Keep this on

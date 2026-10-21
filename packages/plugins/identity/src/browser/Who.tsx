@@ -32,7 +32,7 @@ import { ICON_BUTTON } from "@olai/web/client/readout.ts"
 /** On a desktop the chip is a circle the size of the bar's health dot and
  *  preferences gear beside it, so the right end of the bar reads as one row
  *  of three round marks. A phone keeps its 44px target unchanged. */
-const DESKTOP_ROUND = "md:size-8 md:!p-0"
+const DESKTOP_ROUND = "md:!w-7 md:!px-0"
 import { TESTID } from "../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import type { Who as Person } from "./viewer/asking.ts"
@@ -88,8 +88,8 @@ function Icon(props: {
   return (
     <Tip text={props.label} layer={LAYER.over}>
       <span
-        class={`${ICON_BUTTON} ${DESKTOP_ROUND} border border-paper/20 ${
-          props.alarm === true ? "text-alarm" : "text-paper/80"
+        class={`${ICON_BUTTON} ${DESKTOP_ROUND} ${
+          props.alarm === true ? "text-alarm" : ""
         } ${props.dim === true ? "opacity-50" : ""}`}
         aria-label={props.label}
       >
@@ -106,9 +106,7 @@ function Chip(props: { readonly person: Person }) {
   return (
     <Tip text={saying(props.person)} layer={LAYER.over}>
       <span
-        class={`${ICON_BUTTON} ${DESKTOP_ROUND} border border-paper/20 ${
-          props.person.picture === null ? "text-paper/80" : "p-1.5"
-        }`}
+        class={`${ICON_BUTTON} ${DESKTOP_ROUND}`}
         aria-label={saying(props.person)}
       >
         <Show when={props.person.picture} fallback={<UserIcon class="size-4" />}>

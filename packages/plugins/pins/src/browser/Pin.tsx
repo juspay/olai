@@ -127,7 +127,7 @@ export function Pin(props: {
           // (`../styles.css`'s `.olai-frame`), at the strength that keeps the
           // current row's accent wash faintly visible under it rather than
           // punching a hole in it.
-          "rounded-control bg-ink/80 px-1.5 py-1 opacity-0 transition-opacity " +
+          "rounded-control bg-desk px-1.5 py-1 opacity-0 shadow-raised transition-opacity " +
           "focus-within:opacity-100 group-hover/pin:opacity-100"}
       >
         {/* WHAT IT IS CALLED, changed — the shelf's door onto the one question
@@ -138,7 +138,7 @@ export function Pin(props: {
         <button
           type="button"
           class={`${CONTROL} cursor-pointer rounded-control border-0 bg-transparent p-0 ` +
-            "text-label leading-none text-paper/60 hover:text-accent"}
+            "text-label leading-none text-muted hover:text-accent"}
           data-testid={TESTID.pinRename}
           aria-label={`Rename ${props.pin.name}`}
           title="Rename"
@@ -154,7 +154,7 @@ export function Pin(props: {
         <button
           type="button"
           class={`${CONTROL} cursor-pointer rounded-control border-0 bg-transparent p-0 ` +
-            "text-label leading-none text-paper/60 hover:text-alarm"}
+            "text-label leading-none text-muted hover:text-alarm"}
           data-testid={TESTID.pinRemove}
           aria-label={`Unpin ${props.pin.name}`}
           title="Unpin"

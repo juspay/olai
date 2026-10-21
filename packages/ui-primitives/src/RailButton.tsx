@@ -22,7 +22,7 @@ export function RailButton(props: {
       // `relative`: the agenda's dot is absolute against this box, and the
       // containing block is declared once, here, rather than by whichever child
       // happens to need one.
-      class={`${TARGET_BOX} relative inline-flex items-center justify-center rounded-control text-paper/60 hover:bg-paper/10 hover:text-paper md:min-h-9 md:min-w-9`}
+      class={`${TARGET_BOX} relative inline-flex items-center justify-center rounded-control text-muted hover:bg-ink/5 hover:text-ink md:min-h-8 md:min-w-8`}
       {...props.data}
       data-testid={props.testid}
       aria-label={props.label}

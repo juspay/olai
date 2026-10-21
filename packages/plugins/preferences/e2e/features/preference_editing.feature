@@ -9,10 +9,10 @@ Feature: Preference changes from another tab leave unfinished edits usable
       **draft through preference changes**
       """
     And I open another browser tab
-    And I pick the theme "pitch"
+    And I pick the theme "basalt"
     And I set Size to "larger"
     And I use the original browser tab
-    Then the page is in the theme "pitch"
+    Then the page is in the theme "basalt"
     And the page is set at "20px"
     And the document editor holds text containing "draft through preference changes"
     When I save the document

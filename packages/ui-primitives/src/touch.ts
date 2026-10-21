@@ -92,9 +92,12 @@ export const GUTTER_GAP = "gap-1"
  * `items-baseline`, not `items-center`, and that is the rule rather than a
  * preference: a title WRAPS (`../client/NodeLine.tsx`), so the glyph and the
  * fold triangle sit against the title's first line rather than the middle of
- * the block. `py-1` is the vertical rhythm every row is spaced on.
+ * the block. `py-[3px]` is the vertical rhythm every row is spaced on: with
+ * the title's 1.5 leading it makes a line about 2rem tall at the default
+ * size, which is the density a list read all day wants — one glance takes in
+ * a dozen rows rather than eight.
  */
-export const ROW_LINE = `relative flex items-baseline py-1 ${GUTTER_GAP}`
+export const ROW_LINE = `relative flex items-baseline py-[3px] ${GUTTER_GAP}`
 
 /**
  * The box a line's GLYPH is drawn in: the span a tree row wraps its bullet in
@@ -198,7 +201,13 @@ export const HOVER_REVEAL =
  * utilities on one box are settled by emission order, not by the page.
  */
 export const OFFER_REVEAL =
-  "hidden items-center group-data-[active]/row:inline-flex md:inline-flex " +
+  // `self-center`: a pill in a baseline-aligned line would otherwise STEER
+  // the baseline — its first flex item is an icon, whose synthesised baseline
+  // is its bottom edge, three pixels under the title's own — and a row with
+  // an offer on it sat lower than the blank it was typed as
+  // (`a_new_line_keeps_its_box.feature`). Centred on the line, it moves
+  // nothing beside it.
+  "hidden items-center self-center group-data-[active]/row:inline-flex md:inline-flex " +
   "md:opacity-0 md:group-hover/row:opacity-100 " +
   "md:group-has-[:focus:not(input):not(textarea)]/row:opacity-100"
 
@@ -248,10 +257,14 @@ export const PAST_CONTROLS = "ml-16 md:ml-15"
  * by a pixel when the caret arrived would be this file's kind of bug, and
  * three literals were three chances for one of them to miss a change.
  *
- * THE SIZE IS THE ROOT'S. Large already notches the page up from the browser's
- * 16px; stacking 1.125rem on top of that made every row a heading, which is
- * display type used as a list. A row is a line. `1rem` is the line. The Size
- * preference is how a reader who wants them bigger asks.
+ * SANS, and at the interface's BODY size. The serif is kept for what a person
+ * wrote as prose — a document's body — and a row of an outline is a line of
+ * the interface a person is working in, read beside the chrome and the chips
+ * in the same voice they are: `text-body` is 0.875rem, and of a root that is
+ * already notched up (Large, 18px) that is about 16px — a line, not a
+ * heading, and the Size preference is how a reader who wants them bigger
+ * asks. Seven steps of the markdown scale (`scale.ts`'s `STEP_REM`), which
+ * `@olai/web`'s `touch.test.ts` holds.
  *
  * THE LEADING IS THE MARKDOWN BODY'S. A title is drawn as `.olai-md`, which
  * sets `line-height` to 1.5 (`theme/scale.ts`'s `LEADING.body`) rather than
@@ -260,7 +273,7 @@ export const PAST_CONTROLS = "ml-16 md:ml-15"
  * exists to keep still. The `1.5` is a literal because Tailwind scans this
  * file as text; `touch.test.ts` holds it to the scale.
  */
-export const ROW_TITLE = "font-serif text-[1rem] leading-[1.5]"
+export const ROW_TITLE = "font-sans text-[0.875rem] leading-[1.5]"
 
 /**
  * A TOP-LEVEL row is a section. One step above a row title — weight and a
@@ -270,7 +283,7 @@ export const ROW_TITLE = "font-serif text-[1rem] leading-[1.5]"
  * one span are a coin toss, settled by the order Tailwind emitted them.
  */
 export const SECTION_TITLE =
-  "font-serif text-[1.125rem] font-semibold leading-[1.5] tracking-tight"
+  "font-sans text-[1rem] font-semibold leading-[1.5] tracking-tight"
 
 /**
  * A row's NOTE, as type: what the clamped line, the rendered note and the
@@ -282,7 +295,7 @@ export const SECTION_TITLE =
  * One step under the title (`STEP_REM` in `theme/scale.ts`), so a preview
  * stays a byline and does not collide with the line it hangs from.
  */
-export const ROW_NOTE = "text-[0.875rem] leading-snug text-muted"
+export const ROW_NOTE = "text-[0.75rem] leading-normal text-muted"
 
 /**
  * THERE IS NO MEASURE, and its absence is a ruling rather than an omission.
@@ -309,7 +322,7 @@ export const ROW_NOTE = "text-[0.875rem] leading-snug text-muted"
  */
 
 /** How far a child list indents from its parent, and the vertical guide. */
-export const CHILD_INDENT = "ml-3 list-none border-l border-rule pl-3 md:ml-4 md:pl-4"
+export const CHILD_INDENT = "ml-3 list-none border-l border-rule/70 pl-3 md:ml-[0.5625rem] md:pl-4"
 
 /**
  * The outline's own left RAIL: the strip a press can land on beside a row that

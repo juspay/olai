@@ -134,7 +134,7 @@ function Zoom(props: {
               the stacking order is the whole mechanism, so the line follows
               the chrome's height whatever the layout publishes. */}
           <div class={`sticky top-[var(--height-chrome)] ${LAYER.page} h-0 md:hidden`} aria-hidden="true">
-            <p class="m-0 truncate border-b border-rule bg-paper py-2 font-serif text-title italic" data-testid={TESTID.zoomPinnedTitle}>
+            <p class="m-0 truncate border-b border-rule bg-paper py-2 font-sans text-body font-semibold" data-testid={TESTID.zoomPinnedTitle}>
               <NodeTitle title={props.zoomed.shows.node.title} from={props.zoomed.shows.file} links={false} />
             </p>
           </div>
@@ -142,7 +142,7 @@ function Zoom(props: {
             <Breadcrumbs file={props.zoomed.shows.file} trail={props.zoomed.trail} />
           <div class="group/row mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h1
-              class={`min-w-0 grow basis-full sm:basis-0 ${PAGE_TITLE} italic ${toneOf(props.zoomed.status)}`}
+              class={`min-w-0 grow basis-full sm:basis-0 ${PAGE_TITLE} ${toneOf(props.zoomed.status)}`}
               data-testid={TESTID.zoomTitle}
               data-node-id={props.zoomed.shows.node.id}
               data-status={props.zoomed.status}

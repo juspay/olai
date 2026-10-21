@@ -56,8 +56,10 @@ export const SIDEBAR_WIDTH_KEY = "olai.sidebar.width"
  * as a place the word `chat` appears and is not a plugin's name, beside the two
  * collisions the engines already produce.
  */
-/** NO LONGER READ: nothing opens the seat's panel since the chat dock left.
- *  Kept so the legacy-preference scenario can seed it and prove it is inert. */
+/** Whether the seat's panel is open. It was inert for a while — the first
+ *  chat dock left, and nothing opened the seat — and the panel is back as the
+ *  place a conversation is read BESIDE the page, so the key reads again, under
+ *  the word it always had. */
 export const PANEL_OPEN_KEY = "olai.chat.open"
 export const PANEL_WIDTH_KEY = "olai.chat.width"
 export const PANEL_SNAP_KEY = "olai.chat.snap"
@@ -67,11 +69,11 @@ export const PANEL_SNAP_KEY = "olai.chat.snap"
 /** Fixed face of a minimized desktop sidebar. Matches `--width-rail`. */
 export const RAIL_WIDTH_PX = 48
 
-export const SIDEBAR_DEFAULT_PX = 320
+export const SIDEBAR_DEFAULT_PX = 272
 export const SIDEBAR_MIN_PX = 180
 export const SIDEBAR_MAX_PX = 480
 
-export const CHAT_DEFAULT_PX = 416
+export const CHAT_DEFAULT_PX = 400
 export const PANEL_MIN_PX = 280
 export const PANEL_MAX_PX = 720
 
@@ -163,5 +165,6 @@ export const fitWidths = (
 interface Preference<T> {readonly value:()=>T;readonly set:(value:T,opts?:SetOptions)=>void}
 export interface LayoutPreferences {
  readonly sidebarOpenPref:Preference<boolean>;readonly sidebarWidthPref:Preference<number>
+ readonly panelOpenPref:Preference<boolean>
  readonly panelWidthPref:Preference<number>;readonly panelSnapPref:Preference<ChatSnap>
 }
