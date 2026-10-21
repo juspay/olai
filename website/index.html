@@ -39,29 +39,18 @@
     --well: color-mix(in srgb, var(--rule) 28%, var(--paper));
   }
 
-  /* Default is reef: the lagoon under the palm. Every other row is a pick,
-     including chalk, which used to be what an unpicked page read in. The
-     rows are the wheel — lights in hue order, then darks, the neutrals last
-     (packages/appearance/src/palettes.ts is the table). */
-  [data-theme="bloom"]      { --paper:#F1DFE4; --desk:#E6CCD3; --panel:#F8EDEF; --pill:#DDB6C0; --ink:#381926; --muted:#6C4252; --rule:#CFAAB4; --accent:#426F48; --done:#246B47; --doing:#865C13; --alarm:#992929; }
-  [data-theme="apricot"]    { --paper:#FFDECE; --desk:#FCD2C0; --panel:#FFECE0; --pill:#F5C5AF; --ink:#41261A; --muted:#765546; --rule:#E3BCAB; --accent:#006C84; --done:#256638; --doing:#824F00; --alarm:#9F3541; }
-  [data-theme="manuscript"] { --paper:#EFE7D2; --desk:#F4EDDD; --panel:#F6F0E2; --pill:#F9F4E6; --ink:#3C2F1B; --muted:#64573E; --rule:#DBCFAC; --accent:#1A5B54; --done:#4A6529; --doing:#884D11; --alarm:#9E4444; }
-  [data-theme="leaf"]       { --paper:#DBEFD0; --desk:#E7F4E0; --panel:#E8F6E0; --pill:#F0F9E9; --ink:#1F442C; --muted:#486649; --rule:#C0DBB4; --accent:#4E689C; --done:#2F642B; --doing:#885411; --alarm:#A84A5E; }
+  /* Four palettes, two by day and two by night, and the unpicked page follows
+     the OS — chalk by day, basalt under prefers-color-scheme: dark — exactly as
+     olai does (packages/appearance/src/palettes.ts is the table). The chips
+     below are picks. */
   :root,
-  [data-theme="reef"] { --paper:#D6F0EA; --desk:#C4E6DF; --panel:#E7F7F3; --pill:#B4DDD5; --ink:#133531; --muted:#45726C; --rule:#9BC9C1; --accent:#B43C45; --done:#1E7656; --doing:#8F5A00; --alarm:#C13349; }
-  [data-theme="sky"]        { --paper:#CFE3EC; --desk:#BBD4E0; --panel:#E2EFF4; --pill:#A2C7D7; --ink:#0B283A; --muted:#3B5769; --rule:#97B6C5; --accent:#9B4D18; --done:#206F52; --doing:#8A590F; --alarm:#99293B; }
-  [data-theme="iris"]       { --paper:#DDE6FF; --desk:#D1DCFB; --panel:#EBF1FF; --pill:#C3D0F5; --ink:#252D45; --muted:#525D7A; --rule:#B9C5E7; --accent:#784F00; --done:#236436; --doing:#804C00; --alarm:#9C323E; }
-  [data-theme="orchid"]     { --paper:#EFE0F7; --desk:#E7D4F0; --panel:#F8EDFD; --pill:#DEC7E9; --ink:#36273D; --muted:#685571; --rule:#D2BCDD; --accent:#6D6900; --done:#1E6032; --doing:#7B4800; --alarm:#972E3A; }
-  [data-theme="chalk"]      { --paper:#FAFAF6; --desk:#F2F2EC; --panel:#F5F5F0; --pill:#EDEFE6; --ink:#15180F; --muted:#555E4C; --rule:#C9CDBF; --accent:#134F75; --done:#2A6626; --doing:#8F5200; --alarm:#8E3348; }
-  [data-theme="madder"]     { --paper:#210E14; --desk:#2F171E; --panel:#3D1F29; --pill:#4C2934; --ink:#F3D5DD; --muted:#B38C97; --rule:#4A2A34; --accent:#FD8A8C; --done:#49A675; --doing:#B78F08; --alarm:#E1728B; }
-  [data-theme="ember"]      { --paper:#21140E; --desk:#312018; --panel:#3F2B1F; --pill:#4E3729; --ink:#EEE3D4; --muted:#B49C8A; --rule:#4F392D; --accent:#F29A35; --done:#60C78B; --doing:#EECB58; --alarm:#E87382; }
-  [data-theme="brandy"]     { --paper:#1D1300; --desk:#291E00; --panel:#362800; --pill:#433300; --ink:#E7DEC4; --muted:#A49775; --rule:#3F3414; --accent:#BDBE53; --done:#45A271; --doing:#B48C00; --alarm:#DD6E87; }
-  [data-theme="spruce"]     { --paper:#0E1809; --desk:#172310; --panel:#1F2F16; --pill:#293C1E; --ink:#D4E4CD; --muted:#8BA081; --rule:#2A3B20; --accent:#7FD189; --done:#43A070; --doing:#B28900; --alarm:#DA6C85; }
-  [data-theme="abyss"]      { --paper:#021A15; --desk:#042520; --panel:#05322B; --pill:#093E36; --ink:#C6E6DF; --muted:#76A399; --rule:#113E36; --accent:#49D2EA; --done:#409E6E; --doing:#AF8700; --alarm:#D86A83; }
-  [data-theme="midnight"]   { --paper:#031820; --desk:#05232D; --panel:#082F3C; --pill:#0D3B4B; --ink:#C6E4F0; --muted:#779FB0; --rule:#133B49; --accent:#7BBEFA; --done:#3C9A6A; --doing:#AC8400; --alarm:#D46680; }
-  [data-theme="aurora"]     { --paper:#0D1120; --desk:#161B30; --panel:#1F2642; --pill:#2A3152; --ink:#D7E7F6; --muted:#7F91B1; --rule:#2F3A58; --accent:#51E0C5; --done:#7EE0A8; --doing:#F0C04A; --alarm:#F07090; }
-  [data-theme="dusk"]       { --paper:#1D1022; --desk:#2A1A31; --panel:#362441; --pill:#422E51; --ink:#E1D4EC; --muted:#A58EB6; --rule:#473153; --accent:#DE88CC; --done:#6BC799; --doing:#EEC658; --alarm:#E87DA1; }
-  [data-theme="pitch"]      { --paper:#000000; --desk:#0D110A; --panel:#10140C; --pill:#161B10; --ink:#C9D6B4; --muted:#77836A; --rule:#242B1E; --accent:#96A1D7; --done:#7FC97A; --doing:#D9A85A; --alarm:#D68B9A; }
+  [data-theme="chalk"]  { --paper:#FBFBF9; --desk:#F3F3EF; --panel:#FFFFFF; --pill:#E9E9E3; --ink:#1B1B18; --muted:#5D5F57; --rule:#DBDBD4; --accent:#B23A43; --done:#1F7A4D; --doing:#8A5800; --alarm:#C0313F; }
+  [data-theme="reef"]   { --paper:#E8F6F2; --desk:#DAEFE9; --panel:#F3FBF8; --pill:#CAE7DF; --ink:#10302B; --muted:#3A665F; --rule:#B3D9D0; --accent:#B43C45; --done:#1E7656; --doing:#875600; --alarm:#C13349; }
+  [data-theme="basalt"] { --paper:#161718; --desk:#1D1E21; --panel:#242629; --pill:#2E3034; --ink:#E8E8E4; --muted:#A0A19C; --rule:#34363B; --accent:#EE8F93; --done:#62C58D; --doing:#E4BA52; --alarm:#F27E8B; }
+  [data-theme="abyss"]  { --paper:#06201A; --desk:#0B2923; --panel:#10342D; --pill:#174139; --ink:#CFE9E2; --muted:#84B0A6; --rule:#1E4840; --accent:#4ED4E6; --done:#52B37F; --doing:#CDA62A; --alarm:#EB7B90; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) { --paper:#161718; --desk:#1D1E21; --panel:#242629; --pill:#2E3034; --ink:#E8E8E4; --muted:#A0A19C; --rule:#34363B; --accent:#EE8F93; --done:#62C58D; --doing:#E4BA52; --alarm:#F27E8B; }
+  }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; background: var(--paper); }
@@ -564,37 +553,23 @@
 <section id="prefs">
   <div class="wrap">
     <h2>How it looks</h2>
-    <p class="lead">Eighteen palettes. Press a chip — this page follows.</p>
+    <p class="lead">Four palettes — two by day, two by night — and an unpicked page follows your OS. Press a chip; this page follows.</p>
     <div class="chips" role="list">
-      <span class="chip" data-theme="bloom" role="listitem">bloom</span>
-      <span class="chip" data-theme="apricot" role="listitem">apricot</span>
-      <span class="chip" data-theme="manuscript" role="listitem">manuscript</span>
-      <span class="chip" data-theme="leaf" role="listitem">leaf</span>
-      <span class="chip on" data-theme="reef" role="listitem">reef</span>
-      <span class="chip" data-theme="sky" role="listitem">sky</span>
-      <span class="chip" data-theme="iris" role="listitem">iris</span>
-      <span class="chip" data-theme="orchid" role="listitem">orchid</span>
-      <span class="chip" data-theme="chalk" role="listitem">chalk</span>
-      <span class="chip" data-theme="madder" role="listitem">madder</span>
-      <span class="chip" data-theme="ember" role="listitem">ember</span>
-      <span class="chip" data-theme="brandy" role="listitem">brandy</span>
-      <span class="chip" data-theme="spruce" role="listitem">spruce</span>
+      <span class="chip on" data-theme="chalk" role="listitem">chalk</span>
+      <span class="chip" data-theme="reef" role="listitem">reef</span>
+      <span class="chip" data-theme="basalt" role="listitem">basalt</span>
       <span class="chip" data-theme="abyss" role="listitem">abyss</span>
-      <span class="chip" data-theme="midnight" role="listitem">midnight</span>
-      <span class="chip" data-theme="aurora" role="listitem">aurora</span>
-      <span class="chip" data-theme="dusk" role="listitem">dusk</span>
-      <span class="chip" data-theme="pitch" role="listitem">pitch</span>
     </div>
     <div class="cols">
-      <div class="panel" data-theme="ember">
-        <div class="file">kitchen.olai · ember</div>
+      <div class="panel" data-theme="basalt">
+        <div class="file">kitchen.olai · basalt</div>
         <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
         <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
         <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
         <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
       </div>
-      <div class="panel" data-theme="bloom">
-        <div class="file">kitchen.olai · bloom</div>
+      <div class="panel" data-theme="reef">
+        <div class="file">kitchen.olai · reef</div>
         <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
         <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
         <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>

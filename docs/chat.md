@@ -1217,7 +1217,12 @@ identity by protocol value. Waiting-form reveal follows current document order.
 Outline diffs clear their previous answer when the file, texts, or vault owner
 changes, so a failed refresh cannot display stale changes. Transcript following
 reuses its scroll host while text streams; geometry changes and a hidden pane's
-first reveal attach the appropriate scroll and resize observers.
+first reveal attach the appropriate scroll and resize observers. A scroll event
+that moves the view by exactly what the rows' own start moved — the page's head
+above them grew or shrank, and the browser's scroll anchoring kept a row still —
+is not a hand, and a follower stays following through it, pinned back to the
+foot; any other move is the reader's, and an upward one releases following at
+once.
 
 The chat activation owns one live conversation reading per agent/session pair
 (or per node while unbound). Page and folded views lease that reading; hiding

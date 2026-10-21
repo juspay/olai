@@ -128,6 +128,34 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
    *  here is our jump, not the reader — the event is dispatched after the
    *  assignment returns, so a boolean around the write cannot see it. */
   let assignedTop = Number.NaN
+  /** WHERE THE ROWS BEGIN in the host's content, and where its scroll was, as
+   *  of the last scroll we handled or made — so a `scroll` event can be told
+   *  from a hand. The browser's scroll anchoring keeps the row under the
+   *  reader's eye still while something ABOVE it grows or shrinks, and the way
+   *  it does that is by moving `scrollTop` by exactly that much: forward when
+   *  the page's head grew, BACK when it shrank. A follower who is six pixels
+   *  short of the bottom because the head lost six pixels has not scrolled
+   *  away, and reading that move as a reader's released following for the
+   *  rest of the turn (`retained_chat.feature`, a hidden conversation
+   *  resuming). The rows' own start is what moves when the head does — and
+   *  only then: text landing in the rows and the pinned foot growing under
+   *  them leave it where it was — so a scroll that equals its move is
+   *  anchoring, and any other is a hand. A fold's host is the rows' own pane,
+   *  whose start is always nought, so nothing changes there. */
+  let seenStart = Number.NaN
+  let seenTop = Number.NaN
+  const startOf = (host: HTMLElement): number => {
+    if (pane === undefined || host === pane) return 0
+    const top = pane.getBoundingClientRect().top
+    return host === document.documentElement ? top + window.scrollY : top - host.getBoundingClientRect().top + host.scrollTop
+  }
+  const measure = (host: HTMLElement): { readonly above: number; readonly top: number } => {
+    const start = startOf(host)
+    const moved = { above: start - seenStart, top: host.scrollTop - seenTop }
+    seenStart = start
+    seenTop = host.scrollTop
+    return moved
+  }
 
   const atBottom = (): boolean => {
     const host = scrollPane()
@@ -140,17 +168,27 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
     if (host === undefined) return
     host.scrollTop = host.scrollHeight
     assignedTop = host.scrollTop
+    measure(host)
   }
   const scrolled = () => {
     if (!shown() || restoringVisibility) return
     const host = scrollPane()
     if (host === undefined) return
+    const moved = measure(host)
     // Browser anchoring can move the scroll forward before ResizeObserver
     // sees new rows. While following, that forward move is not a reader
-    // scrolling away. An upward move still releases following immediately.
+    // scrolling away — and neither is a move, either way, of exactly what
+    // the rows' start moved by (`measure`). A move that is neither is a hand,
+    // and an upward one releases following at once. Within two pixels, not
+    // one: `scrollTop` is the browser's rounding of a fractional layout, and a
+    // six-and-a-half-pixel head reads as six here and seven there.
+    const anchored = moved.above !== 0 && Math.abs(moved.top - moved.above) < 2
     if (Number.isFinite(assignedTop) && (Math.abs(host.scrollTop - assignedTop) < 1
-      || (following && host.scrollTop > assignedTop))) {
-      if (following && !atBottom()) jump()
+      || (following && (host.scrollTop > assignedTop || anchored)))) {
+      // TO THE FOOT EXACTLY, not merely "near enough": a follower left within
+      // `NEAR` of the bottom by an anchoring move has the last line of the
+      // answer under the pinned composer, where a press cannot reach it.
+      if (following && host.scrollTop !== assignedTop) jump()
       return
     }
     following = atBottom()
@@ -172,6 +210,7 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
       grown?.observe(outer)
     }
     const target = outer === document.documentElement ? window : outer
+    measure(next)
     if (listening === target) return
     listening?.removeEventListener("scroll", scrolled)
     listening = target
