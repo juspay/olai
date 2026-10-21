@@ -180,10 +180,10 @@ Given("legacy dock preferences are open and {word}", async function (this: OlaiW
  *  lanes (`olai-plugin-chat`'s `the_agent_panel.feature`), never something
  *  drawn over them, and a stored width at the maximum squeezes the lanes
  *  rather than covering them. The fold is the one the scenario opened, by
- *  its `data-layout`; the dock's own root, when the preference opened it, is
+ *  its `data-drawn`; the dock's own root, when the preference opened it, is
  *  outside the strip and is not this claim's. */
 Then("chat remains in the reading below the strip with no dock", async function (this: OlaiWorld) {
-  const chat = this.frontLane().locator(`${CHAT_PANEL}[data-layout="fold"]`);
+  const chat = this.frontLane().locator(`${CHAT_PANEL}[data-drawn="fold"]`);
   await chat.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const strip = await stripBox(this);
   const box = await this.box(chat, "inline chat");

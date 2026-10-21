@@ -76,7 +76,7 @@ Then("the agent panel shows {string}", async function (this: OlaiWorld, node: st
  *  and the ordinary chat steps can address it from here on. */
 Then("the agent panel's conversation is ready", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent, "open a conversation in the panel first");
-  const panel = this.page.locator(`${CHAT_DOCK} ${CHAT_PANEL}[data-layout="dock"]`);
+  const panel = this.page.locator(`${CHAT_DOCK} ${CHAT_PANEL}[data-drawn="dock"]`);
   await panel.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.waitUntil(async () => {
     const status = await panel.getAttribute("data-status");

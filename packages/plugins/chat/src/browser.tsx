@@ -153,7 +153,7 @@ import { configurationPanel } from "olai-plugin-plugin-inspector/contract"
 import { holdPluginsDoor } from "./browser/plugins-door.ts"
 import { createAttention } from "./browser/chat/attention/attention.ts"
 import { createComponent, createEffect, createRoot, Show, untrack } from "solid-js"
-import { shell as appShell, thumbs as layoutThumbs, tools as layoutTools } from "olai-plugin-layout/contract"
+import { shell as appShell, thumbs as thumbSeats, tools as toolSeats } from "olai-plugin-layout/contract"
 import { ChatsThumb } from "./browser/agents/ChatsThumb.tsx"
 import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
 import { atOnce } from "@olai/web/client/settled.ts"
@@ -176,7 +176,7 @@ export const components = {
     const roster = () => agentReadings()?.agents
     yield* slots.register("app.panel", () => <Show when={roster()}>{agents => <AgentsProvider value={agents()}><Dock /></AgentsProvider>}</Show>)
     yield* slots.register("app.keys", { key: "j", whileEditing: true, said: "Show or hide the agent panel", press: () => { if (door.value.desktop()) door.value.toggle() } })
-    yield* renderer.contribute(layoutTools, { body: props => <DockToggle where={props.where} />, headerOrder: 15, closetOrder: 30 })
+    yield* renderer.contribute(toolSeats, { body: props => <DockToggle where={props.where} />, headerOrder: 15, closetOrder: 30 })
     yield* renderer.contribute(paletteAdapters, {
       available: () => door.value.desktop(),
       items: () => door.value.desktop() ? [{
@@ -199,7 +199,7 @@ export const components = {
     const geometry = yield* appShell
     const renderer = yield* rendererSlots
     const roster = () => agentReadings()?.agents
-    yield* renderer.contribute(layoutThumbs, {
+    yield* renderer.contribute(thumbSeats, {
       order: 30,
       body: () => <Show when={roster()}>{agents => <AgentsProvider value={agents()}><ChatsThumb reveal={geometry.revealSidebar} /></AgentsProvider>}</Show>,
     })

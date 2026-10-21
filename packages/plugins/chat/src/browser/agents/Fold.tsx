@@ -77,7 +77,7 @@ export function Conversation(props: { readonly chat: Chat; readonly page?: boole
   const holding = createHolding(props.chat)
   const live = () => props.chat.state().status === "thinking" || props.chat.state().watching.length > 0
   return <div class="flex min-h-0 flex-col" classList={{ "flex-1": props.dock === true }} data-testid={TESTID.chatPanel}
-    data-layout={props.dock === true ? "dock" : props.page === true ? "page" : "fold"}
+    data-drawn={props.dock === true ? "dock" : props.page === true ? "page" : "fold"}
     data-session-id={props.chat.state().session?.id} data-session-title={props.chat.state().session?.title ?? undefined} data-status={props.chat.state().status} data-pending-sends={props.chat.pendingSends()}>
     <ElapsedProvider live={live()}>
       {/* A page's strips are in its pinned head, where its scroll cannot
