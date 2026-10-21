@@ -606,8 +606,10 @@ Established by reading the pinned sources and proved by
   and `conversation.earlier` answers those pages for a reader who asks. This is
   the olai half of the fix; the framework half (byte-bounded frames with
   backpressure, liveness-as-progress, and the graced down-state on the readout)
-  is kolu's, and this pin's `DISCONNECT_OVERLAY_GRACE_MS`/`gracedDown` are what
-  gate the overlay today.
+  is kolu's, and this pin carries it: the readout's `presentingDown` is what
+  gates the overlay, and a coalesced delta that outgrows the chunk budget is
+  split into ack-gated frames, so a long STORED conversation's first open no
+  longer arrives as one frame either.
 - **A call on a departed plugin is refused three ways, never hangs, never
   silently succeeds.** Before the tab redials the server raises
   `SurfaceSiblingDropped`; a call in flight on the superseded connection is
