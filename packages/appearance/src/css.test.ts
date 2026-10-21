@@ -3,8 +3,9 @@
  *  regenerating it. */
 import { describe, expect, test } from "bun:test"
 
-import { customProperty, paletteBlock, paletteCss, selectorFor } from "./css.ts"
+import { customProperty, paletteBlock, paletteCss, selectorFor, UNPICKED_SELECTOR, unpickedDarkBlock } from "./css.ts"
 import {
+  DEFAULT_DARK_PALETTE,
   DEFAULT_PALETTE,
   DEFAULT_THEME,
   PALETTE_TOKENS,
@@ -57,7 +58,7 @@ describe("the generated palette blocks", () => {
     }
   })
 
-  test("one theme is what a page that picked nothing reads in", () => {
+  test("one theme is what a page that picked nothing reads in by day", () => {
     // Asked of the selectors themselves rather than found in the generated
     // text: a page with no `data-theme` is painted by whichever block claims
     // the bare `:root`, and exactly one may.
@@ -67,11 +68,20 @@ describe("the generated palette blocks", () => {
     expect(bare).toEqual([DEFAULT_THEME])
   })
 
-  test("the sheet asks the OS nothing about colour", () => {
-    // A theme is a pick. The palette used to switch under the reader when the
-    // OS did, which meant two things could disagree about which dark you were
-    // in.
-    expect(css).not.toContain("prefers-color-scheme")
+  test("the OS answers for the unpicked page, and for nothing else", () => {
+    // ONE media rule, scoped to `:root:not([data-theme])`: the page nobody
+    // picked for reads in the dark default under a dark OS, and a stored
+    // pick — which writes the attribute — is never overruled by it.
+    const block = unpickedDarkBlock()
+    expect(block).toMatch(/^@media \(prefers-color-scheme: dark\) \{/)
+    expect(block).toContain(UNPICKED_SELECTOR)
+    expect(UNPICKED_SELECTOR).toBe(`:root:not([${THEME_ATTRIBUTE}])`)
+    for (const token of PALETTE_TOKENS) {
+      expect(block).toContain(`${customProperty(token)}: ${DEFAULT_DARK_PALETTE.colors[token]};`)
+    }
+    expect(block).toContain("color-scheme: dark;")
+    expect(css.split("prefers-color-scheme").length - 1).toBe(1)
+    expect(css).toContain(block)
   })
 })
 
@@ -94,12 +104,17 @@ describe("the shell's boot script", () => {
     expect(html).toContain(`setAttribute("${THEME_ATTRIBUTE}"`)
   })
 
-  test("ships the default palette's paper as the browser chrome", async () => {
-    // The one colour the shell can know before the bundle runs: a page that
-    // has picked nothing is in the default, and inventing a second value here
-    // would flash a different chrome on the first paint of every load.
-    expect(await shell()).toContain(
-      `<meta name="theme-color" content="${DEFAULT_PALETTE.colors.paper}" />`,
+  test("ships each default's paper as the browser chrome, per OS scheme", async () => {
+    // The two colours the shell can know before the bundle runs: a page that
+    // has picked nothing is in one default or the other by the OS's word, and
+    // inventing a value here would flash a different chrome on the first
+    // paint of every load.
+    const html = await shell()
+    expect(html).toContain(
+      `<meta name="theme-color" media="(prefers-color-scheme: light)" content="${DEFAULT_PALETTE.colors.paper}" />`,
+    )
+    expect(html).toContain(
+      `<meta name="theme-color" media="(prefers-color-scheme: dark)" content="${DEFAULT_DARK_PALETTE.colors.paper}" />`,
     )
   })
 })

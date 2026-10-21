@@ -28,7 +28,7 @@ import {
   THEME_ATTRIBUTE,
   THEME_STORAGE_KEY,
 } from "@olai/web/testlib";
-import { PALETTES, THEME_NAMES } from "@olai/appearance/palettes.ts";
+import { DEFAULT_DARK_THEME, PALETTES, THEME_NAMES } from "@olai/appearance/palettes.ts";
 
 import { focusedOn } from "@olai/tests/harness/caret.ts";
 import { manifestOf } from "@olai/tests/harness/manifest.ts";
@@ -143,15 +143,66 @@ Then(
     await named.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     let said = "";
     let expected = "";
+    // An unpicked page names the OS's choice as `System · Chalk`: the palette
+    // is the last word either way, and the first says whose answer it was.
     await this.waitUntil(async () => {
-      expected = (await namedTheme(this)) ?? DEFAULT_THEME;
+      const picked = await namedTheme(this);
+      expected = picked ?? DEFAULT_THEME;
       said = (await named.innerText()).trim();
-      return said.toLowerCase() === expected.toLowerCase();
+      const lower = said.toLowerCase();
+      return picked === null
+        ? lower.startsWith("system") && lower.endsWith(expected.toLowerCase())
+        : lower === expected.toLowerCase();
     }, "the Theme row to name the theme in force").catch(() => {
       assert.fail(`the Theme row names "${said}", but the page is in "${expected}"`);
     });
   },
 );
+
+// ── following the OS ───────────────────────────────────────────────────
+
+/** The follow control: the one button in the row that is not a palette. */
+const FOLLOW = selector(TESTID.themeFollow);
+
+When("I hand the theme back to the system", async function (this: OlaiWorld) {
+  await showChips(this);
+  await this.press(this.page.locator(FOLLOW));
+  await this.waitUntil(
+    async () => (await namedTheme(this)) === null,
+    "the page to stop naming a theme",
+  );
+});
+
+Then("the follow-the-system control is lit", async function (this: OlaiWorld) {
+  await showChips(this);
+  await this.expectChromeAttribute(FOLLOW, "aria-pressed", "true", "the follow control");
+});
+
+Then("the follow-the-system control is not lit", async function (this: OlaiWorld) {
+  await showChips(this);
+  await this.expectChromeAttribute(FOLLOW, "aria-pressed", "false", "the follow control");
+});
+
+/** Tell the browser what the OS prefers. Playwright's emulation fires the
+ *  page's `matchMedia` change event exactly as a real OS flip would. */
+When("the system prefers {string}", async function (this: OlaiWorld, scheme: string) {
+  assert.ok(scheme === "dark" || scheme === "light", `no such scheme: ${scheme}`);
+  await this.page.emulateMedia({ colorScheme: scheme });
+});
+
+/** The paper an unpicked page paints under the OS's word, read off the sheet
+ *  and compared to the table's default for that scheme — not to a hex. */
+Then("the page paints the {string} default", async function (this: OlaiWorld, scheme: string) {
+  const expected = PALETTES.find((palette) => palette.scheme === scheme && palette.name === (scheme === "dark" ? DEFAULT_DARK_THEME : DEFAULT_THEME));
+  assert.ok(expected, `no default for scheme ${scheme}`);
+  let painted = "";
+  await this.waitUntil(async () => {
+    painted = (await paper(this)).toLowerCase();
+    return painted === expected.colors.paper.toLowerCase();
+  }, `the page to paint the ${scheme} default`).catch(() => {
+    assert.fail(`the page paints ${painted || "(nothing)"}, the ${scheme} default is ${expected.colors.paper}`);
+  });
+});
 
 /** The Theme row, by the preference it sets. */
 const themeRow = (world: OlaiWorld) =>

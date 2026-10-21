@@ -4,9 +4,9 @@ Feature: Preferences remain usable when the browser cannot remember them
     Given this browser refuses local storage
     And I open the document "finishes.md"
     Then the page names no theme
-    When I pick the theme "pitch"
+    When I pick the theme "basalt"
     And I set Size to "larger"
-    Then the page is in the theme "pitch"
+    Then the page is in the theme "basalt"
     And the page is set at "20px"
     When I press "Escape"
     And I start editing the document

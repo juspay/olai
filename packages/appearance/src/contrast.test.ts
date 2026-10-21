@@ -53,10 +53,11 @@ describe("contrast", () => {
   })
 
   test("every palette clears the reading floor, pair by pair", () => {
-    // Ink on the page (and paper on the frame) at least 7:1, because this is
-    // an outliner a person lives in. The rest of the pairs this client paints
-    // on the paper, and ink on the raised surfaces, at least AA. `chalk`
-    // additionally promises the full PAINTED set, including muted on a pill.
+    // Ink on the page (and paper on ink, the day being read) at least 7:1,
+    // because this is an outliner a person lives in. The rest of the pairs
+    // this client paints on the paper, and ink on the raised surfaces, at
+    // least AA. Every row additionally promises the full PAINTED set below,
+    // including muted on a pill.
     const FLOOR: ReadonlyArray<
       readonly [PaletteToken, PaletteToken, number]
     > = [
@@ -90,9 +91,9 @@ describe("contrast", () => {
     expect(under).toEqual([])
   })
 
-  test("a palette that promises AA keeps it, pair by pair", () => {
+  test("every palette keeps the AA promise, pair by pair", () => {
     const promised = PALETTES.filter((palette) => palette.aa === true)
-    expect(promised.length).toBeGreaterThan(0)
+    expect(promised.length).toBe(PALETTES.length)
     // Collected rather than asserted one at a time, so a colour edited two
     // digits reports every pair it dropped instead of only the first.
     const under = promised.flatMap((palette) =>

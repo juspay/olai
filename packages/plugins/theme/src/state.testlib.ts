@@ -19,7 +19,7 @@ export const browser = async (body: (state: {
   const meta = new ElementDouble({ content: "original-color" })
   const icon = new ElementDouble({ href: "/original.svg" })
   const apple = new ElementDouble({ content: "Inherited app" })
-  const stored = new Map<string, string>([["olai.theme", "pitch"], ["olai.font", "system"], ["olai.size", "larger"]])
+  const stored = new Map<string, string>([["olai.theme", "basalt"], ["olai.font", "system"], ["olai.size", "larger"]])
   const listeners = new Set<(event: StorageEvent) => void>()
   const globals = {
     document: { title: "olai", documentElement: root, querySelector: (selector: string) => selector.includes("apple-mobile") ? apple : selector.startsWith("meta") ? meta : icon },

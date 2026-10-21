@@ -3,7 +3,7 @@ Feature: Appearance state and its preferences UI have independent lifetimes
   Scenario: Appearance follows storage while the preferences UI is absent
     Given I open the app
     And I mark the page
-    When I pick the theme "pitch"
+    When I pick the theme "basalt"
     And I press Escape on the preferences
     And I open the plugins panel
     And I switch the plugin "preferences" off
@@ -22,7 +22,7 @@ Feature: Appearance state and its preferences UI have independent lifetimes
   Scenario: Removing appearance releases observers and returning rereads stored choices
     Given I open the app
     And I mark the page
-    When I pick the theme "pitch"
+    When I pick the theme "basalt"
     And I pick the font "system"
     And I set Size to "larger"
     And I press Escape on the preferences

@@ -1,40 +1,42 @@
-/* The FRAME is ink; the PAGE is a paper sheet sitting in it. Unstyled
- * flash is the same forest as the spine, so a load does not blink cream. */
+/* ONE SURFACE. The page, the header and the directory column are steps of the
+ * same paper — the page on `paper`, the furniture around it on `desk`, a
+ * hairline of `rule` between them — rather than a sheet of paper in a frame
+ * of ink. Unstyled flash is the paper, so a load does not blink dark on a
+ * light palette or light on a dark one: the boot script has put the pick on
+ * `<html>` before this sheet lands, and the bare `:root` answers to the OS
+ * (`./css.ts`). */
 html {
-  background-color: var(--color-ink);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
 }
 
 ::selection {
-  background-color: color-mix(in srgb, var(--color-accent) 38%, transparent);
+  background-color: color-mix(in srgb, var(--color-accent) 28%, transparent);
 }
 
-/* THE FRAME. Ink ground, paper words — inherited, not remapped. The header,
- * the directory spine and the collapsed rail are ONE surround, and this is
- * the one place that says what it is made of; a page is the paper sheet
- * sitting in it (`layout/sheet.ts`). The month, unfolded under the sidebar's
- * Today row, is drawn on the spine's own ground — it used to be a paper card
- * here, the loudest thing on screen. Palettes invert with their ink: reef
- * is a forest column beside a lagoon page; aurora is a pale sky beside
- * midnight paper.
+/* THE FURNITURE. The header, the directory column and the collapsed rail are
+ * one surround, and this is the one place that says what it is made of: the
+ * desk, one step under the page, ink words on it. The name survived the
+ * redesign that retired the inverted frame because a consumer wearing it asks
+ * the same question it always did — "am I furniture or page?" — and the
+ * answer is still one rule.
  *
  * GROUND ONLY — no `border-color`. Everything in this file is unlayered and
  * Tailwind's utilities are not, so a `border-color` here would outrank every
- * `border-*` a consumer wrote on the same element: it is exactly what stopped
- * the header, whose bottom rule is coral, from wearing this class. The rules
- * are the consumers' own, named where they are drawn. */
+ * `border-*` a consumer wrote on the same element. The rules are the
+ * consumers' own, named where they are drawn. */
 .olai-frame {
-  background-color: var(--color-ink);
-  color: var(--color-paper);
+  background-color: var(--color-desk);
+  color: var(--color-ink);
 }
 
 /* ONE overflow bar: thin, currentColour, gutter reserved on desktop so
  * a classic scrollbar cannot steal a strip (the month's 7 cells, a
- * conversation). Thumb follows the surface — paper on the spine, ink
- * on the desk — rather than a second pair of hexes. Phone leaves the
- * gutter: the drawer's 44px day cells already spend the width. */
+ * conversation). Thumb follows the surface. Phone leaves the gutter: the
+ * drawer's 44px day cells already spend the width. */
 .olai-scroll {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, currentColor 34%, transparent) transparent;
+  scrollbar-color: color-mix(in srgb, currentColor 24%, transparent) transparent;
 }
 
 .olai-scroll::-webkit-scrollbar {
@@ -46,7 +48,7 @@ html {
 }
 
 .olai-scroll::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, currentColor 34%, transparent);
+  background: color-mix(in srgb, currentColor 24%, transparent);
   border-radius: 999px;
 }
 
@@ -56,3 +58,14 @@ html {
   }
 }
 
+/* A FOCUS RING for keyboard travel, once. Every control in the app used to
+ * spell its own `focus-visible:outline-*`, and about half of them did. The
+ * ring is the accent at two pixels with a gap of paper, so it reads on every
+ * surface; a control that draws its own (an outline row, a text field with a
+ * border that lights) opts out with `outline-none`, which being a utility
+ * outranks this unlayered rule. */
+:where(button, [role="button"], a[href], input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-control);
+}

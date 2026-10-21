@@ -1,15 +1,18 @@
 /** The table's own invariants. The TYPE already forces every row to name every
  *  token — that is what `Record<PaletteToken, string>` is for — so what is left
  *  here is the things a type cannot say: that no two rows answer to the same
- *  name, that the values are colours, that the default is one of them, and the
- *  SPREAD the table claims — the wheel it says it is, measured in OKLCH. */
+ *  name, that the values are colours, that each default is one of them, and
+ *  the SHAPE the table claims — two polarities, each a neutral and the lagoon,
+ *  measured in OKLCH. */
 import { describe, expect, test } from "bun:test"
 
 import { colourGap, hueGap, hueOf, oklchOf } from "./hues.ts"
 import {
+  DEFAULT_DARK_PALETTE,
+  DEFAULT_DARK_THEME,
   DEFAULT_PALETTE,
-  type Palette,
   DEFAULT_THEME,
+  defaultPaletteFor,
   paletteNamed,
   PALETTES,
   THEME_ATTRIBUTE,
@@ -17,27 +20,9 @@ import {
   THEME_STORAGE_KEY,
 } from "./palettes.ts"
 describe("the palette table", () => {
-  test("is the eighteen, the wheel in order, the neutrals last", () => {
-    expect(THEME_NAMES).toEqual([
-      "bloom",
-      "apricot",
-      "manuscript",
-      "leaf",
-      "reef",
-      "sky",
-      "iris",
-      "orchid",
-      "chalk",
-      "madder",
-      "ember",
-      "brandy",
-      "spruce",
-      "abyss",
-      "midnight",
-      "aurora",
-      "dusk",
-      "pitch",
-    ])
+  test("is the four, lights first", () => {
+    expect(THEME_NAMES).toEqual(["chalk", "reef", "basalt", "abyss"])
+    expect(PALETTES.map((palette) => palette.scheme)).toEqual(["light", "light", "dark", "dark"])
   })
 
   test("no two themes share a name", () => {
@@ -60,28 +45,31 @@ describe("the palette table", () => {
     }
   })
 
-  // "The default is one of the themes" is what `DEFAULT_PALETTE`'s throw says,
-  // at import — its own comment above it says so — and `paletteNamed` finds a
-  // row by its `name`, so the value's `.name` IS `DEFAULT_THEME` by
-  // construction. Which theme a page that picked nothing lands in is asked
-  // where it is observable, of the selectors: `./css.test.ts`.
-  test("chalk is the one that promises AA", () => {
-    expect(paletteNamed("chalk")?.aa).toBe(true)
-    expect(
-      PALETTES.filter((palette) => palette.aa === true).map((palette) => palette.name),
-    ).toEqual(["chalk"])
+  test("the two defaults are one of each polarity, and the OS chooses between them", () => {
+    expect(DEFAULT_PALETTE.name).toBe(DEFAULT_THEME)
+    expect(DEFAULT_DARK_PALETTE.name).toBe(DEFAULT_DARK_THEME)
+    expect(DEFAULT_PALETTE.scheme).toBe("light")
+    expect(DEFAULT_DARK_PALETTE.scheme).toBe("dark")
+    expect(defaultPaletteFor("light")).toBe(DEFAULT_PALETTE)
+    expect(defaultPaletteFor("dark")).toBe(DEFAULT_DARK_PALETTE)
+  })
+
+  test("every row promises AA", () => {
+    // Four rows, no excuses: `./contrast.test.ts` holds each to the promise.
+    expect(PALETTES.every((palette) => palette.aa === true)).toBe(true)
   })
 
   test("a name no row offers resolves to nothing, rather than to something", () => {
     // What a value stored by an older olai looks like after a rename — the
     // client forgets it, and can only do that if this answers honestly. The
-    // WorkFlowy ports that left this table are that case.
+    // fourteen rows that left the wheel are that case now.
     expect(paletteNamed("no-such-theme")).toBeUndefined()
-    expect(paletteNamed("matcha")).toBeUndefined()
+    expect(paletteNamed("pitch")).toBeUndefined()
+    expect(paletteNamed("aurora")).toBeUndefined()
   })
 
   test("the attribute and the storage key are the ones the shell spells", () => {
-    // Pinned because the shell's inline boot script (index.html) spells both
+    // Pinned because the shell's inline boot script (head.html) spells both
     // as literals — it runs before any module — and `css.test.ts` reads THIS
     // side of the contract when it checks that one.
     expect(THEME_ATTRIBUTE).toBe("data-theme")
@@ -89,142 +77,76 @@ describe("the palette table", () => {
   })
 
   test("the values reach the table verbatim (spot check)", () => {
-    // A canary over the table itself: the default's paper (also the
-    // manifest's chrome), the AA palette's desk, and two rows added with the
-    // eight families.
-    expect(paletteNamed("reef")?.colors.paper).toBe("#D6F0EA")
-    expect(paletteNamed("chalk")?.colors.desk).toBe("#F2F2EC")
-    expect(paletteNamed("apricot")?.colors.paper).toBe("#FFDECE")
-    expect(paletteNamed("abyss")?.colors.paper).toBe("#021A15")
+    // A canary over the table itself: each default's paper (also the
+    // shell's two chrome colours and the manifest's one).
+    expect(paletteNamed("chalk")?.colors.paper).toBe("#FBFBF9")
+    expect(paletteNamed("basalt")?.colors.paper).toBe("#161718")
+    expect(paletteNamed("reef")?.colors.accent).toBe("#B43C45")
+    expect(paletteNamed("abyss")?.colors.paper).toBe("#06201A")
   })
 })
 
-/** The rows that MAKE a hue claim: a paper with enough chroma to read as a
- *  colour at all. The two neutral picks sit outside it on purpose — chalk is
- *  the quietest reading and pitch spends nothing on #000000, and neither is a
- *  cell of the wheel. */
-const HUE_BEARING_CHROMA = 0.02
+/** A paper with enough chroma to read as a colour at all. The neutrals sit
+ *  under it on purpose: chalk and basalt are the day read in no particular
+ *  hue. */
+const HUE_BEARING_CHROMA = 0.01
 
 /** Two and a half just-noticeable differences: a JND is about 0.02. */
 const ACCENT_FLOOR = 0.05
 
-/** Each scheme's rows that carry a hue — the wheel that scheme is. */
-const WHEEL: Record<"light" | "dark", ReadonlyArray<Palette>> = {
-  light: PALETTES.filter(
-    (palette) =>
-      palette.scheme === "light" &&
-      oklchOf(palette.colors.paper).c >= HUE_BEARING_CHROMA,
-  ),
-  dark: PALETTES.filter(
-    (palette) =>
-      palette.scheme === "dark" &&
-      oklchOf(palette.colors.paper).c >= HUE_BEARING_CHROMA,
-  ),
-}
-
-describe("the table's spread", () => {
-  test("the neutral picks are the only rows without a hue", () => {
+describe("the table's shape", () => {
+  test("each polarity is a neutral and the lagoon", () => {
     const neutral = PALETTES.filter(
       (palette) => oklchOf(palette.colors.paper).c < HUE_BEARING_CHROMA,
     ).map((palette) => palette.name)
-    expect(neutral).toEqual(["chalk", "pitch"])
+    expect(neutral).toEqual(["chalk", "basalt"])
+    const hued = PALETTES.filter(
+      (palette) => oklchOf(palette.colors.paper).c >= HUE_BEARING_CHROMA,
+    ).map((palette) => palette.name)
+    expect(hued).toEqual(["reef", "abyss"])
   })
 
-  test("every 60° sector of the wheel carries a light row and a dark one", () => {
-    // The whole of what "sky's night is midnight" is FOR: a colour a person
-    // likes is there in either polarity. Six sectors, six hues a scheme.
-    for (const scheme of ["light", "dark"] as const) {
-      const sectors = WHEEL[scheme].map((palette) =>
-        Math.floor(hueOf(palette.colors.paper) / 60),
-      )
-      expect([...new Set(sectors)].sort((one, other) => one - other)).toEqual([
-        0, 1, 2, 3, 4, 5,
-      ])
-    }
+  test("the lagoon is one hue read twice", () => {
+    // reef's night is the abyss: a family is one hue read twice, so the two
+    // papers sit within 10° of each other on the wheel.
+    const gap = hueGap(hueOf(paletteNamed("reef")!.colors.paper), hueOf(paletteNamed("abyss")!.colors.paper))
+    expect(gap).toBeLessThanOrEqual(10)
   })
 
-  test("no two papers of one scheme sit within 30° of each other", () => {
-    // Ten rows inside one band of the wheel is the pile this table stopped
-    // being: three of the ten light papers used to sit inside 32°.
-    const close: Array<string> = []
-    for (const scheme of ["light", "dark"] as const) {
-      const rows = WHEEL[scheme]
-      for (let at = 0; at < rows.length; at += 1)
-        for (let other = at + 1; other < rows.length; other += 1) {
-          const gap = hueGap(
-            hueOf(rows[at]!.colors.paper),
-            hueOf(rows[other]!.colors.paper),
-          )
-          if (gap < 30) {
-            close.push(
-              `${scheme}: ${rows[at]!.name}/${rows[other]!.name} is ${gap.toFixed(1)}°`,
-            )
-          }
-        }
-    }
-    expect(close).toEqual([])
+  test("the two accents of one polarity are told apart", () => {
+    // The two darks carry different notes — coral on basalt, cyan on abyss —
+    // and must stay two and a half JNDs apart. The two lights SHARE the coral
+    // on purpose: it is the mark's own colour, and the neutral is where the
+    // brand reads loudest.
+    expect(colourGap(paletteNamed("basalt")!.colors.accent, paletteNamed("abyss")!.colors.accent)).toBeGreaterThanOrEqual(ACCENT_FLOOR)
+    expect(colourGap(paletteNamed("chalk")!.colors.accent, paletteNamed("reef")!.colors.accent)).toBeLessThan(ACCENT_FLOOR)
   })
 
-  test("every light paper has its dark twin in the same cell", () => {
-    // reef's night is the abyss and sky's is midnight: a family is one hue
-    // read twice, so each light row's nearest dark row is within 10°.
-    const darks = WHEEL.dark
-    const lonely = WHEEL.light.flatMap((light) => {
-      const nearest = Math.min(
-        ...darks.map((dark) =>
-          hueGap(hueOf(light.colors.paper), hueOf(dark.colors.paper)),
-        ),
-      )
-      return nearest <= 10
-        ? []
-        : [`${light.name}: its nearest dark row is ${nearest.toFixed(1)}° away`]
-    })
-    expect(lonely).toEqual([])
-  })
-
-  test("no two accents of one scheme are closer than two and a half JNDs", () => {
-    // The accents were the collapse: six of the ten rows wore a teal or a
-    // blue a few degrees apart, and two pairs were the same colour to the eye
-    // (manuscript/bloom measured 0.037). Held by distance rather than by hue,
-    // because two accents 40° apart at one lightness and one chroma are
-    // closer than two 20° apart that are not.
-    const close: Array<string> = []
-    for (const scheme of ["light", "dark"] as const) {
-      const rows = PALETTES.filter((palette) => palette.scheme === scheme)
-      for (let at = 0; at < rows.length; at += 1)
-        for (let other = at + 1; other < rows.length; other += 1) {
-          const gap = colourGap(
-            rows[at]!.colors.accent,
-            rows[other]!.colors.accent,
-          )
-          if (gap < ACCENT_FLOOR) {
-            close.push(
-              `${scheme}: ${rows[at]!.name}/${rows[other]!.name} is ${gap.toFixed(3)}`,
-            )
-          }
-        }
-    }
-    expect(close).toEqual([])
-  })
-
-  test("a light row's accent is foreign, a dark row's is the same thing lit", () => {
+  test("a light row's accent is foreign; the abyss lifts its own hue", () => {
     // The rule the vocabulary states: "a complement, or the bright analogous
-    // of a dark ground". A light page wants a note from the other side of the
-    // wheel; a dark one may take its own hue and lift it.
-    const wrong: Array<string> = []
+    // of a dark ground". The lagoon by day wants a note from the other side
+    // of the wheel; the deep may take its own hue and lift it.
+    const reef = paletteNamed("reef")!
+    const abyss = paletteNamed("abyss")!
+    expect(hueGap(hueOf(reef.colors.paper), hueOf(reef.colors.accent))).toBeGreaterThanOrEqual(60)
+    expect(hueGap(hueOf(abyss.colors.paper), hueOf(abyss.colors.accent))).toBeLessThanOrEqual(45)
+  })
+
+  test("the surfaces step in one direction", () => {
+    // In a light palette the desk is under the paper and the panel over it;
+    // in a dark one every step is a lift. A dark palette whose desk fell
+    // darker than its paper would draw the furniture as a hole in the page.
     for (const palette of PALETTES) {
-      if (oklchOf(palette.colors.paper).c < HUE_BEARING_CHROMA) continue
-      const gap = hueGap(
-        hueOf(palette.colors.paper),
-        hueOf(palette.colors.accent),
-      )
-      const fine = palette.scheme === "light" ? gap >= 60 : gap <= 45 || gap >= 60
-      if (!fine) {
-        wrong.push(
-          `${palette.name}: its accent is ${gap.toFixed(0)}° from its paper`,
-        )
+      const l = (token: "paper" | "desk" | "panel" | "pill") => oklchOf(palette.colors[token]).l
+      if (palette.scheme === "light") {
+        expect(l("desk")).toBeLessThan(l("paper"))
+        expect(l("panel")).toBeGreaterThanOrEqual(l("paper"))
+        expect(l("pill")).toBeLessThan(l("desk"))
+      } else {
+        expect(l("desk")).toBeGreaterThan(l("paper"))
+        expect(l("panel")).toBeGreaterThan(l("desk"))
+        expect(l("pill")).toBeGreaterThan(l("panel"))
       }
     }
-    expect(wrong).toEqual([])
   })
 })

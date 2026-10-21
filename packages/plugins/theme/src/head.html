@@ -33,14 +33,17 @@
       } catch {}
     </script>
     <!-- The browser chrome around an installed app: a phone's status bar, an
-         installed window's title bar. ONE of them, holding the DEFAULT theme's
-         paper — the palette a page that has picked nothing reads in — because
-         that is the only one this shell can know before the bundle runs. A
-         page that did pick repaints this from the table (theme/state.ts). The
-         value is `--color-paper` of the default palette, which cannot be read
-         from here (the sheet is a build artifact and this shell is what loads
-         it) and is pinned by theme/css.test.ts instead. -->
-    <meta name="theme-color" content="#D6F0EA" />
+         installed window's title bar. TWO of them, one per OS scheme, each
+         holding the paper of the default a page that has picked nothing reads
+         in under that scheme — because that is all this shell can know before
+         the bundle runs. A page that did pick (and the unpicked page, once the
+         bundle is up) repaints ONE unqualified meta from the table
+         (theme/state.ts, theme/chrome.ts). The values are `--color-paper` of
+         the two defaults, which cannot be read from here (the sheet is a build
+         artifact and this shell is what loads it) and are pinned by
+         appearance/css.test.ts instead. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FBFBF9" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161718" />
     <!-- What the browser should assume before the sheet lands: it cannot know
          yet which theme this page is in, and the themes come both ways. Once
          the sheet is in, each palette's own `color-scheme` is what wins. -->
