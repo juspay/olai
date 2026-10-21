@@ -37,7 +37,7 @@ import { Panes } from "olai-plugin-layout/pane/Panes.tsx"
 import { PluginBanners } from "./Chrome.tsx"
 import { PluginsMounted } from "./Mounted.tsx"
 import { PluginPanel } from "./Seats.tsx"
-import { connectionReadout } from "@olai/web/client/wire.ts"
+import { connectionReadout, rosterChanging } from "@olai/web/client/wire.ts"
 import { desktop } from "./layout/live.ts"
 import { drawerOpen as menuOpen,setDrawerOpen as setMenuOpen,sidebarOpen,toggleSidebar } from "./layout/live.ts"
 import { SHELL_LONE,SHELL_SPLIT } from "olai-plugin-layout/sheet"
@@ -92,7 +92,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
           the page's arm because it covers the chrome too; WHERE it sits in this
           composition decides nothing about what it paints over, because it is a
           `<dialog>` in the top layer rather than a box with a number on it. */}
-      <Offline readout={connectionReadout()} memory={focus} />
+      <Offline readout={connectionReadout()} memory={focus} rosterChanging={rosterChanging} />
       {/* THE PANEL IN THE SEAT THIS APP RESERVES FOR ONE — whichever plugin took
           it, or nothing at all where none did. It was `<ChatPanel />`, an import
           of a feature by name; the shell keeps the seat's geometry and the plugin
