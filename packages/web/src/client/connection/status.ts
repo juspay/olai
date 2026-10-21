@@ -16,6 +16,14 @@
  * makes — "the files on disk reach this page as they change" is olai's claim
  * about olai, and no framework may write it.
  *
+ * The FREEZE GATE used to be derived here too: a local list of the one state
+ * whose overlay was graced, wrapped in the framework's `gracedDown`. It is not
+ * any more. The readout carries `presentingDown` — the grace-windowed "not live"
+ * bit, computed once for every consumer (kolu#2312, `createSurfaceReadout`) —
+ * and {@link isFrozen} reads it, so there is no second place for the window's
+ * length or its exceptions to drift. What stays olai's is the exception the
+ * framework cannot know: a roster change THIS page asked for.
+ *
  * The five, and why a reader needs all five:
  *
  *   - `connecting` — the first dial has not answered yet. Not an alarm: every
@@ -37,6 +45,7 @@ import type {
 } from "@kolu/surface-app/solid"
 
 import type { Look } from "../readout.ts"
+import { reachable } from "./reaching.ts"
 
 /** The one door to the readout's types for this folder, so a component, this
  *  table and the test that sweeps it are reading one spelling. */
@@ -125,10 +134,6 @@ export const frozenLookOf = (readout: SurfaceReadout): { readonly title: string;
 
 const CONNECTING: SurfaceReadoutStatus = "connecting"
 
-/** The transient drop's runtime spelling, beside {@link CONNECTING} for the same
- *  reason: a name the table and the grace read cannot be typed out twice. */
-const RECONNECTING: SurfaceReadoutStatus = "reconnecting"
-
 /** The one connection state that is news on a phone while the page is still
  *  usable. Dead-wire states are the freeze overlay; `live` is health. Named
  *  here so a banner does not spell the readout's raw states — that is this
@@ -137,25 +142,29 @@ export const isDegraded = (readout: SurfaceReadout): boolean =>
   readout.status === DEGRADED
 
 /**
- * The ONE down state whose freeze is GRACED — the transient drop a redial heals,
- * and nothing else.
+ * WHEN THE FREEZE IS UP — the readout's own presenting bit, and the one drop
+ * this page ASKED for.
  *
- * It is a fact about the WIRE, not about the look, and it is here rather than in
- * `./reaching.ts` for the spelling alone: `reaching.ts` names its states as
- * unquoted table keys, and this predicate has to name one of them as a value.
- * `claims.test.ts` allows the raw state strings in exactly this file and
- * `wire.ts`, so the alternative would have been a third name on that list for a
- * second reason.
+ * `presentingDown` is kolu's grace-windowed "not live": a sub-second drop a
+ * redial heals never presents, `retired` presents at once (it is terminal, so
+ * there is nothing a window could hold back), and every other down state waits
+ * out the framework's `DISCONNECT_OVERLAY_GRACE_MS`. It reads the FOLDED
+ * status, so a mirror over a live socket with a dead upstream presents like any
+ * other drop. The first dial is not special to it either: it presents when the
+ * window says so, and that is the framework's one policy rather than a second
+ * one kept here.
  *
- * `retired` is deliberately NOT here. A server that replaced this tab never
- * comes back, so holding its overlay back for a second would be a second spent
- * pretending a reload is not yet owed. `connecting` is not here either: it is
- * the first dial, not a drop, and §5b names it as one of the states the overlay
- * draws its words from. The grace belongs to the one state that a redial IS
- * expected to leave — the fact kolu's own `gracedDown` carries for a transport's
- * `down`, and the readout bit (kolu's grace-windowed "presenting down") will
- * carry once this pin moves. Until then `./Offline.tsx` derives it from this
- * predicate and the framework's own window.
+ * `urged` is the exception the framework cannot know: a roster change this page
+ * made. It freezes from the first frame — the freeze is also the owner of the
+ * keyboard hand-back (`./focus.ts`), and a grace there would leave a remounted
+ * control holding nothing. `./Offline.tsx` latches it while the readout is down,
+ * because `rosterChanging` can fall a moment before the readout reads `live`;
+ * the guard below is the falling edge, so a latch still set for one tick over a
+ * live readout cannot hold the dialog open.
+ *
+ * `reachable` is the same predicate the doors ask (`./reaching.ts`): a question
+ * and a full-screen alarm want different patience, but neither may call a wire
+ * reachable that the other cannot.
  */
-export const isTransientlyDown = (readout: SurfaceReadout): boolean =>
-  readout.status === RECONNECTING
+export const isFrozen = (readout: SurfaceReadout, urged: boolean): boolean =>
+  !reachable(readout) && (urged || readout.presentingDown)

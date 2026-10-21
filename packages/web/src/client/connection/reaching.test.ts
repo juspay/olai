@@ -3,12 +3,12 @@
  * the same one.
  *
  * `reachable` says whether a question can be sent, and `./Offline.tsx` freezes
- * the app under an overlay for exactly its `false` — held back for the one
- * transient drop (`./status.ts`'s `isTransientlyDown`), whose grace is the
- * framework's and is covered by the e2e blink scenario, not here. A browser is
- * what shows the overlay; WHICH STATES it covers is a table, and a table
- * belongs in a unit test — the e2e suite re-asserting it through a real socket
- * would be the waste the e2e principle cuts.
+ * the app under an overlay for exactly its `false` — held back until the
+ * readout's `presentingDown` has persisted (kolu's bit, covered by the e2e
+ * blink scenario, not here), with this page's own roster redial free at once.
+ * A browser is what shows the overlay; WHICH STATES it covers is a table, and a
+ * table belongs in a unit test — the e2e suite re-asserting it through a real
+ * socket would be the waste the e2e principle cuts.
  */
 
 import { expect, test } from "bun:test"
@@ -18,8 +18,8 @@ import type { SurfaceReadout, SurfaceReadoutStatus } from "./status.ts"
 
 const readoutOf = (status: SurfaceReadoutStatus): SurfaceReadout =>
   status === "degraded"
-    ? { status, stopped: ["documents.keys"], needsReload: false }
-    : { status, needsReload: status === "retired" }
+    ? { status, stopped: ["documents.keys"], needsReload: false, presentingDown: false }
+    : { status, needsReload: status === "retired", presentingDown: false }
 
 // The three the overlay covers, named one at a time rather than as "not live":
 // each is a separate decision, and `connecting` is the one somebody would be
