@@ -6,9 +6,9 @@ This page is one engine's own account of itself. What a conversation IS — how 
 
 ## How olai finds it
 
-A probe for a runnable `opencode` on the **agent search path**, spawned as `opencode acp --cwd <the served directory>`.
+A probe for a runnable `opencode` on the **agent search path**, spawned as `opencode acp` with the served directory as its working directory.
 
-`--cwd` on the command line rather than the child's own working directory, because opencode reads it for *which sessions this directory has* as well as for where to run: its `session/list` ignores the `cwd` a request carries, so the one on the command line is the only one it hears.
+There is no `--cwd` on the command line: opencode 2 removed the flag and answers it with its usage text, which is not ACP. The child's own working directory is the one opencode reads for *which sessions this directory has* as well as for where to run, in both opencode 1 and 2. Olai still filters the `session/list` answer by directory on its own side.
 
 **Olai's PATH is not your shell's.** Run as a systemd user service (the home-manager unit) olai inherits neither your profile nor your login shell, so an `opencode` you can run in a terminal is not necessarily one this process can see. `OLAI_AGENT_PATH` is where to say otherwise; set, it REPLACES the search path rather than adding to it.
 

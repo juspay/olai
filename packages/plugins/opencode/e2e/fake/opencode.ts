@@ -109,14 +109,15 @@ import { emitter, MARKER, released, speaking } from "@olai/tests/harness/scripte
 const emit = emitter(process.stdout);
 const { notify, refuse, request, respond, take } = speaking(emit, "oc");
 
-/** `--cwd <dir>`, which is how olai starts this agent — and the only cwd the
- *  real one hears, since its `session/list` ignores the one a request carries. */
-const cwdArg = (): string => {
-  const argv = process.argv;
-  const at = argv.indexOf("--cwd");
-  return at >= 0 ? argv[at + 1] ?? process.cwd() : process.cwd();
-};
-const cwd = cwdArg();
+/** The directory olai starts this agent in, which is the only one it reads.
+ *  opencode 2 has no `--cwd` and answers one with its usage text on stdout,
+ *  which is not ACP; this fake does the same, so a spawn that starts passing
+ *  the flag again fails here rather than on somebody's machine. */
+if (process.argv.includes("--cwd")) {
+  process.stdout.write("USAGE\n  opencode acp [flags]\n");
+  process.exit(0);
+}
+const cwd = process.cwd();
 
 /** A turn that gave up because somebody pressed cancel. Its own class so the
  *  `session/prompt` handler can tell it from a fault and answer the stop reason
