@@ -14,15 +14,31 @@
  *
  * ## When it is up
  *
- * Exactly when `./reaching.ts` says a question cannot be asked — `connecting`,
- * `reconnecting`, `retired` — and that is the same predicate the doors that
- * ask questions consult, not a second list of state names kept in step by
- * hand. `live` and `degraded` are NOT frozen: a degraded readout means a
- * subscription riding the socket stopped, so the wire still carries a
+ * Exactly while `./reaching.ts` says a question cannot be asked — `connecting`,
+ * `reconnecting`, `retired` — and the readout's `presentingDown` says the
+ * down-state has been down long enough to present; that is the same predicate
+ * the doors that ask questions consult, not a second list of state names kept
+ * in step by hand. `live` and `degraded` are NOT frozen: a degraded readout
+ * means a subscription riding the socket stopped, so the wire still carries a
  * question, and the pill already names what stopped in its own words. The
- * first dial IS frozen, because it is the same fact — there is nowhere to send
- * anything yet — and §5b names `connecting` as one of the three the overlay
- * draws its words from.
+ * first dial presents through the same window as any other down state — it is
+ * the same fact (there is nowhere to send anything yet), and §5b names
+ * `connecting` as one of the three the overlay draws its words from.
+ *
+ * ONE OF THE THREE IS HELD BACK, and only the drop nobody asked for. The
+ * readout carries `presentingDown` — kolu's grace-windowed "not live"
+ * (kolu#2312) — so a drop the wire heals in well under a second never presents
+ * the card, and `retired` presents at once. A roster change this app itself
+ * asked for (`wire.ts`'s `rosterChanging`) is the exception: it freezes
+ * IMMEDIATELY, exactly as it did before the grace existed — and that is
+ * load-bearing, not conservative, because the freeze is also the owner of the
+ * keyboard hand-back ({@link handBackFocus}): the redial opens the dialog, takes
+ * the keyboard, and hands it back when the wire lands. A grace there would
+ * remove that lifetime and leave a remounted control holding nothing. The
+ * DOORS disagree with the overlay here on purpose: `./reaching.ts` stays
+ * instantaneous, because a question sent down a socket that is mid-redial is a
+ * question wasted, while a full-screen alarm for the same blink is noise — two
+ * clocks for two costs.
  *
  * DISMISSAL IS ONLY THE WIRE COMING BACK. There is no close button, `Escape`
  * is refused (`onCancel`), and nothing under it can take a keystroke. The one
@@ -71,20 +87,31 @@
  */
 import { TESTID } from "@olai/web/client/testids.ts"
 import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
-import { createEffect, createMemo, onCleanup, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, onCleanup, Show, type Accessor } from "solid-js"
 
 import { handBackFocus, withOfflineFocus, type FocusMemory } from "./focus.ts"
 import { reachable } from "./reaching.ts"
-import { frozenLookOf, type SurfaceReadout } from "./status.ts"
+import { frozenLookOf, isFrozen, type SurfaceReadout } from "./status.ts"
 import { Reload } from "../Reload.tsx"
 
 
-export function Offline(props: { readonly readout: SurfaceReadout; readonly memory: FocusMemory }) {
+export function Offline(props: {
+  readonly readout: SurfaceReadout
+  readonly memory: FocusMemory
+  /**
+   * THE OUTAGE NOBODY SUFFERED BY ACCIDENT: a roster change this page made —
+   * the `wire.ts` redial loop's count. It is a supersede the app itself asked
+   * for, so it is not graced (see {@link frozen}). Passed in rather than
+   * imported because `../wire.ts` dials at module scope; the frame that mounts
+   * this component already holds it.
+   */
+  readonly rosterChanging: Accessor<boolean>
+}) {
   let overlay!: HTMLDialogElement
   /**
    * The freeze, as one bit — the reachability rule, read from the one module
-   * that holds it, so the overlay and the doors cannot disagree about whether
-   * the wire carries a question.
+   * that holds it, so the overlay and the doors cannot disagree about whether the
+   * wire carries a question.
    *
    * A MEMO, because the two effects below are the whole of what it drives and
    * what it is derived from moves far more often than it does: a readout
@@ -93,8 +120,43 @@ export function Offline(props: { readonly readout: SurfaceReadout; readonly memo
    * unregistered and re-registered the window's keydown swallower on every
    * attempt, mid-freeze, for a boolean that had not moved
    * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §4.1).
+   *
+   * The RULE lives in `./status.ts`'s `isFrozen`, so the test that holds the
+   * grace honest reads the same predicate the overlay paints. It is the
+   * READOUT's `presentingDown` (kolu#2312) plus the latch below — no local
+   * `gracedDown`, no list of the states that are graced here.
+   *
+   * TWO KINDS OF DOWN, and only one is held back:
+   *
+   *   - a roster change is a KNOWN, SELF-INFLICTED supersede (`rosterChanging`).
+   *     The app asked for it, it is about to close and reopen the socket, and
+   *     the page must be frozen for the whole of it — that is also what makes
+   *     the keyboard hand-back ({@link handBackFocus}) belong to the REDIAL:
+   *     the freeze opens, takes the keyboard, and gives it back when the redial
+   *     lands. A grace here would remove that owner's lifetime and leave a
+   *     remounted control holding nothing.
+   *   - a drop nobody asked for is the readout's own bit: the framework holds
+   *     the card back until the down-state has PRESENTED
+   *     (`DISCONNECT_OVERLAY_GRACE_MS`), so the half-open watchdog recovering
+   *     or a Wi-Fi roam never flashes it.
+   *
+   * The doors that ask questions keep reading `reachable` instantaneously
+   * (`./reaching.ts`), which is the half of the split worth keeping: a call and
+   * a full-screen alarm want different patience.
    */
-  const frozen = createMemo(() => !reachable(props.readout))
+  /**
+   * A FREEZE THIS REDIAL OWNS, latched for the WHOLE down. `rosterChanging` goes
+   * false when the redial resolves, which can be a moment before the readout
+   * says `live`; without the latch the overlay would close that moment and
+   * reopen if the grace had not elapsed — a hand-back and a second takeover for
+   * one redial. Cleared only when the wire is reachable again.
+   */
+  const [urged, setUrged] = createSignal(false)
+  createEffect(() => {
+    if (reachable(props.readout)) setUrged(false)
+    else if (props.rosterChanging()) setUrged(true)
+  })
+  const frozen = createMemo(() => isFrozen(props.readout, urged()))
   /** The hand-back in progress, if any. ONE at a time: it is cancelled before a
    *  new one starts, when the freeze goes back up, and when this component
    *  leaves — the three ways a frame could otherwise outlive the dialog that

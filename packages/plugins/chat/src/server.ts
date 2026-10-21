@@ -775,6 +775,21 @@ export default definePlugin({
               (said) => new UsageFailure(said),
             ))
         ),
+      /**
+       * THE PAGE BEHIND "earlier messages" — the rows below the window a tab
+       * holds, which is what makes a bounded snapshot whole rather than lossy.
+       *
+       * THROUGH `streams.page` AND NOT `withChat`'s panel, because the reading is
+       * where the WHOLE conversation lives: the panel's transcript is the same
+       * rows, but the `earlier` COUNT a tab reads comes off that reading, so the
+       * page and the count are answered from one place. `withChat` still guards
+       * the call — with no chat there is no reading to have built a trigger for
+       * one — and the conversation is deliberately NOT re-checked: `conv` names
+       * the reading, and an earlier page of a conversation somebody left is
+       * still that conversation's rows.
+       */
+      earlier: ({ input }: { input: { conv: PanelAddress; before: number; limit: number } }) =>
+        withChat(() => streams.page(input.conv, input.before, input.limit)),
     }
 
     // ── the sibling ──────────────────────────────────────────────────────

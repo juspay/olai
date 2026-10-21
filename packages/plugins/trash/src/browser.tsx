@@ -1,5 +1,5 @@
 import { fileAccess } from "olai-plugin-vault/contract"
-import { Edits, Wired } from "@olai/plugin-api"
+import { Edits, Wired, editApply } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
 import { holdEdits, writeEdit } from "./browser/writes.ts"
@@ -26,7 +26,7 @@ export default definePlugin({name:"trash", needs:[Wired, Offers, Edits], apply:E
   // (`@olai/plugin-api`'s `Edits` carries the whole of why). The hold
   // beside it is how this row's faces spend the same table (`./browser/writes.ts`).
   const edits = yield* Edits
-  yield* edits.register(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))
+  yield* edits.register(dispatch["edit.apply"], edit => editApply(ownWire.client() as Client, edit))
   yield* Effect.acquireRelease(Effect.sync(() => holdEdits(edits)), stop => Effect.sync(stop))
 
  yield* Effect.acquireRelease(Effect.sync(()=>createRoot(dispose=>{

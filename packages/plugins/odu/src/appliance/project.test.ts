@@ -25,6 +25,7 @@ const row = (over: Partial<RunRow> = {}): RunRow => ({
   seq: 1,
   pipeline: "ci",
   createdAt: 1,
+  finishedAt: null,
   state: "running",
   settled: false,
   passed: false,

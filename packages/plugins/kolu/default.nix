@@ -37,6 +37,32 @@ in
     revision = pins.osfacts.revision;
   };
 
+  # The agent-distro graft, same contract and a different pin: `@kolu/agent-distro`
+  # imports agent-distro's own runtime tree from `src/`, and the revision is the
+  # one kolu#2312's closure names (`3053b529…`) — kolu refuses at eval if the
+  # `agent-distro` pin and that record disagree, so the two cannot drift.
+  koluPins."@juspay/agent-distro" = {
+    src = "${pins.agent-distro}/src";
+    revision = pins.agent-distro.revision;
+  };
+
+  # The `@odu/*` trio, same contract: `@kolu/padi-client` carries odu's service
+  # contract as a sibling, and kolu#2312's closure names the revision it was
+  # built against (`f4ba5da2…`). All three are pinned members, so all three are
+  # grafted from the one `odu` pin.
+  koluPins."@odu/run-client" = {
+    src = "${pins.odu}/packages/run-client";
+    revision = pins.odu.revision;
+  };
+  koluPins."@odu/run-history" = {
+    src = "${pins.odu}/packages/run-history";
+    revision = pins.odu.revision;
+  };
+  koluPins."@odu/service-client" = {
+    src = "${pins.odu}/packages/service-client";
+    revision = pins.odu.revision;
+  };
+
   # The favicon, stamped and inlined by `kit.mark`; `just install` (and the
   # packaged build) copies the `mark.generated.ts` file beside the component
   # that draws the chat chip.

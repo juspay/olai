@@ -17,7 +17,7 @@ import { pages } from "olai-plugin-navigation/contract"
 import { KindGlyph } from "./glyph.tsx"
 import { TESTID as KIND_IDS } from "./testids.ts"
 import { holdServed } from "./browser/vault.ts"
-import { Edits, Wired, Slots } from "@olai/plugin-api"
+import { Edits, Wired, Slots, editApply } from "@olai/plugin-api"
 import { holdClient, type Client } from "./client.ts"
 import { dispatch } from "./surface.ts"
 import { holdEdits, writeEdit } from "./browser/writes.ts"
@@ -110,7 +110,7 @@ export default definePlugin({ name, needs: [Landings, Wired, Offers, Edits, Slot
   // (`@olai/plugin-api`'s `Edits` carries the whole of why). The hold
   // beside it is how this row's faces spend the same table (`./browser/writes.ts`).
   const edits = yield* Edits
-  yield* edits.register(dispatch["edit.apply"], edit => (ownWire.client() as Client).procedures.edit.apply(edit))
+  yield* edits.register(dispatch["edit.apply"], edit => editApply(ownWire.client() as Client, edit))
   yield* Effect.acquireRelease(Effect.sync(() => holdEdits(edits)), stop => Effect.sync(stop))
 
   for (const start of [followDensity, followDonePrefs, followFolds]) {

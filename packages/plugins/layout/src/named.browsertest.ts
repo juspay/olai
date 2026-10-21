@@ -4,7 +4,7 @@ import type { App } from "@olai/surface"
 import { calledApp, createName, followName } from "./named.ts"
 
 const app = (hostname: string): App => ({ hostname, startedAt: "2026-09-05T00:00:00Z" })
-const readout = () => ({ status: "live" as const, needsReload: false })
+const readout = () => ({ status: "live" as const, needsReload: false, presentingDown: false })
 test("departed deployment cannot publish a late reply; reactivation starts fresh", async () => {
   let land!: (value: Result.Result<App, unknown>) => void
   const late = new Promise<Result.Result<App, unknown>>(resolve => { land = resolve })

@@ -100,6 +100,7 @@ import {
   CHAT_CHOOSE_CANCEL,
   CHAT_DELIVERY,
   CHAT_DROP,
+  CHAT_EARLIER,
   CHAT_ENTRY,
   CHAT_INTERRUPT,
   CHAT_LANE,
@@ -339,6 +340,122 @@ When("I arm late growth on the next stored conversation", function (this: OlaiWo
  *  time, so its history reaches the panel over many frames while it opens. */
 When("I arm a slow replay on the next stored conversation", function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.slowReplay), "");
+});
+
+/** Ask the next `session/load` of `an older conversation` to replay a
+ *  conversation LONG ENOUGH THAT ONE FRAME CANNOT CARRY IT — a hundred
+ *  distinct rows, past the window a subscribe ships (`olai-plugin-chat`'s
+ *  `TRANSCRIPT_WINDOW`). Every other replay of that conversation is short by
+ *  construction, which is what "scrolled to the newest line" needs and what a
+ *  window scenario must NOT be. */
+When("I arm a long history on the next stored conversation", function (this: OlaiWorld) {
+  fs.writeFileSync(path.join(this.scratch(), MARKER.longHistory), "");
+});
+
+/** THE WINDOW'S OTHER HALF IS THE DOOR: a reconnect ships the recent rows and
+ *  leaves the older ones behind a press. This waits for it to be drawn and for
+ *  its own count to be nonzero — the number is the server's answer, so a door
+ *  drawn over a conversation that fits would fail here. */
+Then("the earlier messages door is drawn", async function (this: OlaiWorld) {
+  const door = this.chat(CHAT_EARLIER);
+  await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const older = Number(await door.getAttribute("data-earlier"));
+  assert.ok(
+    Number.isFinite(older) && older > 0,
+    `the earlier messages door drew saying ${older} rows are older — it should name a positive count`,
+  );
+});
+
+/** ... and THE OTHER SIDE OF IT: a reconnect that kept every row leaves nothing
+ *  for the door to offer, so it must not be drawn at all. Asserted as an
+ *  ABSENCE with a positive control — the transcript's own rows are read first,
+ *  so a page that had not painted yet cannot pass this by having no door. */
+Then("there are no earlier messages to load", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => {
+    const door = this.chat(CHAT_EARLIER)
+    if ((await door.count()) === 0) return true
+    const older = await door.first().getAttribute("data-earlier").catch(() => null)
+    return older === null || Number(older) === 0
+  }, "the earlier messages door to go", HYDRATION_TIMEOUT)
+});
+
+/** ... and THE PRESS: the page lands and the door's count moves down (or the
+ *  door goes, once the start of the conversation has been reached). */
+When("I load earlier messages", async function (this: OlaiWorld) {
+  const door = this.chat(CHAT_EARLIER);
+  await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const before = Number(await door.getAttribute("data-earlier"));
+  await door.click();
+  await this.waitUntil(async () => {
+    const now = await this.chat(CHAT_EARLIER).getAttribute("data-earlier").catch(() => null);
+    return now === null || Number(now) < before;
+  }, "the earlier page to land", POLL_TIMEOUT);
+});
+
+/** HOW MUCH OF THE CONVERSATION IS ON SCREEN, as a number — the window is a
+ *  ROW COUNT (`TRANSCRIPT_WINDOW`), so "a reconnect shipped the window and not
+ *  the conversation" is exactly a count of the rows drawn. */
+const transcriptRows = (world: OlaiWorld): Promise<number> => world.chat(CHAT_ENTRY).count();
+
+Then("the transcript holds more than {int} rows", async function (this: OlaiWorld, least: number) {
+  await this.waitUntil(
+    async () => (await transcriptRows(this)) > least,
+    `the transcript to hold more than ${least} rows`,
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the transcript holds at most {int} rows", async function (this: OlaiWorld, most: number) {
+  await this.waitUntil(
+    async () => (await transcriptRows(this)) <= most,
+    `the transcript to hold at most ${most} rows`,
+    HYDRATION_TIMEOUT,
+  );
+});
+
+/**
+ * SLOW THE LINK DOWN — the socket itself, at 16 KiB/s, the way a cellular tether
+ * or library wifi is.
+ *
+ * WHY NOT CDP's `Network.emulateNetworkConditions`: it was measured on this
+ * scenario and it does NOT throttle WebSocket frames. With the window reverted
+ * to the whole conversation the throttled scenario still passed — the frame it
+ * was supposed to starve rode straight through — so the emulation would have
+ * been a green light over a test that could not fail. What is slowed here is the
+ * one link the defect is about: server→client frames are held for their own
+ * bytes at the rate, while client→server traffic (the keepalive's ping) goes out
+ * at once. A frame bigger than the fatal silence therefore queues the pong
+ * behind it exactly as the real link did.
+ *
+ * Registered HERE, after the conversation is open, so it wraps the REDIAL the
+ * scenario is about rather than the first connection (which is already made).
+ */
+const SLOW_BYTES_PER_SECOND = 16 * 1024;
+
+When("I throttle the network", async function (this: OlaiWorld) {
+  await this.page.routeWebSocket(url => url.pathname === "/rpc/ws", (client) => {
+    const server = client.connectToServer();
+    // The client's own traffic — the keepalive's ping — is not delayed: the
+    // point is that its ANSWER queues behind a frame that is still arriving.
+    client.onMessage((message) => server.send(message));
+    // A BANDWIDTH PIPE, not an accumulating debt: each frame is released at
+    // `bytes / rate` after the pipe is free, and IDLE TIME IS FREE — otherwise
+    // a scenario that pauses between two snapshots would pay for both at once
+    // and starve the pong over a link that was never busy.
+    let freeAt = 0;
+    server.onMessage((message) => {
+      const body = typeof message === "string" ? message : message.toString("utf8");
+      const now = Date.now();
+      const start = Math.max(now, freeAt);
+      freeAt = start + (Buffer.byteLength(body) / SLOW_BYTES_PER_SECOND) * 1000;
+      // A TIMER THAT OUTLIVES THE SOCKET: the connection closes while frames are
+      // still owed, and a send into the closed route is dropped rather than
+      // thrown at the runner.
+      setTimeout(() => {
+        try { client.send(message) } catch { /* the socket closed while frames were owed */ }
+      }, freeAt - now);
+    });
+  });
 });
 
 /** Start writing down every position the transcript scrolls to, with what the
