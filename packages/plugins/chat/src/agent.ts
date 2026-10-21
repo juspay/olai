@@ -1259,6 +1259,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           const ours = call === null ? null : options.advertised?.(call.server, call.tool) ?? null
           const decoded = ours === null ? undefined : options.leg.replyIn(update.rawOutput)
           const reply = decoded !== undefined && isJson(decoded) ? decoded : undefined
+          // WHAT THIS FRAME SAYS ABOUT A BACKGROUND TASK, read ONCE: the row
+          // wears it, and the terminal block below has to know it too — a
+          // launch's terminal corners are about the launch rather than about
+          // the task, and the comment there is the argument. Two readings of
+          // one `_meta` corner would be two places a later leg could disagree
+          // with itself.
+          const arming = options.leg.backgroundTask(update._meta)
 
           emit({
             _tag: "tool",
@@ -1296,7 +1303,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // corner for the same reason: ACP has no place to say it, so the
             // agent that says it is read where everything else true of one
             // agent is read.
-            armed: options.leg.backgroundTask(update._meta) ?? undefined,
+            armed: arming ?? undefined,
             // ... and whether the TITLE this frame carried is the adapter's
             // placeholder rather than the call's name. One adapter announces a
             // call before the model's arguments have parsed; the row shows the
@@ -1311,9 +1318,36 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // session. Client-created handles are already globally unique.
             const terminalId = (raw: string): string => activity !== null && !terminals.clientOwned(raw)
               ? activity.toolId(notification.sessionId, raw) : raw
-            const meta = (options.leg.terminalOutput ? terminalMetaIn(update._meta) : [])
+            // A LAUNCH IS NOT THE TASK IT LAUNCHED, and this is the one frame
+            // where a shell tool's terminal corners lie about which of the two
+            // they describe.
+            //
+            // A background shell (`Bash(run_in_background)`) answers the moment
+            // the command is RUNNING, and the pinned adapter builds that answer
+            // with the same reader it uses for an ordinary one: `terminal_output`
+            // carrying the harness's "Command running in background with ID …"
+            // notice, and `terminal_exit { exit_code: 0 }` — the exit of the
+            // LAUNCH, which succeeded. The patch olai carries then keeps that
+            // `_meta` on the frame it turns into the call's ARMING
+            // (`packages/plugins/claude/acp/patches/README.md`), because the launch's own output is
+            // honestly what the tool answered. Drawn, it is a pane reading
+            // *Exit 0* under a row the strip beside it says is still running —
+            // the panel contradicting itself about the one fact this whole
+            // feature exists to say.
+            //
+            // So a frame that arms a task contributes NO terminal, and clears
+            // the ones its call had: the pane the announcement opened goes with
+            // it. Nothing is lost — the notice is bookkeeping the row says
+            // better through `armed`, the task's own ending arrives from the
+            // harness, and its output is read by a later `BashOutput` call with
+            // a row of its own. The registry keeps the orphaned record until the
+            // session is cleared; nothing reads it, because `terminalTools` is
+            // what the change callback walks.
+            const meta = (options.leg.terminalOutput && arming === null ? terminalMetaIn(update._meta) : [])
               .map((item) => ({ ...item, id: terminalId(item.id) }))
-            const refs = update.content?.flatMap((item) => item.type === "terminal" ? [terminalId(item.terminalId)] : [])
+            const refs = arming !== null
+              ? []
+              : update.content?.flatMap((item) => item.type === "terminal" ? [terminalId(item.terminalId)] : [])
             const ids = [...new Set([...(refs ?? terminalTools.get(id) ?? []), ...meta.map((item) => item.id)])]
             terminalTools.set(id, ids)
             for (const item of meta) {
