@@ -484,9 +484,12 @@ export function Palette(props: {
     input?.focus()
   }
 
-  /** `showAt`: a blank box, then the requested path (`./level-owner.ts`). */
+  /** `showAt`: a blank box, then the requested path (`./level-owner.ts`) —
+   *  or, for an EMPTY path, the ordinary list with `text` already in the box,
+   *  which is how a door primes a prefix (the phone's capture thumb puts
+   *  `+ ` there, exactly as the capture row does). */
   const openAt = (at: OpenAt) => {
-    blank()
+    blank(at.path.length === 0 ? at.text : undefined)
     levels.openAt(at)
   }
 

@@ -57,6 +57,22 @@ or with the seat empty, the grid has no third column whatever the preference
 says, and both widths are still fitted to the viewport so the page keeps its
 minimum.
 
+### The thumb bar
+
+`layout.thumbs` is the phone's foot: a bar pinned to the bottom of the viewport
+while the viewport is not a desktop and somebody has contributed a thumb. A
+thumb is `{ order, body }`, drawn left to right by `order`, and its face is
+the contract's `Thumb` (`olai-plugin-layout/thumb`): an icon over a word, a
+finger's height, lit in the accent while it is the page (`aria-current`), a
+link where it navigates and a button where it opens something in place, with
+room for one badge at the icon's shoulder. Journal contributes Today (10) and
+Agenda (20), chat the Chats door (30), capture the `+` (40). The frame publishes
+the bar's height as `--height-bottom-chrome` (`layout/css.ts`: the
+`--height-thumbs` token on a thumbed phone, `0px` otherwise), which every
+page's clearance (`olai-plugin-layout/clearance`) adds under its last row and
+its pinned composer, so nothing sits under the bar. A desktop draws no bar
+whatever was contributed: the sidebar and the palette are those doors there.
+
 The root declares `layout.sidebar`. The frame reads that seat through the
 renderer contract and imports no sidebar implementation. The sidebar row owns
 its two extension locations; chat's panel entry owns delivery marks and engine

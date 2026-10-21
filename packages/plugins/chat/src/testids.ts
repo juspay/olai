@@ -215,6 +215,9 @@ export const TESTID = {
   chatDockOpen: "chat-dock-open",
   /** The agent line's door — `Open in panel ›` — on a fold or a node page. */
   chatDockHere: "chat-dock-here",
+  /** The phone's thumb to the chats: opens the drawer on Needs you, and
+   *  carries `data-waiting`, the count of conversations that need somebody. */
+  thumbChats: "thumb-chats",
 
   // ── the panel's header, and the conversation drawn under it ───────
   chatTitle: "chat-title",

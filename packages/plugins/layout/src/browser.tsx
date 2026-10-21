@@ -21,7 +21,7 @@ import { content,navigation,paletteAdapters } from "olai-plugin-navigation/contr
 import { rendererSlots,root } from "olai-plugin-ui-renderer/contract"
 import { createRoot,ErrorBoundary } from "solid-js"
 import Frame from "./Frame.tsx"
-import { contentStatus,name,overlays,type Shell,sidebar,strip,tools } from "./index.ts"
+import { contentStatus,name,overlays,type Shell,sidebar,strip,thumbs,tools } from "./index.ts"
 import { trackDesktop } from "./layout/media-owner.ts"
 import {
   createLayoutState, holdLayoutState, desktop, panelOpen, panelSnap, panelWidth, resetPanelWidths, setPanelOpen, setPanelSnap,
@@ -59,13 +59,13 @@ export default definePlugin({
       console.error(error)
       return <Fault text={String(error)} />
     }}><Frame slots={slots} router={router} /></ErrorBoundary>, {
-      children: [sidebar, tools, contentStatus, overlays, strip, content, paletteAdapters, ...Object.values(slotContracts), ...Object.values(navigationSlots)],
+      children: [sidebar, tools, contentStatus, overlays, strip, thumbs, content, paletteAdapters, ...Object.values(slotContracts), ...Object.values(navigationSlots)],
       activate: Effect.gen(function*() {
         for (const start of [trackVisibleViewport, trackDesktop, followLayout]) {
           yield* Effect.acquireRelease(Effect.sync(start), (stop) => Effect.sync(stop))
         }
         yield* Effect.acquireRelease(Effect.sync(() => createRoot((dispose) => {
-          publishLayoutCss(() => slots.read(strip).length > 0)
+          publishLayoutCss(() => slots.read(strip).length > 0, () => slots.read(thumbs).length > 0)
           return dispose
         })), (dispose) => Effect.sync(dispose))
       }),

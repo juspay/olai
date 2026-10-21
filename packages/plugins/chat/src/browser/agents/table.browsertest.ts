@@ -53,5 +53,12 @@ test("a roster frame that moves one agent wakes that agent's readers alone", () 
     // that watcher — the absence was an answer too.
     owner.setRows([row("a", "idle"), row("c", "asleep")])
     expect(woke).toEqual({ a: 1, b: 3, missing: 2 })
+
+    // A key a frame DROPS is gone: a refused conversation carries `unopened`
+    // until it opens, and a projection that merged frames would keep it.
+    owner.setRows([{ ...row("a", "idle"), unopened: true } as Row, row("c", "asleep")])
+    expect(owner.table.at("a")?.unopened).toBe(true)
+    owner.setRows([row("a", "idle"), row("c", "asleep")])
+    expect(owner.table.at("a")?.unopened).toBeUndefined()
   } finally { owner.dispose() }
 })

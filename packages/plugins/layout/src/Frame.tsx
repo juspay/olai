@@ -23,7 +23,7 @@ import { TipFloor } from "@olai/web/client/Tip.tsx"
 import { TESTID as LAYOUT_TESTID } from "./testids.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { For } from "solid-js"
-import { contentStatus,overlays,sidebar,strip } from "./index.ts"
+import { contentStatus,overlays,sidebar,strip,thumbs } from "./index.ts"
 import { only } from "./faces.ts"
 import {
 createEffect,
@@ -201,6 +201,25 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                     </Show>
                   </div>
         </div>
+        {/* THE THUMB BAR, on a phone, while somebody is in the seat
+            (`./index.ts`'s `thumbs`): the doors a thumb reaches without the
+            drawer — today, what is owed, the chats, a capture. Pinned to the
+            foot of the viewport at the strip's layer: over the page and the
+            drawer's scrim, under the drawer itself, so a door is pressable
+            with the page dimmed and a drawer sliding over it covers it. The
+            frame publishes its height as `--height-bottom-chrome` for every
+            page's clearance (`./layout/css.ts`). */}
+        <Show when={!desktop() && props.slots.read(thumbs).length > 0}>
+          <nav
+            class={`fixed inset-x-0 bottom-0 ${LAYER.strip} olai-frame flex items-stretch pb-[env(safe-area-inset-bottom,0px)] shadow-[inset_0_1px_0_var(--color-rule)] md:hidden`}
+            data-testid={LAYOUT_TESTID.thumbs}
+            aria-label="Quick access"
+          >
+            <For each={[...props.slots.read(thumbs)].sort((a, b) => a.value.order - b.value.order)}>
+              {({ value: door }) => <door.body />}
+            </For>
+          </nav>
+        </Show>
       </div>
       </PluginsMounted>
       </TipFloor.Provider>

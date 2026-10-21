@@ -18,7 +18,8 @@
     "./slots": "./src/slots.ts",
     "./testids": "./src/testids.ts",
     "./bar-door": "./src/contracts/BarDoor.tsx",
-    "./clearance": "./src/contracts/clearance.ts"
+    "./clearance": "./src/contracts/clearance.ts",
+    "./thumb": "./src/contracts/Thumb.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -45,7 +46,8 @@
       "./slots",
       "./testids",
       "./bar-door",
-      "./clearance"
+      "./clearance",
+      "./thumb"
     ]
   },
   "devDependencies": {

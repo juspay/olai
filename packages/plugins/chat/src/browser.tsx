@@ -153,7 +153,8 @@ import { configurationPanel } from "olai-plugin-plugin-inspector/contract"
 import { holdPluginsDoor } from "./browser/plugins-door.ts"
 import { createAttention } from "./browser/chat/attention/attention.ts"
 import { createComponent, createEffect, createRoot, Show, untrack } from "solid-js"
-import { shell as appShell, tools as layoutTools } from "olai-plugin-layout/contract"
+import { shell as appShell, thumbs as layoutThumbs, tools as layoutTools } from "olai-plugin-layout/contract"
+import { ChatsThumb } from "./browser/agents/ChatsThumb.tsx"
 import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { createDock, holdDock } from "./browser/dock.ts"
@@ -190,6 +191,18 @@ export const components = {
     // `app.keys` is navigation's slot; naming its contract here keeps the
     // registration typed against the one the palette listens to.
     void navigationSlots
+  }) }),
+  /** THE PHONE'S THUMB, DECLARED — a component of its own for the dock's
+   *  reason: it needs the shell (to open the drawer) and nothing else of
+   *  this row's does. */
+  thumb: definePlugin({ name: "thumb", needs: [appShell, rendererSlots], apply: Effect.gen(function*() {
+    const geometry = yield* appShell
+    const renderer = yield* rendererSlots
+    const roster = () => agentReadings()?.agents
+    yield* renderer.contribute(layoutThumbs, {
+      order: 30,
+      body: () => <Show when={roster()}>{agents => <AgentsProvider value={agents()}><ChatsThumb reveal={geometry.revealSidebar} /></AgentsProvider>}</Show>,
+    })
   }) }),
   /** What this deployment is called, DECLARED — a component of its own so a
    *  notification is raised with the bare word rather than not at all when the

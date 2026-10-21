@@ -712,6 +712,10 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   PLUGIN_TESTID.headerSearchOpen,
   // ONE dot for everything the bar used to stand a pill for.
   TESTID.health,
+  // The agent panel's toggle: a DOOR, pressed while the column is open, and
+  // not a readout — it reports nothing, which is what keeps it in the calm
+  // bar beside the gear (`olai-plugin-chat`'s `the_agent_panel.feature`).
+  PLUGIN_TESTID.chatToggle,
   TESTID.prefsTrigger,
   // Who is looking, last — a plugin's face in the app.viewer seat.
   PLUGIN_TESTID.identity,

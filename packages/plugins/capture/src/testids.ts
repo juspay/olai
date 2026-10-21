@@ -5,6 +5,8 @@ export const TESTID = {
   inboxHeld: "inbox-held",
   inboxCount: "inbox-count",
   paletteCapture: "palette-capture",
+  /** The phone's `+` thumb: the palette, primed with the capture prefix. */
+  thumbCapture: "thumb-capture",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

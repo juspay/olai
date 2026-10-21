@@ -15,32 +15,22 @@
  * held by a count (`./table.browsertest.ts`) without a renderer on the graph.
  */
 import { type Accessor, createComputed } from "solid-js"
-import { createStore } from "solid-js/store"
+import { createStore, reconcile } from "solid-js/store"
 
 import type { Row } from "./roster.ts"
-
-/** Whether two frames' rows for one node say the same thing. `said` and
- *  `sleep` are small objects a frame re-mints, so they are compared by their
- *  fields rather than by reference. */
-const sameRow = (a: Row | undefined, b: Row): boolean => {
-  if (a === undefined) return false
-  for (const key of Object.keys(b) as Array<keyof Row>) {
-    const one = a[key], other = b[key]
-    if (one === other) continue
-    if (typeof one === "object" && one !== null && typeof other === "object" && other !== null
-      && JSON.stringify(one) === JSON.stringify(other)) continue
-    return false
-  }
-  for (const key of Object.keys(a)) if (!(key in b)) return false
-  return true
-}
 
 export const createRosterTable = (rows: Accessor<ReadonlyArray<Row>>): { readonly at: (node: string) => Row | undefined } => {
   const [byNode, setByNode] = createStore<Record<string, Row | undefined>>({})
   createComputed(() => {
     const next = new Map(rows().map(row => [row.id, row]))
     for (const id of Object.keys(byNode)) if (!next.has(id) && byNode[id] !== undefined) setByNode(id, undefined)
-    for (const [id, row] of next) if (!sameRow(byNode[id], row)) setByNode(id, row)
+    // `reconcile`, NOT a plain write: a store write of an object MERGES it
+    // over what is there, so a key a frame dropped — `unopened`, which a
+    // refused conversation carries until it opens — would survive the frame
+    // that took it off, and the reader waiting on its absence would wait for
+    // ever. Reconcile diffs the row field by field, writes only what moved,
+    // and deletes what the new row no longer says.
+    for (const [id, row] of next) setByNode(id, reconcile(row))
   })
   return { at: node => byNode[node] }
 }

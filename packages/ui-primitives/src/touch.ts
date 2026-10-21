@@ -201,7 +201,13 @@ export const HOVER_REVEAL =
  * utilities on one box are settled by emission order, not by the page.
  */
 export const OFFER_REVEAL =
-  "hidden items-center group-data-[active]/row:inline-flex md:inline-flex " +
+  // `self-center`: a pill in a baseline-aligned line would otherwise STEER
+  // the baseline — its first flex item is an icon, whose synthesised baseline
+  // is its bottom edge, three pixels under the title's own — and a row with
+  // an offer on it sat lower than the blank it was typed as
+  // (`a_new_line_keeps_its_box.feature`). Centred on the line, it moves
+  // nothing beside it.
+  "hidden items-center self-center group-data-[active]/row:inline-flex md:inline-flex " +
   "md:opacity-0 md:group-hover/row:opacity-100 " +
   "md:group-has-[:focus:not(input):not(textarea)]/row:opacity-100"
 

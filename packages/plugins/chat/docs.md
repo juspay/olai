@@ -34,6 +34,15 @@ in the column leases the docked node's conversation exactly as a fold does
 (`createNodeConversation`), so a conversation read in the fold and in the dock
 is one reading, released when its last reader leaves.
 
+A phone has no seat, so chat's `thumb` component — the same shape, declaring
+`layout.shell` for the one thing it needs, revealing the drawer — contributes
+the **Chats** door to the frame's thumb bar
+([layout.md](layout.md#the-thumb-bar)). Its badge is `data-waiting`, the count
+of conversations that need somebody (the Needs you rows, `attention-order.ts`'s
+`needing`), drawn only while it is not zero; a tap opens the drawer and puts
+the caret on Needs you (`agentReadings().focusNeeds`), so the agent waiting on a
+person is one tap and a glance away.
+
 ## What turns it on
 
 Nothing. It is on by default, like the appliances and the engines. Two things take it away, and they answer two different questions.

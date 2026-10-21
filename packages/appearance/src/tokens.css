@@ -65,6 +65,13 @@
    * filled on a desktop, and `0px` otherwise, and the sheet subtracts that. */
   --height-tabs: 2.25rem;
 
+  /* The phone's thumb bar, when a row fills it (`olai-plugin-layout`'s
+   * `layout.thumbs`). The frame publishes `--height-bottom-chrome` as this
+   * token while the bar is drawn and `0px` otherwise; a page's bottom
+   * clearance adds that to what it reserves. 3.25rem clears a 44px target
+   * with its label under it. */
+  --height-thumbs: 3.25rem;
+
   /* THE INTERFACE SCALE. Five type sizes, three corners and two shadows for
    * everything that is chrome rather than document content, named for the
    * job they do so a call site says what a thing IS and never how big it

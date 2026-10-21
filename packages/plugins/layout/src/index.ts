@@ -83,6 +83,24 @@ export const overlays = location<(props:{readonly toggleDirectory:()=>void})=>JS
 export const strip = location<() => JSX.Element>("layout.strip", "one")
 
 /**
+ * THE PHONE'S THUMB BAR — a row of doors pinned to the bottom of a handset,
+ * where a thumb already is.
+ *
+ * Drawn below the breakpoint only, and only while somebody is in it; a desktop
+ * has the sidebar's column for every one of these doors and draws no bar. Each
+ * entry is a plugin's own face (`./contracts/Thumb.tsx` is the shape they
+ * share), ordered by `order` rather than by who registered first. While the
+ * bar is drawn the frame publishes `--height-bottom-chrome` so a page's
+ * bottom clearance and a sticky composer keep clear of it
+ * (`./contracts/clearance.ts`).
+ */
+export interface Thumb {
+  readonly order: number
+  readonly body: () => JSX.Element
+}
+export const thumbs = location<Thumb>("layout.thumbs")
+
+/**
  * THE SHELL'S GEOMETRY, as a row that draws inside it reads it.
  *
  * Six rows want some of this: whether the viewport is at the desktop

@@ -6,6 +6,8 @@ run without the sidebar. A successful capture keeps the palette open for the
 next line and reports where the accepted write landed. The domain write gate
 retains authority over placement and persistence.
 
+On a phone, capture's `thumb` component contributes the `+` door to the frame's thumb bar ([layout.md](layout.md#the-thumb-bar)): one tap opens the palette with the `+ ` prefix already in the box (`paletteControl.showAt([], "+ ")`), so a line to the Inbox is a tap and a sentence. It is the same write as the palette's own capture row, and the palette's remark answers it.
+
 Capture owns the `+` prefix and its palette command, including the prompt,
 result message and continuation for the next line. The command reads
 `Capture to the Inbox`; a bare `+` hints `Type a line after + to add it to the

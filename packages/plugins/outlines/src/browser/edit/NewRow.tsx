@@ -6,10 +6,10 @@
  * with the same gutter arithmetic every
  * other row uses (`../touch.ts`), so the line a person is typing on sits
  * exactly where the line they are making it will sit. The vertical rhythm is
- * that same ruling: `my-0.5` around the whole thing and `py-1` on the line
- * are the `li` and row-line classes from `../Tree.tsx`, and without them an
- * empty line stood 12px shorter than its neighbours — spacing that wobbled
- * wherever a draft was parked. What it deliberately
+ * that same ruling: `my-0` around the whole thing and `ROW_LINE`'s own
+ * padding on the line are the `li` and row-line classes from `../Tree.tsx`,
+ * and without them an empty line stood shorter than its neighbours — spacing
+ * that wobbled wherever a draft was parked. What it deliberately
  * does NOT have is a glyph that goes anywhere or says a mark: those are
  * affordances of a node, and there is no node here until this has a title and
  * gets committed.
@@ -34,6 +34,7 @@ import { CONTROL, GLYPH_BOX, HOVER_CELL, HOVER_GUTTER, ROW_LINE } from "@olai/ui
 import { clearNode } from "../focus.ts"
 import type { Ghost } from "./draft.ts"
 import { DraftSaid, TitleEditor } from "./RowEditor.tsx"
+import { DOTS } from "../menu/Dots.tsx"
 
 export function NewRow(props: {
   /** The LIVE line this ghost draws — the draft and the address it is typed at
@@ -53,7 +54,7 @@ export function NewRow(props: {
   readonly onParkedInput?: (text: string) => void
 }) {
   return (
-    <div class="my-0.5">
+    <div class="my-0">
       <div
         // THE LINE THE CARET IS IN WEARS THE CHROME OF THE ROW IT IS BECOMING.
         // A row being typed is toned while it holds the caret, a wash and a
@@ -93,7 +94,17 @@ export function NewRow(props: {
             another. The widths are `../touch.ts`'s; what has to match is how
             many cells there are. */}
         <span class={HOVER_GUTTER}>
-          <span class={`${HOVER_CELL} hidden md:inline-flex`} aria-hidden="true" />
+          {/* THE `•••` CELL, baseline and all: the strip is a flex row aligned
+              on its first cell's baseline, and a row's first cell is the
+              dots' button with text in it, whose baseline is the text's. An
+              EMPTY cell has no line box, so its baseline is synthesised at
+              its bottom edge — two pixels lower — and the whole line sat two
+              pixels further down than the row it became. So the blank draws
+              the dots exactly as a row does (`../menu/Dots.tsx`'s shape, in
+              `../menu/NodeMenu.tsx`'s root), invisible. */}
+          <span class="absolute inset-y-0 left-0 w-0 shrink-0 md:relative md:w-auto" aria-hidden="true">
+            <span class={`${DOTS} invisible`}>•••</span>
+          </span>
           <span class={HOVER_CELL} aria-hidden="true" />
         </span>
         {/* The two faces of the same dot: the line the caret is IN draws the

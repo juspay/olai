@@ -137,7 +137,12 @@ export function Header(props: {
   return (
     <>
     <header ref={props.ref}
-      class={`sticky top-0 ${LAYER.header} olai-frame flex h-[var(--height-header)] shrink-0 items-center gap-2 border-b border-rule px-2 font-sans md:px-3`}
+      // The rule under the bar is an INSET shadow, not a border: a border is
+      // inside the box, and a 44px finger target centred in a 44px bar with a
+      // 1px border overflowed it by half a pixel — the phone's burger stood at
+      // y=-0.25, which is off the screen to a geometry assertion. The shadow
+      // paints the same hairline and costs the bar no height.
+      class={`sticky top-0 ${LAYER.header} olai-frame flex h-[var(--height-header)] shrink-0 items-center gap-2 px-2 font-sans shadow-[inset_0_-1px_0_var(--color-rule)] md:px-3`}
       data-testid={TESTID.appHeader}
       data-layout={props.docked ? "docked" : "chrome-only"}
     >

@@ -26,6 +26,10 @@ export const TESTID = {
   agendaCount: "agenda-count",
   railAgenda: "rail-agenda",
   railCalendar: "rail-calendar",
+  /** The phone's thumb bar doors: today's page, and the agenda with its owed
+   *  count (`data-owed` is the mark's face, as the sidebar entry's is). */
+  thumbToday: "thumb-today",
+  thumbAgenda: "thumb-agenda",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]
