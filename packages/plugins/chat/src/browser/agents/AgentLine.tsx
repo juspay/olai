@@ -22,7 +22,7 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
   /** The seat's door, offered where there is a seat and this is not already
    *  it: a desktop with the dock component standing (`../dock.ts`). */
   const dockable = () => props.dock !== true && (dock()?.desktop() ?? false)
-  return <div class="relative flex flex-wrap items-center gap-2 border-b border-rule bg-desk/50 px-3 py-1.5 text-label text-muted">
+  return <div class="relative flex flex-wrap items-center gap-2 border-b border-rule bg-desk/50 px-3 py-1.5 text-label text-muted" classList={{ "rounded-t-surface": !props.page && !props.dock }}>
     <Show when={agentIn(state())}>{agent => <span class="inline-flex items-center gap-1" data-testid={TESTID.chatAgent} data-agent={agent().id}>
       <AgentMark id={agent().id} />{agent().name}
     </span>}</Show>

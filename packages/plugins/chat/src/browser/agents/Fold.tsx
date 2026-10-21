@@ -30,6 +30,13 @@ import { ElapsedProvider } from "../chat/elapsing.tsx"
 import { Unopened } from "../chat/Unopened.tsx"
 import { SignIn } from "../chat/SignIn.tsx"
 
+/** THE FOLD DOES NOT CLIP. A card wants its corners, and `overflow-hidden`
+ *  is the cheap way to get them — but an overflow-hidden box is a scroll
+ *  container to `scrollIntoView`, and the model list hangs off the agent line
+ *  OVER the rows below it, taller than the fold: a walk down that list
+ *  scrolled the fold itself, and the line slid up under the resting pointer,
+ *  whose `pointerenter` then took the cursor back. The line rounds its own
+ *  top corners instead (`./AgentLine.tsx`). */
 export function Fold(props: { readonly node: string; readonly record?: string }) {
   const agents = useAgents()
   const parentShown = useShown()
@@ -39,7 +46,7 @@ export function Fold(props: { readonly node: string; readonly record?: string })
   return <ShownProvider shown={shown}><Show when={started()}>{_open => {
     const { chat: conversation } = createNodeConversation(() => props.node)
     return <Show when={conversation()}>{current =>
-    <section style={{ display: open() ? undefined : "none" }} class="my-2 overflow-hidden rounded-surface border border-rule bg-panel shadow-raised" data-testid={TESTID.agentFold} data-agent={props.node} aria-label={agents.at(props.node)?.title}>
+    <section style={{ display: open() ? undefined : "none" }} class="my-2 rounded-surface border border-rule bg-panel shadow-raised" data-testid={TESTID.agentFold} data-agent={props.node} aria-label={agents.at(props.node)?.title}>
       <AgentLine chat={current()} node={props.node} />
       <Show when={conversation()} keyed>{chat => <ConversationUIProvider value={chat.ui}>
         <Conversation chat={chat} node={props.node} />
