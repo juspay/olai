@@ -23,3 +23,9 @@ test("unavailable storage leaves first paint usable", () => {
   })).not.toThrow()
   expect(writes).toEqual([])
 })
+
+test("the head asks for the default typeface's files before the sheet does", () => {
+  const links = assets.head.match(/<link rel="preload" as="font"[^>]*>/g) ?? []
+  expect(links).toHaveLength(3)
+  for (const link of links) expect(link).toMatch(/crossorigin href="\/fonts\/[^"]+\.woff2"/)
+})

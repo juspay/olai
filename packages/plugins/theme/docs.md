@@ -37,6 +37,12 @@ The row's `/assets` build contribution owns the first-paint preference script,
 palette/size/scale CSS generation and hosted font installation. Bundle generation
 discovers static asset exports from its rows; the web builder consumes their
 generic head, stylesheet, preload and installation hooks without naming theme.
+The head it contributes also asks for the default typeface's three regular
+upright files (`@olai/fonts`'s `fontPreloadHtml`) before the sheet does, so
+the first text set in them is set in them: a hosted face is `font-display:
+swap`, and a swap after first paint moves every line above wherever a reader
+landed. A document's own landing waits for `document.fonts.ready` for the same
+reason ([markdown.md](markdown.md)).
 Pure appearance tables, CSS generators and mark drawing live in
 `@olai/appearance`; the typeface catalog remains `@olai/fonts`. Their import
 graphs acquire no observers or DOM state.
