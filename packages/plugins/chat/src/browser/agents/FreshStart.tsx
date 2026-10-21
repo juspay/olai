@@ -1,6 +1,7 @@
 import { createSignal, lazy, Show } from "solid-js"
 import { memoryOf } from "@olai/format"
 import { ALARM_PILL, QUIET_PILL } from "@olai/web/client/pill.ts"
+import { LINE_VERB } from "./verb.ts"
 import { run } from "@olai/web/client/run.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
@@ -97,7 +98,7 @@ export function FreshStart(props: {
   }
 
   return <span class="relative">
-    <button ref={trigger} type="button" class={QUIET_PILL} data-testid={TESTID.chatFreshSession}
+    <button ref={trigger} type="button" class={LINE_VERB} data-testid={TESTID.chatFreshSession}
       data-agent={props.agent.id} disabled={starting()} aria-busy={starting()}
       title={`Start over, keeping memory in ${memoryOf(props.agent)}`}
       onClick={pressed}>Fresh start</button>

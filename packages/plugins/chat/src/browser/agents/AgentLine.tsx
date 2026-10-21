@@ -13,6 +13,7 @@ import { FreshStart } from "./FreshStart.tsx"
 import type { Chat } from "../chat/state.ts"
 import { TESTID } from "../../testids.ts"
 import { dock } from "../dock.ts"
+import { LINE_VERB } from "./verb.ts"
 
 export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly dock?: boolean }) {
   const agents = useAgents()
@@ -32,10 +33,10 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
     </Show>
     <span class="flex-1" />
     <Show when={dockable()}>
-      <button type="button" class="hover:text-ink" data-testid={TESTID.chatDockHere} title="Keep this conversation beside the page (⌘J shows or hides the panel)"
+      <button type="button" class={LINE_VERB} data-testid={TESTID.chatDockHere} title="Keep this conversation beside the page (⌘J shows or hides the panel)"
         onClick={() => dock()?.open(props.node)}>Open in panel ›</button>
     </Show>
-    <Show when={!props.page}><Link route={atNode(props.node)}>Show in outline ›</Link></Show>
+    <Show when={!props.page}><Link route={atNode(props.node)} class={LINE_VERB}>Show in outline ›</Link></Show>
     <Show when={agents.at(props.node)}>
       {agent => <>
         <FreshStart agent={agent()} page={props.page} />

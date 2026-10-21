@@ -147,7 +147,7 @@ Then(
     // is the last word either way, and the first says whose answer it was.
     await this.waitUntil(async () => {
       const picked = await namedTheme(this);
-      expected = picked ?? DEFAULT_THEME;
+      expected = picked ?? await systemDefault(this);
       said = (await named.innerText()).trim();
       const lower = said.toLowerCase();
       return picked === null
@@ -160,6 +160,14 @@ Then(
 );
 
 // ── following the OS ───────────────────────────────────────────────────
+
+/** THE DEFAULT THE OS PICKS for an unpicked page: the dark one under
+ *  `prefers-color-scheme: dark`, the light one otherwise — asked of the page's
+ *  own `matchMedia`, which is what an emulated scheme flips too. */
+const systemDefault = async (world: OlaiWorld): Promise<string> =>
+  (await world.page.evaluate(() => window.matchMedia("(prefers-color-scheme: dark)").matches))
+    ? DEFAULT_DARK_THEME
+    : DEFAULT_THEME;
 
 /** The follow control: the one button in the row that is not a palette. */
 const FOLLOW = selector(TESTID.themeFollow);
@@ -350,7 +358,7 @@ Then(
     const lit = chips.find((chip) => chip.pressed === "true")?.value;
     assert.equal(
       lit,
-      await namedTheme(this) ?? DEFAULT_THEME,
+      await namedTheme(this) ?? await systemDefault(this),
       "the lit chip is not the theme the page is in",
     );
   },
