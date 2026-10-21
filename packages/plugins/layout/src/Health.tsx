@@ -103,9 +103,7 @@ export function Health(props: { readonly slots: RendererSlots }) {
           dot = el
           popover.setTrigger(el)
         }}
-        class={`${ICON_BUTTON} size-8 !p-0 border ${
-          popover.open() ? "border-accent" : "border-paper/20"
-        }`}
+        class={`${ICON_BUTTON} !px-0 md:!w-7`}
         data-testid={TESTID.health}
         data-health={tone()}
         // The connection's own state rides the dot too: it is the bar's own
@@ -119,9 +117,7 @@ export function Health(props: { readonly slots: RendererSlots }) {
         onClick={() => popover.toggle()}
       >
         <span
-          // A hairline of paper round it: the healthy green is a page-ground
-          // token, and on the ink bar it needs an edge to read as a mark.
-          class={`inline-block size-3 rounded-full ring-1 ring-paper/60 ${TONE[tone()].dot}`}
+          class={`inline-block size-2.5 rounded-full ${TONE[tone()].dot}`}
           aria-hidden="true"
         />
       </button>
@@ -142,7 +138,7 @@ export function Health(props: { readonly slots: RendererSlots }) {
                   : <row.face.body />}
               </For>
               <Uptime />
-              <div ref={setFoot} class="mt-1 border-t border-rule/60 pt-1" />
+              <div ref={setFoot} class="mt-1 border-t border-rule pt-1" />
             </section>
           </Portal>
         )}

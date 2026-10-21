@@ -44,7 +44,7 @@ export function Empty(props: {
     <div class="flex flex-col items-start gap-5 py-12" data-testid={pageId()}>
       <Leaf class="size-16 text-accent/40" />
       <div class="flex flex-col items-start gap-1">
-        <p class="m-0 font-serif text-title italic leading-snug text-muted" data-testid={TESTID.nothing}>
+        <p class="m-0 font-sans text-title font-medium leading-snug text-muted" data-testid={TESTID.nothing}>
           {props.line}
         </p>
         <Show when={props.detail}>

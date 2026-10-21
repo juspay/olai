@@ -165,7 +165,7 @@ function Header(props: { readonly index: number; readonly pane: Pane; readonly r
 
   return (
     <div
-      class="flex shrink-0 cursor-grab items-center gap-1 border-b border-rule/60 bg-desk px-2 py-1"
+      class="flex h-8 shrink-0 cursor-grab items-center gap-1 border-b border-rule bg-desk px-2"
       data-testid={TESTID.paneHeader}
       data-pane={String(props.index)}
       data-pane-focused={focused() ? "true" : undefined}
@@ -217,7 +217,7 @@ function Rail(props: { readonly index: number; readonly pane: Pane; readonly foc
   return (
     <button
       type="button"
-      class="flex w-9 shrink-0 flex-col items-center gap-2 border-x border-rule/60 bg-desk py-3 text-muted hover:text-ink"
+      class="flex w-9 shrink-0 flex-col items-center gap-2 border-x border-rule bg-desk py-3 text-muted hover:text-ink"
       classList={{ "ring-2 ring-inset ring-accent": focused() }}
       style={{ width: `${PANE_RAIL_PX}px` }}
       data-testid={TESTID.paneRail}
@@ -293,7 +293,7 @@ function TabStrip() {
   const isFocused = createSelector(router.focusIndex)
   return (
     <div
-      class="flex shrink-0 gap-1 overflow-x-auto border-b border-rule/60 bg-desk px-2 py-1"
+      class="flex shrink-0 gap-1 overflow-x-auto border-b border-rule bg-desk px-2 py-1"
       data-testid={TESTID.paneTabs}
       role="tablist"
       aria-label="Panes"

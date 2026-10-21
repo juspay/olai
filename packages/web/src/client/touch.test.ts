@@ -1,7 +1,8 @@
 /**
- * The outline's own type, held to the ruling: a row is a line at the root
- * size, a note sits one step under it, and Large is the notch — not a second
- * one stacked on the title.
+ * The outline's own type, held to the ruling: a row is a line at the
+ * interface's body size (`text-body`, seven steps), a note sits one step under
+ * it, a section one above — and Large is the notch, not a second one stacked
+ * on the title.
  */
 
 import { expect, test } from "bun:test"
@@ -17,8 +18,8 @@ const remOf = (classes: string): number => {
   return Number(found[1])
 }
 
-test("a row title is the root size — Large is the notch, not a second one on top", () => {
-  expect(remOf(ROW_TITLE)).toBe(1)
+test("a row title is the interface's body size — Large is the notch, not a second one on top", () => {
+  expect(remOf(ROW_TITLE)).toBe(0.875)
 })
 
 test("a note sits one step under the title", () => {

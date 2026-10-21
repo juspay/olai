@@ -881,18 +881,18 @@ export function Palette(props: {
           }}
         />
         <div
-          class={`relative ${WITHIN.raised} flex h-full min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule/40 md:h-auto`}
+          class={`relative ${WITHIN.raised} flex h-full min-h-0 w-full max-w-xl flex-col overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule md:h-auto`}
         >
           {/* THE BOX ROW: a crumb per open level, then the input. A crumb is
               the pointer's and the finger's way back — pressing one closes
               that level and every level after it. */}
-          <div class="flex w-full shrink-0 flex-wrap items-center gap-1.5 border-b border-rule px-4 py-3 md:px-5 md:py-4">
+          <div class="flex w-full shrink-0 flex-wrap items-center gap-1.5 border-b border-rule px-4 py-3">
             <Show when={inLevel()}>
               <For each={crumbs()}>
                 {(crumb, index) => (
                   <button
                     type="button"
-                    class="max-w-full shrink-0 cursor-pointer truncate rounded-control bg-rule/60 px-2 py-0.5 text-caption font-medium text-ink hover:bg-rule"
+                    class="max-w-full shrink-0 cursor-pointer truncate rounded-control bg-pill px-2 py-0.5 text-caption font-medium text-ink hover:bg-rule"
                     data-testid={TESTID.paletteCrumb}
                     data-id={crumb.id}
                     aria-label={`Back from ${crumb.label}`}
@@ -908,7 +908,7 @@ export function Palette(props: {
           <input
             ref={input}
             type="text"
-            class="min-w-[8rem] flex-1 bg-transparent font-serif text-title italic text-ink outline-none placeholder:text-muted md:text-title"
+            class="min-w-[8rem] flex-1 bg-transparent font-sans text-title text-ink outline-none placeholder:text-muted"
             data-testid={TESTID.paletteInput}
             data-depth={inLevel() ? depth() : 0}
             aria-label={inLevel() ? crumbs().map((crumb) => crumb.label).join(" › ") : undefined}

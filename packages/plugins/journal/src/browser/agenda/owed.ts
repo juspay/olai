@@ -30,8 +30,10 @@
  *
  * The two differ by more than a colour, which is the calendar's rule for marks
  * that share a cell (../calendar/Day.tsx): the loud one takes the ROW as well —
- * alarm ink, semibold, a wash behind it — and the quiet one takes nothing but
- * the chip. So "late" and "on today" are still two different sights in a
+ * alarm ink and a heavier weight, with the filled chip beside it — and the
+ * quiet one takes nothing but the chip. No wash behind the row any more: on
+ * one surface the directory column keeps its washes for "you are here", and
+ * a red band over the first row of every screen was the loudest thing on it. So "late" and "on today" are still two different sights in a
  * monochrome screenshot, at whatever palette is in force, and both are SAID in
  * the entry's own label, since a colour is silence to a screen reader.
  *
@@ -91,7 +93,7 @@ export interface Mark {
  *  lookup — everything else about one is read off the counts. */
 const PAINT: Record<Face, { readonly entry: string; readonly chip: string; readonly dot: string }> = {
   overdue: {
-    entry: "bg-alarm/10 font-semibold text-alarm",
+    entry: "font-medium text-alarm",
     chip: CHIP_ALARM,
     dot: "bg-alarm",
   },

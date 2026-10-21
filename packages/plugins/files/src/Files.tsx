@@ -42,7 +42,7 @@ import { openNewFile } from "./file/NewFile.tsx"
 const NewMenu = lazy(() => import("./NewMenu.tsx"))
 
 const ENTRY = `${ENTRY_SHAPE} ${ROW_GAP}`
-const DOOR = `${ENTRY} text-paper/60`
+const DOOR = `${ENTRY} text-muted`
 
 /** A directory row: folds, does not navigate. Same SHAPE and ink as a file —
  *  the padding, the gap, the type — because a muted folder in a column of
@@ -169,8 +169,8 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
 
           <Show when={references().length > 0}>
             <section class={REGION} data-testid={TESTID.reference} data-count={references().length}>
-              <button type="button" class={`${ENTRY} w-full text-paper/60`} data-testid={TESTID.referenceToggle} aria-expanded={reference.open()} onClick={reference.toggle}>
-                <span class={`${CONTROL} text-paper/60`} aria-hidden="true"><svg class="size-2.5 shrink-0 transition-transform duration-100" classList={{ "-rotate-90": !reference.open() }} viewBox="0 0 10 10" fill="currentColor"><path d="M2 3.25 L8 3.25 L5 7.25 Z" /></svg></span>
+              <button type="button" class={`${ENTRY} w-full text-muted`} data-testid={TESTID.referenceToggle} aria-expanded={reference.open()} onClick={reference.toggle}>
+                <span class={`${CONTROL} text-muted`} aria-hidden="true"><svg class="size-2.5 shrink-0 transition-transform duration-100" classList={{ "-rotate-90": !reference.open() }} viewBox="0 0 10 10" fill="currentColor"><path d="M2 3.25 L8 3.25 L5 7.25 Z" /></svg></span>
                 <Glyph of="folder" />
                 <span>Reference</span><span class="ml-auto tabular-nums text-label">{references().length}</span>
               </button>
@@ -214,7 +214,7 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
                       it is about. */}
                   <FileAnatomy of={null} name="olai" broken={false} />
                 </div>
-                <ul class="m-0 ml-2 list-none border-l border-paper/20 p-0 pl-2">
+                <ul class="m-0 ml-2.5 list-none border-l border-rule p-0 pl-1.5">
                   <Key each={vault()} by={(file) => file}>
                     {(file) => (
                       <VaultFile
@@ -413,7 +413,7 @@ function Dir(props: {
           props.view.toggle(props.row.path)
         }}
       >
-        <span class={`${CONTROL} text-paper/60`} aria-hidden="true">
+        <span class={`${CONTROL} text-muted`} aria-hidden="true">
           {/* Same weight as the glyphs beside it, not a font triangle at
               0.55rem: that mark sat in the same cell and still read as a
               different drawing. */}
@@ -435,7 +435,7 @@ function Dir(props: {
         <span class="min-w-0 truncate">{props.row.name}</span>
       </button>
       <Show when={!folded()}>
-        <ul class="m-0 ml-2 list-none border-l border-paper/20 p-0 pl-2">
+        <ul class="m-0 ml-2.5 list-none border-l border-rule p-0 pl-1.5">
           <Key each={props.row.children} by="key">
             {(child) => <Entry row={child()} view={props.view} />}
           </Key>

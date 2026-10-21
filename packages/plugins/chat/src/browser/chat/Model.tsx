@@ -151,7 +151,7 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
       </button>
       <Show when={picker.open()}>
         <ul ref={picker.setList} aria-label="Models"
-          class={`absolute inset-x-3 top-full ${LAYER.page} mt-1 max-h-80 list-none overflow-y-auto rounded-surface border border-rule/60 bg-panel p-1 shadow-raised`}>
+          class={`absolute inset-x-3 top-full ${LAYER.page} mt-1 max-h-80 list-none overflow-y-auto rounded-surface border border-rule bg-panel p-1 shadow-raised`}>
           <Show when={state().models.length > 0}>
             <ModelFilter />
           </Show>

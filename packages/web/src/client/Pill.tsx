@@ -61,7 +61,7 @@ export function Pill(props: {
     <Dynamic
       component={picks() ? "button" : "span"}
       type={picks() ? "button" : undefined}
-      class="shrink-0 rounded-full border border-transparent px-2 text-label"
+      class="shrink-0 rounded-control border border-transparent px-1.5 text-caption leading-5 tabular-nums"
       classList={{ "cursor-pointer hover:text-ink": picks(), ...props.classList }}
       data-testid={props.testid}
       data-picks={String(picks())}

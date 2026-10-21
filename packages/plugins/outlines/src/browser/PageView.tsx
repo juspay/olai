@@ -249,7 +249,7 @@ function PageAt(props: { readonly source: MountedNodePage | null; readonly rende
 
   return (
     <main
-      class={`relative flex min-w-0 flex-1 flex-col overflow-x-clip px-5 pt-6 ${CLEARANCE} md:px-10 md:py-10 ${
+      class={`relative flex min-w-0 flex-1 flex-col overflow-x-clip px-4 pt-4 ${CLEARANCE} md:px-8 md:py-6 ${
         !desktop() ? "pb-16" : ""
       }`}
       data-testid={IDS_NAVIGATION.pane}

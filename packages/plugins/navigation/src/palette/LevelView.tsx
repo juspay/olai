@@ -145,8 +145,8 @@ export function LevelView(props: {
                     type="button"
                     role="radio"
                     aria-checked={props.chosen(option.id)}
-                    class={`flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-control px-3 py-2 text-left text-body text-ink ${
-                      props.chosen(option.id) ? "bg-rule" : "hover:bg-rule/60"
+                    class={`flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-control px-3 py-1.5 text-left text-body text-ink ${
+                      props.chosen(option.id) ? "bg-ink/8" : "hover:bg-ink/5"
                     }`}
                     data-testid={TESTID.paletteOption}
                     data-id={option.id}
@@ -191,7 +191,7 @@ export function LevelView(props: {
             <>
               <button
                 type="button"
-                class="cursor-pointer rounded-control bg-rule/60 px-2 py-0.5 font-medium text-ink hover:bg-rule disabled:cursor-default disabled:opacity-60"
+                class="cursor-pointer rounded-control bg-pill px-2 py-0.5 font-medium text-ink hover:bg-rule disabled:cursor-default disabled:opacity-60"
                 data-testid={TESTID.paletteSubmit}
                 disabled={busy()}
                 onMouseDown={(event) => event.preventDefault()}

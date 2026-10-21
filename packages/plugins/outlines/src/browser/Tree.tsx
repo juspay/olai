@@ -511,7 +511,7 @@ function Branch(props: {
 
   return (
     <li
-      class="my-0.5"
+      class="my-0"
       // A section's branch carries its heading's measured height, which every
       // jump target inside it reads as its scroll margin (`../all.css`).
       classList={{ "olai-section": section() }}
@@ -625,14 +625,14 @@ function Branch(props: {
           // title-cell completions) portal out of this context — a heading
           // left at the same layer as an in-tree menu is the heading that
           // paints through it (`menu-under-headers`).
-          [`sticky top-[var(--height-chrome)] py-1 ${LAYER.row}`]: section(),
+          [`sticky top-[var(--height-chrome)] mt-2 py-1 ${LAYER.row}`]: section(),
           // ...and an opaque backdrop, or the rows would read through it. NOT
           // when this row is the caret's or is picked: those wear a wash of
           // their own, and two backgrounds on one element is a race between two
           // utilities rather than a decision.
           "bg-paper": section() && !editing() && !picked(),
-          "rounded-control bg-accent/10": editing() || picked(),
-          "rounded-control ring-1 ring-accent/40": focused(),
+          "rounded-control bg-accent/8": editing() || picked(),
+          "rounded-control ring-1 ring-accent/35": focused(),
           // A PICKED row wears the same accent wash the caret's row does —
           // "this is one of the ones" is the same thing to say, and a caret and
           // a pick are never on screen together. A row in the air fades, so the

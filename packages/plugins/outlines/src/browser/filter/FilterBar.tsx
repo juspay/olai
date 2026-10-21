@@ -112,7 +112,7 @@ export function FilterBar(props: {
 
   return (
     <div
-      class="mb-6"
+      class="mb-4"
       data-testid={TESTID.filterBar}
       // WHICH QUERY THE ROWS BELOW ANSWER, in the markup — the same fact the
       // count line draws in words, published so something outside the browser
@@ -133,7 +133,7 @@ export function FilterBar(props: {
       <div class="flex items-center gap-4">
         {/* The box and its clear cross, which is what the hint hangs under —
             the completion box hangs from its host's PARENT. */}
-        <div class="relative flex min-w-0 flex-1 items-center md:w-80 md:flex-none">
+        <div class="relative flex min-w-0 flex-1 items-center md:w-72 md:flex-none">
           {/* `text`, not `search`: a `type="search"` input draws the browser's
               own clear cross, and this bar already has one of its own — two
               crosses side by side, one of which no scenario can press
@@ -143,7 +143,7 @@ export function FilterBar(props: {
             ref={input}
             type="text"
             role="combobox"
-            class="min-h-11 w-full min-w-0 rounded-control border border-rule/60 bg-paper py-1.5 pl-3 pr-11 text-body md:pr-9 text-ink outline-none placeholder:text-muted focus:border-accent/60 focus:ring-2 focus:ring-accent/20 md:min-h-0"
+            class="min-h-11 w-full min-w-0 rounded-control border border-rule bg-desk/60 py-1 pl-2.5 pr-11 text-body md:pr-9 text-ink outline-none placeholder:text-muted focus:border-accent focus:bg-paper focus:ring-2 focus:ring-accent/20 md:min-h-0 md:h-8"
             data-testid={TESTID.filterInput}
             placeholder={PLACEHOLDER}
             aria-label="Filter"

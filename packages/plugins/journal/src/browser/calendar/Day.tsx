@@ -121,19 +121,19 @@ export function Day(props: {
   // does rather than the way the stylesheet happened to be sorted. Today and
   // open together is the ring around the fill: the ring says which day it is,
   // the fill says you are standing on it.
-  // ON THE SPINE'S GROUND (`./Calendar.tsx`): paper words on ink, so a quiet
-  // day is paper at half strength and the day being read wears the column's
-  // own current-page wash — the accent behind paper, as a current row does
-  // (`olai-plugin-layout/entry`'s `ENTRY_SHAPE`).
+  // ON THE COLUMN'S GROUND (`./Calendar.tsx`): ink on the desk, so a quiet
+  // day is the muted ink and the day being read wears the column's own
+  // current-page wash, as a current row does (`olai-plugin-layout/entry`'s
+  // `ENTRY_SHAPE`) — a step of ink, with the accent kept for today's ring.
   const ink = (): string =>
     props.open
-      ? "text-paper"
+      ? "text-ink"
       : props.today
       ? "text-accent"
       : live()
-      ? "text-paper"
-      : "text-paper/40"
-  const ground = (): string => props.open ? "bg-accent/20" : "hover:bg-paper/10"
+      ? "text-ink"
+      : "text-muted/70"
+  const ground = (): string => props.open ? "bg-ink/8" : "hover:bg-ink/5"
   const ring = (): string =>
     props.today ? "border-accent" : "border-transparent"
 

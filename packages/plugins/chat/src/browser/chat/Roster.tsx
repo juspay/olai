@@ -85,7 +85,7 @@ export function Roster(props: { readonly chat: Chat }) {
   return (
     <Show when={servers().length > 0}>
       <section
-        class="shrink-0 border-b border-rule/60 bg-panel px-3 py-1.5 text-caption leading-snug"
+        class="shrink-0 border-b border-rule bg-desk/40 px-3 py-1.5 text-caption leading-snug"
         data-testid={TESTID.chatRoster}
         aria-label="Tools"
       >

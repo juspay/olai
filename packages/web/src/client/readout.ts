@@ -89,22 +89,27 @@ export const STATUS_ROW = PILL
 export const DOT = "inline-block size-2 shrink-0 rounded-full"
 
 /**
- * The other shape in the bar: a BUTTON with a glyph on it — the agent toggle
- * and the preferences trigger.
+ * The other shape in the bar: a BUTTON with a glyph on it — the health dot,
+ * the preferences gear, who is looking.
+ *
+ * A quiet square: no border, no fill until a pointer is on it, a wash of ink
+ * when it is, and the same wash held while the panel it opens is up
+ * (`aria-expanded`, which every door in the bar already carries). It used to
+ * be a ringed pill on the ink frame; on one surface a ring round every control
+ * is a bar of buttons, and a calm bar draws its glyphs and nothing else.
  *
  * Height is `touch.ts`'s 44px below 48rem, same as {@link PILL}, because a
  * miss vertically lands on the outline under the bar. WIDTH is not: four 44px
  * squares plus `live` plus the commit mark do not fit on a 360pt phone, and a
  * sideways miss in this cluster hits the neighbour, not nothing — the same
- * exception the gutter already makes (`touch.ts`). What is NOT here is the
- * border colour: the agent toggle's says whether a turn is running and the
- * preferences' says whether the panel is open, which is each button's own
- * news rather than this shape's.
+ * exception the gutter already makes (`touch.ts`). Above md it is 1.75rem
+ * square, which is the bar's own rhythm.
  */
 export const ICON_BUTTON =
-  "inline-flex shrink-0 items-center justify-center gap-1 rounded-full " +
-  "border border-paper/20 bg-paper/10 px-2 py-1.5 text-label text-paper/80 hover:text-paper sm:px-3 " +
-  "min-h-11 md:min-h-0"
+  "inline-flex shrink-0 items-center justify-center gap-1 rounded-control " +
+  "border-0 bg-transparent px-2 text-label text-muted hover:bg-ink/5 hover:text-ink " +
+  "aria-expanded:bg-ink/8 aria-expanded:text-ink " +
+  "min-h-11 md:min-h-0 md:h-7 md:min-w-7 md:px-1.5"
 
 /**
  * Phone news, under the bar: a full-width strip, paper on the page, 44px
@@ -146,4 +151,4 @@ export const BANNER =
  */
 export const PANEL_BOX = `fixed ${LAYER.over} ` +
   "flex min-h-0 flex-col overflow-y-auto overflow-x-hidden overscroll-contain " +
-  "rounded-surface border-0 bg-panel p-4 text-body shadow-overlay ring-1 ring-rule/40 focus:outline-none"
+  "rounded-surface border-0 bg-panel p-4 text-body shadow-overlay ring-1 ring-rule focus:outline-none"

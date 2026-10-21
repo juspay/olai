@@ -29,7 +29,7 @@ export function BrowserEntry(props: { readonly door: Door }) {
   const router = useRouter()
   const look = () => lookOf(props.door.standing())
   return (
-    <Link route={props.door.route} class={`${ENTRY_SHAPE} text-paper/80`} testid={TESTID.browserEntry}
+    <Link route={props.door.route} class={ENTRY_SHAPE} testid={TESTID.browserEntry}
       current={props.door.showing(router.route())} title={look().detail}>
       <span class="min-w-0 truncate">Browser</span>
       <Show when={TONE[look().tone].dot}>
