@@ -409,9 +409,6 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
     step: (_held, delta) => {
       for (const key of delta.removes) held.delete(key)
       for (const [key, row] of delta.upserts) held.set(key, row)
-      // A CLEAR while we are here arrives as removes: those rows are gone, and
-      // the derived history must stop drawing them.
-      if (delta.removes.length > 0) setRevision((count) => count + 1)
     },
   })
 
@@ -420,15 +417,13 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
   /**
    * THE ROWS THIS TAB HOLDS THAT ARE NOT IN THE LIVE WINDOW — what a reconnect
    * pruned, plus every page pulled. Rebuilt when the window's key set moves (a
-   * re-seed, a new row, a clear) or when a page lands.
+   * re-seed, a new row, a clear) or when a page lands; the ordering is
+   * {@link ./order.ts}'s, one walk below, so this map stays unordered.
    */
   const history = createMemo(() => {
     revision()
     const inWindow = new Set(window.keys())
-    const rows: Array<ChatEntry> = []
-    for (const row of held.values()) if (!inWindow.has(row.id)) rows.push(row)
-    rows.sort((one, other) => one.seq - other.seq)
-    return new Map(rows.map((row) => [row.id, row]))
+    return new Map([...held].filter(([key]) => !inWindow.has(key)))
   })
 
   /** ... ordered and cut the way the fold cuts its own — one walk, rebuilt only

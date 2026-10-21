@@ -39,10 +39,11 @@ const keyOf = (to: PanelAddress): Key =>
  *  subscribe ships. Sorted by `seq` rather than trusted to the map's insertion
  *  order, because the window's meaning is "the recent end of the CONVERSATION"
  *  and a map's order is a delivery detail. */
-const newest = (entries: ReadonlyMap<string, ChatEntry>): Array<[string, ChatEntry]> => {
-  const all = [...entries.values()].sort((one, other) => one.seq - other.seq)
-  return all.slice(Math.max(0, all.length - TRANSCRIPT_WINDOW)).map((entry) => [entry.id, entry])
-}
+const rowsBySeq = (entries: ReadonlyMap<string, ChatEntry>): Array<ChatEntry> =>
+  [...entries.values()].sort((one, other) => one.seq - other.seq)
+
+const newest = (entries: ReadonlyMap<string, ChatEntry>): Array<[string, ChatEntry]> =>
+  rowsBySeq(entries).slice(-TRANSCRIPT_WINDOW).map((entry) => [entry.id, entry])
 
 /** The newest page of rows strictly below `before`, in conversation order. The
  *  newest `limit` of them, so a reader walking backwards never has to name an
@@ -51,12 +52,8 @@ const pageOf = (
   entries: ReadonlyMap<string, ChatEntry>,
   before: number,
   limit: number,
-): ReadonlyArray<ChatEntry> => {
-  const older = [...entries.values()]
-    .filter((entry) => entry.seq < before)
-    .sort((one, other) => one.seq - other.seq)
-  return older.slice(Math.max(0, older.length - limit))
-}
+): ReadonlyArray<ChatEntry> =>
+  rowsBySeq(entries).filter((entry) => entry.seq < before).slice(-limit)
 
 /** What a caller reads off a held reading without subscribing — the last member,
  *  the `conversation.earlier` verb's answer. It is not a stream: it is one reply
