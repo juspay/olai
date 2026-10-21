@@ -808,6 +808,14 @@ export class Transcript {
    * agent may rewrite for its own reasons, so the row's NAME is picked at the
    * first frame that carries one and no later frame moves it ({@link #named}).
    *
+   * ... unless that frame says the title is only a PLACEHOLDER (`provisional`).
+   * One adapter announces a call before the model's arguments have parsed, so
+   * its first title is derived from nothing — a shell command comes through as
+   * the bare word "Terminal". Such a title is SHOWN, because a nameless row
+   * while the arguments stream is worse, but it does not ANSWER the question:
+   * the next frame carrying a title names the row, and from there the
+   * once-only rule is the one it always was.
+   *
    * A FRAME THAT SAYS NOTHING NEW CHANGES NOTHING. Agents repeat themselves —
    * some send a report twice, byte for byte — and a repeat is not a second
    * report: nothing about the call moved, so nothing is published and, in
@@ -836,6 +844,10 @@ export class Transcript {
       readonly parent?: string | undefined
       readonly spawned?: Spawned | undefined
       readonly armed?: Armed | undefined
+      /** Whether `title` on THIS frame is the adapter's placeholder rather
+       *  than the call's name — see the paragraph above. Scoped to the frame:
+       *  absent is "not provisional", never "unchanged". */
+      readonly provisional?: boolean | undefined
     },
   ): Change {
     const key = toolKey(id)
@@ -982,8 +994,19 @@ export class Transcript {
     // frame whose title is the name the row is already wearing says nothing
     // new and is answered by that guard, and a row left unnamed by it would be
     // renamed by the next frame that carried a different one.
+    //
+    // A PROVISIONAL TITLE IS DRAWN AND DOES NOT COUNT. One adapter announces a
+    // call the moment a tool use starts, before the model's arguments have
+    // parsed, and titles that frame off arguments it does not have — a shell
+    // command arrives as the bare word "Terminal". The frame says so
+    // (`@olai/acp/engine`'s `Leg`'s `provisionalTitle`, read in `./agent.ts`),
+    // and what the claim buys is exactly one thing: the row wears the
+    // placeholder while the arguments stream, and the frame that refines them
+    // NAMES it. Everything after that is the rule as it always was, which is
+    // what keeps a title an agent rewrites mid-call from renaming a row a
+    // person is reading.
     const named = this.#named.has(key)
-    if (move.title !== undefined) this.#named.add(key)
+    if (move.title !== undefined && move.provisional !== true) this.#named.add(key)
     const called = (named ? undefined : move.called) ?? held?.called
     // Ownership can arrive later; replace the raw label once without moving
     // the original engine spelling or subsequent friendly titles.

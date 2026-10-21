@@ -285,6 +285,25 @@ describe("tool calls", () => {
     expect(rows(transcript)[0]).toMatchObject({ text: "read the notes", status: "completed" })
   })
 
+  test("a provisional title is shown, and the frame that refines it names the row", () => {
+    // One adapter announces a call the moment a tool use starts, before the
+    // model's arguments have parsed, so its first title is derived from none:
+    // a shell command arrives as the bare word "Terminal". The row wears that
+    // while the arguments stream — a nameless row is worse — and the frame
+    // that carries the real one NAMES it.
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Terminal", status: "pending", provisional: true })
+    expect(rows(transcript)[0]?.text).toBe("Terminal")
+
+    transcript.tool("call-1", { title: "echo hello", status: "in_progress" })
+    expect(rows(transcript)[0]).toMatchObject({ text: "echo hello", status: "in_progress" })
+
+    // ... and then the ordinary rule, undiminished: the exception is about the
+    // placeholder, not about the once-only naming it defers.
+    transcript.tool("call-1", { title: "Bash", status: "completed" })
+    expect(rows(transcript)[0]).toMatchObject({ text: "echo hello", status: "completed" })
+  })
+
   test("a frame repeating one already in says nothing", () => {
     // Agents repeat themselves — some send a report twice, byte for byte — and
     // a repeat is not a second report. Nothing about the call moved, so there

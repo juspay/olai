@@ -895,6 +895,44 @@ describe("what a listed conversation holds", () => {
   })
 })
 
+describe("a shell command is a terminal pane", () => {
+  test("the extension is asked for, because this adapter answers it", () => {
+    // Not decoration: the flag is what `olai-plugin-chat`'s `agent.ts` puts in
+    // `_meta.terminal_output` at `initialize`, and the adapter branches on it.
+    // With it, a Bash result carries `terminal_info` / `terminal_output` /
+    // `terminal_exit` and a `{type: "terminal"}` block. Without it, the whole
+    // output is fenced into a markdown ```console block and sent as text —
+    // backticks a person reads, and no exit code anywhere.
+    expect(CLAUDE.terminalOutput).toBe(true)
+  })
+
+  test("the announcement's title is a placeholder, and nothing else is", () => {
+    // The adapter announces a call on the SDK's `content_block_start`, with
+    // `rawInput: {}` — an input object with nothing in it — and a title
+    // derived from no arguments at all.
+    expect(CLAUDE.provisionalTitle?.({ sessionUpdate: "tool_call", title: "Terminal", rawInput: {} })).toBe(true)
+    // The refinement that follows is the real name, however empty a later
+    // frame's own report happens to be.
+    expect(CLAUDE.provisionalTitle?.({ sessionUpdate: "tool_call_update", title: "echo hello", rawInput: { command: "echo hello" } })).toBe(false)
+    expect(CLAUDE.provisionalTitle?.({ sessionUpdate: "tool_call_update", status: "completed", rawInput: {} })).toBe(false)
+    // An announcement that CAME with its arguments names its row at once —
+    // which is every frame this adapter sends for a replayed conversation.
+    expect(CLAUDE.provisionalTitle?.({ sessionUpdate: "tool_call", title: "Read", rawInput: { file_path: "/served/notes.md" } })).toBe(false)
+    // ... and the losing direction, which is "this is a real name": a frame
+    // with no input field, another agent's shape, nothing at all.
+    for (const frame of [
+      { sessionUpdate: "tool_call", title: "Terminal" },
+      { sessionUpdate: "tool_call", title: "Terminal", rawInput: null },
+      { sessionUpdate: "tool_call", title: "Terminal", rawInput: [] },
+      { sessionUpdate: "tool_call", title: "Terminal", rawInput: "" },
+      { sessionUpdate: "agent_message_chunk" },
+      {},
+      null,
+      undefined,
+    ]) expect(CLAUDE.provisionalTitle?.(frame)).toBe(false)
+  })
+})
+
 // The e2e agent emits these same adapter fixtures.
 import { announced, wrapped } from "./testlib.ts"
 

@@ -321,6 +321,31 @@ export interface Leg {
   /** Advertise/read the terminal-output metadata extension. */
   readonly terminalOutput?: boolean
   /**
+   * Whether the title THIS frame carries is a PLACEHOLDER the adapter has not
+   * refined yet — absent for an agent that names a call once and means it.
+   *
+   * ONE ADAPTER'S SHAPE, which is why it is a leg's answer rather than a rule
+   * in the panel: the pinned Claude Code adapter announces a tool call the
+   * moment the model starts emitting its arguments, before a byte of them has
+   * parsed, so the frame carries `rawInput: {}` and a title derived from
+   * nothing — a Bash call is announced as the bare word "Terminal". The
+   * refining `tool_call_update` that follows carries the real one.
+   *
+   * WHAT IT CHANGES is the once-only naming rule and nothing else
+   * (`olai-plugin-chat`'s `transcript.ts`): a provisional title is SHOWN, because a
+   * row with no name while the arguments stream is worse than a placeholder,
+   * but it does not ANSWER the question of what the row is called — so the
+   * next frame carrying a title names it, and from then on the rule is the one
+   * it always was. An agent that answers nothing here keeps a name picked at
+   * its first titled frame, which is deliberate for the adapters that rewrite
+   * a title mid-call (opencode, omp).
+   *
+   * Takes the whole update because the fact lives across two of its fields —
+   * which kind of frame this is, and whether it carried arguments — and a leg
+   * that read either alone would be answering a different question.
+   */
+  readonly provisionalTitle?: (update: unknown) => boolean
+  /**
    * The PROGRAMMATIC name of the tool, out of what a FRAME said — or `null`
    * when this agent says it somewhere else, or not at all.
    *

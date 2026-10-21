@@ -155,6 +155,24 @@ export type AgentEvent =
      * description it was armed with.
      */
     readonly armed: Armed | undefined
+    /**
+     * ... and that the TITLE on this frame is a placeholder rather than the
+     * call's name (`@olai/acp/engine`'s `Leg`'s `provisionalTitle`).
+     *
+     * Rides the frame rather than the row because it is a fact about THIS
+     * report: one adapter announces a call before the model's arguments have
+     * parsed, so the first frame's title is derived from nothing and the
+     * second one carries the real thing. The consumer SHOWS a provisional
+     * title and does not let it answer "what is this row called"
+     * (`./transcript.ts`).
+     *
+     * `undefined` reads as "not provisional" rather than "unchanged", which is
+     * the one place here that departs from the field beside it — and it has
+     * to: the claim is scoped to the title this frame carried, so carrying it
+     * forward onto a later frame would make a name that was refined once
+     * refinable forever.
+     */
+    readonly provisional: boolean | undefined
   }
   /**
    * The agent asked a person something, and the turn is stopped until it is

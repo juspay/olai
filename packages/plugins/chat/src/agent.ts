@@ -1219,6 +1219,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 locations: undefined,
                 parent: undefined,
                 spawned: undefined,
+                provisional: undefined,
                 armed: {
                   task: notice.onto.task,
                   ...(notice.onto.report === "" ? {} : { report: notice.onto.report }),
@@ -1296,6 +1297,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // agent that says it is read where everything else true of one
             // agent is read.
             armed: options.leg.backgroundTask(update._meta) ?? undefined,
+            // ... and whether the TITLE this frame carried is the adapter's
+            // placeholder rather than the call's name. One adapter announces a
+            // call before the model's arguments have parsed; the row shows the
+            // placeholder and is NAMED by the frame that refines it
+            // (`@olai/acp/engine`'s `Leg`'s `provisionalTitle`, honoured in
+            // `./transcript.ts`). A leg that declares nothing answers
+            // `undefined` and the once-only rule is exactly what it was.
+            provisional: options.leg.provisionalTitle?.(update),
           })
           {
             // Adapter-owned terminal IDs, like tool IDs, are scoped to a

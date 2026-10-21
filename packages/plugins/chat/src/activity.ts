@@ -11,7 +11,7 @@ const tool = (id: string, move: Partial<Omit<Tool, "_tag" | "id">>): Tool => ({
   _tag: "tool", id, title: undefined, status: undefined, detail: undefined,
   progress: undefined, diffs: undefined, locations: undefined,
   called: undefined, row: undefined, reply: undefined,
-  parent: undefined, spawned: undefined, armed: undefined, ...move,
+  parent: undefined, spawned: undefined, armed: undefined, provisional: undefined, ...move,
 })
 interface Child { readonly parent: string; report: string; ended: boolean }
 interface Task { readonly row: string; status: "in_progress" | "completed" | "failed" }

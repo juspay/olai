@@ -1350,6 +1350,56 @@ Then(
   },
 );
 
+/**
+ * ... and what the frame must say NOWHERE — line, fold, terminal pane and all.
+ *
+ * The claim this exists for is a negative one and has to be: a client that did
+ * not ask the Claude adapter for terminals is sent a shell result fenced into a
+ * markdown ```` ```console ```` block, which a person then reads as literal
+ * backticks with no exit code anywhere. "The row does not contain that text" is
+ * the only way to say it, because WHERE it would land depends on which half of
+ * the bug is present.
+ */
+Then(
+  "the tool call says nothing of {string}",
+  async function (this: OlaiWorld, said: string) {
+    const tool = heldTool(this);
+    await tool.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const shown = await tool.innerText();
+    assert.ok(
+      !shown.includes(said),
+      `the tool call shows ${JSON.stringify(said)}; it reads: ${shown}`,
+    );
+  },
+);
+
+/**
+ * Nothing in an unfolded call may grow a horizontal scrollbar. Asked of the
+ * boxes that would actually scroll (`overflow-x: auto` / `scroll`) rather than
+ * of every descendant, exactly as the diff's own step is: a truncated path is
+ * wider than its box by design and draws an ellipsis, not a bar.
+ *
+ * What it catches is a fold whose arguments are one long unbroken line: a
+ * `<pre>` that does not wrap puts the end of that line somewhere a reader has
+ * to drag to, inside a conversation that scrolls the other way.
+ */
+Then("the tool call does not scroll sideways", async function (this: OlaiWorld) {
+  const tool = heldTool(this);
+  await tool.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const panned = await tool.evaluate((root: Element) => {
+    const over = (node: Element): boolean => {
+      const ox = getComputedStyle(node).overflowX;
+      return (ox === "auto" || ox === "scroll") && node.scrollWidth > node.clientWidth + 1;
+    };
+    return [root, ...root.querySelectorAll("*")]
+      .filter(over)
+      .map((node) =>
+        `${node.tagName.toLowerCase()}${node.getAttribute("data-testid") ?? ""} ${node.scrollWidth}>${node.clientWidth}`
+      );
+  });
+  assert.deepStrictEqual(panned, [], "these boxes in the call have a horizontal scrollbar");
+});
+
 /** How many calls the conversation drew, which is the one thing a claim about
  *  a REPEATED report turns on: a frame that arrives twice must produce the row
  *  the first one produced and no second one. */

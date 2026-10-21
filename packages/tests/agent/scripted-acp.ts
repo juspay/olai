@@ -1757,6 +1757,87 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     say("Terminal released: " + JSON.stringify({ exit, output }))
     reply(id, { stopReason: cancelled ? "cancelled" : "end_turn" }); return
   }
+
+  /**
+   * A SHELL COMMAND, in the shape the pinned Claude Code adapter actually
+   * sends one — three frames, and the two things about them that are easy to
+   * get wrong are the whole of what this verb exists to pin.
+   *
+   *   1. THE ANNOUNCEMENT HAS NO ARGUMENTS. The adapter emits it on the SDK's
+   *      `content_block_start`, when all it knows is that a tool use has
+   *      begun, so the frame carries `rawInput: {}` and a title derived from
+   *      nothing: the bare word "Terminal" for the shell tool. A panel that
+   *      took that as the call's name drew a row called *Terminal* for the
+   *      rest of the conversation.
+   *   2. THE OUTPUT IS A TERMINAL ONLY IF THE CLIENT ASKED. With
+   *      `_meta.terminal_output: true` on the handshake, the result carries
+   *      `terminal_info` / `terminal_output` / `terminal_exit` and a
+   *      `{type: "terminal"}` block naming the handle. WITHOUT it, the adapter
+   *      fences the whole output into a markdown `console` block and sends it
+   *      as text — which is a person reading backticks, with no exit code
+   *      anywhere. Both arms are written because the second one is the
+   *      regression: a leg that stopped advertising would land here, and the
+   *      scenario would fail on the backticks rather than pass quietly.
+   *
+   * `bash long` is the same sequence with an argument long enough to overflow
+   * the fold, because what the detail block has to do with a line that does
+   * not fit is wrap rather than scroll.
+   */
+  if (verb === "bash") {
+    const long = rest[0] === "long"
+    const command = long ? "cat notes.txt" : "echo hello"
+    const output = long ? "line one\n" : "hello\n"
+    const toolCallId = `call-${++nextMcpId}`
+    const terminalId = `term-${toolCallId}`
+    // What the CLIENT said at `initialize`, read back — the fake answers the
+    // handshake it was given rather than a flavour of its own.
+    const asTerminal = (capabilities["_meta"] as { terminal_output?: unknown } | undefined)
+      ?.terminal_output === true
+    notify("session/update", { sessionId, update: {
+      sessionUpdate: "tool_call",
+      toolCallId,
+      title: "Terminal",
+      kind: "execute",
+      status: "pending",
+      rawInput: {},
+      _meta: {
+        ...(isCodex ? {} : { claudeCode: { toolName: "Bash" } }),
+        ...(asTerminal ? { terminal_info: { terminal_id: terminalId, cwd } } : {}),
+      },
+    } })
+    // ... and the refinement, once the arguments have finished streaming. The
+    // `description` rides along because the real tool takes one, and because
+    // what the row is called must be the COMMAND rather than the sentence the
+    // model wrote about it.
+    notify("session/update", { sessionId, update: {
+      sessionUpdate: "tool_call_update",
+      toolCallId,
+      title: command,
+      status: "in_progress",
+      rawInput: { command, description: long ? unbroken("describe") : "Say hello" },
+    } })
+    // ... and the result, with the title MOVED. Once a frame has named the
+    // row, a later one may not rename it — which is the rule the placeholder
+    // is an exception to rather than a repeal of, and the only way to pin that
+    // is to send a title a panel would be wrong to take.
+    notify("session/update", { sessionId, update: {
+      sessionUpdate: "tool_call_update",
+      toolCallId,
+      title: "Bash",
+      status: "completed",
+      ...(asTerminal
+        ? {
+          content: [{ type: "terminal", terminalId }],
+          _meta: {
+            terminal_output: { terminal_id: terminalId, data: output },
+            terminal_exit: { terminal_id: terminalId, exit_code: 0, signal: null },
+          },
+        }
+        : { content: [{ type: "content", content: { type: "text", text: "```console\n" + output + "```" } }] }),
+    } })
+    say("ran it")
+    reply(id, { stopReason: "end_turn" }); return
+  }
   if (verb === "vanish") process.exit(1)
 
   // A TURN THAT ANSWERS WITH AN ERROR INSTEAD OF A STOP REASON — and stays

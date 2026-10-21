@@ -444,16 +444,23 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
         <Show when={props.entry.row && props.entry.called}>
           {called => <p class="m-0 border-t border-rule px-2 py-1 font-mono text-label text-muted" data-testid={TESTID.chatToolCalled}>{called()}</p>}
         </Show>
+        {/* BOTH BLOCKS WRAP. They are the only `<pre>`s in the panel that did
+            not, and what lands in them is exactly the text that has no reason
+            to be short: a call's arguments as JSON, a reply as JSON, either of
+            which can carry one unbroken line longer than the pane. Without
+            this the fold grew a horizontal scrollbar and the end of the line
+            was somewhere a reader had to drag to — `overflow-auto` stays for
+            the vertical half, which is what `max-h-64` is for. */}
         <Show when={props.entry.detail}>
           {(detail) => (
             <pre
-              class="m-0 max-h-64 overflow-auto border-t border-rule px-2 py-1 font-mono text-caption text-muted"
+              class="m-0 max-h-64 overflow-auto whitespace-pre-wrap break-words border-t border-rule px-2 py-1 font-mono text-caption text-muted"
               data-testid={TESTID.chatToolDetail}
             >{detail()}</pre>
           )}
         </Show>
         <Show when={props.entry.row !== undefined && props.entry.reply !== undefined}>
-          <pre class="m-0 max-h-64 overflow-auto border-t border-rule px-2 py-1 font-mono text-caption text-muted" data-testid={TESTID.chatToolReply}>{JSON.stringify(props.entry.reply, null, 2)}</pre>
+          <pre class="m-0 max-h-64 overflow-auto whitespace-pre-wrap break-words border-t border-rule px-2 py-1 font-mono text-caption text-muted" data-testid={TESTID.chatToolReply}>{JSON.stringify(props.entry.reply, null, 2)}</pre>
         </Show>
       </Show>
     </div>
