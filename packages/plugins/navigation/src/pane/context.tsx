@@ -8,6 +8,7 @@
  */
 
 import { createContext,type JSX,useContext } from "solid-js"
+import { randomUuid } from "@olai/web/client/uuid.ts"
 
 export interface PaneHere {
   readonly id: string
@@ -29,7 +30,7 @@ export function PaneProvider(props: {
   // was born with, so a narrow-screen tab tap would light the tab and
   // leave the page, and a close would read a slot that is gone.
   const parent = useContext(PaneContext)
-  const fallbackId = parent?.id ?? crypto.randomUUID()
+  const fallbackId = parent?.id ?? randomUuid()
   const here: PaneHere = {
     get id() { return props.id ?? fallbackId },
     get element() { return props.element ?? parent?.element },

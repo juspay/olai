@@ -712,7 +712,10 @@ Then(
  * is gated on a secure context, and a server on the LAN read over plain http
  * is not one. The e2e suite is served from `localhost`, which IS a secure
  * context, so the refusal has to be put back — and put back as the same shape
- * a real one has, a rejected promise from `writeText`.
+ * a real one has: NO `navigator.clipboard` at all, so the call throws before
+ * any promise exists. A rejected `writeText` was the shape this used to fake,
+ * and a `.catch` on the write passes against it while failing on every real
+ * plain-http page (the tab strip's copy did exactly that until it was fixed).
  */
 Given("this browser's clipboard refuses", async function (this: OlaiWorld) {
   // `evaluate` on the page that is already open, rather than `addInitScript`:
@@ -722,10 +725,7 @@ Given("this browser's clipboard refuses", async function (this: OlaiWorld) {
   await this.page.evaluate(() => {
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
-      value: {
-        writeText: () =>
-          Promise.reject(new Error("olai e2e: the clipboard is not available")),
-      },
+      value: undefined,
     });
   });
 });

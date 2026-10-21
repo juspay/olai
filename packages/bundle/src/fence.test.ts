@@ -554,6 +554,18 @@ describe("a plugin's browser chunk stays a browser chunk", () => {
     }
     // Reads every browser chunk's files; 2.6 s on a loaded box before the per-run reads, 0.12 s after.
   }, { timeout: 10_000 })
+
+  test("nothing on one mints an id with `crypto.randomUUID`", () => {
+    // A page read over plain http from another machine — the ordinary way
+    // olai is read — is not a secure context, and there the method does not
+    // exist. #642 called it while navigation's browser half started, and the
+    // whole page came up as "Some plugins couldn't start". The browser's id is
+    // `@olai/web/client/uuid.ts`'s, which needs no secure context.
+    const bad = BROWSER_DOORS.flatMap(({ name, door }) =>
+      door.files.filter(file => /\bcrypto\.randomUUID\s*\(/.test(sourceAt(file))).map(file => `${name}: ${file}`)
+    )
+    expect([...new Set(bad)].sort()).toEqual([])
+  }, { timeout: 10_000 })
 })
 
 /**

@@ -1,4 +1,5 @@
 import { createStore } from "solid-js/store"
+import { randomUuid } from "@olai/web/client/uuid.ts"
 import type { Lane, Router } from "./routing.tsx"
 import {
 batch,
@@ -141,7 +142,7 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
           const before = nextIds.length
           after = openRight(after, cursor, pane.route, forceNew === true || offset > 0)
           cursor = after.focus
-          if (panesOf(after).length > before) nextIds.splice(cursor, 0, crypto.randomUUID())
+          if (panesOf(after).length > before) nextIds.splice(cursor, 0, randomUuid())
         }
         commit({ ...after, focus: from + 1 }, "push", () => landingsOf(after), nextIds)
     },
@@ -150,7 +151,7 @@ export function createLane(seed: Workspace, shared: Pick<Router, "lane">,
       // A PANE IS BORN, so every index at or after it means a different pane
       // than it did a moment ago: only the arrival this verb is about survives.
       const nextIds = [...ids()]
-      if (panesOf(after).length > nextIds.length) nextIds.splice(after.focus, 0, crypto.randomUUID())
+      if (panesOf(after).length > nextIds.length) nextIds.splice(after.focus, 0, randomUuid())
       commit(after, "push", () => marked(NOWHERE, after.focus, landingOf(next)), nextIds)
     },
     close: (index) => {
