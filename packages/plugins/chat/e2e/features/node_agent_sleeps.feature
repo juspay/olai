@@ -404,7 +404,10 @@ Feature: A node agent tidies its own memory when nobody is looking
     And the sleep item mentions "1 of 2 rows"
     # ...AND A SECOND ROW IS: the loop takes it on its next look, and the instant
     # the item names closes with it. `due` is a window of one tick here, which is
-    # why the step that reads it polls from inside the page.
+    # why the step that reads it polls from inside the page — and why it also
+    # takes the pass having already taken it (`running`, or a newer memo): on a
+    # loaded box the look lands in the instant the row moved, and the window
+    # has been and gone before a frame could show it.
     When one row under "install" has moved
     Then the sleep item says "due"
     Then the node agent "install" has been tidied
