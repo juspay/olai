@@ -28,7 +28,7 @@ import {
   type LocationOwner,
   serviceTag,
 } from "@olai/effect-cordis"
-import { NotFoundFailure } from "@olai/format"
+import { BusyFailure, NotFoundFailure } from "@olai/format"
 import { Effect, Scope, type Stream } from "effect"
 
 import { BrowserMount } from "./mount.ts"
@@ -504,6 +504,33 @@ export interface EditWriters {
   readonly write: (edit: { readonly verb: string }) => Effect.Effect<unknown, unknown>
 }
 export const Edits = serviceTag<EditWriters>("edit-writers")
+
+/**
+ * ONE ROW'S WRITE, for the moment its client may already be gone.
+ *
+ * `Edits.register`'s handler runs when an edit is dispatched, and a roster
+ * redial can withdraw the row that owns the verb between the gesture and the
+ * dispatch — `Wired.client()` is then `null`. Reaching through it was a
+ * `TypeError` inside a page error, which is not a sentence anybody can act on;
+ * this refuses through the same door every other departed-client path lands on
+ * (`@olai/web`'s `run.ts`, fourth exit), so the reader sees the ordinary "the
+ * wire was replaced, try again" rather than a crash.
+ */
+export const editApply = (
+  client: {
+    readonly procedures: {
+      readonly edit: { apply(edit: never): Effect.Effect<unknown, unknown> }
+    }
+  } | null,
+  edit: never,
+): Effect.Effect<unknown, unknown> =>
+  client === null
+    ? Effect.fail(
+      new BusyFailure({
+        reason: "the plugin serving this edit left the wire before the server applied it",
+      }),
+    )
+    : client.procedures.edit.apply(edit)
 
 /** One host-owned landing table per app; consumers scope their registrations. */
 export const Landings = serviceTag<LandingTable>("landings")

@@ -1758,3 +1758,38 @@ test("late ownership relabels once and keeps the first engine spelling", () => {
   transcript.tool("late", { title: "moving", called: "moving", row: "notes" })
   expect(asKind(rows(transcript)[0], "tool")).toMatchObject({ text: "Read a node", called: "engine_read" })
 })
+
+/**
+ * `seq` IS DENSE FROM ZERO, and this is the assumption the client's "how many
+ * older rows are there" rests on (`browser/chat/state.ts`'s `oldest`): the
+ * number of rows below a row's `seq` is the row's `seq`, so a tab can answer
+ * the count from what it holds without a round trip.
+ *
+ * It holds because `#write` mints a `seq` only for a key it has not seen
+ * (`this.#seq++`) and a clear is the one thing that takes rows away — and it
+ * restarts the counter with them. A tool call reported twice is the SAME key
+ * and keeps its number. A cheaper "count the rows" would agree today and drift
+ * silently on the first path that mints a second number for one row, which is
+ * why the claim is written down where the counter lives rather than inferred at
+ * the one reader.
+ */
+describe("conversation order is countable", () => {
+  test("rows carry 0, 1, 2 … and a repeat keeps its number", () => {
+    const transcript = new Transcript()
+    for (let at = 0; at < 5; at++) transcript.add("notice", `n${at}`)
+    transcript.tool("one", { status: "pending" })
+    transcript.tool("one", { status: "completed" })
+    transcript.add("notice", "last")
+    expect(rows(transcript).map((row) => row.seq)).toEqual([0, 1, 2, 3, 4, 5, 6])
+  })
+
+  test("a clear restarts the count with the rows", () => {
+    const transcript = new Transcript()
+    transcript.add("notice", "one")
+    transcript.add("notice", "two")
+    transcript.clear()
+    transcript.add("notice", "three")
+    expect(rows(transcript).map((row) => row.seq)).toEqual([0])
+  })
+})
+

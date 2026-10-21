@@ -18,8 +18,8 @@ const STARTED = "2026-08-29T09:31:00.000Z"
 
 const readoutOf = (status: SurfaceReadoutStatus): SurfaceReadout =>
   status === "degraded"
-    ? { status, stopped: ["documents.keys"], needsReload: false }
-    : { status, needsReload: status === "retired" }
+    ? { status, stopped: ["documents.keys"], needsReload: false, presentingDown: false }
+    : { status, needsReload: status === "retired", presentingDown: false }
 
 test("a live wire with no landing yet is an ask", () => {
   expect(shouldAsk(readoutOf("live"), undefined, false)).toBe(true)

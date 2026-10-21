@@ -235,6 +235,34 @@ export const TRANSCRIPT_ORDER: CollectionFoldOptions<string, ChatEntry, Ordered>
 const NO_ROWS: ReadonlyArray<string> = []
 
 /**
+ * THE SAME ORDER AND THE SAME CUT, over an already-whole set of rows.
+ *
+ * It is what the client-held OLDER PAGES are drawn through: history arrives a
+ * page at a time, never changes once fetched, and is strictly older than the
+ * live window — so it needs none of the fold's incremental machinery, only the
+ * one walk that turns rows into the column's keys and each agent's lane
+ * ({@link cut}, which is why this cannot be a `.map` at the call site). The two
+ * lists it answers with concatenate cleanly with the fold's: every history `seq`
+ * is below every window `seq`, and nothing is in both.
+ *
+ * It takes the ROWS rather than a map so a caller names the order its own set is
+ * in; the caller here sorts by `seq` first (the fetch pages are newest-first
+ * within a page), which is the same rule the fold keeps.
+ */
+export const orderOf = (
+  entries: ReadonlyArray<ChatEntry>,
+): { readonly keys: ReadonlyArray<string>; readonly lanes: ReadonlyMap<string, ReadonlyArray<string>> } => {
+  const seq = new Map<string, number>()
+  const under = new Map<string, string>()
+  for (const entry of entries) {
+    seq.set(entry.id, entry.seq)
+    const parent = filedUnder(entry)
+    if (parent !== null) under.set(entry.id, parent)
+  }
+  return cut(seq, under)
+}
+
+/**
  * The row keys, in conversation order — the fold registered and read.
  *
  * BOTH HALVES HERE, because they are one claim. The fold's saving is that a

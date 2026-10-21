@@ -421,6 +421,28 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
           whose HEIGHT can be observed: the pane's own size never changes, and
           it is the content inside it that grows. */}
       <div class="min-w-0" ref={content}>
+        {/* THE EARLIER MESSAGES, pulled by hand: the rows below the window this
+            tab was handed on subscribe ({@link ./state.ts}). One press fetches
+            the page immediately above what is on screen, so the conversation
+            grows backwards with no gaps; it is drawn only while the server says
+            something is still older, and it stops being pressable while a page
+            is in flight. Above the rows because that is where older is. */}
+        <Show when={props.chat.earlier() > 0}>
+          <div class="flex justify-center py-1">
+            <button
+              type="button"
+              data-testid={TESTID.chatEarlier}
+              data-earlier={props.chat.earlier()}
+              disabled={props.chat.earlierLoading()}
+              class="flex h-8 items-center rounded-control border border-rule px-3 text-label text-muted hover:text-ink disabled:opacity-60"
+              onClick={() => props.chat.loadEarlier()}
+            >
+              {props.chat.earlierLoading()
+                ? "Loading earlier messages…"
+                : `Earlier messages (${props.chat.earlier()})`}
+            </button>
+          </div>
+        </Show>
         <For each={props.chat.rows()}>
           {(key) => {
             const entry = props.chat.entry(key)

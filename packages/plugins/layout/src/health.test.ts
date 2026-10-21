@@ -9,7 +9,7 @@ import { lookOf } from "@olai/web/client/connection/status.ts"
 import { nameOf, tipOf, worstFirst, worstOf } from "./health.ts"
 import type { BarStatus, BarTone } from "./slots.ts"
 
-const retired = lookOf({ status: "retired", needsReload: true })
+const retired = lookOf({ status: "retired", needsReload: true, presentingDown: true })
 
 test("nothing standing, and nothing but quiet rows, is healthy", () => {
   expect(worstOf([])).toBe("healthy")

@@ -1,4 +1,5 @@
 import { batch, createMemo, createSignal, untrack } from "solid-js"
+import { randomUuid } from "@olai/web/client/uuid.ts"
 import type { LivePane } from "../routing.tsx"
 import type { Route } from "../routes.ts"
 import { isLone, panesOf, type Layout, type Workspace, type WorkspaceRouting } from "../workspace.ts"
@@ -18,7 +19,7 @@ export function createPaneState(seed: Workspace, routes: WorkspaceRouting) {
     }, id, index: at, route: page, width: size }
     return { value, setIndex, setRoute, setWidth }
   }
-  let held = panesOf(seed).map((pane, index) => make(crypto.randomUUID(), index, pane.route, pane.width))
+  let held = panesOf(seed).map((pane, index) => make(randomUuid(), index, pane.route, pane.width))
   const [panes, setPanes] = createSignal<readonly LivePane[]>(held.map(one => one.value))
   const ids = () => untrack(panes).map(one => one.id)
   const sameRoute = (a: Route, b: Route) => a.kind === b.kind && routes.href(a) === routes.href(b)
@@ -41,7 +42,7 @@ export function createPaneState(seed: Workspace, routes: WorkspaceRouting) {
       if (old) unused.delete(old)
       const route = old && sameRoute(old.value.route(), pane.route) ? old.value.route() : pane.route
       stable.push(route)
-      const one = old ?? make(keys?.[index] ?? crypto.randomUUID(), index, route, pane.width)
+      const one = old ?? make(keys?.[index] ?? randomUuid(), index, route, pane.width)
       one.setIndex(index); one.setRoute(route); one.setWidth(pane.width)
       return one
     })

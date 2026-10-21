@@ -18,7 +18,7 @@
 
 import * as assert from "node:assert";
 
-import { Then, When } from "@cucumber/cucumber";
+import { Given, Then, When } from "@cucumber/cucumber";
 import { findLogfmt } from "@olai/log/testlib";
 
 import { startOwnServer, stopOwnServer } from "../support/hooks.ts";
@@ -334,3 +334,111 @@ Then("the server rejected the stale tab", async function (this: OlaiWorld) {
     HYDRATION_TIMEOUT,
   );
 });
+
+// ── a blink, which is not an outage ────────────────────────────────────
+
+/**
+ * The connections this tab's wire has made, so a scenario can DROP the one in
+ * flight — the way a Wi-Fi roam or a forced reconnect does — rather than take
+ * the whole browser offline (`the browser goes offline`), which is a different
+ * outage: offline is a network that is gone, and this is a socket that closes
+ * and is immediately redialled.
+ *
+ * The route is registered BEFORE the page dials, because `routeWebSocket` wraps
+ * a connection as it is made: a handler added afterwards would not see the
+ * socket under test. What it holds is both ends, so a drop is the socket's own
+ * close rather than one side pretending.
+ */
+interface Blink {
+  readonly links: Array<{ client: { close(): Promise<void> }; server: { close(): Promise<void> } }>
+  readonly seen: { overlay: boolean }
+}
+const blinks = new WeakMap<OlaiWorld, Blink>()
+
+Given("the wire can blink", async function (this: OlaiWorld) {
+  const state: Blink = { links: [], seen: { overlay: false } }
+  blinks.set(this, state);
+  await this.page.routeWebSocket(url => url.pathname === "/rpc/ws", (client) => {
+    const server = client.connectToServer()
+    client.onMessage((message) => server.send(message))
+    server.onMessage((message) => client.send(message))
+    state.links.push({ client, server })
+  })
+})
+
+/**
+ * DROP THE SOCKET AND LET IT REDIAL — under a recorder that says whether the
+ * offline overlay ever opened.
+ *
+ * The recorder is installed HERE, after the connection is already live, so the
+ * overlay the FIRST dial drew does not count as this blink's. It watches the
+ * `open` attribute the modal dialog wears, which is the exact fact the freeze
+ * publishes (`connection/Offline.tsx`) rather than a class or a colour.
+ */
+When("the wire blinks", async function (this: OlaiWorld) {
+  const state = blinks.get(this)
+  assert.ok(state, "arm the wire with `the wire can blink` first")
+  await this.page.evaluate(() => {
+    const seen = { overlay: false }
+    ;(window as unknown as { __blinkSeen: typeof seen }).__blinkSeen = seen
+    const observer = new MutationObserver(() => {
+      if (document.querySelector("dialog[open]") !== null) seen.overlay = true
+    })
+    observer.observe(document.documentElement, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["open"],
+    })
+  })
+  const live = state.links.at(-1)
+  assert.ok(live, "the wire has made no connection to drop")
+  await live.client.close()
+  await live.server.close()
+  // The redial is the app's own; this waits for the page to say it landed,
+  // because the two assertions that follow are about what happened meanwhile.
+  await this.waitUntil(
+    async () =>
+      (await this.page.locator(OFFLINE).first().getAttribute("data-connection", { timeout: 0 }).catch(() => null)) === "live",
+    "the wire to come back live after the blink",
+    HYDRATION_TIMEOUT,
+  )
+})
+
+Then("the offline overlay never appeared", async function (this: OlaiWorld) {
+  const seen = await this.page.evaluate(() =>
+    (window as unknown as { __blinkSeen?: { overlay: boolean } }).__blinkSeen?.overlay ?? null)
+  assert.strictEqual(
+    seen,
+    false,
+    "the offline overlay opened for a blink — a sub-second drop is not an outage",
+  )
+});
+
+/**
+ * THE CONNECTION DID NOT FLAP — a sample over a window LONGER than the
+ * transport's fatal silence (5s ping, fatal on the next tick: 10s). `the
+ * connection is "live"` is read once, and a wire that opens and then dies
+ * behind a frame still says `live` at that instant; the defect is the death ten
+ * seconds later, so it has to be watched rather than sampled once.
+ *
+ * The window here is 15s: enough for one keepalive cycle to notice a starved
+ * pong, short enough to sit inside the interaction deadline.
+ */
+Then("the connection stays {string}", async function (this: OlaiWorld, state: string) {
+  const deadline = Date.now() + 15_000
+  for (;;) {
+    const seen = await this.page
+      .locator(OFFLINE)
+      .first()
+      .getAttribute("data-connection", { timeout: 0 })
+      .catch(() => null)
+    assert.strictEqual(
+      seen,
+      state,
+      `the connection left ${JSON.stringify(state)} (it is ${seen === null ? "absent" : `"${seen}"`})`,
+    )
+    if (Date.now() > deadline) return
+    await new Promise((done) => setTimeout(done, 250))
+  }
+});
+

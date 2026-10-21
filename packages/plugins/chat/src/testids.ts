@@ -336,6 +336,12 @@ export const TESTID = {
    *  again, on screen. */
   chatMissingWhy: "chat-missing-why",
   chatTranscript: "chat-transcript",
+  /** THE "earlier messages" DOOR above the transcript — drawn only while the
+   *  conversation has rows older than the window this tab was handed, which is
+   *  what a long chat does (juspay/olai#663). `data-earlier` is how many rows
+   *  are still older, as DATA, so a scenario reads the fact rather than parsing
+   *  the sentence around it; `disabled` is a page in flight. */
+  chatEarlier: "chat-earlier",
   /** The panel saying a dragged file would land HERE: drawn over the
    *  transcript and the composer while a drag carrying files is over them,
    *  and gone the moment it is not. */

@@ -15,7 +15,7 @@
 
 import { expect, test } from "bun:test"
 
-import { frozenLookOf, lookOf, LOOK, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
+import { frozenLookOf, isFrozen, lookOf, LOOK, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
 
 /** The states the table answers for, DERIVED from it — which is not a table
  *  checked against itself, because membership is already a type-level
@@ -36,11 +36,13 @@ const STATES: ReadonlyArray<SurfaceReadoutStatus> = [...TABLED, "degraded"]
  *  readout's rule and pinned upstream, nothing here reads the bit (it is
  *  `Offline.tsx`'s, which draws the reload offer on the freeze it is true
  *  under), and re-deriving it in a fixture would be that rule
- *  living on as a second copy in a file about wording. */
-const readoutOf = (status: SurfaceReadoutStatus): SurfaceReadout =>
+ *  living on as a second copy in a file about wording. `presentingDown` is the
+ *  readout's grace-windowed bit, also upstream's rule; the sweep at the foot of
+ *  this file sets it explicitly because that is the fact the freeze reads. */
+const readoutOf = (status: SurfaceReadoutStatus, presentingDown = false): SurfaceReadout =>
   status === "degraded"
-    ? { status, stopped: ["documents.keys"], needsReload: false }
-    : { status, needsReload: false }
+    ? { status, stopped: ["documents.keys"], needsReload: false, presentingDown: false }
+    : { status, needsReload: false, presentingDown }
 
 // The bug this pill was built around, in one assertion: a tab the server closed
 // at the handshake — the wire retired, never to dial again — must not be drawn
@@ -87,6 +89,7 @@ test("the degraded detail names what stopped", () => {
       status: "degraded",
       stopped: ["documents.keys", "transcript"],
       needsReload: false,
+      presentingDown: false,
     }).detail,
   ).toContain("documents.keys, transcript")
 })
@@ -110,10 +113,10 @@ test("the connection's words are plain", () => {
 // it under that. A dropped wire is `Connection lost` over `Reconnecting…`; a
 // replaced server is its own words over the Reload the card draws.
 test("the freeze card says what happened, then what is being done", () => {
-  expect(frozenLookOf({ status: "reconnecting", needsReload: false }))
+  expect(frozenLookOf({ status: "reconnecting", needsReload: false, presentingDown: true }))
     .toEqual({ title: "Connection lost", line: "Reconnecting…" })
-  expect(frozenLookOf({ status: "connecting", needsReload: false })).toEqual({ title: "Connecting…" })
-  expect(frozenLookOf({ status: "retired", needsReload: true }))
+  expect(frozenLookOf({ status: "connecting", needsReload: false, presentingDown: false })).toEqual({ title: "Connecting…" })
+  expect(frozenLookOf({ status: "retired", needsReload: true, presentingDown: true }))
     .toEqual({ title: "The server restarted", line: "Reload the page to keep working." })
 })
 
@@ -126,4 +129,34 @@ test("the dot's tone: live is healthy, a first connect is quiet, only a replaced
   for (const state of STATES.filter((s) => s !== "live" && s !== "connecting" && s !== "retired")) {
     expect(lookOf(readoutOf(state)).tone).toBe("notice")
   }
+})
+
+// THE FREEZE IS THE READOUT'S BIT, plus the one drop this page asked for. What
+// is checked here is that olai adds NOTHING to the grace: the framework decides
+// when a down state presents, and the only local exception is the latched
+// roster redial. A state quietly inheriting a second grace here is what the
+// sweep catches.
+test("the freeze waits for the readout's presenting bit, not a local state list", () => {
+  // A drop the wire is still within its grace on: not presented, not frozen.
+  expect(isFrozen(readoutOf("reconnecting"), false)).toBe(false)
+  // The first dial is not a local exception any more: it presents on the same
+  // window as every other down state.
+  expect(isFrozen(readoutOf("connecting"), false)).toBe(false)
+  // The same drop once the framework says it has presented.
+  expect(isFrozen(readoutOf("reconnecting", true), false)).toBe(true)
+  // A replaced server presents at once — the framework's terminal rule, read
+  // through the same bit.
+  expect(isFrozen(readoutOf("retired", true), false)).toBe(true)
+  // Reachable is never frozen, whatever the latch says: the falling edge.
+  expect(isFrozen(readoutOf("live"), true)).toBe(false)
+  expect(isFrozen(readoutOf("degraded"), true)).toBe(false)
+})
+
+test("a roster change this page asked for freezes at once, and only while down", () => {
+  // The grace has not elapsed, but the redial is ours: frozen from the first
+  // frame, so the keyboard hand-back has an owner.
+  expect(isFrozen(readoutOf("reconnecting"), true)).toBe(true)
+  expect(isFrozen(readoutOf("connecting"), true)).toBe(true)
+  // The latch cannot outlive the down-state it was set on.
+  expect(isFrozen(readoutOf("live"), true)).toBe(false)
 })

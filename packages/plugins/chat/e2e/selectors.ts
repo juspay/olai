@@ -67,6 +67,10 @@ export const CHAT_SESSION_UNREACHABLE = selector(TESTID.chatSessionUnreachable);
  *  and the sentence alone could not pick it out of two sharing a title. */
 export const CHAT_SESSION_SUPERSEDED = selector(TESTID.chatSessionSuperseded);
 export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
+/** The "earlier messages" door above the transcript — drawn only while the
+ *  conversation has rows older than the window this tab was handed.
+ *  `data-earlier` is how many, as DATA. */
+export const CHAT_EARLIER = selector(TESTID.chatEarlier);
 /** The strip under the chat header: which MCP servers this conversation has.
  *  Drawn on every conversation, so its absence means there is none. */
 export const CHAT_ROSTER = selector(TESTID.chatRoster);

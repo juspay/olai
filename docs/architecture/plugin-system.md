@@ -596,6 +596,20 @@ Established by reading the pinned sources and proved by
   part of the contract: any broker replacing or wrapping `Wired` owes consumers
   the same statement, and owes a decision about whether a consumer is told the
   gap is open rather than left to infer it.
+- **A snapshot must not scale with what the user has written.** The fresh
+  snapshot a redial takes is the subscription's whole state, and for a
+  content-sized collection that is the whole of it — chat's transcript used to
+  ship a long conversation as one several-megabyte frame, which takes longer on a
+  slow link than Effect RPC's keepalive budget, so the pong queued behind it and
+  the socket died (`juspay/olai#663`). The transcript now ships the newest
+  `TRANSCRIPT_WINDOW` rows — the oldest `seq` in them says how many are older —
+  and `conversation.earlier` answers those pages for a reader who asks. This is
+  the olai half of the fix; the framework half (byte-bounded frames with
+  backpressure, liveness-as-progress, and the graced down-state on the readout)
+  is kolu's, and this pin carries it: the readout's `presentingDown` is what
+  gates the overlay, and a coalesced delta that outgrows the chunk budget is
+  split into ack-gated frames, so a long STORED conversation's first open no
+  longer arrives as one frame either.
 - **A call on a departed plugin is refused three ways, never hangs, never
   silently succeeds.** Before the tab redials the server raises
   `SurfaceSiblingDropped`; a call in flight on the superseded connection is

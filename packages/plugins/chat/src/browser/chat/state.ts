@@ -16,8 +16,15 @@ import { Effect } from "effect"
  * that line for a caller with something to say that no round trip produced.
  *
  * The transcript is a COLLECTION served with batched deltas, which is why a tab
- * opened halfway through a turn shows the whole conversation: its first frame is
- * the snapshot. Rows are sorted by their own `seq` rather than by the order the
+ * opened halfway through a turn shows the conversation at once: its first frame
+ * is the snapshot. THE SNAPSHOT IS A WINDOW, not the whole conversation — the
+ * newest `TRANSCRIPT_WINDOW` rows — and the rows before it are pulled a page at
+ * a time through `conversation.earlier`, which is what keeps a long
+ * conversation's reconnect a small frame instead of several MB (juspay/olai#663,
+ * {@link ./state.ts} builds both halves into the one `rows` list). A RECONNECT
+ * NEVER TAKES A ROW AWAY: the frame the store prunes goes into a client-held
+ * map, and only a conversation that restarted under the tab empties it. Rows are
+ * sorted by their own `seq` rather than by the order the
  * keys arrived, because arrival order is a delivery detail and the conversation
  * has an order of its own — and that sort is a FOLD over the frames rather than
  * a pass over the whole transcript per frame ({@link ./order.ts}).
@@ -42,7 +49,7 @@ import { Effect } from "effect"
  * click is a DOM event, and the boundary between them belongs somewhere named.
  */
 
-import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, type PanelAddress, agentIn, transcriptRows, sayingRows } from "olai-plugin-chat/wire"
+import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, type PanelAddress, agentIn, transcriptRows, sayingRows, TRANSCRIPT_PAGE } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
 import { type AskAnswer } from "@olai/acp/wire"
 import { type Accessor, createEffect, createMemo, createSelector, createSignal, on, onCleanup } from "solid-js"
@@ -50,7 +57,7 @@ import { chatWire } from "../wire.ts"
 
 import { type Call, run, runAsync } from "@olai/web/client/run.ts"
 import { attaching, type UploadProgress } from "./attach.ts"
-import { createRows } from "./order.ts"
+import { createRows, orderOf } from "./order.ts"
 import { createTail, grownText } from "./growing.ts"
 import { createConversationUI, type ConversationUI } from "./ui.tsx"
 
@@ -91,6 +98,23 @@ export interface Chat {
   /** One row's current value, read lazily inside that row. `undefined` while a
    *  key is in the list and its value has not arrived (or has just left). */
   readonly entry: (key: string) => Accessor<ChatEntry | undefined>
+  /**
+   * HOW MANY ROWS OF THIS CONVERSATION ARE OLDER THAN WHAT THE TAB HOLDS — the
+   * number on the "earlier messages" door, and the reason a long chat lands
+   * without shipping its whole history (juspay/olai#663).
+   *
+   * It is the oldest `seq` this tab holds: rows carry a dense `seq` from `0`
+   * (`transcript.ts`), so the oldest one names exactly the rows below it that
+   * the tab has never had. It reaches ZERO when the reader has walked back to
+   * the start, which is what hides the door.
+   */
+  readonly earlier: Accessor<number>
+  /** The "earlier messages" fetch is in flight — the door's own pressed state. */
+  readonly earlierLoading: Accessor<boolean>
+  /** Pull the next page of older rows. A no-op while nothing is older, while a
+   *  page is already in flight, and before the conversation has a first frame to
+   *  take an oldest `seq` from. */
+  readonly loadEarlier: () => void
   /** The last thing a VERB refused — an empty message, a turn already running.
    *  Separate from `state().trouble`, which is what went wrong where nobody was
    *  waiting: this one belongs to the click that caused it. */
@@ -257,10 +281,35 @@ export const createChatState = (conv: PanelAddress, expected?: Conversing | null
   })
 }
 
+/**
+ * DID THE CONVERSATION RESTART UNDER THE TAB WHILE IT WAS AWAY?
+ *
+ * A snapshot that shares NO key with what the tab holds can be two things: a
+ * conversation that restarted while the socket was down (a fresh start or a
+ * replay — `seq` begins again at `0`), or a window that moved entirely past the
+ * rows the tab holds because the conversation merely grew while it was away.
+ * The second KEEPS its rows: its window begins after everything the tab holds.
+ * So the restart is the one whose snapshot begins at or below where the held
+ * rows begin. A snapshot that shares a key is the same conversation, always.
+ */
+const restartedUnderneath = (
+  held: ReadonlyMap<string, ChatEntry>,
+  entries: ReadonlyArray<readonly [string, ChatEntry]>,
+): boolean => {
+  if (entries.length === 0) return false
+  let oldestSnapshot = Infinity
+  for (const [key, row] of entries) {
+    if (held.has(key)) return false
+    if (row.seq < oldestSnapshot) oldestSnapshot = row.seq
+  }
+  let oldestHeld = Infinity
+  for (const row of held.values()) if (row.seq < oldestHeld) oldestHeld = row.seq
+  return oldestSnapshot <= oldestHeld
+}
+
 // A procedure can settle after the drawer that started it was remounted. Its
 // refusal belongs to this tab's gesture, not to that discarded panel instance.
-export const createChat = (conv: PanelAddress, options: { readonly ui?: ConversationUI; readonly expected?: Conversing | null; readonly visit?: (to: Conversing) => void } = {}): Chat => {
-  const ui = options.ui ?? createConversationUI()
+export const createChat = (conv: PanelAddress, options: { readonly ui?: ConversationUI; readonly expected?: Conversing | null; readonly visit?: (to: Conversing) => void } = {}): Chat => {  const ui = options.ui ?? createConversationUI()
   const { closePreview } = ui.previewing
   const [refused, setRefused] = ui.refused
   const served = createChatState(conv, options.expected)
@@ -315,14 +364,162 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
    * long conversation woke its whole transcript: quadratic over a turn.
    */
   const growing = createSelector(said.of)
-  const entry = (key: string): Accessor<ChatEntry | undefined> => () =>
-    growing(key) ? grown() : transcript.byKey(key)?.()
 
   // THE ORDER, FOLDED — the wire's own frames accumulated into a key list
   // instead of the whole transcript being re-read and re-sorted per frame.
   // {@link ./order.ts} is where that shape is argued and where the reader's
-  // half of it lives with it.
-  const rows = createRows(transcript.fold)
+  // half of it lives with it. This is the LIVE WINDOW the server ships; the
+  // rows a reconnect prunes out of it are kept below.
+  const window = createRows(transcript.fold)
+
+  /**
+   * EVERY ROW THIS TAB HOLDS, ACROSS RE-SEEDS.
+   *
+   * The collection store is the LIVE WINDOW: a reconnect re-ships the newest
+   * `TRANSCRIPT_WINDOW` rows, and the framework's snapshot arm drops every key
+   * outside it. That is right for the wire and wrong for the reader — a person
+   * four hundred rows up, or one who had just pulled five pages, lost all of it
+   * on a sub-second blink. Rows are immutable history with a dense `seq`, so
+   * this map keeps them: the fold below MERGES a snapshot into it rather than
+   * replacing, and only a conversation that RESTARTED under the tab (a fresh
+   * start or a replay, whose `seq` begins again) empties it.
+   *
+   * A plain `Map` and not a store: rows that have left the window never change
+   * again, and the live ones are read from the collection store for their
+   * per-key reactivity ({@link entry}). {@link history} is the view of this map
+   * outside the window.
+   */
+  let held = new Map<string, ChatEntry>()
+  let heldSession: string | null | undefined
+  const [revision, setRevision] = createSignal(0)
+  transcript.fold<void>({
+    init: (entries) => {
+      const session = served().session?.id ?? null
+      const restarted = held.size === 0
+        || session !== heldSession
+        || restartedUnderneath(held, entries)
+      heldSession = session
+      if (restarted) {
+        held = new Map(entries.map(([key, row]) => [key, row]))
+        setRevision((count) => count + 1)
+      } else {
+        for (const [key, row] of entries) held.set(key, row)
+      }
+    },
+    step: (_held, delta) => {
+      for (const key of delta.removes) held.delete(key)
+      for (const [key, row] of delta.upserts) held.set(key, row)
+    },
+  })
+
+  const [earlierLoading, setEarlierLoading] = createSignal(false)
+
+  /**
+   * THE ROWS THIS TAB HOLDS THAT ARE NOT IN THE LIVE WINDOW — what a reconnect
+   * pruned, plus every page pulled. Rebuilt when the window's key set moves (a
+   * re-seed, a new row, a clear) or when a page lands; the ordering is
+   * {@link ./order.ts}'s, one walk below, so this map stays unordered.
+   */
+  const history = createMemo(() => {
+    revision()
+    const inWindow = new Set(window.keys())
+    return new Map([...held].filter(([key]) => !inWindow.has(key)))
+  })
+
+  /** ... ordered and cut the way the fold cuts its own — one walk, rebuilt only
+   *  when a page lands or the window re-seeds. */
+  const older = createMemo(() => orderOf([...history().values()]))
+
+  /**
+   * One row's value — with whatever is still being said laid onto it, when it
+   * is the row being said into.
+   *
+   * THE JOIN IS HERE rather than in the component that draws the text, so that
+   * everything downstream — the row, the lane above it, the minimized pill's
+   * last message — reads one complete row and no consumer has to know the wire
+   * delivers a growing one in two halves ({@link ./growing.ts}).
+   *
+   * WHICH row is growing is asked of a memo that moves once a paragraph, and
+   * through a SELECTOR over it, so a paragraph opening wakes the row that stops
+   * growing and the row that starts — not every row on screen. Reading the memo
+   * itself put every row on it, so every message that opened a paragraph in a
+   * long conversation woke its whole transcript: quadratic over a turn.
+   *
+   * A HISTORY ROW IS NEVER THE GROWING ONE (it is older than the window the
+   * live row is in), so the live window is read first and the join is left to
+   * it; a key the window no longer holds is answered from {@link history}.
+   */
+  const entry = (key: string): Accessor<ChatEntry | undefined> => () => {
+    const live = transcript.byKey(key)
+    if (live !== undefined) return growing(key) ? grown() : live()
+    return history().get(key)
+  }
+
+  /** THE COLUMN, whole: the pulled pages above the live window. Every history
+   *  `seq` is below every window `seq` and nothing is in both, so the two lists
+   *  concatenate in conversation order with no merge. */
+  const rows = createMemo(() => [...older().keys, ...window.keys()])
+
+  /** ... and the LANES, the same way: an agent's calls are never split across
+   *  the boundary (its calls are newer than the frame that sent it out), so the
+   *  two maps are disjoint and one spread combines them. */
+  const lanes = createMemo(() => {
+    const pulled = older().lanes
+    const live = window.lanes()
+    if (pulled.size === 0) return live
+    if (live.size === 0) return pulled
+    return new Map([...pulled, ...live])
+  })
+
+  /**
+   * THE OLDEST `seq` THIS TAB KNOWS — read from the WINDOW's first key (the fold
+   * keeps the keys in `seq` order) and, once history exists, from that instead;
+   * the two sources are contiguous, so the minimum over both is the boundary
+   * the next page is fetched below.
+   */
+  const oldest = (): number | undefined => {
+    let min: number | undefined
+    for (const row of history().values()) if (min === undefined || row.seq < min) min = row.seq
+    const first = window.keys()[0]
+    if (first !== undefined) {
+      const seq = transcript.byKey(first)?.()?.seq
+      if (seq !== undefined && (min === undefined || seq < min)) min = seq
+    }
+    return min
+  }
+
+  /**
+   * HOW MANY ROWS ARE STILL OLDER THAN WHAT THIS TAB HOLDS — the number on the
+   * door, and what hides it.
+   *
+   * ONE READING: {@link oldest}. A row's `seq` is dense from `0` in a
+   * conversation (`transcript.ts` mints them `0, 1, 2…`, and only a clear
+   * restarts the count), so the oldest `seq` this tab holds IS the number of
+   * rows below it — the rows it has never had. That is also the boundary the
+   * next page is fetched below ({@link loadEarlier}), so the door's number and
+   * the fetch cannot name two different rows.
+   */
+  const earlier = createMemo(() => oldest() ?? 0)
+
+  const loadEarlier = (): void => {
+    if (earlierLoading() || earlier() === 0) return
+    const before = oldest()
+    if (before === undefined || before <= 0) return
+    setEarlierLoading(true)
+    run(
+      chatWire().procedures.conversation.earlier({ conv, before, limit: TRANSCRIPT_PAGE }),
+      (failure) => {
+        setEarlierLoading(false)
+        setRefused(failure)
+      },
+      (page) => {
+        setEarlierLoading(false)
+        if (page.length === 0) return
+        for (const row of page) held.set(row.id, row)
+        setRevision((count) => count + 1)
+      },
+    )
+  }
 
   /**
    * THE WORDS THE AGENT WOULD NOT TAKE BECAUSE NOBODY IS SIGNED IN, handed back
@@ -350,7 +547,7 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
     // the box is the better place for these words: `/login` on an agent that
     // needs no signature must not reach back for an old refusal.
     if (served().signIn === null) return null
-    const keys = rows.keys()
+    const keys = rows()
     for (let at = keys.length - 1; at >= 0; at--) {
       const row = entry(keys[at]!)()
       // The NEWEST thing a person said, which is the only candidate: whatever is
@@ -491,9 +688,12 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
 
   return {
     state,
-    rows: rows.keys,
-    lanes: rows.lanes,
+    rows,
+    lanes,
     entry,
+    earlier,
+    earlierLoading,
+    loadEarlier,
     ui,
     refused,
     pendingSends,

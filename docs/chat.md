@@ -128,6 +128,36 @@ Terminal-backed tool calls show stdout and stderr as they arrive, followed by th
 
 Screenshots: [session settings](images/acp/acp-session-settings.png), [execution plan](images/acp/acp-execution-plan.png), [terminal output](images/acp/acp-terminal-output.png).
 
+## A long conversation arrives at its end
+
+Opening a conversation subscribes to its transcript as a *window*: the newest
+sixty rows, plus a count of the rows older than them. The panel draws that
+window as the conversation and, when the count is nonzero, an **Earlier
+messages** door above the newest rows. Pressing it fetches the page of rows
+immediately before what is on screen, so scrolling back walks the conversation a
+page at a time with no gaps, and the door disappears once the start is reached.
+
+Why a window and not the whole conversation: the transcript is a surface
+collection, and a subscription's first frame is a snapshot of the whole set — so
+a conversation thousands of messages long used to reach the tab as one
+several-megabyte frame. On a slow link that frame outlasted the transport's
+keepalive, the pong queued behind it, the socket died with a ping timeout, the
+tab redialled, and the server resent the whole thing. Short chats fit; long ones
+never did. The window makes a reconnect cost one screen of rows instead of the
+conversation.
+
+The live half is unchanged: rows that stream in while you watch still arrive as
+batched deltas, and a reconnect re-ships only the window. A reconnect never
+takes a row away: the rows that fall below the fresh window move into a
+client-held history and stay on screen, and only a conversation that restarted
+under the tab (a fresh start or a replay) empties it. The door is for rows this
+tab never had — a tab that joined a conversation another tab was already
+holding, whose first frame is the window. A sub-second drop no longer freezes
+the page at all: the offline overlay waits for the down-state to persist, so a
+redial that heals quickly is invisible. See [the connection
+feature](../packages/tests/features/the_connection.feature) for the freeze
+contract.
+
 ## Which conversation you come back to
 
 Server boot opens no conversation. Reload folds every outline conversation;
