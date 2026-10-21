@@ -45,13 +45,13 @@ export const ENGINE: Registering = {
     // the answer is this engine's own sentence rather than a dropped row —
     // the roster publishes it, the picker draws it greyed.
     if (bin === null) return INSTALL
-    // `--cwd` rather than the child's own working directory, because opencode
-    // reads it for WHICH SESSIONS THE DIRECTORY HAS as well as for where to
-    // run: `session/list` ignores the `cwd` a request carries, so the one on
-    // the command line is the only one it hears. (The client-side filter over
-    // that answer is mandatory either way — see `olai-plugin-chat`'s `agent.ts` and
-    // its `storedFor`.)
-    return { command: bin, args: ["acp", "--cwd", where.cwd] }
+    // No `--cwd`: opencode 2 dropped the flag and answers it with its usage
+    // text on stdout, which is not ACP. The spawn already runs the child in
+    // the served directory (`olai-plugin-chat`'s `agent.ts`), and both
+    // generations read their directory from there when no flag names one.
+    // The client-side filter over `session/list` stays mandatory either way
+    // (`agent.ts` and its `storedFor`).
+    return { command: bin, args: ["acp"] }
   },
   // `_session/steering` does not exist on this wire and neither does a system
   // prompt: the standing instruction rides the first turn, like every engine
