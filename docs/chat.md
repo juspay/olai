@@ -450,7 +450,9 @@ That used to be invisible here, and the incident is worth keeping: an orchestrat
   │ still running…
 ```
 
-What is on it is what the harness itself says: the **description** the task was armed with, which is what you recognise your own watch by (the call's title is `Bash`); the **clock**, which is the same readout every running call gets and ticks here for as long as the task is out; and the **rail** under it, the same one a spawned agent hangs, saying something is still going on down there.
+What is on it is what the harness itself says: the **description** the task was armed with, which is what you recognise your own watch by (the row itself is named by the command, which is a long line and not a name you gave it); the **clock**, which is the same readout every running call gets and ticks here for as long as the task is out; and the **rail** under it, the same one a spawned agent hangs, saying something is still going on down there.
+
+**What it does not get is a terminal pane.** A background command's launch succeeds the moment the command is running, so the shell tool answers at once — with the harness's *Command running in background with ID …* notice and an exit code of zero. That is the exit of the **launch**, not of the task, and a pane reading *Exit 0* under a row the strip says is still running is the panel contradicting itself. So a frame that arms a task contributes no terminal at all, and the pane its announcement opened goes with it. Nothing is lost: the notice is bookkeeping the row says better, the ending arrives from the harness, and the command's own output is read back by a later call with a row of its own.
 
 **While it is out, it is at the top of the panel too** — a strip under the agent line, beside the one naming this conversation's tool servers, saying what is running and for how long:
 

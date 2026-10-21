@@ -2093,6 +2093,13 @@ Feature: Talking to a node agent
     Then the chat says a background task is watching "kolu fleet watch"
     And the chat says that task is still running
     And the chat says how long a running call has been going
+    # ... and NOT a pane saying it is over. The launch of a background command
+    # SUCCEEDS the moment the command is running, so the adapter's terminal
+    # corners on this very frame carry the harness's "Command running in
+    # background with ID …" notice and `exit_code: 0` — the exit of the LAUNCH.
+    # Drawn, that is *Exit 0* under a row the line above says is still running.
+    # The launch is not the task, so the call contributes no terminal at all.
+    And there is no terminal output
     # ... and the STRIP says it too, above the scroll. That is not a second copy
     # of the row: it is the half a row at its birth position cannot serve, since
     # by the time somebody asks whether their watch is still up, the answer is
@@ -2117,6 +2124,9 @@ Feature: Talking to a node agent
     And the chat says nothing is running in the background
     And the chat says that task ended "failed"
     And the chat shows the harness saying "exit code 3"
+    # ... and still no pane: nothing about this call was ever a terminal, so
+    # its death does not grow one either.
+    And there is no terminal output
 
   @scratch:chat
   Scenario: An async agent's report folds under the spawning row, never as a person speaking

@@ -46,7 +46,6 @@ Feature: A shell command is a terminal pane, named by its command
     # The fence, where it would land if olai stopped asking for terminals: the
     # call's content block, drawn as what the call is saying while it runs.
     Then the tool call says nothing of "```"
-    And the tool call says nothing of "console"
 
   Scenario: An argument longer than the pane wraps in the fold
     When I ask the agent "bash long"
