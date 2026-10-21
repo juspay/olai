@@ -22,14 +22,15 @@
 #   - the SEEDS: the packages olai's own source imports directly. Everything
 #     they depend on arrives on its own. Adding an import that reaches a new
 #     kolu package is still one line here — it is just no longer thirty.
-#   - the GRAFT for `osfacts-client`, which is not in the kolu repository at
-#     all (gitignored there, and therefore absent from the archive npins
-#     fetches). kolu names it in the closure and says which pin and revision it
-#     must come from; olai supplies the tree from its own `osfacts` pin and
-#     kolu REFUSES AT EVAL if the two revisions disagree. That refusal is what
-#     retired `scripts/check-osfacts-pin.sh`: the check moved from a shell
-#     script running in one `just` leg to the moment the build graph is
-#     evaluated, which is every leg.
+#   - the GRAFTS, for the packages that are not in the kolu repository at all
+#     (gitignored there, and therefore absent from the archive npins fetches):
+#     `osfacts-client`, from olai's `osfacts` pin, and `@juspay/agent-distro`
+#     (kolu#2312's closure), from olai's `agent-distro` pin. kolu names each in
+#     the closure and says which pin and revision it must come from; olai
+#     supplies the tree and kolu REFUSES AT EVAL if the two revisions disagree.
+#     That refusal is what retired `scripts/check-osfacts-pin.sh`: the check
+#     moved from a shell script running in one `just` leg to the moment the
+#     build graph is evaluated, which is every leg.
 #
 # The sources are consumed as raw TypeScript — there is no build step, which is
 # also why every one of them is compiled by olai's own `tsc` and why a source
@@ -51,6 +52,14 @@
 #   * PR #2235 — parameterized collection streams share a subscription by
 #     static input until their last owner leaves.
 #     https://github.com/juspay/kolu/pull/2235
+#
+#   * PR #2312 — a slow link no longer kills a connection: a collection snapshot
+#     or over-budget delta is split into ack-gated frames, a probe is voided by
+#     any frame that arrived since it launched, and the readout carries
+#     `presentingDown`, the grace-windowed down-state. `connection/status.ts`
+#     gates the freeze on that bit (the roster latch is olai's own), and the
+#     window's `conversation.earlier` no longer has a first-open frame to fear.
+#     https://github.com/juspay/kolu/pull/2312
 #
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:
 # the slug is kolu's now, and a consumer inventing its own would be one more
