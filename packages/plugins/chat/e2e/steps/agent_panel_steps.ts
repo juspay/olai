@@ -158,7 +158,7 @@ Then("the page is the agent {string}", async function (this: OlaiWorld, node: st
 
 Then("the page is still the outline {string}", async function (this: OlaiWorld, file: string) {
   await this.frontLane()
-    .locator(`[data-testid="pane"][data-drawn-file="${file}"]`)
+    .locator(`[data-testid="pane"]${attr("data-drawn-file", file)}`)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
