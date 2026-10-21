@@ -27,9 +27,9 @@ describe("finding opencode on a host", () => {
       }),
     ).toEqual({
       command: "/usr/bin/opencode",
-      // `--cwd` on the command line is the only cwd opencode's session list
-      // hears — see the probe.
-      args: ["acp", "--cwd", CWD],
+      // No `--cwd`: opencode 2 answers it with usage text, not ACP. The
+      // spawn runs the child in this directory instead — see the probe.
+      args: ["acp"],
     })
   })
 
