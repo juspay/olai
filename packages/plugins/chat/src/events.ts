@@ -155,6 +155,16 @@ export type AgentEvent =
      * description it was armed with.
      */
     readonly armed: Armed | undefined
+    /**
+     * ... and that the TITLE on this frame is a placeholder rather than the
+     * call's name (`@olai/acp/engine`'s `Leg`'s `provisionalTitle`).
+     *
+     * `undefined` reads as "not provisional" rather than "unchanged", which is
+     * the one place here that departs from every field beside it — and it has
+     * to: the claim is scoped to the title THIS frame carried, so carrying it
+     * forward would make a name that was refined once refinable forever.
+     */
+    readonly provisional: boolean | undefined
   }
   /**
    * The agent asked a person something, and the turn is stopped until it is

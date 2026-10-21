@@ -1488,6 +1488,36 @@ const clientCanElicitUrl = (): boolean => {
   return elicitation?.url != null
 }
 
+/**
+ * Whether the client ASKED for the terminal-output extension — the one
+ * capability that changes what a shell call's result IS rather than what the
+ * panel does with it. Read in one place because two verbs branch on it, an
+ * ordinary command and a BACKGROUND one, and a fake that answered the two
+ * differently would be the one place this suite could not notice a leg that
+ * stopped asking.
+ */
+const terminalsAdvertised = (): boolean =>
+  (capabilities["_meta"] as { terminal_output?: unknown } | null | undefined)
+    ?.terminal_output === true
+
+/**
+ * ... and the adapter's own spelling for one shell call, so the two verbs
+ * share a vocabulary rather than a copy. The handle is the CALL's id, which is
+ * what the real one names (`tools.js`); `fenced` is what it sends INSTEAD to a
+ * client that asked for no terminal — the output trimmed at its end with a
+ * newline before the closing backticks, byte for byte.
+ */
+const shellTerminal = (call: string) => ({
+  block: { type: "terminal", terminalId: call },
+  info: { terminal_info: { terminal_id: call } },
+  output: (data: string) => ({ terminal_output: { terminal_id: call, data } }),
+  exit: (code: number) => ({ terminal_exit: { terminal_id: call, exit_code: code, signal: null } }),
+  fenced: (data: string) => ({
+    type: "content",
+    content: { type: "text", text: "```console\n" + data.trimEnd() + "\n```" },
+  }),
+})
+
 /** `… attaching invoice.pdf, notes.txt` — the files a drafting phrase names.
  *  The mail tools take ABSOLUTE paths, which is what an agent holds: a name
  *  relative to the session's own directory is resolved against it here,
@@ -1757,6 +1787,81 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     say("Terminal released: " + JSON.stringify({ exit, output }))
     reply(id, { stopReason: cancelled ? "cancelled" : "end_turn" }); return
   }
+
+  /**
+   * A SHELL COMMAND, in the frames the pinned Claude Code adapter actually
+   * sends — two of which the panel got wrong.
+   *
+   * THE ANNOUNCEMENT HAS NO ARGUMENTS: the adapter emits it on the SDK's
+   * `content_block_start`, when all it knows is that a tool use has begun, so
+   * its title is derived from nothing and a shell call is announced as the
+   * bare word "Terminal". A panel that took that for the call's name drew a
+   * row called *Terminal* for the rest of the conversation.
+   *
+   * THE RESULT IS A TERMINAL ONLY IF THE CLIENT ASKED. Both arms are written
+   * because the second one is the regression: a leg that stopped advertising
+   * lands there, and the scenario fails on the backticks a person would have
+   * read rather than passing quietly.
+   *
+   * `bash long` is the same sequence with an argument longer than the fold,
+   * which the detail block has to wrap rather than scroll.
+   */
+  if (verb === "bash") {
+    const long = rest[0] === "long"
+    const command = long ? "cat notes.txt" : "echo hello"
+    const output = long ? "line one\n" : "hello\n"
+    const toolCallId = `call-${++nextMcpId}`
+    const asTerminal = terminalsAdvertised()
+    const term = shellTerminal(toolCallId)
+    const names = asTerminal ? { content: [term.block] } : {}
+    notify("session/update", { sessionId, update: {
+      sessionUpdate: "tool_call",
+      toolCallId,
+      title: "Terminal",
+      kind: "execute",
+      status: "pending",
+      rawInput: {},
+      ...names,
+      _meta: {
+        ...(isCodex ? {} : { claudeCode: { toolName: "Bash" } }),
+        ...(asTerminal ? term.info : {}),
+      },
+    } })
+    // The refinement carries no status, like the real one: nothing about the
+    // call moved, only what is known about it. The `description` rides along
+    // because the row must be named by the COMMAND rather than by the sentence
+    // the model wrote about it.
+    notify("session/update", { sessionId, update: {
+      sessionUpdate: "tool_call_update",
+      toolCallId,
+      title: command,
+      kind: "execute",
+      rawInput: { command, description: long ? unbroken("describe") : "Say hello" },
+    } })
+    // Output arrives on a frame of its own, before any ending — the shape a
+    // command that prints while it runs has.
+    if (asTerminal) {
+      notify("session/update", { sessionId, update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId,
+        _meta: term.output(output),
+      } })
+    }
+    // The ending MOVES the title. Once a frame has named the row a later one
+    // may not rename it, and the only way to pin that is to send a title a
+    // panel would be wrong to take.
+    notify("session/update", { sessionId, update: {
+      sessionUpdate: "tool_call_update",
+      toolCallId,
+      title: "Bash",
+      status: "completed",
+      ...(asTerminal
+        ? { ...names, _meta: term.exit(0) }
+        : { content: [term.fenced(output)] }),
+    } })
+    say("ran it")
+    reply(id, { stopReason: "end_turn" }); return
+  }
   if (verb === "vanish") process.exit(1)
 
   // A TURN THAT ANSWERS WITH AN ERROR INSTEAD OF A STOP REASON — and stays
@@ -2019,6 +2124,15 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const toolCallId = `call-${++nextMcpId}`
     const task = "bwa85c0r2"
     const description = "kolu fleet watch"
+    const notice = `Command running in background with ID: ${task}.`
+    // THE LAUNCH SUCCEEDED, so its terminal corners say that notice and
+    // `exit_code: 0` — about the launch, while the task it armed runs on. The
+    // adapter builds them with the very reader an ordinary command uses, and
+    // the patch olai carries keeps them on the arming frame, so this is what a
+    // client is really handed and what the panel must refuse to draw as the
+    // task's own ending.
+    const asTerminal = terminalsAdvertised()
+    const term = shellTerminal(toolCallId)
     notify("session/update", {
       sessionId,
       update: {
@@ -2027,7 +2141,11 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
         title: "kolu watch --states waiting,awaiting --held-for 60s --nag 10m",
         status: "pending",
         rawInput: { command: "kolu watch --states waiting,awaiting", run_in_background: true },
-        _meta: { claudeCode: { toolName: "Bash" } },
+        ...(asTerminal ? { content: [term.block] } : {}),
+        _meta: {
+          claudeCode: { toolName: "Bash" },
+          ...(asTerminal ? term.info : {}),
+        },
       },
     })
     notify("session/update", {
@@ -2041,12 +2159,10 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
             toolName: "Bash",
             backgroundTask: { taskId: task, taskType: "local_bash", description },
           },
+          ...(asTerminal ? { ...term.info, ...term.output(notice), ...term.exit(0) } : {}),
         },
-        rawOutput: `Command running in background with ID: ${task}.`,
-        content: [{
-          type: "content",
-          content: { type: "text", text: `Command running in background with ID: ${task}.` },
-        }],
+        rawOutput: notice,
+        content: asTerminal ? [term.block] : [term.fenced(notice)],
       },
     })
     say("armed the watch; I will keep working.")

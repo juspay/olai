@@ -745,6 +745,32 @@ const initIn = (params: unknown): { readonly [key: string]: unknown } | undefine
   return shape
 }
 
+// ── a command is a terminal, and its first title is not its name ───────
+
+/**
+ * Whether a frame's title is the adapter's PLACEHOLDER rather than the call's
+ * name — true for the announcement it writes before the model's arguments have
+ * parsed, false for everything after it.
+ *
+ * THE SHAPE: the adapter announces a tool call on the SDK's
+ * `content_block_start` (`acp-agent.js`), when all it has is that a tool use
+ * has begun, so the frame carries `rawInput: {}` — an input object with
+ * nothing in it, which is a different claim from an absent one — and a title
+ * derived from no arguments, which for the shell tool is the bare word
+ * "Terminal" (`tools.js`).
+ *
+ * BOTH FIELDS, not either: the frame kind alone would call an UPDATE carrying
+ * no arguments provisional, and the empty object alone would be read off
+ * frames that are not announcements. A call whose arguments really are empty
+ * is announced and refined with the same title, so nothing moves.
+ */
+export const provisionalTitleIn = (update: unknown): boolean => {
+  const frame = record(update)
+  if (frame?.["sessionUpdate"] !== "tool_call") return false
+  const input = record(frame["rawInput"])
+  return input !== undefined && Object.keys(input).length === 0
+}
+
 // ── the leg ────────────────────────────────────────────────────────────
 
 /**
@@ -794,6 +820,17 @@ export const CLAUDE: Leg = {
     modelIn: liveModelIn,
     serversIn: liveServersIn,
   },
+  // A SHELL COMMAND IS A TERMINAL PANE, and saying so is what buys it: asked
+  // (`_meta.terminal_output: true` on the handshake), the adapter reports Bash
+  // and PowerShell with `terminal_info` / `terminal_output` / `terminal_exit`
+  // and a `{type: "terminal"}` block; not asked, it fences the whole output
+  // into one markdown block and sends it as text — backticks a person reads,
+  // with no exit code anywhere (`tools.js`). The handle is the ADAPTER's:
+  // nothing here creates or releases it.
+  terminalOutput: true,
+  // ... and the title the announcement carries is not the call's name yet
+  // ({@link provisionalTitleIn}).
+  provisionalTitle: provisionalTitleIn,
   // The alias tiers and the picker id, which are this adapter's two bets
   // about models and used to sit in a leg-neutral file ({@link ./models.ts}).
   models: MODELS,

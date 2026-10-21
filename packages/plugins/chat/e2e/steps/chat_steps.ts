@@ -1350,6 +1350,35 @@ Then(
   },
 );
 
+/**
+ * ... and what the frame must say NOWHERE — line, fold, terminal pane and all.
+ * A negative claim, and it has to be: a client that did not ask the Claude
+ * adapter for terminals is sent the shell result fenced into a markdown
+ * ```` ```console ```` block, and WHERE those backticks land depends on which
+ * half of the bug is present.
+ */
+Then(
+  "the tool call says nothing of {string}",
+  async function (this: OlaiWorld, said: string) {
+    const tool = heldTool(this);
+    await tool.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const shown = await tool.innerText();
+    assert.ok(
+      !shown.includes(said),
+      `the tool call shows ${JSON.stringify(said)}; it reads: ${shown}`,
+    );
+  },
+);
+
+/** A fold whose arguments are one long unbroken line: a `<pre>` that does not
+ *  wrap puts the end of that line somewhere a reader has to drag to, inside a
+ *  conversation that scrolls the other way ({@link panned}). */
+Then("the tool call does not scroll sideways", async function (this: OlaiWorld) {
+  await heldTool(this).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.deepStrictEqual(await panned(this, [CHAT_TOOL]), [],
+    "these boxes in the call have a horizontal scrollbar");
+});
+
 /** How many calls the conversation drew, which is the one thing a claim about
  *  a REPEATED report turns on: a frame that arrives twice must produce the row
  *  the first one produced and no second one. */
@@ -1623,38 +1652,38 @@ Then("the diff is expanded", async function (this: OlaiWorld) {
 });
 
 /**
- * Nothing in the diff — or in the panel that holds it — may grow a horizontal
- * scrollbar. Asked of the boxes that would actually scroll (`overflow-x: auto`
- * / `scroll`), not of every descendant: a truncated path has `scrollWidth`
- * past `clientWidth` by design and draws an ellipsis, not a bar.
+ * Every box under these roots that actually grew a horizontal scrollbar, named
+ * so a failure says which one. Asked only of boxes that WOULD scroll
+ * (`overflow-x: auto` / `scroll`): a truncated path is wider than its box by
+ * design and draws an ellipsis, not a bar.
  */
-Then("the diff does not scroll sideways", async function (this: OlaiWorld) {
-  const box = shownDiff(this);
-  await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const panned = await this.page.evaluate(
-    ({ diffSel, panelSel }) => {
-      const over = (node: Element): boolean => {
-        const ox = getComputedStyle(node).overflowX;
-        return (ox === "auto" || ox === "scroll") && node.scrollWidth > node.clientWidth + 1;
-      };
-      const named = (node: Element): string =>
-        `${node.tagName.toLowerCase()}${node.getAttribute("data-testid") ?? ""} ${node.scrollWidth}>${node.clientWidth}`;
-      const out: Array<string> = [];
-      for (const sel of [diffSel, panelSel]) {
-        const root = document.querySelector(sel);
-        if (root === null) {
-          out.push(`${sel} missing`);
-          continue;
-        }
-        for (const node of [root, ...root.querySelectorAll("*")]) {
-          if (over(node)) out.push(named(node));
+const panned = (world: OlaiWorld, selectors: ReadonlyArray<string>) =>
+  world.page.evaluate((sels: string[]) => {
+    const over = (node: Element): boolean => {
+      const ox = getComputedStyle(node).overflowX;
+      return (ox === "auto" || ox === "scroll") && node.scrollWidth > node.clientWidth + 1;
+    };
+    const out: Array<string> = [];
+    for (const sel of sels) {
+      const root = document.querySelector(sel);
+      if (root === null) {
+        out.push(`${sel} missing`);
+        continue;
+      }
+      for (const node of [root, ...root.querySelectorAll("*")]) {
+        if (over(node)) {
+          out.push(`${node.tagName.toLowerCase()}${node.getAttribute("data-testid") ?? ""} ${node.scrollWidth}>${node.clientWidth}`);
         }
       }
-      return out;
-    },
-    { diffSel: CHAT_DIFF, panelSel: CHAT_PANEL },
-  );
-  assert.deepStrictEqual(panned, [], "these boxes have a horizontal scrollbar");
+    }
+    return out;
+  }, [...selectors]);
+
+/** Neither the diff nor the panel holding it may grow one. */
+Then("the diff does not scroll sideways", async function (this: OlaiWorld) {
+  await shownDiff(this).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.deepStrictEqual(await panned(this, [CHAT_DIFF, CHAT_PANEL]), [],
+    "these boxes have a horizontal scrollbar");
 });
 
 /**

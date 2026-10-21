@@ -1543,6 +1543,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             parent: event.parent,
             spawned: event.spawned,
             armed: event.armed,
+            provisional: event.provisional,
           })
           if (
             !says(change)
