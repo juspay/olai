@@ -95,6 +95,7 @@ import type { Browser } from "playwright";
 
 import { ALERTS, recordAlerts } from "./alerts.ts";
 import { BROWSER_ARGS } from "./browser.ts";
+import { LAN_RESOLVER_ARG } from "./lan.ts";
 import { type LivePadi, startPadi } from "olai-plugin-kolu/appliance/testlib";
 import { type LiveOdu, startOduService } from "olai-plugin-odu/appliance/testlib";
 // THE MAIL ROW'S TWO FAKES AND ITS FOUR DOORS. All of it comes off the plugin's
@@ -1433,7 +1434,9 @@ BeforeAll(async () => {
   fixturesWere = fixtureStatus();
   browser = await chromium.launch({
     headless: process.env.HEADLESS !== "false",
-    args: [...BROWSER_ARGS],
+    // The LAN name only adds a route to loopback for one reserved name; every
+    // other scenario resolves exactly as before (./lan.ts).
+    args: [...BROWSER_ARGS, LAN_RESOLVER_ARG],
   });
 });
 

@@ -58,12 +58,15 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
 
   /** The tab's address as a link somebody can paste. A clipboard the browser
    *  refuses (plain http to another machine is the usual one) is not
-   *  swallowed: the address is handed over to copy by hand instead. */
+   *  swallowed: the address is handed over to copy by hand instead. Inside a
+   *  `then` because plain http does not refuse with a rejected write — it has
+   *  no `navigator.clipboard` at all, and the call throws before any promise
+   *  exists for a `catch` to hang on. */
   const copyAddress = (id: string): void => {
     const href = tabs.tabs().find((tab) => tab.id === id)?.href
     if (href === undefined) return
     const url = new URL(href, location.href).href
-    navigator.clipboard.writeText(url).catch(() => {
+    Promise.resolve().then(() => navigator.clipboard.writeText(url)).catch(() => {
       window.prompt("Couldn't copy the address. Copy it from here:", url)
     })
   }
