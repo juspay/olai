@@ -586,16 +586,22 @@ Established by reading the pinned sources and proved by
   module-scope constant holding the *connection* is safe; one holding a plugin's
   client is not, because a departing key is deleted from that object — which is
   what the holder pattern in each plugin's `browser/wire.ts` is for.
-- **Subscriptions return, but are not preserved.** Superseding the connection
-  fails every open subscription with a transport error; each resubscribes about a
-  second later and takes a fresh snapshot. A surviving subscription therefore
-  reads `pending` for roughly that second on every roster change, and `pending`
-  does not mark the readout degraded. So "nothing on this page has gone silent"
+- **A supersede moves the WIRE; standing subscriptions stay.** `redial` replaces
+  the transport underneath the connection (kolu#2228), and a roster change
+  recorded on this pin carried **no fresh transcript snapshot**: the
+  subscription is not failed and re-opened, so it does not read `pending` across
+  the change and no snapshot is re-shipped. A FRESH subscribe — a remount, a
+  second tab — is what takes a snapshot. (Measured by relaying the page's
+  `/rpc/ws` frames across a `git`-off roster change in
+  `chat_incremental_transcript`'s slow-link scenario: no transcript snapshot
+  arrived on the redial within 30 s. This corrects the previous claim that each
+  subscription "resubscribes about a second later and takes a fresh snapshot".)
+  What still holds is the practical half: "nothing on this page has gone silent"
   cannot prove frames are arriving again; only a test watching a value change
-  after the toggle can, which is what `filter_live_recovery` does. The gap is
-  part of the contract: any broker replacing or wrapping `Wired` owes consumers
-  the same statement, and owes a decision about whether a consumer is told the
-  gap is open rather than left to infer it.
+  after the toggle can, which is what `filter_live_recovery` does. The gap a
+  supersede used to open is closed by the transport swap; a broker replacing or
+  wrapping `Wired` still owes consumers a statement about whether a consumer is
+  told a gap is open rather than left to infer it.
 - **A snapshot must not scale with what the user has written.** The fresh
   snapshot a redial takes is the subscription's whole state, and for a
   content-sized collection that is the whole of it — chat's transcript used to
