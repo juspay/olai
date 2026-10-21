@@ -22,15 +22,26 @@
 #   - the SEEDS: the packages olai's own source imports directly. Everything
 #     they depend on arrives on its own. Adding an import that reaches a new
 #     kolu package is still one line here — it is just no longer thirty.
-#   - the GRAFTS, for the packages that are not in the kolu repository at all
-#     (gitignored there, and therefore absent from the archive npins fetches):
-#     `osfacts-client`, from olai's `osfacts` pin, and `@juspay/agent-distro`
-#     (kolu#2312's closure), from olai's `agent-distro` pin. kolu names each in
-#     the closure and says which pin and revision it must come from; olai
-#     supplies the tree and kolu REFUSES AT EVAL if the two revisions disagree.
-#     That refusal is what retired `scripts/check-osfacts-pin.sh`: the check
-#     moved from a shell script running in one `just` leg to the moment the
-#     build graph is evaluated, which is every leg.
+#   - the GRAFTS, for the four packages that are not in the kolu repository at
+#     all (gitignored there, and therefore absent from the archive npins
+#     fetches), each supplied from olai's own pin of the repo it belongs to:
+#
+#       * `osfacts-client` — kolu's supervisor manifest names it even though no
+#         published entry compiles it; olai's `osfacts` pin.
+#       * `@juspay/agent-distro` — kolu's agents work (#2273–#2303) made
+#         agent-distro a pinned workspace member, and `@kolu/agent-distro`
+#         imports its runtime tree; olai's `agent-distro` pin.
+#       * `@odu/run-client`, `@odu/run-history`, `@odu/service-client` — odu's
+#         own service contract, carried beside `@kolu/padi-client`; olai's
+#         `odu` pin, at the revision kolu's closure was built against.
+#
+#     kolu names each in the closure and says which pin and revision it must
+#     come from; olai supplies the tree and kolu REFUSES AT EVAL if the two
+#     revisions disagree. That refusal is what retired
+#     `scripts/check-osfacts-pin.sh`: the check moved from a shell script
+#     running in one `just` leg to the moment the build graph is evaluated,
+#     which is every leg. The kolu pin only decides WHICH revisions those are;
+#     it is not the reason any of them is a graft.
 #
 # The sources are consumed as raw TypeScript — there is no build step, which is
 # also why every one of them is compiled by olai's own `tsc` and why a source
