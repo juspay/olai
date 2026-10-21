@@ -25,8 +25,9 @@ including changes made by another tab while layout was absent. These observers
 are no longer started by the permanent browser entry point.
 
 Those readings are what `layout.shell` carries: the breakpoint, whether each
-panel is open and how wide, which snap the mobile sheet is on, and the panel's
-own drag handle. Consumers use the parts they need — outlines and documents
+panel is open and how wide (`panelOpen`, `setPanelOpen` and `togglePanel` for
+the seat's column), which snap the mobile sheet is on, and the panel's own drag
+handle. Consumers use the parts they need — outlines and documents
 read the breakpoint, git chooses between its health-popover row and a banner, the sidebar and
 file rail open the column, and the palette's `Reset sidebar width` puts the
 widths back to their defaults — and each declares the key on a
@@ -42,6 +43,19 @@ started, which is one answer to one `app.get` asked and re-asked by the
 Viewport width is a reactive input to column fitting. Resizing an open desktop
 layout recomputes both columns while preserving stored preferred widths, so the
 main content keeps its minimum available space when the window narrows.
+
+### The seat's column
+
+`app.panel` is the one seat the frame reserves on the right of the page. While
+a plugin is in it, the reader has it open (`olai.chat.open`, the shell's
+`panelOpen`) and the viewport is a desktop, the body grid gains a third column
+of `--width-panel` beside the sidebar's and the page's, sticky under the header
+and exactly one viewport tall, with the shell's drag handle on its left edge
+(`--width-panel` is dragged and stored like the sidebar's). The occupant draws
+inside it; chat's dock is the occupant ([chat.md](chat.md#the-dock)). On a phone,
+or with the seat empty, the grid has no third column whatever the preference
+says, and both widths are still fitted to the viewport so the page keeps its
+minimum.
 
 The root declares `layout.sidebar`. The frame reads that seat through the
 renderer contract and imports no sidebar implementation. The sidebar row owns

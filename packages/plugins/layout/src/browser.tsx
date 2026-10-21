@@ -24,8 +24,8 @@ import Frame from "./Frame.tsx"
 import { contentStatus,name,overlays,type Shell,sidebar,strip,tools } from "./index.ts"
 import { trackDesktop } from "./layout/media-owner.ts"
 import {
-  createLayoutState, holdLayoutState, desktop, panelSnap, panelWidth, resetPanelWidths, setPanelSnap,
-  revealSidebar, setPanelWidth, setSidebarOpen, setSidebarWidth, sidebarOpen, sidebarWidth, toggleSidebar,
+  createLayoutState, holdLayoutState, desktop, panelOpen, panelSnap, panelWidth, resetPanelWidths, setPanelOpen, setPanelSnap,
+  revealSidebar, setPanelWidth, setSidebarOpen, setSidebarWidth, sidebarOpen, sidebarWidth, togglePanel, toggleSidebar,
 } from "./layout/live.ts"
 import { followLayout } from "./layout/prefs-owner.ts"
 
@@ -52,7 +52,7 @@ export default definePlugin({
     // contribution's `activate` below, on this same activation.
     yield* (yield* Offers).own("shell", (): Shell => ({
       desktop, sidebarOpen, setSidebarOpen, toggleSidebar, revealSidebar, sidebarWidth, setSidebarWidth,
-      panelWidth, setPanelWidth, panelSnap, setPanelSnap,
+      panelOpen, setPanelOpen, togglePanel, panelWidth, setPanelWidth, panelSnap, setPanelSnap,
       resetPanelWidths, PanelHandle,
     }))
     yield* slots.contribute(root, () => <ErrorBoundary fallback={(error) => {

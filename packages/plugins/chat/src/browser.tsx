@@ -34,7 +34,7 @@ import { Fold } from "./browser/agents/Fold.tsx"
 import { PageHead, PageFoot } from "./browser/agents/Page.tsx"
 import { browserState as outlineBrowser } from "olai-plugin-outlines/contract"
 import { holdPages } from "./browser/pages.ts"
-import { createAgentReadings, holdAgentReadings } from "./browser/agents/reading.ts"
+import { agentReadings, createAgentReadings, holdAgentReadings } from "./browser/agents/reading.ts"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { createAgentPalette } from "./browser/agents/AgentPalette.ts"
 import { navigation as navigationService, paletteAdapters, paletteControl } from "olai-plugin-navigation/contract"
@@ -152,8 +152,45 @@ import { holdChannel } from "./browser/channel.ts"
 import { configurationPanel } from "olai-plugin-plugin-inspector/contract"
 import { holdPluginsDoor } from "./browser/plugins-door.ts"
 import { createAttention } from "./browser/chat/attention/attention.ts"
-import { createComponent, createEffect, createRoot, untrack } from "solid-js"
+import { createComponent, createEffect, createRoot, Show, untrack } from "solid-js"
+import { shell as appShell, tools as layoutTools } from "olai-plugin-layout/contract"
+import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
+import { atOnce } from "@olai/web/client/settled.ts"
+import { createDock, holdDock } from "./browser/dock.ts"
+import { Dock } from "./browser/agents/Dock.tsx"
+import { DockToggle } from "./browser/agents/DockToggle.tsx"
 export const components = {
+  /** THE DOCK, DECLARED — a component of its own because it needs the shell's
+   *  seat, and content runs under another layout entirely (`./browser/dock.ts`).
+   *  Everything that OFFERS the panel is this component's: the seat's face,
+   *  the bar's toggle, the ⌘J chord and the palette row leave with it, and the
+   *  doors on a Chats row and an agent line draw nothing when `dock()` answers
+   *  nothing. */
+  dock: definePlugin({ name: "dock", needs: [appShell, Slots, rendererSlots], apply: Effect.gen(function*() {
+    const geometry = yield* appShell
+    const slots = yield* Slots
+    const renderer = yield* rendererSlots
+    const door = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({ value: createDock(geometry), dispose }))), owner => Effect.sync(owner.dispose))
+    yield* Effect.acquireRelease(Effect.sync(() => holdDock(door.value)), stop => Effect.sync(stop))
+    const roster = () => agentReadings()?.agents
+    yield* slots.register("app.panel", () => <Show when={roster()}>{agents => <AgentsProvider value={agents()}><Dock /></AgentsProvider>}</Show>)
+    yield* slots.register("app.keys", { key: "j", whileEditing: true, said: "Show or hide the agent panel", press: () => { if (door.value.desktop()) door.value.toggle() } })
+    yield* renderer.contribute(layoutTools, { body: props => <DockToggle where={props.where} />, headerOrder: 15, closetOrder: 30 })
+    yield* renderer.contribute(paletteAdapters, {
+      available: () => door.value.desktop(),
+      items: () => door.value.desktop() ? [{
+        id: "panel-agents",
+        label: door.value.opened() ? "Hide agent panel" : "Show agent panel",
+        hint: "⌘J",
+        search: "toggle agent panel chat dock conversation show hide",
+        taking: atOnce,
+        action: { kind: "run", run: async () => { door.value.toggle(); return {} } },
+      }] : [],
+    })
+    // `app.keys` is navigation's slot; naming its contract here keeps the
+    // registration typed against the one the palette listens to.
+    void navigationSlots
+  }) }),
   /** What this deployment is called, DECLARED — a component of its own so a
    *  notification is raised with the bare word rather than not at all when the
    *  shell is absent (`./browser/deployment.ts`). */

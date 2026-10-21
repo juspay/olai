@@ -109,7 +109,7 @@ import type { Chat } from "./state.ts"
  *  flag still on. The one thing a press of the attention banner is looking
  *  for, spelled off the panel's own declared handles rather than off a class. */
 
-export function Transcript(props: { readonly chat: Chat; readonly page?: boolean }) {
+export function Transcript(props: { readonly chat: Chat; readonly page?: boolean; readonly dock?: boolean }) {
   const [revealing, setRevealing] = props.chat.ui.reveal
   const revealed = () => setRevealing(false)
   const { previewing } = useConversationUI().previewing
@@ -364,7 +364,10 @@ export function Transcript(props: { readonly chat: Chat; readonly page?: boolean
       // (`./DropTarget.tsx`) becomes the scrollport, carrying the composer
       // away with the rows. `overscroll-contain` stops a wheel at the end of
       // this pane from moving the page beside it.
-      style={{ "max-height": props.page ? undefined : "24rem" }}
+      // A FOLD caps the window, because a conversation under a row must not
+      // push the rest of the outline off the screen; the DOCK's column is the
+      // viewport, so its transcript takes whatever is left under the bar.
+      style={{ "max-height": props.page || props.dock ? undefined : "24rem" }}
       class="min-w-0 px-3 py-2 text-ink"
       classList={{
         "olai-scroll flex-1 overflow-x-hidden overflow-y-auto overscroll-contain": !props.page,

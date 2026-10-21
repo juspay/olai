@@ -799,17 +799,21 @@ export const UPTIME = selector(TESTID.uptime);
 export const GIT_NEWS = selector(PLUGIN_TESTID.gitNews);
 export const COMMIT_PANEL = selector(PLUGIN_TESTID.commitPanel);
 
-/** The agent panel. Absent entirely when no ACP agent is configured, which is
- *  a state the suite never runs in: every server it spawns is pointed at the
- *  scripted agent (`support/hooks.ts`). */
+/** The conversation's root, wherever it is drawn — under a row's fold, at the
+ *  foot of a node page, or in the dock. Absent entirely when no ACP agent is
+ *  configured, which is a state the suite never runs in: every server it
+ *  spawns is pointed at the scripted agent (`support/hooks.ts`). */
 export const CHAT_TOGGLE = selector(PLUGIN_TESTID.chatToggle);
 export const CHAT_PANEL = selector(PLUGIN_TESTID.chatPanel);
-export const CHAT_PILL = selector(PLUGIN_TESTID.chatPill);
-export const CHAT_STRIP = selector(PLUGIN_TESTID.chatStrip);
+/** THE DOCK: the seat's column, carrying `data-agent` while a conversation is
+ *  docked. The steps that address "the conversation" look here as well as in
+ *  the front lane ({@link OlaiWorld.chatSelector}). */
+export const CHAT_DOCK = selector(PLUGIN_TESTID.chatDock);
+/** The lane in front, or the alternate layout fixture's one `main` — the
+ *  scope every row step looks in ({@link OlaiWorld.frontLane}). */
+export const FRONT_LANE = `${selector(PLUGIN_TESTID.lane)}[data-lane-front="true"], main[aria-label="Alternate layout fixture"]`;
+export const PANEL_COLUMN = selector(TESTID.panelColumn);
 export const PANEL_RESIZE = selector(TESTID.panelResize);
-export const CHAT_SHEET = selector(PLUGIN_TESTID.chatSheet);
-export const CHAT_SHEET_SCRIM = selector(PLUGIN_TESTID.chatSheetScrim);
-export const CHAT_SHEET_HANDLE = selector(PLUGIN_TESTID.chatSheetHandle);
 export const PALETTE = selector(TESTID.palette);
 export const PALETTE_ITEM = selector(TESTID.paletteItem);
 export const PALETTE_LIST = selector(TESTID.paletteList);
@@ -1961,7 +1965,7 @@ export class OlaiWorld extends World {
    *  SCREEN: two panes showing one file draw every row of it twice, so
    *  "the bullet of `knobs`" has no answer until a step says which column it
    *  means. Spelled once here for the reason every other selector is. */
-  frontLane(): Locator { return this.page.locator(`${selector(PLUGIN_TESTID.lane)}[data-lane-front="true"], main[aria-label="Alternate layout fixture"]`); }
+  frontLane(): Locator { return this.page.locator(FRONT_LANE); }
 
   pane(index: number): Locator {
     return this.frontLane().locator(`${PANE}${attr("data-pane", String(index))}`);
@@ -1987,20 +1991,34 @@ export class OlaiWorld extends World {
   set activeAgent(node: string | null) { if (node === null) this.activeAgents.delete(this.page); else this.activeAgents.set(this.page, node); }
   get menuNode(): string | null { return this.menuNodes.get(this.page) ?? null; }
   set menuNode(node: string | null) { if (node === null) this.menuNodes.delete(this.page); else this.menuNodes.set(this.page, node); }
-  chatSelector(control: string): string {
+  /** WHERE THE ACTIVE AGENT'S CONVERSATION IS DRAWN: under its row's fold or at
+   *  the foot of its page in the FRONT LANE, or in the dock beside every lane.
+   *  One selector for the three, so a step that types into "the chat" finds the
+   *  conversation wherever the scenario put it. */
+  private chatHosts(...hosts: ReadonlyArray<string>): string {
     assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
-    return `:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))} :is(${control})`;
+    const of = attr("data-agent", this.nodeId(this.activeAgent));
+    const inLane = `:is(${FRONT_LANE}) :is(${hosts.join(", ")})${of}`;
+    return `:is(${inLane}, ${CHAT_DOCK}${of})`;
   }
-  chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.frontLane().locator(this.chatSelector(control), options); }
+  /** Whether `selector` came out of {@link chatSelector}: it already names the
+   *  front lane (and the dock beside it), so it is matched against the PAGE —
+   *  under the lane it would be asking for a lane inside a lane and find
+   *  nothing. The dock's selector is the one spelling both halves share. */
+  private conversationScoped(selector: string): boolean {
+    return selector.includes(CHAT_DOCK);
+  }
+  chatSelector(control: string): string {
+    return `${this.chatHosts(selector(PLUGIN_TESTID.agentFold), selector(PLUGIN_TESTID.agentPageHead), selector(PLUGIN_TESTID.agentPageFoot))} :is(${control})`;
+  }
+  chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.page.locator(this.chatSelector(control), options); }
   /** Settings and the standing strips (plan, tools, still running, alerts)
-   *  live in the fold or the zoomed page's pinned head. */
+   *  live in the fold, the zoomed page's pinned head, or the dock. */
   chatLine(): Locator {
-    assert.ok(this.activeAgent, "select a node agent before addressing its agent line");
-    return this.frontLane().locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageHead)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
+    return this.page.locator(this.chatHosts(selector(PLUGIN_TESTID.agentFold), selector(PLUGIN_TESTID.agentPageHead)));
   }
   chatRoot(): Locator {
-    assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
-    return this.frontLane().locator(`:is(${selector(PLUGIN_TESTID.agentFold)}, ${selector(PLUGIN_TESTID.agentPageFoot)})${attr("data-agent", this.nodeId(this.activeAgent))}`);
+    return this.page.locator(this.chatHosts(selector(PLUGIN_TESTID.agentFold), selector(PLUGIN_TESTID.agentPageFoot)));
   }
   readonly nodeNames = new Map<string, string>();
   nodeId(name: string): string { return this.nodeNames.get(name) ?? name; }
@@ -2543,7 +2561,7 @@ export class OlaiWorld extends World {
     expected: string,
     what: string,
     timeout = POLL_TIMEOUT,
-    scope: Page | Locator = this.frontLane(),
+    scope: Page | Locator = this.conversationScoped(selector) ? this.page : this.frontLane(),
   ): Promise<void> {
     try {
       await scope
@@ -2573,7 +2591,7 @@ export class OlaiWorld extends World {
     attribute: string,
     what: string,
     timeout = POLL_TIMEOUT,
-    scope: Page | Locator = this.frontLane(),
+    scope: Page | Locator = this.conversationScoped(selector) ? this.page : this.frontLane(),
   ): Promise<void> {
     try {
       await scope
@@ -2995,6 +3013,8 @@ export class OlaiWorld extends World {
    *  a palette's paper IS is a design decision, and that it CHANGED is the
    *  claim. */
   paperBefore?: string;
+  /** The seat's column width before a drag (`olai-plugin-chat`'s agent panel steps). */
+  panelWidthBefore?: number;
 
   /** A box taken BEFORE something replaced what was inside it, for the
    *  scenarios that claim the swap changed nothing about it — the markdown

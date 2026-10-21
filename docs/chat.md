@@ -729,8 +729,40 @@ composer after the subtree.
 The page's transcript is unbounded and the containing pane scrolls. Head and
 foot share one reading per page; two panes remain independent readers. The
 session property is omitted from outline rows and remains editable in the
-zoomed drawer, with its ordinary folding behavior. Phone and desktop use these
-same faces; there is no chat sheet or fixed right dock.
+zoomed drawer, with its ordinary folding behavior. A phone uses exactly these
+two faces; a desktop has a third, the panel below.
+
+### The agent panel
+
+On a desktop a conversation can also be read **beside** the page: a column on
+the right of the reading that stays where it is while you move between
+outlines, so reading what an agent is working on and talking to it are one
+activity. It is the same conversation the fold and the page show — one
+reading, one draft, one transcript — in a column whose transcript scrolls on
+its own and whose composer sits at its foot.
+
+Four doors open it, and all four dock the conversation they name and open the
+column if it was shut:
+
+- **the ⧉ beside a Chats row** in the sidebar, revealed on hover;
+- **Open in panel ›** on a conversation's agent line, under a row or on a page;
+- **⌘J / Ctrl+J**, which shows or hides the column, and the bar's panel toggle
+  beside the health dot, which does the same and reads pressed while it is
+  open;
+- the ⌘K palette's **Show agent panel** / **Hide agent panel** row.
+
+The column's bar names the docked agent — engine mark, standing dot, and the
+title as a link to the node's own page — and carries a switch that lists every
+chat, newest activity first, and a `×` that shuts the column. With nothing
+docked yet the column offers that same list as a picker, so opening the panel
+with ⌘J on a fresh browser is a way to choose a conversation rather than a
+blank column. Which conversation is docked and whether the column is open are
+both remembered by this browser, like the sidebar's width; the column's own
+width is dragged on its left edge and remembered too. A docked agent whose
+binding is closed, or whose row leaves, hands the column back to the picker.
+
+A phone has no panel and none of these doors: the fold and the page are its
+faces.
 
 **Close the agent** releases a node's agent: the `chat-agent-session` property
 is taken off, the seat closes, and the conversation becomes an unclaimed chat

@@ -1,6 +1,9 @@
 /** Stable DOM identifiers owned by this renderer. Shared consumers import
  * this static contract; no provider state or activation is loaded with it. */
 export const TESTID = {
+  /** The seat's column on the right of the page, while a plugin is in the
+   *  seat and the reader has it open. `data-layout="dock"`. */
+  panelColumn: "panel-column",
   appHeader: "app-header",
   appChrome: "app-chrome",
   sidebarToggle: "sidebar-toggle",

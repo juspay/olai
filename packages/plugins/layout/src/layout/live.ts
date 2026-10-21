@@ -95,16 +95,25 @@ export const revealSidebar = (): void => {
 
 // ── sidebar width ─────────────────────────────────────────────────────────
 
+// ── the seat's panel (desktop: a column beside the page) ─────────────────
+
+/** Is the right-hand panel open? A preference, like the sidebar's: a reader
+ *  who keeps a conversation beside the page keeps it across reloads. Whether
+ *  anything is IN the seat is the occupant's to say; with nobody in it the
+ *  frame draws no column whatever this answers. */
+export const panelOpen: Accessor<boolean> = () => active()?.panelOpenPref.value() ?? false
+
+export const setPanelOpen = (open: boolean): void => active()?.panelOpenPref.set(open)
+
+export const togglePanel = (): void => setPanelOpen(!panelOpen())
+
 /** Live width, clamped to the current viewport. */
 export const sidebarWidth: Accessor<number> = () =>
   fitWidths(
     (active()?.sidebarWidthPref.value() ?? SIDEBAR_DEFAULT_PX),
     (active()?.panelWidthPref.value() ?? CHAT_DEFAULT_PX),
     sidebarOpen(),
-    // No open/shut state for the seat's panel: nothing opens it any more
-    // (the chord and its palette row left with the chat dock), so the
-    // sidebar is never squeezed for a panel that is not drawn.
-    false,
+    panelOpen(),
     viewportWidth(),
   ).side
 
@@ -124,10 +133,7 @@ export const panelWidth: Accessor<number> = () =>
     (active()?.sidebarWidthPref.value() ?? SIDEBAR_DEFAULT_PX),
     (active()?.panelWidthPref.value() ?? CHAT_DEFAULT_PX),
     sidebarOpen(),
-    // No open/shut state for the seat's panel: nothing opens it any more
-    // (the chord and its palette row left with the chat dock), so the
-    // sidebar is never squeezed for a panel that is not drawn.
-    false,
+    panelOpen(),
     viewportWidth(),
   ).chat
 

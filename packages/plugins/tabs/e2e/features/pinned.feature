@@ -114,7 +114,7 @@ Feature: The strip reserves its place above the reading
     And there should be no page errors
 
   @scratch:chat
-  Scenario Outline: Legacy <width> dock preferences do not recreate a covering panel
+  Scenario Outline: Stored <width> panel preferences never put the dock over the reading
     Given legacy dock preferences are open and <width>
     And I open the outline "house.olai"
     And I open the "claude" agent on node "kitchen"

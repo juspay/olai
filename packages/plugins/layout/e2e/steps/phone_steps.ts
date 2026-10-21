@@ -17,8 +17,6 @@ import {
   APP_HEADER,
   CHAT_INPUT,
   CHAT_PANEL,
-  CHAT_STRIP,
-  CHAT_TOGGLE,
   COMMIT_PILL,
   CONNECTION,
   HEALTH,
@@ -307,22 +305,6 @@ When("I open the app held at connecting", async function (this: OlaiWorld) {
     .locator(APP_HEADER)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.waitForFrame();
-});
-
-// ── the agent, from a thumb ────────────────────────────────────────────
-
-When("I tap the agent toggle", async function (this: OlaiWorld) {
-  const toggle = this.chat(CHAT_TOGGLE);
-  if (await toggle.isVisible()) {
-    await this.press(toggle, "tap");
-    return;
-  }
-  await this.press(this.chat(CHAT_STRIP), "tap");
-});
-
-Then("the agent panel is showing", async function (this: OlaiWorld) {
-  await this.chat(CHAT_PANEL)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
 Then("I can type into the chat", async function (this: OlaiWorld) {

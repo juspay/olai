@@ -25,12 +25,6 @@ import {
   APP_CHROME,
   APP_HEADER,
   attr,
-  CHAT_PANEL,
-  CHAT_PILL,
-  CHAT_SHEET,
-  CHAT_SHEET_HANDLE,
-  CHAT_STRIP,
-  CHAT_TOGGLE,
   HEADER_SEARCH_RESULTS,
   HYDRATION_TIMEOUT,
   OUTLINE_TREE,
@@ -51,7 +45,6 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 const HEADER_SEARCH = `[data-testid="header-search"]`;
 const HEADER_SEARCH_ITEM = `[data-testid="header-search-item"]`;
 const HEADER_SEARCH_ITEM_PROP = `[data-testid="header-search-item-prop"]`;
-const CHAT_PILL_TEXT = `[data-testid="chat-pill-text"]`;
 
 // ── desktop sidebar ────────────────────────────────────────────────────
 
@@ -163,118 +156,10 @@ Then("the sidebar width survived the reload", async function (this: OlaiWorld) {
   );
 });
 
-// ── chat minimize / pill ───────────────────────────────────────────────
-
-When("I minimize the agent panel", async function (this: OlaiWorld) {
-  const toggle = this.chat(CHAT_TOGGLE);
-  await toggle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  if (await this.chat(CHAT_PANEL).isVisible()) {
-    await toggle.click();
-  }
-  await this.chat(CHAT_PANEL)
-    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
-});
-
-Then("the agent panel is minimized", async function (this: OlaiWorld) {
-  assert.strictEqual(
-    await this.chat(CHAT_PANEL).isVisible(),
-    false,
-    "the agent panel is still open — minimize should leave only the pill/strip",
-  );
-});
-
-Then("the chat pill is showing", async function (this: OlaiWorld) {
-  await this.chat(CHAT_PILL)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-});
-
-Then("the chat strip is showing", async function (this: OlaiWorld) {
-  await this.chat(CHAT_STRIP)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-});
-
-Then("the chat pill is busy", async function (this: OlaiWorld) {
-  await this.expectAttribute(this.chatSelector(CHAT_PILL),
-    "data-busy",
-    "true",
-    "the chat pill",
-    POLL_TIMEOUT,
-  );
-});
-
-Then(
-  "the chat pill shows the last agent message",
-  async function (this: OlaiWorld) {
-    const text = this.chat(CHAT_PILL_TEXT);
-    await text.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await this.waitUntil(
-      async () => {
-        const t = (await text.innerText()).trim();
-        return t.length > 0 && t !== "ask the agent" && t !== "working…";
-      },
-      "the pill to show the last agent message rather than the empty fallback",
-      POLL_TIMEOUT,
-    );
-  },
-);
-
-When("I wait for the agent to go idle", async function (this: OlaiWorld) {
-  // Open briefly if needed so the cell can settle; the pill also tracks busy.
-  await this.waitUntil(
-    async () => {
-      const busy = await this.chat(CHAT_PILL).getAttribute("data-busy");
-      return busy === "false" || busy === null;
-    },
-    "the agent to finish so the pill stops pulsing",
-    HYDRATION_TIMEOUT,
-  );
-});
-
 // ── the panel chords ───────────────────────────────────────────────────
 
 When("I press the sidebar shortcut", async function (this: OlaiWorld) {
   await pressed(this, "ControlOrMeta+\\");
-});
-
-/**
- * ⌘J / Ctrl+J, WATCHED. It used to toggle the agent panel, and it left with
- * the chat dock: the app no longer claims the chord, so the browser keeps it.
- * A listener added last on the window sees the keydown after every handler the
- * app has, and records whether any of them took it (`defaultPrevented`).
- */
-When("I press the old agent-panel chord", async function (this: OlaiWorld) {
-  await this.page.evaluate(() => {
-    const seen = window as unknown as { __olaiJ?: boolean[] };
-    seen.__olaiJ = [];
-    window.addEventListener("keydown", (event) => {
-      if (event.key.toLowerCase() === "j") seen.__olaiJ!.push(event.defaultPrevented);
-    });
-  });
-  await pressed(this, "ControlOrMeta+j");
-});
-
-Then("the app left the chord to the browser", async function (this: OlaiWorld) {
-  const taken = await this.page.evaluate(() => (window as unknown as { __olaiJ?: boolean[] }).__olaiJ ?? []);
-  assert.deepStrictEqual(taken, [false], "the app took ⌘J, or the keydown never reached the window");
-  // Nothing was opened, and nothing was written for a panel that is not there.
-  assert.equal(await this.page.locator("[role=dialog]:visible").count(), 0, "⌘J opened a dialog");
-  assert.equal(
-    await this.page.evaluate(() => window.localStorage.getItem("olai.chat.open")),
-    null,
-    "⌘J wrote the old agent-panel preference",
-  );
-});
-
-/** The keyboard-shortcuts sheet names every chord the app answers; ⌘J is not
- *  one of them any more. */
-Then("the shortcuts list no chord with J", async function (this: OlaiWorld) {
-  const rows = this.page.locator(`${SHORTCUTS} kbd`);
-  await rows.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  const keys = (await rows.allInnerTexts()).map((one) => one.trim());
-  assert.ok(
-    !keys.some((one) => /⌘J|Ctrl\+J/i.test(one)),
-    `the shortcuts sheet still lists ${JSON.stringify(keys.filter((one) => /J/.test(one)))}`,
-  );
 });
 
 // ── the header's search box ────────────────────────────────────────────
@@ -573,76 +458,5 @@ When("I tap the directory scrim", async function (this: OlaiWorld) {
   });
   await this.page
     .locator(SIDEBAR_BODY)
-    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
-});
-
-Then("the chat sheet sits under the header", async function (this: OlaiWorld) {
-  await this.chat(CHAT_SHEET)
-    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const header = await this.box(this.page.locator(APP_HEADER), "header");
-  const sheet = await this.box(this.chat(CHAT_SHEET), "chat sheet host");
-  assert.ok(
-    sheet.y >= header.y + header.height - 1,
-    `chat sheet host starts at y=${Math.round(sheet.y)}, covering the header (bottom ${Math.round(header.y + header.height)})`,
-  );
-});
-
-Then(
-  "the chat sheet is at snap {string}",
-  async function (this: OlaiWorld, snap: string) {
-    await this.expectAttribute(this.chatSelector(CHAT_PANEL),
-      "data-snap",
-      snap,
-      "the chat sheet snap",
-      POLL_TIMEOUT,
-    );
-  },
-);
-
-When("I drag the chat sheet handle up", async function (this: OlaiWorld) {
-  const handle = this.chat(CHAT_SHEET_HANDLE);
-  await handle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const box = await handle.boundingBox();
-  assert.ok(box !== null);
-  const x = box.x + box.width / 2;
-  const y = box.y + box.height / 2;
-  await this.page.mouse.move(x, y);
-  await this.page.mouse.down();
-  // Drag well past the half→full threshold.
-  await this.page.mouse.move(x, y - 200, { steps: 12 });
-  await this.page.mouse.up();
-  await this.waitForFrame();
-});
-
-When("I drag the chat sheet handle down", async function (this: OlaiWorld) {
-  const handle = this.chat(CHAT_SHEET_HANDLE);
-  await handle.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const box = await handle.boundingBox();
-  assert.ok(box !== null);
-  const x = box.x + box.width / 2;
-  const y = box.y + box.height / 2;
-  await this.page.mouse.move(x, y);
-  await this.page.mouse.down();
-  // Drag well past the full→half threshold. At full the sheet covers the
-  // scrim, so half is where a thumb can tap the dim to put it away.
-  await this.page.mouse.move(x, y + 200, { steps: 12 });
-  await this.page.mouse.up();
-  await this.waitForFrame();
-});
-
-When("I tap the chat sheet scrim", async function (this: OlaiWorld) {
-  // The scrim is `inset-0` behind the sheet, so a tap on its own box lands
-  // on the transcript. Aim at the dim above the sheet, the way a thumb
-  // actually puts a half-open sheet away.
-  const host = await this.box(this.chat(CHAT_SHEET), "the chat sheet host");
-  const sheet = await this.box(this.chat(CHAT_PANEL), "the chat sheet");
-  const gap = sheet.y - host.y;
-  assert.ok(
-    gap > 8,
-    `the sheet starts ${Math.round(gap)}px below the host — at full snap the ` +
-      "scrim is covered, so drag it to half first",
-  );
-  await this.page.mouse.click(host.x + host.width / 2, host.y + gap / 2);
-  await this.chat(CHAT_PANEL)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });

@@ -12,11 +12,15 @@ import { CloseAgent } from "./CloseAgent.tsx"
 import { FreshStart } from "./FreshStart.tsx"
 import type { Chat } from "../chat/state.ts"
 import { TESTID } from "../../testids.ts"
+import { dock } from "../dock.ts"
 
-export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean }) {
+export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly dock?: boolean }) {
   const agents = useAgents()
   const state = () => props.chat.state()
   const doing = () => busyIn(state())
+  /** The seat's door, offered where there is a seat and this is not already
+   *  it: a desktop with the dock component standing (`../dock.ts`). */
+  const dockable = () => props.dock !== true && (dock()?.desktop() ?? false)
   return <div class="relative flex flex-wrap items-center gap-2 border-b border-rule bg-desk/50 px-3 py-1.5 text-label text-muted">
     <Show when={agentIn(state())}>{agent => <span class="inline-flex items-center gap-1" data-testid={TESTID.chatAgent} data-agent={agent().id}>
       <AgentMark id={agent().id} />{agent().name}
@@ -27,6 +31,10 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
       <span class="flex items-center gap-1 text-doing" data-testid={TESTID.chatWorking} aria-live="polite"><span class={LIVE_DOT} aria-hidden="true" />{doing()?.kind === "waiting" ? "Waiting on you" : "Working…"}</span>
     </Show>
     <span class="flex-1" />
+    <Show when={dockable()}>
+      <button type="button" class="hover:text-ink" data-testid={TESTID.chatDockHere} title="Keep this conversation beside the page (⌘J shows or hides the panel)"
+        onClick={() => dock()?.open(props.node)}>Open in panel ›</button>
+    </Show>
     <Show when={!props.page}><Link route={atNode(props.node)}>Show in outline ›</Link></Show>
     <Show when={agents.at(props.node)}>
       {agent => <>

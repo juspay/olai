@@ -1,7 +1,7 @@
 import {expect,test} from "bun:test"
 import {followLayout} from "./prefs-owner.ts"
 import {PANEL_OPEN_KEY,SIDEBAR_WIDTH_KEY} from "./prefs.ts"
-import {createLayoutState,holdLayoutState,setSidebarWidth,sidebarWidth} from "./live.ts"
+import {createLayoutState,holdLayoutState,panelOpen,setSidebarWidth,sidebarWidth} from "./live.ts"
 
 test("layout owns fresh preferences, listeners and stopped setters",()=>{
  const oldWindow=Object.getOwnPropertyDescriptor(globalThis,"window")
@@ -20,7 +20,7 @@ test("layout owns fresh preferences, listeners and stopped setters",()=>{
  try {
   stop=followLayout()
   expect(sidebarWidth()).toBe(360)
-  expect(listeners.get("storage")?.size).toBe(4)
+  expect(listeners.get("storage")?.size).toBe(5)
   expect(listeners.get("resize")?.size).toBe(1)
   setSidebarWidth(440,{persist:false})
   expect(sidebarWidth()).toBe(440)
@@ -32,8 +32,12 @@ test("layout owns fresh preferences, listeners and stopped setters",()=>{
   stored.set(SIDEBAR_WIDTH_KEY,"280")
   stop=followLayout()
   expect(sidebarWidth()).toBe(280)
-  // The legacy open/shut key is stored but no longer read or followed.
+  // The seat's open/shut key is read again — the dock is back — and followed
+  // across tabs like the width: another tab shutting it shuts it here, and
+  // the stored word is the other tab's to have written.
+  expect(panelOpen()).toBe(true)
   for(const fn of listeners.get("storage")??[])fn({key:PANEL_OPEN_KEY,newValue:"false"})
+  expect(panelOpen()).toBe(false)
   expect(stored.get(PANEL_OPEN_KEY)).toBe("true")
   for(const fn of listeners.get("storage")??[])fn({key:SIDEBAR_WIDTH_KEY,newValue:"320"})
   expect(sidebarWidth()).toBe(320)

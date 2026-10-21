@@ -187,27 +187,34 @@ export const TESTID = {
   /** ... and why one did not happen: the node had no agent to close. */
   chatCloseSaid: "chat-close-said",
 
-  // ── the panel itself: the toggle, the dock, the two minimized faces ──
-  /** The header's agent toggle on desktop. Always on screen there;
-   *  `aria-pressed` says whether the panel is open, `data-busy` whether a
-   *  turn is running (including while open). Absent on a phone, where the
-   *  thumb strip is the door. */
+  // ── the conversation, wherever it is drawn, and the dock ──────────
+  /** The header's agent-panel toggle on a desktop. `aria-pressed` says
+   *  whether the column is open. Absent on a phone, which has no seat. */
   chatToggle: "chat-toggle",
-  /** The open panel (desktop dock or mobile sheet). Its `data-status` carries
-   *  the cell's own state — `booting` / `idle` / `thinking` / `gone` — so a
-   *  scenario waits on the state rather than on a spinner's styling.
-   *  `data-layout` is `dock` or `sheet`; `data-snap` is the mobile snap. */
+  /** A conversation's root — under a row's fold, at the foot of a node page,
+   *  or in the dock. Its `data-status` carries the cell's own state —
+   *  `booting` / `idle` / `thinking` / `gone` — so a scenario waits on the
+   *  state rather than on a spinner's styling. */
   chatPanel: "chat-panel",
-  /** Desktop minimized chat: bottom-right pill with last agent message. */
-  chatPill: "chat-pill",
-  /** Mobile minimized chat: strip above the thumb. */
-  chatStrip: "chat-strip",
-  /** Truncated last-message text inside the pill or strip. */
-  chatPillText: "chat-pill-text",
-  /** Mobile bottom-sheet host (scrim + sheet). */
-  chatSheet: "chat-sheet",
-  chatSheetScrim: "chat-sheet-scrim",
-  chatSheetHandle: "chat-sheet-handle",
+  /** THE DOCK: the seat's column, as this row draws it. `data-agent` names
+   *  the docked node (absent while the picker is up), `data-standing` its
+   *  standing. */
+  chatDock: "chat-dock",
+  /** The docked agent's title in the dock's bar — a link to its page. */
+  chatDockTitle: "chat-dock-title",
+  /** The bar's `×`. */
+  chatDockClose: "chat-dock-close",
+  /** The bar's switch, and the menu it opens. */
+  chatDockSwitch: "chat-dock-switch",
+  chatDockMenu: "chat-dock-menu",
+  /** One chat in the picker or the switch's menu; `data-agent` is its node. */
+  chatDockPick: "chat-dock-pick",
+  /** The column's face while nothing is docked. */
+  chatDockPicker: "chat-dock-picker",
+  /** The door on a Chats row that docks that conversation; `data-agent`. */
+  chatDockOpen: "chat-dock-open",
+  /** The agent line's door — `Open in panel ›` — on a fold or a node page. */
+  chatDockHere: "chat-dock-here",
 
   // ── the panel's header, and the conversation drawn under it ───────
   chatTitle: "chat-title",
