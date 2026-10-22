@@ -12,7 +12,7 @@ import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
 import { makePanel } from "./chat.ts"
 import { here } from "./agents/roster.ts"
 import * as Memory from "./memory.ts"
-import { type LiveMark, type LiveRecord, marksOf } from "./live.ts"
+import { type LiveMark, type LiveRecord, marksOf, RECORDED } from "./live.ts"
 import type { Conversing } from "./sessions.ts"
 import type { PanelAddress } from "./wire/session.ts"
 import type { Change } from "./transcript.ts"
@@ -24,7 +24,28 @@ import { agentIn, type Listed } from "olai-plugin-chat/wire"
  * bounds resident node agents: an LRU of 8, evicting only eligible idle scopes.
  * Credentials and write doors live as long as their scope. Tests inject a shorter duration. */
 export const DEFAULT_IDLE = Duration.hours(48)
-export const DEFAULT_CAPACITY = 8
+/** The pool's bound and the record's bound are one number — see
+ *  {@link ./live.ts}'s `RECORDED`. */
+export const DEFAULT_CAPACITY = RECORDED
+
+/**
+ * IS THIS SLOT A CONVERSATION A RESTART SHOULD COME BACK TO?
+ *
+ * Three facts answer one question, so they are asked in one place: a HISTORY
+ * slot is a conversation being read from the past, not one the server is
+ * having; a REFUSED open is live only for the reader it was refused for; and a
+ * GONE agent (it died, or its engine was switched off) must stay asleep when
+ * that engine mounts again. The record module stores what it is handed and
+ * knows none of this.
+ */
+export const recordable = (slot: {
+  readonly history: boolean
+  readonly state: {
+    readonly status: ReturnType<Panel["state"]>["status"]
+    readonly unopened: unknown
+  }
+}): boolean =>
+  !slot.history && slot.state.unopened === null && slot.state.status !== "gone"
 
 /** A per-node credential owned by the node scope that receives it. */
 export interface ToolTicket {
@@ -275,13 +296,22 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     const released = (node: string | undefined): void => {
       for (const slot of nodes.values()) {
-        if (node !== undefined && slot.node !== node) continue
+        // AN UNKNOWN NODE IS NOT EVERY NODE. The pair-form finalizer can run
+        // before `locate` named a slot (a refused or failed locate), and a
+        // release with no node must not extend every unrelated conversation's
+        // budget. Re-arm them so their timers are not lost; touch only the one
+        // the reader actually held.
+        if (node === undefined) {
+          armIdle(slot)
+          continue
+        }
+        if (slot.node !== node) continue
         slot.touched = Date.now()
         armIdle(slot)
       }
       // The record carries the new budget too, for the SIGKILL that lands
       // between the release and the next state frame.
-      persistLive()
+      if (node !== undefined) persistLive()
     }
     const pending = new Map<string, Array<PendingDelivery>>()
     /**
@@ -338,22 +368,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }
       liveWriting = true
       const marks: ReadonlyArray<LiveMark> = marksOf(
-        [...nodes.values()].map((slot) => ({
-          node: slot.node,
-          touched: slot.touched,
-          history: slot.history,
-          // A CONVERSATION THAT WOULD NOT OPEN IS NOT A CONVERSATION TO COME
-          // BACK TO. The boot's own failures are dropped explicitly below, but
-          // a slot a READER opened and was refused stays in the pool for that
-          // reader — and writing it down would make the next boot retry the
-          // same refusal once more.
-          refused: slot.state.unopened !== null,
-          // ... AND NEITHER IS ONE WHOSE AGENT IS GONE. A slot stays in `nodes`
-          // until eviction after its process died or its engine was switched
-          // off; recording it would make the next restart the thing that wakes
-          // a conversation the engine rule says remains asleep.
-          dead: slot.state.status === "gone",
-        })),
+        [...nodes.values()]
+          .filter(recordable)
+          .map((slot) => ({ node: slot.node, touched: slot.touched })),
         [...restore].map(([node, touched]) => ({ node, touched })),
       )
       fork(
@@ -500,12 +517,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // races it closes at once.
         yield* Effect.sleep(Duration.millis(Math.max(0, slot.touched + idleMs - Date.now())))
         if (slot.generation !== generation || slot.closing) return
-        const state = slot.state
-        if (
-          (state.status !== "idle" && state.status !== "gone")
-          || state.asking > 0
-          || state.watching.length > 0
-        ) return
+        if (!quietState(slot.state)) return
         // The panel somebody is reading is part of their working set. Keep one
         // finite timer armed so it can be reaped after they leave it.
         //
@@ -537,9 +549,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         .filter((slot) =>
           !read(slot)
           && slot.uses === 0
-          && (slot.state.status === "idle" || slot.state.status === "gone")
-          && slot.state.asking === 0
-          && slot.state.watching.length === 0
+          && quietState(slot.state)
         )
         .sort((left, right) => left.touched - right.touched)[0]
       return reaper === undefined
@@ -577,11 +587,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if (held !== undefined && !held.closing) {
           held.uses += 1
           held.touched = Date.now()
-          if (
-            (held.state.status === "idle" || held.state.status === "gone")
-            && held.state.asking === 0
-            && held.state.watching.length === 0
-          ) {
+          if (quietState(held.state)) {
             armIdle(held)
           } else {
             held.generation++
@@ -657,11 +663,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                 if (agent != null && session != null) slot.readingFor = { agent: agent.id, session }
                 options.onConversationState?.(state, slot.panel.entries(), slot.node)
                 if (!still) slot.touched = Date.now()
-                if (
-                  (state.status === "idle" || state.status === "gone")
-                  && state.asking === 0
-                  && state.watching.length === 0
-                ) {
+                if (quietState(state)) {
                   armIdle(slot)
                 } else {
                   slot.generation++
@@ -842,8 +844,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if (row.assigned === true && row.wakesCleared !== true) yield* root.assigned(row)
       }
       for (const mark of live?.read() ?? []) {
-        const touched = Date.parse(mark.touched)
-        if (!Number.isNaN(touched)) restore.set(mark.node, touched)
+        restore.set(mark.node, mark.touched)
       }
       yield* root.enginesMoved
       // THE SEAM, not a bare fiber: ring.held owns the pass, so its lines carry

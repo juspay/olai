@@ -21,7 +21,7 @@ import { seated } from "./agents/roster.testlib.ts"
 import { ephemeralLocalState, type ChatLocalState } from "./local.ts"
 import { forLocalState as liveIn, type LiveRecord } from "./live.ts"
 import { volatile } from "./memory.ts"
-import { make } from "./scoped.ts"
+import { make, recordable } from "./scoped.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { makePanel } from "./chat.ts"
@@ -327,7 +327,7 @@ test("the conversations live before a restart open again without a reader", asyn
 test("a recorded conversation waits for an engine that registers after chat's apply", async () => {
   const local = ephemeralLocalState()
   const record = liveIn(local)
-  await run(record.write([{ node: "one", touched: new Date().toISOString() }]))
+  await run(record.write([{ node: "one", touched: Date.now() }]))
   let roster: ReadonlyArray<Installed> = []
   const it = await restartable({ local, record, nodes: () => [NODE_ONE], roster: () => roster })
   try {
@@ -352,7 +352,7 @@ for (const missing of ["the node", "its session"] as const) {
   test(`a recorded conversation whose ${missing} is gone is dropped, not retried`, async () => {
     const local = ephemeralLocalState()
     const record = liveIn(local)
-    await run(record.write([{ node: "one", touched: new Date().toISOString() }]))
+    await run(record.write([{ node: "one", touched: Date.now() }]))
     const it = await restartable({
       local,
       record,
@@ -375,7 +375,7 @@ test("a recorded conversation past the idle budget is skipped and dropped", asyn
   const record = liveIn(local)
   await run(record.write([{
     node: "one",
-    touched: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+    touched: Date.now() - 2 * 3_600_000,
   }]))
   const it = await restartable({
     local,
@@ -398,7 +398,7 @@ test("a recorded conversation past the idle budget is skipped and dropped", asyn
 test("a refused resume closes its scope, drops the record and leaves the reader path alone", async () => {
   const local = ephemeralLocalState()
   const record = liveIn(local)
-  await run(record.write([{ node: "one", touched: new Date().toISOString() }]))
+  await run(record.write([{ node: "one", touched: Date.now() }]))
   const released: Array<string> = []
   const it = await restartable({
     local,
@@ -472,7 +472,7 @@ test("a reopened conversation closes on its remaining budget, not a fresh one", 
   const local = ephemeralLocalState()
   const record = liveIn(local)
   // 600 of 800 ms already spent: 200 ms are what a boot may spend.
-  await run(record.write([{ node: "one", touched: new Date(Date.now() - 600).toISOString() }]))
+  await run(record.write([{ node: "one", touched: Date.now() - 600 }]))
   const it = await restartable({
     local,
     record,
@@ -496,7 +496,7 @@ test("a reopened conversation closes on its remaining budget, not a fresh one", 
 test("start does not wait for a boot reopen, and stop interrupts a hanging one", async () => {
   const local = ephemeralLocalState()
   const record = liveIn(local)
-  await run(record.write([{ node: "one", touched: new Date().toISOString() }]))
+  await run(record.write([{ node: "one", touched: Date.now() }]))
   const released: Array<string> = []
   const it = await restartable({
     local,
@@ -521,7 +521,7 @@ test("start does not wait for a boot reopen, and stop interrupts a hanging one",
 test("a gone agent is not written down, so a restart does not wake it", async () => {
   const local = ephemeralLocalState()
   const record = liveIn(local)
-  await run(record.write([{ node: "one", touched: new Date().toISOString() }]))
+  await run(record.write([{ node: "one", touched: Date.now() }]))
   let roster = [installed("alpha"), installed("beta")]
   const it = await restartable({ local, record, nodes: () => [NODE_ONE], roster: () => roster })
   try {
@@ -540,6 +540,28 @@ test("a gone agent is not written down, so a restart does not wake it", async ()
   }
 })
 
+
+test("one question decides what the record keeps", () => {
+  const slot = (over: {
+    history?: boolean
+    status?: "idle" | "gone" | "thinking"
+    unopened?: unknown
+  } = {}) => ({
+    history: over.history ?? false,
+    state: {
+      status: over.status ?? "idle",
+      unopened: over.unopened ?? null,
+    },
+  })
+  // A conversation the server is having, and nothing else.
+  expect(recordable(slot())).toBe(true)
+  // A past conversation somebody is reading is not one the server is having.
+  expect(recordable(slot({ history: true }))).toBe(false)
+  // A refused open is live for its reader, not for the next boot.
+  expect(recordable(slot({ unopened: { what: "sess-1" } }))).toBe(false)
+  // A gone agent stays asleep when its engine comes back.
+  expect(recordable(slot({ status: "gone" }))).toBe(false)
+})
 
 test("the record sheds the conversation capacity evicts", async () => {
   const local = ephemeralLocalState()

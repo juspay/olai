@@ -13,8 +13,11 @@
  *     start or a rebind, which is exactly the conversation the node has left;
  *   - **no engine**, for the same reason — the property names it, and a node
  *     moved to another engine must reopen on the engine it now runs;
- *   - **no history slots**, ever: a conversation somebody was READING from the
- *     past is not a conversation the server is having.
+ *   - **no decision about which conversations count.** A history read, a
+ *     refused open and a gone agent are not conversations a restart should
+ *     wake, and the scheduler that owns those slots answers that once
+ *     ({@link ./scoped.ts}'s `recordable`). This module stores what it is
+ *     handed.
  *
  * ## Where it lives, and the one justification it needs
  *
@@ -27,10 +30,9 @@
  *
  * The order is the one a restart needs: when more entries are recorded than the
  * scheduler can hold, the ones that were live LONGEST AGO are the ones to lose.
- * {@link RECORDED} mirrors the scheduler's default capacity ({@link
- * ./scoped.ts}'s `DEFAULT_CAPACITY`), because the live half of the record can
- * never be larger than that — the cap only ever bites the union with entries
- * still waiting for their engine.
+ * {@link RECORDED} is the scheduler's default capacity too, because the live
+ * half of the record can never be larger than that — the cap only ever bites
+ * the union with entries still waiting for their engine.
  *
  * An unreadable row is dropped rather than guessed at: a record that could not
  * say when a node was touched cannot decide whether its budget is spent, and
@@ -44,15 +46,21 @@ import { Effect } from "effect"
 /** This state machine's section in chat's one machine-local document. */
 const LIVE = "live"
 
-/** See the header: the scheduler's own default capacity, mirrored here so the
- *  record cannot claim more conversations than the server could ever hold. */
+/** The most conversations one serve holds — the scheduler's default capacity
+ *  is this same number ({@link ./scoped.ts}'s `DEFAULT_CAPACITY` is this
+ *  constant), so there is one bound rather than two that can drift. */
 export const RECORDED = 8
 
-/** One node that was live, and when its conversation was last touched — ISO
- *  8601, so the record needs no second clock to read it back. */
+/**
+ * One node that was live, and when its conversation was last touched.
+ *
+ * EPOCH MILLISECONDS, not the ISO text the file carries: an instant is what
+ * the scheduler compares budgets with, and how a note spells one is this
+ * module's business. {@link forLocalState} is the only place the two meet.
+ */
 export interface LiveMark {
   readonly node: string
-  readonly touched: string
+  readonly touched: number
 }
 
 /** Read the record, write the whole set, or answer nothing. */
@@ -76,14 +84,15 @@ const read = (held: Record<string, unknown>): ReadonlyArray<LiveMark> => {
     const row = one as Record<string, unknown>
     const node = word(row["node"])
     const touched = word(row["touched"])
-    if (node === null || touched === null || Number.isNaN(Date.parse(touched))) return []
-    return [{ node, touched }]
+    const at = touched === null ? Number.NaN : Date.parse(touched)
+    if (node === null || Number.isNaN(at)) return []
+    return [{ node, touched: at }]
   })
 }
 
 /**
  * The record's rows, newest first and capped — PURE, so the ordering and the
- * history exclusion are decided in a unit test rather than by killing a server.
+ * cap are decided in a unit test rather than by killing a server.
  *
  * `live` is what the scheduler holds NOW; `waiting` is what is still waiting
  * for its engine. A node can be in both for one instant — the entry is deleted
@@ -91,36 +100,17 @@ const read = (held: Record<string, unknown>): ReadonlyArray<LiveMark> => {
  * fresher of the two and the one whose slot is actually open.
  */
 export const marksOf = (
-  live: ReadonlyArray<{
-    readonly node: string
-    readonly touched: number
-    /** A HISTORY slot — a conversation being read from the past — is never
-     *  written: it is not a conversation the server is having, so it is not one
-     *  a restart should open. */
-    readonly history?: boolean
-    /** An open that was REFUSED — the panel says why and offers a retry. It is
-     *  live for the reader it was refused for, and it is not a conversation a
-     *  restart should try again. */
-    readonly refused?: boolean
-    /** The agent is GONE — it died, or the engine offering it was switched off.
-     *  The slot stays in the pool until eviction, but "asleep agents remain
-     *  asleep" means a restart must not be the thing that wakes it. */
-    readonly dead?: boolean
-  }>,
+  live: ReadonlyArray<{ readonly node: string; readonly touched: number }>,
   waiting: ReadonlyArray<{ readonly node: string; readonly touched: number }> = [],
 ): ReadonlyArray<LiveMark> => {
   const held = new Map<string, number>()
   for (const row of waiting) held.set(row.node, row.touched)
-  for (const row of live) {
-    if (row.history !== true && row.refused !== true && row.dead !== true) {
-      held.set(row.node, row.touched)
-    }
-  }
+  for (const row of live) held.set(row.node, row.touched)
   return [...held]
     .filter(([, touched]) => !Number.isNaN(touched))
     .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
     .slice(0, RECORDED)
-    .map(([node, touched]) => ({ node, touched: new Date(touched).toISOString() }))
+    .map(([node, touched]) => ({ node, touched }))
 }
 
 /** The record over one activation's local document. */
@@ -131,8 +121,10 @@ export const forLocalState = (local: ChatLocalState): LiveRecord => {
     read: () => rows,
     write: (next) =>
       Effect.gen(function*() {
-        const table = marksOf(next.map((row) => ({ node: row.node, touched: Date.parse(row.touched) })))
-        yield* local.save(LIVE, { live: table })
+        const table = marksOf(next)
+        yield* local.save(LIVE, {
+          live: table.map((row) => ({ node: row.node, touched: new Date(row.touched).toISOString() })),
+        })
         rows = table
       }),
   }
