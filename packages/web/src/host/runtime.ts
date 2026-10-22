@@ -260,12 +260,9 @@ export const composeTo = async (
   clientFor: (plugin: string) => unknown,
   failedLoads: ReadonlyMap<string, string> = new Map(),
   reloads: ReadonlySet<string> = new Set(),
-  /** ROWS WHOSE BROWSER HALF MUST START AGAIN — see `../wire.ts`'s signature
-   *  and `./runtime.ts`'s `restart`. A server remount ends the row's standing
-   *  subscriptions normally, and a normal end is not a transport failure: the
-   *  retry fence does not bring it back. Only a fresh activation re-reads its
-   *  cells, so a row whose mount generation moved is disposed here and mounted
-   *  again below, while every other row keeps its fiber. */
+  /** ROWS WHOSE BROWSER HALF MUST START AGAIN. A server remount ends the row's
+   *  cell streams normally, which the retry fence does not retry, so only a
+   *  fresh activation re-reads them; every neighbour keeps its fiber. */
   restart: ReadonlySet<string> = new Set(),
 ): Promise<void> => {
   clients = clientFor
@@ -336,12 +333,10 @@ const recompose = async (halves: ReadonlyArray<BrowserHalf>, restart: ReadonlySe
   // only for a kind word two plugins could both claim, which the loader already
   // forbids — but the order that cannot be wrong costs nothing to pick.
   //
-  // A ROW THE SERVER REMOUNTED leaves with the rest, even though its name is
-  // wanted: its activation is what holds the cell subscriptions the old server
-  // generation ended. `restart` carries the rows whose roster generation moved
-  // (`../wire.ts`), and `owner` is the row a component belongs to — a
-  // component's own name is `row/local`, and restarting the row must restart
-  // every component it drew.
+  // A REMOUNTED ROW leaves with the rest even though its name is wanted: its
+  // activation holds the subscriptions the old server generation ended.
+  // `owner` is the row a component belongs to (`row/local`), so the row's
+  // parts restart with it.
   for (const [name, plugin] of [...mounted]) {
     const owner = wanted.get(name)?.owner
     if (owner !== undefined && !restart.has(owner)) continue

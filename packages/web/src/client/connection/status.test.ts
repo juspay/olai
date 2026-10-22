@@ -15,7 +15,7 @@
 
 import { expect, test } from "bun:test"
 
-import { frozenLookOf, isFrozen, lookOf, LOOK, stoppedRows, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
+import { frozenLookOf, isFrozen, lookOf, LOOK, type SurfaceReadout, type SurfaceReadoutStatus } from "./status.ts"
 
 /** The states the table answers for, DERIVED from it — which is not a table
  *  checked against itself, because membership is already a type-level
@@ -106,10 +106,13 @@ test("the degraded detail names plugin rows, not raw stream ids", () => {
   })
   expect(look.detail).toContain("(git, kolu)")
   expect(look.detail).not.toContain("git/pending")
-  expect(stoppedRows(["git/git", "git/pending", "olai/plugins", "git/git"])).toEqual([
-    "git",
-    "olai",
-  ])
+  // One row, however many of its subscriptions stopped.
+  expect(lookOf({
+    status: "degraded",
+    stopped: ["git/git", "git/pending"],
+    needsReload: false,
+    presentingDown: false,
+  }).detail).toContain("(git)")
 })
 
 // One door for all five. The table answers four and cannot answer the fifth —

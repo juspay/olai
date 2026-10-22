@@ -11,14 +11,12 @@ settling. Stopping the reader withdraws its service; patches already applied
 stand. Reopening the vault publishes a fresh reading and reapplies its policy.
 
 **A config edit restarts the row it configures, unless that row declares
-`configUpdates: "live"`.** The patch reaches the loader, which stops the row's
-fiber and mounts a fresh one; the serve logs `config change restarts row
-"<name>"` with the changed keys, then the new mount. The roster carries a
-per-row `generation` that moves with every mount, and the browser follows it —
-it refreshes the connection and starts that row's browser half again, so a
-tab's standing subscriptions follow the new sibling instead of going quiet
-behind a "Partly connected" dot. Only the rows whose generation moved are
-restarted; a neighbour's activation and local state are untouched.
+`configUpdates: "live"`.** The loader stops the row's fiber and mounts a fresh
+one; the serve logs `config change restarts row "<name>"` with the changed keys,
+then the new mount. The roster's per-row `generation` moves with each mount, and
+a tab refreshes its connection and restarts that row's browser half, so its
+subscriptions follow the new sibling instead of going quiet. Only the rows that
+moved restart.
 
 The service contract is `ConfigurationSource`; roster values travel as
 `configurationValues`, with `setBy` naming the vault or the default. Those

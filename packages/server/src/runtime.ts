@@ -49,11 +49,10 @@ export const rosterOf = (
   wakes: ReadonlyMap<string, Wake> = new Map(),
   offers: ReadonlyMap<string, string> = new Map(),
   defined: ReadonlyArray<BuiltPlugin> = [],
-  /** WHICH MOUNT EACH ROW IS ON, owned by the composition root that calls
-   *  `runtime.mount` — see `BuiltPlugin.generation`. Handed in rather than
-   *  read off `offered`: the mount table belongs to `bind`, and a roster that
-   *  asked the registry for it would be reading a second clock for the one
-   *  fact a browser redials on. Absent for a row this serve has not mounted. */
+  /** WHICH MOUNT EACH ROW IS ON — the roster's `generation`, owned by the
+   *  composition root that calls `runtime.mount`. Handed in rather than read
+   *  off `offered`: the mount table is `bind`'s, and a roster asking the
+   *  registry for it would be a second clock. */
   generations: ReadonlyMap<string, number> = new Map(),
 ): PluginRoster =>
   offered === null ? NO_ROSTER : ((
@@ -157,17 +156,10 @@ export const bind = (wiring: Wiring) => Effect.gen(function*() {
     let pluginsCell: { set: (value: PluginRoster) => void } | null = null
     const republishPlugins = () => pluginsCell?.set(roster())
     /**
-     * HOW MANY TIMES EACH ROW HAS BEEN MOUNTED ON THIS SERVE — the counter the
-     * roster carries as `BuiltPlugin.generation`.
-     *
-     * OWNED HERE because this is where `runtime.mount` is called, and a mount
-     * is the event the count is about. It is deliberately NOT reset on drop: a
-     * row switched off and on again must move the roster's generation too, and
-     * a counter that restarted at 1 would let a tab that saw the pre-flip
-     * generation believe the returning row is the same mount.
-     *
-     * Declared before {@link roster} because the `plugins` cell's opening value
-     * is `roster()`, which runs while `deps` is still being built.
+     * HOW MANY TIMES EACH ROW HAS BEEN MOUNTED — the roster's `generation`.
+     * Owned here because this is where `runtime.mount` is called, and NOT reset
+     * on drop: a row switched off and on again must move too. Declared before
+     * `roster` because the `plugins` cell's opening value is `roster()`.
      */
     const generations = new Map<string, number>()
     const offered = wiring.plugins
@@ -345,15 +337,10 @@ app: {
           { writes: one.writes, faces: one.faces as never },
         )
         mounted.set(key, mount)
-        // THE MOUNT MOVES THE ROW'S GENERATION — see `generations` above. Set
-        // after `runtime.mount` returns, so a mount that threw did not happen
-        // as far as the roster is concerned.
+        // A throw is not a mount, so the count moves after `runtime.mount`
+        // returns. Debug because a boot's ~45 mounts would bury the restart line.
         const generation = (generations.get(key) ?? 0) + 1
         generations.set(key, generation)
-        // DEBUG, not INFO. A boot mounts ~45 rows and a shutdown drops them
-        // again; at the default level those two runs would bury the
-        // `config change restarts row` line that a reapply is diagnosed by.
-        // Raise the level when the mount order itself is the question.
         say(Effect.logDebug(`plugins: mounted "${key}"`).pipe(
           Effect.annotateLogs({ generation }),
         ))

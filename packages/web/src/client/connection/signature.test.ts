@@ -14,7 +14,7 @@
 
 import { expect, test } from "bun:test"
 
-import { remountedRows, signatureOf, type Named } from "./signature.ts"
+import { restartRows, signatureOf, type Named } from "./signature.ts"
 
 const git = (generation?: number): Named => ({ id: "git", chunk: null, generation })
 
@@ -30,7 +30,7 @@ test("a config-only frame with the same mount generation does not redial", () =>
   const first = kolu("manual")
   const second = kolu("auto")
   expect(signatureOf([git(3), first])).toBe(signatureOf([git(3), second]))
-  expect(remountedRows([git(3), first], [git(3), second])).toEqual([])
+  expect(restartRows([git(3), first], [git(3), second])).toEqual([])
 })
 
 test("a new mount generation redials that row", () => {
@@ -56,13 +56,13 @@ test("a row the tab has not heard a generation for is not restarted on the first
   // The bootstrap selection a slow first frame races onto the roster names no
   // mount at all. That is "unknown", not "mount zero" — restarting every
   // plugin to answer it would throw away state for a roster that has not moved.
-  expect(remountedRows([{ id: "git", chunk: null }], [git(1)])).toEqual([])
+  expect(restartRows([{ id: "git", chunk: null }], [git(1)])).toEqual([])
   // A generation the tab HAS seen moving is a remount.
-  expect(remountedRows([git(1)], [git(2)])).toEqual(["git"])
+  expect(restartRows([git(1)], [git(2)])).toEqual(["git"])
   // A browser half served from a new URL is new code, whatever its mount says
   // — the latent bug this arm fixes: a vault-defined half was re-imported but
   // its old activation stayed mounted.
-  expect(remountedRows(
+  expect(restartRows(
     [{ id: "defined", chunk: "/_olai/plugins/defined-1.js" }],
     [{ id: "defined", chunk: "/_olai/plugins/defined-2.js" }],
   )).toEqual(["defined"])

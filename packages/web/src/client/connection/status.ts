@@ -103,21 +103,10 @@ export const LOOK: Record<Exclude<SurfaceReadoutStatus, Degraded>, Look> = {
   },
 }
 
-/**
- * THE PLUGIN ROWS a stopped-stream list belongs to.
- *
- * `surfaceClientsHealth` names a stopped subscription `<surface key>/<member>`
- * (`@kolu/surface/solid`'s `mergeSurfaceHealth`) — `git/pending`, `kolu/git`,
- * `olai/plugins` — so the part before the first `/` is the row that owns them.
- * A person reading "Partly connected" can act on a row: it is the thing with a
- * switch, a panel and a log line. The raw stream id is what a console is for,
- * and this is the sentence a person reads, so it says the row and says it once.
- *
- * A stream with no separator is already a name and passes through. Order is
- * the readout's (the order subscriptions stopped), because that is the one
- * order this file did not invent.
- */
-export const stoppedRows = (stopped: ReadonlyArray<string>): ReadonlyArray<string> =>
+/** The plugin row a stopped stream belongs to: `surfaceClientsHealth` names a
+ *  subscription `<row>/<member>`, so the part before the first `/` is the row
+ *  (and a stream with no separator is already a name). */
+const rowsOf = (stopped: ReadonlyArray<string>): ReadonlyArray<string> =>
   [...new Set(stopped.map((id) => id.split("/")[0] ?? id))]
 
 /**
@@ -132,7 +121,7 @@ export const lookOf = (readout: SurfaceReadout): Look =>
   readout.status !== DEGRADED ? LOOK[readout.status] : {
     tone: "notice",
     label: "Partly connected",
-    detail: `Some updates aren't arriving (${stoppedRows(readout.stopped).join(", ")}).`,
+    detail: `Some updates aren't arriving (${rowsOf(readout.stopped).join(", ")}).`,
   }
 
 /**

@@ -278,11 +278,9 @@ export const patchRow = (host: Host, id: string, patch: { readonly disabled?: bo
     const changed = configMoved
       || (patch.disabled !== undefined && patch.disabled !== (entry.options.disabled ?? false))
     if (!changed && !force) return true
-    // A CONFIG PATCH RESTARTS THE ROW, and the restart is what takes its
-    // surface sibling down — so the line says so where it happens, with the
-    // KEYS that moved rather than the values (a config may carry a secret).
-    // `patchBundleRows` reaches this same line for every row of an edit; there
-    // is no second reading of "what changed" there to keep in step.
+    // A CONFIG PATCH RESTARTS the row, and the restart takes its surface
+    // sibling down. Name the keys, never the values: a config may carry a
+    // secret. `patchBundleRows` reaches this same line for every row.
     if (configMoved) {
       yield* Effect.annotateLogs(
         Effect.logInfo(`plugins: config change restarts row "${id}"`),

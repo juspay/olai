@@ -110,27 +110,17 @@ export const BuiltPlugin = Schema.Struct({
    *  `false` is total absence rather than a degraded arm. */
   running: Schema.Boolean,
   /**
-   * WHICH MOUNT OF THIS ROW THE ROSTER DESCRIBES — a count the SERVER's
-   * composition root owns, bumped once for every `runtime.mount` of that row.
+   * WHICH MOUNT OF THIS ROW THE ROSTER DESCRIBES — a count the server's
+   * composition root owns and bumps at every `runtime.mount` of the row.
    *
    * A config change on a row that is not `configUpdates: "live"` restarts its
-   * fiber, and the server drops the row's surface sibling and mounts a fresh
-   * one. The roster's other fields can all come back identical across that:
-   * the name, the state, even the config the row just read. A tab that decides
-   * whether to redial from those alone therefore keeps a wire whose standing
-   * subscriptions belong to the generation that was dropped, and draws live
-   * data it is no longer receiving.
+   * fiber and replaces its surface sibling; name, state and config can all come
+   * back identical. Without this a tab keeps a wire whose subscriptions belong
+   * to the dropped sibling and draws data it is no longer receiving.
    *
-   * This is the field that makes the mount a FACT ON THE ROSTER. It is owned by
-   * the server's mount lifetime — the tab holds no counter of its own and may
-   * not guess one — and the tab's subscriptions follow it
-   * (`@olai/web`'s `client/connection/signature.ts`).
-   *
-   * ABSENT on a row that is not running, and on every older serve. A tab reads
-   * absence as generation 0, which is exactly the "this serve has never told me
-   * about a mount" reading an older roster deserves. Optional for `state`'s
-   * reason: the roster is what every plugin's mount hangs off, so a new tab
-   * talking to an older server must still decode it.
+   * ABSENT on a row that is not running and on older serves; a tab reads
+   * absence as 0, "this serve never told me about a mount". Optional so a new
+   * tab can still decode an older roster.
    */
   generation: Schema.optionalKey(Schema.Number),
   /** Host selection only; browser activation is reported independently by each tab. */
