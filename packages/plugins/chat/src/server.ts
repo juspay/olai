@@ -116,6 +116,7 @@ import * as Chat from "./scoped.ts"
 import { whyNoAgent } from "./adapter.ts"
 import { choiceOf, detecting, here, offBecause } from "./agents/roster.ts"
 import { openLocalState } from "./local.ts"
+import { forLocalState as liveIn } from "./live.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { seatingIn } from "./seating.ts"
@@ -978,6 +979,7 @@ export default definePlugin({
         scoping: yield* scopesIn(localState),
         wake: (plugin) => wakes.current().get(plugin),
         overheard: yield* sessionsIn(localState),
+        live: liveIn(localState),
         agentAt: (to) => nodeAgents.agentAt(to),
         nodeAt: (node) => nodeAgents.nodeAt(node),
         seatableAt: (node) => nodeAgents.seatableAt(node),

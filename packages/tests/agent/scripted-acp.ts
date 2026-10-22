@@ -3672,6 +3672,18 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/load":
+      // NOTED BEFORE ANY REFUSAL, because the question this records is "did
+      // the server ask", which a refusal does not un-ask. Armed by the file's
+      // existence: a scenario that asserts a conversation was NOT reopened
+      // reads an empty file, and every other scenario pays nothing.
+      {
+        const asked = typeof params["cwd"] === "string"
+          ? params["cwd"].replace(/\/+$/, "")
+          : cwd
+        if (existsSync(join(asked, MARKER.loads))) {
+          appendFileSync(join(asked, MARKER.loads), `${String(params["sessionId"])}\n`)
+        }
+      }
       if (needsSignature()) {
         refuse(id, -32000, "Authentication required")
         return

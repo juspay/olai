@@ -10,7 +10,7 @@
 import type { NodeAgent, OpFailure } from "@olai/format"
 import { collector } from "@olai/log/testlib"
 import { afterEach, beforeEach, expect, test } from "bun:test"
-import { Deferred, Effect, Exit, Fiber, References, Scope } from "effect"
+import { Deferred, Duration, Effect, Exit, Fiber, References, Scope } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -18,9 +18,10 @@ import { join } from "node:path"
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
-import { ephemeralLocalState } from "./local.ts"
+import { ephemeralLocalState, type ChatLocalState } from "./local.ts"
+import { forLocalState as liveIn, type LiveRecord } from "./live.ts"
 import { volatile } from "./memory.ts"
-import { make } from "./scoped.ts"
+import { make, recordable } from "./scoped.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
 import { forLocalState as scopesIn } from "./scopes.ts"
 import { makePanel } from "./chat.ts"
@@ -215,91 +216,411 @@ test("two node scopes work together, then an idle one is reaped and woken in pla
     && line.annotations.reason === "idle eviction" && line.annotations.node === "one")).toBe(true)
 }, 20_000)
 
-test("boot opens no conversation, even with an old remembered session", async () => {
-  let probes = 0
-  let roster = [installed("alpha")]
-  const remembered: NodeAgent = {
-    id: "one",
-    file: "Work.olai",
-    title: "one",
-    engine: "alpha",
-    session: "remembered",
-    memory: 2,
-  }
-  // The composition root builds chat before the surface. Its carrier is
-  // seeded between construction and start, and the scheduler must read that
-  // live value when it routes remembered memory.
-  let nodes: ReadonlyArray<NodeAgent> = []
-  const memory = volatile()
-  await run(memory.remember({ agent: "alpha", session: "remembered", model: null }))
+/**
+ * A SCHEDULER OVER ONE LIVE RECORD, and the bench a restart is expressed with:
+ * a second `make` over the same local document. The node table and the roster
+ * are thunks so a test can move either between the two, which is how "the
+ * engine registered after chat's apply" and "the node was trashed while the
+ * server was down" are reached.
+ */
+const alphaWith = (args: ReadonlyArray<string>): Installed => ({
+  ...installed("alpha"),
+  adapter: { command: process.execPath, args: [FIXTURE, ...args] },
+})
 
-  const { layer, said } = collector()
-  const under = <A, E>(effect: Effect.Effect<A, E>): Effect.Effect<A, E> =>
-    effect.pipe(
-      Effect.provideService(References.MinimumLogLevel, "Info"),
-      Effect.provide(layer),
-    )
-  const logged = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(under(effect))
-  const chat = await logged(make({
-    fork: (work) => Effect.runFork(under(work)),
-    roster: () => roster.map(seated),
+const restartable = async (options: {
+  local: ChatLocalState
+  /** The SAME record the test reads, so a write is visible to both — a second
+   *  adapter over one document loads its own copy and would never see it. */
+  record?: LiveRecord
+  nodes: () => ReadonlyArray<NodeAgent>
+  roster: () => ReadonlyArray<Installed>
+  idle?: Duration.Input
+  capacity?: number
+  released?: Array<string>
+  /** Counts the seam's forks, so a hot loop is visible as a burst rather than
+   *  as a slow test. */
+  forks?: { count: number }
+}) => {
+  const { run, fork, said } = logging()
+  const counted = (work: Effect.Effect<void>): Fiber.Fiber<void> => {
+    if (options.forks !== undefined) options.forks.count++
+    return fork(work)
+  }
+  const chat = await run(make({
+    fork: counted,
+    live: options.record ?? liveIn(options.local),
+    roster: () => options.roster().map(seated),
     cwd,
-    memory,
-    probes: () => Effect.succeed([{
-      name: "startup-probe",
-      ask: Effect.sync(() => {
-        probes++
-        return { server: null, missing: null }
-      }),
-    }]),
     tools: () => null,
-    nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
-    seatableAt: (id) => nodes.some((node) => node.id === id),
-    nodes: () => nodes,
+    nodes: options.nodes,
+    nodeAt: (id) => options.nodes().find((node) => node.id === id) ?? null,
+    seatableAt: (id) => options.nodes().some((node) => node.id === id),
     wake: () => ACTIVATION,
     nearestAt: (id, candidates) => candidates.has(id) ? id : null,
     agentAt: ({ agent, session }) =>
-      nodes.find((node) => node.engine === agent && node.session === session) ?? null,
-    ticket: (node) => ({ bearer: `ticket-${node}`, release: () => {} }),
+      options.nodes().find((node) => node.engine === agent && node.session === session) ?? null,
+    ticket: (node) => ({ bearer: `ticket-${node}`, release: () => options.released?.push(node) }),
+    ...(options.idle === undefined ? {} : { idle: options.idle }),
+    ...(options.capacity === undefined ? {} : { capacity: options.capacity }),
     onState: () => {},
     onTranscript: () => {},
   }))
-  nodes = [remembered]
+  return { chat, run, fork, said }
+}
 
+const NODE_ONE: NodeAgent = {
+  id: "one",
+  file: "Work.olai",
+  title: "one",
+  engine: "alpha",
+  session: "remembered",
+  memory: 2,
+}
+
+const opened = (said: ReadonlyArray<{ message: string }>): number =>
+  said.filter((line) => line.message.includes("conversation opened")).length
+
+test("the conversations live before a restart open again without a reader", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  const first = await restartable({
+    local,
+    record,
+    nodes: () => [NODE_ONE],
+    roster: () => [installed("alpha")],
+  })
   try {
-    await logged(chat.start)
-    expect(chat.live().size).toBe(0)
-    expect(chat.state().session).toBeNull()
-    expect(said.filter((line) => line.message.includes("chat agent ready"))).toHaveLength(0)
-    expect(said.filter((line) => line.message.includes("conversation opened"))).toHaveLength(0)
-    expect(probes).toBe(0)
-    const tab = Scope.makeUnsafe()
-    const states: Array<string> = []
-    try {
-      await logged(chat.reading({ agent: "alpha", session: "remembered" }, {
-        state: state => { states.push(state.status) }, transcript: () => {},
-      }).pipe(Effect.provideService(Scope.Scope, tab)))
-      expect(states).toContain("booting")
-      expect(states.at(-1)).toBe("idle")
-      roster = []
-      await logged(chat.enginesMoved)
-      expect(states.at(-1)).toBe("off")
-      roster = [installed("alpha")]
-      await logged(chat.enginesMoved)
-      expect(states.at(-1)).toBe("idle")
-      expect(said.filter(line => line.message.includes("conversation opened"))).toHaveLength(2)
-      await logged(Scope.close(tab, Exit.void))
-      roster = []
-      await logged(chat.enginesMoved)
-      roster = [installed("alpha")]
-      await logged(chat.enginesMoved)
-      // Capability arrival without a reader must not open the stored chat.
-      expect(said.filter(line => line.message.includes("conversation opened"))).toHaveLength(2)
-    } finally {
-      await logged(Scope.close(tab, Exit.void))
-    }
+    await first.run(first.chat.start)
+    await first.run(first.chat.loadSession("alpha", "remembered"))
+    await until("the conversation to be live", () => first.chat.live().get("one")?.status === "idle")
+    await until("the live record", () => record.read().some((mark) => mark.node === "one"))
   } finally {
-    await logged(chat.stop)
+    await first.run(first.chat.stop)
+  }
+  // The stop wrote nothing: the record is what the last live moment looked
+  // like, which is exactly what a SIGKILL leaves behind.
+  expect(record.read().map((mark) => mark.node)).toEqual(["one"])
+
+  const second = await restartable({
+    local,
+    record,
+    nodes: () => [NODE_ONE],
+    roster: () => [installed("alpha")],
+  })
+  try {
+    const before = opened(second.said)
+    await second.run(second.chat.start)
+    // THE CLAIM: the node is live before anything here asked for it. `start`
+    // hands the pass to the seam rather than joining it, so wait for the
+    // reopen it forked.
+    await until("the boot's own reopen", () => second.chat.live().get("one")?.status === "idle")
+    expect(opened(second.said)).toBe(before + 1)
+    // ... and it is still what the record says, because a reopened conversation
+    // IS live: the next restart opens it again on the budget it has left.
+    expect(record.read().map((mark) => mark.node)).toEqual(["one"])
+  } finally {
+    await second.run(second.chat.stop)
+  }
+})
+
+test("a recorded conversation waits for an engine that registers after chat's apply", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  await run(record.write([{ node: "one", touched: Date.now() }]))
+  let roster: ReadonlyArray<Installed> = []
+  const it = await restartable({ local, record, nodes: () => [NODE_ONE], roster: () => roster })
+  try {
+    await it.run(it.chat.start)
+    // The pass is forked; let it look and leave the entry alone.
+    await it.run(Effect.sleep("50 millis"))
+    expect(it.chat.live().size).toBe(0)
+    // ENTRY RETAINED, not forgotten: the record is the live set UNION what is
+    // still waiting, or the next engine's mount would have nothing to find.
+    expect(record.read().map((mark) => mark.node)).toEqual(["one"])
+
+    roster = [installed("alpha")]
+    await it.run(it.chat.enginesMoved)
+    expect(it.chat.live().get("one")?.status).toBe("idle")
+    expect(record.read().map((mark) => mark.node)).toEqual(["one"])
+  } finally {
+    await it.run(it.chat.stop)
+  }
+})
+
+for (const missing of ["the node", "its session"] as const) {
+  test(`a recorded conversation whose ${missing} is gone is dropped, not retried`, async () => {
+    const local = ephemeralLocalState()
+    const record = liveIn(local)
+    await run(record.write([{ node: "one", touched: Date.now() }]))
+    const it = await restartable({
+      local,
+      record,
+      nodes: () => missing === "the node" ? [] : [{ ...NODE_ONE, session: null }],
+      roster: () => [installed("alpha")],
+    })
+    try {
+      await it.run(it.chat.start)
+      expect(it.chat.live().size).toBe(0)
+      await until("the dropped record", () => record.read().length === 0)
+      expect(it.said.some((line) => line.message.includes("no longer a seat"))).toBe(true)
+    } finally {
+      await it.run(it.chat.stop)
+    }
+  })
+}
+
+test("a recorded conversation past the idle budget is skipped and dropped", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  await run(record.write([{
+    node: "one",
+    touched: Date.now() - 2 * 3_600_000,
+  }]))
+  const it = await restartable({
+    local,
+    record,
+    nodes: () => [NODE_ONE],
+    roster: () => [installed("alpha")],
+    idle: "1 hour",
+  })
+  try {
+    await it.run(it.chat.start)
+    expect(it.chat.live().size).toBe(0)
+    await until("the expired record to be dropped", () => record.read().length === 0)
+    // Nothing was spawned to learn that: the budget is arithmetic.
+    expect(it.said.some((line) => line.message.includes("chat agent ready"))).toBe(false)
+  } finally {
+    await it.run(it.chat.stop)
+  }
+})
+
+test("a refused resume closes its scope, drops the record and leaves the reader path alone", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  await run(record.write([{ node: "one", touched: Date.now() }]))
+  const released: Array<string> = []
+  const it = await restartable({
+    local,
+    record,
+    nodes: () => [NODE_ONE],
+    roster: () => [alphaWith(["--refuse-load"])],
+    released,
+  })
+  try {
+    await it.run(it.chat.start)
+    await until("the refused record to be dropped", () => record.read().length === 0)
+    // The slot the attempt acquired is gone — credential included — rather
+    // than sitting there as a refused conversation nobody asked for.
+    await until("the refused scope's credential to be released", () => released.includes("one"))
+    expect(it.chat.live().size).toBe(0)
+    expect(it.said.some((line) =>
+      line.message.includes("could not be reopened")
+      && line.message.includes("refused on purpose"))).toBe(true)
+  } finally {
+    await it.run(it.chat.stop)
+  }
+})
+
+test("a held reader does not spin the idle timer, and gets its budget back when it leaves", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  const forks = { count: 0 }
+  const released: Array<string> = []
+  const it = await restartable({
+    local,
+    record,
+    nodes: () => [NODE_ONE],
+    roster: () => [installed("alpha")],
+    idle: "150 millis",
+    released,
+    forks,
+  })
+  const tab = Scope.makeUnsafe()
+  try {
+    await it.run(it.chat.start)
+    await it.run(it.chat.reading({ node: "one" }, {
+      state: () => {},
+      transcript: () => {},
+    }).pipe(Effect.provideService(Scope.Scope, tab)))
+    await until("the held conversation to be live", () => it.chat.live().has("one"))
+
+    // SEVERAL BUDGETS PASS WHILE THE READER HOLDS IT. A re-arm that kept the
+    // old instant would sleep for zero and fork again at once; a few timer
+    // arms are the honest answer, hundreds are the spin.
+    const before = forks.count
+    await it.run(Effect.sleep("600 millis"))
+    expect(forks.count - before).toBeLessThan(20)
+    expect(it.chat.live().has("one")).toBe(true)
+
+    // ... AND LEAVING HANDS IT A FULL BUDGET rather than evicting it on the
+    // frame the reader looked away.
+    const left = Date.now()
+    await it.run(Scope.close(tab, Exit.void))
+    await it.run(Effect.sleep("60 millis"))
+    expect(it.chat.live().has("one")).toBe(true)
+    await until("the released conversation to be reaped", () => !it.chat.live().has("one"), 2000)
+    expect(Date.now() - left).toBeGreaterThan(80)
+    expect(released).toEqual(["one"])
+  } finally {
+    await it.run(Scope.close(tab, Exit.void))
+    await it.run(it.chat.stop)
+  }
+})
+
+test("a reopened conversation closes on its remaining budget, not a fresh one", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  // 600 of 800 ms already spent: 200 ms are what a boot may spend.
+  await run(record.write([{ node: "one", touched: Date.now() - 600 }]))
+  const it = await restartable({
+    local,
+    record,
+    nodes: () => [NODE_ONE],
+    roster: () => [installed("alpha")],
+    idle: "800 millis",
+  })
+  try {
+    await it.run(it.chat.start)
+    await until("the reopened conversation", () => it.chat.live().has("one"))
+    const openedAt = Date.now()
+    // A FRESH idle window would keep it for 800 ms. The recorded instant is
+    // what a late idle frame must not overwrite.
+    await until("the remaining budget to expire", () => !it.chat.live().has("one"), 2000)
+    expect(Date.now() - openedAt).toBeLessThan(500)
+  } finally {
+    await it.run(it.chat.stop)
+  }
+})
+
+test("start does not wait for a boot reopen, and stop interrupts a hanging one", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  await run(record.write([{ node: "one", touched: Date.now() }]))
+  const released: Array<string> = []
+  const it = await restartable({
+    local,
+    record,
+    nodes: () => [NODE_ONE],
+    roster: () => [alphaWith(["--hold-load"])],
+    released,
+  })
+  try {
+    // A `session/load` that never answers must not hold the serve's next steps
+    // (the filer, the sleeper) behind eight subprocess boots.
+    await it.run(it.chat.start.pipe(Effect.timeout("1 second")))
+    // ... and a stop must cut it rather than wait out a real agent's deadline.
+    await it.run(it.chat.stop.pipe(Effect.timeout("3 seconds")))
+    expect(it.chat.live().size).toBe(0)
+    expect(released).toEqual(["one"])
+  } finally {
+    await it.run(Effect.catch(it.chat.stop, () => Effect.void))
+  }
+})
+
+test("a gone agent is not written down, so a restart does not wake it", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  await run(record.write([{ node: "one", touched: Date.now() }]))
+  let roster = [installed("alpha"), installed("beta")]
+  const it = await restartable({ local, record, nodes: () => [NODE_ONE], roster: () => roster })
+  try {
+    await it.run(it.chat.start)
+    await until("the conversation to be live", () => it.chat.live().get("one")?.status === "idle")
+    await until("the live record", () => record.read().some((mark) => mark.node === "one"))
+
+    // The engine leaving leaves the slot in the pool as `gone` until eviction.
+    // That is not a conversation a restart should wake once the engine mounts
+    // again — the rule is that asleep agents remain asleep.
+    roster = [installed("beta")]
+    await it.run(it.chat.enginesMoved)
+    await until("the record to drop the gone conversation", () => record.read().length === 0)
+  } finally {
+    await it.run(it.chat.stop)
+  }
+})
+
+
+test("one question decides what the record keeps", () => {
+  const slot = (over: {
+    history?: boolean
+    status?: "idle" | "gone" | "thinking"
+    unopened?: unknown
+  } = {}) => ({
+    history: over.history ?? false,
+    state: {
+      status: over.status ?? "idle",
+      unopened: over.unopened ?? null,
+    },
+  })
+  // A conversation the server is having, and nothing else.
+  expect(recordable(slot())).toBe(true)
+  // A past conversation somebody is reading is not one the server is having.
+  expect(recordable(slot({ history: true }))).toBe(false)
+  // A refused open is live for its reader, not for the next boot.
+  expect(recordable(slot({ unopened: { what: "sess-1" } }))).toBe(false)
+  // A gone agent stays asleep when its engine comes back.
+  expect(recordable(slot({ status: "gone" }))).toBe(false)
+})
+
+test("the record sheds the conversation capacity evicts", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  const nodes: ReadonlyArray<NodeAgent> = [
+    NODE_ONE,
+    { id: "two", file: "Work.olai", title: "two", engine: "alpha", session: "second", memory: 2 },
+    { id: "three", file: "Work.olai", title: "three", engine: "alpha", session: "third", memory: 2 },
+  ]
+  const it = await restartable({
+    local,
+    record,
+    nodes: () => nodes,
+    roster: () => [installed("alpha")],
+    capacity: 2,
+  })
+  try {
+    await it.run(it.chat.start)
+    await it.run(it.chat.loadSession("alpha", "remembered"))
+    await until("one on the record", () => record.read().map((mark) => mark.node).join() === "one")
+    await it.run(it.chat.loadSession("alpha", "second"))
+    await until("two on the record", () => record.read().length === 2)
+
+    await it.run(it.chat.loadSession("alpha", "third"))
+    // The oldest of the two is what capacity releases, and the record follows
+    // the live set: the evicted node is not one a restart brings back.
+    await until("the record to shed the evicted node", () =>
+      record.read().map((mark) => mark.node).toSorted().join() === "three,two")
+    expect(it.chat.live().has("one")).toBe(false)
+  } finally {
+    await it.run(it.chat.stop)
+  }
+})
+
+test("the record follows the live set as slots open and go", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  let nodes: ReadonlyArray<NodeAgent> = [
+    NODE_ONE,
+    { id: "two", file: "Work.olai", title: "two", engine: "alpha", session: "second", memory: 2 },
+  ]
+  const it = await restartable({ local, record, nodes: () => nodes, roster: () => [installed("alpha")] })
+  try {
+    await it.run(it.chat.start)
+    await it.run(it.chat.loadSession("alpha", "remembered"))
+    await until("the first node on the record", () =>
+      record.read().length === 1 && record.read()[0]?.node === "one")
+    await it.run(it.chat.loadSession("alpha", "second"))
+    await until("both nodes on the record", () => record.read().length === 2)
+
+    // A node that leaves the vault takes its conversation with it. The record
+    // is written at the close, not on the next boot: a SIGKILL one tick later
+    // must not bring the trashed node back.
+    nodes = [NODE_ONE]
+    it.chat.reread()
+    await until("the closed node off the record", () =>
+      record.read().length === 1 && record.read()[0]?.node === "one")
+  } finally {
+    await it.run(it.chat.stop)
   }
 })
 

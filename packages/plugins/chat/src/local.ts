@@ -2,16 +2,17 @@
  * CHAT'S ONE MACHINE-LOCAL DOCUMENT.
  *
  * Core gives this row one {@link LocalState} door, already keyed by the row's
- * name and served directory. Chat keeps model choices, wake picks and heard records in
- * it. Chat does not read the legacy conversation-selection note. A writer
- * replaces one section under one permit and carries the others, so a model
- * choice cannot erase a doorbell pick or an overheard line.
+ * name and served directory. Chat keeps model choices, wake picks, heard
+ * records and the set of conversations that were live a moment ago in it. Chat
+ * does not read the legacy conversation-selection note. A writer replaces one
+ * section under one permit and carries the others, so a model choice cannot
+ * erase a doorbell pick or an overheard line.
  */
 
 import type { LocalState, Refusal } from "@olai/plugin-api/services"
 import { Data, Effect, Semaphore } from "effect"
 
-export type LocalSection = "memory" | "models" | "wake" | "heard"
+export type LocalSection = "memory" | "models" | "wake" | "heard" | "live"
 
 /** A chat-local record could not be read or written. The panel renders this
  * tagged failure as a transcript row rather than losing the gesture quietly. */
@@ -54,6 +55,7 @@ export const openLocalState = (door: LocalState): Effect.Effect<ChatLocalState> 
       models: object(loaded["models"]),
       wake: object(loaded["wake"]),
       heard: object(loaded["heard"]),
+      live: object(loaded["live"]),
     }
     const writing = yield* Semaphore.make(1)
 
@@ -82,6 +84,7 @@ export const ephemeralLocalState = (): ChatLocalState => {
     models: {},
     wake: {},
     heard: {},
+    live: {},
   }
   return {
     load: (section) => {

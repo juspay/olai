@@ -36,9 +36,12 @@
  *     which it is, in the header, beside the model. Asking a one-row question
  *     is friction with no answer behind it, and every olai before this one was
  *     in exactly that state.
- *   - **the note this directory left** ({@link ./memory.ts}) names the agent
- *     the panel was last talking to, so a restart comes back to the
- *     conversation it was in rather than to a question.
+ *   - **the activation's own note** ({@link ./memory.ts}) may name the agent a
+ *     conversation was last entered with. It is transient — this machine-local
+ *     document's model record is the durable half — so a restart does not read
+ *     it. What a restart DOES bring back is the set of conversations that were
+ *     live, reopened by the scheduler from the record it writes as they move
+ *     ({@link ./scoped.ts}'s `Chat.start`, {@link ./live.ts}).
  *   - **otherwise the panel ASKS**, and holds no conversation until somebody
  *     answers ({@link Talking}'s `asking` arm). A default remembered ACROSS
  *     conversations is exactly what was ruled out: the question is per chat.
@@ -1967,10 +1970,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * WHICH agent this panel comes up talking to, or `null` for "ask".
      *
      * The three-line rule from the header, in the order that makes each line
-     * true: one installed agent is not a choice; a note this directory left
-     * names the agent the panel was in a conversation WITH, and coming back to
-     * that conversation is the whole point of the note; and anything else is a
-     * question nobody here may answer on somebody's behalf.
+     * true: one installed agent is not a choice; a note this activation holds
+     * names the agent a conversation was last entered with, and entering that
+     * conversation without asking is what the note is for; anything else is a
+     * question nobody here may answer on somebody's behalf. The note is not
+     * durable, so a restart does not reach this line at all — the scheduler
+     * reopens the conversations that were live before it ({@link ./scoped.ts}'s
+     * `Chat.start`).
      *
      * A NOTE THAT NAMES AN AGENT THIS MACHINE NO LONGER HAS reads as no note at
      * all — uninstalling an agent is not a reason to refuse to open the panel,
