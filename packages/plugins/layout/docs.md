@@ -111,6 +111,16 @@ signed-in face). Layout owns the location and the drawing of the dot
 
 - The connection's row is layout's own: `Connected`, `Connecting…`,
   `Reconnecting…`, `Partly connected` or `The server restarted`.
+- `Partly connected` names the PLUGIN ROWS whose subscriptions stopped, not
+  the raw stream ids (`client/connection/status.ts` groups a readout's
+  `<row>/<member>` ids by row). That is deliberate: a row is the thing with a
+  switch, a panel and a log line, so the sentence points at something a person
+  can act on. A config edit on a row that is not `configUpdates: "live"`
+  restarts it server-side; the roster carries a new mount generation, the tab
+  refreshes its connection and starts that row's browser half again, and the
+  dashboard re-subscribes to the new sibling. If one does stop anyway, the
+  health dot turns amber with that row's name under it, and the console has
+  the stream ids.
 - `app.header` `cluster` seats are drawn as rows of the dot's popover beside
   the connection's row — git's Commit row, kolu, odu, mail, spaces — WORST
   FIRST: `alarm` rows, then `notice`, then `healthy`, then `quiet` (a seat with
