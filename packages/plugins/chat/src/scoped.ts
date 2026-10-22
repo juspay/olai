@@ -310,6 +310,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           node: slot.node,
           touched: slot.touched,
           history: slot.history,
+          // A CONVERSATION THAT WOULD NOT OPEN IS NOT A CONVERSATION TO COME
+          // BACK TO. The boot's own failures are dropped explicitly below, but
+          // a slot a READER opened and was refused stays in the pool for that
+          // reader — and writing it down would make the next boot retry the
+          // same refusal once more.
+          refused: slot.state.unopened !== null,
         })),
         [...restore].map(([node, touched]) => ({ node, touched })),
       )
@@ -853,7 +859,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             `chat: the conversation that was live on node ${node} could not be reopened: ${opened.failure.message}`,
           )
           const slot = nodes.get(key)
-          if (slot !== undefined) yield* close(slot, "scope released")
+          // A READER THAT ARRIVED WHILE THE BOOT WAS OPENING owns this panel
+          // now, and closing the scope under it would leave the tab reading
+          // "the server is shutting down" where the refusal belongs. The
+          // refusal is already the panel's own state, so keeping it is what
+          // makes the reader's path unchanged; it is not recorded (a refused
+          // conversation is not one to come back to) and its idle timer reaps
+          // it once the reader leaves.
+          if (slot !== undefined) {
+            if (read(slot)) armIdle(slot)
+            else yield* close(slot, "scope released")
+          }
           restore.delete(node)
           continue
         }

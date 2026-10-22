@@ -22,9 +22,10 @@ test("the record is newest first, capped, and never names a history slot", () =>
     touched: at(i),
   }))
   const history = { node: "read-from-the-past", touched: at(-1), history: true }
+  const refused = { node: "refused-open", touched: at(-1), refused: true }
   const waiting = { node: "waiting-for-its-engine", touched: at(99) }
 
-  const marks = marksOf([...live, history], [waiting])
+  const marks = marksOf([...live, history, refused], [waiting])
 
   // The cap keeps the newest eight, and the history slot's brand-new instant
   // does not buy it a place — it is not a conversation this server is having.

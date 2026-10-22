@@ -98,12 +98,18 @@ export const marksOf = (
      *  written: it is not a conversation the server is having, so it is not one
      *  a restart should open. */
     readonly history?: boolean
+    /** An open that was REFUSED — the panel says why and offers a retry. It is
+     *  live for the reader it was refused for, and it is not a conversation a
+     *  restart should try again. */
+    readonly refused?: boolean
   }>,
   waiting: ReadonlyArray<{ readonly node: string; readonly touched: number }> = [],
 ): ReadonlyArray<LiveMark> => {
   const held = new Map<string, number>()
   for (const row of waiting) held.set(row.node, row.touched)
-  for (const row of live) if (row.history !== true) held.set(row.node, row.touched)
+  for (const row of live) {
+    if (row.history !== true && row.refused !== true) held.set(row.node, row.touched)
+  }
   return [...held]
     .filter(([, touched]) => !Number.isNaN(touched))
     .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))

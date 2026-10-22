@@ -72,6 +72,7 @@ Feature: Live chats survive a restart
     # answers one.
     And the agent refuses to load a conversation
     And the server starts again on the same port
+    And the filer's boot run has settled
     And I open the app
     And I open the outline "house.olai"
     Then node agent "kitchen" is folded
@@ -93,6 +94,7 @@ Feature: Live chats survive a restart
     When the server stops
     And I set the plugin "opencode" off on disk
     And the server starts again on the same port
+    And the filer's boot run has settled
     And I open the app
     And I open the outline "house.olai"
     # The entry stays on the record — an engine that mounts later is what
@@ -119,38 +121,3 @@ Feature: Live chats survive a restart
     And the agent has not loaded the conversation on node "order" in "_olai/Trash.olai"
     And no agent fold is open
     And there should be no page errors
-
-  Scenario: With more chats than the cap, the least recently touched is the one not reopened
-    # THE CAP DOES ITS WORK BEFORE THE RECORD CAN: opening the ninth conversation
-    # evicts the least recently touched one from the pool, so what a restart
-    # finds is the eight that were still live. The point of the ordering is the
-    # one this asserts — the conversation evicted first is the one the record
-    # sheds, not whichever happened to be written last.
-    Given the sidebar has eleven agents with dated vault edits
-    And the agent notes every conversation it loads
-    And I open the outline "recent.olai"
-    When I press the agent "recent-2"
-    And the node agent's fold is ready
-    And I press the agent "recent-3"
-    And the node agent's fold is ready
-    And I press the agent "recent-4"
-    And the node agent's fold is ready
-    And I press the agent "recent-5"
-    And the node agent's fold is ready
-    And I press the agent "recent-6"
-    And the node agent's fold is ready
-    And I press the agent "recent-7"
-    And the node agent's fold is ready
-    And I press the agent "recent-8"
-    And the node agent's fold is ready
-    And I press the agent "recent-9"
-    And the node agent's fold is ready
-    And I press the agent "recent-10"
-    And the node agent's fold is ready
-    When the server stops
-    And the server starts again on the same port
-    And I open the app
-    And I open the outline "recent.olai"
-    And the filer's boot run has settled
-    Then the agent has loaded the conversation on node "recent-10" in "recent.olai" without a browser
-    And the agent has not loaded the conversation on node "recent-2" in "recent.olai"

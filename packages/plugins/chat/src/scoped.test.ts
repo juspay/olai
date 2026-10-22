@@ -236,6 +236,7 @@ const restartable = async (options: {
   nodes: () => ReadonlyArray<NodeAgent>
   roster: () => ReadonlyArray<Installed>
   idle?: Duration.Input
+  capacity?: number
   released?: Array<string>
 }) => {
   const { run, fork, said } = logging()
@@ -254,6 +255,7 @@ const restartable = async (options: {
       options.nodes().find((node) => node.engine === agent && node.session === session) ?? null,
     ticket: (node) => ({ bearer: `ticket-${node}`, release: () => options.released?.push(node) }),
     ...(options.idle === undefined ? {} : { idle: options.idle }),
+    ...(options.capacity === undefined ? {} : { capacity: options.capacity }),
     onState: () => {},
     onTranscript: () => {},
   }))
@@ -404,6 +406,39 @@ test("a refused resume closes its scope, drops the record and leaves the reader 
     expect(it.said.some((line) =>
       line.message.includes("could not be reopened")
       && line.message.includes("refused on purpose"))).toBe(true)
+  } finally {
+    await it.run(it.chat.stop)
+  }
+})
+
+test("the record sheds the conversation capacity evicts", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  const nodes: ReadonlyArray<NodeAgent> = [
+    NODE_ONE,
+    { id: "two", file: "Work.olai", title: "two", engine: "alpha", session: "second", memory: 2 },
+    { id: "three", file: "Work.olai", title: "three", engine: "alpha", session: "third", memory: 2 },
+  ]
+  const it = await restartable({
+    local,
+    record,
+    nodes: () => nodes,
+    roster: () => [installed("alpha")],
+    capacity: 2,
+  })
+  try {
+    await it.run(it.chat.start)
+    await it.run(it.chat.loadSession("alpha", "remembered"))
+    await until("one on the record", () => record.read().map((mark) => mark.node).join() === "one")
+    await it.run(it.chat.loadSession("alpha", "second"))
+    await until("two on the record", () => record.read().length === 2)
+
+    await it.run(it.chat.loadSession("alpha", "third"))
+    // The oldest of the two is what capacity releases, and the record follows
+    // the live set: the evicted node is not one a restart brings back.
+    await until("the record to shed the evicted node", () =>
+      record.read().map((mark) => mark.node).toSorted().join() === "three,two")
+    expect(it.chat.live().has("one")).toBe(false)
   } finally {
     await it.run(it.chat.stop)
   }
