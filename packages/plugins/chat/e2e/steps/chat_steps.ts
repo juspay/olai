@@ -542,6 +542,104 @@ When("the list-asks so far are counted", function (this: OlaiWorld) {
   this.notedListAsks = listAsks(this.scratch());
 });
 
+/** THE SESSIONS THE AGENT HAS BEEN ASKED TO LOAD, off the file the fake
+ *  appends one id per `session/load` to (`packages/tests/agent/scripted-acp.ts`).
+ *  An absent file is an agent never asked — the same arming idiom as the
+ *  listing counter above. */
+const loadedSessions = (scratch: string): ReadonlyArray<string> => {
+  try {
+    return fs
+      .readFileSync(path.join(scratch, MARKER.loads), "utf8")
+      .trim()
+      .split("\n")
+      .filter((line) => line !== "");
+  } catch (failure) {
+    if ((failure as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw failure;
+  }
+};
+
+/** ARM the counter and empty it, so what follows is the restart's own ask. */
+Given("the agent notes every conversation it loads", function (this: OlaiWorld) {
+  fs.writeFileSync(path.join(this.scratch(), MARKER.loads), "");
+});
+
+/** The node's CURRENT binding, as the fake will see it: the property is
+ *  `engine:session`, and the agent is asked for the session half. */
+const boundSession = (world: OlaiWorld, node: string, file: string): string => {
+  const id = world.nodeId(node);
+  const row = world.servedNodes(file).find((one) => one.id === id);
+  assert.ok(row, `no node "${node}" in ${file}`);
+  const binding = (row.custom as Record<string, unknown> | undefined)?.["chat-agent-session"];
+  assert.equal(typeof binding, "string", `node "${node}" names no conversation`);
+  const at = String(binding).indexOf(":");
+  assert.ok(at > 0, `node "${node}" binding is not engine:session — ${String(binding)}`);
+  return String(binding).slice(at + 1);
+};
+
+Then(
+  "the agent has loaded the conversation on node {string} in {string} without a browser",
+  async function (this: OlaiWorld, node: string, file: string) {
+    const session = boundSession(this, node, file);
+    await this.waitUntil(
+      async () => loadedSessions(this.scratch()).includes(session),
+      `the agent to be asked for session ${session} before any page opened it`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "the agent has not loaded the conversation on node {string} in {string}",
+  function (this: OlaiWorld, node: string, file: string) {
+    const session = boundSession(this, node, file);
+    assert.ok(
+      !loadedSessions(this.scratch()).includes(session),
+      `the agent was asked for session ${session} after all`,
+    );
+  },
+);
+
+/** ...AND THE TRASH, WHILE THE SERVER IS DOWN. A person trashing a row in
+ *  another tab and then restarting is the shape; a scenario cannot keep the
+ *  page alive across `the server stops`, so the file is edited the way the
+ *  store would find it. The record and the node's own property are the two
+ *  halves the boot has to reconcile. */
+When(
+  "I move node {string} in {string} to the trash on disk",
+  function (this: OlaiWorld, node: string, file: string) {
+    const id = this.nodeId(node);
+    const rows = this.servedNodes(file);
+    const leaving = rows.filter((row) => row.id === id);
+    assert.ok(leaving.length > 0, `no node "${node}" in ${file}`);
+    this.writeServed(file, rows.filter((row) => row.id !== id).map((row) => JSON.stringify(row)).join("\n"));
+    this.writeServed(
+      "_olai/Trash.olai",
+      [...this.servedNodesSoFar("_olai/Trash.olai"), ...leaving.map(({ parent: _parent, ...row }) => row)]
+        .map((row) => JSON.stringify(row)).join("\n"),
+    );
+  },
+);
+
+/** ONE PLUGIN'S SWITCH, WRITTEN WHERE THE SERVER READS IT — for a scenario that
+ *  changes the engine table while no server is running. `on` is the word the
+ *  settings row carries, and a `.olai` row is a record like any other. */
+When("I set the plugin {string} {word} on disk", function (this: OlaiWorld, plugin: string, state: string) {
+  const file = path.join(this.scratch(), "_olai/Settings.olai");
+  const rows: Array<Record<string, unknown>> = fs.existsSync(file)
+    ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean)
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+    : [];
+  let row = rows.find((one) => one.title === plugin);
+  if (row === undefined) {
+    row = { id: `settings-${plugin}`, ord: "a9999", title: plugin };
+    rows.push(row);
+  }
+  row.custom = { ...(row.custom as Record<string, unknown> | undefined), on: state === "on" ? "yes" : "no" };
+  this.writeServed("_olai/Settings.olai", rows.map((one) => JSON.stringify(one)).join("\n"));
+});
+
+
 Then("the list-asks have not grown", function (this: OlaiWorld) {
   if (this.notedListAsks === null) {
     throw new Error("nothing was counted — pair this with `the list-asks so far are counted`");

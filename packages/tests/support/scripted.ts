@@ -113,6 +113,13 @@ export const MARKER = {
   release: ".agent-release",
   /** Make the next `session/load` sit on the wire. */
   holdLoad: ".agent-hold-load",
+  /** NOTE EVERY `session/load` THIS AGENT RECEIVES, one session id per line —
+   *  armed by the file's existence, like the listing counter beside it.
+   *
+   *  This is how a scenario says the server reopened a conversation WITHOUT a
+   *  browser: the page cannot be the witness for that, because opening the page
+   *  is what would open the conversation in the old behaviour. */
+  loads: ".agent-loads",
   /** Make the next replay of `an older conversation` arrive a line at a
    *  time, the way a long history reaches the panel: over many frames, while
    *  the panel is still opening it. */

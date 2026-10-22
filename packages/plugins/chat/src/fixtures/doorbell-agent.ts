@@ -18,6 +18,10 @@
  *   wait:<ms> — end_turn after that many milliseconds, so a turn can be held
  *               open for as long as a test needs to deliver into it
  *   anything else — end_turn immediately
+ *
+ * `--refuse-load` makes `session/load` answer with an error instead of opening,
+ * the shape an agent has when it will not resume a conversation — which is the
+ * one case a boot's own reopen has to drop rather than retry.
  */
 
 const write = (value: unknown): void => {
@@ -59,6 +63,14 @@ process.stdin.on("data", (chunk: string) => {
         respond(message.id, { sessionId: `sess-${++minted}` })
         continue
       case "session/load":
+        if (process.argv.includes("--refuse-load")) {
+          write({
+            jsonrpc: "2.0",
+            id: message.id,
+            error: { code: -32603, message: "no such conversation: refused on purpose" },
+          })
+          continue
+        }
         respond(message.id, { sessionId: message.params?.sessionId })
         continue
       case "session/cancel": {

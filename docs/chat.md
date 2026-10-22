@@ -84,7 +84,7 @@ one is logged with the same reason the page draws, not a second explanation
 that can drift. The server also distinguishes no mounted engine from none
 installed. A node's composer cannot infer that global verdict from its selected engine.
 
-The conversation is the agent's own session for that directory. Opening a node agent reads its session property; restarting the server opens no conversation automatically ([below](#which-conversation-you-come-back-to)). A session id means nothing to the other agent, so this is not a nicety: asking the wrong one to open it gets a refusal. And (for the Claude agent) `claude --resume` in a terminal reaches the same conversations.
+The conversation is the agent's own session for that directory. Opening a node agent reads its session property; a conversation that was live before a server restart is open again before any browser asks ([below](#which-conversation-you-come-back-to)). A session id means nothing to the other agent, so this is not a nicety: asking the wrong one to open it gets a refusal. And (for the Claude agent) `claude --resume` in a terminal reaches the same conversations.
 
 ### What differs between them
 
@@ -160,10 +160,34 @@ contract.
 
 ## Which conversation you come back to
 
-Server boot opens no conversation. Reload folds every outline conversation;
-Chats and the palette lead back to its node. A zoomed node page reads the
-conversation named by its property. Ongoing work and derived wakes can keep a
-session live independently of browser readers.
+**A restart brings back the conversations that were live when the process
+stopped — before any browser is there to ask.** Chat writes down each node it
+holds as the set moves (a slot minted, closed, or touched), so the record
+survives a SIGKILL rather than depending on a shutdown snapshot. What it keeps
+is the node and the instant it was last touched, never the session id: the
+node's own property names the conversation, so a boot opens the engine and
+session the node names *now*. At most eight entries are kept, most recently
+touched first. A fresh start or a rebind is therefore never
+resurrected from a stale copy. A browser reload still folds every outline
+conversation, and Chats and the palette lead back to its node; a zoomed node
+page reads the conversation named by its property. Ongoing work and derived
+wakes can still keep a session live independently of browser readers.
+
+**The budget is per conversation, not per restart.** A reopened chat's idle
+timer counts from the instant it was last touched before the restart, so it is
+closed 48 hours after it was last used however many restarts that spans. An
+entry already past the budget at boot is dropped instead of reopened.
+
+**A conversation the server cannot open is not retried.** An engine that is
+switched off or not installed yet leaves the entry waiting for its engine —
+which is what lets switching it back on bring the conversation back — but a
+node that was trashed or lost its property, an agent that refuses the resume or
+asks for a sign-in, and an engine that is gone all drop the entry and log a
+warning. The reader's own path is unchanged: opening that node draws the
+refusal and its retry, or the sign-in row, exactly as it does today. A turn
+that was in flight is not recovered — the agent's process died with the server
+— so the reopened conversation is idle and its composer is usable, showing the
+transcript the agent itself stored.
 
 The old which-conversation note is neither read nor written. Old notes remain
 subject to generic state pruning, without migration or special preservation.

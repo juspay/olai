@@ -12,6 +12,7 @@ import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
 import { makePanel } from "./chat.ts"
 import { here } from "./agents/roster.ts"
 import * as Memory from "./memory.ts"
+import { type LiveMark, type LiveRecord, marksOf } from "./live.ts"
 import type { Conversing } from "./sessions.ts"
 import type { PanelAddress } from "./wire/session.ts"
 import type { Change } from "./transcript.ts"
@@ -119,6 +120,18 @@ export interface Options extends PanelOptions {
   /** Current user-controlled wake activation, read through its Cordis service.
    * Absent for delivery-only plugins, which use node-derived recipients. */
   readonly wake: (plugin: string) => object | undefined
+  /**
+   * WHERE THE LIVE SET IS WRITTEN DOWN — the node ids that were live a moment
+   * ago and when each was last touched, so a restart can reopen them without a
+   * browser asking ({@link ./live.ts}).
+   *
+   * HANDED IN rather than built here, like the doorbell picks and overheard
+   * lines beside it: it is one of the records the composition root already
+   * opens per served directory, and the scheduler only decides WHICH nodes go
+   * in it. `null` — or absent — is a bench that keeps nothing, which is what
+   * every scheduler test that is not about a restart wants.
+   */
+  readonly live?: LiveRecord | null
   readonly nodeAt: (node: string) => NodeAgent | null
   /** Whether a node is a record an agent could be SEATED at — which is not the
    * same question as whether it is one already, and is the one the gesture
@@ -205,6 +218,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const {
       capacity = DEFAULT_CAPACITY,
       idle = DEFAULT_IDLE,
+      live = null,
       nearestAt,
       wake,
       nodeAt,
@@ -241,6 +255,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const read = (slot: NodeSlot) => (readingListeners(slot)?.size ?? 0) > 0
       || [...readerNodes.values()].includes(slot.node)
     const pending = new Map<string, Array<PendingDelivery>>()
+    /**
+     * THE CONVERSATIONS A PREVIOUS PROCESS LEFT LIVE, by node id and the
+     * instant each was touched — waiting, one at a time, for the pass that
+     * reopens them ({@link reopenPending}).
+     *
+     * IT OUTLIVES THE PASS, which is the point: an entry whose engine is not in
+     * the roster yet stays here, and the next `enginesMoved` tries it again.
+     * That is also why the record written below is the live set UNION this map:
+     * a write that forgot the waiting half would delete a conversation's only
+     * claim to be reopened simply because its engine had not mounted yet.
+     */
+    const restore = new Map<string, number>()
+    /** The idle budget in milliseconds, read once — the timer and the boot
+     *  check must divide the same number the same way. */
+    const idleMs = Duration.toMillis(idle)
     let stopped = false
     /** How many node operations are in flight, and the wait a stop takes on
      *  them — see {@link working}. */
@@ -249,6 +278,63 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     let active: { readonly kind: "root"; readonly panel: Panel } | {
       readonly kind: "node"
       readonly slot: NodeSlot
+    }
+
+    /**
+     * WRITE DOWN WHAT IS LIVE, promptly and continuously.
+     *
+     * NOT A SHUTDOWN SNAPSHOT, and that is the whole requirement: the restart
+     * this exists for is usually a SIGKILL, where nothing runs on the way out.
+     * So every moment the live set moves — a slot minted, closed, or touched —
+     * asks for a write; a write already in flight absorbs the ask and runs once
+     * more when it lands, so a burst of state frames costs one write at a time
+     * rather than one per frame.
+     *
+     * THE `stopped` CHECK IS A CORRECTNESS RULE, not tidiness: shutdown closes
+     * every slot, and a record written after the first of those would say the
+     * server had no conversations — exactly backwards, since those are the ones
+     * the next boot is meant to reopen. The last write before `stopped` is the
+     * one we want.
+     */
+    let liveWriting = false
+    let liveAgain = false
+    const persistLive = (): void => {
+      if (live === null || stopped) return
+      if (liveWriting) {
+        liveAgain = true
+        return
+      }
+      liveWriting = true
+      const marks: ReadonlyArray<LiveMark> = marksOf(
+        [...nodes.values()].map((slot) => ({
+          node: slot.node,
+          touched: slot.touched,
+          history: slot.history,
+        })),
+        [...restore].map(([node, touched]) => ({ node, touched })),
+      )
+      fork(
+        live.write(marks).pipe(
+          Effect.catchTag("MemoryFailure", (failure) =>
+            Effect.logWarning(
+              `chat: the conversations live in this directory could not be written down: ${failure.message}`,
+            )),
+          Effect.ensuring(Effect.sync(() => {
+            liveWriting = false
+            if (liveAgain) {
+              liveAgain = false
+              persistLive()
+            }
+          })),
+        ),
+      )
+    }
+
+    /** The two things every live-set change does, together: tell the roster
+     *  (which publishes to the wire) and write the record. */
+    const liveMoved = (): void => {
+      onLive?.()
+      persistLive()
     }
 
     // The lease is acquired under the same gate as eviction. A listing may
@@ -307,7 +393,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       const arrived = [...after.entries()]
       if (arrived.length > 0) panelOptions.onTranscript({ ...empty, upserts: arrived })
       panelOptions.onState(after.state())
-      onLive?.()
+      liveMoved()
     }
 
     const activateRoot = (): void => {
@@ -338,7 +424,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         slot.closeReason = reason
         nodes.delete(slot.key)
         if (active.kind === "node" && active.slot === slot) activateRoot()
-        onLive?.()
+        liveMoved()
         const timer = slot.timer
         slot.timer = null
         return Effect.andThen(
@@ -362,7 +448,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       if (former !== null) fork(Fiber.interrupt(former))
       let fiber!: Fiber.Fiber<void, never>
       const timer = Effect.gen(function*() {
-        yield* Effect.sleep(idle)
+        // THE BUDGET IS PER CONVERSATION, NOT PER ARMING. A reopened slot's
+        // `touched` is the instant it was last live BEFORE the restart, so the
+        // time it has already been idle comes off the 48 hours rather than
+        // restarting the clock — which is the whole reason the record stores an
+        // instant. `Math.max` keeps a budget that is already spent from asking
+        // for a negative sleep: the boot check drops those, and an arm that
+        // races it closes at once.
+        yield* Effect.sleep(Duration.millis(Math.max(0, slot.touched + idleMs - Date.now())))
         if (slot.generation !== generation || slot.closing) return
         const state = slot.state
         if (
@@ -513,7 +606,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                 }
                 if (active.kind === "node" && active.slot === slot) panelOptions.onState(state)
                 if (!slot.mutingReaders) for (const reader of readingListeners(slot) ?? []) reader.state(state)
-                onLive?.()
+                liveMoved()
               },
               onTranscript: (change) => {
                 options.onConversationTranscript?.(slot.state, change)
@@ -544,7 +637,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             timer: null,
           }
           nodes.set(key, slot)
-          onLive?.()
+          liveMoved()
           return { slot, fresh: true }
         }), (exit) => Exit.isSuccess(exit) ? Effect.void : Scope.close(scope, Exit.void))
       }))
@@ -670,14 +763,110 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const foreground = <A>(use: (panel: Panel) => Effect.Effect<A, OpFailure>) =>
       Effect.suspend(() => use(panelOf()))
 
-    /** Discovery is available at boot; opening belongs to a reader or a wake. */
+    /**
+     * Discovery is available at boot, and the conversations that were live a
+     * moment before the restart are reopened here — WITHOUT a browser, which is
+     * the whole point: the agent is already in them when the first tab arrives.
+     *
+     * THE RECORD IS READ BEFORE ANYTHING OPENS. Engines register after chat's
+     * own apply, so at this instant the roster may be empty or partial; that is
+     * why an entry whose engine is not there yet stays pending and `enginesMoved`
+     * tries it again ({@link reopenPending}).
+     */
     const start = Effect.gen(function*() {
       // Repair conversations filed by builds which retained their inherited
       // wakes. The durable marker preserves deliberate picks after this pass.
       for (const row of root.overheard()) {
         if (row.assigned === true && row.wakesCleared !== true) yield* root.assigned(row)
       }
+      for (const mark of live?.read() ?? []) {
+        const touched = Date.parse(mark.touched)
+        if (!Number.isNaN(touched)) restore.set(mark.node, touched)
+      }
       yield* root.enginesMoved
+      // THE SEAM, not a bare fiber: ring.held owns the pass, so its lines carry
+      // the operator's logging and the plugin's scope interrupts what is left
+      // of it. Joined, because boot is not done until the conversations it
+      // adopted are open — and because `stop` must not run before the pass has
+      // registered what it acquired ({@link working} counts each operation).
+      yield* Fiber.join(fork(reopenPending))
+    })
+
+    /**
+     * ONE PASS OVER THE RECORD, opening the conversations whose engines are
+     * here — the boot's, and every one after an engine mounts.
+     *
+     * WHAT AN ENTRY NAMES IS THE NODE, and the node's CURRENT property is what
+     * is opened ({@link Options.nodeAt}). That is deliberate: a fresh start or
+     * a rebind moves the node to a different conversation, and the record must
+     * never resurrect the one it left. Every failure is DROPPED rather than
+     * retried: a refusal, a signature the agent now wants, a node that was
+     * trashed, a property removed, an agent that is gone. None of them gets
+     * better by asking again in a loop, and every one of them leaves the reader
+     * path exactly as it was — opening the node by hand draws the refusal and
+     * its retry, as it always has.
+     *
+     * AN ENGINE THAT IS NOT IN THE ROSTER YET IS NOT A FAILURE. Entries stay in
+     * `restore`, and `enginesMoved` is what comes back for them; the record
+     * written meanwhile keeps them, because it is the live set UNION this map.
+     */
+    const reopenPending = Effect.gen(function*() {
+      if (stopped || restore.size === 0) return
+      const now = Date.now()
+      const present = new Set(here(options.roster()).map(row => row.id))
+      // Most recently touched first, so a restart that finds more work than it
+      // can hold opens the conversations a person would expect to be there.
+      for (const [node, touched] of [...restore].sort((left, right) => right[1] - left[1])) {
+        if (stopped) return
+        // SPENT BUDGET — see `armIdle`, which counts the same instant off the
+        // same number. A conversation last live two days ago is not one a
+        // restart is bringing back to anybody.
+        if (now - touched >= idleMs) {
+          restore.delete(node)
+          continue
+        }
+        const bound = nodeAt(node)
+        const session = bound?.session ?? null
+        if (bound === null || session === null || !seatableAt(node)) {
+          yield* Effect.logWarning(
+            `chat: node ${node} was live before the restart but is no longer a seat for a conversation; not reopening it`,
+          )
+          restore.delete(node)
+          continue
+        }
+        // Its engine has not mounted (or is switched off). Keep the entry: the
+        // next `enginesMoved` is the try.
+        if (!present.has(bound.engine)) continue
+        const key = JSON.stringify([node, null, null])
+        if (nodes.has(key)) {
+          // Somebody (a reader, a delivery) already opened it while this pass
+          // queued. Nothing to reopen, and the slot is a better witness than
+          // the record.
+          restore.delete(node)
+          continue
+        }
+        const opened = yield* Effect.result(
+          ensureNode(node, (panel) => panel.loadSession(bound.engine, session), false),
+        )
+        if (opened._tag === "Failure") {
+          yield* Effect.logWarning(
+            `chat: the conversation that was live on node ${node} could not be reopened: ${opened.failure.message}`,
+          )
+          const slot = nodes.get(key)
+          if (slot !== undefined) yield* close(slot, "scope released")
+          restore.delete(node)
+          continue
+        }
+        restore.delete(node)
+        // ... AND THE REMAINING BUDGET, which is the recorded instant and not
+        // the one the open just stamped. Any state still settling above moves
+        // `touched` forward again, which is what a live conversation is
+        // entitled to; this is the floor that stops a restart from turning 47
+        // spent hours into a fresh 48.
+        opened.success.touched = touched
+        armIdle(opened.success)
+      }
+      persistLive()
     })
 
     const discardPending = (left: ReadonlyArray<{
@@ -989,8 +1178,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             )
           }
         }
+        // THE ENGINE THAT JUST MOUNTED MAY BE THE ONE A RECORDED CONVERSATION
+        // WAS WAITING FOR. This pass is also what the boot's own `start` runs;
+        // repeating it is cheap because every entry it opens leaves `restore`,
+        // and every one it cannot open yet is left alone.
+        yield* reopenPending
       }),
       reread: () => {
+        for (const node of [...restore.keys()]) if (!seatableAt(node)) restore.delete(node)
         root.reread()
         for (const slot of [...nodes.values()]) {
           if (!seatableAt(slot.node)) {
@@ -998,7 +1193,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             fork(close(slot, "scope released"))
           } else slot.panel.reread()
         }
-
+        // A node moved to the trash before its engine arrived leaves only a
+        // pending record behind; the closes above write for live slots, so this
+        // one covers the entries that never had a slot.
+        persistLive()
       },
       send: (...args) => foreground((panel) => panel.send(...args)),
       // THE SIGN-IN TRIO, routed the way every other gesture is. The server
