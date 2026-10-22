@@ -76,6 +76,16 @@ export default definePlugin({
   config: Config,
   apply: (config: Config) =>
     Effect.gen(function*() {
+    // THE POLICY IN FORCE, in one line — what this activation was started with
+    // rather than what the file says now. A reapply logs a second line, so a
+    // restart's cause and its result are both in the log.
+    yield* Effect.logInfo(
+      `git: commit=${config.commit} push=${config.push}; ${
+        config.commit === "auto"
+          ? "quiet window arms when writes settle"
+          : "quiet window not armed"
+      }`,
+    )
     const offers = yield* Offers
     const surfaces = yield* Surfaces
     const vault = yield* Vault

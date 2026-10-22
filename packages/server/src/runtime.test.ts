@@ -29,7 +29,7 @@ import {
   type Ops,
   type Store as OutlineStore,
 } from "@olai/ops"
-import type { App, PluginRoster } from "@olai/surface"
+import type { App, BuiltPlugin, PluginRoster } from "@olai/surface"
 import type { DocumentEntry } from "olai-plugin-markdown/wire"
 import type { Head, Manifest } from "olai-plugin-vault/wire"
 import type { Shelf } from "@olai/format"
@@ -705,6 +705,31 @@ const offering = (
   switched: () => new Set(),
 })
 
+
+test("each running row carries the serve's mount generation", () => {
+  const first = PLUGIN_NAMES[0]
+  const second = PLUGIN_NAMES[1]
+  if (first === undefined || second === undefined) throw new Error("this build has too few plugins to pin")
+  // The counter is the composition root's: a row it has mounted says which
+  // mount the roster describes, and a row that is not running says nothing —
+  // there is no mount for the number to be about.
+  const roster = rosterOf(
+    offering([], mounted([first])),
+    new Map(),
+    new Map(),
+    [],
+    new Map([[first, 3], [second, 1]]),
+  )
+  const row = (name: string) => roster.built.find((one) => one.name === name)
+  expect(row(first)?.generation).toBe(3)
+  expect(row(second)?.generation).toBeUndefined()
+
+  // ...and a row the VAULT defines rides the same table, because it mounts
+  // through the same composed registry (`@olai/server`'s `runtime.ts`).
+  const defined: BuiltPlugin = { name: "defined-in-the-vault", running: true }
+  const withDefined = rosterOf(offering([], mounted([first])), new Map(), new Map(), [defined], new Map([[defined.name, 7]]))
+  expect(withDefined.built.at(-1)?.generation).toBe(7)
+})
 
 test("every plugin the build has is on the roster, running or not", () => {
   // NOBODY SAID, so what mounted is the built-in default — not necessarily

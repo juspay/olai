@@ -268,24 +268,54 @@ const entriesOf = (host: Host): ReadonlyArray<Entry> =>
  * exactly as they are for the mount.
  */
 export const patchRow = (host: Host, id: string, patch: { readonly disabled?: boolean; readonly config?: unknown }, force = false): Effect.Effect<boolean> =>
-  Effect.promise(async () => {
+  Effect.gen(function*() {
     const entry = entriesOf(host).find((one) => one.options.id === id)
     if (entry === undefined) return false
     // Decoded structs arrive in schema key order, so serialization compares
     // canonical policy values here rather than authored property order.
-    const changed = (patch.disabled !== undefined && patch.disabled !== (entry.options.disabled ?? false))
-      || (patch.config !== undefined && JSON.stringify(patch.config) !== JSON.stringify(entry.options.config))
+    const configMoved = patch.config !== undefined
+      && JSON.stringify(patch.config) !== JSON.stringify(entry.options.config)
+    const changed = configMoved
+      || (patch.disabled !== undefined && patch.disabled !== (entry.options.disabled ?? false))
     if (!changed && !force) return true
-    const going = patch.disabled === true || patch.config !== undefined ? entry.fiber : undefined
-    if (going !== undefined) interrupt(going)
-    await entry.update(patch).catch((cause: unknown) => {
-      // A REFUSED RESTART IS THE ROW'S, not the patch's — see "A config patch
-      // that fails" above. Anything else the loader throws is still ours.
-      if (entry.fiber?.state !== FiberState.FAILED) throw cause
+    // A CONFIG PATCH RESTARTS THE ROW, and the restart is what takes its
+    // surface sibling down — so the line says so where it happens, with the
+    // KEYS that moved rather than the values (a config may carry a secret).
+    // `patchBundleRows` reaches this same line for every row of an edit; there
+    // is no second reading of "what changed" there to keep in step.
+    if (configMoved) {
+      yield* Effect.annotateLogs(
+        Effect.logInfo(`plugins: config change restarts row "${id}"`),
+        { keys: changedKeys(patch.config, entry.options.config).join(", ") },
+      )
+    }
+    yield* Effect.promise(async () => {
+      const going = patch.disabled === true || patch.config !== undefined ? entry.fiber : undefined
+      if (going !== undefined) interrupt(going)
+      await entry.update(patch).catch((cause: unknown) => {
+        // A REFUSED RESTART IS THE ROW'S, not the patch's — see "A config patch
+        // that fails" above. Anything else the loader throws is still ours.
+        if (entry.fiber?.state !== FiberState.FAILED) throw cause
+      })
+      for (let pass = 0; pass < PASSES && going?.inertia !== undefined; pass += 1) await going.inertia
     })
-    for (let pass = 0; pass < PASSES && going?.inertia !== undefined; pass += 1) await going.inertia
     return true
   })
+
+/** Which keys two config readings disagree on — the half of a config patch a
+ *  log line may say out loud. Values stay out of it: a config leaf may hold a
+ *  token, and a restart line that quoted it would put it in every log sink. */
+const changedKeys = (next: unknown, before: unknown): ReadonlyArray<string> => {
+  const fields = (value: unknown): Readonly<Record<string, unknown>> =>
+    value !== null && typeof value === "object" && !Array.isArray(value)
+      ? value as Readonly<Record<string, unknown>>
+      : {}
+  const after = fields(next)
+  const was = fields(before)
+  return [...new Set([...Object.keys(after), ...Object.keys(was)])]
+    .filter((key) => JSON.stringify(after[key]) !== JSON.stringify(was[key]))
+    .sort()
+}
 
 export const flipRow = (host: Host, id: string, disabled: boolean): Effect.Effect<boolean> => patchRow(host, id, { disabled }, true)
 
