@@ -102,13 +102,19 @@ export const marksOf = (
      *  live for the reader it was refused for, and it is not a conversation a
      *  restart should try again. */
     readonly refused?: boolean
+    /** The agent is GONE — it died, or the engine offering it was switched off.
+     *  The slot stays in the pool until eviction, but "asleep agents remain
+     *  asleep" means a restart must not be the thing that wakes it. */
+    readonly dead?: boolean
   }>,
   waiting: ReadonlyArray<{ readonly node: string; readonly touched: number }> = [],
 ): ReadonlyArray<LiveMark> => {
   const held = new Map<string, number>()
   for (const row of waiting) held.set(row.node, row.touched)
   for (const row of live) {
-    if (row.history !== true && row.refused !== true) held.set(row.node, row.touched)
+    if (row.history !== true && row.refused !== true && row.dead !== true) {
+      held.set(row.node, row.touched)
+    }
   }
   return [...held]
     .filter(([, touched]) => !Number.isNaN(touched))

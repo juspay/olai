@@ -238,10 +238,17 @@ const restartable = async (options: {
   idle?: Duration.Input
   capacity?: number
   released?: Array<string>
+  /** Counts the seam's forks, so a hot loop is visible as a burst rather than
+   *  as a slow test. */
+  forks?: { count: number }
 }) => {
   const { run, fork, said } = logging()
+  const counted = (work: Effect.Effect<void>): Fiber.Fiber<void> => {
+    if (options.forks !== undefined) options.forks.count++
+    return fork(work)
+  }
   const chat = await run(make({
-    fork,
+    fork: counted,
     live: options.record ?? liveIn(options.local),
     roster: () => options.roster().map(seated),
     cwd,
@@ -304,8 +311,10 @@ test("the conversations live before a restart open again without a reader", asyn
   try {
     const before = opened(second.said)
     await second.run(second.chat.start)
-    // THE CLAIM: the node is live before anything here asked for it.
-    expect(second.chat.live().get("one")?.status).toBe("idle")
+    // THE CLAIM: the node is live before anything here asked for it. `start`
+    // hands the pass to the seam rather than joining it, so wait for the
+    // reopen it forked.
+    await until("the boot's own reopen", () => second.chat.live().get("one")?.status === "idle")
     expect(opened(second.said)).toBe(before + 1)
     // ... and it is still what the record says, because a reopened conversation
     // IS live: the next restart opens it again on the budget it has left.
@@ -323,6 +332,8 @@ test("a recorded conversation waits for an engine that registers after chat's ap
   const it = await restartable({ local, record, nodes: () => [NODE_ONE], roster: () => roster })
   try {
     await it.run(it.chat.start)
+    // The pass is forked; let it look and leave the entry alone.
+    await it.run(Effect.sleep("50 millis"))
     expect(it.chat.live().size).toBe(0)
     // ENTRY RETAINED, not forgotten: the record is the live set UNION what is
     // still waiting, or the next engine's mount would have nothing to find.
@@ -351,7 +362,7 @@ for (const missing of ["the node", "its session"] as const) {
     try {
       await it.run(it.chat.start)
       expect(it.chat.live().size).toBe(0)
-      expect(record.read()).toEqual([])
+      await until("the dropped record", () => record.read().length === 0)
       expect(it.said.some((line) => line.message.includes("no longer a seat"))).toBe(true)
     } finally {
       await it.run(it.chat.stop)
@@ -376,7 +387,7 @@ test("a recorded conversation past the idle budget is skipped and dropped", asyn
   try {
     await it.run(it.chat.start)
     expect(it.chat.live().size).toBe(0)
-    expect(record.read()).toEqual([])
+    await until("the expired record to be dropped", () => record.read().length === 0)
     // Nothing was spawned to learn that: the budget is arithmetic.
     expect(it.said.some((line) => line.message.includes("chat agent ready"))).toBe(false)
   } finally {
@@ -398,11 +409,11 @@ test("a refused resume closes its scope, drops the record and leaves the reader 
   })
   try {
     await it.run(it.chat.start)
-    expect(it.chat.live().size).toBe(0)
-    expect(record.read()).toEqual([])
+    await until("the refused record to be dropped", () => record.read().length === 0)
     // The slot the attempt acquired is gone — credential included — rather
     // than sitting there as a refused conversation nobody asked for.
-    expect(released).toEqual(["one"])
+    await until("the refused scope's credential to be released", () => released.includes("one"))
+    expect(it.chat.live().size).toBe(0)
     expect(it.said.some((line) =>
       line.message.includes("could not be reopened")
       && line.message.includes("refused on purpose"))).toBe(true)
@@ -410,6 +421,125 @@ test("a refused resume closes its scope, drops the record and leaves the reader 
     await it.run(it.chat.stop)
   }
 })
+
+test("a held reader does not spin the idle timer, and gets its budget back when it leaves", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  const forks = { count: 0 }
+  const released: Array<string> = []
+  const it = await restartable({
+    local,
+    record,
+    nodes: () => [NODE_ONE],
+    roster: () => [installed("alpha")],
+    idle: "150 millis",
+    released,
+    forks,
+  })
+  const tab = Scope.makeUnsafe()
+  try {
+    await it.run(it.chat.start)
+    await it.run(it.chat.reading({ node: "one" }, {
+      state: () => {},
+      transcript: () => {},
+    }).pipe(Effect.provideService(Scope.Scope, tab)))
+    await until("the held conversation to be live", () => it.chat.live().has("one"))
+
+    // SEVERAL BUDGETS PASS WHILE THE READER HOLDS IT. A re-arm that kept the
+    // old instant would sleep for zero and fork again at once; a few timer
+    // arms are the honest answer, hundreds are the spin.
+    const before = forks.count
+    await it.run(Effect.sleep("600 millis"))
+    expect(forks.count - before).toBeLessThan(20)
+    expect(it.chat.live().has("one")).toBe(true)
+
+    // ... AND LEAVING HANDS IT A FULL BUDGET rather than evicting it on the
+    // frame the reader looked away.
+    const left = Date.now()
+    await it.run(Scope.close(tab, Exit.void))
+    await it.run(Effect.sleep("60 millis"))
+    expect(it.chat.live().has("one")).toBe(true)
+    await until("the released conversation to be reaped", () => !it.chat.live().has("one"), 2000)
+    expect(Date.now() - left).toBeGreaterThan(80)
+    expect(released).toEqual(["one"])
+  } finally {
+    await it.run(Scope.close(tab, Exit.void))
+    await it.run(it.chat.stop)
+  }
+})
+
+test("a reopened conversation closes on its remaining budget, not a fresh one", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  // 600 of 800 ms already spent: 200 ms are what a boot may spend.
+  await run(record.write([{ node: "one", touched: new Date(Date.now() - 600).toISOString() }]))
+  const it = await restartable({
+    local,
+    record,
+    nodes: () => [NODE_ONE],
+    roster: () => [installed("alpha")],
+    idle: "800 millis",
+  })
+  try {
+    await it.run(it.chat.start)
+    await until("the reopened conversation", () => it.chat.live().has("one"))
+    const openedAt = Date.now()
+    // A FRESH idle window would keep it for 800 ms. The recorded instant is
+    // what a late idle frame must not overwrite.
+    await until("the remaining budget to expire", () => !it.chat.live().has("one"), 2000)
+    expect(Date.now() - openedAt).toBeLessThan(500)
+  } finally {
+    await it.run(it.chat.stop)
+  }
+})
+
+test("start does not wait for a boot reopen, and stop interrupts a hanging one", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  await run(record.write([{ node: "one", touched: new Date().toISOString() }]))
+  const released: Array<string> = []
+  const it = await restartable({
+    local,
+    record,
+    nodes: () => [NODE_ONE],
+    roster: () => [alphaWith(["--hold-load"])],
+    released,
+  })
+  try {
+    // A `session/load` that never answers must not hold the serve's next steps
+    // (the filer, the sleeper) behind eight subprocess boots.
+    await it.run(it.chat.start.pipe(Effect.timeout("1 second")))
+    // ... and a stop must cut it rather than wait out a real agent's deadline.
+    await it.run(it.chat.stop.pipe(Effect.timeout("3 seconds")))
+    expect(it.chat.live().size).toBe(0)
+    expect(released).toEqual(["one"])
+  } finally {
+    await it.run(Effect.catch(it.chat.stop, () => Effect.void))
+  }
+})
+
+test("a gone agent is not written down, so a restart does not wake it", async () => {
+  const local = ephemeralLocalState()
+  const record = liveIn(local)
+  await run(record.write([{ node: "one", touched: new Date().toISOString() }]))
+  let roster = [installed("alpha"), installed("beta")]
+  const it = await restartable({ local, record, nodes: () => [NODE_ONE], roster: () => roster })
+  try {
+    await it.run(it.chat.start)
+    await until("the conversation to be live", () => it.chat.live().get("one")?.status === "idle")
+    await until("the live record", () => record.read().some((mark) => mark.node === "one"))
+
+    // The engine leaving leaves the slot in the pool as `gone` until eviction.
+    // That is not a conversation a restart should wake once the engine mounts
+    // again — the rule is that asleep agents remain asleep.
+    roster = [installed("beta")]
+    await it.run(it.chat.enginesMoved)
+    await until("the record to drop the gone conversation", () => record.read().length === 0)
+  } finally {
+    await it.run(it.chat.stop)
+  }
+})
+
 
 test("the record sheds the conversation capacity evicts", async () => {
   const local = ephemeralLocalState()

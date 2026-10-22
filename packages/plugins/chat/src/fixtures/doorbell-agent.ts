@@ -22,6 +22,9 @@
  * `--refuse-load` makes `session/load` answer with an error instead of opening,
  * the shape an agent has when it will not resume a conversation — which is the
  * one case a boot's own reopen has to drop rather than retry.
+ *
+ * `--hold-load` makes it never answer, so a test can see that `chat.start` does
+ * not wait for a boot's reopen and that a stop interrupts one.
  */
 
 const write = (value: unknown): void => {
@@ -63,6 +66,13 @@ process.stdin.on("data", (chunk: string) => {
         respond(message.id, { sessionId: `sess-${++minted}` })
         continue
       case "session/load":
+        if (process.argv.includes("--hold-load")) {
+          // A LOAD THAT NEVER ANSWERS, for the shutdown test: the boot's reopen
+          // must not make `chat.start` wait for this, and a stop must interrupt
+          // it rather than wait out a real agent's two-minute deadline.
+          setTimeout(() => respond(message.id, { sessionId: message.params?.sessionId }), 600_000)
+          continue
+        }
         if (process.argv.includes("--refuse-load")) {
           write({
             jsonrpc: "2.0",

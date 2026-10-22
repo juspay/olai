@@ -233,6 +233,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       ?? Memory.volatile()
     const panelOptions: PanelOptions = { ...givenPanelOptions, memory }
     const gate = yield* Semaphore.make(1)
+    /** One reopen pass at a time — see {@link reopenPending}. */
+    const reopening = yield* Semaphore.make(1)
     const nodes = new Map<string, NodeSlot>()
     // Reaped slots leave the live map immediately; shutdown still owns their cleanup.
     const closing = new Map<NodeSlot, Deferred.Deferred<void>>()
@@ -254,6 +256,33 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     ])
     const read = (slot: NodeSlot) => (readingListeners(slot)?.size ?? 0) > 0
       || [...readerNodes.values()].includes(slot.node)
+    /** A panel standing still: no turn, no question, nobody being watched. The
+     *  shape of a state frame that says nothing has happened
+     *  ({@link armIdle}'s budget is not moved by one). */
+    const quietState = (state: ReturnType<Panel["state"]>): boolean =>
+      (state.status === "idle" || state.status === "gone")
+      && state.asking === 0
+      && state.watching.length === 0
+    /**
+     * A READER THAT LEAVES HANDS THE CONVERSATION ITS FULL BUDGET BACK.
+     *
+     * Before the budget was counted from a recorded instant, every release
+     * re-armed a fresh idle window. Now that `armIdle` counts from `touched`, a
+     * release that did not touch would be a slot evicted the moment its reader
+     * looked away, having spent its 48 hours while somebody was reading it.
+     * The reader is activity, so the release is the touch — and only for the
+     * slots of the node that reader held, not every conversation in the pool.
+     */
+    const released = (node: string | undefined): void => {
+      for (const slot of nodes.values()) {
+        if (node !== undefined && slot.node !== node) continue
+        slot.touched = Date.now()
+        armIdle(slot)
+      }
+      // The record carries the new budget too, for the SIGKILL that lands
+      // between the release and the next state frame.
+      persistLive()
+    }
     const pending = new Map<string, Array<PendingDelivery>>()
     /**
      * THE CONVERSATIONS A PREVIOUS PROCESS LEFT LIVE, by node id and the
@@ -271,6 +300,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  check must divide the same number the same way. */
     const idleMs = Duration.toMillis(idle)
     let stopped = false
+    /** The boot's own reopen pass, so a shutdown can interrupt a load that
+     *  hangs rather than wait out its deadline — see {@link start}. */
+    let reopenFiber: Fiber.Fiber<void> | null = null
     /** How many node operations are in flight, and the wait a stop takes on
      *  them — see {@link working}. */
     let inFlight = 0
@@ -316,6 +348,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // reader — and writing it down would make the next boot retry the
           // same refusal once more.
           refused: slot.state.unopened !== null,
+          // ... AND NEITHER IS ONE WHOSE AGENT IS GONE. A slot stays in `nodes`
+          // until eviction after its process died or its engine was switched
+          // off; recording it would make the next restart the thing that wakes
+          // a conversation the engine rule says remains asleep.
+          dead: slot.state.status === "gone",
         })),
         [...restore].map(([node, touched]) => ({ node, touched })),
       )
@@ -471,8 +508,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         ) return
         // The panel somebody is reading is part of their working set. Keep one
         // finite timer armed so it can be reaped after they leave it.
+        //
+        // A HOLD IS A TOUCH, which is what keeps this a timer rather than a
+        // spin: re-arming from the unchanged instant would ask for a sleep of
+        // `max(0, negative)` = 0 and fire again at once, for as long as the
+        // reader stayed. The reader is here NOW, so now is the budget's start.
         if (read(slot) || slot.uses > 0) {
           slot.timer = null
+          slot.touched = Date.now()
+          // ...and the record follows: a SIGKILL during a long read must not
+          // find an instant that says the budget was spent hours ago.
+          persistLive()
           armIdle(slot)
           return
         }
@@ -594,13 +640,23 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                 return { ...server, token: ticket.bearer }
               },
               onState: (state) => {
-                if (slot.state.status !== state.status) slot.since = new Date().toISOString()
+                const before = slot.state
+                // A FRAME BETWEEN TWO QUIET STATES OF THE SAME CONVERSATION IS
+                // NOT ACTIVITY. Model re-asserts, usage reports and the idle
+                // frame an open ends with all arrive that way, and touching on
+                // them would spend a reopened slot's remaining budget the
+                // instant it finished opening. A status, session, question,
+                // watcher or refusal-nullness change still is activity.
+                const still = quietState(before) && quietState(state)
+                  && before.session?.id === state.session?.id
+                  && (before.unopened === null) === (state.unopened === null)
+                if (before.status !== state.status) slot.since = new Date().toISOString()
                 slot.state = state
                 const agent = agentIn(state)
                 const session = state.session?.id ?? state.unopened?.what
                 if (agent != null && session != null) slot.readingFor = { agent: agent.id, session }
                 options.onConversationState?.(state, slot.panel.entries(), slot.node)
-                slot.touched = Date.now()
+                if (!still) slot.touched = Date.now()
                 if (
                   (state.status === "idle" || state.status === "gone")
                   && state.asking === 0
@@ -792,10 +848,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       yield* root.enginesMoved
       // THE SEAM, not a bare fiber: ring.held owns the pass, so its lines carry
       // the operator's logging and the plugin's scope interrupts what is left
-      // of it. Joined, because boot is not done until the conversations it
-      // adopted are open — and because `stop` must not run before the pass has
-      // registered what it acquired ({@link working} counts each operation).
-      yield* Fiber.join(fork(reopenPending))
+      // of it.
+      //
+      // NOT JOINED. Eight subprocess boots and their replays are the slowest
+      // thing this package does, and a `session/load` that hangs has its own
+      // (minutes-long) deadline — joining would hold up the filer and the
+      // sleeper that `server.ts` starts next, for work with no reader waiting.
+      // Stop is still safe: the handle is interrupted first ({@link
+      // stopWithReason}), each open is counted by `working` so `settled` sees
+      // it, and the pass checks `stopped` before every entry.
+      reopenFiber = fork(reopenPending)
     })
 
     /**
@@ -815,8 +877,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * AN ENGINE THAT IS NOT IN THE ROSTER YET IS NOT A FAILURE. Entries stay in
      * `restore`, and `enginesMoved` is what comes back for them; the record
      * written meanwhile keeps them, because it is the live set UNION this map.
+     *
+     * ONE AT A TIME, through `reopening`. Two callers exist — the boot's fork
+     * and every `enginesMoved` — and `acquire`'s reuse path would make an
+     * overlap correct, but serialising it means that correctness does not depend
+     * on a reader of `acquire` noticing the dependency.
      */
-    const reopenPending = Effect.gen(function*() {
+    const reopenPending = reopening.withPermit(Effect.gen(function*() {
       if (stopped || restore.size === 0) return
       const now = Date.now()
       const present = new Set(here(options.roster()).map(row => row.id))
@@ -874,16 +941,18 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           continue
         }
         restore.delete(node)
-        // ... AND THE REMAINING BUDGET, which is the recorded instant and not
-        // the one the open just stamped. Any state still settling above moves
-        // `touched` forward again, which is what a live conversation is
-        // entitled to; this is the floor that stops a restart from turning 47
-        // spent hours into a fresh 48.
+        // ... AND THE REMAINING BUDGET: the recorded instant, not the one the
+        // open just stamped. `onState` does not move `touched` for a frame
+        // between two quiet states of the same conversation, so the idle frame
+        // an open ends with (and the model/usage frames after it) cannot spend
+        // the budget this line just restored. Real activity — a status,
+        // session, question or watcher change — still can, which is what a live
+        // conversation is entitled to.
         opened.success.touched = touched
         armIdle(opened.success)
       }
       persistLive()
-    })
+    }))
 
     const discardPending = (left: ReadonlyArray<{
       readonly agent: string; readonly session: string; readonly plugin: string
@@ -998,7 +1067,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const stopWithReason = (reason: StopReason) => Effect.gen(function*() {
       stopped = true
       pending.clear()
-      // ...AND EVERY OTHER NODE OPERATION, joined rather than raced. `stopped`
+      // THE BOOT'S REOPEN PASS FIRST. A `session/load` can sit on the wire for
+      // minutes; letting `settled` wait for it would make a shutdown take that
+      // long, and the pass checks `stopped` before every entry so interrupting
+      // it loses nothing that was not already abandoned.
+      const booting = reopenFiber
+      reopenFiber = null
+      if (booting !== null) yield* Fiber.interrupt(booting)
+      // ...AND EVERY NODE OPERATION, joined rather than raced. `stopped`
       // is already set, so nothing new starts; what is still in flight finishes
       // its acquisition and its use, and is therefore in the map the last line
       // reads. See {@link working}.
@@ -1039,7 +1115,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             held.delete(observer)
             readerNodes.delete(observer)
             if (held.size === 0) nodeReaders.delete(to.node)
-            for (const slot of nodes.values()) armIdle(slot)
+            released(to.node)
           }))
           return yield* working(to.node, undefined, ({ slot }) => slot.opening.withPermit(Effect.gen(function*() {
             const bound = nodeAt(to.node)
@@ -1062,10 +1138,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           readers.set(key, held)
           return { key, held }
         }), ({ key, held }) => Effect.sync(() => {
+          const node = readerNodes.get(observer)
           readerNodes.delete(observer)
           held.delete(observer)
           if (held.size === 0 && readers.get(key) === held) readers.delete(key)
-          for (const slot of nodes.values()) armIdle(slot)
+          released(node)
         }))
         const place = yield* locate(to)
         if (place === null) {
