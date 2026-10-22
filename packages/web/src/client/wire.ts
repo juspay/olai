@@ -7,7 +7,7 @@
 
 import { supplyManagement } from "../host/management.ts"
 import { connectSocket } from "./connection/socket.ts"
-import { movedRows, remountedRows, signatureOf, type Named } from "./connection/signature.ts"
+import { remountedRows, signatureOf, type Named } from "./connection/signature.ts"
 import { bootstrapSelected } from "../host/bootstrap.ts"
 import { loadRows, retryableModule } from "../host/loading.ts"
 import type { bootStatus } from "../host/boot-status.ts"
@@ -384,17 +384,29 @@ createRoot(() => {
     if (signatureOf(want) === composed) {
       // A config value moved in a row that handles its own updates, or a
       // republish that says nothing new. Keeping the wire is the point: every
-      // standing subscription on the page survives.
-      console.debug(
-        `olai: roster frame — signature unchanged, kept ${want.length} plugin subscriptions`,
-      )
+      // standing subscription on the page survives. Silent because
+      // `republishPlugins` fires on every report change, so an idle tab would
+      // accumulate "nothing moved" lines; `redialling: …` below is the one
+      // diagnostic that names a frame which actually moves the page.
       settle()
       return
     }
-    // WHICH ROWS ASKED FOR THE REDIAL. `movedRows` names an arrival, a
-    // departure, a new browser-half URL and a new mount generation — and
-    // nothing for a frame that only reordered the registry.
-    const moved = movedRows(before, want)
+    // WHICH ROWS ASKED FOR THE REDIAL — the one diagnostic for a frame that
+    // moves the wire. An arrival, a departure, a new browser-half URL and a new
+    // mount generation are named; a frame that only reordered the registry
+    // names none. Spelled here rather than in `./connection/signature.ts`
+    // because nothing but this line reads it, and `remountedRows` is the set
+    // the composition acts on.
+    const was = new Map(before.map((one) => [one.id, one]))
+    const moved = [
+      ...want.flatMap((one) => {
+        const old = was.get(one.id)
+        return old === undefined || old.chunk !== one.chunk || (old.generation ?? 0) !== (one.generation ?? 0)
+          ? [one.id]
+          : []
+      }),
+      ...[...was.keys()].filter((id) => !want.some((one) => one.id === id)),
+    ]
     console.debug(
       `olai: roster frame — redialling: ${moved.length === 0 ? "the roster itself" : moved.join(", ")}`,
     )

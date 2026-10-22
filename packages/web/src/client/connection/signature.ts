@@ -66,40 +66,12 @@ export const signatureOf = (names: ReadonlyArray<Named>): string =>
     .join("\n")
 
 /**
- * WHAT MOVED between two roster readings — the rows a redial is FOR.
- *
- * The `<rows>` a diagnostic names. An arrival, a departure, a new browser-half
- * URL and a new mount generation are all named; a frame that only reordered the
- * registry names nothing, which is what lets a caller say "redialling for the
- * roster itself" rather than inventing a row.
- */
-export const movedRows = (
-  before: ReadonlyArray<Named>,
-  after: ReadonlyArray<Named>,
-): ReadonlyArray<string> => {
-  const was = new Map(before.map((one) => [one.id, one]))
-  const now = new Set(after.map((one) => one.id))
-  return [
-    ...after
-      .filter((one) => {
-        const old = was.get(one.id)
-        return old === undefined
-          || old.chunk !== one.chunk
-          || (old.generation ?? 0) !== (one.generation ?? 0)
-      })
-      .map((one) => one.id),
-    ...[...was.keys()].filter((id) => !now.has(id)),
-  ]
-}
-
-/**
  * THE ROWS WHOSE BROWSER HALF MUST START AGAIN — a remount the server announced,
  * or a browser half whose chunk moved.
  *
- * Distinct from {@link movedRows}, which is the DIAGNOSTIC's list: arrivals and
- * departures are mounted or disposed by the composition itself, so naming them
- * here would say nothing. Only a row the tab already composed whose server
- * mount moved needs an explicit restart.
+ * Arrivals and departures are mounted or disposed by the composition itself, so
+ * naming them here would say nothing. Only a row the tab already composed whose
+ * server mount moved needs an explicit restart.
  *
  * A composed row with no generation is one the SERVE never described — the
  * bootstrap selection a tab races onto the roster when the first frame is slow

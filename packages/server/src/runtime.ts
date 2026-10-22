@@ -350,7 +350,11 @@ app: {
         // as far as the roster is concerned.
         const generation = (generations.get(key) ?? 0) + 1
         generations.set(key, generation)
-        say(Effect.logInfo(`plugins: mounted "${key}"`).pipe(
+        // DEBUG, not INFO. A boot mounts ~45 rows and a shutdown drops them
+        // again; at the default level those two runs would bury the
+        // `config change restarts row` line that a reapply is diagnosed by.
+        // Raise the level when the mount order itself is the question.
+        say(Effect.logDebug(`plugins: mounted "${key}"`).pipe(
           Effect.annotateLogs({ generation }),
         ))
         // WHAT WAS REGISTERED, held beside what was MOUNTED. The two tables are
@@ -368,7 +372,7 @@ app: {
         if (wanted.has(key)) continue
         mounted.delete(key)
         standing.delete(key)
-        say(Effect.logInfo(`plugins: dropped "${key}"`).pipe(
+        say(Effect.logDebug(`plugins: dropped "${key}"`).pipe(
           Effect.annotateLogs({ generation: generations.get(key) ?? 0 }),
         ))
         const settling = mount.drop().catch((thrown: unknown) => {

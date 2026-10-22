@@ -14,43 +14,42 @@
 
 import { expect, test } from "bun:test"
 
-import { movedRows, remountedRows, signatureOf, type Named } from "./signature.ts"
+import { remountedRows, signatureOf, type Named } from "./signature.ts"
 
 const git = (generation?: number): Named => ({ id: "git", chunk: null, generation })
+
+/** One roster row plus a field the signature is deliberately blind to. */
+const kolu = (commit: string): Named & { readonly config: { readonly commit: string } } =>
+  ({ id: "kolu", chunk: null, generation: 1, config: { commit } })
 
 test("a config-only frame with the same mount generation does not redial", () => {
   // The row restarted its fiber for a config it handles itself ("live"), or a
   // republish said nothing new: the wire this tab holds is still the right one.
-  expect(signatureOf([git(3), { id: "kolu", chunk: null, generation: 1 }]))
-    .toBe(signatureOf([git(3), { id: "kolu", chunk: null, generation: 1 }]))
+  // The second frame carries a CONFIG that differs, which is the field the
+  // signature must ignore — a value the row handles itself is not a move.
+  const first = kolu("manual")
+  const second = kolu("auto")
+  expect(signatureOf([git(3), first])).toBe(signatureOf([git(3), second]))
+  expect(remountedRows([git(3), first], [git(3), second])).toEqual([])
 })
 
 test("a new mount generation redials that row", () => {
   expect(signatureOf([git(4)])).not.toBe(signatureOf([git(3)]))
-  expect(movedRows([git(3)], [git(4)])).toEqual(["git"])
 })
 
-test("an arrival, a departure and a new browser-half URL each redial", () => {
-  const before = [git(1), { id: "vault", chunk: null, generation: 1 }]
-  expect(movedRows(before, [...before, { id: "chat", chunk: null, generation: 1 }]))
-    .toEqual(["chat"])
-  expect(movedRows(before, [git(1)])).toEqual(["vault"])
-  expect(movedRows(
-    [{ id: "defined", chunk: "/_olai/plugins/defined-1.js", generation: 1 }],
-    [{ id: "defined", chunk: "/_olai/plugins/defined-2.js", generation: 1 }],
-  )).toEqual(["defined"])
-})
-
-test("a roster that only reordered names nothing moved", () => {
+test("a browser-half URL and a reordered roster are both in the signature", () => {
+  // The URL is the module this build loads, so a different one is different
+  // code. Order is the registry's and stable; a reorder is still a different
+  // joined list, which is what the comparison is about.
+  expect(signatureOf([{ id: "defined", chunk: "/_olai/plugins/defined-1.js", generation: 1 }]))
+    .not.toBe(signatureOf([{ id: "defined", chunk: "/_olai/plugins/defined-2.js", generation: 1 }]))
   const one: Named = { id: "one", chunk: null, generation: 2 }
   const two: Named = { id: "two", chunk: null, generation: 1 }
   expect(signatureOf([one, two])).not.toBe(signatureOf([two, one]))
-  expect(movedRows([one, two], [two, one])).toEqual([])
 })
 
 test("an older serve's absent generation reads as the first mount", () => {
   expect(signatureOf([{ id: "git", chunk: null }])).toBe(signatureOf([git(0)]))
-  expect(movedRows([{ id: "git", chunk: null }], [git(1)])).toEqual(["git"])
 })
 
 test("a row the tab has not heard a generation for is not restarted on the first roster", () => {
@@ -60,7 +59,9 @@ test("a row the tab has not heard a generation for is not restarted on the first
   expect(remountedRows([{ id: "git", chunk: null }], [git(1)])).toEqual([])
   // A generation the tab HAS seen moving is a remount.
   expect(remountedRows([git(1)], [git(2)])).toEqual(["git"])
-  // A browser half served from a new URL is new code, whatever its mount says.
+  // A browser half served from a new URL is new code, whatever its mount says
+  // — the latent bug this arm fixes: a vault-defined half was re-imported but
+  // its old activation stayed mounted.
   expect(remountedRows(
     [{ id: "defined", chunk: "/_olai/plugins/defined-1.js" }],
     [{ id: "defined", chunk: "/_olai/plugins/defined-2.js" }],

@@ -11,29 +11,23 @@ Feature: Changing git's policy keeps the tab connected
 
   Scenario: Auto, manual and auto again from the Preferences
     Given I open the app
-    # EACH PICK WRITES `_olai/Settings.olai`, so the repository has one
-    # uncommitted change while the Commit row is on screen. That is the point:
-    # counting it proves the tab's `pending` subscription re-opened after the
-    # server restarted the row, and committing it clears the amber that would
-    # otherwise say nothing about the connection.
+    # EACH PICK WRITES `_olai/Settings.olai`. Under `auto` that pending write
+    # arms the 15 s quiet window, so the AUTO segments wait for the loop to
+    # record it instead of racing a manual commit against the timer. The
+    # `manual` segment has no timer and commits by hand.
     When I open the preferences
     And I pick "auto" in the preference "plugin-git-commit"
     Then the preference "plugin-git-commit" shows "auto"
     And the connection is "live"
-    And the commit pill says 1 uncommitted
     And the commit pill is live
-    When I press Escape on the preferences
-    And I open the commit panel
-    And I commit with the message "the auto policy"
-    Then the commit pill says "committed"
+    And the flurry records itself
     And the health dot is "healthy"
 
-    When I open the preferences
-    And I pick "manual" in the preference "plugin-git-commit"
+    When I pick "manual" in the preference "plugin-git-commit"
     Then the preference "plugin-git-commit" shows "manual"
     And the connection is "live"
-    And the commit pill says 1 uncommitted
     And the commit pill is live
+    And the commit pill says 1 uncommitted
     When I press Escape on the preferences
     And I open the commit panel
     And I commit with the message "the manual policy"
@@ -44,11 +38,7 @@ Feature: Changing git's policy keeps the tab connected
     And I pick "auto" in the preference "plugin-git-commit"
     Then the preference "plugin-git-commit" shows "auto"
     And the connection is "live"
-    And the commit pill says 1 uncommitted
     And the commit pill is live
-    When I press Escape on the preferences
-    And I open the commit panel
-    And I commit with the message "the auto policy again"
-    Then the commit pill says "committed"
+    And the flurry records itself
     And the health dot is "healthy"
     And there should be no page errors
