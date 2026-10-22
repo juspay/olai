@@ -119,6 +119,31 @@ Then(
   },
 );
 
+/**
+ * THE ROW IS STILL READING ITS CELLS — the assertion a config edit owes.
+ *
+ * `off` and `unknown` are both quiet, so neither the dot nor the health dot
+ * would call a dead subscription a fault: the pill would simply read "Commits
+ * off" forever and nothing on screen would say the tab had stopped listening.
+ * This waits for the pill to be on a face that only a LIVE reading can produce,
+ * which is what makes a remount-without-redial a failing scenario rather than a
+ * (wrong but green) screenshot.
+ */
+Then("the commit pill is live", async function (this: OlaiWorld) {
+  await this.readStatus(async () => {
+    const pill = this.page.locator(COMMIT_PILL);
+    await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => {
+        const state = await pill.getAttribute("data-state");
+        return state !== null && state !== "off" && state !== "unknown";
+      },
+      "the commit pill to read a live git state",
+      HYDRATION_TIMEOUT,
+    );
+  });
+});
+
 /** The WORDS on it, which are not the same claim as the state behind them: a
  *  face renamed in the table and left saying the old thing is a page that reads
  *  wrong while every attribute passes. Contains rather than equals, because the
