@@ -76,10 +76,9 @@ Feature: Edit plugin settings on the panel
     When I switch the plugin "git" on
     Then the plugin "git" line reads "Git" beside its labelled enable switch
     When I close the plugins panel
-    # THE LEDGER IS READ BEFORE THE POLICY PICK. The pick restarts the git row
-    # and its browser half — the panel would be torn down under the assertion if
-    # this ran after it, and what this step is about is that the enable-write is
-    # in the ledger, which the switch above already made.
+    # THE LEDGER IS READ BEFORE THE POLICY PICK, and that is about the write this
+    # step asserts rather than about a restart: the pick is live now and the
+    # panel would survive it.
     And I open the commit panel
     Then the commit ledger includes the "git" settings namespace
     When I press the commit pill

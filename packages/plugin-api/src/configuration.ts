@@ -113,6 +113,24 @@ export interface ConfigurationSource {
 }
 export const ConfigurationSource = serviceTag<ConfigurationSource>("configuration")
 
+/**
+ * THE CONFIGURATION A ROW FOLLOWS, INDEPENDENT OF WHO IS READING THE FILE.
+ *
+ * `ConfigurationSource` belongs to the settings row, so a follower naming it
+ * directly unloads — and reports its row `waiting` — when that reader is off or
+ * the directory has no `Settings.olai`. This is core's narrow broker over that
+ * optional provider: `current` is the reader's last reading or `undefined`, and
+ * `changes` replays the current reading, follows its revisions, and answers
+ * `undefined` when the reader leaves. Followers keep their last value for that
+ * absence, and compare readings themselves: the broker knows nothing about
+ * which fields anybody follows.
+ */
+export interface ConfigurationWatch {
+  readonly current: () => Configuration | undefined
+  readonly changes: Stream.Stream<Configuration | undefined>
+}
+export const ConfigurationWatch = serviceTag<ConfigurationWatch>("configuration-watch")
+
 /** The shared namespace walk, over the vault codec's already-decoded revision. */
 export const configurationNodes = (reading: Pick<Reading, "set" | "derived">) => {
   const file = configurationFileIn(reading.derived.claims, reading.set.documents.map((doc) => doc.path))

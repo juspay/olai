@@ -92,11 +92,12 @@ import {
   type Provision,
   registry,
   roster,
+  serviceChanges,
   serviceTag,
   type ServiceKey,
 } from "@olai/effect-cordis"
-import { ConfigurationSource } from "./configuration.ts"
-export { ConfigurationSource } from "./configuration.ts"
+import { ConfigurationSource, ConfigurationWatch } from "./configuration.ts"
+export { ConfigurationSource, ConfigurationWatch } from "./configuration.ts"
 import { Deferred, Effect, Exit, Scope, Semaphore, Queue, Stream } from "effect"
 
 import { ownedKey, ownService, type OwnServices } from "./owned.ts"
@@ -1804,6 +1805,15 @@ export const openPlugins = (
       gate: () => readOffered(host, Ops, plugin)?.gate,
     }))
 
+    // THE CONFIGURATION BROKER: the settings reader is optional to exist, and a
+    // row naming it directly would unload with it. `undefined` is that absence;
+    // followers keep their last value ({@link ConfigurationWatch}).
+    yield* provide(host, ConfigurationWatch, (plugin) => ({
+      current: () => readOffered(host, ConfigurationSource, plugin)?.current(),
+      changes: Stream.switchMap(serviceChanges(host, ConfigurationSource), (source) =>
+        source === undefined ? Stream.succeed(undefined) : source.changes),
+    }))
+
     // ...AND ONE LOCAL-STATE DOOR PER PLUGIN NAME, not per activation. The write chain
     // that orders a plugin's saves lives on the door, and this provision runs
     // once per ACTIVATION — so a plugin that unloads and comes back used to get a
@@ -1909,6 +1919,7 @@ export type { Registering } from "@olai/acp/engine"
 export const SERVICES = [
   BundleModules,
   Served,
+  ConfigurationWatch,
   VaultViews,
   VaultSettings,
   Env,

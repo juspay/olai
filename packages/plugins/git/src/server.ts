@@ -13,7 +13,9 @@ import { inMemoryStore } from "@kolu/surface/server"
 import {
   COMMIT_DEFAULT,
   COMMIT_MODES,
+  DEFAULT_POLICY,
   GIT_OFF,
+  type GitPolicy,
   type GitState,
   NOTHING_PENDING,
   type Pending,
@@ -25,6 +27,7 @@ import {
 import {
   definePlugin,
   detached,
+  ConfigurationWatch,
   Ledger,
   Offers,
   Ops,
@@ -32,7 +35,7 @@ import {
   Vault,
   VaultViews,
 } from "@olai/plugin-api/services"
-import { preference } from "@olai/plugin-api/configuration"
+import { type Configuration, preference } from "@olai/plugin-api/configuration"
 import { Duration, Effect, Schema, Stream, SubscriptionRef } from "effect"
 
 import type { Ops as Gate } from "@olai/ops"
@@ -72,25 +75,39 @@ interface VaultRevision {
 
 export default definePlugin({
   name,
-  needs: [Offers, Surfaces, Vault, VaultViews, Ops],
+  needs: [Offers, Surfaces, Vault, VaultViews, Ops, ConfigurationWatch],
   config: Config,
-  apply: (config: Config) =>
-    Effect.gen(function*() {
-    // THE POLICY IN FORCE, in one line — what this activation was started with
-    // rather than what the file says now. A reapply logs a second line, so a
-    // restart's cause and its result are both in the log.
-    yield* Effect.logInfo(
-      `git: commit=${config.commit} push=${config.push}; ${
-        config.commit === "auto"
-          ? "quiet window arms when writes settle"
-          : "quiet window not armed"
-      }`,
-    )
+  // The ledger reads this row's policy at every decision (`./ledger/pending.ts`'s
+  // `mode`), so a config edit must not take the fiber with it: the row keeps its
+  // cells, its panel and the pause/refusal it remembers. The activation follows
+  // the Settings file through `ConfigurationWatch` and assigns the value below.
+  configUpdates: "live",
+  apply: Effect.gen(function*() {
     const offers = yield* Offers
     const surfaces = yield* Surfaces
     const vault = yield* Vault
     const ops = (yield* Ops).gate as Gate
     const detach = yield* detached
+    const watch = yield* ConfigurationWatch
+
+    /** The git row's policy, already decoded by the settings row. The cast is
+     *  this row's one trust point; nothing here decodes it again. */
+    const rowPolicy = (value: Configuration | undefined): GitPolicy | undefined =>
+      value?.rows.get("git")?.config as GitPolicy | undefined
+
+    // Seeded BEFORE anything is forked or surveyed: `commit: off` must ask git
+    // nothing on the first sweep, and `push: auto` must arm its own catch-up.
+    let policy: GitPolicy = rowPolicy(watch.current()) ?? DEFAULT_POLICY
+
+    const sayPolicy = (of: GitPolicy): Effect.Effect<void> =>
+      Effect.logInfo(
+        `git: commit=${of.commit} push=${of.push}; ${
+          of.commit === "auto"
+            ? "quiet window arms when writes settle"
+            : "quiet window not armed"
+        }`,
+      )
+    yield* sayPolicy(policy)
 
     let at: Reading | null = null
     let mine: Ctx | undefined
@@ -99,7 +116,7 @@ export default definePlugin({
       ops,
       root: vault.served,
       at: Effect.sync(() => at),
-      policy: config,
+      policy: () => policy,
       onSettled: () => {
         detach(SubscriptionRef.update(settled, (count) => count + 1).pipe(Effect.asVoid))
       },
@@ -111,6 +128,26 @@ export default definePlugin({
         yield* commits.observe(status.pending)
         mine?.cells.git.set(status.git)
         mine?.cells.pending.set(status.pending)
+      })
+
+    /**
+     * A PICK, ON THE RUNNING ROW: assign, republish, and — only when `push`
+     * moves TO `auto` — catch up once. A boot never comes through here; its
+     * policy is seeded above, so the boot catch-up's fork runs under it.
+     *
+     * The `moved` comparison is the ROW's, not the broker's: the broker
+     * publishes every Settings revision, and only this row knows which fields
+     * it follows.
+     */
+    const set = (next: GitPolicy): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        const before = policy
+        const moved = before.commit !== next.commit || before.push !== next.push
+        policy = next
+        if (!moved) return
+        yield* sayPolicy(next)
+        yield* republish()
+        if (before.push !== "auto" && next.push === "auto") yield* commits.catchUp
       })
 
     const ledger: Ledger = {
@@ -185,5 +222,12 @@ export default definePlugin({
     )
     yield* Effect.forkScoped(commits.loop)
     yield* Effect.forkScoped(commits.catchUp)
+    // The file, followed for this activation. Forked AFTER the loop and the
+    // boot catch-up so `set` cannot run before the machinery it changes exists.
+    // `undefined` is a reader that is absent; the last policy stands.
+    yield* Effect.forkScoped(Stream.runForEach(watch.changes, (value) => {
+      const next = rowPolicy(value)
+      return next === undefined ? Effect.void : set(next)
+    }))
   }),
 })

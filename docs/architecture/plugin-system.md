@@ -1289,7 +1289,7 @@ holds no live value.
 | Design that is right | Example | Why it works |
 | --- | --- | --- |
 | **The provider registers into the consumer** | the vault's `VaultViews`, where git and search tell the store about their ledger and matcher | both already name `Vault`, so neither gains a wait, the dependency edge is at the end that can carry it, and the registration is a finalizer on the provider's scope. Same shape as `Kinds.register`, `Surfaces.register`, `Wakes.register`. The default answer |
-| **A narrow broker** | MCP's `host.served`, two readings about one provider | for when the arrow cannot be inverted: a vault registering its gate with the transport would mean the directory knowing what an MCP endpoint is. Legitimate where `HostServices` was not, because it is closed — two readings, named in the type, about one provider — rather than `current<A>(key)` |
+| **A narrow broker** | MCP's `host.served` and the configuration broker rows follow by | for when the arrow cannot be inverted: a vault registering its gate with the transport would mean the directory knowing what an MCP endpoint is. Legitimate where `HostServices` was not, because it is closed — two readings, named in the type, about one provider — rather than `current<A>(key)`. `ConfigurationWatch` answers `undefined` for a reader that is absent and the follower keeps its last value |
 
 - **A private holder is still how a value reaches a component**, and its rules
   are in [the authoring contract](../dynamic-plugins.md#where-a-live-value-may-live):

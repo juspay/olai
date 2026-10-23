@@ -6,7 +6,7 @@ Feature: Git policy travels with the vault
   `promoted_settings.feature` holds the promoted path.
 
   The panel reads the git node's properties and names their authors.
-  Editing that node re-applies the row for every browser of this serve.
+  Editing that node changes the running row, live, for every browser of this serve.
 
   Background:
     Given I open the outline "garden.olai"

@@ -132,7 +132,7 @@ The agent has this one too, as a `push` tool that takes nothing at all.
   It used to be a second, differently-shaped feature with the same name: one commit per write, made inside the write gate, never pushed. **That is retired.** A train of thought arrived as a dozen commits, which is the thing manual mode was introduced to end, and there is no per-write commit left in olai.
 - `commit: off` is for a directory whose history is somebody else's job. The readout says which of those two it is rather than vanishing, and nothing is ever `git init`ed on your behalf.
 
-**Changing the policy restarts the git row, and the tab follows.** `commit` and `push` are plain config leaves, so the serve stops the row's fiber and mounts a fresh one. Every open tab follows the new mount generation — it refreshes the connection and starts that row's browser half again, so the Commit row keeps reading live cells. An open Commit panel closes with it, but the typed message and unticked files survive.
+**Changing the policy is live.** `commit` and `push` declare `configUpdates: "live"`, so the row keeps its fiber, cells, remembered pause and any open Commit panel; each decision reads the new value. The policy is seeded from the file before the first survey, and a settings reader that is off (or absent) leaves the last policy standing. `push: off → auto` sends the commits already recorded here once.
 
 The git row’s `Config` schema declares `commit: manual` and `push: off`. `olai.yml` supplies build enablement only. The panel draws both choices in the Git row’s detail (press the chevron beside Git). A ● marks values from the file, including explicit values equal to a default; ↺ removes that property. `Saved in` in that detail opens the underlying outline node.
 

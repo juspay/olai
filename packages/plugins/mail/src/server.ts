@@ -25,8 +25,8 @@ import { TransportSurface } from "@olai/plugin-api/transport"
 import { Effect, Queue, Stream } from "effect"
 
 import { type Account, MAIL_UNCONNECTED, name, surface, faces } from "./wire.ts"
-import { ConfigurationSource } from "@olai/plugin-api/configuration"
-import { serviceTag } from "@olai/plugin-api/services"
+import { type Configuration } from "@olai/plugin-api/configuration"
+import { ConfigurationWatch, serviceTag } from "@olai/plugin-api/services"
 import { Config, pollMillis } from "./settings.ts"
 import { makeWatch } from "./watch.ts"
 import { openMailbox } from "./mailbox.ts"
@@ -48,6 +48,10 @@ const doorOf = (vars: Record<string, string | undefined>, key: string): string |
   const value = vars[key]
   return value === undefined || value.trim() === "" ? undefined : value.trim()
 }
+
+/** The cadence when the file says nothing, or has no value it can use. One
+ *  spelling for the activation's starting value and the follower's fallback. */
+const DEFAULT_POLL_MS = 120_000
 
 export default definePlugin({
   environment: [
@@ -203,7 +207,7 @@ export default definePlugin({
     const watcher = makeWatch({ mailbox, memory, machine, deliveries, clock, warn,
       debug: line => run(Effect.logDebug(line)),
     })
-    let pollMs = 120_000
+    let pollMs = DEFAULT_POLL_MS
     const changed = yield* Queue.unbounded<void>()
     yield* (yield* Offers).own("poll", () => ({ set: (next: number) => {
       if (next !== pollMs) { pollMs = next; Queue.offerUnsafe(changed, undefined) }
@@ -218,14 +222,20 @@ export default definePlugin({
 const Poll = serviceTag<{ readonly set: (ms: number) => void }>("mail.poll")
 export const wake = { subject: "wake on new mail", waiting: { one: "mail event waiting", many: "mail events waiting" } }
 export const components = {
-  cadence: definePlugin({ name: "cadence", needs: [ConfigurationSource, Poll], apply: Effect.gen(function*() {
-    const source = yield* ConfigurationSource
+  cadence: definePlugin({ name: "cadence", needs: [ConfigurationWatch, Poll], apply: Effect.gen(function*() {
+    const watch = yield* ConfigurationWatch
     const poll = yield* Poll
-    const update = (value: ReturnType<typeof source.current>) => Effect.sync(() => {
+    /** One reading, with a value to use — absence is the stream's, not this
+     *  function's, so "no reader" cannot be mistaken for "no mail row". */
+    const update = (value: Configuration) => Effect.sync(() => {
       const configured = value.rows.get("mail")?.config.poll
-      poll.set(typeof configured === "string" ? pollMillis(configured) ?? 120_000 : 120_000)
+      poll.set(typeof configured === "string" ? pollMillis(configured) ?? DEFAULT_POLL_MS : DEFAULT_POLL_MS)
     })
-    yield* update(source.current())
-    yield* Effect.forkScoped(Stream.runForEach(source.changes, update))
+    const now = watch.current()
+    if (now !== undefined) yield* update(now)
+    yield* Effect.forkScoped(Stream.runForEach(
+      Stream.filter(watch.changes, (value): value is Configuration => value !== undefined),
+      update,
+    ))
   }) }),
 }
