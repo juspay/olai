@@ -16,9 +16,11 @@
  */
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import { expect, test } from "bun:test"
-import { Cause, Deferred, Effect, Fiber, Layer, Logger, type Scope } from "effect"
+import { Cause, Deferred, Effect, Fiber, Layer, Logger, Queue, type Scope, Stream, SubscriptionRef } from "effect"
 
 import {
+  ConfigurationSource,
+  ConfigurationWatch,
   Deliveries,
   LocalState,
   Ledger,
@@ -39,6 +41,7 @@ import {
   Wakes,
   Watching,
 } from "./services.ts"
+import type { Configuration } from "./configuration.ts"
 
 /** What a probe answers on a machine that simply does not have the tool — the
  *  ordinary arm, and the one these cases need because none of them is about
@@ -1170,4 +1173,57 @@ test("the vault Inbox registry reads absence, owns updates, and withdraws with i
     expect(seen).toEqual([null, "Inbox.olai", "notes/Inbox.olai", null])
     yield* Effect.scoped(vault.door("capture-again").inbox.register("Inbox.olai"))
     expect(reader.current()).toBeNull()
+  }))))
+
+test("the configuration broker follows a reader through absence, a revision and its return", () =>
+  Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const plugins = yield* runtime()
+    const seen = yield* Queue.unbounded<Configuration | undefined>()
+    yield* mountPlugin(plugins.host, definePlugin({
+      name: "follower",
+      needs: [ConfigurationWatch],
+      apply: Effect.gen(function*() {
+        const watch = yield* ConfigurationWatch
+        yield* Effect.forkScoped(Stream.runForEach(watch.changes, (value) => Queue.offer(seen, value)))
+      }),
+    }))
+    // NO READER AT ALL: the broker answers absence rather than holding the
+    // follower PENDING, which is the whole reason it exists.
+    expect(yield* Queue.take(seen)).toBeUndefined()
+
+    const row = (commit: string): Configuration => ({
+      revision: 1,
+      rows: new Map([["git", { config: { commit, push: "off" }, values: [] }]]),
+    })
+    let current = row("auto")
+    let publish: ((next: Configuration) => Effect.Effect<void>) | undefined
+    const reader = (initial: Configuration) => definePlugin({
+      name: "settings",
+      needs: [Offers],
+      apply: Effect.gen(function*() {
+        current = initial
+        const ref = yield* SubscriptionRef.make(initial)
+        yield* (yield* Offers).offer(ConfigurationSource, () => ({
+          current: () => current,
+          changes: SubscriptionRef.changes(ref),
+        }))
+        publish = (next) => Effect.suspend(() => {
+          current = next
+          return SubscriptionRef.set(ref, next)
+        })
+      }),
+    })
+
+    const first = yield* mountPlugin(plugins.host, reader(row("auto")))
+    expect((yield* Queue.take(seen))?.rows.get("git")?.config.commit).toBe("auto")
+    // A revision on the reader reaches the follower as a value.
+    yield* publish!(row("manual"))
+    expect((yield* Queue.take(seen))?.rows.get("git")?.config.commit).toBe("manual")
+    // ...AND THE READER LEAVING IS `undefined`, not a wait and not a default.
+    yield* first.dispose
+    expect(yield* Queue.take(seen)).toBeUndefined()
+    // A RETURNING reader delivers its value WITHOUT a further revision, which is
+    // what makes the absence safe for a follower that keeps its last value.
+    yield* mountPlugin(plugins.host, reader(row("off")))
+    expect((yield* Queue.take(seen))?.rows.get("git")?.config.commit).toBe("off")
   }))))
