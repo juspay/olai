@@ -392,9 +392,8 @@ export interface Options {
    * store that has never loaded already answered with.
    */
   readonly at: Effect.Effect<Reading | null>
-  /** The policy IN FORCE — asked at every decision rather than captured for
-   *  the length of an activation, because a Settings pick no longer restarts
-   *  this row. The binding is `server.ts`'s `Policy` door. */
+  /** The policy IN FORCE, read at every decision — a Settings pick no longer
+   *  restarts the row. `server.ts`'s activation holds the value. */
   readonly policy: () => GitPolicy
   /**
    * Told whenever anything about git SETTLED — a commit by whichever door, a
@@ -567,7 +566,7 @@ export interface Committing {
    *
    * A POLICY PICK THAT MOVES `push` TO `auto` RUNS IT ONCE MORE, because the
    * boot's fork already returned under the old value and the row is not
-   * restarting (`server.ts`'s `Policy.set`).
+   * restarting (`server.ts`'s follower).
    */
   readonly catchUp: Effect.Effect<void>
   /**

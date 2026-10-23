@@ -90,26 +90,24 @@ export default definePlugin({
     const detach = yield* detached
     const watch = yield* ConfigurationWatch
 
-    /** The git row's policy, already decoded with defaults filled by
-     *  `@olai/plugin-api/configuration`, or `undefined` when nobody is reading
-     *  the file or it names no git row. */
+    /** The git row's policy, already decoded by the settings row. The cast is
+     *  this row's one trust point; nothing here decodes it again. */
     const rowPolicy = (value: Configuration | undefined): GitPolicy | undefined =>
       value?.rows.get("git")?.config as GitPolicy | undefined
 
-    /** THE POLICY IN FORCE, seeded from the file BEFORE anything is forked or
-     *  surveyed — so a boot under `commit: off` asks git nothing, and a boot
-     *  under `push: auto` arms the window the file asked for rather than the
-     *  defaults for one turn. It is replaced by a pick rather than captured,
-     *  and the ledger asks this accessor at every decision. */
+    // Seeded BEFORE anything is forked or surveyed: `commit: off` must ask git
+    // nothing on the first sweep, and `push: auto` must arm its own catch-up.
     let policy: GitPolicy = rowPolicy(watch.current()) ?? DEFAULT_POLICY
 
-    yield* Effect.logInfo(
-      `git: commit=${policy.commit} push=${policy.push}; ${
-        policy.commit === "auto"
-          ? "quiet window arms when writes settle"
-          : "quiet window not armed"
-      }`,
-    )
+    const sayPolicy = (of: GitPolicy): Effect.Effect<void> =>
+      Effect.logInfo(
+        `git: commit=${of.commit} push=${of.push}; ${
+          of.commit === "auto"
+            ? "quiet window arms when writes settle"
+            : "quiet window not armed"
+        }`,
+      )
+    yield* sayPolicy(policy)
 
     let at: Reading | null = null
     let mine: Ctx | undefined
@@ -133,20 +131,13 @@ export default definePlugin({
       })
 
     /**
-     * A NEW POLICY, ON THE RUNNING ROW — the one thing a pick does here.
+     * A PICK, ON THE RUNNING ROW: assign, republish, and — only when `push`
+     * moves TO `auto` — catch up once. A boot never comes through here; its
+     * policy is seeded above, so the boot catch-up's fork runs under it.
      *
-     * It ASSIGNS first, so the survey `republish` takes and the quiet window it
-     * re-arms both see the value a person just chose. The republish is what puts
-     * the new `GitState.policy` on the cell and re-arms the window under
-     * `@olai/format`'s `armedOn`; the ledger's own remembered pause is left
-     * alone, which is the point of not restarting it.
-     *
-     * `push: off → auto` is the ONE behaviour this owes that a restart used to
-     * provide: `catchUp` was forked once at activation and returned because
-     * pushing was off, so without a fresh run the commits already recorded here
-     * would sit unpushed until the next one. A boot never comes through here —
-     * the policy is seeded above, so the first value is not a transition and
-     * `catchUp`'s own fork runs under it.
+     * The `moved` comparison is the ROW's, not the broker's: the broker
+     * publishes every Settings revision, and only this row knows which fields
+     * it follows.
      */
     const set = (next: GitPolicy): Effect.Effect<void> =>
       Effect.gen(function*() {
@@ -154,13 +145,7 @@ export default definePlugin({
         const moved = before.commit !== next.commit || before.push !== next.push
         policy = next
         if (!moved) return
-        yield* Effect.logInfo(
-          `git: commit=${next.commit} push=${next.push}; ${
-            next.commit === "auto"
-              ? "quiet window arms when writes settle"
-              : "quiet window not armed"
-          }`,
-        )
+        yield* sayPolicy(next)
         yield* republish()
         if (before.push !== "auto" && next.push === "auto") yield* commits.catchUp
       })
@@ -237,13 +222,9 @@ export default definePlugin({
     )
     yield* Effect.forkScoped(commits.loop)
     yield* Effect.forkScoped(commits.catchUp)
-    /**
-     * ...AND THE FILE, followed for the life of the activation. Forked AFTER the
-     * loop and the boot catch-up so `set` — which republishes and re-arms — can
-     * never run before the machinery it changes exists. `ConfigurationWatch`
-     * answers `undefined` when nobody is reading the file (a stopped settings
-     * row, a vault with no `Settings.olai`), and the last policy stands.
-     */
+    // The file, followed for this activation. Forked AFTER the loop and the
+    // boot catch-up so `set` cannot run before the machinery it changes exists.
+    // `undefined` is a reader that is absent; the last policy stands.
     yield* Effect.forkScoped(Stream.runForEach(watch.changes, (value) => {
       const next = rowPolicy(value)
       return next === undefined ? Effect.void : set(next)

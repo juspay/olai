@@ -114,21 +114,16 @@ export interface ConfigurationSource {
 export const ConfigurationSource = serviceTag<ConfigurationSource>("configuration")
 
 /**
- * THE CONFIGURATION A ROW FOLLOWS BY, INDEPENDENT OF WHO IS READING THE FILE.
+ * THE CONFIGURATION A ROW FOLLOWS, INDEPENDENT OF WHO IS READING THE FILE.
  *
- * `ConfigurationSource` is the SETTINGS row's own door, and a row that named it
- * in `needs` would be unloaded — and its row reported `waiting` — whenever that
- * reader is switched off or the directory has no `Settings.olai` to read. That
- * is the right shape for the reader and the wrong one for a follower: git's
- * ledger must keep recording, and keep the policy it last heard, in exactly the
- * windows where nobody is reading policy at all.
- *
- * So this is core's narrow broker, the same answer {@link ./services.ts}'s
- * `Served` is for the directory: TWO readings about ONE optional provider,
- * resolved per call. `current` is the reader's last publication or `undefined`;
- * `changes` follows both the reader's revisions and its arrival and departure,
- * answering `undefined` for the absences. A follower keeps its last value across
- * one of those and needs no second copy of the settings reader's decode.
+ * `ConfigurationSource` belongs to the settings row, so a follower naming it
+ * directly unloads — and reports its row `waiting` — when that reader is off or
+ * the directory has no `Settings.olai`. This is core's narrow broker over that
+ * optional provider: `current` is the reader's last reading or `undefined`, and
+ * `changes` replays the current reading, follows its revisions, and answers
+ * `undefined` when the reader leaves. Followers keep their last value for that
+ * absence, and compare readings themselves: the broker knows nothing about
+ * which fields anybody follows.
  */
 export interface ConfigurationWatch {
   readonly current: () => Configuration | undefined

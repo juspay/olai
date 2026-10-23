@@ -1,16 +1,8 @@
 /**
- * THE POLICY ON A RUNNING ROW, driven through the plugin rather than through a
- * function it happens to export.
+ * THE POLICY ON A RUNNING ROW, through the plugin rather than through an export.
  *
- * What is under test is the half a Settings pick changes: the follower moves the
- * ledger's value, republishes `git` under it, and catches up an unpushed branch
- * when `push` becomes `auto`. The rest of the row — the panel, the pause, the
- * cells — is the same activation throughout, which is why the sibling identity
- * is asserted here: a restarting row would mint a new one.
- *
- * The reader is a fake `ConfigurationSource` offered through the same broker a
- * real serve uses, so a case can also TAKE IT AWAY and bring it back — the
- * absence the old component made visible as a `waiting` row. The repository is
+ * A fake `ConfigurationSource` is offered through the same broker a serve uses,
+ * so a case can revise it, take it away and bring it back. The repository is
  * real, for `pending.test.ts`'s reason: a fake git would only reproduce what
  * this suite already believes.
  */

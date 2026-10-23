@@ -1805,15 +1805,9 @@ export const openPlugins = (
       gate: () => readOffered(host, Ops, plugin)?.gate,
     }))
 
-    /**
-     * ...AND THE CONFIGURATION BROKER, for a row that must keep running while
-     * nobody reads the Settings file. The reader is optional to exist — a vault
-     * with no `Settings.olai`, or a session with the settings row switched off —
-     * and naming `ConfigurationSource` directly would unload the follower and
-     * report its row `waiting` for the whole window. `current` and `changes`
-     * both answer `undefined` for that window; the follower keeps the policy it
-     * last heard ({@link ConfigurationWatch}).
-     */
+    // THE CONFIGURATION BROKER: the settings reader is optional to exist, and a
+    // row naming it directly would unload with it. `undefined` is that absence;
+    // followers keep their last value ({@link ConfigurationWatch}).
     yield* provide(host, ConfigurationWatch, (plugin) => ({
       current: () => readOffered(host, ConfigurationSource, plugin)?.current(),
       changes: Stream.switchMap(serviceChanges(host, ConfigurationSource), (source) =>

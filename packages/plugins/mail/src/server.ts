@@ -49,6 +49,10 @@ const doorOf = (vars: Record<string, string | undefined>, key: string): string |
   return value === undefined || value.trim() === "" ? undefined : value.trim()
 }
 
+/** The cadence when the file says nothing, or has no value it can use. One
+ *  spelling for the activation's starting value and the follower's fallback. */
+const DEFAULT_POLL_MS = 120_000
+
 export default definePlugin({
   environment: [
     {
@@ -203,7 +207,7 @@ export default definePlugin({
     const watcher = makeWatch({ mailbox, memory, machine, deliveries, clock, warn,
       debug: line => run(Effect.logDebug(line)),
     })
-    let pollMs = 120_000
+    let pollMs = DEFAULT_POLL_MS
     const changed = yield* Queue.unbounded<void>()
     yield* (yield* Offers).own("poll", () => ({ set: (next: number) => {
       if (next !== pollMs) { pollMs = next; Queue.offerUnsafe(changed, undefined) }
@@ -221,16 +225,17 @@ export const components = {
   cadence: definePlugin({ name: "cadence", needs: [ConfigurationWatch, Poll], apply: Effect.gen(function*() {
     const watch = yield* ConfigurationWatch
     const poll = yield* Poll
-    const update = (value: Configuration | undefined) => Effect.suspend(() => {
-      // No reader is not "the file said the default": the last cadence stands
-      // until somebody reads a value, which is the same optional-availability
-      // rule the git row follows through this broker.
-      if (value === undefined) return Effect.void
+    /** One reading, with a value to use — absence is the stream's, not this
+     *  function's, so "no reader" cannot be mistaken for "no mail row". */
+    const update = (value: Configuration) => Effect.sync(() => {
       const configured = value.rows.get("mail")?.config.poll
-      poll.set(typeof configured === "string" ? pollMillis(configured) ?? 120_000 : 120_000)
-      return Effect.void
+      poll.set(typeof configured === "string" ? pollMillis(configured) ?? DEFAULT_POLL_MS : DEFAULT_POLL_MS)
     })
-    yield* update(watch.current())
-    yield* Effect.forkScoped(Stream.runForEach(watch.changes, update))
+    const now = watch.current()
+    if (now !== undefined) yield* update(now)
+    yield* Effect.forkScoped(Stream.runForEach(
+      Stream.filter(watch.changes, (value): value is Configuration => value !== undefined),
+      update,
+    ))
   }) }),
 }
