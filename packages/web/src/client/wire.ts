@@ -7,6 +7,7 @@
 
 import { supplyManagement } from "../host/management.ts"
 import { connectSocket } from "./connection/socket.ts"
+import { restartRows, signatureOf, type Named } from "./connection/signature.ts"
 import { bootstrapSelected } from "../host/bootstrap.ts"
 import { loadRows, retryableModule } from "../host/loading.ts"
 import type { bootStatus } from "../host/boot-status.ts"
@@ -68,45 +69,11 @@ const live = await connectSurfaces({
     ),
 })
 
-/**
- * A SET OF PLUGIN NAMES AS ONE VALUE — what {@link composed} holds and what the
- * loop below compares against it.
- *
- * Unsorted, because the roster's order is the bundle's and is stable, so the
- * joined list moves exactly when the answer does. `""` is a wire with no
- * sibling on it, which is what the first dial is and what a serve running no
- * plugins stays.
- *
- * A FUNCTION rather than a `.join` at each of the two sites, and the two sites
- * are the whole reason: one writes the signature and one compares against it,
- * so a separator changed in one place and not the other leaves the loop either
- * spinning (never equal) or wedged (always equal). Neither fails loudly.
- */
-const signatureOf = (names: ReadonlyArray<Named>): string =>
-  names.map((one) => one.chunk === null ? one.id : `${one.id}\t${one.chunk}`).join("\n")
-
-/**
- * ONE PLUGIN THE ROSTER NAMES, and where its browser half comes from.
- *
- * `chunk` is `null` for every plugin this build compiled in: its half is a chunk
- * of the bundle, named by a literal `import()` in a generated row, and the table
- * that holds those thunks is the one thing the tab may know about plugins ahead
- * of time (`@olai/bundle`'s `rows.ts`).
- *
- * It is a URL for a plugin the VAULT defines, which the serve compiled out of a
- * note and answers under `/_olai/plugins/<name>-<version>.js`. THE VERSION IS IN
- * THE PATH, which is why it rides the signature above: an edit somebody approved
- * is a different URL, so the comparison that decides whether to redial sees the
- * change — where a signature of names alone would call the new code the same
- * roster and leave the old module mounted.
- */
-interface Named {
-  readonly id: string
-  readonly chunk: string | null
-}
-
-/** THE PLUGINS THIS WIRE CARRIES, as that signature. */
-let composed: string | undefined = ""
+/** THE ROSTER THIS TAB HAS ACTUALLY COMPOSED — one value read by both the
+ * redial guard and the restart set, so the two cannot disagree. A failed redial
+ * leaves it where it was; `undefined` is "nothing composed yet", which is also
+ * what an explicit retry asks for. */
+let composedRows: ReadonlyArray<Named> | undefined
 
 /**
  * BRING THE WIRE INTO LINE WITH THE ROSTER — load, dial, then mount.
@@ -138,10 +105,10 @@ export const rosterChanging = (): boolean => rosterChanges() > 0
 const rerost = async (want: ReadonlyArray<Named>): Promise<void> => {
   const signature = signatureOf(want)
   // ONE AT A TIME, and it is the roster's own shape that makes this reachable
-  // rather than theoretical. `composed` is only written on SUCCESS — which is
-  // right, because a failed redial must leave the next frame free to try again
-  // — so between the first frame and its redial resolving, the guard the loop
-  // reads still says the old signature. A second frame in that window (a
+  // rather than theoretical. `composedRows` is only written on SUCCESS — which
+  // is right, because a failed redial must leave the next frame free to try
+  // again — so between the first frame and its redial resolving, the guard the
+  // loop reads still says the old roster. A second frame in that window (a
   // reconnect republishing, a plugin failing while another is being brought in)
   // passes the guard and starts a SECOND `live.redial` on the same connection,
   // which the seam refuses outright: it would dial a third wire while the
@@ -202,7 +169,7 @@ export const useBootStatus = (status: ReturnType<typeof bootStatus>): void => { 
 /** An explicit retry retains the host's last selection and does not restart
  * surviving activations. Failed imports and failed activations get another try. */
 export const retryBrowser = async (): Promise<void> => {
-  composed = undefined
+  composedRows = undefined
   if (!receivedRoster) return bootstrapBrowser()
   await rerost(selectedRows)
 }
@@ -225,7 +192,7 @@ let inFlight: Promise<void> = Promise.resolve()
 const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise<void> => {
   // ...and once it is our turn, the answer may already be the one on the wire:
   // the frame ahead of us in the queue may have been for the same roster.
-  if (signature === composed) return
+  if (composedRows !== undefined && signature === signatureOf(composedRows)) return
   try {
     const { loaded: halves, failed, reloadRequired } = await loadRows(
       want.flatMap((one) => {
@@ -277,8 +244,22 @@ const rerostNow = async (want: ReadonlyArray<Named>, signature: string): Promise
         clearTimeout(deadline)
       }
     }
-    await composeTo(halves, (plugin) => (live.clients as Record<string, unknown>)[plugin], failed, reloadRequired)
-    composed = signature
+    // WHICH BROWSER HALVES START AGAIN — read against what the tab actually
+    // composed, so a redial that failed or was superseded still carries the
+    // whole movement into the retry. The one diagnostic for a moving frame is
+    // this list, the same value the composition acts on.
+    const restart = restartRows(composedRows ?? [], want)
+    console.debug(
+      `olai: roster frame — redialling${restart.length === 0 ? "" : `; restarting ${restart.join(", ")}`}`,
+    )
+    await composeTo(
+      halves,
+      (plugin) => (live.clients as Record<string, unknown>)[plugin],
+      failed,
+      reloadRequired,
+      new Set(restart),
+    )
+    composedRows = want
     const failedReports = [...browserReports()].filter(([, report]) => report.state === "failed")
     const failures = failedReports.map(([name]) => name)
     if (failures.length) boot?.failed(`Some plugins couldn't start: ${failures.join(", ")}.`
@@ -367,20 +348,52 @@ createRoot(() => {
     // because of it would be this page inventing a policy.
     if (value === undefined) return
     receivedRoster = true
-    // WHAT TO LOAD, per running row — the word, and for a plugin the VAULT
-    // defines the URL its browser half is served from. A built row has no
-    // `source`, so `chunk` is `null` and the compiled-in table below is what
+    // WHAT TO LOAD, per running row — the word, the URL a vault-defined half
+    // is served from, and WHICH MOUNT the serve is describing. A built row has
+    // no `source`, so `chunk` is `null` and the compiled-in table below is what
     // answers for it; a definition has no entry in that table and could not,
     // because its source did not exist when this bundle was built.
+    //
+    // `generation` is the field that turns a REAPPLY into a redial: the row's
+    // name, state and even its config can come back identical after the server
+    // restarted its fiber, and only the mount count says the sibling on the
+    // wire is not the one this tab subscribed to.
     const want = value.built
       .filter((row) => row.running)
-      .map((row) => ({ id: row.name, chunk: row.source?.chunk ?? null }))
+      .map((row) => ({
+        id: row.name,
+        chunk: row.source?.chunk ?? null,
+        generation: row.generation ?? 0,
+      }))
     selectedRows = want
-    if (signatureOf(want) === composed) {
+    if (composedRows !== undefined && signatureOf(want) === signatureOf(composedRows)) {
+      // A config value moved in a row that handles its own updates, or a
+      // republish that says nothing new. Keeping the wire is the point: every
+      // standing subscription on the page survives.
       settle()
       return
     }
     void rerost(want).then(settle)
+  })
+  /**
+   * THE READOUT'S EDGES: the stopped streams on the way into `degraded`, and
+   * the all clear on the way out. A quiet tab is a green dot, but the console
+   * is where a person looks when it is not — raw ids here, plugin rows in the
+   * sentence `connection/status.ts` writes.
+   */
+  let was: string | undefined
+  createEffect(() => {
+    const readout = live.readout()
+    const status = readout.status
+    if (status === was) return
+    if (status === "degraded") {
+      console.warn(
+        `olai: partly connected — these subscriptions stopped: ${readout.stopped.join(", ")}`,
+      )
+    } else if (was === "degraded") {
+      console.info("olai: every subscription is arriving again")
+    }
+    was = status
   })
 })
 

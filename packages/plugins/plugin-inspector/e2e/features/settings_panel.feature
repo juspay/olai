@@ -24,6 +24,26 @@ Feature: Edit plugin settings on the panel
     Then the first choice of "git" setting "commit" has focus
     And there should be no page errors
 
+  Scenario: A vault setting change keeps the tab connected
+    # `vault.format` is plain config, not a live one: the serve restarts the
+    # vault row and mounts a fresh sibling for it. The tab must redial onto the
+    # new generation — otherwise the file tree would stop learning about writes
+    # while the socket stayed open.
+    Given I open the app
+    When I open the plugins panel
+    And I expand the plugin "vault"
+    And I type "markdown" into "vault" setting "format"
+    And I press "Enter" in "vault" setting "format"
+    Then the plugins panel shows "vault" configured "format" as "markdown"
+    And the connection is "live"
+    And the health dot is "healthy"
+    When I rewrite "reapply-probe.olai" as:
+      """
+      {"id":"reapply-probe","ord":"a0","title":"the restarted vault still publishes"}
+      """
+    Then the outline list links to "reapply-probe.olai"
+    And there should be no page errors
+
   Scenario: Escape discards an uncommitted draft without dismissing the panel
     Given I open the app
     When I rewrite "_olai/Settings.olai" as:
@@ -56,14 +76,21 @@ Feature: Edit plugin settings on the panel
     When I switch the plugin "git" on
     Then the plugin "git" line reads "Git" beside its labelled enable switch
     When I close the plugins panel
+    # THE LEDGER IS READ BEFORE THE POLICY PICK. The pick restarts the git row
+    # and its browser half — the panel would be torn down under the assertion if
+    # this ran after it, and what this step is about is that the enable-write is
+    # in the ledger, which the switch above already made.
+    And I open the commit panel
+    Then the commit ledger includes the "git" settings namespace
+    When I press the commit pill
+    Then the commit panel is shut
     And I open the preferences
     Then the preference "plugin-git-commit" is drawn under the heading "Git"
     When I pick "auto" in the preference "plugin-git-commit"
     Then file "_olai/Settings.olai" has namespace "git" setting "commit" as "auto"
+    And the connection is "live"
+    And the health dot is "healthy"
     And the preference "plugin-git-commit" is marked as authored by "vault"
-    When I press Escape on the preferences
-    And I open the commit panel
-    Then the commit ledger includes the "git" settings namespace
     When I leave the app
     And the server stops
     And the server starts again on the same port

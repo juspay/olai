@@ -45,7 +45,8 @@ const renderer = { default: definePlugin({ name: "ui-renderer", needs: [Offers],
     children: [location("bench.mark","many","owner"),location("bench.seat","one")],
   })
 }) }) }
-const composeTo: typeof compose = (halves, client) => compose(halves.length ? [renderer, ...halves] : [], client)
+const composeTo: typeof compose = (halves, client, failed, reloads, restart) =>
+  compose(halves.length ? [renderer, ...halves] : [], client, failed, reloads, restart)
 
 const hint = (plugin: string) => {
   const pending = [...browserReports()].filter(([name, report]) =>
@@ -55,6 +56,27 @@ const hint = (plugin: string) => {
 const client = () => null
 const Value = serviceTag<{ version: string }>("source.value")
 afterEach(() => composeTo([], client))
+
+test("a row the server remounted starts its browser half again, and its neighbours keep theirs", async () => {
+  // A config edit restarts a row's SERVER fiber and the serve mounts a fresh
+  // sibling. The old sibling's cell streams end NORMALLY, which is not a
+  // transport failure, so the retry fence does not bring the subscriptions
+  // back. Only a fresh activation re-reads its cells — and only the row whose
+  // mount generation moved may be restarted, or a policy edit would discard
+  // every other plugin's local state.
+  const started: string[] = []
+  const half = (name: string) => ({
+    default: definePlugin({ name, needs: [], apply: Effect.sync(() => { started.push(name) }) }),
+  })
+  await composeTo([half("git"), half("kolu")], client)
+  expect(started).toEqual(["git", "kolu"])
+  await composeTo([half("git"), half("kolu")], client)
+  expect(started).toEqual(["git", "kolu"])
+  await composeTo([half("git"), half("kolu")], client, undefined, undefined, new Set(["git"]))
+  expect(started).toEqual(["git", "kolu", "git"])
+  await composeTo([half("git"), half("kolu")], client)
+  expect(started).toEqual(["git", "kolu", "git"])
+})
 
 test("a browser component reports its missing key while its parent keeps its faces", async () => {
   let reading: string | null = null

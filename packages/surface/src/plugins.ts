@@ -109,6 +109,20 @@ export const BuiltPlugin = Schema.Struct({
    *  drawn, its probe ran, and a property declared with its kind is held to it.
    *  `false` is total absence rather than a degraded arm. */
   running: Schema.Boolean,
+  /**
+   * WHICH MOUNT OF THIS ROW THE ROSTER DESCRIBES — a count the server's
+   * composition root owns and bumps at every `runtime.mount` of the row.
+   *
+   * A config change on a row that is not `configUpdates: "live"` restarts its
+   * fiber and replaces its surface sibling; name, state and config can all come
+   * back identical. Without this a tab keeps a wire whose subscriptions belong
+   * to the dropped sibling and draws data it is no longer receiving.
+   *
+   * ABSENT on a row that is not running and on older serves; a tab reads
+   * absence as 0, "this serve never told me about a mount". Optional so a new
+   * tab can still decode an older roster.
+   */
+  generation: Schema.optionalKey(Schema.Number),
   /** Host selection only; browser activation is reported independently by each tab. */
   browserOnly: Schema.optional(Schema.Boolean),
   /**

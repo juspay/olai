@@ -94,6 +94,27 @@ test("the degraded detail names what stopped", () => {
   ).toContain("documents.keys, transcript")
 })
 
+// A subscription's name is `<row>/<member>` once it crosses a sibling, and the
+// sentence a PERSON reads names the row — the thing with a switch, a panel and
+// a log line — once, however many of its members stopped.
+test("the degraded detail names plugin rows, not raw stream ids", () => {
+  const look = lookOf({
+    status: "degraded",
+    stopped: ["git/git", "git/pending", "kolu/git"],
+    needsReload: false,
+    presentingDown: false,
+  })
+  expect(look.detail).toContain("(git, kolu)")
+  expect(look.detail).not.toContain("git/pending")
+  // One row, however many of its subscriptions stopped.
+  expect(lookOf({
+    status: "degraded",
+    stopped: ["git/git", "git/pending"],
+    needsReload: false,
+    presentingDown: false,
+  }).detail).toContain("(git)")
+})
+
 // One door for all five. The table answers four and cannot answer the fifth —
 // its detail names what stopped — so a caller that had to know which shape a
 // state was in would be the split this collapses.

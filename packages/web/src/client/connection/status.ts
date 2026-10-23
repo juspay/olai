@@ -103,6 +103,12 @@ export const LOOK: Record<Exclude<SurfaceReadoutStatus, Degraded>, Look> = {
   },
 }
 
+/** The plugin row a stopped stream belongs to: `surfaceClientsHealth` names a
+ *  subscription `<row>/<member>`, so the part before the first `/` is the row
+ *  (and a stream with no separator is already a name). */
+const rowsOf = (stopped: ReadonlyArray<string>): ReadonlyArray<string> =>
+  [...new Set(stopped.map((id) => id.split("/")[0] ?? id))]
+
 /**
  * How a readout looks — all five states, through one door.
  *
@@ -115,7 +121,7 @@ export const lookOf = (readout: SurfaceReadout): Look =>
   readout.status !== DEGRADED ? LOOK[readout.status] : {
     tone: "notice",
     label: "Partly connected",
-    detail: `Some updates aren't arriving (${readout.stopped.join(", ")}).`,
+    detail: `Some updates aren't arriving (${rowsOf(readout.stopped).join(", ")}).`,
   }
 
 /**

@@ -18,6 +18,8 @@ The `git` row is on by default. Set `on: no` on its top-level node in `_olai/Set
 
 The row's `Config` schema declares `commit` (`manual` by default) and `push` (`off` by default), with validation and descriptions. Properties on the `git` node supply values; the reader derives the panel's vault/default authors and the composition root re-applies edits. `olai.yml` carries no config block. `commit: off` keeps the ledger mounted but disables recording; `on: no` removes the provider and its UI and tools.
 
+**A config edit RESTARTS this row.** `commit` and `push` are not `configUpdates: "live"`: the composition root patches the loader, which stops the fiber and mounts a fresh sibling. `plugins: config change restarts row "git"` (with the changed keys) and the new activation's `git: commit=… push=…` line are the two worth looking for. Every tab follows the roster's new generation — it refreshes the wire and restarts this row's browser half, so the `git`/`pending` subscriptions re-open on the new sibling. That restart is needed because the old streams end normally, not with a transport failure the retry fence would retry. An open Commit panel closes, but the typed message and file ticks survive (the preparation is module-scope).
+
 See [running.md](../running.md#the-git-policy).
 
 ## The door, and where it is told about

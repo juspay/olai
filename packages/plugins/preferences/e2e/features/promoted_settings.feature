@@ -28,6 +28,8 @@ Feature: A plugin's own settings can be marked as this panel's preferences
     And the preferences run that holds "Notifications" carries the scope line "Saved in this browser only."
     When I pick "auto" in the preference "plugin-git-commit"
     Then file "_olai/Settings.olai" has namespace "git" setting "commit" as "auto"
+    And the connection is "live"
+    And the health dot is "healthy"
     And the preference "plugin-git-commit" is marked as authored by "vault"
     When I use the default for the preference "plugin-git-commit"
     Then file "_olai/Settings.olai" has namespace "git" setting "commit" as "<absent>"

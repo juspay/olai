@@ -37,6 +37,26 @@ Feature: A prepared commit survives a neighboring plugin rebuild
     And the repository is clean
     And there should be no page errors
 
+  @policy:git.commit=auto
+  Scenario: A prepared message survives a policy pick, which restarts the row
+    # The pick is a POLICY CHANGE, so the server restarts git's fiber and the
+    # tab restarts this row's browser half (`reapply_keeps_the_wire`). The
+    # panel belongs to that half; the message does not — it lives in the
+    # module-scope preparation (`browser/commit/preparation.ts`), which is what
+    # lets a person reopen the panel after the change and keep typing.
+    When I open the commit panel
+    And I draft the commit message "survives the policy pick"
+    And I press the commit pill
+    Then the commit panel is shut
+    When I open the preferences
+    And I pick "manual" in the preference "plugin-git-commit"
+    Then the connection is "live"
+    And the commit pill is live
+    When I press Escape on the preferences
+    And I open the commit panel
+    Then the commit message still reads "survives the policy pick"
+    And there should be no page errors
+
   Scenario: Closing the panel to review the outline keeps the prepared message
     When I open the commit panel
     And I draft the commit message "reviewed before recording"

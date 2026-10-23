@@ -260,6 +260,10 @@ export const composeTo = async (
   clientFor: (plugin: string) => unknown,
   failedLoads: ReadonlyMap<string, string> = new Map(),
   reloads: ReadonlySet<string> = new Set(),
+  /** ROWS WHOSE BROWSER HALF MUST START AGAIN. A server remount ends the row's
+   *  cell streams normally, which the retry fence does not retry, so only a
+   *  fresh activation re-reads them; every neighbour keeps its fiber. */
+  restart: ReadonlySet<string> = new Set(),
 ): Promise<void> => {
   clients = clientFor
   loadFailures = failedLoads
@@ -277,7 +281,7 @@ export const composeTo = async (
   // across an `await`.
   composing += 1
   try {
-    await recompose(halves)
+    await recompose(halves, restart)
     await run(app.settlePlugins([...mounted.keys()]))
     await run(app.retryIntegrations)
     await run(app.settled)
@@ -311,7 +315,7 @@ export const composeTo = async (
  * Wired's sibling, Slots' owner and Offers' namespace. Parsing the activation
  * name inside those services would braid that policy into three capabilities.
  */
-const recompose = async (halves: ReadonlyArray<BrowserHalf>): Promise<void> => {
+const recompose = async (halves: ReadonlyArray<BrowserHalf>, restart: ReadonlySet<string>): Promise<void> => {
   const wanted = new Map(halves.flatMap((half) => [
     [half.default.name, { plugin: half.default, owner: half.default.name }] as const,
     ...Object.entries(half.components ?? {}).map(([local, component]) => {
@@ -328,8 +332,14 @@ const recompose = async (halves: ReadonlyArray<BrowserHalf>): Promise<void> => {
   // plugin that arrived can claim a key it was holding. The two orders differ
   // only for a kind word two plugins could both claim, which the loader already
   // forbids — but the order that cannot be wrong costs nothing to pick.
+  //
+  // A REMOUNTED ROW leaves with the rest even though its name is wanted: its
+  // activation holds the subscriptions the old server generation ended.
+  // `owner` is the row a component belongs to (`row/local`), so the row's
+  // parts restart with it.
   for (const [name, plugin] of [...mounted]) {
-    if (wanted.has(name)) continue
+    const owner = wanted.get(name)?.owner
+    if (owner !== undefined && !restart.has(owner)) continue
     mounted.delete(name)
     await run(plugin.dispose)
     owners.delete(name)

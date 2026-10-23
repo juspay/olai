@@ -49,6 +49,11 @@ export const rosterOf = (
   wakes: ReadonlyMap<string, Wake> = new Map(),
   offers: ReadonlyMap<string, string> = new Map(),
   defined: ReadonlyArray<BuiltPlugin> = [],
+  /** WHICH MOUNT EACH ROW IS ON — the roster's `generation`, owned by the
+   *  composition root that calls `runtime.mount`. Handed in rather than read
+   *  off `offered`: the mount table is `bind`'s, and a roster asking the
+   *  registry for it would be a second clock. */
+  generations: ReadonlyMap<string, number> = new Map(),
 ): PluginRoster =>
   offered === null ? NO_ROSTER : ((
     names: ReadonlyMap<string, ReadonlyArray<string>>,
@@ -68,6 +73,7 @@ export const rosterOf = (
         ...(offered.environment?.get(name)?.length ? { environment: offered.environment.get(name)! } : {}),
         switchPersistence: offered.persistent?.(name) === true ? "file" as const : "session" as const,
         running: live,
+        ...(live && generations.get(name) !== undefined ? { generation: generations.get(name)! } : {}),
         ...(offered?.browserOnly?.includes(name) ? { browserOnly: true } : {}),
         state: said.state,
         ...(said.fault === undefined ? {} : { fault: said.fault }),
@@ -85,7 +91,10 @@ export const rosterOf = (
         ...(policy?.on === undefined ? {} : { desiredOn: policy.on }),
 
       }
-    }), ...defined],
+    }), ...defined.map((row) => {
+      const generation = generations.get(row.name)
+      return row.running && generation !== undefined ? { ...row, generation } : row
+    })],
     ...(configuration?.file === undefined ? {} : { configurationFile: configuration.file }),
     ...(configuration?.broken === undefined ? {} : { configurationError: configuration.broken }),
     configurationAvailable: configuration !== undefined,
@@ -146,6 +155,13 @@ export const bind = (wiring: Wiring) => Effect.gen(function*() {
     const say = yield* emitter
     let pluginsCell: { set: (value: PluginRoster) => void } | null = null
     const republishPlugins = () => pluginsCell?.set(roster())
+    /**
+     * HOW MANY TIMES EACH ROW HAS BEEN MOUNTED — the roster's `generation`.
+     * Owned here because this is where `runtime.mount` is called, and NOT reset
+     * on drop: a row switched off and on again must move too. Declared before
+     * `roster` because the `plugins` cell's opening value is `roster()`.
+     */
+    const generations = new Map<string, number>()
     const offered = wiring.plugins
     const plugins = offered?.plugins ?? null
     const siblings = (): ReadonlyArray<Registered> => plugins?.composed() ?? []
@@ -156,6 +172,7 @@ export const bind = (wiring: Wiring) => Effect.gen(function*() {
         rings(),
         plugins?.offers() ?? new Map(),
         (offered?.catalogs?.() ?? []).flatMap(catalog => catalog.rows(offered?.report() ?? new Map())) as ReadonlyArray<BuiltPlugin>,
+        generations,
       )
     /**
      * THE SUPPRESSION WRAPPER, DECLARED BEFORE THERE IS ANYTHING TO WRAP.
@@ -320,6 +337,13 @@ app: {
           { writes: one.writes, faces: one.faces as never },
         )
         mounted.set(key, mount)
+        // A throw is not a mount, so the count moves after `runtime.mount`
+        // returns. Debug because a boot's ~45 mounts would bury the restart line.
+        const generation = (generations.get(key) ?? 0) + 1
+        generations.set(key, generation)
+        say(Effect.logDebug(`plugins: mounted "${key}"`).pipe(
+          Effect.annotateLogs({ generation }),
+        ))
         // WHAT WAS REGISTERED, held beside what was MOUNTED. The two tables are
         // not the same reading — `leaving` above is what pulls them apart — and
         // the agent's tool list has to come from the second: a row registered
@@ -335,6 +359,9 @@ app: {
         if (wanted.has(key)) continue
         mounted.delete(key)
         standing.delete(key)
+        say(Effect.logDebug(`plugins: dropped "${key}"`).pipe(
+          Effect.annotateLogs({ generation: generations.get(key) ?? 0 }),
+        ))
         const settling = mount.drop().catch((thrown: unknown) => {
           say(
             Effect.logWarning(

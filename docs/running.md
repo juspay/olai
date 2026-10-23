@@ -292,6 +292,8 @@ Whether writes record themselves and commits push is policy of the directory, sh
 
 Each plugin's `Config` schema declares its defaults, descriptions and controls. `git`'s `commit` and `push` are marked as preferences, so they are drawn in the preferences panel under a **Git** heading, and the git row on the plugins panel shows a **Set in Preferences** link while the row runs (turn the row off, or disable the preferences row, and the controls come back to the row's detail). A ● marks values set in the file; an explicit value equal to the default is still authored. **Use default** removes that property from the file. `GitState.policy` reports the decoded policy in force. Stale files under `$XDG_STATE_HOME/olai/git/` are inert.
 
+A policy edit is applied by restarting the row, not by mutating a running ledger: the serve mounts a fresh `git` sibling and every open tab follows the new mount generation, refreshing its connection and restarting that row's browser half. Every config row behaves this way except those declaring `configUpdates: "live"` (kolu and mail today); see [plugins/git.md](plugins/git.md#the-config).
+
 Turning the git row off removes the ledger, the Commit row and the tools. Setting `commit: off` keeps a mounted ledger that has been told not to record.
 
 **A refused commit or push pauses the loop**, and that is runtime state rather than policy: git said no, and nothing starts the loop again on olai's own initiative. The one gesture that does is **Resume**, on the commit panel, drawn only while the loop is actually stopped.
