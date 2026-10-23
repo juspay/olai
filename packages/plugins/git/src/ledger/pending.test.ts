@@ -163,7 +163,7 @@ const withRepo = <A>(
       ops: parsers,
       at: Effect.map(store.read("cheap"), (s) => s.snapshot?.value ?? null),
       root: served,
-      policy,
+      policy: () => policy,
       onSettled,
       ...(options.quiet === undefined ? {} : { quiet: options.quiet }),
     })

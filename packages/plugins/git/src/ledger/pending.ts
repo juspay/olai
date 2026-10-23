@@ -392,8 +392,10 @@ export interface Options {
    * store that has never loaded already answered with.
    */
   readonly at: Effect.Effect<Reading | null>
-  /** Resolved configuration, owned by this activation. */
-  readonly policy: GitPolicy
+  /** The policy IN FORCE — asked at every decision rather than captured for
+   *  the length of an activation, because a Settings pick no longer restarts
+   *  this row. The binding is `server.ts`'s `Policy` door. */
+  readonly policy: () => GitPolicy
   /**
    * Told whenever anything about git SETTLED — a commit by whichever door, a
    * push, a refusal of either, and the loop stopping or being started again.
@@ -562,6 +564,10 @@ export interface Committing {
    * pushes are somebody's own button press has not asked this process to make
    * one, and a boot that pushed anyway would be the flag meaning something
    * different on the first survey than on every one after it.
+   *
+   * A POLICY PICK THAT MOVES `push` TO `auto` RUNS IT ONCE MORE, because the
+   * boot's fork already returned under the old value and the row is not
+   * restarting (`server.ts`'s `Policy.set`).
    */
   readonly catchUp: Effect.Effect<void>
   /**
@@ -684,7 +690,7 @@ export const make = (options: Options): Committing => {
   /** What this server DOES about commits, asked of the policy rather than
    *  derived once into a closed-over mode: the same accessor the loop already
    *  uses, so a third reader cannot come to a different answer. */
-  const mode = (): CommitMode => options.policy.commit
+  const mode = (): CommitMode => options.policy().commit
 
   /** Ops per writer since the last commit. A counter rather than the list of
    *  edits the design first drew: the panel says "chat-agent 3 · you 1", and
@@ -1032,7 +1038,7 @@ export const make = (options: Options): Committing => {
     if (looked.unpushed === null || looked.unpushed.commits === 0) {
       settled = { ...settled, pushSaid: null }
     }
-    const git = gitOf(looked.repo, options.policy, settled)
+    const git = gitOf(looked.repo, options.policy(), settled)
     if (looked.repo._tag === "Off") return { pending: NOTHING_PENDING, git }
     const { changes, unreadable } = yield* detail(looked)
     const others = looked.others.map(otherOf)
@@ -1165,7 +1171,7 @@ export const make = (options: Options): Committing => {
       // The push's own refusal is remembered and stops the loop
       // ({@link pushed}), and the commit STANDS either way: nothing here is
       // rolled back, and nothing is retried.
-      if (options.policy.push === "auto") yield* push
+      if (options.policy().push === "auto") yield* push
 
       return {
         _tag: "Committed",
@@ -1512,7 +1518,7 @@ export const make = (options: Options): Committing => {
   )
 
   const catchUp: Effect.Effect<void> = Effect.gen(function*() {
-    if (options.policy.push !== "auto") return
+    if (options.policy().push !== "auto") return
     const looked = yield* survey
     if (looked.unpushed === null || looked.unpushed.commits === 0) return
     yield* push
@@ -1616,7 +1622,7 @@ export const make = (options: Options): Committing => {
      * both from one survey. This is the narrow question asked alone.
      */
     git: Effect.map(repoState, (repo) =>
-      gitOf(repo, options.policy, settled)),
+      gitOf(repo, options.policy(), settled)),
   }
 }
 
