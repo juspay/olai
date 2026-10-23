@@ -31,7 +31,6 @@ import {
   Ledger,
   Offers,
   Ops,
-  serviceTag,
   Surfaces,
   Vault,
   VaultViews,
@@ -76,12 +75,12 @@ interface VaultRevision {
 
 export default definePlugin({
   name,
-  needs: [Offers, Surfaces, Vault, VaultViews, Ops],
+  needs: [Offers, Surfaces, Vault, VaultViews, Ops, ConfigurationWatch],
   config: Config,
   // The ledger reads this row's policy at every decision (`./ledger/pending.ts`'s
   // `mode`), so a config edit must not take the fiber with it: the row keeps its
-  // cells, its panel and the pause/refusal it remembers. `components.policy`
-  // follows the Settings file and hands the new value through the door below.
+  // cells, its panel and the pause/refusal it remembers. The activation follows
+  // the Settings file through `ConfigurationWatch` and assigns the value below.
   configUpdates: "live",
   apply: Effect.gen(function*() {
     const offers = yield* Offers
@@ -89,15 +88,28 @@ export default definePlugin({
     const vault = yield* Vault
     const ops = (yield* Ops).gate as Gate
     const detach = yield* detached
+    const watch = yield* ConfigurationWatch
 
-    /** THE POLICY IN FORCE, replaced by a pick rather than captured for the
-     *  length of this activation. The ledger asks this accessor at every
-     *  decision, so the two cannot come to different answers. */
-    let policy: GitPolicy = DEFAULT_POLICY
-    /** Whether the line below has been said once. The first `set` is the boot
-     *  reading — including schema defaults — and every LATER one is a pick, so
-     *  both deserve a line and neither deserves one per Settings revision. */
-    let announced = false
+    /** The git row's policy, already decoded with defaults filled by
+     *  `@olai/plugin-api/configuration`, or `undefined` when nobody is reading
+     *  the file or it names no git row. */
+    const rowPolicy = (value: Configuration | undefined): GitPolicy | undefined =>
+      value?.rows.get("git")?.config as GitPolicy | undefined
+
+    /** THE POLICY IN FORCE, seeded from the file BEFORE anything is forked or
+     *  surveyed — so a boot under `commit: off` asks git nothing, and a boot
+     *  under `push: auto` arms the window the file asked for rather than the
+     *  defaults for one turn. It is replaced by a pick rather than captured,
+     *  and the ledger asks this accessor at every decision. */
+    let policy: GitPolicy = rowPolicy(watch.current()) ?? DEFAULT_POLICY
+
+    yield* Effect.logInfo(
+      `git: commit=${policy.commit} push=${policy.push}; ${
+        policy.commit === "auto"
+          ? "quiet window arms when writes settle"
+          : "quiet window not armed"
+      }`,
+    )
 
     let at: Reading | null = null
     let mine: Ctx | undefined
@@ -132,37 +144,26 @@ export default definePlugin({
      * `push: off → auto` is the ONE behaviour this owes that a restart used to
      * provide: `catchUp` was forked once at activation and returned because
      * pushing was off, so without a fresh run the commits already recorded here
-     * would sit unpushed until the next one. It is safe at boot too — the
-     * permit in `pending.ts` serializes it against the fork in `apply` and the
-     * second one finds nothing to send.
+     * would sit unpushed until the next one. A boot never comes through here —
+     * the policy is seeded above, so the first value is not a transition and
+     * `catchUp`'s own fork runs under it.
      */
     const set = (next: GitPolicy): Effect.Effect<void> =>
       Effect.gen(function*() {
         const before = policy
         const moved = before.commit !== next.commit || before.push !== next.push
         policy = next
-        if (moved || !announced) {
-          announced = true
-          yield* Effect.logInfo(
-            `git: commit=${next.commit} push=${next.push}; ${
-              next.commit === "auto"
-                ? "quiet window arms when writes settle"
-                : "quiet window not armed"
-            }`,
-          )
-        }
         if (!moved) return
+        yield* Effect.logInfo(
+          `git: commit=${next.commit} push=${next.push}; ${
+            next.commit === "auto"
+              ? "quiet window arms when writes settle"
+              : "quiet window not armed"
+          }`,
+        )
         yield* republish()
         if (before.push !== "auto" && next.push === "auto") yield* commits.catchUp
       })
-
-    /**
-     * THE SAME ROW'S POLICY, told to the component that follows the file —
-     * `git.policy`, as `Offers.own` mints it from this fiber's name. Keeping it
-     * a service rather than configuration passed at activation is what makes the
-     * ledger's lifetime independent of the setting's.
-     */
-    yield* offers.own("policy", () => ({ set }))
 
     const ledger: Ledger = {
       wrote: (writer) => commits.wrote(writer as Writer),
@@ -236,44 +237,16 @@ export default definePlugin({
     )
     yield* Effect.forkScoped(commits.loop)
     yield* Effect.forkScoped(commits.catchUp)
+    /**
+     * ...AND THE FILE, followed for the life of the activation. Forked AFTER the
+     * loop and the boot catch-up so `set` — which republishes and re-arms — can
+     * never run before the machinery it changes exists. `ConfigurationWatch`
+     * answers `undefined` when nobody is reading the file (a stopped settings
+     * row, a vault with no `Settings.olai`), and the last policy stands.
+     */
+    yield* Effect.forkScoped(Stream.runForEach(watch.changes, (value) => {
+      const next = rowPolicy(value)
+      return next === undefined ? Effect.void : set(next)
+    }))
   }),
 })
-
-/** THIS ROW'S POLICY, as the component below hands it over. `Offers.own` mints
- *  the key from this plugin's name, so it resolves as `git.policy`; a consumer
- *  names the same shape with `serviceTag` and nothing else. */
-export const Policy = serviceTag<{ readonly set: (next: GitPolicy) => Effect.Effect<void> }>("git.policy")
-
-/**
- * THE POLICY AS THE FILE SAYS IT, followed without restarting the row.
- *
- * A component rather than lines in `apply`, for the same reason mail's `cadence`
- * is one: the follower is a half that can be absent without taking the ledger
- * with it. It names `ConfigurationWatch`, core's broker, rather than the
- * settings row's `ConfigurationSource` — naming the reader directly would make
- * this whole ROW report `waiting` whenever the reader is off or the directory
- * has no `Settings.olai`, and a ledger that stops recording because nobody is
- * reading policy is the wrong trade. The broker answers `undefined` for both
- * absences, so the last policy stands; on the BOOT reading there is no last
- * value and the schema's defaults are the honest answer.
- */
-export const components = {
-  policy: definePlugin({
-    name: "policy",
-    needs: [ConfigurationWatch, Policy],
-    apply: Effect.gen(function*() {
-      const watch = yield* ConfigurationWatch
-      const policy = yield* Policy
-      /** The git row's policy, already decoded with defaults filled by
-       *  `@olai/plugin-api/configuration`, or `undefined` when nobody is
-       *  reading the file or it names no git row. */
-      const rowPolicy = (value: Configuration | undefined): GitPolicy | undefined =>
-        value?.rows.get("git")?.config as GitPolicy | undefined
-      yield* policy.set(rowPolicy(watch.current()) ?? DEFAULT_POLICY)
-      yield* Effect.forkScoped(Stream.runForEach(watch.changes, (value) => {
-        const next = rowPolicy(value)
-        return next === undefined ? Effect.void : policy.set(next)
-      }))
-    }),
-  }),
-}

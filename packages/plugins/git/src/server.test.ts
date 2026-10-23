@@ -1,16 +1,18 @@
 /**
- * THE POLICY DOOR ON A RUNNING ROW, driven through the plugin rather than
- * through a function it happens to export.
+ * THE POLICY ON A RUNNING ROW, driven through the plugin rather than through a
+ * function it happens to export.
  *
- * What is under test is the half a Settings pick changes: `Policy.set` moves the
+ * What is under test is the half a Settings pick changes: the follower moves the
  * ledger's value, republishes `git` under it, and catches up an unpushed branch
  * when `push` becomes `auto`. The rest of the row — the panel, the pause, the
  * cells — is the same activation throughout, which is why the sibling identity
  * is asserted here: a restarting row would mint a new one.
  *
- * The vault is the explicit test double (`@olai/plugin-api/testlib`) and the
- * repository is real, for `pending.test.ts`'s reason: a fake git would only
- * reproduce what this suite already believes.
+ * The reader is a fake `ConfigurationSource` offered through the same broker a
+ * real serve uses, so a case can also TAKE IT AWAY and bring it back — the
+ * absence the old component made visible as a `waiting` row. The repository is
+ * real, for `pending.test.ts`'s reason: a fake git would only reproduce what
+ * this suite already believes.
  */
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
 import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt } from "./git/fixtures.testlib.ts"
@@ -18,8 +20,11 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import type { GitPolicy, GitState, Pending } from "@olai/format"
+import { type GitPolicy, type GitState, type Pending } from "@olai/format"
+import { readingOf, setOf } from "@olai/format/testlib"
+import type { Configuration } from "@olai/plugin-api/configuration"
 import {
+  ConfigurationSource,
   definePlugin,
   mountPlugin,
   Offers,
@@ -28,9 +33,9 @@ import {
   VaultViews,
 } from "@olai/plugin-api/services"
 import { expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, SubscriptionRef } from "effect"
 
-import git, { Policy } from "./server.ts"
+import git from "./server.ts"
 
 /** A fresh directory nothing else knows about. */
 const scratch = (prefix: string): string => mkdtempSync(join(tmpdir(), prefix))
@@ -50,6 +55,15 @@ const withIdent = <A>(run: () => Promise<A>): Promise<A> => {
   })
 }
 
+/** Wait for a value the row publishes from its own fiber. */
+const eventually = async (check: () => boolean, what: string): Promise<void> => {
+  for (let attempt = 0; attempt < 400; attempt++) {
+    if (check()) return
+    await Bun.sleep(5)
+  }
+  throw new Error(`timed out waiting for ${what}`)
+}
+
 interface Mounted {
   /** The one sibling this row registers, with the same identity for the whole
    *  activation unless something restarted it. */
@@ -58,13 +72,19 @@ interface Mounted {
    *  writers the panel reads. A run with no panel never calls it, so a case
    *  that wants to see a republish has to stand one up. */
   readonly bind: (state: { readonly git: GitState[]; readonly pending: Pending[] }) => void
-  /** The door `components.policy` uses, acquired the way a component does. */
-  readonly set: (next: GitPolicy) => Effect.Effect<void>
+  /** One vault revision, which is what makes the row survey and paint. */
+  readonly vault: () => Promise<void>
+  /** A new configuration reading from the reader, as a Settings edit would be. */
+  readonly publish: (next: GitPolicy) => Promise<void>
+  /** The reader withdrawn — the settings row switched off, or no file. */
+  readonly withdraw: () => Promise<void>
+  /** A reader returning with a value, without a revision of its own. */
+  readonly reoffer: (next: GitPolicy) => Promise<void>
 }
 
-/** One `git` row, mounted over `root`, with a driver whose only job is to hold
- *  the `Policy` tag. */
-const mounted = async (root: string): Promise<Mounted> => {
+/** One `git` row over `root`, with a fake settings reader offering the broker a
+ *  `ConfigurationSource`. */
+const mounted = async (root: string, initial: GitPolicy): Promise<Mounted> => {
   const run = standing()
   const plugins = await run(openPlugins({ vars: {}, now: () => "2026-10-23T12:00:00Z", served: root }))
   // The second door the vault row would offer in a serve. Git registers its
@@ -78,16 +98,32 @@ const mounted = async (root: string): Promise<Mounted> => {
       yield* offers.offer(VaultViews, () => ({ ledger: () => Effect.void, search: () => Effect.void }))
     }),
   })))
-  await run(mountPlugin(plugins.host, git))
-  let set: ((next: GitPolicy) => Effect.Effect<void>) | undefined
-  await run(mountPlugin(plugins.host, definePlugin({
-    name: "driver",
-    needs: [Policy],
+
+  let revision = 0
+  const reading = (policy: GitPolicy): Configuration => ({
+    revision: ++revision,
+    rows: new Map([["git", { config: { ...policy }, values: [] }]]),
+  })
+  let current = reading(initial)
+  let publish: ((next: Configuration) => Effect.Effect<void>) | undefined
+  const reader = () => definePlugin({
+    name: "settings",
+    needs: [Offers],
     apply: Effect.gen(function*() {
-      set = (yield* Policy).set
+      const ref = yield* SubscriptionRef.make(current)
+      yield* (yield* Offers).offer(ConfigurationSource, () => ({
+        current: () => current,
+        changes: SubscriptionRef.changes(ref),
+      }))
+      publish = (next) => Effect.suspend(() => {
+        current = next
+        return SubscriptionRef.set(ref, next)
+      })
     }),
-  })))
-  if (set === undefined) throw new Error("the policy door was never offered")
+  })
+  let holder = await run(mountPlugin(plugins.host, reader()))
+  await run(mountPlugin(plugins.host, git))
+
   return {
     sibling: () => {
       const one = plugins.composed().find((entry) => entry.name === "git")
@@ -103,33 +139,41 @@ const mounted = async (root: string): Promise<Mounted> => {
         },
       })
     },
-    set: (next) => set!(next),
+    vault: () => run(plugins.published({ value: readingOf(setOf({})) })),
+    publish: (next) => run(publish!(reading(next))),
+    withdraw: () => run(holder.dispose),
+    reoffer: async (next) => {
+      current = reading(next)
+      holder = await run(mountPlugin(plugins.host, reader()))
+    },
   }
 }
 
-test("a set republishes git under the new policy, on the same sibling", async () => {
+test("a pick republishes git under the new policy, on the same sibling", async () => {
   const root = scratch("olai-policy-")
   try {
     await withIdent(async () => {
-      const half = await mounted(root)
+      const half = await mounted(root, { commit: "manual", push: "off" })
       const states: Array<GitState> = []
       half.bind({ git: states, pending: [] })
+      await half.vault()
+      await eventually(() => states.at(-1)?.policy.commit === "manual", "the boot policy")
       const first = half.sibling()
-      await Effect.runPromise(half.set({ commit: "auto", push: "off" }))
+      await half.publish({ commit: "auto", push: "off" })
+      await eventually(() => states.at(-1)?.policy.commit === "auto", "the pick to republish")
       expect(half.sibling()).toBe(first)
       expect(states.at(-1)?.policy).toEqual({ commit: "auto", push: "off" })
-      // ...and a second set, which is the other half of "live": the cell the
-      // panel reads moves again without a new activation.
-      await Effect.runPromise(half.set({ commit: "manual", push: "off" }))
+      // ...and a second pick moves the cell again without a new activation.
+      await half.publish({ commit: "manual", push: "off" })
+      await eventually(() => states.at(-1)?.policy.commit === "manual", "the second pick")
       expect(half.sibling()).toBe(first)
-      expect(states.at(-1)?.policy).toEqual({ commit: "manual", push: "off" })
     })
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
 })
 
-test("a set moves push to auto and sends the commits already recorded here", async () => {
+test("a pick moves push to auto and sends the commits already recorded here", async () => {
   const root = scratch("olai-policy-push-")
   const remote = scratch("olai-policy-remote-")
   try {
@@ -146,12 +190,43 @@ test("a set moves push to auto and sends the commits already recorded here", asy
     expect(gitIn(remote)("log", "--format=%s", "main")).not.toContain("the herb bed needs splitting")
 
     await withIdent(async () => {
-      const half = await mounted(root)
-      await Effect.runPromise(half.set({ commit: "manual", push: "auto" }))
-      expect(gitIn(remote)("log", "--format=%s", "main")).toContain("the herb bed needs splitting")
+      const half = await mounted(root, { commit: "manual", push: "off" })
+      await half.publish({ commit: "manual", push: "auto" })
+      await eventually(
+        () => gitIn(remote)("log", "--format=%s", "main").includes("the herb bed needs splitting"),
+        "the catch-up push",
+      )
     })
   } finally {
     rmSync(root, { recursive: true, force: true })
     rmSync(remote, { recursive: true, force: true })
+  }
+})
+
+test("the boot reads the file before its first survey, and a withdrawn reader leaves the policy standing", async () => {
+  const root = scratch("olai-policy-off-")
+  try {
+    await withIdent(async () => {
+      const half = await mounted(root, { commit: "off", push: "off" })
+      const states: Array<GitState> = []
+      half.bind({ git: states, pending: [] })
+      await half.vault()
+      // `commit: off` from the FILE, on the first survey — not the schema's
+      // manual default for one turn before the follower catches up.
+      await eventually(() => states.at(-1)?.policy.commit === "off", "the authored boot policy")
+      expect(states.at(-1)?.status).toBe("off")
+
+      const before = states.length
+      await half.withdraw()
+      await half.vault()
+      await eventually(() => states.length > before, "a republish with no reader")
+      expect(states.at(-1)?.policy.commit).toBe("off")
+
+      // A returning reader lands without any revision of its own.
+      await half.reoffer({ commit: "manual", push: "off" })
+      await eventually(() => states.at(-1)?.policy.commit === "manual", "the returning reader")
+    })
+  } finally {
+    rmSync(root, { recursive: true, force: true })
   }
 })
