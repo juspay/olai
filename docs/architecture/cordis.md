@@ -107,7 +107,7 @@ The vault must work when git is absent. MCP must work when the vault is absent.
 | --- | --- |
 | An integration cannot run without a service | Declare it on that component. Put work that does not need it in a different component. |
 | Optional providers add themselves to their consumer | Give the consumer a registration service it owns, as `VaultViews` does. |
-| The consumer must stay usable while the things behind it change | Use a narrow declared broker that states its absence and replacement behavior, as `Served` and `Wired` do. |
+| The consumer must stay usable while the things behind it change | Use a narrow declared broker that states its absence and replacement behavior, as `Served`, `Wired` and `ConfigurationWatch` do. `ConfigurationWatch` answers `undefined` when no settings reader exists, so a follower keeps its last policy instead of unloading with the reader. |
 
 - If a row must stay useful without an integration, put that integration in its own component so the rest can start without it.
 - If the row must keep running while optional providers come and go, use registration or a broker, not mandatory needs.
@@ -288,7 +288,7 @@ compatibility check to the formatter's release cycle.
 
 Mail acquires `Deliveries` and registers its words with `Wakes`. It hangs a `conversation.wake` switch in chat's strip; chat stores an opaque JSON pick, writes it only through the browser face, and hands back a recipient whose authority ends when the choice is replaced, cleared or evicted. Mail re-reads recipients at delivery time. No vault property can opt a conversation in.
 
-The watcher, OAuth refresh and mailbox operations belong to the mail activation. The poll fiber stops before the shared mailbox's attachment directory and Himalaya config close. History calls have their own sequential cadence; thread metadata uses the mailbox's four spawn permits. The persisted history cursor advances only after delivery thunks have been accepted. A separate cadence component depends on `ConfigurationSource` and the activation's `mail.poll` service; it withdraws before the timer owner.
+The watcher, OAuth refresh and mailbox operations belong to the mail activation. The poll fiber stops before the shared mailbox's attachment directory and Himalaya config close. History calls have their own sequential cadence; thread metadata uses the mailbox's four spawn permits. The persisted history cursor advances only after delivery thunks have been accepted. A separate cadence component depends on `ConfigurationWatch` and the activation's `mail.poll` service; `undefined` keeps the last cadence, and the component withdraws before the timer owner.
 
 Chat owns the wake strip location, persistence and queue counts. Each plugin owns its face and the meaning of its pick. Kolu and odu acquire `vault.files` for their picker faces and use their own server vault readings to filter recipients. The static `file-wakes` helper supplies nearest-ancestor precedence and file-fault accounting without sharing live state between plugins. Their local-state doors retain which broken picks have already been announced, so a restart does not repeat the warning.
 

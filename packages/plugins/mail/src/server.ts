@@ -25,8 +25,8 @@ import { TransportSurface } from "@olai/plugin-api/transport"
 import { Effect, Queue, Stream } from "effect"
 
 import { type Account, MAIL_UNCONNECTED, name, surface, faces } from "./wire.ts"
-import { ConfigurationSource } from "@olai/plugin-api/configuration"
-import { serviceTag } from "@olai/plugin-api/services"
+import { type Configuration } from "@olai/plugin-api/configuration"
+import { ConfigurationWatch, serviceTag } from "@olai/plugin-api/services"
 import { Config, pollMillis } from "./settings.ts"
 import { makeWatch } from "./watch.ts"
 import { openMailbox } from "./mailbox.ts"
@@ -218,14 +218,19 @@ export default definePlugin({
 const Poll = serviceTag<{ readonly set: (ms: number) => void }>("mail.poll")
 export const wake = { subject: "wake on new mail", waiting: { one: "mail event waiting", many: "mail events waiting" } }
 export const components = {
-  cadence: definePlugin({ name: "cadence", needs: [ConfigurationSource, Poll], apply: Effect.gen(function*() {
-    const source = yield* ConfigurationSource
+  cadence: definePlugin({ name: "cadence", needs: [ConfigurationWatch, Poll], apply: Effect.gen(function*() {
+    const watch = yield* ConfigurationWatch
     const poll = yield* Poll
-    const update = (value: ReturnType<typeof source.current>) => Effect.sync(() => {
+    const update = (value: Configuration | undefined) => Effect.suspend(() => {
+      // No reader is not "the file said the default": the last cadence stands
+      // until somebody reads a value, which is the same optional-availability
+      // rule the git row follows through this broker.
+      if (value === undefined) return Effect.void
       const configured = value.rows.get("mail")?.config.poll
       poll.set(typeof configured === "string" ? pollMillis(configured) ?? 120_000 : 120_000)
+      return Effect.void
     })
-    yield* update(source.current())
-    yield* Effect.forkScoped(Stream.runForEach(source.changes, update))
+    yield* update(watch.current())
+    yield* Effect.forkScoped(Stream.runForEach(watch.changes, update))
   }) }),
 }
