@@ -455,7 +455,7 @@ const eventually = async (check: () => Promise<boolean>) => {
   throw new Error("the configuration did not settle")
 }
 
-test("the settings offer withdraws with its row, applied patches stand, and returning vault re-patches", async () => {
+test("the settings offer withdraws with its row, a live policy keeps the row, and returning vault re-reads", async () => {
   const root = served()
   fs.mkdirSync(path.join(root, "_olai"))
   const file = path.join(root, "_olai/Settings.olai")
@@ -463,8 +463,11 @@ test("the settings offer withdraws with its row, applied patches stand, and retu
   write("manual")
   await withServing({ root }, async url => {
     const row = async () => (await configurationRoster(url)).built.find(one => one.name === "git")!
-    await eventually(async () => (await row()).config?.commit === "manual")
-    expect((await row()).configurationValues?.find(one => one.key === "commit")).toMatchObject({ value: "manual", setBy: "vault" })
+    /** The LIVE reading of the file — a git row is `configUpdates: "live"`, so
+     *  the activation's own `config` is the boot copy and never moves. */
+    const commit = async () => (await row()).configurationValues?.find(one => one.key === "commit")
+    await eventually(async () => (await commit())?.value === "manual" && (await commit())?.setBy === "vault")
+    expect(await commit()).toMatchObject({ value: "manual", setBy: "vault" })
     const flip = (name: string, enabled: boolean) => configurationCall(url, "surface/plugins/set", { name, enabled })
     await flip("settings", false)
     await eventually(async () => (await configurationRoster(url)).configurationAvailable === false)
@@ -477,15 +480,24 @@ test("the settings offer withdraws with its row, applied patches stand, and retu
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "outlines_read", arguments: { id: "git-policy" } } }) })
       return JSON.stringify(await answer.json()).includes("auto")
     })
+    // ... and the roster says the declaration's defaults, not the file's words:
+    // a live row's activation config is the boot copy.
     expect((await row()).config?.commit).toBe("manual")
+    // The reader is ABSENT, not the policy: git keeps running (and its browser
+    // half, panel and ledger with it) on the last value it heard.
+    expect((await row()).running).toBe(true)
+    expect(await commit()).toMatchObject({ value: "manual", setBy: "default" })
     await flip("settings", true)
-    await eventually(async () => (await row()).config?.commit === "auto")
+    await eventually(async () => (await commit())?.value === "auto")
     await flip("vault", false)
     await eventually(async () => (await configurationRoster(url)).configurationAvailable === false)
-    expect((await row()).config?.commit).toBe("auto")
+    // With no reading, the roster falls back to the schema defaults rather
+    // than echoing a policy nobody can read. The applied value lives with the
+    // row's own door, not in the loader's stale copy.
+    expect(await commit()).toMatchObject({ value: "manual", setBy: "default" })
     write("manual")
     await flip("vault", true)
-    await eventually(async () => (await configurationRoster(url)).configurationAvailable === true && (await row()).config?.commit === "manual")
+    await eventually(async () => (await configurationRoster(url)).configurationAvailable === true && (await commit())?.value === "manual" && (await commit())?.setBy === "vault")
   })
 })
 
@@ -531,7 +543,7 @@ test("the unticketed agent face refuses enablement both ways and accepts behavio
 })
 
 
-test("a kolu watch edit preserves its activation, while on still unloads and remounts it", async () => {
+test("a kolu watch edit and a git policy edit preserve their activation, while on still unloads and remounts it", async () => {
   const root = served()
   fs.mkdirSync(path.join(root, "_olai"))
   const file = path.join(root, "_olai/Settings.olai")
@@ -555,7 +567,10 @@ test("a kolu watch edit preserves its activation, while on still unloads and rem
     const firstGit = plugins.composed().find(one => one.name === "git")
     expect(firstGit).toBeDefined()
     yield* policy.configure("git", "commit", "auto")
-    expect(plugins.composed().find(one => one.name === "git")).not.toBe(firstGit)
+    // BOTH ARE LIVE: a policy edit moves the ledger's value on the running row
+    // and takes no fiber with it, so the sibling is the same object.
+    expect(policy.current()?.rows.get("git")?.values.find(one => one.key === "commit")?.value).toBe("auto")
+    expect(plugins.composed().find(one => one.name === "git")).toBe(firstGit)
     yield* policy.configure("kolu", "watch.held-for", "90s")
     expect(policy.current()?.rows.get("kolu")?.values.find(one => one.key === "watch.held-for")?.value).toBe("90s")
     expect(registration()).toBe(first)
@@ -662,6 +677,7 @@ test("file policy readings agree with activation across edits and deletion", asy
 test("an explicitly authored schema default remains file-authored", async () => {
   await withServing({ root: served(), commits: "manual" }, async url => {
     const row = (await configurationRoster(url)).built.find(one => one.name === "git")!
+    expect(row.running).toBe(true)
     expect(row.configurationValues?.find(one => one.key === "commit"))
       .toMatchObject({ value: "manual", setBy: "vault" })
   })

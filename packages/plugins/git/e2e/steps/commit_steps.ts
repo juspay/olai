@@ -387,6 +387,15 @@ Then("the commit panel is shut", async function (this: OlaiWorld) {
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 
+/** The other half, and the assertion a LIVE policy pick owes: the panel belongs
+ *  to the running activation, so a pick must not shut it. Waited for rather than
+ *  counted, because "still open" is what the step after a pick is claiming. */
+Then("the commit panel is open", async function (this: OlaiWorld) {
+  await this.page
+    .locator(COMMIT_PANEL)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
 Then(
   "the change to {string} is {string}",
   async function (this: OlaiWorld, id: string, sort: string) {
