@@ -9,11 +9,8 @@ const visit = (row: Row): void => {
   agentReadings()?.visit(row.id)
   if (row.session !== null) unfold(row.id)
 }
-/** THE CONVERSATION'S OWN PAGE, not the file that holds it: `/zoom/#id`, whose
- *  page IS the conversation. A `/#id` here would reveal the row inside its
- *  outline instead — the report this fixes, where a chat filed under the
- *  Inbox's Chats opened the Inbox with the chat merely selected. Sidebar rows
- *  and the palette share this, so neither can drift from the other. */
+/** The conversation's own page — `/zoom/#id`, not the `/#id` reveal. Sidebar
+ *  rows and the palette share this, so neither can drift from the other. */
 export const focusAgent = (go: (route: Route) => void, row: Row): void => {
   go(zoomNode(row.id))
   visit(row)

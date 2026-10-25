@@ -37,7 +37,7 @@ import { answering } from "@olai/tests/harness/shortlist.ts";
 import { oneLine, POLL_TIMEOUT, PROP_EDIT, ZOOM_TITLE } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import { FAST_NODE_IDLE_MS } from "@olai/tests/harness/node_idle.ts";
-import { returnToOutline } from "./node_agent_folds_steps.ts";
+import { returnToOutline, openAgentRowInOutline, openRowInOutline } from "./node_agent_folds_steps.ts";
 
 const ROSTER = selector(PLUGIN_TESTID.agentRoster);
 const ROW = selector(PLUGIN_TESTID.agentRow);
@@ -197,6 +197,10 @@ When("I press the agent {string}", async function (this: OlaiWorld, node: string
   await this.showSidebar();
   this.activeAgent = node;
   await this.press(rowFor(this, node));
+});
+When("I press the agent {string} in its outline", async function (this: OlaiWorld, node: string) {
+  this.activeAgent = node;
+  await openAgentRowInOutline(this, node);
 });
 
 // ── what nobody has read, on the Chats row ─────────────────────────────
@@ -887,16 +891,25 @@ Then("all bound node agents are asleep", async function (this: OlaiWorld) {
   }, "every bound node agent to remain asleep before a conversation is opened");
 });
 
-/** Filed ids are minted; bind a scenario name after finding the actual row. */
-When("I open the filed conversation {string} as node {string}", async function (this: OlaiWorld, title: string, name: string) {
-  await this.showSidebar();
-  const row = this.page.locator(`${ROSTER} ${ROW}${attr("title", title)}${attr("data-engine", "claude")}`);
+/** Filed ids are minted; bind a scenario name after finding the actual row.
+ *  The `in its outline` door is the same press followed by the page's file
+ *  crumb, for scenarios whose subject is the row's FOLD. */
+const openFiledConversation = async (world: OlaiWorld, title: string, name: string, outline: boolean) => {
+  await world.showSidebar();
+  const row = world.page.locator(`${ROSTER} ${ROW}${attr("title", title)}${attr("data-engine", "claude")}`);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const id = await row.getAttribute("data-agent");
   assert.ok(id);
-  this.nodeNames.set(name, id);
-  this.activeAgent = name;
-  await this.press(row);
+  world.nodeNames.set(name, id);
+  world.activeAgent = name;
+  if (outline) await openRowInOutline(world, row, name);
+  else await world.press(row);
+};
+When("I open the filed conversation {string} as node {string}", async function (this: OlaiWorld, title: string, name: string) {
+  await openFiledConversation(this, title, name, false);
+});
+When("I open the filed conversation {string} as node {string} in its outline", async function (this: OlaiWorld, title: string, name: string) {
+  await openFiledConversation(this, title, name, true);
 });
 
 Then("the Inbox has {int} filed conversations", async function (this: OlaiWorld, count: number) {

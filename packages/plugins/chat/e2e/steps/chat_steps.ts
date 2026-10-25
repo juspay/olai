@@ -1137,6 +1137,7 @@ When("I close the agent fold", async function (this: OlaiWorld) {
 });
 When("I open the agent fold again", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent);
+  await returnToOutline(this, this.activeAgent);
   await openFold(this, this.activeAgent);
 });
 
@@ -4113,6 +4114,7 @@ Then("the pending attachment {string} shows size {string}", async function (this
 
 When("I reopen the agent fold during a turn", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent);
+  await returnToOutline(this, this.activeAgent);
   await openFold(this, this.activeAgent);
   await this.chat(CHAT_PANEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.waitUntil(async () => await this.chat(CHAT_PANEL).getAttribute("data-status") === "thinking",

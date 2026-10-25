@@ -23,11 +23,13 @@ Feature: A node agent keeps its session navigation while reading history
     And I reload the page
     And the node agent's fold is ready
     Then the panel header names the node agent "the last conversation"
-    # A RELOAD KEEPS THE NODE'S BINDING, NOT THE TAB'S VISIT: which past
-    # conversation was open is this document's memory, so the fresh document
-    # opens what the property names — the newer conversation, which the list
-    # therefore does not offer as a past one. The older conversation is still
-    # there to pick, and what a reload must not lose is the binding.
+    # A RELOAD KEEPS THE NODE'S BINDING, NOT THE TAB'S VISIT. The visit is this
+    # document's memory, and with the reader on a plain outline address the
+    # fresh fold opens the property's session. MASTER DOES THE SAME: zoom into
+    # the node, follow the file crumb, reopen, reload — no PR code — leaves
+    # `fake-stored-new` open and `an older conversation` merely offered. So the
+    # old reveal address kept the visit, not a reading this PR leaks. The older
+    # conversation is still there to pick, and that is what the reload keeps.
     When I open the fold history
     Then the past sessions hold "an older conversation"
     When I open the past session "an older conversation"

@@ -630,8 +630,8 @@ link offers Open in new tab, and its hover card shows what a click opens. A
 roster row is the exception the feature names: its destination is `/zoom/#id`,
 the conversation's own page (with its trail and the page's conversation), never
 the file that holds it — while the reveal vocabulary is still pinned by the bare
-`/#id` scenarios. They
-also cover page-local fragments and footnotes in notes, zoom pages and chat
+`/#id` scenarios. The features also cover page-local fragments and footnotes in
+notes, zoom pages and chat
 (neither routed nor offered a menu), dated and agenda row links, the bullet's
 keyboard and split gestures, the Zoom in command, an address-bar `/#id` whose
 row is already visible (selected with no history entry), a reveal pending on a

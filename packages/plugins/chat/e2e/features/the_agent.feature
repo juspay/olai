@@ -615,15 +615,13 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: A stored conversation refused after restart can be retried
-    When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I follow the page's file crumb
+    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
     And the node agent's fold is ready
     # THE OTHER PLACE a conversation is opened, and the one no click can reach:
     # a server starting. Boot adopts a stored conversation and asks for it, and
     # an agent that says no there used to leave the panel reporting a dead
     # process.
-    When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I follow the page's file crumb
+    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
     And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
@@ -631,8 +629,7 @@ Feature: Talking to a node agent
     And the server stops
     And the server starts again on the same port
     And I open the app
-    And I open the filed conversation "the last conversation" as node "filed-chat"
-    And I follow the page's file crumb
+    And I open the filed conversation "the last conversation" as node "filed-chat" in its outline
     And I open the fold history
     And I begin opening the past session "an older conversation"
     Then the panel says the conversation could not be opened
@@ -1482,10 +1479,9 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: Picking a stored conversation lands on the newest line
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
     # The fold's BOUNDED transcript is what this scroll claim is about; the
     # page scrolls its pane instead (`node_agent_page` covers that face).
-    And I follow the page's file crumb
     And the node agent's fold is ready
     # Same claim, other door: the panel stays mounted and the conversation
     # identity changes. A scroll-away in this one must not leave the next one
@@ -1495,8 +1491,7 @@ Feature: Talking to a node agent
     Then the agent is idle
     And the transcript is scrolled to the newest line
     When I scroll the transcript to the top
-    And I open the filed conversation "the last conversation" as node "filed-chat"
-    And I follow the page's file crumb
+    And I open the filed conversation "the last conversation" as node "filed-chat" in its outline
     And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
@@ -1505,8 +1500,7 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: Opening a long conversation does not scroll through its history
-    When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I follow the page's file crumb
+    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
     And the node agent's fold is ready
     # An open is a replay: the agent re-sends the whole history before it
     # answers, and a long one reaches the panel a few lines a frame while the
@@ -1525,8 +1519,7 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: Growth after opening still lands on the newest line
-    When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I follow the page's file crumb
+    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
     And the node agent's fold is ready
     # The open-jump can pass while the pane is still growing — a restored
     # conversation's markdown lands after the first paint, and a late row is
@@ -1536,8 +1529,7 @@ Feature: Talking to a node agent
     # line would leave the reader short of the newest. Armed and released
     # rather than slept, so the two moments are steps, not a race.
     When I arm late growth on the next stored conversation
-    And I open the filed conversation "the last conversation" as node "filed-chat"
-    And I follow the page's file crumb
+    And I open the filed conversation "the last conversation" as node "filed-chat" in its outline
     And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"

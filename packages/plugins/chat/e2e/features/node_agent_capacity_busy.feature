@@ -93,8 +93,7 @@ Feature: A full pool of busy node agents refuses new work visibly
     When I close the agent fold
     And I open the outline "yard.olai"
     And I open the outline "capacity.olai"
-    When I press the agent "task-8"
-    And I follow the page's file crumb
+    When I press the agent "task-8" in its outline
     And I open the node menu of "task-9"
     And I choose "Start an agent" from the node menu
     Then the panel header names the node agent "capacity task 9"

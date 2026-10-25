@@ -329,10 +329,9 @@ Feature: A node with an `agent-session` property IS an agent
   @agent-stored @scratch:lanes
   Scenario: Moving a filed conversation keeps its identity and history
     Given I open the outline "lanes.olai"
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
     # The move picker is the ROW's menu, so this is the file view the press
     # opened from.
-    And I follow the page's file crumb
     And I open the node menu of "filed-chat"
     And I choose "Move to…" from the node menu
     And I search the move picker for "lane nobody"
@@ -348,8 +347,7 @@ Feature: A node with an `agent-session` property IS an agent
   @agent-stored @scratch:lanes
   Scenario: Trashing a filed conversation does not resurrect it on the next boot
     Given I open the outline "lanes.olai"
-    When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I follow the page's file crumb
+    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
     And I open the node menu of "filed-chat"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
