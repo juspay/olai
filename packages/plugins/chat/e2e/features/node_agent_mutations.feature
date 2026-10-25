@@ -60,7 +60,7 @@ Feature: Node session ownership follows changes to the node
     Then the agent is idle
     # The page is install's conversation; the rows these assert are its SIBLING
     # and its parent, so this is the file view.
-    When I follow the page's file crumb
+    When I return to the conversation's outline
     And the node agent's fold is ready
     And I show the done nodes
     Then node "order" is done

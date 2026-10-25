@@ -43,7 +43,7 @@ Feature: Node agent idle timers preserve read conversations and durable conversa
       Then the agent is idle
       # The conversation is the page the row opened; the row this asserts is a
       # SIBLING, so the file view is where it is drawn.
-      When I follow the page's file crumb
+      When I return to the conversation's outline
       And the node agent's fold is ready
       And I show the done nodes
       Then node "order" is done

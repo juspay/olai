@@ -157,7 +157,7 @@ Feature: A node with an `agent-session` property IS an agent
     And the node agent's fold is ready
     When the agent refuses to load a conversation
     # The row menu and the property below are the FILE's, not the page's.
-    And I follow the page's file crumb
+    And I return to the conversation's outline
     And I open the node menu of "lane-fresh"
     And I choose "Start an agent" from the node menu
     # The two acts in their order, unchanged: the conversation, then the
@@ -228,7 +228,7 @@ Feature: A node with an `agent-session` property IS an agent
     Then the agent is idle
     # door-review is a SIBLING of the conversation's node: its row is in the
     # file, not on the page.
-    When I follow the page's file crumb
+    When I return to the conversation's outline
     And I show the done nodes
     Then the node "door-review" has status "done"
     And the chat shows no refusal
@@ -472,7 +472,7 @@ Feature: A node with an `agent-session` property IS an agent
     When I start a fresh session
     Then the panel shows no such refusal
     And the agent "door-live" stands "idle"
-    When I follow the page's file crumb
+    When I return to the conversation's outline
     Then the vault node "door-live" has property "agent-session" holding "claude:fake-session-1"
 
   @agent-stored @scratch:lanes

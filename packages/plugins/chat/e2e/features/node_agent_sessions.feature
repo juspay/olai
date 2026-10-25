@@ -14,7 +14,7 @@ Feature: A node agent keeps its session navigation while reading history
     Then the panel header names the node agent "the last conversation"
     # The row this reads is in the file the conversation was filed under, and
     # the conversation is its page: the crumb is the reader's way there.
-    When I follow the page's file crumb
+    When I return to the conversation's outline
     Then the vault node "filed-chat" has property "agent-session" holding "claude:fake-stored-new"
     When I ask the agent "back in the current node conversation"
     Then the agent has answered "back in the current node conversation" exactly once
@@ -50,5 +50,5 @@ Feature: A node agent keeps its session navigation while reading history
     Then the panel header names the node agent "the last conversation"
     When I open the fold history
     Then the past sessions hold "an older conversation"
-    When I follow the page's file crumb
+    When I return to the conversation's outline
     Then the vault node "filed-chat" has property "agent-session" holding "claude:fake-stored-new"

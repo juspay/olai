@@ -12,6 +12,7 @@ import {
   HYDRATION_TIMEOUT,
   CHAT_PANEL,
   CHAT_INPUT,
+  PANE,
   ZOOM_TITLE,
 } from "@olai/tests/harness/world.ts";
 import {
@@ -35,9 +36,12 @@ export const onConversationPage = async (world: OlaiWorld, node: string) =>
 
 export const returnToOutline = async (world: OlaiWorld, node: string) => {
   if (!(await onConversationPage(world, node))) return;
-  const file = world.crumbs().first();
-  await file.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await file.click();
+  // The file the PANE says it is drawing, not the crumb in slot #0: the first
+  // crumb is navigation's layout, and a leading one would move it.
+  const file = await world.frontLane().locator(`${PANE}[data-pane-focused="true"]`).first().getAttribute("data-drawn-file");
+  const crumb = world.crumbs().getByText(file ?? "", { exact: true }).first();
+  await crumb.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await crumb.click();
   await world.waitForFrame();
 };
 
@@ -121,6 +125,12 @@ When("I use the fold on node {string}", async function(this: OlaiWorld, node: st
   await returnToOutline(this, node);
   await fold(this, node).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   this.activeAgent = node;
+});
+/** The face switch itself, named: fold verbs already say it; a scenario that
+ *  needs a row (a menu, a sibling, a property) says it here. */
+When("I return to the conversation's outline", async function(this: OlaiWorld) {
+  assert.ok(this.activeAgent, "open a named node agent first");
+  await returnToOutline(this, this.activeAgent);
 });
 Then("node agent {string} is folded", async function(this: OlaiWorld, node: string) {
   await fold(this, node).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
