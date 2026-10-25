@@ -58,19 +58,13 @@ export const openAgentRowInOutline = (world: OlaiWorld, node: string) =>
 
 export const openFold = async (world: OlaiWorld, node: string) => {
   world.activeAgent = node;
-  const control = standing(world, node);
   // A newly opened browser can draw the outline before its agent property
   // face arrives. Use the sidebar only when the target row is absent.
-  if (!(await world.node(node).isVisible())) {
-    await openAgentRowInOutline(world, node);
-    await control.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    if (await control.getAttribute("aria-expanded") !== "true") await world.press(control);
-    await fold(world, node).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    return;
-  }
+  if (!(await world.node(node).isVisible())) await openAgentRowInOutline(world, node);
+  const control = standing(world, node);
   await control.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   if (await control.getAttribute("aria-expanded") !== "true") await world.press(control);
-  await fold(world, node).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await fold(world, node).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 };
 Given("I open the {string} agent on node {string}", async function(this: OlaiWorld, engine: string, node: string) {
   this.activeAgent = node;

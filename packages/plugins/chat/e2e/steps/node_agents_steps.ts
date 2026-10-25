@@ -891,10 +891,8 @@ Then("all bound node agents are asleep", async function (this: OlaiWorld) {
   }, "every bound node agent to remain asleep before a conversation is opened");
 });
 
-/** Filed ids are minted; bind a scenario name after finding the actual row.
- *  The `in its outline` door is the same press followed by the page's file
- *  crumb, for scenarios whose subject is the row's FOLD. */
-const openFiledConversation = async (world: OlaiWorld, title: string, name: string, outline: boolean) => {
+/** Filed ids are minted; bind a scenario name after finding the actual row. */
+const filedConversationRow = async (world: OlaiWorld, title: string, name: string) => {
   await world.showSidebar();
   const row = world.page.locator(`${ROSTER} ${ROW}${attr("title", title)}${attr("data-engine", "claude")}`);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -902,14 +900,13 @@ const openFiledConversation = async (world: OlaiWorld, title: string, name: stri
   assert.ok(id);
   world.nodeNames.set(name, id);
   world.activeAgent = name;
-  if (outline) await openRowInOutline(world, row, name);
-  else await world.press(row);
+  return row;
 };
 When("I open the filed conversation {string} as node {string}", async function (this: OlaiWorld, title: string, name: string) {
-  await openFiledConversation(this, title, name, false);
+  await this.press(await filedConversationRow(this, title, name));
 });
 When("I open the filed conversation {string} as node {string} in its outline", async function (this: OlaiWorld, title: string, name: string) {
-  await openFiledConversation(this, title, name, true);
+  await openRowInOutline(this, await filedConversationRow(this, title, name), name);
 });
 
 Then("the Inbox has {int} filed conversations", async function (this: OlaiWorld, count: number) {
