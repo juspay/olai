@@ -52,17 +52,25 @@ Feature: Chat references share the app link vocabulary
       | Alt | 1 |
       | Alt-Shift | 1 |
 
-  Scenario Outline: The agent roster row is a reveal link
+  Scenario Outline: The agent roster row opens the conversation's own page
     When I activate the unified "roster" link with "<gesture>"
-    Then the unified destination row "kitchen" is selected in pane <pane>
+    Then the zoomed node in pane <pane> is "kitchen"
+    And there are <count> panes
     And there should be no page errors
 
     Examples:
-      | gesture | pane |
-      | click | 0 |
-      | Enter | 0 |
-      | Alt | 1 |
-      | Alt-Shift | 1 |
+      | gesture   | pane | count |
+      | click     | 0    | 1     |
+      | Enter     | 0    | 1     |
+      | Alt       | 1    | 2     |
+      | Alt-Shift | 1    | 2     |
+
+  Scenario: A roster row lands on the conversation, not the file that holds it
+    When I activate the unified "roster" link with "click"
+    Then the address is "/zoom/#kitchen"
+    And the breadcrumbs are "house.olai, kitchen remodel #home"
+    And the node page conversation is ready for "kitchen"
+    And there should be no page errors
 
   Scenario: Written transcript links retain browser gestures, preview and the tab menu
     When I ask the agent "links"
@@ -75,7 +83,8 @@ Feature: Chat references share the app link vocabulary
     Then the unified link menu offers Open in new tab
 
   Scenario: Roster anchors retain browser gestures, preview and the tab menu
-    Then the unified "roster" link leaves "Ctrl" to the browser
+    Then the unified "roster" link leads to "/zoom/#kitchen"
+    And the unified "roster" link leaves "Ctrl" to the browser
     And the unified "roster" link leaves "Meta" to the browser
     And the unified "roster" link leaves "middle" to the browser
     And the unified "roster" link previews "kitchen"
@@ -91,7 +100,8 @@ Feature: Chat references share the app link vocabulary
       | chat |
       | chat-footnote |
 
-  Scenario: Ctrl-clicking the roster does not visit and unfold its conversation
+  Scenario: Ctrl-clicking the roster does not visit the conversation
     When I close the agent fold
     Then the unified "roster" link leaves "Ctrl" to the browser
     And the roster has not unfolded the conversation
+    And the address is "/house.olai"

@@ -69,7 +69,7 @@ Feature: A node agent's conversation unfolds in the outline
     Then no agent fold is open
 
   @alerts
-  Scenario: A notification reveals the first waiting agent even when the latest banner names another
+  Scenario: A notification opens the first waiting agent's own page even when the latest banner names another
     Given the notification worker is ready
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
@@ -88,10 +88,8 @@ Feature: A node agent's conversation unfolds in the outline
     And the agent is released
     Then the agent "order" stands "needs-you"
     When the notification is pressed
-    Then node agent "order" is unfolded
-    And node agent "install" is folded
-    When I use the fold on node "order"
-    Then the chat shows a question
+    Then the zoomed node is "order"
+    And the chat shows a question
     And the panel is open at the question
 
   @alerts

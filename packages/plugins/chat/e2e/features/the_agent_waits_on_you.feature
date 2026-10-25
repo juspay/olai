@@ -38,6 +38,17 @@ Feature: Waiting node agents alert the tab
     And the tab says nothing is waiting
 
   @scratch:chat @alerts
+  Scenario: Pressing the notification opens the conversation's own page, with its conversation open
+    When I ask the agent "ask later"
+    And I close the agent fold
+    And the agent is released
+    Then a notification says "Waiting on your answer"
+    When the notification is pressed
+    Then the zoomed node is "kitchen"
+    And the address is "/zoom/#kitchen"
+    And the panel is open at the question
+
+  @scratch:chat @alerts
   Scenario: Answering it puts the mark away wherever you are
     When I ask the agent "ask later"
     And I close the agent fold

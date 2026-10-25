@@ -11,22 +11,22 @@ Feature: Agent activity is reachable from Chats and the palette
     And I type "Agents" into the palette
     Then the Agents palette lists 11 agents
     When I pick the Agents palette row "recent-0"
-    Then node agent "recent-0" is unfolded
-    And the node agent's fold is ready
+    Then the zoomed node is "recent-0"
+    And the node page conversation is ready for "recent-0"
     When I ask the agent "palette reached the oldest agent"
     Then the agent has answered "palette reached the oldest agent" exactly once
     And the Chats row "recent-0" is current
     And the agent "recent-0" stands "idle"
     And there should be no page errors
 
-  Scenario: An unbound palette row navigates without opening a conversation
+  Scenario: An unbound palette row opens a page of its own without a conversation
     Given the sidebar has eleven agents with dated vault edits
     And I open the outline "house.olai"
     When I press the palette shortcut
     And I type "Agents" into the palette
     And I pick the Agents palette row "recent-1"
-    Then the node "recent-1" is shown
-    And no agent fold is open
+    Then the zoomed node is "recent-1"
+    And the node page offers no conversation
     And there should be no page errors
 
   Scenario: Chats follows speech and Needs you lists waiting agents before stopped ones
@@ -74,3 +74,23 @@ Feature: Agent activity is reachable from Chats and the palette
     When I press "Escape"
     Then the agents roster holds 10 agents
     And there should be no page errors
+
+  # THE REPORT (this scenario is its regression): a conversation filed under
+  # _olai/Inbox.olai's `chats` container opened the INBOX with the chat's row
+  # merely selected. The row must lead to the conversation's own page, whose
+  # trail roots at the file that holds the node — not at the file the reader
+  # happened to be on.
+  Scenario: A chat filed under the Inbox opens its own page, not the Inbox
+    Given I open the outline "house.olai"
+    When I press new chat in Chats
+    And I choose the new chat place "default"
+    And I type new chat draft "filed under chats"
+    And I send the new chat draft
+    Then the chat child under "chats" in "_olai/Inbox.olai" is titled "filed under chats"
+    When I open the outline "house.olai"
+    And I open the filed "claude" conversation "filed under chats" as node "filed"
+    Then the conversation "filed" is the root of the page
+    And the breadcrumbs are "_olai/Inbox.olai, Chats"
+    And the node page conversation is ready for "filed"
+    And there should be no page errors
+
