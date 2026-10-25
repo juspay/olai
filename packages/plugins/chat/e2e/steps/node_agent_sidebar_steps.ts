@@ -36,6 +36,11 @@ When("I pick the Agents palette row {string}", async function(this: OlaiWorld, i
   this.activeAgent = id;
   await this.page.locator(`${PALETTE_ITEM}${attr("data-id", `agent-${this.nodeId(id)}`)}`).click();
 });
+When("I press the Needs you row {string}", async function(this: OlaiWorld, id: string) {
+  this.activeAgent = id;
+  await this.showSidebar();
+  await this.press(this.page.locator(`${needs} ${need}${attr("data-agent", this.nodeId(id))}`));
+});
 Then("the Chats row {string} is current", async function(this: OlaiWorld, id: string) {
   await this.waitUntil(async () => await this.page.locator(`${recent} ${row}${attr("data-agent", this.nodeId(id))}`).getAttribute("aria-current") === "page", "the opened agent to be the current row");
 });

@@ -12,7 +12,10 @@ Feature: A node agent keeps its session navigation while reading history
     Then the past session "an older conversation" is selected
     When I return to the node agent's current session
     Then the panel header names the node agent "the last conversation"
-    And the vault node "filed-chat" has property "agent-session" holding "claude:fake-stored-new"
+    # The row this reads is in the file the conversation was filed under, and
+    # the conversation is its page: the crumb is the reader's way there.
+    When I follow the page's file crumb
+    Then the vault node "filed-chat" has property "agent-session" holding "claude:fake-stored-new"
     When I ask the agent "back in the current node conversation"
     Then the agent has answered "back in the current node conversation" exactly once
     When I open the fold history
@@ -20,7 +23,15 @@ Feature: A node agent keeps its session navigation while reading history
     And I reload the page
     And the node agent's fold is ready
     Then the panel header names the node agent "the last conversation"
+    # A RELOAD KEEPS THE NODE'S BINDING, NOT THE TAB'S VISIT: which past
+    # conversation was open is this document's memory, so the fresh document
+    # opens what the property names — the newer conversation, which the list
+    # therefore does not offer as a past one. The older conversation is still
+    # there to pick, and what a reload must not lose is the binding.
     When I open the fold history
+    Then the past sessions hold "an older conversation"
+    When I open the past session "an older conversation"
+    And I open the fold history
     Then the past session "an older conversation" is selected
     When I return to the node agent's current session
     And I ask the agent "current session after reload"
@@ -37,4 +48,5 @@ Feature: A node agent keeps its session navigation while reading history
     Then the panel header names the node agent "the last conversation"
     When I open the fold history
     Then the past sessions hold "an older conversation"
-    And the vault node "filed-chat" has property "agent-session" holding "claude:fake-stored-new"
+    When I follow the page's file crumb
+    Then the vault node "filed-chat" has property "agent-session" holding "claude:fake-stored-new"

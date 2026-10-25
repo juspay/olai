@@ -108,6 +108,7 @@ Feature: A node agent's conversation unfolds in the outline
     When I close the agent fold
     And the notification is pressed
     Then no agent fold is open
+    And the address is "/house.olai"
 
 
 

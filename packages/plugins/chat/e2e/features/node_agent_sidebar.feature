@@ -52,6 +52,14 @@ Feature: Agent activity is reachable from Chats and the palette
     # draws no dot for either (`Agents.tsx`), so the fact is the assertion.
     And the agent "install" stands "needs-you"
     And the agent "order" stands "gone"
+    # A NEEDS YOU ROW IS THE SAME DESTINATION as a Chats row: the conversation's
+    # own page, not the file it lives in. `isCurrent` compares the address's
+    # node id, so the row goes on being current on that page.
+    When I press the Needs you row "install"
+    Then the zoomed node is "install"
+    And the address is "/zoom/#install"
+    And the Chats row "install" is current
+    And the panel is open at the question
     And there should be no page errors
 
   Scenario: Disabling chat withdraws both sidebar regions and its palette rows

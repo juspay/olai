@@ -156,6 +156,8 @@ Feature: A node with an `agent-session` property IS an agent
     And I press the agent "door-live"
     And the node agent's fold is ready
     When the agent refuses to load a conversation
+    # The row menu and the property below are the FILE's, not the page's.
+    And I follow the page's file crumb
     And I open the node menu of "lane-fresh"
     And I choose "Start an agent" from the node menu
     # The two acts in their order, unchanged: the conversation, then the
@@ -224,7 +226,11 @@ Feature: A node with an `agent-session` property IS an agent
     And the agent is idle
     When I ask the agent "done door-review"
     Then the agent is idle
-    And the node "door-review" has status "done"
+    # door-review is a SIBLING of the conversation's node: its row is in the
+    # file, not on the page.
+    When I follow the page's file crumb
+    And I show the done nodes
+    Then the node "door-review" has status "done"
     And the chat shows no refusal
 
   @scratch:lanes
@@ -324,6 +330,9 @@ Feature: A node with an `agent-session` property IS an agent
   Scenario: Moving a filed conversation keeps its identity and history
     Given I open the outline "lanes.olai"
     When I open the filed conversation "the last conversation" as node "filed-chat"
+    # The move picker is the ROW's menu, so this is the file view the press
+    # opened from.
+    And I follow the page's file crumb
     And I open the node menu of "filed-chat"
     And I choose "Move to…" from the node menu
     And I search the move picker for "lane nobody"
@@ -340,6 +349,7 @@ Feature: A node with an `agent-session` property IS an agent
   Scenario: Trashing a filed conversation does not resurrect it on the next boot
     Given I open the outline "lanes.olai"
     When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I follow the page's file crumb
     And I open the node menu of "filed-chat"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
@@ -464,7 +474,8 @@ Feature: A node with an `agent-session` property IS an agent
     When I start a fresh session
     Then the panel shows no such refusal
     And the agent "door-live" stands "idle"
-    And the vault node "door-live" has property "agent-session" holding "claude:fake-session-1"
+    When I follow the page's file crumb
+    Then the vault node "door-live" has property "agent-session" holding "claude:fake-session-1"
 
   @agent-stored @scratch:lanes
   Scenario: ... and names the conversations this agent has had before this one

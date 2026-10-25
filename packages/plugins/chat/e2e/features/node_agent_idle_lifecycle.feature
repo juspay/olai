@@ -41,7 +41,12 @@ Feature: Node agent idle timers preserve read conversations and durable conversa
       When I show the done nodes
       And I ask the agent "done order"
       Then the agent is idle
-      And node "order" is done
+      # The conversation is the page the row opened; the row this asserts is a
+      # SIBLING, so the file view is where it is drawn.
+      When I follow the page's file crumb
+      And the node agent's fold is ready
+      And I show the done nodes
+      Then node "order" is done
       And the chat shows no refusal
       And the page has not reloaded
       And there should be no page errors

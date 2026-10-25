@@ -12,6 +12,7 @@ import {
   HYDRATION_TIMEOUT,
   CHAT_PANEL,
   CHAT_INPUT,
+  ZOOM_TITLE,
 } from "@olai/tests/harness/world.ts";
 import {
   CHAT_TRANSCRIPT,
@@ -21,16 +22,46 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 const fold = (world: OlaiWorld, node: string) => world.frontLane().locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", world.nodeId(node))}:visible`);
 const standing = (world: OlaiWorld, node: string) => world.node(node).locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", world.nodeId(node))}`);
 
+/**
+ * A CONVERSATION HAS TWO FACES, and a scenario that opened its agent from a
+ * Chats row is looking at the second one. The fold lives on the node's row in
+ * its outline; the page IS the conversation. A fold verb therefore comes back
+ * through the page's file crumb before it has a row to press — same document,
+ * same tab, so drafts and folds survive. Assertions about the conversation
+ * itself stay where the reader already is.
+ */
+export const onConversationPage = async (world: OlaiWorld, node: string) =>
+  (await world.page.locator(`${ZOOM_TITLE}${attr("data-node-id", world.nodeId(node))}`).count()) > 0;
+
+export const returnToOutline = async (world: OlaiWorld, node: string) => {
+  if (!(await onConversationPage(world, node))) return;
+  const file = world.crumbs().first();
+  await file.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await file.click();
+  await world.waitForFrame();
+};
+
+export const openAgentRowInOutline = async (world: OlaiWorld, node: string) => {
+  await world.showSidebar();
+  const row = world.page.locator(`${selector(PLUGIN_TESTID.agentRoster)} ${selector(PLUGIN_TESTID.agentRow)}${attr("data-agent", world.nodeId(node))}`);
+  await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await world.press(row);
+  await world.page.locator(`${ZOOM_TITLE}${attr("data-node-id", world.nodeId(node))}`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await world.showSidebar();
+  await returnToOutline(world, node);
+};
+
 export const openFold = async (world: OlaiWorld, node: string) => {
   world.activeAgent = node;
+  await returnToOutline(world, node);
   const control = standing(world, node);
   // A newly opened browser can draw the outline before its agent property
   // face arrives. Use the sidebar only when the target row is absent.
   if (!(await world.node(node).isVisible())) {
-    await world.showSidebar();
-    const row = world.page.locator(`${selector(PLUGIN_TESTID.agentRoster)} ${selector(PLUGIN_TESTID.agentRow)}${attr("data-agent", world.nodeId(node))}`);
-    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await world.press(row);
+    await openAgentRowInOutline(world, node);
+    await control.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    if (await control.getAttribute("aria-expanded") !== "true") await world.press(control);
     await fold(world, node).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     return;
   }

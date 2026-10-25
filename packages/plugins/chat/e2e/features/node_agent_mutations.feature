@@ -58,7 +58,12 @@ Feature: Node session ownership follows changes to the node
     And the panel header names the node agent "install the cabinets"
     When I ask the agent "done order"
     Then the agent is idle
-    And node "order" is done
+    # The page is install's conversation; the rows these assert are its SIBLING
+    # and its parent, so this is the file view.
+    When I follow the page's file crumb
+    And the node agent's fold is ready
+    And I show the done nodes
+    Then node "order" is done
     And the chat shows no refusal
     When I ask the agent "done hinges"
     Then the agent is idle

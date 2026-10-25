@@ -158,6 +158,17 @@ When(
   },
 );
 
+/** From a node's page back to the outline that holds it: the first crumb is
+ *  always the file. An IN-APP trip, so the tab keeps its drafts and folds —
+ *  which is what a scenario that needs a row (a menu, a sibling, a property)
+ *  uses when the row press opened the conversation's own page instead. */
+When("I follow the page's file crumb", async function (this: OlaiWorld) {
+  const crumb = this.crumbs().first();
+  await crumb.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await crumb.click();
+  await this.waitForFrame();
+});
+
 // ── a permalink that names nothing ─────────────────────────────────────
 
 Then("a not-found is shown", async function (this: OlaiWorld) {

@@ -865,10 +865,9 @@ Pressing either row opens the conversation's **own page** (`/zoom/#id`), where
 it is read without its outline; the row's fold is still unfolded in the file it
 came from, so going back there shows the conversation as you left it. An unbound
 agent opens the same page with a plain composer. The open row is marked current.
-Search **Agents**
-or a title in the palette to reach every agent, including those beyond the Chats
-cap. Palette rows name their standing and use the same navigation rule. Both
-regions and the palette contribution withdraw with chat.
+Search **Agents** or a title in the palette to reach every agent, including those
+beyond the Chats cap. Palette rows name their standing and use the same
+navigation rule. Both regions and the palette contribution withdraw with chat.
 
 **New chat** is a row in the ⌘K palette (search **New chat** or **Agents**),
 and the **+** on Chats opens the palette already on it. It asks two things,
