@@ -98,9 +98,14 @@ tabs it opens in place.
 
 `/#id` means one thing: REVEAL. If the node's row is visible in the pane, it is
 selected there with no history entry; otherwise the node's current file opens
-at that row. `/zoom/#id` is the node's own page, which the bullet and Zoom in
-use. A same-document heading link carries `/document.md#slug`, so a plain click
-records the heading in the address and the landing scrolls the owning pane.
+at that row. `/zoom/#id` is the node's own page, which the bullet, Zoom in,
+and chat's conversation rows (Chats, Needs you, the Agents palette, and the
+notification's reveal) use — opening a conversation is opening that page.
+Everything that points INTO a place keeps revealing: breadcrumbs, `see` and
+blocker refs, backlinks, search hits, property chips, transcript references and
+"Show in outline ›". A same-document heading link carries `/document.md#slug`,
+so a plain click records the heading in the address and the landing scrolls the
+owning pane.
 Stored tabs and stamped history written before `/zoom/` existed are read as
 zoom at their persistence boundaries; current links use the current grammar.
 

@@ -169,7 +169,8 @@ node's own property names the conversation, so a boot opens the engine and
 session the node names *now*. At most eight entries are kept, most recently
 touched first. A fresh start or a rebind is therefore never
 resurrected from a stale copy. A browser reload still folds every outline
-conversation, and Chats and the palette lead back to its node; a zoomed node
+conversation, and a Chats row and the palette row for an agent lead to that
+node's OWN page — the conversation, not the file that holds it; a zoomed node
 page reads the conversation named by its property. Ongoing work and derived
 wakes can still keep a session live independently of browser readers.
 
@@ -607,7 +608,7 @@ That counts ANOTHER TAB of the same olai, too. Two tabs are two documents and on
 **If it is not** — the window behind an editor, the conversation folded away, olai on another desktop — three things happen at once:
 
 - **one short chime.** Two notes, a third of a second.
-- **a system notification**, naming the conversation and the question when a live reading has its text. A conversation with no live reading here is reported without quoting stale text. Clicking brings olai forward and unfolds the first agent in Needs you order. With nothing waiting it opens no fold.
+- **a system notification**, naming the conversation and the question when a live reading has its text. A conversation with no live reading here is reported without quoting stale text. Clicking brings olai forward and opens the first agent in Needs you order on its own page, at the question. With nothing waiting it opens no page.
 - **a mark on the app's icon** for waiting questions, plus the tab-title and favicon attention mark. The server roster supplies each current session's count, so several conversations can contribute. Looking at the conversation acknowledges its attention; dismissing a system banner does not answer the question.
 
 **A turn merely FINISHING is silent, on purpose.** An agent that has finished will still have finished in five minutes; a chime for every turn is a chime people switch off, and it would take the one that matters with it.
@@ -860,8 +861,11 @@ said something since you last looked at the conversation, and the row says
 ([what you have not read yet](#what-you-have-not-read-yet)). An agent may appear
 in both regions.
 
-Pressing either row navigates to the node in its outline and unfolds it; an
-unbound agent navigates only. The open row is marked current. Search **Agents**
+Pressing either row opens the conversation's **own page** (`/zoom/#id`), where
+it is read without its outline; the row's fold is still unfolded in the file it
+came from, so going back there shows the conversation as you left it. An unbound
+agent opens the same page with a plain composer. The open row is marked current.
+Search **Agents**
 or a title in the palette to reach every agent, including those beyond the Chats
 cap. Palette rows name their standing and use the same navigation rule. Both
 regions and the palette contribution withdraw with chat.

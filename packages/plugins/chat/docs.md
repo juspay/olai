@@ -6,12 +6,16 @@ chat's two levels, and the carry gesture. These faces arrive with chat's plugin 
 with it. [chat.md](../chat.md) describes the workflows; this page describes their
 ownership.
 
-Every reference the panel draws — an authored Reference chip, a write's
-result, a roster row and a backticked id that names a node — is a real `/#id`
-anchor, so navigation answers it with the same reveal and the same gestures as
-any other link; the transcript has no click or keyboard handler of its own. A
-backticked id streaming in is wrapped in its anchor once the node is known, and
-unwrapped if it stops being one.
+Every reference the panel draws is a real anchor, so navigation answers it with
+the same gestures as any other link; the transcript has no click or keyboard
+handler of its own. An authored Reference chip, a write's result and a
+backticked id that names a node are `/#id` — REVEAL, selecting the row in
+whichever outline draws it. The sidebar's rows are not references to a place
+inside a file: a Chats row, a Needs you row and an Agents palette row are
+`/zoom/#id`, the conversation's OWN page, because opening a chat means reading
+it rather than returning to the file it was filed under. A backticked id
+streaming in is wrapped in its anchor once the node is known, and unwrapped if
+it stops being one.
 
 ## The dock
 
@@ -178,7 +182,7 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 
 | Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
-| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); a Chats row is engine mark, title and age and draws NO dot — its standing is data (`data-standing`) and unread is the title's weight; Needs you keeps its dot |
+| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); every row is `/zoom/#id` — the conversation's own page — and a Chats row is engine mark, title and age and draws NO dot — its standing is data (`data-standing`) and unread is the title's weight; Needs you keeps its dot |
 | `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
 | `outline.row.aside` | outlines, after the row's date and repeat pills | a bound row's standing, always; otherwise the start pill, only while an agent is available (on phones only on the tapped or focused row) |
 | `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
@@ -341,8 +345,8 @@ cross-tab beat and question subscriptions. It clears its badge claim on release.
 Alerts owns notification, audio and badge devices, and the Alerts and Sound
 preference switches with their storage. Without the alerts
 channel, attention waits while conversations and forms continue working. Reveal
-is identity-free and opens the first Needs you agent; no waiting agent means no
-new fold.
+is identity-free and opens the first Needs you agent's own page, with that
+conversation shown; no waiting agent means no new fold.
 
 Session settings close while a send awaits acceptance, even before the server's
 working update. The pending count belongs to that conversation reading and
