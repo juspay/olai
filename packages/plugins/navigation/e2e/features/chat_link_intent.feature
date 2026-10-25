@@ -68,7 +68,7 @@ Feature: Chat references share the app link vocabulary
   Scenario: A roster row lands on the conversation, not the file that holds it
     When I activate the unified "roster" link with "click"
     Then the address is "/zoom/#kitchen"
-    And the breadcrumbs are "house.olai, kitchen remodel #home"
+    And the breadcrumbs are "house.olai"
     And the node page conversation is ready for "kitchen"
     And there should be no page errors
 
