@@ -30,7 +30,7 @@ export const createConversation = (
   }, { node: node() },
     { equals: (a, b) => "node" in a ? "node" in b && a.node === b.node : "session" in b && a.agent === b.agent && a.session === b.session })
   /**
-   * THE CONVERSATION A VIEW BELONGS TO, which is not the view's identity.
+   * THE CONVERSATION A VIEW BELONGS TO, which is not the view's own value.
    *
    * `reading.conversation` answers the shared `Chat` for one engine/session
    * (or one node while unbound), and that object is stable while a reader
@@ -38,10 +38,10 @@ export const createConversation = (
    * to this node — and used to be recreated on every recompute, so a tick of
    * `pair`/`hasPanel` that left the conversation alone still changed the
    * value the fold's keyed `<Show>` watches: the panel (and its history
-   * picker) remounted under an open list. The identity pair is what those
+   * picker) remounted under an open list. The pair below is what those
    * observers are actually about, so it is what the memo compares.
    */
-  const identity = createMemo(() => {
+  const belonging = createMemo(() => {
     if (!reading || !hasPanel()) return null
     const to = pair()
     // Once bound, the session pair is the subscription identity. Switching
@@ -52,7 +52,7 @@ export const createConversation = (
     equals: (a, b) => a === b || (a !== null && b !== null && a.shared === b.shared && a.node === b.node),
   })
   const chat = createMemo<Chat | null>(() => {
-    const current = identity()
+    const current = belonging()
     if (current === null) return null
     const view: Chat = { ...current.shared, loadSession: (agent, session) => reading!.visit(current.node, { agent, session }) }
     return view
