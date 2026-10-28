@@ -986,7 +986,20 @@ Then("node {string} still binds remembered conversation {string} in {string}", a
 });
 
 When("I begin opening the past session {string}", async function(this: OlaiWorld, title: string) {
-  await this.chat(PAST_SESSION, { hasText: title }).click();
+  // THE LIST OUTLIVES ITS OWN ROWS: a late roster frame can replace the fold's
+  // history (and with it the open picker) between the trigger and the press.
+  // Opening it again when it fell shut, and pressing the fresh row, is the
+  // gesture a person makes too.
+  const trigger = this.chat(CHAT_SESSIONS);
+  for (let attempt = 0; ; attempt++) {
+    if (await trigger.getAttribute("aria-expanded") !== "true") await trigger.click();
+    try {
+      await this.chat(PAST_SESSION, { hasText: title }).click({ timeout: 5_000 });
+      return;
+    } catch (error) {
+      if (attempt === 3) throw error;
+    }
+  }
 });
 
 When("I request a fresh session without confirming", async function (this: OlaiWorld) {
