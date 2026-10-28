@@ -158,6 +158,15 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
+/** The panel is drawn and past `booting` — the answer to "which conversation",
+ *  even when that answer is `off` (a refused open after a restart). */
+Then("the conversation panel has answered", async function (this: OlaiWorld) {
+  assert.ok(this.activeAgent, "open a named node agent first");
+  await this.waitUntil(async () => {
+    const panel = this.chat(CHAT_PANEL);
+    return await panel.count() > 0 && await panel.getAttribute("data-status") !== "booting";
+  }, "the conversation panel to answer", HYDRATION_TIMEOUT);
+});
 Given("the node agent's fold is ready", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent, "open a named node agent first");
   // A CONVERSATION'S FACE IS WHICHEVER ONE THE ROUTE DREW: the page when the

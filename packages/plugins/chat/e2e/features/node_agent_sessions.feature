@@ -39,6 +39,19 @@ Feature: A node agent keeps its session navigation while reading history
     And I ask the agent "current session after reload"
     Then the agent has answered "current session after reload" exactly once
 
+  # THE IDENTITY CONTRACT behind the fold's keyed <Show>: a roster frame must
+  # not rebuild this fold's panel (and shut its history picker). The frame is
+  # this agent's own answer arriving after `the agent is released`; the send
+  # happened before the picker opened, so no pointer can shut it.
+  Scenario: A roster frame does not shut the history picker
+    Given I open the outline "lanes.olai"
+    When I open the "claude" agent on node "door-live"
+    And the node agent's fold is ready
+    And I ask the agent "hold"
+    And I open the fold history
+    When the agent is released
+    Then the history picker on "door-live" is still open
+
   Scenario: Visiting another node agent does not replace the first agent's history or binding
     When I open the fold history
     And I open the past session "an older conversation"

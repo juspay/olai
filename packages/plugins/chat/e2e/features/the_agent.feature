@@ -630,6 +630,11 @@ Feature: Talking to a node agent
     And the server starts again on the same port
     And I open the app
     And I open the filed conversation "the last conversation" as node "filed-chat" in its outline
+    # A RESTART REBUILDS THE ROSTER, so `hasPanel` is false for a beat after the
+    # crumb; this is the panel's answer being mounted before the history opens,
+    # not the readiness of a running conversation (a refused restart answers
+    # `off`, so idle/thinking would be the wrong wait here).
+    Then the conversation panel has answered
     And I open the fold history
     And I begin opening the past session "an older conversation"
     Then the panel says the conversation could not be opened

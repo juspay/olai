@@ -150,6 +150,13 @@ When("I return to the conversation's outline", async function(this: OlaiWorld) {
   assert.ok(this.activeAgent, "open a named node agent first");
   await returnToOutline(this, this.activeAgent);
 });
+Then("the history picker on {string} is still open", async function(this: OlaiWorld, node: string) {
+  const fold = this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(node))}`);
+  const trigger = fold.locator('[data-testid="chat-sessions"]');
+  await trigger.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal(await trigger.getAttribute("aria-expanded"), "true", "the history picker shut under a roster frame");
+  await fold.locator('[data-testid="chat-session-list"]').waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
 Then("node agent {string} is folded", async function(this: OlaiWorld, node: string) {
   await fold(this, node).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
