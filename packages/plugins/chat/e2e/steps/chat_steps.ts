@@ -162,6 +162,10 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
  *  even when that answer is `off` (a refused open after a restart). */
 Then("the conversation panel has answered", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent, "open a named node agent first");
+  // The fold is the panel's seat: open it first (a reload folds every
+  // conversation), then wait for an answer — `off` counts, because a refused
+  // open after a restart has one.
+  if (!(await onConversationPage(this, this.activeAgent))) await openFold(this, this.activeAgent);
   await this.waitUntil(async () => {
     const panel = this.chat(CHAT_PANEL);
     return await panel.count() > 0 && await panel.getAttribute("data-status") !== "booting";
