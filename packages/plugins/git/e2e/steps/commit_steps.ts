@@ -464,8 +464,15 @@ When("I tick {string}", async function (this: OlaiWorld, file: string) {
 
 Then(
   "the last commit is {string} by {string}",
-  function (this: OlaiWorld, subject: string, writer: string) {
-    assert.strictEqual(this.git("log", "--format=%s", "-1").trim(), subject);
+  async function (this: OlaiWorld, subject: string, writer: string) {
+    // THE WRITE IS ASYNCHRONOUS, THE PILL IS NOT: a retry's press publishes
+    // "armed" before the commit it started has landed, so a single read of the
+    // log can see the commit before it. Wait for the subject the gesture
+    // promised, then assert the trailer on that same commit.
+    await this.waitUntil(
+      async () => this.git("log", "--format=%s", "-1").trim() === subject,
+      `the last commit to be ${JSON.stringify(subject)}`,
+    );
     // The trailer is the permanent half of "who wrote this": git records only
     // the repository's own user, which every commit in it already has.
     assert.strictEqual(
