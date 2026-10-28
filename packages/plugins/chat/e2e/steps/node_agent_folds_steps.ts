@@ -43,6 +43,24 @@ export const returnToOutline = async (world: OlaiWorld, node: string) => {
   await crumb.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await crumb.click();
   await world.waitForFrame();
+  // THE DOOR PROMISES THE OUTLINE, not just an address: a step that presses
+  // the row's history a frame later used to meet a tree (and a fold) still
+  // being built. Wait for the row to be drawn, and — when the row says its
+  // fold is open — for that fold's box to hold still across a frame.
+  const control = standing(world, node);
+  await control.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  if (await control.getAttribute("aria-expanded") === "true") {
+    const box = world.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", world.nodeId(node))}`);
+    await box.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    await world.waitUntil(async () => {
+      const before = await box.boundingBox();
+      await world.waitForFrame();
+      const after = await box.boundingBox();
+      return before !== null && after !== null
+        && before.x === after.x && before.y === after.y
+        && before.width === after.width && before.height === after.height;
+    }, `the fold of ${node} to hold still`, HYDRATION_TIMEOUT);
+  }
 };
 
 /** Press a row that opens a conversation, then come back to its outline row so
