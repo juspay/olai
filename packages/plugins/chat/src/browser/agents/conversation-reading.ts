@@ -29,18 +29,33 @@ export const createConversation = (
     return visited === undefined ? { node: node() } : { agent: visited.agent, session: visited.session }
   }, { node: node() },
     { equals: (a, b) => "node" in a ? "node" in b && a.node === b.node : "session" in b && a.agent === b.agent && a.session === b.session })
-  const chat = createMemo<Chat | null>(() => {
+  /**
+   * THE CONVERSATION A VIEW BELONGS TO, which is not the view's identity.
+   *
+   * `reading.conversation` answers the shared `Chat` for one engine/session
+   * (or one node while unbound), and that object is stable while a reader
+   * holds it. The view below is a thin wrapper — it adds `loadSession` bound
+   * to this node — and used to be recreated on every recompute, so a tick of
+   * `pair`/`hasPanel` that left the conversation alone still changed the
+   * value the fold's keyed `<Show>` watches: the panel (and its history
+   * picker) remounted under an open list. The identity pair is what those
+   * observers are actually about, so it is what the memo compares.
+   */
+  const identity = createMemo(() => {
     if (!reading || !hasPanel()) return null
     const to = pair()
     // Once bound, the session pair is the subscription identity. Switching
     // from a node address to the same history entry keeps the same reading.
     const at = to ?? address()
-    const id = node()
-    return untrack(() => {
-      const shared = reading.conversation(at, to)
-      const view: Chat = { ...shared, loadSession: (agent, session) => reading.visit(id, { agent, session }) }
-      return view
-    })
+    return untrack(() => ({ shared: reading.conversation(at, to), node: node() }))
+  }, null, {
+    equals: (a, b) => a === b || (a !== null && b !== null && a.shared === b.shared && a.node === b.node),
+  })
+  const chat = createMemo<Chat | null>(() => {
+    const current = identity()
+    if (current === null) return null
+    const view: Chat = { ...current.shared, loadSession: (agent, session) => reading!.visit(current.node, { agent, session }) }
+    return view
   })
   reading?.join(node, chat, shown)
   return { pair, chat }
