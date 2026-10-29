@@ -13,7 +13,7 @@
  */
 
 import { ATTACHMENT_ACCEPT } from "@olai/surface";
-import { openFold } from "./node_agent_folds_steps.ts";
+import { onConversationPage, openFold, returnToOutline } from "./node_agent_folds_steps.ts";
 import * as assert from "node:assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -158,9 +158,25 @@ import {
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
+/** The panel is drawn and past `booting` — the answer to "which conversation",
+ *  even when that answer is `off` (a refused open after a restart). */
+Then("the conversation panel has answered", async function (this: OlaiWorld) {
+  assert.ok(this.activeAgent, "open a named node agent first");
+  // The fold is the panel's seat: open it first (a reload folds every
+  // conversation), then wait for an answer — `off` counts, because a refused
+  // open after a restart has one.
+  if (!(await onConversationPage(this, this.activeAgent))) await openFold(this, this.activeAgent);
+  await this.waitUntil(async () => {
+    const panel = this.chat(CHAT_PANEL);
+    return await panel.count() > 0 && await panel.getAttribute("data-status") !== "booting";
+  }, "the conversation panel to answer", HYDRATION_TIMEOUT);
+});
 Given("the node agent's fold is ready", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent, "open a named node agent first");
-  await openFold(this, this.activeAgent);
+  // A CONVERSATION'S FACE IS WHICHEVER ONE THE ROUTE DREW: the page when the
+  // reader came from a Chats row or a permalink, the folder below when they
+  // are in the outline. Readiness is the same claim on either.
+  if (!(await onConversationPage(this, this.activeAgent))) await openFold(this, this.activeAgent);
   await this.waitUntil(async () => {
     const status = await this.chat(CHAT_PANEL).getAttribute("data-status");
     return status === "idle" || status === "thinking";
@@ -1128,11 +1144,13 @@ Then(
 
 When("I close the agent fold", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent);
+  await returnToOutline(this, this.activeAgent);
   await this.page.locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", this.nodeId(this.activeAgent))}`).click();
   await this.chat(CHAT_PANEL).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 When("I open the agent fold again", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent);
+  await returnToOutline(this, this.activeAgent);
   await openFold(this, this.activeAgent);
 });
 
@@ -4109,6 +4127,7 @@ Then("the pending attachment {string} shows size {string}", async function (this
 
 When("I reopen the agent fold during a turn", async function (this: OlaiWorld) {
   assert.ok(this.activeAgent);
+  await returnToOutline(this, this.activeAgent);
   await openFold(this, this.activeAgent);
   await this.chat(CHAT_PANEL).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await this.waitUntil(async () => await this.chat(CHAT_PANEL).getAttribute("data-status") === "thinking",

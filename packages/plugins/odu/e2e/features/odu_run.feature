@@ -113,6 +113,9 @@ Feature: A lane names its CI run by odu's run id
       {"id":"lane-a","parent":"board","ord":"a0","title":"the seam","doing":true,"custom":{"odu-run":"m1kb0e11-2c8d"}}
       {"id":"door-live","parent":"board","ord":"a3","title":"watch the connector","doing":true,"custom":{"agent-session":"claude:fake-session-1"}}
       """
+    # The chip is on lane-a's ROW, a sibling of the conversation's node, so
+    # the file is where it is drawn — the row press left the reader on the page.
+    When I return to the conversation's outline
     Then the CI chip on "lane-a" is ok
     And the chat shows no sentence no person typed
     And there should be no page errors

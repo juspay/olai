@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
 import { selector } from "@olai/web/testlib";
-import { attr, PALETTE_ITEM, POLL_TIMEOUT } from "@olai/tests/harness/world.ts";
+import { attr, CHAT_PANEL, HYDRATION_TIMEOUT, PALETTE_ITEM, POLL_TIMEOUT, ZOOM_TITLE } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 const recent = selector(PLUGIN_TESTID.agentRoster);
 const needs = selector(PLUGIN_TESTID.agentNeedsYou);
@@ -36,6 +36,26 @@ When("I pick the Agents palette row {string}", async function(this: OlaiWorld, i
   this.activeAgent = id;
   await this.page.locator(`${PALETTE_ITEM}${attr("data-id", `agent-${this.nodeId(id)}`)}`).click();
 });
+When("I press the Needs you row {string}", async function(this: OlaiWorld, id: string) {
+  this.activeAgent = id;
+  await this.showSidebar();
+  await this.press(this.page.locator(`${needs} ${need}${attr("data-agent", this.nodeId(id))}`));
+});
 Then("the Chats row {string} is current", async function(this: OlaiWorld, id: string) {
   await this.waitUntil(async () => await this.page.locator(`${recent} ${row}${attr("data-agent", this.nodeId(id))}`).getAttribute("aria-current") === "page", "the opened agent to be the current row");
+});
+
+/** THE ROOT OF THE PAGE, by the conversation's id — the assertion the report
+ *  needs, because "the row is selected in _olai/Inbox.olai" was the bug: a
+ *  page rooted at the Inbox can also mark a chat row. */
+Then("the conversation {string} is the root of the page", async function(this: OlaiWorld, id: string) {
+  const node = this.nodeId(id);
+  await this.waitUntil(async () => await this.page.locator(ZOOM_TITLE).getAttribute("data-node-id") === node, `the page to be rooted at ${node}`);
+});
+
+/** An unbound node's page draws the plain composer and no conversation at all:
+ *  a palette row that opened someone else's chat would fail this. */
+Then("the node page offers no conversation", async function(this: OlaiWorld) {
+  await this.page.locator(selector(PLUGIN_TESTID.agentPlainComposer)).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.equal(await this.chat(CHAT_PANEL).count(), 0, "an unbound node's page drew a conversation");
 });

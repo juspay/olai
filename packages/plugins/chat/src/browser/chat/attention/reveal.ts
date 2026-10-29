@@ -1,10 +1,13 @@
 import type { Router } from "olai-plugin-navigation/routing"
 import { agentReadings } from "../../agents/reading.ts"
 import { needing } from "../../agents/attention-order.ts"
-import { atNode } from "olai-plugin-navigation/routes"
+import { zoomNode } from "olai-plugin-navigation/routes"
 import { unfold } from "../../agents/folding.ts"
 
-/** The notification intentionally identifies no conversation. */
+/** The notification intentionally identifies no conversation. It lands on the
+ *  conversation's own page (`/zoom/#id`), the same page the rows open; `unfold`
+ *  is the outline's tab-local memory, and `reveal` is held by
+ *  `agents/reading.ts` until a view is shown. */
 export const createReveal = (router: Router) => {
   return () => {
     const held = agentReadings()
@@ -14,7 +17,7 @@ export const createReveal = (router: Router) => {
       return
     }
     held?.visit(first.id)
-    router.go(atNode(first.id))
+    router.go(zoomNode(first.id))
     unfold(first.id)
     held?.reveal(first.id)
   }

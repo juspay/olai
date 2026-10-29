@@ -12,31 +12,81 @@ import {
   HYDRATION_TIMEOUT,
   CHAT_PANEL,
   CHAT_INPUT,
+  PANE,
+  ZOOM_TITLE,
 } from "@olai/tests/harness/world.ts";
 import {
   CHAT_TRANSCRIPT,
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
+import type { Locator } from "@olai/tests/harness/playwright.ts";
 
 const fold = (world: OlaiWorld, node: string) => world.frontLane().locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", world.nodeId(node))}:visible`);
 const standing = (world: OlaiWorld, node: string) => world.node(node).locator(`${selector(PLUGIN_TESTID.agentStanding)}${attr("data-agent", world.nodeId(node))}`);
 
+/**
+ * A CONVERSATION HAS TWO FACES, and a scenario that opened its agent from a
+ * Chats row is looking at the second one. The fold lives on the node's row in
+ * its outline; the page IS the conversation. A fold VERB therefore comes back
+ * through the page's file crumb before it has a row to press — same document,
+ * same tab, so drafts and folds survive. Reading readiness never navigates.
+ */
+export const onConversationPage = async (world: OlaiWorld, node: string) =>
+  (await world.page.locator(`${ZOOM_TITLE}${attr("data-node-id", world.nodeId(node))}`).count()) > 0;
+
+export const returnToOutline = async (world: OlaiWorld, node: string) => {
+  if (!(await onConversationPage(world, node))) return;
+  // The file the PANE says it is drawing, not the crumb in slot #0: the first
+  // crumb is navigation's layout, and a leading one would move it.
+  const file = await world.frontLane().locator(`${PANE}[data-pane-focused="true"]`).first().getAttribute("data-drawn-file");
+  const crumb = world.crumbs().getByText(file ?? "", { exact: true }).first();
+  await crumb.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await crumb.click();
+  await world.waitForFrame();
+  // THE DOOR PROMISES THE OUTLINE, not just an address: a step that presses
+  // the row's history a frame later used to meet a tree (and a fold) still
+  // being built. Wait for the row to be drawn, and — when the row says its
+  // fold is open — for that fold's box to hold still across a frame.
+  const control = standing(world, node);
+  await control.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+  if (await control.getAttribute("aria-expanded") === "true") {
+    const box = world.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", world.nodeId(node))}`);
+    await box.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    await world.waitUntil(async () => {
+      const before = await box.boundingBox();
+      await world.waitForFrame();
+      const after = await box.boundingBox();
+      return before !== null && after !== null
+        && before.x === after.x && before.y === after.y
+        && before.width === after.width && before.height === after.height;
+    }, `the fold of ${node} to hold still`, HYDRATION_TIMEOUT);
+  }
+};
+
+/** Press a row that opens a conversation, then come back to its outline row so
+ *  a fold verb has something to press. The page's TITLE, not its conversation:
+ *  an unbound agent has no conversation face, and this door still gets back. */
+export const openRowInOutline = async (world: OlaiWorld, row: Locator, node: string) => {
+  await world.showSidebar();
+  await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await world.press(row);
+  await world.page.locator(`${ZOOM_TITLE}${attr("data-node-id", world.nodeId(node))}`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await returnToOutline(world, node);
+};
+
+export const openAgentRowInOutline = (world: OlaiWorld, node: string) =>
+  openRowInOutline(world, world.page.locator(`${selector(PLUGIN_TESTID.agentRoster)} ${selector(PLUGIN_TESTID.agentRow)}${attr("data-agent", world.nodeId(node))}`), node);
+
 export const openFold = async (world: OlaiWorld, node: string) => {
   world.activeAgent = node;
-  const control = standing(world, node);
   // A newly opened browser can draw the outline before its agent property
   // face arrives. Use the sidebar only when the target row is absent.
-  if (!(await world.node(node).isVisible())) {
-    await world.showSidebar();
-    const row = world.page.locator(`${selector(PLUGIN_TESTID.agentRoster)} ${selector(PLUGIN_TESTID.agentRow)}${attr("data-agent", world.nodeId(node))}`);
-    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    await world.press(row);
-    await fold(world, node).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    return;
-  }
+  if (!(await world.node(node).isVisible())) await openAgentRowInOutline(world, node);
+  const control = standing(world, node);
   await control.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   if (await control.getAttribute("aria-expanded") !== "true") await world.press(control);
-  await fold(world, node).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await fold(world, node).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 };
 Given("I open the {string} agent on node {string}", async function(this: OlaiWorld, engine: string, node: string) {
   this.activeAgent = node;
@@ -85,10 +135,27 @@ Given("I open the {string} agent on node {string}", async function(this: OlaiWor
   }
   await fold(this, node).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
-When("I unfold node agent {string}", async function(this: OlaiWorld, node: string) { await openFold(this, node); });
+When("I unfold node agent {string}", async function(this: OlaiWorld, node: string) {
+  await returnToOutline(this, node);
+  await openFold(this, node);
+});
 When("I use the fold on node {string}", async function(this: OlaiWorld, node: string) {
+  await returnToOutline(this, node);
   await fold(this, node).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   this.activeAgent = node;
+});
+/** The face switch itself, named: fold verbs already say it; a scenario that
+ *  needs a row (a menu, a sibling, a property) says it here. */
+When("I return to the conversation's outline", async function(this: OlaiWorld) {
+  assert.ok(this.activeAgent, "open a named node agent first");
+  await returnToOutline(this, this.activeAgent);
+});
+Then("the history picker on {string} is still open", async function(this: OlaiWorld, node: string) {
+  const fold = this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", this.nodeId(node))}`);
+  const trigger = fold.locator('[data-testid="chat-sessions"]');
+  await trigger.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal(await trigger.getAttribute("aria-expanded"), "true", "the history picker shut under a roster frame");
+  await fold.locator('[data-testid="chat-session-list"]').waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 Then("node agent {string} is folded", async function(this: OlaiWorld, node: string) {
   await fold(this, node).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });

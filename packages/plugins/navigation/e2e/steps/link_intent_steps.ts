@@ -87,6 +87,12 @@ Given("I prepare the unified {string} surface", async function(this: OlaiWorld, 
   }
   await link(this, surface).waitFor({ state: "visible" })
 })
+Then("the unified {string} link leads to {string}", async function(this: OlaiWorld, surface: string, place: string) {
+  const href = await link(this, surface).getAttribute("href")
+  assert.ok(href !== null, `the ${surface} surface has no href`)
+  const url = new URL(href, this.page.url())
+  assert.equal(url.pathname + url.hash, place)
+})
 Then("the unified {string} link leaves {string} to the browser", async function(this: OlaiWorld, surface: string, gesture: string) {
   const anchor = link(this, surface), before = this.page.url()
   const picked = await this.page.locator('[data-picked="true"]').count()
