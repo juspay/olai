@@ -45,10 +45,10 @@ import { Schema } from "effect"
 
 import { daysBetween, MONTHS, WEEKDAYS, weekdayOf } from "./calendar.ts"
 
-import { datedIn, DayGroup, groupedOn } from "./dates.ts"
+import { byDrawOrder, datedIn, DayGroup, groupedOn } from "./dates.ts"
 import { dayAt, type Derived, unfinishedWork } from "./derive.ts"
 import { keepingDated, type Selected } from "./filter.ts"
-import type { RegularNode } from "./node.ts"
+import { type RegularNode, Status } from "./node.ts"
 import { type Dated, dayOf, timeOf } from "./occasion.ts"
 
 /**
@@ -192,6 +192,65 @@ export const Owed = Schema.Struct({
 export type Owed = typeof Owed.Type
 
 /**
+ * ONE ROW of what is owed, as a list outside the page draws it.
+ *
+ * The count above answers "is anything wrong"; this answers WHICH, for the
+ * column beside the page — a reader working in an outline should find out what
+ * slipped without opening `/agenda`. Four facts and the mark, and nothing that
+ * is only a page's business: no ancestry trail, no blockers, no rollup, no
+ * line. What a reader presses is the NODE, so its id is here; what a row is
+ * called is its title.
+ *
+ * A SECOND HALF OF THE READING rather than a second reading: {@link owedOf}'s
+ * argument one shape over. A list that counted its rows its own way could
+ * disagree with the number over it, so the two arrive together
+ * ({@link OwedReading}) and are counted off one index.
+ */
+export const OwedRow = Schema.Struct({
+  /** The node's id — what a press opens, and what a list says a row is. */
+  id: Schema.String,
+  /** The outline it lives in, verbatim. A row drawn away from its outline is
+   *  the only place this is a fact a view can hold at all. */
+  file: Schema.String,
+  /** Its title, verbatim. */
+  title: Schema.String,
+  /** The day that made it owed, as stored — a bare day, or the instant a
+   *  datetime names. Which side of today it is on is the reader's arithmetic
+   *  (`feltOn`), not a second field here. */
+  date: Schema.String,
+  /** Its mark, absent when it carries none — which an OWED row never is, since
+   *  {@link unfinishedWork} is what put it here; the field is optional for the
+   *  same reason `Situated.status` is, so one row shape reads the same in both
+   *  places. */
+  status: Schema.optional(Status),
+})
+export type OwedRow = typeof OwedRow.Type
+
+/**
+ * What is owed: the two counts, and the first rows behind them.
+ *
+ * THE SAME MESSAGE carries both, and that is the whole reason this shape
+ * exists. A chip and a list fed by two subscriptions can disagree for a frame —
+ * a count of two over one row, or a row under a door that says nothing is
+ * wrong — and no amount of drawing carefully fixes a disagreement that arrives
+ * already made. So the server answers once, from one read of one index, and
+ * every face of the reading is a field of it.
+ *
+ * WIDENING `Owed` WAS THE OTHER OPTION and is the one declined: `Owed` is the
+ * count itself, read by the rail, the phone's thumb bar and the reminder
+ * circuit, and a `rows` field on it would put a list in the hands of three
+ * readers that draw a dot or a number.
+ */
+export const OwedReading = Schema.Struct({
+  ...Owed.fields,
+  /** The first rows, oldest day first and today's after them — the spine's
+   *  own order, capped at what the asker asked for
+   *  ({@link OwedRequest.cap}). */
+  rows: Schema.Array(OwedRow),
+})
+export type OwedReading = typeof OwedReading.Type
+
+/**
  * What a reader ASKS to be told this — the day they are standing on, and
  * nothing else.
  *
@@ -206,6 +265,13 @@ export type Owed = typeof Owed.Type
 export const OwedRequest = Schema.Struct({
   /** The reader's own today, as the ISO text this format stores. */
   today: Schema.String,
+  /** HOW MANY ROWS the asker can draw — the column's cap, sent rather than
+   *  assumed, because the answer is a list and a server guessing how long a
+   *  list somebody's sidebar can hold is a server deciding a layout.
+   *
+   *  It does not change what is COUNTED: the two numbers are the whole of what
+   *  is owed, whether the asker has room for five rows or none. */
+  cap: Schema.Int,
 })
 export type OwedRequest = typeof OwedRequest.Type
 
@@ -215,13 +281,18 @@ export type OwedRequest = typeof OwedRequest.Type
  *
  * It earns its place the way `./committing.ts`'s `samePending` does, one
  * member over: the server recomputes this on every published revision, and
- * almost every revision leaves both numbers exactly where they were — somebody
- * typing a character in an outline is not news about what is late. DERIVED from
- * the schema rather than written out, for that file's own reason: a third field
- * added above would simply not be compared, and the failure mode of that is a
- * frame that is never sent.
+ * almost every revision leaves the counts AND the rows exactly where they were
+ * — somebody typing a character in an outline is not news about what is late.
+ * DERIVED from the schema rather than written out, for that file's own reason:
+ * a field added above would simply not be compared, and the failure mode of
+ * that is a frame that is never sent.
+ *
+ * THE ROWS ARE COMPARED, and that is not a saving thrown away: a row's TITLE
+ * can be edited while both counts stand still, and a list that kept the old
+ * title until somebody's afternoon would be a list lying about a directory it
+ * had been told had changed.
  */
-export const sameOwed: (a: Owed, b: Owed) => boolean = Schema.toEquivalence(Owed)
+export const sameOwedReading: (a: OwedReading, b: OwedReading) => boolean = Schema.toEquivalence(OwedReading)
 
 /**
  * The counts, taken from an agenda that has already been read.
@@ -286,6 +357,89 @@ export const owedNow = (derived: Derived, today: string): Owed => {
   }
   return { overdue, today: derived.owedByDay.get(today) ?? 0 }
 }
+
+/**
+ * The first `cap` owed rows — the same order the agenda's spine draws them in,
+ * without building the page.
+ *
+ * OVERDUE FIRST, oldest day first, then today's: that is `behind`'s order and
+ * `agendaOf`'s two halves, and it is the order a reader of the column is
+ * reading time in. Within a day it is {@link ./dates.ts}'s `byDrawOrder` — the
+ * agenda's own row order — so the two lists cannot disagree about which of two
+ * rows on one day comes first.
+ *
+ * AN INDEX READ, and the bound is the cap rather than a promise. It walks
+ * {@link Derived.owedByDay} — days that OWE something, in the index's order —
+ * and each such day contributes at least one row, so it stops after at most
+ * `cap` day lookups; today's bucket is read only while there is room left in
+ * it. The days behind the answer are never visited, and no row is SITUATED: an
+ * entry's ancestry, blockers and rollup cost an ancestry walk each, and this
+ * list draws a title, a day and a dot (`perf-agenda-history-walk`'s reason for
+ * the counts, read once more for the rows).
+ *
+ * THE ROWS ARE THE RAW RECORDS, so the one thing that is not here is anything
+ * only a dressed entry has. `date` is the record's own — for an overdue row it
+ * is always the `date` field, because a dated `done` belongs to finished work
+ * and finished work is not owed ({@link unfinishedWork}).
+ */
+export const owedRows = (
+  derived: Derived,
+  today: string,
+  cap: number,
+): ReadonlyArray<OwedRow> => {
+  const rows: Array<OwedRow> = []
+  const want = Math.max(0, Math.floor(cap))
+  if (want === 0) return rows
+  /** Take what one day owes, up to the room left. Answers whether the list is
+   *  full, so the caller's walk stops rather than reading a day it cannot use. */
+  const take = (date: string, own: ReadonlyArray<Dated> | undefined): boolean => {
+    if (own === undefined) return false
+    const owed: Array<Dated> = []
+    for (const one of own) {
+      if (unfinishedWork(one.at.node)) owed.push(one)
+    }
+    owed.sort(byDrawOrder)
+    for (const one of owed) {
+      if (rows.length >= want) return true
+      const status = derived.status.get(one.at.node.id)
+      rows.push({
+        id: one.at.node.id,
+        file: one.at.file,
+        title: one.at.node.title,
+        date: one.date,
+        ...(status === undefined ? {} : { status }),
+      })
+    }
+    return rows.length >= want
+  }
+  const now = dayOf(today)
+  for (const date of derived.owedByDay.keys()) {
+    if (date >= now) break
+    if (take(date, derived.byDay.get(date))) return rows
+  }
+  // TODAY, BY THE VALUE THE CALLER HANDED OVER — {@link owedNow}'s own boundary,
+  // read the same way, so a count and its rows are about one day.
+  take(today, derived.byDay.get(today))
+  return rows
+}
+
+/**
+ * THE WHOLE READING: the counts and the rows, from one pass of the index.
+ *
+ * The two are separate functions above because they answer separate questions
+ * and their costs are separate promises; they are put together here because a
+ * caller that had to ask twice could be handed two readings of two revisions,
+ * and what this shape exists for is that it cannot
+ * ({@link OwedReading}).
+ */
+export const owedReading = (
+  derived: Derived,
+  today: string,
+  cap: number,
+): OwedReading => ({
+  ...owedNow(derived, today),
+  rows: owedRows(derived, today, cap),
+})
 
 /**
  * The same agenda narrowed to what a query selected — every day of the line,

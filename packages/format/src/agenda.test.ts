@@ -16,11 +16,14 @@ import {
   owedIn,
   owedNow,
   owedOf,
+  owedReading,
+  owedRows,
   quietBetween,
   UPCOMING_DAYS,
 } from "./agenda.ts"
 import { derive, type Derived } from "./derive.ts"
 import { matching, parseFilter } from "./filter.ts"
+import type { Dated } from "./occasion.ts"
 import { nodesOf, nodesOfFiles } from "./fixtures.testlib.ts"
 import { type Located, type RegularNode } from "./node.ts"
 const TODAY = "2026-08-12"
@@ -496,6 +499,133 @@ test("the day rolls over and the same task moves from Today to late, once", () =
   for (const today of ["2026-08-10", "2026-08-11", "2026-08-12"]) {
     expect([today, owedNow(due, today)]).toEqual([today, owedOf(agendaOf(due, today))])
   }
+})
+
+// ── ...and the rows behind them ───────────────────────────────────────
+//
+// The column beside the page draws the first few owed rows UNDER the count the
+// message already carried (`OwedReading`), so what these cases pin is the two
+// things the list promises: the SPINE'S OWN ORDER, and that it is drawn from
+// the index rather than from an agenda assembled to be thrown away.
+
+/** The ids of a run of rows, in the order they are drawn — membership and
+ *  order are one promise here, as they are on the page. */
+const rowIds = (rows: ReadonlyArray<{ readonly id: string }>): ReadonlyArray<string> =>
+  rows.map((row) => row.id)
+
+test("the rows are the page's own first rows: oldest day first, then today's", () => {
+  // THE SAME FIXTURE the counts above are read on. Two late days, then today —
+  // `behind`'s order and `agendaOf`'s two halves, which is what a reader of the
+  // column is reading time in.
+  expect(rowIds(owedRows(SET, TODAY, 10))).toEqual(["permit", "posts", "ferry"])
+  // The whole reading, in one answer: the counts ARE the page's (asserted
+  // above), and the rows are the first of the rows it draws.
+  expect(owedReading(SET, TODAY, 2)).toEqual({
+    overdue: 2,
+    today: 1,
+    rows: [
+      {
+        id: "permit",
+        file: "work.olai",
+        title: "pull the permit",
+        date: "2026-08-03",
+        status: "doing",
+      },
+      {
+        id: "posts",
+        file: "work.olai",
+        title: "dig the post holes",
+        date: "2026-08-10",
+        status: "todo",
+      },
+    ],
+  })
+})
+
+test("what is never a row: an occurrence, finished work, an undated task, a dated mark", () => {
+  // The same four shapes the page refuses, refused by the list — one predicate
+  // (`unfinishedWork`), read once more, so the column cannot collect something
+  // the page it leads to would not.
+  const ids = rowIds(owedRows(SET, TODAY, 10))
+  for (const never of ["delivery", "survey", "paint", "filed", "birthday", "visas"]) {
+    expect([never, ids.includes(never)]).toEqual([never, false])
+  }
+})
+
+test("the cap bounds the rows and never the counts", () => {
+  expect(rowIds(owedRows(SET, TODAY, 0))).toEqual([])
+  expect(rowIds(owedRows(SET, TODAY, 1))).toEqual(["permit"])
+  // More room than there is work: everything owed, and nothing invented.
+  expect(rowIds(owedRows(SET, TODAY, 99))).toEqual(["permit", "posts", "ferry"])
+  for (const cap of [0, 1, 2, 3, 99]) {
+    expect([cap, owedReading(SET, TODAY, cap).overdue, owedReading(SET, TODAY, cap).today])
+      .toEqual([cap, 2, 1])
+  }
+})
+
+test("rows on one day come in the order the page draws them: outline, then time", () => {
+  // Within a day the page groups by outline and orders each group by time
+  // (`byOutline`/`byTime`), so the list read off raw records has to agree — a
+  // second order would be two lists of one day disagreeing about what is first.
+  const day = "2026-08-05"
+  const several = derive(TEST_CLAIMS,
+    nodesOfFiles({
+      "zeta.olai": [
+        `{"id":"late-in-zeta","ord":"a0","title":"late in zeta","todo":true,"date":"${day}"}`,
+      ].join("\n"),
+      "alpha.olai": [
+        `{"id":"at-two","ord":"a0","title":"at two","todo":true,"date":"${day}T14:00"}`,
+        `{"id":"bare","ord":"a1","title":"bare","doing":true,"date":"${day}"}`,
+      ].join("\n"),
+    }),
+  )
+  const page = agendaOf(several, "2026-08-20").overdue[0]!
+  // `bare` is a bare day and sorts before any datetime; `alpha` sorts before
+  // `zeta` whatever the times.
+  expect(page.groups.flatMap((group) => group.nodes).map((entry) => entry.shows.node.id))
+    .toEqual(["bare", "at-two", "late-in-zeta"])
+  expect(rowIds(owedRows(several, "2026-08-20", 10))).toEqual(["bare", "at-two", "late-in-zeta"])
+})
+
+test("a today row is the day the caller named, exactly as the count is", () => {
+  // `owedNow`'s own boundary: an INSTANT names no key of the day index, so
+  // today counts nothing — and the rows agree, which is what keeps a row
+  // appearing under a count of nought. What is LATE is still late: the day
+  // above it is compared as a day.
+  const instant = "2026-08-12T09:00:00-04:00"
+  const reading = owedReading(SET, instant, 10)
+  expect({ ...reading, rows: rowIds(reading.rows) })
+    .toEqual({ overdue: 2, today: 0, rows: ["permit", "posts"] })
+})
+
+test("the rows STOP at the days they need — the days behind them are never read", () => {
+  // THE COST, pinned. The rows are an index read bounded by the cap: each
+  // owing day contributes at least one row, so a cap of five can read at most
+  // five day buckets whatever the history behind it. A walk of every day that
+  // owes something — the shape `perf-agenda-history-walk` took off the counts
+  // — would read all of this corpus's days.
+  const lines = [`{"id":"root","ord":"a0","title":"the root"}`]
+  for (let day = 1; day <= 28; day++) {
+    const date = `2026-01-${String(day).padStart(2, "0")}`
+    lines.push(
+      `{"id":"n${day}","parent":"root","ord":"a${day.toString(36)}","title":"day ${day}","todo":true,"date":"${date}"}`,
+    )
+  }
+  const view = derive(TEST_CLAIMS, nodesOfFiles({ "work.olai": lines.join("\n") }))
+
+  /** A day index that says how many buckets were actually looked at. */
+  class Counted extends Map<string, ReadonlyArray<Dated>> {
+    reads = 0
+    override get(day: string) {
+      this.reads += 1
+      return super.get(day)
+    }
+  }
+  const buckets = new Counted(view.byDay)
+  const counted = { ...view, byDay: buckets }
+
+  expect(rowIds(owedRows(counted, "2026-02-01", 5))).toEqual(["n1", "n2", "n3", "n4", "n5"])
+  expect(buckets.reads).toBe(5)
 })
 
 test("an INSTANT for today counts what a plain day counts, on both spellings", () => {

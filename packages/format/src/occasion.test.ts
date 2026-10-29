@@ -69,7 +69,16 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { type Agenda, type AgendaDay, agendaOf, owedIn, owedNow, owedOf } from "./agenda.ts"
+import {
+  type Agenda,
+  type AgendaDay,
+  agendaOf,
+  owedIn,
+  owedNow,
+  owedOf,
+  type OwedRow,
+  owedReading,
+} from "./agenda.ts"
 import { datedDays, datedOn, type DayGroup } from "./dates.ts"
 import { byDayKey, derive, type Derived } from "./derive.ts"
 import {
@@ -272,7 +281,19 @@ test("every day reading answers what the walk it replaced answered", () => {
           // the WALK's agenda rather than of the one above, so that a bug in
           // the indexed agenda cannot make the two spellings of the count agree
           // with each other and with nothing else.
-          expect(owedNow(view, today)).toEqual(owedOf(walkedAgenda(view, today)))
+          const walked = walkedAgenda(view, today)
+          expect(owedNow(view, today)).toEqual(owedOf(walked))
+          // ...AND THE ROWS BESIDE THEM, which is the column's reading: the
+          // first `cap` rows in the page's own order, from the index, against
+          // the walked agenda's first `cap` rows. The cap is swept because the
+          // two lists have to agree at a boundary as well as in the middle —
+          // nought rows, one, fewer than there are, and more.
+          for (const cap of [0, 1, 3, 50]) {
+            expect([cap, owedReading(view, today, cap)]).toEqual([cap, {
+              ...owedOf(walked),
+              rows: firstRows(walked, cap),
+            }])
+          }
         })
       }
     }
@@ -301,6 +322,29 @@ const agendaSaid = (agenda: Agenda): string => {
     days.map((day) => `${day.date}\n${drawn(day.groups)}`).join("\n")
   return `late:\n${line(agenda.overdue)}\ntoday:\n${drawn(agenda.today)}\n` +
     `ahead:\n${line(agenda.upcoming)}\nowed: ${owed.overdue} late, ${owed.today} today`
+}
+
+/**
+ * The first `cap` rows an agenda owes, in the order it draws them, as the wire's
+ * own shape — the oracle `owedReading`'s rows are held to.
+ *
+ * It reads the WALK's agenda, so a row the index invents, drops, mis-orders or
+ * mis-titles is a difference rather than a second opinion; and it is spelled
+ * over `DayEntry`s rather than over the index's raw records, which is the point
+ * — the two sides arrive at the same row from opposite directions.
+ */
+const firstRows = (agenda: Agenda, cap: number): ReadonlyArray<OwedRow> => {
+  const nodes = [
+    ...agenda.overdue.flatMap((day) => day.groups.flatMap((group) => group.nodes)),
+    ...agenda.today.flatMap((group) => group.nodes),
+  ]
+  return nodes.slice(0, Math.max(cap, 0)).map((entry) => ({
+    id: entry.shows.node.id,
+    file: entry.shows.file,
+    title: entry.shows.node.title,
+    date: entry.date,
+    ...(entry.status === undefined ? {} : { status: entry.status }),
+  }))
 }
 
 test("a time is the five characters after either separator a date may be written with", () => {
