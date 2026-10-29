@@ -31,23 +31,26 @@ Feature: What is owed, listed under the door
   @corpus:agenda
   Scenario: The list is absent while the agenda is in front, and back on leaving
     Given I open the outline "work.olai"
+    And I mark the page
     Then the column's agenda rows are "permit, visas, posts"
     When I open the agenda
     # The page is the fuller answer; the door keeps its count.
     Then the column draws no agenda rows
     And the column draws no fold
     And the agenda entry is on fire with 3 late
+    # Back on the outline — reached cold here, which is why this half asks only
+    # that the list is back: "in place" is the row-press scenario's claim.
     When I open the outline "work.olai"
     Then the column's agenda rows are "permit, visas, posts"
-    And the page has not reloaded
     And there should be no page errors
 
   @corpus:agenda
   Scenario: A row opens the node where it lives
     Given I open the outline "work.olai"
+    And I mark the page
     When I press the column's row "permit"
     # The agenda page's own rows reach a node the same way.
-    Then the address is "/zoom/permit"
+    Then the address is "/zoom/#permit"
     And the node "permit" is shown
     And the page has not reloaded
 
@@ -137,8 +140,9 @@ Feature: What is owed, listed under the door
   @scratch:agenda @phone
   Scenario: On a phone a row press puts the drawer away and opens the node
     Given I open the outline "work.olai"
+    And I mark the page
     When I tap the burger
     Then the column's agenda rows are "permit, visas, posts"
     When I tap the column's row "permit"
-    Then the address is "/zoom/permit"
+    Then the address is "/zoom/#permit"
     And the sidebar is put away
