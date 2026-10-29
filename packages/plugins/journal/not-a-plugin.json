@@ -18,6 +18,7 @@
   ],
   "sidebar": [
     "src/browser.tsx",
+    "src/browser/agenda/fold.ts",
     "src/browser/calendar/fold.ts"
   ],
   "vault": [
