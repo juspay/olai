@@ -24,6 +24,14 @@ export const TESTID = {
   agendaLink: "agenda-link",
   agendaOwed: "agenda-owed",
   agendaCount: "agenda-count",
+  /** The owed rows under the door, the list's own box; `data-node-id` names a
+   *  row and `data-when` is which side of now its day is on. */
+  agendaRows: "agenda-rows",
+  agendaRow: "agenda-row",
+  /** "N more on the agenda" — drawn only when the cap left rows behind. */
+  agendaMore: "agenda-more",
+  /** The chevron that folds the list away, beside the door. */
+  agendaFold: "agenda-fold",
   railAgenda: "rail-agenda",
   railCalendar: "rail-calendar",
   /** The phone's thumb bar doors: today's page, and the agenda with its owed

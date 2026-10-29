@@ -26,6 +26,7 @@ import { AgendaEntry, JournalRail, TodayEntry } from "./browser/sidebar.tsx"
 import { AgendaThumb, TodayThumb } from "./browser/thumbs.tsx"
 import { thumbs } from "olai-plugin-layout/contract"
 import { followCalendar } from "./browser/calendar/fold.ts"
+import { followAgendaRows } from "./browser/agenda/fold.ts"
 import { agenda as agendaKind, agendaRoute, day as dayKind, dayRoute } from "./browser/routes.ts"
 import { type JournalClient, holdJournalWire } from "./browser/wire.ts"
 import { name, surface } from "./wire.ts"
@@ -101,6 +102,11 @@ export default definePlugin({
     yield* locations.contribute(thumbs, { order: 10, body: TodayThumb })
     yield* locations.contribute(thumbs, { order: 20, body: AgendaThumb })
     yield* Effect.acquireRelease(Effect.sync(followCalendar), stop => Effect.sync(stop))
+    // ...and whether the owed rows under Agenda are folded away
+    // (`./browser/agenda/fold.ts`), followed across this browser's tabs for as
+    // long as this activation stands. Folding is drawing, never the reading:
+    // the owed stream above keeps running either way.
+    yield* Effect.acquireRelease(Effect.sync(followAgendaRows), stop => Effect.sync(stop))
     yield* slots.register("app.palette", {
       id: "nav-today",
       label: "Go to today",
