@@ -97,7 +97,7 @@ Then("the column draws no fold", async function (this: OlaiWorld) {
 /** The dot's SHAPE, which is the promise: a filled mark for late work, a ring
  *  for today's. The colour is paint and is not asked about. */
 Then(
-  "the column's row {string} wears the {word}",
+  "the column's row {string} wears a {word} mark",
   async function (this: OlaiWorld, id: string, shape: string) {
     await this.showSidebar();
     const dot = this.page.locator(dotOf(id));

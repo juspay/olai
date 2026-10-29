@@ -31,7 +31,7 @@
  *
  * ## The two marks, and the line
  *
- * The dot is the rail's own two marks (`../agenda/owed.ts`'s `ROW_DOT`): filled
+ * The dot is the rail's own two marks (`./owed.ts`'s `ROW_DOT`): filled
  * alarm for late work, a muted ring for today's — they differ by SHAPE as well
  * as colour, which is the calendar's rule for marks that share a place, and it
  * survives a monochrome screenshot. The faint vertical line down the left is the
@@ -111,8 +111,8 @@ function Row(props: { readonly row: OwedRow; readonly today: string }) {
  * The list itself — the rows, the faint line they hang off, and the way on.
  *
  * `more` is rendered only when there is more: the caller works it out from the
- * same reading ({@link AgendaEntry}), and a line that said "0 more" would be a
- * list apologising for itself.
+ * same reading (`../../sidebar.tsx`'s `AgendaEntry`), and a line that said
+ * "0 more" would be a list apologising for itself.
  */
 export function AgendaRows(props: {
   readonly rows: ReadonlyArray<OwedRow>
