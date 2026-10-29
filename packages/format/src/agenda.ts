@@ -388,7 +388,10 @@ export const owedRows = (
   cap: number,
 ): ReadonlyArray<OwedRow> => {
   const rows: Array<OwedRow> = []
-  const want = Math.max(0, Math.floor(cap))
+  // A cap that is not a number draws nothing rather than everything: the
+  // failure mode of reading `NaN` into the bounds below is a list of the whole
+  // history, which is the one answer a cap exists to prevent.
+  const want = Number.isFinite(cap) ? Math.max(0, Math.floor(cap)) : 0
   if (want === 0) return rows
   /** Take what one day owes, up to the room left. Answers whether the list is
    *  full, so the caller's walk stops rather than reading a day it cannot use. */

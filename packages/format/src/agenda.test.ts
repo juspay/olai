@@ -555,6 +555,10 @@ test("what is never a row: an occurrence, finished work, an undated task, a date
 test("the cap bounds the rows and never the counts", () => {
   expect(rowIds(owedRows(SET, TODAY, 0))).toEqual([])
   expect(rowIds(owedRows(SET, TODAY, 1))).toEqual(["permit"])
+  // A cap that is not a number draws NOTHING rather than everything: read into
+  // the bounds as `NaN` it would hold every row the directory has.
+  expect(rowIds(owedRows(SET, TODAY, Number.NaN))).toEqual([])
+  expect(rowIds(owedRows(SET, TODAY, 2.7))).toEqual(["permit", "posts"])
   // More room than there is work: everything owed, and nothing invented.
   expect(rowIds(owedRows(SET, TODAY, 99))).toEqual(["permit", "posts", "ferry"])
   for (const cap of [0, 1, 2, 3, 99]) {
