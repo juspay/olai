@@ -47,6 +47,18 @@ export const AGENDA_OWED = selector(TESTID.agendaOwed);
 /** The number on it. Absent when nothing is owed — a quiet entry wears no chip
  *  rather than a zero. */
 export const AGENDA_COUNT = selector(TESTID.agendaCount);
+/** THE ROWS UNDER THE DOOR — what is owed, drawn in the column. The list's own
+ *  box, so its absence is one count; each row inside is `AGENDA_ROW`. */
+export const AGENDA_ROWS = selector(TESTID.agendaRows);
+/** ONE owed row. `data-node-id` is the node it stands for, `data-when` is which
+ *  side of now its day is on, `data-date` is the day itself. */
+export const AGENDA_ROW = selector(TESTID.agendaRow);
+/** "N more on the agenda" — the line that says the cap left rows behind, and a
+ *  link to the page that holds them all. */
+export const AGENDA_MORE = selector(TESTID.agendaMore);
+/** The chevron beside the door that folds the rows away. */
+export const AGENDA_FOLD = selector(TESTID.agendaFold);
+
 /** THE day's note, above those groups: a document named for the date itself.
  *  `data-file` is which. */
 export const DAY_NOTE = selector(TESTID.dayNote);

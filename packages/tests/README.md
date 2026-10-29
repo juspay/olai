@@ -57,7 +57,7 @@ The suite shares names with `@olai/web` rather than retyping them — a constant
 
 Prefer a shared scratch corpus per **feature** over a private server per scenario. `@share-scratch` at the top of a feature is that opt-in: one copy and one server per worker, and After restores the fixture under the still-running server so overlapping writers can share too. `@own-scratch` on a scenario inside it keeps a private copy, for the things restore cannot make true (a server restart, conversation state, git). A restore that does not put the tree back fails naming the scenario and the files.
 
-This suite is 224 features and 1688 Gherkin `Scenario`/`Scenario Outline` entries, which cucumber runs as 1742 scenarios: 40 of the entries are outlines, and their examples expand to 94. It is 92 step files. **The census is now a census of ROWS as well**, because the features left this package with the rows that promise them — 208 of the 224 and 83 of the 92, with 16 features and 9 step files left here as the app's own:
+This suite is 225 features and 1698 Gherkin `Scenario`/`Scenario Outline` entries, which cucumber runs as 1752 scenarios: 40 of the entries are outlines, and their examples expand to 94. It is 93 step files. **The census is now a census of ROWS as well**, because the features left this package with the rows that promise them — 209 of the 225 and 84 of the 93, with 16 features and 9 step files left here as the app's own:
 
 | row | features | entries | | row | features | entries |
 |---|---:|---:|---|---|---:|---:|
