@@ -1,11 +1,11 @@
 {
-  "files": [
-    "src/manifest.ts"
-  ],
-  "image": [
-    "src/manifest.ts"
-  ],
-  "theme": [
-    "src/manifest.ts"
-  ]
+  "files": {
+    "src/manifest.ts": 1
+  },
+  "image": {
+    "src/manifest.ts": 4
+  },
+  "theme": {
+    "src/manifest.ts": 1
+  }
 }

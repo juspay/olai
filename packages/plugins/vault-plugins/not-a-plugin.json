@@ -1,20 +1,20 @@
 {
-  "layout": [
-    "src/server.ts",
-    "src/surface.ts",
-    "src/tools.ts"
-  ],
-  "outlines": [
-    "src/tools.ts"
-  ],
-  "trash": [
-    "src/tools.ts"
-  ],
-  "vault": [
-    "src/client.ts",
-    "src/index.ts",
-    "src/server.ts",
-    "src/source.ts",
-    "src/tools.ts"
-  ]
+  "layout": {
+    "src/server.ts": 1,
+    "src/surface.ts": 1,
+    "src/tools.ts": 1
+  },
+  "outlines": {
+    "src/tools.ts": 2
+  },
+  "trash": {
+    "src/tools.ts": 1
+  },
+  "vault": {
+    "src/client.ts": 2,
+    "src/index.ts": 3,
+    "src/server.ts": 7,
+    "src/source.ts": 2,
+    "src/tools.ts": 7
+  }
 }

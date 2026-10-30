@@ -186,7 +186,7 @@ export interface Graph {
   readonly reached: ReadonlyArray<{ readonly file: string; readonly spec: string; readonly dynamic: boolean }>
   /** Every module VISITED, leaves included — a different set from `reached`: a
    *  module with no imports is visited and contributes no pair. */
-  readonly files: ReadonlyArray<string>
+  readonly visited: ReadonlyArray<string>
   /** Every edge the walk could not follow. Held to `[]` by `door-graphs`: a
    *  graph with holes satisfies every confinement list by being empty. */
   readonly unresolved: ReadonlyArray<string>
@@ -428,9 +428,10 @@ const expand = (repo: string, glob: string): ReadonlyArray<string> => {
   return [...found].sort()
 }
 
-/** Every source under one member: the two TypeScript grammars and the one CSS
- *  grammar, because a CSS `@import` is a door a name can be spelled through. */
-const sourcesUnder = (repo: string, member: string): ReadonlyArray<string> => {
+/** Every source under one directory of the workspace: the two TypeScript
+ *  grammars and the one CSS grammar, because a CSS `@import` is a door a name
+ *  can be spelled through. Repo-relative in, repo-relative out. */
+export const sourcesUnder = (repo: string, dir: string): ReadonlyArray<string> => {
   const found: Array<string> = []
   const walk = (dir: string): void => {
     for (const entry of entriesOf(path.join(repo, dir))) {
@@ -439,7 +440,7 @@ const sourcesUnder = (repo: string, member: string): ReadonlyArray<string> => {
       else if (/\.(?:ts|tsx|css)$/.test(entry.name)) found.push(at)
     }
   }
-  walk(member)
+  walk(dir)
   return found.sort()
 }
 
@@ -516,15 +517,31 @@ export const readWorkspace = (repo: string): Workspace => {
   const specs = new Map<string, ReadonlyArray<string>>()
   const asts = new Map<string, ts.SourceFile>()
 
+  /** A FILE'S TEXT, whether or not it is a source of a member: a walk reaches
+   *  `.json` and `.js` leaves too (`hosted.json` is a face table a build reads),
+   *  and "the walk could not read it" must mean the file is not there rather
+   *  than that this reading only preloaded `.ts`. */
+  const textOf = (file: string): string | undefined => {
+    const known = byFile.get(file)
+    if (known !== undefined) return known.text
+    try {
+      return readFileSync(path.join(root, file), "utf8")
+    } catch {
+      return undefined
+    }
+  }
+
   /** The AST of a file, kept for the life of THIS reading of the tree — the
    *  walk and the boundary claim ask the same file for its specifiers, and the
    *  cache must not outlive the instance (see `parse`). */
   const astOf = (file: string): ts.SourceFile | undefined => {
     const held = asts.get(file)
     if (held !== undefined) return held
-    const source = byFile.get(file)
-    if (source === undefined) return undefined
-    const built = parse(file, source.text)
+    const text = textOf(file)
+    if (text === undefined) return undefined
+    // A data leaf has no edges and is not TypeScript; parsing it would only
+    // produce a syntax-error AST whose statement list is not what it says.
+    const built = file.endsWith(".json") ? ts.createSourceFile(file, "", ts.ScriptTarget.ESNext, true) : parse(file, text)
     asts.set(file, built)
     return built
   }
@@ -583,7 +600,7 @@ export const readWorkspace = (repo: string): Workspace => {
     const visit = (file: string): void => {
       if (seen.has(file)) return
       seen.add(file)
-      if (byFile.get(file) === undefined) {
+      if (textOf(file) === undefined) {
         // Reached but unreadable is not a terminus either: a module the walk was
         // sent to and could not open is a hole in the graph.
         unresolved.push(`${file}: could not be read`)
@@ -601,7 +618,7 @@ export const readWorkspace = (repo: string): Workspace => {
       }
     }
     visit(entry)
-    const answer: Graph = { reached, files: [...seen].sort(), unresolved: [...new Set(unresolved)].sort() }
+    const answer: Graph = { reached, visited: [...seen].sort(), unresolved: [...new Set(unresolved)].sort() }
     graphs.set(entry, answer)
     return answer
   }
@@ -620,7 +637,7 @@ export const readWorkspace = (repo: string): Workspace => {
       const held = stripped.get(file)
       if (held !== undefined) return held
       const source = byFile.get(file)
-      const found = source === undefined ? "" : withoutComments(source.text)
+      const found = source === undefined ? "" : withoutComments(source.file, source.text)
       stripped.set(file, found)
       return found
     },
@@ -642,15 +659,55 @@ export const readWorkspace = (repo: string): Workspace => {
 // ── reading one source file ────────────────────────────────────────────
 
 /**
+ * IS THIS DECLARATION ERASED BY THE COMPILER — `import type …`, `export type …`,
+ * and also `import { type A, type B } from "…"`, where every binding is a type
+ * and the statement it compiles to is nothing.
+ *
+ * Both spellings matter to a WALK: a type-only edge is not something a listener
+ * pays for, and a walk that followed it would report a chunk carrying a package
+ * it only mentions. That is not hypothetical — one tree's contract module names
+ * `solid-js` in a `{ type Accessor, type JSX }` import, and following it puts a
+ * UI runtime on the SERVER's graph; an all-type `export … from` one module on
+ * pulls a provider's private implementation into a published contract's
+ * closure.
+ */
+const erasedImport = (node: ts.ImportDeclaration | ts.ExportDeclaration): boolean => {
+  if (ts.isExportDeclaration(node)) {
+    if (node.isTypeOnly) return true
+    const clause = node.exportClause
+    // `export * from` re-exports values; only a named list can be all-types.
+    if (clause === undefined || ts.isNamespaceExport(clause)) return false
+    return clause.elements.length > 0 && clause.elements.every((element) => element.isTypeOnly)
+  }
+  const clause = node.importClause
+  if (clause === undefined) return false
+  if (clause.isTypeOnly) return true
+  if (clause.name !== undefined) return false
+  const bindings = clause.namedBindings
+  if (bindings === undefined) return false
+  if (ts.isNamespaceImport(bindings)) return false
+  return bindings.elements.length > 0 && bindings.elements.every((element) => element.isTypeOnly)
+}
+
+/**
  * WHAT A FILE NAMES, by the AST rather than by a regular expression: comments
  * are not seen at all, a `import(` is told from an `import … from`, and a
  * `require(` is an edge like any other.
  *
- * `runtimeOnly` is the WALK's reading — an `import type` line is erased by the
+ * `runtimeOnly` is the WALK's reading — a type-only import is erased by the
  * compiler and cannot cost a listener anything — and the false arm is the
  * boundary reading, where a type import is still a package standing on the wrong
  * side of a wall.
  */
+
+export const edgesOf = (file: string, text: string, runtimeOnly = false): ReadonlyArray<Edge> =>
+  moduleEdges(parse(file, text), runtimeOnly)
+
+/** Every specifier a file names, type-only ones INCLUDED — a type import is a
+ *  cycle a bundler forgives and a reader does not. */
+export const specifiersOf = (file: string, text: string): ReadonlyArray<string> =>
+  moduleEdges(parse(file, text), false).map((one) => one.spec)
+
 const moduleEdges = (source: ts.SourceFile, runtimeOnly: boolean): ReadonlyArray<Edge> => {
   const found: Array<Edge> = []
   const push = (spec: string | undefined, dynamic: boolean): void => {
@@ -660,8 +717,7 @@ const moduleEdges = (source: ts.SourceFile, runtimeOnly: boolean): ReadonlyArray
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
       const spec = node.moduleSpecifier
       if (spec !== undefined && ts.isStringLiteral(spec)) {
-        const erased = ts.isImportDeclaration(node) && node.importClause?.isTypeOnly === true
-        if (!(runtimeOnly && erased)) push(spec.text, false)
+        if (!(runtimeOnly && erasedImport(node))) push(spec.text, false)
       }
     }
     if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) {
@@ -715,22 +771,44 @@ const blank = (text: string, ranges: ReadonlyArray<readonly [number, number]>): 
 }
 
 /**
- * THE FILE WITH ITS COMMENTS REMOVED — by the SCANNER, so a `//` inside a string
- * literal or a template is a string and not a comment.
+ * THE FILE WITH ITS COMMENTS REMOVED — by the PARSER's token boundaries, which
+ * is the only instrument that is sound here.
+ *
+ * The obvious reading is `ts.createScanner(..., skipTrivia: false)` and blank
+ * every comment token, and it is WRONG in a way that took a measurement to
+ * find: a scanner cannot tell a regular expression from a division, so one `/`
+ * in a `.ts` file can make every `/*` after it a string — and it cannot lex JSX
+ * text at all. `packages/format/src/filter.ts` carried a `/** … MCP face *​/`
+ * that the scanner never saw, and a name sweep that believes a comment is code
+ * is a sweep that reports the wrong files.
+ *
+ * So the ranges are the TRIVIA GAPS between the parser's own leaf tokens: what
+ * sits between one token's end and the next token's start is whitespace and
+ * comments by definition, whatever they contain. A JSDoc node is skipped rather
+ * than descended into, so the gap that contains it is blanked whole.
  *
  * The reason this is not `transpileModule(..., { removeComments: true })`: this
  * file must read the SOURCE the way the reader wrote it, and a transpilation
  * would rewrite every string it did not like.
  */
-export const withoutComments = (text: string): string => {
-  const scan = ts.createScanner(ts.ScriptTarget.ESNext, false, ts.LanguageVariant.Standard, text)
-  const ranges: Array<readonly [number, number]> = []
-  for (let token = scan.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scan.scan()) {
-    if (token === ts.SyntaxKind.SingleLineCommentTrivia || token === ts.SyntaxKind.MultiLineCommentTrivia) {
-      ranges.push([scan.getTokenPos(), scan.getTextPos()])
+export const withoutComments = (file: string, text: string): string => {
+  const source = parse(file, text)
+  const gaps: Array<readonly [number, number]> = []
+  let previous = 0
+  const visit = (node: ts.Node): void => {
+    if (ts.isJSDoc(node)) return
+    const children = node.getChildren(source)
+    if (children.length > 0) {
+      for (const child of children) visit(child)
+      return
     }
+    const start = node.getStart(source)
+    if (start > previous) gaps.push([previous, start])
+    previous = Math.max(previous, node.getEnd())
   }
-  return blank(text, ranges)
+  visit(source)
+  if (previous < text.length) gaps.push([previous, text.length])
+  return blank(text, gaps)
 }
 
 /**
@@ -741,7 +819,7 @@ export const withoutComments = (text: string): string => {
  * a decision that is not its own).
  */
 export const intoCode = (file: string, text: string): string => {
-  const stripped = withoutComments(text)
+  const stripped = withoutComments(file, text)
   const source = parse(file, stripped)
   const ranges: Array<readonly [number, number]> = []
   const cut = (node: ts.Node): void => {
@@ -1134,7 +1212,7 @@ export const isBench = (file: string): boolean =>
 // ── the facts one declaration rests on ─────────────────────────────────
 
 interface Facts {
-  readonly ws: Workspace
+  readonly tree: Workspace
   readonly rows: ReadonlyMap<string, ReadonlyArray<string>>
   readonly rowOfMember: ReadonlyMap<string, string>
   readonly rowOfPackage: ReadonlyMap<string, string>
@@ -1158,7 +1236,7 @@ const unique = <T>(items: ReadonlyArray<T>): ReadonlyArray<T> => [...new Set(ite
  *  apart in a `let` that neither branch is allowed to mis-shape. */
 const isNamedRows = (rows: Rows): rows is ReadonlyArray<string> => Array.isArray(rows)
 
-const factsOf = (ws: Workspace, declaration: Declaration): Facts => {
+const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
   const rows = ((): Map<string, ReadonlyArray<string>> => {
     const answer = new Map<string, ReadonlyArray<string>>()
     const supplied = declaration.rows
@@ -1166,7 +1244,7 @@ const factsOf = (ws: Workspace, declaration: Declaration): Facts => {
       for (const name of supplied) {
         answer.set(
           name,
-          ws.members.filter((member) => rowOf(ws.manifestOf(member)) === name),
+          tree.members.filter((member) => rowOf(tree.manifestOf(member)) === name),
         )
       }
       return answer
@@ -1182,23 +1260,23 @@ const factsOf = (ws: Workspace, declaration: Declaration): Facts => {
   for (const [row, packages] of rows) {
     for (const member of packages) {
       rowOfMember.set(member, row)
-      const name = ws.manifestOf(member)["name"]
+      const name = tree.manifestOf(member)["name"]
       if (typeof name === "string") rowOfPackage.set(name, row)
     }
   }
 
   const roots = declaration.roots.map((root) => ({
     entry: posixOf(root.entry),
-    graph: ws.graphOf(posixOf(root.entry)),
+    graph: tree.graphOf(posixOf(root.entry)),
     kind: root.graph,
   }))
   const rootFiles = new Set(declaration.roots.map((root) => posixOf(root.entry)))
-  const reachable = new Set(roots.flatMap((root) => root.graph.files))
+  const reachable = new Set(roots.flatMap((root) => root.graph.visited))
 
   const rowPackages = new Set(rowOfPackage.keys())
-  const registry = ws.members.find((member) => {
+  const registry = tree.members.find((member) => {
     if (rowOfMember.has(member)) return false
-    const declared = unique(dependencyNames(ws.manifestOf(member)).filter((one) => rowPackages.has(one)))
+    const declared = unique(dependencyNames(tree.manifestOf(member)).filter((one) => rowPackages.has(one)))
     return rowPackages.size > 0 && declared.length === rowPackages.size
   })
 
@@ -1208,16 +1286,16 @@ const factsOf = (ws: Workspace, declaration: Declaration): Facts => {
   // consumer's one extra claim; this is the generic half.
   const composed = new Set<string>()
   for (const root of roots) {
-    for (const file of root.graph.files) {
+    for (const file of root.graph.visited) {
       if (composed.size === rows.size) break
-      const source = ws.sourceOf(file)
+      const source = tree.sourceOf(file)
       if (source === undefined || source.grammar === "css") continue
-      const text = ws.strippedOf(file)
-      const specs = ws.specifiersOf(file)
+      const text = tree.strippedOf(file)
+      const specs = tree.specifiersOf(file)
       for (const [row, packages] of rows) {
         if (composed.has(row)) continue
         const named = packages.some((member) => {
-          const pkg = ws.manifestOf(member)["name"]
+          const pkg = tree.manifestOf(member)["name"]
           return typeof pkg === "string" && specs.some((spec) => packageOf(spec) === pkg)
         })
         if (named || spelledIn(row, text) > 0) composed.add(row)
@@ -1226,12 +1304,12 @@ const factsOf = (ws: Workspace, declaration: Declaration): Facts => {
   }
 
   const opened = new Map<string, Array<string>>()
-  for (const source of ws.sources) {
+  for (const source of tree.sources) {
     if (source.grammar === "css") continue
-    const member = ws.memberOf(source.file)
-    for (const spec of unique(ws.specifiersOf(source.file))) {
-      const landing = ws.resolve(source.file, spec)
-      if (landing.kind !== "module" || ws.memberOf(landing.file) === member) continue
+    const member = tree.memberOf(source.file)
+    for (const spec of unique(tree.specifiersOf(source.file))) {
+      const landing = tree.resolve(source.file, spec)
+      if (landing.kind !== "module" || tree.memberOf(landing.file) === member) continue
       const held = opened.get(landing.file)
       if (held === undefined) opened.set(landing.file, [source.file])
       else held.push(source.file)
@@ -1239,7 +1317,7 @@ const factsOf = (ws: Workspace, declaration: Declaration): Facts => {
   }
 
   return {
-    ws,
+    tree,
     rows,
     rowOfMember,
     rowOfPackage,
@@ -1248,7 +1326,7 @@ const factsOf = (ws: Workspace, declaration: Declaration): Facts => {
     registry,
     composed,
     opened,
-    production: ws.sources.filter((source) => !isBench(source.file)),
+    production: tree.sources.filter((source) => !isBench(source.file)),
     reachable,
   }
 }
@@ -1311,24 +1389,24 @@ const spelledIn = (name: string, text: string): number => {
 const NO_DOOR = "a row reaches another row only through a door its manifest declares"
 
 const claimImports = (facts: Facts): ReadonlyArray<string> => {
-  const { ws } = facts
+  const { tree } = facts
   const found: Array<string> = []
   let edges = 0
   let rowImports = 0
 
   for (const source of facts.production) {
-    const member = ws.memberOf(source.file)
+    const member = tree.memberOf(source.file)
     if (member === undefined) continue
     const here = facts.rowOfMember.get(member)
-    const specs = source.grammar === "css" ? cssImportsOf(source.text) : unique(ws.specifiersOf(source.file))
+    const specs = source.grammar === "css" ? cssImportsOf(source.text) : unique(tree.specifiersOf(source.file))
     for (const spec of specs) {
-      const landing = ws.resolve(source.file, spec)
+      const landing = tree.resolve(source.file, spec)
       // WHICH PACKAGE, not only which file: a specifier that names a row's
       // package and then a path the package does not open is still a row
       // importing a row, and dropping it because the resolver refused it would
       // make the sharpest version of this defect invisible here.
       const there =
-        ws.memberOfPackage.get(packageOf(spec)) ?? (landing.kind === "module" ? ws.memberOf(landing.file) : undefined)
+        tree.memberOfPackage.get(packageOf(spec)) ?? (landing.kind === "module" ? tree.memberOf(landing.file) : undefined)
       if (there === undefined || there === member) continue
       const target = landing.kind === "module" ? landing.file : undefined
       const row = facts.rowOfMember.get(there)
@@ -1349,12 +1427,12 @@ const claimImports = (facts: Facts): ReadonlyArray<string> => {
       if (row !== undefined) rowImports += 1
       if (here !== undefined) {
         if (row !== undefined) {
-          if (!declaresDoor(ws.manifestOf(there), spec)) {
+          if (!declaresDoor(tree.manifestOf(there), spec)) {
             found.push(`${source.file}: ${spec} — \`${there}\` declares no such door; ${NO_DOOR}`)
           }
-        } else if (unique(dependencyNames(ws.manifestOf(there))).some((one) => facts.rowOfPackage.has(one))) {
+        } else if (there === facts.registry) {
           found.push(
-            `${source.file}: ${spec} — a row imports \`${there}\`, which names a row; that is the cycle the ` +
+            `${source.file}: ${spec} — a row imports the registry, which names every row; that is the cycle the ` +
               "manifests cannot express",
           )
         } else if (target !== undefined && facts.rootFiles.has(target)) {
@@ -1390,14 +1468,14 @@ const claimDoorGraphs = (facts: Facts, declaration: Declaration): ReadonlyArray<
   for (const root of facts.roots) {
     const graph = root.graph
     for (const hole of graph.unresolved) found.push(`${root.entry}: unresolved edge — ${hole}`)
-    if (graph.files.length <= 1) {
+    if (graph.visited.length <= 1) {
       found.push(
-        `${root.entry}: the walk visited ${graph.files.length} file(s). A resolver that answers nothing walks ` +
+        `${root.entry}: the walk visited ${graph.visited.length} file(s). A resolver that answers nothing walks ` +
           "one file and satisfies every confinement list by being empty.",
       )
     }
-    const own = facts.ws.memberOf(root.entry)
-    if (graph.files.every((file) => facts.ws.memberOf(file) === own)) {
+    const own = facts.tree.memberOf(root.entry)
+    if (graph.visited.every((file) => facts.tree.memberOf(file) === own)) {
       found.push(`${root.entry}: the walk never left \`${own ?? "its own package"}\`, so no door was measured`)
     }
     for (const edge of graph.reached) {
@@ -1413,15 +1491,20 @@ const claimDoorGraphs = (facts: Facts, declaration: Declaration): ReadonlyArray<
 }
 
 const claimNames = (facts: Facts, declaration: Declaration): ReadonlyArray<string> => {
-  const { ws } = facts
+  const { tree } = facts
   const expected = declaration.collisions ?? {}
   const actual = new Map<string, Map<string, number>>()
   let sawSomething = 0
 
-  const corpus = facts.production.filter((source) => source.grammar !== "css" && !facts.rootFiles.has(source.file))
+  const corpus = facts.production.filter(
+    (source) => source.grammar !== "css" && !facts.rootFiles.has(source.file),
+  )
   for (const source of corpus) {
-    const member = ws.memberOf(source.file)
-    const code = ws.codeOf(source.file)
+    const member = tree.memberOf(source.file)
+    // THE REGISTRY NAMES EVERY ROW BY CONSTRUCTION — it is where the roster
+    // lives, and this claim is about every package EXCEPT that one.
+    if (member !== undefined && member === facts.registry) continue
+    const code = tree.codeOf(source.file)
     for (const [row, packages] of facts.rows) {
       if (member !== undefined && packages.includes(member)) continue
       const count = spelledIn(row, code)
@@ -1463,7 +1546,7 @@ const claimNames = (facts: Facts, declaration: Declaration): ReadonlyArray<strin
 }
 
 const claimLiveState = (facts: Facts, declaration: Declaration): ReadonlyArray<string> => {
-  const { ws } = facts
+  const { tree } = facts
   const allowed = declaration.allowances ?? {}
   const holders = declaration.holders ?? []
   const found: Array<string> = []
@@ -1473,18 +1556,18 @@ const claimLiveState = (facts: Facts, declaration: Declaration): ReadonlyArray<s
    *  every module of ITS OWN package reachable from it. Another package's
    *  private modules are judged at that package's own door. */
   const behind = (door: string): ReadonlyArray<string> => {
-    const member = ws.memberOf(door)
+    const member = tree.memberOf(door)
     if (member === undefined || facts.rowOfMember.has(member)) return [door]
-    const graph = ws.graphOf(door)
+    const graph = tree.graphOf(door)
     for (const hole of graph.unresolved) found.push(`${door}: unresolved edge — ${hole}`)
-    return unique([door, ...graph.files.filter((file) => ws.memberOf(file) === member)])
+    return unique([door, ...graph.visited.filter((file) => tree.memberOf(file) === member)])
   }
 
   for (const door of [...facts.opened.keys()].sort()) {
     for (const file of behind(door)) {
       reachable.add(file)
       if (Object.hasOwn(allowed, file)) continue
-      const source = ws.sourceOf(file)
+      const source = tree.sourceOf(file)
       if (source === undefined || source.grammar === "css") continue
       for (const said of liveStateIn(file, source.text, holders)) {
         found.push(file === door ? said : `${said} (behind ${door})`)
@@ -1496,7 +1579,7 @@ const claimLiveState = (facts: Facts, declaration: Declaration): ReadonlyArray<s
     if (!reachable.has(file)) {
       found.push(`the allowance for \`${file}\` names a module no package opens across a boundary any more`)
     }
-    const source = ws.sourceOf(file)
+    const source = tree.sourceOf(file)
     if (source === undefined || liveStateIn(file, source.text, holders).length === 0) {
       found.push(`the allowance for \`${file}\` holds nothing, so its argument is dead`)
     }
@@ -1510,19 +1593,19 @@ const claimLiveState = (facts: Facts, declaration: Declaration): ReadonlyArray<s
 }
 
 const claimRegistry = (facts: Facts): ReadonlyArray<string> => {
-  const { ws } = facts
+  const { tree } = facts
   const found: Array<string> = []
   if (facts.rows.size === 0) found.push("the declaration names no rows")
 
   for (const [row, packages] of facts.rows) {
     if (packages.length === 0) found.push(`row \`${row}\` is named and no package of this workspace carries it`)
     for (const member of packages) {
-      if (!ws.members.includes(member)) found.push(`row \`${row}\` names \`${member}\`, which is no workspace member`)
+      if (!tree.members.includes(member)) found.push(`row \`${row}\` names \`${member}\`, which is no workspace member`)
     }
   }
 
-  for (const member of ws.members) {
-    const declared = rowOf(ws.manifestOf(member))
+  for (const member of tree.members) {
+    const declared = rowOf(tree.manifestOf(member))
     if (declared === undefined) continue
     if (!facts.rows.has(declared)) {
       found.push(`${member}: declares row \`${declared}\`, which the declaration does not name`)
@@ -1557,8 +1640,8 @@ export const fence = (declaration: Declaration): Report => {
   const held = reports.get(declaration)
   if (held !== undefined) return held
 
-  const ws = readWorkspace(declaration.repo)
-  const facts = factsOf(ws, declaration)
+  const tree = readWorkspace(declaration.repo)
+  const facts = factsOf(tree, declaration)
   const findings: Array<Finding> = []
   for (const [claim, read] of [
     ["imports", () => claimImports(facts)],
@@ -1591,10 +1674,10 @@ const reports = new WeakMap<Declaration, Report>()
  * cannot say.
  */
 export const rowsFromManifests = (repo: string): Readonly<Record<string, ReadonlyArray<string>>> => {
-  const ws = readWorkspace(repo)
+  const tree = readWorkspace(repo)
   const found = new Map<string, Array<string>>()
-  for (const member of ws.members) {
-    const row = rowOf(ws.manifestOf(member))
+  for (const member of tree.members) {
+    const row = rowOf(tree.manifestOf(member))
     if (row === undefined) continue
     const held = found.get(row)
     if (held === undefined) found.set(row, [member])
@@ -1638,7 +1721,7 @@ interface Canonical {
 /** The first production source of a member, for a mutation to append to. */
 const sourceIn = (facts: Facts, member: string | undefined, avoid: ReadonlySet<string>): string | undefined =>
   facts.production.find(
-    (source) => source.grammar !== "css" && facts.ws.memberOf(source.file) === member && !avoid.has(source.file),
+    (source) => source.grammar !== "css" && facts.tree.memberOf(source.file) === member && !avoid.has(source.file),
   )?.file
 
 /**
@@ -1671,13 +1754,13 @@ const CANONICAL: ReadonlyArray<Canonical> = [
   {
     claim: "door-graphs",
     plan: (facts) => {
-      const browser = facts.roots.find((root) => root.kind === "browser" && root.graph.files.length > 1)
+      const browser = facts.roots.find((root) => root.kind === "browser" && root.graph.visited.length > 1)
       if (browser === undefined) return undefined
-      const own = facts.ws.memberOf(browser.entry)
+      const own = facts.tree.memberOf(browser.entry)
       const door = browser.graph.reached.find(
-        (edge) => facts.ws.memberOf(edge.file) !== own && !edge.file.endsWith(".d.ts"),
+        (edge) => facts.tree.memberOf(edge.file) !== own && !edge.file.endsWith(".d.ts"),
       )
-      const file = door?.file ?? browser.graph.files.find((one) => one !== browser.entry)
+      const file = door?.file ?? browser.graph.visited.find((one) => one !== browser.entry)
       if (file === undefined) return undefined
       return {
         what: `a file on \`${browser.entry}\`'s walk imports a \`node:\` builtin`,
@@ -1694,8 +1777,8 @@ const CANONICAL: ReadonlyArray<Canonical> = [
         (source) =>
           source.grammar !== "css"
           && !facts.rootFiles.has(source.file)
-          && !facts.rowOfMember.has(facts.ws.memberOf(source.file) ?? "")
-          && spelledIn(row, facts.ws.codeOf(source.file)) === 0,
+          && !facts.rowOfMember.has(facts.tree.memberOf(source.file) ?? "")
+          && spelledIn(row, facts.tree.codeOf(source.file)) === 0,
       )
       if (host === undefined) return undefined
       return {
@@ -1709,7 +1792,7 @@ const CANONICAL: ReadonlyArray<Canonical> = [
     plan: (facts) => {
       const door = [...facts.opened.keys()]
         .sort()
-        .find((file) => !facts.rowOfMember.has(facts.ws.memberOf(file) ?? ""))
+        .find((file) => !facts.rowOfMember.has(facts.tree.memberOf(file) ?? ""))
       if (door === undefined) return undefined
       return {
         what: "a door another package opens holds a module-scope value",
@@ -1752,16 +1835,27 @@ const CANONICAL: ReadonlyArray<Canonical> = [
  * the root manifest, each member's manifest and each member's sources — so it
  * costs megabytes rather than a `node_modules`.
  */
-const copyOf = (ws: Workspace): string => {
+const copyOf = (tree: Workspace): string => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "cordis-fence-"))
   const put = (file: string, text: string): void => {
     const at = path.join(dir, file)
     mkdirSync(path.dirname(at), { recursive: true })
     writeFileSync(at, text)
   }
-  put("package.json", ws.rootManifestText)
-  for (const member of ws.members) put(`${member}/package.json`, ws.manifestText(member))
-  for (const source of ws.sources) put(source.file, source.text)
+  put("package.json", tree.rootManifestText)
+  for (const member of tree.members) put(`${member}/package.json`, tree.manifestText(member))
+  // EVERY FILE OF EVERY MEMBER, not only the sources: a walk reaches `.json` and
+  // `.js` leaves, and a copy that dropped them would report a hole in a graph
+  // the real tree does not have — which reads as a mutation "spilling" into a
+  // claim it has nothing to do with.
+  const walk = (relative: string): void => {
+    for (const entry of entriesOf(path.join(tree.repo, relative))) {
+      const at = join(relative, entry.name)
+      if (entry.dir) walk(at)
+      else put(at, readFileSync(path.join(tree.repo, at), "utf8"))
+    }
+  }
+  for (const member of tree.members) walk(member)
   return dir
 }
 
@@ -1807,7 +1901,7 @@ export const prove = (declaration: Declaration): Proof => {
       })
       continue
     }
-    const dir = copyOf(facts.ws)
+    const dir = copyOf(facts.tree)
     try {
       applyEdits(dir, plan.edits)
       const report = fence({ ...declaration, repo: dir })

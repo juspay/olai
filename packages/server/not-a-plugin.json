@@ -1,42 +1,43 @@
 {
-  "capture": [
-    "src/main.ts"
-  ],
-  "files": [
-    "src/main.ts"
-  ],
-  "git": [
-    "src/main.ts"
-  ],
-  "identity": [
-    "src/serve.ts"
-  ],
-  "markdown": [
-    "src/main.ts"
-  ],
-  "mcp": [
-    "src/dial.ts",
-    "src/main.ts",
-    "src/mcpClient.ts",
-    "src/serve.ts"
-  ],
-  "outlines": [
-    "src/main.ts"
-  ],
-  "search": [
-    "src/main.ts"
-  ],
-  "settings": [
-    "src/configuration.ts"
-  ],
-  "trash": [
-    "src/main.ts"
-  ],
-  "vault": [
-    "src/main.ts",
-    "src/serve.ts"
-  ],
-  "vault-plugins": [
-    "src/main.ts"
-  ]
+  "capture": {
+    "src/main.ts": 7
+  },
+  "files": {
+    "src/main.ts": 2
+  },
+  "git": {
+    "src/main.ts": 1
+  },
+  "identity": {
+    "src/who.ts": 3
+  },
+  "kolu": {
+    "src/runtime.ts": 2
+  },
+  "markdown": {
+    "src/main.ts": 3
+  },
+  "mcp": {
+    "src/dial.ts": 5,
+    "src/main.ts": 1,
+    "src/mcpClient.ts": 19
+  },
+  "outlines": {
+    "src/main.ts": 9
+  },
+  "search": {
+    "src/main.ts": 4
+  },
+  "settings": {
+    "src/configuration.ts": 3
+  },
+  "trash": {
+    "src/main.ts": 1
+  },
+  "vault": {
+    "src/main.ts": 6
+  },
+  "vault-plugins": {
+    "src/main.ts": 1
+  }
 }

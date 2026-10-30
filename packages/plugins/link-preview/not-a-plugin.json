@@ -1,10 +1,10 @@
 {
   "//navigation": "The imported navigation service tag is a declared dependency, not a plugin-name lookup.",
-  "navigation": [
-    "src/browser.tsx"
-  ],
   "//capture": "The DOM listener capture-phase option is not the capture plugin.",
-  "capture": [
-    "src/browser.tsx"
-  ]
+  "capture": {
+    "src/browser.tsx": 1
+  },
+  "navigation": {
+    "src/browser.tsx": 3
+  }
 }

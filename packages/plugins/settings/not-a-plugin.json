@@ -1,5 +1,5 @@
 {
-  "vault": [
-    "src/server.ts"
-  ]
+  "vault": {
+    "src/server.ts": 5
+  }
 }

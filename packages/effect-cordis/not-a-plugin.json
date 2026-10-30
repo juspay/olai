@@ -1,0 +1,6 @@
+{
+  "//git": "the walk skips the `.git` directory, which is every repository's name and not this build's git row",
+  "git": {
+    "src/fence.ts": 1
+  }
+}

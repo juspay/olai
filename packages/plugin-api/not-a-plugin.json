@@ -1,16 +1,25 @@
 {
-  "identity": [
-    "src/services.ts"
-  ],
-  "search": [
-    "src/services.ts"
-  ],
-  "settings": [
-    "src/configuration.ts",
-    "src/services.ts"
-  ],
-  "vault": [
-    "src/configuration.ts",
-    "src/services.ts"
-  ]
+  "identity": {
+    "src/services.ts": 8
+  },
+  "layout": {
+    "src/browser.ts": 1
+  },
+  "navigation": {
+    "src/browser.ts": 1
+  },
+  "search": {
+    "src/services.ts": 10
+  },
+  "settings": {
+    "src/configuration.ts": 4,
+    "src/services.ts": 1
+  },
+  "ui-renderer": {
+    "src/browser.ts": 4
+  },
+  "vault": {
+    "src/configuration.ts": 3,
+    "src/services.ts": 32
+  }
 }

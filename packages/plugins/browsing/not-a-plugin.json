@@ -1,35 +1,35 @@
 {
-  "mcp": [
-    "src/probe.ts",
-    "src/server.ts",
-    "src/surface.check.ts",
-    "src/testlib/fake-browser-mcp.ts"
-  ],
   "//mcp": "MCP protocol and executable names, not the olai transport row.",
-  "tabs": [
-    "src/browser.tsx",
-    "src/browser/Page.tsx",
-    "src/browser/client.ts",
-    "src/live.ts",
-    "src/server.ts",
-    "src/surface.check.ts",
-    "src/wire.ts"
-  ],
   "//tabs": "The browser's own tabs (CDP page targets), not olai's tabs row.",
-  "image": [
-    "src/browser/Page.tsx"
-  ],
   "//image": "The JPEG frame's `data:image/jpeg` MIME type.",
-  "search": [
-    "src/browser.tsx"
-  ],
   "//search": "The palette row's `search` words field.",
-  "ws": [
-    "src/chromium.ts"
-  ],
   "//ws": "The `ws://` scheme of Chromium's DevTools socket.",
-  "sidebar": [
-    "src/browser.tsx"
-  ],
-  "//sidebar": "The `sidebar.entry` slot key the Browser door is registered under."
+  "//sidebar": "The `sidebar.entry` slot key the Browser door is registered under.",
+  "image": {
+    "src/browser/Page.tsx": 1
+  },
+  "mcp": {
+    "src/probe.ts": 4,
+    "src/server.ts": 1,
+    "src/surface.check.ts": 9,
+    "src/testlib/fake-browser-mcp.ts": 1
+  },
+  "search": {
+    "src/browser.tsx": 1
+  },
+  "sidebar": {
+    "src/browser.tsx": 1
+  },
+  "tabs": {
+    "src/browser.tsx": 1,
+    "src/browser/Page.tsx": 3,
+    "src/browser/client.ts": 6,
+    "src/live.ts": 11,
+    "src/server.ts": 4,
+    "src/surface.check.ts": 4,
+    "src/wire.ts": 2
+  },
+  "ws": {
+    "src/chromium.ts": 1
+  }
 }

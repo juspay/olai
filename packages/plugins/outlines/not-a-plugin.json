@@ -1,79 +1,82 @@
 {
-  "capture": [
-    "src/browser/drag/Handle.tsx",
-    "src/browser/palette/adapter.tsx",
-    "src/tools.ts"
-  ],
-  "claude": [
-    "src/tools.ts"
-  ],
-  "files": [
-    "src/browser.tsx",
-    "src/browser/Nothing.tsx",
-    "src/browser/fold/memory.ts",
-    "src/browser/home.ts",
-    "src/browser/page.ts",
-    "src/projection.ts",
-    "src/tools.ts"
-  ],
-  "identity": [
-    "src/tools.ts"
-  ],
-  "journal": [
-    "src/tools.ts"
-  ],
-  "markdown": [
-    "src/browser/Note.tsx",
-    "src/browser/document-properties.tsx",
-    "src/charter.ts",
-    "src/tools.ts"
-  ],
-  "navigation": [
-    "src/browser.tsx",
-    "src/browser/PageView.tsx",
-    "src/browser/palette/adapter.tsx"
-  ],
-  "pins": [
-    "src/browser/DatedRow.tsx",
-    "src/browser/Tree.tsx",
-    "src/browser/menu/actions.ts",
-    "src/tools.ts"
-  ],
-  "preferences": [
-    "src/browser.tsx"
-  ],
-  "search": [
-    "src/browser/complete/trigger.ts",
-    "src/browser/edges/relation.ts",
-    "src/browser/move/MovePicker.tsx",
-    "src/browser/palette/ops.ts",
-    "src/testids.ts",
-    "src/tools.ts"
-  ],
-  "sidebar": [
-    "src/browser/NotFound.tsx",
-    "src/browser/menu/verbs.ts",
-    "src/tools.ts"
-  ],
-  "trash": [
-    "src/browser/PageView.tsx",
-    "src/browser/edit/redraws.ts",
-    "src/browser/filter/drawn.ts",
-    "src/browser/menu/verbs.ts",
-    "src/browser/page.ts",
-    "src/browser/select/SelectionBar.tsx",
-    "src/browser/select/bulk.ts",
-    "src/contracts/changes.ts",
-    "src/surface.ts",
-    "src/testids.ts",
-    "src/tools.ts"
-  ],
-  "vault": [
-    "src/server.ts",
-    "src/tools.ts"
-  ],
   "//files": "The empty page says olai can't open some `files`: the word, not the files row.",
   "//preferences": "browser.tsx registers this plugin's rows with the preferences panel through its declared contract.",
   "//trash": "A write's story reads `Moved to Trash`: the Trash a person sees, not the trash row.",
-  "layout": []
+  "capture": {
+    "src/browser/drag/Handle.tsx": 1,
+    "src/browser/palette/adapter.tsx": 1,
+    "src/tools.ts": 12
+  },
+  "claude": {
+    "src/tools.ts": 2
+  },
+  "files": {
+    "src/browser.tsx": 2,
+    "src/browser/Nothing.tsx": 1,
+    "src/browser/fold/memory.ts": 1,
+    "src/browser/home.ts": 1,
+    "src/browser/page.ts": 2,
+    "src/contracts/page.ts": 1,
+    "src/projection.ts": 3,
+    "src/tools.ts": 12
+  },
+  "identity": {
+    "src/tools.ts": 1
+  },
+  "journal": {
+    "src/tools.ts": 6
+  },
+  "markdown": {
+    "src/browser/Note.tsx": 2,
+    "src/browser/document-properties.tsx": 2,
+    "src/charter.ts": 2,
+    "src/tools.ts": 5
+  },
+  "navigation": {
+    "src/browser.tsx": 3,
+    "src/browser/PageView.tsx": 4,
+    "src/browser/edit/Editable.tsx": 2,
+    "src/browser/palette/adapter.tsx": 5
+  },
+  "pins": {
+    "src/browser/DatedRow.tsx": 3,
+    "src/browser/Tree.tsx": 3,
+    "src/browser/menu/actions.ts": 5,
+    "src/tools.ts": 5
+  },
+  "preferences": {
+    "src/browser.tsx": 2
+  },
+  "search": {
+    "src/browser/complete/trigger.ts": 2,
+    "src/browser/edges/relation.ts": 2,
+    "src/browser/move/MovePicker.tsx": 1,
+    "src/browser/palette/ops.ts": 1,
+    "src/browser/search.ts": 2,
+    "src/testids.ts": 4,
+    "src/tools.ts": 10
+  },
+  "sidebar": {
+    "src/browser/NotFound.tsx": 1,
+    "src/browser/menu/verbs.ts": 2,
+    "src/tools.ts": 1
+  },
+  "trash": {
+    "src/browser/PageView.tsx": 2,
+    "src/browser/edit/redraws.ts": 1,
+    "src/browser/filter/drawn.ts": 6,
+    "src/browser/menu/verbs.ts": 6,
+    "src/browser/page.ts": 5,
+    "src/browser/select/SelectionBar.tsx": 7,
+    "src/browser/select/bulk.ts": 4,
+    "src/contracts/changes.ts": 1,
+    "src/contracts/page.ts": 3,
+    "src/surface.ts": 2,
+    "src/testids.ts": 1,
+    "src/tools.ts": 24
+  },
+  "vault": {
+    "src/server.ts": 6,
+    "src/tools.ts": 3
+  }
 }

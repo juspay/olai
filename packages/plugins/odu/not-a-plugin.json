@@ -1,20 +1,20 @@
 {
-  "identity": [
-    "src/appliance/link.ts",
-    "src/appliance/testlib/fake-service.ts",
-    "src/appliance/wire/index.ts",
-    "src/browser/RunMatrix.tsx",
-    "src/browser/words.ts",
-    "src/doorbell.ts"
-  ],
-  "mcp": [
-    "src/probe.ts"
-  ],
-  "vault": [
-    "src/server.ts"
-  ],
-  "chat": [
-    "src/browser/Wake.tsx"
-  ],
-  "//wake": "The wake face uses the static chat test-ID contract for the existing strip controls."
+  "//wake": "The wake face uses the static chat test-ID contract for the existing strip controls.",
+  "chat": {
+    "src/browser/Wake.tsx": 6
+  },
+  "identity": {
+    "src/appliance/link.ts": 1,
+    "src/appliance/testlib/fake-service.ts": 2,
+    "src/appliance/wire/index.ts": 1,
+    "src/browser/RunMatrix.tsx": 2,
+    "src/browser/words.ts": 2,
+    "src/doorbell.ts": 2
+  },
+  "mcp": {
+    "src/probe.ts": 1
+  },
+  "vault": {
+    "src/server.ts": 8
+  }
 }

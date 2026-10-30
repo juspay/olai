@@ -313,7 +313,7 @@ describe("imports", () => {
       "packages/row-alpha/src/browser.ts": 'import "toy-host"\nexport const draw = 1\n',
     })
     expect(report.red("imports")).toContain(
-      "packages/row-alpha/src/browser.ts: toy-host — a row imports `packages/host`, which names a row; that is the " +
+      "packages/row-alpha/src/browser.ts: toy-host — a row imports the registry, which names every row; that is the " +
         "cycle the manifests cannot express",
     )
   })
@@ -364,6 +364,31 @@ describe("door-graphs", () => {
     expect(report.red("door-graphs")).toEqual([
       "packages/host/src/root.ts: unresolved edge — packages/host/src/root.ts: toy-row-alpha/nope — packages/row-alpha opens no `./nope` door",
     ])
+  })
+
+  test("a type-only edge is erased, in both spellings, but is still a boundary edge", () => {
+    // A walk follows what a listener PAYS FOR. `import type`, `export type` and
+    // an import whose every binding is `type` compile to nothing — and one
+    // module over, the SAME lines are still a package standing on the wrong side
+    // of a wall, which is why the boundary reading sees them.
+    const report = broken({
+      "packages/host/src/root.ts": [
+        'import { type Widget } from "toy-ui/widgets"',
+        'export type { Gadget } from "toy-ui/widgets"',
+        'import type { Thing } from "toy-ui/widgets"',
+        'import { shared } from "toy-host/shared"',
+        'import "toy-row-alpha/browser"',
+        "export const root = shared",
+        "",
+      ].join("\n"),
+      "packages/ui/package.json": manifest({ name: "toy-ui", exports: { "./widgets": "./src/widgets.ts" } }),
+      "packages/ui/src/widgets.ts": 'import "node:fs"\nexport const widget = 1\n',
+    })
+    expect(report.red("door-graphs")).toEqual([])
+    // ...and the boundary reading DID see the specifier, so the elision is a
+    // reading rather than a blind spot: `toy-ui` is a host opening nothing, and
+    // the types above name it.
+    expect(report.red("imports")).toEqual([])
   })
 
   test("a resolver that answered nothing is red, not quiet", () => {
@@ -639,7 +664,7 @@ describe("liveStateIn", () => {
 describe("the shorthands", () => {
   test("comment stripping keeps a `//` inside a string and the code after it", () => {
     const source = 'const url = "https://example.test/x"\n// a comment\nconst mime = "text/plain"\n'
-    const stripped = withoutComments(source)
+    const stripped = withoutComments("fixture.ts", source)
     expect(stripped).toContain('"https://example.test/x"')
     expect(stripped).toContain('"text/plain"')
     expect(stripped).not.toContain("a comment")

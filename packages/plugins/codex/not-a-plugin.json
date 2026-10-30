@@ -1,6 +1,6 @@
 {
-  "mcp": [
-    "src/leg.ts",
-    "src/testlib.ts"
-  ]
+  "mcp": {
+    "src/leg.ts": 5,
+    "src/testlib.ts": 1
+  }
 }

@@ -1,9 +1,9 @@
 {
-  "image": [
-    "src/mark/inline.ts"
-  ],
   "//mcp": "The shared stdio protocol helper, not the MCP transport plugin.",
-  "mcp": [
-    "src/stdio-mcp-protocol.ts"
-  ]
+  "image": {
+    "src/mark/inline.ts": 1
+  },
+  "mcp": {
+    "src/stdio-mcp-protocol.ts": 1
+  }
 }

@@ -1,40 +1,41 @@
 {
-  "files": [
-    "src/server.ts"
-  ],
-  "git": [
-    "src/client/fleet.ts"
-  ],
-  "identity": [
-    "src/client/detect.ts",
-    "src/client/fleet.ts",
-    "src/client/link.ts"
-  ],
-  "image": [
-    "src/client/testlib/fake-padi.ts"
-  ],
-  "markdown": [
-    "src/appliance/props/EventsFeed.tsx",
-    "src/appliance/props/TerminalDoor.tsx"
-  ],
-  "settings": [
-    "src/doorbell.ts"
-  ],
-  "theme": [
-    "src/appliance/props/LivePane.tsx",
-    "src/appliance/props/TerminalDoor.tsx",
-    "src/client/fleet.ts",
-    "src/client/wire/kolu.ts"
-  ],
-  "vault": [
-    "src/server.ts"
-  ],
-  "chat": [
-    "src/browser/Wake.tsx"
-  ],
   "//wake": "The wake face uses the static chat test-ID contract for the existing strip controls.",
-  "alerts": [
-    "src/settings.ts"
-  ],
-  "//alerts": "The watch schema's description says `Terminal alerts and timing`: the word, not the alerts row."
+  "//alerts": "The watch schema's description says `Terminal alerts and timing`: the word, not the alerts row.",
+  "alerts": {
+    "src/settings.ts": 1
+  },
+  "chat": {
+    "src/browser/Wake.tsx": 6
+  },
+  "files": {
+    "src/server.ts": 1
+  },
+  "git": {
+    "src/client/fleet.ts": 5
+  },
+  "identity": {
+    "src/client/detect.ts": 1,
+    "src/client/fleet.ts": 2,
+    "src/client/link.ts": 2
+  },
+  "image": {
+    "src/client/testlib/fake-padi.ts": 1
+  },
+  "markdown": {
+    "src/appliance/props/EventsFeed.tsx": 3,
+    "src/appliance/props/TerminalDoor.tsx": 2
+  },
+  "settings": {
+    "src/doorbell.ts": 1
+  },
+  "theme": {
+    "src/appliance/props/LivePane.tsx": 10,
+    "src/appliance/props/TerminalDoor.tsx": 2,
+    "src/client/fleet.ts": 2,
+    "src/client/wire/kolu.ts": 1
+  },
+  "vault": {
+    "src/client/index.ts": 1,
+    "src/server.ts": 8
+  }
 }

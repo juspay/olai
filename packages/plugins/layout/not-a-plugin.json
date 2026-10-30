@@ -1,30 +1,33 @@
 {
-  "chat": [
-    "src/layout/live.ts",
-    "src/layout/prefs-owner.ts",
-    "src/layout/prefs.ts"
-  ],
-  "files": [
-    "src/Fault.tsx"
-  ],
-  "navigation": [
-    "src/browser.tsx"
-  ],
-  "sidebar": [
-    "src/Frame.tsx",
-    "src/Header.tsx",
-    "src/browser.tsx",
-    "src/index.ts",
-    "src/layout/Handle.tsx",
-    "src/layout/css.ts",
-    "src/layout/live.ts",
-    "src/layout/prefs-owner.ts",
-    "src/layout/prefs.ts",
-    "src/testids.ts"
-  ],
   "//tabs": "The seat above the panes is sized by the tab token, and the phone's pane strip is called tabs; neither names the tabs row.",
-  "tabs": [
-    "src/layout/css.ts",
-    "src/testids.ts"
-  ]
+  "chat": {
+    "src/index.ts": 3,
+    "src/layout/live.ts": 8,
+    "src/layout/prefs-owner.ts": 2,
+    "src/layout/prefs.ts": 25
+  },
+  "files": {
+    "src/Fault.tsx": 1
+  },
+  "navigation": {
+    "src/Frame.tsx": 2,
+    "src/browser.tsx": 5,
+    "src/pane/Panes.tsx": 3
+  },
+  "sidebar": {
+    "src/Frame.tsx": 14,
+    "src/Header.tsx": 3,
+    "src/browser.tsx": 6,
+    "src/index.ts": 9,
+    "src/layout/Handle.tsx": 9,
+    "src/layout/css.ts": 6,
+    "src/layout/live.ts": 18,
+    "src/layout/prefs-owner.ts": 16,
+    "src/layout/prefs.ts": 16,
+    "src/testids.ts": 4
+  },
+  "tabs": {
+    "src/layout/css.ts": 1,
+    "src/testids.ts": 1
+  }
 }

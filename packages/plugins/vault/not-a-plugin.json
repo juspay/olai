@@ -1,34 +1,35 @@
 {
-  "files": [
-    "src/browser.tsx",
-    "src/browser/errors/Banner.tsx",
-    "src/browser/errors/Report.tsx",
-    "src/browser/errors/banner.ts",
-    "src/file-access.ts",
-    "src/file-surface.ts",
-    "src/http/media.ts",
-    "src/lock.ts",
-    "src/projection.ts"
-  ],
-  "outline-olai": [
-    "src/format.ts"
-  ],
-  "outlines": [
-    "src/browser/errors/Broken.tsx",
-    "src/browser/errors/Page.tsx",
-    "src/browser/errors/banner.ts",
-    "src/format.ts"
-  ],
-  "search": [
-    "src/server.ts",
-    "src/setup.ts",
-    "src/views.ts"
-  ],
-  "settings": [
-    "src/file-access.ts",
-    "src/http.ts",
-    "src/server.ts",
-    "src/setup.ts"
-  ],
-  "//outlines": "The broken-file banner and page say a file conflicts with your other `outlines`: the word, not the outlines row."
+  "//outlines": "The broken-file banner and page say a file conflicts with your other `outlines`: the word, not the outlines row.",
+  "files": {
+    "src/browser.tsx": 2,
+    "src/browser/errors/Banner.tsx": 7,
+    "src/browser/errors/Report.tsx": 2,
+    "src/browser/errors/banner.ts": 5,
+    "src/contract.ts": 1,
+    "src/file-access.ts": 1,
+    "src/file-surface.ts": 2,
+    "src/http/media.ts": 2,
+    "src/lock.ts": 2,
+    "src/projection.ts": 3
+  },
+  "outline-olai": {
+    "src/format.ts": 1
+  },
+  "outlines": {
+    "src/browser/errors/Broken.tsx": 1,
+    "src/browser/errors/Page.tsx": 1,
+    "src/browser/errors/banner.ts": 1,
+    "src/format.ts": 1
+  },
+  "search": {
+    "src/server.ts": 2,
+    "src/setup.ts": 4,
+    "src/views.ts": 8
+  },
+  "settings": {
+    "src/file-access.ts": 6,
+    "src/http.ts": 4,
+    "src/server.ts": 11,
+    "src/setup.ts": 4
+  }
 }

@@ -1,10 +1,11 @@
 {
-  "markdown": [
-    "src/Markdown.tsx",
-    "src/TitleHtml.tsx",
-    "src/chunk.ts",
-    "src/excerpt.ts",
-    "src/title.ts"
-  ],
-  "//markdown": "Markdown rendering helpers name the document language, not a runtime plugin lookup."
+  "//markdown": "Markdown rendering helpers name the document language, not a runtime plugin lookup.",
+  "markdown": {
+    "src/Markdown.tsx": 11,
+    "src/TitleHtml.tsx": 1,
+    "src/chunk.ts": 4,
+    "src/excerpt.ts": 1,
+    "src/testids.ts": 1,
+    "src/title.ts": 4
+  }
 }
