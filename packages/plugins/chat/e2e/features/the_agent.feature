@@ -625,20 +625,38 @@ Feature: Talking to a node agent
     And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
-    When the agent refuses to load a conversation
+    # THE RESTART'S OWN OPEN IS HELD, so the answer it gets cannot race the
+    # press that meets it: boot adopts a stored conversation and asks for it,
+    # the agent waits on the wire, and the person opens the history UNDER that
+    # open. It is the window a loaded machine kept losing, wide here for as long
+    # as the scenario needs.
+    When the next conversation load will hang
     And the server stops
     And the server starts again on the same port
     And I open the app
     And I open the filed conversation "the last conversation" as node "filed-chat" in its outline
-    # A RESTART REBUILDS THE ROSTER, so `hasPanel` is false for a beat after the
-    # crumb; this is the panel's answer being mounted before the history opens,
-    # not the readiness of a running conversation (a refused restart answers
-    # `off`, so idle/thinking would be the wrong wait here).
-    Then the conversation panel has answered
+    And I unfold node agent "filed-chat"
+    # THE OPEN IS STILL ON THE WIRE, and the roster is what says so: a
+    # conversation being opened stands `waking`. The panel's own state cannot
+    # say it — `off` is both "the server answered `off`" and "nothing has been
+    # answered yet", which is why this window is named by the standing rather
+    # than by `idle`/`thinking`/`booting`.
+    Then the agent "filed-chat" stands "waking"
     And I open the fold history
-    And I begin opening the past session "an older conversation"
+    # AND NOW THE AGENT SAYS NO. That refusal is what the restart's own open
+    # gets, and it is what rebuilds this panel: the conversation it could not
+    # open is no longer what the panel is about, so the address moves from that
+    # session to the node and the frame is drawn again.
+    When the agent refuses to load a conversation
+    And the agent is released
     Then the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "no such conversation"
+    # THE CLAIM, after that rebuild: a list somebody opened is theirs until
+    # they shut it. And the press is the proof — the row that was under the
+    # pointer when the list opened is the row it finds now, with no retry.
+    Then the history picker on "filed-chat" is still open
+    And I begin opening the past session "an older conversation"
+    Then the panel says the conversation could not be opened
     And there is nothing to type into
     # THE MODULE IS NOT IN IT, and trying again is what proves that: entering a
     # conversation is what this server records being IN one, and a boot that
@@ -656,8 +674,15 @@ Feature: Talking to a node agent
     # body because the click was made in it: there is no transcript here to put
     # it in, and a control that can be refused silently is the one thing
     # nothing in this panel may be.
+    #
+    # TWO ANSWERS ARE HONEST HERE, and which one arrives depends on whether the
+    # first press's change had landed by the frame of the second: nothing was
+    # waiting to be taken, or the conversation this body was DRAWN in had moved.
+    # Both say the press did nothing and why, which is the claim; one of the two
+    # sentences is a fact about a race, and reading only that one goes red on a
+    # loaded box for the wrong reason.
     And I try to open it again
-    Then the chat says the click was refused, with "no conversation is waiting to be opened"
+    Then the chat says the click was refused, with "no conversation is waiting to be opened" or "the conversation changed; this action was not applied"
     When the agent is released
     Then the panel shows no such refusal
     And the opened conversation carries the title "an older conversation"

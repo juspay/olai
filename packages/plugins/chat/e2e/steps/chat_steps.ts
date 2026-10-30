@@ -3007,6 +3007,32 @@ Then(
   },
 );
 
+/** ...AND WHERE THE SERVER HAS TWO HONEST ANSWERS, both of them.
+ *
+ *  A second press of *Try again* finds nothing waiting and is told so — unless
+ *  the first press has already replaced the conversation under this body, in
+ *  which case the press was made in a panel that MOVED and the server says
+ *  that instead. Which of the two it is depends on whether the first press's
+ *  change has landed by the frame of the second, so a scenario that reads one
+ *  sentence is a scenario that goes red on a loaded box for the wrong reason.
+ *  What is pinned is what the error rule asks: the one control in this body
+ *  cannot be pressed silently, and it says WHY it did nothing.
+ */
+Then(
+  "the chat says the click was refused, with {string} or {string}",
+  async function (this: OlaiWorld, one: string, other: string) {
+    await this.waitUntil(
+      async () => {
+        const line = this.chat(CHAT_REFUSAL).first();
+        if ((await line.count()) === 0) return false;
+        const text = (await line.innerText()).trim();
+        return text.includes(one) || text.includes(other);
+      },
+      `the refused click to say ${JSON.stringify(one)} or ${JSON.stringify(other)}`,
+    );
+  },
+);
+
 Then("there is nothing to type into", async function (this: OlaiWorld) {
   assert.strictEqual(
     await this.chat(CHAT_INPUT).count(),
