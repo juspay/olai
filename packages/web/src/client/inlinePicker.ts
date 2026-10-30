@@ -90,13 +90,33 @@ import { dismissOn } from "./dismiss.ts"
 /**
  * Shut, or up over one value of the caller's.
  *
- * Private on purpose: what a caller reads is {@link InlinePicker.open} and
- * {@link InlinePicker.showing}, which are the two questions this answers, and a
- * caller able to spell the union could spell `shut` while carrying something.
+ * One fact, spelled as a union so the two halves cannot disagree: what a caller
+ * reads is {@link InlinePicker.open} and {@link InlinePicker.showing}, which are
+ * the two questions this answers, and a caller able to spell the union could
+ * spell `shut` while carrying something.
  */
-type Up<T> =
+export type PickerState<T> =
   | { readonly _tag: "shut" }
   | { readonly _tag: "open"; readonly over: T }
+
+/**
+ * WHERE A PICKER KEEPS ITS ONE FACT, when the caller owns where that is written.
+ *
+ * A list is a person's gesture, and the component that draws it is not always
+ * what that gesture belongs to: a panel rebuilt by a frame of its own — a
+ * restart's refusal, a roster that empties for a beat — came back with the list
+ * SHUT, and the press that had just opened it was the reader's, still.
+ *
+ * So the caller hands the picker a seat in whatever outlives the drawing, and
+ * the union travels whole: a seat that remembered only "open" would have to
+ * invent what the list is up over on the frame it came back, which is exactly
+ * the stale payload the union exists against. Given no seat, the picker keeps a
+ * signal of its own and is what it always was.
+ */
+export interface PickerSeat<T> {
+  readonly read: () => PickerState<T>
+  readonly write: (state: PickerState<T>) => void
+}
 
 export interface InlinePicker<T> {
   /** Is the list up? The union's own "not shut", asked in ONE place — the
@@ -153,8 +173,13 @@ export interface Opening<T> {
   readonly opening: () => T
 }
 
-export const createInlinePicker = <T>(on: Opening<T>): InlinePicker<T> => {
-  const [up, setUp] = createSignal<Up<T>>({ _tag: "shut" })
+export const createInlinePicker = <T>(on: Opening<T>, seat?: PickerSeat<T>): InlinePicker<T> => {
+  // The caller's seat when there is one, a signal of this picker's own when
+  // there is not — the same one fact either way, in the place its OWNER keeps
+  // it ({@link PickerSeat}).
+  const [own, setOwn] = createSignal<PickerState<T>>({ _tag: "shut" })
+  const up = seat?.read ?? own
+  const setUp = seat?.write ?? setOwn
 
   const open = (): boolean => up()._tag !== "shut"
 

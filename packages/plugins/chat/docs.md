@@ -494,5 +494,12 @@ belongs to the node view. Changing the selected conversation replaces only the
 conversation-specific body and strips. A fresh-start refusal therefore remains
 visible even if the server transitions from a bound session to an unopened node.
 
+The history list's openness belongs to the same owner as the fold: chat's
+activation, keyed by node (`browser/agents/history.ts`), never the component
+that draws it and never the roster. A refusal gives the panel a new address for
+the same node — the session it could not open is no longer what the panel is
+about — so that frame rebuilds the panel under the pointer; holding the fact
+here is what keeps a list the reader opened up across it.
+
 A refused fresh start resumes the unchanged live binding; it does not turn
 that reader into a history visit that masks later binding changes.
