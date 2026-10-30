@@ -75,8 +75,31 @@ fi
 # would prove nothing.
 members=$(sh "$root/scripts/workspace-members.sh" "$root")
 
-# THE REGISTRY: the member that owns the fence.
-registry=$(for m in $members; do if [ -f "$m/src/fence.test.ts" ]; then echo "$m"; fi; done)
+# THE REGISTRY: the member that owns this build's fence — a workspace member
+# that holds `src/fence.test.ts` AND declares plugins.
+#
+# BOTH HALVES ARE LOAD-BEARING NOW. It was "the member with a fence file", and
+# that stopped being a unique answer the day the fence itself got a door with a
+# test of its own: `packages/effect-cordis/src/fence.test.ts` exists, names no
+# plugin, and would have captured `$registry` — every path below would then have
+# been read out of the door's package and this harness would have died on a `jq`
+# with two files in one word. So the second clause is what tells the two apart.
+registry=$(
+  for m in $members; do
+    if [ -f "$m/src/fence.test.ts" ] && jq -r '.dependencies | keys[]' "$m/package.json" | grep -q '^olai-plugin-'; then
+      echo "$m"
+    fi
+  done
+)
+case "$registry" in
+  *"
+"*)
+    echo "prove-fence: more than one member holds a fence and declares plugins:" >&2
+    echo "$registry" | sed 's/^/  /' >&2
+    exit 1
+    ;;
+esac
+[ -n "$registry" ] || { echo "prove-fence: no member both holds src/fence.test.ts and declares plugins" >&2; exit 1; }
 
 # THE PLUGINS: what the registry DECLARES, held to the CONTAINER. Not a shape
 # test — `@olai/plugin-api` opens `./wire`, `./server` and `./all.css` too,

@@ -144,12 +144,13 @@ waits for each transition until it finishes or is cancelled. A row still `waitin
 on a key nothing in this build offers, which is a legitimate resting state and is
 what `rowReport` is about to say.
 
-## Two doors, because two graphs
+## Three doors, because two graphs and one that is neither
 
 | door | what it carries |
 | --- | --- |
 | `.` | the RUNTIME: a scoped host, `closeHost`, `hostChanges`, `provide`, `offer`, `mountPlugin`, `settled`, `rowReport`, `definePlugin`, `serviceTag`, `broadcast`, `waterfall`, `detached` |
 | `./loader` | `mountRows` — a declarative bundle, through `@cordisjs/plugin-loader` and `-include` |
+| `./fence` | the STATIC half: rows, doors, roots and names weighed against a workspace's imports and text, with `prove` to keep the claims awake |
 
 The split is not tidiness. The loader reads a file off a disk and resolves module
 specifiers, so it carries `node:url`, `node:fs` and a YAML parser. Behind one door
@@ -166,15 +167,48 @@ mint a service, or make a plugin wait on its own siblings. `@olai/bundle` opens
 both doors directly: `./loader` for the graph reason above, and the root door for
 `settled` alone, which it spends beside `mountRows` in one function
 (`src/bundle.ts`'s `mountBundle`) because the two of them are one promise.
+`./fence` has one caller — a test — and no product code may open it: it reads
+sources and module graphs, so it costs a compiler and belongs where a claim is
+made.
+
+## The fence: what the runtime cannot check
+
+Cordis decides whether a plugin's DECLARED coeffects are met at START. It cannot
+say whether the static graph agrees — and every one of the questions in the table
+below is a fact about imports and text, not about a fiber:
+
+| claim | what it refuses |
+| --- | --- |
+| `imports` | a row's package reached outside a declared door; a host naming a row outside a root file; a row reaching the roster back |
+| `door-graphs` | a `node:` builtin on a browser root's walk, a UI runtime on a node root's, an edge that did not resolve |
+| `names` | a row's word in another package's CODE — comments stripped, module specifiers subtracted |
+| `live-state` | a module another package can open holding a module-scope value, beyond the ones somebody argued for |
+| `registry` | the rows supplied, the rows on disk and the rows the roots compose disagreeing |
+
+The declaration is FOUR FACTS and three records of what a person argued: `repo`,
+`rows` (from wherever the host already names them, or
+`rowsFromManifests`), `roots`, and `collisions` are the facts; `allowances`,
+`holders` and `runtimes` are the arguments. A package's doors come from its
+manifest `exports`, a row from its package's manifest, and a door's GRAPH KIND
+from which roots reach it — there is no per-door declaration of any of that.
+
+`prove(declaration)` is the falsifier: it plants one canonical defect per claim
+in a COPY of the tree and asserts the claim that names it refuses it. A sweep
+that stopped matching is green everywhere, which is the one failure mode a fence
+can have and the one a reviewer cannot see.
+
 
 ## What is deliberately NOT here
 
 **An opinion about what a plugin is.** This package knows about scopes, keys, rows
 and a waterfall; it has never heard of a vault, a surface or a doorbell.
 [`src/plugin.test.ts`](src/plugin.test.ts) is written with toy services and has no
-olai noun in it. The moment something here grows one, it belongs in
-[`@olai/plugin-api`](../plugin-api/README.md), which is the package on the other
-side of exactly that line.
+olai noun in it, and [`src/fence.test.ts`](src/fence.test.ts) is written over a
+toy WORKSPACE — two rows, one host, two roots — for the same reason: the fence's
+subjects are rows, doors, roots and names, and a fence built out of one build's
+feature nouns could not be the second consumer's. The moment something here grows
+one, it belongs in [`@olai/plugin-api`](../plugin-api/README.md), which is the
+package on the other side of exactly that line.
 
 **Nothing, now that `broadcast` has landed.** The phase's design listed
 `eventStream` beside `waterfall`, and this package shipped the waterfall and

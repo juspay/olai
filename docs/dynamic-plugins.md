@@ -463,7 +463,7 @@ activation of its own — a catalogue of menu verbs, a fold over the pinned shel
 what keeps it testable over a roster a bench names rather than over whatever the
 process last installed.
 
-`@olai/bundle`'s `fence.test.ts` holds all of it: no module opened across a
+`@olai/effect-cordis/fence`'s `live-state` claim holds all of it: no module opened across a
 package boundary holds a `let`, a module-scope Solid cell, a `heldService` or
 `heldFaces` minted at load, a state-bearing IIFE, an instance of a class it
 declared, or a `const` it writes into — and for a general package's doors the
