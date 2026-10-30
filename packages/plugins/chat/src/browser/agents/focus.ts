@@ -17,5 +17,5 @@ export const focusAgent = (go: (route: Route) => void, row: Row): void => {
 }
 export const createFocus = () => {
   const router = useRouter()
-  return { href: (row: Row) => router.routes.href(zoomNode(row.id)), go: (row: Row) => focusAgent((route) => router.go(route), row), visit: visitAgent }
+  return { href: (row: Row) => router.routes.href(zoomNode(row.id)), visit: visitAgent }
 }

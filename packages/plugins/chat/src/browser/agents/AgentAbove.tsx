@@ -22,6 +22,12 @@
  * through the router and announces `olai-navigated` itself, which is what shuts
  * a palette or a header box after a press that was not the row's own.
  *
+ * It is not a tab stop (`tabIndex={-1}`): the row it sits in — a search result,
+ * a completion row, a breadcrumb link — stays the single stop, and the door for
+ * a keyboard is the palette's **Open the agent above**. Nested interactive
+ * content is one press for a pointer and two stops for assistive tech; this is
+ * the half that keeps the stop count honest.
+ *
  * ## The trail is read here, not passed in
  *
  * Every surface that draws either shape already knows its node, and only the
@@ -104,7 +110,8 @@ export function CrumbMark(props: { readonly node: string }) {
       {(row) => (
         <button
           type="button"
-          class="inline-flex items-center rounded-control p-0.5 text-muted hover:bg-rule hover:text-ink"
+          tabIndex={-1}
+          class="inline-flex shrink-0 items-center rounded-control p-0.5 text-muted hover:bg-rule hover:text-ink"
           data-testid={TESTID.crumbMark}
           data-agent={row().id}
           data-engine={row().engine}

@@ -29,9 +29,8 @@ test("the nearest bound ancestor wins, however many are bound", () => {
   // kitchen › install › hinges: the crumb order is outermost first, so the
   // answer is the LAST one the roster knows.
   expect(agentAbove(["kitchen", "install"], roster(["kitchen", "install"]))?.id).toBe("install")
-  expect(agentAbove(["kitchen", "install"], roster(["kitchen"]))?.id).toBe("kitchen")
   // ...and an ancestor nothing knows is skipped rather than stopping the walk.
-  expect(agentAbove(["kitchen", "install"], roster(["kitchen", "install"]))?.id).toBe("install")
+  expect(agentAbove(["kitchen", "install"], roster(["kitchen"]))?.id).toBe("kitchen")
 })
 
 test("nothing bound above is no answer", () => {

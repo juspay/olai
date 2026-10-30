@@ -852,7 +852,9 @@ pill** — `↑ <engine mark> <ancestor title> · <engine name>` — names the
 in the pinned head of an unbound node's page, where its agent line would be, and
 at the end of a bound node's agent line (the page, a folded row, and the docked
 column). Pressing it opens that ancestor's own conversation page, exactly as a
-Chats row does.
+Chats row does. The dock is drawn from whichever page is open: after navigating
+to another file the docked conversation has no trail to name, so its pill stays
+away until that node's page is open again.
 
 Every crumb of a bound ancestor wears that agent's **mark**, in the breadcrumbs
 above a node, on a day's row, and in a search result's place line, and each mark
@@ -864,8 +866,8 @@ bound above.
 Two things make it live rather than a snapshot. The trail comes from the page
 reading this tab already holds (`zoomed.trail`, a day entry's trail, or a file's
 own parent links), and the roster answers which of those nodes has a
-conversation — so starting, closing or retitling an ancestor retargets the pill
-(or leaves no pill) without a reload. With chat switched off there is no pill
+conversation — so starting or closing an ancestor retargets the pill (or leaves
+no pill) without a reload. With chat switched off there is no pill
 and no mark, and the crumbs are the text they always were.
 
 ### Needs you, Chats, and the palette

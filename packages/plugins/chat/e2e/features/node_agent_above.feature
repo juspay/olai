@@ -108,6 +108,19 @@ Feature: One press up to the closest node agent
     And the node page conversation is ready for "install"
     And there should be no page errors
 
+  Scenario: A child of a zoomed node still reaches an agent above the zoomed node
+    Given I open the outline "house.olai"
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    And I zoom into the node "install"
+    Then the agent-above pill points at "kitchen"
+    When I open the node menu of "hinges"
+    Then the node menu offers "Open the agent above"
+    When I choose "Open the agent above" from the node menu
+    Then the page is the agent "kitchen"
+    And the node page conversation is ready for "kitchen"
+    And there should be no page errors
+
   Scenario: The palette opens the agent above for the zoomed node
     Given I open the outline "house.olai"
     When I open the "claude" agent on node "install"

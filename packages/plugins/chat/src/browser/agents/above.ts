@@ -43,7 +43,16 @@ interface Graph {
   readonly trails: Map<string, ReadonlyArray<string>>
 }
 
+/** One graph per page reading. `Shown` is an immutable snapshot, so a `WeakMap`
+ *  is enough: a new reading is a new object, and a page nobody holds is
+ *  collectable. This matters because every agent line (a page, each fold, the
+ *  dock) asks in its own memo; without it each one rebuilt every open page's
+ *  whole tree on every roster or page frame. */
+const graphs = new WeakMap<Shown, Graph>()
+
 const graphOf = (shows: Shown): Graph => {
+  const cached = graphs.get(shows)
+  if (cached !== undefined) return cached
   const parents = new Map<string, string | undefined>()
   const trails = new Map<string, ReadonlyArray<string>>()
   const record = (trail: Trail): ReadonlyArray<string> => {
@@ -78,7 +87,9 @@ const graphOf = (shows: Shown): Graph => {
       for (const day of [...shows.agenda.overdue, ...shows.agenda.upcoming]) groups(day.groups)
       break
   }
-  return { parents, trails }
+  const graph = { parents, trails }
+  graphs.set(shows, graph)
+  return graph
 }
 
 /** One page's answer for a node, or `undefined` when the page does not hold it. */
@@ -93,6 +104,15 @@ const ancestryOn = (shows: Shown, node: string): ReadonlyArray<string> | undefin
   // A walk and not a recursion: a set the validator would condemn has loops,
   // and a crumb trail that never ends is worse than a short one.
   while (parent !== undefined && !seen.has(parent)) {
+    // A page that STATES an ancestor's trail has already walked above it (a
+    // zoomed subject, a day entry). The parent graph stops at that node, so
+    // splice the stated trail in front and stop: every crumb above the stated
+    // node is in it, already outermost first.
+    const stated = graph.trails.get(parent)
+    if (stated !== undefined) {
+      out.unshift(...stated, parent)
+      break
+    }
     out.unshift(parent)
     seen.add(parent)
     parent = graph.parents.get(parent)
