@@ -32,6 +32,7 @@ import { TESTID } from "../../testids.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"
 import { ConversationUIProvider } from "../chat/ui.tsx"
 import { dock } from "../dock.ts"
+import { AgentAbove } from "./AgentAbove.tsx"
 import { useAgents } from "./answered.tsx"
 import { byActivity } from "./activity-order.ts"
 import { createNodeConversation } from "./conversation.ts"
@@ -75,6 +76,7 @@ export function Dock() {
               >
                 {agent().title}
               </Link>
+              <AgentAbove node={agent().id} />
             </>
           )}
         </Show>

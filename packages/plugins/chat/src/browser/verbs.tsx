@@ -3,6 +3,7 @@ import type { RowAction } from "olai-plugin-outlines/slots"
 import { Result } from "effect"
 import { runAsync } from "@olai/web/client/run.ts"
 import type { Roster } from "./agents/answered.tsx"
+import type { Row } from "./agents/roster.ts"
 import { agentReadings } from "./agents/reading.ts"
 import { fold, unfold } from "./agents/folding.ts"
 import { chatWire } from "./wire.ts"
@@ -14,8 +15,35 @@ import { freshStartQuestion } from "./agents/fresh-start.ts"
  * can start (`RowChoice`), which outlines draws as a submenu, as the verb
  * itself when there is one, and not at all when there are none. Engines this
  * machine lacks are never offered; the plugins panel says what they need.
+ *
+ * `above` answers the nearest ancestor holding a conversation
+ * (`./agents/above.ts`), resolved WHEN THE MENU IS ASKED rather than here: the
+ * entry appears only while an ancestor is bound, and its press asks again so a
+ * roster that moved between opening the menu and pressing it cannot open the
+ * wrong conversation. It is optional so the unit tests can hold the roster
+ * alone; with no resolver there is no entry, which is the same answer as a node
+ * with nothing bound above.
  */
-export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction> => {
+export const rowVerbs = (
+  node: string,
+  roster: Roster,
+  above?: (node: string) => Row | undefined,
+  /** Take the reader to that ancestor's conversation — the door is the slot's
+   *  caller's, so this module keeps no router and a unit test of the roster
+   *  alone loads no navigation (`./browser.tsx` passes `./agents/focus.ts`'s). */
+  open?: (row: Row) => string | void,
+): ReadonlyArray<RowAction> => {
+  const openAbove: RowAction | undefined = (() => {
+    if (above?.(node) === undefined) return undefined
+    return {
+      id: "open-agent-above", label: "Open the agent above", writes: false,
+      run: (node: string) => {
+        const row = above?.(node)
+        if (row === undefined) return
+        return open === undefined ? "Can't open this right now" : open(row)
+      },
+    }
+  })()
   /** THE START GESTURE, SHARED BY BOTH HALVES: start a session on a node with
    *  a given engine, and on success mark the node read and unfold it. The
    *  start and fresh-start entries are the same act on different labels. */
@@ -35,7 +63,7 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
     return [{
       id: "start-agent", label: "Start an agent", writes: true,
       choices: engines.map(engine => ({ id: `start-agent-${engine.id}`, label: engine.name, writes: true, run: startOn(engine) })),
-    }]
+    }, ...(openAbove === undefined ? [] : [openAbove])]
   }
   // A node already talking through a conversation: `Fresh start` — the node's
   // own engine first, a choice only where there is one — and CLOSE, releasing
@@ -45,6 +73,7 @@ export const rowVerbs = (node: string, roster: Roster): ReadonlyArray<RowAction>
   const current = available.find(engine => engine.id === bound.engine)
   const engines = current === undefined ? available : [current, ...available.filter(engine => engine !== current)]
   return [
+    ...(openAbove === undefined ? [] : [openAbove]),
     {
       id: "fresh-start", label: "Fresh start", writes: true,
       choices: engines.map(engine => ({

@@ -28,6 +28,7 @@ const hits = (query: string): ReadonlyArray<NodeHit> =>
     file: "house.olai",
     line: at + 2,
     path: ["notes"],
+    pathIds: [],
     see: undefined,
     after: undefined,
     matched: "title" as const,

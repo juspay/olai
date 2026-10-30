@@ -38,6 +38,7 @@
  */
 
 import { heldFaces } from "@olai/plugin-api"
+import type {} from "olai-plugin-outlines/slots"
 
 const own = heldFaces()
 
@@ -46,3 +47,8 @@ export const holdFaces = own.hold
 
 /** ...and read by the two walks beside this file. */
 export const faces = (): typeof own => own
+
+/** What this table's `outline.crumb.aside` holds, for a place line this
+ *  plugin draws (the composer's `@` list). Chat's own mark is one of them: the
+ *  face is registered here and drawn wherever a crumb is. */
+export const crumbMarks = () => own.hung("outline.crumb.aside")

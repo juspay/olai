@@ -5,7 +5,7 @@ import { unfold } from "./folding.ts"
 import { agentReadings } from "./reading.ts"
 /** Opening a conversation marks it visited and unfolds its row, so the outline
  *  it came from still holds the conversation when the reader goes back. */
-const visit = (row: Row): void => {
+export const visitAgent = (row: Row): void => {
   agentReadings()?.visit(row.id)
   if (row.session !== null) unfold(row.id)
 }
@@ -13,9 +13,9 @@ const visit = (row: Row): void => {
  *  rows and the palette share this, so neither can drift from the other. */
 export const focusAgent = (go: (route: Route) => void, row: Row): void => {
   go(zoomNode(row.id))
-  visit(row)
+  visitAgent(row)
 }
 export const createFocus = () => {
   const router = useRouter()
-  return { href: (row: Row) => router.routes.href(zoomNode(row.id)), visit }
+  return { href: (row: Row) => router.routes.href(zoomNode(row.id)), go: (row: Row) => focusAgent((route) => router.go(route), row), visit: visitAgent }
 }

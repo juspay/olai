@@ -25,7 +25,7 @@ import type { createNewChat } from "./new-chat.ts"
 export const NEW_CHAT_ROW = "new-chat"
 
 /** The focused row, else the zoomed node, of the focused pane. */
-const hereNow = (): string | null => {
+export const hereNow = (): string | null => {
   const nav = navigation()
   const pane = nav?.panes()[nav.focusIndex()]
   const page = pane === undefined ? undefined : pageReadings()?.at(pane.id)?.shows

@@ -40,6 +40,7 @@ const hit = (one: {
   file: one.file ?? "house.olai",
   line: 1,
   path: one.path ?? [],
+  pathIds: [],
   see: undefined,
   after: undefined,
   ...(one.matched === undefined ? {} : { matched: one.matched }),

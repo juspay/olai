@@ -87,6 +87,17 @@ export const TESTID = {
    *  **Needs you** by its own `needs`. `data-engine` is the engine's id. */
   engineMissing: "engine-missing",
   agentStanding: "agent-standing",
+  /** The pill naming the closest ancestor with a conversation — its engine's
+   *  mark, the ancestor's title and the engine's name — and the door to that
+   *  conversation. `data-agent` is the ancestor's node id, `data-engine` its
+   *  engine. */
+  agentAbove: "chat-agent-above",
+  /** The line the pill sits on where a node is unbound: the page's head, in
+   *  the place its agent line would be. Absent when nothing is bound above. */
+  agentAboveLine: "chat-agent-above-line",
+  /** The mark a bound ancestor's crumb wears, in breadcrumbs and in a search
+   *  row's place line. `data-agent` is that ancestor, `data-engine` its engine. */
+  crumbMark: "chat-crumb-mark",
   agentFold: "agent-fold",
   agentPageHead: "agent-page-head",
   agentPageFoot: "agent-page-foot",

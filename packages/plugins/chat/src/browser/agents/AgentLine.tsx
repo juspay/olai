@@ -9,6 +9,7 @@ import { usageOf } from "../chat/usage.ts"
 import { LIVE_DOT } from "../chat/live.ts"
 import { busyIn } from "../chat/busy.ts"
 import { CloseAgent } from "./CloseAgent.tsx"
+import { AgentAbove } from "./AgentAbove.tsx"
 import { FreshStart } from "./FreshStart.tsx"
 import type { Chat } from "../chat/state.ts"
 import { TESTID } from "../../testids.ts"
@@ -32,6 +33,7 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
       <span class="flex items-center gap-1 text-doing" data-testid={TESTID.chatWorking} aria-live="polite"><span class={LIVE_DOT} aria-hidden="true" />{doing()?.kind === "waiting" ? "Waiting on you" : "Working…"}</span>
     </Show>
     <span class="flex-1" />
+    <AgentAbove node={props.node} />
     <Show when={dockable()}>
       <button type="button" class={LINE_VERB} data-testid={TESTID.chatDockHere} title="Keep this conversation beside the page (⌘J shows or hides the panel)"
         onClick={() => dock()?.open(props.node)}>Open in panel ›</button>

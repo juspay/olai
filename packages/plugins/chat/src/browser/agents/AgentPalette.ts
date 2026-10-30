@@ -8,7 +8,8 @@ import { navigation } from "../navigation.ts"
 import { agentReadings } from "./reading.ts"
 import { focusAgent } from "./focus.ts"
 import { byActivity } from "./activity-order.ts"
-import { newChatRow } from "./new-chat-level.ts"
+import { hereNow, newChatRow } from "./new-chat-level.ts"
+import { agentAboveOf } from "./above.ts"
 import { LOOK } from "./roster.ts"
 import type { Roster } from "./answered.tsx"
 
@@ -83,11 +84,32 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
       },
     ]
   }
+  /** THE ROW ABOVE the focused row (or the zoomed node): the pill's door, for
+   *  the keyboard. Resolved when the list is asked, so it appears and leaves
+   *  with the roster; its press resolves again, so a roster that moved while
+   *  the palette was open cannot open the wrong conversation. */
+  const above = (): ReadonlyArray<PaletteItem> => {
+    const here = hereNow()
+    const row = here === null ? undefined : agentAboveOf(here, agents)
+    if (row === undefined) return []
+    return [{
+      id: "open-agent-above", label: "Open the agent above", place: `on “${row.title}”`,
+      search: `open the agent above ${row.title}`.toLowerCase(), taking: atOnce,
+      action: { kind: "run", run: async () => {
+        const nav = navigation()
+        if (nav === undefined) return { keepOpen: true, said: { tone: "alarm" as const, text: "Can't open this right now" } }
+        const now = hereNow()
+        const target = now === null ? undefined : agentAboveOf(now, agents)
+        if (target !== undefined) focusAgent(route => nav.go(route), target)
+        return {}
+      } },
+    }]
+  }
   return { items: (): ReadonlyArray<PaletteItem> => {
     // ONLY WHAT WORKS: with no engine this machine can start, there is no
     // `new chat` row to choose — the plugins panel says why.
     const creating: ReadonlyArray<PaletteItem> = agents.engines().length === 0 || newChat === undefined ? [] : [newChat]
-    return [...creating, ...sleeping(), ...byActivity(agents.rows()).map((row): PaletteItem => ({
+    return [...creating, ...above(), ...sleeping(), ...byActivity(agents.rows()).map((row): PaletteItem => ({
       id: `agent-${row.id}`, label: row.title, hint: LOOK[row.standing].label,
       place: "Agents", search: `agents ${row.title}`.toLowerCase(), taking: atOnce,
       action: { kind: "run", run: async () => {
