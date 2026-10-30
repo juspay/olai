@@ -19,7 +19,6 @@
  */
 
 import * as assert from "node:assert";
-import * as fs from "node:fs";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import { feltOn, shiftDay } from "@olai/format";
@@ -177,24 +176,23 @@ Then("every late row says how far away its day feels", async function (this: Ola
  *
  * This is the case the reading's equality exists for: one late node is still
  * one, so BOTH counts stand still, and what has to reach the column on its own
- * is the row itself (`sameOwedReading` compares the rows). The outline is found
- * by the id it holds rather than named, because which file a node lives in is
- * not what the scenario is about.
+ * is the row itself (`sameOwedReading` compares the rows). The outline is named
+ * because a corpus's file names are its own and a step that guessed them would
+ * be a second roster of what a scenario is looking at.
  */
 When(
-  "the title of {string} is rewritten as {string} on disk",
-  function (this: OlaiWorld, id: string, title: string) {
-    const holds = (file: string): boolean =>
-      this.servedNodes(file).some((node) => node["id"] === id);
-    const file = fs.readdirSync(this.scratch()).find((one) => one.endsWith(".olai") && holds(one));
-    if (file === undefined) throw new Error(`no served outline holds "${id}"`);
-    this.writeServed(file, this.servedNodes(file)
+  "the title of {string} in {string} is rewritten as {string}",
+  function (this: OlaiWorld, id: string, file: string, title: string) {
+    const records = this.servedNodes(file);
+    assert.ok(
+      records.some((node) => node["id"] === id),
+      `the served outline "${file}" holds no "${id}"`,
+    );
+    this.writeServed(file, records
       .map((node) => JSON.stringify(node["id"] === id ? { ...node, title } : node))
       .join("\n"));
   },
 );
-
-// ── pressing one ───────────────────────────────────────────────────────
 
 /**
  * Four more late tasks, written while the page is open — what the CAP needs and

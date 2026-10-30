@@ -77,7 +77,7 @@ Feature: What is owed, listed under the door
     # One late node is still one: neither count moves, so what has to arrive on
     # its own is the ROW — which is why the reading compares the rows and not
     # only the numbers over them.
-    When the title of "posts" is rewritten as "dig the post holes deeper" on disk
+    When the title of "posts" in "work.olai" is rewritten as "dig the post holes deeper"
     Then the column's row "posts" is named "dig the post holes deeper"
     And the agenda entry is on fire with 3 late
     And the page has not reloaded
