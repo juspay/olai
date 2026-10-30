@@ -82,6 +82,8 @@ A verb says which group it belongs to (`Verb.group` in `menu/verbs.ts`); `menu/a
 
 A plugin hangs entries on a row through `outline.row.action`. An entry is a `RowVerb` or a `RowChoice` (`slots.ts`): a choice is one line that opens a submenu of verbs. The plugin supplies words, presses and whether the entry writes; outlines decides where the entry goes. Entry ids are `<plugin>:<id>` in `data-action`.
 
+A plugin may also hang one face on a CRUMB through `outline.crumb.aside` — a `NodeFace` given the ancestor's node id, drawn beside that crumb's link rather than inside it (a crumb and its mark are two doors). Breadcrumbs draw it on every trail outlines owns, a day's row included; a search result's place line draws it per ancestor, handed the faces by the door that owns the holder. With no contributor the slot draws nothing and the trail is exactly the text it was.
+
 Submenus are Kobalte `Sub`s, portalled beside the panel into this row's overlay socket. A click or tap on a submenu's entry opens it and leaves the panel up; ArrowRight, Enter or Space opens it from the keyboard with the caret on its first entry, and ArrowLeft closes it and gives the caret back to the entry. On a phone a submenu overlaps the panel instead of hanging off the screen. A verb that asks first (Move to Trash, chat's Fresh start) swaps the whole panel for the question, with the caret on the answer.
 
 ## Rows on a phone

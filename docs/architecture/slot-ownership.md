@@ -6,7 +6,7 @@ The permanent plugin API defines only the generic location reference type and th
 
 | Owner | Compatibility locations |
 | --- | --- |
-| Outlines | `outline.row.chip`, `.placement`, `.aside`, `.fold`, `.pane`, `.block`, `.action`, `outline.page.head`, `.foot` and property contexts |
+| Outlines | `outline.row.chip`, `.placement`, `.aside`, `.crumb.aside`, `.fold`, `.pane`, `.block`, `.action`, `outline.page.head`, `.foot` and property contexts |
 | Navigation | `app.route`, `app.keys`, `app.palette` |
 | Layout | `app.panel`, `app.header`, `app.banner`, `app.viewer`, `app.mount`, `layout.strip`, `layout.tools` |
 | Sidebar | `sidebar.entry`, `sidebar.section` |
@@ -30,6 +30,7 @@ exported by the owner; the owner draws, the contributor owns what it hands over.
 | `files.types` | `{ making, Create }` | `making` is the item the kind puts in the Outlines heading's `+` menu, or `undefined` while it cannot create files. `Create` is the kind's name box, empty until the item opens it. |
 | `files.state` | a service with `Delete`, `New` and `open(kind)` | `open` opens the new-file box for one kind, the same as picking that kind's `+` item. A page offering the first file of a kind (an empty folder's `New outline`) calls it. |
 | `outline.row.action` | a verb `{ id, label, writes, run, confirm? }` or a choice `{ id, label, writes, choices }` | A choice is drawn as a submenu of verbs (`Start an agent ›` and its engines). A plugin with a single option hands a plain verb rather than a one-entry choice. `writes` places the entry among the reads or among the writes. |
+| `outline.crumb.aside` | `({ node }) => JSX.Element` | One face per CRUMB, drawn beside the crumb's link in every trail outlines owns (a node's breadcrumbs, a day's row) and handed by each search door to the place line. It is a door of its own, so it sits beside the link rather than inside it. Returning nothing leaves the crumb as it was; with no contributor the slot draws nothing. |
 
 ## Declaring and registering
 

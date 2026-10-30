@@ -844,6 +844,30 @@ starts its agent and delivers the draft to that conversation. The subtree
 remains visible throughout. A bound node instead uses **fresh start** to replace
 its conversation, or **close the agent** to release it back to the unclaimed chats.
 
+### The agent above
+
+A node under a node agent says so, and the saying is a door. The **agent-above
+pill** — `↑ <engine mark> <ancestor title> · <engine name>` — names the
+**closest** ancestor (self excluded) that has a conversation in the live roster:
+in the pinned head of an unbound node's page, where its agent line would be, and
+at the end of a bound node's agent line (the page, a folded row, and the docked
+column). Pressing it opens that ancestor's own conversation page, exactly as a
+Chats row does.
+
+Every crumb of a bound ancestor wears that agent's **mark**, in the breadcrumbs
+above a node, on a day's row, and in a search result's place line, and each mark
+is the same door. When two ancestors are bound, every bound crumb is marked and
+the pill names only the closest. The row menu and ⌘K offer **Open the agent
+above** for the selected row or the zoomed node; both are absent when nothing is
+bound above.
+
+Two things make it live rather than a snapshot. The trail comes from the page
+reading this tab already holds (`zoomed.trail`, a day entry's trail, or a file's
+own parent links), and the roster answers which of those nodes has a
+conversation — so starting, closing or retitling an ancestor retargets the pill
+(or leaves no pill) without a reload. With chat switched off there is no pill
+and no mark, and the crumbs are the text they always were.
+
 ### Needs you, Chats, and the palette
 **Needs you** lists agents waiting for answers before agents that are not
 running, newest activity first within each group. A row shows its question count
@@ -868,6 +892,9 @@ agent opens the same page with a plain composer. The open row is marked current.
 Search **Agents** or a title in the palette to reach every agent, including those
 beyond the Chats cap. Palette rows name their standing and use the same
 navigation rule. Both regions and the palette contribution withdraw with chat.
+**Open the agent above** is the same door as the pill, for the keyboard: it
+acts on the focused row, or else the zoomed node, of the focused pane, and it
+is absent when nothing is bound above that node.
 
 **New chat** is a row in the ⌘K palette (search **New chat** or **Agents**),
 and the **+** on Chats opens the palette already on it. It asks two things,
