@@ -19,6 +19,7 @@
  */
 
 import * as assert from "node:assert";
+import * as fs from "node:fs";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
 import { feltOn, shiftDay } from "@olai/format";
@@ -126,6 +127,17 @@ Then(
   },
 );
 
+/** What the row is CALLED — the link's name, which is its title and not the
+ *  whole of its text. The felt word rides beside the name rather than in it, so
+ *  a title edit has to be asked here rather than in the row's `innerText`. */
+Then(
+  "the column's row {string} is named {string}",
+  async function (this: OlaiWorld, id: string, said: string) {
+    await this.showSidebar();
+    await this.expectChromeAttribute(`${rowOf(id)} a`, "aria-label", said, `the row for "${id}"`);
+  },
+);
+
 /** Which side of now the row's day is on — the fact the dot's shape and the
  *  felt word are both read off. */
 Then(
@@ -159,6 +171,28 @@ Then("every late row says how far away its day feels", async function (this: Ola
     );
   }
 });
+
+/**
+ * A title rewritten UNDER the page — another writer's tab, or a `git pull`.
+ *
+ * This is the case the reading's equality exists for: one late node is still
+ * one, so BOTH counts stand still, and what has to reach the column on its own
+ * is the row itself (`sameOwedReading` compares the rows). The outline is found
+ * by the id it holds rather than named, because which file a node lives in is
+ * not what the scenario is about.
+ */
+When(
+  "the title of {string} is rewritten as {string} on disk",
+  function (this: OlaiWorld, id: string, title: string) {
+    const holds = (file: string): boolean =>
+      this.servedNodes(file).some((node) => node["id"] === id);
+    const file = fs.readdirSync(this.scratch()).find((one) => one.endsWith(".olai") && holds(one));
+    if (file === undefined) throw new Error(`no served outline holds "${id}"`);
+    this.writeServed(file, this.servedNodes(file)
+      .map((node) => JSON.stringify(node["id"] === id ? { ...node, title } : node))
+      .join("\n"));
+  },
+);
 
 // ── pressing one ───────────────────────────────────────────────────────
 

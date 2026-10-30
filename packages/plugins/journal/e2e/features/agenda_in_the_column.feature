@@ -70,6 +70,20 @@ Feature: What is owed, listed under the door
     And there should be no page errors
 
   @scratch:agenda
+  Scenario: A row's title follows the file while both counts stand still
+    Given I open the outline "work.olai"
+    And I mark the page
+    And the column's row "posts" is named "dig the post holes"
+    # One late node is still one: neither count moves, so what has to arrive on
+    # its own is the ROW — which is why the reading compares the rows and not
+    # only the numbers over them.
+    When the title of "posts" is rewritten as "dig the post holes deeper" on disk
+    Then the column's row "posts" is named "dig the post holes deeper"
+    And the agenda entry is on fire with 3 late
+    And the page has not reloaded
+    And there should be no page errors
+
+  @scratch:agenda
   Scenario: The cap holds, and the rest is one line to the page
     Given I open the outline "work.olai"
     And I mark the page

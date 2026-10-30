@@ -50,7 +50,8 @@
  */
 
 import { feltOn, type OwedRow } from "@olai/format"
-import { For, Show } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { type Accessor, createMemo, Show } from "solid-js"
 
 import { ENTRY_SHAPE, HEAD_ACTION, ROW_GAP } from "olai-plugin-layout/entry"
 import { Link } from "olai-plugin-navigation/routing"
@@ -68,37 +69,46 @@ export const ROWS_ID = "journal-agenda-rows"
 /**
  * One owed row: the dot, the title, and the felt distance for late work.
  *
+ * THE ROW ARRIVES AS AN ACCESSOR and is drawn by `id` (see `AgendaRows`), so a
+ * frame that changed one title updates that row's bindings and leaves the other
+ * four alone — remounting a list of links on every published revision would
+ * take the focus and the hover with it.
+ *
  * THE LINK IS NAMED BY THE TITLE, and the dot is `aria-hidden`: what a reader
  * hears is the name of the thing, which is what a press opens. The felt word is
  * TEXT and not part of the name — "5 days ago" beside a title announced as part
  * of it would make the link's name change with the calendar.
+ *
+ * HOW FAR AWAY the day is, is ONE memo per row: the dot's shape, the felt word
+ * and the row's `data-when` are three readings of it, and `feltOn` is a
+ * subtraction and a ramp rather than a property read.
  */
-function Row(props: { readonly row: OwedRow; readonly today: string }) {
-  const felt = () => feltOn(props.row.date, props.today)
+function Row(props: { readonly row: Accessor<OwedRow>; readonly today: string }) {
+  const felt = createMemo(() => feltOn(props.row().date, props.today))
   const late = () => felt().standing === "late"
   return (
     <li
       data-testid={TESTID.agendaRow}
-      data-node-id={props.row.id}
-      data-file={props.row.file}
+      data-node-id={props.row().id}
+      data-file={props.row().file}
       data-when={felt().standing}
-      data-date={props.row.date}
+      data-date={props.row().date}
     >
       <Link
-        route={zoomNode(props.row.id)}
+        route={zoomNode(props.row().id)}
         class={`${ENTRY_SHAPE} ${ROW_GAP}`}
-        title={props.row.title}
-        label={props.row.title}
+        title={props.row().title}
+        label={props.row().title}
       >
         <span
-          class={`size-1.5 shrink-0 rounded-full ${ROW_DOT[late() ? "overdue" : "today"]}`}
+          class={`size-1.5 shrink-0 rounded-full ${late() ? ROW_DOT.overdue : ROW_DOT.today}`}
           // The SHAPE is the promise, as it is on the rail: a filled mark for
           // late work and a ring for today's, so the two differ with no colour
           // at all. A scenario asks this rather than the classes that paint it.
           data-mark={late() ? "filled" : "ring"}
           aria-hidden="true"
         />
-        <span class="min-w-0 flex-1 truncate">{props.row.title}</span>
+        <span class="min-w-0 flex-1 truncate">{props.row().title}</span>
         <Show when={late() ? felt().distance : undefined}>
           {(distance) => <span class="shrink-0 text-label text-alarm">{distance()}</span>}
         </Show>
@@ -120,7 +130,10 @@ export function AgendaRows(props: {
   readonly more: number
   readonly today: string
 }) {
-  const anyLate = () => props.rows.some((row) => feltOn(row.date, props.today).standing === "late")
+  /** Whether the line down the list's left is the alarm's — ONE reading of the
+   *  rows, so a hover (which re-runs the class binding) does not re-count the
+   *  list, and a row arriving re-counts it once. */
+  const anyLate = createMemo(() => props.rows.some((row) => feltOn(row.date, props.today).standing === "late"))
   return (
     <div
       id={ROWS_ID}
@@ -128,7 +141,13 @@ export function AgendaRows(props: {
       data-testid={TESTID.agendaRows}
     >
       <ul class="m-0 list-none p-0">
-        <For each={props.rows}>{(row) => <Row row={row} today={props.today} />}</For>
+        {/* Keyed by the NODE, not by the object: the reading mints fresh rows
+            per frame (a value, not the wire's live store), and drawing those
+            positionally would rebuild every link on every revision
+            (`../agenda/Day.tsx` draws a day's rows the same way). */}
+        <Key each={props.rows} by={(row) => row.id}>
+          {(row) => <Row row={row} today={props.today} />}
+        </Key>
       </ul>
       <Show when={props.more > 0}>
         <Link

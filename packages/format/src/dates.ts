@@ -145,8 +145,8 @@ export const DatedAnswer = Schema.Struct({
 export type DatedAnswer = typeof DatedAnswer.Type
 
 /** When two answers name the same days, so the subscription carrying them can
- *  stay quiet — `./agenda.ts`'s `sameOwed` one reading over, and derived from
- *  the schema for the same reason. It compares the list IN ORDER, which
+ *  stay quiet — `./agenda.ts`'s `sameOwedReading` one reading over, and derived
+ *  from the schema for the same reason. It compares the list IN ORDER, which
  *  {@link Derived.byDay}'s key order is what guarantees. */
 export const sameDated: (a: DatedAnswer, b: DatedAnswer) => boolean = Schema
   .toEquivalence(DatedAnswer)
