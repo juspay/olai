@@ -62,6 +62,7 @@ import { TARGET } from "@olai/ui-primitives/touch.ts"
 import { createCursor } from "@olai/ui-primitives/cursor.ts"
 import type { NodeSearch } from "olai-plugin-search/reading"
 import { Result, type RowTestids } from "olai-plugin-search/ui/Result.tsx"
+import type { CrumbFaces } from "olai-plugin-search/ui/PlaceLine.tsx"
 import { type HitRow, hitRow } from "olai-plugin-search/ui/row.ts"
 
 /**
@@ -110,6 +111,10 @@ export function Shortlist(props: {
   readonly query?: Signal<string>
   readonly label: string
   readonly testids: ShortlistTestids
+  /** What a door hangs on a hit's ancestor crumbs, read from
+   *  `outline.crumb.aside` by the door's own faces holder. Absent draws the
+   *  plain place text. */
+  readonly faces?: CrumbFaces
   /** Take this hit. The door knows what a take MEANS — a reference written, a
    *  row carried — and this knows only which row was chosen. */
   readonly onTake: (hit: NodeHit) => void
@@ -346,6 +351,7 @@ export function Shortlist(props: {
 
                 place={row(index).place}
                 props={row(index).props}
+                faces={props.faces}
                 active={isCurrent(index)}
                 testids={props.testids.row}
                 id={row(index).id}

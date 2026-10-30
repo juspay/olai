@@ -95,6 +95,18 @@ export const NodeHit = Schema.Struct({
    */
   matchedProps: Schema.optionalKey(Schema.Array(Schema.String)),
   /**
+   * THE IDS of the ancestors `path` names, in the same order — outermost
+   * first, never including the node itself.
+   *
+   * A title is enough to SAY where a hit sits and not enough to DO anything
+   * about where it sits: a browser that wants to mark the ancestor holding a
+   * conversation needs the id, and walking the loaded set from a trip the
+   * answer already made would be a second answer to "where does this node
+   * hang" that could disagree with `path`. So the walk's ids travel beside its
+   * titles, and no caller reconstructs one from the other.
+   */
+  pathIds: Schema.Array(Schema.String),
+  /**
    * The node's NOTE, verbatim — present only when the query ASKED for it
    * ({@link SearchRequest.withDesc}) and the node has one.
    *

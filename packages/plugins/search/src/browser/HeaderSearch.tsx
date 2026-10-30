@@ -55,7 +55,7 @@ import { actionHref } from "olai-plugin-navigation/palette-model"
  * before the blur.
  */
 import type { Claims } from "@olai/format"
-import { boxFace } from "./faces.ts"
+import { boxFace, crumbFaces } from "./faces.ts"
 import type {} from "../contracts/box.ts"
 import { TESTID as IDS_NAVIGATION } from "olai-plugin-navigation/testids"
 import { needlesFrom } from "@olai/format"
@@ -327,6 +327,7 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
                         needles={needles()}
                         place={item().place}
                         props={item().props}
+                        faces={crumbFaces()}
                         active={isCurrent(index)}
                         testids={HEADER_ROW}
                         id={item().id}
