@@ -26,9 +26,11 @@ const hung = <T,>(plugin: string, face: T): Hung<T> => ({ plugin, face })
 /** The one every prefix test is written against: an adapter holding `+`. */
 const PREFIX: PalettePrefix = { value: "+", label: "append", empty: "type text", testid: "append", after: "+ ", run: async () => ({ tone: "aside", text: "appended" }) }
 
-/** A hit on a record, with the address every hit carries. */
-const node = (fields: Omit<NodeHit, "at">): NodeHit => ({
+/** A hit on a record, with the address every hit carries. Ancestor ids default
+ *  to none — the cases about the place line name them where they need them. */
+const node = (fields: Omit<NodeHit, "at" | "pathIds"> & { readonly pathIds?: ReadonlyArray<string> }): NodeHit => ({
   at: { kind: "node", id: NodeId.make(fields.id) },
+  pathIds: [],
   ...fields,
 })
 
@@ -98,6 +100,22 @@ test("the place separates the file and nearest ancestor from the middle", () => 
     matched: "title",
   }), atOnce)
   expect(item.place).toEqual({ file: "house.olai", middle: "kitchen remodel #home", nearest: "install the cabinets" })
+})
+
+test("ancestor ids ride beside the titles, for the crumb a mark hangs on", () => {
+  const item = hitItem(node({
+    id: "hinges",
+    title: "pick the hinges",
+    file: "house.olai",
+    line: 6,
+    path: ["kitchen remodel #home", "install the cabinets"],
+    pathIds: ["kitchen", "install"],
+    matched: "title",
+  }), atOnce)
+  expect(item.place).toMatchObject({
+    middleCrumbs: [{ id: "kitchen", title: "kitchen remodel #home" }],
+    nearestCrumb: { id: "install", title: "install the cabinets" },
+  })
 })
 
 test("a node at the top level is placed by its file", () => {

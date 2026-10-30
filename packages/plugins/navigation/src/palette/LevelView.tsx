@@ -12,6 +12,7 @@ import type { needlesFrom } from "@olai/format"
 import { TESTID } from "olai-plugin-navigation/testids"
 import { Result } from "olai-plugin-search/ui/Result.tsx"
 import { fileClaims } from "../pages.ts"
+import { paletteCrumbs } from "../faces.ts"
 import type { PaletteItem } from "./items.ts"
 import type { Crumb, Live } from "./level-owner.ts"
 import type { PaletteOption } from "./levels.ts"
@@ -117,6 +118,7 @@ export function LevelView(props: {
                     hint={item().hint ?? (item().action.kind === "level" ? "›" : undefined)}
                     place={item().place}
                     props={item().props}
+                    faces={paletteCrumbs()}
                     active={props.lit(index())}
                     testids={PALETTE_ROW}
                     id={item().id}

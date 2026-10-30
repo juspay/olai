@@ -65,6 +65,7 @@
  * the file being unable to say it.
  */
 import { servedDirectory } from "../vault.ts"
+import { crumbAsides } from "../faces.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 import type { Signal } from "solid-js"
 import type { RegularNode } from "@olai/format"
@@ -202,6 +203,7 @@ export function EdgePanel(props: {
         query={props.query}
         label={words().placeholder}
         testids={EDGE_LIST}
+        faces={crumbAsides()}
         onTake={(hit) => props.onWrite(linking(props.node.id, props.relation, hit.id))}
       />
 

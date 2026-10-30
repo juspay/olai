@@ -36,6 +36,7 @@
  * `app.keys`, and neither has ever read the other's.
  */
 import { heldFaces } from "@olai/plugin-api"
+import type {} from "olai-plugin-outlines/slots"
 
 /** THE RENDERER'S, and the only reader is `./browser.tsx`'s settling of
  *  `app.route` into `./pages.ts`. */
@@ -44,3 +45,8 @@ export const { hold: holdRouteFaces, hung: routeFaces } = heldFaces()
 /** ...and THE PALETTE'S: the rows other rows hang in it and the chords they
  *  register (`./palette/Palette.tsx`). */
 export const { hold: holdPaletteFaces, hung: paletteFaces, only: paletteOnly } = heldFaces()
+
+/** What another row hangs on a search row's ancestor crumbs — chat's agent
+ *  mark. A row's place line hands these to search's `PlaceLine`, which draws
+ *  one per crumb; empty with no such row, and the place stays plain text. */
+export const paletteCrumbs = () => paletteFaces("outline.crumb.aside")

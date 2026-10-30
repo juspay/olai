@@ -53,6 +53,7 @@
  * outlives the panel a landed write closes).
  */
 import { servedDirectory } from "../vault.ts"
+import { crumbAsides } from "../faces.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 import type { Edit } from "@olai/surface"
 import type { Accessor, Signal } from "solid-js"
@@ -160,6 +161,7 @@ export function MovePicker(props: {
         query={props.query}
         label="Search for where to move it"
         testids={MOVE_LIST}
+        faces={crumbAsides()}
         refusing={{
           testid: TESTID.moveRefused,
           // WHICH HITS are being judged, handed up so the host can ask about
