@@ -1397,12 +1397,19 @@ const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
           if (rowOfMember.has(member) || !reachedMembers.has(member)) return false
           const own = tree.manifestOf(member)["name"]
           if (typeof own !== "string" || !namedByRoots.has(own)) return false
-          // ...AND NOT COUNTING A BENCH: a post-hoc closure test that lists the
-          // packages a build REFUSES names every row too, and it is not a
-          // composition. A roster is production code.
+          // ...AND NOT COUNTING ITS OWN ROOT FILES. A root may name several
+          // rows by definition, so a package that merely HOLDS an entry would
+          // become the roster the moment another root imported it — and then
+          // every row importing that package's shared module is "a row imports
+          // the registry". A roster is the production code BESIDE the entries.
+          // ...AND NOT A BENCH: a post-hoc closure test that lists the packages a
+          // build REFUSES names every row too, and it is not a composition.
           const named = new Set(
             tree.sources
-              .filter((source) => tree.memberOf(source.file) === member && !bench(source.file))
+              .filter(
+                (source) =>
+                  tree.memberOf(source.file) === member && !rootFiles.has(source.file) && !bench(source.file),
+              )
               .flatMap((source) => [...namesOf(source.file)]),
           )
           // EVERY ROW, BY ANY OF ITS PACKAGES: a row may span several packages,
@@ -1971,16 +1978,42 @@ const specFor = (rule: RegExp): string | undefined => {
   )
 }
 
-/** A host package's production file with no spelling of this row yet — where a
- *  planted one is unambiguous. */
-const hostFileSpellingNothing = (facts: Facts, row: string): string | undefined =>
-  facts.production.find(
-    (source) =>
-      source.grammar !== "css"
-      && !facts.rootFiles.has(source.file)
-      && !facts.rowOfMember.has(facts.tree.memberOf(source.file) ?? "")
-      && spelledIn(row, facts.tree.codeOf(source.file)) === 0,
-  )?.file
+/**
+ * WHERE A `names` PLANT GOES, and WHOSE WORD IT SPELLS.
+ *
+ * A host file that spells nothing gets the row's own word — unless the only
+ * non-row package IS the roster, which `names` exempts: then the plant would be
+ * invisible. So the fallback is a ROW package's file spelling a NEIGHBOUR's
+ * word, because a row's own packages are exactly where its own word may live and
+ * a neighbour's may not.
+ *
+ * `undefined` only when there is nowhere at all — one row and no host — which
+ * `prove` reports as a miss rather than a pass.
+ */
+const plantSpot = (facts: Facts, row: string): { readonly file: string; readonly word: string } | undefined => {
+  const quiet = (file: string, word: string): boolean => spelledIn(word, facts.tree.codeOf(file)) === 0
+  const host = facts.production.find((source) => {
+    if (source.grammar === "css" || facts.rootFiles.has(source.file)) return false
+    const member = facts.tree.memberOf(source.file)
+    return (
+      member !== undefined
+      && member !== facts.registry
+      && !facts.rowOfMember.has(member)
+      && quiet(source.file, row)
+    )
+  })
+  if (host !== undefined) return { file: host.file, word: row }
+
+  const neighbour = [...facts.rows.keys()].sort().find((other) => other !== row)
+  if (neighbour === undefined) return undefined
+  const mine = facts.rows.get(row) ?? []
+  const theirs = facts.production.find((source) => {
+    if (source.grammar === "css") return false
+    const member = facts.tree.memberOf(source.file)
+    return member !== undefined && mine.includes(member) && quiet(source.file, neighbour)
+  })
+  return theirs === undefined ? undefined : { file: theirs.file, word: neighbour }
+}
 
 /**
  * ONE CANONICAL MUTATION PER CLAIM, each the exact defect the claim is about.
@@ -2047,15 +2080,15 @@ const CANONICAL: ReadonlyArray<Canonical> = [
     claim: "names",
     plan: (facts) => {
       // THE ENV-SHAPED SPELLING, which a leading `\b` cannot see: `_` is a
-      // separator, so a knob at a root is a spelling of the row's word.
+      // separator, so a knob at a root is a spelling of the word.
       const row = [...facts.rows.keys()].sort()[0]
       if (row === undefined) return undefined
-      const host = hostFileSpellingNothing(facts, row)
-      if (host === undefined) return undefined
-      const knob = `PROVED_${row.replace(/-/g, "_").toUpperCase()}_BIN`
+      const spot = plantSpot(facts, row)
+      if (spot === undefined) return undefined
+      const knob = `PROVED_${spot.word.replace(/-/g, "_").toUpperCase()}_BIN`
       return {
-        what: `a host package holds the env-shaped knob \`${knob}\``,
-        edits: [{ file: host, append: `\nexport const ${knob} = ""\n` }],
+        what: `a host package holds the env-shaped knob \`${knob}\` (the \`${spot.word}\` row's word)`,
+        edits: [{ file: spot.file, append: `\nexport const ${knob} = ""\n` }],
       }
     },
   },
@@ -2069,17 +2102,17 @@ const CANONICAL: ReadonlyArray<Canonical> = [
       const hyphenated = rows.find((row) => row.includes("-"))
       const row = hyphenated ?? rows[0]
       if (row === undefined) return undefined
-      const host = hostFileSpellingNothing(facts, row)
-      if (host === undefined) return undefined
+      const spot = plantSpot(facts, row)
+      if (spot === undefined) return undefined
       // AT A LINE START, because `provedAlpha` is not a spelling of `alpha`: a
       // leading boundary is the rule, and a mutation glued to an identifier
       // would be testing the mutation rather than the claim.
-      const spelled = hyphenated === undefined
-        ? row.toUpperCase()
-        : row.split("-").map((word, at) => (at === 0 ? word : `${word.charAt(0).toUpperCase()}${word.slice(1)}`)).join("")
+      const spelled = spot.word.includes("-")
+        ? spot.word.split("-").map((word, at) => (at === 0 ? word : `${word.charAt(0).toUpperCase()}${word.slice(1)}`)).join("")
+        : spot.word.toUpperCase()
       return {
-        what: `a host package spells \`${row}\` as \`${spelled}\``,
-        edits: [{ file: host, append: `\nexport const ${spelled} = 1\n` }],
+        what: `a host package spells \`${spot.word}\` as \`${spelled}\``,
+        edits: [{ file: spot.file, append: `\nexport const ${spelled} = 1\n` }],
       }
     },
   },

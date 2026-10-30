@@ -549,6 +549,148 @@ describe("a second consumer's tree", () => {
   })
 })
 
+/**
+ * A HOST THAT HOLDS A ROOT — and a root that imports that host.
+ *
+ * The host's own entry names both rows (a root may name several), and the two
+ * rows share a module of the host's. That is enough to make the host look like a
+ * roster under a reading that counts its own root files — and then every row
+ * importing the shared module reads as "a row imports the registry". No roster
+ * is a state: the composition here is the two entries, not a table.
+ */
+const ROOT_IN_HOST: Files = {
+  "package.json": manifest({ name: "toy", private: true, workspaces: ["packages/*"] }),
+  "src/main.ts": [
+    'import { shared } from "toy-host/shared"',
+    'import { a } from "toy-row-alpha"',
+    'import { b } from "toy-row-beta"',
+    "export const main = [shared, a, b]",
+    "",
+  ].join("\n"),
+  "packages/host/package.json": manifest({ name: "toy-host", exports: { "./shared": "./src/shared.ts" } }),
+  "packages/host/src/shared.ts": "export const shared = 1\n",
+  // ...a BROWSER root inside the host, naming both rows.
+  "packages/host/src/tab.ts": 'import { a } from "toy-row-alpha"\nimport { b } from "toy-row-beta"\nexport const tab = [a, b]\n',
+  "packages/row-alpha/package.json": manifest({
+    name: "toy-row-alpha",
+    exports: { ".": "./src/index.ts" },
+    cordis: { row: "alpha" },
+  }),
+  "packages/row-alpha/src/index.ts": 'import { shared } from "toy-host/shared"\nexport const a = shared\nexport const alphaName = 1\n',
+  "packages/row-beta/package.json": manifest({
+    name: "toy-row-beta",
+    exports: { ".": "./src/index.ts" },
+    cordis: { row: "beta" },
+  }),
+  "packages/row-beta/src/index.ts": 'import { shared } from "toy-host/shared"\nexport const b = shared\nexport const betaName = 1\n',
+}
+
+const ROOT_IN_HOST_ROOTS = [
+  { entry: "src/main.ts", graph: "node" },
+  { entry: "packages/host/src/tab.ts", graph: "browser" },
+] as const
+
+/**
+ * THE ROSTER IS THE ONLY NON-ROW PACKAGE — odu's shape, and the reason a `names`
+ * plant cannot only look at hosts: the roster is exempt from that claim, so a
+ * plant there would be invisible and `prove` would report a miss on a tree that
+ * is fine.
+ */
+const LONE_ROSTER: Files = {
+  "package.json": manifest({ name: "toy", private: true, workspaces: ["packages/*"] }),
+  "src/main.ts": 'import { mount } from "toy-host"\nexport const main = mount\n',
+  "packages/host/package.json": manifest({ name: "toy-host", exports: { ".": "./src/index.ts" } }),
+  // The roster: it names `alpha` through `toy-row-alpha` and `ci` through
+  // `toy-row-rc`, which is one package of a two-package row.
+  "packages/host/src/index.ts": [
+    'import { a } from "toy-row-alpha"',
+    'import { c } from "toy-row-rc"',
+    "export const ROWS = [a, c]",
+    "",
+  ].join("\n"),
+  // ...and a closure test that refuses packages: a bench is not a composition.
+  "packages/host/src/closure.test.ts": 'export const REFUSED = ["toy-row-alpha", "toy-row-rc", "toy-row-rv"]\n',
+  "packages/row-alpha/package.json": manifest({
+    name: "toy-row-alpha",
+    exports: { ".": "./src/index.ts", "./contract": "./src/contract.ts" },
+    cordis: { row: "alpha" },
+  }),
+  "packages/row-alpha/src/index.ts": "export const a = 1\nexport const alphaName = 1\n",
+  "packages/row-alpha/src/contract.ts": "export const K = 1\n",
+  "packages/row-rc/package.json": manifest({
+    name: "toy-row-rc",
+    exports: { ".": "./src/index.ts" },
+    cordis: { row: "ci" },
+  }),
+  "packages/row-rc/src/index.ts": 'import { K } from "toy-row-alpha/contract"\nexport const c = K\nexport const ciName = 1\n',
+  "packages/row-rv/package.json": manifest({
+    name: "toy-row-rv",
+    exports: { ".": "./src/index.ts" },
+    cordis: { row: "ci" },
+  }),
+  "packages/row-rv/src/index.ts": "export const v = 1\n",
+}
+
+describe("a host that holds a root", () => {
+  test("it is not the roster, and a row sharing its module is not a cycle", () => {
+    const report = withTree(ROOT_IN_HOST, (repo) =>
+      fence({ repo, rows: rowsFromManifests(repo), roots: [...ROOT_IN_HOST_ROOTS], collisions: {} }),
+    )
+    expect(report.findings).toEqual([])
+    expect(report.reading.registry).toBeUndefined()
+  })
+
+  test("...and `prove` runs over it", () => {
+    const proof = withTree(ROOT_IN_HOST, (repo) =>
+      prove({ repo, rows: rowsFromManifests(repo), roots: [...ROOT_IN_HOST_ROOTS], collisions: {} }),
+    )
+    expect(proof.baseline).toEqual([])
+    expect(proof.mutations.map((one) => one.caught)).toEqual([true, true, true, true, true, true])
+    expect(proof.mutations.filter((one) => one.spill.length > 0)).toEqual([])
+    expect(proof.ok).toBe(true)
+  })
+})
+
+describe("a lone roster", () => {
+  test("it is the roster, through one package of a two-package row", () => {
+    const report = withTree(LONE_ROSTER, (repo) =>
+      fence({
+        repo,
+        rows: rowsFromManifests(repo),
+        roots: [{ entry: "src/main.ts", graph: "node" }],
+        collisions: {},
+      }),
+    )
+    expect(report.findings).toEqual([])
+    expect(report.reading.registry).toBe("packages/host")
+  })
+
+  test("...and the `names` plants find somewhere that is not the roster", () => {
+    // The roster is exempt from `names`, so a plant there is invisible. With no
+    // other host package, the plant goes into a row package and spells a
+    // NEIGHBOUR's word — which is exactly a collision.
+    const proof = withTree(LONE_ROSTER, (repo) =>
+      prove({
+        repo,
+        rows: rowsFromManifests(repo),
+        roots: [{ entry: "src/main.ts", graph: "node" }],
+        collisions: {},
+      }),
+    )
+    expect(proof.baseline).toEqual([])
+    expect(proof.mutations.map((one) => [one.claim, one.caught])).toEqual([
+      ["imports", true],
+      ["door-graphs", true],
+      ["names", true],
+      ["names", true],
+      ["live-state", true],
+      ["registry", true],
+    ])
+    expect(proof.mutations.filter((one) => one.spill.length > 0)).toEqual([])
+    expect(proof.ok).toBe(true)
+  })
+})
+
 // ── each claim, over its own defect ───────────────────────────────────
 
 describe("imports", () => {
