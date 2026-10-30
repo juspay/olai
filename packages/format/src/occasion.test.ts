@@ -76,12 +76,12 @@ import {
   owedIn,
   owedNow,
   owedOf,
-  type OwedRow,
   owedReading,
 } from "./agenda.ts"
 import { datedDays, datedOn, type DayGroup } from "./dates.ts"
 import { byDayKey, derive, type Derived } from "./derive.ts"
 import {
+  firstRowsOf,
   nodesOf,
   seeded,
   walkedAgenda,
@@ -291,7 +291,7 @@ test("every day reading answers what the walk it replaced answered", () => {
           for (const cap of [0, 1, 3, 50]) {
             expect([cap, owedReading(view, today, cap)]).toEqual([cap, {
               ...owedOf(walked),
-              rows: firstRows(walked, cap),
+              rows: firstRowsOf(walked, cap),
             }])
           }
         })
@@ -322,29 +322,6 @@ const agendaSaid = (agenda: Agenda): string => {
     days.map((day) => `${day.date}\n${drawn(day.groups)}`).join("\n")
   return `late:\n${line(agenda.overdue)}\ntoday:\n${drawn(agenda.today)}\n` +
     `ahead:\n${line(agenda.upcoming)}\nowed: ${owed.overdue} late, ${owed.today} today`
-}
-
-/**
- * The first `cap` rows an agenda owes, in the order it draws them, as the wire's
- * own shape — the oracle `owedReading`'s rows are held to.
- *
- * It reads the WALK's agenda, so a row the index invents, drops, mis-orders or
- * mis-titles is a difference rather than a second opinion; and it is spelled
- * over `DayEntry`s rather than over the index's raw records, which is the point
- * — the two sides arrive at the same row from opposite directions.
- */
-const firstRows = (agenda: Agenda, cap: number): ReadonlyArray<OwedRow> => {
-  const nodes = [
-    ...agenda.overdue.flatMap((day) => day.groups.flatMap((group) => group.nodes)),
-    ...agenda.today.flatMap((group) => group.nodes),
-  ]
-  return nodes.slice(0, Math.max(cap, 0)).map((entry) => ({
-    id: entry.shows.node.id,
-    file: entry.shows.file,
-    title: entry.shows.node.title,
-    date: entry.date,
-    ...(entry.status === undefined ? {} : { status: entry.status }),
-  }))
 }
 
 test("a time is the five characters after either separator a date may be written with", () => {

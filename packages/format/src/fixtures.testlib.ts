@@ -30,7 +30,7 @@
 
 import { Result, Schema } from "effect"
 
-import { type Agenda, type AgendaDay, UPCOMING_DAYS } from "./agenda.ts"
+import { type Agenda, type AgendaDay, type OwedRow, UPCOMING_DAYS } from "./agenda.ts"
 import { type DayGroup, groupedOn } from "./dates.ts"
 import { byDayKey, derive, unfinished, type Derived } from "./derive.ts"
 import type { OutlineError } from "./errors.ts"
@@ -775,6 +775,38 @@ export const walkedAgenda = (derived: Derived, today: string): Agenda => {
     if (groups.length > 0) upcoming.push({ date, groups })
   }
   return { overdue, today: owedWalk(derived, walked.get(today) ?? []), upcoming }
+}
+
+/**
+ * The first `cap` rows a walked agenda owes, in the order it draws them, as the
+ * wire's own row shape — the oracle a reading's `rows` are held to.
+ *
+ * IT LIVES BESIDE THE WALK, and for that walk's reason: two suites hold
+ * `owedReading`'s rows to an agenda (`./occasion.test.ts` over generated
+ * corpora, `olai-plugin-journal`'s `owed.index.test.ts` over real writes), and
+ * two copies of "the first rows of this agenda" would be two oracles free to
+ * disagree about the thing they exist to pin. It reads the agenda's DRESSED
+ * rows either way — the reading under test reaches the same rows from raw
+ * records, so a row it invents, drops, mis-orders or mis-titles is a
+ * difference rather than a second opinion.
+ *
+ * A cap that is not a number draws nothing, which is the reading's own rule
+ * (`./agenda.ts`'s `owedRows`), stated here rather than left to `slice`'s
+ * reading of `NaN`.
+ */
+export const firstRowsOf = (agenda: Agenda, cap: number): ReadonlyArray<OwedRow> => {
+  const nodes = [
+    ...agenda.overdue.flatMap((day) => day.groups.flatMap((group) => group.nodes)),
+    ...agenda.today.flatMap((group) => group.nodes),
+  ]
+  const want = Number.isFinite(cap) ? Math.max(0, Math.floor(cap)) : 0
+  return nodes.slice(0, want).map((entry) => ({
+    id: entry.shows.node.id,
+    file: entry.shows.file,
+    title: entry.shows.node.title,
+    date: entry.date,
+    ...(entry.status === undefined ? {} : { status: entry.status }),
+  }))
 }
 
 /** What is OWED on one day: unfinished work (`todo` or `doing`).

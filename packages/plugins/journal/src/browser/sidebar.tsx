@@ -53,14 +53,6 @@ export function AgendaEntry() {
    *  the one in front — one condition, before the fold, so the chevron and the
    *  region it controls cannot come apart. */
   const shown = () => mark().face !== "quiet" && !current()
-  const rows = createMemo(() => reading()?.rows ?? [])
-  /** What is owed but not drawn: the two counts are the whole truth and the
-   *  rows are a (capped) projection of it — so this is arithmetic over one
-   *  reading rather than a second question. */
-  const more = createMemo(() => {
-    const owed = reading()
-    return owed === undefined ? 0 : Math.max(owed.overdue + owed.today - owed.rows.length, 0)
-  })
   return (
     <div
       class="mb-1"
@@ -85,8 +77,11 @@ export function AgendaEntry() {
           <AgendaFold />
         </Show>
       </div>
-      <Show when={shown() && !agendaRowsFolded()}>
-        <AgendaRows rows={rows()} more={more()} today={today()} />
+      {/* The list is drawn exactly when the reading exists and the two facts
+          above allow it; `shown()` cannot be true without one, so the
+          condition is also what makes the prop a reading rather than a maybe. */}
+      <Show when={shown() && !agendaRowsFolded() ? reading() : undefined}>
+        {(owed) => <AgendaRows reading={owed()} today={today()} />}
       </Show>
     </div>
   )

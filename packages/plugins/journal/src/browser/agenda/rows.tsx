@@ -42,14 +42,13 @@
  * ## The cap, and the way on
  *
  * The server sends the first N rows (the asker's `cap`, `../dates.ts`) and the
- * two counts are the whole truth, so what is beyond the list is
- * `overdue + today - rows.length` — arithmetic over one reading, never a second
- * question. The line that says it is a LINK to `/agenda`: the page is the fuller
- * answer, and a list that ended at five in silence would be a list claiming
- * there were five.
+ * two counts are the whole truth, so what is beyond the list is the shape's own
+ * arithmetic (`@olai/format`'s `owedMore`), never a second question. The line
+ * that says it is a LINK to `/agenda`: the page is the fuller answer, and a
+ * list that ended at five in silence would be a list claiming there were five.
  */
 
-import { feltOn, type OwedRow } from "@olai/format"
+import { feltOn, type OwedReading, type OwedRow, owedMore } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { type Accessor, createMemo, Show } from "solid-js"
 
@@ -120,20 +119,25 @@ function Row(props: { readonly row: Accessor<OwedRow>; readonly today: string })
 /**
  * The list itself — the rows, the faint line they hang off, and the way on.
  *
- * `more` is rendered only when there is more: the caller works it out from the
- * same reading (`../../sidebar.tsx`'s `AgendaEntry`), and a line that said
- * "0 more" would be a list apologising for itself.
+ * IT TAKES THE READING rather than a list and a count, because the two are one
+ * answer and the line under them is arithmetic over it (`@olai/format`'s
+ * `owedMore`): a caller that passed `rows` and worked the remainder out itself
+ * would be a second spelling of what the cap means. What is drawn is decided
+ * here — the rows by node, the line only when there is more — and the door only
+ * decides WHETHER this is drawn at all.
  */
 export function AgendaRows(props: {
-  readonly rows: ReadonlyArray<OwedRow>
-  /** How many owed rows are NOT drawn — the counts' arithmetic over this list. */
-  readonly more: number
+  readonly reading: OwedReading
   readonly today: string
 }) {
   /** Whether the line down the list's left is the alarm's — ONE reading of the
    *  rows, so a hover (which re-runs the class binding) does not re-count the
    *  list, and a row arriving re-counts it once. */
-  const anyLate = createMemo(() => props.rows.some((row) => feltOn(row.date, props.today).standing === "late"))
+  const anyLate = createMemo(() =>
+    props.reading.rows.some((row) => feltOn(row.date, props.today).standing === "late")
+  )
+  /** How many are owed and NOT drawn — a property of the reading, read once. */
+  const more = createMemo(() => owedMore(props.reading))
   return (
     <div
       id={ROWS_ID}
@@ -145,17 +149,17 @@ export function AgendaRows(props: {
             per frame (a value, not the wire's live store), and drawing those
             positionally would rebuild every link on every revision
             (`../agenda/Day.tsx` draws a day's rows the same way). */}
-        <Key each={props.rows} by={(row) => row.id}>
+        <Key each={props.reading.rows} by={(row) => row.id}>
           {(row) => <Row row={row} today={props.today} />}
         </Key>
       </ul>
-      <Show when={props.more > 0}>
+      <Show when={more() > 0}>
         <Link
           route={agendaRoute}
           testid={TESTID.agendaMore}
           class="block px-2 py-1 text-caption text-muted no-underline hover:text-ink"
         >
-          {props.more} more on the agenda
+          {more()} more on the agenda
         </Link>
       </Show>
     </div>

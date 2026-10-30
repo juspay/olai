@@ -45,8 +45,8 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import { NO_KINDS, type Agenda, type OwedRow, owedOf, type WriteRequest } from "@olai/format"
-import { walkedAgenda, walkedDays } from "@olai/format/testlib"
+import { NO_KINDS, owedOf, type WriteRequest } from "@olai/format"
+import { firstRowsOf, walkedAgenda, walkedDays } from "@olai/format/testlib"
 import { codecFor, make, type Store } from "@olai/ops"
 import { steady } from "@olai/ops/testlib"
 import * as StoreModule from "@olai/store"
@@ -126,24 +126,6 @@ const MONTHS = ["2026-06", "2026-07", "2026-08", "2026-09", "2027-01"] as const
  *  sweep reaches both ends of the truncation as well as the middle. */
 const CAPS = [0, 2, 5, 50] as const
 
-/** The first `cap` rows an agenda owes, in the order it draws them, as the
- *  wire's own shape — the oracle the door's `rows` are held to. Spelled over
- *  the WALK's dressed entries, so the door reaching the same row off the index's
- *  raw records is a comparison of two directions rather than of one. */
-const firstRows = (agenda: Agenda, cap: number): ReadonlyArray<OwedRow> => {
-  const nodes = [
-    ...agenda.overdue.flatMap((day) => day.groups.flatMap((group) => group.nodes)),
-    ...agenda.today.flatMap((group) => group.nodes),
-  ]
-  return nodes.slice(0, Math.max(cap, 0)).map((entry) => ({
-    id: entry.shows.node.id,
-    file: entry.shows.file,
-    title: entry.shows.node.title,
-    date: entry.date,
-    ...(entry.status === undefined ? {} : { status: entry.status }),
-  }))
-}
-
 /** The whole answer, and the whole of what this file asserts: the two counts
  *  and the rows beside them, against what the corpus walk says. Both are asked
  *  of the SAME derivation — the one the door itself would read — so the only
@@ -161,7 +143,7 @@ const same = (store: Store): Effect.Effect<number> =>
         const indexed = owed(derived, { today, cap })
         // The day and the cap ride the comparison, so a failure names the
         // boundary it happened at rather than only the two numbers.
-        expect([today, cap, indexed]).toEqual([today, cap, { ...counts, rows: firstRows(walked, cap) }])
+        expect([today, cap, indexed]).toEqual([today, cap, { ...counts, rows: firstRowsOf(walked, cap) }])
       }
       counted += counts.overdue + counts.today
     }

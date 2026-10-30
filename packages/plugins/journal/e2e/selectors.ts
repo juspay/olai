@@ -40,9 +40,10 @@ export const AGENDA_DAY = selector(TESTID.agendaDay);
 export const AGENDA_QUIET = selector(TESTID.agendaQuiet);
 /** Said in place of the line when nothing is due. */
 export const AGENDA_EMPTY = selector(TESTID.agendaEmpty);
-/** What that entry REPORTS, wrapped round the link: `data-owed` is the face it
- *  wears (`overdue` / `today` / `quiet`) and `data-overdue` / `data-today` are
- *  the two counts, whichever of them is on screen. */
+/** What that entry REPORTS, wrapped round the door and — while anything is
+ *  owed — the chevron and the rows under it: `data-owed` is the face it wears
+ *  (`overdue` / `today` / `quiet`) and `data-overdue` / `data-today` are the two
+ *  counts, whichever of them is on screen. */
 export const AGENDA_OWED = selector(TESTID.agendaOwed);
 /** The number on it. Absent when nothing is owed — a quiet entry wears no chip
  *  rather than a zero. */

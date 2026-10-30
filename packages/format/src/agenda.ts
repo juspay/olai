@@ -445,6 +445,22 @@ export const owedReading = (
 })
 
 /**
+ * How many owed rows the answer did not carry — the other half of the cap.
+ *
+ * THE READING'S OWN ARITHMETIC, and here rather than in the column that prints
+ * "N more on the agenda": it is a fact about this shape (`rows` is the first
+ * {@link OwedRequest.cap} of exactly `overdue + today`), so a reader that had to
+ * subtract for itself would be a second spelling of what `cap` means — and one
+ * free to disagree with the counts beside it.
+ *
+ * No clamp: the rows ARE the first few of the two counts, so the difference is
+ * nought at worst. A negative answer would mean a server that sent more rows
+ * than it counted, which is the one thing this shape exists to make impossible.
+ */
+export const owedMore = (reading: OwedReading): number =>
+  reading.overdue + reading.today - reading.rows.length
+
+/**
  * The same agenda narrowed to what a query selected — every day of the line,
  * and today between them.
  *

@@ -743,6 +743,7 @@ export {
    *  the number over it can disagree for a frame; this cannot. */
   OwedReading,
   OwedRow,
+  owedMore,
   owedReading,
   owedRows,
   sameOwedReading,
