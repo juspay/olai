@@ -32,7 +32,6 @@ import {
   doorsOf,
   edgesOf,
   graphFrom,
-  grammarOf,
   manifestAt,
   MEMBER_OF_PACKAGE,
   mainOf,
@@ -42,9 +41,9 @@ import {
   packageOf,
   PACKAGES,
   REPO,
-  sourcesUnder,
   ROOT_DECLARED,
   specifiersOf,
+  TREE,
   transpilers,
   type TreeGraph,
   walkFrom,
@@ -157,23 +156,24 @@ interface Read extends Named {
   readonly plugins: ReadonlyArray<string>
 }
 
-/** Every member's sources, read once, each with what it reaches for. */
+/** Every member's sources with what they reach for — PROJECTED from the door's
+ *  one reading (`TREE`) rather than read again. It used to re-read every file,
+ *  strip a shebang and re-detect the specifiers: a second answer to "what does
+ *  this file import", which is the kind that drifts. */
 const tree: ReadonlyMap<string, ReadonlyArray<Read>> = new Map(
   MEMBERS.map((member) => [
-    member as string,
-    sourcesUnder(path.join(PACKAGES, member)).map((file): Read => {
-      // A scripted agent opens with a shebang; the line holds no import.
-      const text = readFileSync(file, "utf8").replace(/^#![^\n]*\n/, "")
-      const grammar = grammarOf(file)
-      const relative = path.relative(PACKAGES, file)
-      const found = grammar === "css" ? cssImportsOf(text) : specifiersOf(relative, text)
-      return {
-        file: relative,
-        grammar,
-        specs: found,
-        plugins: found.filter(namesAPlugin),
-      }
-    }),
+    member,
+    TREE.sources
+      .filter((source) => TREE.memberOf(source.file) === `packages/${member}`)
+      .map((source): Read => {
+        const specs = TREE.specifiersOf(source.file)
+        return {
+          file: path.relative(PACKAGES, path.join(REPO, source.file)),
+          grammar: source.grammar,
+          specs,
+          plugins: specs.filter(namesAPlugin),
+        }
+      }),
   ]),
 )
 

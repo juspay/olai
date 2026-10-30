@@ -461,7 +461,7 @@ const expand = (repo: string, glob: string): ReadonlyArray<string> => {
 /** Every source under one directory of the workspace: the two TypeScript
  *  grammars and the one CSS grammar, because a CSS `@import` is a door a name
  *  can be spelled through. Repo-relative in, repo-relative out. */
-export const sourcesUnder = (repo: string, dir: string): ReadonlyArray<string> => {
+const sourcesUnder = (repo: string, dir: string): ReadonlyArray<string> => {
   const found: Array<string> = []
   const walk = (dir: string): void => {
     for (const entry of entriesOf(path.join(repo, dir))) {
@@ -751,7 +751,7 @@ const erasedImport = (node: ts.ImportDeclaration | ts.ExportDeclaration): boolea
  * side of a wall.
  */
 
-export const edgesOf = (file: string, text: string, runtimeOnly = false): ReadonlyArray<Edge> =>
+export const edgesOf = (file: string, text: string, runtimeOnly: boolean): ReadonlyArray<Edge> =>
   moduleEdges(parse(file, text), runtimeOnly)
 
 /** Every specifier a file names, type-only ones INCLUDED — a type import is a
@@ -1277,6 +1277,8 @@ interface Facts {
   readonly opened: ReadonlyMap<string, ReadonlyArray<string>>
   /** Shipping sources, by the declaration's reading of "test". */
   readonly production: ReadonlyArray<Source>
+  /** Every package name a file names, by specifier or by loader string. */
+  readonly namesOf: (file: string) => ReadonlySet<string>
   /** Every file any root's walk visits — `onARootWalk` and not `reachable`,
    *  because `live-state` has a reachable of its own and the two never meant
    *  the same thing. */
@@ -1354,9 +1356,9 @@ const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
   const rootFiles = new Set(declaration.roots.map((root) => posixOf(root.entry)))
   const onARootWalk = new Set(roots.flatMap((root) => root.graph.visited))
 
-  /** Every package name a file NAMES — in a specifier, or in a string a loader
-   *  would resolve. Both are how a roster spells a row. */
-  const namedPackages = (file: string): ReadonlySet<string> =>
+  /** Every package name a file NAMES — in a specifier or in a string a loader
+   *  resolves — which is how a roster and a root both spell a row. */
+  const namesOf = (file: string): ReadonlySet<string> =>
     new Set([...tree.specifiersOf(file), ...tree.literalsOf(file)].map(packageOf))
 
   // THE ROSTER, DERIVED FROM THE ROOTS: a member a root's walk reaches, that is
@@ -1376,7 +1378,7 @@ const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
           const named = new Set(
             tree.sources
               .filter((source) => tree.memberOf(source.file) === member && !rootFiles.has(source.file))
-              .flatMap((source) => [...namedPackages(source.file)]),
+              .flatMap((source) => [...namesOf(source.file)]),
           )
           return [...rowPackages].every((one) => named.has(one))
         })
@@ -1392,7 +1394,7 @@ const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
     // NO MEMBER CHECK: a consumer's entries may live beside the packages
     // (`src/main.ts`), and the composition is exactly where that layout is the
     // ordinary one.
-    const named = namedPackages(file)
+    const named = namesOf(file)
     for (const [row, packages] of rows) {
       if (composed.has(row)) continue
       const mine = packages.map((member) => tree.manifestOf(member)["name"]).filter(isString)
@@ -1430,6 +1432,7 @@ const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
     composed,
     opened,
     production,
+    namesOf,
     onARootWalk,
     reading: {
       members: tree.members.length,
@@ -1545,11 +1548,16 @@ const claimImports = (facts: Facts): ReadonlyArray<string> => {
       const row = facts.rowOfMember.get(there)
       edges += 1
 
+      // A ROW IMPORTING A ROOT FILE is one rule, so it is asked once: a
+      // specifier's KIND says how the file was named, not what naming it means.
+      if (here !== undefined && target !== undefined && facts.rootFiles.has(target)) {
+        found.push(`${source.file}: ${spec} — a row imports a root file`)
+        continue
+      }
+
       if (spec.startsWith(".")) {
         // A path into another package is never a door.
-        if (here !== undefined && target !== undefined && facts.rootFiles.has(target)) {
-          found.push(`${source.file}: ${spec} — a row imports a root file`)
-        } else if (here !== undefined) {
+        if (here !== undefined) {
           found.push(`${source.file}: ${spec} — a row imports \`${there}\` by path; ${NO_DOOR}`)
         } else {
           found.push(`${source.file}: ${spec} — \`${there}\` is reached by path, not through a door its manifest declares`)
@@ -1567,8 +1575,6 @@ const claimImports = (facts: Facts): ReadonlyArray<string> => {
             `${source.file}: ${spec} — a row imports the registry, which names every row; that is the cycle the ` +
               "manifests cannot express",
           )
-        } else if (target !== undefined && facts.rootFiles.has(target)) {
-          found.push(`${source.file}: ${spec} — a row imports a root file`)
         }
         continue
       }
@@ -1584,21 +1590,16 @@ const claimImports = (facts: Facts): ReadonlyArray<string> => {
   if (edges === 0) {
     found.push("vacuous: no file imports another package of this workspace, so every boundary claim here is empty")
   }
-  // ...AND THE ROW-TO-PACKAGE MAPPING IS NAMED SOMEWHERE. A consumer that mounts
-  // rows from a table names them as DATA rather than importing them, so the
-  // floor is "the corpus knows what a row's package is", not "a row was
-  // imported": a mapping that came back empty is what makes every boundary
-  // claim here pass over nothing.
-  // ...INCLUDING THE ROOTS, which may name the rows from outside every member:
-  // a consumer with no roster at all composes them there and nowhere else.
+  // ...AND THE ROW-TO-PACKAGE MAPPING IS NAMED SOMEWHERE — in a source, or in a
+  // ROOT, which may name the rows from outside every member because a consumer
+  // with no roster composes them there and nowhere else. The floor is "the
+  // corpus knows what a row's package is", not "a row was imported": a mapping
+  // that came back empty is what makes every boundary claim here pass over
+  // nothing.
   const namedFiles = unique([...tree.sources.map((source) => source.file), ...facts.rootFiles])
   const rowMentioned =
     facts.rows.size === 0 ||
-    namedFiles.some((file) =>
-      [...tree.specifiersOf(file), ...tree.literalsOf(file)].some((one) =>
-        facts.rowOfPackage.has(packageOf(one)),
-      ),
-    )
+    namedFiles.some((file) => [...facts.namesOf(file)].some((one) => facts.rowOfPackage.has(one)))
   if (!rowMentioned) {
     found.push(
       "vacuous: no source names a row's package at all — by specifier or by the string a loader resolves — so " +
@@ -1645,15 +1646,22 @@ const claimNames = (facts: Facts, declaration: Declaration): ReadonlyArray<strin
   const expected = declaration.collisions ?? {}
   const actual = new Map<string, Map<string, number>>()
 
-  const corpus = facts.production.filter((source) => source.grammar !== "css" && !facts.rootFiles.has(source.file))
+  /** WHERE A ROW'S WORD MAY APPEAR: its own packages, the roots, and the roster
+   *  — ONE predicate, because the sweep and its positive control are the same
+   *  partition read from its two sides, and two spellings would drift. */
+  const allowed = (file: string, row: string): boolean => {
+    if (facts.rootFiles.has(file)) return true
+    const member = tree.memberOf(file)
+    return member !== undefined && (member === facts.registry || (facts.rows.get(row) ?? []).includes(member))
+  }
+
+  const corpus = facts.production.filter(
+    (source) => source.grammar !== "css" && !facts.rootFiles.has(source.file),
+  )
   for (const source of corpus) {
-    const member = tree.memberOf(source.file)
-    // THE ROSTER NAMES EVERY ROW BY CONSTRUCTION — it is where the roster lives,
-    // and this claim is about every package EXCEPT that one.
-    if (member !== undefined && member === facts.registry) continue
     const code = tree.codeOf(source.file)
-    for (const [row, packages] of facts.rows) {
-      if (member !== undefined && packages.includes(member)) continue
+    for (const row of facts.rows.keys()) {
+      if (allowed(source.file, row)) continue
       const count = spelledIn(row, code)
       if (count === 0) continue
       const held = actual.get(row)
@@ -1684,16 +1692,11 @@ const claimNames = (facts: Facts, declaration: Declaration): ReadonlyArray<strin
   // THE POSITIVE CONTROL IS PER ROW, and it is about the rows that are CLEAN.
   // A global "the sweep found something somewhere" is red on a tree with no
   // collisions — the state every consumer starts in — and silent about the one
-  // row whose pattern broke. So each row's word is looked for where it is
-  // ALLOWED to be: its own packages, the root files and the roster.
-  const allowed = facts.production.filter((source) => {
-    if (source.grammar === "css") return false
-    if (facts.rootFiles.has(source.file)) return true
-    const member = tree.memberOf(source.file)
-    return member !== undefined && (member === facts.registry || facts.rowOfMember.has(member))
-  })
+  // row whose pattern stopped matching. So each row's word is looked for on the
+  // other side of the partition above.
+  const allowedCorpus = facts.production.filter((source) => source.grammar !== "css")
   for (const row of [...facts.rows.keys()].sort()) {
-    const seen = allowed.some((source) => spelledIn(row, tree.codeOf(source.file)) > 0)
+    const seen = allowedCorpus.some((source) => allowed(source.file, row) && spelledIn(row, tree.codeOf(source.file)) > 0)
     if (!seen) {
       found.push(
         `row \`${row}\` is spelled nowhere its own packages, the roots or the roster can see it — a pattern ` +

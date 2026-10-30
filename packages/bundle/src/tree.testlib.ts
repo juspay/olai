@@ -37,7 +37,6 @@
  * closure its claims walk. Both are structural, not sloppiness.
  */
 
-import { readFileSync } from "node:fs"
 import * as path from "node:path"
 
 import {
@@ -212,7 +211,3 @@ export const composing = (
     }
     return [{ ...half, surface: half.surface, faces: half.faces }]
   })
-
-/** One file's raw text, for the benches that read a source the corpus does not
- *  hold (a `.json`, a fixture). */
-export const read = (file: string): string => readFileSync(path.join(PACKAGES, file), "utf8")
