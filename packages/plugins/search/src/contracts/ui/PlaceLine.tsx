@@ -46,7 +46,7 @@ export function PlaceLine(props: {
       <Show when={props.place.middleCrumbs} fallback={
         <TitleHtml drawing={renderTitle(props.claims, middle(), "", { links: false })} />
       }>{crumbs =>
-        <For each={crumbs()}>{(crumb, at) => <><Show when={at() > 0}><Separator /></Show><Crumb claims={props.claims} crumb={crumb} faces={props.faces} /></>}</For>
+        <For each={crumbs()}>{(crumb, at) => <><Show when={at() > 0}><span class="whitespace-pre">{" · "}</span></Show><Crumb claims={props.claims} crumb={crumb} faces={props.faces} /></>}</For>
       }</Show>
     </span>}</Show>
     <Show when={props.place.nearest}>{nearest => <span class="max-w-[45%] shrink-0 truncate" data-place="nearest"><Separator />

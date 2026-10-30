@@ -18,7 +18,17 @@ Feature: One press up to the closest node agent
     And there should be no page errors
 
   Scenario: A day row's ancestor crumb is the same door
-    Given I open the outline "house.olai"
+    Given I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets"}
+      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","date":"2026-08-02"}
+      {"id":"hinges","parent":"install","ord":"a0","title":"pick the hinges","desc":"brass, if the budget survives"}
+      {"id":"chase-supplier","parent":"install","ord":"a1","title":"chase the supplier"}
+      {"id":"chase-tiler","parent":"kitchen","ord":"a3","title":"chase the supplier"}
+      """
+    And I open the outline "house.olai"
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
     And I open the day "2026-08-02"
@@ -113,14 +123,14 @@ Feature: One press up to the closest node agent
 
   Scenario: Nothing bound above leaves the page head empty and the menus silent
     Given I open the outline "house.olai"
-    When I zoom into the node "hinges"
-    Then the agent-above pill is absent
-    And the page head is empty
-    And no crumb wears an agent mark
     When I open the node menu of "hinges"
     Then the node menu does not offer "Open the agent above"
     When I click away from the node menu
-    And I press the palette shortcut
+    And I zoom into the node "hinges"
+    Then the agent-above pill is absent
+    And the page head is empty
+    And no crumb wears an agent mark
+    When I press the palette shortcut
     And I type "open the agent above" into the palette
     Then the palette lists no row "open-agent-above"
     And there should be no page errors
