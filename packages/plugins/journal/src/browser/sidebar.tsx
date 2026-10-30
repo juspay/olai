@@ -7,7 +7,9 @@ import { Link, useRouter } from "olai-plugin-navigation/routing"
 import { useToday } from "./clock.ts"
 
 import { TESTID } from "../testids.ts"
+import { agendaRowsFolded } from "./agenda/fold.ts"
 import { markOf, unchanged } from "./agenda/owed.ts"
+import { AgendaFold, AgendaRows } from "./agenda/rows.tsx"
 import { Calendar } from "./calendar/Calendar.tsx"
 import { calendarOpen, setCalendarOpen } from "./calendar/fold.ts"
 import { shortDay } from "./calendar/month.ts"
@@ -19,11 +21,38 @@ const createAgendaMark = (today: () => string) => {
   return createMemo(() => markOf(owed()), undefined, { equals: unchanged })
 }
 
+/**
+ * THE `Agenda` DOOR, and what is owed folded under it.
+ *
+ * The door is the chip and the way to the page; the list under it is the same
+ * reading as rows, so a reader working in an outline sees WHAT slipped without
+ * leaving the page (`./agenda/rows.tsx`). Three things decide whether the list
+ * is drawn, and each is a different fact:
+ *
+ *   - IS ANYTHING OWED — nothing late and nothing on today is the plain door it
+ *     has always been, with no list and no chevron;
+ *   - IS THE AGENDA IN FRONT — the page is the fuller answer to the same
+ *     question, so the column does not repeat it; the count stays, because the
+ *     door is still a door;
+ *   - HAS THE READER FOLDED IT — this browser's preference
+ *     (`./agenda/fold.ts`), followed across tabs by the activation. Folding
+ *     never stops the reading, which is what keeps the count live while shut.
+ *
+ * The chevron is a control of its own, beside the link rather than inside it,
+ * for the reason the month's is: "go to the agenda" and "put the list away" are
+ * two wishes, and a row that did both would spend the second on everybody who
+ * wanted the first.
+ */
 export function AgendaEntry() {
   const router = useRouter()
   const today = useToday()
   const mark = createAgendaMark(today)
+  const reading = owedToday
   const current = () => agenda.value(router.route()) !== null
+  /** The list is drawn exactly when the mark is not quiet and the page is not
+   *  the one in front — one condition, before the fold, so the chevron and the
+   *  region it controls cannot come apart. */
+  const shown = () => mark().face !== "quiet" && !current()
   return (
     <div
       class="mb-1"
@@ -32,17 +61,28 @@ export function AgendaEntry() {
       data-overdue={String(mark().owed.overdue)}
       data-today={String(mark().owed.today)}
     >
-      <Link
-        route={agendaRoute}
-        class={`${ENTRY_SHAPE} ${mark().entry}`}
-        testid={TESTID.agendaLink}
-        current={current()}
-        label={mark().said}
-        title={mark().said}
-      >
-        Agenda
-        <CountChip count={mark().count} paint={mark().chip} testid={TESTID.agendaCount} />
-      </Link>
+      <div class="flex items-center gap-1">
+        <Link
+          route={agendaRoute}
+          class={`${ENTRY_SHAPE} ${mark().entry} min-w-0 flex-1`}
+          testid={TESTID.agendaLink}
+          current={current()}
+          label={mark().said}
+          title={mark().said}
+        >
+          Agenda
+          <CountChip count={mark().count} paint={mark().chip} testid={TESTID.agendaCount} />
+        </Link>
+        <Show when={shown()}>
+          <AgendaFold />
+        </Show>
+      </div>
+      {/* The list is drawn exactly when the reading exists and the two facts
+          above allow it; `shown()` cannot be true without one, so the
+          condition is also what makes the prop a reading rather than a maybe. */}
+      <Show when={shown() && !agendaRowsFolded() ? reading() : undefined}>
+        {(owed) => <AgendaRows reading={owed()} today={today()} />}
+      </Show>
     </div>
   )
 }

@@ -20,8 +20,9 @@ notebook reading and imports no file tree or content editor.
 
 ## What the column shows
 
-Top to bottom: the `top` entries (Agenda, then Today with the month folded
-under it, both the journal's), Inbox (capture), the plugin sections (chat's
+Top to bottom: the `top` entries (Agenda — with the journal's short list of what
+is owed folded under it while anything is overdue or due today — then Today with
+the month folded under it), Inbox (capture), the plugin sections (chat's
 Needs you and Chats), the pinned shelf, the file list (files: Outlines,
 Reference and the `_olai/` group), and, pinned under the scrolling list, the
 `foot` entries (Trash). On a phone the foot sits above the drawer's own foot

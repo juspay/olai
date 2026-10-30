@@ -75,7 +75,7 @@ test("the real owed adapter clears yesterday's frame before the reminder reads a
   const requested: string[] = []
   const use = (input: () => { today: string } | null) => createReactiveSubscription(input, request => {
     requested.push(request.today)
-    return Stream.make({ overdue: request.today === "2026-09-11" ? 1 : 0, today: 0 })
+    return Stream.make({ overdue: request.today === "2026-09-11" ? 1 : 0, today: 0, rows: [] })
   })
   await Effect.runPromise(Scope.provide(holdJournalWire(() => ({ streams: { owed: { use } } }) as unknown as JournalClient), scope))
   const s = createRoot(dispose => {

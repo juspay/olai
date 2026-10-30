@@ -3,7 +3,7 @@ import {
   DatedAnswer,
   DatedRequest,
   OpFailure,
-  Owed,
+  OwedReading,
   OwedRequest,
   PageRequest,
   PageReading,
@@ -39,7 +39,7 @@ export type MintedNote = typeof MintedNote.Type
 export const surface = defineSurface({
   streams: {
     dated: { inputSchema: DatedRequest, outputSchema: DatedAnswer },
-    owed: { inputSchema: OwedRequest, outputSchema: Owed },
+    owed: { inputSchema: OwedRequest, outputSchema: OwedReading },
     day: { inputSchema: DayPageRequest, outputSchema: PageReading, arrayKey: "key" },
     agenda: { inputSchema: AgendaPageRequest, outputSchema: PageReading, arrayKey: "key" },
   },

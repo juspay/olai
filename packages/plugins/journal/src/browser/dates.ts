@@ -87,7 +87,7 @@
 import { type Accessor, createMemo } from "solid-js"
 
 import { dailyNoteDays } from "@olai/format"
-import type { Owed } from "@olai/format"
+import type { OwedReading } from "@olai/format"
 
 import { useServed, servedDirectory } from "./vault.ts"
 import { journalWire } from "./wire.ts"
@@ -140,8 +140,21 @@ export const createNoted = (month: Accessor<string>): Accessor<ReadonlySet<strin
   }, undefined, { equals: (a, b) => a.size === b.size && [...a].every(day => b.has(day)) })
 }
 
+/** HOW MANY ROWS the column asks for — the cap it can draw under the door,
+ *  sent with the question (`@olai/format`'s `OwedRequest`) rather than assumed
+ *  by the server. It bounds the ROWS and nothing else: the two counts are the
+ *  whole of what is owed either way, which is what the `N more` line is
+ *  arithmetic over. */
+const OWED_ROWS = 5
+
 /**
  * What is owed as of today, or `undefined` for "nothing has been answered yet".
+ *
+ * THE COUNTS AND THE ROWS both, because they are one answer: the chip on the
+ * `Agenda` door and the list under it are drawn from what this returns, and
+ * reading them off two subscriptions would let them disagree for a frame. The
+ * rows are asked with the cap the column can draw ({@link OWED_ROWS}); the
+ * counts are the whole of what is owed regardless.
  *
  * The `undefined` is load-bearing and is passed straight through to the mark
  * (`./agenda/owed.ts`, which draws NOTHING rather than a zero): a badge that
@@ -172,16 +185,20 @@ export const createOwed = (
    *  handing over an untracked recomputation would tear the stream down and
    *  reset the badge on frames that changed nothing. */
   today: Accessor<string | undefined>,
-): Accessor<Owed | undefined> => {
+): Accessor<OwedReading | undefined> => {
   const answer = journalWire().streams.owed.use(() => {
     const day = today()
-    return day === undefined ? null : { today: day }
+    return day === undefined ? null : { today: day, cap: OWED_ROWS }
   })
-  // …AS A VALUE (the header's rule): a fresh pair per frame, so a reader
-  // comparing two readings is comparing two objects rather than the one the
-  // wire keeps moving underneath it.
+  // …AS A VALUE (the header's rule): a fresh pair of counts AND fresh rows per
+  // frame, so a reader comparing two readings is comparing two objects rather
+  // than the one the wire keeps moving underneath it.
   return createMemo(() => {
     const owed = answer()
-    return owed === undefined ? undefined : { overdue: owed.overdue, today: owed.today }
+    return owed === undefined ? undefined : {
+      overdue: owed.overdue,
+      today: owed.today,
+      rows: owed.rows.map((row) => ({ ...row })),
+    }
   })
 }

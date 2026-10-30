@@ -106,6 +106,20 @@ const PAINT: Record<Face, { readonly entry: string; readonly chip: string; reado
 }
 
 /**
+ * The dot ONE OWED ROW wears, by which side of now its day is on — the rail's
+ * two marks ({@link PAINT}) read once more, because a row under the door is a
+ * third place the same two facts are drawn and a third spelling of "late looks
+ * like this" is a third chance to disagree.
+ *
+ * The SIZE is the consumer's, as it is for the rail: this is the mark's paint
+ * and not the box it sits in.
+ */
+export const ROW_DOT: { readonly overdue: string; readonly today: string } = {
+  overdue: PAINT.overdue.dot,
+  today: PAINT.today.dot,
+}
+
+/**
  * The mark for one reading of what is owed, or the quiet face for no reading at
  * all.
  *

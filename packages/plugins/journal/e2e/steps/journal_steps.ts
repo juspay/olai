@@ -43,8 +43,10 @@ import {
   SIDEBAR_BODY,
 } from "@olai/tests/harness/world.ts";
 import {
+  AGENDA_FOLD,
   AGENDA_OWED,
   AGENDA_PAGE,
+  AGENDA_ROWS,
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
@@ -85,6 +87,10 @@ Then("the journal chrome is absent", async function (this: OlaiWorld) {
     [CALENDAR, "calendar"],
     [AGENDA_LINK, "Agenda entry"],
     [AGENDA_OWED, "owed badge"],
+    // ...and the rows under it, with the chevron that folds them: the whole
+    // contribution leaves together, which is this row's promise.
+    [AGENDA_ROWS, "owed rows"],
+    [AGENDA_FOLD, "fold's chevron"],
   ] as const) {
     assert.strictEqual(
       await this.page.locator(selector).count(),

@@ -1,12 +1,16 @@
 /**
- * THE TWO COUNTS, OFF THE INDEX AND OFF THE WALK, AFTER EVERY REAL WRITE.
+ * THE OWED READING — its counts AND its rows — OFF THE INDEX AND OFF THE WALK,
+ * AFTER EVERY REAL WRITE.
  *
  * `perf-agenda-history-walk` split one reading in two. What is owed used to be
  * `owedOf(agendaOf(…))` — the whole agenda assembled, every overdue node in the
  * directory situated, and the answer counted and thrown away — and it is
- * `owedNow` over an index the patcher keeps now (`@olai/format`'s
- * `Derived.owedByDay`). Two spellings of one number where there was one, and
- * this door is where the journal reads the second (`./readings.ts`'s `owed`).
+ * `owedReading` over an index the patcher keeps now (`@olai/format`'s
+ * `Derived.owedByDay`, plus the rows read off it). Two spellings of one answer
+ * where there was one, and this door is where the journal reads the second
+ * (`./readings.ts`'s `owed`). The ROWS are new here and are held the same way,
+ * at several caps: the column draws the first few, and a list read off the index
+ * must be the page's own first few — in its order, with its titles.
  *
  * `@olai/format`'s `./occasion.test.ts` holds them to each other over GENERATED
  * corpora, which proves the fold. This file makes the same claim where the
@@ -41,8 +45,8 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import { NO_KINDS, type Owed, owedOf, type WriteRequest } from "@olai/format"
-import { walkedAgenda, walkedDays } from "@olai/format/testlib"
+import { NO_KINDS, owedOf, type WriteRequest } from "@olai/format"
+import { firstRowsOf, walkedAgenda, walkedDays } from "@olai/format/testlib"
 import { codecFor, make, type Store } from "@olai/ops"
 import { steady } from "@olai/ops/testlib"
 import * as StoreModule from "@olai/store"
@@ -118,8 +122,13 @@ const TODAYS = [
  *  answer with a month it was not asked about. */
 const MONTHS = ["2026-06", "2026-07", "2026-08", "2026-09", "2027-01"] as const
 
-/** The two answers, and the whole of what this file asserts. Both are asked of
- *  the SAME derivation — the one the door itself would read — so the only
+/** How many rows each ask draws — the column's cap, and two others so the
+ *  sweep reaches both ends of the truncation as well as the middle. */
+const CAPS = [0, 2, 5, 50] as const
+
+/** The whole answer, and the whole of what this file asserts: the two counts
+ *  and the rows beside them, against what the corpus walk says. Both are asked
+ *  of the SAME derivation — the one the door itself would read — so the only
  *  difference between them is the index. */
 const same = (store: Store): Effect.Effect<number> =>
   Effect.gen(function*() {
@@ -128,12 +137,15 @@ const same = (store: Store): Effect.Effect<number> =>
     const derived = snapshot.value.derived
     let counted = 0
     for (const today of TODAYS) {
-      const indexed: Owed = owed(derived, { today })
-      const walked = owedOf(walkedAgenda(derived, today))
-      // The day rides the comparison, so a failure names the boundary it
-      // happened at rather than only the two numbers.
-      expect([today, indexed]).toEqual([today, walked])
-      counted += indexed.overdue + indexed.today
+      const walked = walkedAgenda(derived, today)
+      const counts = owedOf(walked)
+      for (const cap of CAPS) {
+        const indexed = owed(derived, { today, cap })
+        // The day and the cap ride the comparison, so a failure names the
+        // boundary it happened at rather than only the two numbers.
+        expect([today, cap, indexed]).toEqual([today, cap, { ...counts, rows: firstRowsOf(walked, cap) }])
+      }
+      counted += counts.overdue + counts.today
     }
     for (const month of MONTHS) {
       expect([month, dated(derived, { month }).days])

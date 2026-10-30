@@ -145,8 +145,8 @@ export const DatedAnswer = Schema.Struct({
 export type DatedAnswer = typeof DatedAnswer.Type
 
 /** When two answers name the same days, so the subscription carrying them can
- *  stay quiet — `./agenda.ts`'s `sameOwed` one reading over, and derived from
- *  the schema for the same reason. It compares the list IN ORDER, which
+ *  stay quiet — `./agenda.ts`'s `sameOwedReading` one reading over, and derived
+ *  from the schema for the same reason. It compares the list IN ORDER, which
  *  {@link Derived.byDay}'s key order is what guarantees. */
 export const sameDated: (a: DatedAnswer, b: DatedAnswer) => boolean = Schema
   .toEquivalence(DatedAnswer)
@@ -304,9 +304,37 @@ export const datedIn = (groups: ReadonlyArray<DayGroup>): number =>
  *  day, which is what makes "the day itself" the earliest thing in it; oldest
  *  first is the same comparator read over more than one day (./agenda.ts). */
 const byTime = (left: DayEntry, right: DayEntry): number =>
-  left.date === right.date
-    ? left.shows.line - right.shows.line
-    : Order.String(left.date, right.date)
+  byTimed(left.date, left.shows.line, right.date, right.shows.line)
+
+/** The half of a day's order that is about the RECORD: the time it names, then
+ *  the line it is on. Its own function since a second reader arrived with raw
+ *  records and no dressed entries to sort ({@link byDrawOrder}). */
+const byTimed = (leftDate: string, leftLine: number, rightDate: string, rightLine: number): number =>
+  leftDate === rightDate
+    ? leftLine - rightLine
+    : Order.String(leftDate, rightDate)
+
+/**
+ * The order two RAW RECORDS on one day are drawn in, without dressing them.
+ *
+ * {@link byOutline} is the rule for a finished day list: outline path, then
+ * {@link byTime} within it. The agenda's owed rows are read off the index as
+ * raw records so that a row nobody draws is never situated, and they have to
+ * come out in that same order — the agenda page draws them by it, and two lists
+ * of the same work in two orders is a reader wondering which one is right.
+ *
+ * So this is that order spelled over `Dated` rather than over `DayEntry`, and
+ * `byOutline` keeps calling `byTime` — which is `byTimed` — so the half they
+ * share cannot drift. What it does NOT have is the one-row-per-record `Set`
+ * `groupedOn` keeps: an owed day's records are one per node by construction
+ * (`owingOn`'s argument), so there is nothing to deduplicate.
+ */
+export const byDrawOrder = (left: Dated, right: Dated): number => {
+  const file = Order.String(left.at.file, right.at.file)
+  return file === 0
+    ? byTimed(left.date, left.at.line, right.date, right.at.line)
+    : file
+}
 
 // ── the day's own note ─────────────────────────────────────────────────
 

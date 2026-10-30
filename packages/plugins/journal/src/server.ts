@@ -14,7 +14,7 @@ import {
   isDay,
   markdownIn,
   sameDated,
-  sameOwed,
+  sameOwedReading,
   samePageReading,
   type OpFailure,
   type PageReading,
@@ -97,7 +97,7 @@ export default definePlugin({
           owed: {
             read: (input) => Effect.runPromise(Effect.map(reading, (at) => owed(at.derived, input))),
             install,
-            isEqual: sameOwed,
+            isEqual: sameOwedReading,
           },
           day: {
             read: (input) => Effect.runPromise(page(input)),

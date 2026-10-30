@@ -94,6 +94,25 @@ Rows on a day's page and the agenda are the outlines plugin's dated row, reached
 
 The Agenda entry and its owed badge open the sidebar. Directly under it is the `Today` row: `Today` and the date (`Sep 28`), a link to today's page, with a chevron that unfolds the month calendar in place below the row and folds it away again. Whether the month is open is remembered per browser (`olai.sidebar.calendar`, followed across tabs by the journal's activation) and is shut by default. Unfolded, the month is drawn on the sidebar's own dark ground and keeps its paging, day links and marks. When the full sidebar is collapsed, the journal contributes its compact Today and Agenda doors to the rail; on a phone it contributes the same two doors to the frame's thumb bar (`browser/thumbs.tsx`, [layout.md](layout.md#the-thumb-bar)) — Today lit while today's page is open, Agenda carrying the owed mark the entry carries, as `data-owed` and a count while something is late or on today. The command palette gets *Go to today* and *Go to agenda* from the same row.
 
+While anything is overdue or due today, the Agenda entry grows a short list of
+the owed rows directly under it: late work first, oldest day first, then
+today's — so a reader working in an outline sees *what* slipped without opening
+`/agenda`. A late row is a filled alarm dot, its title, and how long ago its day
+was (`Yesterday`, `5 days ago`); a today row is a muted ring and its title,
+with nothing after it. The whole row is a link to the node where it lives,
+exactly as a row on `/agenda` is, and a faint line down the left of the list
+is alarm ink while anything in it is late and muted when it is only today's.
+
+Five rows fit. What is left is one muted line, `N more on the agenda`, which
+opens the page. The list comes from the same reading as the badge, so the two
+cannot disagree, and the count always tells the whole truth even when the list
+is shorter. A chevron beside the door folds the list away — absent when there is
+nothing to fold, and remembered per browser (`olai.sidebar.agenda-rows`,
+followed across tabs) with the list unfolded by default. Folding hides the list
+and never stops the reading: the badge stays live while it is shut. The list is
+not drawn while `/agenda` is the page in front, because the page is the fuller
+answer to the same question; the badge keeps its count.
+
 The Agenda entry's badge shows one number; its tooltip and accessible name say
 both in words, such as `Agenda — 1 due today` or `Agenda — 2 overdue, 3 due
 today`. An agenda with nothing owed says `Nothing due` and `Rows with a date
@@ -110,7 +129,7 @@ Journal is a sibling surface, exposed only to the browser:
 
 ```
 surface/journal/dated/get       days lit in one month
-surface/journal/owed/get        overdue and due-today counts
+surface/journal/owed/get        overdue and due-today counts, and the first owed rows
 surface/journal/day/get         one day's rows and notes
 surface/journal/agenda/get      the agenda's three stretches
 surface/journal/note/mint       create one daily note

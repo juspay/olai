@@ -738,7 +738,15 @@ export {
   owedNow,
   owedOf,
   OwedRequest,
-  sameOwed,
+  /** THE READING THE COLUMN DRAWS — the counts and the first rows behind
+   *  them, from one answer ({@link OwedReading}). A list fed separately from
+   *  the number over it can disagree for a frame; this cannot. */
+  OwedReading,
+  OwedRow,
+  owedMore,
+  owedReading,
+  owedRows,
+  sameOwedReading,
   /** THE SPINE'S OWN ARITHMETIC (`agenda-spine`, 2026-08-18). The agenda draws
    *  one line of time, and everything it says about a day past the day itself is
    *  counted here rather than in a component: where a day sits and how far away

@@ -69,10 +69,19 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { type Agenda, type AgendaDay, agendaOf, owedIn, owedNow, owedOf } from "./agenda.ts"
+import {
+  type Agenda,
+  type AgendaDay,
+  agendaOf,
+  owedIn,
+  owedNow,
+  owedOf,
+  owedReading,
+} from "./agenda.ts"
 import { datedDays, datedOn, type DayGroup } from "./dates.ts"
 import { byDayKey, derive, type Derived } from "./derive.ts"
 import {
+  firstRowsOf,
   nodesOf,
   seeded,
   walkedAgenda,
@@ -272,7 +281,19 @@ test("every day reading answers what the walk it replaced answered", () => {
           // the WALK's agenda rather than of the one above, so that a bug in
           // the indexed agenda cannot make the two spellings of the count agree
           // with each other and with nothing else.
-          expect(owedNow(view, today)).toEqual(owedOf(walkedAgenda(view, today)))
+          const walked = walkedAgenda(view, today)
+          expect(owedNow(view, today)).toEqual(owedOf(walked))
+          // ...AND THE ROWS BESIDE THEM, which is the column's reading: the
+          // first `cap` rows in the page's own order, from the index, against
+          // the walked agenda's first `cap` rows. The cap is swept because the
+          // two lists have to agree at a boundary as well as in the middle —
+          // nought rows, one, fewer than there are, and more.
+          for (const cap of [0, 1, 3, 50]) {
+            expect([cap, owedReading(view, today, cap)]).toEqual([cap, {
+              ...owedOf(walked),
+              rows: firstRowsOf(walked, cap),
+            }])
+          }
         })
       }
     }
