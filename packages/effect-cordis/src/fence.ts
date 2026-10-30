@@ -683,16 +683,19 @@ export const readWorkspace = (repo: string): Workspace => {
     strippedOf: (file) => {
       const held = stripped.get(file)
       if (held !== undefined) return held
-      const source = byFile.get(file)
-      const found = source === undefined ? "" : withoutComments(source.file, source.text)
+      // ANY file the reading can open, not only a member's: a root may live
+      // beside the packages (`src/main.ts`), and a claim that skipped it would
+      // call a row it names uncomposed.
+      const text = textOf(file)
+      const found = text === undefined ? "" : withoutComments(file, text)
       stripped.set(file, found)
       return found
     },
     codeOf: (file) => {
       const held = codes.get(file)
       if (held !== undefined) return held
-      const source = byFile.get(file)
-      const found = source === undefined ? "" : intoCode(source.file, source.text)
+      const text = textOf(file)
+      const found = text === undefined || !/\.(?:[cm]?[jt]sx?)$/.test(file) ? "" : intoCode(file, text)
       codes.set(file, found)
       return found
     },
@@ -1386,7 +1389,9 @@ const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
   const composed = new Set<string>()
   const composition = [...rootFiles, ...(registry === undefined ? [] : tree.sources.filter((source) => tree.memberOf(source.file) === registry).map((source) => source.file))]
   for (const file of composition) {
-    if (tree.sourceOf(file) === undefined) continue
+    // NO MEMBER CHECK: a consumer's entries may live beside the packages
+    // (`src/main.ts`), and the composition is exactly where that layout is the
+    // ordinary one.
     const named = namedPackages(file)
     for (const [row, packages] of rows) {
       if (composed.has(row)) continue
@@ -1457,7 +1462,7 @@ const escapeRe = (of: string): string => of.replace(/[.*+?^${}()|[\]\\]/g, "\\$&
  *
  * ## Why the LEADING boundary is not `\b`
  *
- * `\b` does not fire after `_`, so `OLAI_ALPHA_BIN` and `my_alpha` were invisible
+ * `\b` does not fire after `_`, so `PROVED_ALPHA_BIN` and `my_alpha` were invisible
  * to the first version of this claim — a real hole, since the env-shaped knob is
  * exactly how a build spells a row's word at a root. `_` is a separator between
  * words and is treated as one: `(?<![A-Za-z0-9])`.
@@ -1584,10 +1589,13 @@ const claimImports = (facts: Facts): ReadonlyArray<string> => {
   // floor is "the corpus knows what a row's package is", not "a row was
   // imported": a mapping that came back empty is what makes every boundary
   // claim here pass over nothing.
+  // ...INCLUDING THE ROOTS, which may name the rows from outside every member:
+  // a consumer with no roster at all composes them there and nowhere else.
+  const namedFiles = unique([...tree.sources.map((source) => source.file), ...facts.rootFiles])
   const rowMentioned =
     facts.rows.size === 0 ||
-    tree.sources.some((source) =>
-      [...tree.specifiersOf(source.file), ...tree.literalsOf(source.file)].some((one) =>
+    namedFiles.some((file) =>
+      [...tree.specifiersOf(file), ...tree.literalsOf(file)].some((one) =>
         facts.rowOfPackage.has(packageOf(one)),
       ),
     )
@@ -1991,7 +1999,7 @@ const CANONICAL: ReadonlyArray<Canonical> = [
       if (row === undefined) return undefined
       const host = hostFileSpellingNothing(facts, row)
       if (host === undefined) return undefined
-      const knob = `OLAI_${row.replace(/-/g, "_").toUpperCase()}_BIN`
+      const knob = `PROVED_${row.replace(/-/g, "_").toUpperCase()}_BIN`
       return {
         what: `a host package holds the env-shaped knob \`${knob}\``,
         edits: [{ file: host, append: `\nexport const ${knob} = ""\n` }],
@@ -2066,13 +2074,14 @@ const CANONICAL: ReadonlyArray<Canonical> = [
  *
  * COPY AND RESTORE rather than editing in place: a fence that breaks a person's
  * tree to prove itself is a fence nobody runs before a commit, and the `finally`
- * in {@link prove} is the trap. The copy holds only what the reading looks at —
+ * in {@link prove} is the trap. THE DIRECTORY IS `prove`'s, not this function's:
+ * created before the copy so a throw part-way through writing the tree still
+ * leaves `prove` holding a path to delete. The copy holds only what the reading looks at —
  * the root manifest, each member's manifest and each member's sources — so it
  * costs megabytes rather than a `node_modules`.
  */
-const copyOf = (facts: Facts): string => {
+const copyInto = (dir: string, facts: Facts): void => {
   const tree = facts.tree
-  const dir = mkdtempSync(path.join(os.tmpdir(), "cordis-fence-"))
   const put = (file: string, text: string): void => {
     const at = path.join(dir, file)
     mkdirSync(path.dirname(at), { recursive: true })
@@ -2106,7 +2115,6 @@ const copyOf = (facts: Facts): string => {
   for (const file of facts.onARootWalk) {
     if (tree.memberOf(file) === undefined && existsSync(path.join(tree.repo, file))) copy(file)
   }
-  return dir
 }
 
 const applyEdits = (dir: string, edits: ReadonlyArray<Edit>): void => {
@@ -2153,7 +2161,10 @@ export const prove = (declaration: Declaration): Proof => {
     }
     let dir: string | undefined
     try {
-      dir = copyOf(facts)
+      // THE TRAP COVERS THE COPY TOO, and only because the directory exists
+      // first: a `copyInto` that threw with no path assigned would leak it.
+      dir = mkdtempSync(path.join(os.tmpdir(), "cordis-fence-"))
+      copyInto(dir, facts)
       applyEdits(dir, plan.edits)
       const report = fence({ ...declaration, repo: dir })
       mutations.push({
@@ -2163,8 +2174,6 @@ export const prove = (declaration: Declaration): Proof => {
         spill: CLAIMS.filter((claim) => claim !== one.claim && report.red(claim).length > 0),
       })
     } finally {
-      // THE TRAP COVERS THE COPY TOO: `mkdtemp` is inside this `try`, so a throw
-      // part-way through writing the tree is cleaned up like any other.
       if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
     }
   }

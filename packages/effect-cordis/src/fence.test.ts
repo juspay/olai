@@ -21,7 +21,7 @@
  *     SEE, and a pattern that stopped matching is GREEN everywhere.
  */
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
@@ -292,32 +292,86 @@ describe("prove", () => {
     expect(proof.ok).toBe(true)
   })
 
-  test("...and a consumer whose roots live OUTSIDE a member can prove anything at all", () => {
-    // The copy must carry the root files, or every mutation reports a graph hole
-    // in a tree that does not have one. `src/` beside the packages is an
-    // ordinary layout for a consumer and was the layout that broke.
+  test("...and odu's shape: a root outside every package, rows from manifests, no roster", () => {
+    // THE SECOND CONSUMER, EXACTLY: entries at `src/main.ts` beside the
+    // packages, a node-only root, each row declaring itself on its own manifest,
+    // and the root composing them by importing the row packages DIRECTLY. There
+    // is no roster package in that layout, so `composed` has to be read off the
+    // root file itself — and a root file is not a package source, which is the
+    // seam this test exists for.
     const files: Files = {
-      ...TOY,
       "package.json": manifest({ name: "toy", private: true, workspaces: ["packages/*"] }),
-      // The host's own entries are no longer roots here, so neither may name a row.
-      "packages/host/src/root.ts": "export const root = 1\n",
-      "packages/host/src/server-root.ts": "export const root = 1\n",
       "src/main.ts": [
-        'import "toy-row-alpha/browser"',
-        'import "toy-roster"',
-        'import { helper } from "./helper.ts"',
-        "export const main = helper",
+        'import { shared } from "toy-host/shared"',
+        'import { a } from "toy-row-alpha"',
+        'import { b } from "toy-row-beta"',
+        "export const main = [shared, a, b]",
         "",
       ].join("\n"),
-      "src/helper.ts": "export const helper = 1\n",
+      "packages/host/package.json": manifest({ name: "toy-host", exports: { "./shared": "./src/shared.ts" } }),
+      "packages/host/src/shared.ts": "export const shared = 1\n",
+      "packages/row-alpha/package.json": manifest({
+        name: "toy-row-alpha",
+        exports: { ".": "./src/index.ts" },
+        cordis: { row: "alpha" },
+      }),
+      "packages/row-alpha/src/index.ts": 'import { shared } from "toy-host/shared"\nexport const a = shared\nexport const alphaName = "alpha"\n',
+      "packages/row-beta/package.json": manifest({
+        name: "toy-row-beta",
+        exports: { ".": "./src/index.ts" },
+        cordis: { row: "beta" },
+      }),
+      "packages/row-beta/src/index.ts": 'import { shared } from "toy-host/shared"\nexport const b = shared\nexport const betaName = 1\n',
     }
+    const report = withTree(files, (repo) =>
+      fence({
+        repo,
+        rows: rowsFromManifests(repo),
+        roots: [{ entry: "src/main.ts", graph: "node" }],
+        collisions: {},
+      }),
+    )
+    expect(report.findings).toEqual([])
+    // NO ROSTER IS A STATE, not a defect: the rows are composed by the entry.
+    expect(report.reading.registry).toBeUndefined()
+
     const proof = withTree(files, (repo) =>
-      prove(declared(repo, { roots: [{ entry: "src/main.ts", graph: "browser" }] })),
+      prove({
+        repo,
+        rows: rowsFromManifests(repo),
+        roots: [{ entry: "src/main.ts", graph: "node" }],
+        collisions: {},
+      }),
     )
     expect(proof.baseline).toEqual([])
-    expect(proof.mutations.every((one) => one.caught)).toBe(true)
+    expect(proof.mutations.map((one) => one.caught)).toEqual([true, true, true, true, true, true])
     expect(proof.mutations.filter((one) => one.spill.length > 0)).toEqual([])
     expect(proof.ok).toBe(true)
+  })
+
+  test("the copy leaves no directory behind when it throws", () => {
+    // `prove` owns the directory now, so a copy that dies mid-write still leaves
+    // a path to delete. The throw is real: a member holds a dangling symlink,
+    // which `copyInto` reaches (it copies every file of a member, not only the
+    // sources) and `copyFileSync` refuses.
+    const repo = mkdtempSync(path.join(os.tmpdir(), "cordis-fence-test-"))
+    try {
+      for (const [file, text] of Object.entries(TOY)) {
+        const at = path.join(repo, file)
+        mkdirSync(path.dirname(at), { recursive: true })
+        writeFileSync(at, text)
+      }
+      symlinkSync("/nonexistent/nowhere", path.join(repo, "packages/host/dangling.bin"))
+      // The test's own directory is named with the same prefix, so it is
+      // subtracted from both counts.
+      const leftovers = (): ReadonlyArray<string> =>
+        readdirSync(os.tmpdir()).filter((one) => one.startsWith("cordis-fence-") && one !== path.basename(repo))
+      const before = leftovers().length
+      expect(() => prove(declared(repo))).toThrow()
+      expect(leftovers().length).toBe(before)
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+    }
   })
 
   test("a red baseline is refused rather than proved over", () => {
@@ -580,7 +634,7 @@ describe("names", () => {
   test("`_` is a separator: an env-shaped knob and a prefixed word are spellings", () => {
     // `\b` does not fire after `_`, and the env-shaped knob is exactly how a
     // build spells a row's word at a root — so both of these are red.
-    for (const line of ["export const OLAI_ALPHA_BIN = 1", "export const my_alpha = 1"]) {
+    for (const line of ["export const TOY_ALPHA_BIN = 1", "export const my_alpha = 1"]) {
       const report = broken({ "packages/host/src/index.ts": `${line}\n` })
       expect([line, report.red("names")]).toEqual([
         line,
