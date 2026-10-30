@@ -418,6 +418,136 @@ describe("prove", () => {
 
 })
 
+/**
+ * A SECOND CONSUMER'S TREE — the shape a workspace takes when the door is not
+ * written for one build: a root beside the packages, a node root INSIDE a host
+ * package, a browser root, a row that spans two packages, a roster that is a
+ * host package, and a post-hoc "closure" test refusing the packages a build
+ * must not reach.
+ *
+ * Each file here is one of the four defects a real second consumer found; the
+ * test below is the fence's whole contract over that shape.
+ */
+const SECOND: Files = {
+  "package.json": manifest({ name: "toy", private: true, workspaces: ["packages/*"] }),
+
+  // A root BESIDE the packages, and the composition itself.
+  "src/main.ts": [
+    'import { host } from "@toy/host"',
+    'import "@toy/audit"',
+    "export const main = host",
+    "",
+  ].join("\n"),
+
+  // THE ROSTER: a host package, in no row, that composes each row through ONE
+  // of its packages.
+  "packages/host/package.json": manifest({
+    name: "@toy/host",
+    exports: { ".": "./src/index.ts", "./web": "./src/web.ts" },
+  }),
+  // ...composing them by DEFAULT-importing each row's door under a local name
+  // that is not a row's word: a host that spelled `cache` here would be a
+  // collision the `names` claim records, not compose.
+  "packages/host/src/index.ts": [
+    'import launched from "@toy/runner"',
+    'import stored from "@toy/cache"',
+    "export const host = [launched, stored]",
+    "",
+  ].join("\n"),
+  // ...and a node root INSIDE that package, which imports only its own sibling.
+  "packages/host/src/web.ts": 'import { host } from "./index.ts"\nexport const web = host\n',
+
+  // A POST-HOC CLOSURE TEST that lists every row's package because it REFUSES
+  // them: production code this is not, and a roster it must never be.
+  "packages/audit/package.json": manifest({ name: "@toy/audit", exports: { ".": "./src/index.ts" } }),
+  "packages/audit/src/index.ts": "export const audit = 1\n",
+  "packages/audit/src/closure.test.ts": [
+    'import "@toy/runner"',
+    'import "@toy/cache"',
+    'import "@toy/launch"',
+    "export const refused = 3",
+    "",
+  ].join("\n"),
+
+  // THE ROW THAT SPANS TWO PACKAGES — and the host composes it through one.
+  "packages/runner/package.json": manifest({
+    name: "@toy/runner",
+    exports: { ".": "./src/index.ts" },
+    cordis: { row: "ci" },
+  }),
+  "packages/runner/src/index.ts": 'export default { runner: 1 }\nexport const label = "ci"\n',
+  "packages/launch/package.json": manifest({
+    name: "@toy/launch",
+    exports: { ".": "./src/index.ts" },
+    cordis: { row: "ci" },
+  }),
+  // STATEFUL, and opened by nobody — so it is a quiet tree until a plant opens it.
+  "packages/launch/src/index.ts": "let held: unknown\nexport const current = () => held\n",
+
+  "packages/cache/package.json": manifest({
+    name: "@toy/cache",
+    exports: { ".": "./src/index.ts" },
+    cordis: { row: "cache" },
+  }),
+  "packages/cache/src/index.ts": 'export default { cache: 1 }\nexport const named = "cache"\n',
+
+  // A browser root, and the chunk it fetches.
+  "packages/web-ui/package.json": manifest({ name: "@toy/web-ui", exports: { "./main": "./src/main.tsx" } }),
+  "packages/web-ui/src/main.tsx": [
+    'import { App } from "./app.tsx"',
+    'import "@toy/cache"',
+    'import "solid-js"',
+    "export const main = App",
+    "",
+  ].join("\n"),
+  "packages/web-ui/src/app.tsx": "export const App = () => <div>app</div>\n",
+}
+
+const SECOND_ROOTS = [
+  { entry: "src/main.ts", graph: "node" },
+  { entry: "packages/host/src/web.ts", graph: "node" },
+  { entry: "packages/web-ui/src/main.tsx", graph: "browser" },
+] as const
+
+const second = (repo: string): Declaration => ({
+  repo,
+  rows: rowsFromManifests(repo),
+  roots: [...SECOND_ROOTS],
+  collisions: {},
+})
+
+describe("a second consumer's tree", () => {
+  test("the roster is the host package, not a test that refuses rows", () => {
+    // (a) a closure TEST listing the rows is not a roster, and (b) a row is
+    // named by ANY of its packages, so a host composing `ci` through `runner`
+    // is the roster even though `launch` belongs to the same row.
+    const report = withTree(SECOND, (repo) => fence(second(repo)))
+    expect(report.findings).toEqual([])
+    expect(report.reading.registry).toBe("packages/host")
+    expect(report.reading.rows).toBe(2)
+  })
+
+  test("...and `prove` runs, with no spill, over the same tree", () => {
+    // (c) no non-row door is opened across a boundary here — the host's own door
+    // is opened by nobody — so the live-state plant has to fall back to a ROW's
+    // door, which `claimLiveState` judges as itself.
+    // (d) the imports plant opens the other row's file across a boundary, so the
+    // target must be one that holds nothing or the plant spills into state.
+    const proof = withTree(SECOND, (repo) => prove(second(repo)))
+    expect(proof.baseline).toEqual([])
+    expect(proof.mutations.map((one) => [one.claim, one.caught])).toEqual([
+      ["imports", true],
+      ["door-graphs", true],
+      ["names", true],
+      ["names", true],
+      ["live-state", true],
+      ["registry", true],
+    ])
+    expect(proof.mutations.filter((one) => one.spill.length > 0)).toEqual([])
+    expect(proof.ok).toBe(true)
+  })
+})
+
 // ── each claim, over its own defect ───────────────────────────────────
 
 describe("imports", () => {

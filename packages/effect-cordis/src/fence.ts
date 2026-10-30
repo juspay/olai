@@ -1365,22 +1365,37 @@ const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
   // no row, and that names EVERY row. Not "the first member that declares
   // them", which was a guess — and a guess that silently picked one exempted a
   // second from two claims at once.
-  const rowPackages = new Set(rowOfPackage.keys())
   const reachedMembers = new Set([...onARootWalk].map((file) => tree.memberOf(file)).filter(isString))
+  // ...AND A ROOT NAMES IT. That is what separates a roster from the package
+  // that merely HOLDS the entries: a root is where a build says "mount these",
+  // and a member it never names is not the composition. Without this clause a
+  // package whose own root file names the rows (because a root may name several)
+  // competes with the roster that a root actually imports.
+  const namedByRoots = new Set([...rootFiles].flatMap((file) => [...namesOf(file)]))
   const registryCandidates =
-    rowPackages.size === 0
+    rows.size === 0
       ? []
       : tree.members.filter((member) => {
           if (rowOfMember.has(member) || !reachedMembers.has(member)) return false
-          // ...NOT COUNTING ITS OWN ROOT FILES: a root names rows by
-          // definition, so a member holding the entries would be a roster under
-          // any reading and the derivation would find two of them everywhere.
+          const own = tree.manifestOf(member)["name"]
+          if (typeof own !== "string" || !namedByRoots.has(own)) return false
+          // ...AND NOT COUNTING A BENCH: a post-hoc closure test that lists the
+          // packages a build REFUSES names every row too, and it is not a
+          // composition. A roster is production code.
           const named = new Set(
             tree.sources
-              .filter((source) => tree.memberOf(source.file) === member && !rootFiles.has(source.file))
+              .filter((source) => tree.memberOf(source.file) === member && !bench(source.file))
               .flatMap((source) => [...namesOf(source.file)]),
           )
-          return [...rowPackages].every((one) => named.has(one))
+          // EVERY ROW, BY ANY OF ITS PACKAGES: a row may span several packages,
+          // and the host that composes it names one of them — requiring the
+          // whole set made the roster of such a build undiscoverable.
+          return [...rows.values()].every((packages) =>
+            packages.some((one) => {
+              const name = tree.manifestOf(one)["name"]
+              return typeof name === "string" && named.has(name)
+            }),
+          )
         })
   const registry = registryCandidates.length === 1 ? registryCandidates[0] : undefined
 
@@ -1904,10 +1919,23 @@ interface Canonical {
 /** The first production source of a member, for a mutation to append to —
  *  preferring one no root's walk reaches, because a file already on a graph is
  *  the one an appended edge can colour a second claim with. `undefined` for a
- *  member with no production source. */
-const sourceIn = (facts: Facts, member: string | undefined): string | undefined => {
+ *  member with no production source that answers the question asked.
+ *
+ *  `holdingNothing` exists for the TARGET of the `imports` plant: the edge it
+ *  adds opens that file across a package boundary, so a target that keeps state
+ *  would redden `live-state` too — a plant that colours two claims proves
+ *  neither. */
+const sourceIn = (
+  facts: Facts,
+  member: string | undefined,
+  options: { readonly holdingNothing?: ReadonlyArray<Holder> } = {},
+): string | undefined => {
   const mine = facts.production.filter((source) => source.grammar !== "css" && facts.tree.memberOf(source.file) === member)
-  return (mine.find((source) => !facts.onARootWalk.has(source.file)) ?? mine[0])?.file
+  const quiet =
+    options.holdingNothing === undefined
+      ? mine
+      : mine.filter((source) => liveStateIn(source.file, source.text, options.holdingNothing).length === 0)
+  return (quiet.find((source) => !facts.onARootWalk.has(source.file)) ?? quiet[0])?.file
 }
 
 /**
@@ -1948,13 +1976,17 @@ const hostFileSpellingNothing = (facts: Facts, row: string): string | undefined 
 const CANONICAL: ReadonlyArray<Canonical> = [
   {
     claim: "imports",
-    plan: (facts) => {
+    plan: (facts, declaration) => {
       const rows = [...facts.rows.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       const mine = rows[0]
       const other = rows.find(([name, packages]) => name !== mine?.[0] && packages.length > 0)
       if (mine === undefined || other === undefined) return undefined
       const host = sourceIn(facts, mine[1]?.[0])
-      const target = sourceIn(facts, other[1]?.[0])
+      // EACH OF THE OTHER ROW'S PACKAGES, because a row may span several and
+      // only one of them needs a file that holds nothing.
+      const target = (other[1] ?? [])
+        .flatMap((member) => sourceIn(facts, member, { holdingNothing: declaration.holders ?? [] }))
+        .find((one) => one !== undefined)
       if (host === undefined || target === undefined) return undefined
       const relative = posix.relative(posix.dirname(host), target)
       return {
@@ -2036,9 +2068,13 @@ const CANONICAL: ReadonlyArray<Canonical> = [
   {
     claim: "live-state",
     plan: (facts) => {
-      const door = [...facts.opened.keys()]
-        .sort()
-        .find((file) => !facts.rowOfMember.has(facts.tree.memberOf(file) ?? ""))
+      const doors = [...facts.opened.keys()].sort()
+      // A NON-ROW door first, because `behind` walks its package; then ANY door,
+      // because a consumer's host files may be opened by nobody and a ROW's door
+      // is judged as itself — so the fallback is what keeps this claim provable
+      // on a tree whose only doors belong to rows.
+      const door =
+        doors.find((file) => !facts.rowOfMember.has(facts.tree.memberOf(file) ?? "")) ?? doors[0]
       if (door === undefined) return undefined
       return {
         what: "a door another package opens holds a module-scope value",
