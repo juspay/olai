@@ -309,14 +309,32 @@ export interface Workspace {
   resolve(from: string, spec: string): Landing
 }
 
+/**
+ * A FILE'S TEXT, or `undefined` for a file that is not there.
+ *
+ * ONE function, because every `existsSync`-then-read in this file is a
+ * check-then-use — the read can fail after the check and the check is not what
+ * the caller meant. The `ENOENT` is the only absence; anything else is the
+ * caller's to see.
+ */
+const readIfPresent = (file: string): string | undefined => {
+  try {
+    return readFileSync(file, "utf8")
+  } catch (cause) {
+    if ((cause as { readonly code?: unknown }).code === "ENOENT") return undefined
+    throw cause
+  }
+}
+
 /** A manifest read PARSED, and a manifest that is there and will not parse is
  *  not an absence: answering `undefined` for it would drop the member from one
  *  reading and keep it in another, with nothing red anywhere. */
 export const manifestAt = (dir: string): Manifest | undefined => {
   const file = path.join(dir, "package.json")
-  if (!existsSync(file)) return undefined
+  const text = readIfPresent(file)
+  if (text === undefined) return undefined
   try {
-    return JSON.parse(readFileSync(file, "utf8")) as Manifest
+    return JSON.parse(text) as Manifest
   } catch (cause) {
     throw new Error(`fence: ${file} did not parse — ${String(cause)}`)
   }
@@ -2127,11 +2145,17 @@ const copyInto = (dir: string, facts: Facts): void => {
     writeFileSync(at, text)
   }
   /** ...and this one COPIES, so a `.json`, a binary or a fixture arrives as the
-   *  bytes it is rather than as a UTF-8 decoding of them. */
+   *  bytes it is rather than as a UTF-8 decoding of them. A source that vanished
+   *  between the walk and here is not a copy that failed: there is nothing to
+   *  copy. */
   const copy = (file: string): void => {
     const at = path.join(dir, file)
     mkdirSync(path.dirname(at), { recursive: true })
-    copyFileSync(path.join(tree.repo, file), at)
+    try {
+      copyFileSync(path.join(tree.repo, file), at)
+    } catch (cause) {
+      if ((cause as { readonly code?: unknown }).code !== "ENOENT") throw cause
+    }
   }
   put("package.json", tree.rootManifestText)
   for (const member of tree.members) put(`${member}/package.json`, tree.manifestText(member))
@@ -2152,7 +2176,7 @@ const copyInto = (dir: string, facts: Facts): void => {
   // packages rather than in one — would otherwise get a copy with no roots at
   // all, and every mutation would spill into the claim that says so.
   for (const file of facts.onARootWalk) {
-    if (tree.memberOf(file) === undefined && existsSync(path.join(tree.repo, file))) copy(file)
+    if (tree.memberOf(file) === undefined) copy(file)
   }
 }
 
@@ -2164,7 +2188,7 @@ const applyEdits = (dir: string, edits: ReadonlyArray<Edit>): void => {
       writeFileSync(at, edit.write)
       continue
     }
-    const before = existsSync(at) ? readFileSync(at, "utf8") : ""
+    const before = readIfPresent(at) ?? ""
     writeFileSync(at, `${before}${edit.append}`)
   }
 }

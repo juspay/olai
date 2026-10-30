@@ -351,9 +351,10 @@ describe("prove", () => {
 
   test("the copy leaves no directory behind when it throws", () => {
     // `prove` owns the directory now, so a copy that dies mid-write still leaves
-    // a path to delete. The throw is real: a member holds a dangling symlink,
-    // which `copyInto` reaches (it copies every file of a member, not only the
-    // sources) and `copyFileSync` refuses.
+    // a path to delete. The throw is real: a member holds a symlink that points
+    // at ITSELF, which `copyInto` reaches (it copies every file of a member, not
+    // only the sources) and `copyFileSync` refuses with ELOOP — not the ENOENT a
+    // vanished source answers, which is not a failure.
     const repo = mkdtempSync(path.join(os.tmpdir(), "cordis-fence-test-"))
     try {
       for (const [file, text] of Object.entries(TOY)) {
@@ -361,7 +362,7 @@ describe("prove", () => {
         mkdirSync(path.dirname(at), { recursive: true })
         writeFileSync(at, text)
       }
-      symlinkSync("/nonexistent/nowhere", path.join(repo, "packages/host/dangling.bin"))
+      symlinkSync("loop.bin", path.join(repo, "packages/host/loop.bin"))
       // The test's own directory is named with the same prefix, so it is
       // subtracted from both counts.
       const leftovers = (): ReadonlyArray<string> =>
