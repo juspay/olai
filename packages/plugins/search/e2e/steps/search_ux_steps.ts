@@ -41,7 +41,15 @@ Then("the {string} result {string} preserves file {string} and nearest ancestor 
   assert.equal(oneLine(await end.innerText()), `· ${nearest}`)
   await spacedSeparators(start.locator(".."))
   const middle = row.locator('[data-place="middle"]')
-  assert.ok(await middle.evaluate(el => el.scrollWidth > el.clientWidth && getComputedStyle(el).textOverflow === "ellipsis"))
+  // The middle is a flex row of crumb boxes now, so the ellipsis is the last
+  // ancestor TITLE's, not the container's text-overflow: a title that did not
+  // shrink would be clipped by the row with no ellipsis at all.
+  const titles = middle.locator(".olai-md")
+  assert.ok(await titles.count() > 0, "the middle drew an ancestor title")
+  assert.ok(
+    await titles.evaluateAll(nodes => nodes.some(node => node.scrollWidth > node.clientWidth && getComputedStyle(node).textOverflow === "ellipsis")),
+    "a long ancestor title ellipsizes inside the middle",
+  )
   const bounds = await row.boundingBox()
   for (const part of [start, end]) {
     const box = await part.boundingBox()
