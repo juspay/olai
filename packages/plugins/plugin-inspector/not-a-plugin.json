@@ -7,6 +7,7 @@
     "src/rows.ts": 5
   },
   "vault": {
-    "src/approval.ts": 1
+    "src/approval.ts": 1,
+    "src/rows.ts": 2
   }
 }

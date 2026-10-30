@@ -204,7 +204,7 @@ can have and the one a reviewer cannot see.
 and a waterfall; it has never heard of a vault, a surface or a doorbell.
 [`src/plugin.test.ts`](src/plugin.test.ts) is written with toy services and has no
 olai noun in it, and [`src/fence.test.ts`](src/fence.test.ts) is written over a
-toy WORKSPACE — two rows, one host, two roots — for the same reason: the fence's
+toy WORKSPACE — two rows, a host, a roster and two roots — for the same reason: the fence's
 subjects are rows, doors, roots and names, and a fence built out of one build's
 feature nouns could not be the second consumer's. The moment something here grows
 one, it belongs in [`@olai/plugin-api`](../plugin-api/README.md), which is the

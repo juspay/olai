@@ -39,7 +39,17 @@
  * once per claim, and asserts the claim that names each defect refuses it.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
@@ -79,6 +89,9 @@ export interface Report {
   readonly ok: boolean
   /** One claim's findings, as the sentences a test prints. */
   red(claim: Claim): ReadonlyArray<string>
+  /** What the reading saw, so a consumer's floors are stated against THIS
+   *  file's corpus rather than a second one. */
+  readonly reading: Reading
 }
 
 // ── the declaration ────────────────────────────────────────────────────
@@ -145,15 +158,28 @@ export interface Declaration {
   readonly collisions?: Readonly<Record<string, Readonly<Record<string, number>>>>
   readonly allowances?: Allowances
   readonly holders?: ReadonlyArray<Holder>
-  /** What a node root's walk may not reach. Defaults to the UI runtimes a
-   *  daemon must never evaluate — Solid's and React's, because Bun's default
-   *  JSX runtime is React's and a `.tsx` on a server graph is a boot death with
-   *  nothing in the source to see. */
+  /** What a node root's walk may not reach. It REPLACES {@link DEFAULT_RUNTIMES}
+   *  rather than extending them, so a consumer that wants its own words as well
+   *  spreads the default and does not restate it. */
   readonly runtimes?: ReadonlyArray<RegExp>
+  /** What counts as a bench, whose sources no claim about SHIPPING code reads.
+   *  The default is {@link isBench}; a consumer whose benches live somewhere
+   *  else supplies its own reading rather than arguing with this one. */
+  readonly bench?: (file: string) => boolean
 }
 
-const DEFAULT_RUNTIMES: ReadonlyArray<RegExp> = [
+/**
+ * THE UI RUNTIMES A NODE GRAPH MUST NEVER EVALUATE — Solid's and React's,
+ * because Bun's default JSX runtime is React's and a `.tsx` on a server graph is
+ * a boot death with nothing in the source to see.
+ *
+ * EXPORTED because a consumer's list is this one plus its own words: replacing
+ * it with a hand-typed copy is how `react` gets dropped by accident, which is
+ * the exact death the list exists for.
+ */
+export const DEFAULT_RUNTIMES: ReadonlyArray<RegExp> = [
   /^solid-js(\/|$)/,
+  /^@solid-primitives\//,
   /^react(\/|$)/,
   /^react-dom(\/|$)/,
   /^preact(\/|$)/,
@@ -199,14 +225,14 @@ export type Landing =
   | { readonly kind: "module"; readonly file: string }
   | { readonly kind: "unresolved"; readonly why: string }
 
-/** Dirs a walk never enters: no member and no door is under them, and one of
- *  them (`node_modules`) links back into sibling packages. */
+/** Dirs a walk never enters: no member and no door is under them, and
+ *  `node_modules` links back into sibling packages. Dot-directories are skipped
+ *  by {@link entriesOf} itself, which is why a repository's own metadata
+ *  directory is not named here. */
 const SKIP: Record<string, true> = {
   node_modules: true,
-  ".git": true,
   dist: true,
   result: true,
-  ".worktrees": true,
 }
 
 /** A static string-keyed table's membership, own-key only — a name like
@@ -234,7 +260,7 @@ const entriesOf = (dir: string): ReadonlyArray<{ readonly name: string; readonly
   }
 }
 
-const grammarOf = (file: string): Grammar =>
+export const grammarOf = (file: string): Grammar =>
   file.endsWith(".css") ? "css" : file.endsWith(".tsx") ? "tsx" : "ts"
 
 /**
@@ -257,8 +283,8 @@ export interface Workspace {
   readonly rootManifestText: string
   manifestText(member: string): string
   manifestOf(member: string): Manifest
-  /** The LONGEST member that prefixes this file — `plugins/kolu` and a
-   *  hypothetical `plugins` both prefix a tenant's file and only one of them is
+  /** The LONGEST member that prefixes this file — `group/one` and a
+   *  hypothetical `group` both prefix a member's file and only one of them is
    *  its package. */
   memberOf(file: string): string | undefined
   sourceOf(file: string): Source | undefined
@@ -276,6 +302,10 @@ export interface Workspace {
   /** Every specifier a file names, type-only ones INCLUDED — a type import is a
    *  cycle a bundler forgives and a reader does not. */
   specifiersOf(file: string): ReadonlyArray<string>
+  /** Every string literal in a file. A ROSTER names a row's module as DATA —
+   *  `{ id, name: "<package>/server" }` — and a reading that only looked at
+   *  imports would call that row uncomposed. */
+  literalsOf(file: string): ReadonlyArray<string>
   resolve(from: string, spec: string): Landing
 }
 
@@ -515,12 +545,13 @@ export const readWorkspace = (repo: string): Workspace => {
   const graphs = new Map<string, Graph>()
   const edges = new Map<string, ReadonlyArray<Edge>>()
   const specs = new Map<string, ReadonlyArray<string>>()
+  const literals = new Map<string, ReadonlyArray<string>>()
   const asts = new Map<string, ts.SourceFile>()
 
   /** A FILE'S TEXT, whether or not it is a source of a member: a walk reaches
-   *  `.json` and `.js` leaves too (`hosted.json` is a face table a build reads),
-   *  and "the walk could not read it" must mean the file is not there rather
-   *  than that this reading only preloaded `.ts`. */
+   *  `.json` and `.js` leaves too (a data table a build reads), and "the walk
+   *  could not read it" must mean the file is not there rather than that this
+   *  reading only preloaded `.ts`. */
   const textOf = (file: string): string | undefined => {
     const known = byFile.get(file)
     if (known !== undefined) return known.text
@@ -591,6 +622,22 @@ export const readWorkspace = (repo: string): Workspace => {
     return found
   }
 
+  const literalsOf = (file: string): ReadonlyArray<string> => {
+    const held = literals.get(file)
+    if (held !== undefined) return held
+    const source = astOf(file)
+    const found: Array<string> = []
+    if (source !== undefined) {
+      const visit = (node: ts.Node): void => {
+        if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) found.push(node.text)
+        ts.forEachChild(node, visit)
+      }
+      visit(source)
+    }
+    literals.set(file, found)
+    return found
+  }
+
   const graphOf = (entry: string): Graph => {
     const held = graphs.get(entry)
     if (held !== undefined) return held
@@ -652,6 +699,7 @@ export const readWorkspace = (repo: string): Workspace => {
     graphOf,
     importsOf,
     specifiersOf,
+    literalsOf,
     resolve,
   }
 }
@@ -778,8 +826,8 @@ const blank = (text: string, ranges: ReadonlyArray<readonly [number, number]>): 
  * every comment token, and it is WRONG in a way that took a measurement to
  * find: a scanner cannot tell a regular expression from a division, so one `/`
  * in a `.ts` file can make every `/*` after it a string — and it cannot lex JSX
- * text at all. `packages/format/src/filter.ts` carried a `/** … MCP face *​/`
- * that the scanner never saw, and a name sweep that believes a comment is code
+ * text at all. One real file carried a block comment the scanner never saw, and
+ * a name sweep that believes a comment is code
  * is a sweep that reports the wrong files.
  *
  * So the ranges are the TRIVIA GAPS between the parser's own leaf tokens: what
@@ -913,13 +961,7 @@ export const liveStateIn = (
   text: string,
   holders: ReadonlyArray<Holder> = [],
 ): ReadonlyArray<string> => {
-  const source = ts.createSourceFile(
-    file,
-    text,
-    ts.ScriptTarget.ESNext,
-    true,
-    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  )
+  const source = parse(file, text)
   const found: Array<string> = []
   const bound = new Set<string>()
   const minting = holdersIn(source, holders)
@@ -1187,12 +1229,12 @@ const shadowed = (used: ts.Identifier): boolean => {
  * What these claims are about is a package's product code knowing a row by name,
  * importing it outside a door, or holding its value. A fixture is neither, and
  * the words it carries are its subject's — a scenario about a conversation says
- * `chat` because it is about chat. The CONTAINER is excused rather than a
+ * `alpha` because it is about alpha. The CONTAINER is excused rather than a
  * suffix: a step file is named for the feature it drives.
  *
- * The import half is not excused with it everywhere: a host's own claim about
- * which packages it names in code still reads every source that SHIPS, and an
- * olai-side manifest claim reads the benches.
+ * A consumer whose benches live somewhere else supplies its own reading through
+ * the declaration's `bench`; the floors and the manifest half are the
+ * consumer's own claims and read the benches themselves.
  */
 const BENCH_NAME = /\.(?:test|browsertest|spec|testlib|bench)\.[cm]?[jt]sx?$/
 const BENCH_DIR: Record<string, true> = {
@@ -1218,16 +1260,49 @@ interface Facts {
   readonly rowOfPackage: ReadonlyMap<string, string>
   readonly roots: ReadonlyArray<{ readonly entry: string; readonly kind: "browser" | "node"; readonly graph: Graph }>
   readonly rootFiles: ReadonlySet<string>
-  /** The host package that names every row, if the tree has one. */
+  /** THE ROSTER: the one non-row member a root's walk reaches that NAMES every
+   *  row. Undefined when the tree has none — a consumer that mounts rows from a
+   *  root file alone has no roster, and that is a state rather than a defect. */
   readonly registry: string | undefined
-  /** Rows a root's walk names — by the row's word or by its package. */
+  /** What the derivation found. One is the roster; two or more is red, because
+   *  a guess that silently picks one exempts the other from two claims. */
+  readonly registryCandidates: ReadonlyArray<string>
+  /** Rows a root file or the roster NAMES — by specifier, or by the string a
+   *  loader resolves. */
   readonly composed: ReadonlySet<string>
   /** Every module opened across a package boundary, with the files that open it. */
   readonly opened: ReadonlyMap<string, ReadonlyArray<string>>
-  /** Production sources, by the one reading of "test" this file has. */
+  /** Shipping sources, by the declaration's reading of "test". */
   readonly production: ReadonlyArray<Source>
-  /** Every file any root's walk visits. */
-  readonly reachable: ReadonlySet<string>
+  /** Every file any root's walk visits — `onARootWalk` and not `reachable`,
+   *  because `live-state` has a reachable of its own and the two never meant
+   *  the same thing. */
+  readonly onARootWalk: ReadonlySet<string>
+  /** The counts a consumer's floors are stated against. */
+  readonly reading: Reading
+}
+
+/**
+ * WHAT ONE READING OF THE TREE SAW — the numbers a consumer's *not vacuous*
+ * test is written against.
+ *
+ * They are here rather than recomputed in a bench because a floor stated against
+ * a number this file did not produce is a floor over a second reading: a
+ * resolver that answered `undefined` once would move both, and the bench would
+ * agree with the claim that everything is fine.
+ */
+export interface Reading {
+  readonly members: number
+  readonly sources: number
+  readonly production: number
+  /** Production TS/TSX files the name sweep compiled to non-empty code. */
+  readonly compiled: number
+  /** Modules opened across a package boundary — the live-state corpus. */
+  readonly doors: number
+  /** Files any root's walk visits. */
+  readonly onARootWalk: number
+  readonly rows: number
+  readonly registry: string | undefined
 }
 
 const unique = <T>(items: ReadonlyArray<T>): ReadonlyArray<T> => [...new Set(items)]
@@ -1236,7 +1311,10 @@ const unique = <T>(items: ReadonlyArray<T>): ReadonlyArray<T> => [...new Set(ite
  *  apart in a `let` that neither branch is allowed to mis-shape. */
 const isNamedRows = (rows: Rows): rows is ReadonlyArray<string> => Array.isArray(rows)
 
+const isString = (one: unknown): one is string => typeof one === "string"
+
 const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
+  const bench = declaration.bench ?? isBench
   const rows = ((): Map<string, ReadonlyArray<string>> => {
     const answer = new Map<string, ReadonlyArray<string>>()
     const supplied = declaration.rows
@@ -1271,40 +1349,55 @@ const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
     kind: root.graph,
   }))
   const rootFiles = new Set(declaration.roots.map((root) => posixOf(root.entry)))
-  const reachable = new Set(roots.flatMap((root) => root.graph.visited))
+  const onARootWalk = new Set(roots.flatMap((root) => root.graph.visited))
 
+  /** Every package name a file NAMES — in a specifier, or in a string a loader
+   *  would resolve. Both are how a roster spells a row. */
+  const namedPackages = (file: string): ReadonlySet<string> =>
+    new Set([...tree.specifiersOf(file), ...tree.literalsOf(file)].map(packageOf))
+
+  // THE ROSTER, DERIVED FROM THE ROOTS: a member a root's walk reaches, that is
+  // no row, and that names EVERY row. Not "the first member that declares
+  // them", which was a guess — and a guess that silently picked one exempted a
+  // second from two claims at once.
   const rowPackages = new Set(rowOfPackage.keys())
-  const registry = tree.members.find((member) => {
-    if (rowOfMember.has(member)) return false
-    const declared = unique(dependencyNames(tree.manifestOf(member)).filter((one) => rowPackages.has(one)))
-    return rowPackages.size > 0 && declared.length === rowPackages.size
-  })
-
-  // A row is COMPOSED when a file on a root's walk names it — by the row's word
-  // in code, or by its package in a specifier. The framework-specific form (a
-  // loader's rows, a record handed to somebody's `implementSurfaces`) is the
-  // consumer's one extra claim; this is the generic half.
-  const composed = new Set<string>()
-  for (const root of roots) {
-    for (const file of root.graph.visited) {
-      if (composed.size === rows.size) break
-      const source = tree.sourceOf(file)
-      if (source === undefined || source.grammar === "css") continue
-      const text = tree.strippedOf(file)
-      const specs = tree.specifiersOf(file)
-      for (const [row, packages] of rows) {
-        if (composed.has(row)) continue
-        const named = packages.some((member) => {
-          const pkg = tree.manifestOf(member)["name"]
-          return typeof pkg === "string" && specs.some((spec) => packageOf(spec) === pkg)
+  const reachedMembers = new Set([...onARootWalk].map((file) => tree.memberOf(file)).filter(isString))
+  const registryCandidates =
+    rowPackages.size === 0
+      ? []
+      : tree.members.filter((member) => {
+          if (rowOfMember.has(member) || !reachedMembers.has(member)) return false
+          // ...NOT COUNTING ITS OWN ROOT FILES: a root names rows by
+          // definition, so a member holding the entries would be a roster under
+          // any reading and the derivation would find two of them everywhere.
+          const named = new Set(
+            tree.sources
+              .filter((source) => tree.memberOf(source.file) === member && !rootFiles.has(source.file))
+              .flatMap((source) => [...namedPackages(source.file)]),
+          )
+          return [...rowPackages].every((one) => named.has(one))
         })
-        if (named || spelledIn(row, text) > 0) composed.add(row)
-      }
+  const registry = registryCandidates.length === 1 ? registryCandidates[0] : undefined
+
+  // A row is COMPOSED when a file that IS the composition names it: a root file,
+  // or the roster. Their own walk is not read — a walk reaches every module a
+  // chunk happens to import, and counting that made a common word compose
+  // everything.
+  const composed = new Set<string>()
+  const composition = [...rootFiles, ...(registry === undefined ? [] : tree.sources.filter((source) => tree.memberOf(source.file) === registry).map((source) => source.file))]
+  for (const file of composition) {
+    if (tree.sourceOf(file) === undefined) continue
+    const named = namedPackages(file)
+    for (const [row, packages] of rows) {
+      if (composed.has(row)) continue
+      const mine = packages.map((member) => tree.manifestOf(member)["name"]).filter(isString)
+      if (mine.some((pkg) => named.has(pkg))) composed.add(row)
     }
   }
 
+  const production = tree.sources.filter((source) => !bench(source.file))
   const opened = new Map<string, Array<string>>()
-  for (const source of tree.sources) {
+  for (const source of production) {
     if (source.grammar === "css") continue
     const member = tree.memberOf(source.file)
     for (const spec of unique(tree.specifiersOf(source.file))) {
@@ -1316,6 +1409,10 @@ const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
     }
   }
 
+  const compiled = production.filter(
+    (source) => source.grammar !== "css" && tree.codeOf(source.file).trim().length > 0,
+  ).length
+
   return {
     tree,
     rows,
@@ -1324,10 +1421,21 @@ const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
     roots,
     rootFiles,
     registry,
+    registryCandidates,
     composed,
     opened,
-    production: tree.sources.filter((source) => !isBench(source.file)),
-    reachable,
+    production,
+    onARootWalk,
+    reading: {
+      members: tree.members.length,
+      sources: tree.sources.length,
+      production: production.length,
+      compiled,
+      doors: opened.size,
+      onARootWalk: onARootWalk.size,
+      rows: rows.size,
+      registry,
+    },
   }
 }
 
@@ -1336,33 +1444,54 @@ const factsOf = (tree: Workspace, declaration: Declaration): Facts => {
 const escapeRe = (of: string): string => of.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
 /**
- * THE THREE CASINGS AN IDENTIFIER IS WRITTEN IN, each with the end that belongs
- * to it — and both halves of this were written by a mutation run rather than by
- * a reviewer.
+ * EVERY SPELLING OF A ROW'S WORD, each with the boundary that ends it — and
+ * every half of this was written by a mutation or a review rather than by taste.
  *
- * `/\bkolu(?![a-z0-9])/i` is the obvious spelling and it is wrong in the one
- * direction a fence may not be: `i` applies to the LOOKAHEAD too, so `[a-z0-9]`
- * matches the `H` of `koluHalf` and the pattern refuses the exact defect it was
- * written for. Case-sensitive with each letter as `[xX]` then catches the whole
- * tree: a SHOUTED identifier has no case change in it, so "the next character is
+ * ## Why the obvious pattern is wrong
+ *
+ * `/\balpha(?![a-z0-9])/i` refuses the exact defect it was written for: `i`
+ * applies to the LOOKAHEAD too, so `[a-z0-9]` matches the `H` of `alphaHalf`.
+ * Case-sensitive with the casing spelled out then catches the whole tree, because
+ * a SHOUTED identifier has no case change in it — "the next character is
  * upper-case" ends a lower-case name and continues an upper-case one.
  *
- *   - `kolu`, `Kolu` — ended by anything that is not `[a-z0-9]`: a case change
- *     (`koluHalf`, `KoluUi`), a separator, a quote, a dot, a line;
- *   - `KOLU` — ended by anything that is not `[A-Z0-9]`, so `KOLU_KIND` is a
- *     spelling and `PINNED` is a word that begins with two of the same letters.
+ * ## Why the LEADING boundary is not `\b`
+ *
+ * `\b` does not fire after `_`, so `OLAI_ALPHA_BIN` and `my_alpha` were invisible
+ * to the first version of this claim — a real hole, since the env-shaped knob is
+ * exactly how a build spells a row's word at a root. `_` is a separator between
+ * words and is treated as one: `(?<![A-Za-z0-9])`.
+ *
+ * ## Why a hyphenated row has four forms
+ *
+ * `two-words` is a file name and a yaml id; the CODE says `twoWords`,
+ * `TwoWords` and `TWO_WORDS`, and a pattern that only knew the hyphen
+ * never saw any of them. A single-word row spells the same three casings it
+ * always did.
+ *
+ *   - a lower-case run, ended by anything that is not `[a-z0-9]`;
+ *   - a SHOUTED run, ended by anything that is not `[A-Z0-9]`.
  *
  * What it cannot tell apart is a shouted name that ENDS a word (`Math.PI`),
  * which is why the collision record exists: the reading reports, a person
  * decides, and the record holds the decision as an exact count.
  */
 const casings = (name: string): ReadonlyArray<string> => {
-  const capital = `${name.charAt(0).toUpperCase()}${name.slice(1)}`
-  return [
-    `${escapeRe(name)}(?![a-z0-9])`,
-    ...(capital === name ? [] : [`${escapeRe(capital)}(?![a-z0-9])`]),
-    `${escapeRe(name.toUpperCase())}(?![A-Z0-9])`,
-  ]
+  const lead = "(?<![A-Za-z0-9])"
+  const lower = "(?![a-z0-9])"
+  const shout = "(?![A-Z0-9])"
+  const parts = name.split("-").filter((one) => one !== "")
+  const capital = (word: string): string => `${word.charAt(0).toUpperCase()}${word.slice(1)}`
+  const forms: Array<{ readonly spelled: string; readonly end: string }> = [{ spelled: name, end: lower }]
+  if (parts.length > 1) {
+    forms.push({ spelled: parts.map((word, at) => (at === 0 ? word : capital(word))).join(""), end: lower })
+    forms.push({ spelled: parts.map(capital).join(""), end: lower })
+    forms.push({ spelled: parts.join("_").toUpperCase(), end: shout })
+  } else {
+    forms.push({ spelled: capital(name), end: lower })
+    forms.push({ spelled: name.toUpperCase(), end: shout })
+  }
+  return unique(forms.map((one) => `${lead}${escapeRe(one.spelled)}${one.end}`))
 }
 
 /** ...built ONCE per row rather than once per (row × file). `anywhere` answers
@@ -1373,7 +1502,7 @@ const SPELLINGS = new Map<string, { readonly anywhere: RegExp; readonly all: Reg
 const spellingOf = (name: string): { readonly anywhere: RegExp; readonly all: RegExp } => {
   const held = SPELLINGS.get(name)
   if (held !== undefined) return held
-  const source = `\\b(?:${casings(name).join("|")})`
+  const source = `(?:${casings(name).join("|")})`
   const built = { anywhere: new RegExp(source), all: new RegExp(source, "g") }
   SPELLINGS.set(name, built)
   return built
@@ -1392,7 +1521,6 @@ const claimImports = (facts: Facts): ReadonlyArray<string> => {
   const { tree } = facts
   const found: Array<string> = []
   let edges = 0
-  let rowImports = 0
 
   for (const source of facts.production) {
     const member = tree.memberOf(source.file)
@@ -1424,7 +1552,6 @@ const claimImports = (facts: Facts): ReadonlyArray<string> => {
         continue
       }
 
-      if (row !== undefined) rowImports += 1
       if (here !== undefined) {
         if (row !== undefined) {
           if (!declaresDoor(tree.manifestOf(there), spec)) {
@@ -1452,8 +1579,23 @@ const claimImports = (facts: Facts): ReadonlyArray<string> => {
   if (edges === 0) {
     found.push("vacuous: no file imports another package of this workspace, so every boundary claim here is empty")
   }
-  if (rowImports === 0 && facts.rows.size > 0) {
-    found.push("vacuous: no row's package is imported anywhere, so nothing here names a row by import")
+  // ...AND THE ROW-TO-PACKAGE MAPPING IS NAMED SOMEWHERE. A consumer that mounts
+  // rows from a table names them as DATA rather than importing them, so the
+  // floor is "the corpus knows what a row's package is", not "a row was
+  // imported": a mapping that came back empty is what makes every boundary
+  // claim here pass over nothing.
+  const rowMentioned =
+    facts.rows.size === 0 ||
+    tree.sources.some((source) =>
+      [...tree.specifiersOf(source.file), ...tree.literalsOf(source.file)].some((one) =>
+        facts.rowOfPackage.has(packageOf(one)),
+      ),
+    )
+  if (!rowMentioned) {
+    found.push(
+      "vacuous: no source names a row's package at all — by specifier or by the string a loader resolves — so " +
+        "nothing here ties a row to a package",
+    )
   }
   return found
 }
@@ -1494,22 +1636,18 @@ const claimNames = (facts: Facts, declaration: Declaration): ReadonlyArray<strin
   const { tree } = facts
   const expected = declaration.collisions ?? {}
   const actual = new Map<string, Map<string, number>>()
-  let sawSomething = 0
 
-  const corpus = facts.production.filter(
-    (source) => source.grammar !== "css" && !facts.rootFiles.has(source.file),
-  )
+  const corpus = facts.production.filter((source) => source.grammar !== "css" && !facts.rootFiles.has(source.file))
   for (const source of corpus) {
     const member = tree.memberOf(source.file)
-    // THE REGISTRY NAMES EVERY ROW BY CONSTRUCTION — it is where the roster
-    // lives, and this claim is about every package EXCEPT that one.
+    // THE ROSTER NAMES EVERY ROW BY CONSTRUCTION — it is where the roster lives,
+    // and this claim is about every package EXCEPT that one.
     if (member !== undefined && member === facts.registry) continue
     const code = tree.codeOf(source.file)
     for (const [row, packages] of facts.rows) {
       if (member !== undefined && packages.includes(member)) continue
       const count = spelledIn(row, code)
       if (count === 0) continue
-      sawSomething += count
       const held = actual.get(row)
       if (held === undefined) actual.set(row, new Map([[source.file, count]]))
       else held.set(source.file, count)
@@ -1535,13 +1673,28 @@ const claimNames = (facts: Facts, declaration: Declaration): ReadonlyArray<strin
     }
   }
 
-  if (corpus.length === 0) found.push("vacuous: the name sweep read no production source")
-  if (sawSomething === 0) {
-    found.push(
-      "vacuous: the sweep found no row's name anywhere, which a pattern that stopped matching and a corpus " +
-        "that came back short both look like",
-    )
+  // THE POSITIVE CONTROL IS PER ROW, and it is about the rows that are CLEAN.
+  // A global "the sweep found something somewhere" is red on a tree with no
+  // collisions — the state every consumer starts in — and silent about the one
+  // row whose pattern broke. So each row's word is looked for where it is
+  // ALLOWED to be: its own packages, the root files and the roster.
+  const allowed = facts.production.filter((source) => {
+    if (source.grammar === "css") return false
+    if (facts.rootFiles.has(source.file)) return true
+    const member = tree.memberOf(source.file)
+    return member !== undefined && (member === facts.registry || facts.rowOfMember.has(member))
+  })
+  for (const row of [...facts.rows.keys()].sort()) {
+    const seen = allowed.some((source) => spelledIn(row, tree.codeOf(source.file)) > 0)
+    if (!seen) {
+      found.push(
+        `row \`${row}\` is spelled nowhere its own packages, the roots or the roster can see it — a pattern ` +
+          "that stopped matching would be silent, and so would a corpus that came back short",
+      )
+    }
   }
+
+  if (corpus.length === 0) found.push("vacuous: the name sweep read no production source")
   return found
 }
 
@@ -1550,7 +1703,9 @@ const claimLiveState = (facts: Facts, declaration: Declaration): ReadonlyArray<s
   const allowed = declaration.allowances ?? {}
   const holders = declaration.holders ?? []
   const found: Array<string> = []
-  const reachable = new Set<string>()
+  /** Every module the claim JUDGED, which is what an allowance has to be
+   *  reachable in — `onARootWalk` is a different set and never meant this. */
+  const judged = new Set<string>()
 
   /** What is actually imported when a package opens a door: the door itself and
    *  every module of ITS OWN package reachable from it. Another package's
@@ -1565,7 +1720,7 @@ const claimLiveState = (facts: Facts, declaration: Declaration): ReadonlyArray<s
 
   for (const door of [...facts.opened.keys()].sort()) {
     for (const file of behind(door)) {
-      reachable.add(file)
+      judged.add(file)
       if (Object.hasOwn(allowed, file)) continue
       const source = tree.sourceOf(file)
       if (source === undefined || source.grammar === "css") continue
@@ -1576,7 +1731,7 @@ const claimLiveState = (facts: Facts, declaration: Declaration): ReadonlyArray<s
   }
 
   for (const [file, why] of Object.entries(allowed)) {
-    if (!reachable.has(file)) {
+    if (!judged.has(file)) {
       found.push(`the allowance for \`${file}\` names a module no package opens across a boundary any more`)
     }
     const source = tree.sourceOf(file)
@@ -1615,12 +1770,25 @@ const claimRegistry = (facts: Facts): ReadonlyArray<string> => {
   }
 
   for (const row of [...facts.rows.keys()].sort()) {
-    if (!facts.composed.has(row)) found.push(`row \`${row}\` is declared and no root's walk composes it`)
+    if (!facts.composed.has(row)) {
+      found.push(`row \`${row}\` is declared and neither a root file nor the roster names it`)
+    }
+  }
+
+  // THE ROSTER MUST BE ONE. Two packages that each name every row is two
+  // rosters, and picking the first would exempt the second from `imports` and
+  // `names` — silently, which is the failure mode every claim here is written
+  // against.
+  if (facts.registryCandidates.length > 1) {
+    found.push(
+      `more than one package a root's walk reaches names every row (${[...facts.registryCandidates].sort().join(", ")}); ` +
+        "the roster must be one, or which of them is exempt from `imports` and `names` is a guess",
+    )
   }
 
   if (facts.roots.length === 0) found.push("vacuous: the declaration names no root, so no row can be composed")
   if (facts.composed.size === 0 && facts.rows.size > 0) {
-    found.push("vacuous: no root's walk spells any row, so the agreement above is three empty sets")
+    found.push("vacuous: no root file or roster names any row, so the agreement above is three empty sets")
   }
   return found
 }
@@ -1656,6 +1824,7 @@ export const fence = (declaration: Declaration): Report => {
     findings,
     ok: findings.length === 0,
     red: (claim) => findings.filter((one) => one.claim === claim).map((one) => one.said),
+    reading: facts.reading,
   }
   reports.set(declaration, report)
   return report
@@ -1715,23 +1884,55 @@ interface Canonical {
   /** `undefined` when this declaration gives the defect nothing to break — which
    *  is reported as a failure rather than skipped, because a proof that quietly
    *  ran four mutations is the failure mode it exists to detect. */
-  readonly plan: (facts: Facts) => { readonly what: string; readonly edits: ReadonlyArray<Edit> } | undefined
+  readonly plan: (
+    facts: Facts,
+    declaration: Declaration,
+  ) => { readonly what: string; readonly edits: ReadonlyArray<Edit> } | undefined
 }
 
-/** The first production source of a member, for a mutation to append to. */
-const sourceIn = (facts: Facts, member: string | undefined, avoid: ReadonlySet<string>): string | undefined =>
+/** The first production source of a member, for a mutation to append to —
+ *  preferring one no root's walk reaches, because a file already on a graph is
+ *  the one an appended edge can colour a second claim with. `undefined` for a
+ *  member with no production source. */
+const sourceIn = (facts: Facts, member: string | undefined): string | undefined => {
+  const mine = facts.production.filter((source) => source.grammar !== "css" && facts.tree.memberOf(source.file) === member)
+  return (mine.find((source) => !facts.onARootWalk.has(source.file)) ?? mine[0])?.file
+}
+
+/**
+ * A SPECIFIER A RUNTIME RULE MATCHES — the inverse of a filter, and it has to be
+ * derived rather than typed: a consumer's list is its own, and a plan that
+ * hard-coded one word would plant a defect that consumer's list does not
+ * recognise. The rule's literal head is the candidate; the fallbacks cover an
+ * anchored prefix (`@scope/`, `thing/`).
+ */
+const specFor = (rule: RegExp): string | undefined => {
+  const head = rule.source.replace(/^\^/, "").split(/\(|\[|\||\$/)[0] ?? ""
+  const base = head.replace(/\\(.)/g, "$1")
+  return [base, `${base}x`, `${base}x/y`, `${base}y`].find(
+    (candidate) => candidate !== "" && rule.test(candidate),
+  )
+}
+
+/** A host package's production file with no spelling of this row yet — where a
+ *  planted one is unambiguous. */
+const hostFileSpellingNothing = (facts: Facts, row: string): string | undefined =>
   facts.production.find(
-    (source) => source.grammar !== "css" && facts.tree.memberOf(source.file) === member && !avoid.has(source.file),
+    (source) =>
+      source.grammar !== "css"
+      && !facts.rootFiles.has(source.file)
+      && !facts.rowOfMember.has(facts.tree.memberOf(source.file) ?? "")
+      && spelledIn(row, facts.tree.codeOf(source.file)) === 0,
   )?.file
 
 /**
  * ONE CANONICAL MUTATION PER CLAIM, each the exact defect the claim is about.
  *
  * Every one is DERIVED from the tree the fence just read: which package is a
- * row, which file is on a browser root's walk, which door another package
- * opens. The derivation is from the WALK and the MANIFESTS rather than from the
- * fence's own arithmetic, because a harness that re-derived from the claim it
- * is testing would prove nothing.
+ * row, which file is on a root's walk, which door another package opens, and
+ * which KIND that root is. The derivation is from the WALK and the MANIFESTS
+ * rather than from the fence's own arithmetic, because a harness that
+ * re-derived from the claim it is testing would prove nothing.
  */
 const CANONICAL: ReadonlyArray<Canonical> = [
   {
@@ -1741,8 +1942,8 @@ const CANONICAL: ReadonlyArray<Canonical> = [
       const mine = rows[0]
       const other = rows.find(([name, packages]) => name !== mine?.[0] && packages.length > 0)
       if (mine === undefined || other === undefined) return undefined
-      const host = sourceIn(facts, mine[1]?.[0], facts.reachable)
-      const target = sourceIn(facts, other[1]?.[0], new Set())
+      const host = sourceIn(facts, mine[1]?.[0])
+      const target = sourceIn(facts, other[1]?.[0])
       if (host === undefined || target === undefined) return undefined
       const relative = posix.relative(posix.dirname(host), target)
       return {
@@ -1753,37 +1954,71 @@ const CANONICAL: ReadonlyArray<Canonical> = [
   },
   {
     claim: "door-graphs",
+    plan: (facts, declaration) => {
+      const runtime = declaration.runtimes ?? DEFAULT_RUNTIMES
+      // EACH ROOT KIND HAS ITS OWN DEFECT: a builtin is what a browser graph may
+      // not carry, a UI runtime is what a node graph may not.
+      for (const root of facts.roots) {
+        if (root.graph.visited.length <= 1) continue
+        const own = facts.tree.memberOf(root.entry)
+        const inside = root.graph.reached.find(
+          (edge) => facts.tree.memberOf(edge.file) !== own && !edge.file.endsWith(".d.ts"),
+        )
+        const file = inside?.file ?? root.graph.visited.find((one) => one !== root.entry)
+        if (file === undefined) continue
+        if (root.kind === "browser") {
+          return {
+            what: `a file on \`${root.entry}\`'s walk imports a \`node:\` builtin`,
+            edits: [{ file, append: '\nimport "node:fs"\n' }],
+          }
+        }
+        const spec = runtime.map(specFor).find((one) => one !== undefined)
+        if (spec === undefined) continue
+        return {
+          what: `a file on the node root \`${root.entry}\`'s walk imports the UI runtime \`${spec}\``,
+          edits: [{ file, append: `\nimport "${spec}"\n` }],
+        }
+      }
+      return undefined
+    },
+  },
+  {
+    claim: "names",
     plan: (facts) => {
-      const browser = facts.roots.find((root) => root.kind === "browser" && root.graph.visited.length > 1)
-      if (browser === undefined) return undefined
-      const own = facts.tree.memberOf(browser.entry)
-      const door = browser.graph.reached.find(
-        (edge) => facts.tree.memberOf(edge.file) !== own && !edge.file.endsWith(".d.ts"),
-      )
-      const file = door?.file ?? browser.graph.visited.find((one) => one !== browser.entry)
-      if (file === undefined) return undefined
+      // THE ENV-SHAPED SPELLING, which a leading `\b` cannot see: `_` is a
+      // separator, so a knob at a root is a spelling of the row's word.
+      const row = [...facts.rows.keys()].sort()[0]
+      if (row === undefined) return undefined
+      const host = hostFileSpellingNothing(facts, row)
+      if (host === undefined) return undefined
+      const knob = `OLAI_${row.replace(/-/g, "_").toUpperCase()}_BIN`
       return {
-        what: `a file on \`${browser.entry}\`'s walk imports a \`node:\` builtin`,
-        edits: [{ file, append: `\nimport "node:fs"\n` }],
+        what: `a host package holds the env-shaped knob \`${knob}\``,
+        edits: [{ file: host, append: `\nexport const ${knob} = ""\n` }],
       }
     },
   },
   {
     claim: "names",
     plan: (facts) => {
-      const row = [...facts.rows.keys()].sort()[0]
+      // ...AND THE FORM A HYPHENATED ROW IS ACTUALLY WRITTEN IN: `two-words` is
+      // never an identifier, `twoWords` is. A single-word row falls back to its
+      // capitalised form, so this mutation can never be inapplicable.
+      const rows = [...facts.rows.keys()].sort()
+      const hyphenated = rows.find((row) => row.includes("-"))
+      const row = hyphenated ?? rows[0]
       if (row === undefined) return undefined
-      const host = facts.production.find(
-        (source) =>
-          source.grammar !== "css"
-          && !facts.rootFiles.has(source.file)
-          && !facts.rowOfMember.has(facts.tree.memberOf(source.file) ?? "")
-          && spelledIn(row, facts.tree.codeOf(source.file)) === 0,
-      )
+      const host = hostFileSpellingNothing(facts, row)
       if (host === undefined) return undefined
+      // AT A LINE START, because `provedAlpha` is not a spelling of `alpha`: a
+      // leading boundary is the rule, and a mutation glued to an identifier
+      // would be testing the mutation rather than the claim.
+      const spelled = hyphenated === undefined
+        ? row.toUpperCase()
+        : row.split("-").map((word, at) => (at === 0 ? word : `${word.charAt(0).toUpperCase()}${word.slice(1)}`)).join("")
       return {
-        what: `a host package spells \`${row}\` in code`,
-        edits: [{ file: host.file, append: `\nexport const provedRow = "${row}"\n` }],
+        what: `a host package spells \`${row}\` as \`${spelled}\``,
+        edits: [{ file: host, append: `\nexport const ${spelled} = 1\n` }],
       }
     },
   },
@@ -1835,12 +2070,20 @@ const CANONICAL: ReadonlyArray<Canonical> = [
  * the root manifest, each member's manifest and each member's sources — so it
  * costs megabytes rather than a `node_modules`.
  */
-const copyOf = (tree: Workspace): string => {
+const copyOf = (facts: Facts): string => {
+  const tree = facts.tree
   const dir = mkdtempSync(path.join(os.tmpdir(), "cordis-fence-"))
   const put = (file: string, text: string): void => {
     const at = path.join(dir, file)
     mkdirSync(path.dirname(at), { recursive: true })
     writeFileSync(at, text)
+  }
+  /** ...and this one COPIES, so a `.json`, a binary or a fixture arrives as the
+   *  bytes it is rather than as a UTF-8 decoding of them. */
+  const copy = (file: string): void => {
+    const at = path.join(dir, file)
+    mkdirSync(path.dirname(at), { recursive: true })
+    copyFileSync(path.join(tree.repo, file), at)
   }
   put("package.json", tree.rootManifestText)
   for (const member of tree.members) put(`${member}/package.json`, tree.manifestText(member))
@@ -1852,10 +2095,17 @@ const copyOf = (tree: Workspace): string => {
     for (const entry of entriesOf(path.join(tree.repo, relative))) {
       const at = join(relative, entry.name)
       if (entry.dir) walk(at)
-      else put(at, readFileSync(path.join(tree.repo, at), "utf8"))
+      else copy(at)
     }
   }
   for (const member of tree.members) walk(member)
+  // ...AND EVERY FILE A ROOT'S WALK TOUCHED THAT IS NOT IN A MEMBER. A consumer
+  // whose entries live at the repository root — `src/main.ts` beside the
+  // packages rather than in one — would otherwise get a copy with no roots at
+  // all, and every mutation would spill into the claim that says so.
+  for (const file of facts.onARootWalk) {
+    if (tree.memberOf(file) === undefined && existsSync(path.join(tree.repo, file))) copy(file)
+  }
   return dir
 }
 
@@ -1890,7 +2140,7 @@ export const prove = (declaration: Declaration): Proof => {
   const facts = factsOf(readWorkspace(declaration.repo), declaration)
   const mutations: Array<Proved> = []
   for (const one of CANONICAL) {
-    const plan = one.plan(facts)
+    const plan = one.plan(facts, declaration)
     if (plan === undefined) {
       mutations.push({
         claim: one.claim,
@@ -1901,8 +2151,9 @@ export const prove = (declaration: Declaration): Proof => {
       })
       continue
     }
-    const dir = copyOf(facts.tree)
+    let dir: string | undefined
     try {
+      dir = copyOf(facts)
       applyEdits(dir, plan.edits)
       const report = fence({ ...declaration, repo: dir })
       mutations.push({
@@ -1912,8 +2163,13 @@ export const prove = (declaration: Declaration): Proof => {
         spill: CLAIMS.filter((claim) => claim !== one.claim && report.red(claim).length > 0),
       })
     } finally {
-      rmSync(dir, { recursive: true, force: true })
+      // THE TRAP COVERS THE COPY TOO: `mkdtemp` is inside this `try`, so a throw
+      // part-way through writing the tree is cleaned up like any other.
+      if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
     }
   }
-  return { baseline: [], mutations, ok: mutations.every((one) => one.caught) }
+  // RED ON EXACTLY THAT CLAIM, which is the sentence `prove` is sold with: a
+  // mutation that also reddened another claim has not shown that claim is
+  // asleep, it has shown this one is over-eager.
+  return { baseline: [], mutations, ok: mutations.every((one) => one.caught && one.spill.length === 0) }
 }

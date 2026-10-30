@@ -9,9 +9,9 @@
     "src/browser/Page.tsx": 1
   },
   "mcp": {
-    "src/probe.ts": 4,
-    "src/server.ts": 1,
-    "src/surface.check.ts": 9,
+    "src/probe.ts": 8,
+    "src/server.ts": 2,
+    "src/surface.check.ts": 10,
     "src/testlib/fake-browser-mcp.ts": 1
   },
   "search": {

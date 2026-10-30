@@ -8,7 +8,7 @@
     "src/browser/commit/Panel.tsx": 2,
     "src/browser/commit/selection.ts": 2,
     "src/git/git.ts": 4,
-    "src/ledger/pending.ts": 1,
+    "src/ledger/pending.ts": 3,
     "src/tools.ts": 1
   },
   "identity": {

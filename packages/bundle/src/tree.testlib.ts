@@ -41,19 +41,21 @@ import { readFileSync } from "node:fs"
 import * as path from "node:path"
 
 import {
-  cssImportsOf as cssOf,
-  dependencyNames as declaredBy,
   type Edge as DoorEdge,
-  doorsOf as doorsOfManifest,
-  edgesOf as edgesOfSource,
   type Graph as DoorGraph,
-  mainOf as mainOfManifest,
   type Manifest,
+  cssImportsOf,
+  dependencyNames,
+  doorsOf,
+  edgesOf as edgesOfSource,
+  grammarOf,
+  isBench,
+  mainOf,
   manifestAt as manifestAtDirectory,
   packageOf,
   readWorkspace,
-  sourcesUnder as sourcesUnderDoor,
-  specifiersOf as specifiersOfSource,
+  specifiersOf,
+  withoutComments,
 } from "@olai/effect-cordis/fence"
 
 import { ROWS } from "./rows.ts"
@@ -80,15 +82,9 @@ const relativeToPackages = (member: string): string => path.relative("packages",
 export const manifestAt = (dir: string): Manifest | undefined =>
   manifestAtDirectory(path.isAbsolute(dir) ? dir : path.join(PACKAGES, dir))
 
-/** A manifest's `exports` map, parsed (the door's reading, which throws on a
- *  conditional export rather than dropping a door). */
-export const doorsOf = (manifest: Manifest): Readonly<Record<string, string>> => doorsOfManifest(manifest)
-
-export const mainOf = (manifest: Manifest): string | undefined => mainOfManifest(manifest)
-
-/** ...and what one declares, in the three blocks that all mean the same thing to
- *  a wall. */
-export const dependencyNames = (manifest: Manifest | undefined): ReadonlyArray<string> => declaredBy(manifest)
+/** The door's own readings, re-exported where the signature is the one a bench
+ *  already spells: one implementation, and no wrapper to drift from it. */
+export { cssImportsOf, dependencyNames, doorsOf, grammarOf, isBench, mainOf, packageOf, specifiersOf, withoutComments }
 
 /** What the ROOT manifest declares — `dependencies`, `devDependencies` and
  *  peers, because any one of them puts a package where the whole tree can reach
@@ -103,12 +99,13 @@ export const MEMBER_OF_PACKAGE: ReadonlyMap<string, string> = new Map(
   [...TREE.memberOfPackage].map(([name, member]) => [name, relativeToPackages(member)]),
 )
 
-/** Which member a `PACKAGES`-relative path belongs to — the LONGEST member that
- *  prefixes it. */
-export const memberOf = (file: string): string | undefined =>
-  MEMBERS.filter((member) => file === member || file.startsWith(`${member}${path.sep}`)).sort((a, b) => b.length - a.length)[0]
-
-export { packageOf }
+/** Which member a `PACKAGES`-relative path belongs to. The door answers this
+ *  over repo-relative paths, and this is the CONVERSION rather than a second
+ *  longest-prefix search: one reading, two conventions. */
+export const memberOf = (file: string): string | undefined => {
+  const member = TREE.memberOf(`packages/${file}`)
+  return member === undefined ? undefined : relativeToPackages(member)
+}
 
 /** Every source under one directory, as ABSOLUTE paths — the convention this
  *  package's benches already read files with. Read off the door's corpus rather
@@ -125,19 +122,6 @@ export const sourcesUnder = (dir: string): ReadonlyArray<string> =>
     })
     .map((source) => path.join(REPO, source.file))
 
-/** Every source under one directory of the tree, repo-relative. */
-export const sourcesIn = (dir: string): ReadonlyArray<string> => sourcesUnderDoor(REPO, dir)
-
-/** The grammar a path is read in. */
-export const grammarOf = (file: string): "css" | "tsx" | "ts" =>
-  file.endsWith(".css") ? "css" : file.endsWith(".tsx") ? "tsx" : "ts"
-
-/** Every specifier a file names at all — the boundary reading, where a type-only
- *  import is still a package standing on the wrong side of a wall. */
-export const specifiersOf = (file: string, text: string): ReadonlyArray<string> => specifiersOfSource(file, text)
-
-/** A stylesheet's own door, which the TypeScript readings are blind to. */
-export const cssImportsOf = (text: string): ReadonlyArray<string> => cssOf(text)
 
 export interface Named {
   /** `PACKAGES`-relative, so a failure reads as a path somebody can open. */

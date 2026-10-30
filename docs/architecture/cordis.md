@@ -248,14 +248,16 @@ Five claims, each with its own non-vacuity check so a corpus that came back shor
 | `live-state` | a module another package can open holding a module-scope value, beyond the allowances somebody argued for |
 | `registry` | the rows the host names, the rows on disk and the rows the roots compose disagreeing |
 
-The declaration is **four facts**, and three of them are hand-written because no reading of the tree can produce them:
+The declaration is **four facts**, and two of them — `roots` and `collisions` — are hand-written, because no reading of the tree can produce them:
 
-- `repo` — the workspace root, which is derived by definition (it is where the `workspaces` globs are).
+- `repo` — the workspace root, derived by definition: it is where the `workspaces` globs are.
 - `rows` — supplied from the one place a host already names them (here: the generated registry), or read from each package's own `cordis` field. The fence must not name them twice.
-- `roots` — `{ entry, graph }` per entry file. That a file may name more than one row, and whether the graph it opens is a browser's or a node's, is a CLAIM a person makes.
-- `collisions` — `{ row: { file: count } }`, the lexical collisions a row's word is recorded in. Exact counts, granting no import and no lifetime exemption: claims one and four do not read this table.
+- `roots` — `{ entry, graph }` per entry file, HAND-WRITTEN. That a file may name more than one row, and whether the graph it opens is a browser's or a node's, is a CLAIM a person makes.
+- `collisions` — `{ row: { file: count } }`, HAND-WRITTEN: the lexical collisions a row's word is recorded in. Exact counts, granting no import and no lifetime exemption — claims one and four do not read this table.
 
-Everything else is derived: a package's doors from its manifest `exports`, a package's row from the same manifest, and a door's graph kind from which roots reach it. Three records hold what a person argued and what the claims cannot know: `allowances` (a module's ownership argument, in prose), `holders` (this tree's own slot factories, which mint state under a `const`), and `runtimes` (what a node graph may not evaluate, which is this build's list and not the door's default).
+Everything else is derived: a package's doors from its manifest `exports`, a package's row from the same manifest, a door's graph kind from which roots reach it, and the roster from the one non-row package a root's walk reaches that names every row (two of those is red, not a pick).
+
+**What `names` reads.** Shipping TypeScript and TSX only — the sources that compile. Prose, stylesheets, JSON, Markdown, Nix and benches are out of scope by construction: a comment is stripped by the parser before the sweep, a `.css` or a `.json` file is never in its corpus, and a bench is not product (the declaration may say what a bench is, and this build's answer includes `*.test.*`, `*.testlib.*`, `*.bench.*`, `e2e/` and `fixtures/`). A word in a comment, a stylesheet or a scenario is therefore not a collision, and the recorded collisions are the code ones. Three records hold what a person argued and what the claims cannot know: `allowances` (a module's ownership argument, in prose), `holders` (this tree's own slot factories, which mint state under a `const`), and `runtimes` (what a node graph may not evaluate, which is this build's list and not the door's default).
 
 What it cannot do:
 

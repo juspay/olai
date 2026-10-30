@@ -15,7 +15,7 @@
     "src/browser/PageView.tsx": 2
   },
   "outlines": {
-    "src/browser/TrashPage.tsx": 1,
+    "src/browser/TrashPage.tsx": 3,
     "src/tools.ts": 5
   },
   "sidebar": {

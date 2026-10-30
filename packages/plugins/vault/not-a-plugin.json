@@ -2,9 +2,10 @@
   "//outlines": "The broken-file banner and page say a file conflicts with your other `outlines`: the word, not the outlines row.",
   "files": {
     "src/browser.tsx": 2,
+    "src/browser/directory.ts": 2,
     "src/browser/errors/Banner.tsx": 7,
     "src/browser/errors/Report.tsx": 2,
-    "src/browser/errors/banner.ts": 5,
+    "src/browser/errors/banner.ts": 8,
     "src/contract.ts": 1,
     "src/file-access.ts": 1,
     "src/file-surface.ts": 2,
@@ -24,7 +25,7 @@
   "search": {
     "src/server.ts": 2,
     "src/setup.ts": 4,
-    "src/views.ts": 8
+    "src/views.ts": 10
   },
   "settings": {
     "src/file-access.ts": 6,

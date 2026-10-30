@@ -24,7 +24,7 @@ import { describe, expect, test } from "bun:test"
 
 import { CLAIMS, fence } from "@olai/effect-cordis/fence"
 
-import { DECLARATION, RECORD_OF } from "./fence.testlib.ts"
+import { DECLARATION, RECORD_OF, RUNTIMES } from "./fence.testlib.ts"
 import { BUNDLE_NAMES as PLUGIN_NAMES, ROWS } from "./rows.ts"
 import {
   cssImportsOf,
@@ -279,18 +279,38 @@ const SERVER_DOOR = ((): Door => {
   }
 })()
 
+/**
+ * NOTHING ON THE BROWSER REGISTRY'S OWN DOOR IS A UI RUNTIME, AN APPLIANCE'S
+ * CLIENT, OR THE FORMAT.
+ *
+ * The door's `door-graphs` refuses a builtin on a browser root's walk and
+ * nothing else, because those are the words every build shares. What THIS build
+ * may not put behind its chunk table is its own judgement, and it is recorded
+ * here rather than dropped: `solid-js` because a tab's chunk that pulls the
+ * runtime has stopped being a chunk of its own, `@olai/format` because a floor
+ * package that a browser already spends is not a registry's business, an
+ * appliance's client because the tab must reach one through that appliance's
+ * own chunk, and `@olai/surface/projection` because the projection is the
+ * server's reading of a revision.
+ */
+const FORBIDDEN = [
+  /^solid-js(\/|$)/,
+  /^@olai\/format(\/|$)/,
+  /^node:/,
+  /^@kolu\/(padi-client|terminal-vocab|solid-dockrow|solid-statepip|detect)(\/|$)/,
+  /^@xterm\//,
+  /^@odu\//,
+] as const
+
 /** What must not be on the graph of the door a COMPOSITION ROOT opens. A server
  *  legitimately pulls an appliance's client, the vault's format and `node:`
  *  builtins; what it must never pull is a BROWSER FACE. A component library's
  *  BARREL is refused and its documented value-only subpath is not — a
  *  distinction the libraries draw and this fence inherits. */
-const NOT_ON_A_SERVER = [
-  /^solid-js(\/|$)/,
-  /^@solid-primitives\//,
-  /^@xterm\//,
-  /^@kolu\/solid-[^/]+$/,
-  /^@kolu\/terminal-themes(\/|$)/,
-] as const
+/** ...and the words a server graph may not carry, which is ONE constant: the
+ *  door's default spread with this build's own, declared in `fence.testlib.ts`
+ *  and spent here by both the server door and the interface's. */
+const NOT_ON_A_SERVER = RUNTIMES
 
 // ── the door ───────────────────────────────────────────────────────────
 
@@ -311,12 +331,44 @@ describe("the fence's five generic claims", () => {
   }
 
   test("the declaration is not a reading of nothing", () => {
-    // The floors are inside the claims — an empty corpus, a resolver that
-    // answered nothing and a pattern that stopped matching are all RED there.
-    // This is the outer one: the declaration names rows, and they are the
-    // registry's.
+    // THE FLOORS, stated against the door's OWN counts — a floor recomputed here
+    // would be a floor over a second reading, and a resolver that answered
+    // `undefined` once would move both together and agree.
+    const reading = DOOR.reading
+    expect(reading.rows).toBe(PLUGIN_NAMES.length)
     expect(Object.keys(DECLARATION.rows).sort()).toEqual([...PLUGIN_NAMES].sort())
     expect(DECLARATION.roots.length).toBe(2)
+    // The members and the corpus it read, which is what a sweep that came back
+    // short would shrink first.
+    expect(reading.members).toBeGreaterThan(15)
+    expect(reading.production).toBeGreaterThan(300)
+    expect(reading.compiled).toBeGreaterThan(300)
+    // ...the live-state corpus, which a resolver that answered nothing would
+    // leave at one file per door.
+    expect(reading.doors).toBeGreaterThan(200)
+    // ...and the roots' walks, which are the graphs every door claim is about.
+    expect(reading.onARootWalk).toBeGreaterThan(100)
+    // THE ROSTER, by name: the derivation found the registry this package's
+    // claims have always meant, and it is ONE package.
+    expect(reading.registry).toBe(path.join("packages", REGISTRY))
+  })
+
+  test("no product source opens the door", () => {
+    // The door reads sources with a compiler, so a tab's chunk carrying it would
+    // be a bundling accident rather than a boundary. A BENCH may open it — that
+    // is what a `.testlib.ts` is, and `fence.testlib.ts` is the declaration — and
+    // no product file does.
+    const openers = [...tree].flatMap(([, sources]) =>
+      sources
+        .filter((source) => !/\.(?:test|browsertest|spec|testlib|bench)\.tsx?$/.test(source.file))
+        .filter((source) => !source.file.split("/").includes("e2e"))
+        .flatMap((source) =>
+          source.specs
+            .filter((spec) => spec === "@olai/effect-cordis/fence" || spec.startsWith("@olai/effect-cordis/fence/"))
+            .map((spec) => `${source.file}: ${spec}`),
+        ),
+    )
+    expect(openers).toEqual([])
   })
 })
 
@@ -343,6 +395,15 @@ describe("the browser's door names every browser export and imports none", () =>
 
   test("the walk resolved every edge it followed", () => {
     expect(BROWSER_DOOR.unresolved).toEqual([])
+  })
+
+  test("nothing on it is a UI runtime, an appliance's client, or the format", () => {
+    // The olai-only half of the confinement, and the reason it is not the door's:
+    // a `solid-js` on a chunk table is this build's mistake to make.
+    const bad = reached
+      .filter((one) => FORBIDDEN.some((rule) => rule.test(one.spec)))
+      .map((one) => `${one.file}: ${one.spec}`)
+    expect([...new Set(bad)].sort()).toEqual([])
   })
 
   test("...and no file on it is a component at all", () => {

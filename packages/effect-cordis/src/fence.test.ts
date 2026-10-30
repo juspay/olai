@@ -1,18 +1,21 @@
 /**
- * THE DOOR, DRIVEN WITH A TOY WORKSPACE — no olai noun in the file, on purpose.
+ * THE DOOR, DRIVEN WITH A TOY WORKSPACE — no product noun in the file, on
+ * purpose.
  *
  * Every claim here is made over a workspace written to a temp directory: two
- * rows, one host, two roots. That is the same shape `src/plugin.test.ts` takes
- * with toy services, and for the same reason — the door's subjects are ROWS,
- * DOORS, ROOTS and NAMES, and a fixture built out of them says what the claim
- * is about without a reader having to hold this tree in their head.
+ * rows (`alpha`, `beta`), one host, one roster and two roots. That is the same
+ * shape `src/plugin.test.ts` takes with toy services, and for the same reason —
+ * the door's subjects are ROWS, DOORS, ROOTS and NAMES, and a fixture built out
+ * of them says what a claim is about without a reader having to hold one build
+ * in their head. The moment a fixture needs a real product's word, the door has
+ * grown a noun it does not own.
  *
  * The three halves:
  *
  *   - a CLEAN toy workspace, where each claim is asked on its own (a green
  *     report is not evidence until it is asked one claim at a time);
  *   - `prove`, which breaks a COPY of that workspace once per claim and asserts
- *     the claim that names each defect refused it;
+ *     the claim that names each defect refused it — and did not colour another;
  *   - the reading itself, over the shapes it must catch and the legitimate
  *     twins it must pass — because a sweep is only ever as good as what it can
  *     SEE, and a pattern that stopped matching is GREEN everywhere.
@@ -28,6 +31,7 @@ import {
   CLAIMS,
   cssImportsOf,
   type Declaration,
+  DEFAULT_RUNTIMES,
   doorsOf,
   fence,
   intoCode,
@@ -37,6 +41,7 @@ import {
   prove,
   readWorkspace,
   rowsFromManifests,
+  specifiersOf,
   withoutComments,
 } from "./fence.ts"
 
@@ -71,11 +76,17 @@ const withTree = <T>(files: Files, body: (repo: string) => T): T => {
 
 /**
  * THE CLEAN WORKSPACE — a host with one browser root and one node root, two
- * rows, one door each own package publishes.
+ * rows, a roster, and one door of each package a stranger opens.
  *
- * `shared` is the door that makes the live-state claim non-vacuous: it is the
- * one module of the HOST's that a row opens, so it is a module another package
- * can reach and it must hold nothing.
+ * Three files earn their keep beyond the obvious:
+ *
+ *   - `host/src/shared.ts` imports `./faces.json`, so the walk reaches a DATA
+ *     leaf. A copy `prove` makes that dropped non-source files would report a
+ *     graph hole the real tree does not have.
+ *   - `host/src/view.tsx` holds a regex containing `*​/` and JSX text with `//`
+ *     in it, which is what a scanner-only comment stripper gets wrong.
+ *   - `roster/src/rows.ts` names both rows as DATA — a loader's table — which
+ *     is how a build that mounts rows by specifier composes them at all.
  */
 const TOY: Files = {
   "package.json": manifest({ name: "toy", private: true, workspaces: ["packages/*"] }),
@@ -85,10 +96,26 @@ const TOY: Files = {
     exports: { ".": "./src/index.ts", "./shared": "./src/shared.ts" },
   }),
   "packages/host/src/index.ts": "export const host = 1\n",
-  "packages/host/src/shared.ts": "export const shared = (n: number): number => n + 1\n",
+  "packages/host/src/faces.json": manifest({ faces: 1 }),
+  "packages/host/src/shared.ts": [
+    'import faces from "./faces.json"',
+    "export const shared = (n: number): number => n + faces.faces",
+    "",
+  ].join("\n"),
+  // A regex whose body contains `/*`, a comment, and JSX text containing `//`:
+  // a scanner cannot lex either, and a stripper that guessed would blank the
+  // code between them.
+  "packages/host/src/view.tsx": [
+    "const pattern = /\\/\\*/",
+    "// HIDE_ME alpha",
+    "export const view = () => <div>{pattern.source} // still code</div>",
+    'export const named = "keyword"',
+    "",
+  ].join("\n"),
   "packages/host/src/root.ts": [
     'import { host } from "./index.ts"',
     'import "toy-row-alpha/browser"',
+    'import "toy-roster"',
     "export const root = host",
     "",
   ].join("\n"),
@@ -98,9 +125,16 @@ const TOY: Files = {
     "export const root = host",
     "",
   ].join("\n"),
-  // The roster the two roots share: the one host file that spells both rows,
-  // which is what makes `registry`'s composition claim answerable at all.
-  "packages/host/src/roster.ts": ['export const ROWS = ["alpha", "beta"] as const', ""].join("\n"),
+
+  // The roster: a member a root reaches, that names every row as DATA.
+  "packages/roster/package.json": manifest({ name: "toy-roster", exports: { ".": "./src/rows.ts" } }),
+  "packages/roster/src/rows.ts": [
+    "export const ROWS = [",
+    '  { id: "alpha", name: "toy-row-alpha" },',
+    '  { id: "beta", name: "toy-row-beta" },',
+    "]",
+    "",
+  ].join("\n"),
 
   "packages/row-alpha/package.json": manifest({
     name: "toy-row-alpha",
@@ -126,17 +160,15 @@ const TOY: Files = {
   "packages/row-beta/src/server.ts": ['import { readFileSync } from "node:fs"', "export const read = readFileSync", ""].join("\n"),
 }
 
-/** The declaration the clean workspace is read by: roots are the two entries,
- *  the collision record is the roster's one spelling of each row. */
+/** The declaration the clean workspace is read by: the two entries as roots,
+ *  and NO collisions — the state every consumer starts in, which the positive
+ *  control must not call vacuous. */
 const TOY_DECLARATION = {
   roots: [
     { entry: "packages/host/src/root.ts", graph: "browser" },
     { entry: "packages/host/src/server-root.ts", graph: "node" },
   ],
-  collisions: {
-    alpha: { "packages/host/src/roster.ts": 1 },
-    beta: { "packages/host/src/roster.ts": 1 },
-  },
+  collisions: {},
 } as const
 
 const declared = (repo: string, over: Partial<Declaration> = {}): Declaration => ({
@@ -155,12 +187,24 @@ const clean = (over: Partial<Declaration> = {}) =>
     return { report: fence(declaration), repo, declaration }
   })
 
+/** The clean workspace plus one appended line to an existing file — most of the
+ *  defects below are one import a person added. */
+const plus = (file: string, line: string): Files => ({ [file]: `${TOY[file] ?? ""}${line}\n` })
+
+/** The clean workspace plus one broken file, as the sentences the named claim
+ *  says. */
+const broken = (files: Files, over: Partial<Declaration> = {}) =>
+  withTree({ ...TOY, ...files }, (repo) => fence(declared(repo, over)))
+
 // ── the clean workspace ────────────────────────────────────────────────
 
 describe("a clean workspace", () => {
   const { report } = clean()
 
-  test("the fence is green", () => {
+  test("the fence is green, with no collision record at all", () => {
+    // The positive control is PER ROW (`names`), so "no collisions anywhere" is
+    // the state a clean tree is allowed to be in — a global "the sweep found
+    // something somewhere" would call this vacuous.
     expect(report.findings).toEqual([])
   })
 
@@ -170,14 +214,25 @@ describe("a clean workspace", () => {
     })
   }
 
-  test("it names every row, and the report is not an empty reading", () => {
+  test("the reading is a reading of something", () => {
+    // THE FLOORS, and they are the door's own counts: a floor stated against a
+    // number a bench recomputed would be a floor over a second reading, and a
+    // resolver that answered `undefined` once would move both together.
+    const reading = report.reading
+    expect(reading.members).toBe(4)
+    expect(reading.rows).toBe(2)
+    expect(reading.registry).toBe("packages/roster")
+    expect(reading.production).toBeGreaterThan(10)
+    expect(reading.compiled).toBeGreaterThan(10)
+    expect(reading.doors).toBeGreaterThan(1)
+    expect(reading.onARootWalk).toBeGreaterThan(3)
+    expect(reading.sources).toBe(reading.production)
+  })
+
+  test("it names every row, from the manifests", () => {
     withTree(TOY, (repo) => {
       expect(Object.keys(rowsFromManifests(repo)).sort()).toEqual(["alpha", "beta"])
-      // The floors the claims assert internally are red when they are empty, so
-      // a green report here means the corpus was actually read.
-      const workspace = readWorkspace(repo)
-      expect(workspace.members).toEqual(["packages/host", "packages/row-alpha", "packages/row-beta"])
-      expect(workspace.sources.length).toBeGreaterThan(8)
+      expect(readWorkspace(repo).members).toHaveLength(4)
     })
   })
 })
@@ -188,27 +243,86 @@ describe("prove", () => {
   test("every claim catches the defect it is about, and nothing else notices", () => {
     const proof = withTree(TOY, (repo) => prove(declared(repo)))
     expect(proof.baseline).toEqual([])
+    // FIVE CLAIMS, SIX MUTATIONS: `names` is planted twice, once as the
+    // env-shaped knob (`_` is a separator) and once in the form a hyphenated row
+    // is actually written in.
     expect(proof.mutations.map((one) => [one.claim, one.caught])).toEqual([
       ["imports", true],
       ["door-graphs", true],
       ["names", true],
+      ["names", true],
       ["live-state", true],
       ["registry", true],
     ])
+    // NO SPILL is part of `ok`: a mutation that reddened another claim has not
+    // shown this one is awake, it has shown `prove` is over-eager. This is also
+    // the regression test for the copy: without `host/src/faces.json`, every
+    // mutation would spill into `door-graphs` as a graph hole.
+    expect(proof.mutations.filter((one) => one.spill.length > 0)).toEqual([])
+    expect(proof.ok).toBe(true)
+  })
+
+  test("a node-only consumer can prove its own claim", () => {
+    // The plan follows the ROOT KIND: a builtin is the browser's defect and a UI
+    // runtime is the node's, so a workspace with no browser root still has a
+    // door-graphs mutation.
+    const files: Files = {
+      ...TOY,
+      "packages/host/src/root.ts": 'import "toy-roster"\nexport const root = 1\n',
+      "packages/host/src/server-root.ts": [
+        'import { host } from "./index.ts"',
+        'import "toy-row-beta/server"',
+        'import "toy-row-alpha/contract"',
+        'import "toy-roster"',
+        "export const root = host",
+        "",
+      ].join("\n"),
+    }
+    const proof = withTree(files, (repo) =>
+      prove(
+        declared(repo, {
+          roots: [{ entry: "packages/host/src/server-root.ts", graph: "node" }],
+        }),
+      ),
+    )
+    expect(proof.baseline).toEqual([])
+    const graphs = proof.mutations.find((one) => one.claim === "door-graphs")
+    expect(graphs?.caught).toBe(true)
+    expect(graphs?.what).toContain("UI runtime")
+    expect(proof.ok).toBe(true)
+  })
+
+  test("...and a consumer whose roots live OUTSIDE a member can prove anything at all", () => {
+    // The copy must carry the root files, or every mutation reports a graph hole
+    // in a tree that does not have one. `src/` beside the packages is an
+    // ordinary layout for a consumer and was the layout that broke.
+    const files: Files = {
+      ...TOY,
+      "package.json": manifest({ name: "toy", private: true, workspaces: ["packages/*"] }),
+      // The host's own entries are no longer roots here, so neither may name a row.
+      "packages/host/src/root.ts": "export const root = 1\n",
+      "packages/host/src/server-root.ts": "export const root = 1\n",
+      "src/main.ts": [
+        'import "toy-row-alpha/browser"',
+        'import "toy-roster"',
+        'import { helper } from "./helper.ts"',
+        "export const main = helper",
+        "",
+      ].join("\n"),
+      "src/helper.ts": "export const helper = 1\n",
+    }
+    const proof = withTree(files, (repo) =>
+      prove(declared(repo, { roots: [{ entry: "src/main.ts", graph: "browser" }] })),
+    )
+    expect(proof.baseline).toEqual([])
+    expect(proof.mutations.every((one) => one.caught)).toBe(true)
     expect(proof.mutations.filter((one) => one.spill.length > 0)).toEqual([])
     expect(proof.ok).toBe(true)
   })
 
   test("a red baseline is refused rather than proved over", () => {
-    // The proof is "the suite went red when I broke it", which says nothing
-    // unless it was green first — the same failure mode the fence exists to
-    // catch, read from the other side.
-    const proof = withTree(
-      {
-        ...TOY,
-        "packages/host/src/evildoer.ts": 'export const name = "alpha"\n',
-      },
-      (repo) => prove({ ...declared(repo), collisions: undefined }),
+    const proof = withTree({ ...TOY, "packages/host/src/evildoer.ts": 'export const name = "alpha"\n' }, (repo) =>
+      prove(declared(repo)),
     )
     expect(proof.ok).toBe(false)
     expect(proof.mutations).toEqual([])
@@ -218,34 +332,28 @@ describe("prove", () => {
   test("a declaration with nothing to break fails the mutation, not the fence", () => {
     // ONE row: there is no second row for `imports` to import, so the proof must
     // report that as a miss rather than quietly running four mutations. The
-    // baseline has to be green for the proof to run at all, so the tree carries
-    // a second HOST package for the root's walk to leave through.
-    const proof = withTree(
-      {
-        "package.json": manifest({ name: "toy", private: true, workspaces: ["packages/*"] }),
-        "packages/host/package.json": manifest({
-          name: "toy-host",
-          exports: { ".": "./src/index.ts" },
-        }),
-        "packages/host/src/index.ts": 'import "toy-ui/button"\nimport "toy-one/browser"\nexport const host = 1\n',
-        "packages/host/src/roster.ts": 'export const ROWS = ["one"]\n',
-        "packages/ui/package.json": manifest({ name: "toy-ui", exports: { "./button": "./src/button.ts" } }),
-        "packages/ui/src/button.ts": "export const button = 1\n",
-        "packages/one/package.json": manifest({
-          name: "toy-one",
-          exports: { ".": "./src/index.ts", "./browser": "./src/browser.ts" },
-          cordis: { row: "one" },
-        }),
-        "packages/one/src/index.ts": "export const one = 1\n",
-        "packages/one/src/browser.ts": "export const draw = 1\n",
-      },
-      (repo) =>
-        prove({
-          repo,
-          rows: ["one"],
-          roots: [{ entry: "packages/host/src/index.ts", graph: "browser" }],
-          collisions: { one: { "packages/host/src/roster.ts": 1 } },
-        }),
+    // baseline has to be green for the proof to run at all.
+    const files: Files = {
+      "package.json": manifest({ name: "toy", private: true, workspaces: ["packages/*"] }),
+      "packages/host/package.json": manifest({ name: "toy-host", exports: { ".": "./src/index.ts" } }),
+      "packages/host/src/index.ts": 'import "toy-one/browser"\nexport const host = 1\n',
+      "packages/ui/package.json": manifest({ name: "toy-ui", exports: { "./button": "./src/button.ts" } }),
+      "packages/ui/src/button.ts": "export const button = 1\n",
+      "packages/one/package.json": manifest({
+        name: "toy-one",
+        exports: { ".": "./src/index.ts", "./browser": "./src/browser.ts" },
+        cordis: { row: "one" },
+      }),
+      "packages/one/src/index.ts": "export const one = 1\n",
+      "packages/one/src/browser.ts": "export const draw = 1\n",
+    }
+    const proof = withTree(files, (repo) =>
+      prove({
+        repo,
+        rows: ["one"],
+        roots: [{ entry: "packages/host/src/index.ts", graph: "browser" }],
+        collisions: {},
+      }),
     )
     expect(proof.baseline).toEqual([])
     expect(proof.ok).toBe(false)
@@ -253,18 +361,10 @@ describe("prove", () => {
     expect(imports?.caught).toBe(false)
     expect(imports?.why).toContain("nothing to break")
   })
+
 })
 
 // ── each claim, over its own defect ───────────────────────────────────
-
-/** The clean workspace plus one appended line to an existing file — most of the
- *  defects below are one import a person added. */
-const plus = (file: string, line: string): Files => ({ [file]: `${TOY[file] ?? ""}${line}\n` })
-
-/** The clean workspace plus one broken file, as the sentences the named claim
- *  says. */
-const broken = (files: Files, over: Partial<Declaration> = {}) =>
-  withTree({ ...TOY, ...files }, (repo) => fence(declared(repo, over)))
 
 describe("imports", () => {
   test("a host production file importing a row is red", () => {
@@ -305,28 +405,44 @@ describe("imports", () => {
 
   test("a row importing the roster is red, and the roster may name rows", () => {
     const report = broken({
-      "packages/host/package.json": manifest({
-        name: "toy-host",
-        exports: { ".": "./src/index.ts", "./shared": "./src/shared.ts" },
-        dependencies: { "toy-row-alpha": "*", "toy-row-beta": "*" },
-      }),
-      "packages/row-alpha/src/browser.ts": 'import "toy-host"\nexport const draw = 1\n',
+      "packages/row-alpha/src/browser.ts": 'import "toy-roster"\nexport const draw = 1\n',
     })
     expect(report.red("imports")).toContain(
-      "packages/row-alpha/src/browser.ts: toy-host — a row imports the registry, which names every row; that is the " +
-        "cycle the manifests cannot express",
+      "packages/row-alpha/src/browser.ts: toy-roster — a row imports the registry, which names every row; that is " +
+        "the cycle the manifests cannot express",
     )
   })
 
   test("the manifest door is not read here: only an import crosses a boundary", () => {
     // A `workspace:*` line with the import dropped is still a package standing
-    // on the wrong side of the wall, and it is deliberately NOT this claim's:
-    // the host's own manifest claim reads it. The declaring package is a THIRD
-    // one, so the rows' own imports stay where they are.
+    // on the wrong side of the wall, and it is deliberately NOT this claim's.
     const report = broken({
       "packages/other/package.json": manifest({ name: "toy-other", dependencies: { "toy-row-alpha": "*" } }),
     })
     expect(report.red("imports")).toEqual([])
+  })
+
+  test("a workspace with no cross-package import is red, not quiet", () => {
+    const report = withTree(
+      {
+        "package.json": manifest({ name: "toy", private: true, workspaces: ["packages/*"] }),
+        "packages/one/package.json": manifest({
+          name: "toy-one",
+          exports: { ".": "./src/index.ts" },
+          cordis: { row: "one" },
+        }),
+        "packages/one/src/index.ts": "export const one = 1\n",
+      },
+      (repo) => fence({ repo, rows: ["one"], roots: [{ entry: "packages/one/src/index.ts", graph: "node" }] }),
+    )
+    expect(report.red("imports")).toContain(
+      "vacuous: no file imports another package of this workspace, so every boundary claim here is empty",
+    )
+    // ...and a tree where no source names a row's PACKAGE says so too.
+    expect(report.red("imports")).toContain(
+      "vacuous: no source names a row's package at all — by specifier or by the string a loader resolves — so " +
+        "nothing here ties a row to a package",
+    )
   })
 })
 
@@ -350,9 +466,10 @@ describe("door-graphs", () => {
     expect(report.red("door-graphs")).toEqual([
       "packages/host/src/server-root.ts: solid-js — a node root's walk reaches a UI runtime",
     ])
-    // ...and a consumer whose runtime words are its own.
+    // ...and a consumer whose runtime words are its own — the DEFAULT list, plus
+    // its own, which is the whole reason the default is exported.
     const other = broken(plus("packages/host/src/server-root.ts", 'import "@xterm/xterm"'), {
-      runtimes: [/^@xterm\//],
+      runtimes: [...DEFAULT_RUNTIMES, /^@xterm\//],
     })
     expect(other.red("door-graphs")).toEqual([
       "packages/host/src/server-root.ts: @xterm/xterm — a node root's walk reaches a UI runtime",
@@ -371,7 +488,8 @@ describe("door-graphs", () => {
     // an import whose every binding is `type` compile to nothing — and one
     // module over, the SAME lines are still a package standing on the wrong side
     // of a wall, which is why the boundary reading sees them.
-    const report = broken({
+    const files: Files = {
+      ...TOY,
       "packages/host/src/root.ts": [
         'import { type Widget } from "toy-ui/widgets"',
         'export type { Gadget } from "toy-ui/widgets"',
@@ -383,17 +501,23 @@ describe("door-graphs", () => {
       ].join("\n"),
       "packages/ui/package.json": manifest({ name: "toy-ui", exports: { "./widgets": "./src/widgets.ts" } }),
       "packages/ui/src/widgets.ts": 'import "node:fs"\nexport const widget = 1\n',
-    })
+    }
+    const report = broken(files)
     expect(report.red("door-graphs")).toEqual([])
-    // ...and the boundary reading DID see the specifier, so the elision is a
-    // reading rather than a blind spot: `toy-ui` is a host opening nothing, and
-    // the types above name it.
-    expect(report.red("imports")).toEqual([])
+    // ...and the BOUNDARY reading saw the specifier, asserted by name: a reader
+    // that saw nothing would also leave `imports` empty, so "imports is empty"
+    // would assert nothing.
+    withTree(files, (repo) => {
+      const workspace = readWorkspace(repo)
+      const text = TOY["packages/host/src/root.ts"] ?? ""
+      expect(specifiersOf("packages/host/src/root.ts", files["packages/host/src/root.ts"] ?? text)).toContain(
+        "toy-ui/widgets",
+      )
+      expect(workspace.specifiersOf("packages/host/src/root.ts")).toContain("toy-ui/widgets")
+    })
   })
 
   test("a resolver that answered nothing is red, not quiet", () => {
-    // An entry one file long: every confinement list below it is satisfied by
-    // being empty, which is the failure mode the floor exists for.
     const report = broken({ "packages/host/src/lonesome.ts": "export const lonesome = 1\n" }, {
       roots: [{ entry: "packages/host/src/lonesome.ts", graph: "browser" }],
     })
@@ -405,8 +529,6 @@ describe("door-graphs", () => {
   })
 
   test("a dynamic import is recorded and not followed", () => {
-    // The chunk boundary: a browser root names a plugin's chunk and does not
-    // evaluate it, so what is behind the `import()` costs the tab nothing.
     const report = broken(plus("packages/host/src/root.ts", 'export const load = () => import("toy-row-beta/server")'))
     expect(report.red("door-graphs")).toEqual([])
   })
@@ -414,7 +536,7 @@ describe("door-graphs", () => {
 
 describe("names", () => {
   test("a row's name spelled in a host's code is red, with the count", () => {
-    const report = broken({ "packages/host/src/index.ts": 'export const alphaHalf = () => null\n' })
+    const report = broken({ "packages/host/src/index.ts": "export const alphaHalf = () => null\n" })
     expect(report.red("names")).toEqual([
       "packages/host/src/index.ts: `alpha` is spelled 1 time(s) in code; the collision record says 0 — move it into " +
         "the row's own package, or record it with a reason",
@@ -422,15 +544,19 @@ describe("names", () => {
   })
 
   test("a recorded collision is an exact COUNT, red when it grows or shrinks", () => {
-    const grown = broken({ "packages/host/src/roster.ts": 'export const ROWS = ["alpha", "alpha", "beta"]\n' })
-    expect(grown.red("names")).toEqual(["packages/host/src/roster.ts: `alpha` is spelled 2 time(s) in code; the collision record says 1"])
-    const gone = broken({ "packages/host/src/roster.ts": 'export const ROWS = ["beta"]\n' })
+    const line = (text: string): Files => ({ "packages/host/src/index.ts": `${text}\n` })
+    const recorded = { alpha: { "packages/host/src/index.ts": 1 } }
+    expect(broken(line('export const ROWS = ["alpha", "alpha"]'), { collisions: recorded }).red("names")).toEqual([
+      "packages/host/src/index.ts: `alpha` is spelled 2 time(s) in code; the collision record says 1",
+    ])
     // 0 is not 1, and the message says which direction the record is wrong in.
-    expect(gone.red("names")).toEqual(["packages/host/src/roster.ts: `alpha` is spelled 0 time(s) in code; the collision record says 1"])
+    expect(broken(line("export const ROWS = []"), { collisions: recorded }).red("names")).toEqual([
+      "packages/host/src/index.ts: `alpha` is spelled 0 time(s) in code; the collision record says 1",
+    ])
   })
 
   test("a record naming a word that is no row is red", () => {
-    const report = broken({}, { collisions: { ...TOY_DECLARATION.collisions, ghost: {} } })
+    const report = broken({}, { collisions: { ghost: {} } })
     expect(report.red("names")).toEqual(["the collision record names `ghost`, which is no row of this declaration"])
   })
 
@@ -440,8 +566,6 @@ describe("names", () => {
   })
 
   test("...and so is a module specifier, which claim 1 owns", () => {
-    // `toy-row-alpha` in an import path is an import, and counting it here
-    // would be this claim reporting on a decision that is not its own.
     const report = broken({ "packages/host/src/index.ts": 'import "toy-row-alpha/browser"\nexport const host = 1\n' })
     expect(report.red("names")).toEqual([])
   })
@@ -453,8 +577,55 @@ describe("names", () => {
     expect(report.red("names")).toEqual([])
   })
 
+  test("`_` is a separator: an env-shaped knob and a prefixed word are spellings", () => {
+    // `\b` does not fire after `_`, and the env-shaped knob is exactly how a
+    // build spells a row's word at a root — so both of these are red.
+    for (const line of ["export const OLAI_ALPHA_BIN = 1", "export const my_alpha = 1"]) {
+      const report = broken({ "packages/host/src/index.ts": `${line}\n` })
+      expect([line, report.red("names")]).toEqual([
+        line,
+        ["packages/host/src/index.ts: `alpha` is spelled 1 time(s) in code; the collision record says 0 — move it " +
+          "into the row's own package, or record it with a reason"],
+      ])
+    }
+  })
+
+  test("a hyphenated row is spelled the camel and SNAKE ways in code", () => {
+    const files: Files = {
+      ...TOY,
+      "packages/row-alpha/package.json": manifest({
+        name: "toy-row-alpha",
+        exports: { ".": "./src/index.ts", "./browser": "./src/browser.ts" },
+        cordis: { row: "two-words" },
+      }),
+      "packages/row-beta/package.json": manifest({
+        name: "toy-row-beta",
+        exports: { ".": "./src/index.ts", "./server": "./src/server.ts" },
+        cordis: { row: "beta" },
+      }),
+    }
+    for (const spelling of ["twoWords", "TwoWords", "TWO_WORDS"]) {
+      const report = withTree(
+        { ...files, "packages/host/src/index.ts": `export const ${spelling} = 1\n` },
+        (repo) => fence(declared(repo, { rows: ["two-words", "beta"] })),
+      )
+      expect([spelling, report.red("names").some((one) => one.includes("`two-words`"))]).toEqual([spelling, true])
+    }
+  })
+
+  test("a row's word nowhere it is ALLOWED to be is red — the pattern may be asleep", () => {
+    // The positive control, driven with a row whose package is the host and
+    // whose word appears in none of its files: the claim must say the pattern
+    // has nothing to look at, rather than passing because nothing was found.
+    const report = broken({}, { rows: { alpha: ["packages/row-alpha"], beta: ["packages/row-beta"], gamma: ["packages/host"] } })
+    expect(report.red("names")).toContain(
+      "row `gamma` is spelled nowhere its own packages, the roots or the roster can see it — a pattern that " +
+        "stopped matching would be silent, and so would a corpus that came back short",
+    )
+  })
+
   test("a bench is not product", () => {
-    const report = broken({ "packages/host/src/bench.test.ts": 'export const alphaHalf = () => null\n' })
+    const report = broken({ "packages/host/src/bench.test.ts": "export const alphaHalf = () => null\n" })
     expect(report.red("names")).toEqual([])
   })
 })
@@ -475,10 +646,18 @@ describe("live-state", () => {
     ])
   })
 
+  test("a hole behind a door is red: the closure the allowance is judged by is read", () => {
+    const report = broken({ "packages/host/src/shared.ts": 'export { current } from "./missing.ts"\n' })
+    expect(report.red("live-state")).toEqual([
+      "packages/host/src/shared.ts: unresolved edge — packages/host/src/shared.ts: ./missing.ts — packages/host/src/shared.ts: ./missing.ts names no file of this tree",
+    ])
+  })
+
   test("an allowance is argued, still reachable, and still holds something", () => {
-    const allowed = broken({ "packages/host/src/shared.ts": "let held: unknown\nexport const current = () => held\n" }, {
-      allowances: { "packages/host/src/shared.ts": "the page's one connection, argued in the plan" },
-    })
+    const allowed = broken(
+      { "packages/host/src/shared.ts": "let held: unknown\nexport const current = () => held\n" },
+      { allowances: { "packages/host/src/shared.ts": "the page's one connection, argued in the plan" } },
+    )
     expect(allowed.red("live-state")).toEqual([])
 
     const dead = broken({}, { allowances: { "packages/host/src/shared.ts": "a module that holds nothing at all" } })
@@ -492,14 +671,24 @@ describe("live-state", () => {
     )
   })
 
-  test("a holder factory the host names is state, under an alias", () => {
-    const report = broken(
-      {
-        "packages/host/src/shared.ts": 'import { heldService as slot } from "toy-kit/held"\nexport const box = slot()\n',
-      },
-      { holders: [{ from: /toy-kit\/held$/, named: "heldService" }] },
+  test("a holder factory the host names is state, under an alias and under a namespace", () => {
+    const holders = [{ from: /toy-kit\/held$/, named: "heldService" }]
+    const alias = broken(
+      { "packages/host/src/shared.ts": 'import { heldService as slot } from "toy-kit/held"\nexport const box = slot()\n' },
+      { holders },
     )
-    expect(report.red("live-state")).toEqual(["packages/host/src/shared.ts: `box` is a module-scope slot() holder"])
+    expect(alias.red("live-state")).toEqual(["packages/host/src/shared.ts: `box` is a module-scope slot() holder"])
+
+    const namespace = broken(
+      {
+        "packages/host/src/shared.ts":
+          'import * as slot from "toy-kit/held"\nexport const box = slot.heldService()\n',
+      },
+      { holders },
+    )
+    expect(namespace.red("live-state")).toEqual([
+      "packages/host/src/shared.ts: `box` is a module-scope slot.heldService() holder",
+    ])
   })
 })
 
@@ -516,19 +705,34 @@ describe("registry", () => {
     expect(report.red("registry")).toEqual(["packages/row-gamma: declares row `gamma`, which the declaration does not name"])
   })
 
-  test("a row no root composes is red", () => {
-    // Composition is read off the walk: a root names a row's package or spells
-    // its word. Remove both and the row is declared and unmounted.
+  test("a row no root file and no roster names is red", () => {
+    // Composition is STRUCTURAL: the roster and the entries name a row's
+    // PACKAGE. A word spelled three modules into a walk does not compose
+    // anything, and counting it did — for every row whose word is English.
     const uncomposed = broken({
-      "packages/host/src/server-root.ts": "export const root = 1\n",
-      "packages/host/src/roster.ts": 'export const ROWS = ["alpha"]\n',
+      "packages/host/src/server-root.ts": 'import { host } from "./index.ts"\nexport const root = host\n',
+      "packages/roster/src/rows.ts": 'export const ROWS = [{ id: "alpha", name: "toy-row-alpha" }]\n',
     })
-    expect(uncomposed.red("registry")).toEqual(["row `beta` is declared and no root's walk composes it"])
+    expect(uncomposed.red("registry")).toEqual(["row `beta` is declared and neither a root file nor the roster names it"])
     expect(broken({}).red("registry")).toEqual([])
   })
 
+  test("TWO rosters are red: which one is exempt would be a guess", () => {
+    const report = broken({
+      "packages/roster-two/package.json": manifest({ name: "toy-roster-two", exports: { ".": "./src/rows.ts" } }),
+      "packages/roster-two/src/rows.ts": 'export const ROWS = ["toy-row-alpha", "toy-row-beta"]\n',
+      "packages/host/src/root.ts": `${TOY["packages/host/src/root.ts"] ?? ""}import "toy-roster-two"\n`,
+    })
+    expect(report.red("registry")).toEqual([
+      "more than one package a root's walk reaches names every row (packages/roster, packages/roster-two); the " +
+        "roster must be one, or which of them is exempt from `imports` and `names` is a guess",
+    ])
+  })
+
   test("a row naming a package that is not a member is red", () => {
-    const report = broken({}, { rows: { alpha: ["packages/row-alpha"], beta: ["packages/row-beta"], delta: ["packages/row-delta"] } })
+    const report = broken({}, {
+      rows: { alpha: ["packages/row-alpha"], beta: ["packages/row-beta"], delta: ["packages/row-delta"] },
+    })
     expect(report.red("registry")).toContain("row `delta` names `packages/row-delta`, which is no workspace member")
   })
 
@@ -547,25 +751,33 @@ describe("registry", () => {
     )
     expect(report.red("registry")).toContain("packages/host: declares row `alpha`, which the declaration places elsewhere")
   })
-})
 
-// ── vacuity ────────────────────────────────────────────────────────────
+  test("no roots, and no row named by anything, are red rather than empty", () => {
+    const noRoots = withTree(TOY, (repo) => fence({ repo, rows: ["alpha", "beta"], roots: [], collisions: {} }))
+    expect(noRoots.red("registry")).toContain("vacuous: the declaration names no root, so no row can be composed")
 
-describe("a corpus that came back short is red, not quiet", () => {
-  test("no production source", () => {
-    const report = withTree(
+    const unnamed = withTree(
       {
         "package.json": manifest({ name: "toy", private: true, workspaces: ["packages/*"] }),
-        "packages/one/package.json": manifest({ name: "toy-one", exports: { ".": "./src/index.ts" }, cordis: { row: "one" } }),
-        "packages/one/src/index.ts": "export const one = 1\n",
+        "packages/host/package.json": manifest({ name: "toy-host", exports: { ".": "./src/index.ts" } }),
+        "packages/host/src/index.ts": "export const host = 1\n",
+        "packages/roster/package.json": manifest({ name: "toy-roster", exports: { ".": "./src/rows.ts" } }),
+        "packages/roster/src/rows.ts": 'export const ROWS = ["toy-row-alpha", "toy-row-beta"]\n',
+        "packages/row-alpha/package.json": manifest({ name: "toy-row-alpha", exports: { ".": "./src/index.ts" }, cordis: { row: "alpha" } }),
+        "packages/row-alpha/src/index.ts": "export const alpha = 1\n",
+        "packages/row-beta/package.json": manifest({ name: "toy-row-beta", exports: { ".": "./src/index.ts" }, cordis: { row: "beta" } }),
+        "packages/row-beta/src/index.ts": "export const beta = 1\n",
       },
-      (repo) => fence({ repo, rows: ["one"], roots: [{ entry: "packages/one/src/index.ts", graph: "node" }] }),
+      (repo) =>
+        fence({
+          repo,
+          rows: ["alpha", "beta"],
+          roots: [{ entry: "packages/host/src/index.ts", graph: "node" }],
+          collisions: {},
+        }),
     )
-    expect(report.red("imports")).toContain(
-      "vacuous: no file imports another package of this workspace, so every boundary claim here is empty",
-    )
-    expect(report.red("live-state")).toContain(
-      "vacuous: no module is opened across a package boundary, so the live-state claim judged nothing",
+    expect(unnamed.red("registry")).toContain(
+      "vacuous: no root file or roster names any row, so the agreement above is three empty sets",
     )
   })
 
@@ -574,20 +786,41 @@ describe("a corpus that came back short is red, not quiet", () => {
     expect(report.red("registry")).toContain("the declaration names no rows")
     expect(report.red("door-graphs")).toContain("vacuous: the declaration names no root, so no door graph is weighed")
   })
+})
+
+// ── vacuity ────────────────────────────────────────────────────────────
+
+describe("a corpus that came back short is red, not quiet", () => {
+  test("no production source at all", () => {
+    const report = withTree(
+      {
+        "package.json": manifest({ name: "toy", private: true, workspaces: ["packages/*"] }),
+        "packages/one/package.json": manifest({
+          name: "toy-one",
+          exports: { ".": "./src/index.ts" },
+          cordis: { row: "one" },
+        }),
+        "packages/one/src/bench.test.ts": "export const one = 1\n",
+      },
+      (repo) => fence({ repo, rows: ["one"], roots: [{ entry: "packages/one/src/bench.test.ts", graph: "node" }], collisions: {} }),
+    )
+    expect(report.red("names")).toContain("vacuous: the name sweep read no production source")
+    expect(report.red("live-state")).toContain(
+      "vacuous: no module is opened across a package boundary, so the live-state claim judged nothing",
+    )
+  })
 
   test("a workspace glob that matched nothing, and a manifest that will not parse, are throws", () => {
     // Not findings: a member list this reading cannot see is a corpus every
     // claim is an equality over, and a claim asked about it would be answering
     // about nothing.
-    expect(() =>
-      readWorkspace(
-        (() => {
-          const repo = mkdtempSync(path.join(os.tmpdir(), "cordis-fence-empty-"))
-          writeFileSync(path.join(repo, "package.json"), manifest({ name: "toy", workspaces: ["packages/*"] }))
-          return repo
-        })(),
-      ),
-    ).toThrow("matched no package at all")
+    const empty = mkdtempSync(path.join(os.tmpdir(), "cordis-fence-empty-"))
+    try {
+      writeFileSync(path.join(empty, "package.json"), manifest({ name: "toy", workspaces: ["packages/*"] }))
+      expect(() => readWorkspace(empty)).toThrow("matched no package at all")
+    } finally {
+      rmSync(empty, { recursive: true, force: true })
+    }
 
     expect(() =>
       withTree(
@@ -637,20 +870,24 @@ describe("liveStateIn", () => {
   })
 
   test("an unrelated local does not hide the write", () => {
-    expect(said("const writers = new Map()\nexport const register = (k, v) => {\n  writers.set(k, v)\n  { const writers = []; writers.push(1) }\n}")).toEqual([
-      "fixture.ts: `writers` is a const this module writes to",
-    ])
-    expect(said("const rows = new Map()\nexport const count = (all) => { const rows = []\n for (const one of all) rows.push(one)\n return rows.length }")).toEqual([])
+    expect(
+      said("const writers = new Map()\nexport const register = (k, v) => {\n  writers.set(k, v)\n  { const writers = []; writers.push(1) }\n}"),
+    ).toEqual(["fixture.ts: `writers` is a const this module writes to"])
+    expect(
+      said("const rows = new Map()\nexport const count = (all) => { const rows = []\n for (const one of all) rows.push(one)\n return rows.length }"),
+    ).toEqual([])
     expect(said("const held = new Map()\nexport const put = (held) => { held.set(1, 1) }")).toEqual([])
-    expect(said("const counted = new Map()\nexport const count = (k) => {\n  { var counted = new Map() }\n  counted.set(k, 1)\n}")).toEqual([])
+    expect(
+      said("const counted = new Map()\nexport const count = (k) => {\n  { var counted = new Map() }\n  counted.set(k, 1)\n}"),
+    ).toEqual([])
   })
 
   test("the legitimate twins pass", () => {
     expect(said("export const make = () => { const [a, setA] = createSignal(); return { a, setA } }")).toEqual([])
-    expect(said("export const KINDS = new Map([[\"olai\", 1]])\nexport const of = (k) => KINDS.get(k)")).toEqual([])
+    expect(said('export const KINDS = new Map([["toy", 1]])\nexport const of = (k) => KINDS.get(k)')).toEqual([])
     expect(said("export const LAYER = Object.freeze({ row: 10 })")).toEqual([])
     expect(said("export class Door { private held = 1; take() { this.held += 1 } }")).toEqual([])
-    expect(said("export const DEFAULT = (() => { const one = TABLE.get(\"a\"); if (!one) throw new Error(\"no\"); return one })()")).toEqual([])
+    expect(said('export const DEFAULT = (() => { const one = TABLE.get("a"); if (!one) throw new Error("no"); return one })()')).toEqual([])
     expect(said("class Clock { at(ms) { return Math.floor(ms / 1000) } }\nexport const CLOCK = new Clock()")).toEqual([])
     expect(said("export const stamp = new Date(0)")).toEqual([])
   })
@@ -672,6 +909,18 @@ describe("the shorthands", () => {
     expect(stripped.length).toBe(source.length)
   })
 
+  test("...and a regex containing `/*` does not turn the rest of the file into a comment", () => {
+    // THE SCANNER'S BLIND SPOT, driven through the toy: `view.tsx` holds
+    // `/\/\*/` and JSX text with `//` in it, and the word after them is code.
+    withTree(TOY, (repo) => {
+      const tree = readWorkspace(repo)
+      const code = tree.codeOf("packages/host/src/view.tsx")
+      expect(code).not.toContain("HIDE_ME")
+      expect(code).toContain('"keyword"')
+      expect(code).toContain("pattern.source")
+    })
+  })
+
   test("intoCode subtracts the module specifier and nothing else", () => {
     const code = intoCode("fixture.ts", 'import { x } from "some-row/contract"\nexport const y = "some-row"\n')
     expect(code).not.toContain("some-row/contract")
@@ -683,9 +932,21 @@ describe("the shorthands", () => {
   })
 
   test("isBench reads the container, not only a suffix", () => {
-    expect(isBench("packages/plugins/kolu/e2e/steps/pin.ts")).toBe(true)
-    expect(isBench("packages/tests/support/hooks.ts")).toBe(true)
-    expect(isBench("packages/bundle/src/rows.test.ts")).toBe(true)
-    expect(isBench("packages/bundle/src/rowse.ts")).toBe(false)
+    expect(isBench("packages/one/e2e/steps/pin.ts")).toBe(true)
+    expect(isBench("packages/suite/tests/hooks.ts")).toBe(true)
+    expect(isBench("packages/one/src/rows.test.ts")).toBe(true)
+    expect(isBench("packages/one/src/rowse.ts")).toBe(false)
+  })
+
+  test("a declaration may read benches its own way", () => {
+    // The default calls `*.test.ts` a bench; a consumer whose benches are named
+    // otherwise says so, and the SAME file becomes product under its reading —
+    // so the word in it is red again.
+    const file = { "packages/host/src/bench.test.ts": "export const alphaHalf = () => null\n" }
+    expect(broken(file).red("names")).toEqual([])
+    expect(broken(file, { bench: (at) => at.endsWith(".spec.ts") }).red("names")).toEqual([
+      "packages/host/src/bench.test.ts: `alpha` is spelled 1 time(s) in code; the collision record says 0 — move it " +
+        "into the row's own package, or record it with a reason",
+    ])
   })
 })

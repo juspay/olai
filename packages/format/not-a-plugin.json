@@ -78,17 +78,17 @@
     "src/writing.ts": 1
   },
   "pins": {
-    "src/index.ts": 2,
+    "src/index.ts": 3,
     "src/node.ts": 4,
     "src/rules.ts": 2,
-    "src/shelf.ts": 2
+    "src/shelf.ts": 4
   },
   "search": {
     "src/address.ts": 2,
     "src/documents.ts": 1,
     "src/filter.ts": 9,
-    "src/index.ts": 5,
-    "src/searching.ts": 17
+    "src/index.ts": 6,
+    "src/searching.ts": 19
   },
   "trash": {
     "src/index.ts": 4,

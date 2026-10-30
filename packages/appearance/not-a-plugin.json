@@ -6,7 +6,7 @@
     "src/tagInk.ts": 2
   },
   "theme": {
-    "src/css.ts": 3,
-    "src/palettes.ts": 10
+    "src/css.ts": 5,
+    "src/palettes.ts": 14
   }
 }

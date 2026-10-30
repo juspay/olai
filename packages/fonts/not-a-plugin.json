@@ -1,0 +1,8 @@
+{
+  "files": {
+    "src/build.ts": 2,
+    "src/css.ts": 2,
+    "src/hosted.ts": 1,
+    "src/preload.ts": 2
+  }
+}

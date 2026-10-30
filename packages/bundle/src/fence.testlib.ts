@@ -36,7 +36,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import * as path from "node:path"
 
-import type { Declaration, Holder } from "@olai/effect-cordis/fence"
+import { DEFAULT_RUNTIMES, type Declaration, type Holder } from "@olai/effect-cordis/fence"
 
 import { ROWS } from "./rows.ts"
 import { MEMBER_OF_PACKAGE, PACKAGES, REPO, packageOf } from "./tree.testlib.ts"
@@ -134,14 +134,6 @@ const ALLOWANCES: Readonly<Record<string, string>> = {
   // A COUNTER FOR STAGED FILENAMES: a per-process nonce, not a value anybody
   // reads.
   "packages/state/src/index.ts": "a per-process nonce for staged filenames",
-  // THE FENCE'S OWN TWO. One is a row name's compiled pattern — the same row
-  // answers the same regex, and a row name does not change — and the other is a
-  // report per DECLARATION object, in a `WeakMap`, so the entry goes with the
-  // object it was about. `tree.testlib.ts` used to be here too and is not any
-  // more: its reading is the door's now, and an adapter that owns no cache owns
-  // nothing.
-  "packages/effect-cordis/src/fence.ts": "the fence's own memos: a row's pattern, and a report per declaration",
-
   // THE ENGINE'S OWN BOOKKEEPING, keyed by the thing each entry is about: a
   // host's close, a fiber's activation, a module fiber's children. It is the
   // runtime's state in the one package this tree lets be an engine.
@@ -165,11 +157,6 @@ const ALLOWANCES: Readonly<Record<string, string>> = {
   // A REGEX CURSOR, which is a `lastIndex` and not a value: the scan sets it to 0
   // before it starts and moves it as it goes.
   "packages/plugin-build/src/bind.ts": "a sticky regex's cursor, reset at the top of every scan",
-  // THE E2E RUN ITSELF. What it holds is the RUN's — the one browser this worker
-  // launched, the servers it spawned per corpus, the scratch copies it made and
-  // the failure it is keeping evidence for — with a lifetime that is the
-  // cucumber process's and an owner that is `BeforeAll`/`AfterAll`.
-  "packages/tests/support/hooks.ts": "the e2e run's own browser, servers and scratch copies — owned by BeforeAll/AfterAll",
 }
 
 /** This tree's two holder factories, by the door each comes from. */
@@ -178,12 +165,17 @@ const HOLDERS: ReadonlyArray<Holder> = [
   { from: /^@olai\/plugin-api$|plugin-api\/(src\/)?browser\.ts$/, named: "heldFaces" },
 ]
 
-/** What a node root's walk may not reach. The door's default is the two UI
- *  runtimes; this tree also refuses a component library's components and an
- *  emulator, because a server that evaluates one dies before it serves. */
-const RUNTIMES: ReadonlyArray<RegExp> = [
-  /^solid-js(\/|$)/,
-  /^@solid-primitives\//,
+/**
+ * WHAT A NODE ROOT'S WALK MAY NOT REACH — the door's default words PLUS this
+ * build's, spread rather than restated.
+ *
+ * A hand copy is how `react` gets dropped: the default list exists because Bun's
+ * default JSX runtime is React's, and a consumer who typed its own list would
+ * lose exactly the entry the door's comment is about. `fence.test.ts` imports
+ * THIS constant for the same reason — one spelling.
+ */
+export const RUNTIMES: ReadonlyArray<RegExp> = [
+  ...DEFAULT_RUNTIMES,
   /^@xterm\//,
   /^@kolu\/solid-[^/]+$/,
   /^@kolu\/terminal-themes(\/|$)/,

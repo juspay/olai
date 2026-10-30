@@ -34,17 +34,17 @@
   },
   "search": {
     "src/deps.ts": 2,
-    "src/index.ts": 1,
+    "src/index.ts": 2,
     "src/live.ts": 3,
-    "src/ops.ts": 12,
-    "src/query.ts": 4,
+    "src/ops.ts": 14,
+    "src/query.ts": 5,
     "src/refusals.ts": 1,
     "src/tools.ts": 10
   },
   "trash": {
     "src/door.ts": 2,
     "src/ops.ts": 2,
-    "src/plan.ts": 28
+    "src/plan.ts": 34
   },
   "vault": {
     "src/deps.ts": 1,

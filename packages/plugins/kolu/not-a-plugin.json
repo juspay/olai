@@ -25,8 +25,13 @@
     "src/appliance/props/EventsFeed.tsx": 3,
     "src/appliance/props/TerminalDoor.tsx": 2
   },
+  "mcp": {
+    "src/client/detect.ts": 1,
+    "src/probe.ts": 2
+  },
   "settings": {
-    "src/doorbell.ts": 1
+    "src/doorbell.ts": 1,
+    "src/server.ts": 1
   },
   "theme": {
     "src/appliance/props/LivePane.tsx": 10,

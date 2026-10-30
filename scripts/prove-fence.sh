@@ -390,7 +390,7 @@ unnamed=0
 # this script's own indictment of the lints reproduced on its one argument.
 #
 # Plugin package edges are forbidden again: services carry the dependency.
-DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25"
+DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26"
 for want in $only; do
   case " $DECLARED " in
     *" $want "*) ;;
@@ -430,12 +430,21 @@ import { prove } from "./packages/effect-cordis/src/fence.ts"
 import { DECLARATION } from "./packages/bundle/src/fence.testlib.ts"
 const proof = prove(DECLARATION)
 for (const one of proof.mutations) {
-  const verdict = one.caught ? "CAUGHT" : "GREEN — THE FENCE DID NOT SEE IT"
+  const verdict = !one.caught
+    ? "GREEN — THE FENCE DID NOT SEE IT"
+    : one.spill.length > 0
+      ? "CAUGHT, BUT SPILLED"
+      : "CAUGHT"
   const spill = one.spill.length > 0 ? ` [also red: ${one.spill.join(", ")}]` : ""
   console.log(`${verdict}  ${one.claim}: ${one.what}${one.why === undefined ? "" : ` (${one.why})`}${spill}`)
 }
 for (const one of proof.baseline) console.error(`  baseline red: ${one.claim}: ${one.said}`)
-if (!proof.ok) process.exit(1)
+// `ok` is "red on EXACTLY that claim": a spill means the proof is not clean, so
+// this exits non-zero and the run above is not evidence of anything.
+if (!proof.ok) {
+  console.error("the proof is not clean: a mutation was not seen, or it coloured another claim")
+  process.exit(1)
+}
 ' 2>&1); then
   echo "ok"
   printf '%s\n' "$proof" | sed 's/^/  /'
@@ -721,6 +730,17 @@ run 25 "a plugin's word is a tag literal in the e2e harness" \
 run 17 "a general package SPELLS AN ENGINE'S name in code" \
   'generic claims > names' \
   append "$general_src" 'export const claudeSeat = () => null'
+
+# THE BROWSER REGISTRY'S OWN DOOR, WHICH THE PORT DROPPED AND THIS RUN FOUND.
+#
+# The door's `door-graphs` refuses a `node:`/`bun:` builtin on a browser root's
+# walk, because that is the word every build shares. What THIS build may not put
+# behind its chunk table is its own judgement — `solid-js`, an appliance's
+# client, the format — and the first port lost the claim that held it, with
+# 25/25 still green. A mutation is what makes the loss visible next time.
+run 26 "the BROWSER REGISTRY's own door pulls the UI runtime" \
+  "nothing on it is a UI runtime, an appliance's client, or the format" \
+  append "$registry/src/rows.ts" 'import "solid-js"'
 
 echo
 echo "$passed of $((passed + failed + unnamed)) mutations were caught."
