@@ -149,6 +149,7 @@
       "version": "0.1.0",
       "dependencies": {
         "effect": "4.0.0",
+        "typescript": "^5.8.0",
       },
     },
     "packages/fonts": {
