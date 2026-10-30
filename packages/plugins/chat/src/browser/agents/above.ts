@@ -77,9 +77,6 @@ const graphOf = (shows: Shown): Graph => {
       groups(shows.agenda.today)
       for (const day of [...shows.agenda.overdue, ...shows.agenda.upcoming]) groups(day.groups)
       break
-    case "trash":
-      for (const group of shows.groups) walk(group.rows)
-      break
   }
   return { parents, trails }
 }

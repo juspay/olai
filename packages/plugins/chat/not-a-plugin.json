@@ -43,12 +43,13 @@
     "src/servers.ts": 3
   },
   "navigation": {
-    "src/browser.tsx": 10,
-    "src/browser/agents/AgentPalette.ts": 2,
+    "src/browser.tsx": 11,
+    "src/browser/agents/AgentPalette.ts": 3,
     "src/browser/agents/handoff.ts": 5,
     "src/browser/agents/new-chat-level.ts": 2,
     "src/browser/agents/new-chat.ts": 2,
-    "src/browser/navigation.ts": 3
+    "src/browser/navigation.ts": 3,
+    "src/browser/agents/above.ts": 2
   },
   "outlines": {
     "src/adapter.ts": 2,
@@ -57,7 +58,7 @@
   "search": {
     "src/agents/roster.ts": 5,
     "src/browser.tsx": 1,
-    "src/browser/agents/AgentPalette.ts": 3,
+    "src/browser/agents/AgentPalette.ts": 4,
     "src/browser/agents/new-chat-level.ts": 3,
     "src/browser/chat/Composer.tsx": 1,
     "src/browser/chat/Model.tsx": 1,
