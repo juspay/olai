@@ -1,583 +1,189 @@
 /**
- * THIS REPOSITORY, AS VALUES — the reading `fence.test.ts` and
- * `mechanics.test.ts` both stand on, and the one thing neither of them is about.
+ * THIS REPOSITORY, AS VALUES — the reading olai's own fences stand on, which is
+ * not the reading's home any more.
  *
- * ## Why it is its own module
+ * ## What moved, and why it moved first
  *
- * `fence.test.ts` had grown to ~1400 lines, of which the first ~550 were this:
- * glob expansion, manifest parsing, a source walk, four import grammars, a
- * transpiler, a module resolver and a graph walk — all of it generic, none of it
- * a claim, and every one of the file's nine claims sitting behind it. Two
- * concerns in one module, and the reader of claim 6 had to scroll past a
- * discriminated resolver to reach it.
+ * This file used to hold the machinery: glob expansion, manifest parsing, four
+ * import grammars, a source walk, a module resolver, a graph walk and the
+ * parser that reads what a module keeps at its own scope. All of it was generic
+ * — none of it knew what a plugin is — and a second consumer now needs exactly
+ * that: `@olai/effect-cordis/fence` is the door, and it answers the five claims
+ * that used to be half of `fence.test.ts`.
  *
- * "Its only consumer is `fence.test.ts`, so it belongs there" is circular: it
- * lived there because it was written there. Placed here, the claims file is the
- * claims and their reasons, and this file is answerable on its own terms —
- * which is also what let `mechanics.test.ts` stop carrying its own copy of the
- * source walk (the same recursion, the same `node_modules` argument, written
- * twice in one package with no wall between them).
+ * So the machinery lives THERE, and this file is the ADAPTER: the same names the
+ * benches in this tree already call, over the door's one reading of the tree,
+ * with this repo's two path conventions (`PACKAGES`-relative member names,
+ * absolute file paths) on the outside. Two readings of one tree is the defect
+ * the door's header calls out — a resolver that answers `undefined` once — so
+ * there is one reading and this is its spelling.
  *
- * ## The line
+ * ## What stayed
  *
- * Nothing here knows what a plugin is. This module answers WHAT THIS TREE IS
- * MADE OF — members, manifests, sources, specifiers, the module graph — and
- * `fence.test.ts` answers WHAT MAY NAME WHAT. That is the split, and it is why
- * `namesAPlugin`, the tenants, the container and every claim stayed behind.
+ * `serverHalves` and `composing`: loading each row's SERVER module is a fact
+ * about olai's bundle, not about any workspace's graph, and it is the strongest
+ * claim in this package because it does what the loader does — import by the
+ * row's own name — rather than trusting a list. `transpilers` stays for the same
+ * kind of reason: two benches here read what a file COMPILES TO (a type erased,
+ * a JSX element printed) and the door deliberately reads SOURCE. Bun is this
+ * tree's runner; the door is consumed by a package that may not have it.
  *
- * TWO OTHER PACKAGES READ THE TREE THE SAME WAY and cannot call this, so a
- * future reader knows where the other copies are: `@olai/acp`'s
- * `manifest.test.ts` (whose own first claim is that acp imports no `@olai`
- * sibling, so reaching for this module is the thing that test exists to fail)
- * and `@olai/tests`' `imports.test.ts` (which could import it — that package
- * declares `@olai/plugin-api` — but only through a door, and a `./tree` door
- * would put this file on the very closure `codeDoorsOf` walks, changing what
- * the tenancy claims compute). Both are structural, not sloppiness.
+ * ## Where the other copies are
  *
- * ## Why `.testlib.ts`
- *
- * The repo's convention for a module that exists to serve tests and ships no
- * product (nineteen of its twenty-six are internal to their package, as this one
- * is). It also puts this file on the right side of `fence.test.ts`'s own claim 8,
- * which reads PRODUCTION sources: a tree reader is not product.
+ * `@olai/acp`'s `manifest.test.ts` reads manifests for its own first claim —
+ * that acp imports no `@olai` sibling, which is the claim reaching for this
+ * module would fail — and `@olai/tests`' `imports.test.ts` could import this
+ * but only through a door, and a `./tree` door would put this file on the very
+ * closure its claims walk. Both are structural, not sloppiness.
  */
 
-import { existsSync, readFileSync } from "node:fs"
+import * as path from "node:path"
 
-import ts from "typescript"
-
-import type { PluginWire } from "@olai/plugin-api"
+import {
+  type Edge as DoorEdge,
+  type Graph as DoorGraph,
+  type Manifest,
+  cssImportsOf,
+  dependencyNames,
+  doorsOf,
+  edgesOf as edgesOfSource,
+  grammarOf,
+  isBench,
+  mainOf,
+  manifestAt as manifestAtDirectory,
+  packageOf,
+  readWorkspace,
+  specifiersOf,
+  withoutComments,
+} from "@olai/effect-cordis/fence"
 
 import { ROWS } from "./rows.ts"
-import * as path from "node:path"
 
 /** Where every workspace member lives. */
 export const PACKAGES = path.join(import.meta.dirname, "..", "..")
 
-/** The repository root. Its manifest is the one the isolated linker splices
- *  into the node_modules every hydrated source resolves from by walking up,
- *  which is why a specifier it declares is not confined to anybody — and it is
- *  also where the workspace globs live, which is what {@link MEMBERS} is read
- *  out of. */
+/** The repository root — the directory whose manifest carries the `workspaces`
+ *  globs, and so the root the door reads. */
 export const REPO = path.join(PACKAGES, "..")
 
-/** ONE READ PER MANIFEST, and the memo is not an optimisation for its own sake:
- *  the graph walk below asks this the same question hundreds of times —
- *  `kolu-client`'s manifest is opened forty-one times in a run without it, once
- *  per specifier that resolves into it. A second read could answer differently
- *  only if something rewrote the file mid-run, which is a thing no claim here
- *  does and none should. */
-const MANIFESTS = new Map<string, Record<string, unknown> | undefined>()
-export const manifestAt = (dir: string): Record<string, unknown> | undefined => {
-  if (MANIFESTS.has(dir)) return MANIFESTS.get(dir)
-  const file = path.join(dir, "package.json")
-  let read: Record<string, unknown> | undefined
-  if (!existsSync(file)) {
-    // THE ONE HONEST ABSENCE: there is no manifest here. Every caller reads
-    // that as "not a package", which is what it is.
-    read = undefined
-  } else {
-    try {
-      read = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>
-    } catch (cause) {
-      // A MANIFEST THAT IS THERE AND WILL NOT PARSE IS NOT AN ABSENCE, and
-      // answering `undefined` for it made this a two-job value whose second job
-      // was silent: the member stays in `MEMBERS` (which only asks whether the
-      // file exists) so `tree` walks its sources, and drops out of
-      // `MEMBER_OF_PACKAGE` so its whole subgraph leaves every door walk. Two
-      // readings of one tree then disagree about whether that package is there,
-      // with nothing red anywhere.
-      throw new Error(`fence: ${path.relative(REPO, file)} did not parse — ${String(cause)}`)
-    }
-  }
-  MANIFESTS.set(dir, read)
-  return read
-}
+/** THE ONE READING, for the length of a run. Every bench in this package asks
+ *  it the same questions about a tree that does not change. */
+export const TREE = readWorkspace(REPO)
 
-/** A manifest's `exports` map, PARSED rather than cast. npm legally allows a
- *  conditional object (`{"./wire": {"import": "…"}}`) and a wildcard; this
- *  reading knows neither, and the difference between "knows neither" and
- *  "silently drops both" is a door that leaves a tenant's closure with nothing
- *  red — in the one file whose thesis is that a corpus may not quietly shrink.
- *  So a shape this cannot read is a THROW, which is the ruling {@link MEMBERS}
- *  already makes about an unrecognised workspaces glob. */
-export const doorsOf = (manifest: Record<string, unknown>): Readonly<Record<string, string>> => {
-  const exports = manifest["exports"]
-  if (exports === undefined) return {}
-  if (typeof exports !== "object" || exports === null || Array.isArray(exports)) {
-    throw new Error("fence: an `exports` field that is not a map is a shape this reading does not know")
-  }
-  for (const [door, target] of Object.entries(exports)) {
-    if (typeof target !== "string") {
-      throw new Error(
-        `fence: the \`${door}\` door resolves to a ${typeof target} rather than a path — a ` +
-          "conditional or wildcard export is a shape this reading does not know, and dropping it " +
-          "would shrink a tenant's closure with nothing red.",
-      )
-    }
-  }
-  return exports as Readonly<Record<string, string>>
-}
+/** `PACKAGES`-relative, so a top-level member is `web` and a nested tenant is
+ *  `plugins/kolu` — this package's convention, kept where every caller already
+ *  spells it. */
+const relativeToPackages = (member: string): string => path.relative("packages", member)
 
-export const mainOf = (manifest: Record<string, unknown>): string | undefined => {
-  const main = manifest["main"]
-  return typeof main === "string" ? main : undefined
-}
+/** One manifest, by a `PACKAGES`-relative directory OR an absolute one — the
+ *  benches here spell both, and a `path.join` with an absolute second argument
+ *  silently answers a path that does not exist. */
+export const manifestAt = (dir: string): Manifest | undefined =>
+  manifestAtDirectory(path.isAbsolute(dir) ? dir : path.join(PACKAGES, dir))
 
-/** ...and what one declares, in the three blocks that all mean the same thing
- *  to a wall: a dependency, a devDependency and a peer are three reasons to
- *  resolve a specifier and one answer about which side of a boundary a package
- *  stands on. */
-export const dependencyNames = (manifest: Record<string, unknown> | undefined): ReadonlyArray<string> =>
-  Object.keys({
-    ...(manifest?.["dependencies"] as Record<string, string> | undefined),
-    ...(manifest?.["devDependencies"] as Record<string, string> | undefined),
-    ...(manifest?.["peerDependencies"] as Record<string, string> | undefined),
-  })
+/** The door's own readings, re-exported where the signature is the one a bench
+ *  already spells: one implementation, and no wrapper to drift from it. */
+export { cssImportsOf, dependencyNames, doorsOf, grammarOf, isBench, mainOf, packageOf, specifiersOf, withoutComments }
 
-/**
- * EVERY WORKSPACE MEMBER, as its directory relative to `packages/` — so a
- * top-level member is `web` and a nested tenant is `plugins/kolu`.
- *
- * READ OUT OF THE ROOT'S OWN `workspaces` GLOBS, and that is the point rather
- * than an implementation detail. This file used to walk `readdirSync(PACKAGES)`
- * one level deep, which was the same set only while every member sat at the top
- * — and the day the tenants moved under `packages/plugins/` that walk would have
- * gone on passing over a corpus with both of them missing, which is the exact
- * failure mode the header calls a fence that passes by failing to run. The
- * globs are what bun installs from, so a member this reading cannot see is a
- * member that is not in the tree at all.
- *
- * THE EXPANSION IS THE RUNTIME'S (`Bun.Glob`), not this file's reading of the
- * pattern. The first draft hand-rolled it — a `readdirSync` behind a check that
- * each glob ended `/*` — and the hand-roll could read exactly one shape, so a
- * root that grew a `packages/**` would have been a THROW rather than a reading.
- * The throw was the right outcome for a hand-roll that could not read the shape;
- * it is not needed by a reading that can read every shape bun installs from.
- *
- * What IS still a throw: a glob outside `packages/`, and a glob that matched
- * NOTHING. Both are a corpus quietly short of members, and every claim below is
- * an equality over that corpus — which is the fence passing by not running.
- */
-export const MEMBERS: ReadonlyArray<string> = (() => {
-  const globs = manifestAt(REPO)?.["workspaces"]
-  if (!Array.isArray(globs) || globs.length === 0) {
-    throw new Error("fence: the root manifest declares no `workspaces`, so there is no tree to read")
-  }
-  const found = (globs as ReadonlyArray<unknown>).flatMap((glob) => {
-    if (typeof glob !== "string" || !glob.startsWith("packages/")) {
-      throw new Error(
-        `fence: the workspaces glob ${JSON.stringify(glob)} does not name anything under ` +
-          "`packages/`, and guessing at it would shrink the corpus every claim here is an " +
-          "equality over.",
-      )
-    }
-    // THE RUNTIME'S OWN GLOB, rather than this file interpreting the pattern.
-    // It was a `readdirSync` behind a check that the glob ended `/*`, which is
-    // a hand-roll that could read exactly one shape and threw on the rest — so
-    // the day the root grew a `packages/**` the corpus would have been a throw
-    // rather than a reading, and the throw was the good outcome only because
-    // the alternative hand-roll was a silent skip. `Bun.Glob` reads every shape
-    // bun installs from, which is the only reading that cannot disagree with
-    // the field it is derived from.
-    const members = [...new Bun.Glob(`${glob}/package.json`).scanSync({ cwd: REPO })]
-      .map((found) => path.relative("packages", path.dirname(found)))
-    if (members.length === 0) {
-      throw new Error(
-        `fence: the workspaces glob ${JSON.stringify(glob)} matched no package at all. A glob ` +
-          "that installs nothing is either a typo or a directory that is not there, and both " +
-          "are a corpus this file's equalities would pass over in silence.",
-      )
-    }
-    return members
-  })
-  return [...new Set(found)].sort()
-})()
+/** What the ROOT manifest declares — `dependencies`, `devDependencies` and
+ *  peers, because any one of them puts a package where the whole tree can reach
+ *  it, which is what tells a hydrated specifier from an ordinary one. */
+export const ROOT_DECLARED: ReadonlySet<string> = new Set(dependencyNames(manifestAtDirectory(REPO)))
 
-/** Which member a `packages/`-relative path belongs to — the LONGEST member
- *  that prefixes it, because `plugins/kolu` and a hypothetical
- *  `plugins` would both prefix a tenant's file and only one of them is its
- *  package. `undefined` for a path under no member at all. */
-export const memberOf = (file: string): string | undefined =>
-  MEMBERS.filter((member) => file === member || file.startsWith(`${member}${path.sep}`))
-    .sort((a, b) => b.length - a.length)[0]
+/** Where every workspace member lives, `PACKAGES`-relative and sorted. */
+export const MEMBERS: ReadonlyArray<string> = TREE.members.map(relativeToPackages)
 
-/** The PACKAGE a specifier names, subpath dropped. `@kolu/padi-client/dial` and
- *  `@kolu/padi-client` are one package and one wall; so are `olai-plugin-kolu`
- *  and `olai-plugin-kolu/wire`. */
-export const packageOf = (spec: string): string =>
-  spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : (spec.split("/")[0] ?? spec)
-
-/** What each member CALLS itself, so a specifier can be resolved to a directory
- *  without this file inventing a rule about how the two relate. It is one rule
- *  today — a directory is its package's name, scope dropped — and deriving it
- *  anyway is what let `@olai/plugins` become `@olai/plugin-api` and the tenants
- *  become unscoped `olai-plugin-*` with no arithmetic here to update. */
+/** What each member CALLS itself. */
 export const MEMBER_OF_PACKAGE: ReadonlyMap<string, string> = new Map(
-  MEMBERS.flatMap((member) => {
-    const name = manifestAt(path.join(PACKAGES, member))?.["name"]
-    return typeof name === "string" ? [[name, member] as const] : []
-  }),
+  [...TREE.memberOfPackage].map(([name, member]) => [name, relativeToPackages(member)]),
 )
 
+/** Which member a `PACKAGES`-relative path belongs to. The door answers this
+ *  over repo-relative paths, and this is the CONVERSION rather than a second
+ *  longest-prefix search: one reading, two conventions. */
+export const memberOf = (file: string): string | undefined => {
+  const member = TREE.memberOf(`packages/${file}`)
+  return member === undefined ? undefined : relativeToPackages(member)
+}
 
-/** Every import specifier, by POSITION rather than by statement, so a braced
- *  list broken across lines — this tree's dominant style — is seen. Prose
- *  spelling one of those forms is seen too, which is the right direction to be
- *  wrong in: an extra specifier fails a boundary claim rather than passing
- *  one. `@olai/acp`'s manifest test argues this at length and this is its
- *  reading, unchanged. */
-export const specifiersOf = (text: string): ReadonlyArray<string> =>
-  [...text.matchAll(/(?:\bfrom\s*|^\s*import\s*|\bimport\(\s*|\brequire\(\s*)["']([^"'\n]+)["']/gm)]
-    .flatMap((match) => (match[1] === undefined ? [] : [match[1]]))
-
-/** ...and a stylesheet's own door, which the two TypeScript readings are blind
- *  to. It is not hypothetical: `@olai/web`'s `styles.css` reaches
- *  `@olai/plugin-api/all.css` today, which chains each tenant's own sheet, and a
- *  plugin's sheet is exactly how a face
- *  gets its layout (`all.css`'s header says what a missed `@source` costs —
- *  the components render with no layout at all and nothing errors). */
-export const cssImportsOf = (text: string): ReadonlyArray<string> =>
-  [...text.matchAll(/^\s*@import\s+["']([^"']+)["']/gm)]
-    .flatMap((match) => (match[1] === undefined ? [] : [match[1]]))
-
-/** Every source under one package.
- *
- *  `Bun.Glob` does not follow a symlinked DIRECTORY, which is the whole of why
- *  this used to be a hand-rolled walk: it refused `node_modules` before
- *  descending, because a workspace `node_modules` is full of symlinks back to
- *  sibling packages, each with a `node_modules` of its own, and a walk that
- *  filtered the results had already gone in (`@olai/acp`'s own `ELOOP`). The
- *  runtime declines to follow them, so the hazard does not arise and the prune
- *  has nothing left to prune — checked rather than assumed, against the two
- *  packages with the largest trees: `packages/web` answers 608 files and
- *  `packages/tests` 109, neither with a single `node_modules` entry. */
+/** Every source under one directory, as ABSOLUTE paths — the convention this
+ *  package's benches already read files with. Read off the door's corpus rather
+ *  than walked again: `settings.test.ts` asks one directory, `mechanics.test.ts`
+ *  asks `PACKAGES`, and both are prefixes of the same reading. */
 export const sourcesUnder = (dir: string): ReadonlyArray<string> =>
-  [...new Bun.Glob("**/*.{ts,tsx,css}").scanSync({ cwd: dir })]
-    .filter((found) => !found.includes("node_modules"))
-    .map((found) => path.join(dir, found))
-    .sort()
+  TREE.sources
+    .filter((source) => {
+      // A PATH BOUNDARY, not a string prefix: `plugins/pi` is a prefix of
+      // `plugins/pins`, and a filter that said so would hand one tenant the
+      // other's sources — which is the whole class of bug a fence is for.
+      const at = path.join(REPO, source.file)
+      return at === dir || at.startsWith(`${dir}${path.sep}`)
+    })
+    .map((source) => path.join(REPO, source.file))
+
 
 export interface Named {
-  /** Root-relative, so a failure reads as a path somebody can open. */
+  /** `PACKAGES`-relative, so a failure reads as a path somebody can open. */
   readonly file: string
-  /** WHICH READER PRODUCED `specs`, carried rather than re-derived. It was
-   *  recoverable only by testing the extension again, which three separate
-   *  sites did — and `specs` means a different thing per grammar, so a consumer
-   *  that guessed wrong would be asking a CSS reading a TypeScript question.
-   *  The fact travels with the value. */
   readonly grammar: "css" | "tsx" | "ts"
-  /** Every specifier this file reaches for at all, by that grammar. Kept beside
-   *  the filtered answer because the tenancy claims at the bottom of this file
-   *  ask a DIFFERENT question of the same reading, and reading every source
-   *  twice to ask it would be the corpus walked twice. */
+  /** Every specifier this file reaches for at all, by that grammar. */
   readonly specs: ReadonlyArray<string>
 }
 
-/** The grammar a path is read in, decided ONCE. */
-export const grammarOf = (file: string): Named["grammar"] =>
-  file.endsWith(".css") ? "css" : file.endsWith(".tsx") ? "tsx" : "ts"
+/** WHAT A FILE NAMES, the runtime's way — the walk's instrument, which elides a
+ *  type-only import (it is erased) and keeps a dynamic one it will not follow. */
+export const edgesOf = (file: string, text: string): ReadonlyArray<DoorEdge> => edgesOfSource(file, text, true)
 
-// ── the wire door's closure ────────────────────────────────────────────
-//
-// A WALK, not one file's text, and it has to be: `./wire.ts` is one ESM
-// module, so what a listener evaluates when it reads the surface is its whole
-// closure — and the incident `@olai/tests`' import fence exists to not have
-// re-learned is exactly that a single re-export one module in is invisible to
-// a reading of the door itself.
-//
-// It crosses PACKAGE boundaries, which that fence deliberately does not
-// ("another package's discipline is another package's fence"). Here the
-// crossing is the point: the graph this door opens runs `@olai/plugin-api/wire`
-// → each plugin's `./wire` → each appliance client's `./wire`, and what the
-// claim is about is where it STOPS.
-
-/**
- * WHERE A WORKSPACE SPECIFIER LANDS — and the answer is DISCRIMINATED, because
- * "the walk stops here" and "the walk could not go on" are two different facts
- * and only one of them is allowed.
- *
- * It was one `string | undefined`, and the `undefined` was doing three jobs:
- * the specifier LEAVES the workspace (the legitimate terminus — `effect`,
- * `node:fs`, a `@kolu/*` from the pin), the named member's manifest could not
- * be READ, and the manifest opens NO SUCH DOOR. A caller that cannot tell them
- * apart reads all three as "the graph ends here", and the last two are exactly
- * what a packaging move breaks — this branch moved every door in the tree. The
- * fence's own header names "a resolver that answered `undefined` and walked one
- * file" as the failure mode it exists against; a three-job `undefined` is that
- * failure mode with a type signature.
- *
- * So the dependent fact — a resolved path — exists only on the arm that grounds
- * it, and `unresolved` is held to `[]` beside every other equality in this file.
- *
- * The door is read off the named package's own `exports` map rather than
- * guessed. NOT because string arithmetic would be "a second module resolver" —
- * that was the old comment's reason and it is backwards. The RUNTIME resolver
- * was tried and refuses this question: `Bun.resolveSync("@olai/format",
- * packages/plugin-api/src)` throws, because the isolated linker gives a member
- * only the siblings its own manifest declares, and this walk crosses from the
- * registry THROUGH a tenant INTO packages the registry never declares. That is
- * the whole point of the walk, and it is a question the resolver is right to
- * refuse and this file is right to ask. Standing on `Bun.resolveSync` or on a
- * `Bun.build` metafile would make every such crossing an unresolved edge and
- * every purity claim pass over the truncated graph.
- */
-/** WHERE THE ONE `*` IS, or `-1` for a string that has none or has two.
- *
- *  Node's subpath patterns allow exactly one asterisk per key and substitute the
- *  matched segment verbatim; a pattern with two is not a wider pattern, it is a
- *  malformed one. Answering `-1` for both is what lets the caller treat "not a
- *  pattern" and "not a pattern I will guess at" as the one thing they are: a
- *  door this walk does not resolve, reported rather than half-honoured. */
-const onlyStar = (of: string): number => {
-  const at = of.indexOf("*")
-  return at === -1 || of.indexOf("*", at + 1) !== -1 ? -1 : at
-}
-
-type Landing =
-  | { readonly kind: "external" }
-  | { readonly kind: "module"; readonly path: string }
-  | { readonly kind: "unresolved"; readonly why: string }
-
-const resolveWorkspace = (spec: string): Landing => {
-  // WHICH MEMBER a specifier names is a lookup rather than a pattern, because
-  // the two families of workspace name do not share one: core is `@olai/<x>`
-  // and a tenant is the unscoped `olai-plugin-<x>` — the directory is the plugin
-  // word; the package name stays `olai-plugin-<x>`.
-  // A regex over the first family alone would answer "external" for every
-  // plugin door, which is not a walk that stops — it is a walk that never
-  // starts, and every purity claim below would pass over one file.
-  const member = MEMBER_OF_PACKAGE.get(packageOf(spec))
-  if (member === undefined) return { kind: "external" }
-  const dir = path.join(PACKAGES, member)
-  const manifest = manifestAt(dir)
-  if (manifest === undefined) return { kind: "unresolved", why: `${member} has no readable manifest` }
-  const subpath = spec.slice(packageOf(spec).length)
-  const door = subpath === "" ? "." : `.${subpath}`
-  const target = doorsOf(manifest)[door] ?? (door === "." ? mainOf(manifest) : undefined)
-  if (target !== undefined) return { kind: "module", path: path.join(dir, target) }
-  // ...AND A WILDCARD DOOR, which the shell opens and nothing else does.
-  //
-  // `@olai/web`'s `exports` carries `"./client/*": "./src/client/*"`, because a
-  // plugin's browser half draws inside this app and draws with this app's
-  // furniture — sixty modules for the chat panel alone, and a hand-kept
-  // re-export list of sixty names would be a second roster (that manifest's own
-  // `//shell` note argues it). A resolver that only read literal keys read every
-  // one of those edges as "no such door", which is precisely the third of the
-  // three failures this type exists to keep apart: the walk would have stopped
-  // at the panel's front door and every purity claim below would have passed
-  // over one file.
-  //
-  // ONE `*` AND NOTHING CLEVER. Node's own subpath patterns allow exactly one
-  // asterisk per key and substitute the matched segment verbatim; that is what
-  // is implemented here and a key with two would be refused rather than
-  // half-honoured, because a resolver that guessed would be the second module
-  // resolver this header spends a paragraph refusing to be.
-  for (const [key, value] of Object.entries(doorsOf(manifest))) {
-    const at = onlyStar(key)
-    if (at === -1) continue
-    const head = key.slice(0, at)
-    const tail = key.slice(at + 1)
-    if (!door.startsWith(head) || !door.endsWith(tail)) continue
-    if (door.length < head.length + tail.length) continue
-    if (typeof value !== "string") continue
-    // THE TARGET IS HELD TO THE SAME ONE-STAR RULE as the key, and it is spliced
-    // rather than `replace`d. `String.replace` with a string pattern substitutes
-    // the FIRST occurrence and walks past the rest — which for a target with two
-    // stars would resolve half of it and answer a path that is not the door. The
-    // spec allows exactly one on each side; refusing the rest is the same
-    // sentence the key already gets, and a splice cannot express anything else.
-    const into = onlyStar(value)
-    if (into === -1) continue
-    const matched = door.slice(head.length, door.length - tail.length)
-    return {
-      kind: "module",
-      path: path.join(dir, value.slice(0, into) + matched + value.slice(into + 1)),
-    }
-  }
-  return { kind: "unresolved", why: `${member} opens no ${door} door` }
-}
-
-/**
- * ONE EDGE the walk found, with the one thing that decides whether it is
- * followed.
- *
- * `dynamic` is a `import("…")` rather than an `import … from "…"`, and the
- * difference is a BUNDLER'S: a static edge is code the door's consumer pays
- * for at load, and a dynamic one is a CHUNK — a literal the bundler can split
- * on and a module nothing fetches until somebody calls the thunk. That is the
- * whole mechanism behind "a plugin the roster does not name is never
- * evaluated" (`./rows.ts`), so a walk that followed both would be a walk that
- * could not see it.
- *
- * Both are RECORDED, and only the static ones are FOLLOWED. A claim about what
- * a door names reads every edge; a claim about what it costs reads the files
- * the walk visited.
- */
-export interface Edge {
-  readonly spec: string
-  readonly dynamic: boolean
-}
-
-/** One transpiler per grammar — the `ts` loader refuses JSX. The walk reads
- *  imports the RUNTIME's way (`scanImports`) rather than by position, and
- *  that is the difference between this reading and the one above it: a
- *  positional match over-includes, which fails CLOSED for "does anything
- *  reach for X" and fails OPEN for a WALK — an `@olai/surface` spelled inside
- *  a comment in `olai-plugin-kolu/appliance/wire` sent the first draft of this walk
- *  straight into a package the door does not reach. `scanImports` sees no
- *  comments and elides type-only imports, which is the right instrument for a claim about what a listener actually EVALUATES. */
-
+/** One transpiler per grammar, for the two benches that read COMPILED code. The
+ *  `ts` loader refuses JSX, which is why there are two. */
 export const transpilers = {
   ts: new Bun.Transpiler({ loader: "ts" }),
   tsx: new Bun.Transpiler({ loader: "tsx" }),
 } as const
-export const runtimeImportsOf = (file: string, text: string): ReadonlyArray<string> =>
-  edgesOf(file, text).map((one) => one.spec)
 
-/** ...and the same reading with the kind kept — see {@link Edge}. */
-export const edgesOf = (file: string, text: string): ReadonlyArray<Edge> =>
-  transpilers[grammarOf(file) === "tsx" ? "tsx" : "ts"]
-    .scanImports(text)
-    .map((one) => ({ spec: one.path, dynamic: one.kind === "dynamic-import" }))
-/**
- * ...memoised for the WALK ALONE, keyed by the absolute path it visits.
- *
- * The three door entries reach overlapping graphs — most of `@olai/format`'s
- * modules are on all of them — so without this each shared module is transpiled
- * once per entry rather than once.
- *
- * It is private to the walk rather than wrapped around `runtimeImportsOf`, and
- * the difference is a correctness one rather than a scoping preference. That
- * function has a second caller (claim 8's `codeOf`), which hands it a
- * PACKAGES-RELATIVE path and a SHEBANG-STRIPPED text — a different key and a
- * different input for the same file. A memo keyed on the path alone would be a
- * place with two writers that agree only by the accident that one spells its
- * paths absolute and the other relative, and the first shebang-carrying module
- * either walk visited would make it answer one caller with the other's reading.
- * A cache is a mutable place; this one has exactly one writer.
- */
-const WALKED = new Map<string, ReadonlyArray<Edge>>()
-const importsOfModule = (file: string, text: string): ReadonlyArray<Edge> => {
-  const held = WALKED.get(file)
-  if (held !== undefined) return held
-  const found = edgesOf(file, text)
-  WALKED.set(file, found)
-  return found
+/** What one walk found, in this package's path convention: which file reached
+ *  for which specifier, every module VISITED, and every edge it could not
+ *  follow. */
+export interface TreeGraph {
+  readonly reached: ReadonlyArray<{ readonly file: string; readonly spec: string; readonly dynamic: boolean }>
+  readonly files: ReadonlyArray<string>
+  readonly unresolved: ReadonlyArray<string>
 }
 
-
-
-/**
- * THE GRAPH ONE DOOR OPENS, in the two readings the claims below need.
- *
- * `reached` is the PAIRS — which file evaluated which specifier — and is what a
- * confinement list is checked against: the failure it prints is a file and the
- * thing it reached for, which is what somebody has to go and change.
- *
- * `files` is every MODULE VISITED, leaves included, and it is a different set
- * rather than a projection of the first: a module that imports nothing of its
- * own is visited and contributes no pair at all. That is right for "what does
- * this graph reach for" and wrong for "what is ON this graph" — and a component
- * with no imports is exactly the shape that falls through the gap.
- *
- * `unresolved` is the third, and it is what keeps the other two honest. A pair
- * is pushed for EVERY specifier, including one the walk could not follow, while
- * `files` grows only where it could — so the two read honest alone and lie
- * together: a walk in which every workspace specifier failed to resolve reports
- * a `reached` naming all of them and a `files` of one module, and each then
- * passes its own floor. The confinement claims are satisfied by an empty graph;
- * `it DOES reach each appliance client` is satisfied by the PAIR, which records
- * that the specifier was reached FOR rather than that it was entered. The
- * precondition — these two mean something only where resolution succeeded — is
- * not left to arm order: it is a list, and every door holds it to `[]`.
- *
- * One traversal answers all three, because three would be three chances to
- * disagree about what the graph is.
- */
-export const graphFrom = (entry: string): {
-  reached: ReadonlyArray<{ file: string; spec: string; dynamic: boolean }>
-  files: ReadonlyArray<string>
-  unresolved: ReadonlyArray<string>
-} => {
-  const seen = new Set<string>()
-  const reached: Array<{ file: string; spec: string; dynamic: boolean }> = []
-  const unresolved: Array<string> = []
-  const visit = (file: string): void => {
-    if (seen.has(file)) return
-    seen.add(file)
-    let text: string
-    try {
-      text = readFileSync(file, "utf8")
-    } catch {
-      // Reached but unreadable, which is not a terminus either: a module the
-      // walk was sent to and could not open is a hole in the graph, and it is
-      // recorded rather than returned from.
-      unresolved.push(`${path.relative(PACKAGES, file)}: could not be read`)
-      return
-    }
-    for (const { spec, dynamic } of importsOfModule(file, text)) {
-      const rel = path.relative(PACKAGES, file)
-      reached.push({ file: rel, spec, dynamic })
-      // A DYNAMIC edge is RECORDED AND NOT FOLLOWED — see `Edge`. It is a
-      // chunk boundary: the specifier is a literal the bundler splits on and
-      // the module behind it is fetched by whoever calls the thunk, so a walk
-      // that crossed it would be measuring what a door NAMES as if it were
-      // what a door COSTS.
-      if (dynamic) continue
-      if (spec.startsWith(".")) {
-        visit(path.normalize(path.join(path.dirname(file), spec)))
-        continue
-      }
-      const landing = resolveWorkspace(spec)
-      if (landing.kind === "module") visit(landing.path)
-      else if (landing.kind === "unresolved") unresolved.push(`${rel}: ${spec} — ${landing.why}`)
-    }
-  }
-  visit(entry)
+/** The graph one module opens, with this package's path convention on it. */
+export const graphFrom = (entry: string): TreeGraph => {
+  const graph: DoorGraph = TREE.graphOf(path.relative(REPO, entry))
+  const seen = (file: string): string => path.relative(PACKAGES, path.join(REPO, file))
   return {
-    reached,
-    files: [...seen].map((file) => path.relative(PACKAGES, file)).sort(),
-    unresolved: [...new Set(unresolved)].sort(),
+    reached: graph.reached.map((edge) => ({ ...edge, file: seen(edge.file) })),
+    files: graph.visited.map(seen),
+    unresolved: graph.unresolved,
   }
 }
 
 /** The pairs alone, which is what most callers here want. */
-export const walkFrom = (entry: string): ReadonlyArray<{ file: string; spec: string }> =>
-  graphFrom(entry).reached
-
+export const walkFrom = (entry: string): ReadonlyArray<{ file: string; spec: string }> => graphFrom(entry).reached
 
 /**
  * EVERY PLUGIN'S SERVER MODULE, LOADED — what a test reads now that no door in
  * this package statically imports a plugin.
  *
- * `WIRES` used to be a compiled-in tuple of each plugin's wire half, and a test
- * that wanted a plugin's own values read it. There is no such tuple: the rows
- * name modules, the composition root's loader resolves them at mount and the
- * tab's generated table resolves them at fetch, and a static import anywhere in
- * this package would be the thing the fence now asserts is absent.
- *
- * So a test does what the runtime does, which is also the stronger claim: it
+ * A test does what the runtime does, which is also the stronger claim: it
  * IMPORTS BY THE ROW'S OWN NAME. A row whose module does not export what this
  * package believes it does fails here, in the same grammar the loader would
  * fail in, rather than at a `satisfies` on a list nobody maintains.
- *
- * The SERVER half, because that is the one that carries `faces` — which face
- * may see which member is a serve's question, and a browser half answers none
- * of it.
  */
 export const serverHalves = async (): Promise<ReadonlyArray<ServerHalf>> =>
   Promise.all(ROWS.map((row) => import(row.name) as Promise<ServerHalf>))
 
 /**
- * As much of a server half as the tests in this package read.
+ * As much of a server half as the benches in this package read.
  *
  * `surface` and `faces` are OPTIONAL, and the absent arm is a whole kind of
  * plugin rather than an unfinished one: an ENGINE composes no sibling surface —
  * what it contributes to a tab already travels on the chat cell, which is
  * core's, and a second surface under `surface/claude/` saying the same thing
- * would be one fact on the wire twice. Every claim in this package about a
- * sibling therefore reads {@link composing}, which is the halves that HAVE one.
+ * would be one fact on the wire twice.
  */
 export interface ServerHalf {
   readonly name: string
@@ -587,8 +193,8 @@ export interface ServerHalf {
 }
 
 /**
- * ...and the halves that compose a SIBLING, which is what every claim about the
- * composed wire is about — as the shape the composition doors take.
+ * ...and the halves that compose a SIBLING — as the shape the composition doors
+ * take.
  *
  * TWO ABSENCES AND ONLY ONE OF THEM IS A STATE. A half with NEITHER a surface
  * nor faces is an engine, and drops out. A half with a surface and no faces is
@@ -597,7 +203,7 @@ export interface ServerHalf {
  */
 export const composing = (
   halves: ReadonlyArray<ServerHalf>,
-): ReadonlyArray<ServerHalf & PluginWire> =>
+): ReadonlyArray<ServerHalf & { readonly surface: { readonly spec: unknown }; readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>> }> =>
   halves.flatMap((half) => {
     if (half.surface === undefined) return []
     if (half.faces === undefined) {
@@ -605,428 +211,3 @@ export const composing = (
     }
     return [{ ...half, surface: half.surface, faces: half.faces }]
   })
-
-// ── shared activation state ────────────────────────────────────────────
-//
-// The fourth reading this file offers, and the newest: what a module KEEPS
-// between calls. The three above are about what a file reaches for; this one is
-// about what it holds, and `fence.test.ts`'s claim over it is the Cordis
-// audit's §12 — *shared activation state crossing package boundaries outside
-// declared services*.
-
-/**
- * WHAT A MODULE HOLDS AT ITS OWN SCOPE — one line per binding that can carry a
- * value from one call to the next, or the empty list for an inert module.
- *
- * ## Why a real parser, and not the pattern every other reading here is
- *
- * The shapes this hunts are three, and two of them are indistinguishable from
- * their legitimate twins by text alone:
- *
- *   - `let held` at module scope is state; `let n` inside a function is a
- *     local, and both spell `let`.
- *   - `const [x, setX] = createSignal()` at module scope is state; the same
- *     line inside `createThing = () => …` is a FACTORY, which is the shape half
- *     this tree's browser furniture takes and the one `@olai/ui-primitives`'
- *     `held.ts` exists to be.
- *
- * A fence may only ever be wrong in the direction that fails LOUDLY, and a
- * regex over transpiled text is wrong in the other one: it would have to either
- * pass every factory (and miss the defect) or fail every one (and be worked
- * around within a week). So the reading is `typescript`'s own parser, over the
- * SOURCE — which also means a comment quoting a prohibited shape, as this
- * paragraph does, cannot trip it.
- *
- * ## The three rules, and what each is about
- *
- * 1. **`let` / `var` at module scope.** A binding that can be REBOUND is the
- *    audit's own example: `let held: Client | undefined` with an
- *    `export const current = () => held` beside it.
- * 2. **A reactive cell evaluated at module scope** — `createSignal`,
- *    `createStore`, `createMutable`, `createResource`. Solid's `const [x, setX]`
- *    is a `const` and is state all the same; what makes it state is that the
- *    CELL is minted when the module is evaluated rather than when a caller asks.
- * 3. **A `const` the module MUTATES** — `.set`, `.add`, `.push`, a property or
- *    element assignment. This is the audit's "cover mutable objects declared
- *    with `const`", and it is deliberately narrower than "a top-level `Map`":
- *    an inert lookup table built once and never written is a valid contract,
- *    and a `ReadonlyMap` annotation proves nothing about it, so what is read is
- *    whether the module writes.
- *
- * Everything else passes: a primitive, a function, a class, a frozen table, a
- * `new Map([...])` nobody writes to, a type. A source check supports the
- * ownership rule; it cannot prove arbitrary program behaviour, and this one is
- * not asked to.
- *
- * The answer is a LINE per finding rather than a boolean, because a failure
- * has to name the binding somebody then has to move.
- */
-export const liveStateIn = (
-  file: string,
-  /** The source, for a FIXTURE. Absent is the ordinary reading — open the file
-   *  under `packages/`. A fixture hands its own text so the claims about this
-   *  reading can be made over the shapes themselves rather than over whichever
-   *  module in the tree happens to have one this week. */
-  supplied?: string,
-): ReadonlyArray<string> => {
-  const absolute = path.join(PACKAGES, file)
-  let text: string
-  try {
-    text = supplied ?? readFileSync(absolute, "utf8")
-  } catch {
-    // A file this reading cannot open is reported rather than skipped: a claim
-    // that passed over an unreadable module would be the fence passing by not
-    // running, which is what `graphFrom`'s `unresolved` exists to refuse one
-    // reading over.
-    return [`${file}: could not be read`]
-  }
-  const source = ts.createSourceFile(
-    absolute,
-    text,
-    ts.ScriptTarget.ESNext,
-    /* setParentNodes */ true,
-    file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  )
-  const found: Array<string> = []
-  /** The module-scope `const` bindings, by name — the candidates rule 3 asks
-   *  about after the whole file has been read for writes. */
-  const bound = new Set<string>()
-  /** ...and the two things this file has to read the IMPORTS for: which local
-   *  names are this tree's holder factories, and which are classes it declared
-   *  itself. */
-  const minting = holdersIn(source)
-  const declared = new Set(
-    source.statements.filter(ts.isClassDeclaration)
-      .flatMap((one) => one.name === undefined || !keepsState(one) ? [] : [one.name.text]),
-  )
-
-  for (const statement of source.statements) {
-    if (!ts.isVariableStatement(statement)) continue
-    const rebindable = (statement.declarationList.flags & ts.NodeFlags.Const) === 0
-    for (const declaration of statement.declarationList.declarations) {
-      const spelled = declaration.name.getText(source)
-      if (rebindable) {
-        found.push(`${file}: \`${spelled}\` is a module-scope let/var`)
-        continue
-      }
-      if (ts.isIdentifier(declaration.name)) bound.add(declaration.name.text)
-      const cell = declaration.initializer === undefined
-        ? undefined
-        : reactiveAt(declaration.initializer, minting, declared)
-      if (cell !== undefined) {
-        found.push(`${file}: \`${spelled}\` is a module-scope ${cell}`)
-      }
-    }
-  }
-
-  const written = mutatedIn(source)
-  for (const name of bound) {
-    if (written.has(name)) found.push(`${file}: \`${name}\` is a const this module writes to`)
-  }
-  return found
-}
-
-/** Solid's cells, by the names that mint one. A call to any of these is state
- *  where it is EVALUATED, which is what {@link atModuleScope} decides. */
-const REACTIVE: ReadonlySet<string> = new Set([
-  "createSignal",
-  "createStore",
-  "createMutable",
-  "createResource",
-])
-
-/**
- * ...AND THIS TREE'S OWN HOLDER FACTORIES, by the DOOR they come from.
- *
- * `heldService()` and `heldFaces()` mint exactly the thing this claim is about:
- * a slot with a `hold` and a `read` over it. A provider that exported one
- * through a door would be publishing live state across a package boundary with
- * a `const` and no `let` in sight — which is what both helpers' own headers say
- * the fence refuses, and what it did not until a review found the gap.
- *
- * BY THE SPECIFIER AND THE EXPORTED NAME, not by the local one: an alias
- * (`import { heldService as box }`) is the first thing anybody would reach for,
- * deliberately or not, and a table of bare words would miss it. A namespace
- * import is read the same way.
- */
-const HOLDERS: ReadonlyArray<{ readonly from: RegExp; readonly named: string }> = [
-  { from: /held\.ts$/, named: "heldService" },
-  { from: /^@olai\/plugin-api$|plugin-api\/(src\/)?browser\.ts$/, named: "heldFaces" },
-]
-
-/** The local names, in ONE module, that mint a holder — however they were
- *  spelled on the way in. */
-const holdersIn = (source: ts.SourceFile): ReadonlySet<string> => {
-  const local = new Set<string>()
-  for (const statement of source.statements) {
-    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
-    const spec = statement.moduleSpecifier.text
-    const doors = HOLDERS.filter((one) => one.from.test(spec))
-    if (doors.length === 0) continue
-    const bindings = statement.importClause?.namedBindings
-    if (bindings === undefined) continue
-    if (ts.isNamespaceImport(bindings)) {
-      for (const door of doors) local.add(`${bindings.name.text}.${door.named}`)
-      continue
-    }
-    for (const element of bindings.elements) {
-      const exported = (element.propertyName ?? element.name).text
-      if (doors.some((one) => one.named === exported)) local.add(element.name.text)
-    }
-  }
-  return local
-}
-
-/**
- * WHAT AN INITIALIZER MINTS when the module is evaluated, or nothing — a call
- * inside a function body is that function's, however deep.
- *
- * Four shapes, and the last two were a review finding of their own: a holder
- * factory ({@link HOLDERS}), a Solid cell ({@link REACTIVE}), an IIFE, and
- * `new` of a class this module declared. The two additions are the ways to
- * carry a `let` without writing one — `(() => { let n = 0; return () => ++n })()`
- * and `class R { held = new Map() }` — and both are reported only where they
- * are EVALUATED at module load, so a factory returning either is still a
- * factory.
- */
-const reactiveAt = (
-  initializer: ts.Expression,
-  minting: ReadonlySet<string>,
-  declared: ReadonlySet<string>,
-): string | undefined => {
-  let found: string | undefined
-  const walk = (node: ts.Node): void => {
-    if (found !== undefined) return
-    if (ts.isCallExpression(node) && atModuleScope(node, initializer)) {
-      const called = ts.isIdentifier(node.expression)
-        ? node.expression.text
-        : ts.isPropertyAccessExpression(node.expression) ? node.expression.getText() : undefined
-      if (called !== undefined && REACTIVE.has(called)) { found = `${called}()`; return }
-      if (called !== undefined && minting.has(called)) { found = `${called}() holder`; return }
-      // AN IIFE THAT KEEPS SOMETHING: a function expression called where it
-      // stands, whose body holds a `let` or mints a cell — so what it closed
-      // over belongs to the module rather than to a caller.
-      //
-      // The body is what decides, and it has to be: half a dozen doors in this
-      // tree compute an inert constant this way (`@olai/appearance`'s
-      // `DEFAULT_PALETTE` picks a row out of a frozen table and throws if it is
-      // not there), and a rule that reported the SHAPE would refuse those to
-      // catch `(() => { let n = 0; return () => ++n })()`.
-      const body = ts.isParenthesizedExpression(node.expression)
-        ? node.expression.expression
-        : node.expression
-      if (ts.isFunctionLike(body) && keepsState(body)) { found = "IIFE"; return }
-    }
-    if (
-      ts.isNewExpression(node) && ts.isIdentifier(node.expression)
-      && declared.has(node.expression.text) && atModuleScope(node, initializer)
-    ) {
-      // ...and the same reading for a class this module declared: an instance
-      // minted at module load is state only if the class HAS any — a class that
-      // wraps a frozen table or does arithmetic is a value like any other.
-      found = `new ${node.expression.text}()`
-      return
-    }
-    ts.forEachChild(node, walk)
-  }
-  walk(initializer)
-  return found
-}
-
-/**
- * DOES THIS BODY KEEP ANYTHING — the question that tells an IIFE or a class
- * that is a VALUE from one that is a SLOT.
- *
- * Three ways to keep something, and they are the same three the module-scope
- * rules above are built on: a `let`/`var`, a Solid cell or a holder, and a
- * binding the body writes THROUGH (`this.held.set(…)`, `this.at = …`). A body
- * with none of them computed its answer and stopped.
- */
-const keepsState = (body: ts.Node): boolean => {
-  let keeps = false
-  const walk = (node: ts.Node): void => {
-    if (keeps) return
-    if (ts.isVariableStatement(node) && (node.declarationList.flags & ts.NodeFlags.Const) === 0) {
-      keeps = true
-      return
-    }
-    if (
-      ts.isCallExpression(node) && ts.isIdentifier(node.expression)
-      && REACTIVE.has(node.expression.text)
-    ) { keeps = true; return }
-    // A field written after construction, or one initialised to a collection
-    // that some method fills — both read as `this.<x>` being written.
-    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
-      && (ts.isPropertyAccessExpression(node.left) || ts.isElementAccessExpression(node.left))
-      && node.left.expression.kind === ts.SyntaxKind.ThisKeyword) { keeps = true; return }
-    if (
-      ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
-      && MUTATORS.has(node.expression.name.text)
-      && ts.isPropertyAccessExpression(node.expression.expression)
-      && node.expression.expression.expression.kind === ts.SyntaxKind.ThisKeyword
-    ) { keeps = true; return }
-    ts.forEachChild(node, walk)
-  }
-  ts.forEachChild(body, walk)
-  return keeps
-}
-
-/** Is this node evaluated when the module is — outside every function and class
- *  body between it and the declaration it sits in, the declaration's own
- *  initializer included (`const make = () => createSignal()` is a factory). */
-const atModuleScope = (node: ts.Node, root: ts.Node): boolean => {
-  if (ts.isFunctionLike(root) || ts.isClassLike(root)) return false
-  for (let at: ts.Node | undefined = node.parent; at !== undefined && at !== root; at = at.parent) {
-    if (ts.isFunctionLike(at) || ts.isClassLike(at)) return false
-  }
-  return true
-}
-
-/** The methods that write to a collection. Reading one (`.get`, `.has`, `.map`)
- *  is what an inert lookup table is FOR and says nothing. */
-const MUTATORS: ReadonlySet<string> = new Set([
-  "set",
-  "add",
-  "delete",
-  "clear",
-  "push",
-  "pop",
-  "shift",
-  "unshift",
-  "splice",
-  "sort",
-  "reverse",
-  "fill",
-])
-
-/**
- * Every identifier this module writes THROUGH — `x.set(…)`, `x.y = …`,
- * `x[k] = …`. Read over the whole file rather than at module scope, because a
- * module-scope `const` written from inside an exported function is exactly the
- * shape this is about.
- *
- * ...AND NOT A LOCAL THAT HAPPENS TO SHARE THE NAME, which is the difference
- * between this reading and a `grep`. `@olai/ops`' `query.ts` exports a function
- * called `homes` that builds a local array called `homes` and pushes to it;
- * reading the file flat says the module writes to `homes` and the module writes
- * to nothing. A claim with false positives is a claim people add allowances to.
- */
-const mutatedIn = (source: ts.SourceFile): ReadonlySet<string> => {
-  const written = new Set<string>()
-  const wrote = (target: ts.Identifier): void => {
-    if (!shadowed(target)) written.add(target.text)
-  }
-  const visit = (node: ts.Node): void => {
-    if (
-      ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
-      && ts.isIdentifier(node.expression.expression) && MUTATORS.has(node.expression.name.text)
-    ) {
-      wrote(node.expression.expression)
-    }
-    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
-      const target = node.left
-      if (
-        (ts.isPropertyAccessExpression(target) || ts.isElementAccessExpression(target))
-        && ts.isIdentifier(target.expression)
-      ) {
-        wrote(target.expression)
-      }
-    }
-    ts.forEachChild(node, visit)
-  }
-  visit(source)
-  return written
-}
-
-/**
- * Does a scope between this use and the module declare the same word — a local,
- * a parameter, or a `for (const x of …)`? Then the write is that binding's and
- * says nothing about the module's.
- *
- * ## BY ACTUAL LEXICAL SCOPE, and it was by "somewhere inside"
- *
- * This walked every descendant of each enclosing scope, so a binding in a
- * NESTED block counted as shadowing a use that came before it and outside it:
- *
- * ```ts
- * const writers = new Map()
- * export const register = (key, value) => {
- *   writers.set(key, value)          // the module's `writers`
- *   { const writers = []; writers.push("local") }   // and not this one
- * }
- * ```
- *
- * A review reproduced that reading as clean, which is the mutable-map rule
- * losing its whole subject to an unrelated local three lines down. So each
- * scope is asked only about the bindings it DECLARES: a block's own statements,
- * a `for`'s own initializer, a function's parameters — plus, for a function,
- * every `var` inside it, because `var` is the one binding that ignores blocks.
- *
- * A `const` declared LATER in the same block still counts, and should: reading
- * it before its declaration is a temporal-dead-zone throw rather than a read of
- * the module's, so the name is that block's for the whole of it.
- */
-const shadowed = (used: ts.Identifier): boolean => {
-  const spells = (name: ts.BindingName): boolean => {
-    if (ts.isIdentifier(name)) return name.text === used.text
-    return name.elements.some((element) =>
-      !ts.isOmittedExpression(element) && spells(element.name))
-  }
-  /** The names a `const`/`let`/`var` statement or a `for` initializer binds. */
-  const bindsIn = (list: ts.VariableDeclarationList): boolean =>
-    list.declarations.some((one) => spells(one.name))
-  /** ...and the `var`s anywhere inside a function, which blocks do not contain. */
-  const varsIn = (node: ts.Node): boolean => {
-    let found = false
-    const walk = (at: ts.Node): void => {
-      if (found) return
-      if (ts.isFunctionLike(at) && at !== node) return
-      if (
-        ts.isVariableStatement(at)
-        && (at.declarationList.flags & (ts.NodeFlags.Const | ts.NodeFlags.Let)) === 0
-        && bindsIn(at.declarationList)
-      ) { found = true; return }
-      ts.forEachChild(at, walk)
-    }
-    ts.forEachChild(node, walk)
-    return found
-  }
-  /** The statements a scope owns — a block's own list, and nothing a nested one
-   *  declares. */
-  const ownStatements = (node: ts.Node): ReadonlyArray<ts.Statement> => {
-    if (ts.isBlock(node) || ts.isCaseClause(node) || ts.isDefaultClause(node)) {
-      return [...node.statements]
-    }
-    if (ts.isCaseBlock(node)) return node.clauses.flatMap((one) => [...one.statements])
-    if (ts.isFunctionLike(node)) {
-      const body = (node as { readonly body?: ts.Node }).body
-      return body !== undefined && ts.isBlock(body) ? [...body.statements] : []
-    }
-    return []
-  }
-  const declares = (node: ts.Node): boolean => {
-    if (ts.isFunctionLike(node)) {
-      if (node.parameters.some((one) => spells(one.name))) return true
-      if (varsIn(node)) return true
-    }
-    if (
-      (ts.isForStatement(node) || ts.isForOfStatement(node) || ts.isForInStatement(node))
-      && node.initializer !== undefined && ts.isVariableDeclarationList(node.initializer)
-      && bindsIn(node.initializer)
-    ) return true
-    return ownStatements(node).some((one) =>
-      ts.isVariableStatement(one) && bindsIn(one.declarationList))
-  }
-  for (let at: ts.Node | undefined = used.parent; at !== undefined; at = at.parent) {
-    if (ts.isSourceFile(at)) return false
-    // A function's own block is asked about the function (parameters, `var`s
-    // and its statements together); asking twice would answer the same.
-    if (ts.isBlock(at) && at.parent !== undefined && ts.isFunctionLike(at.parent)) continue
-    if (
-      (ts.isFunctionLike(at) || ts.isBlock(at) || ts.isForOfStatement(at) || ts.isForInStatement(at)
-        || ts.isForStatement(at) || ts.isCaseBlock(at) || ts.isCaseClause(at) || ts.isDefaultClause(at))
-      && declares(at)
-    ) return true
-  }
-  return false
-}

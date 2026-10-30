@@ -1,6 +1,7 @@
 {
-  "files": [
-    "src/probe.ts",
-    "src/store.ts"
-  ]
+  "files": {
+    "src/codec.ts": 1,
+    "src/probe.ts": 4,
+    "src/store.ts": 5
+  }
 }

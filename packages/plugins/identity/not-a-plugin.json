@@ -1,5 +1,5 @@
 {
-  "settings": [
-    "src/server.ts"
-  ]
+  "settings": {
+    "src/server.ts": 2
+  }
 }

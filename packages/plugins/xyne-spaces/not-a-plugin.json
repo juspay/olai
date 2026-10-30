@@ -1,17 +1,18 @@
 {
-  "chat": [
-    "src/client.ts",
-    "src/testlib/fake-spaces.ts"
-  ],
-  "markdown": [
-    "src/client.ts",
-    "src/mirror.ts",
-    "src/testlib/fake-spaces.ts"
-  ],
-  "settings": [
-    "src/server.ts"
-  ],
-  "vault": [
-    "src/server.ts"
-  ]
+  "chat": {
+    "src/client.ts": 3,
+    "src/config.ts": 1,
+    "src/testlib/fake-spaces.ts": 4
+  },
+  "markdown": {
+    "src/client.ts": 6,
+    "src/mirror.ts": 2,
+    "src/testlib/fake-spaces.ts": 3
+  },
+  "settings": {
+    "src/server.ts": 3
+  },
+  "vault": {
+    "src/server.ts": 7
+  }
 }

@@ -1,28 +1,30 @@
 {
-  "alerts": [
-    "src/browser.tsx",
-    "src/browser/reminders/ReminderRow.tsx",
-    "src/browser/reminders/circuit.ts"
-  ],
-  "files": [
-    "src/browser/dates.ts"
-  ],
-  "markdown": [
-    "src/server.ts"
-  ],
-  "navigation": [
-    "src/browser.tsx"
-  ],
-  "search": [
-    "src/browser.tsx"
-  ],
-  "sidebar": [
-    "src/browser.tsx",
-    "src/browser/agenda/fold.ts",
-    "src/browser/calendar/fold.ts"
-  ],
-  "vault": [
-    "src/agenda.ts",
-    "src/server.ts"
-  ]
+  "alerts": {
+    "src/browser.tsx": 5,
+    "src/browser/reminders/ReminderRow.tsx": 1,
+    "src/browser/reminders/circuit.ts": 2
+  },
+  "files": {
+    "src/browser/dates.ts": 3
+  },
+  "markdown": {
+    "src/server.ts": 3
+  },
+  "navigation": {
+    "src/browser.tsx": 5,
+    "src/browser/reminders/circuit.ts": 2,
+    "src/browser/reminders/held.ts": 3
+  },
+  "search": {
+    "src/browser.tsx": 2
+  },
+  "sidebar": {
+    "src/browser.tsx": 2,
+    "src/browser/agenda/fold.ts": 1,
+    "src/browser/calendar/fold.ts": 1
+  },
+  "vault": {
+    "src/agenda.ts": 2,
+    "src/server.ts": 9
+  }
 }

@@ -1,42 +1,42 @@
 {
   "//": "WHERE THE WORD IS NOT THE PLUGIN. A handful of this package's files spell another row's name as ordinary code, and each is recorded here rather than excused by a pattern — the equality in @olai/bundle's fence.test.ts is what refuses a NEW collision until somebody writes it down with a reason. 'search' is `url.searchParams`, which every one of the three files uses because they all compose or parse a request; 'git' is the `git:` line of the version string the fake binary prints, which the pinned Himalaya really does print (`himalaya --version` ends with two lines about the build and its revision) and which the fake must reproduce or the surface check's parse is exercised over a string no binary would answer; 'vault' is the English word in the panel row's own sentence to a person — the refresh token is kept in this serve's memory, never in the vault — which is the product's word for the served directory and also a row's name.",
-  "git": [
-    "src/appliance/testlib/fake-himalaya.ts"
-  ],
-  "search": [
-    "src/account.ts",
-    "src/appliance/testlib/fake-google.ts",
-    "src/browser/story.ts",
-    "src/mailbox.ts",
-    "src/oauth.ts",
-    "src/tools.ts"
-  ],
-  "vault": [
-    "src/tools.ts"
-  ],
   "//tools": "Mail query, trash verbs and PDF attachment fixtures are mail vocabulary, not dependencies on those plugin rows.",
   "//enclosures": "A MIME type is not a row. `src/enclosures.ts` holds the small extension table a draft's attachments are typed from, so it spells `text/csv`, `text/markdown`, `image/*` and `application/pdf` — media types Gmail reads, and a table this plugin keeps itself precisely so a draft does not differ between machines. `src/tools.ts` spells `application/pdf` as the example in the argument's own description, and 'vault' as the place an agent is told it may attach a file from, which is the product's word for the served directory and also a row's name.",
-  "csv": [
-    "src/enclosures.ts"
-  ],
-  "image": [
-    "src/appliance/testlib/fixtures.ts",
-    "src/enclosures.ts"
-  ],
-  "markdown": [
-    "src/enclosures.ts"
-  ],
-  "pdf": [
-    "src/appliance/testlib/fixtures.ts",
-    "src/enclosures.ts",
-    "src/tools.ts"
-  ],
-  "trash": [
-    "src/appliance/testlib/fake-himalaya.ts",
-    "src/appliance/testlib/fixtures.ts",
-    "src/browser/story.ts",
-    "src/himalaya/verbs.ts",
-    "src/mailbox.ts",
-    "src/tools.ts"
-  ]
+  "csv": {
+    "src/enclosures.ts": 2
+  },
+  "git": {
+    "src/appliance/testlib/fake-himalaya.ts": 3
+  },
+  "image": {
+    "src/appliance/testlib/fixtures.ts": 1,
+    "src/enclosures.ts": 7
+  },
+  "markdown": {
+    "src/enclosures.ts": 1
+  },
+  "pdf": {
+    "src/appliance/testlib/fixtures.ts": 2,
+    "src/enclosures.ts": 2,
+    "src/tools.ts": 1
+  },
+  "search": {
+    "src/account.ts": 1,
+    "src/appliance/testlib/fake-google.ts": 2,
+    "src/browser/story.ts": 2,
+    "src/mailbox.ts": 2,
+    "src/oauth.ts": 2,
+    "src/tools.ts": 5
+  },
+  "trash": {
+    "src/appliance/testlib/fake-himalaya.ts": 8,
+    "src/appliance/testlib/fixtures.ts": 1,
+    "src/browser/story.ts": 3,
+    "src/himalaya/verbs.ts": 4,
+    "src/mailbox.ts": 2,
+    "src/tools.ts": 5
+  },
+  "vault": {
+    "src/tools.ts": 1
+  }
 }

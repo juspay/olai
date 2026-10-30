@@ -1,27 +1,38 @@
 #!/bin/sh
-# PROVE THE FENCE — a mutation run, so "the lints are as strong as before" is a
+# PROVE THE FENCE — a mutation run, so "the fence is as strong as before" is a
 # thing somebody watched happen rather than a sentence in a PR body.
 #
-# The two standing lints in `@olai/plugin-api` are SWEEPS: they read the
-# repository as text and assert equalities over what they found. A sweep's one
-# failure mode is going quiet — a pattern that stopped matching, a corpus that
-# came back short, a resolver that answered `undefined` and walked one file —
-# and every one of those is GREEN. Neither the suite nor a reviewer can tell a
-# fence that is holding from a fence that is not running, because both look
-# exactly like `0 fail`.
+# What is left here is TWO HALVES, and the first is not this script's:
+#
+#   1. THE DOOR'S OWN PROOF. `@olai/effect-cordis/fence` ships `prove`, which
+#      breaks a COPY of this tree once per claim — a cross-row import, a
+#      `node:` builtin on a browser root, a row's word in a host's code, a
+#      module-scope value behind a door, a package declaring a row nobody
+#      named — and asserts the claim that names each defect refuses it. That is
+#      the falsifier for the five GENERIC claims, and it runs here because the
+#      declaration it proves is olai's.
+#
+#   2. OLAI'S OWN MUTATIONS, below — the defects only this build can be about:
+#      a general package importing a plugin, a manifest declaring one, the
+#      engine reached directly, a hydrated appliance's tier, a contract door
+#      holding an activation's value, a plugin's word reaching `default.nix`.
+#
+# Every claim is a SWEEP: it reads the repository and asserts an equality over
+# what it found. A sweep's one failure mode is going quiet — a pattern that
+# stopped matching, a corpus that came back short, a resolver that answered
+# `undefined` and walked one file — and every one of those is GREEN. Neither the
+# suite nor a reviewer can tell a fence that is holding from a fence that is not
+# running, because both look exactly like `0 fail`.
 #
 # So this script breaks the tree on purpose, once per claim, and asserts the
-# lints go RED. It is the falsifier for the falsifiers.
+# claims go RED. It is the falsifier for the falsifiers.
 #
 #   sh scripts/prove-fence.sh          # run every mutation
 #   sh scripts/prove-fence.sh 5 9      # run only these
 #
-# NOT A `just check` LEG, deliberately. It writes to tracked files (and puts
-# each one back), so two of them running at once would fight — and `check` runs
-# its legs in parallel. It is a thing a person runs when the fence CHANGES: at
-# the packaging move that wrote it, and at any later edit to `fence.test.ts` or
-# `mechanics.test.ts` big enough that "the tests still pass" stops being
-# evidence.
+# NOT A `just check` LEG, deliberately. Its own half writes to tracked files (and
+# puts each one back), so two of them running at once would fight — and `check`
+# runs its legs in parallel. It is a thing a person runs when the fence CHANGES.
 #
 # ## Everything it touches is DERIVED
 #
@@ -64,8 +75,31 @@ fi
 # would prove nothing.
 members=$(sh "$root/scripts/workspace-members.sh" "$root")
 
-# THE REGISTRY: the member that owns the fence.
-registry=$(for m in $members; do if [ -f "$m/src/fence.test.ts" ]; then echo "$m"; fi; done)
+# THE REGISTRY: the member that owns this build's fence — a workspace member
+# that holds `src/fence.test.ts` AND declares plugins.
+#
+# BOTH HALVES ARE LOAD-BEARING NOW. It was "the member with a fence file", and
+# that stopped being a unique answer the day the fence itself got a door with a
+# test of its own: `packages/effect-cordis/src/fence.test.ts` exists, names no
+# plugin, and would have captured `$registry` — every path below would then have
+# been read out of the door's package and this harness would have died on a `jq`
+# with two files in one word. So the second clause is what tells the two apart.
+registry=$(
+  for m in $members; do
+    if [ -f "$m/src/fence.test.ts" ] && jq -r '.dependencies | keys[]' "$m/package.json" | grep -q '^olai-plugin-'; then
+      echo "$m"
+    fi
+  done
+)
+case "$registry" in
+  *"
+"*)
+    echo "prove-fence: more than one member holds a fence and declares plugins:" >&2
+    echo "$registry" | sed 's/^/  /' >&2
+    exit 1
+    ;;
+esac
+[ -n "$registry" ] || { echo "prove-fence: no member both holds src/fence.test.ts and declares plugins" >&2; exit 1; }
 
 # THE PLUGINS: what the registry DECLARES, held to the CONTAINER. Not a shape
 # test — `@olai/plugin-api` opens `./wire`, `./server` and `./all.css` too,
@@ -356,7 +390,7 @@ unnamed=0
 # this script's own indictment of the lints reproduced on its one argument.
 #
 # Plugin package edges are forbidden again: services carry the dependency.
-DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25"
+DECLARED="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26"
 for want in $only; do
   case " $DECLARED " in
     *" $want "*) ;;
@@ -381,6 +415,45 @@ else
   echo "  would mean anything. Fix that first:  bun test $registry" >&2
   exit 1
 fi
+
+# ── the door's own proof ─────────────────────────────────────────────────────
+#
+# ONE LINE PER CLAIM, and the three verdicts are the ones the mutations below
+# use: CAUGHT is a claim that went red for its own defect, `GREEN` is a mutation
+# the fence did not see (the failure mode this whole script exists for), and
+# SPILL is a claim that went red without being asked to — a proof that is not
+# clean. The door proves itself on a COPY, so nothing here needs restoring, and
+# a red baseline inside `prove` is reported rather than proved over.
+printf 'the door: %s ... ' "effect-cordis/fence"
+if proof=$(bun -e '
+import { prove } from "./packages/effect-cordis/src/fence.ts"
+import { DECLARATION } from "./packages/bundle/src/fence.testlib.ts"
+const proof = prove(DECLARATION)
+for (const one of proof.mutations) {
+  const verdict = !one.caught
+    ? "GREEN — THE FENCE DID NOT SEE IT"
+    : one.spill.length > 0
+      ? "CAUGHT, BUT SPILLED"
+      : "CAUGHT"
+  const spill = one.spill.length > 0 ? ` [also red: ${one.spill.join(", ")}]` : ""
+  console.log(`${verdict}  ${one.claim}: ${one.what}${one.why === undefined ? "" : ` (${one.why})`}${spill}`)
+}
+for (const one of proof.baseline) console.error(`  baseline red: ${one.claim}: ${one.said}`)
+// `ok` is "red on EXACTLY that claim": a spill means the proof is not clean, so
+// this exits non-zero and the run above is not evidence of anything.
+if (!proof.ok) {
+  console.error("the proof is not clean: a mutation was not seen, or it coloured another claim")
+  process.exit(1)
+}
+' 2>&1); then
+  echo "ok"
+  printf '%s\n' "$proof" | sed 's/^/  /'
+else
+  echo "FAILED"
+  printf '%s\n' "$proof" | sed 's/^/  /'
+  exit 1
+fi
+echo
 
 # run <n> <what should go red> <command…> — the mutation is the rest of the argv.
 # run <n> <what should go red> <the claim that must say so> <command…>
@@ -449,6 +522,12 @@ run() {
 # NAMES`. That is the scorer working — a mutation is caught because the claim it
 # is about refused it — and it had been unreadable because this script could not
 # start at all (the guard block above, and `Mark.tsx`).
+#
+# THE FIVE GENERIC CLAIMS LIVE IN THE DOOR NOW, so the mutations that break one
+# name the door's test (`the fence's five generic claims > <claim>`), which is
+# where `fence.test.ts` asserts it. What stayed here is what the door cannot
+# see: this tree's contract doors, its manifests, its chunk and server doors,
+# its Nix halves.
 
 # A SUBPATH rather than the bare name, deliberately: a claim that matched only
 # `olai-plugin-<name>` would be green under the door a consumer would actually
@@ -474,7 +553,7 @@ run 2 "a general package DECLARES a plugin in its manifest" \
 # and the walk records it without following it. So a defect there is caught by
 # the sweep and NAMED by it, which is exactly what this mutation has to prove.
 run 3 "a plugin imports the REGISTRY back (the cycle)" \
-  'a plugin does not import the registry' \
+  'generic claims > imports' \
   append "$plugin_a/src/browser.tsx" "import \"$registry_name\""
 
 # A service key is the dependency arm; a package import bypasses its lifecycle.
@@ -548,11 +627,11 @@ run 10 "one tenant names the OTHER appliance's tier" \
   append "$other_dial" 'import "@kolu/padi-client"'
 
 run 11 "a general package SPELLS a plugin's name in code" \
-  "outside the registry and the plugin's own tenant spells it" \
+  'generic claims > names' \
   append "$general_src" 'export const koluHalf = () => null'
 
 run 12 "a general package reaches a plugin's SHEET (the CSS grammar)" \
-  'general production packages name no plugins' \
+  'generic claims > imports' \
   append "$sheet" "@import \"$name_a/all.css\";"
 
 # ONE DIRECTION of an equality, and the other is not mutated here: moving a
@@ -585,13 +664,12 @@ run 16 "a plugin imports the ENGINE directly" \
   append "$plugin_a/src/server.ts" 'import "cordis"'
 
 # AN ACP ENGINE'S NAME, SPELLED IN A GENERAL PACKAGE. The agents phase turned
-# `claude`, `opencode` and `pi` into plugins, and claim 8 covers them the way it
-# covers a tenant — but the ENGINE names are the ones with collisions in
-# ordinary English, so the claim carries two recorded exceptions
-# (`fence.test.ts`'s `NOT_A_PLUGIN`: the vault's own `prop:agent=claude-opus`
-# worked example, and `Math.PI`). A recorded exception is a place a claim can
-# quietly widen, so the engine gets its own mutation rather than resting on
-# mutation 11's tenant.
+# `claude`, `opencode` and `pi` into plugins, and the name claim covers them the
+# way it covers a tenant — but the ENGINE names are the ones with collisions in
+# ordinary English, so the claim carries recorded collisions (the vault's own
+# `prop:agent=claude-opus` worked example, `Math.PI`). A recorded exception is a
+# place a claim can quietly widen, so the engine gets its own mutation rather
+# than resting on mutation 11's tenant.
 #
 # `packages/server` is where this defect historically WAS in its other form: the
 # composition root held the roster and the composition root named the agents.
@@ -599,16 +677,17 @@ run 16 "a plugin imports the ENGINE directly" \
 #
 # The eighteen above are all about what a module REACHES FOR. Neither of these
 # two reaches for anything: they are the shape the Cordis audit names — a live
-# value at module scope behind a door another package opens — and before this
-# branch the fence was green on both.
+# value at module scope behind a door another package opens — and the door's
+# `live-state` claim walks the module BEHIND each door, so a `let` one import
+# in is caught where reading the door file alone would have missed it.
 
 run 19 "a plugin's CONTRACT DOOR holds another activation's value" \
-  'cross-plugin static contracts resolve|opened across a boundary holds live state' \
+  'generic claims > live-state' \
   append "$contract_door" 'let heldByProveFence: unknown
 export const provenCurrent = () => heldByProveFence'
 
 run 20 "the SHELL DOOR every browser half opens holds one" \
-  'nothing opened across a boundary holds live state' \
+  'generic claims > live-state' \
   append "$shell_door" 'let heldByProveFence: unknown
 export const provenCurrent = () => heldByProveFence'
 
@@ -618,12 +697,12 @@ export const provenCurrent = () => heldByProveFence'
 # second is a `let` one import behind a door, which the claim could not see at
 # all while it read the door file and stopped.
 run 21 "a CONTRACT DOOR exports one of this tree's own holders, under an alias" \
-  'opened across a boundary holds live state' \
+  'generic claims > live-state' \
   append "$contract_door" 'import { heldService as provenSlot } from "@olai/ui-primitives/held.ts"
 export const provenHeld = provenSlot<unknown>()'
 
 run 22 "a SHELL DOOR re-exports a holder from a module BEHIND it" \
-  'nothing opened across a boundary holds live state' \
+  'generic claims > live-state' \
   behind_door "$shell_door" packages/web/src/client/proven-fence-leak.ts
 
 # ── THE NIX-ISOLATION FENCE (claim 9) ───────────────────────────────────────
@@ -649,8 +728,19 @@ run 25 "a plugin's word is a tag literal in the e2e harness" \
   append "packages/tests/support/hooks.ts" 'const PLANTED = "@pi"'
 
 run 17 "a general package SPELLS AN ENGINE'S name in code" \
-  "outside the registry and the plugin's own tenant spells it" \
+  'generic claims > names' \
   append "$general_src" 'export const claudeSeat = () => null'
+
+# THE BROWSER REGISTRY'S OWN DOOR, WHICH THE PORT DROPPED AND THIS RUN FOUND.
+#
+# The door's `door-graphs` refuses a `node:`/`bun:` builtin on a browser root's
+# walk, because that is the word every build shares. What THIS build may not put
+# behind its chunk table is its own judgement — `solid-js`, an appliance's
+# client, the format — and the first port lost the claim that held it, with
+# 25/25 still green. A mutation is what makes the loss visible next time.
+run 26 "the BROWSER REGISTRY's own door pulls the UI runtime" \
+  "nothing on it is a UI runtime, an appliance's client, or the format" \
+  append "$registry/src/rows.ts" 'import "solid-js"'
 
 echo
 echo "$passed of $((passed + failed + unnamed)) mutations were caught."

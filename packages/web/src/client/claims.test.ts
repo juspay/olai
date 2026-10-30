@@ -9,23 +9,23 @@
  * one names derivation, one dismissal stack and one clock. Moving a module
  * cannot remove it from review. Menu edges resolve real package aliases, and
  * dynamic import checks inspect emitted code so TS type queries do not count
- * as runtime loads. Babel removes comments without treating MIME strings or
- * quoted comment markers as syntax.
+ * as runtime loads. Comments are removed by the fence's own stripper, which
+ * derives the trivia gaps from the parser's token boundaries — the same reading
+ * the fence's `names` claim uses.
  */
 
 import { expect, test } from "bun:test"
 import * as fs from "node:fs"
 import * as path from "node:path"
-import { transformSync } from "@babel/core"
-import { graphFrom, edgesOf, transpilers, PACKAGES } from "@olai/bundle/tree-testlib"
+import { graphFrom, edgesOf, isBench, transpilers, withoutComments, PACKAGES } from "@olai/bundle/tree-testlib"
 
 const CLIENT = import.meta.dirname
 
-const withoutComments = (source: string, file: string): string => transformSync(source, {
-  filename: file, configFile: false, babelrc: false, comments: false,
-  parserOpts: { plugins: file.endsWith(".tsx") ? ["typescript", "jsx"] : ["typescript"] },
-})!.code!
-const codeOf = (file: string) => withoutComments(fs.readFileSync(file, "utf8"), file)
+/** Comment-free source, by the one stripper this tree has: the door's, which
+ *  derives the trivia gaps from the parser's own token boundaries. Babel used to
+ *  do this here, and it was a second answer to "what is a comment" that could
+ *  disagree with the fence's. */
+const codeOf = (file: string) => withoutComments(path.relative(PACKAGES, file), fs.readFileSync(file, "utf8"))
 
 
 const browserEntries = fs.readdirSync(path.join(PACKAGES, "plugins")).flatMap(name => {
@@ -48,7 +48,9 @@ while (pending.length) {
     pending.push(Bun.resolveSync(edge.spec, path.dirname(path.join(PACKAGES, edge.file))))
   }
 }
-const production = (file: string) => !/\.(?:test|browsertest|testlib|bench)\./.test(file)
+/** A bench is not product — the door's reading of it, so a new bench convention
+ *  is one edit rather than two answers. */
+const production = (file: string) => !isBench(file)
 const inBrowserPackage = (file: string) => file.startsWith("web/src/client/") || file.startsWith("plugins/") || file.startsWith("markdown-ui/") || file.startsWith("appearance/") || file.startsWith("ui-primitives/")
 const files = new Set(graphs.flatMap(graph => graph.files).filter(file => production(file) && inBrowserPackage(file)))
 // Keep unreachable shared browser utilities under review too: making a static
@@ -613,7 +615,10 @@ test("the stack is joined directly only where the gestures are not dismissOn's",
 })
 
 test("comment stripping preserves MIME strings and the code following them", () => {
-  const code = withoutComments('const accept = "image/*"; // a real comment\nconst marker = "data-row-key";', "claim.ts")
+  const code = withoutComments(
+    "claim.ts",
+    'const accept = "image/*"; // a real comment\nconst marker = "data-row-key";',
+  )
   expect(code).toContain('"image/*"')
   expect(code).toContain('"data-row-key"')
   expect(code).not.toContain("a real comment")

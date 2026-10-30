@@ -1,37 +1,42 @@
 {
-  "files": [
-    "src/PageView.tsx",
-    "src/browser.tsx",
-    "src/pages.ts"
-  ],
   "//layout": "Workspace tree fields use layout vocabulary, not a lookup of the layout plugin.",
-  "layout": [
-    "src/address/Face.tsx",
-    "src/address/address.ts",
-    "src/live.ts",
-    "src/pane/state.ts",
-    "src/routing.tsx",
-    "src/workspace.ts"
-  ],
-  "search": [
-    "src/palette/Palette.tsx",
-    "src/palette/items.ts",
-    "src/router.tsx",
-    "src/routes.ts",
-    "src/testids.ts",
-    "src/workspace.ts"
-  ],
-  "sidebar": [
-    "src/palette/Palette.tsx",
-    "src/palette/items.ts"
-  ],
-  "trash": [
-    "src/address/address.ts",
-    "src/palette/items.ts",
-    "src/routes.ts"
-  ],
-  "tabs": [
-    "src/routing.tsx"
-  ],
-  "//tabs": "A LinkTarget carries the optional navigation-owned tab capability, not a plugin lookup."
+  "//tabs": "A LinkTarget carries the optional navigation-owned tab capability, not a plugin lookup.",
+  "files": {
+    "src/PageView.tsx": 4,
+    "src/browser.tsx": 4,
+    "src/pages.ts": 4
+  },
+  "layout": {
+    "src/address/Face.tsx": 3,
+    "src/address/address.ts": 2,
+    "src/live.ts": 8,
+    "src/pane/state.ts": 12,
+    "src/routing.tsx": 1,
+    "src/workspace.ts": 179
+  },
+  "link-preview": {
+    "src/index.ts": 2
+  },
+  "search": {
+    "src/palette/Palette.tsx": 7,
+    "src/palette/items.ts": 17,
+    "src/palette/reading.ts": 2,
+    "src/router.tsx": 2,
+    "src/routes.ts": 6,
+    "src/slots.ts": 1,
+    "src/testids.ts": 3,
+    "src/workspace.ts": 4
+  },
+  "sidebar": {
+    "src/palette/Palette.tsx": 2,
+    "src/palette/items.ts": 7
+  },
+  "tabs": {
+    "src/routing.tsx": 6
+  },
+  "trash": {
+    "src/address/address.ts": 2,
+    "src/palette/items.ts": 4,
+    "src/routes.ts": 6
+  }
 }

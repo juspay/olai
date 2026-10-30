@@ -1,5 +1,5 @@
 {
-  "mcp": [
-    "src/leg.ts"
-  ]
+  "mcp": {
+    "src/leg.ts": 5
+  }
 }

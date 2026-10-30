@@ -1,33 +1,34 @@
 {
-  "files": [
-    "src/browser.tsx",
-    "src/projection.ts",
-    "src/tools.ts"
-  ],
-  "git": [
-    "src/tools.ts"
-  ],
-  "identity": [
-    "src/browser/document/DocumentPage.tsx"
-  ],
-  "journal": [
-    "src/tools.ts"
-  ],
-  "navigation": [
-    "src/browser.tsx",
-    "src/browser/BodyPage.tsx"
-  ],
-  "outlines": [
-    "src/tools.ts"
-  ],
-  "search": [
-    "src/browser/document/Rendered.tsx"
-  ],
-  "sidebar": [
-    "src/tools.ts"
-  ],
-  "vault": [
-    "src/server.ts",
-    "src/tools.ts"
-  ]
+  "files": {
+    "src/browser.tsx": 2,
+    "src/projection.ts": 8,
+    "src/tools.ts": 1
+  },
+  "git": {
+    "src/tools.ts": 4
+  },
+  "identity": {
+    "src/browser/document/DocumentPage.tsx": 2
+  },
+  "journal": {
+    "src/tools.ts": 1
+  },
+  "navigation": {
+    "src/browser.tsx": 9,
+    "src/browser/BodyPage.tsx": 7,
+    "src/browser/PageView.tsx": 4
+  },
+  "outlines": {
+    "src/tools.ts": 2
+  },
+  "search": {
+    "src/browser/document/Rendered.tsx": 1
+  },
+  "sidebar": {
+    "src/tools.ts": 1
+  },
+  "vault": {
+    "src/server.ts": 6,
+    "src/tools.ts": 2
+  }
 }

@@ -1,24 +1,24 @@
 {
-  "claude": [
-    "src/tools.ts"
-  ],
-  "files": [
-    "src/browser.tsx",
-    "src/browser/KindSelector.tsx",
-    "src/table.bench.ts",
-    "src/table.ts"
-  ],
-  "markdown": [
-    "src/tools.ts"
-  ],
-  "outlines": [
-    "src/matcher.ts",
-    "src/table.bench.ts",
-    "src/tools.ts"
-  ],
-  "vault": [
-    "src/server.ts",
-    "src/table.bench.ts",
-    "src/tools.ts"
-  ]
+  "claude": {
+    "src/tools.ts": 2
+  },
+  "files": {
+    "src/browser.tsx": 7,
+    "src/browser/KindSelector.tsx": 1,
+    "src/table.ts": 5
+  },
+  "markdown": {
+    "src/tools.ts": 1
+  },
+  "navigation": {
+    "src/browser/HeaderSearch.tsx": 2
+  },
+  "outlines": {
+    "src/matcher.ts": 4,
+    "src/tools.ts": 4
+  },
+  "vault": {
+    "src/server.ts": 9,
+    "src/tools.ts": 1
+  }
 }

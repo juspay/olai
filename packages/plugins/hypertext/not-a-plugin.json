@@ -1,5 +1,5 @@
 {
-  "navigation": [
-    "src/browser.tsx"
-  ]
+  "navigation": {
+    "src/browser.tsx": 2
+  }
 }

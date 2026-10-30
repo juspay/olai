@@ -1,62 +1,54 @@
 {
-  "capture": [
-    "src/plan.ts",
-    "src/walks.bench.ts"
-  ],
-  "files": [
-    "src/codec.ts",
-    "src/door.ts",
-    "src/following.ts",
-    "src/ops.ts",
-    "src/plan.ts",
-    "src/query.ts",
-    "src/sorted.ts",
-    "src/standing.bench.ts",
-    "src/walks.bench.ts"
-  ],
-  "markdown": [
-    "src/asked.ts",
-    "src/documents.bench.ts",
-    "src/ops.ts",
-    "src/plan.ts",
-    "src/query.ts",
-    "src/refusals.ts",
-    "src/sorted.ts"
-  ],
-  "outlines": [
-    "src/asked.ts",
-    "src/live.ts",
-    "src/ops.ts",
-    "src/plan.ts",
-    "src/query.ts",
-    "src/refusals.ts",
-    "src/standing.bench.ts",
-    "src/tools.ts",
-    "src/walks.bench.ts"
-  ],
-  "pins": [
-    "src/plan.ts"
-  ],
-  "search": [
-    "src/live.ts",
-    "src/ops.ts",
-    "src/query.ts",
-    "src/refusals.ts",
-    "src/tools.ts"
-  ],
-  "tabs": [
-    "src/standing.bench.ts"
-  ],
-  "trash": [
-    "src/door.ts",
-    "src/ops.ts",
-    "src/plan.ts"
-  ],
   "//trash": "`trash` is a REQUEST OP and a `Barred` arm — the door refuses the op by name and the name is the format's — not the trash row.",
-  "vault": [
-    "src/documents.bench.ts",
-    "src/plan.ts",
-    "src/standing.bench.ts",
-    "src/walks.bench.ts"
-  ]
+  "capture": {
+    "src/plan.ts": 66
+  },
+  "files": {
+    "src/codec.ts": 3,
+    "src/door.ts": 8,
+    "src/following.ts": 1,
+    "src/ops.ts": 6,
+    "src/plan.ts": 31,
+    "src/query.ts": 1,
+    "src/sorted.ts": 4
+  },
+  "markdown": {
+    "src/asked.ts": 8,
+    "src/ops.ts": 4,
+    "src/plan.ts": 12,
+    "src/query.ts": 5,
+    "src/refusals.ts": 2,
+    "src/sorted.ts": 2
+  },
+  "outlines": {
+    "src/asked.ts": 4,
+    "src/live.ts": 3,
+    "src/ops.ts": 3,
+    "src/plan.ts": 18,
+    "src/query.ts": 1,
+    "src/refusals.ts": 6,
+    "src/tools.ts": 4
+  },
+  "pins": {
+    "src/plan.ts": 2
+  },
+  "search": {
+    "src/deps.ts": 2,
+    "src/index.ts": 2,
+    "src/live.ts": 3,
+    "src/ops.ts": 14,
+    "src/query.ts": 5,
+    "src/refusals.ts": 1,
+    "src/tools.ts": 10
+  },
+  "trash": {
+    "src/door.ts": 2,
+    "src/ops.ts": 2,
+    "src/plan.ts": 34
+  },
+  "vault": {
+    "src/deps.ts": 1,
+    "src/index.ts": 1,
+    "src/plan.ts": 1
+  }
 }

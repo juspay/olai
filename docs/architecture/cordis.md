@@ -6,7 +6,7 @@ A plugin must be able to stop or be replaced without leaving work running, witho
 - Describes the merged design of [PR #554](https://github.com/juspay/olai/pull/554) and [PR #557](https://github.com/juspay/olai/pull/557), including mistakes caught in review.
 - Not a claim of formal verification, and not a plan for future routing or layout changes.
 
-Sections: [principle](#the-principle) · [imports](#imports-are-not-live-dependencies) · [owners](#choose-the-owner-before-the-helper) · [optional features](#optional-features) · [stopping](#stopping-is-a-protocol) · [acquisition](#acquisition-and-external-effects) · [browser state](#browser-state-and-reconnection) · [refactors](#refactors-enforcement-and-evidence)
+Sections: [principle](#the-principle) · [imports](#imports-are-not-live-dependencies) · [owners](#choose-the-owner-before-the-helper) · [optional features](#optional-features) · [stopping](#stopping-is-a-protocol) · [acquisition](#acquisition-and-external-effects) · [browser state](#browser-state-and-reconnection) · [refactors](#refactors-enforcement-and-evidence) · [the static fence](#the-static-fence)
 
 ## The principle
 
@@ -234,12 +234,38 @@ Before accepting a refactor, list which owners, dependencies and lifetimes chang
 | Extracting a singleton | Lost: the state now outlives every caller. |
 | Merging holders with different lifetimes | Lost: one consumer's release affects the other. |
 
-The dependency fence is a static check over imports. It:
+### The static fence
 
-- Checks which packages may import which, and looks for known forms of live state exposed behind public contracts, including aliases and implementations reached through re-exports.
-- Must tell module-owned state from ordinary local bindings, and mutable activation state from inert data. Writing `const` or annotating a `ReadonlyMap` does not establish either.
-- Cannot prove things about arbitrary JavaScript. A broker or cache it allows needs a written ownership argument, not an exception added to keep a migration small.
-- Would be wrong in the other direction too: banning every class, closure, `Map` or module-level value would reject valid contracts without proving anything safe.
+The static half of spatial composability — whether the graph a build actually has agrees with the one it declares — is [`@olai/effect-cordis/fence`](../../packages/effect-cordis/src/fence.ts). It is the one package on this page that reads no runtime, because none of these questions is about a fiber: every one is a fact about imports and text.
+
+Five claims, each with its own non-vacuity check so a corpus that came back short is RED rather than quiet:
+
+| claim | what it refuses |
+| --- | --- |
+| `imports` | a row's package reached outside a door its manifest declares; a host naming a row outside a root file; a row reaching the roster back |
+| `door-graphs` | a `node:`/`bun:` builtin on a browser root's walk, a UI runtime on a node root's, an edge the walk could not resolve |
+| `names` | a row's word in another package's code, after comments are stripped and module specifiers subtracted |
+| `live-state` | a module another package can open holding a module-scope value, beyond the allowances somebody argued for |
+| `registry` | the rows the host names, the rows on disk and the rows the roots compose disagreeing |
+
+The declaration is **four facts**, and two of them — `roots` and `collisions` — are hand-written, because no reading of the tree can produce them:
+
+- `repo` — the workspace root, derived by definition: it is where the `workspaces` globs are.
+- `rows` — supplied from the one place a host already names them (here: the generated registry), or read from each package's own `cordis` field. The fence must not name them twice.
+- `roots` — `{ entry, graph }` per entry file, HAND-WRITTEN. That a file may name more than one row, and whether the graph it opens is a browser's or a node's, is a CLAIM a person makes.
+- `collisions` — `{ row: { file: count } }`, HAND-WRITTEN: the lexical collisions a row's word is recorded in. Exact counts, granting no import and no lifetime exemption — claims one and four do not read this table.
+
+Everything else is derived: a package's doors from its manifest `exports`, a package's row from the same manifest, a door's graph kind from which roots reach it, and the roster from the one non-row package a root's walk reaches that names every row (two of those is red, not a pick).
+
+**What `names` reads.** Shipping TypeScript and TSX only — the sources that compile. Prose, stylesheets, JSON, Markdown, Nix and benches are out of scope by construction: a comment is stripped by the parser before the sweep, a `.css` or a `.json` file is never in its corpus, and a bench is not product (the declaration may say what a bench is, and this build's answer includes `*.test.*`, `*.testlib.*`, `*.bench.*`, `e2e/` and `fixtures/`). A word in a comment, a stylesheet or a scenario is therefore not a collision, and the recorded collisions are the code ones. Three records hold what a person argued and what the claims cannot know: `allowances` (a module's ownership argument, in prose), `holders` (this tree's own slot factories, which mint state under a `const`), and `runtimes` (what a node graph may not evaluate, which is this build's list and not the door's default).
+
+What it cannot do:
+
+- It reads TEXT. It cannot prove things about arbitrary JavaScript, and three rules about module scope — a rebindable binding, a cell or holder minted at load, a `const` the module writes — are a filter rather than a proof. A broker or cache it allows needs a written ownership argument, not an exception added to keep a migration small.
+- It would be wrong in the other direction too: banning every class, closure, `Map` or module-level value would reject valid contracts without proving anything safe.
+- It knows nothing about a CHUNK or a mounted module. A build whose loader mounts a row's module by a specifier (this one's `olai.yml`) keeps that per-row door claim itself, beside the two entry roots the fence weighs.
+
+`prove(declaration)` is the falsifier for the claims: it plants one canonical defect per claim in a COPY of the tree — a cross-row import, a `node:` builtin on a browser root, a row's word in a host's code, a module-scope `let` behind a door, a package declaring a row nobody named — and asserts the claim that names each defect refuses it. `scripts/prove-fence.sh` runs that, plus this build's own mutations. A sweep that stopped matching looks exactly like `0 fail`, and it is the one failure mode a reviewer cannot see.
 
 Evidence must demonstrate the promised outcome:
 

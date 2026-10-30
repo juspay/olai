@@ -1,34 +1,34 @@
 {
   "//mcp": "The surface-mcp protocol brand in the pure refusal decoder is wire vocabulary, not a dependency on the mcp plugin.",
-  "mcp": [
-    "src/refusal.ts"
-  ],
-  "capture": [
-    "src/edit.ts"
-  ],
-  "csv": [
-    "src/attach.ts"
-  ],
-  "files": [
-    "src/projection.ts"
-  ],
   "//image": "The image/* picker MIME wildcard is attachment policy, not a dependency on the image plugin.",
-  "image": [
-    "src/attach.ts"
-  ],
-  "pdf": [
-    "src/attach.ts"
-  ],
-  "search": [
-    "src/media.ts",
-    "src/seal.ts"
-  ],
-  "trash": [
-    "src/edit.ts"
-  ],
-  "vault": [
-    "src/plugins.ts",
-    "src/seal.ts"
-  ],
-  "//search": "URL.search is browser address vocabulary in media validation and the sealed link bridge."
+  "//search": "URL.search is browser address vocabulary in media validation and the sealed link bridge.",
+  "capture": {
+    "src/edit.ts": 1
+  },
+  "csv": {
+    "src/attach.ts": 1
+  },
+  "files": {
+    "src/projection.ts": 3
+  },
+  "image": {
+    "src/attach.ts": 1
+  },
+  "mcp": {
+    "src/refusal.ts": 1
+  },
+  "pdf": {
+    "src/attach.ts": 1
+  },
+  "search": {
+    "src/media.ts": 1,
+    "src/seal.ts": 1
+  },
+  "trash": {
+    "src/edit.ts": 1
+  },
+  "vault": {
+    "src/plugins.ts": 1,
+    "src/seal.ts": 2
+  }
 }

@@ -1,12 +1,15 @@
 {
-  "chat": [
-    "src/attention.ts",
-    "src/browser.tsx"
-  ],
-  "navigation": [
-    "src/browser.tsx"
-  ],
-  "trash": [
-    "src/face.ts"
-  ]
+  "chat": {
+    "src/attention.ts": 3,
+    "src/browser.tsx": 5
+  },
+  "navigation": {
+    "src/Links.tsx": 2,
+    "src/Strip.tsx": 2,
+    "src/browser.tsx": 9,
+    "src/store.ts": 3
+  },
+  "trash": {
+    "src/face.ts": 1
+  }
 }

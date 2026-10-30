@@ -1,36 +1,36 @@
 {
-  "capture": [
-    "src/browser/Pin.tsx"
-  ],
-  "files": [
-    "src/browser.tsx"
-  ],
   "//layout": "Saved-layout vocabulary names a workspace target, not the layout plugin.",
-  "layout": [
-    "src/browser/Palette.tsx",
-    "src/browser/Pin.tsx",
-    "src/browser/Shelf.tsx",
-    "src/browser/naming.ts",
-    "src/browser/palette.ts",
-    "src/browser/pins.ts"
-  ],
-  "navigation": [
-    "src/browser.tsx",
-    "src/browser/Palette.tsx"
-  ],
-  "search": [
-    "src/browser/palette.ts"
-  ],
-  "sidebar": [
-    "src/browser.tsx",
-    "src/browser/palette.ts"
-  ],
-  "trash": [
-    "src/browser/Palette.tsx",
-    "src/browser/Shelf.tsx",
-    "src/browser/writes.ts"
-  ],
-  "vault": [
-    "src/server.ts"
-  ]
+  "capture": {
+    "src/browser/Pin.tsx": 1
+  },
+  "files": {
+    "src/browser.tsx": 5
+  },
+  "layout": {
+    "src/browser/Palette.tsx": 6,
+    "src/browser/Pin.tsx": 2,
+    "src/browser/Shelf.tsx": 2,
+    "src/browser/naming.ts": 6,
+    "src/browser/palette.ts": 5,
+    "src/browser/pins.ts": 3
+  },
+  "navigation": {
+    "src/browser.tsx": 3,
+    "src/browser/Palette.tsx": 3
+  },
+  "search": {
+    "src/browser/palette.ts": 3
+  },
+  "sidebar": {
+    "src/browser.tsx": 2,
+    "src/browser/palette.ts": 2
+  },
+  "trash": {
+    "src/browser/Palette.tsx": 1,
+    "src/browser/Shelf.tsx": 1,
+    "src/browser/writes.ts": 1
+  },
+  "vault": {
+    "src/server.ts": 6
+  }
 }

@@ -6,16 +6,18 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "//exports": "TWO DOORS, and they are TWO GRAPHS. The ROOT is the RUNTIME \u2014 a host, the services on it, a plugin as an Effect, a waterfall \u2014 and it is what the TAB opens too, because a browser half is a plugin exactly as a server half is. `./loader` is the declarative bundle: `@cordisjs/plugin-loader` and `-include` read a file off a disk and resolve module specifiers, so that door carries `node:url`, `node:fs` and a YAML parser. Behind one door a tab's chunk would carry all of it, and it does not fail at a boundary claim \u2014 it fails at `bun build`, on a browser polyfill that has no `pathToFileURL`.",
+  "//exports": "THREE DOORS, and the first two are TWO GRAPHS. The ROOT is the RUNTIME — a host, the services on it, a plugin as an Effect, a waterfall — and it is what the TAB opens too, because a browser half is a plugin exactly as a server half is. `./loader` is the declarative bundle: `@cordisjs/plugin-loader` and `-include` read a file off a disk and resolve module specifiers, so that door carries `node:url`, `node:fs` and a YAML parser. Behind one door a tab's chunk would carry all of it, and it does not fail at a boundary claim — it fails at `bun build`, on a browser polyfill that has no `pathToFileURL`. `./fence` is the third and belongs to neither graph: it is the STATIC half of spatial composability — rows, doors, roots and names weighed against imports and text — and it is imported only by tests, never by anything a tab or a server runs.",
   "exports": {
     ".": "./src/index.ts",
+    "./fence": "./src/fence.ts",
     "./loader": "./src/loader.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "`effect` only. `cordis` and `@cordisjs/plugin-loader`/`-include` are NOT declared and that is not an omission \u2014 they are hydrated from the npins pin (nix/cordis.nix) into the ROOT node_modules the way every `@kolu/*` member is, and a manifest naming one would send bun to a registry that does not have it. `scripts/check-hydrated-deps.sh` is what holds their versions; the fence is what holds the fact that this package is the only one allowed to name them.",
+  "//dependencies": "`effect`, and `typescript` for the `./fence` door alone. `cordis` and `@cordisjs/plugin-loader`/`-include` are NOT declared and that is not an omission — they are hydrated from the npins pin (nix/cordis.nix) into the ROOT node_modules the way every `@kolu/*` member is, and a manifest naming one would send bun to a registry that does not have it. `scripts/check-hydrated-deps.sh` is what holds their versions; the fence is what holds the fact that this package is the only one allowed to name them. TYPESCRIPT IS DECLARED BECAUSE THE FENCE IS CONSUMED AS SOURCE: a consumer hydrates this package and runs its claims over its own tree, so the parser is a runtime dependency of that door and not a build-time one. It is the compiler the root already carries — nothing here transpiles anything, it parses `exports`, comments and module-level declarations.",
   "dependencies": {
-    "effect": "4.0.0"
+    "effect": "4.0.0",
+    "typescript": "^5.8.0"
   }
 }

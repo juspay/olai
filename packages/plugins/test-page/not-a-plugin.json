@@ -1,5 +1,5 @@
 {
-  "search": [
-    "src/browser.tsx"
-  ]
+  "search": {
+    "src/browser.tsx": 1
+  }
 }

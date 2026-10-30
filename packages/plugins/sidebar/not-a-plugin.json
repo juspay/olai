@@ -1,5 +1,6 @@
 {
-  "files": [
-    "src/Sidebar.tsx"
-  ]
+  "files": {
+    "src/Sidebar.tsx": 1,
+    "src/contract.ts": 1
+  }
 }

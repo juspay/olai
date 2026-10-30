@@ -1,14 +1,14 @@
 {
-  "capture": [
-    "src/index.ts"
-  ],
-  "markdown": [
-    "src/index.ts"
-  ],
-  "pins": [
-    "src/index.ts"
-  ],
-  "trash": [
-    "src/index.ts"
-  ]
+  "capture": {
+    "src/index.ts": 5
+  },
+  "markdown": {
+    "src/index.ts": 2
+  },
+  "pins": {
+    "src/index.ts": 4
+  },
+  "trash": {
+    "src/index.ts": 9
+  }
 }

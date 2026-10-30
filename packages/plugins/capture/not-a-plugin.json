@@ -1,22 +1,25 @@
 {
-  "files": [
-    "src/browser.tsx"
-  ],
-  "identity": [
-    "src/tools.ts"
-  ],
-  "journal": [
-    "src/tools.ts"
-  ],
-  "navigation": [
-    "src/Palette.tsx",
-    "src/browser.tsx"
-  ],
-  "search": [
-    "src/Palette.tsx"
-  ],
-  "vault": [
-    "src/server.ts",
-    "src/tools.ts"
-  ]
+  "files": {
+    "src/browser.tsx": 3
+  },
+  "identity": {
+    "src/tools.ts": 1
+  },
+  "journal": {
+    "src/tools.ts": 1
+  },
+  "navigation": {
+    "src/Palette.tsx": 3,
+    "src/browser.tsx": 3
+  },
+  "search": {
+    "src/Palette.tsx": 1
+  },
+  "sidebar": {
+    "src/browser.tsx": 2
+  },
+  "vault": {
+    "src/server.ts": 7,
+    "src/tools.ts": 1
+  }
 }

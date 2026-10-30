@@ -1,130 +1,112 @@
 {
-  "capture": [
-    "src/conventions.bench.ts",
-    "src/inbox.ts",
-    "src/index.ts",
-    "src/message.ts",
-    "src/writing.ts"
-  ],
-  "chat": [
-    "src/committing.ts"
-  ],
-  "claude": [
-    "src/filter.ts",
-    "src/searching.ts"
-  ],
-  "csv": [
-    "src/csv.ts",
-    "src/index.ts",
-    "src/writing.ts"
-  ],
-  "files": [
-    "src/conventions.bench.ts",
-    "src/dates.bench.ts",
-    "src/derive.ts",
-    "src/errors.ts",
-    "src/filter.bench.ts",
-    "src/message.ts",
-    "src/node.ts",
-    "src/page.ts",
-    "src/patch.bench.ts",
-    "src/patch.ts",
-    "src/pointing.bench.ts",
-    "src/reading.ts",
-    "src/rules.ts",
-    "src/scope.bench.ts",
-    "src/searching.ts",
-    "src/set.ts",
-    "src/validate.bench.ts",
-    "src/verdict.ts",
-    "src/vocabulary.bench.ts"
-  ],
-  "git": [
-    "src/committing.ts",
-    "src/index.ts",
-    "src/searching.ts",
-    "src/writing.ts"
-  ],
-  "journal": [
-    "src/patch.ts",
-    "src/searching.ts"
-  ],
-  "markdown": [
-    "src/dates.ts",
-    "src/document.ts",
-    "src/incremental.ts",
-    "src/index.ts",
-    "src/page.ts",
-    "src/reading.ts",
-    "src/rules.ts",
-    "src/searching.ts",
-    "src/set.ts",
-    "src/validate.bench.ts",
-    "src/validate.ts",
-    "src/writing.ts"
-  ],
-  "mcp": [
-    "src/committing.ts"
-  ],
-  "outlines": [
-    "src/committing.ts",
-    "src/filter.ts",
-    "src/inbox.ts",
-    "src/index.ts",
-    "src/message.ts",
-    "src/node.ts",
-    "src/page.ts",
-    "src/pointing.bench.ts",
-    "src/reading.ts",
-    "src/searching.ts",
-    "src/set.ts",
-    "src/validate.bench.ts",
-    "src/validate.ts",
-    "src/window.ts",
-    "src/writing.ts"
-  ],
-  "pdf": [
-    "src/writing.ts"
-  ],
-  "pins": [
-    "src/conventions.bench.ts",
-    "src/index.ts",
-    "src/node.ts",
-    "src/rules.ts",
-    "src/shelf.ts"
-  ],
-  "search": [
-    "src/address.ts",
-    "src/documents.ts",
-    "src/filter.ts",
-    "src/index.ts",
-    "src/searching.ts"
-  ],
-  "trash": [
-    "src/index.ts",
-    "src/message.ts",
-    "src/moving.ts",
-    "src/narrowing.ts",
-    "src/node.ts",
-    "src/page.ts",
-    "src/rules.ts",
-    "src/searching.ts",
-    "src/writing.ts"
-  ],
-  "vault": [
-    "src/conventions.bench.ts",
-    "src/dates.bench.ts",
-    "src/filter.bench.ts",
-    "src/meaning.ts",
-    "src/page.ts",
-    "src/patch.bench.ts",
-    "src/pointing.bench.ts",
-    "src/scope.bench.ts",
-    "src/searching.ts",
-    "src/typing.ts",
-    "src/validate.bench.ts",
-    "src/vocabulary.bench.ts",
-    "src/writing.ts"
-  ],
-  "//files": "`memoryFiles` and the local `files` in derive.ts name the FILES a node's memory lives in: the set's own word, not the files row."
+  "//files": "`memoryFiles` and the local `files` in derive.ts name the FILES a node's memory lives in: the set's own word, not the files row.",
+  "capture": {
+    "src/inbox.ts": 10,
+    "src/index.ts": 3,
+    "src/message.ts": 1,
+    "src/writing.ts": 22
+  },
+  "chat": {
+    "src/committing.ts": 1
+  },
+  "claude": {
+    "src/filter.ts": 1,
+    "src/searching.ts": 1
+  },
+  "csv": {
+    "src/csv.ts": 10,
+    "src/index.ts": 6,
+    "src/writing.ts": 1
+  },
+  "files": {
+    "src/conventions.ts": 1,
+    "src/derive.ts": 4,
+    "src/errors.ts": 10,
+    "src/message.ts": 4,
+    "src/node.ts": 8,
+    "src/page.ts": 5,
+    "src/patch.ts": 2,
+    "src/reading.ts": 1,
+    "src/rules.ts": 5,
+    "src/searching.ts": 2,
+    "src/set.ts": 8,
+    "src/verdict.ts": 9
+  },
+  "git": {
+    "src/committing.ts": 14,
+    "src/index.ts": 3,
+    "src/searching.ts": 1,
+    "src/writing.ts": 2
+  },
+  "journal": {
+    "src/patch.ts": 4,
+    "src/searching.ts": 1
+  },
+  "markdown": {
+    "src/dates.ts": 1,
+    "src/document.ts": 7,
+    "src/filter.ts": 2,
+    "src/incremental.ts": 2,
+    "src/index.ts": 3,
+    "src/page.ts": 2,
+    "src/reading.ts": 1,
+    "src/rules.ts": 3,
+    "src/searching.ts": 1,
+    "src/set.ts": 6,
+    "src/validate.ts": 2,
+    "src/writing.ts": 3
+  },
+  "mcp": {
+    "src/committing.ts": 1
+  },
+  "outlines": {
+    "src/committing.ts": 2,
+    "src/filter.ts": 4,
+    "src/inbox.ts": 1,
+    "src/index.ts": 1,
+    "src/message.ts": 2,
+    "src/node.ts": 23,
+    "src/page.ts": 7,
+    "src/reading.ts": 2,
+    "src/searching.ts": 2,
+    "src/set.ts": 2,
+    "src/validate.ts": 6,
+    "src/window.ts": 2,
+    "src/writing.ts": 20
+  },
+  "pdf": {
+    "src/writing.ts": 1
+  },
+  "pins": {
+    "src/index.ts": 3,
+    "src/node.ts": 4,
+    "src/rules.ts": 2,
+    "src/shelf.ts": 4
+  },
+  "search": {
+    "src/address.ts": 2,
+    "src/documents.ts": 1,
+    "src/filter.ts": 9,
+    "src/index.ts": 6,
+    "src/searching.ts": 19
+  },
+  "trash": {
+    "src/index.ts": 4,
+    "src/message.ts": 1,
+    "src/moving.ts": 1,
+    "src/narrowing.ts": 1,
+    "src/node.ts": 5,
+    "src/page.ts": 17,
+    "src/rules.ts": 2,
+    "src/searching.ts": 2,
+    "src/writing.ts": 12
+  },
+  "vault": {
+    "src/index.ts": 1,
+    "src/meaning.ts": 24,
+    "src/page.ts": 4,
+    "src/searching.ts": 1,
+    "src/typing.ts": 9,
+    "src/writing.ts": 1
+  }
 }

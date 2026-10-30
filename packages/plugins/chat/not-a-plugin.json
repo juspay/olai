@@ -1,87 +1,92 @@
 {
-  "alerts": [
-    "src/browser.tsx",
-    "src/browser/chat/attention/attention.ts"
-  ],
-  "capture": [
-    "src/browser/chat/Composer.tsx"
-  ],
-  "files": [
-    "src/browser/agents/Fold.tsx",
-    "src/browser/chat/CompletionMenu.tsx",
-    "src/browser/chat/Composer.tsx",
-    "src/browser/chat/DropTarget.tsx",
-    "src/browser/chat/holding.ts",
-    "src/browser/chat/naming.ts",
-    "src/chat.ts",
-    "src/server/sleep.ts"
-  ],
-  "identity": [
-    "src/browser/chat/attention/watching.ts"
-  ],
-  "image": [
-    "src/agent.ts",
-    "src/browser/chat/Composer.tsx",
-    "src/browser/chat/attach.ts"
-  ],
-  "markdown": [
-    "src/browser/LinkPreview.tsx",
-    "src/browser/chat/Entry.tsx",
-    "src/browser/chat/ToolFrame.tsx"
-  ],
-  "mcp": [
-    "src/agent.ts",
-    "src/calls.ts",
-    "src/fixtures/lifecycle-agent.ts",
-    "src/server.ts"
-  ],
-  "navigation": [
-    "src/browser.tsx",
-    "src/browser/agents/AgentPalette.ts",
-    "src/browser/agents/handoff.ts",
-    "src/browser/agents/new-chat-level.ts",
-    "src/browser/agents/new-chat.ts",
-    "src/browser/navigation.ts"
-  ],
-  "outlines": [
-    "src/adapter.ts"
-  ],
   "//search": "Model.tsx's type=\"search\" names the INPUT ELEMENT the menu's filter box is drawn with, not the search plugin; the browser entry's palette row carries its `search` words, the palette's own key, as the other palette rows here do.",
-  "search": [
-    "src/agents/roster.ts",
-    "src/browser.tsx",
-    "src/browser/agents/AgentPalette.ts",
-    "src/browser/agents/new-chat-level.ts",
-    "src/browser/chat/Composer.tsx",
-    "src/browser/chat/Model.tsx",
-    "src/browser/chat/completion.ts",
-    "src/testids.ts"
-  ],
-  "settings": [
-    "src/agent.ts",
-    "src/agents/settings.ts",
-    "src/browser/agents/AgentLine.tsx",
-    "src/browser/chat/Model.tsx",
-    "src/browser/chat/Sleeping.tsx",
-    "src/browser/chat/sleeping.ts",
-    "src/chat.ts",
-    "src/server.ts",
-    "src/settings.ts",
-    "src/wire/members.ts"
-  ],
   "//settings": "The sentence a person is told when the pass is switched off reads `sleep is off in this directory's settings`: the directory's own settings, not the settings row. The sleep item's own sentence reads `off in Settings` and names the file it comes from (`_olai/Settings.olai`), which is a vault file and not the settings row.",
-  "sidebar": [
-    "src/browser.tsx"
-  ],
-  "vault": [
-    "src/browser/chat/outline.ts",
-    "src/server.ts"
-  ],
   "//alerts": "The words chat's own surfaces use for somebody else's alarm: the wake strip used to carry `alerts` as its accessible label and does not any more, and what remains is chat's browser entry and its attention line, which say the word as ordinary English rather than naming the alerts row.",
   "//files": "The completion menu's section heading reads `Files`: the vault's files, not the files row.",
   "//markdown": "Markdown is the shared renderer component, including the read-only conversation preview, not a runtime lookup of the markdown plugin.",
   "//trash": "The sleep instruction tells an agent never to trash a row it is tidying: `olai-plugin-chat`'s own words to an agent, not the trash row.",
-  "trash": [
-    "src/sleep.ts"
-  ]
+  "alerts": {
+    "src/browser.tsx": 3,
+    "src/browser/chat/attention/attention.ts": 6
+  },
+  "capture": {
+    "src/browser/chat/Composer.tsx": 2
+  },
+  "files": {
+    "src/browser/agents/Fold.tsx": 2,
+    "src/browser/chat/CompletionMenu.tsx": 2,
+    "src/browser/chat/Composer.tsx": 11,
+    "src/browser/chat/DropTarget.tsx": 3,
+    "src/browser/chat/holding.ts": 5,
+    "src/browser/chat/naming.ts": 3,
+    "src/chat.ts": 7,
+    "src/server/sleep.ts": 6
+  },
+  "identity": {
+    "src/browser/chat/attention/watching.ts": 6,
+    "src/browser/viewer.ts": 1
+  },
+  "image": {
+    "src/agent.ts": 2,
+    "src/browser/chat/Composer.tsx": 1,
+    "src/browser/chat/attach.ts": 2
+  },
+  "markdown": {
+    "src/browser/LinkPreview.tsx": 2,
+    "src/browser/chat/Entry.tsx": 4,
+    "src/browser/chat/ToolFrame.tsx": 2
+  },
+  "mcp": {
+    "src/agent.ts": 11,
+    "src/calls.ts": 6,
+    "src/server.ts": 1,
+    "src/servers.ts": 3
+  },
+  "navigation": {
+    "src/browser.tsx": 10,
+    "src/browser/agents/AgentPalette.ts": 2,
+    "src/browser/agents/handoff.ts": 5,
+    "src/browser/agents/new-chat-level.ts": 2,
+    "src/browser/agents/new-chat.ts": 2,
+    "src/browser/navigation.ts": 3
+  },
+  "outlines": {
+    "src/adapter.ts": 2,
+    "src/browser/pages.ts": 2
+  },
+  "search": {
+    "src/agents/roster.ts": 5,
+    "src/browser.tsx": 1,
+    "src/browser/agents/AgentPalette.ts": 3,
+    "src/browser/agents/new-chat-level.ts": 3,
+    "src/browser/chat/Composer.tsx": 1,
+    "src/browser/chat/Model.tsx": 1,
+    "src/browser/chat/completion.ts": 1,
+    "src/browser/chat/nodes.ts": 2,
+    "src/browser/search.ts": 2,
+    "src/testids.ts": 2
+  },
+  "settings": {
+    "src/agent.ts": 13,
+    "src/agents/settings.ts": 1,
+    "src/browser/agents/AgentLine.tsx": 2,
+    "src/browser/chat/Model.tsx": 2,
+    "src/browser/chat/Sleeping.tsx": 1,
+    "src/browser/chat/sleeping.ts": 4,
+    "src/chat.ts": 6,
+    "src/events.ts": 2,
+    "src/server.ts": 4,
+    "src/settings.ts": 1,
+    "src/wire/members.ts": 2
+  },
+  "sidebar": {
+    "src/browser.tsx": 2
+  },
+  "trash": {
+    "src/sleep.ts": 2
+  },
+  "vault": {
+    "src/browser/chat/outline.ts": 4,
+    "src/server.ts": 14
+  }
 }
