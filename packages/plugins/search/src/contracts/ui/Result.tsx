@@ -85,7 +85,7 @@ import { renderTitle, sameDrawing } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 
 import type { Place } from "./place.ts"
-import { PlaceLine } from "./PlaceLine.tsx"
+import { PlaceLine, type CrumbFaces } from "./PlaceLine.tsx"
 import type { NodeProp } from "olai-plugin-search/ui/props.ts"
 
 /**
@@ -126,6 +126,10 @@ export function Result(props: {
    *  absent) for a node carrying none, which draws no line at all. See
    *  `./props.ts` for the order. */
   readonly props?: ReadonlyArray<NodeProp>
+  /** What a door hangs on this row's ancestor crumbs — read from
+   *  `outline.crumb.aside` by the door's own faces holder. Absent draws the
+   *  plain place text. */
+  readonly faces?: CrumbFaces
   readonly active: boolean
   /** What this door calls the row and its lines. */
   readonly testids: RowTestids
@@ -212,7 +216,7 @@ export function Result(props: {
         {place => {
           const parts = () => { const value = place(); return typeof value === "string" ? undefined : value }
           return <Show when={parts()} fallback={<span class="w-full min-w-0 truncate text-caption text-muted" data-testid={props.testids.place}><TitleHtml drawing={renderTitle(props.claims, String(place()), "", { links: false })} /></span>}>
-            {value => <PlaceLine claims={props.claims} place={value()} testid={props.testids.place} />}
+            {value => <PlaceLine claims={props.claims} place={value()} faces={props.faces} testid={props.testids.place} />}
           </Show>
         }}
       </Show>

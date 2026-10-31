@@ -40,6 +40,7 @@ const hit = (one: {
   file: one.file ?? "house.olai",
   line: 1,
   path: one.path ?? [],
+  pathIds: [],
   see: undefined,
   after: undefined,
   ...(one.matched === undefined ? {} : { matched: one.matched }),
@@ -61,14 +62,14 @@ test("a row reads the title, and says where it sits", () => {
     id: "hinges",
     label: "pick the hinges",
     from: "house.olai",
-    place: { file: "house.olai", middle: "kitchen remodel", nearest: "install the cabinets" },
+    place: { file: "house.olai", crumbs: [{ title: "kitchen remodel" }, { title: "install the cabinets" }] },
     note: false,
   }])
 })
 
 test("a node at the top of a file is placed by the file, which is all it has", () => {
   expect(nodeMatches([hit({ id: "kitchen", title: "kitchen remodel" })])[0]?.place)
-    .toEqual({ file: "house.olai" })
+    .toEqual({ file: "house.olai", crumbs: [] })
 })
 
 test("two nodes of one title are told apart by where they are", () => {
@@ -81,7 +82,10 @@ test("two nodes of one title are told apart by where they are", () => {
         path: ["kitchen remodel", "install the cabinets"],
       }),
     ]).map((node) => node.place),
-  ).toEqual([{ file: "garden.olai", nearest: "garden" }, { file: "house.olai", middle: "kitchen remodel", nearest: "install the cabinets" }])
+  ).toEqual([
+    { file: "garden.olai", crumbs: [{ title: "garden" }] },
+    { file: "house.olai", crumbs: [{ title: "kitchen remodel" }, { title: "install the cabinets" }] },
+  ])
 })
 
 test("a row says it is here for a note, and only then", () => {

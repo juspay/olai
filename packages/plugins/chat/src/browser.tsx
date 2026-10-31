@@ -30,6 +30,9 @@ import { createHistory, holdHistory } from "./browser/agents/history.ts"
 import { NeedsYou, Chats } from "./browser/agents/Agents.tsx"
 import { AgentsProvider, createAgents, useAgents } from "./browser/agents/answered.tsx"
 import { rowVerbs } from "./browser/verbs.tsx"
+import { agentAboveOf } from "./browser/agents/above.ts"
+import { focusAgent } from "./browser/agents/focus.ts"
+import { CrumbMark } from "./browser/agents/AgentAbove.tsx"
 import { trackCamera } from "./browser/chat/camera.ts"
 import { Fold } from "./browser/agents/Fold.tsx"
 import { PageHead, PageFoot } from "./browser/agents/Page.tsx"
@@ -39,7 +42,7 @@ import { agentReadings, createAgentReadings, holdAgentReadings } from "./browser
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { createAgentPalette } from "./browser/agents/AgentPalette.ts"
 import { navigation as navigationService, paletteAdapters, paletteControl } from "olai-plugin-navigation/contract"
-import { holdNavigation, holdPalette } from "./browser/navigation.ts"
+import { holdNavigation, holdPalette, navigation as heldNavigation } from "./browser/navigation.ts"
 import { holdFaces } from "./browser/faces.ts"
 import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
@@ -134,10 +137,19 @@ export default definePlugin({
     // acquires a conversation. Unbound rows offer a start gesture.
     yield* slots.register("outline.row.placement", SESSION_KIND, { inRows: false })
     yield* slots.register("outline.row.aside", props => <AgentsProvider value={state.agents}><Standing {...props} /></AgentsProvider>)
+    // THE MARK A BOUND ANCESTOR'S CRUMB WEARS — outlines draws this per crumb
+    // in every trail it owns, and search's place line draws it too, so the
+    // pill's door is also the one that starts a journey. It goes when chat
+    // goes: no face, no mark, crumbs exactly as they were.
+    yield* slots.register("outline.crumb.aside", props => <AgentsProvider value={state.agents}><CrumbMark {...props} /></AgentsProvider>)
     // THE VERBS ON A ROW'S `•••`, as a READING rather than a list — the count
     // is one per installed engine plus the ask, and the roster that decides it
     // arrives after this fiber does (`./browser/verbs.tsx` argues both).
-    yield* slots.register("outline.row.action", node => rowVerbs(node, state.agents))
+    yield* slots.register("outline.row.action", node => rowVerbs(node, state.agents, id => agentAboveOf(id, state.agents), (row) => {
+      const nav = heldNavigation()
+      if (nav === undefined) return "Can't open this right now"
+      focusAgent((route) => nav.go(route), row)
+    }))
     // THE STANDING TABLE, AS A DECLARED BROWSER SERVICE — one row per mounted
     // engine, live, keyed to this activation's own roster cell
     // (`./browser/engines.tsx` argues the shape). Published the way

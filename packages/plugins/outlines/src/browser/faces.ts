@@ -19,6 +19,7 @@ const faces = heldFaces()
 export const { hung, dressed } = faces
 const createLists = () => ({
   asides: createMemo(() => hung("outline.row.aside"), undefined, { equals: sameList }),
+  crumbs: createMemo(() => hung("outline.crumb.aside"), undefined, { equals: sameList }),
   folds: createMemo(() => hung("outline.row.fold"), undefined, { equals: sameList }),
   heads: createMemo(() => hung("outline.page.head"), undefined, { equals: sameList }),
   feet: createMemo(() => hung("outline.page.foot"), undefined, { equals: sameList }),
@@ -32,6 +33,7 @@ export const holdFaces = (value: Faces) => Effect.gen(function*() {
   })), stop => Effect.sync(stop))
 })
 export const rowAsides = () => lists.read()?.asides() ?? []
+export const crumbAsides = () => lists.read()?.crumbs() ?? []
 export const rowFolds = () => lists.read()?.folds() ?? []
 export const pageHeads = () => lists.read()?.heads() ?? []
 export const pageFeet = () => lists.read()?.feet() ?? []

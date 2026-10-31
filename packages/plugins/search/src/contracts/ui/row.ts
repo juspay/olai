@@ -50,7 +50,7 @@ export const hitRow = (hit: SearchHit, query?: string): HitRow => {
     // THE PATH, because that is where a document is. A node's place is the
     // trail of titles above it; a document hangs under nothing, and the honest
     // answer to "where is this" is the file it is.
-    place: { file: path },
+    place: { file: path, crumbs: [] },
     // ...and the label renders LIKE A NODE'S: a document face's title is prose
     // the format tags (`@olai/format`'s document face), so a `#tag` in it is
     // styled — and coloured — exactly as it is on every other search row, and

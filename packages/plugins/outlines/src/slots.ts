@@ -98,12 +98,15 @@ export type PropPane = (context: BlockContext) => JSX.Element
 
 export type PropBlock = (context: BlockContext) => JSX.Element
 
-/** A contribution about one node, owned by the row or page drawing it. */
+/** A contribution about one node, owned by the row or page drawing it — or by
+ *  one CRUMB of the trail above either (`outline.crumb.aside`, which a plugin
+ *  fills to mark the ancestors it knows about). */
 export type NodeFace = (props: { readonly node: string; readonly record?: string }) => JSX.Element
 
 declare module "@olai/plugin-api/slots" {
   interface SlotDefinitions {
     "outline.row.aside": SlotDefinition<NodeFace, "nothing">
+    "outline.crumb.aside": SlotDefinition<NodeFace, "nothing">
     "outline.row.fold": SlotDefinition<NodeFace, "nothing">
     "outline.page.head": SlotDefinition<NodeFace, "nothing">
     "outline.page.foot": SlotDefinition<NodeFace, "nothing">
@@ -117,6 +120,7 @@ declare module "@olai/plugin-api/slots" {
 
 export const slotContracts = {
   "outline.row.aside": slotContract<NodeFace>("outline.row.aside", "nothing"),
+  "outline.crumb.aside": slotContract<NodeFace>("outline.crumb.aside", "nothing"),
   "outline.row.fold": slotContract<NodeFace>("outline.row.fold", "nothing"),
   "outline.page.head": slotContract<NodeFace>("outline.page.head", "nothing"),
   "outline.page.foot": slotContract<NodeFace>("outline.page.foot", "nothing"),

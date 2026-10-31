@@ -183,6 +183,7 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 | Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
 | `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); every row is `/zoom/#id` — the conversation's own page — and a Chats row is engine mark, title and age and draws NO dot — its standing is data (`data-standing`) and unread is the title's weight; Needs you keeps its dot |
+| `outline.crumb.aside` | outlines' per-crumb face | a bound ancestor's agent mark — the same `/zoom/#id` door as a Chats row — on the breadcrumbs above a node, on a day's row and in a search result's place line |
 | `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
 | `outline.row.aside` | outlines, after the row's date and repeat pills | a bound row's standing, always; otherwise the start pill, only while an agent is available (on phones only on the tapped or focused row) |
 | `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
@@ -199,6 +200,19 @@ keyed by pane and node. Those views and outline folds lease a shared reading
 keyed by engine/session, or by node while unbound. The last view lease releases
 the reading. Conversation UI has the same activation-owned keys, so drafts,
 refusals, question state and dismissed completions do not leak across conversations.
+
+**The agent above is a client join, not a second reading.** Which ancestor holds
+a conversation is answered from the page readings this tab already has (a zoomed
+page's trail, a day entry's trail, a file's own parent links) joined against the
+live roster by `src/browser/agents/above.ts`: no server map of node → nearest
+agent exists, and the pill, the crumb mark, the row menu and the palette all ask
+that one helper, so a roster frame retargets each of them in place. The pill is
+chat's `outline.page.head` face on an unbound page and part of `AgentLine` on a
+bound one; the crumb mark is chat's `outline.crumb.aside` face, drawn by
+outlines in every trail and handed by each search door's own faces holder to
+`PlaceLine`. With chat off the slot has no face and the crumbs render as before.
+`src/browser/verbs.tsx` takes the "open" door as an argument from
+`browser.tsx`, so the row menu's roster reading loads no router.
 
 Chat declares `delivery.mark` and `conversation.wake`. The fold registration
 owns these shared child locations once; page faces consume the same locations.

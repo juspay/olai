@@ -15,6 +15,7 @@
  */
 
 import {
+  ancestorsOf,
   bodiedIn,
   declarationsOf,
   DEFAULT_SEARCH_LIMIT,
@@ -231,6 +232,10 @@ export const search = (
         // `address.ts`).
         at: { kind: "node", id: NodeId.make(located.node.id) },
         ...found,
+        // THE WALK'S IDS beside the titles `found` already carries, for a
+        // browser that has to act on where the hit sits rather than only say
+        // it (`@olai/format`'s `NodeHit.pathIds`).
+        pathIds: ancestorsOf(at.derived, located.node.id).map((crumb) => crumb.node.id),
         // Omitted for a query that named no words — `is:done` on its own is
         // carried by no field, and answering "title" would be inventing a
         // reason. The format's own rule for absence, applied to an answer.

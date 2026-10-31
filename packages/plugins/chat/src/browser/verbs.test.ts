@@ -66,6 +66,20 @@ test("the opt-in's label is the mark itself, in both directions", () => {
   expect(drawn(rowVerbs("one", roster()))).not.toContainEqual(expect.objectContaining({ id: "sleep-when-idle" }))
 })
 
+test("a node with a bound ancestor above offers the door, on a bare row and a talking one", () => {
+  const above = (id: string) => id === "one" ? node : undefined
+  expect(drawn(rowVerbs("one", roster(undefined, []), above))).toEqual([
+    { id: "start-agent", label: "Start an agent", choices: [] },
+    { id: "open-agent-above", label: "Open the agent above" },
+  ])
+  const bound = verbsOf(rowVerbs("one", roster({ ...node, session: "existing" }), above))
+  expect(bound[0]).toMatchObject({ id: "open-agent-above", label: "Open the agent above", writes: false })
+  // ...and nothing above is nothing to offer, on either kind of row.
+  for (const actions of [rowVerbs("one", roster(), () => undefined), rowVerbs("one", roster({ ...node, session: "existing" }), () => undefined)]) {
+    expect(drawn(actions)).not.toContainEqual(expect.objectContaining({ id: "open-agent-above" }))
+  }
+})
+
 test("only fresh-start choices ask first", () => {
   for (const verb of verbsOf(rowVerbs("one", roster({ ...node, session: "existing" })))) {
     expect(verb.confirm).toBe(verb.id.startsWith("fresh-start-") ? freshStartQuestion("One") : undefined)

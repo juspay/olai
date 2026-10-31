@@ -25,6 +25,7 @@ const hitOf = (
   file: "roadmap.olai",
   line: 1,
   path: [],
+  pathIds: [],
   ...(custom === undefined ? {} : { custom }),
   ...(matchedProps === undefined ? {} : { matchedProps }),
 })

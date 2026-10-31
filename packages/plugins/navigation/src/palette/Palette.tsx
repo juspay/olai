@@ -53,7 +53,7 @@ import { actionHref } from "./items.ts"
  */
 import { fileClaims } from "../pages.ts"
 import type {} from "olai-plugin-search/box"
-import { paletteOnly } from "../faces.ts"
+import { paletteCrumbs, paletteOnly } from "../faces.ts"
 import { TESTID } from "olai-plugin-navigation/testids"
 import { type Navigation,paletteAdapters } from "../index.ts"
 import { readLocation } from "../locations.ts"
@@ -1068,6 +1068,7 @@ export function Palette(props: {
                           hint={item().hint ?? (item().action.kind === "level" ? "›" : undefined)}
                           place={item().place}
                           props={item().props}
+                          faces={paletteCrumbs()}
                           active={lit(index())}
                           testids={PALETTE_ROW}
                           id={item().id}

@@ -16,6 +16,7 @@ import { useAgents } from "./answered.tsx"
 import { agentReadings } from "./reading.ts"
 import { createNodeConversation } from "./conversation.ts"
 import { AgentLine } from "./AgentLine.tsx"
+import { AgentAbove } from "./AgentAbove.tsx"
 import { Strips } from "../chat/Strips.tsx"
 import { Conversation } from "./Fold.tsx"
 import { NoAgent } from "../chat/NoAgent.tsx"
@@ -133,7 +134,7 @@ function usePage(node: Accessor<string>) {
  * what the pane's scroll cannot carry away (`../chat/Strips.tsx`). */
 export function PageHead(props: { readonly node: string }) {
   const page = usePage(() => props.node)
-  return <Show when={page()?.chat()}>{current =>
+  return <Show when={page()?.chat()} fallback={<AgentAbove node={props.node} line />}>{current =>
     <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
       <AgentLine chat={current()} node={props.node} page />
       <Show when={page()?.chat()} keyed>{chat => <ConversationUIProvider value={chat.ui}>

@@ -41,6 +41,7 @@ import { useHere } from "olai-plugin-navigation/routing"
  * defaulted-away by the row itself so a click cannot blur the line being typed.
  */
 import { servedDirectory } from "../vault.ts"
+import { crumbAsides } from "../faces.ts"
 import { TESTID } from "olai-plugin-outlines/testids"
 import { Popper } from "@kobalte/core/popper"
 import { createSignal, Index, Show } from "solid-js"
@@ -146,6 +147,7 @@ export function Completions(props: { readonly listing: Listing }) {
                   hint={choice().hint}
                   place={choice().place}
                   props={choice().props}
+                  faces={crumbAsides()}
                   from={choice().from}
                   active={index === props.listing.active()}
                   testids={COMPLETION_ROW}

@@ -21,6 +21,7 @@ import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
 import { NodeTitle } from "./NodeTitle.tsx"
+import { CrumbAside } from "./CrumbAside.tsx"
 import { Link } from "olai-plugin-navigation/routing"
 
 import { TARGET } from "@olai/ui-primitives/touch.ts"
@@ -73,15 +74,22 @@ export function Breadcrumbs(props: {
             <Show when={props.file !== undefined || index() > 0}>
               <Separator />
             </Show>
-            <Link
-              route={atNode(crumb().node.id)}
-              class={CRUMB}
-              testid={TESTID.crumb}
-            >
-              {/* links=false: already inside Link — a markdown [a](url) in the
-                  title must not nest a second <a>. */}
-              <NodeTitle title={crumb().node.title} from={crumb().file} links={false} />
-            </Link>
+            <span class="inline-flex items-center">
+              <Link
+                route={atNode(crumb().node.id)}
+                class={CRUMB}
+                testid={TESTID.crumb}
+              >
+                {/* links=false: already inside Link — a markdown [a](url) in the
+                    title must not nest a second <a>. */}
+                <NodeTitle title={crumb().node.title} from={crumb().file} links={false} />
+              </Link>
+              {/* Beside the link rather than inside it: a crumb and its mark are
+                  two doors (the node, and the agent it belongs to), and a
+                  control inside an anchor is a control whose activation is also
+                  a navigation (the pins' rule). */}
+              <CrumbAside node={crumb().node.id} />
+            </span>
           </>
         )}
       </Key>

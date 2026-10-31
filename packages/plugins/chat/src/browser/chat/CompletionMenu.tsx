@@ -24,6 +24,7 @@ import { useShown } from "olai-plugin-navigation/routing"
 import { servedDirectory } from "../vault.ts"
 import type { Place } from "olai-plugin-search/ui/place.ts"
 import { PlaceLine } from "olai-plugin-search/ui/PlaceLine.tsx"
+import { crumbMarks } from "../faces.ts"
 import { createMemo, createSignal, Index, onCleanup, onMount, Show } from "solid-js"
 
 import { listKey } from "@olai/web/client/keys.ts"
@@ -321,7 +322,7 @@ export function CompletionMenu(props: {
                     when the row is copied or read aloud, and `ml-2` is neither. */}
                 <RowLabel row={row()} />{" "}
                 <span class="ml-1 text-muted">{row().hint}</span>
-                {" "}<Show when={row().place}>{place => <PlaceLine claims={servedDirectory()?.claims()} place={place()} />}</Show>
+                {" "}<Show when={row().place}>{place => <PlaceLine claims={servedDirectory()?.claims()} place={place()} faces={crumbMarks()} />}</Show>
               </button>
             </li>
           </>

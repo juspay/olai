@@ -26,9 +26,11 @@ const hung = <T,>(plugin: string, face: T): Hung<T> => ({ plugin, face })
 /** The one every prefix test is written against: an adapter holding `+`. */
 const PREFIX: PalettePrefix = { value: "+", label: "append", empty: "type text", testid: "append", after: "+ ", run: async () => ({ tone: "aside", text: "appended" }) }
 
-/** A hit on a record, with the address every hit carries. */
-const node = (fields: Omit<NodeHit, "at">): NodeHit => ({
+/** A hit on a record, with the address every hit carries. Ancestor ids default
+ *  to none — the cases about the place line name them where they need them. */
+const node = (fields: Omit<NodeHit, "at" | "pathIds"> & { readonly pathIds?: ReadonlyArray<string> }): NodeHit => ({
   at: { kind: "node", id: NodeId.make(fields.id) },
+  pathIds: [],
   ...fields,
 })
 
@@ -58,7 +60,7 @@ test("a document hit becomes a row that opens the document", () => {
     matched: "body",
   }, atOnce)
   expect(item.label).toBe("Cabinets")
-  expect(item.place).toEqual({ file: "notes/cabinets.md" })
+  expect(item.place).toEqual({ file: "notes/cabinets.md", crumbs: [] })
   // The face title renders like every title: markdown and `#tags` styled and
   // hued (`renderTitle`), and relative pictures resolve against the document's
   // own directory — the same contract a node's title has about its outline.
@@ -87,8 +89,9 @@ test("a search hit becomes a row that jumps to the node", () => {
   expect(item.action).toEqual({ kind: "route", route: atNode("hinges") })
 })
 
-test("the place separates the file and nearest ancestor from the middle", () => {
-  // Keep the root-first path while protecting the nearest ancestor.
+test("the place carries the whole path, outermost first", () => {
+  // The line decides how to split it: the middle is all but the last crumb,
+  // the nearest is the last. There is no second, joined encoding to drift.
   const item = hitItem(node({
     id: "hinges",
     title: "pick the hinges",
@@ -97,7 +100,26 @@ test("the place separates the file and nearest ancestor from the middle", () => 
     path: ["kitchen remodel #home", "install the cabinets"],
     matched: "title",
   }), atOnce)
-  expect(item.place).toEqual({ file: "house.olai", middle: "kitchen remodel #home", nearest: "install the cabinets" })
+  expect(item.place).toEqual({ file: "house.olai", crumbs: [
+    { title: "kitchen remodel #home" },
+    { title: "install the cabinets" },
+  ] })
+})
+
+test("ancestor ids ride beside the titles, for the crumb a mark hangs on", () => {
+  const item = hitItem(node({
+    id: "hinges",
+    title: "pick the hinges",
+    file: "house.olai",
+    line: 6,
+    path: ["kitchen remodel #home", "install the cabinets"],
+    pathIds: ["kitchen", "install"],
+    matched: "title",
+  }), atOnce)
+  expect(item.place).toEqual({ file: "house.olai", crumbs: [
+    { id: "kitchen", title: "kitchen remodel #home" },
+    { id: "install", title: "install the cabinets" },
+  ] })
 })
 
 test("a node at the top level is placed by its file", () => {
@@ -109,7 +131,7 @@ test("a node at the top level is placed by its file", () => {
     path: [],
     matched: "title",
   }), atOnce)
-  expect(top.place).toEqual({ file: "errands.olai" })
+  expect(top.place).toEqual({ file: "errands.olai", crumbs: [] })
 })
 
 /** A second adapter's prefix, for the tests about more than one. */
