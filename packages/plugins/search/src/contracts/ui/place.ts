@@ -1,44 +1,40 @@
-/** A result's file, then ancestors from the file down. Separate parts let
- * every search door keep the file and nearest ancestor while the middle shrinks.
- * These are existing hit fields; no new reading or ownership boundary.
+/** A result's file, then its ancestors from the file down. ONE encoding: a
+ * crumb carries its title, and an id only when the answer carried one. A title
+ * says where a hit sits; an id is what a browser needs to act on it — the crumb
+ * of an ancestor holding a conversation wears that conversation's mark, and a
+ * mark is a door. A caller with only titles still gets a place; its crumbs
+ * simply have no ids to hang anything on, and the line draws the words.
  *
- * THE IDS ride beside the titles where the answer carried them
- * (`@olai/format`'s `NodeHit.pathIds`), because a title says where a hit sits
- * and an id is what a browser needs to act on it — the crumb of an ancestor
- * holding a conversation wears that conversation's mark, and a mark is a door.
- * A caller that has only titles still gets a place: it then simply has no ids
- * to hang anything on. */
+ * The line's two PARTS are derived where they are drawn (`./PlaceLine.tsx`):
+ * the middle is every crumb but the last, the nearest is the last. Nothing
+ * here needs to say that twice as a joined string and again as crumbs. */
 import type { NodeHit } from "@olai/format"
 
 /** One ancestor, as a crumb can use it. */
 export interface PlaceCrumb {
-  readonly id: string
+  /** Absent when the answer carried only the title; a crumb with no id cannot
+   *  name a node for a face, so it gets none. */
+  readonly id?: string
   readonly title: string
 }
 
 export interface Place {
   readonly file: string
-  readonly middle?: string
-  readonly nearest?: string
-  /** The middle ancestors as ids and titles, in `middle`'s order, where the
-   *  answer carried ids. */
-  readonly middleCrumbs?: ReadonlyArray<PlaceCrumb>
-  /** ...and the nearest ancestor as a crumb, where the answer carried its id. */
-  readonly nearestCrumb?: PlaceCrumb
+  /** Every ancestor from the file down, outermost first; the last is the
+   *  nearest, and a top-level node has none. */
+  readonly crumbs: ReadonlyArray<PlaceCrumb>
 }
 
 export const nodePlace = (
   hit: Pick<NodeHit, "file" | "path"> & { readonly pathIds?: ReadonlyArray<string> },
 ): Place => {
+  // Ids and titles are one walk's answer in `@olai/format`, so they are zipped
+  // only when they still describe the same walk; a caller that has titles
+  // alone (a folded row, `new-chat-level.ts`) gets crumbs without ids rather
+  // than a guessed correspondence.
   const ids = hit.pathIds?.length === hit.path.length ? hit.pathIds : undefined
-  const crumbs = ids?.map((id, at) => ({ id, title: hit.path[at]! }))
   return {
     file: hit.file,
-    ...(hit.path.length > 1
-      ? { middle: hit.path.slice(0, -1).join(" · "), ...(crumbs === undefined ? {} : { middleCrumbs: crumbs.slice(0, -1) }) }
-      : {}),
-    ...(hit.path.length > 0
-      ? { nearest: hit.path[hit.path.length - 1]!, ...(crumbs === undefined ? {} : { nearestCrumb: crumbs[crumbs.length - 1]! }) }
-      : {}),
+    crumbs: hit.path.map((title, at) => ({ title, ...(ids === undefined ? {} : { id: ids[at]! }) })),
   }
 }

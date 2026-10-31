@@ -84,7 +84,7 @@ test("the node rows say what they write, then where they are", () => {
     // facts, and one glyph doing both jobs on one line leaves a reader working
     // out which dots are boundaries and which are ancestry.
     hint: "@note-3",
-    place: { file: "house.olai", nearest: "notes" },
+    place: { file: "house.olai", crumbs: [{ title: "notes" }] },
   })
 })
 
