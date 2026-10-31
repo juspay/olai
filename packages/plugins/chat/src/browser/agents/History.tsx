@@ -1,6 +1,7 @@
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, For, Show } from "solid-js"
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
+import { historySeat } from "./history.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
 import { Conversation } from "../chat/Conversation.tsx"
 import type { Chat } from "../chat/state.ts"
@@ -15,7 +16,14 @@ import { TESTID } from "../../testids.ts"
 export function History(props: { readonly chat: Chat; readonly node: string }) {
   const agents = useAgents()
   const agent = () => agents.at(props.node)
-  const picker = createInlinePicker<true>({ opening: () => { agents.askChats(); return true } })
+  // THE LIST IS THE PANE'S, not this frame's: the seat is chat's activation
+  // (`./history.ts`), so a panel rebuilt by a roster answer — a restart's
+  // refusal moves the panel's address from the session to the node — comes
+  // back with the list the reader opened still up.
+  const picker = createInlinePicker<true>(
+    { opening: () => { agents.askChats(); return true } },
+    historySeat(props.node),
+  )
   const past = createMemo(() => {
     const row = agent()
     return row?.session == null ? [] : pastOf(agents.chats()?.sessions ?? [], row.engine, row.session)

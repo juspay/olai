@@ -26,6 +26,7 @@ import { Effect } from "effect"
 
 import { Standing } from "./browser/agents/Standing.tsx"
 import { createFolding, holdFolding } from "./browser/agents/folding.ts"
+import { createHistory, holdHistory } from "./browser/agents/history.ts"
 import { NeedsYou, Chats } from "./browser/agents/Agents.tsx"
 import { AgentsProvider, createAgents, useAgents } from "./browser/agents/answered.tsx"
 import { rowVerbs } from "./browser/verbs.tsx"
@@ -92,10 +93,13 @@ export default definePlugin({
     yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const agents = createAgents()
-      return { dispose, agents, engines: enginesService(agents.missing), readings: createAgentReadings(agents), folding: createFolding() }
+      return { dispose, agents, engines: enginesService(agents.missing), readings: createAgentReadings(agents), folding: createFolding(), history: createHistory() }
     })), state => Effect.sync(state.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdAgentReadings(state.readings)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdFolding(state.folding)), stop => Effect.sync(stop))
+    // ...and the history list's own open/shut, the same owner and the same
+    // lifetime as the fold beside it (`./browser/agents/history.ts`).
+    yield* Effect.acquireRelease(Effect.sync(() => holdHistory(state.history)), stop => Effect.sync(stop))
     // `chat.state`, as its static door names it (`./attention.ts`): the value
     // is the whole activation state, and it must keep satisfying that shape.
     yield* (yield* Offers).own("state", () => state satisfies Attention)
