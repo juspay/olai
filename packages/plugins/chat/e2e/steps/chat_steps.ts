@@ -2735,9 +2735,18 @@ Then("the chat is empty", async function (this: OlaiWorld) {
 /** The header's SESSIONS pill pressed — a node agent's own conversations, and
  *  the fresh session that ends the current one. It is drawn only where the
  *  panel's conversation belongs to a node agent; every OTHER stored
- *  conversation is the sidebar's now ("I open the unassigned chats"). */
+ *  conversation is the sidebar's now ("I open the unassigned chats").
+ *
+ *  OPEN, which is not the same as PRESS: a press toggles, and the list is the
+ *  pane's, so it outlives a frame that redraws the panel (`history.ts`) — a
+ *  second press would shut the very list this step promises to open, which is
+ *  what a scenario that looked at the history, switched tabs and looked again
+ *  found.
+ */
 When("I open the fold history", async function (this: OlaiWorld) {
-  await this.chat(CHAT_SESSIONS).click();
+  const pill = this.chat(CHAT_SESSIONS);
+  await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  if (await pill.getAttribute("aria-expanded") !== "true") await pill.click();
 });
 /** No `trouble` on screen — what went wrong where nobody was waiting, and the
  *  claim that nothing did. No wait of its own: the step before it has already
@@ -3004,6 +3013,32 @@ Then(
   "the chat says the click was refused, with {string}",
   async function (this: OlaiWorld, said: string) {
     await saysThat(this, CHAT_REFUSAL, said, "refused click");
+  },
+);
+
+/** ...AND WHERE THE SERVER HAS TWO HONEST ANSWERS, both of them.
+ *
+ *  A second press of *Try again* finds nothing waiting and is told so — unless
+ *  the first press has already replaced the conversation under this body, in
+ *  which case the press was made in a panel that MOVED and the server says
+ *  that instead. Which of the two it is depends on whether the first press's
+ *  change has landed by the frame of the second, so a scenario that reads one
+ *  sentence is a scenario that goes red on a loaded box for the wrong reason.
+ *  What is pinned is what the error rule asks: the one control in this body
+ *  cannot be pressed silently, and it says WHY it did nothing.
+ */
+Then(
+  "the chat says the click was refused, with {string} or {string}",
+  async function (this: OlaiWorld, one: string, other: string) {
+    await this.waitUntil(
+      async () => {
+        const line = this.chat(CHAT_REFUSAL).first();
+        if ((await line.count()) === 0) return false;
+        const text = (await line.innerText()).trim();
+        return text.includes(one) || text.includes(other);
+      },
+      `the refused click to say ${JSON.stringify(one)} or ${JSON.stringify(other)}`,
+    );
   },
 );
 

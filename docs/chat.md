@@ -200,7 +200,10 @@ and wake preferences remain.
 Unclaimed stored conversation heads are [filed into the Inbox](#filing-stored-conversations-into-the-inbox).
 The conversation line offers a node agent's past sessions, with the counts and
 dates its engine supplies. An unreachable engine is named with its reason;
-absence of an answer is not presented as an empty history.
+absence of an answer is not presented as an empty history. A list you opened
+stays open until you shut it: a restart that comes back and refuses the
+conversation — or any other answer that redraws the panel — does not close it
+under the pointer.
 
 Answers stream incrementally, with browser updates batched several times per
 second. A conversation opens at its newest line — once, when its history has

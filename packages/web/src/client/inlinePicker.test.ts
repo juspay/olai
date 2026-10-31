@@ -34,7 +34,7 @@ import { expect, mock, test } from "bun:test"
 import { createRoot } from "solid-js"
 
 import type { Dismissable } from "./dismiss.ts"
-import type { InlinePicker } from "./inlinePicker.ts"
+import type { InlinePicker, PickerSeat, PickerState } from "./inlinePicker.ts"
 
 /** What the picker last handed the dismissal — the accessors it would answer a
  *  gesture with, and the shutting it would do. */
@@ -61,12 +61,13 @@ const withPicker = <T>(
     dismissal: Dismissable,
     dispose: () => void,
   ) => void,
+  seat?: PickerSeat<T>,
 ): void => {
   createRoot((dispose) => {
     // Cleared first, so a case reads the dismissal THIS picker wired and never
     // the one before it.
     wired = undefined
-    const picker = createInlinePicker({ opening })
+    const picker = createInlinePicker({ opening }, seat)
     const dismissal = wired
     if (dismissal === undefined) throw new Error("the picker wired no dismissal")
     run(picker, dismissal, dispose)
@@ -251,4 +252,30 @@ test("a list that has gone is one the dismissal is no longer told about", () => 
     dispose()
     expect(dismissal.root()).toBeUndefined()
   })
+})
+
+test("a SEAT keeps the list up across the component that drew it", () => {
+  // The claim the seat exists for, and it is a product one: a panel rebuilt by
+  // a frame of its own — a restart's refusal, a roster that empties for a beat
+  // — must not come back with a list the reader opened shut under the pointer.
+  // So the fact lives in the caller's holder, and the SECOND picker to use that
+  // holder finds it up over the payload the first one opened it with.
+  let state: PickerState<string> = { _tag: "shut" }
+  const seat: PickerSeat<string> = {
+    read: () => state,
+    write: (up) => { state = up },
+  }
+  withPicker(() => "the query", (first) => {
+    first.toggle()
+    expect(first.showing()).toBe("the query")
+  }, seat)
+  // ...a new owner, and a new picker in it: the frame is gone, the fact is not.
+  withPicker(() => "a fresh ask", (second) => {
+    expect(second.open()).toBe(true)
+    // The payload travels WHOLE, so a kept list is up over what it was up over
+    // rather than over whatever this frame would have asked.
+    expect(second.showing()).toBe("the query")
+    second.shut()
+    expect(second.showing()).toBeUndefined()
+  }, seat)
 })
