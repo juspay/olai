@@ -31,7 +31,7 @@
     "src/browser/chat/attention/watching.ts": 6,
     "src/browser/chat/identityChip.ts": 15,
     "src/browser/viewer.ts": 1,
-    "src/chat.ts": 7,
+    "src/chat.ts": 4,
     "src/events.ts": 2,
     "src/testids.ts": 1,
     "src/wire/members.ts": 2

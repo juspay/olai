@@ -3723,9 +3723,6 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         // no promise and offers no interruption, and every send still goes.
         ...(silent() ? {} : { _meta: { steering: { supported: true } } }),
       })
-      // THE FIRST PUSH OF THE CONNECTION, after the answer it follows in both
-      // pinned adapters — and with no session open, because this fact belongs
-      // to the process.
       publishIdentity()
       return
 
@@ -3756,9 +3753,6 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/new":
-      // A SESSION OPEN IS A READ OF WHO THIS IS — and a REFUSED one reports
-      // too, so the client knows which account was refused. Said before the
-      // hold and the refusals for that reason.
       publishIdentity()
       if (holdingOpen()) await released()
       if (needsSignature()) {
@@ -3792,8 +3786,6 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/load":
-      // The same read as `session/new`, and for the same reason: a load the
-      // agent refuses has still told the client whose signature was missing.
       publishIdentity()
       // NOTED BEFORE ANY REFUSAL, because the question this records is "did
       // the server ask", which a refusal does not un-ask. Armed by the file's
@@ -3907,9 +3899,6 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     }
 
     case "session/prompt": {
-      // THE START OF EVERY PROMPT is the third place the pinned adapters read
-      // their identity, and the one that makes an account switched elsewhere
-      // show up: the probe is asynchronous, so the push may land mid-turn.
       publishIdentity()
       const text = promptTextOf(params)
       // THE THIRD PLACE A SIGNATURE IS ASKED FOR, and the one a person meets

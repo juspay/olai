@@ -1615,10 +1615,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           return
         case "identity":
           // THE WHOLE VALUE, replaced rather than merged, and `null` is a
-          // statement of its own — the agent has stopped reporting, or the
-          // conversation it was serving is over — rather than a no-op. That is
-          // why the arm exists at all beside `move`'s ordinary partials: the
-          // absence of a chip has to be sayable.
+          // statement of its own — the agent's process ended, so it is no
+          // longer reporting — rather than a no-op. That is why the arm exists
+          // beside `move`'s ordinary partials: the absence of a chip has to be
+          // sayable.
           move({ identity: event.identity })
           return
         case "servers":
@@ -1867,12 +1867,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // could still be being asked while it names somebody.
           talking: bound(row),
           model: null,
-          // ... AND WHO THE LAST AGENT WAS SIGNED IN AS, for the same reason:
-          // the chip names a process, and a panel that carried it across a
-          // swap would name an account this one has not reported. The
-          // outgoing agent clears it as it leaves, and this says the rule at
-          // the place the replacement is chosen rather than relying on that.
-          identity: null,
           trouble: null,
           // ... AND A SIGN-IN ROW ABOUT SOMEBODY ELSE GOES WITH IT. The attempt
           // it drew was the outgoing agent's, and that agent has just been
@@ -1936,7 +1930,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           off: because,
           talking: null,
           model: null,
-          identity: null,
           trouble: null,
         })
         return
@@ -1955,7 +1948,6 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             status: "gone" as const,
             talking: null,
             model: null,
-            identity: null,
             // THE PLUGIN'S DEPARTURE IN WORDS, because `gone` alone is a face
             // with no account of itself and the three ways of getting there
             // read very differently to somebody who was mid-conversation.
