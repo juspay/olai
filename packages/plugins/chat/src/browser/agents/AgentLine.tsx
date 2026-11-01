@@ -29,13 +29,15 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
       <AgentMark id={agent().id} />{agent().name}
     </span>}</Show>
     {/* WHO, after the agent's name — and only for an agent that says
-        (`../chat/identity.ts` has both rules). Pressable exactly where the
-        handshake offered a way in, which is the same test `/login` makes
-        (`../chat/Composer.tsx`). */}
+        (`../chat/identityChip.ts` has both rules). Pressable exactly where the
+        handshake offered a way in AND no sign-in row is already on screen:
+        `signIn(null)` replaces that row with a chooser, which would hide a
+        terminal login quietly waiting for its code. `/login` has the same hole
+        and the chip is one click from the row, so the chip does not add one. */}
     <Show when={state().identity}>{identity => <Identity
       chat={props.chat}
       identity={identity}
-      pressable={(agentIn(state())?.methods.length ?? 0) > 0}
+      pressable={(agentIn(state())?.methods.length ?? 0) > 0 && state().signIn === null}
     />}</Show>
     <Show when={state().model || state().settings.length > 0} fallback={<Show when={doing() === null || doing()?.kind === "starting"}><span>{doing()?.kind === "starting" ? "Starting…" : state().status === "off" ? "Not set up" : state().status === "gone" ? "Not running" : "Ready"}</span></Show>}><Model chat={props.chat} name={state().model ?? "Settings"} /></Show>
     <Show when={usageOf(state().usage)}>{usage => <span data-testid={TESTID.chatUsage} title="Context used">{usage()}</span>}</Show>

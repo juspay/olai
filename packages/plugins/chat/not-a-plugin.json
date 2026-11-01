@@ -29,7 +29,7 @@
     "src/browser/agents/Identity.tsx": 9,
     "src/browser/chat/SignIn.tsx": 6,
     "src/browser/chat/attention/watching.ts": 6,
-    "src/browser/chat/identity.ts": 15,
+    "src/browser/chat/identityChip.ts": 15,
     "src/browser/viewer.ts": 1,
     "src/chat.ts": 7,
     "src/events.ts": 2,

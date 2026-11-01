@@ -29,7 +29,7 @@ import { agentIn } from "olai-plugin-chat/wire"
 import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
-import { identityOf } from "./identity.ts"
+import { identityOf } from "./identityChip.ts"
 import { LinkCard } from "./LinkCard.tsx"
 import { linkify } from "./links.ts"
 import type { Chat } from "./state.ts"
@@ -161,14 +161,18 @@ export function SignIn(props: { readonly chat: Chat }) {
       {/* WHO IS SIGNED IN NOW, above the buttons — the one fact a person
           switching between two accounts needs before pressing one, and the
           reason the chooser is reachable from the agent line's chip as well as
-          from `/login`. Absent for an agent that reports nothing, and for the
-          known logged-out state: there is nobody to name, and the buttons are
-          the whole answer. */}
+          from `/login`. THE FACT ONLY, with no "choose another" clause: this
+          arm cannot tell a chooser somebody asked for from one an auth
+          refusal produced, and in the second case the agent may still report
+          an account whose token has expired — so the buttons are the
+          imperative and this is the state. Absent for an agent that reports
+          nothing, and for the known logged-out state: there is nobody to
+          name, and the buttons are the whole answer. */}
       <Show when={state().identity}>
         {identity => (
           <Show when={identity().kind !== "none"}>
             <p class="m-0 mt-2 text-label text-muted" data-testid={TESTID.chatSignInCurrent}>
-              Signed in as {identityOf(identity())} — choose a way to sign in as someone else
+              Signed in as {identityOf(identity())}
             </p>
           </Show>
         )}
