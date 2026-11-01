@@ -20,29 +20,22 @@ concurrency:
 
 env:
   # THE CLIENT IS PINNED TO A COMMIT, and it is deliberately NOT this
-  # checkout's npins pin: `odu run` on a lane and `odu cache push` here need
-  # different verbs, and the pin the grafted @odu/* sources come from is the
+  # checkout's npins pin: the pin the grafted @odu/* sources come from is the
   # revision kolu's closure was built against (nix/kolu.nix refuses a
-  # mismatch), so it cannot move for this job's convenience.
+  # mismatch), and it has no cache verbs at all. The client here moves on its
+  # own schedule, and deliberately.
   #
-  # This revision is juspay/odu#138's head, and it is here for two measured
-  # reasons, both of which the same client at master showed against this very
-  # bucket: a path the bucket is still waiting on (its references are
-  # upstream-signed, so the bucket fetches them) must print as `held` and
-  # leave the exit code 0 — that is the bucket's fact, not a failed push —
-  # and a NAR past a proxy's body cap must be CHUNKED, because one request
-  # for a several-hundred-MB store path came back "hashes to … but the
-  # narinfo says …", every time. Re-pin past 66462dd1 once #138 merges; the
-  # two lines that would then move are this SHA and PUSH_ORIGIN below.
-  ODU_REV: a649aaa739338bffa77a6cbd01b0158bf28ff939
-  # PUSH ORIGIN, TODAY: the pod's own address, which is the same daemon and
-  # the same bucket as `cache.kolu.dev` — one name is for writers, one for
-  # readers. `cache.kolu.dev` is proxied by Cloudflare, whose request bodies
-  # stop at 100 MB; the client above chunks a NAR under that, so the move is
-  # possible, and it is a deliberate follow-up rather than this job's business
-  # today: readers are unaffected either way, and the flake keeps advertising
-  # the bucket's name throughout.
-  PUSH_ORIGIN: https://odu-k3s.rooster-blues.ts.net
+  # This is the release that makes the step's exit code mean something: a path
+  # the bucket accepts and cannot serve yet — its references are upstream-
+  # signed, so the bucket fetches them itself — is reported as HELD and leaves
+  # the command at 0, while a real refusal or a byte-level disagreement is a
+  # failure. It also chunks a NAR, which is what lets the push go to the
+  # bucket's proxied name below.
+  ODU_REV: 150ad5e97503d53f0ad6ea4fdc7edd385ede212b
+  # THE BUCKET'S OWN NAME, the same URL every reader is given. Cloudflare
+  # caps a request body at 100 MB and this is behind Cloudflare, which is why
+  # the client above splits a large NAR into parts under that cap.
+  PUSH_ORIGIN: https://cache.kolu.dev
 
 jobs:
   build-and-push:
