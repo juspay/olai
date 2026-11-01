@@ -26,7 +26,7 @@ import { join } from "node:path"
 
 import { type Agent, adopt, authOf, childEnvOf, fromElsewhere, goneOf, make } from "./agent.ts"
 import { SAYS_NOTHING } from "./agents/legs.testlib.ts"
-import type { Stored } from "./events.ts"
+import type { AgentEvent, Stored } from "./events.ts"
 import type { Memory } from "./memory.ts"
 
 const NOWHERE = "/nonexistent/olai-test/acp-agent"
@@ -327,6 +327,48 @@ describe("who gets a sign-in attempt", () => {
       expect(await Effect.runPromise(agent.signIn("other-login"))).toBe("signed-in")
       expect(spawned()).toBe(1)
     })
+  })
+})
+
+describe("who the agent is signed in as", () => {
+  test("the handshake's push arrives typed, before any conversation exists", async () => {
+    // THE CONNECTION-SCOPED CASE, which is the one a session fence would get
+    // wrong: the notification carries no `sessionId`, and this bench opens no
+    // session at all. What it proves is that the agent reports the value it
+    // read — the payload is the fixture's, and `identityIn` is what turns it
+    // into the shape the panel holds.
+    const cwd = mkdtempSync(join(tmpdir(), "olai-identity-"))
+    const seen = Promise.withResolvers<Extract<AgentEvent, { _tag: "identity" }>>()
+    const agent = await Effect.runPromise(make({
+      id: "identity-agent",
+      leg: SAYS_NOTHING,
+      command: process.execPath,
+      args: [join(import.meta.dirname, "fixtures/auth-agent.ts")],
+      cwd,
+      tools: () => null,
+      memory: REMEMBERS_NOTHING,
+      onEvent: (event) => {
+        if (event._tag === "identity") seen.resolve(event)
+      },
+    }))
+    try {
+      await Effect.runPromise(agent.boot)
+      // The push is a notification, so it can land after `initialize` answers
+      // — which is exactly the order the pinned adapters use. Awaiting the
+      // event rather than a duration keeps this a fact about the wire.
+      expect(await seen.promise).toEqual({
+        _tag: "identity",
+        identity: {
+          kind: "account",
+          label: "Fake Max",
+          detail: "a fake second line",
+          account: { email: "fake@example.com", organization: null, plan: null },
+        },
+      })
+    } finally {
+      await Effect.runPromise(agent.stop)
+      rmSync(cwd, { recursive: true, force: true })
+    }
   })
 })
 

@@ -9,6 +9,7 @@ import { usageOf } from "../chat/usage.ts"
 import { LIVE_DOT } from "../chat/live.ts"
 import { busyIn } from "../chat/busy.ts"
 import { CloseAgent } from "./CloseAgent.tsx"
+import { Identity } from "./Identity.tsx"
 import { AgentAbove } from "./AgentAbove.tsx"
 import { FreshStart } from "./FreshStart.tsx"
 import type { Chat } from "../chat/state.ts"
@@ -27,6 +28,17 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
     <Show when={agentIn(state())}>{agent => <span class="inline-flex items-center gap-1" data-testid={TESTID.chatAgent} data-agent={agent().id}>
       <AgentMark id={agent().id} />{agent().name}
     </span>}</Show>
+    {/* WHO, after the agent's name — and only for an agent that says
+        (`../chat/identityChip.ts` has both rules). Pressable exactly where the
+        handshake offered a way in AND no sign-in row is already on screen:
+        `signIn(null)` replaces that row with a chooser, which would hide a
+        terminal login quietly waiting for its code. `/login` has the same hole
+        and the chip is one click from the row, so the chip does not add one. */}
+    <Show when={state().identity}>{identity => <Identity
+      chat={props.chat}
+      identity={identity}
+      pressable={(agentIn(state())?.methods.length ?? 0) > 0 && state().signIn === null}
+    />}</Show>
     <Show when={state().model || state().settings.length > 0} fallback={<Show when={doing() === null || doing()?.kind === "starting"}><span>{doing()?.kind === "starting" ? "Starting…" : state().status === "off" ? "Not set up" : state().status === "gone" ? "Not running" : "Ready"}</span></Show>}><Model chat={props.chat} name={state().model ?? "Settings"} /></Show>
     <Show when={usageOf(state().usage)}>{usage => <span data-testid={TESTID.chatUsage} title="Context used">{usage()}</span>}</Show>
     <Show when={doing()?.kind === "working" || doing()?.kind === "waiting"}>

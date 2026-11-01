@@ -58,7 +58,16 @@ process.stdin.on("data", (chunk: string) => {
       case "initialize":
         respond({
           protocolVersion: 1,
-          agentCapabilities: { loadSession: true },
+          // THE IDENTITY MARKER, empty and present — this fake pushes who it
+          // is, which is what the presence of `_meta.authStatus` means. The
+          // push below is the payload, and it arrives with NO SESSION OPEN,
+          // which is the whole point of the extension: it is a fact about the
+          // process, not about a conversation.
+          //
+          // NO STORED CONVERSATIONS (`loadSession: false`) so a boot opens a
+          // fresh one and this bench does not have to script a listing it is
+          // not about.
+          agentCapabilities: { loadSession: false, _meta: { authStatus: {} } },
           authMethods: [
             {
               id: "fake-login",
@@ -79,6 +88,26 @@ process.stdin.on("data", (chunk: string) => {
             { id: "other-login", name: "Other login", type: "terminal", args: ["--other"] },
           ],
         })
+        // THE FIRST PUSH OF THE CONNECTION, after the answer rather than
+        // before it — the order both pinned adapters keep, and the order that
+        // makes the panel's chip appear for a conversation nobody has opened.
+        write({
+          jsonrpc: "2.0",
+          method: "_auth/status_update",
+          params: {
+            authStatus: {
+              kind: "account",
+              label: "Fake Max",
+              detail: "a fake second line",
+              account: { email: "fake@example.com" },
+            },
+          },
+        })
+        return
+      case "session/new":
+        // The one thing a boot asks for. No config options: this bench is
+        // about the handshake's identity push, not about a picker.
+        respond({ sessionId: "fake-identity-session" })
         return
       default:
         // NOTHING ELSE IS IMPLEMENTED, and said rather than ignored: a bench

@@ -33,6 +33,10 @@ export const CHAT_MODEL_NONE = selector(TESTID.chatModelNone);
 /** WHO the conversation is with, beside the model. `data-agent` is the roster's
  *  own id, so a scenario names an agent rather than reading a brand name. */
 export const CHAT_AGENT = selector(TESTID.chatAgent);
+/** WHO the agent is signed in as, after its name. Absent for an engine that
+ *  does not report an identity — which is a state a scenario asserts by its
+ *  absence. */
+export const CHAT_IDENTITY = selector(TESTID.chatIdentity);
 /** The mark in front of that name — its own selector because "icon and name"
  *  is the ruling, and a name with no mark passes an assertion about the name. */
 export const CHAT_AGENT_MARK = selector(TESTID.chatAgentMark);
@@ -147,6 +151,9 @@ export const CHAT_SIGN_IN_OUTPUT = selector(TESTID.chatSignInOutput);
 export const CHAT_SIGN_IN_INPUT = selector(TESTID.chatSignInInput);
 export const CHAT_SIGN_IN_CANCEL = selector(TESTID.chatSignInCancel);
 export const CHAT_SIGN_IN_RETRY = selector(TESTID.chatSignInRetry);
+/** WHO IS SIGNED IN NOW, over the chooser's buttons. Absent for an engine that
+ *  reports nothing and for the known logged-out state. */
+export const CHAT_SIGN_IN_CURRENT = selector(TESTID.chatSignInCurrent);
 export const CHAT_SEND = selector(TESTID.chatSend);
 /** The other send: put these words INTO the turn the agent is running. Drawn
  *  only while there is a turn to interrupt and only for an agent that said it

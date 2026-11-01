@@ -8,9 +8,10 @@
  * from `@olai/git`: the package that speaks the foreign thing owns its words,
  * and consumers above go on importing them from the spec they already import.
  * THIS entry is the other half and only this half — {@link ./asks.ts},
- * {@link ./diffs.ts} and {@link ./usage.ts}, the projections between the
- * protocol's own payloads and that vocabulary, which only `olai-plugin-chat` — the
- * package that runs an ACP subprocess — consumes. The two entries are disjoint on purpose: everyone
+ * {@link ./diffs.ts}, {@link ./identity.ts} and {@link ./usage.ts}, the
+ * projections between the protocol's own payloads and that vocabulary, which
+ * only `olai-plugin-chat` — the package that runs an ACP subprocess — consumes.
+ * The two entries are disjoint on purpose: everyone
  * who wants the vocabulary has it through the surface, so a wire shape
  * offered here as well would be a third path to the same word.
  *
@@ -32,6 +33,7 @@ export {
   urlOf,
 } from "./asks.ts"
 export { diffsOf, relativeTo } from "./diffs.ts"
+export { AUTH_STATUS_METHOD, identityIn } from "./identity.ts"
 export { usageIn } from "./usage.ts"
 
 export { terminalMetaIn } from "./terminal.ts"

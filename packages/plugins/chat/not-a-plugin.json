@@ -22,9 +22,19 @@
     "src/chat.ts": 7,
     "src/server/sleep.ts": 6
   },
+  "//identity": "The word is the AGENT'S account of itself — who the signed-in process runs as (`_auth/status_update`) — and the identity row is about the PERSON behind a request (`olai-plugin-identity`). The two are deliberately different subjects, and nothing here reads that row.",
   "identity": {
+    "src/agent.ts": 10,
+    "src/browser/agents/AgentLine.tsx": 6,
+    "src/browser/agents/Identity.tsx": 9,
+    "src/browser/chat/SignIn.tsx": 6,
     "src/browser/chat/attention/watching.ts": 6,
-    "src/browser/viewer.ts": 1
+    "src/browser/chat/identityChip.ts": 15,
+    "src/browser/viewer.ts": 1,
+    "src/chat.ts": 4,
+    "src/events.ts": 2,
+    "src/testids.ts": 1,
+    "src/wire/members.ts": 2
   },
   "image": {
     "src/agent.ts": 2,

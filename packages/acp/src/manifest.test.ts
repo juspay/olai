@@ -228,12 +228,14 @@ describe("the manifest", () => {
     // because its consumers reach it through the surface's re-export and a
     // second door to the same word is a door somebody eventually uses.
     expect(Object.keys(face).sort()).toEqual([
+      "AUTH_STATUS_METHOD",
       "PERMISSION_FIELD",
       "Refused",
       "contentOf",
       "diffsOf",
       "formOf",
       "hostOf",
+      "identityIn",
       "nativeActivity",
       "permissionFormOf",
       "relativeTo",
@@ -249,6 +251,8 @@ describe("the manifest", () => {
       "AskField",
       "AskLink",
       "AskOutcome",
+      "AuthAccount",
+      "AuthStatus",
       "FileDiff",
       "Usage",
       "YES_NO",
