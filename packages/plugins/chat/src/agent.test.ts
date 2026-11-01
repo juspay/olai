@@ -24,7 +24,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { type Agent, adopt, authOf, childEnvOf, fromElsewhere, goneOf, make } from "./agent.ts"
+import { type Agent, adopt, authOf, childEnvOf, fromElsewhere, goneOf, make, refusalData, saidOf } from "./agent.ts"
 import { SAYS_NOTHING } from "./agents/legs.testlib.ts"
 import type { AgentEvent, Stored } from "./events.ts"
 import type { Memory } from "./memory.ts"
@@ -197,6 +197,48 @@ describe("what a refusal says about a signature", () => {
     expect(authOf(new Error("ACP connection closed"))).toBe(false)
     expect(authOf("something nobody has seen before")).toBe(false)
     expect(authOf(null)).toBe(false)
+  })
+})
+
+describe("what a refusal says", () => {
+  /** What the SDK's `errorToResult` makes of a plain `Error` thrown inside a
+   *  handler — the pinned Claude adapter's every `set_config_option` failure. */
+  const internal = (data?: unknown): RequestError => new RequestError(-32603, "Internal error", data)
+
+  test("the agent's sentence in `data.details` wins over the code word", () => {
+    const said = saidOf(internal({
+      details: "Fable 5.1 isn't available for your account yet. Run /model to pick another model.",
+    }))
+    expect(said).toBe("Fable 5.1 isn't available for your account yet. Run /model to pick another model.")
+    expect(said).not.toContain("Internal error")
+  })
+
+  test("a parsed body's `data.message` is the sentence when there are no details", () => {
+    expect(saidOf(internal({ message: "Model switch blocked by a PreModelSwitch hook" })))
+      .toBe("Model switch blocked by a PreModelSwitch hook")
+  })
+
+  test("a refusal with nothing behind it still says what it is", () => {
+    expect(saidOf(internal())).toBe("Internal error")
+    expect(saidOf(internal({ details: 42 }))).toBe("Internal error")
+    expect(saidOf(internal({ details: "  " }))).toBe("Internal error")
+    expect(saidOf(internal("a bare string"))).toBe("Internal error")
+  })
+
+  test("anything that is not a refusal reads as it always did", () => {
+    expect(saidOf(new Error("ACP connection closed"))).toBe("ACP connection closed")
+    expect(saidOf("something nobody has seen before")).toBe("something nobody has seen before")
+  })
+
+  test("the logged `data` is JSON, bounded, and never throws", () => {
+    expect(refusalData(undefined)).toBeUndefined()
+    expect(refusalData({ details: "no" })).toBe("{\"details\":\"no\"}")
+    expect(refusalData({ details: "x".repeat(10_000) })!.length).toBeLessThan(2100)
+    // `String(data)` IS the fallback's shape, on purpose: a value JSON cannot
+    // take still gets a line, and the record must never be what throws.
+    const cycle: Record<string, unknown> = {}
+    cycle.self = cycle
+    expect(refusalData(cycle)).toBe("[object Object]")
   })
 })
 

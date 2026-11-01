@@ -54,8 +54,8 @@ export const speaking = (emit: (message: unknown) => void, prefix: string) => {
     /** The other half: a request we will not answer. Named for the same reason
      *  its sibling is — the envelope is the protocol's, not a fake's, and two
      *  hand-built copies is how one of them drifts. */
-    refuse: (id: unknown, code: number, message: string): void => {
-      emit({ jsonrpc: "2.0", id, error: { code, message } })
+    refuse: (id: unknown, code: number, message: string, data?: unknown): void => {
+      emit({ jsonrpc: "2.0", id, error: data === undefined ? { code, message } : { code, message, data } })
     },
     notify: (method: string, params: unknown): void => {
       emit({ jsonrpc: "2.0", method, params })
@@ -109,6 +109,11 @@ export const speaking = (emit: (message: unknown) => void, prefix: string) => {
 export const MARKER = {
   /** Refuse model configuration without changing the active model. */
   refuseModel: ".agent-refuse-model",
+  /** Refuse ONE picker row — the value this file names — the way the real
+   *  Claude adapter refuses a model the signed-in account is not entitled to:
+   *  `-32603 "Internal error"` with the CLI's own sentence in `data.details`.
+   *  Every other row still switches. */
+  refuseModelByAccount: ".agent-refuse-model-by-account",
   /** Let a held turn — or a held open — go on. */
   release: ".agent-release",
   /** Make the next `session/load` sit on the wire. */

@@ -750,6 +750,36 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       tell(Effect.logWarning(during))
     }
 
+    /** Every request this agent makes, with its refusals on the record: ONE
+     *  line per rejection the agent answered with, carrying the code and the
+     *  `data` the sentence was read out of ({@link saidOf}) — so a report of a
+     *  refused click is diagnosable from the log alone.
+     *
+     *  INFO for the ordinary refusals — a signed-out `session/new`, a steer
+     *  not taken, a load of a conversation the agent no longer has — which
+     *  are already on screen in the agent's words and are the normal course
+     *  of a session. WARN only for `-32603`: an agent calling its own answer
+     *  an internal error is the one case where the log must carry more than
+     *  the screen. */
+    const ask = (
+      connection: ClientConnection,
+      method: string,
+      params: unknown,
+      timeout?: Duration.Input | null,
+    ): Effect.Effect<unknown, AgentGone> =>
+      request(
+        (cause) =>
+          tell((cause.code === INTERNAL_ERROR ? Effect.logWarning : Effect.logInfo)("the agent refused a request"), {
+            method,
+            code: cause.code,
+            ...(cause.data === undefined ? {} : { data: refusalData(cause.data) }),
+          }),
+        connection,
+        method,
+        params,
+        timeout,
+      )
+
     let stopped = false
     const requestedStops = new WeakMap<Child, { reason: StopReason; session: string | null }>()
     /** A cancel that arrived before the prompt was on the wire. Remembered so
@@ -3280,8 +3310,15 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
  * timeout, the error mapping and the `null`-timeout arm generic over it as
  * well. The cast is at the four call sites, where the expected shape is written
  * down beside the method name.
+ *
+ * `refused` is handed every rejection the AGENT answered with, before it is
+ * worded: the sentence a person reads is one line, and the code and `data`
+ * behind it belong in the log, which only {@link make} can write to with the
+ * agent and session on the line. Required rather than defaulted, so no call
+ * site can quietly opt out of the record.
  */
-const ask = (
+const request = (
+  refused: (cause: RequestError) => void,
   connection: ClientConnection,
   method: string,
   params: unknown,
@@ -3305,12 +3342,14 @@ const ask = (
           options?: { readonly cancellationSignal?: AbortSignal },
         ) => Promise<unknown>
       }).request(method, params, { cancellationSignal: signal }),
-    catch: (cause) =>
-      new AgentGone({
+    catch: (cause) => {
+      if (cause instanceof RequestError) refused(cause)
+      return new AgentGone({
         gone: goneOf(cause),
-        why: `\`${method}\` failed: ${reasonOf(cause)}`,
+        why: `\`${method}\` failed: ${saidOf(cause)}`,
         auth: authOf(cause),
-      }),
+      })
+    },
   })
   if (timeout === null) return call
   // `Effect.timeout` INTERRUPTS what it is timing out, which is what fires the
@@ -3378,7 +3417,7 @@ export const goneOf = (cause: unknown): Gone =>
  * signed in: the protocol spells it as an error RESPONSE to whatever was
  * refused, so an agent that needs one says so on `session/new`, on
  * `session/load` and on a turn alike, and every one of those reaches this file
- * through {@link ask}.
+ * through {@link request}.
  *
  * ONE CODE, read where the code is: a `RequestError` whose number is that one.
  * It is deliberately not guessed from the message — "not signed in" is prose and
@@ -3396,6 +3435,59 @@ export const authOf = (cause: unknown): boolean =>
 /** ACP's code for "authenticate first" — the protocol's own number, named once
  *  so the two readers of a rejection sit beside the constant they read. */
 const AUTH_REQUIRED = -32000
+
+/**
+ * ... AND WHAT IT SAID, in the agent's own sentence rather than the protocol's
+ * code word.
+ *
+ * The SDK's `errorToResult` — which is what the pinned Claude adapter answers
+ * every failure of `session/set_config_option` through — turns a plain thrown
+ * `Error` into `-32603 "Internal error"` and puts the real sentence in
+ * `data.details` (or, when the message parsed as JSON, makes `data` that
+ * object). So a model the account is not entitled to ("… isn't available for
+ * your account yet") reached a person as "Internal error", and so did an
+ * organisation's restriction and a `PreModelSwitch` hook's veto. `.message` is
+ * the code's NAME; the sentence is in `data`.
+ *
+ * `details` first because it is what the SDK writes; `data.message` because a
+ * parsed-JSON `data` from an `Error`-shaped body carries its sentence there;
+ * otherwise the message, as before. No `(Internal error)` suffix beside the
+ * sentence: once the agent has said why, the code word adds nothing a person
+ * can act on — the code is in the log ({@link make}'s `refused`).
+ *
+ * Exported for its own test, beside {@link goneOf} and {@link authOf}: the
+ * third reading of one rejection.
+ */
+export const saidOf = (cause: unknown): string => {
+  if (cause instanceof RequestError && typeof cause.data === "object" && cause.data !== null) {
+    const data = cause.data as { readonly details?: unknown; readonly message?: unknown }
+    if (typeof data.details === "string" && data.details.trim() !== "") return data.details
+    if (typeof data.message === "string" && data.message.trim() !== "") return data.message
+  }
+  return reasonOf(cause)
+}
+
+/** JSON-RPC's "Internal error" — what the SDK's `errorToResult` answers any
+ *  thrown `Error` with, and so the one refusal code the log raises to WARN. */
+const INTERNAL_ERROR = -32603
+
+/** How much of a refusal's `data` reaches the log: enough for any sentence an
+ *  adapter writes, not enough for an agent that echoes a whole payload back. */
+const REFUSAL_DATA_CAP = 2 * 1024
+
+/** A refusal's `data` as one bounded JSON value for a log line. `undefined`
+ *  when there is none; `String` for what `JSON.stringify` cannot take (a
+ *  cycle, a BigInt) — the record must never be the thing that throws. */
+export const refusalData = (data: unknown): string | undefined => {
+  if (data === undefined) return undefined
+  let text: string
+  try {
+    text = JSON.stringify(data) ?? String(data)
+  } catch {
+    text = String(data)
+  }
+  return text.length > REFUSAL_DATA_CAP ? `${text.slice(0, REFUSAL_DATA_CAP)}…` : text
+}
 
 /**
  * Whether a notification is about a conversation this panel is not in.

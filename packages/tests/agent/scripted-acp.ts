@@ -855,7 +855,19 @@ const MODEL_ROWS = [
   { value: "sonnet", name: "Fake Sonnet" },
   { value: "haiku", name: "Fake Haiku" },
   { value: "opus[1m]", name: "Fake Opus (1M context)" },
+  { value: "fable", name: "Fake Fable" },
 ]
+
+/** The picker value the signed-in account may not use, if a scenario named
+ *  one in {@link MARKER.refuseModelByAccount}; read per request, like the
+ *  other markers, so a scenario can arm it after the agent has booted. */
+const refusedForAccount = (): string | null => {
+  try {
+    return readFileSync(`${cwd}/${MARKER.refuseModelByAccount}`, "utf8").trim() || null
+  } catch {
+    return null
+  }
+}
 
 /**
  * THE PIN this agent boots on — its `settings.json`, in effect.
@@ -3890,6 +3902,17 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       }
       if (!OFFERED.has(value)) {
         refuse(id, -32602, `Invalid value for config option model: ${value}`)
+        return
+      }
+      // What the pinned Claude CLI says when `set_model` names a model the
+      // account is not entitled to (`fable_unavailable`), as the adapter
+      // (0.81.2) forwards it: the SDK's `errorToResult` makes the thrown
+      // `Error` a `-32603` and keeps the sentence in `data.details`.
+      if (value === refusedForAccount()) {
+        const name = MODEL_ROWS.find(row => row.value === value)?.name ?? value
+        refuse(id, -32603, "Internal error", {
+          details: `${name} isn't available for your account yet. Run /model to pick another model.`,
+        })
         return
       }
       currentModel = value

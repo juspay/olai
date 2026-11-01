@@ -9822,13 +9822,13 @@
       hasInstallScript = false;
     };
   };
-  "zod@4.4.3" = fetchurl
+  "zod@4.6.7" = fetchurl
     {
-      url = "https://registry.npmjs.org/zod/-/zod-4.4.3.tgz";
-      hash = "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==";
+      url = "https://registry.npmjs.org/zod/-/zod-4.6.7.tgz";
+      hash = "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==";
     } // {
     manifest = {
-      tarballUrl = "https://registry.npmjs.org/zod/-/zod-4.4.3.tgz";
+      tarballUrl = "https://registry.npmjs.org/zod/-/zod-4.6.7.tgz";
       dependencies = { };
       peerDependencies = { };
       optionalDependencies = { };
