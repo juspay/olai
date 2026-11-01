@@ -1,7 +1,8 @@
-# Build every flake output on linux + darwin and push the closures to
-# https://cache.nixos.asia/oss. The flake already lists this cache as a
-# substituter, so a green run here warms `nix build` / `nix develop` on
-# both platforms (odu lanes included).
+# Build every flake output on linux + darwin and push the closures to odu's
+# `kolu` bucket, served at https://cache.kolu.dev: the same daemon that runs
+# this repository's CI. The flake already lists this cache as a substituter, so
+# a green run here warms `nix build` / `nix develop` on both platforms (odu
+# lanes included). `odu cache push` is the client.
 name: nix-cache
 
 on:
@@ -16,6 +17,21 @@ permissions:
 concurrency:
   group: nix-cache-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  # THE CLIENT IS PINNED TO A COMMIT, and to the release the bucket's daemon
+  # runs: `odu cache` is a client of the cache's own HTTP API, and a client
+  # from before the object store speaks a shape that daemon no longer
+  # answers — a NAR whose narinfo the server hashes its own way is a 400, not
+  # a push. It is deliberately NOT this checkout's npins pin either: that is
+  # the odu revision kolu's grafted @odu/* sources were built against
+  # (nix/kolu.nix refuses a mismatch) and has no cache verbs at all. Re-pin
+  # with the daemon, by SHA.
+  ODU_REV: ecac23760e085e409d0cd11bad17765310067ee6
+  # THE BUCKET'S NAME, for writers and readers alike — the same URL the flake
+  # hands every user. If it misbehaves the run is red: a cache that cannot be
+  # written is a fact this job reports, not one it routes around.
+  PUSH_ORIGIN: https://cache.kolu.dev
 
 jobs:
   build-and-push:
@@ -33,22 +49,31 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
+      # The bucket's public half: the same pair every flake advertises, so this
+      # job substitutes what an earlier run pushed instead of rebuilding it.
       - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
         with:
           nix_conf: |
-            extra-substituters = https://cache.nixos.asia/oss
-            extra-trusted-public-keys = oss:KO872wNJkCDgmGN3xy9dT89WAhvv13EiKncTtHDItVU=
+            extra-substituters = https://cache.kolu.dev
+            extra-trusted-public-keys = kolu-1:eAXwD1RPt1BpFjrHfVUO8Ia0bK32WcuIeJcwFWmgj9Y=
             accept-flake-config = true
 
-      - name: Install attic and log in
-        env:
-          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
-        run: |
-          nix profile add "$(jq -r .pins.nixpkgs.url npins/sources.json)#attic-client"
-          attic login --set-default oss https://cache.nixos.asia "$ATTIC_TOKEN"
-
+      # ONE step, so the token is never consulted in an `if` and the paths the
+      # pusher walks exist where it runs. A pull request from a fork has no
+      # secret and pushes nothing — it still BUILDS, which is the check this
+      # workflow owes a PR. A push with no token FAILS: going green having
+      # warmed nothing is the state a cache job exists to make impossible.
+      #
+      # ODU PUSHES. `odu cache push` expands the closure of every path it is
+      # given, asks the bucket what it is missing in ONE query — dropping what
+      # an upstream key signed, so nixpkgs never costs an upload — and uploads
+      # in dependency order. It exits 0 only when nothing was refused: a path
+      # the bucket does not take, or bytes that disagree with their narinfo,
+      # fails this step and names the path.
       - name: Build and push every flake output
         shell: bash
+        env:
+          ODU_CACHE_TOKEN: ${{ secrets.ODU_CACHE_TOKEN }}
         run: |
           set -euo pipefail
           system=$(nix eval --impure --raw --expr builtins.currentSystem)
@@ -74,9 +99,25 @@ jobs:
             echo "::error::nix build produced no output paths"
             exit 1
           fi
+          if [ -z "$ODU_CACHE_TOKEN" ]; then
+            if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+              echo "::error::ODU_CACHE_TOKEN is not set on $GITHUB_REPOSITORY — this push would publish no closure. It is a write token for the kolu bucket (a bucket page mints one)."
+              exit 1
+            fi
+            echo "no ODU_CACHE_TOKEN (a pull request from a fork) — built, pushed nothing"
+            exit 0
+          fi
           # Runtime closures of the outputs, plus each output's realized
-          # build-time inputs (bun-pkg FODs a rebuild still needs). attic's
-          # upstream filter drops anything already on cache.nixos.org.
+          # build-time inputs (bun-pkg FODs a rebuild still needs). The
+          # bucket's upstream filter drops anything already on cache.nixos.org,
+          # and `odu cache push` expands each path's own closure, so this is
+          # the list of ROOTS, not of every path.
+          #
+          # `.drv` FILES ARE FILTERED OUT. `nix-store -qR --include-outputs` on
+          # a deriver answers that deriver's whole input graph, recipes and
+          # all, and a binary cache serves outputs: pushing one is refused with
+          # "is a derivation — a cache serves outputs". The OUTPUTS of those
+          # inputs are what a rebuild actually substitutes, and they stay.
           {
             printf '%s\n' "$paths"
             while IFS= read -r p; do
@@ -84,4 +125,13 @@ jobs:
               [ -n "$drv" ] && [ "$drv" != unknown-deriver ] || continue
               nix-store -qR --include-outputs "$drv"
             done <<< "$paths"
-          } | awk 'NF && !seen[$0]++' | attic push --stdin oss
+          } | awk 'NF && !seen[$0]++ && $0 !~ /\.drv$/' > "$RUNNER_TEMP/roots"
+          # BATCHED, because a full flake's roots are several thousand store
+          # paths and one argv would pass macOS's 1 MiB ARG_MAX. Batching is
+          # safe rather than merely convenient: the pusher expands each batch's
+          # OWN closure, so a reference always travels in the batch of whatever
+          # refers to it. The list arrives on stdin, not through `-a` — that is
+          # a GNU extension, and the darwin leg runs BSD xargs.
+          xargs -n 400 \
+            nix run --accept-flake-config "github:juspay/odu/$ODU_REV" -- \
+            cache push kolu --origin "$PUSH_ORIGIN" < "$RUNNER_TEMP/roots"
