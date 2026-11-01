@@ -82,11 +82,32 @@ export const upgrade = (shared: TransportSurface) => Effect.gen(function*() {
             let named: ReadonlyArray<string> = []
             try { named = shared.upgradeHeaders(); checkUpgradeHeaders(named) }
             catch (cause) { named = []; report({ _tag: "UpgradeHeadersRefused", error: toError(cause), url }) }
-            const connection: SurfaceAppConnection<string> = Object.freeze({ id: ++accepted, url, remoteAddress: request.socket.remoteAddress, headers: pickUpgradeHeaders(request, named) })
+            // The record exists before its serving (`services(connection)` is
+            // handed it first), so `close` follows kolu's serveSurfaceApp: the
+            // first close owns the frame, one that arrives before the serving is
+            // replayed against it, and such a connection is never served.
+            // Kolu's frame check is not exported; the serving's own `close`
+            // applies it, so in that window a bad frame throws at the replay.
+            let closeFrame: { readonly code: number; readonly reason?: string } | undefined
+            let liveServing: SurfaceSocketServing | undefined
+            const connection: SurfaceAppConnection<string> = Object.freeze({
+              id: ++accepted,
+              url,
+              remoteAddress: request.socket.remoteAddress,
+              headers: pickUpgradeHeaders(request, named),
+              close: (code?: number, reason?: string) => {
+                if (closeFrame !== undefined) return
+                if (liveServing !== undefined) liveServing.close(code ?? 1000, reason)
+                closeFrame = { code: code ?? 1000, reason }
+              },
+            })
             report({ _tag: "Connected", connection })
             peer.once("close", (code, reason) => report({ _tag: "Disconnected", connection, code, reason: reason.toString() }))
-            const serving = serveSurfaceSocket({ group: served.group, handlers: served.handlers, socket: peer as unknown as ServableSocket, services: shared.services(connection) })
+            const services = closeFrame === undefined ? shared.services(connection) : undefined
+            const serving = serveSurfaceSocket({ group: served.group, handlers: served.handlers, socket: peer as unknown as ServableSocket, services })
             servings.add(serving)
+            liveServing = serving
+            if (closeFrame !== undefined) serving.close(closeFrame.code, closeFrame.reason)
             void serving.done.catch((cause: unknown) => report({ _tag: "ServingFailed", cause, connection })).finally(() => servings.delete(serving))
           })
         })
