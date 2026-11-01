@@ -25,8 +25,9 @@ env:
   # answers — a NAR whose narinfo the server hashes its own way is a 400, not
   # a push. It is deliberately NOT this checkout's npins pin either: that is
   # the odu revision kolu's grafted @odu/* sources were built against
-  # (nix/kolu.nix refuses a mismatch) and has no cache verbs at all.
-  ODU_REV: 10f28d029852d96c6fe352c3f0d50a31ce2a79ae
+  # (nix/kolu.nix refuses a mismatch) and has no cache verbs at all. Re-pin
+  # with the daemon, by SHA.
+  ODU_REV: ecac23760e085e409d0cd11bad17765310067ee6
   # THE BUCKET'S NAME, for writers and readers alike — the same URL the flake
   # hands every user. If it misbehaves the run is red: a cache that cannot be
   # written is a fact this job reports, not one it routes around.
