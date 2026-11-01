@@ -67,6 +67,11 @@ jobs:
             extra-substituters = https://cache.kolu.dev
             extra-trusted-public-keys = kolu-1:eAXwD1RPt1BpFjrHfVUO8Ia0bK32WcuIeJcwFWmgj9Y=
             accept-flake-config = true
+            # A cache is an OPTIMIZATION, and this one is reached through
+            # somebody else's proxy: a 502 on a NAR download must cost a
+            # compile, never the job. Without this, one bad minute at the
+            # edge failed every flake output the runner had already warmed.
+            fallback = true
 
       # ONE step, so the token is never consulted in an `if` and the paths the
       # pusher walks exist where it runs. A pull request from a fork has no
