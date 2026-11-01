@@ -1,4 +1,9 @@
 {
+  "//identity": "The word is the ACP extension's own: `_auth/status_update` and the reader that decodes who the AGENT is signed in as. That is not the identity row, which is about the person behind a request (`olai-plugin-identity`), and nothing here looks that row up.",
+  "identity": {
+    "src/identity.ts": 1,
+    "src/index.ts": 1
+  },
   "mcp": {
     "src/leg.ts": 3
   }
