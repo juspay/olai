@@ -19,19 +19,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # THE CLIENT IS PINNED TO A COMMIT, and it is deliberately NOT this
-  # checkout's npins pin: the pin the grafted @odu/* sources come from is the
-  # revision kolu's closure was built against (nix/kolu.nix refuses a
-  # mismatch), and it has no cache verbs at all. The client here moves on its
-  # own schedule, and deliberately.
-  #
-  # This is the release that makes the step's exit code mean something: a path
-  # the bucket accepts and cannot serve yet — its references are upstream-
-  # signed, so the bucket fetches them itself — is reported as HELD and leaves
-  # the command at 0, while a real refusal or a byte-level disagreement is a
-  # failure. It also chunks a NAR, so a multi-hundred-megabyte store path is
-  # not one request's fate.
-  ODU_REV: 150ad5e97503d53f0ad6ea4fdc7edd385ede212b
+  # THE CLIENT IS PINNED TO A COMMIT, and to the release the bucket's daemon
+  # runs: `odu cache` is a client of the cache's own HTTP API, and a client
+  # from before the object store speaks a shape that daemon no longer
+  # answers — a NAR whose narinfo the server hashes its own way is a 400, not
+  # a push. It is deliberately NOT this checkout's npins pin either: that is
+  # the odu revision kolu's grafted @odu/* sources were built against
+  # (nix/kolu.nix refuses a mismatch) and has no cache verbs at all.
+  ODU_REV: 10f28d029852d96c6fe352c3f0d50a31ce2a79ae
   # THE BUCKET'S NAME, for writers and readers alike — the same URL the flake
   # hands every user. If it misbehaves the run is red: a cache that cannot be
   # written is a fact this job reports, not one it routes around.
@@ -71,10 +66,9 @@ jobs:
       # ODU PUSHES. `odu cache push` expands the closure of every path it is
       # given, asks the bucket what it is missing in ONE query — dropping what
       # an upstream key signed, so nixpkgs never costs an upload — and uploads
-      # in dependency order. A path the bucket accepted and cannot serve yet,
-      # because a reference it will not accept from us has not been fetched by
-      # the bucket, is reported as HELD and is not this step's failure; a path
-      # that was refused, or whose bytes disagreed with its narinfo, is.
+      # in dependency order. It exits 0 only when nothing was refused: a path
+      # the bucket does not take, or bytes that disagree with their narinfo,
+      # fails this step and names the path.
       - name: Build and push every flake output
         shell: bash
         env:
@@ -117,6 +111,12 @@ jobs:
           # bucket's upstream filter drops anything already on cache.nixos.org,
           # and `odu cache push` expands each path's own closure, so this is
           # the list of ROOTS, not of every path.
+          #
+          # `.drv` FILES ARE FILTERED OUT. `nix-store -qR --include-outputs` on
+          # a deriver answers that deriver's whole input graph, recipes and
+          # all, and a binary cache serves outputs: pushing one is refused with
+          # "is a derivation — a cache serves outputs". The OUTPUTS of those
+          # inputs are what a rebuild actually substitutes, and they stay.
           {
             printf '%s\n' "$paths"
             while IFS= read -r p; do
@@ -124,7 +124,7 @@ jobs:
               [ -n "$drv" ] && [ "$drv" != unknown-deriver ] || continue
               nix-store -qR --include-outputs "$drv"
             done <<< "$paths"
-          } | awk 'NF && !seen[$0]++' > "$RUNNER_TEMP/roots"
+          } | awk 'NF && !seen[$0]++ && $0 !~ /\.drv$/' > "$RUNNER_TEMP/roots"
           # BATCHED, because a full flake's roots are several thousand store
           # paths and one argv would pass macOS's 1 MiB ARG_MAX. Batching is
           # safe rather than merely convenient: the pusher expands each batch's
