@@ -1234,6 +1234,22 @@ Then("the chat shows a refusal", async function (this: OlaiWorld) {
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
+Then("the chat refusal says {string}", async function (this: OlaiWorld, said: string) {
+  await this.waitUntil(
+    async () => {
+      const line = this.chat(CHAT_REFUSAL).first();
+      return (await line.count()) > 0 && (await line.innerText()).includes(said);
+    },
+    `the chat refusal to say ${JSON.stringify(said)}`,
+  );
+});
+
+// Read once the refusal is known to be up — the step above has waited for it.
+Then("the chat refusal does not say {string}", async function (this: OlaiWorld, unsaid: string) {
+  const text = await this.chat(CHAT_REFUSAL).first().innerText();
+  assert.ok(!text.includes(unsaid), `the chat refusal says ${JSON.stringify(unsaid)}: ${JSON.stringify(text)}`);
+});
+
 Then("the chat shows no refusal", async function (this: OlaiWorld) {
   // The scenario establishes completion before checking the transcript.
   // That receipt need not be a successful write: web refusals stay local too.
@@ -4295,6 +4311,13 @@ Then("the model list is back at the top", async function (this: OlaiWorld) {
 
 Given("the agent refuses model changes", async function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.refuseModel), "");
+});
+
+// The scripted agent refuses exactly one row this way, the Fable one; the name
+// is in the step so the scenario reads as what a person picked.
+Given("the agent refuses {string} for this account", async function (this: OlaiWorld, model: string) {
+  assert.strictEqual(model, "Fake Fable", "the scripted agent refuses only its Fable row per account");
+  fs.writeFileSync(path.join(this.scratch(), MARKER.refuseModelByAccount), "");
 });
 
 Then("the model picker is disabled", async function (this: OlaiWorld) {

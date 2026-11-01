@@ -2232,6 +2232,23 @@ Feature: Talking to a node agent
     Then the panel header names the model "Fake One"
 
   @scratch:chat
+  Scenario: A model the account is not entitled to says so, in the agent's words
+    # The real Claude adapter answers every refused switch with -32603
+    # "Internal error" and keeps the CLI's sentence in `data.details`. The
+    # person reads the sentence — never the code word — and nothing else moves.
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    Given the agent refuses "Fake Fable" for this account
+    When I choose the chat model "Fake Fable"
+    Then the chat refusal says "Fake Fable isn't available for your account yet"
+    And the chat refusal does not say "Internal error"
+    And the panel header names the model "Fake One"
+    When I choose the chat model "Fake Two"
+    Then the panel header names the model "Fake Two"
+    When I ask the agent "hello"
+    Then the panel header names the model "Fake Two"
+
+  @scratch:chat
   Scenario: Model selection waits for the running turn to finish
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
@@ -2302,7 +2319,7 @@ Feature: Talking to a node agent
     Then the model picker offers only "Fake Haiku"
     When I press "Escape" in the model filter
     And I open the session settings
-    Then the model picker offers only "Fake One, Fake Two, Fake Sonnet, Fake Haiku, Fake Opus (1M context)"
+    Then the model picker offers only "Fake One, Fake Two, Fake Sonnet, Fake Haiku, Fake Opus (1M context), Fake Fable"
 
   @scratch:chat
   Scenario: Claude's olai write has its title, outline, clickable story and one reply

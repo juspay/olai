@@ -855,7 +855,14 @@ const MODEL_ROWS = [
   { value: "sonnet", name: "Fake Sonnet" },
   { value: "haiku", name: "Fake Haiku" },
   { value: "opus[1m]", name: "Fake Opus (1M context)" },
+  { value: "fable", name: "Fake Fable" },
 ]
+
+/** What the pinned Claude CLI says when `set_model` names a model the account
+ *  is not entitled to (`fable_unavailable`), as the adapter forwards it: the
+ *  SDK's `errorToResult` makes the thrown `Error` a `-32603` and keeps the
+ *  sentence in `data.details`. Armed by {@link MARKER.refuseModelByAccount}. */
+const FABLE_UNAVAILABLE = "Fake Fable isn't available for your account yet. Run /model to pick another model."
 
 /**
  * THE PIN this agent boots on — its `settings.json`, in effect.
@@ -3890,6 +3897,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       }
       if (!OFFERED.has(value)) {
         refuse(id, -32602, `Invalid value for config option model: ${value}`)
+        return
+      }
+      if (value === "fable" && existsSync(`${cwd}/${MARKER.refuseModelByAccount}`)) {
+        refuse(id, -32603, "Internal error", { details: FABLE_UNAVAILABLE })
         return
       }
       currentModel = value
