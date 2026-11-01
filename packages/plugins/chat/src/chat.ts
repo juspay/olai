@@ -754,6 +754,10 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
   // The handshake, which is olai asking rather than the agent volunteering —
   // and which happens before any turn, so it could not be evidence about one.
   advertised: "neither",
+  // WHO THE AGENT IS SIGNED IN AS: a fact about the process, said at the
+  // handshake, at each session opened, and mid-turn when the agent re-reads
+  // its own identity. It is never evidence that these words produced anything.
+  identity: "neither",
   servers: "neither",
   model: "neither",
   models: "neither",
@@ -1608,6 +1612,14 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // with nobody bound is a handshake that finished after its agent was
           // swapped out, and there is nobody for it to be about.
           rebind()
+          return
+        case "identity":
+          // THE WHOLE VALUE, replaced rather than merged, and `null` is a
+          // statement of its own — the agent's process ended, so it is no
+          // longer reporting — rather than a no-op. That is why the arm exists
+          // beside `move`'s ordinary partials: the absence of a chip has to be
+          // sayable.
+          move({ identity: event.identity })
           return
         case "servers":
           // A fact about the conversation, so it lands on the cell beside the

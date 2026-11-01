@@ -26,7 +26,7 @@ import type {
   ToolStatus,
   Json,
 } from "olai-plugin-chat/wire"
-import type { AskField, AskLink, AskOutcome, FileDiff, Usage } from "@olai/acp/wire"
+import type { AskField, AskLink, AskOutcome, AuthStatus, FileDiff, Usage } from "@olai/acp/wire"
 /** A slash command the agent offers. */
 export interface Command {
   readonly name: string
@@ -289,6 +289,27 @@ export type AgentEvent =
    */
   | { readonly _tag: "signIn"; readonly signIn: SignIn | null }
   | { readonly _tag: "servers"; readonly servers: ReadonlyArray<ChatServer> }
+  /**
+   * WHO THE AGENT PROCESS IS SIGNED IN AS, as the agent itself last said — or
+   * `null` when nobody is reporting, which is a different thing from a known
+   * logged-out state ({@link AuthStatus}'s `kind: "none"`).
+   *
+   * A FACT ABOUT THE PROCESS, not about the session: the notification is
+   * connection-scoped and arrives at the handshake, at each session opened, and
+   * mid-turn when the agent re-reads its own identity at the start of a prompt.
+   * So it is emitted without the session fence every other frame goes through
+   * — there is no session to be "elsewhere" from — and it outlives a
+   * conversation, because reopening one is the same subprocess and both
+   * adapters suppress an unchanged report. It is cleared (`null`) when the
+   * process ends.
+   *
+   * SILENCE IS NOT AN ANSWER. An agent that never advertises
+   * (`agentCapabilities._meta.authStatus`) and never pushes leaves this `null`
+   * for the life of the panel, and the header draws no chip at all; the
+   * protocol extension is engine-agnostic, so an engine that starts reporting
+   * gets the chip with nothing here changed.
+   */
+  | { readonly _tag: "identity"; readonly identity: AuthStatus | null }
   /** The model this session runs, labelled the way the agent labels its own. */
   | { readonly _tag: "model"; readonly name: string | null }
   | { readonly _tag: "models"; readonly choices: ReadonlyArray<{ readonly value: string; readonly name: string }> }

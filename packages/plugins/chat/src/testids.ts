@@ -251,6 +251,14 @@ export const TESTID = {
    *  name. `data-mark` says which one was drawn — the agent's own, or the
    *  generic one an agent olai has no mark for gets. */
   chatAgentMark: "chat-agent-mark",
+  /** WHO the agent is signed in as, after its name (`Claude Max ·
+   *  you@example.com`, or `Not signed in`). Absent for an agent that does not
+   *  report its identity at all, which is a different state from a known
+   *  logged-out one — and the absence is what a scenario asserts about the
+   *  engines that stay silent. `data-kind` is the agent's own kind, or
+   *  `unknown` for one this build has no word for; a button when the agent
+   *  offered a way in, and a plain label otherwise. */
+  chatIdentity: "chat-identity",
   /** WHO IS TALKING, over the first row of their run in the transcript — a mark
    *  and a name ({@link ./browser/chat/Speaker.tsx}). `data-speaker` is which of the
    *  three parties (`human`, `agent`, `plugin`) and `data-speaker-name` is what
@@ -468,6 +476,11 @@ export const TESTID = {
   chatSignInCancel: "chat-sign-in-cancel",
   /** The way back into an attempt that ran and failed. */
   chatSignInRetry: "chat-sign-in-retry",
+  /** WHO IS SIGNED IN NOW, over the chooser's buttons — the agent's own account
+   *  of itself, so a person switching accounts can see which one they are about
+   *  to leave. Absent when the agent has not reported an identity (and when the
+   *  known state is nobody signed in, where the chooser is the whole answer). */
+  chatSignInCurrent: "chat-sign-in-current",
   /** A tool call's row; `data-tool-status` is the agent's own status. */
   chatTool: "chat-tool",
   /** The line that opens a tool call. Named rather than found as "the button

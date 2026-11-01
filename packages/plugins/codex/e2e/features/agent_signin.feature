@@ -19,6 +19,9 @@ Feature: Signing in to Codex from inside olai
     Then the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "Authentication required"
     And the panel offers a sign-in
+    # NOBODY IS SIGNED IN, and the fake says so: the chooser names no current
+    # account rather than claiming one over the missing signature.
+    And the sign-in names no current account
     And the sign-in offers "chat-gpt-device-code"
     # AN `env_var` METHOD IS NOT OFFERED: a credential box is a feature this
     # panel does not have, and a button that could not finish what it started
@@ -39,6 +42,47 @@ Feature: Signing in to Codex from inside olai
     # the face that said it could not be opened goes with it.
     And the panel shows no such refusal
     And the agent is idle
+
+  @signin
+  Scenario: The agent line says which account the agent is signed in as
+    Given I open the app
+    And I show the done nodes
+    And I open the outline "lanes.olai"
+    When I open the "codex" agent on node "lane-fresh"
+    And the node agent's fold is ready
+    Then the agent line says who is signed in as "ChatGPT Plus · you@example.com"
+    # THE CHIP OPENS THE CHOOSER and names the account it would change.
+    When I press the account in the agent line
+    Then the panel offers a sign-in
+    And the sign-in names the current account "ChatGPT Plus · you@example.com"
+    When I press the sign-in for "chat-gpt-device-code"
+    Then the card sends them to "chatgpt.com"
+    When the person finishes signing in
+    Then the panel offers no sign-in
+    # THE DEVICE-CODE SIGN-IN IS THE AGENT'S OWN, and it reports who it became:
+    # the chip moves without either tab asking.
+    And the agent line says who is signed in as "ChatGPT Plus · signed-in@example.com"
+
+  @signin
+  Scenario: An account switched elsewhere is what the next turn runs as
+    Given I open the app
+    And I show the done nodes
+    And I open the outline "lanes.olai"
+    When I open the "codex" agent on node "lane-fresh"
+    And the node agent's fold is ready
+    Then the agent line says who is signed in as "ChatGPT Plus · you@example.com"
+    When the agent reports it is signed in as:
+      """
+      {"kind":"account","label":"ChatGPT Plus","account":{"email":"work@example.com","plan":"plus"}}
+      """
+    And I ask the agent "hello"
+    Then the agent line says who is signed in as "ChatGPT Plus · work@example.com"
+    When the agent reports it is signed in as:
+      """
+      {"kind":"none","label":"Not logged in"}
+      """
+    And I ask the agent "hello"
+    Then the agent line says nobody is signed in
 
   @signin
   Scenario: Backing out of a device-code sign-in leaves nothing running
@@ -82,6 +126,9 @@ Feature: Signing in to Codex from inside olai
     When I open the plugins panel
     And I switch the plugin "codex" off
     Then the panel offers no sign-in
+    # ... AND THE ACCOUNT GOES WITH THE PROCESS: the chip described a
+    # subprocess that is now stopped.
+    And the agent line names no account
     # Back on, for the scenarios after this one: the switch is remembered by the
     # scratch vault. The agent the card belonged to does not come back with it.
     When I switch the plugin "codex" on

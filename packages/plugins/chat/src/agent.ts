@@ -114,9 +114,11 @@ import type {
   ToolCallLocation,
 } from "@agentclientprotocol/sdk"
 import {
+  AUTH_STATUS_METHOD,
   diffsOf,
   type Form,
   formOf,
+  identityIn,
   PERMISSION_FIELD,
   permissionFormOf,
   Refused,
@@ -127,7 +129,7 @@ import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
 import type { AuthMethod, ChatServer, SignIn, SignInLink } from "olai-plugin-chat/wire"
 import type { Reported } from "@olai/acp/engine"
-import type { AskAnswer } from "@olai/acp/wire"
+import type { AskAnswer, AuthStatus } from "@olai/acp/wire"
 import { Cause, Clock, Schema, Data, type Duration, Effect, Fiber, References, Semaphore } from "effect"
 
 import type { Leg, Meta, ModelReading } from "@olai/acp/engine"
@@ -791,6 +793,53 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      */
     let offered: ReadonlyArray<Offered> = []
 
+    /**
+     * WHO THIS AGENT PROCESS IS SIGNED IN AS, as the agent itself last said —
+     * or `null` for one that has said nothing (`AuthStatus`'s own account of
+     * the difference from `kind: "none"`).
+     *
+     * A FACT ABOUT THE PROCESS rather than about the conversation, which is
+     * why it is read on a connection-scoped notification with no session fence
+     * and held here for as long as the subprocess lives. The panel shows it in
+     * the agent line, so a person switching between two Claude Code accounts
+     * can see which one a conversation is about to run on before typing into
+     * it.
+     *
+     * HELD AND ALSO EMITTED, because the event is what moves the panel's cell:
+     * this field is the agent's own copy, kept so the process's teardown can
+     * say `null` — and say it only when there is a chip to take away.
+     *
+     * IT OUTLIVES A CONVERSATION. Replacing or reloading a session keeps the
+     * same subprocess and the same account, and both pinned adapters suppress
+     * a report whose payload has not changed — so clearing it on the way into
+     * a conversation would lose the fact for good ({@link forgetIdentity}).
+     */
+    let identity: AuthStatus | null = null
+
+    /** The one writer of {@link identity}: a report replaces the whole value,
+     *  and a payload with no usable label is not a report at all
+     *  ({@link identityIn}). */
+    const readIdentity = (params: unknown): void => {
+      const next = identityIn(params)
+      if (next === null) return
+      identity = next
+      emit({ _tag: "identity", identity: next })
+    }
+
+    /** ... and the way it goes: the process is over. `null` is a fact of its
+     *  own — not reported — and the next process's first report puts the chip
+     *  back. Emitted only when there was something to clear, so an engine that
+     *  never reports pays nothing.
+     *
+     * NOT on {@link leaving}: a conversation being replaced or reloaded is the
+     * same subprocess, and the value is still true for it. The two teardown
+     * sites call this — the exit handler and {@link stopWithReason}. */
+    const forgetIdentity = (): void => {
+      if (identity === null) return
+      identity = null
+      emit({ _tag: "identity", identity: null })
+    }
+
     /** THE SIGN-IN IN FLIGHT, if any ({@link Attempt}). */
     let attempt: Attempt | null = null
 
@@ -881,7 +930,15 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  about the calls they named, which model the CLI said it was running, and
      *  the servers it was running them over. One function, because "this
      *  session is finished" is one fact and four call sites remembering four
-     *  things each is how one of them ends up remembering three. */
+     *  things each is how one of them ends up remembering three.
+     *
+     * WHAT DOES NOT GO IS {@link identity}: who the PROCESS is signed in as is
+     * not keyed to a conversation, and both pinned adapters suppress a report
+     * whose payload has not changed. Clearing it here lost the fact for good on
+     * the path Codex takes — a sign-in pushes the new account, then the reopen
+     * that follows clears it, and the session opened afterwards has nothing new
+     * to say. The process ending is what clears it ({@link forgetIdentity} at
+     * the two teardown sites). */
     const leaving = (): void => {
       // Named first, while `session` is still the one being left: the four
       // call sites used to null it and THEN call this, which made the closed
@@ -1761,6 +1818,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // out. {@link leaving} names the session being left, so it runs
             // before `session` is cleared.
             leaving()
+            // ... AND WHO IT WAS SIGNED IN AS goes with the PROCESS, not with
+            // the conversation: a conversation is reopened under the same
+            // subprocess, and both adapters suppress an unchanged report, so
+            // clearing it on the way into one would lose it for good.
+            forgetIdentity()
             activeSession = null
           }
           tell(
@@ -1786,6 +1848,29 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           .onNotification(methods.client.session.update, (context) => {
             onUpdate(context.params)
           })
+          // THE AGENT'S OWN ACCOUNT OF WHO IT IS — for EVERY engine, and with
+          // no session fence, because the notification is CONNECTION-scoped:
+          // it carries no `sessionId`, and the fact belongs to the process
+          // rather than to whichever conversation that process happens to
+          // hold. So this is the one notification that does not go through
+          // `elsewhere` — asking "whose session is this" would be a question
+          // the payload does not answer, and a push arriving mid-turn about
+          // the account that turn runs as is exactly the news wanted.
+          //
+          // Custom method, so the SDK wants a parser; there is nothing to
+          // validate beyond "it is an object", and {@link identityIn} does the
+          // reading (`@olai/acp`). Subscribed unconditionally rather than off
+          // the handshake marker, because the protocol says a client that
+          // never saw the marker still accepts the notification — and the
+          // empty `agentCapabilities._meta.authStatus` marker is therefore
+          // informational and deliberately not read here.
+          .onNotification(
+            AUTH_STATUS_METHOD,
+            (params: unknown) => params,
+            (context) => {
+              readIdentity(context.params)
+            },
+          )
         const stream = streamOver(child)
         const extension = activity === null ? { stream, clientMeta: {} } : nativeActivity(opened, stream, ({ session, update }) => {
           if (!fromElsewhere(sessionRoot(session), activeSession, closed)) activity.read(session, update)
@@ -3085,6 +3170,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const signing = attempt
       if (signing !== null) signing.stopping = true
       leaving()
+      // ... AND WHO IT WAS SIGNED IN AS, because this is the process going:
+      // the panel must not keep a chip for a subprocess it has just stopped.
+      forgetIdentity()
       activeSession = null
       // Close the protocol and process before joining requests waiting on it.
       if (at !== null) at.connection.close()

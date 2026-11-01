@@ -610,10 +610,11 @@ export const faces = {
  * WHAT DOES NOT COME THROUGH IT is the vocabulary chat only PASSES ON.
  * `OpFailure`, `UsageFailure`, `BusyFailure`, `isOpFailure` and `kindOf` are
  * `@olai/format`'s; `AskAnswer`, `AskChoice`, `AskField`, `AskOutcome`,
- * `FileDiff`, `Usage` and `YES_NO` are `@olai/acp/wire`'s. A reader that wants
- * one of those goes to the package that owns it — a plugin re-publishing the
- * floor's words would put the fence's own arrow through: a general package
- * importing a refusal shape from a row is a general package importing a row.
+ * `AuthStatus`, `FileDiff`, `Usage` and `YES_NO` are `@olai/acp/wire`'s. A
+ * reader that wants one of those goes to the package that owns it — a plugin
+ * re-publishing the floor's words would put the fence's own arrow through: a
+ * general package importing a refusal shape from a row is a general package
+ * importing a row.
  */
 export * from "./wire/session.ts"
 export * from "./wire/agents.ts"
