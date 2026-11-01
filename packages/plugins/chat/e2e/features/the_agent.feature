@@ -2233,12 +2233,13 @@ Feature: Talking to a node agent
 
   @scratch:chat
   Scenario: A model the account is not entitled to says so, in the agent's words
-    # The real Claude adapter answers every refused switch with -32603
-    # "Internal error" and keeps the CLI's sentence in `data.details`. The
-    # person reads the sentence — never the code word — and nothing else moves.
+    # The pinned Claude adapter (0.81.2) answers every refused switch with
+    # -32603 "Internal error" and keeps the CLI's sentence in `data.details`.
+    # The person reads the sentence — never the code word — and nothing else
+    # moves.
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    Given the agent refuses "Fake Fable" for this account
+    Given the signed-in account may not use the model "fable"
     When I choose the chat model "Fake Fable"
     Then the chat refusal says "Fake Fable isn't available for your account yet"
     And the chat refusal does not say "Internal error"

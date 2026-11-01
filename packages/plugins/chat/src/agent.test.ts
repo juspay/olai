@@ -234,6 +234,8 @@ describe("what a refusal says", () => {
     expect(refusalData(undefined)).toBeUndefined()
     expect(refusalData({ details: "no" })).toBe("{\"details\":\"no\"}")
     expect(refusalData({ details: "x".repeat(10_000) })!.length).toBeLessThan(2100)
+    // `String(data)` IS the fallback's shape, on purpose: a value JSON cannot
+    // take still gets a line, and the record must never be what throws.
     const cycle: Record<string, unknown> = {}
     cycle.self = cycle
     expect(refusalData(cycle)).toBe("[object Object]")

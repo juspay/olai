@@ -4313,11 +4313,10 @@ Given("the agent refuses model changes", async function (this: OlaiWorld) {
   fs.writeFileSync(path.join(this.scratch(), MARKER.refuseModel), "");
 });
 
-// The scripted agent refuses exactly one row this way, the Fable one; the name
-// is in the step so the scenario reads as what a person picked.
-Given("the agent refuses {string} for this account", async function (this: OlaiWorld, model: string) {
-  assert.strictEqual(model, "Fake Fable", "the scripted agent refuses only its Fable row per account");
-  fs.writeFileSync(path.join(this.scratch(), MARKER.refuseModelByAccount), "");
+// The marker names the picker VALUE the account may not use; the scripted agent
+// refuses exactly that row and switches every other.
+Given("the signed-in account may not use the model {string}", async function (this: OlaiWorld, value: string) {
+  fs.writeFileSync(path.join(this.scratch(), MARKER.refuseModelByAccount), value);
 });
 
 Then("the model picker is disabled", async function (this: OlaiWorld) {

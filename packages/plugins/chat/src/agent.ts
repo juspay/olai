@@ -751,9 +751,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     /** Every request this agent makes, with its refusals on the record: ONE
-     *  WARN per rejection the agent answered with, carrying the code and the
+     *  line per rejection the agent answered with, carrying the code and the
      *  `data` the sentence was read out of ({@link saidOf}) — so a report of a
-     *  refused click is diagnosable from the log alone. */
+     *  refused click is diagnosable from the log alone.
+     *
+     *  INFO for the ordinary refusals — a signed-out `session/new`, a steer
+     *  not taken, a load of a conversation the agent no longer has — which
+     *  are already on screen in the agent's words and are the normal course
+     *  of a session. WARN only for `-32603`: an agent calling its own answer
+     *  an internal error is the one case where the log must carry more than
+     *  the screen. */
     const ask = (
       connection: ClientConnection,
       method: string,
@@ -762,7 +769,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     ): Effect.Effect<unknown, AgentGone> =>
       request(
         (refusedMethod, cause) =>
-          tell(Effect.logWarning("the agent refused a request"), {
+          tell((cause.code === INTERNAL_ERROR ? Effect.logWarning : Effect.logInfo)("the agent refused a request"), {
             method: refusedMethod,
             code: cause.code,
             ...(cause.data === undefined ? {} : { data: refusalData(cause.data) }),
@@ -3459,6 +3466,10 @@ export const saidOf = (cause: unknown): string => {
   }
   return reasonOf(cause)
 }
+
+/** JSON-RPC's "Internal error" — what the SDK's `errorToResult` answers any
+ *  thrown `Error` with, and so the one refusal code the log raises to WARN. */
+const INTERNAL_ERROR = -32603
 
 /** How much of a refusal's `data` reaches the log: enough for any sentence an
  *  adapter writes, not enough for an agent that echoes a whole payload back. */

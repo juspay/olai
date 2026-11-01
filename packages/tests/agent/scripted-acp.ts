@@ -858,11 +858,23 @@ const MODEL_ROWS = [
   { value: "fable", name: "Fake Fable" },
 ]
 
+/** The picker value the signed-in account may not use, if a scenario named
+ *  one in {@link MARKER.refuseModelByAccount}; read per request, like the
+ *  other markers, so a scenario can arm it after the agent has booted. */
+const refusedForAccount = (): string | null => {
+  try {
+    return readFileSync(`${cwd}/${MARKER.refuseModelByAccount}`, "utf8").trim() || null
+  } catch {
+    return null
+  }
+}
+
 /** What the pinned Claude CLI says when `set_model` names a model the account
- *  is not entitled to (`fable_unavailable`), as the adapter forwards it: the
- *  SDK's `errorToResult` makes the thrown `Error` a `-32603` and keeps the
- *  sentence in `data.details`. Armed by {@link MARKER.refuseModelByAccount}. */
-const FABLE_UNAVAILABLE = "Fake Fable isn't available for your account yet. Run /model to pick another model."
+ *  is not entitled to (`fable_unavailable`), as the adapter (0.81.2) forwards
+ *  it: the SDK's `errorToResult` makes the thrown `Error` a `-32603` and keeps
+ *  the sentence in `data.details`. */
+const unavailableFor = (name: string): string =>
+  `${name} isn't available for your account yet. Run /model to pick another model.`
 
 /**
  * THE PIN this agent boots on — its `settings.json`, in effect.
@@ -3899,8 +3911,9 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         refuse(id, -32602, `Invalid value for config option model: ${value}`)
         return
       }
-      if (value === "fable" && existsSync(`${cwd}/${MARKER.refuseModelByAccount}`)) {
-        refuse(id, -32603, "Internal error", { details: FABLE_UNAVAILABLE })
+      if (value === refusedForAccount()) {
+        const name = MODEL_ROWS.find(row => row.value === value)?.name ?? value
+        refuse(id, -32603, "Internal error", { details: unavailableFor(name) })
         return
       }
       currentModel = value

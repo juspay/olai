@@ -109,9 +109,10 @@ export const speaking = (emit: (message: unknown) => void, prefix: string) => {
 export const MARKER = {
   /** Refuse model configuration without changing the active model. */
   refuseModel: ".agent-refuse-model",
-  /** Refuse ONLY the Fable row, the way the real Claude adapter refuses a model
-   *  the signed-in account is not entitled to: `-32603 "Internal error"` with
-   *  the CLI's own sentence in `data.details`. Every other row still switches. */
+  /** Refuse ONE picker row — the value this file names — the way the real
+   *  Claude adapter refuses a model the signed-in account is not entitled to:
+   *  `-32603 "Internal error"` with the CLI's own sentence in `data.details`.
+   *  Every other row still switches. */
   refuseModelByAccount: ".agent-refuse-model-by-account",
   /** Let a held turn — or a held open — go on. */
   release: ".agent-release",
