@@ -32,7 +32,7 @@
  * wrong.
  */
 
-import { appendFileSync } from "node:fs"
+import { appendFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { MARKER } from "../support/scripted.ts"
@@ -113,6 +113,22 @@ const login = async (): Promise<void> => {
     // a real login keeps, since a client that reopened the conversation on the
     // exit would otherwise race the file.
     appendFileSync(credential(), "")
+    // ... AND WHO THE PROCESS IS NOW, in the same directory and the same order.
+    // The scripted agent reads it at the next session opened and at the start
+    // of the next prompt, so the panel's account chip changes after a sign-in
+    // without this process needing to know which read will notice first. A
+    // DIFFERENT EMAIL from the default account, deliberately: the two Claude
+    // Code accounts this feature exists for are told apart by exactly this
+    // field, and a scenario asserts the chip moved from one address to the
+    // other.
+    writeFileSync(
+      join(process.cwd(), MARKER.identity),
+      JSON.stringify({
+        kind: "account",
+        label: "Claude Max",
+        account: { email: "signed-in@example.com", organization: "Olai", plan: "max" },
+      }),
+    )
     said("Logged in.")
     process.exit(0)
   }

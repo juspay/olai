@@ -31,10 +31,12 @@ import { oneLine } from "@olai/tests/harness/world.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 import {
+  CHAT_IDENTITY,
   CHAT_LINK,
   CHAT_LINK_OPEN,
   CHAT_SIGN_IN,
   CHAT_SIGN_IN_CANCEL,
+  CHAT_SIGN_IN_CURRENT,
   CHAT_SIGN_IN_INPUT,
   CHAT_SIGN_IN_OUTPUT,
   CHAT_SIGN_IN_RETRY,
@@ -55,6 +57,74 @@ Given("the agent needs a sign-in", function (this: OlaiWorld) {
 
 When("the person finishes signing in", function (this: OlaiWorld) {
   mark(this, MARKER.atThePage);
+});
+
+/**
+ * REWRITE THE ACCOUNT THE AGENT REPORTS, the way a sign-in in another terminal
+ * does — the raw `AuthStatus` the agent's own probe would have read.
+ *
+ * Written as JSON rather than as a canned name because the two states a
+ * scenario needs are not both accounts: `{"kind":"none","label":"Not logged
+ * in"}` is a REPORT of nobody being signed in, and a step that could only spell
+ * an email would leave that case unreachable.
+ */
+When("the agent reports it is signed in as:", function (this: OlaiWorld, identity: string) {
+  fs.writeFileSync(path.join(this.scratch(), MARKER.identity), identity);
+});
+
+Then("the agent line says who is signed in as {string}", async function (this: OlaiWorld, said: string) {
+  await this.waitUntil(
+    async () => {
+      const chip = this.chat(CHAT_IDENTITY);
+      if ((await chip.count()) === 0) return false;
+      return oneLine(await chip.innerText()) === said;
+    },
+    `the agent line to say "${said}"`,
+    HYDRATION_TIMEOUT,
+  );
+});
+
+/** THE KNOWN LOGGED-OUT STATE, which is a chip and not an absence — the whole
+ *  distinction the protocol draws between `kind: "none"` and silence. */
+Then("the agent line says nobody is signed in", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => {
+      const chip = this.chat(CHAT_IDENTITY);
+      if ((await chip.count()) === 0) return false;
+      return oneLine(await chip.innerText()) === "Not signed in";
+    },
+    "the agent line to say nobody is signed in",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+/** ... AND THE OTHER HALF: an engine that never reports draws nothing, which a
+ *  scenario asserts by the chip's absence rather than by its words. */
+Then("the agent line names no account", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.chat(CHAT_IDENTITY).count()) === 0,
+    "the agent line to draw no account",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+/** THE CHIP IS A DOOR: pressing it asks for the same chooser `/login` does. */
+When("I press the account in the agent line", async function (this: OlaiWorld) {
+  const chip = this.chat(CHAT_IDENTITY);
+  await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await chip.click();
+});
+
+Then("the sign-in names the current account {string}", async function (this: OlaiWorld, said: string) {
+  await this.waitUntil(
+    async () => {
+      const line = this.chat(CHAT_SIGN_IN_CURRENT);
+      if ((await line.count()) === 0) return false;
+      return oneLine(await line.innerText()).includes(said);
+    },
+    `the chooser to name "${said}"`,
+    HYDRATION_TIMEOUT,
+  );
 });
 
 /** One method's button, by the id it is pressed with — so a scenario names a

@@ -40,6 +40,17 @@ Feature: Choosing a node agent's engine
     And the header draws that agent's own mark
     And the chat input takes typing
 
+  @opencode @scratch:chat
+  Scenario: An engine that reports no account draws no chip
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # SILENCE IS NOT LOGGED OUT. opencode's fake never advertises or pushes
+    # `_auth/status_update`, so the agent line says nothing about an account —
+    # where the engines that do report say who, and a known logged-out state
+    # says `Not signed in`.
+    Then the agent line names no account
+    And the header names the agent "opencode"
+
   @scratch:chat
   Scenario: One installed agent is not a choice
     When I open the "claude" agent on node "kitchen"

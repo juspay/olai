@@ -475,14 +475,15 @@ the other half of that contract: `authMethods` in its handshake, an
 verbs that can refuse for want of a signature (`session/new`, `session/load`, a
 turn).
 
-- **`packages/plugins/claude/e2e/features/agent_signin.feature`** (12 scenarios,
+- **`packages/plugins/claude/e2e/features/agent_signin.feature`** (14 scenarios,
   the terminal kind, on the `chat` corpus): the handed-over command runs, prints its URL as a
   *clickable link*, reads a code and exits 0; a code it does not accept is
   answered and asked for again with the process still up; a code that fails the
   attempt outright leaves the output on screen as the failure with a way to try
   again; cancelling takes the row away and (proved by a second attempt starting
   afresh rather than attaching) stops what was running; two browser tabs watch
-  one attempt and either can finish it; a REFUSED TURN leaves the message marked
+  one attempt and either can finish it — and read the same account chip, before
+  and after the sign-in; a REFUSED TURN leaves the message marked
   *not sent*, hands its words back to the composer, and the sign-in reopens the
   same conversation with the box still holding them; and an agent that advertised
   no method gets `/login` delivered as an ordinary message with no row; and a
@@ -492,8 +493,9 @@ turn).
   account of "gone" that does not depend on how a process was asked to die. The
   gesture is the engine switch and not the fold's own close, and that distinction
   is worth pinning: closing an agent releases the node's binding and leaves its
-  scope to be evicted, so its subprocess is still there to be found.
-- **`packages/plugins/codex/e2e/features/agent_signin.feature`** (8 scenarios,
+  scope to be evicted, so its subprocess is still there to be found. The two
+  identity scenarios are below.
+- **`packages/plugins/codex/e2e/features/agent_signin.feature`** (10 scenarios,
   the agent kind, on the `lanes` corpus): a conversation refused for want of a
   signature is signed in to through the device-code card and opens itself
   afterwards — including that the `env_var` method the fake also advertises is
@@ -502,7 +504,8 @@ turn).
   starting afresh); and a mid-conversation refusal is signed in to, with the
   words handed back to the box; and a device-code sign-in running when its engine
   is switched off goes with it — the row is gone because the agent it belonged to
-  is, and the card can no longer arrive from a process that is not there.
+  is, and the card can no longer arrive from a process that is not there. The two
+  identity scenarios are below.
 - Both engines cover an auth-refused Chats `+`, a listed conversation resumed by its original id, and starting on an untouched node. Codex also covers a refused fresh start with stored conversations available, asserting the new session id and binding after sign-in. The first-start cases assert an engine-only binding before authentication; there is no fabricated session id. Node-addressed readings retain the refusal before any transcript exists. The untouched-node cases also cancel and retry, reload the page while authentication is still needed, and complete one terminal sign-in from another tab. Existing fresh-start and writable-history scenarios also caught a binding-delivery race: the new session could appear under the previous draft owner, so typing before the binding arrived lost those words. A node reader now waits for a session matching its draft owner before showing that session. The surface-client regression test also exercises in-place state reconciliation: while the binding lags, the reader exposes the opening state instead of retaining a mutable previous frame.
 - **`agent_signin_steps.ts`** is the vocabulary those two share, in the chat
   plugin because the feature is the panel's: arm the agent
@@ -510,6 +513,23 @@ turn).
   (`.agent-at-the-page`, which is the only way this suite can model a page it
   cannot visit), press a method by its ADVERTISED id, type into the process's
   own line, and read the row, the card and the link.
+- **The account chip** (`docs/chat.md` § Signing in) is covered by those two
+  files, because it is the same subject one step before a sign-in: the agent
+  line says `Claude Max · you@example.com` (or `ChatGPT Plus · …`) on an open
+  conversation; pressing the chip opens the chooser, which names the account it
+  would change; a completed terminal or device-code sign-in moves the chip to
+  the account the login wrote down; an account switched ELSEWHERE — the
+  `.agent-identity` marker rewritten under a running conversation — appears
+  after the next message, which is when both adapters re-read their identity;
+  `kind: "none"` reads `Not signed in` rather than disappearing; and two tabs
+  read the same chip, before and after the sign-in. The other state — an engine
+  that never reports — is asserted in `choosing_an_agent.feature` on the
+  `opencode` fake, which draws no chip at all; silence is "not reported", not
+  "nobody signed in". The fakes' half is `scripted-acp.ts` (the empty marker,
+  the flavour's default account, a push after `initialize`, at each session
+  open and at the start of every prompt, and only when the payload changed) and
+  the two sign-in paths that rewrite `.agent-identity` (`fake-login.ts` for the
+  terminal method, `authenticateDeviceCode` for the device code).
 - **The remote-signal strip is tested by construction, not by the machine's
   environment.** The claude fake is given `SSH_CONNECTION` on the server, and it
   mimics the pinned adapter's own test — on a "remote" session it offers only

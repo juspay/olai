@@ -41,6 +41,47 @@ Feature: Signing in to Codex from inside olai
     And the agent is idle
 
   @signin
+  Scenario: The agent line says which account the agent is signed in as
+    Given I open the app
+    And I show the done nodes
+    And I open the outline "lanes.olai"
+    When I open the "codex" agent on node "lane-fresh"
+    And the node agent's fold is ready
+    Then the agent line says who is signed in as "ChatGPT Plus · you@example.com"
+    # THE CHIP OPENS THE CHOOSER and names the account it would change.
+    When I press the account in the agent line
+    Then the panel offers a sign-in
+    And the sign-in names the current account "ChatGPT Plus · you@example.com"
+    When I press the sign-in for "chat-gpt-device-code"
+    Then the card sends them to "chatgpt.com"
+    When the person finishes signing in
+    Then the panel offers no sign-in
+    # THE DEVICE-CODE SIGN-IN IS THE AGENT'S OWN, and it reports who it became:
+    # the chip moves without either tab asking.
+    And the agent line says who is signed in as "ChatGPT Plus · signed-in@example.com"
+
+  @signin
+  Scenario: An account switched elsewhere is what the next turn runs as
+    Given I open the app
+    And I show the done nodes
+    And I open the outline "lanes.olai"
+    When I open the "codex" agent on node "lane-fresh"
+    And the node agent's fold is ready
+    Then the agent line says who is signed in as "ChatGPT Plus · you@example.com"
+    When the agent reports it is signed in as:
+      """
+      {"kind":"account","label":"ChatGPT Plus","account":{"email":"work@example.com","plan":"plus"}}
+      """
+    And I ask the agent "hello"
+    Then the agent line says who is signed in as "ChatGPT Plus · work@example.com"
+    When the agent reports it is signed in as:
+      """
+      {"kind":"none","label":"Not logged in"}
+      """
+    And I ask the agent "hello"
+    Then the agent line says nobody is signed in
+
+  @signin
   Scenario: Backing out of a device-code sign-in leaves nothing running
     Given I open the app
     And I show the done nodes

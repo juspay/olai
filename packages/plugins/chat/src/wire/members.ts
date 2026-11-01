@@ -57,6 +57,7 @@ import {
   AskField,
   AskLink,
   AskOutcome,
+  AuthStatus,
   FileDiff,
   Usage,
   YES_NO,
@@ -75,9 +76,10 @@ import { Schema } from "effect"
  * The ask vocabulary — and {@link FileDiff} and {@link Usage} below —
  * re-exported rather than declared.
  *
- * `AskChoice`, `AskField`, `AskAnswer`, `AskOutcome`, `YES_NO`, `FileDiff` and
- * `Usage` belong to `@olai/acp` now — they are ACP's elicitation, diff and
- * usage shapes in olai's spelling, and the package that speaks the protocol is
+ * `AskChoice`, `AskField`, `AskAnswer`, `AskOutcome`, `YES_NO`, `FileDiff`,
+ * `Usage` and `AuthStatus` belong to `@olai/acp` now — they are ACP's
+ * elicitation, diff, usage and identity shapes in olai's spelling, and the
+ * package that speaks the protocol is
  * the one that owns its words. They are re-exported HERE because they TRAVEL: the
  * transcript entry below carries them, the browser draws them, and consumers
  * keep importing them from the spec they already import everything else from
@@ -88,7 +90,7 @@ import { Schema } from "effect"
  * package with no protocol payload in it: the projections over ACP's own
  * payloads ride the main entry, and only `olai-plugin-chat` reads those.
  */
-export { AskAnswer, AskChoice, AskField, AskLink, AskOutcome, FileDiff, Usage, YES_NO }
+export { AskAnswer, AskChoice, AskField, AskLink, AskOutcome, AuthStatus, FileDiff, Usage, YES_NO }
 
 /**
  * A question the agent asked, and what became of it.
@@ -1882,6 +1884,28 @@ export const ChatState = Schema.Struct({
   /** The model a turn actually runs on, labelled the way the agent labels its
    *  own models. `null` until the agent has said. */
   model: Schema.NullOr(Schema.String),
+  /**
+   * WHO the agent process is signed in as, as the agent itself reports it — or
+   * `null` for an agent that does not report, which is most of them.
+   *
+   * BESIDE THE MODEL, and for the model's reason: both are facts about the
+   * agent a turn runs on rather than things that happened in the conversation,
+   * and both are what a person checks before typing into a conversation that
+   * might be somebody else's. The header draws it as a chip after the agent's
+   * name (`../browser/agents/AgentLine.tsx`).
+   *
+   * `null` and `kind: "none"` are DIFFERENT: the first is "this agent has not
+   * said and will not", and the panel draws nothing; the second is the agent
+   * looking and finding nobody signed in, and the panel says so. The protocol
+   * makes the same distinction on the wire, and conflating them would put "not
+   * signed in" over every engine that simply does not implement the extension.
+   *
+   * It is a fact about the PROCESS, reported on a connection-scoped
+   * notification, so it moves when the agent re-reads its own identity — at
+   * the handshake, when a session opens, and at the start of a turn. Two tabs
+   * see one value for the same reason they see one sign-in: the agent owns it.
+   */
+  identity: Schema.NullOr(AuthStatus),
   /** Model choices advertised by this session. Empty when unsupported. */
   models: Schema.Array(Schema.Struct({ value: Schema.String, name: Schema.String })),
   /**
@@ -2125,6 +2149,9 @@ export const CHAT_OFF: ChatState = {
   uploadScope: null,
   bound: null,
   model: null,
+  // NOT REPORTED: a page that has not been told anything is not a page whose
+  // agent said nobody is signed in, and the header draws no chip for it.
+  identity: null,
   models: [],
   usage: null,
   commands: [],

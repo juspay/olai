@@ -155,6 +155,20 @@ export const MARKER = {
   /** ... AND IT HAS BEEN: the credential a sign-in left behind. See
    *  {@link needsAuth}. */
   signedIn: ".agent-signed-in",
+  /** WHO THIS AGENT IS SIGNED IN AS, as the agent reports it — a JSON
+   *  `AuthStatus` (`{kind, label, detail?, account?}`), read at the handshake,
+   *  at each session opened and at the start of every prompt, exactly where
+   *  the pinned adapters read theirs.
+   *
+   *  ABSENT MEANS THE FLAVOUR'S DEFAULT ACCOUNT, not silence: both scripted
+   *  flavours report an identity (`./scripted-acp.ts`), because the panel's
+   *  chip is what a scenario reads and a fake with nothing to say could not
+   *  exercise it. A scenario that wants the KNOWN logged-out state writes
+   *  `{"kind":"none","label":"Not logged in"}` here, and a scenario that wants
+   *  a second account writes its email. The engines whose own fakes never
+   *  report — pi, opencode and omp — are silent by construction, which is the
+   *  other half of the same fact. */
+  identity: ".agent-identity",
   /** Say the person has finished at a vendor's page — what a device-code or an
    *  OAuth elicitation waits for, since this suite cannot visit one. */
   atThePage: ".agent-at-the-page",

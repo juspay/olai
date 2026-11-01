@@ -114,9 +114,11 @@ import type {
   ToolCallLocation,
 } from "@agentclientprotocol/sdk"
 import {
+  AUTH_STATUS_METHOD,
   diffsOf,
   type Form,
   formOf,
+  identityIn,
   PERMISSION_FIELD,
   permissionFormOf,
   Refused,
@@ -127,7 +129,7 @@ import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
 import type { AuthMethod, ChatServer, SignIn, SignInLink } from "olai-plugin-chat/wire"
 import type { Reported } from "@olai/acp/engine"
-import type { AskAnswer } from "@olai/acp/wire"
+import type { AskAnswer, AuthStatus } from "@olai/acp/wire"
 import { Cause, Clock, Schema, Data, type Duration, Effect, Fiber, References, Semaphore } from "effect"
 
 import type { Leg, Meta, ModelReading } from "@olai/acp/engine"
@@ -791,6 +793,46 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      */
     let offered: ReadonlyArray<Offered> = []
 
+    /**
+     * WHO THIS AGENT PROCESS IS SIGNED IN AS, as the agent itself last said —
+     * or `null` for one that has said nothing (`AuthStatus`'s own account of
+     * the difference from `kind: "none"`).
+     *
+     * A FACT ABOUT THE PROCESS rather than about the conversation, which is
+     * why it is read on a connection-scoped notification with no session fence
+     * and held here for as long as the subprocess lives. The panel shows it in
+     * the agent line, so a person switching between two Claude Code accounts
+     * can see which one a conversation is about to run on before typing into
+     * it.
+     *
+     * HELD AND ALSO EMITTED, because the event is what moves the panel's cell:
+     * this field is the agent's own copy, kept so a later reader — the
+     * handshake's marker, a replacement process — can tell "nothing yet" from
+     * "nothing any more".
+     */
+    let identity: AuthStatus | null = null
+
+    /** The one writer of {@link identity}: a report replaces the whole value,
+     *  and a payload with no usable label is not a report at all
+     *  ({@link identityIn}). */
+    const readIdentity = (params: unknown): void => {
+      const next = identityIn(params)
+      if (next === null) return
+      identity = next
+      emit({ _tag: "identity", identity: next })
+    }
+
+    /** ... and the way it goes: the conversation it was serving is over, or
+     *  the process is. `null` is a fact of its own — not reported — and the
+     *  next report puts the chip back, which for both pinned adapters is the
+     *  next session opened. Emitted only when there was something to clear, so
+     *  an engine that never reports pays nothing. */
+    const forgetIdentity = (): void => {
+      if (identity === null) return
+      identity = null
+      emit({ _tag: "identity", identity: null })
+    }
+
     /** THE SIGN-IN IN FLIGHT, if any ({@link Attempt}). */
     let attempt: Attempt | null = null
 
@@ -898,6 +940,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       calls.forget()
       activity?.clear(closed)
       forgetModel()
+      // WHO THE AGENT IS SIGNED IN AS goes with it too. The fact is the
+      // PROCESS'S, but the cell that draws it is the conversation's, and both
+      // pinned adapters report again when the next session opens — so the
+      // chip is absent for the beat between one conversation and the next
+      // rather than naming an account over a conversation that has not been
+      // opened yet. A dead process clears it here as well: `close` calls this
+      // before the exit is reported.
+      forgetIdentity()
       // ... and the doubled-prologue arm along with the rest: it names a chunk
       // the session BEING LEFT announced. Spared this line, an arm whose
       // banner never landed (an adapter that reordered it behind something
@@ -1786,6 +1836,27 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           .onNotification(methods.client.session.update, (context) => {
             onUpdate(context.params)
           })
+          // THE AGENT'S OWN ACCOUNT OF WHO IT IS — for EVERY engine, and with
+          // no session fence, because the notification is CONNECTION-scoped:
+          // it carries no `sessionId`, and the fact belongs to the process
+          // rather than to whichever conversation that process happens to
+          // hold. So this is the one notification that does not go through
+          // `elsewhere` — asking "whose session is this" would be a question
+          // the payload does not answer, and a push arriving mid-turn about
+          // the account that turn runs as is exactly the news wanted.
+          //
+          // Custom method, so the SDK wants a parser; there is nothing to
+          // validate beyond "it is an object", and {@link identityIn} does the
+          // reading (`@olai/acp`). Subscribed unconditionally rather than off
+          // the handshake marker, because the protocol says a client that
+          // never saw the marker still accepts the notification.
+          .onNotification(
+            AUTH_STATUS_METHOD,
+            (params: unknown) => params,
+            (context) => {
+              readIdentity(context.params)
+            },
+          )
         const stream = streamOver(child)
         const extension = activity === null ? { stream, clientMeta: {} } : nativeActivity(opened, stream, ({ session, update }) => {
           if (!fromElsewhere(sessionRoot(session), activeSession, closed)) activity.read(session, update)
@@ -1913,6 +1984,21 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         )) as InitializeResponse
 
         const capabilities = initialized.agentCapabilities
+        /**
+         * WHETHER THIS AGENT WILL EVER SAY WHO IT IS — the EMPTY marker
+         * `agentCapabilities._meta.authStatus`, whose mere presence means the
+         * agent pushes `_auth/status_update` and whose absence means it does
+         * not.
+         *
+         * Read for the operator, and deliberately NOT used as a gate: the
+         * protocol says a client that never saw the marker still accepts the
+         * notification, so a handler that trusted this flag would drop the one
+         * report it was written for. It is also not a source of a VALUE — an
+         * agent that advertises and never pushes stays `null`, which is the
+         * panel's "not reported", and nothing here invents an identity out of
+         * the marker's presence or out of the auth methods beside it.
+         */
+        const reportsIdentity = capabilities?._meta?.["authStatus"] !== undefined
         // WHAT IT SAYS IT CAN DO, out of the same answer and read by the leg —
         // the two facts a panel cannot work out for itself and must not guess
         // at: whether a message sent while it is busy is HELD (so the composer
@@ -1956,7 +2042,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           { command: options.command, args: options.args.join(" ") },
         )
         yield* lifecycle(Effect.logInfo("chat agent ready"), {
-          pid: child.pid, duration: yield* elapsedSince(started),
+          pid: child.pid, duration: yield* elapsedSince(started), reportsIdentity,
         })
         return {
           child,

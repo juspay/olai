@@ -649,6 +649,78 @@ const terminalAuth = (mode: string, label: string) => ({
   label,
 })
 
+/** THE NOTIFICATION BY WHICH AN AGENT SAYS WHO IT IS SIGNED IN AS — the
+ *  `_meta`-based ACP extension both pinned adapters implement. Spelled here
+ *  rather than imported from `@olai/acp`, because this fake is an independent
+ *  WITNESS: a name shared with the client would let both sides agree by
+ *  construction, which is the whole reason there is a fake at all. */
+const AUTH_STATUS_METHOD = "_auth/status_update"
+
+/** The account each flavour reports when a scenario has not written one down.
+ *  Claude's is a subscription on the `max` plan, Codex's a `plus` one — the
+ *  labels the real adapters produce, so the chip a scenario reads is the chip a
+ *  person reads. */
+const defaultIdentity = (): Record<string, unknown> => isCodex
+  ? {
+    kind: "account",
+    label: "ChatGPT Plus",
+    account: { email: "you@example.com", plan: "plus" },
+  }
+  : {
+    kind: "account",
+    label: "Claude Max",
+    account: { email: "you@example.com", organization: "Olai", plan: "max" },
+  }
+
+/**
+ * WHO THIS AGENT SAYS IT IS, right now — the scenario's marker over the
+ * flavour's default.
+ *
+ * Read from the filesystem at every point the real adapters read their own
+ * identity, because that is what makes "switched account in another terminal"
+ * a thing a scenario can do: it rewrites {@link MARKER.identity} and the next
+ * prompt is what notices. A marker that is not JSON is treated as absent, the
+ * same direction a probe that cannot read its own identity takes.
+ */
+const identityNow = (): Record<string, unknown> => {
+  const path = `${cwd}/${MARKER.identity}`
+  if (!existsSync(path)) return defaultIdentity()
+  try {
+    const read: unknown = JSON.parse(readFileSync(path, "utf8"))
+    return typeof read === "object" && read !== null && !Array.isArray(read)
+      ? read as Record<string, unknown>
+      : defaultIdentity()
+  } catch {
+    return defaultIdentity()
+  }
+}
+
+/** What this connection has already said, as the JSON it said — the real
+ *  adapters' own rule, and the reason a scenario can assert that a rewrite
+ *  does NOT reach the panel until the next prompt: a push goes out only when
+ *  the payload changed. */
+let publishedIdentity: string | null = null
+
+/**
+ * SAY WHO THIS AGENT IS, if it is news — called where the pinned adapters read
+ * their identity: after `initialize`, at each session opened (a REFUSED one
+ * included, so the client knows which account was refused), and at the start of
+ * every prompt (which is how a `/login` done in another terminal shows up on
+ * the next message, mid-turn if that is when the read lands).
+ *
+ * `.agent-says-nothing` silences this along with everything else the handshake
+ * would have advertised: an agent that says nothing about itself does not name
+ * an account either.
+ */
+const publishIdentity = (): void => {
+  if (silent()) return
+  const status = identityNow()
+  const said = JSON.stringify(status)
+  if (said === publishedIdentity) return
+  publishedIdentity = said
+  notify(AUTH_STATUS_METHOD, { authStatus: status })
+}
+
 /** THE METHODS THIS AGENT OFFERS, which is the one handshake field a scenario
  *  can spend: an agent with none is an agent `/login` is not a gesture for
  *  (`.agent-says-nothing`), and the two engines offer the two KINDS a client
@@ -3520,6 +3592,16 @@ const authenticateDeviceCode = async (id: unknown): Promise<void> => {
   }
   // THE CREDENTIAL, then the client's own word that the page is done with.
   appendFileSync(`${cwd}/${MARKER.signedIn}`, "")
+  // ... AND WHO THIS PROCESS NOW IS, written down before the answer that
+  // reports success — the order a real login keeps, since a client that
+  // reopened the conversation on the answer would otherwise race the write.
+  // The panel's chip is what a scenario watches change.
+  writeFileSync(`${cwd}/${MARKER.identity}`, JSON.stringify({
+    kind: "account",
+    label: "ChatGPT Plus",
+    account: { email: "signed-in@example.com", plan: "plus" },
+  }))
+  publishIdentity()
   notify("elicitation/complete", { elicitationId })
   reply(id, {})
 }
@@ -3585,7 +3667,14 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           // (the read loop has queued prompts behind the running turn all
           // along); what depends on it is the panel's PROMISE, which is made
           // only for an agent that said this.
-          ...(silent() || isCodex ? {} : { _meta: { claudeCode: { promptQueueing: true } } }),
+          // IT PUSHES ITS IDENTITY — the extension's empty marker, present
+          // exactly where the real adapters put it. `.agent-says-nothing`
+          // takes it away along with the rest, and the push is silenced with
+          // it (`publishIdentity`).
+          _meta: {
+            ...(silent() ? {} : { authStatus: {} }),
+            ...(silent() || isCodex ? {} : { claudeCode: { promptQueueing: true } }),
+          },
         },
         agentInfo: { name: "fake-acp-agent", version: "0.1.0" },
         // ... AND HOW TO SIGN IN, when this agent has a way — the protocol's
@@ -3611,6 +3700,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         // no promise and offers no interruption, and every send still goes.
         ...(silent() ? {} : { _meta: { steering: { supported: true } } }),
       })
+      // THE FIRST PUSH OF THE CONNECTION, after the answer it follows in both
+      // pinned adapters — and with no session open, because this fact belongs
+      // to the process.
+      publishIdentity()
       return
 
     case "session/list":
@@ -3640,6 +3733,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/new":
+      // A SESSION OPEN IS A READ OF WHO THIS IS — and a REFUSED one reports
+      // too, so the client knows which account was refused. Said before the
+      // hold and the refusals for that reason.
+      publishIdentity()
       if (holdingOpen()) await released()
       if (needsSignature()) {
         refuse(id, -32000, "Authentication required")
@@ -3672,6 +3769,9 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/load":
+      // The same read as `session/new`, and for the same reason: a load the
+      // agent refuses has still told the client whose signature was missing.
+      publishIdentity()
       // NOTED BEFORE ANY REFUSAL, because the question this records is "did
       // the server ask", which a refusal does not un-ask. Armed by the file's
       // existence: a scenario that asserts a conversation was NOT reopened
@@ -3784,6 +3884,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     }
 
     case "session/prompt": {
+      // THE START OF EVERY PROMPT is the third place the pinned adapters read
+      // their identity, and the one that makes an account switched elsewhere
+      // show up: the probe is asynchronous, so the push may land mid-turn.
+      publishIdentity()
       const text = promptTextOf(params)
       // THE THIRD PLACE A SIGNATURE IS ASKED FOR, and the one a person meets
       // mid-conversation: the session opened (this agent was signed in, or
