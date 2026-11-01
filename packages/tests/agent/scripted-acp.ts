@@ -869,13 +869,6 @@ const refusedForAccount = (): string | null => {
   }
 }
 
-/** What the pinned Claude CLI says when `set_model` names a model the account
- *  is not entitled to (`fable_unavailable`), as the adapter (0.81.2) forwards
- *  it: the SDK's `errorToResult` makes the thrown `Error` a `-32603` and keeps
- *  the sentence in `data.details`. */
-const unavailableFor = (name: string): string =>
-  `${name} isn't available for your account yet. Run /model to pick another model.`
-
 /**
  * THE PIN this agent boots on — its `settings.json`, in effect.
  *
@@ -3911,9 +3904,15 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         refuse(id, -32602, `Invalid value for config option model: ${value}`)
         return
       }
+      // What the pinned Claude CLI says when `set_model` names a model the
+      // account is not entitled to (`fable_unavailable`), as the adapter
+      // (0.81.2) forwards it: the SDK's `errorToResult` makes the thrown
+      // `Error` a `-32603` and keeps the sentence in `data.details`.
       if (value === refusedForAccount()) {
         const name = MODEL_ROWS.find(row => row.value === value)?.name ?? value
-        refuse(id, -32603, "Internal error", { details: unavailableFor(name) })
+        refuse(id, -32603, "Internal error", {
+          details: `${name} isn't available for your account yet. Run /model to pick another model.`,
+        })
         return
       }
       currentModel = value

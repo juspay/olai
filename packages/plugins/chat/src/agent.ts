@@ -768,9 +768,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       timeout?: Duration.Input | null,
     ): Effect.Effect<unknown, AgentGone> =>
       request(
-        (refusedMethod, cause) =>
+        (cause) =>
           tell((cause.code === INTERNAL_ERROR ? Effect.logWarning : Effect.logInfo)("the agent refused a request"), {
-            method: refusedMethod,
+            method,
             code: cause.code,
             ...(cause.data === undefined ? {} : { data: refusalData(cause.data) }),
           }),
@@ -3318,7 +3318,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
  * site can quietly opt out of the record.
  */
 const request = (
-  refused: (method: string, cause: RequestError) => void,
+  refused: (cause: RequestError) => void,
   connection: ClientConnection,
   method: string,
   params: unknown,
@@ -3343,7 +3343,7 @@ const request = (
         ) => Promise<unknown>
       }).request(method, params, { cancellationSignal: signal }),
     catch: (cause) => {
-      if (cause instanceof RequestError) refused(method, cause)
+      if (cause instanceof RequestError) refused(cause)
       return new AgentGone({
         gone: goneOf(cause),
         why: `\`${method}\` failed: ${saidOf(cause)}`,
