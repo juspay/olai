@@ -475,7 +475,7 @@ the other half of that contract: `authMethods` in its handshake, an
 verbs that can refuse for want of a signature (`session/new`, `session/load`, a
 turn).
 
-- **`packages/plugins/claude/e2e/features/agent_signin.feature`** (14 scenarios,
+- **`packages/plugins/claude/e2e/features/agent_signin.feature`** (15 scenarios,
   the terminal kind, on the `chat` corpus): the handed-over command runs, prints its URL as a
   *clickable link*, reads a code and exits 0; a code it does not accept is
   answered and asked for again with the process still up; a code that fails the
@@ -522,14 +522,20 @@ turn).
   `.agent-identity` marker rewritten under a running conversation — appears
   after the next message, which is when both adapters re-read their identity;
   `kind: "none"` reads `Not signed in` rather than disappearing; and two tabs
-  read the same chip, before and after the sign-in. The other state — an engine
-  that never reports — is asserted in `choosing_an_agent.feature` on the
-  `opencode` fake, which draws no chip at all; silence is "not reported", not
-  "nobody signed in". The fakes' half is `scripted-acp.ts` (the empty marker,
-  the flavour's default account, a push after `initialize`, at each session
-  open and at the start of every prompt, and only when the payload changed) and
-  the two sign-in paths that rewrite `.agent-identity` (`fake-login.ts` for the
-  terminal method, `authenticateDeviceCode` for the device code).
+  read the same chip, before and after the sign-in. Which FACE the chip draws is
+  asserted too: a button before a sign-in, a label while a sign-in row is on
+  screen (pressing it would hide a terminal login waiting for its code), and a
+  label for an agent that reports an account but offered no way in
+  (`.agent-identity-only`). The other state — an engine that never reports — is
+  asserted in `choosing_an_agent.feature` on the `opencode` fake, which draws no
+  chip at all; silence is "not reported", not "nobody signed in". A refused open
+  is the other half of that: the fake reports `kind: "none"` while a signature is
+  missing, so the chooser names no current account. The fakes' half is
+  `scripted-acp.ts` (the empty marker, the flavour's default account, a push
+  after `initialize`, at each session open and at the start of every prompt, and
+  only when the payload changed) and the two sign-in paths that rewrite
+  `.agent-identity` (`fake-login.ts` for the terminal method,
+  `authenticateDeviceCode` for the device code).
 - **The remote-signal strip is tested by construction, not by the machine's
   environment.** The claude fake is given `SSH_CONNECTION` on the server, and it
   mimics the pinned adapter's own test — on a "remote" session it offers only
