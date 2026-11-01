@@ -29,13 +29,19 @@ env:
   # the bucket accepts and cannot serve yet — its references are upstream-
   # signed, so the bucket fetches them itself — is reported as HELD and leaves
   # the command at 0, while a real refusal or a byte-level disagreement is a
-  # failure. It also chunks a NAR, which is what lets the push go to the
-  # bucket's proxied name below.
+  # failure. It also chunks a NAR, so a multi-hundred-megabyte store path is
+  # not one request's fate.
   ODU_REV: 150ad5e97503d53f0ad6ea4fdc7edd385ede212b
-  # THE BUCKET'S OWN NAME, the same URL every reader is given. Cloudflare
-  # caps a request body at 100 MB and this is behind Cloudflare, which is why
-  # the client above splits a large NAR into parts under that cap.
-  PUSH_ORIGIN: https://cache.kolu.dev
+  # PUSH ORIGIN: the pod's own address, not the bucket's advertised name.
+  # They are the same daemon and the same bucket, and READERS are given
+  # `cache.kolu.dev` (the flake's nixConfig). This job cannot use it: pushing
+  # through Cloudflare's proxy answers 502 Bad Gateway once this job's upload
+  # load arrives — the run that tried it failed 292 paths on "<!DOCTYPE html>"
+  # bodies and then every `missing` query, on both runners — so writers use the
+  # name that answers. When that route is exercised and healthy, this line
+  # becomes `https://cache.kolu.dev`; nothing else in this workflow or the
+  # flake moves.
+  PUSH_ORIGIN: https://odu-k3s.rooster-blues.ts.net
 
 jobs:
   build-and-push:
