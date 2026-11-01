@@ -816,11 +816,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      */
     let identity: AuthStatus | null = null
 
-    /** How many reports this PROCESS has heard. Read only by the handshake's
-     *  marker check, to tell a report that arrived during the handshake from
-     *  one that was already there ({@link reportsIdentity}). */
-    let identityReports = 0
-
     /** The one writer of {@link identity}: a report replaces the whole value,
      *  and a payload with no usable label is not a report at all
      *  ({@link identityIn}). */
@@ -828,7 +823,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const next = identityIn(params)
       if (next === null) return
       identity = next
-      identityReports++
       emit({ _tag: "identity", identity: next })
     }
 
@@ -1867,7 +1861,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // validate beyond "it is an object", and {@link identityIn} does the
           // reading (`@olai/acp`). Subscribed unconditionally rather than off
           // the handshake marker, because the protocol says a client that
-          // never saw the marker still accepts the notification.
+          // never saw the marker still accepts the notification — and the
+          // empty `agentCapabilities._meta.authStatus` marker is therefore
+          // informational and deliberately not read here.
           .onNotification(
             AUTH_STATUS_METHOD,
             (params: unknown) => params,
@@ -1941,11 +1937,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           .onRequest(methods.client.terminal.release, ({ params }) => { terminalSession(params.sessionId); return terminals.release(params) })
           .connect(extension.stream)
 
-        // HOW MANY REPORTS THIS CONNECTION HAD ALREADY HEARD, taken before the
-        // handshake so the marker's absence can clear a value that came from a
-        // process this one replaced without racing a push that arrived first
-        // ({@link reportsIdentity}).
-        const reportedBefore = identityReports
         const initialized = (yield* Effect.raceFirst(
           ask(
             connection,
@@ -2007,27 +1998,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         )) as InitializeResponse
 
         const capabilities = initialized.agentCapabilities
-        /**
-         * WHETHER THIS AGENT WILL EVER SAY WHO IT IS — the EMPTY marker
-         * `agentCapabilities._meta.authStatus`, whose mere presence means the
-         * agent pushes `_auth/status_update` and whose absence means it does
-         * not.
-         *
-         * NOT a gate on the notification: the protocol says a client that
-         * never saw the marker still accepts one, so a handler that trusted
-         * this flag would drop the report it was written for. It is also not a
-         * source of a VALUE — nothing here invents an identity out of the
-         * marker's presence or out of the auth methods beside it.
-         *
-         * What it does decide is that an agent which does not advertise and
-         * has said nothing during this handshake stays `null`: a replacement
-         * process must not inherit the chip of the one it replaced. The count
-         * is what makes that race-free — a push that arrived between the
-         * request and this line has already been applied and must not be
-         * cleared.
-         */
-        const reportsIdentity = capabilities?._meta?.["authStatus"] !== undefined
-        if (!reportsIdentity && identityReports === reportedBefore) forgetIdentity()
         // WHAT IT SAYS IT CAN DO, out of the same answer and read by the leg —
         // the two facts a panel cannot work out for itself and must not guess
         // at: whether a message sent while it is busy is HELD (so the composer
