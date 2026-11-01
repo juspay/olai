@@ -19,17 +19,29 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # THE CLIENT IS PINNED TO A COMMIT. `odu` is this repository's CI runner
-  # too, but only the flake's own npins pin is built here; the pusher is a
-  # published revision of github:juspay/odu, so a push on a lane cannot depend
-  # on what master looked like that morning. Bump deliberately.
-  ODU_REV: 66462dd14b8d23c9203af61c594adabe7b1a1c90
-  # PUSH ORIGIN, TODAY: Cloudflare caps a request body at 100 MB and
-  # `cache.kolu.dev` is behind Cloudflare, while the NARs this job uploads are
-  # not. The pod's own address is the same daemon and the same bucket, so the
-  # push goes there until odu's chunked upload is released; the flakes still
-  # ADVERTISE `cache.kolu.dev`, which is what a reader needs. Moving it is this
-  # one line.
+  # THE CLIENT IS PINNED TO A COMMIT, and it is deliberately NOT this
+  # checkout's npins pin: `odu run` on a lane and `odu cache push` here need
+  # different verbs, and the pin the grafted @odu/* sources come from is the
+  # revision kolu's closure was built against (nix/kolu.nix refuses a
+  # mismatch), so it cannot move for this job's convenience.
+  #
+  # This revision is juspay/odu#138's head, and it is here for two measured
+  # reasons, both of which the same client at master showed against this very
+  # bucket: a path the bucket is still waiting on (its references are
+  # upstream-signed, so the bucket fetches them) must print as `held` and
+  # leave the exit code 0 — that is the bucket's fact, not a failed push —
+  # and a NAR past a proxy's body cap must be CHUNKED, because one request
+  # for a several-hundred-MB store path came back "hashes to … but the
+  # narinfo says …", every time. Re-pin past 66462dd1 once #138 merges; the
+  # two lines that would then move are this SHA and PUSH_ORIGIN below.
+  ODU_REV: a649aaa739338bffa77a6cbd01b0158bf28ff939
+  # PUSH ORIGIN, TODAY: the pod's own address, which is the same daemon and
+  # the same bucket as `cache.kolu.dev` — one name is for writers, one for
+  # readers. `cache.kolu.dev` is proxied by Cloudflare, whose request bodies
+  # stop at 100 MB; the client above chunks a NAR under that, so the move is
+  # possible, and it is a deliberate follow-up rather than this job's business
+  # today: readers are unaffected either way, and the flake keeps advertising
+  # the bucket's name throughout.
   PUSH_ORIGIN: https://odu-k3s.rooster-blues.ts.net
 
 jobs:
@@ -66,7 +78,10 @@ jobs:
       # ODU PUSHES. `odu cache push` expands the closure of every path it is
       # given, asks the bucket what it is missing in ONE query — dropping what
       # an upstream key signed, so nixpkgs never costs an upload — and uploads
-      # in dependency order.
+      # in dependency order. A path the bucket accepted and cannot serve yet,
+      # because a reference it will not accept from us has not been fetched by
+      # the bucket, is reported as HELD and is not this step's failure; a path
+      # that was refused, or whose bytes disagreed with its narinfo, is.
       - name: Build and push every flake output
         shell: bash
         env:
