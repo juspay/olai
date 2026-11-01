@@ -136,7 +136,8 @@ jobs:
           # paths and one argv would pass macOS's 1 MiB ARG_MAX. Batching is
           # safe rather than merely convenient: the pusher expands each batch's
           # OWN closure, so a reference always travels in the batch of whatever
-          # refers to it.
-          xargs -n 400 -a "$RUNNER_TEMP/roots" \
+          # refers to it. The list arrives on stdin, not through `-a` — that is
+          # a GNU extension, and the darwin leg runs BSD xargs.
+          xargs -n 400 \
             nix run --accept-flake-config "github:juspay/odu/$ODU_REV" -- \
-            cache push kolu --origin "$PUSH_ORIGIN"
+            cache push kolu --origin "$PUSH_ORIGIN" < "$RUNNER_TEMP/roots"
