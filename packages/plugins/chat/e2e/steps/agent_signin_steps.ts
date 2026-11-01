@@ -108,6 +108,33 @@ Then("the agent line names no account", async function (this: OlaiWorld) {
   );
 });
 
+/** AN AGENT THAT REPORTS WHO IT IS BUT OFFERS NO WAY IN — a gateway or a
+ *  third-party backend. The chip is the same text and a different face: a
+ *  label, not a button. Armed before the handshake, like the other
+ *  advertisement markers. */
+Given("the agent offers no way in but still reports its account", function (this: OlaiWorld) {
+  mark(this, MARKER.identityOnly);
+});
+
+/** WHICH FACE the chip drew. `data-pressable` is the attribute because a
+ *  `<span>` and a `<button>` carry the same text, and the difference is the
+ *  thing under test. */
+Then("the account in the agent line is a button", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.chat(CHAT_IDENTITY).getAttribute("data-pressable")) === "true",
+    "the account chip to be pressable",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the account in the agent line is not a button", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.chat(CHAT_IDENTITY).getAttribute("data-pressable")) === "false",
+    "the account chip to be a label",
+    HYDRATION_TIMEOUT,
+  );
+});
+
 /** THE CHIP IS A DOOR: pressing it asks for the same chooser `/login` does. */
 When("I press the account in the agent line", async function (this: OlaiWorld) {
   const chip = this.chat(CHAT_IDENTITY);
@@ -123,6 +150,16 @@ Then("the sign-in names the current account {string}", async function (this: Ola
       return oneLine(await line.innerText()).includes(said);
     },
     `the chooser to name "${said}"`,
+    HYDRATION_TIMEOUT,
+  );
+});
+
+/** THE KNOWN LOGGED-OUT CASE: a chooser a refusal produced has nobody to name,
+ *  so the line is absent rather than saying "Signed in as Not signed in". */
+Then("the sign-in names no current account", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.chat(CHAT_SIGN_IN_CURRENT).count()) === 0,
+    "the chooser to name no current account",
     HYDRATION_TIMEOUT,
   );
 });

@@ -574,6 +574,15 @@ const holdingOpen = (): boolean => {
 const silent = (): boolean => existsSync(`${cwd}/${MARKER.saysNothing}`)
 
 /**
+ * Whether this handshake KEEPS ITS IDENTITY and offers NO WAY IN — the agent a
+ * gateway or a third-party backend produces, and the one state that draws the
+ * agent line's account as a label rather than a button. Read at `initialize`,
+ * like {@link silent}, and it silences the METHODS only: `publishIdentity` is
+ * untouched, which is the whole difference between the two markers.
+ */
+const identityOnly = (): boolean => existsSync(`${cwd}/${MARKER.identityOnly}`)
+
+/**
  * WHETHER THIS AGENT NEEDS A SIGNATURE FIRST — ACP's `-32000`, on the three
  * verbs that can carry it: opening a conversation, loading one, and a turn.
  *
@@ -673,26 +682,38 @@ const defaultIdentity = (): Record<string, unknown> => isCodex
   }
 
 /**
- * WHO THIS AGENT SAYS IT IS, right now — the scenario's marker over the
- * flavour's default.
+ * WHO THIS AGENT SAYS IT IS, right now — the scenario's marker over the state
+ * the machine is in, over the flavour's default.
  *
  * Read from the filesystem at every point the real adapters read their own
  * identity, because that is what makes "switched account in another terminal"
  * a thing a scenario can do: it rewrites {@link MARKER.identity} and the next
  * prompt is what notices. A marker that is not JSON is treated as absent, the
  * same direction a probe that cannot read its own identity takes.
+ *
+ * NO CREDENTIAL IS A KNOWN LOGGED-OUT STATE, not a default account: while
+ * {@link needsSignature} holds — the machine the scenario armed — the real
+ * adapters report `kind: "none"` (a refused `createSession` reports the account
+ * that was refused, and a CLI probe with nothing to read is `none`). Reporting
+ * a signed-in account there would put "Signed in as …" above a chooser that
+ * exists precisely because nobody is signed in. The marker still wins over it:
+ * a scenario that wrote one has said who the process is, and a completed login
+ * leaves one behind.
  */
 const identityNow = (): Record<string, unknown> => {
   const path = `${cwd}/${MARKER.identity}`
-  if (!existsSync(path)) return defaultIdentity()
-  try {
-    const read: unknown = JSON.parse(readFileSync(path, "utf8"))
-    return typeof read === "object" && read !== null && !Array.isArray(read)
-      ? read as Record<string, unknown>
-      : defaultIdentity()
-  } catch {
-    return defaultIdentity()
+  if (existsSync(path)) {
+    try {
+      const read: unknown = JSON.parse(readFileSync(path, "utf8"))
+      if (typeof read === "object" && read !== null && !Array.isArray(read)) {
+        return read as Record<string, unknown>
+      }
+    } catch {
+      // Not JSON: treated as absent, like a probe that could not read itself.
+    }
   }
+  if (needsSignature()) return { kind: "none", label: "Not logged in" }
+  return defaultIdentity()
 }
 
 /** What this connection has already said, as the JSON it said — the real
@@ -726,7 +747,9 @@ const publishIdentity = (): void => {
  *  (`.agent-says-nothing`), and the two engines offer the two KINDS a client
  *  has to draw — a process it runs (Claude) and a page it waits on (Codex). */
 const authMethodsOffered = (): ReadonlyArray<Record<string, unknown>> => {
-  if (silent()) return []
+  // NOTHING TO OFFER: an agent that advertises nothing about itself, or one
+  // that reports its account but has no way in at all ({@link identityOnly}).
+  if (silent() || identityOnly()) return []
   if (isCodex) {
     return [
       // NOT OFFERED BY OLAI — an `env_var` method is a credential box, which is

@@ -19,6 +19,9 @@ Feature: Signing in to Codex from inside olai
     Then the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "Authentication required"
     And the panel offers a sign-in
+    # NOBODY IS SIGNED IN, and the fake says so: the chooser names no current
+    # account rather than claiming one over the missing signature.
+    And the sign-in names no current account
     And the sign-in offers "chat-gpt-device-code"
     # AN `env_var` METHOD IS NOT OFFERED: a credential box is a feature this
     # panel does not have, and a button that could not finish what it started
@@ -123,6 +126,9 @@ Feature: Signing in to Codex from inside olai
     When I open the plugins panel
     And I switch the plugin "codex" off
     Then the panel offers no sign-in
+    # ... AND THE ACCOUNT GOES WITH THE PROCESS: the chip described a
+    # subprocess that is now stopped.
+    And the agent line names no account
     # Back on, for the scenarios after this one: the switch is remembered by the
     # scratch vault. The agent the card belonged to does not come back with it.
     When I switch the plugin "codex" on

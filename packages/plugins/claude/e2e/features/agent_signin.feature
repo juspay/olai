@@ -21,6 +21,9 @@ Feature: Signing in to Claude from inside olai
     And the sign-in offers "console-login"
     When I press the sign-in for "claude-ai-login"
     Then the sign-in is running "claude-ai-login"
+    # THE CHIP IS A LABEL WHILE A ROW IS ON SCREEN: pressing it would replace
+    # this quietly-waiting login with a chooser.
+    And the account in the agent line is not a button
     And the sign-in says "https://claude.ai/fake-login?code=abc123"
     And the sign-in makes a link of "https://claude.ai/fake-login?code=abc123"
     When I type "123456" into the sign-in
@@ -36,6 +39,7 @@ Feature: Signing in to Claude from inside olai
     Then the agent line says who is signed in as "Claude Max · you@example.com"
     # ... AND THE CHIP IS THE WAY TO SWITCH: the same chooser `/login` asks
     # for, naming the account it would change.
+    And the account in the agent line is a button
     When I press the account in the agent line
     Then the panel offers a sign-in
     And the sign-in names the current account "Claude Max · you@example.com"
@@ -46,6 +50,17 @@ Feature: Signing in to Claude from inside olai
     # THE LOGIN REWROTE THE ACCOUNT, and the chip is where a person sees it:
     # the read that notices is the reopen the sign-in ends with.
     And the agent line says who is signed in as "Claude Max · signed-in@example.com"
+
+  @signin
+  Scenario: An agent that reports an account but offers no way in draws a label
+    # A GATEWAY OR A THIRD-PARTY BACKEND: the account is a fact, the chooser is
+    # not a gesture, so the chip is text rather than a button. Armed before the
+    # handshake, because the methods are heard exactly once.
+    Given the agent offers no way in but still reports its account
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    Then the agent line says who is signed in as "Claude Max · you@example.com"
+    And the account in the agent line is not a button
 
   @signin
   Scenario: An account switched elsewhere is what the next turn runs as
@@ -199,6 +214,9 @@ Feature: Signing in to Claude from inside olai
     When I open the plugins panel
     And I switch the plugin "claude" off
     Then the panel offers no sign-in
+    # ... AND THE ACCOUNT GOES WITH THE PROCESS IT DESCRIBED: the chip named
+    # the subprocess that was just stopped, so nothing about it may stay.
+    And the agent line names no account
     # AND PUT BACK: the switch is a preference the scratch vault remembers, so a
     # scenario that left the engine off would take the engine out from under the
     # ones after it. The process stays gone, which is what the next line asks.
@@ -270,6 +288,10 @@ Feature: Signing in to Claude from inside olai
     When I open the "claude" agent on node "kitchen"
     Then the panel says the conversation could not be opened
     And the panel offers a sign-in
+    # NOBODY IS SIGNED IN, and the fake says so: a chooser a refusal produced
+    # names no current account, rather than claiming one over the very
+    # signature that is missing.
+    And the sign-in names no current account
     When I press the sign-in for "claude-ai-login"
     Then the sign-in is running "claude-ai-login"
     When I open another browser tab

@@ -155,6 +155,13 @@ export const MARKER = {
   /** ... AND IT HAS BEEN: the credential a sign-in left behind. See
    *  {@link needsAuth}. */
   signedIn: ".agent-signed-in",
+  /** KEEP THE ACCOUNT AND DROP THE WAY IN — an agent that reports who it is
+   *  but offers no `authMethods` at all, which is what a gateway-authenticated
+   *  or third-party backend looks like. It is the one state that draws the
+   *  agent line's account as a LABEL rather than a button, and
+   *  `.agent-says-nothing` cannot reach it because that silences the identity
+   *  too. */
+  identityOnly: ".agent-identity-only",
   /** WHO THIS AGENT IS SIGNED IN AS, as the agent reports it — a JSON
    *  `AuthStatus` (`{kind, label, detail?, account?}`), read at the handshake,
    *  at each session opened and at the start of every prompt, exactly where
