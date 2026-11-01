@@ -32,16 +32,10 @@ env:
   # failure. It also chunks a NAR, so a multi-hundred-megabyte store path is
   # not one request's fate.
   ODU_REV: 150ad5e97503d53f0ad6ea4fdc7edd385ede212b
-  # PUSH ORIGIN: the pod's own address, not the bucket's advertised name.
-  # They are the same daemon and the same bucket, and READERS are given
-  # `cache.kolu.dev` (the flake's nixConfig). This job cannot use it: pushing
-  # through Cloudflare's proxy answers 502 Bad Gateway once this job's upload
-  # load arrives — the run that tried it failed 292 paths on "<!DOCTYPE html>"
-  # bodies and then every `missing` query, on both runners — so writers use the
-  # name that answers. When that route is exercised and healthy, this line
-  # becomes `https://cache.kolu.dev`; nothing else in this workflow or the
-  # flake moves.
-  PUSH_ORIGIN: https://odu-k3s.rooster-blues.ts.net
+  # THE BUCKET'S NAME, for writers and readers alike — the same URL the flake
+  # hands every user. If it misbehaves the run is red: a cache that cannot be
+  # written is a fact this job reports, not one it routes around.
+  PUSH_ORIGIN: https://cache.kolu.dev
 
 jobs:
   build-and-push:
@@ -67,11 +61,6 @@ jobs:
             extra-substituters = https://cache.kolu.dev
             extra-trusted-public-keys = kolu-1:eAXwD1RPt1BpFjrHfVUO8Ia0bK32WcuIeJcwFWmgj9Y=
             accept-flake-config = true
-            # A cache is an OPTIMIZATION, and this one is reached through
-            # somebody else's proxy: a 502 on a NAR download must cost a
-            # compile, never the job. Without this, one bad minute at the
-            # edge failed every flake output the runner had already warmed.
-            fallback = true
 
       # ONE step, so the token is never consulted in an `if` and the paths the
       # pusher walks exist where it runs. A pull request from a fork has no

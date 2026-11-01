@@ -32,11 +32,6 @@
   nixConfig = {
     extra-substituters = "https://cache.kolu.dev";
     extra-trusted-public-keys = "kolu-1:eAXwD1RPt1BpFjrHfVUO8Ia0bK32WcuIeJcwFWmgj9Y=";
-    # A cache is an OPTIMIZATION. The bucket is reached through a proxy and a
-    # daemon we do not run, and one of its bad minutes has already failed a
-    # build whose every closure it had served a second earlier: a 502 on a NAR
-    # must cost a compile, never the command.
-    fallback = true;
   };
 
   outputs = { self, bun2nix, ... }:
