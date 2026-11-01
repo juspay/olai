@@ -298,8 +298,10 @@ export type AgentEvent =
    * connection-scoped and arrives at the handshake, at each session opened, and
    * mid-turn when the agent re-reads its own identity at the start of a prompt.
    * So it is emitted without the session fence every other frame goes through
-   * — there is no session to be "elsewhere" from — and cleared when the
-   * process or the conversation it is serving goes.
+   * — there is no session to be "elsewhere" from — and it outlives a
+   * conversation, because reopening one is the same subprocess and both
+   * adapters suppress an unchanged report. It is cleared (`null`) when the
+   * process ends.
    *
    * SILENCE IS NOT AN ANSWER. An agent that never advertises
    * (`agentCapabilities._meta.authStatus`) and never pushes leaves this `null`

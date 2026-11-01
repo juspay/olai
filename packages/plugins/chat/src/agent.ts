@@ -806,9 +806,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * it.
      *
      * HELD AND ALSO EMITTED, because the event is what moves the panel's cell:
-     * this field is the agent's own copy, kept so a later reader — the
-     * handshake's marker, a replacement process — can tell "nothing yet" from
-     * "nothing any more".
+     * this field is the agent's own copy, kept so the process's teardown can
+     * say `null` — and say it only when there is a chip to take away.
+     *
+     * IT OUTLIVES A CONVERSATION. Replacing or reloading a session keeps the
+     * same subprocess and the same account, and both pinned adapters suppress
+     * a report whose payload has not changed — so clearing it on the way into
+     * a conversation would lose the fact for good ({@link forgetIdentity}).
      */
     let identity: AuthStatus | null = null
 
@@ -828,11 +832,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       emit({ _tag: "identity", identity: next })
     }
 
-    /** ... and the way it goes: the conversation it was serving is over, or
-     *  the process is. `null` is a fact of its own — not reported — and the
-     *  next report puts the chip back, which for both pinned adapters is the
-     *  next session opened. Emitted only when there was something to clear, so
-     *  an engine that never reports pays nothing. */
+    /** ... and the way it goes: the process is over. `null` is a fact of its
+     *  own — not reported — and the next process's first report puts the chip
+     *  back. Emitted only when there was something to clear, so an engine that
+     *  never reports pays nothing.
+     *
+     * NOT on {@link leaving}: a conversation being replaced or reloaded is the
+     * same subprocess, and the value is still true for it. The two teardown
+     * sites call this — the exit handler and {@link stopWithReason}. */
     const forgetIdentity = (): void => {
       if (identity === null) return
       identity = null
@@ -929,7 +936,15 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  about the calls they named, which model the CLI said it was running, and
      *  the servers it was running them over. One function, because "this
      *  session is finished" is one fact and four call sites remembering four
-     *  things each is how one of them ends up remembering three. */
+     *  things each is how one of them ends up remembering three.
+     *
+     * WHAT DOES NOT GO IS {@link identity}: who the PROCESS is signed in as is
+     * not keyed to a conversation, and both pinned adapters suppress a report
+     * whose payload has not changed. Clearing it here lost the fact for good on
+     * the path Codex takes — a sign-in pushes the new account, then the reopen
+     * that follows clears it, and the session opened afterwards has nothing new
+     * to say. The process ending is what clears it ({@link forgetIdentity} at
+     * the two teardown sites). */
     const leaving = (): void => {
       // Named first, while `session` is still the one being left: the four
       // call sites used to null it and THEN call this, which made the closed
@@ -946,14 +961,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       calls.forget()
       activity?.clear(closed)
       forgetModel()
-      // WHO THE AGENT IS SIGNED IN AS goes with it too. The fact is the
-      // PROCESS'S, but the cell that draws it is the conversation's, and both
-      // pinned adapters report again when the next session opens — so the
-      // chip is absent for the beat between one conversation and the next
-      // rather than naming an account over a conversation that has not been
-      // opened yet. A dead process clears it here as well: `close` calls this
-      // before the exit is reported.
-      forgetIdentity()
       // ... and the doubled-prologue arm along with the rest: it names a chunk
       // the session BEING LEFT announced. Spared this line, an arm whose
       // banner never landed (an adapter that reordered it behind something
@@ -1817,6 +1824,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // out. {@link leaving} names the session being left, so it runs
             // before `session` is cleared.
             leaving()
+            // ... AND WHO IT WAS SIGNED IN AS goes with the PROCESS, not with
+            // the conversation: a conversation is reopened under the same
+            // subprocess, and both adapters suppress an unchanged report, so
+            // clearing it on the way into one would lose it for good.
+            forgetIdentity()
             activeSession = null
           }
           tell(
@@ -3188,6 +3200,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const signing = attempt
       if (signing !== null) signing.stopping = true
       leaving()
+      // ... AND WHO IT WAS SIGNED IN AS, because this is the process going:
+      // the panel must not keep a chip for a subprocess it has just stopped.
+      forgetIdentity()
       activeSession = null
       // Close the protocol and process before joining requests waiting on it.
       if (at !== null) at.connection.close()
