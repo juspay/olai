@@ -22,16 +22,29 @@ import { Schema } from "effect"
  *
  * `connected` is the quiet face. `absent` is ordinary: olai never starts the
  * service; `odu mcp` bootstraps it, and a conversation holding odu's tools has
- * already brought it up. `skew` is the loud one: two builds that cannot speak.
+ * already brought it up. `skew` is the loud one: odu read its own greeting
+ * against the rows this build declares and REFUSED it, and until one side
+ * moves there is no run to read.
  */
 export const OduLink = Schema.Struct({
   status: Schema.Literals(["connected", "absent", "skew"]),
   /** The origin this olai dials (`ODU_WEB_ORIGIN`, else `127.0.0.1:18440`). */
   origin: Schema.String,
-  /** The service's `protocolVersion`, when one has spoken. */
-  protocolVersion: Schema.NullOr(Schema.String),
-  /** What this build of olai speaks — odu's `SERVICE_CONTRACT_VERSION`. */
-  speaks: Schema.String,
+  /**
+   * WHY ODU REFUSED THIS BUILD, in odu's own whole sentence — `admitService`'s
+   * `message`, verbatim.
+   *
+   * Not two version numbers: since juspay/odu#141 there is no single number to
+   * name. The host carries one contract and every mounted row (`ci`, `cache`,
+   * the door, the tunnel) carries its own, and a refusal is about exactly one
+   * of them — the host's major, the `ci` row's major, or a `ci` row the daemon
+   * does not mount at all. odu composes the sentence beside the versions it is
+   * about; a face that re-spelled it from parts would be a second authority on
+   * a comparison it never made.
+   *
+   * `""` on every arm but `skew`, which is the arm that has a reason.
+   */
+  refusal: Schema.String,
   since: Schema.String,
 })
 export type OduLink = typeof OduLink.Type
@@ -41,8 +54,7 @@ export type OduLink = typeof OduLink.Type
 export const ODU_UNDIALED: OduLink = {
   status: "absent",
   origin: "",
-  protocolVersion: null,
-  speaks: "",
+  refusal: "",
   since: "",
 }
 

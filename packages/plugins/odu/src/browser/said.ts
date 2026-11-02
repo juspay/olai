@@ -2,7 +2,9 @@
  * WHAT THE ODU READOUT SAYS — the three faces of the service link, as words.
  *
  * `connected` is quiet. `absent` names the origin and the fix
- * (`odu web --background`). `skew` names both versions.
+ * (`odu web --background`). `skew` says what odu said: the refusal travels the
+ * wire as odu's own sentence, so this face has one left to compose and
+ * cannot compose it out of parts it never judged.
  */
 
 import type { BarStatus } from "olai-plugin-layout/slots"
@@ -26,8 +28,7 @@ export const oduSaid = (link: OduLink): BarStatus => {
       return {
         tone: "alarm",
         label: "odu: update needed",
-        detail:
-          `odu and olai versions don't match (odu ${link.protocolVersion ?? "?"}, olai ${link.speaks}). Update one of them.`,
+        detail: link.refusal,
       }
     case "absent":
       return {

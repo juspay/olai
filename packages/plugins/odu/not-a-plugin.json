@@ -4,7 +4,6 @@
     "src/browser/Wake.tsx": 6
   },
   "identity": {
-    "src/appliance/link.ts": 1,
     "src/appliance/testlib/fake-service.ts": 2,
     "src/appliance/wire/index.ts": 1,
     "src/browser/RunMatrix.tsx": 2,
