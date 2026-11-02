@@ -23,7 +23,7 @@ just run            # the one brain: this repo's docs, on an OS-assigned port
 just serve docs     # the same, plus a client-bundler watch for the edit loop
 ```
 
-The flake lists [cache.kolu.dev](https://cache.kolu.dev) — the shared `kolu` bucket on the [Odu](https://github.com/juspay/odu) daemon that also runs this repository's CI — as a substituter, and a GitHub Actions job on every push builds every flake output on linux and darwin and pushes the closures there with `odu cache push`. `nix run github:juspay/olai` and a clone's `nix build` / `nix develop` should download rather than compile; if they compile, that commit has not been warmed yet.
+The flake lists [cache.kolu.dev](https://cache.kolu.dev) — the shared `kolu` bucket on the [Odu](https://github.com/juspay/odu) daemon that also runs this repository's CI — as a substituter, and a GitHub Actions job on every push builds every flake output on linux and darwin and pushes the closures there with Odu's own push action, which then asks the bucket for every served path's narinfo and NAR, so a green run means the closures are actually substitutable. `nix run github:juspay/olai` and a clone's `nix build` / `nix develop` should download rather than compile; if they compile, that commit has not been warmed yet.
 
 In a clean, pushed development checkout, `just ci` builds the checkout's pinned Odu and runs the complete `check` graph on the Linux host pool. Odu owns the fan-out, E2E sharding, live progress, and GitHub status posting; `ODU_CI_TIMEOUT` overrides the 15-minute watch timeout.
 

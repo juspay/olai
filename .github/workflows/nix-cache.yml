@@ -2,7 +2,10 @@
 # `kolu` bucket, served at https://cache.kolu.dev: the same daemon that runs
 # this repository's CI. The flake already lists this cache as a substituter, so
 # a green run here warms `nix build` / `nix develop` on both platforms (odu
-# lanes included). `odu cache push` is the client.
+# lanes included). The push is `juspay/odu/.github/actions/push`: the step any
+# project uses, which brings its own `odu` from the sha it is pinned to, and
+# proves every path the bucket serves answers at the substituter before the
+# step can go green.
 name: nix-cache
 
 on:
@@ -19,18 +22,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # THE CLIENT IS PINNED TO A COMMIT, and to the release the bucket's daemon
-  # runs: `odu cache` is a client of the cache's own HTTP API, and a client
-  # from before the object store speaks a shape that daemon no longer
-  # answers — a NAR whose narinfo the server hashes its own way is a 400, not
-  # a push. It is deliberately NOT this checkout's npins pin either: that is
-  # the odu revision kolu's grafted @odu/* sources were built against
-  # (nix/kolu.nix refuses a mismatch) and has no cache verbs at all. Re-pin
-  # with the daemon, by SHA.
-  ODU_REV: ecac23760e085e409d0cd11bad17765310067ee6
-  # THE BUCKET'S NAME, for writers and readers alike — the same URL the flake
-  # hands every user. If it misbehaves the run is red: a cache that cannot be
-  # written is a fact this job reports, not one it routes around.
+  # THE BUCKET'S URL, for the pusher and for the flake's readers alike — the
+  # same URL the flake hands every user. If it misbehaves the run is red: a
+  # cache that cannot be written is a fact this job reports, not one it
+  # routes around.
   PUSH_ORIGIN: https://cache.kolu.dev
 
 jobs:
@@ -58,22 +53,13 @@ jobs:
             extra-trusted-public-keys = kolu-1:eAXwD1RPt1BpFjrHfVUO8Ia0bK32WcuIeJcwFWmgj9Y=
             accept-flake-config = true
 
-      # ONE step, so the token is never consulted in an `if` and the paths the
-      # pusher walks exist where it runs. A pull request from a fork has no
-      # secret and pushes nothing — it still BUILDS, which is the check this
-      # workflow owes a PR. A push with no token FAILS: going green having
-      # warmed nothing is the state a cache job exists to make impossible.
-      #
-      # ODU PUSHES. `odu cache push` expands the closure of every path it is
-      # given, asks the bucket what it is missing in ONE query — dropping what
-      # an upstream key signed, so nixpkgs never costs an upload — and uploads
-      # in dependency order. It exits 0 only when nothing was refused: a path
-      # the bucket does not take, or bytes that disagree with their narinfo,
-      # fails this step and names the path.
-      - name: Build and push every flake output
+      # BUILD HERE, PUSH IN THE NEXT STEP — because the push is an action
+      # (`juspay/odu/.github/actions/push`) that owns its own `odu`, its own
+      # token rule and its own proof of what landed. Nothing in this step
+      # reads a secret or branches on one.
+      - name: Build every flake output, and name its closure roots
+        id: roots
         shell: bash
-        env:
-          ODU_CACHE_TOKEN: ${{ secrets.ODU_CACHE_TOKEN }}
         run: |
           set -euo pipefail
           system=$(nix eval --impure --raw --expr builtins.currentSystem)
@@ -99,18 +85,10 @@ jobs:
             echo "::error::nix build produced no output paths"
             exit 1
           fi
-          if [ -z "$ODU_CACHE_TOKEN" ]; then
-            if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-              echo "::error::ODU_CACHE_TOKEN is not set on $GITHUB_REPOSITORY — this push would publish no closure. It is a write token for the kolu bucket (a bucket page mints one)."
-              exit 1
-            fi
-            echo "no ODU_CACHE_TOKEN (a pull request from a fork) — built, pushed nothing"
-            exit 0
-          fi
           # Runtime closures of the outputs, plus each output's realized
           # build-time inputs (bun-pkg FODs a rebuild still needs). The
           # bucket's upstream filter drops anything already on cache.nixos.org,
-          # and `odu cache push` expands each path's own closure, so this is
+          # and the pusher expands each path's own closure, so this is
           # the list of ROOTS, not of every path.
           #
           # `.drv` FILES ARE FILTERED OUT. `nix-store -qR --include-outputs` on
@@ -126,12 +104,60 @@ jobs:
               nix-store -qR --include-outputs "$drv"
             done <<< "$paths"
           } | awk 'NF && !seen[$0]++ && $0 !~ /\.drv$/' > "$RUNNER_TEMP/roots"
-          # BATCHED, because a full flake's roots are several thousand store
-          # paths and one argv would pass macOS's 1 MiB ARG_MAX. Batching is
-          # safe rather than merely convenient: the pusher expands each batch's
-          # OWN closure, so a reference always travels in the batch of whatever
-          # refers to it. The list arrives on stdin, not through `-a` — that is
-          # a GNU extension, and the darwin leg runs BSD xargs.
-          xargs -n 400 \
-            nix run --accept-flake-config "github:juspay/odu/$ODU_REV" -- \
-            cache push kolu --origin "$PUSH_ORIGIN" < "$RUNNER_TEMP/roots"
+          # THE ACTION'S `paths:` INPUT IS ONE ENVIRONMENT VARIABLE, and Linux
+          # caps a single environment string at 128 KiB (`MAX_ARG_STRLEN`). A
+          # full flake's roots are ~2 500 store paths — ~210 KiB — so they
+          # cannot be named one by one in it. They are named as LINKS instead:
+          # one symlink per root, thirteen bytes a line, ~33 KiB. That is a
+          # shape the action already takes ("`result` links"), and
+          # `nix path-info` reads a link as the store path it points at, so
+          # what reaches the pusher — and what it uploads — is unchanged.
+          links="$GITHUB_WORKSPACE/.roots"
+          mkdir -p "$links"
+          {
+            i=0
+            while IFS= read -r root; do
+              printf -v name '%04d' "$((i = i + 1))"
+              ln -sfn "$root" "$links/$name"
+              printf '%s\n' "./.roots/$name"
+            done < "$RUNNER_TEMP/roots"
+          } > "$RUNNER_TEMP/paths"
+          # A POSITIVE ASSERTION: roots that reached the action as an empty
+          # input would push nothing and still report success.
+          [ -s "$RUNNER_TEMP/paths" ] || {
+            echo "::error::the built outputs named no closure roots"
+            exit 1
+          }
+          {
+            echo "paths<<ODU_PUSH_ROOTS"
+            cat "$RUNNER_TEMP/paths"
+            echo "ODU_PUSH_ROOTS"
+          } >> "$GITHUB_OUTPUT"
+
+      # THE PUSH, AND ITS PROOF. `juspay/odu/.github/actions/push` is the step
+      # any project uses, and it decides nothing for its caller: the `odu` it
+      # pushes with is built from ITS OWN checkout, so this pinned sha is the
+      # client — not a release page that can drift. It expands and uploads the
+      # roots above (named as the links the previous step made), then asks the
+      # bucket over plain HTTP, as a Nix client would, for every served path's
+      # narinfo AND the NAR it names: a narinfo that answers proves nothing
+      # about the object behind it, and a NAR truncated by a proxy's body cap
+      # is caught rather than counted as landed. Any path that fails is named
+      # and the step is red.
+      #
+      # THE TOKEN RULE IS THE ACTION'S: no token on a pull request builds and
+      # pushes nothing (the PR is still owed its build); no token on a `push`
+      # event fails, naming the secret; and the token is never an argument.
+      #
+      # THE PIN IS ODU MASTER, `b805557` — #142's merge commit, the commit
+      # that ships this action. `odu cache` is a client of the bucket's own
+      # HTTP API, so the pusher must speak the shape that daemon answers, and
+      # no released `odu` has cache verbs: re-pin with the daemon, by SHA, and
+      # NOT to this checkout's npins odu (the revision kolu's grafted @odu/*
+      # sources were built against; it has no cache verbs at all).
+      - uses: juspay/odu/.github/actions/push@b80555719e70c2574355bb00d54b771f70a6b4e7
+        with:
+          origin: ${{ env.PUSH_ORIGIN }}
+          bucket: kolu
+          token: ${{ secrets.ODU_CACHE_TOKEN }}
+          paths: ${{ steps.roots.outputs.paths }}
