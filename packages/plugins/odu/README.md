@@ -21,7 +21,7 @@ kolu declares seven behind the same door. **A plugin is not a size**, and the in
 
 Each member keeps its word, and gets it twice over: the framework composes each plugin's surface as a **sibling** under the plugin's own name, so `ci` reads `surface/odu/ci/get` — whose it is and what it holds, in one address that no line of olai computed. Kolu's link cell had to be renamed for the same rule to be kind to it: named `kolu`, it would have composed to `surface/kolu/kolu/get`.
 
-The vocabulary under the cells does not move here either. It stays in `@olai/odu-client/wire`, where the argument for each shape lives beside its schema — and a face reads a `CiRun` from the package that declares it, with no package of odu's on its graph. [`src/wire.ts`](src/wire.ts) also carries this plugin's own `ExposeMap`: both cells are the **browser's alone**, because an agent that wants a run's state has odu's own MCP face and `odu status` besides.
+The vocabulary under the cells does not move here either. It stays in `@olai/odu-client/wire`, where the argument for each shape lives beside its schema — and a face reads a `CiRun` from the package that declares it, with no package of odu's on its graph. [`src/wire.ts`](src/wire.ts) also carries this plugin's own `ExposeMap`: both cells are the **browser's alone**, because an agent that wants a run's state has odu's own MCP face and `odu ci status` besides.
 
 ## The name is spelled once
 
