@@ -838,7 +838,7 @@ _fast-remote leaf $watch_timeout:
     set -euo pipefail
     exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
       "$watch_timeout" \
-      nix run .#odu --accept-flake-config -- run {{ leaf }} --platform x86_64-linux --no-strict
+      nix run .#odu --accept-flake-config -- ci run {{ leaf }} --platform x86_64-linux --no-strict
 
 # Full CI on the Linux fleet, through this tree's pinned Odu. This deliberately
 # keeps Odu's strict defaults: it snapshots clean, pushed HEAD and posts the
@@ -850,7 +850,7 @@ ci:
     set -euo pipefail
     exec {{ nix_shell }} timeout --foreground --signal=INT --kill-after=30s \
       "${ODU_CI_TIMEOUT:-15m}" \
-      nix run .#odu --accept-flake-config -- run --platform x86_64-linux
+      nix run .#odu --accept-flake-config -- ci run --platform x86_64-linux
 
 # Format the *.nix files
 [doc("Format repository Nix files")]

@@ -41,8 +41,8 @@ critical path — and six for `typecheck` and `test`. Their ten-minute watch tim
 can be overridden with `ODU_TYPECHECK_REMOTE_TIMEOUT`, `ODU_TEST_REMOTE_TIMEOUT`
 and `ODU_E2E_REMOTE_TIMEOUT`. The shared Odu service owns the run: Ctrl-C or
 a timeout stops watching while remote work continues. Use
-`nix run .#odu -- cancel --run <id>` to cancel the run explicitly, or
-`nix run .#odu -- wait --run <id>` to resume watching.
+`nix run .#odu -- ci cancel --run <id>` to cancel the run explicitly, or
+`nix run .#odu -- ci wait --run <id>` to resume watching.
 CI also shards `typecheck` across up to six slots by workspace package; each
 package still runs its complete check, including imported types. Ordinary local
 `just typecheck` and `just test` remain unsharded. For local test logs, use
