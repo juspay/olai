@@ -28,7 +28,7 @@ export const oduSaid = (link: OduLink): BarStatus => {
       return {
         tone: "alarm",
         label: "odu: update needed",
-        detail: link.refusal,
+        detail: link.refusal ?? `odu at ${link.origin} refused this build.`,
       }
     case "absent":
       return {

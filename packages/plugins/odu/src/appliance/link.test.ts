@@ -62,7 +62,7 @@ test("a daemon serving the runs this build reads is adopted, quietly", async () 
   try {
     const link = await it.settled("connected")
     expect(link.origin).toBe(it.odu.origin)
-    expect(link.refusal).toBe("")
+    expect(link.refusal).toBeNull()
     expect(it.warned).toEqual([])
   } finally {
     await it.stop()
@@ -73,9 +73,9 @@ test("a daemon whose runs moved a major is refused, in odu's own sentence", asyn
   const it = await bench("skew")
   try {
     const link = await it.settled("skew")
-    // odu's words, not olai's: the row that disagreed, what it serves, and what
-    // this build reads.
-    expect(link.refusal).toContain("ci")
+    // The fixture's own number and this dial's own origin — the two facts olai
+    // owns. What odu words the rest with is odu's, and asserting it here would
+    // pin another repo's prose.
     expect(link.refusal).toContain("99.0")
     expect(link.refusal).toContain(it.odu.origin)
     expect(it.warned).toContain(`olai: ${link.refusal}`)
@@ -92,7 +92,7 @@ test("a row this build never reads may move a major without locking olai out", a
   const it = await bench("cache-ahead")
   try {
     const link = await it.settled("connected")
-    expect(link.refusal).toBe("")
+    expect(link.refusal).toBeNull()
     expect(it.warned).toEqual([])
   } finally {
     await it.stop()

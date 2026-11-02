@@ -42,9 +42,11 @@ export const OduLink = Schema.Struct({
    * about; a face that re-spelled it from parts would be a second authority on
    * a comparison it never made.
    *
-   * `""` on every arm but `skew`, which is the arm that has a reason.
+   * `null` off the `skew` arm, which is the one arm that has a reason —
+   * `SpacesLink.why`'s spelling, because a link cell saying "the refusal,
+   * whole, or nothing" twice in two ways is two things to learn.
    */
-  refusal: Schema.String,
+  refusal: Schema.NullOr(Schema.String),
   since: Schema.String,
 })
 export type OduLink = typeof OduLink.Type
@@ -54,7 +56,7 @@ export type OduLink = typeof OduLink.Type
 export const ODU_UNDIALED: OduLink = {
   status: "absent",
   origin: "",
-  refusal: "",
+  refusal: null,
   since: "",
 }
 

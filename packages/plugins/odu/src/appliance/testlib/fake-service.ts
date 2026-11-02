@@ -30,10 +30,6 @@ if (!Number.isFinite(port) || fixturePath === undefined) {
 }
 
 interface Fixture {
-  /** The HOST's contract, when a fixture is about a host skew. Defaults to the
-   *  one the hydrated pin speaks, so an ordinary fixture is never about a
-   *  version at all. */
-  readonly protocolVersion?: string
   /**
    * PER-ROW CONTRACT VERSIONS, MERGED OVER THE REAL ONES — `{ "ci": "99.0" }`
    * is a daemon whose runs moved a major, `{ "cache": "99.0" }` one whose
@@ -58,7 +54,7 @@ const serviceOf = (): ServiceCell => ({
     ...UNKNOWN_SERVICE.identity,
     pid: process.pid,
     origin: `http://127.0.0.1:${port}`,
-    protocolVersion: fixture.protocolVersion ?? HOST_CONTRACT_VERSION,
+    protocolVersion: HOST_CONTRACT_VERSION,
     storageVersion: 1,
     // The one row this fake really serves is the runs; a fixture may claim
     // others to stand for a daemon mounting more than olai reads.

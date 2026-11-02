@@ -90,7 +90,7 @@ const refused = (origin: string, why: string, since: string): OduLink => ({
 const connected = (origin: string, since: string): OduLink => ({
   status: "connected",
   origin,
-  refusal: "",
+  refusal: null,
   since,
 })
 
