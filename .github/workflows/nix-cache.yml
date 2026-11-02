@@ -155,9 +155,11 @@ jobs:
       # no released `odu` has cache verbs: re-pin with the daemon, by SHA, and
       # NOT to this checkout's npins odu (the revision kolu's grafted @odu/*
       # sources were built against; it has no cache verbs at all).
-      - uses: juspay/odu/.github/actions/push@b80555719e70c2574355bb00d54b771f70a6b4e7
+      - uses: juspay/odu/.github/actions/push@8ee6c59bf3e2a2c94f1405e003c203c7d972091f # odu #145 (pin input)
         with:
           origin: ${{ env.PUSH_ORIGIN }}
           bucket: kolu
           token: ${{ secrets.ODU_CACHE_TOKEN }}
           paths: ${{ steps.roots.outputs.paths }}
+          # Re-point the olai-master pin at this closure on a default-branch push.
+          pin: olai-master
