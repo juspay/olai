@@ -1,11 +1,11 @@
 # Build every flake output on linux + darwin and push the closures to odu's
-# `kolu` bucket, served at https://cache.kolu.dev: the same daemon that runs
-# this repository's CI. The flake already lists this cache as a substituter, so
-# a green run here warms `nix build` / `nix develop` on both platforms (odu
-# lanes included). The push is `juspay/odu/.github/actions/push`: the step any
-# project uses, which brings its own `odu` from the sha it is pinned to, and
-# proves every path the bucket serves answers at the substituter before the
-# step can go green.
+# `kolu-r2` bucket on Cloudflare R2, read at https://cache.kolu.dev/kolu-r2:
+# the same daemon that runs this repository's CI owns the bucket. The flake
+# already lists this cache as a substituter, so a green run here warms
+# `nix build` / `nix develop` on both platforms (odu lanes included). The push
+# is `juspay/odu/.github/actions/push`: the step any project uses, which brings
+# its own `odu` from the sha it is pinned to, and proves every path the bucket
+# serves answers at the substituter before the step can go green.
 name: nix-cache
 
 on:
@@ -22,11 +22,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # THE BUCKET'S URL, for the pusher and for the flake's readers alike — the
-  # same URL the flake hands every user. If it misbehaves the run is red: a
-  # cache that cannot be written is a fact this job reports, not one it
-  # routes around.
-  PUSH_ORIGIN: https://cache.kolu.dev
+  # THE ODU ORIGIN THE PUSH GOES TO — not the substituter. Reads come from R2
+  # as static files, so nothing can be written there; the closures are uploaded
+  # to the daemon's own public origin, which owns the bucket. If it misbehaves
+  # the run is red: a cache that cannot be written is a fact this job reports,
+  # not one it routes around.
+  PUSH_ORIGIN: https://odu-k3s.rooster-blues.ts.net
 
 jobs:
   build-and-push:
@@ -49,8 +50,8 @@ jobs:
       - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
         with:
           nix_conf: |
-            extra-substituters = https://cache.kolu.dev
-            extra-trusted-public-keys = kolu-1:eAXwD1RPt1BpFjrHfVUO8Ia0bK32WcuIeJcwFWmgj9Y=
+            extra-substituters = https://cache.kolu.dev/kolu-r2
+            extra-trusted-public-keys = kolu-r2-1:7KmFrK05rVrnxkyZi9hJGnJJmRCpg87u6MUQIk7nokQ=
             accept-flake-config = true
 
       # BUILD HERE, PUSH IN THE NEXT STEP — because the push is an action
@@ -155,10 +156,10 @@ jobs:
       # no released `odu` has cache verbs: re-pin with the daemon, by SHA, and
       # NOT to this checkout's npins odu (the revision kolu's grafted @odu/*
       # sources were built against; it has no cache verbs at all).
-      - uses: juspay/odu/.github/actions/push@a6d7a0e2e8c095ae0f8b56663e315926b6ce8548 # odu master: #145 merged
+      - uses: juspay/odu/.github/actions/push@9607dfe3fd7ab3d1e5d699d2b090182189b876b5 # odu master: #145 merged
         with:
           origin: ${{ env.PUSH_ORIGIN }}
-          bucket: kolu
+          bucket: kolu-r2
           token: ${{ secrets.ODU_CACHE_TOKEN }}
           paths: ${{ steps.roots.outputs.paths }}
           # Hold this push's closure while it is the default branch's.
