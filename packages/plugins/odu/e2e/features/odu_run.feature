@@ -52,13 +52,23 @@ Feature: A lane names its CI run by odu's run id
     And there should be no page errors
 
   @scratch:odu-run @odu-service:skew
-  Scenario: A skewed service names both versions
+  Scenario: A service whose runs moved a major is refused, in odu's words
     Given I open the outline "board.olai"
     Then the odu readout is skew
     # Two builds that cannot speak: the bar's one dot is red and names the row's
     # own words with the popover shut.
     And the health dot is "alarm"
     And the health dot names "odu: update needed"
+    And there should be no page errors
+
+  @scratch:odu-run @odu-service:cache-ahead
+  Scenario: A service whose cache moved is still the quiet odu face
+    # olai declares the rows it reads — the runs and nothing else — so a daemon
+    # that released its cache a major ahead is an ordinary connected service.
+    # One number for the whole composed wire used to take this readout away.
+    Given I open the outline "board.olai"
+    Then the odu readout is connected
+    And the health dot is "healthy"
     And there should be no page errors
 
   @scratch:odu-run @odu-service:red

@@ -44,8 +44,8 @@ export const surface = defineSurface({
  * THE BROWSER'S ALONE, and it inherits the door rather than the reasoning —
  * which is the sharpest thing a per-plugin map says. This cell is a READING of
  * somebody else's coordinator, and an agent that wants a run's state has odu's
- * own MCP face and `odu status` besides; re-serving them through olai would be
- * a second door onto another tool's socket with olai's credentials on it,
+ * own MCP face and `odu ci status` besides; re-serving them through olai would
+ * be a second door onto another tool's socket with olai's credentials on it,
  * which is exactly the line kolu's seven are held to.
  *
  * The line is easier here than there, in fact: this member carries no bytes

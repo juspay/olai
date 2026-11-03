@@ -24,7 +24,9 @@ Press the chip and the matrix opens on the frame, one row per node, with the att
 
 ## The header
 
-The header's health-dot popover carries the same three-state readout kolu has (a skew turns the dot red; no odu leaves it alone): **odu** while the service is speaking, **No odu** naming the origin and the fix (`odu web --background`), and **odu: update needed** naming both versions. Olai never starts the service. Absence is ordinary, said in words, never drawn as a quiet board.
+The header's health-dot popover carries the same three-state readout kolu has (a refused service turns the dot red; no odu leaves it alone): **odu** while the service is speaking, **No odu** naming the origin and the fix (`odu web --background`), and **odu: update needed** carrying odu's own sentence about why it refused this build. Olai never starts the service. Absence is ordinary, said in words, never drawn as a quiet board.
+
+Olai reads one of odu's rows — the runs — and says so when it dials, so a service whose other rows moved a major is still an ordinary connected service. Only a disagreement about the runs themselves, or about odu's own host contract, takes the readout red.
 
 A run that finished while olai was not running still draws its verdict: the catalog remembers it.
 

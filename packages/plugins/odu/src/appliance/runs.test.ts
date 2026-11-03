@@ -12,19 +12,10 @@ import { expect, test } from "bun:test"
 import { dialService } from "@odu/service-client/dial"
 
 import { advanceSub, makeBoard, type RunNotice } from "./runs.ts"
-import { startOduService } from "./testlib/odu.ts"
+import { startOduService, waitUntil } from "./testlib/index.ts"
 import { liveOf, ODU_UNDIALED, type CiRun } from "./wire/index.ts"
 
 const BOARD = ["m1kb0e11-2c8d"] as const
-
-const waitUntil = async (ok: () => boolean, why: string, ms = 8_000): Promise<void> => {
-  const start = Date.now()
-  while (Date.now() - start < ms) {
-    if (ok()) return
-    await Bun.sleep(20)
-  }
-  throw new Error(why)
-}
 
 const boardOf = (rang: Array<RunNotice> = []) =>
   makeBoard({

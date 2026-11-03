@@ -15,12 +15,11 @@
 import { inMemoryStore } from "@kolu/surface/server"
 import { Effect } from "effect"
 
-import { type DialService, originIn, runLink, SPEAKS } from "./link.ts"
+import { type DialService, originIn, runLink } from "./link.ts"
 import { makeBoard, type RunNotice } from "./runs.ts"
 import { type CiRun, type CiRuns, type OduLink, NO_RUNS, ODU_UNDIALED } from "./wire/index.ts"
 
 export { type DialService, type RunNotice }
-export { SPEAKS }
 
 export interface OduDeps {
   readonly options: {
@@ -107,7 +106,6 @@ export const oduHalf = (deps: OduDeps): OduHalf => {
               handle.set({
                 ...ODU_UNDIALED,
                 origin: originIn(env),
-                speaks: SPEAKS,
                 since: now(),
               })
               return Effect.scoped(Effect.gen(function*() {
