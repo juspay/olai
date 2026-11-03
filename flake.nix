@@ -24,14 +24,14 @@
   # (synapdeck/bun2nix@34894825) until it lands and we retag.
   inputs.bun2nix.url = "github:synapdeck/bun2nix/3489482505adf9eafd4498c8e53015b5da980e13";
 
-  # Juspay's shared OSS cache — odu's `kolu` bucket — so `nix run .#bun2nix` and
-  # the kolu sources come down prebuilt instead of being compiled on every
-  # lane. `.github/workflows/nix-cache.yml` warms it on every push; the URL is
-  # the bucket's own name, so the daemon behind it can move without a reader
-  # changing a line.
+  # Juspay's shared OSS cache — odu's `kolu-r2` bucket on Cloudflare R2 — so
+  # `nix run .#bun2nix` and the kolu sources come down prebuilt instead of being
+  # compiled on every lane. `.github/workflows/nix-cache.yml` warms it on every
+  # push; reads come straight from R2 at the bucket's own path, so the daemon
+  # behind it can move without a reader changing a line.
   nixConfig = {
-    extra-substituters = "https://cache.kolu.dev";
-    extra-trusted-public-keys = "kolu-1:eAXwD1RPt1BpFjrHfVUO8Ia0bK32WcuIeJcwFWmgj9Y=";
+    extra-substituters = "https://cache.kolu.dev/kolu-r2";
+    extra-trusted-public-keys = "kolu-r2-1:7KmFrK05rVrnxkyZi9hJGnJJmRCpg87u6MUQIk7nokQ=";
   };
 
   outputs = { self, bun2nix, ... }:
