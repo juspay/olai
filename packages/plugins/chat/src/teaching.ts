@@ -48,7 +48,7 @@
  * A long conversation compacts, and a preamble on its first message is exactly
  * what compaction drops. What production showed is the agent drifting back to
  * its default — filing a node per message — long after the contract went out.
- * So every Nth message a node agent takes carries {@link REMINDING}: the write
+ * So every Nth message a person sends a node agent carries {@link REMINDING}: the write
  * trigger and the shape rule in one sentence, on the same seam and as the same
  * kind of notice, so a person reads what the agent was reminded of. The count
  * and the period are the session record's and the chat setting's

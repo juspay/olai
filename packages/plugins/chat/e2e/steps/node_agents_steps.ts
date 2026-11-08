@@ -32,6 +32,7 @@ import { selector } from "@olai/web/testlib";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
 
 import { attr } from "@olai/tests/harness/selectors.ts";
+import { REMINDER } from "../../src/teaching.ts";
 import { answering } from "@olai/tests/harness/shortlist.ts";
 
 import { oneLine, POLL_TIMEOUT, PROP_EDIT, ZOOM_TITLE } from "@olai/tests/harness/world.ts";
@@ -393,16 +394,13 @@ Then(
   },
 );
 
-/** THE REMINDER'S OPENING WORDS — the start of `olai-plugin-chat`'s
- *  `teaching.ts` `REMINDER` sentence, without the `[olai] ` prefix the line
- *  builder adds — counted the way {@link taughtTimes} counts the contract: the
- *  scripted agent says the prompt back, so each reminder is on the page twice —
- *  olai's notice, and the agent's echo of the message it rode under. */
-const REMINDED = "Reminder: answer first, and write to this node's subtree";
-
+/** How many times olai reminded this agent, counted by `REMINDER` itself the
+ *  way {@link taughtTimes} counts the contract: the scripted agent says the
+ *  prompt back, so each reminder is on the page twice — olai's notice, and the
+ *  agent's echo of the message it rode under. */
 const remindedTimes = async (world: OlaiWorld): Promise<number> => {
   const said = await world.page.locator("body").innerText();
-  return Math.floor((said.split(REMINDED).length - 1) / 2);
+  return Math.floor((said.split(REMINDER).length - 1) / 2);
 };
 
 Then(

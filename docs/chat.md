@@ -959,10 +959,10 @@ binding, replacing the first machine's pointer. The subtree remains its knowledg
 Trashed nodes and nodes whose property was removed disappear from the roster.
 
 Machine-local `heard/` records keep what olai observed: teaching, how many
-messages a node agent's session has taken, assignment, replacement links, and
+messages a person has sent a node agent's session, assignment, replacement links, and
 the last line heard. They are keyed by engine and session
 and capped at thirty-two conversations, least recently overheard first; every
-message a node agent takes is one write and counts as being overheard. They
+message a person sends a node agent is one write and counts as being overheard. They
 are bookkeeping, separate from the keyed model choices and wake preferences.
 Eviction can cause a contract to be taught again, and restarts that session's
 reminder count from the beginning. A last-heard line is the
@@ -1007,12 +1007,13 @@ subtree reorganization.
 
 **Every twentieth message carries a one-line reminder.** A preamble on the
 first message is exactly what a long conversation compacts away, so every Nth
-message a node agent's session takes — counting the teaching's own message as
+message a person sends a node agent's session — counting the teaching's own message as
 the first — carries `[olai] Reminder: …`: the write trigger and the shape rule
 in one sentence, as a notice under that message like the teaching. The count is
 per session and kept in the machine-local `heard/` record beside the teaching
 mark, written in the same write, so a restart neither resets it nor counts a
-message twice; only a message the agent took is counted. N is the chat row's
+message twice; only a message the agent took is counted, and a retried send, a
+doorbell's body or a sleep turn is not. N is the chat row's
 `remind-every` in `_olai/Settings.olai` — twenty by default, `0` never reminds.
 A conversation no node claims is neither counted nor reminded.
 

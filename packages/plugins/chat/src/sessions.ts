@@ -107,7 +107,7 @@
  *
  * A node agent's conversation used to cost one write in its life — the
  * teaching mark — plus the turn-boundary `said`. Counting ({@link
- * Overheard.taken}) made it one write for EVERY message a node agent takes:
+ * Overheard.taken}) made it one write for EVERY message a person sends one:
  * the `heard` section, saved whole through chat's local document and awaited
  * before the send returns (`./chat.ts`'s `contracted`, which is how the next
  * send reads the count in the mirror). The section is capped at {@link ROWS}

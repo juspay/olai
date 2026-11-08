@@ -717,8 +717,9 @@ interface Teaching {
   /** The contract, the reminder, or nothing — verbatim what rides under the
    *  message and what the notice shows. */
   readonly lines: ReadonlyArray<string>
-  /** These lines ARE the contract, so the count's write marks it `taught`. */
-  readonly contract: boolean
+  /** These lines ARE the contract, so this message marks the session `taught`
+   *  — the record's own name for the fact, handed straight to `took`. */
+  readonly taught: boolean
 }
 
 /**
@@ -856,7 +857,7 @@ const noting = (
  *  rather than at the call site: the sentence is about this record, and the
  *  gesture that made the write is a package away. */
 const tookLost = (teach: Teaching, failure: Memory.MemoryFailure): string =>
-  teach.contract
+  teach.taught
     ? `a node agent was taught its contract and it could not be written down ` +
       `(${failure.why}) — the next message in this session will say it again`
     : `a node agent's message could not be counted (${failure.why}) — ` +
@@ -1331,13 +1332,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       const node = options.agentAt?.(to) ?? null
       if (node === null) return null
       const row = overheard.at(to)
-      const contract = row?.taught !== true
+      const teaches = row?.taught !== true
       // THIS MESSAGE'S NUMBER in the session, the teaching's own being the
       // first — so the reminder rides the Nth, the 2Nth, … and never the
       // message that already carries the whole contract.
       const every = options.remindEvery ?? 0
-      const reminds = !contract && every > 0 && ((row?.taken ?? 0) + 1) % every === 0
-      const lines = contract
+      const reminds = !teaches && every > 0 && ((row?.taken ?? 0) + 1) % every === 0
+      const lines = teaches
         ? teachingFor(node, row?.assigned === true ? "assigned" : "opened")
         : reminds ? REMINDING : []
       // ...AND WHICH CHANNEL THIS ENGINE'S STANDING PROMPT RIDES, which is the
@@ -1360,7 +1361,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       if (talking === null) return null
       switch (talking.row.prompt.kind) {
         case "first-turn":
-          return { to, lines, contract }
+          return { to, lines, taught: teaches }
       }
     }
 
@@ -1431,7 +1432,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // `teaching()` believed when the prompt was built.
         const row = transcript.entries().get(key)
         if (row === undefined || row.kind !== "user" || row.delivery !== undefined) return
-        const done = yield* Effect.result(overheard.took(teach.to, teach.contract))
+        const done = yield* Effect.result(overheard.took(teach.to, teach.taught))
         if (done._tag === "Failure") {
           yield* Effect.logWarning(tookLost(teach, done.failure))
           return
