@@ -1,5 +1,5 @@
 /** Node-process policy. Machine resources continue to arrive through Env. */
-import { Duration, Effect, Schema } from "effect"
+import { Duration, Effect, Schema, SchemaTransformation } from "effect"
 import { DEFAULT_IDLE } from "./scoped.ts"
 
 /**
@@ -104,6 +104,23 @@ export const Config = Schema.Struct({
   "sleep-tick": span("sleep-tick"),
   "sleep-question": span("sleep-question"),
   "sleep-limit": span("sleep-limit"),
+  // HOW OFTEN A NODE AGENT IS REMINDED OF ITS WRITING RULE, in messages it
+  // took — `sleep-floor`'s shape, with zero allowed because zero is the switch:
+  // a person who finds the line noisy turns it off here (`./teaching.ts`'s
+  // `REMINDER`, `docs/chat.md`). DIGITS ONLY on the text arm, because with zero
+  // legal a blank property must not read as `Number("")`, which is zero — a
+  // reminder switched off by an empty field nobody meant as "off".
+  "remind-every": Schema.Union([
+    Schema.Int,
+    Schema.String.check(Schema.isPattern(/^\d+$/)).pipe(
+      Schema.decodeTo(Schema.Number, SchemaTransformation.numberFromString),
+    ),
+  ]).check(Schema.isBetween({ minimum: 0, maximum: 2147483647 })).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(20)),
+    Schema.annotate({
+      description: "Every how many messages a node agent is reminded when to write to its subtree; 0 never reminds",
+    }),
+  ),
 })
 
 /** The spans as the durations the pass waits, off the decoded config —

@@ -62,3 +62,13 @@ test("`off` is a word, and a span is a duration or it is refused", () => {
   expect(spanMillis("1d1h")).toBeUndefined()
   expect(spanMillis("2147483648ms")).toBeUndefined()
 })
+
+test("a node agent is reminded every twenty messages, and zero is the switch that turns it off", () => {
+  const decode = Schema.decodeUnknownSync(Config)
+  expect(decode({})["remind-every"]).toBe(20)
+  expect(decode({ "remind-every": "3" })["remind-every"]).toBe(3)
+  expect(decode({ "remind-every": "0" })["remind-every"]).toBe(0)
+  for (const value of ["-1", "1.5", "often", ""]) {
+    expect(() => decode({ "remind-every": value })).toThrow()
+  }
+})
