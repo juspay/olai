@@ -32,6 +32,10 @@ export interface FixturePolicy {
    *  written into a running serve, which would test the setting's re-application
    *  instead of the pass being absent. */
   readonly sleepOff?: boolean
+  /** How often a node agent is reminded of its writing rule
+   *  (`@remind-every:<n>`), so a scenario reaches the Nth message in a few
+   *  sends — and `0`, the setting switched off. */
+  readonly remindEvery?: number
   readonly avatar?: string
 }
 export const writeFixturePolicy = (root: string, policy: FixturePolicy): void => {
@@ -74,6 +78,7 @@ export const writeFixturePolicy = (root: string, policy: FixturePolicy): void =>
     put("chat", "sleep-latest", policy.sleep.latest)
   }
   put("chat", "sleep", policy.sleepOff === true ? "off" : undefined)
+  put("chat", "remind-every", policy.remindEvery === undefined ? undefined : String(policy.remindEvery))
   if (changed) {
     fs.mkdirSync(path.dirname(file), { recursive: true })
     fs.writeFileSync(file, nodes.map(node => JSON.stringify(node)).join("\n") + "\n")

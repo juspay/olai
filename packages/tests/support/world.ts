@@ -1523,6 +1523,9 @@ export class OlaiWorld extends World {
   /** Whether this scenario's server runs the pass at all (`@sleep-off`),
    *  carried for the same restart reason. */
   sleepOff = false;
+  /** The node agent's reminder period (`@remind-every:<n>`), or `undefined`
+   *  for the product default — carried for the same restart reason. */
+  remindEvery: number | undefined = undefined;
   /** Whether this scenario's server has an agent at all — false for
    *  `@no-agent`, which is how the panel's no-agent state is reached. Carried
    *  for the same reason: a restart has to reproduce the first boot. */

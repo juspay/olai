@@ -343,26 +343,26 @@ Then(
 );
 
 /** ... and what it SAYS, which is the half that matters: the node it names,
- *  the law that node's subtree is the memory, and the memory rule every
- *  contract carries — the agent has no memory of its own here. */
+ *  that the node's note is its charter, that the subtree is a knowledge base
+ *  written only when a durable fact changed, and the line every contract
+ *  carries — the agent has no memory of its own here. */
 Then(
   "the contract names {string} and its subtree",
   async function (this: OlaiWorld, title: string) {
     const said = await this.page.locator("body").innerText();
-    assert.ok(
-      said.includes(title),
-      `the contract to name ${JSON.stringify(title)}, and it says ${JSON.stringify(said)}`,
-    );
-    assert.ok(
-      said.includes("SUBTREE is your memory"),
-      `the contract to say the subtree is the memory, ` +
-        `and it says ${JSON.stringify(said)}`,
-    );
-    assert.ok(
-      said.includes("You have no memory of your own here: this subtree is the only memory."),
-      `the contract to say the agent has no memory of its own, ` +
-        `and it says ${JSON.stringify(said)}`,
-    );
+    for (const [words, claim] of [
+      [title, `the contract to name ${JSON.stringify(title)}`],
+      ["own note is your charter", "the contract to make the node's note the charter"],
+      ["SUBTREE is your knowledge base", "the contract to say the subtree is the knowledge base"],
+      ["write to it only when a durable fact changed", "the contract to say when to write"],
+      ["One node per fact", "the contract to say what shape a write takes"],
+      [
+        "You have no memory of your own here: this subtree is the only memory.",
+        "the contract to say the agent has no memory of its own",
+      ],
+    ] as const) {
+      assert.ok(said.includes(words), `${claim}, and it says ${JSON.stringify(said)}`);
+    }
   },
 );
 
@@ -385,9 +385,32 @@ Then(
   async function (this: OlaiWorld) {
     const said = await this.page.locator("body").innerText();
     assert.ok(
-      said.includes("NOW your memory") && said.includes("WRITE INTO IT"),
+      said.includes("Reconcile first") &&
+        said.includes("distill what is still relevant from this conversation into the subtree"),
       `the contract to order the session to write what it knows into the subtree, ` +
         `and it says ${JSON.stringify(said)}`,
+    );
+  },
+);
+
+/** THE REMINDER'S OPENING WORDS (`olai-plugin-chat`'s `teaching.ts`
+ *  `REMINDER`), counted the way {@link taughtTimes} counts the contract: the
+ *  scripted agent says the prompt back, so each reminder is on the page twice —
+ *  olai's notice, and the agent's echo of the message it rode under. */
+const REMINDED = "[olai] Reminder: answer first";
+
+const remindedTimes = async (world: OlaiWorld): Promise<number> => {
+  const said = await world.page.locator("body").innerText();
+  return Math.floor((said.split(REMINDED).length - 1) / 2);
+};
+
+Then(
+  "the agent was reminded of its writing rule {int} time(s)",
+  async function (this: OlaiWorld, times: number) {
+    await this.waitUntil(
+      async () => (await remindedTimes(this)) === times,
+      `the conversation to carry the reminder ${times} time(s), and it carries ` +
+        `${await remindedTimes(this)}`,
     );
   },
 );
