@@ -981,6 +981,9 @@ export default definePlugin({
         overheard: yield* sessionsIn(localState),
         live: liveIn(localState),
         agentAt: (to) => nodeAgents.agentAt(to),
+        // THE PERIOD AS DECODED, from the settings this row was applied with —
+        // a change re-applies the row, so the panel never holds a stale one.
+        remindEvery: settings["remind-every"],
         nodeAt: (node) => nodeAgents.nodeAt(node),
         seatableAt: (node) => nodeAgents.seatableAt(node),
         nodes: () => nodeAgents.nodes(),

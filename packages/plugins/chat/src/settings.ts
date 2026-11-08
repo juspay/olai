@@ -113,7 +113,7 @@ export const Config = Schema.Struct({
   "remind-every": Schema.Union([
     Schema.Int,
     Schema.String.check(Schema.isPattern(/^\d+$/)).pipe(
-      Schema.decodeTo(Schema.Number, SchemaTransformation.numberFromString),
+      Schema.decodeTo(Schema.Int, SchemaTransformation.numberFromString),
     ),
   ]).check(Schema.isBetween({ minimum: 0, maximum: 2147483647 })).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(20)),

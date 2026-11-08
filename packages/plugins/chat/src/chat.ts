@@ -117,7 +117,7 @@ import { annotated } from "./prompt.ts"
 import type { Probe } from "./probes.ts"
 import type { Scoped, Scopes } from "./scopes.ts"
 import { succeeded } from "./succession.ts"
-import { teachingFor } from "./teaching.ts"
+import { REMINDER, teachingFor } from "./teaching.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
@@ -259,6 +259,15 @@ export interface PanelOptions {
    * telling it nothing.
    */
   readonly agentAt?: (to: Conversing) => NodeAgent | null
+  /**
+   * EVERY HOW MANY MESSAGES A NODE AGENT IS REMINDED OF ITS WRITING RULE
+   * (`./settings.ts`'s `remind-every`, `./teaching.ts`'s `REMINDER`) — the
+   * setting as decoded, handed in by the composition root that read it.
+   *
+   * `0` — or absent — never reminds, which is every test in this package
+   * unless it says otherwise and a serve whose person turned it off.
+   */
+  readonly remindEvery?: number
   /** Publish the state cell. Called on every change; the surface dedups. */
   readonly onState: (state: ChatState) => void
   /** Publish transcript changes — ALL THREE of the things one carries: rows
@@ -688,18 +697,28 @@ interface Undelivered {
 }
 
 /**
- * A CONTRACT ABOUT TO GO OUT: the lines, and the conversation they are for.
+ * WHAT A NODE AGENT'S MESSAGE CARRIES ABOUT TO GO OUT: the lines, whether they
+ * are the contract, and the conversation they are for.
  *
- * ONE VALUE rather than two facts a send holds side by side, and the pairing is
+ * ONE VALUE rather than facts a send holds side by side, and the pairing is
  * the whole of what it buys: the lines are built from one read of the binding
- * table, and the mark written down afterwards has to be about the conversation
- * that read named — not about whichever one the panel is in a beat later. Two
- * separate reads is exactly how a session swapped mid-send would leave a
- * conversation marked taught that never heard a word.
+ * table and the session record, and the mark written down afterwards has to be
+ * about the conversation that read named — not about whichever one the panel
+ * is in a beat later. Two separate reads is exactly how a session swapped
+ * mid-send would leave a conversation marked taught that never heard a word.
+ *
+ * THE LINES MAY BE EMPTY, and that is most messages: a node agent's message
+ * that carries neither the contract nor the reminder is still COUNTED, because
+ * the count is what says which later message the reminder rides
+ * ({@link ./sessions.ts}'s `Overheard.taken`).
  */
 interface Teaching {
   readonly to: Deliveries.Addressed
+  /** The contract, the reminder, or nothing — verbatim what rides under the
+   *  message and what the notice shows. */
   readonly lines: ReadonlyArray<string>
+  /** These lines ARE the contract, so the count's write marks it `taught`. */
+  readonly contract: boolean
 }
 
 /**
@@ -836,9 +855,12 @@ const noting = (
 /** ... and what each of them costs when it is lost, said where the write is
  *  rather than at the call site: the sentence is about this record, and the
  *  gesture that made the write is a package away. */
-const taughtLost = (failure: Memory.MemoryFailure): string =>
-  `a node agent was taught its contract and it could not be written down ` +
-  `(${failure.why}) — the next message in this session will say it again`
+const tookLost = (teach: Teaching) => (failure: Memory.MemoryFailure): string =>
+  teach.contract
+    ? `a node agent was taught its contract and it could not be written down ` +
+      `(${failure.why}) — the next message in this session will say it again`
+    : `a node agent's message could not be counted (${failure.why}) — ` +
+      `its writing rule is reminded one message later than it would have been`
 
 const assignLost = (failure: Memory.MemoryFailure): string =>
   `a chat was assigned to a node agent and that it was ASSIGNED could not be written down ` +
@@ -1270,17 +1292,22 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     ): string | null => (to === null ? null : options.agentAt?.(to)?.id ?? null)
 
     /**
-     * WHAT THIS MESSAGE HAS TO TEACH, or nothing at all — the standing
-     * instruction a node agent's session is given ONCE
-     * ({@link ./teaching.ts}, which argues the channel).
+     * WHAT THIS MESSAGE HAS TO TEACH — the standing instruction a node agent's
+     * session is given ONCE, the one-line reminder every Nth message after it,
+     * or no lines at all ({@link ./teaching.ts}, which argues the channel) —
+     * or no answer at all, for a message that is not a node agent's.
      *
-     * THREE WAYS TO ANSWER NOTHING, and every one of them is the ordinary case
-     * for somebody: no record at all — a serve composed without one, which is
-     * also what keeps a chat that CANNOT write the mark from teaching the same
-     * session on every message; a session already taught, which is every
-     * message after the first; and a conversation no node claims, which is
-     * nearly every conversation and also a pointer left on a record that has
-     * been trashed or has lost its property.
+     * TWO WAYS TO ANSWER NOTHING, and each is the ordinary case for somebody:
+     * no record — a serve composed without one, which is also what keeps a
+     * chat that CANNOT write the mark from teaching the same session on every
+     * message; and a conversation no node claims, which is nearly every
+     * conversation and also a pointer left on a record that has been trashed
+     * or has lost its property. Neither is counted, and neither is reminded.
+     *
+     * EVERY NODE AGENT'S MESSAGE IS ANSWERED, with empty lines for most of
+     * them, because every one of them is COUNTED: the count is what says which
+     * later message carries the reminder, and a message that is not counted
+     * would push every reminder after it one message late.
      *
      * THE ANSWER CARRIES THE CONVERSATION IT IS FOR, which is what makes it one
      * value rather than two facts a send has to keep in step: the lines and
@@ -1289,29 +1316,39 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * conversation rather than against whichever one the panel has come to be
      * in ({@link contracted}).
      *
-     * WHICH OF THE TWO CONTRACTS comes off the same row the `taught` mark does,
-     * in one read: a session somebody ASSIGNED to a node is told to bank what
-     * its transcript knows, and one olai opened for a node is told the standing
-     * law alone ({@link ./teaching.ts}'s `Arrival`). Two reads of that row would
-     * be two answers to one question, and the second could be taken after a
-     * write that moved it.
+     * WHICH OF THE TWO CONTRACTS, and whether this is the reminder's message,
+     * come off the same row the `taught` mark does, in one read: a session
+     * somebody ASSIGNED to a node is told to bank what its transcript knows,
+     * and one olai opened for a node is told the standing law alone
+     * ({@link ./teaching.ts}'s `Arrival`); the count on that row says which
+     * message this is. Two reads of that row would be two answers to one
+     * question, and the second could be taken after a write that moved it.
      */
     const teaching = (): Teaching | null => {
       const to = conversationOf()
       const overheard = options.overheard
       if (to === null || overheard === undefined || overheard === null) return null
-      const row = overheard.at(to)
-      if (row?.taught === true) return null
       const node = options.agentAt?.(to) ?? null
       if (node === null) return null
-      const lines = teachingFor(node, row?.assigned === true ? "assigned" : "opened")
+      const row = overheard.at(to)
+      const contract = row?.taught !== true
+      // THIS MESSAGE'S NUMBER in the session, the teaching's own being the
+      // first — so the reminder rides the Nth, the 2Nth, … and never the
+      // message that already carries the whole contract.
+      const every = options.remindEvery ?? 0
+      const reminds = !contract && every > 0 && ((row?.taken ?? 0) + 1) % every === 0
+      const lines = contract
+        ? teachingFor(node, row?.assigned === true ? "assigned" : "opened")
+        : reminds ? [REMINDER] : []
       // ...AND WHICH CHANNEL THIS ENGINE'S STANDING PROMPT RIDES, which is the
       // engine's own answer and not an assumption of this file's
       // (`@olai/acp/engine`'s `PromptChannel`). The switch is EXHAUSTIVE on
       // purpose: every engine olai ships rides the first turn, because ACP has
       // no system prompt on any wire — and the day one grows a real slot, the
       // arm added there is a `tsc` error HERE rather than a branch on an
-      // engine's id somewhere in core.
+      // engine's id somewhere in core. The reminder rides with the contract:
+      // it is the same law, and an engine whose contract went into a slot
+      // would want its reminder decided in the same arm.
       //
       // NO AGENT BOUND IS NOT AN ARM OF THAT, and it used to be spelled as one:
       // `talking?.row.prompt.kind ?? "first-turn"` put core's own guess where an
@@ -1323,14 +1360,16 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       if (talking === null) return null
       switch (talking.row.prompt.kind) {
         case "first-turn":
-          return { to, lines }
+          return { to, lines, contract }
       }
     }
 
     /**
      * ... and SAYING that it went, and remembering it — the two halves of "the
      * contract is out", together, because they are one event and used to be
-     * able to disagree.
+     * able to disagree. The same act COUNTS every node agent's message, and
+     * says the reminder where one went: one write per message, which carries
+     * the `taught` mark too on the message that taught.
      *
      * SAID AND MARKED ONLY WHERE THE MESSAGE WAS TAKEN, which is what the row's
      * own delivery mark answers. A prompt that never reached an agent taught it
@@ -1379,9 +1418,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *
      * Its failure is still a LOG rather than a refusal
      * ({@link ./sessions.ts}), and what the failure costs changed with the
-     * order: the contract rides a LATER message instead — a telling delayed,
-     * never one duplicated — which is still not worth taking a send away
-     * from somebody over.
+     * order: the contract or the reminder rides a LATER message instead — a
+     * telling delayed, never one duplicated — which is still not worth taking
+     * a send away from somebody over.
      */
     const contracted = (teach: Teaching, key: string): Effect.Effect<void> =>
       Effect.gen(function*() {
@@ -1392,11 +1431,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // `teaching()` believed when the prompt was built.
         const row = transcript.entries().get(key)
         if (row === undefined || row.kind !== "user" || row.delivery !== undefined) return
-        const done = yield* Effect.result(overheard.teach(teach.to))
+        const done = yield* Effect.result(overheard.took(teach.to, teach.contract))
         if (done._tag === "Failure") {
-          yield* Effect.logWarning(taughtLost(done.failure))
+          yield* Effect.logWarning(tookLost(teach)(done.failure))
           return
         }
+        // A COUNTED MESSAGE THAT CARRIED NOTHING has no notice to say.
+        if (teach.lines.length === 0) return
         // SECOND READ, the line before the notice it is gating, so the
         // check-and-append are the one thing this fork can make of them: no
         // await between, and no permit held — the fork has none. The write
@@ -2203,9 +2244,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // The permit covers the ROW as well as the delivery, deliberately: a
         // row written before the replay is a row the replay takes away.
         yield* opening.withPermit(Effect.gen(function*() {
-          // WHAT A NODE AGENT IS TOLD, if this conversation belongs to one and
-          // has not been told yet — INSIDE the permit, with the delivery it
-          // rides under.
+          // WHAT A NODE AGENT IS TOLD — the contract if this conversation
+          // belongs to one and has not been told yet, the reminder on its Nth
+          // message — INSIDE the permit, with the delivery it rides under.
           //
           // It was asked outside, and that was the one thing on this path that
           // had no business being: a send that PARKS on the permit while a
