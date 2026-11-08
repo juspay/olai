@@ -86,7 +86,7 @@
     "src/browser/chat/sleeping.ts": 4,
     "src/chat.ts": 6,
     "src/events.ts": 2,
-    "src/server.ts": 4,
+    "src/server.ts": 5,
     "src/settings.ts": 1,
     "src/wire/members.ts": 2
   },

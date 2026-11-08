@@ -1558,7 +1558,7 @@ Before(
     }
     if (this.remindEvery !== undefined && asked.mode !== "own") {
       throw new Error(
-        `${REMIND_TAG}<n> writes the chat row's settings before boot and requires a private ` +
+        `${REMIND_TAG}<n> writes the reminder period into the policy file before boot and requires a private ` +
           "@scratch:<corpus>; use @own-scratch when the feature shares its scratch.",
       );
     }
