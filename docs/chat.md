@@ -958,8 +958,9 @@ engine may refuse to open that conversation. Starting fresh there writes a new
 binding, replacing the first machine's pointer. The subtree remains its memory.
 Trashed nodes and nodes whose property was removed disappear from the roster.
 
-Machine-local `heard/` records keep what olai observed: teaching, assignment,
-replacement links, and the last line heard. They are keyed by engine and session
+Machine-local `heard/` records keep what olai observed: teaching, how many
+messages a node agent's session has taken, assignment, replacement links, and
+the last line heard. They are keyed by engine and session
 and capped at thirty-two conversations, least recently overheard first. They
 are bookkeeping, separate from the keyed model choices and wake preferences.
 Eviction can cause a contract to be taught again. A last-heard line is the
@@ -968,25 +969,53 @@ a conversation driven only from a terminal does not update it.
 
 ### An agent-associated session is taught what it is
 
-The first accepted message carries a preamble naming the node and its subtree
-as memory, with instructions to keep that knowledge current and organized.
-The same words appear under your message as a notice. This uses the ordinary prompt seam because ACP has no
-system-prompt field, and costs no separate turn. Teaching is recorded per
-session and survives restarts. A refused send marks and displays no teaching.
-A missing or trashed node teaches nothing. If recording the teaching fails,
-the next message can repeat it; the transcript does not claim a record the
-machine could not retain.
+The first accepted message carries a preamble, one `[olai]` line per thing, in
+priority order:
 
-A filed session gets the assigned-session contract: it was moved here and must
-reconcile the subtree with useful current knowledge from its conversation.
-A session opened for a node gets the ordinary contract. Neither requires copying
-or converting the engine's session files.
+1. **Who it is** — the node agent for this title, id and file — and that the
+   node's own note is its charter, which overrides everything below.
+2. **When to write.** The subtree is a knowledge base organized by topic, with
+   its size. Answer first; write to it only when a durable fact changed — a
+   decision, a finding, a ruling or preference of the person, a standing state
+   of the world. Never record messages, questions, its own actions, or a
+   running account of the conversation.
+3. **What shape a write takes.** One node per fact: update the node that
+   already holds a fact, create one only for a fact that is new, consolidate
+   duplicates, remove what is obsolete.
+4. That the engine's own memory is off (below).
 
-Both contracts ask the agent to keep memory current and organized by topic:
-update existing entries as understanding changes, consolidate duplicates, and
-remove obsolete information. Store useful knowledge, not a running account of
-conversations or actions. These are instructions to the agent, not an automatic
+The same words appear under your message as a notice. This uses the ordinary
+prompt seam because ACP has no system-prompt field, and costs no separate turn.
+Teaching is recorded per session and survives restarts. A refused send marks
+and displays no teaching. A missing or trashed node teaches nothing. If
+recording the teaching fails, the next message can repeat it; the transcript
+does not claim a record the machine could not retain.
+
+The subtree is deliberately not called the agent's memory. An earlier contract
+did, five times, and asked the agent to "maintain it as you learn"; agents took
+that literally and filed a new node for every message they received. The write
+trigger now comes first and in the negative, and the shape rule says an edit
+goes to the node that already holds the fact.
+
+A filed session gets the assigned-session contract: it was moved here, and
+between the shape rule and the last line it is told to reconcile first —
+distill what is still relevant from its conversation into the subtree,
+updating the entries that already hold it. A session opened for a node gets the
+ordinary contract. The law — when to write and in what shape — is the same
+lines word for word under both. Neither requires copying or converting the
+engine's session files. These are instructions to the agent, not an automatic
 subtree reorganization.
+
+**Every twentieth message carries a one-line reminder.** A preamble on the
+first message is exactly what a long conversation compacts away, so every Nth
+message a node agent's session takes — counting the teaching's own message as
+the first — carries `[olai] Reminder: …`: the write trigger and the shape rule
+in one sentence, as a notice under that message like the teaching. The count is
+per session and kept in the machine-local `heard/` record beside the teaching
+mark, written in the same write, so a restart neither resets it nor counts a
+message twice; only a message the agent took is counted. N is the chat row's
+`remind-every` in `_olai/Settings.olai` — twenty by default, `0` never reminds.
+A conversation no node claims is neither counted nor reminded.
 
 The engine's own harness memory — the automatic memory Claude Code and Codex
 persist beside their transcripts — is switched off under olai (see each
