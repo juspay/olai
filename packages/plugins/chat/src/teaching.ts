@@ -48,7 +48,7 @@
  * A long conversation compacts, and a preamble on its first message is exactly
  * what compaction drops. What production showed is the agent drifting back to
  * its default — filing a node per message — long after the contract went out.
- * So every Nth message a node agent takes carries {@link REMINDER}: the write
+ * So every Nth message a node agent takes carries {@link REMINDING}: the write
  * trigger and the shape rule in one sentence, on the same seam and as the same
  * kind of notice, so a person reads what the agent was reminded of. The count
  * and the period are the session record's and the chat setting's
@@ -97,6 +97,12 @@ import { memoryOf, type NodeAgent } from "@olai/format"
  */
 export type Arrival = "opened" | "assigned"
 
+/** THE ONE PLACE `[olai] ` IS SPELLED: sentences in, the lines that ride under
+ *  a message out. The teaching and the reminder both go through it, so the
+ *  seam has one shape however many things ride it. */
+const lines = (sentences: ReadonlyArray<string>): ReadonlyArray<string> =>
+  sentences.map((sentence) => `[olai] ${sentence}`)
+
 /**
  * WHAT THE AGENT IS TOLD, as the lines {@link ./prompt.ts}'s `annotated` puts
  * under a message — one line per thing, in priority order.
@@ -130,25 +136,32 @@ export const teachingFor = (
   how: Arrival = "opened",
 ): ReadonlyArray<string> => {
   const says = SAYS[how]
-  return [
-    `[olai] ${says.who(agent)} ${CHARTER}`,
-    `[olai] ${TRIGGER(agent.memory === 0 ? "nothing under it yet" : memoryOf(agent))}`,
-    `[olai] ${SHAPE}`,
-    ...(says.reconcile === null ? [] : [`[olai] ${says.reconcile}`]),
-    `[olai] ${HARNESS_MEMORY_OFF}`,
-  ]
+  return lines([
+    `${says.who(agent)} ${CHARTER}`,
+    TRIGGER(agent.memory === 0 ? "nothing under it yet" : memoryOf(agent)),
+    SHAPE,
+    ...(says.reconcile === null ? [] : [says.reconcile]),
+    HARNESS_MEMORY_OFF,
+  ])
 }
 
 /**
- * THE REMINDER — the law in one line, for the Nth message after the teaching.
+ * THE REMINDER — the law in one sentence, for the Nth message after the
+ * teaching.
  *
  * ONE SENTENCE: the trigger and the shape, compressed, and nothing about which
  * node — the conversation already knows that, and a reminder that re-told it
- * would be a second preamble. A whole `[olai] ` line, because it rides the
- * seam the teaching rides and is the notice a person reads verbatim.
+ * would be a second preamble. The sentence alone, like every clause above; the
+ * `[olai] ` line it rides as is {@link REMINDING}'s, made by the same builder
+ * the teaching's lines are.
  */
 export const REMINDER =
-  "[olai] Reminder: answer first, and write to this node's subtree only when a durable fact changed — update the node that holds it, add a node only for a fact that is new, and never record messages, questions, your own actions or a running account of the conversation."
+  "Reminder: answer first, and write to this node's subtree only when a durable fact changed — update the node that holds it, add a node only for a fact that is new, and never record messages, questions, your own actions or a running account of the conversation."
+
+/** ... as the lines {@link ./prompt.ts}'s `annotated` puts under the Nth
+ *  message, and the notice a person reads verbatim — one line, on the seam the
+ *  teaching rides. */
+export const REMINDING: ReadonlyArray<string> = lines([REMINDER])
 
 /**
  * THE AGENT'S OWN MEMORY IS OFF — the sentence both contracts end on.

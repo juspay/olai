@@ -10,7 +10,7 @@
 import { expect, test } from "bun:test"
 
 import { annotated } from "./prompt.ts"
-import { HARNESS_MEMORY_OFF, REMINDER, teachingFor } from "./teaching.ts"
+import { HARNESS_MEMORY_OFF, REMINDER, REMINDING, teachingFor } from "./teaching.ts"
 
 const SPACES = {
   id: "spaces",
@@ -119,12 +119,18 @@ test("`opened` is the default, so every existing caller teaches what it taught",
 
 // ── the reminder ──────────────────────────────────────────────────────
 
-test("the reminder is ONE `[olai] ` line carrying the trigger and the shape", () => {
+test("the reminder is ONE sentence, carrying the trigger and the shape", () => {
   expect(REMINDER.includes("\n")).toBe(false)
-  expect(REMINDER.startsWith("[olai] ")).toBe(true)
   expect(REMINDER).toContain("only when a durable fact changed")
   expect(REMINDER).toContain("update the node that holds it")
   expect(REMINDER).toContain("never record messages")
+})
+
+test("... and it rides as ONE `[olai] ` line, the shape every teaching line has", () => {
+  expect(REMINDING).toEqual([`[olai] ${REMINDER}`])
+  // The same builder, so the same prefix: what the line is made of is the
+  // sentence, exactly as the contract's last line is `HARNESS_MEMORY_OFF`.
+  expect(teachingFor(SPACES).at(-1)).toBe(`[olai] ${HARNESS_MEMORY_OFF}`)
 })
 
 test("under a message it rides the seam every other annotation rides", () => {
@@ -132,5 +138,5 @@ test("under a message it rides the seam every other annotation rides", () => {
   // `./prompt.ts`'s one rule — so the message stays the message.
   const said = annotated("what is blocking the connector?", teachingFor(SPACES))
   expect(said.startsWith("what is blocking the connector?\n\n[olai] ")).toBe(true)
-  expect(annotated("and now?", [REMINDER])).toBe(`and now?\n\n${REMINDER}`)
+  expect(annotated("and now?", REMINDING)).toBe(`and now?\n\n[olai] ${REMINDER}`)
 })

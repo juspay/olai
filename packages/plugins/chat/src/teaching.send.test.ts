@@ -38,7 +38,7 @@ import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat, type Panel } from "./chat.ts"
 import { type LocalHarness, localHarness } from "./local.testlib.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
-import { REMINDER, teachingFor } from "./teaching.ts"
+import { REMINDING, teachingFor } from "./teaching.ts"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "teaching-agent.ts")
 
@@ -356,16 +356,16 @@ describe("... and reminded, every Nth message after", () => {
     await withChat(async (seat) => {
       await say(seat, "one", "two", "three", "four")
       // The teaching is the first message, so the third is the Nth of three.
-      expect(notices(seat)).toEqual([teachingFor(SPACES).join("\n"), REMINDER])
+      expect(notices(seat)).toEqual([teachingFor(SPACES).join("\n"), REMINDING.join("\n")])
       const [one, two, three, four] = heard(seat)
       expect(one).toContain(LAW)
       expect(two).not.toContain("[olai]")
-      expect(three).toContain(`three\n\n${REMINDER}`)
+      expect(three).toContain(`three\n\n${REMINDING.join("\n")}`)
       expect(four).not.toContain("[olai]")
       // ... and the notice sits under the message it rode, not anywhere else.
       const rows = seat.rows()
       const third = rows.findIndex((row) => row.kind === "user" && row.text === "three")
-      expect(rows.slice(third + 1).find((row) => row.kind === "notice")?.text).toBe(REMINDER)
+      expect(rows.slice(third + 1).find((row) => row.kind === "notice")?.text).toBe(REMINDING.join("\n"))
       expect(overheardIn("sess-1")?.["taken"]).toBe(4)
     }, 3)
   }, 30_000)
@@ -379,8 +379,8 @@ describe("... and reminded, every Nth message after", () => {
     // the session's third.
     await withChat(async (seat) => {
       await say(seat, "three")
-      expect(notices(seat)).toEqual([REMINDER])
-      expect(heard(seat)[0]).toContain(REMINDER)
+      expect(notices(seat)).toEqual([REMINDING.join("\n")])
+      expect(heard(seat)[0]).toContain(REMINDING.join("\n"))
     }, 3)
   }, 30_000)
 

@@ -393,11 +393,12 @@ Then(
   },
 );
 
-/** THE REMINDER'S OPENING WORDS (`olai-plugin-chat`'s `teaching.ts`
- *  `REMINDER`), counted the way {@link taughtTimes} counts the contract: the
+/** THE REMINDER'S OPENING WORDS — the start of `olai-plugin-chat`'s
+ *  `teaching.ts` `REMINDER` sentence, without the `[olai] ` prefix the line
+ *  builder adds — counted the way {@link taughtTimes} counts the contract: the
  *  scripted agent says the prompt back, so each reminder is on the page twice —
  *  olai's notice, and the agent's echo of the message it rode under. */
-const REMINDED = "[olai] Reminder: answer first";
+const REMINDED = "Reminder: answer first, and write to this node's subtree";
 
 const remindedTimes = async (world: OlaiWorld): Promise<number> => {
   const said = await world.page.locator("body").innerText();

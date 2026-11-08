@@ -117,7 +117,7 @@ import { annotated } from "./prompt.ts"
 import type { Probe } from "./probes.ts"
 import type { Scoped, Scopes } from "./scopes.ts"
 import { succeeded } from "./succession.ts"
-import { REMINDER, teachingFor } from "./teaching.ts"
+import { REMINDING, teachingFor } from "./teaching.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
@@ -855,7 +855,7 @@ const noting = (
 /** ... and what each of them costs when it is lost, said where the write is
  *  rather than at the call site: the sentence is about this record, and the
  *  gesture that made the write is a package away. */
-const tookLost = (teach: Teaching) => (failure: Memory.MemoryFailure): string =>
+const tookLost = (teach: Teaching, failure: Memory.MemoryFailure): string =>
   teach.contract
     ? `a node agent was taught its contract and it could not be written down ` +
       `(${failure.why}) — the next message in this session will say it again`
@@ -1339,7 +1339,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       const reminds = !contract && every > 0 && ((row?.taken ?? 0) + 1) % every === 0
       const lines = contract
         ? teachingFor(node, row?.assigned === true ? "assigned" : "opened")
-        : reminds ? [REMINDER] : []
+        : reminds ? REMINDING : []
       // ...AND WHICH CHANNEL THIS ENGINE'S STANDING PROMPT RIDES, which is the
       // engine's own answer and not an assumption of this file's
       // (`@olai/acp/engine`'s `PromptChannel`). The switch is EXHAUSTIVE on
@@ -1433,7 +1433,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         if (row === undefined || row.kind !== "user" || row.delivery !== undefined) return
         const done = yield* Effect.result(overheard.took(teach.to, teach.contract))
         if (done._tag === "Failure") {
-          yield* Effect.logWarning(tookLost(teach)(done.failure))
+          yield* Effect.logWarning(tookLost(teach, done.failure))
           return
         }
         // A COUNTED MESSAGE THAT CARRIED NOTHING has no notice to say.
