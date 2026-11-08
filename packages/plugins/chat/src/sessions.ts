@@ -100,7 +100,26 @@
  * be wrong about a conversation it has never asked about. What an eviction
  * costs is one re-teaching in a conversation somebody comes back to after
  * thirty-odd others, which is a sentence at the top of a transcript rather than
- * anything lost.
+ * anything lost — and that session's reminder count starting over from the
+ * re-teaching.
+ *
+ * ## What it costs: ONE WRITE PER NODE AGENT MESSAGE
+ *
+ * A node agent's conversation used to cost one write in its life — the
+ * teaching mark — plus the turn-boundary `said`. Counting ({@link
+ * Overheard.taken}) made it one write for EVERY message a node agent takes:
+ * the `heard` section, saved whole through chat's local document and awaited
+ * before the send returns (`./chat.ts`'s `contracted`, which is how the next
+ * send reads the count in the mirror). The section is capped at {@link ROWS}
+ * small rows, so the write is small beside the turn it rides; a conversation
+ * no node claims writes nothing.
+ *
+ * AND EVERY ONE OF THOSE WRITES IS A TOUCH: the row is dropped and re-appended
+ * ({@link Overheard}'s order), so a node agent somebody is talking to stays at
+ * the back of the eviction queue on every message, not only on the turn
+ * boundary's `said`. That is the right direction — the conversation in use is
+ * the last one to forget — but it is a change in WHICH rows the cap evicts: a
+ * busy node agent now outlasts conversations that were only overheard once.
  *
  * It is still read LENIENTLY, field by field — an older olai's file is read by
  * a newer one, and a row that will not parse is a session that gets taught
