@@ -4,9 +4,9 @@
 # already lists this cache as a substituter, so a green run here warms
 # `nix build` / `nix develop` on both platforms (odu lanes included). The push
 # is `juspay/odu/.github/actions/push`: the step any project uses, which brings
-# its own `odu` from the sha it is pinned to, and needs only the substituter
-# URL — the cache states its own push address in `nix-cache-info` — and proves
-# every path the bucket serves answers at the substituter before it goes green.
+# its own `odu` from the sha it is pinned to, and names no cache at all — it
+# reads the one odu substituter out of `./flake.nix` — and proves every path
+# the bucket serves answers at the substituter before it goes green.
 name: nix-cache
 
 on:
@@ -143,17 +143,28 @@ jobs:
       # pushes nothing (the PR is still owed its build); no token on a `push`
       # event fails, naming the secret; and the token is never an argument.
       #
-      # THE PIN IS ODU MASTER, `d82ae66` — #150's merge commit, where the
-      # cache became self-describing: the step takes the SUBSTITUTER URL
-      # alone and reads the origin and bucket to push to out of that cache's
-      # own `nix-cache-info`. `odu cache` is a client of the bucket's own
-      # HTTP API, so the pusher must speak the shape that daemon answers, and
-      # no released `odu` has cache verbs: re-pin with the daemon, by SHA, and
-      # NOT to this checkout's npins odu (the revision kolu's grafted @odu/*
-      # sources were built against; it has no cache verbs at all).
-      - uses: juspay/odu/.github/actions/push@d82ae6652d1645f124ac3f3a7c110cfdfdc97871 # odu master: #150 merged
+      # NO `cache:` — THE FLAKE IS THE ONE DECLARATION. With the input
+      # omitted the step runs `odu cache target` in this checkout, takes the
+      # single odu substituter `./flake.nix`'s `nixConfig` names
+      # (https://cache.kolu.dev/kolu-r2, the same line that makes reads work),
+      # and pushes there by name with the token. The URL is written once, for
+      # reading, and the push follows it; this workflow can no longer name a
+      # cache the flake does not.
+      #
+      # THE PIN IS ODU MASTER, `b7733a4` — #168's merge commit, where that
+      # inference landed. `odu cache` speaks the bucket daemon's own HTTP API
+      # and no released `odu` has cache verbs, so this is re-pinned by SHA.
+      #
+      # IT IS NOT, AND NEED NOT BE, `npins/sources.json`'s `odu`. That pin is
+      # the one the plugin's hydrated `@odu/*` sources are compiled from, and
+      # kolu's `nix/consumer.nix` refuses any value but the revision KOLU was
+      # built against — kolu grafts those three gitignored packages from its
+      # own odu pin and olai grafts them from this one, and a `tsc` that mixes
+      # two revisions typechecks until a field moves. So that pin walks when
+      # kolu's does. This sha is a GitHub action fetched by ref; it answers to
+      # nothing in this tree.
+      - uses: juspay/odu/.github/actions/push@b7733a490484cd96c554e5cf5a48d7b4af80cc47 # odu master: #168 merged
         with:
-          cache: https://cache.kolu.dev/kolu-r2
           token: ${{ secrets.ODU_CACHE_TOKEN }}
           paths: ${{ steps.roots.outputs.paths }}
           # Hold this push's closure while it is the default branch's.
