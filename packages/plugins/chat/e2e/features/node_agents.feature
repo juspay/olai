@@ -290,6 +290,56 @@ Feature: A node with an `agent-session` property IS an agent
     And the agent has answered "still there?" exactly once
     Then the agent was told its contract 0 times
 
+  @scratch:lanes @remind-every:3
+  Scenario: A node agent is reminded of its writing rule on its Nth message, across a restart
+    # The contract alone did not hold: in a long conversation the first
+    # message's preamble is what compaction drops, and the agent drifted back
+    # to filing a node per message. So every Nth message it takes carries one
+    # line — when to write, and in what shape — under it, as a notice a person
+    # can read. Three here (`@remind-every:3` writes the chat row's setting
+    # before boot); the product's default is twenty.
+    Given I open the outline "lanes.olai"
+    And I press the agent "door-live"
+    And the node agent's fold is ready
+    When I ask the agent "question one"
+    Then the agent was told its contract 1 time
+    When I ask the agent "question two"
+    # The anchor first: a count of 0 means nothing until the round trip has
+    # answered — 0 is where every count starts.
+    And the agent has answered "question two" exactly once
+    Then the agent was reminded of its writing rule 0 times
+    # THE COUNT IS THE SESSION'S, AND ON DISK: a serve that came back counting
+    # from zero would push the reminder out to the sixth message, and one that
+    # counted the replay would bring it early.
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the node agent's fold is ready
+    And I ask the agent "question three"
+    And the agent has answered "question three" exactly once
+    Then the agent was reminded of its writing rule 1 time
+    And the agent was told its contract 0 times
+    # ... and the message after the Nth says nothing again.
+    When I ask the agent "question four"
+    And the agent has answered "question four" exactly once
+    Then the agent was reminded of its writing rule 1 time
+
+  @scratch:lanes @remind-every:0
+  Scenario: A reminder period of 0 never reminds
+    # The setting's off switch: the contract still goes out once, and nothing
+    # rides any message after it.
+    Given I open the outline "lanes.olai"
+    And I press the agent "door-live"
+    And the node agent's fold is ready
+    When I ask the agent "question one"
+    Then the agent was told its contract 1 time
+    When I ask the agent "question two"
+    And the agent has answered "question two" exactly once
+    And I ask the agent "question three"
+    And the agent has answered "question three" exactly once
+    Then the agent was reminded of its writing rule 0 times
+    And the agent was told its contract 1 time
+
   # ── migration: the chats that are nobody's yet ────────────────────────
   #
   # Migration is ASSOCIATION, NOT CONVERSION. Nothing moves on disk and no

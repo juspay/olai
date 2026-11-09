@@ -296,7 +296,7 @@ Feature: A node agent tidies its own memory when nobody is looking
     # BOTH REFUSED, in the fence's own words — and the pass still finishes: what
     # it was asked to do was inside the subtree.
     Then the chat shows a failed tool call
-    And the agent's answer mentions "olai is tidying this node's memory"
+    And the agent's answer mentions "olai is tidying this node's knowledge base"
     And node "install" carries the sleep memo
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
     And olai has recorded 1 commit here

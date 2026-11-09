@@ -1,7 +1,7 @@
 /**
  * WHAT OLAI OVERHEARD ONE CONVERSATION DO — that a session has been told its
- * node agent's contract, and the last line its agent said while olai was
- * watching.
+ * node agent's contract, how many messages it has taken since, and the last
+ * line its agent said while olai was watching.
  *
  * The `heard` section of chat's one machine-local document, beside the section
  * that remembers which conversation the panel was in ({@link ./memory.ts}) and
@@ -24,6 +24,14 @@
  *     written against the session it was said in, so a fresh session is untaught
  *     — which is the point, since the transcript is exactly what does not carry
  *     the contract.
+ *   - {@link Overheard.taken} — how many of a person's messages this session
+ *     TOOK while a node claimed it, the teaching's own message included. It
+ *     paces the reminder ({@link ./teaching.ts}'s `REMINDER`, every Nth
+ *     message), and it is `taught`'s kind of fact exactly: a message that was
+ *     sent, which nothing can re-derive — a serve that forgot would restart
+ *     the count on every boot, and one that counted from the transcript would
+ *     count words the agent never took. Written in the SAME write as `taught`,
+ *     so the two cannot disagree about the message that carried the contract.
  *   - {@link Overheard.assigned} — that this session was MOVED to a node agent
  *     rather than opened for one. It decides WHICH of the two standing
  *     instructions goes out ({@link ./teaching.ts}), and it is the same kind of
@@ -92,7 +100,26 @@
  * be wrong about a conversation it has never asked about. What an eviction
  * costs is one re-teaching in a conversation somebody comes back to after
  * thirty-odd others, which is a sentence at the top of a transcript rather than
- * anything lost.
+ * anything lost — and that session's reminder count starting over from the
+ * re-teaching.
+ *
+ * ## What it costs: ONE WRITE PER NODE AGENT MESSAGE
+ *
+ * A node agent's conversation used to cost one write in its life — the
+ * teaching mark — plus the turn-boundary `said`. Counting ({@link
+ * Overheard.taken}) made it one write for EVERY message a person sends one:
+ * the `heard` section, saved whole through chat's local document and awaited
+ * before the send returns (`./chat.ts`'s `contracted`, which is how the next
+ * send reads the count in the mirror). The section is capped at {@link ROWS}
+ * small rows, so the write is small beside the turn it rides; a conversation
+ * no node claims writes nothing.
+ *
+ * AND EVERY ONE OF THOSE WRITES IS A TOUCH: the row is dropped and re-appended
+ * ({@link Overheard}'s order), so a node agent somebody is talking to stays at
+ * the back of the eviction queue on every message, not only on the turn
+ * boundary's `said`. That is the right direction — the conversation in use is
+ * the last one to forget — but it is a change in WHICH rows the cap evicts: a
+ * busy node agent now outlasts conversations that were only overheard once.
  *
  * It is still read LENIENTLY, field by field — an older olai's file is read by
  * a newer one, and a row that will not parse is a session that gets taught
@@ -115,9 +142,9 @@
  * a gesture, so there is nobody to tell, and every writer here is bookkeeping
  * behind something a person is watching for its own sake. They FAIL, with a
  * reason, and the caller logs it and carries on ({@link ./chat.ts}) — the cost
- * of a lost write is a contract the next message carries instead, a door line
- * one turn stale, or a conversation drawn as unread once more, and none of
- * those is worth taking a turn away from somebody over.
+ * of a lost write is a contract or a reminder the next message carries
+ * instead, a door line one turn stale, or a conversation drawn as unread once
+ * more, and none of those is worth taking a turn away from somebody over.
  * The teaching's caller goes one further and HOLDS THE NOTICE BACK on a failed
  * write: a notice is the report of the mark, and a pane must never read a
  * contract the record cannot keep.
@@ -172,6 +199,14 @@ export interface Overheard extends Conversing {
   /** This SESSION has already been told its contract. Absent is untaught,
    *  which is what every conversation starts as. */
   readonly taught?: boolean
+  /**
+   * HOW MANY MESSAGES THIS SESSION HAS TAKEN as a node agent's — counted only
+   * where the message was delivered, the teaching's own included. Absent is
+   * none, which is every conversation until a node claims it and somebody
+   * says something; a row taught before olai counted starts from none too,
+   * which costs one reminder later than it would have come.
+   */
+  readonly taken?: number
   /**
    * This session was ASSIGNED to a node agent — an ordinary chat given a home
    * rather than a conversation opened for one.
@@ -228,20 +263,23 @@ export interface Sessions {
    *  or says something. */
   readonly at: (to: Conversing) => Overheard | undefined
   /**
-   * Mark this conversation as TAUGHT — said once, when the standing instruction
-   * has actually gone out with a message the agent took.
+   * Count one message this conversation's agent TOOK as a node agent's — and,
+   * where `taught` is set, mark that the message carried the contract.
    *
-   * A no-op for one already marked: the table is not written, so a node agent's
-   * conversation costs one write in its life and every other conversation costs
-   * none.
+   * ONE WRITE FOR BOTH, because they are one event: the message that taught
+   * is the first one counted, and two writes could land one without the
+   * other — a session marked taught with no message counted, or the reverse.
+   * The count is incremented HERE, under the permit, off the row as it stands
+   * rather than a number a caller read earlier, so two writers cannot both
+   * write the same next value.
    */
-  readonly teach: (to: Conversing) => Effect.Effect<void, MemoryFailure>
+  readonly took: (to: Conversing, taught: boolean) => Effect.Effect<void, MemoryFailure>
   /**
    * Mark this conversation as ASSIGNED to a node agent — said once, by the
    * gesture that writes the pointer onto a node (`@olai/server`'s
    * `assignSession`), and after the property has landed rather than before it.
    *
-   * A no-op for one already marked, for {@link teach}'s reason: the row already
+   * A no-op for one already marked, for `taught`'s reason: the row already
    * says what this would write, and a chat is assigned once.
    */
   readonly assign: (to: Conversing, wakesCleared?: true) => Effect.Effect<void, MemoryFailure>
@@ -338,10 +376,12 @@ const read = (held: Record<string, unknown>): ReadonlyArray<Overheard> => {
     const session = word(one["session"])
     if (agent === null || session === null) continue
     const seen = word(one["seen"])
+    const taken = one["taken"]
     rows.push({
       agent,
       session,
       ...(one["taught"] === true ? { taught: true } : {}),
+      ...(typeof taken === "number" && Number.isSafeInteger(taken) && taken > 0 ? { taken } : {}),
       ...(one["assigned"] === true ? { assigned: true } : {}),
       ...(one["wakesCleared"] === true ? { wakesCleared: true as const } : {}),
       ...supersededIn(one["superseded"], agent),
@@ -441,8 +481,13 @@ export const forLocalState = (local: ChatLocalState): Effect.Effect<Sessions> =>
     return {
       rows: () => rows,
       at: (to) => rows.find((row) => sameChat(row, to)),
-      teach: (to) =>
-        write(to, (row) => (row?.taught === true ? undefined : { ...row, ...to, taught: true })),
+      took: (to, taught) =>
+        write(to, (row) => ({
+          ...row,
+          ...to,
+          ...(taught ? { taught: true } : {}),
+          taken: (row?.taken ?? 0) + 1,
+        })),
       assign: (to, wakesCleared) =>
         write(
           to,

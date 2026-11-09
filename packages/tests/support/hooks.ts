@@ -459,6 +459,11 @@ const STORED_TAG = "@agent-stored";
  *  agent search path. This is availability, not an enablement policy. */
 const NO_AGENT_TAG = "@no-agent";
 
+/** `@remind-every:<n>`: every how many messages a node agent is reminded of
+ *  its writing rule, written into the chat row's settings before boot — `0` is
+ *  the setting switched off (`olai-plugin-chat`'s `remind-every`). */
+const REMIND_TAG = "@remind-every:";
+
 /** The fixture's repository condition: real, absent, or a git executable that
  * refuses requests. Commit policy defaults to manual independently of this tag. */
 const GIT_TAG = /^@git:(repo|none|broken)$/;
@@ -761,6 +766,9 @@ interface Spawn {
   /** ...and whether it runs one at all (`@sleep-off`), written into the settings
    *  file before the server boots. */
   readonly sleepOff?: boolean;
+  /** The node agent's reminder period (`@remind-every:<n>`), written into the
+   *  settings file before the server boots; absent is the product default. */
+  readonly remindEvery?: number;
 
   /** The fakes this server is configured to see — the tag words a roster row
    *  answers to. Each descriptor with an `adapter` contributes a knob, each
@@ -1133,6 +1141,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       fastNodeIdle: world.fastNodeIdle,
       fastSleep: world.fastSleep,
       sleepOff: world.sleepOff,
+      remindEvery: world.remindEvery,
       agent: world.hasAgent,
       fakes: world.fakes,
       agentSearchPath: world.agentSearchPath,
@@ -1273,6 +1282,7 @@ const scratchServerFor = async (
       idle: spawnOptions.fastNodeIdle ? FAST_NODE_IDLE_MS : undefined,
       sleep: spawnOptions.fastSleep ? FAST_SLEEP : undefined,
       sleepOff: spawnOptions.sleepOff,
+      remindEvery: spawnOptions.remindEvery,
     });
     if (spawnOptions.git === "repo") makeRepository(root);
     const server = await startServerChild(
@@ -1538,6 +1548,20 @@ Before(
           "@scratch:<corpus>; use @own-scratch when the feature shares its scratch.",
       );
     }
+    // ...AND SO IS HOW OFTEN A NODE AGENT IS REMINDED: `@remind-every:<n>`
+    // writes the chat row's `remind-every` before boot, so a scenario can
+    // reach the Nth message in three sends rather than twenty.
+    const remind = scenario.pickle.tags.find((tag) => tag.name.startsWith(REMIND_TAG));
+    this.remindEvery = remind === undefined ? undefined : Number(remind.name.slice(REMIND_TAG.length));
+    if (this.remindEvery !== undefined && (!Number.isSafeInteger(this.remindEvery) || this.remindEvery < 0)) {
+      throw new Error(`${remind?.name} needs a whole number of messages, like @remind-every:3`);
+    }
+    if (this.remindEvery !== undefined && asked.mode !== "own") {
+      throw new Error(
+        `${REMIND_TAG}<n> writes the reminder period into the policy file before boot and requires a private ` +
+          "@scratch:<corpus>; use @own-scratch when the feature shares its scratch.",
+      );
+    }
     this.storedSessions = scenario.pickle.tags.some(
       (tag) => tag.name === STORED_TAG,
     );
@@ -1746,6 +1770,7 @@ Before(
         fastNodeIdle: this.fastNodeIdle,
         fastSleep: this.fastSleep,
         sleepOff: this.sleepOff,
+        remindEvery: this.remindEvery,
         agent: this.hasAgent,
         fakes: this.fakes,
         // THE FIRST BOOT gets it, not just the restart: what this scenario is

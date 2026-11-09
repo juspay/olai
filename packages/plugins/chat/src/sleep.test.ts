@@ -80,6 +80,15 @@ test("what one agent is sent names it, restates the memory line, and is the inst
   expect(said).toContain(SLEEP)
 })
 
+test("the sleep turn speaks the teaching's vocabulary: \"memory\" only where it means the engine's own", () => {
+  // The same agent was taught that its subtree is a knowledge base; a turn that
+  // called it "your memory" again would be the framing that made agents log
+  // every message, in the one turn nobody watches.
+  const said = sleepFor(AGENT, [{ id: "note0", title: "a note 0" }])
+  expect(said).toContain("its subtree is your knowledge base")
+  expect(said.split(HARNESS_MEMORY_OFF).join("")).not.toMatch(/memory/i)
+})
+
 test("the turn asks for one subagent before it says what the subagent is to do", () => {
   const said = sleepFor(AGENT)
   const ask = said.indexOf(DELEGATE)
@@ -105,7 +114,7 @@ test("the brief is fenced, whole, and addressed to the subagent", () => {
   // THE SUBAGENT'S OWN SECOND PERSON, carrying the pointer the node agent's own
   // opening line carries: it has not been taught this node and it sees none of
   // the conversation it was started from.
-  expect(brief).toStartWith("You are tidying the memory of the node agent for “Health” — the node `health` in `house.olai`")
+  expect(brief).toStartWith("You are tidying the knowledge base of the node agent for “Health” — the node `health` in `house.olai`")
   expect(brief).toContain(HARNESS_MEMORY_OFF)
   // ...AND THE INSTRUCTION IS THE SAME WORDS rather than a second version of
   // them: the steps, the verbatim rule, the prohibitions and the silent ending

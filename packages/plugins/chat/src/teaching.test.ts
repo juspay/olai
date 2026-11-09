@@ -2,15 +2,15 @@
  * WHAT AN AGENT-ASSOCIATED SESSION IS TOLD.
  *
  * The words themselves are asserted rather than merely their shape, because the
- * words ARE the feature: the whole of node agents rests on the agent believing
- * that its subtree is its memory and that the transcript is not, and a line
- * that stopped saying so would break nothing anywhere else in this repo.
+ * words ARE the feature: the whole of node agents rests on the agent writing a
+ * durable fact into its subtree and nothing else, and a line that stopped
+ * saying so would break nothing anywhere else in this repo.
  */
 
 import { expect, test } from "bun:test"
 
 import { annotated } from "./prompt.ts"
-import { teachingFor } from "./teaching.ts"
+import { HARNESS_MEMORY_OFF, REMINDER, REMINDING, teachingFor } from "./teaching.ts"
 
 const SPACES = {
   id: "spaces",
@@ -21,6 +21,8 @@ const SPACES = {
   memory: 14,
 }
 
+const ARRIVALS = ["opened", "assigned"] as const
+
 test("it names the node, by title and by the id a read would take", () => {
   const [who] = teachingFor(SPACES)
   expect(who).toContain("Xyne Spaces — the org OS")
@@ -28,95 +30,107 @@ test("it names the node, by title and by the id a read would take", () => {
   expect(who).toContain("lanes.olai")
 })
 
-test("it says the subtree is the memory, and how much of it there is", () => {
-  const [, law] = teachingFor(SPACES)
-  expect(law).toContain("SUBTREE is your memory")
-  expect(law).toContain("14 rows")
+test("the node's own note is the charter, and it overrides the defaults, under both arrivals", () => {
+  for (const how of ARRIVALS) {
+    const [who] = teachingFor(SPACES, how)
+    expect(who).toContain("own note is your charter")
+    expect(who).toContain("overrides everything below")
+  }
+})
+
+test("the trigger comes before the shape, and it is negative: answer, and write only on a durable fact", () => {
+  const [, trigger, shape] = teachingFor(SPACES)
+  expect(trigger).toContain("SUBTREE is your knowledge base, organized by topic (14 rows)")
+  expect(trigger).toContain("Answer first")
+  expect(trigger).toContain("only when a durable fact changed")
+  expect(trigger).toContain("Never record messages, questions, your own actions")
+  expect(shape).toContain("One node per fact")
+  expect(shape).toContain("update the node that already holds a fact")
+  expect(shape).toContain("create a node only for a fact that is new")
 })
 
 test("a node agent with nothing under it yet is told so, not told it has zero", () => {
-  const [, law] = teachingFor({ ...SPACES, memory: 0 })
-  expect(law).toContain("nothing under it yet")
-  expect(law).not.toContain("0 rows")
+  for (const how of ARRIVALS) {
+    const [, trigger] = teachingFor({ ...SPACES, memory: 0 }, how)
+    expect(trigger).toContain("nothing under it yet")
+    expect(trigger).not.toContain("0 rows")
+  }
 })
 
 test("one row is `1 row`", () => {
   expect(teachingFor({ ...SPACES, memory: 1 })[1]).toContain("(1 row)")
 })
 
-test("it is THREE lines, so the standing law and the memory rule read the same under every agent", () => {
-  const one = teachingFor(SPACES)
+test("\"memory\" is said only where it means the engine's own — never as the subtree's job", () => {
+  // The word the old contract leaned on five times, and the reason an agent
+  // filed a node per message: told its subtree was its memory, it remembered
+  // everything.
+  for (const how of ARRIVALS) {
+    const lines = teachingFor(SPACES, how)
+    const saying = lines.filter((line) => /memory/i.test(line))
+    expect(saying).toEqual([`[olai] ${HARNESS_MEMORY_OFF}`])
+  }
+  expect(REMINDER).not.toMatch(/memory/i)
+})
+
+test("every line is an `[olai] ` line, and the contract ends on the engine's memory being off", () => {
+  for (const how of ARRIVALS) {
+    const lines = teachingFor(SPACES, how)
+    for (const line of lines) expect(line.startsWith("[olai] ")).toBe(true)
+    expect(lines.at(-1)).toBe(`[olai] ${HARNESS_MEMORY_OFF}`)
+  }
+})
+
+test("the LAW is the same lines word for word under both arrivals, and under every node", () => {
+  // Two spellings of the law is two contracts — between arrivals, and between
+  // two agents a reader compares.
+  const opened = teachingFor(SPACES, "opened")
+  const assigned = teachingFor(SPACES, "assigned")
+  expect(assigned.slice(1, 3)).toEqual(opened.slice(1, 3))
   const other = teachingFor({ id: "odu", title: "Odu", file: "ci.olai", engine: "opus", session: null, memory: 14 })
-  expect(one).toHaveLength(3)
-  // The first line differs — it is about this node — and the other two do not.
-  expect(one[0]).not.toBe(other[0])
-  expect(one[1]).toBe(other[1] as string)
-  expect(one[2]).toBe(other[2] as string)
+  expect(other[0]).not.toBe(opened[0])
+  expect(other.slice(1)).toEqual(opened.slice(1))
 })
 
 // ── the migration variant ─────────────────────────────────────────────
 
 test("an ASSIGNED session is told it was moved here, and what it was before", () => {
-  // The one fact the ordinary contract cannot carry: this conversation existed
-  // before the node claimed it, so its transcript is the only copy of what it
-  // knows.
   const [who] = teachingFor(SPACES, "assigned")
   expect(who).toContain("ASSIGNED")
   expect(who).toContain("Xyne Spaces — the org OS")
   expect(who).toContain("ordinary chat until now")
 })
 
-test("... and is ordered to BANK what it knows rather than to write as it learns", () => {
-  // The distillation order, which is the whole of why the variant exists: an
-  // assigned session is not going to learn its standing facts, it already has
-  // them, and they are about to be in the wrong place.
-  const [, law] = teachingFor(SPACES, "assigned")
-  expect(law).toContain("NOW your memory")
-  expect(law).toContain("WRITE INTO IT")
-  expect(law).toContain("reconcile it with what is still relevant")
-  expect(law).toContain("14 rows")
-})
-
-test("it is the same three lines in the same order, however the session arrived", () => {
-  // One contract rather than two: a reader comparing an assigned agent's first
-  // turn with an opened one's should see the same shape.
-  expect(teachingFor(SPACES, "assigned")).toHaveLength(3)
-  for (const line of teachingFor(SPACES, "assigned")) expect(line.startsWith("[olai] ")).toBe(true)
-})
-
-test("the agent is told it has no memory of its own, on BOTH contracts", () => {
-  // The one fact every contract shares about the memory itself: under every
-  // engine the agent keeps none of its own here — Claude and Codex have one
-  // the switch takes away, the others have nothing to switch off — and the
-  // subtree is the only memory. The sentence must not name one engine's
-  // mechanism, so it is true under all of them.
-  for (const how of ["opened", "assigned"] as const) {
-    const lines = teachingFor(SPACES, how)
-    expect(lines[2]).toContain("You have no memory of your own here")
-    expect(lines[2]).toContain("this subtree is the only memory")
-  }
-  // ... and it is the same sentence word for word under both arrivals.
-  expect(teachingFor(SPACES, "opened")[2]).toBe(teachingFor(SPACES, "assigned")[2] as string)
-})
-
-test("... and both end on the SAME standing law, word for word", () => {
-  // The half that must not differ: what the law says is the whole contract, and
-  // two spellings of it is two contracts.
-  const law = "Keep your memory current"
-  const [, opened] = teachingFor(SPACES, "opened")
-  const [, assigned] = teachingFor(SPACES, "assigned")
-  expect((opened as string).slice((opened as string).indexOf(law)))
-    .toBe((assigned as string).slice((assigned as string).indexOf(law)))
-})
-
-test("an empty subtree is still said rather than counted, on the variant too", () => {
-  const [, law] = teachingFor({ ...SPACES, memory: 0 }, "assigned")
-  expect(law).toContain("nothing under it yet")
-  expect(law).not.toContain("0 rows")
+test("... and is told to reconcile what it already knows into the subtree, which an opened one is not", () => {
+  const assigned = teachingFor(SPACES, "assigned")
+  const opened = teachingFor(SPACES, "opened")
+  expect(assigned).toHaveLength(opened.length + 1)
+  const reconcile = assigned.find((line) => !opened.includes(line) && line !== assigned[0])
+  expect(reconcile).toContain("Reconcile first")
+  expect(reconcile).toContain("still relevant from this conversation")
+  expect(reconcile).toContain("updating the entries that already hold it")
+  // ... after the law, and before the last line.
+  expect(assigned.indexOf(reconcile as string)).toBe(assigned.length - 2)
 })
 
 test("`opened` is the default, so every existing caller teaches what it taught", () => {
   expect(teachingFor(SPACES, "opened")).toEqual(teachingFor(SPACES))
+})
+
+// ── the reminder ──────────────────────────────────────────────────────
+
+test("the reminder is ONE sentence, carrying the trigger and the shape", () => {
+  expect(REMINDER.includes("\n")).toBe(false)
+  expect(REMINDER).toContain("only when a durable fact changed")
+  expect(REMINDER).toContain("update the node that holds it")
+  expect(REMINDER).toContain("never record messages")
+})
+
+test("... and it rides as ONE `[olai] ` line, the shape every teaching line has", () => {
+  expect(REMINDING).toEqual([`[olai] ${REMINDER}`])
+  // The same builder, so the same prefix: what the line is made of is the
+  // sentence, exactly as the contract's last line is `HARNESS_MEMORY_OFF`.
+  expect(teachingFor(SPACES).at(-1)).toBe(`[olai] ${HARNESS_MEMORY_OFF}`)
 })
 
 test("under a message it rides the seam every other annotation rides", () => {
@@ -124,4 +138,5 @@ test("under a message it rides the seam every other annotation rides", () => {
   // `./prompt.ts`'s one rule — so the message stays the message.
   const said = annotated("what is blocking the connector?", teachingFor(SPACES))
   expect(said.startsWith("what is blocking the connector?\n\n[olai] ")).toBe(true)
+  expect(annotated("and now?", REMINDING)).toBe(`and now?\n\n[olai] ${REMINDER}`)
 })

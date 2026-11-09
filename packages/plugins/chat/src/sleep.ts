@@ -2,12 +2,19 @@
  * WHAT A NODE AGENT IS ASKED TO DO ON ITS OWN TURN — the instruction, and the
  * one teaching line it is restated with.
  *
- * A subtree is a node agent's only memory and nothing ever compacts it; this is
- * the offline pass every long-lived memory has, as words. WHAT IT DOES, what it
- * may not do, why it is reversible by construction and what it costs are
- * `docs/chat.md`'s — including why the turn is the node's OWN conversation
- * rather than a fresh one, which is the one thing about the words that is not
- * in the words.
+ * A node agent's subtree is its knowledge base and nothing ever compacts it;
+ * this is the offline pass every long-lived store of knowledge needs, as words.
+ * WHAT IT DOES, what it may not do, why it is reversible by construction and
+ * what it costs are `docs/chat.md`'s — including why the turn is the node's OWN
+ * conversation rather than a fresh one, which is the one thing about the words
+ * that is not in the words.
+ *
+ * THE SAME VOCABULARY AS THE TEACHING ({@link ./teaching.ts}): the subtree is a
+ * knowledge base, and "memory" is said only in {@link HARNESS_MEMORY_OFF},
+ * about the engine's own feature being off. This turn goes to the same agent
+ * the contract went to, with nobody watching — a second word for the subtree
+ * here would be the framing that made agents log every message, coming back in
+ * the one turn nobody reads.
  *
  * ## WHY THE WORK IS A SUBAGENT'S
  *
@@ -27,7 +34,7 @@
  *
  * ## WHY THE BRIEF NAMES THE ROWS THAT MOVED
  *
- * A pass that rewrites a whole memory when two rows changed is the lossy rewrite
+ * A pass that rewrites a whole subtree when two rows changed is the lossy rewrite
  * the floor exists to prevent (`settings.ts`): a consolidation that runs over
  * everything is the one whose utility falls below no-memory at all. So the brief
  * says which rows moved and where to start, and leaves the rest of the subtree
@@ -84,7 +91,7 @@ export const SLEEP_WORD = "sleep"
  * "Nobody is talking to you" on is about the tree and not about who is standing
  * in it.
  */
-export const SLEEP = `Nobody is talking to you; this turn is yours to tidy that memory. Use only the olai tools. Do these three things, in this order, and stop when there is nothing left to do:
+export const SLEEP = `Nobody is talking to you; this turn is yours to tidy that knowledge base. Use only the olai tools. Do these three things, in this order, and stop when there is nothing left to do:
 
 1. TIDY. Any title longer than one sentence becomes a one-line claim; everything else moves into the note or into children. Copy every number, date, time, dose, measurement and name exactly as written — never paraphrase them.
 
@@ -103,7 +110,7 @@ Rules: never delete anything; never trash anything; never write to nodes outside
  * without subagents, or an agent that ignores this, does the brief itself, which
  * is the pass as it has always been.
  */
-export const DELEGATE = `Nobody is talking to you; this turn is yours to tidy that memory, and the reading and rewriting it takes must not become part of this conversation. So: start exactly ONE subagent, hand it the brief between the rules below word for word, wait for it to finish, and then end this turn without replying in prose. If this harness cannot start a subagent, do the brief yourself.`
+export const DELEGATE = `Nobody is talking to you; this turn is yours to tidy that knowledge base, and the reading and rewriting it takes must not become part of this conversation. So: start exactly ONE subagent, hand it the brief between the rules below word for word, wait for it to finish, and then end this turn without replying in prose. If this harness cannot start a subagent, do the brief yourself.`
 
 /** THE LINE THAT FENCES THE BRIEF — the subagent's part of the message, and the
  *  only thing in it that is not addressed to the node agent. */
@@ -132,7 +139,7 @@ const whereOf = (moved: ReadonlyArray<{ readonly id: string; readonly title: str
 /**
  * WHAT THE SUBAGENT IS HANDED, whole and self-contained: it has not been taught
  * this node and it sees none of the conversation it was started from, so it is
- * told whose memory it is — in its own second person — and then given
+ * told whose knowledge base it is — in its own second person — and then given
  * {@link SLEEP} as it stands.
  *
  * Exported so a test can hold the fence's contents against the message, which is
@@ -142,7 +149,7 @@ export const briefFor = (
   agent: NodeAgent,
   moved: ReadonlyArray<{ readonly id: string; readonly title: string }> = [],
 ): string =>
-  `You are tidying the memory of the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`; that subtree is the whole of its memory. ${HARNESS_MEMORY_OFF}${whereOf(moved)}\n\n${SLEEP}`
+  `You are tidying the knowledge base of the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`; that subtree is the whole of it, organized by topic. ${HARNESS_MEMORY_OFF}${whereOf(moved)}\n\n${SLEEP}`
 
 /**
  * WHAT ONE NODE AGENT IS SENT, as the words that arrive in its conversation:
@@ -158,4 +165,4 @@ export const sleepFor = (
   agent: NodeAgent,
   moved: ReadonlyArray<{ readonly id: string; readonly title: string }> = [],
 ): string =>
-  `[olai] Sleep. You are the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`; its subtree is your memory. ${HARNESS_MEMORY_OFF}\n\n${DELEGATE}\n\n${RULE}\n${briefFor(agent, moved)}\n${RULE}`
+  `[olai] Sleep. You are the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`; its subtree is your knowledge base. ${HARNESS_MEMORY_OFF}\n\n${DELEGATE}\n\n${RULE}\n${briefFor(agent, moved)}\n${RULE}`

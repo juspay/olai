@@ -38,7 +38,7 @@ import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat, type Panel } from "./chat.ts"
 import { type LocalHarness, localHarness } from "./local.testlib.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
-import { teachingFor } from "./teaching.ts"
+import { REMINDING, teachingFor } from "./teaching.ts"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "teaching-agent.ts")
 
@@ -109,7 +109,10 @@ interface Seat {
  * the PAIR is looked up against what the set says, so a conversation no
  * property names answers `null` and nothing is taught.
  */
-const withChat = async (body: (seat: Seat) => Promise<void>): Promise<void> => {
+const withChat = async (
+  body: (seat: Seat) => Promise<void>,
+  remindEvery?: number,
+): Promise<void> => {
   const entries = new Map<string, ChatEntry>()
   let published: ChatState | null = null
   const chat = await run(makeChat({
@@ -117,6 +120,7 @@ const withChat = async (body: (seat: Seat) => Promise<void>): Promise<void> => {
     cwd,
     tools: () => null,
     overheard: await run(sessionsIn(local.forDirectory(cwd))),
+    ...(remindEvery === undefined ? {} : { remindEvery }),
     agentAt: (to) =>
       claimed.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
     onState: (next) => {
@@ -275,7 +279,7 @@ describe("an agent-associated session is taught, once", () => {
 
   test("a session ALREADY marked in the record is never taught at all", async () => {
     const kept = await run(sessionsIn(local.forDirectory(cwd)))
-    await run(kept.teach({ agent: "opencode", session: "sess-1" }))
+    await run(kept.took({ agent: "opencode", session: "sess-1" }, true))
     await withChat(async (seat) => {
       await run(seat.chat.send("hello", [], []))
       await settle()
@@ -321,6 +325,7 @@ describe("an agent-associated session is taught, once", () => {
       await settle()
       expect(notices(seat)).toEqual([])
       expect(overheardIn("sess-1")?.["taught"]).toBeUndefined()
+      expect(overheardIn("sess-1")?.["taken"]).toBeUndefined()
     })
   }, 20_000)
 
@@ -336,6 +341,57 @@ describe("an agent-associated session is taught, once", () => {
       expect(overheardIn("sess-1")?.["taught"]).toBeUndefined()
     })
   }, 20_000)
+})
+
+describe("... and reminded, every Nth message after", () => {
+  /** Send these, one turn at a time, as a person would. */
+  const say = async (seat: Seat, ...words: ReadonlyArray<string>): Promise<void> => {
+    for (const one of words) {
+      await run(seat.chat.send(one, [], []))
+      await settle()
+    }
+  }
+
+  test("the Nth message carries the reminder — to the agent and as a notice — and the ones around it do not", async () => {
+    await withChat(async (seat) => {
+      await say(seat, "one", "two", "three", "four")
+      // The teaching is the first message, so the third is the Nth of three.
+      expect(notices(seat)).toEqual([teachingFor(SPACES).join("\n"), REMINDING.join("\n")])
+      const [one, two, three, four] = heard(seat)
+      expect(one).toContain(LAW)
+      expect(two).not.toContain("[olai]")
+      expect(three).toContain(`three\n\n${REMINDING.join("\n")}`)
+      expect(four).not.toContain("[olai]")
+      // ... and the notice sits under the message it rode, not anywhere else.
+      const rows = seat.rows()
+      const third = rows.findIndex((row) => row.kind === "user" && row.text === "three")
+      expect(rows.slice(third + 1).find((row) => row.kind === "notice")?.text).toBe(REMINDING.join("\n"))
+      expect(overheardIn("sess-1")?.["taken"]).toBe(4)
+    }, 3)
+  }, 30_000)
+
+  test("a restart neither resets the count nor counts a message twice", async () => {
+    await withChat(async (seat) => {
+      await say(seat, "one", "two")
+      expect(notices(seat)).toHaveLength(1)
+    }, 3)
+    // THE REDEPLOY: a new record over the same file, and the next message is
+    // the session's third.
+    await withChat(async (seat) => {
+      await say(seat, "three")
+      expect(notices(seat)).toEqual([REMINDING.join("\n")])
+      expect(heard(seat)[0]).toContain(REMINDING.join("\n"))
+    }, 3)
+  }, 30_000)
+
+  test("`0` never reminds — and still counts, so turning it back on lands where it would have", async () => {
+    await withChat(async (seat) => {
+      await say(seat, "one", "two", "three")
+      expect(notices(seat)).toEqual([teachingFor(SPACES).join("\n")])
+      for (const said of heard(seat).slice(1)) expect(said).not.toContain("[olai]")
+      expect(overheardIn("sess-1")?.["taken"]).toBe(3)
+    }, 0)
+  }, 30_000)
 })
 
 describe("what the panel and the door learn from it", () => {

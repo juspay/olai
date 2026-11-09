@@ -1,8 +1,11 @@
 /**
- * WHAT AN AGENT-ASSOCIATED SESSION IS TOLD, ONCE, AND HOW IT ARRIVES.
+ * WHAT AN AGENT-ASSOCIATED SESSION IS TOLD, ONCE — AND REMINDED OF — AND HOW
+ * IT ARRIVES.
  *
- * A node's subtree holds organized current knowledge. The teaching asks the
- * agent to maintain that knowledge as its understanding changes.
+ * A node's subtree is a knowledge base organized by topic. The teaching tells
+ * the agent when that knowledge base changes — when a durable fact did — and
+ * that the change edits the node already holding the fact rather than adding a
+ * new one beside it.
  *
  * ## THE CHANNEL: a first-turn preamble, and not a system prompt
  *
@@ -40,16 +43,38 @@
  * may open by acknowledging its charter instead of answering. That is one turn
  * per session, and it is the turn the discipline is established in.
  *
+ * ## ...AND A REMINDER, because once was not enough
+ *
+ * A long conversation compacts, and a preamble on its first message is exactly
+ * what compaction drops. What production showed is the agent drifting back to
+ * its default — filing a node per message — long after the contract went out.
+ * So every Nth message a person sends a node agent carries {@link REMINDING}: the write
+ * trigger and the shape rule in one sentence, on the same seam and as the same
+ * kind of notice, so a person reads what the agent was reminded of. The count
+ * and the period are the session record's and the chat setting's
+ * ({@link ./sessions.ts}'s `Overheard.taken`, `./settings.ts`'s
+ * `remind-every`); this file only says the words.
+ *
  * ## What it says, and what it deliberately does not
  *
- * The node this conversation belongs to, how to maintain its subtree as
- * organized current memory. No tool
- * names — which verbs are reachable is a property of the servers that
- * conversation was handed ({@link ./servers.ts}), and an instruction naming a
- * call the session does not have would be teaching a contract it cannot keep.
- * No charter either: the node's `desc` IS the charter and the agent is being
- * pointed at the node, so quoting it here would be the second copy this whole
- * design exists to avoid.
+ * The node this conversation belongs to, that the node's own note is its
+ * charter, WHEN to write to the subtree and in what shape. No tool names —
+ * which verbs are reachable is a property of the servers that conversation was
+ * handed ({@link ./servers.ts}), and an instruction naming a call the session
+ * does not have would be teaching a contract it cannot keep. The charter is
+ * POINTED AT, never quoted: the node's `desc` IS the charter and the agent can
+ * read it, so quoting it here would be the second copy this whole design
+ * exists to avoid — but an agent never told that the note is its charter reads
+ * it as one more row.
+ *
+ * NOT "MEMORY", deliberately, except in {@link HARNESS_MEMORY_OFF}, which is
+ * about the engine's own memory feature being off. The contract used to call
+ * the subtree "your memory" five times and say "maintain it as you learn"; an
+ * agent told its memory is a place to write treated every exchange as
+ * something to remember and filed a node per message. A knowledge base
+ * organized by topic is a thing a fact goes INTO, and the trigger comes before
+ * anything else, in the negative: answer, and write only when a durable fact
+ * changed.
  *
  * PURE, over a {@link NodeAgent}, so what an agent is told is decided in a unit
  * test rather than by starting one. It takes the vault's own reading of a node
@@ -72,59 +97,83 @@ import { memoryOf, type NodeAgent } from "@olai/format"
  */
 export type Arrival = "opened" | "assigned"
 
+/** THE ONE PLACE `[olai] ` IS SPELLED: sentences in, the lines that ride under
+ *  a message out. The teaching and the reminder both go through it, so the
+ *  seam has one shape however many things ride it. */
+const lines = (sentences: ReadonlyArray<string>): ReadonlyArray<string> =>
+  sentences.map((sentence) => `[olai] ${sentence}`)
+
 /**
  * WHAT THE AGENT IS TOLD, as the lines {@link ./prompt.ts}'s `annotated` puts
- * under a message — one line per thing, in the order they are given.
+ * under a message — one line per thing, in priority order.
  *
- * TWO LINES: who it is, and what that means. They are separate because they age
- * differently — the first is a fact about this conversation and the second is
- * the standing law, and a reader comparing two agents' first turns should be
- * able to see that the law is the same sentence both times.
+ * WHO FIRST, AND THE CHARTER WITH IT: which node, and that its note outranks
+ * every default below. Then THE LAW — when to write, then in what shape — which
+ * is the same lines word for word under both arrivals, so a reader comparing
+ * two agents' first turns sees one law. Then the assigned variant's one extra
+ * order, and last the line about the engine's own memory.
  *
  * AN EMPTY SUBTREE IS SAID rather than skipped, and it is the case a fresh node
- * agent is actually in: "nothing under it yet" is an instruction to start
- * writing, where a line claiming a memory of zero rows would read as a memory
+ * agent is actually in: "nothing under it yet" tells it there is nothing to
+ * read, where a line claiming a knowledge base of zero rows would read as one
  * that failed to load.
  *
- * ## THE MIGRATION VARIANT is the same two lines with the same shape
+ * ## THE MIGRATION VARIANT is the same lines plus one
  *
- * An assigned session is told the same two things in the same order — which
- * node, and what its subtree is — because they are the same two facts, and a
- * reader comparing an assigned agent's first turn with an opened one's should
- * see one contract rather than two. What differs is a clause on each: that this
- * conversation was moved here (and may already contain useful knowledge), and that the first thing to do
- * is reconcile that knowledge with the subtree. The distillation order is a
- * sentence in the contract rather than a turn of its own, for the reason the
- * whole teaching is a preamble: a turn spent before anybody has said anything
- * is a turn spent on every migrated chat whether or not it is ever used again.
- *
- * A THIRD LINE says the memory rule under every agent: you have no memory of
- * your own here, this subtree is the only one. It is the same sentence under
- * both contracts and every engine, so the two things a reader compares stay
- * the same under every agent.
+ * An assigned session is told the same things in the same order — which node,
+ * the charter, the law — because they are the same facts, and a reader
+ * comparing an assigned agent's first turn with an opened one's should see one
+ * contract rather than two. What differs is the first line, which says this
+ * conversation was moved here, and one line more: reconcile what this
+ * conversation already knows into the subtree, updating what is there. The
+ * distillation order is a line in the contract rather than a turn of its own,
+ * for the reason the whole teaching is a preamble: a turn spent before anybody
+ * has said anything is a turn spent on every migrated chat whether or not it
+ * is ever used again.
  */
 export const teachingFor = (
   agent: NodeAgent,
   how: Arrival = "opened",
 ): ReadonlyArray<string> => {
   const says = SAYS[how]
-  return [
-    `[olai] ${says.who(agent)}`,
-    `[olai] ${says.memory} (${
-      agent.memory === 0 ? "nothing under it yet" : memoryOf(agent)
-    }): ${says.order} ${LAW}`,
-    `[olai] ${HARNESS_MEMORY_OFF}`,
-  ]
+  return lines([
+    `${says.who(agent)} ${CHARTER}`,
+    TRIGGER(agent.memory === 0 ? "nothing under it yet" : memoryOf(agent)),
+    SHAPE,
+    ...(says.reconcile === null ? [] : [says.reconcile]),
+    HARNESS_MEMORY_OFF,
+  ])
 }
 
 /**
- * THE AGENT'S OWN MEMORY IS OFF — the sentence both contracts append.
+ * THE REMINDER — the law in one sentence, for the Nth message after the
+ * teaching.
+ *
+ * ONE SENTENCE: the trigger and the shape, compressed, and nothing about which
+ * node — the conversation already knows that, and a reminder that re-told it
+ * would be a second preamble. The sentence alone, like every clause above; the
+ * `[olai] ` line it rides as is {@link REMINDING}'s, made by the same builder
+ * the teaching's lines are.
+ */
+export const REMINDER =
+  "Reminder: answer first, and write to this node's subtree only when a durable fact changed — update the node that holds it, add a node only for a fact that is new, and never record messages, questions, your own actions or a running account of the conversation."
+
+/** ... as the lines {@link ./prompt.ts}'s `annotated` puts under the Nth
+ *  message, and the notice a person reads verbatim — one line, on the seam the
+ *  teaching rides. */
+export const REMINDING: ReadonlyArray<string> = lines([REMINDER])
+
+/**
+ * THE AGENT'S OWN MEMORY IS OFF — the sentence both contracts end on.
  *
  * Under every engine the agent keeps no memory of its own here: Claude and
  * Codex have one the switch takes away, and opencode, pi and omp have nothing
  * to switch off. Either way, this subtree is the only memory, and the sentence
  * says so without naming one engine's mechanism — the same words under every
  * agent, so a reader comparing two first turns sees one contract.
+ *
+ * THE ONE PLACE THE WORD "MEMORY" STAYS: it is about the engine's feature, not
+ * about the subtree's job.
  *
  * EXPORTED, and the third caller is why: a sleep turn arrives in a conversation
  * that has already been taught, so the sentence cannot come with a preamble
@@ -135,27 +184,34 @@ export const teachingFor = (
 export const HARNESS_MEMORY_OFF =
   "You have no memory of your own here: this subtree is the only memory."
 
-/**
- * THE STANDING LAW, spelled ONCE — the sentence both contracts end on.
- *
- * It is the half that must not differ between them: a reader comparing an
- * assigned agent's first turn with an opened one's has to see one contract
- * rather than two, and a law written out at each arm is a law two people can
- * edit into two laws. What varies is above it and is a table.
- */
-const LAW =
-  `Keep your memory current and organized by topic. Update existing entries as understanding changes, consolidate duplicates, and remove obsolete information. Store useful knowledge, not a running account of conversations or actions.`
+/** The node's note outranks the defaults — appended to the first line under
+ *  both arrivals, so it is the same words whichever way the session came. */
+const CHARTER =
+  "That node's own note is your charter: where it says otherwise, it overrides everything below."
 
-/** What one arrival says for itself: who this conversation is, what its memory
- *  IS, and what to do about it. Three clauses and no more — everything else in
- *  the two lines is the same words in the same order. */
+/**
+ * THE WRITE TRIGGER, FIRST AND IN THE NEGATIVE — spelled ONCE, so both
+ * contracts carry the same law.
+ *
+ * The count rides it because it is the one fact about the subtree the agent
+ * cannot see without reading it: how much there already is.
+ */
+const TRIGGER = (count: string): string =>
+  `That node's SUBTREE is your knowledge base, organized by topic (${count}): read it for what is already known. Answer first, and write to it only when a durable fact changed — a decision, a finding, a ruling or preference of the person, a standing state of the world. Never record messages, questions, your own actions, or a running account of the conversation.`
+
+/** ... and THE SHAPE a write takes, once — the rule that keeps a fact in one
+ *  node rather than a new node per telling of it. */
+const SHAPE =
+  "One node per fact: update the node that already holds a fact, and create a node only for a fact that is new. Consolidate duplicates, remove what is obsolete, and keep it organized by topic."
+
+/** What one arrival says for itself: who this conversation is, and the one
+ *  extra order a moved conversation is given. Everything else in the lines is
+ *  the same words in the same order. */
 interface Words {
-  /** The whole first line, which is the one that names the node. */
+  /** The first line, up to the charter: the one that names the node. */
   readonly who: (agent: NodeAgent) => string
-  /** ... and the opening of the second, up to the count. */
-  readonly memory: string
-  /** ... and what the agent is told to do with it, before {@link LAW}. */
-  readonly order: string
+  /** The reconcile order, or `null` for an arrival that has nothing to bring. */
+  readonly reconcile: string | null
 }
 
 /**
@@ -165,22 +221,19 @@ interface Words {
  * repo's own shape for exactly this (`@olai/web`'s `roster.ts` `LOOK`): a third
  * arrival fails to compile here, where a ternary would quietly keep saying
  * `opened`'s words. It is also what makes the SHAPE of the teaching visible —
- * two lines, `[olai] ` and the law — instead of that shape being spelled once
- * per branch.
+ * `[olai] ` lines and the law — instead of that shape being spelled once per
+ * branch.
  */
 const SAYS: Record<Arrival, Words> = {
   opened: {
     who: (agent) =>
       `This conversation is the node agent for “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`.`,
-    memory: "That node's SUBTREE is your memory",
-    order:
-      "read it to recover current knowledge, and maintain it as you learn or the situation changes.",
+    reconcile: null,
   },
   assigned: {
     who: (agent) =>
       `This conversation has been ASSIGNED to the node agent “${agent.title}” — the node \`${agent.id}\` in \`${agent.file}\`. It was an ordinary chat until now; from here it is that node's current session.`,
-    memory: "That node's SUBTREE is NOW your memory",
-    order:
-      "read it, and then reconcile it with what is still relevant from this conversation. WRITE INTO IT the useful current knowledge, updating existing entries where appropriate.",
+    reconcile:
+      "Reconcile first: distill what is still relevant from this conversation into the subtree, updating the entries that already hold it.",
   },
 }

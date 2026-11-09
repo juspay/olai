@@ -955,38 +955,67 @@ sign-in panel.
 The binding is in the vault, on the node. Moving or renaming the node preserves
 it. A session id is machine-local: another machine draws the node but its own
 engine may refuse to open that conversation. Starting fresh there writes a new
-binding, replacing the first machine's pointer. The subtree remains its memory.
+binding, replacing the first machine's pointer. The subtree remains its knowledge base.
 Trashed nodes and nodes whose property was removed disappear from the roster.
 
-Machine-local `heard/` records keep what olai observed: teaching, assignment,
-replacement links, and the last line heard. They are keyed by engine and session
-and capped at thirty-two conversations, least recently overheard first. They
+Machine-local `heard/` records keep what olai observed: teaching, how many
+messages a person has sent a node agent's session, assignment, replacement links, and
+the last line heard. They are keyed by engine and session
+and capped at thirty-two conversations, least recently overheard first; every
+message a person sends a node agent is one write and counts as being overheard. They
 are bookkeeping, separate from the keyed model choices and wake preferences.
-Eviction can cause a contract to be taught again. A last-heard line is the
+Eviction can cause a contract to be taught again, and restarts that session's
+reminder count from the beginning. A last-heard line is the
 agent's prose observed by olai, not a tool call, question, or invented summary;
 a conversation driven only from a terminal does not update it.
 
 ### An agent-associated session is taught what it is
 
-The first accepted message carries a preamble naming the node and its subtree
-as memory, with instructions to keep that knowledge current and organized.
-The same words appear under your message as a notice. This uses the ordinary prompt seam because ACP has no
-system-prompt field, and costs no separate turn. Teaching is recorded per
-session and survives restarts. A refused send marks and displays no teaching.
-A missing or trashed node teaches nothing. If recording the teaching fails,
-the next message can repeat it; the transcript does not claim a record the
-machine could not retain.
+The first accepted message carries a preamble, one `[olai]` line per thing, in
+priority order:
 
-A filed session gets the assigned-session contract: it was moved here and must
-reconcile the subtree with useful current knowledge from its conversation.
-A session opened for a node gets the ordinary contract. Neither requires copying
-or converting the engine's session files.
+1. **Who it is** — the node agent for this title, id and file — and that the
+   node's own note is its charter, which overrides everything below.
+2. **When to write.** The subtree is a knowledge base organized by topic, with
+   its size. Answer first; write to it only when a durable fact changed — a
+   decision, a finding, a ruling or preference of the person, a standing state
+   of the world. Never record messages, questions, its own actions, or a
+   running account of the conversation.
+3. **What shape a write takes.** One node per fact: update the node that
+   already holds a fact, create one only for a fact that is new, consolidate
+   duplicates, remove what is obsolete.
+4. That the engine's own memory is off (below).
 
-Both contracts ask the agent to keep memory current and organized by topic:
-update existing entries as understanding changes, consolidate duplicates, and
-remove obsolete information. Store useful knowledge, not a running account of
-conversations or actions. These are instructions to the agent, not an automatic
+The same words appear under your message as a notice. This uses the ordinary
+prompt seam because ACP has no system-prompt field, and costs no separate turn.
+Teaching is recorded per session and survives restarts. A refused send marks
+and displays no teaching. A missing or trashed node teaches nothing. If
+recording the teaching fails, the next message can repeat it; the transcript
+does not claim a record the machine could not retain.
+
+The subtree is deliberately not called the agent's memory: that framing invites
+the agent to log a transcript into it.
+
+A filed session gets the assigned-session contract: it was moved here, and
+between the shape rule and the last line it is told to reconcile first —
+distill what is still relevant from its conversation into the subtree,
+updating the entries that already hold it. A session opened for a node gets the
+ordinary contract. The law — when to write and in what shape — is the same
+lines word for word under both. Neither requires copying or converting the
+engine's session files. These are instructions to the agent, not an automatic
 subtree reorganization.
+
+**Every twentieth message carries a one-line reminder.** A preamble on the
+first message is exactly what a long conversation compacts away, so every Nth
+message a person sends a node agent's session — counting the teaching's own message as
+the first — carries `[olai] Reminder: …`: the write trigger and the shape rule
+in one sentence, as a notice under that message like the teaching. The count is
+per session and kept in the machine-local `heard/` record beside the teaching
+mark, written in the same write, so a restart neither resets it nor counts a
+message twice; only a message the agent took is counted, and a retried send, a
+doorbell's body or a sleep turn is not. N is the chat row's
+`remind-every` in `_olai/Settings.olai` — twenty by default, `0` never reminds.
+A conversation no node claims is neither counted nor reminded.
 
 The engine's own harness memory — the automatic memory Claude Code and Codex
 persist beside their transcripts — is switched off under olai (see each
@@ -998,23 +1027,25 @@ The preamble also says so, in both contracts: a node agent is told that it has
 no memory of its own here, and that this subtree is the only memory, so it
 does not go looking for a second one.
 
-### A node agent tidies its own memory when nobody is looking
+### A node agent tidies its knowledge base when nobody is looking
 
-A subtree is a node agent's only memory, and nothing ever compacts it. After a
+A node agent's subtree is its knowledge base, and nothing ever compacts it. After a
 month a health log is hundreds of kilobytes of records whose titles are whole
 daily reports, the standing facts they support have to be re-derived by hand,
 and nothing is archived. So olai gives a node agent one machine turn of its
 own: when it has been left alone for six hours **and there is enough to be worth
 a turn**, it is asked to tidy, distill and tuck away — in its own conversation,
 through one subagent, so the tidying's reads and rewrites do not become part of
-what the agent remembers of you.
+what the agent remembers of you. The turn calls the subtree what the teaching
+calls it — *its subtree is your knowledge base*, *tidy that knowledge base* —
+and restates the same line that the engine's own memory is off.
 
 Enough is one of three things: the chat has never been tidied and a row has moved
 (the first tidy of a store that has never had one); five rows have moved since the
 last pass (`sleep-floor`); or the oldest of them has waited a week
 (`sleep-latest`). Otherwise the line under the conversation says **too little to
 tidy** — with how many rows did move — and the pass leaves this chat alone. **One
-edit is not a reason to rewrite a memory.**
+edit is not a reason to rewrite a knowledge base.**
 
 **Why pressure rather than only quiet.** Consolidation is a lossy rewrite: its
 value rises with what has accumulated and then falls *below* not remembering at
@@ -1085,8 +1116,8 @@ is a person's.
 
 **While a pass runs, the session that turn belongs to writes only inside that
 subtree.** The instruction says so, and the write door holds it for the span of
-the turn: a write outside the node's memory — or inside ANOTHER node agent's own
-subtree, which is that agent's memory and not this one's — is refused in the
+the turn: a write outside the node's subtree — or inside ANOTHER node agent's own
+subtree, which is that agent's knowledge base and not this one's — is refused in the
 fence's own words. What the door refuses and what the pass's commit can name are
 the same line, so nothing a sleep writes can land outside the undo.
 
@@ -1108,11 +1139,11 @@ no prose answer and no summary of what it did.
 **One sleep is one commit, and that commit is the undo.** The pass commits its
 own writes as `olai: sleep: <title>`, with `X-Olai-Writer: sleep` in the
 trailer, so `git log --grep '^olai'` shows it beside everything else olai
-recorded and `git revert` puts the memory back exactly as it was. It names the
-files the node's memory lives in — its own outline, and every file holding a row
+recorded and `git revert` puts the subtree back exactly as it was. It names the
+files the node's subtree lives in — its own outline, and every file holding a row
 under it — so a person's parked edits in another file are left exactly where they
 were. The limit is rows of those same files: git has no node-level selection, so
-another row of a file the memory is written in, edited by somebody else, is
+another row of a file the subtree is written in, edited by somebody else, is
 inside the commit too. Under `commit: auto` the writes do not appear in an
 `auto` commit first: the pass holds the quiet window shut for as long as it is
 running ([git](git.md) has the window, and
@@ -1272,7 +1303,7 @@ picker and clear control. Saved choices can wake an offscreen or reaped agent;
 two conversations choosing the same file each receive its notifications.
 Plugins without user-controlled wakes retain node-derived recipients.
 
-The subtree is the agent's memory, not a write fence. Its tools read and write
+The subtree is the agent's knowledge base, not a write fence. Its tools read and write
 the vault through the existing validator. The remaining reserved-key refusal
 prevents agents from rewriting `chat-agent-session` and the host's other
 reserved keys. Credentials and write doors belong to the session scope and

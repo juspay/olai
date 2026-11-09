@@ -192,7 +192,7 @@ const SEATS =
  * clause, exactly as {@link SEATS} tells it the other.
  */
 const MEMO =
-  "olai writes it when it tidies this node agent's memory, so a session that stamped it would be claiming a pass nobody ran"
+  "olai writes it when it tidies this node agent's knowledge base, so a session that stamped it would be claiming a pass nobody ran"
 
 /**
  * ...AND WHY IT MAY NOT TURN ITS OWN SLEEPING ON OR OFF, which is the third.
@@ -981,6 +981,9 @@ export default definePlugin({
         overheard: yield* sessionsIn(localState),
         live: liveIn(localState),
         agentAt: (to) => nodeAgents.agentAt(to),
+        // THE PERIOD AS DECODED, from the settings this row was applied with —
+        // a change re-applies the row, so the panel never holds a stale one.
+        remindEvery: settings["remind-every"],
         nodeAt: (node) => nodeAgents.nodeAt(node),
         seatableAt: (node) => nodeAgents.seatableAt(node),
         nodes: () => nodeAgents.nodes(),
@@ -1021,8 +1024,10 @@ export default definePlugin({
             () => chat?.live().get(node)?.sleep === true
               ? {
                 under: node,
-                says: "olai is tidying this node's memory, and a turn nobody is watching writes only inside it",
-                // ...AND THE FENCE STOPS WHERE THE MEMORY DOES: another node
+                // THE TEACHING'S WORD, since the agent reads this refusal: the
+                // subtree is a knowledge base (`./teaching.ts`).
+                says: "olai is tidying this node's knowledge base, and a turn nobody is watching writes only inside it",
+                // ...AND THE FENCE STOPS WHERE THE SUBTREE DOES: another node
                 // agent's own subtree is not this one's, and the pass's commit
                 // cannot name its files, so a write inside one would land
                 // outside the undo (`@olai/format`'s `othersOf` is the one
