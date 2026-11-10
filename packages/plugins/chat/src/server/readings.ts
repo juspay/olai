@@ -13,7 +13,7 @@ import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import type { OpFailure } from "@olai/format"
 
 import { type Cadence, cadence } from "../cadence.ts"
-import type { Chat } from "../scoped.ts"
+import type { Chat, ReadingObserver } from "../scoped.ts"
 import type { PanelAddress } from "../wire/session.ts"
 import { CHAT_OFF, type ChatEntry, type ChatState, type Saying, TRANSCRIPT_WINDOW } from "../wire.ts"
 
@@ -113,17 +113,25 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
        * it to open. So the attempt stays here, waiting on the scheduler's own
        * announcement, and the panel opens by itself.
        *
+       * ONE OBSERVER ACROSS EVERY ATTEMPT, which is why it is a `const` and
+       * not a literal in the call: a reader is held by IDENTITY (`scoped.ts`'s
+       * `nodeReaders`), and a retry that handed over a fresh object would
+       * leave the refused attempt's one behind — a reader nobody can release,
+       * which is a slot the idle timer may never reap.
+       *
        * THE LOOP IS OWNED BY THE READING, forked into its scope: a reader that
        * closes the tab takes the wait with it, and a serve shutting down
-       * interrupts it where it stands. It can only ever be waiting — one
-       * refusal, one listener — so there is no retry budget to spend.
+       * interrupts it where it stands.
        */
-      const opening: Effect.Effect<void, never, Scope.Scope> = chat.reading(to, {
+      const observer: ReadingObserver = {
         state: (value) => { state = value; for (const send of states) send(value) },
         transcript: clock.publish,
-      }).pipe(
-        Effect.asVoid,
-        Effect.catch(failure => Effect.gen(function*() {
+      }
+      yield* Effect.forkScoped(Effect.gen(function*() {
+        while (true) {
+          const opened = yield* Effect.result(chat.reading(to, observer))
+          if (opened._tag === "Success") return
+          const failure = opened.failure
           const cause = failure._tag === "BusyFailure" ? failure.cause : undefined
           state = { ...CHAT_OFF, status: "idle", unopened: {
             what: "session" in to ? to.session : null,
@@ -133,10 +141,8 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
           for (const send of states) send(state)
           if (cause?.kind !== "capacity") return
           yield* seat
-          yield* opening
-        })),
-      )
-      yield* Effect.forkScoped(opening)
+        }
+      }))
       return { state: () => state, entries, clock, states, rows, pieces }
     }),
   })
