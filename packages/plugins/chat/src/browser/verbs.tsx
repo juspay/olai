@@ -107,13 +107,15 @@ export const rowVerbs = (
  * about which rows get which are decided HERE — a second copy in the sidebar
  * is how one of them ends up saying something the other does not.
  *
- * `Put to sleep` is offered only where there is something to put to sleep: an
- * agent that is awake is holding one of the eight seats, and that is the whole
- * of what this verb hands back. On an asleep row it is not drawn at all rather
- * than drawn and refused — a menu that offers a verb which cannot work is a
- * menu that teaches nothing.
+ * EVERY ENTRY IS A VERB THAT CAN WORK, which is one rule read twice. A row
+ * naming no conversation has NONE of these — `Tidy memory` and `Close the
+ * agent` are both about a chat, and a sidebar row may be a bare node (the
+ * outline's menu never reaches here for one, so only the column had to ask).
+ * `Put to sleep` is narrower still: an awake agent is holding one of the eight
+ * seats, and that seat is the whole of what the verb hands back. An entry that
+ * could only be refused teaches a person nothing, so it is not drawn.
  */
-export const chatVerbs = (bound: Row): ReadonlyArray<RowVerb> => [
+export const chatVerbs = (bound: Row): ReadonlyArray<RowVerb> => bound.session == null ? [] : [
   // THE SEAT, GIVEN BACK BY HAND. olai closes an idle chat's seat on its own
   // after two days, and takes the oldest quiet one when a ninth agent is
   // started — this is the same close with a person's hand on it, for the case

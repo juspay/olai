@@ -30,10 +30,10 @@ const ChatRowPanel = lazy(() => import("./ChatRowPanel.tsx"))
 export function ChatRowMenu(props: { readonly row: Row }) {
   const saying = createSaying()
   const [anchor, setAnchor] = createSignal<HTMLElement | null>(null)
-  /** Read when the menu is OPENED rather than per frame: which verbs a row
-   *  offers depends on how its agent stands, and the roster moves under an
-   *  open menu. A press re-reads nothing — the entry a person saw is the one
-   *  they chose. */
+  /** Which verbs a row offers depends on how its agent STANDS, so this tracks
+   *  the roster rather than freezing at the press: an agent that goes to sleep
+   *  under an open menu loses *Put to sleep* from it, which is the same answer
+   *  the outline row's menu gives for the same reason. */
   const verbs = () => chatVerbs(props.row)
   const run = async (verb: RowVerb) => {
     setAnchor(null)
@@ -41,9 +41,10 @@ export function ChatRowMenu(props: { readonly row: Row }) {
     const said = await verb.run(props.row.id)
     if (typeof said === "string") saying.say({ tone: "alarm", text: said })
   }
-  return <>
+  return <Show when={verbs().length > 0}>
     <button type="button"
-      class="inline-flex size-6 items-center justify-center rounded-control bg-desk text-caption leading-none tracking-[0.05em] text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100 data-[expanded]:opacity-100"
+      class="inline-flex size-6 items-center justify-center rounded-control bg-desk text-caption leading-none tracking-[0.05em] text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100"
+      classList={{ "opacity-100": anchor() !== null }}
       data-testid={TESTID.chatRowMenu} data-agent={props.row.id}
       aria-haspopup="true" aria-expanded={anchor() !== null}
       aria-label={`More for ${props.row.title}`} title="More"
@@ -63,5 +64,5 @@ export function ChatRowMenu(props: { readonly row: Row }) {
       <SaidLine said={said()} testid={TESTID.chatRowMenuSaid}
         class={`absolute right-0 top-full ${WITHIN.pop} m-0 mt-1 w-max max-w-[14rem] rounded-control bg-panel px-2 py-1 text-label shadow-raised`} />
     }</Show>
-  </>
+  </Show>
 }
