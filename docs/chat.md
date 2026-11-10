@@ -848,7 +848,10 @@ a reload and a server restart. It is what olai's own idle timer and the
 capacity reaper do, with your hand on it, for the case neither covers: eight
 agents all busy, and you are the only one who knows which of them you are done
 with. It is on a Chats row's **•••**, on the node's row menu, and on ⌘K while
-that chat is the one on screen, and it is drawn only while the agent is awake.
+that chat is the one on screen, and it is drawn only where there is a seat to
+hand back — which includes an agent whose process has stopped: that row is
+holding one of the eight until somebody says otherwise, and it is the one where
+sleeping costs nothing at all.
 
 ### Starting an agent
 
@@ -915,10 +918,11 @@ looked at the conversation, and the row says *Unread* for assistive technology
 never a second dot. An agent may appear in both regions.
 
 Each Chats row has a **•••** of its own, revealed on hover or focus, carrying
-the three verbs about a chat that exists: **Put to sleep** (only while it is
-awake), **Tidy memory** and **Close the agent**. They are the same verbs the
-node's row menu in an outline carries, so a chat can be put to sleep from the
-column that shows you it is awake, without opening it.
+the three verbs about a chat that exists: **Put to sleep** (only where there is
+a seat to hand back), **Tidy memory** and **Close the agent**. They are the same
+verbs the node's row menu in an outline carries, so a chat can be put to sleep
+from the column that shows you it is awake, without opening it. On a phone the
+column spends no width on a hover control, so the `•••` is not drawn there.
 
 Pressing either row opens the conversation's **own page** (`/zoom/#id`), where
 it is read without its outline; the row's fold is still unfolded in the file it

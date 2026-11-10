@@ -18,7 +18,8 @@
  */
 
 import { DropdownMenu } from "@kobalte/core/dropdown-menu"
-import { createEffect, createMemo, For, onCleanup } from "solid-js"
+import { Key } from "@solid-primitives/keyed"
+import { createEffect, createMemo, onCleanup } from "solid-js"
 import { MENU_ITEM, MENU_PANEL } from "@olai/ui-primitives/menu.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
@@ -50,10 +51,16 @@ export default function ChatRowPanel(props: {
         data-testid={TESTID.chatRowMenuPanel} data-agent={props.node}
         ref={element => queueMicrotask(() => { if (shown() && element.isConnected) element.focus({ preventScroll: true }) })}
         onCloseAutoFocus={event => { event.preventDefault(); shown() && anchor().isConnected && anchor().focus({ preventScroll: true }) }}>
-        <For each={props.verbs}>{verb =>
-          <DropdownMenu.Item class={MENU_ITEM} data-testid={TESTID.chatRowMenuItem} data-action={verb.id}
-            onSelect={() => props.pick(verb)}>{verb.label}</DropdownMenu.Item>
-        }</For>
+        {/* KEYED BY THE VERB'S OWN WORD, not by position: `chatVerbs` mints
+            fresh objects off a roster row that is itself rebuilt on every
+            frame, so a plain `For` would dispose and remake every item each
+            time anything in the column moved — taking the focused row with it
+            and breaking the arrow keys under a person's hand. The outline's
+            menu keys its entries for the same reason. */}
+        <Key each={props.verbs} by="id">{verb =>
+          <DropdownMenu.Item class={MENU_ITEM} data-testid={TESTID.chatRowMenuItem} data-action={verb().id}
+            onSelect={() => props.pick(verb())}>{verb().label}</DropdownMenu.Item>
+        }</Key>
       </DropdownMenu.Content>
     </DropdownMenu.Portal>
   </DropdownMenu>

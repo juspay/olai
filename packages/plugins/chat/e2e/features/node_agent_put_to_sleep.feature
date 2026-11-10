@@ -70,6 +70,9 @@ Feature: Putting one agent to sleep hands its seat back and keeps the chat
     And I open the Chats menu of "install"
     And I choose "Put to sleep" from the Chats menu
     Then the agent "install" stands "asleep"
+    # ...AND THE PROCESS IS GONE, which is the half a standing cannot claim: a
+    # row can read `asleep` while a subprocess nobody owns goes on thinking.
+    And the held agent process has exited
     And there should be no page errors
 
   Scenario: Putting a waiting agent to sleep discards the question it was holding

@@ -66,6 +66,15 @@ Feature: Agent activity is reachable from Chats and the palette
     And the agent "order" stands "gone"
     And the Chats row "install" wears the "Needs you" dot
     And the Chats row "order" wears no dot
+    # ...AND THE STOPPED ROW IS STILL HOLDING A SEAT, which is the thing its
+    # missing dot does NOT say: the server only reads `gone` for a node the
+    # scheduler still has a scope for, and a dead process is never quiet
+    # enough to be reaped. So it is offered the verb — the one row where
+    # handing the seat back costs nothing at all — and taking it works.
+    When I open the Chats menu of "order"
+    Then the Chats menu offers "Put to sleep, Tidy memory, Close the agent"
+    When I choose "Put to sleep" from the Chats menu
+    Then the agent "order" stands "asleep"
     # A NEEDS YOU ROW IS THE SAME DESTINATION as a Chats row: the conversation's
     # own page, not the file it lives in. `isCurrent` compares the address's
     # node id, so the row goes on being current on that page.

@@ -50,6 +50,26 @@ test("a scheduler refusal is published into the requested reading", async () => 
   })))
 })
 
+/** A scheduler's seat door, as the readings see it: whoever is registered at
+ *  the instant of an announcement hears it, and nothing is remembered on this
+ *  side — which is the shape the reading has to survive. */
+const seatBench = () => {
+  const listeners = new Set<() => void>()
+  return {
+    held: () => listeners.size,
+    free: () => { for (const one of [...listeners]) one() },
+    seats: (listen: () => void) => {
+      listeners.add(listen)
+      return () => { listeners.delete(listen) }
+    },
+  }
+}
+
+const capacity = new BusyFailure({
+  reason: "All 8 agents are awake — put one to sleep in Chats.",
+  cause: { kind: "capacity", capacity: 8 },
+})
+
 /**
  * THE ONE REFUSAL THAT MENDS ITSELF, held open from the reading's side.
  *
@@ -57,33 +77,21 @@ test("a scheduler refusal is published into the requested reading", async () => 
  * for it to open, so the attempt waits on the scheduler's own announcement and
  * the panel opens by itself. What is asserted is both halves — the sentence
  * and its cause reach the tab, and the SAME reading then goes live without
- * anybody subscribing again — plus the thing that makes it safe: the listener
- * is taken off when the reading's scope closes, so a tab that left is not
- * holding a seat nobody wants.
+ * anybody subscribing again.
  */
 test("a full pool holds the attempt, and the reading opens itself when a seat frees", async () => {
-  let listeners = 0
+  const bench = seatBench()
   let attempts = 0
-  let freed: (() => void) | null = null
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const seen = yield* Queue.unbounded<ChatState>()
     const source = yield* readings(Effect.succeed({
       reading: (_to, observer) => Effect.suspend(() => {
         attempts++
-        if (attempts === 1) {
-          return Effect.fail(new BusyFailure({
-            reason: "All 8 agents are awake — put one to sleep in Chats.",
-            cause: { kind: "capacity", capacity: 8 },
-          }))
-        }
+        if (attempts === 1) return Effect.fail(capacity)
         observer.state({ ...CHAT_OFF, status: "idle" })
         return Effect.never
       }),
-      seats: (listen) => {
-        listeners++
-        freed = listen
-        return () => { listeners--; freed = null }
-      },
+      seats: bench.seats,
     }))
     const to = { agent: "test", session: "ninth" }
     yield* Effect.forkScoped(Stream.runForEach(source.state.source(to), value => Queue.offer(seen, value)))
@@ -94,17 +102,91 @@ test("a full pool holds the attempt, and the reading opens itself when a seat fr
       why: "All 8 agents are awake — put one to sleep in Chats.",
       cause: { kind: "capacity", capacity: 8 },
     })
-    yield* Effect.sync(() => { expect(listeners).toBe(1) })
     // A SEAT FREES, and nobody presses anything: the attempt the reading kept
     // is retried where it stood.
-    yield* Effect.sync(() => { freed?.() })
+    yield* Effect.sync(bench.free)
     while (state.unopened !== null) state = yield* Queue.take(seen)
     expect(state.status).toBe("idle")
     expect(attempts).toBe(2)
   })))
-  // ...AND THE WAIT LEAVES WITH THE READING: the scope above is closed, so the
-  // listener the scheduler is holding is gone with it.
-  expect(listeners).toBe(0)
+  expect(bench.held()).toBe(0)
+})
+
+/**
+ * THE WAIT LEAVES WITH THE READING, asserted where it is actually load-bearing:
+ * a reading that is STILL PARKED when its last subscriber goes.
+ *
+ * The earlier version of this claim freed a seat first and then checked the
+ * count, which proved nothing — the announcement had already unregistered the
+ * waiter. Here nothing ever frees a seat, so the only thing that can take the
+ * listener off is the scope closing, which is the ownership this file is
+ * responsible for.
+ */
+test("a reading that is still waiting for a seat takes its listener with it", async () => {
+  const bench = seatBench()
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const seen = yield* Queue.unbounded<ChatState>()
+    const source = yield* readings(Effect.succeed({
+      reading: () => Effect.fail(capacity),
+      seats: bench.seats,
+    }))
+    yield* Effect.forkScoped(Stream.runForEach(
+      source.state.source({ agent: "test", session: "forever" }),
+      value => Queue.offer(seen, value),
+    ))
+    let state = yield* Queue.take(seen)
+    while (state.unopened === null) state = yield* Queue.take(seen)
+    expect(bench.held()).toBe(1)
+  })))
+  expect(bench.held()).toBe(0)
+})
+
+/**
+ * AN ANNOUNCEMENT THAT LANDS BETWEEN TWO PARKS IS NOT LOST.
+ *
+ * This is the race two readings make for two seats: the first announcement
+ * wakes both, one of them wins the scheduler's gate, and the second
+ * announcement fires while the loser is INSIDE its retry rather than parked.
+ * The scheduler keeps no record of it, so a listener that lived only for the
+ * duration of a park would leave that reading waiting for something that has
+ * already happened — and that face has no *Try again* on it.
+ *
+ * It is written as one reading and a fake that frees a seat from inside the
+ * attempt, because that is the same instant and it is the deterministic way to
+ * stand in it: attempt 2 announces and then refuses, so the latch is all there
+ * is between it and attempt 3.
+ */
+test("a seat freed while the reading is between attempts is not lost", async () => {
+  const bench = seatBench()
+  let attempts = 0
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const seen = yield* Queue.unbounded<ChatState>()
+    const source = yield* readings(Effect.succeed({
+      reading: (_to, observer) => Effect.suspend(() => {
+        attempts++
+        if (attempts === 1) return Effect.fail(capacity)
+        if (attempts === 2) {
+          // The announcement nobody is parked for.
+          bench.free()
+          return Effect.fail(capacity)
+        }
+        observer.state({ ...CHAT_OFF, status: "idle" })
+        return Effect.never
+      }),
+      seats: bench.seats,
+    }))
+    const to = { agent: "test", session: "loser" }
+    yield* Effect.forkScoped(Stream.runForEach(source.state.source(to), value => Queue.offer(seen, value)))
+    let state = yield* Queue.take(seen)
+    while (state.unopened === null) state = yield* Queue.take(seen)
+    // One real announcement starts the second attempt; the one that fires
+    // inside it is the one a lost wakeup would drop.
+    yield* Effect.sync(bench.free)
+    while (state.unopened !== null) state = yield* Queue.take(seen)
+    expect(state.status).toBe("idle")
+    expect(attempts).toBe(3)
+  })))
+  expect(bench.held()).toBe(0)
 })
 
 /**

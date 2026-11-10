@@ -56,17 +56,19 @@ test("a node talking through a conversation offers fresh start, its own engine f
   ])
 })
 
-test("put to sleep is drawn on the awake standings and on no others", () => {
+test("put to sleep is drawn wherever a seat is held, including a stopped agent", () => {
   const offered = (standing: Row["standing"]) =>
     drawn(rowVerbs("one", roster({ ...node, session: "existing", standing })))
       .some(verb => verb.id === "put-to-sleep")
-  // A SEAT IS WHAT THE VERB HANDS BACK, so the four standings that hold one
-  // offer it and the three that do not, do not. `gone` is the sharp one: its
-  // process died and took the seat with it, so there is nothing left to give.
-  for (const standing of ["needs-you", "working", "waking", "idle"] as const) {
+  // A SEAT IS WHAT THE VERB HANDS BACK, so the question is which standings
+  // HOLD one. `gone` is the sharp one, and it goes the other way from how it
+  // reads: the server says `gone` only for a node the scheduler still has a
+  // live slot for, so a stopped agent is holding one of the eight and nothing
+  // reaps it on its own. Asleep and unbound never had one.
+  for (const standing of ["needs-you", "working", "waking", "idle", "gone"] as const) {
     expect([standing, offered(standing)]).toEqual([standing, true])
   }
-  for (const standing of ["asleep", "gone", "unbound"] as const) {
+  for (const standing of ["asleep", "unbound"] as const) {
     expect([standing, offered(standing)]).toEqual([standing, false])
   }
   // ...and it reads, rather than writes: nothing of the vault moves when a

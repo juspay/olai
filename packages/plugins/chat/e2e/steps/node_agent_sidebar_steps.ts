@@ -99,10 +99,15 @@ Then("the Chats menu offers {string}", async function (this: OlaiWorld, labels: 
   );
 });
 
-/** What a verb pressed from that menu had to say. A refusal is an alarm, as it
- *  is on the outline row's line — the mood is a fact in the markup. */
+/** What a verb pressed from that menu had to say, ON THE ROW IT WAS PRESSED
+ *  FROM. The line is drawn inside the row's own `<li>` (unlike the outline
+ *  menu's, which is portalled and single), so the id in the step is a claim
+ *  rather than decoration: scoped to the list item holding that agent's row,
+ *  a sentence that landed on the neighbour fails here. */
 Then("the Chats menu of {string} says {string}", async function (this: OlaiWorld, id: string, text: string) {
-  const line = this.page.locator(menuSaid);
+  const seat = this.page.locator(`${recent} li`)
+    .filter({ has: this.page.locator(`${row}${attr("data-agent", this.nodeId(id))}`) });
+  const line = seat.locator(menuSaid);
   await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.strictEqual((await line.innerText()).trim(), text, `what the menu of "${id}" said`);
   assert.strictEqual(await line.getAttribute("data-tone"), "alarm");

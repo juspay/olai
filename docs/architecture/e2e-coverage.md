@@ -677,11 +677,14 @@ that is showing a conversation tells the serve which line it has read.
 
 - **The mark and its clearing.** A reply that lands with the conversation folded
   away leaves the Chats row in the bold weight, saying *Unread* for assistive
-  technology and wearing no dot at all (`wears no dot`, counted by role), and
-  rings nothing — no chime and no notification, which is the ruling "a turn
-  merely finishing is silent" asked as a scenario. Unfolding it acknowledges the
-  conversation, and the row clears behind that round trip. The standing a row
-  used to draw as a dot is asserted as data in `node_agent_sidebar`.
+  technology, and rings nothing — no chime and no notification, which is the
+  ruling "a turn merely finishing is silent" asked as a scenario. The unread
+  mark is never a DOT: the one dot that row may wear says its agent is awake,
+  and the scenario asserts that one by its name (`wears the "Idle" dot`) so a
+  second mark for unread could not slip in beside it. Unfolding it acknowledges
+  the conversation, and the row clears behind that round trip. A row with no
+  seat wears nothing at all (`wears no dot`, counted by role, in
+  `node_agent_sidebar` and `node_agent_put_to_sleep`).
 - **Which tabs wear the dot.** With the fold left unfolded and another tab in
   front, the tab holding that conversation wears the muted dot while nobody
   looks, and the tab in front is proven NOT to have acknowledged anything —

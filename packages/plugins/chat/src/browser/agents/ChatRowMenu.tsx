@@ -42,11 +42,16 @@ export function ChatRowMenu(props: { readonly row: Row }) {
     if (typeof said === "string") saying.say({ tone: "alarm", text: said })
   }
   return <Show when={verbs().length > 0}>
+    {/* NOT DRAWN BELOW md, and `hidden` rather than transparent: a phone
+        spends no width on a hover affordance (`ui-primitives/touch.ts`'s
+        `MENU_REVEAL` says the same thing for the outline's `•••`), and an
+        `opacity-0` control is still a 24px target a thumb can hit at the
+        row's right edge — invisible, and in the way of the row itself. */}
     <button type="button"
-      class="inline-flex size-6 items-center justify-center rounded-control bg-desk text-caption leading-none tracking-[0.05em] text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100"
+      class="hidden size-6 items-center justify-center rounded-control bg-desk text-caption leading-none tracking-[0.05em] text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100 md:inline-flex"
       classList={{ "opacity-100": anchor() !== null }}
       data-testid={TESTID.chatRowMenu} data-agent={props.row.id}
-      aria-haspopup="true" aria-expanded={anchor() !== null}
+      aria-haspopup="menu" aria-expanded={anchor() !== null}
       aria-label={`More for ${props.row.title}`} title="More"
       onClick={event => {
         // A control inside the row's own anchor would navigate as well as

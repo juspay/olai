@@ -8,7 +8,7 @@
  * off the same map — because what a tab is handed and what the server knows are
  * two different questions, and a window that bounded the READING would make
  * history unfetchable. */
-import { Data, Effect, Queue, RcMap, type Scope, Stream } from "effect"
+import { Data, Effect, Exit, Queue, RcMap, Scope, Stream } from "effect"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import type { OpFailure } from "@olai/format"
 
@@ -78,31 +78,57 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
       )
       const chat = yield* ready
       /**
-       * A SEAT, WAITED FOR — and the listener goes away either way it ends.
+       * A SEAT, WAITED FOR — registered ONCE, for as long as this reading
+       * lives, and LATCHED.
        *
-       * The scheduler announces a close to whoever is holding an attempt it
-       * refused ({@link Chat.seats}). BOTH endings take the listener off, and
-       * they are two different endings: the announcement arrives, or the
-       * reading's scope closes under the wait. `Effect.callback`'s teardown is
-       * only the second of those — a resumed callback is not torn down — so a
-       * wait that ended by being ANSWERED would otherwise leave the scheduler
-       * holding a listener for a conversation that is already open, one more
-       * every time the pool filled up again.
+       * Both halves of that are about the same hole. The scheduler fans an
+       * announcement out to whoever is registered at that instant and keeps no
+       * record of it ({@link Chat.seats}), so a listener that existed only
+       * while a fiber was parked would miss every close that landed between
+       * one attempt coming back and the next park — and two readings racing
+       * for two seats is enough to lose one: the first announcement wakes
+       * both, the winner holds the scheduler's gate through its acquisition,
+       * the second announcement fires while the loser is between parks, and
+       * the loser's retry then refuses and waits for an announcement that has
+       * already happened. With no *Try again* on that face, the only way out
+       * would be a reload.
+       *
+       * So the registration is the READING's — acquired beside the cadence
+       * above and released with the scope that owns both, which is the owner
+       * a tab's reading already has — and a close that arrives with nobody
+       * parked sets `missed`, which the next wait consumes instead of
+       * parking. One latch, not a count: what a waiter wants to know is "has
+       * a seat freed since I last looked", and two closes are not two seats
+       * for this reading to take.
        */
-      const seat = Effect.callback<void>((resume) => {
-        let settled = false
-        let off: () => void = () => {}
-        const leave = (): void => {
-          settled = true
-          off()
-        }
-        off = chat.seats(() => {
-          if (settled) return
-          leave()
-          resume(Effect.void)
-        })
-        return Effect.sync(leave)
-      })
+      const seats = yield* Effect.acquireRelease(
+        Effect.sync(() => {
+          let missed = false
+          let parked: (() => void) | null = null
+          const off = chat.seats(() => {
+            const wake = parked
+            parked = null
+            if (wake === null) missed = true
+            else wake()
+          })
+          const wait = Effect.callback<void>((resume) => {
+            if (missed) {
+              missed = false
+              resume(Effect.void)
+              return
+            }
+            const mine = (): void => resume(Effect.void)
+            parked = mine
+            // Only the interrupted park unregisters here: a park that was
+            // ANSWERED is already off (the announcement clears it before it
+            // wakes anybody), and clearing then would be clearing somebody
+            // else's.
+            return Effect.sync(() => { if (parked === mine) parked = null })
+          })
+          return { off, wait }
+        }),
+        (held) => Effect.sync(held.off),
+      )
       /**
        * THE ATTEMPT, KEPT — because this is the one refusal that mends itself.
        *
@@ -119,6 +145,13 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
        * leave the refused attempt's one behind — a reader nobody can release,
        * which is a slot the idle timer may never reap.
        *
+       * EACH ATTEMPT GETS A SCOPE OF ITS OWN, closed when it fails. `reading`
+       * registers its reader before it asks for a seat (`scoped.ts`), so a
+       * refused attempt leaves a finalizer behind; on the reading's own scope
+       * that is one more per retry, for the life of a tab. The SUCCESSFUL
+       * attempt's scope is the one that must outlive the loop, so it is handed
+       * to the reading's scope as a finalizer and released with it.
+       *
        * THE LOOP IS OWNED BY THE READING, forked into its scope: a reader that
        * closes the tab takes the wait with it, and a serve shutting down
        * interrupts it where it stands.
@@ -129,7 +162,19 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
       }
       yield* Effect.forkScoped(Effect.gen(function*() {
         while (true) {
-          const opened = yield* Effect.result(chat.reading(to, observer))
+          const attempt = Scope.makeUnsafe()
+          // THE HAND-OFF IS THE EXIT ITSELF, so there is no instant where the
+          // child belongs to nobody: an open that SUCCEEDED gives its scope to
+          // the reading's, and every other ending — refused, or the loop
+          // interrupted mid-open — closes it where it stands.
+          const opened = yield* Effect.result(
+            Effect.provideService(chat.reading(to, observer), Scope.Scope, attempt).pipe(
+              Effect.onExit(exit =>
+                Exit.isSuccess(exit)
+                  ? Effect.addFinalizer(() => Scope.close(attempt, Exit.void))
+                  : Scope.close(attempt, Exit.void)),
+            ),
+          )
           if (opened._tag === "Success") return
           const failure = opened.failure
           const cause = failure._tag === "BusyFailure" ? failure.cause : undefined
@@ -140,7 +185,7 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
           } }
           for (const send of states) send(state)
           if (cause?.kind !== "capacity") return
-          yield* seat
+          yield* seats.wait
         }
       }))
       return { state: () => state, entries, clock, states, rows, pieces }

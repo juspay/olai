@@ -3,7 +3,7 @@ import type { RowAction, RowVerb } from "olai-plugin-outlines/slots"
 import { Result } from "effect"
 import { runAsync } from "@olai/web/client/run.ts"
 import type { Roster } from "./agents/answered.tsx"
-import { awake, type Row } from "./agents/roster.ts"
+import { seated, type Row } from "./agents/roster.ts"
 import { agentReadings } from "./agents/reading.ts"
 import { fold, unfold } from "./agents/folding.ts"
 import { chatWire } from "./wire.ts"
@@ -111,9 +111,11 @@ export const rowVerbs = (
  * naming no conversation has NONE of these — `Tidy memory` and `Close the
  * agent` are both about a chat, and a sidebar row may be a bare node (the
  * outline's menu never reaches here for one, so only the column had to ask).
- * `Put to sleep` is narrower still: an awake agent is holding one of the eight
- * seats, and that seat is the whole of what the verb hands back. An entry that
- * could only be refused teaches a person nothing, so it is not drawn.
+ * `Put to sleep` is narrower still: it hands a SEAT back, so it is offered
+ * exactly where there is one to hand back ({@link seated}) — which includes
+ * the stopped agent whose dot the column does not draw. That row is the one
+ * where it costs least of all: nothing is running, nothing is reaping it on
+ * its own, and the seat is held until somebody says otherwise.
  */
 export const chatVerbs = (bound: Row): ReadonlyArray<RowVerb> => bound.session == null ? [] : [
   // THE SEAT, GIVEN BACK BY HAND. olai closes an idle chat's seat on its own
@@ -122,7 +124,7 @@ export const chatVerbs = (bound: Row): ReadonlyArray<RowVerb> => bound.session =
   // neither of those covers: eight agents all busy, and the one a person has
   // finished with is the one they know about (`../scoped.ts`'s `Chat.sleep`).
   // The binding stays, so the row stays and opening it continues the chat.
-  ...(awake(bound.standing)
+  ...(seated(bound.standing)
     ? [{
       id: "put-to-sleep", writes: false, label: "Put to sleep",
       run: async (node: string) => {

@@ -10,7 +10,7 @@ import { focusAgent } from "./focus.ts"
 import { byActivity } from "./activity-order.ts"
 import { hereNow, newChatRow } from "./new-chat-level.ts"
 import { agentAboveOf } from "./above.ts"
-import { awake, LOOK } from "./roster.ts"
+import { LOOK, seated } from "./roster.ts"
 import type { Roster } from "./answered.tsx"
 
 /** Listing reads the activation's roster; only selection opens a conversation. */
@@ -40,7 +40,7 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
    * go (`sleeps`, joined onto the roster row). The second is that pass itself,
    * asked for now, on a node the loop would never have picked up. The third is
    * the other thing the word sleep means here — the SEAT, handed back — and it
-   * is drawn only while this chat is awake to hand one back.
+   * is drawn only where this chat is holding one to hand back.
    *
    * A REFUSAL IS THE PALETTE'S OWN LINE, in the palette's own mood
    * (`{@link PaletteRunResult}`), and the sentence is the server's: a pass is
@@ -84,11 +84,11 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
           return { keepOpen: true, said: { tone: "alarm" as const, text: outcome.success.said } }
         } },
       },
-      // THE SEAT, GIVEN BACK — offered only while the chat on screen is awake,
-      // which is the same rule the two menus keep (`../verbs.tsx`'s
+      // THE SEAT, GIVEN BACK — offered wherever the chat on screen is holding
+      // one, which is the same rule the two menus keep (`../verbs.tsx`'s
       // `chatVerbs`): there is nothing to put to sleep on a chat that is
       // already asleep, and a row that refused would teach nothing.
-      ...(awake(shown.standing)
+      ...(seated(shown.standing)
         ? [{
           id: "put-to-sleep", label: "Put to sleep", place: `on “${shown.title}”`,
           search: `put to sleep ${shown.title}`.toLowerCase(), taking: atOnce,
