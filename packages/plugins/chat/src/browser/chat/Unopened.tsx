@@ -19,10 +19,17 @@ import { TESTID } from "../../testids.ts"
 import { Refusal } from "./Refusal.tsx"
 import type { Chat } from "./state.ts"
 
+/**
+ * WHICH OF THE TWO, and the box both are drawn in.
+ *
+ * The two bodies share a scroller, an id and the said line under them, and
+ * nothing else — one is about a fault and offers the way out of it, the other
+ * is about a wait and offers nothing. They are two components for that reason
+ * rather than one with a flag threaded through its paragraphs.
+ */
 export function Unopened(
   props: { readonly chat: Chat; readonly unopened: Refused },
 ) {
-  const waiting = () => props.unopened.cause?.kind === "capacity"
   return (
     <div
       class="olai-scroll min-h-0 flex-1 overflow-y-auto px-4 py-6 text-body text-muted"
@@ -30,57 +37,13 @@ export function Unopened(
       data-cause={props.unopened.cause?.kind}
     >
       <Show
-        when={waiting()}
-        fallback={
-          <>
-            <p class="m-0 mb-3 text-ink">
-              {/* NAMED where a name was asked for, and not otherwise. A boot picks
-                  its own conversation, so "could not open `fake-stored-old`" would
-                  be this panel putting a name to a choice nobody made. */}
-              {props.unopened.what === null
-                ? "The agent couldn't open a chat."
-                : "The agent couldn't open that chat."}
-            </p>
-
-            {/* Its own line and its own id, for `Missing.tsx`'s reason: the REASON is
-                what this face exists for, and `break-words` because it can carry a
-                session id or a method name into a 26rem drawer. */}
-            <p
-              class="m-0 mb-3 break-words text-label text-alarm"
-              data-testid={TESTID.chatUnopenedWhy}
-            >
-              {props.unopened.why}
-            </p>
-
-            <p class="m-0 mb-3">
-              Your notes still work. Try again once the problem is fixed.
-            </p>
-
-            {/* The header's own quiet pill, at the header's own scale — this sits in
-                prose rather than in the transcript's 11px mono line, so it is the
-                shared spelling rather than `Entry.tsx`'s smaller lookalike. */}
-            <button
-              type="button"
-              class={QUIET_PILL}
-              data-testid={TESTID.chatReopen}
-              onClick={() => props.chat.reopen()}
-            >
-              Try again
-            </button>
-          </>
-        }
+        when={props.unopened.cause?.kind === "capacity"}
+        fallback={<AgentSaidNo chat={props.chat} unopened={props.unopened} />}
       >
-        {/* THE SENTENCE IS THE SERVER'S, verbatim — it is the one that names
-            how many seats there are, and the node menu's refusal says exactly
-            the same words. Quiet rather than alarm, and with the line below
-            saying what the panel is going to do about it on its own. */}
-        <p class="m-0 mb-3 text-ink" data-testid={TESTID.chatUnopenedWhy}>
-          {props.unopened.why}
-        </p>
-        <p class="m-0">This chat opens here as soon as a seat frees.</p>
+        <WaitingForASeat why={props.unopened.why} />
       </Show>
 
-      {/* WHAT THAT BUTTON WAS TOLD, when it was told something. The panel's
+      {/* WHAT A PRESS WAS TOLD, when there was one to press. The panel's
           refusal line lives in the transcript, and there is no transcript here
           — so without this a click on the one control in this body could be
           refused and say nothing at all, which is the one thing the error
@@ -99,5 +62,54 @@ export function Unopened(
         )}
       </Show>
     </div>
+  )
+}
+
+/** THE AGENT ANSWERED, AND ITS ANSWER WAS NO — the ordinary case, and the one
+ *  there is something to do about. */
+function AgentSaidNo(props: { readonly chat: Chat; readonly unopened: Refused }) {
+  return (
+    <>
+      <p class="m-0 mb-3 text-ink">
+        {/* NAMED where a name was asked for, and not otherwise. A boot picks
+            its own conversation, so "could not open `fake-stored-old`" would
+            be this panel putting a name to a choice nobody made. */}
+        {props.unopened.what === null
+          ? "The agent couldn't open a chat."
+          : "The agent couldn't open that chat."}
+      </p>
+
+      {/* Its own line and its own id, for `Missing.tsx`'s reason: the REASON is
+          what this face exists for, and `break-words` because it can carry a
+          session id or a method name into a 26rem drawer. */}
+      <p class="m-0 mb-3 break-words text-label text-alarm" data-testid={TESTID.chatUnopenedWhy}>
+        {props.unopened.why}
+      </p>
+
+      <p class="m-0 mb-3">
+        Your notes still work. Try again once the problem is fixed.
+      </p>
+
+      {/* The header's own quiet pill, at the header's own scale — this sits in
+          prose rather than in the transcript's 11px mono line, so it is the
+          shared spelling rather than `Entry.tsx`'s smaller lookalike. */}
+      <button type="button" class={QUIET_PILL} data-testid={TESTID.chatReopen}
+        onClick={() => props.chat.reopen()}>
+        Try again
+      </button>
+    </>
+  )
+}
+
+/** EVERY SEAT IS TAKEN, which is not a fault and not a thing to press again.
+ *  The sentence is the server's, verbatim — it names how many seats there are
+ *  and the node menu's refusal says exactly the same words — and the line
+ *  under it is what this panel is going to do about it on its own. */
+function WaitingForASeat(props: { readonly why: string }) {
+  return (
+    <>
+      <p class="m-0 mb-3 text-ink" data-testid={TESTID.chatUnopenedWhy}>{props.why}</p>
+      <p class="m-0">This chat opens here as soon as a seat frees.</p>
+    </>
   )
 }

@@ -51,12 +51,12 @@ export default function ChatRowPanel(props: {
         data-testid={TESTID.chatRowMenuPanel} data-agent={props.node}
         ref={element => queueMicrotask(() => { if (shown() && element.isConnected) element.focus({ preventScroll: true }) })}
         onCloseAutoFocus={event => { event.preventDefault(); shown() && anchor().isConnected && anchor().focus({ preventScroll: true }) }}>
-        {/* KEYED BY THE VERB'S OWN WORD, not by position: `chatVerbs` mints
-            fresh objects off a roster row that is itself rebuilt on every
-            frame, so a plain `For` would dispose and remake every item each
-            time anything in the column moved — taking the focused row with it
-            and breaking the arrow keys under a person's hand. The outline's
-            menu keys its entries for the same reason. */}
+        {/* KEYED BY THE VERB'S OWN WORD, not by position, so what an item is
+            is a fact about the item rather than about where it sat in the
+            list: an open menu whose row went to sleep loses `Put to sleep`
+            from the top, and the two entries below it are the SAME entries —
+            the caret stays where a person left it, and the arrow keys with
+            it. The outline's menu keys its entries for the same reason. */}
         <Key each={props.verbs} by="id">{verb =>
           <DropdownMenu.Item class={MENU_ITEM} data-testid={TESTID.chatRowMenuItem} data-action={verb().id}
             onSelect={() => props.pick(verb())}>{verb().label}</DropdownMenu.Item>

@@ -78,56 +78,26 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
       )
       const chat = yield* ready
       /**
-       * A SEAT, WAITED FOR — registered ONCE, for as long as this reading
-       * lives, and LATCHED.
+       * A SEAT, WAITED FOR — one announcement, held until somebody takes it.
        *
-       * Both halves of that are about the same hole. The scheduler fans an
-       * announcement out to whoever is registered at that instant and keeps no
-       * record of it ({@link Chat.seats}), so a listener that existed only
-       * while a fiber was parked would miss every close that landed between
-       * one attempt coming back and the next park — and two readings racing
-       * for two seats is enough to lose one: the first announcement wakes
-       * both, the winner holds the scheduler's gate through its acquisition,
-       * the second announcement fires while the loser is between parks, and
-       * the loser's retry then refuses and waits for an announcement that has
-       * already happened. With no *Try again* on that face, the only way out
-       * would be a reload.
-       *
-       * So the registration is the READING's — acquired beside the cadence
-       * above and released with the scope that owns both, which is the owner
-       * a tab's reading already has — and a close that arrives with nobody
-       * parked sets `missed`, which the next wait consumes instead of
-       * parking. One latch, not a count: what a waiter wants to know is "has
-       * a seat freed since I last looked", and two closes are not two seats
-       * for this reading to take.
+       * The scheduler fans an announcement out to whoever is registered at
+       * that instant and keeps no record of it ({@link Chat.seats}), so this
+       * side has to do both of the things that makes safe. The registration
+       * is the READING's, acquired beside the cadence above and released with
+       * the scope that owns both: a listener that existed only while a fiber
+       * was parked would miss every close that landed between one attempt
+       * coming back and the next park — and two readings racing for two seats
+       * is enough to lose one, with no *Try again* on that face to get out
+       * with. And the announcement is REMEMBERED, which is what a queue of one
+       * is: an offer with nobody taking stays until the next take, and a
+       * second offer behind it slides the first out rather than queueing a
+       * backlog, because "a seat freed since I last looked" is one bit and two
+       * closes are not two seats for this reading to take.
        */
-      const seats = yield* Effect.acquireRelease(
-        Effect.sync(() => {
-          let missed = false
-          let parked: (() => void) | null = null
-          const off = chat.seats(() => {
-            const wake = parked
-            parked = null
-            if (wake === null) missed = true
-            else wake()
-          })
-          const wait = Effect.callback<void>((resume) => {
-            if (missed) {
-              missed = false
-              resume(Effect.void)
-              return
-            }
-            const mine = (): void => resume(Effect.void)
-            parked = mine
-            // Only the interrupted park unregisters here: a park that was
-            // ANSWERED is already off (the announcement clears it before it
-            // wakes anybody), and clearing then would be clearing somebody
-            // else's.
-            return Effect.sync(() => { if (parked === mine) parked = null })
-          })
-          return { off, wait }
-        }),
-        (held) => Effect.sync(held.off),
+      const freed = yield* Queue.sliding<void>(1)
+      yield* Effect.acquireRelease(
+        Effect.sync(() => chat.seats(() => { Queue.offerUnsafe(freed, undefined) })),
+        (off) => Effect.sync(off),
       )
       /**
        * THE ATTEMPT, KEPT — because this is the one refusal that mends itself.
@@ -185,7 +155,7 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
           } }
           for (const send of states) send(state)
           if (cause?.kind !== "capacity") return
-          yield* seats.wait
+          yield* Queue.take(freed)
         }
       }))
       return { state: () => state, entries, clock, states, rows, pieces }
