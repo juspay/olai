@@ -14,6 +14,10 @@
  * the far side of a dynamic import (`./ChatRowPanel.tsx`). Up to ten of these
  * are drawn, and a sidebar that mounted ten Kobalte menus nobody opened would
  * pay for all of them on every roster frame.
+ *
+ * AND NOT DRAWN AT ALL BELOW md, which is the same rule the outline's `•••`
+ * keeps (`@olai/ui-primitives`'s `MENU_CELL`): a hover affordance on a device
+ * with no hover is a target a thumb can hit and an eye cannot find.
  */
 
 import { createSignal, lazy, Show } from "solid-js"
