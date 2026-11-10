@@ -151,9 +151,18 @@ jobs:
       # reading, and the push follows it; this workflow can no longer name a
       # cache the flake does not.
       #
-      # THE PIN IS ODU MASTER, `b7733a4` — #168's merge commit, where that
-      # inference landed. `odu cache` speaks the bucket daemon's own HTTP API
-      # and no released `odu` has cache verbs, so this is re-pinned by SHA.
+      # NO `pin:` EITHER — THE ACTION HOLDS THE DEFAULT BRANCH'S CLOSURE ON
+      # ITS OWN. Left empty it pins when `github.ref` is
+      # `refs/heads/<default branch>`, read from the event payload: exactly
+      # the comparison this step used to spell out, now the action's default
+      # (#169). A pull request still builds and pushes, and still holds
+      # nothing.
+      #
+      # THE ACTION PIN IS ODU MASTER, `71e6240` — #169's merge commit, where
+      # that default landed and where every pushed narinfo began carrying the
+      # run and commit that built it. `odu cache` speaks the bucket daemon's
+      # own HTTP API and no released `odu` has cache verbs, so this is
+      # re-pinned by SHA.
       #
       # IT IS NOT, AND NEED NOT BE, `npins/sources.json`'s `odu`. That pin is
       # the one the plugin's hydrated `@odu/*` sources are compiled from, and
@@ -163,9 +172,7 @@ jobs:
       # two revisions typechecks until a field moves. So that pin walks when
       # kolu's does. This sha is a GitHub action fetched by ref; it answers to
       # nothing in this tree.
-      - uses: juspay/odu/.github/actions/push@b7733a490484cd96c554e5cf5a48d7b4af80cc47 # odu master: #168 merged
+      - uses: juspay/odu/.github/actions/push@71e62402008e328779676618e43d499f9d299988 # odu master: #169 merged
         with:
           token: ${{ secrets.ODU_CACHE_TOKEN }}
           paths: ${{ steps.roots.outputs.paths }}
-          # Hold this push's closure while it is the default branch's.
-          pin: ${{ github.ref_name == github.event.repository.default_branch }}
