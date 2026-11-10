@@ -558,6 +558,7 @@ test("every dynamic import() the client spells takes a literal the bundler can r
   expect(offenders).toEqual([])
   expect(filesSpelling(/\bimport\s*\(/)).toEqual([
     "markdown-ui/src/chunk.ts",
+    "plugins/chat/src/browser/agents/ChatRowMenu.tsx",
     "plugins/chat/src/browser/agents/FreshStart.tsx",
     "plugins/chat/src/browser/agents/NewChat.tsx",
     "plugins/chat/src/browser/agents/Standing.tsx",
@@ -603,6 +604,7 @@ test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
 // there, in `packages/plugins/chat/src/browser/claims.test.ts`.
 test("the stack is joined directly only where the gestures are not dismissOn's", () => {
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
+    "plugins/chat/src/browser/agents/ChatRowPanel.tsx",
     "plugins/chat/src/browser/agents/EngineMenu.tsx",
     "plugins/chat/src/browser/chat/CompletionMenu.tsx",
     "plugins/files/src/NewMenu.tsx",
