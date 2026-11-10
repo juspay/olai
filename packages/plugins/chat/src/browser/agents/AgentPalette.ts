@@ -10,7 +10,7 @@ import { focusAgent } from "./focus.ts"
 import { byActivity } from "./activity-order.ts"
 import { hereNow, newChatRow } from "./new-chat-level.ts"
 import { agentAboveOf } from "./above.ts"
-import { LOOK } from "./roster.ts"
+import { awake, LOOK } from "./roster.ts"
 import type { Roster } from "./answered.tsx"
 
 /** Listing reads the activation's roster; only selection opens a conversation. */
@@ -23,8 +23,8 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
   // the palette the same object, so its open path and drawing stay put.
   const newChat = creation === undefined ? undefined : newChatRow(creation, agents, memory)
   /**
-   * THE PASS, AND THE ANSWER THAT LETS IT RUN — two rows, both about the
-   * conversation a person is LOOKING AT (`../verbs.tsx` has the menu's halves).
+   * SLEEP, IN BOTH SENSES — three rows, all about the conversation a person is
+   * LOOKING AT (`../verbs.tsx` has the menu's halves).
    *
    * WHICH CONVERSATION IS NOT A QUESTION THIS LIST CAN ASK: the `•••` hangs off
    * a row and knows its node, and a palette is opened from anywhere and knows
@@ -37,8 +37,10 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
    *
    * THE FIRST IS THE OPT-IN, and its LABEL is the indicator: nothing is tidied
    * on its own until somebody says so, and the row says which way the press will
-   * go (`sleeps`, joined onto the roster row). The second is the pass itself,
-   * asked for now, on a node the loop would never have picked up.
+   * go (`sleeps`, joined onto the roster row). The second is that pass itself,
+   * asked for now, on a node the loop would never have picked up. The third is
+   * the other thing the word sleep means here — the SEAT, handed back — and it
+   * is drawn only while this chat is awake to hand one back.
    *
    * A REFUSAL IS THE PALETTE'S OWN LINE, in the palette's own mood
    * (`{@link PaletteRunResult}`), and the sentence is the server's: a pass is
@@ -73,15 +75,30 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
         } },
       },
       {
-        id: "sleep-now", label: "Sleep now", place: `on “${shown.title}”`,
-        search: `sleep now ${shown.title}`.toLowerCase(), taking: atOnce,
+        id: "tidy-memory", label: "Tidy memory", place: `on “${shown.title}”`,
+        search: `tidy memory ${shown.title}`.toLowerCase(), taking: atOnce,
         action: { kind: "run", run: async () => {
-          const outcome = await runAsync(chatWire().procedures.conversation.sleepNow({ node: shown.id }))
+          const outcome = await runAsync(chatWire().procedures.conversation.tidyMemory({ node: shown.id }))
           if (Result.isFailure(outcome)) return { keepOpen: true, said: { tone: "alarm" as const, text: outcome.failure.message } }
           if (outcome.success._tag === "Started") return {}
           return { keepOpen: true, said: { tone: "alarm" as const, text: outcome.success.said } }
         } },
       },
+      // THE SEAT, GIVEN BACK — offered only while the chat on screen is awake,
+      // which is the same rule the two menus keep (`../verbs.tsx`'s
+      // `chatVerbs`): there is nothing to put to sleep on a chat that is
+      // already asleep, and a row that refused would teach nothing.
+      ...(awake(shown.standing)
+        ? [{
+          id: "put-to-sleep", label: "Put to sleep", place: `on “${shown.title}”`,
+          search: `put to sleep ${shown.title}`.toLowerCase(), taking: atOnce,
+          action: { kind: "run" as const, run: async () => {
+            const outcome = await runAsync(chatWire().procedures.conversation.sleep({ node: shown.id }))
+            if (Result.isFailure(outcome)) return { keepOpen: true, said: { tone: "alarm" as const, text: outcome.failure.message } }
+            return {}
+          } },
+        } satisfies PaletteItem]
+        : []),
     ]
   }
   /** THE ROW ABOVE the focused row (or the zoomed node): the pill's door, for

@@ -358,6 +358,30 @@ export const surface = defineSurface({
         error: ChatFailure,
       },
       /**
+       * PUT A NODE'S AGENT TO SLEEP — stop what it is doing and close its seat,
+       * keeping the chat.
+       *
+       * THE OTHER HALF OF THE PAIR {@link closeAgent} BELONGS TO, and the
+       * difference is the binding: this one leaves the node naming its
+       * conversation, so the roster draws it `asleep` and opening it again
+       * continues where it left off; `closeAgent` takes the property off and
+       * the chat becomes unclaimed. A person who wanted the seat back and not
+       * the chat gone has had no verb for it until now — only *Close the
+       * agent*, which is the one that loses the node.
+       *
+       * The turn in flight stops and every question still waiting is withdrawn
+       * (`../scoped.ts`'s `Chat.sleep`), so a *Needs you* row for this node is
+       * gone with it. Refuses where nothing is awake there.
+       */
+      sleep: {
+        input: Schema.Struct({
+          /** The node to put to sleep — the id the roster answers with, which
+           *  is what the row the verb was drawn on names. */
+          node: Schema.String,
+        }),
+        error: ChatFailure,
+      },
+      /**
        * SAY WHETHER THIS CHAT IS TIDIED ON ITS OWN — the mark *Sleep when idle*
        * sets and *Stop sleeping when idle* takes off.
        *
@@ -383,9 +407,15 @@ export const surface = defineSurface({
         error: ChatFailure,
       },
       /**
-       * RUN A SLEEP PASS ON ONE NODE NOW — the verb a person presses
-       * (*Sleep now*), and the only way into the pass that is not the
-       * loop's own clock.
+       * TIDY THIS NODE'S MEMORY NOW — the verb a person presses (*Tidy
+       * memory*), and the only way into the pass that is not the loop's own
+       * clock.
+       *
+       * IT IS NOT {@link sleep}, and the words are what keep the two apart:
+       * this one runs a pass over what the chat has learned and writes the
+       * memo; that one stops the agent and hands its seat back. Both were
+       * called *Sleep now* once, which left a person pressing the one they
+       * could see in order to free a seat and getting a tidying turn instead.
        *
        * IT ANSWERS WHEN THE PASS HAS BEGUN, not when it ends: a tidying turn
        * runs for minutes, and what is waiting on this answer is a palette row
@@ -399,7 +429,7 @@ export const surface = defineSurface({
        * same shape `closeAgent`'s failure sentence has: nothing went wrong, a
        * person asked for something that is not available now.
        */
-      sleepNow: {
+      tidyMemory: {
         input: Schema.Struct({
           /** The node whose memory is to be tidied — the id the roster answers
            *  with, which is what the row the verb was drawn on names. */
@@ -586,8 +616,9 @@ export const faces = {
     "conversation.locations": "tool",
     "conversation.startAgentSession": "tool",
     "conversation.closeAgent": "tool",
+    "conversation.sleep": "tool",
     "conversation.setSleeping": "tool",
-    "conversation.sleepNow": "tool",
+    "conversation.tidyMemory": "tool",
     "conversation.reopen": "tool",
     "conversation.sessions": "tool",
     "conversation.answer": "tool",

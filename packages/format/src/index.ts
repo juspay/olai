@@ -993,6 +993,7 @@ export { ordBetween } from "./ord.ts"
 export { heldCustom, nothing } from "./write.ts"
 
 export {
+  BusyCause,
   BusyFailure,
   isOpFailure,
   kindOf,

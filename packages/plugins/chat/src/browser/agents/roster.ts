@@ -19,11 +19,28 @@ export type Standing = AgentStanding
  */
 export type Row = NodeAgentRow & { readonly unread: boolean }
 
+/**
+ * IS THIS AGENT AWAKE — holding one of the eight seats, with a process behind
+ * it?
+ *
+ * FOUR STANDINGS, in the order a person cares about them: it wants you, it is
+ * busy, it is starting, it is ready. The other three are not a seat — `asleep`
+ * and `unbound` never had one, and `gone` is a process that died and left the
+ * seat it had. The order is the list's (`./activity-order.ts`) and the
+ * question is the verbs' (`../verbs.tsx`: there is nothing to put to sleep on
+ * a row that is not), so it is declared once, here, beside the table that says
+ * what each standing LOOKS like.
+ */
+export const AWAKE: ReadonlyArray<Standing> = ["needs-you", "working", "waking", "idle"]
+export const awake = (standing: Standing): boolean => AWAKE.includes(standing)
+
 /** What each standing is called, how it is painted, and what it means. One table
- *  is read by the faces that ARE about standing — the Needs you region's dot, the
- *  aside on the outline row, and the palette row's hint. The Chats column draws
- *  no dot (a list of chats is a list of what is there, `./Agents.tsx`), so it
- *  reads the standing as `data-standing` and none of this. */
+ *  is read by every face that says HOW AN AGENT STANDS — the Needs you region's
+ *  dot, the aside on the outline row, the palette row's hint, and the Chats
+ *  row's dot, which is drawn for an awake agent and for no other
+ *  (`./Agents.tsx`: a sleeping chat is a thing that is there, not a thing that
+ *  is doing something). A row carries its standing as `data-standing` whatever
+ *  it draws. */
 export const LOOK: Record<Standing, { readonly dot: string; readonly label: string; readonly detail: string }> = {
   "needs-you": {
     dot: NEEDS_YOU_DOT,

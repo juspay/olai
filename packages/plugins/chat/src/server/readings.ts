@@ -8,7 +8,7 @@
  * off the same map — because what a tab is handed and what the server knows are
  * two different questions, and a window that bounded the READING would make
  * history unfetchable. */
-import { Data, Effect, Queue, RcMap, Stream } from "effect"
+import { Data, Effect, Queue, RcMap, type Scope, Stream } from "effect"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import type { OpFailure } from "@olai/format"
 
@@ -58,7 +58,7 @@ const pageOf = (
 /** What a caller reads off a held reading without subscribing — the last member,
  *  the `conversation.earlier` verb's answer. It is not a stream: it is one reply
  *  to one request, and the reader that asked is the only one who wants it. */
-export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.gen(function*() {
+export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) => Effect.gen(function*() {
   const held = yield* RcMap.make({
     lookup: (key: Key) => Effect.gen(function*() {
       const to: PanelAddress = key.node !== null ? { node: key.node } : { agent: key.agent!, session: key.session! }
@@ -77,13 +77,58 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading">>) => Effect.
         (clock) => Effect.sync(clock.stop),
       )
       const chat = yield* ready
-      yield* Effect.forkScoped(chat.reading(to, {
+      /**
+       * A SEAT, WAITED FOR — and the listener goes away with this reading.
+       *
+       * The scheduler announces a close to whoever is holding an attempt it
+       * refused ({@link Chat.seats}); `Effect.callback`'s teardown is what
+       * takes this one off, so a tab that left while the pool was full
+       * unregisters with the scope that owns the reading rather than waiting
+       * for a seat nobody wants any more.
+       */
+      const seat = Effect.callback<void>((resume) => {
+        let settled = false
+        const off = chat.seats(() => {
+          if (settled) return
+          settled = true
+          resume(Effect.void)
+        })
+        return Effect.sync(off)
+      })
+      /**
+       * THE ATTEMPT, KEPT — because this is the one refusal that mends itself.
+       *
+       * Every other reason an open fails is a thing a person has to do
+       * something about, and the face says so and offers the retry. "All eight
+       * agents are awake" is not: it stops being true the moment one of them
+       * is put to sleep, and nothing about THIS conversation has to change for
+       * it to open. So the attempt stays here, waiting on the scheduler's own
+       * announcement, and the panel opens by itself.
+       *
+       * THE LOOP IS OWNED BY THE READING, forked into its scope: a reader that
+       * closes the tab takes the wait with it, and a serve shutting down
+       * interrupts it where it stands. It can only ever be waiting — one
+       * refusal, one listener — so there is no retry budget to spend.
+       */
+      const opening: Effect.Effect<void, never, Scope.Scope> = chat.reading(to, {
         state: (value) => { state = value; for (const send of states) send(value) },
         transcript: clock.publish,
-      }).pipe(Effect.catch(failure => Effect.sync(() => {
-        state = { ...CHAT_OFF, status: "idle", unopened: { what: "session" in to ? to.session : null, why: failure.message } }
-        for (const send of states) send(state)
-      }))))
+      }).pipe(
+        Effect.asVoid,
+        Effect.catch(failure => Effect.gen(function*() {
+          const cause = failure._tag === "BusyFailure" ? failure.cause : undefined
+          state = { ...CHAT_OFF, status: "idle", unopened: {
+            what: "session" in to ? to.session : null,
+            why: failure.message,
+            ...(cause === undefined ? {} : { cause }),
+          } }
+          for (const send of states) send(state)
+          if (cause?.kind !== "capacity") return
+          yield* seat
+          yield* opening
+        })),
+      )
+      yield* Effect.forkScoped(opening)
       return { state: () => state, entries, clock, states, rows, pieces }
     }),
   })

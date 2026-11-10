@@ -20,6 +20,7 @@ test("a shared reader publishes opening state before load finishes and releases 
         observer.state({ ...CHAT_OFF, status: "idle" })
         return yield* Effect.never
       }),
+      seats: () => () => {},
     }))
     const to = { agent: "test", session: "held" }
     yield* Effect.forkScoped(Stream.runDrain(source.transcript.source(to)))
@@ -40,12 +41,70 @@ test("a scheduler refusal is published into the requested reading", async () => 
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
     const source = yield* readings(Effect.succeed({
       reading: () => Effect.fail(new BusyFailure({ reason: "all agent slots are held" })),
+      seats: () => () => {},
     }))
     const state = yield* Stream.runHead(source.state.source({ agent: "test", session: "ninth" }).pipe(
       Stream.filter(state => state.unopened !== null),
     ))
     expect(state).toMatchObject({ value: { unopened: { what: "ninth", why: "all agent slots are held" } } })
   })))
+})
+
+/**
+ * THE ONE REFUSAL THAT MENDS ITSELF, held open from the reading's side.
+ *
+ * A full pool is not a fault: nothing about this conversation has to change
+ * for it to open, so the attempt waits on the scheduler's own announcement and
+ * the panel opens by itself. What is asserted is both halves — the sentence
+ * and its cause reach the tab, and the SAME reading then goes live without
+ * anybody subscribing again — plus the thing that makes it safe: the listener
+ * is taken off when the reading's scope closes, so a tab that left is not
+ * holding a seat nobody wants.
+ */
+test("a full pool holds the attempt, and the reading opens itself when a seat frees", async () => {
+  let listeners = 0
+  let attempts = 0
+  let freed: (() => void) | null = null
+  await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
+    const seen = yield* Queue.unbounded<ChatState>()
+    const source = yield* readings(Effect.succeed({
+      reading: (_to, observer) => Effect.suspend(() => {
+        attempts++
+        if (attempts === 1) {
+          return Effect.fail(new BusyFailure({
+            reason: "All 8 agents are awake — put one to sleep in Chats.",
+            cause: { kind: "capacity", capacity: 8 },
+          }))
+        }
+        observer.state({ ...CHAT_OFF, status: "idle" })
+        return Effect.never
+      }),
+      seats: (listen) => {
+        listeners++
+        freed = listen
+        return () => { listeners--; freed = null }
+      },
+    }))
+    const to = { agent: "test", session: "ninth" }
+    yield* Effect.forkScoped(Stream.runForEach(source.state.source(to), value => Queue.offer(seen, value)))
+    let state = yield* Queue.take(seen)
+    while (state.unopened === null) state = yield* Queue.take(seen)
+    expect(state.unopened).toEqual({
+      what: "ninth",
+      why: "All 8 agents are awake — put one to sleep in Chats.",
+      cause: { kind: "capacity", capacity: 8 },
+    })
+    yield* Effect.sync(() => { expect(listeners).toBe(1) })
+    // A SEAT FREES, and nobody presses anything: the attempt the reading kept
+    // is retried where it stood.
+    yield* Effect.sync(() => { freed?.() })
+    while (state.unopened !== null) state = yield* Queue.take(seen)
+    expect(state.status).toBe("idle")
+    expect(attempts).toBe(2)
+  })))
+  // ...AND THE WAIT LEAVES WITH THE READING: the scope above is closed, so the
+  // listener the scheduler is holding is gone with it.
+  expect(listeners).toBe(0)
 })
 
 /**
@@ -73,6 +132,7 @@ test("a subscribe ships the newest window, and pages read the rest back", async 
         yield* Deferred.succeed(filled, undefined)
         return yield* Effect.never
       }),
+      seats: () => () => {},
     }))
     const to = { agent: "test", session: "long" }
     // The reading is built and filled by the first subscriber; a tab that joins

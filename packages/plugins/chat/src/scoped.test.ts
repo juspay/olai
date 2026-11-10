@@ -830,7 +830,12 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
     const refused = await run(Effect.result(chat.loadSession("alpha", oneSession)))
     expect(refused._tag).toBe("Failure")
     if (refused._tag === "Failure") {
-      expect(refused.failure.message).toContain("1 node agents are already live")
+      // THE SENTENCE NAMES THE WAY OUT, and the cause is what a face branches
+      // on: this refusal mends itself when somebody frees a seat, which is the
+      // one thing that distinguishes it from every other busy answer.
+      expect(refused.failure.message).toBe("All 1 agents are awake — put one to sleep in Chats.")
+      expect(refused.failure._tag === "BusyFailure" && refused.failure.cause)
+        .toEqual({ kind: "capacity", capacity: 1 })
     }
 
     // Clearing a sleeping conversation must also remove deliveries held by
@@ -860,6 +865,85 @@ test("the cap reaps an idle scope, refuses a busy one, and holds its one-shot wa
   expect(said.some(line => line.message.includes("chat agent exited")
     && line.annotations.reason === "capacity eviction" && line.annotations.expected === true)).toBe(true)
 
+}, 20_000)
+
+/**
+ * THE VERB, over real processes: a person's hand doing what the idle timer and
+ * the capacity reaper do on their own.
+ *
+ * Three things are asked of it that nothing else asks. It closes a slot the
+ * reaper would REFUSE to take (a turn is in flight, so `room`'s filter would
+ * skip it); it hands the seat back, which is what a waiter is listening for;
+ * and it leaves the conversation openable, which is the whole difference
+ * between this and releasing the binding.
+ */
+test("put to sleep closes a busy scope, announces the seat and leaves the chat openable", async () => {
+  const { run, fork, said } = logging()
+  let nodes: ReadonlyArray<NodeAgent> = [
+    { id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2 },
+  ]
+  const released: Array<string> = []
+  const seats: Array<string> = []
+  const chat = await run(make({
+    fork,
+    roster: () => [seated(installed("alpha"))],
+    cwd,
+    tools: () => null,
+    nodeAt: (id) => nodes.find((node) => node.id === id) ?? null,
+    seatableAt: (id) => nodes.some((node) => node.id === id),
+    nodes: () => nodes,
+    wake: () => ACTIVATION,
+    nearestAt: (id, candidates) => candidates.has(id) ? id : null,
+    agentAt: ({ agent, session }) =>
+      nodes.find((node) => node.engine === agent && node.session === session) ?? null,
+    ticket: (node) => ({ bearer: `ticket-${node}`, release: () => released.push(node) }),
+    idle: "30 seconds",
+    onState: () => {},
+    onTranscript: () => {},
+  }))
+  const withdraw = chat.seats(() => seats.push("freed"))
+
+  try {
+    await run(chat.start)
+    await run(chat.startAgentSession("one", "alpha"))
+    const session = chat.state().session?.id ?? ""
+    nodes = nodes.map((node) => node.id === "one" ? { ...node, session } : node)
+    chat.reread()
+
+    // A TURN IN FLIGHT, which is the case the reaper will not take: `room`
+    // only closes a slot that is quiet, and this one is thinking.
+    await run(chat.send("wait:2000", [], []))
+    await until("the slot to be busy", () => chat.live().get("one")?.status === "thinking")
+
+    await run(chat.sleep("one"))
+    expect(chat.live().has("one")).toBe(false)
+    expect(released).toEqual(["one"])
+    expect(seats).toEqual(["freed"])
+
+    // ...AND THE CHAT IS STILL THERE. Nothing was unbound, so the same pair
+    // opens again and the scheduler seats it exactly as a reader would.
+    await run(chat.loadSession("alpha", session))
+    expect(chat.live().get("one")?.status).toBeString()
+
+    // A node with nothing awake refuses rather than quietly doing nothing:
+    // a verb pressed on an already-sleeping row has to say so.
+    await run(chat.sleep("one"))
+    const twice = await run(Effect.result(chat.sleep("one")))
+    expect(twice._tag).toBe("Failure")
+    if (twice._tag === "Failure") expect(twice.failure.message).toContain("no agent awake")
+    // ...and the withdrawal is the whole of leaving: a listener taken off
+    // hears nothing about the closes that follow it.
+    withdraw()
+    const heard = seats.length
+    await run(chat.loadSession("alpha", session))
+    await run(chat.sleep("one"))
+    expect(seats.length).toBe(heard)
+  } finally {
+    withdraw()
+    await run(chat.stop)
+  }
+  expect(said.some(line => line.message.includes("chat agent exited")
+    && line.annotations.reason === "put to sleep" && line.annotations.expected === true)).toBe(true)
 }, 20_000)
 
 test("agent switches, disabled plugins and listing probes have distinct exit reasons", async () => {

@@ -119,6 +119,34 @@ export interface Chat extends Panel {
   readonly withdraw: (plugin: string, to: Conversing) => Effect.Effect<void>
   /** Compatibility metadata verb; assignment never opens or relocates a process. */
   readonly assignedTo: (node: string, to: Conversing) => Effect.Effect<void>
+  /**
+   * PUT THIS NODE'S AGENT TO SLEEP — a person's hand on the thing the idle
+   * timer and the capacity reaper do on their own.
+   *
+   * The turn in flight stops, every question still waiting is withdrawn, and
+   * the scope closes with its own reason ({@link StopReason}'s `put to sleep`)
+   * — all three because they are one act: closing the scope stops the
+   * subprocess, and stopping the subprocess is what ends the turn and settles
+   * the questions ({@link ./agent.ts}'s `leaving`). NOTHING IS UNBOUND: the
+   * node goes on naming its conversation, so the roster draws it `asleep` and
+   * opening it again continues where it left off. Releasing the binding is
+   * `closeAgent`, a different verb with a different answer.
+   *
+   * Refuses where the node has no live scope at all — a person pressing a verb
+   * on a chat that is already asleep is told so rather than left wondering
+   * which row it landed on.
+   */
+  readonly sleep: (node: string) => Effect.Effect<void, OpFailure>
+  /**
+   * TELL ME WHEN A SEAT MAY HAVE FREED, and hand back the withdrawal.
+   *
+   * The scheduler owns capacity, so it is the only thing that knows when a
+   * refusal it made has stopped being true. A caller holding an attempt that
+   * was refused for want of a seat ({@link BusyCause}) keeps the listener for
+   * as long as it keeps the attempt, and drops it with the same scope — the
+   * returned function is the whole of the withdrawal.
+   */
+  readonly seats: (listen: () => void) => () => void
   readonly startAgentSession: (
     node: string,
     agent: string,
@@ -471,6 +499,20 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       publishSwitch(before, slot.panel)
     }
 
+    /**
+     * WHO IS WAITING FOR A SEAT — the attempts this scheduler has refused for
+     * want of one, each of which withdraws its own listener with the scope
+     * that holds the attempt ({@link Chat.seats}).
+     *
+     * Told on a CLOSE and nothing else: a seat is freed by a scope going away,
+     * and waking the waiters on every live-set move would retry an open
+     * against a pool that is exactly as full as it was.
+     */
+    const seatWatchers = new Set<() => void>()
+    const seatFreed = (): void => {
+      for (const listen of [...seatWatchers]) listen()
+    }
+
     const close = (slot: NodeSlot, reason: StopReason = "scope released"): Effect.Effect<void> =>
       Effect.suspend(() => {
         if (slot.closing) {
@@ -493,6 +535,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         ).pipe(Effect.ensuring(Effect.sync(() => {
           Deferred.doneUnsafe(done, Effect.void)
           closing.delete(slot)
+          // ... AND THE SEAT IS ANNOUNCED LAST, after the subprocess is
+          // actually gone rather than when the slot left the map: a waiter
+          // woken a moment earlier would open its own process while this one
+          // was still dying, which is the pool briefly holding `capacity + 1`
+          // of them — the one thing the bound exists to prevent.
+          seatFreed()
         })))
       }).pipe(Effect.uninterruptible)
 
@@ -553,8 +601,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         )
         .sort((left, right) => left.touched - right.touched)[0]
       return reaper === undefined
+        // THE SENTENCE NAMES THE WAY OUT, and the cause is what lets a face do
+        // something other than print it: every seat is taken by an agent that
+        // is awake and doing something, so the only thing that frees one is a
+        // person putting one to sleep — and the panel holding this attempt
+        // reopens itself when they do (`server/readings.ts`).
         ? Effect.fail(new BusyFailure({
-          reason: `${capacity} node agents are already live; let one become idle before waking another`,
+          reason: `All ${capacity} agents are awake — put one to sleep in Chats.`,
+          cause: { kind: "capacity", capacity },
         }))
         : close(reaper, "capacity eviction")
     }
@@ -1225,6 +1279,32 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       entries: () => panelOf().entries(),
       state: () => panelOf().state(),
       withdraw,
+      /**
+       * ONE CLOSE, AND IT IS THE WHOLE VERB ({@link Chat.sleep}).
+       *
+       * Stopping the turn and discarding the questions are not three steps
+       * here because they are not three acts: `close` stops the panel with
+       * this reason, the panel stops its subprocess, and that is what ends the
+       * turn in flight and settles every question still waiting
+       * (`agent.ts`'s `leaving`). A verb that cancelled first would be asking
+       * an agent to finish politely before killing it, and the one thing a
+       * person pressing this asked for is that it STOP.
+       *
+       * HISTORY SCOPES ARE NOT THIS NODE'S CHAT: a reader looking at an older
+       * session of the same node holds a scope of its own (`acquire`'s key),
+       * and sleeping the node must not reach into the conversation somebody
+       * else is reading.
+       */
+      sleep: (node: string) => Effect.suspend(() => {
+        const slot = [...nodes.values()].find((one) => one.node === node && !one.history && !one.closing)
+        return slot === undefined
+          ? Effect.fail(new UsageFailure({ reason: `${node} has no agent awake to put to sleep` }))
+          : close(slot, "put to sleep")
+      }),
+      seats: (listen: () => void) => {
+        seatWatchers.add(listen)
+        return () => { seatWatchers.delete(listen) }
+      },
       live: () => new Map(
         [...nodes.values()].filter((slot) => !slot.history).map((slot) => [slot.node, {
           status: slot.state.status,

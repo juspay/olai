@@ -12,7 +12,8 @@ import { TESTID } from "../../testids.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"
 import { useAgents } from "./answered.tsx"
 import { createFocus } from "./focus.ts"
-import { LOOK, type Row } from "./roster.ts"
+import { awake, LOOK, type Row } from "./roster.ts"
+import { ChatRowMenu } from "./ChatRowMenu.tsx"
 import { needing } from "./attention-order.ts"
 import { byActivity } from "./activity-order.ts"
 import { unfolded } from "./folding.ts"
@@ -46,6 +47,9 @@ export function Chats() {
   const focus = createFocus()
   const router = useRouter()
   const now = createNow()
+  /** THE CAP COMES AFTER THE ORDER, which is what makes it safe: the awake
+   *  rows are already at the top (`./activity-order.ts`), so ten sleeping
+   *  chats can never hide the agent that is waiting on an answer. */
   const rows = () => byActivity(agents.rows()).slice(0, 10)
   /** WHICH ROWS ARE CURRENT, decided once per navigation for the whole list and
    *  handed to each row through a selector: a route read inside every row put
@@ -69,34 +73,44 @@ export function Chats() {
         data-unread={row().unread ? "true" : undefined}
         title={row().title} on:olai-navigated={() => focus.visit(row())}>
         <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span>
-        {/* A LIST OF CHATS IS A LIST OF WHAT IS THERE, so this row draws no dot
-            at all: what its agent is DOING is `data-standing` — the fact, drawn
-            in the regions that are about standing (Needs you, the outline
-            aside) — and what is left here is the name, whether there is
-            something in it nobody has read (the weight, with the word for a
-            reader who cannot see it), and when it was last heard. */}
+        {/* THE DOT SAYS WHETHER THIS CHAT IS AWAKE, and nothing finer: the
+            four awake standings wear their own colour from the one table
+            (`./roster.ts`), and an asleep, unbound or stopped row wears
+            nothing — a list of chats is a list of what is there, and only the
+            live ones are holding a seat. It is the answer to the question the
+            column could not answer before: a ninth agent is refused for want
+            of a seat, and WHICH EIGHT have one is now visible from here. Named
+            for a reader who cannot see the colour; the exact standing is still
+            `data-standing` on the row. */}
+        <Show when={awake(row().standing)}>
+          <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} />
+        </Show>
         <span class="min-w-0 flex-1 truncate" classList={{ "font-semibold": row().unread }}>
           {row().title}<Show when={row().unread}><span class="sr-only"> Unread</span></Show>
         </span>
         <Show when={row().said?.at ?? row().changed}>{at => <span class="shrink-0 tabular-nums text-caption text-muted">{agoOf(at(), now())}</span>}</Show>
       </a>
-      {/* THE DOOR INTO THE DOCK, beside the row rather than inside it: a
-          control inside an anchor is a control whose activation is also a
-          navigation (the pins' rule). Revealed on hover or focus, over the
-          row's right edge on the column's own ground, and only where there is
-          a seat to open — the dock component holds the shell that says so. */}
-      <Show when={dock()?.desktop()}>
-        <button type="button"
-          class={`absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-control bg-desk text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100`}
-          data-testid={TESTID.chatDockOpen} data-agent={row().id}
-          aria-label={`Open ${row().title} in the panel`} title="Open in the panel"
-          onClick={(event) => { event.stopPropagation(); dock()?.open(row().id) }}>
-          <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="2" y="3" width="12" height="10" rx="1.5" />
-            <path d="M9.5 3v10" />
-          </svg>
-        </button>
-      </Show>
+      {/* THE CONTROLS, beside the row rather than inside it: a control inside
+          an anchor is a control whose activation is also a navigation (the
+          pins' rule). Revealed on hover or focus, over the row's right edge on
+          the column's own ground. The `•••` is always there — every row has
+          verbs — and the dock door only where there is a seat to open, which
+          the dock component's shell decides. */}
+      <div class="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
+        <Show when={dock()?.desktop()}>
+          <button type="button"
+            class={`inline-flex size-6 items-center justify-center rounded-control bg-desk text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100`}
+            data-testid={TESTID.chatDockOpen} data-agent={row().id}
+            aria-label={`Open ${row().title} in the panel`} title="Open in the panel"
+            onClick={(event) => { event.stopPropagation(); dock()?.open(row().id) }}>
+            <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="2" y="3" width="12" height="10" rx="1.5" />
+              <path d="M9.5 3v10" />
+            </svg>
+          </button>
+        </Show>
+        <ChatRowMenu row={row()} />
+      </div>
     </li>}</Key></ul>
   </section>
 }

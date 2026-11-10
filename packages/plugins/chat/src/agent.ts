@@ -472,6 +472,9 @@ export type StopReason =
   | "node scope handoff"
   | "idle eviction"
   | "capacity eviction"
+  /** Somebody pressed *Put to sleep* — the same close the two evictions above
+   *  make, asked for by hand rather than by the clock or the bound. */
+  | "put to sleep"
   | "scope released"
   | "stopped by app"
 

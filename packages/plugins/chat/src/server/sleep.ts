@@ -220,7 +220,7 @@ export interface Sleeping {
   readonly question: Duration.Duration
   /** HOW LONG ONE TURN MAY RUN AT ALL (`sleep-limit`), because a turn that
    *  never ends holds the quiet window shut for the whole vault, wedges the loop
-   *  on the permit and makes every *Sleep now* answer "busy". An hour is
+   *  on the permit and makes every *Tidy memory* answer "busy". An hour is
    *  generous for a tidying pass and far short of "for ever" — and the git pill
    *  does not know about it (`docs/chat.md`). */
   readonly limit: Duration.Duration
@@ -730,7 +730,7 @@ export const makeSleeper = (
     /**
      * ONE PASS AT A TIME, BY THE PERMIT — three callers, and the permit is what
      * keeps them from overlapping: the loop (a tick), the verb (a person
-     * pressing *Sleep now*), and the test door, which is `tick` handed
+     * pressing *Tidy memory*), and the test door, which is `tick` handed
      * back so a case can drive a pass without waiting for a span.
      */
     const passes = Semaphore.makeUnsafe(1)
@@ -761,7 +761,7 @@ export const makeSleeper = (
      *
      * WHAT IT DOES NOT ASK is `candidate()`'s opinion. The idle window and the
      * "memory has moved" test are about whether a node is DUE, and a person
-     * pressing *Sleep now* has answered that themselves. Everything the
+     * pressing *Tidy memory* has answered that themselves. Everything the
      * pass then does with the node — the hold on the quiet window, the mark on
      * the turn, the cancel when a turn goes wrong or sits on a question, the
      * memo and the commit — is `one`, unchanged.
@@ -799,7 +799,7 @@ export const makeSleeper = (
         // hands the permit back is the one this forks, so a request interrupted
         // between the take and the fork would leave a permit nobody owns and
         // wedge the loop for the life of the process — every tick after it would
-        // wait for ever, and every Sleep now would answer "busy".
+        // wait for ever, and every Tidy memory would answer "busy".
         return yield* Effect.uninterruptible(Effect.gen(function*() {
           if (!(yield* Semaphore.takeIfAvailable(passes, 1))) return "busy" as const
           yield* doors.log(`sleep: ${agent.id} was asked for, and is being tidied`)

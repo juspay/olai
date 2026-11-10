@@ -559,7 +559,7 @@ test("a turn that never ends is stopped at the limit, and left alone after that"
   onTheClock(Effect.gen(function*() {
     // THE QUIET WAIT IS BOUNDED TOO, and this is why it must be: a turn that
     // stops reporting holds the quiet window shut for the whole vault, wedges
-    // the permit, and makes every *Sleep now* answer "busy" — with the git pill
+    // the permit, and makes every *Tidy memory* answer "busy" — with the git pill
     // still promising a commit that cannot come.
     const arms = yield* withStubs({
       states: [thinking({ asking: 0 })],

@@ -1,9 +1,9 @@
-/** The row menu's agent verbs: start, fresh start, close. */
-import type { RowAction } from "olai-plugin-outlines/slots"
+/** The row menu's agent verbs: start, fresh start, put to sleep, tidy, close. */
+import type { RowAction, RowVerb } from "olai-plugin-outlines/slots"
 import { Result } from "effect"
 import { runAsync } from "@olai/web/client/run.ts"
 import type { Roster } from "./agents/answered.tsx"
-import type { Row } from "./agents/roster.ts"
+import { awake, type Row } from "./agents/roster.ts"
 import { agentReadings } from "./agents/reading.ts"
 import { fold, unfold } from "./agents/folding.ts"
 import { chatWire } from "./wire.ts"
@@ -96,28 +96,60 @@ export const rowVerbs = (
         if (Result.isFailure(outcome)) return outcome.failure.message
       },
     },
-    // THE PASS, ASKED FOR BY HAND. A node agent's memory is tidied on olai's own
-    // clock (`../sleep.ts` argues the spans), and this is the same pass with a
-    // person's hand on it: the idle window and the "memory has moved" test are
-    // the loop's way of deciding a node is DUE, and somebody pressing this has
-    // decided. What comes back is either nothing or the sentence saying why it
-    // could not begin — another pass is running, or `sleep` is off here
-    // (`../wire.ts`'s `sleepNow`).
-    {
-      id: "sleep-now", writes: true, label: "Sleep now",
-      run: async (node: string) => {
-        const outcome = await runAsync(chatWire().procedures.conversation.sleepNow({ node }))
-        if (Result.isFailure(outcome)) return outcome.failure.message
-        return outcome.success._tag === "Refused" ? outcome.success.said : undefined
-      },
-    },
-    {
-      id: "close-agent", writes: true, label: "Close the agent",
-      run: async (node: string) => {
-        const outcome = await runAsync(chatWire().procedures.conversation.closeAgent({ node }))
-        if (Result.isFailure(outcome)) return outcome.failure.message
-        fold(node)
-      },
-    },
+    ...chatVerbs(bound),
   ]
 }
+
+/**
+ * THE THREE VERBS ABOUT A CHAT THAT EXISTS, in one place because they are now
+ * drawn in two: a node's `•••` on the outline, and a Chats row's `•••` in the
+ * sidebar (`./agents/ChatRowMenu.tsx`). The words, the presses and the rule
+ * about which rows get which are decided HERE — a second copy in the sidebar
+ * is how one of them ends up saying something the other does not.
+ *
+ * `Put to sleep` is offered only where there is something to put to sleep: an
+ * agent that is awake is holding one of the eight seats, and that is the whole
+ * of what this verb hands back. On an asleep row it is not drawn at all rather
+ * than drawn and refused — a menu that offers a verb which cannot work is a
+ * menu that teaches nothing.
+ */
+export const chatVerbs = (bound: Row): ReadonlyArray<RowVerb> => [
+  // THE SEAT, GIVEN BACK BY HAND. olai closes an idle chat's seat on its own
+  // after two days, and takes the oldest quiet one when a ninth agent is
+  // started — this is the same close with a person's hand on it, for the case
+  // neither of those covers: eight agents all busy, and the one a person has
+  // finished with is the one they know about (`../scoped.ts`'s `Chat.sleep`).
+  // The binding stays, so the row stays and opening it continues the chat.
+  ...(awake(bound.standing)
+    ? [{
+      id: "put-to-sleep", writes: false, label: "Put to sleep",
+      run: async (node: string) => {
+        const outcome = await runAsync(chatWire().procedures.conversation.sleep({ node }))
+        if (Result.isFailure(outcome)) return outcome.failure.message
+      },
+    } satisfies RowVerb]
+    : []),
+  // THE PASS, ASKED FOR BY HAND. A node agent's memory is tidied on olai's own
+  // clock (`../sleep.ts` argues the spans), and this is the same pass with a
+  // person's hand on it: the idle window and the "memory has moved" test are
+  // the loop's way of deciding a node is DUE, and somebody pressing this has
+  // decided. What comes back is either nothing or the sentence saying why it
+  // could not begin — another pass is running, or `sleep` is off here
+  // (`../wire.ts`'s `tidyMemory`).
+  {
+    id: "tidy-memory", writes: true, label: "Tidy memory",
+    run: async (node: string) => {
+      const outcome = await runAsync(chatWire().procedures.conversation.tidyMemory({ node }))
+      if (Result.isFailure(outcome)) return outcome.failure.message
+      return outcome.success._tag === "Refused" ? outcome.success.said : undefined
+    },
+  },
+  {
+    id: "close-agent", writes: true, label: "Close the agent",
+    run: async (node: string) => {
+      const outcome = await runAsync(chatWire().procedures.conversation.closeAgent({ node }))
+      if (Result.isFailure(outcome)) return outcome.failure.message
+      fold(node)
+    },
+  },
+]

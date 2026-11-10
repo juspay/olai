@@ -63,6 +63,7 @@ import {
   YES_NO,
 } from "@olai/acp/wire"
 import {
+  BusyCause,
   BusyFailure,
   Found,
   isOpFailure,
@@ -1773,6 +1774,17 @@ export const Unopened = Schema.Struct({
    *  title, or its id where it has no title. `null` where what failed was
    *  opening ANY conversation: a fresh one, or a boot that chose for itself. */
   what: Schema.NullOr(Schema.String),
+  /**
+   * ... AND WHAT A FACE MAY BRANCH ON, where the refusal was olai's own rather
+   * than the agent's ({@link BusyCause}).
+   *
+   * Absent on nearly every one of these, because nearly every one of them is
+   * an agent saying no and `why` is the whole of it. Present where the pool of
+   * node agents was full: that refusal MENDS ITSELF — the panel keeps the
+   * attempt and opens the moment a seat frees — so the face draws no retry and
+   * no alarm. The sentence is still `why`, and the two must agree.
+   */
+  cause: Schema.optionalKey(BusyCause),
 })
 
 /**

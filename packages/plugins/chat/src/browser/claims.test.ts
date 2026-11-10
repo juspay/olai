@@ -249,6 +249,7 @@ test("every dynamic import() this tree spells takes a literal the bundler can re
   // that matters: a computed specifier in this tree cuts the bundle just as
   // surely as one in core's, and this is where that is asked of the panel.
   expect(filesSpelling(/\bimport\s*\(/)).toEqual([
+    path.join("agents", "ChatRowMenu.tsx"),
     path.join("agents", "FreshStart.tsx"),
     path.join("agents", "NewChat.tsx"),
     path.join("agents", "Standing.tsx"),
@@ -279,6 +280,11 @@ test("every dynamic import() this tree spells takes a literal the bundler can re
 // list — which is why the ticket is `() => true`.
 test("the stack is joined directly only where the gestures are not dismissOn's", () => {
   expect(filesSpelling(/topmostWhileOpen/)).toEqual([
+    // The two Kobalte menus this package draws: the engine picker and the
+    // `•••` on a Chats row. Both control their own open state, so a dismissal
+    // reaches them as an ASK rather than as a fact, and the ticket is what
+    // says whether this menu is the one that ask was for.
+    path.join("agents", "ChatRowPanel.tsx"),
     path.join("agents", "EngineMenu.tsx"),
     path.join("chat", "CompletionMenu.tsx"),
   ])

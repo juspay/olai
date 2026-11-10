@@ -120,6 +120,19 @@ export const TESTID = {
   /** How many questions that agent's conversation is waiting on you to answer.
    *  Hidden at zero, which is where every agent but the open one is. */
   agentWaiting: "agent-waiting",
+  /** The `•••` on a Chats row — chat's own verbs where a person is LOOKING at
+   *  what is awake (`./browser/agents/ChatRowMenu.tsx`). `data-agent` is the
+   *  node's id, as on the row itself. */
+  chatRowMenu: "chat-row-menu",
+  /** The open panel it draws; `data-agent` names whose row it hangs off. */
+  chatRowMenuPanel: "chat-row-menu-panel",
+  /** One verb in it. `data-action` is chat's own word for the verb
+   *  (`put-to-sleep`, `tidy-memory`, `close-agent`), so a scenario names the
+   *  gesture rather than the words on it. */
+  chatRowMenuItem: "chat-row-menu-item",
+  /** What a verb pressed from that menu had to say — a refusal, in the alarm
+   *  tone. Nothing at all when the verb simply worked. */
+  chatRowMenuSaid: "chat-row-menu-said",
   /** The DOOR under an agent-carrying outline row: what that agent is, and one
    *  line of what it last said. `data-agent` is the node's id, as on the roster
    *  row, so one scenario can press either. */
@@ -614,10 +627,11 @@ export const TESTID = {
    *  refusal is drawn beside it in a `role="alert"`. */
   chatSleepSwitch: "chat-sleep-switch",
   /** THE PASS, ASKED FOR BY HAND, at the end of the item: the same verb the row
-   *  menu and ⌘K carry (`conversation.sleepNow`), for a person who is looking at
-   *  the strip and does not want to wait for the rhythm. Absent where the pass is
-   *  already running on this node, and where there is no pass to ask for. */
-  chatSleepNow: "chat-sleep-now",
+   *  menu and ⌘K carry (`conversation.tidyMemory`), for a person who is looking
+   *  at the strip and does not want to wait for the rhythm. Absent where the
+   *  pass is already running on this node, and where there is no pass to ask
+   *  for. Not to be confused with *Put to sleep*, which is about the SEAT. */
+  chatTidyMemory: "chat-tidy-memory",
   /** One plugin's control on it: the trigger that opens the file list, wearing
    *  the picked file's name or `off`. `data-plugin` is WHOSE doorbell and
    *  `data-file` is the file or `off` — the state as DATA, because the words
