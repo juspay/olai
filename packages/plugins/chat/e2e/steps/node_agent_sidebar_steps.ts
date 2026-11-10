@@ -59,3 +59,51 @@ Then("the node page offers no conversation", async function(this: OlaiWorld) {
   await this.page.locator(selector(PLUGIN_TESTID.agentPlainComposer)).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.equal(await this.chat(CHAT_PANEL).count(), 0, "an unbound node's page drew a conversation");
 });
+
+// ── the `•••` on a Chats row ──────────────────────────────────────────────
+//
+// The verbs about a chat, where a person is LOOKING at what is awake. Same
+// objects the outline row's menu hangs (`browser/verbs.tsx`'s `chatVerbs`), so
+// a scenario that drives one of them is driving both catalogs.
+
+const menu = selector(PLUGIN_TESTID.chatRowMenu);
+const panel = selector(PLUGIN_TESTID.chatRowMenuPanel);
+const item = selector(PLUGIN_TESTID.chatRowMenuItem);
+const menuSaid = selector(PLUGIN_TESTID.chatRowMenuSaid);
+
+/** The row is hovered first, for the dock door's reason: the `•••` is revealed
+ *  on hover, so the press lands on a control a person could have seen. */
+When("I open the Chats menu of {string}", async function (this: OlaiWorld, id: string) {
+  await this.showSidebar();
+  const seat = this.page.locator(`${recent} ${row}${attr("data-agent", this.nodeId(id))}`);
+  await seat.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await seat.hover();
+  const dots = this.page.locator(`${menu}${attr("data-agent", this.nodeId(id))}`);
+  await dots.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await dots.click();
+  await this.page.locator(`${panel}${attr("data-agent", this.nodeId(id))}`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+When("I choose {string} from the Chats menu", async function (this: OlaiWorld, label: string) {
+  const entry = this.page.locator(panel).locator(item).filter({ hasText: label }).first();
+  await entry.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await entry.click();
+});
+
+Then("the Chats menu offers {string}", async function (this: OlaiWorld, labels: string) {
+  await this.waitUntil(
+    async () => (await this.page.locator(panel).locator(item).allInnerTexts())
+      .map(one => one.trim()).join(", ") === labels,
+    `the Chats menu to offer ${labels}`,
+  );
+});
+
+/** What a verb pressed from that menu had to say. A refusal is an alarm, as it
+ *  is on the outline row's line — the mood is a fact in the markup. */
+Then("the Chats menu of {string} says {string}", async function (this: OlaiWorld, id: string, text: string) {
+  const line = this.page.locator(menuSaid);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual((await line.innerText()).trim(), text, `what the menu of "${id}" said`);
+  assert.strictEqual(await line.getAttribute("data-tone"), "alarm");
+});

@@ -246,8 +246,9 @@ Then(
 );
 
 /** ...AND THE ROW NAMES IT OUT LOUD, which is the half a person who cannot see
- *  the weight of the type is owed — and now the only half there is: the row
- *  wears no second dot, so the word in its text is the whole of the mark. */
+ *  the weight of the type is owed. There is no unread DOT — the only dot a
+ *  Chats row wears is the standing one — so the word in its text is the whole
+ *  of this mark. */
 Then(
   "the Chats row {string} says it is unread",
   async function (this: OlaiWorld, node: string) {
@@ -262,22 +263,39 @@ Then(
   },
 );
 
-/** ...AND THE ROW WEARS NO DOT WHATEVER ELSE IS TRUE OF IT — the rule this face
- *  settled on: a list of chats is a list of what is THERE, so the standing is
- *  data (`data-standing`, asserted where it is drawn) and unread is the title's
- *  weight. Counted by the role a dot answers to (`role="img"`; the engine's own
- *  glyph is `aria-hidden`), which is what a scenario can count that a reader can
+/** ...AND A SLEEPING ROW WEARS NO DOT: the Chats dot says one thing only —
+ *  this agent is AWAKE, holding one of the eight seats — so an asleep,
+ *  unbound or stopped row draws nothing, and the unread mark remains the
+ *  title's weight and the word in its text rather than a second mark.
+ *  Counted by the role a dot answers to (`role="img"`; the engine's own glyph
+ *  is `aria-hidden`), which is what a scenario can count that a reader can
  *  see. */
 Then("the Chats row {string} wears no dot", async function (this: OlaiWorld, node: string) {
   await this.showSidebar();
   const row = rowFor(this, node);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  assert.strictEqual(
-    await row.getByRole("img").count(),
-    0,
-    `the Chats row for ${node} should draw no mark at all`,
+  await this.waitUntil(
+    async () => await row.getByRole("img").count() === 0,
+    `the Chats row for ${node} to draw no standing mark`,
   );
 });
+
+/** ...AND AN AWAKE ONE WEARS ITS OWN. Named rather than coloured: the dot
+ *  carries the standing's label for a reader who cannot see it
+ *  (`roster.ts`'s `LOOK`), which is also the one thing a scenario can assert
+ *  without asserting about a class name. */
+Then(
+  "the Chats row {string} wears the {string} dot",
+  async function (this: OlaiWorld, node: string, label: string) {
+    await this.showSidebar();
+    const row = rowFor(this, node);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => await row.getByRole("img", { name: label, exact: true }).count() === 1,
+      `the Chats row for ${node} to wear the ${label} dot`,
+    );
+  },
+);
 
 /** ... and the one claim that gesture may only make by NOT drawing: a press
  *  that could not do something says so on the roster's own refused line

@@ -199,7 +199,7 @@ Feature: A node agent tidies its own memory when nobody is looking
     Then olai has recorded 1 commit here
 
   @sleep-fast @scratch:chat @git:repo
-  Scenario: Sleep now sleeps a node the loop would never have picked up
+  Scenario: Tidy memory tidies a node the loop would never have picked up
     Given the harness keeps distinct sessions on disk
     And I open the outline "house.olai"
     # NOTHING HERE IS DUE, and that is the half that makes the verb the thing
@@ -220,8 +220,8 @@ Feature: A node agent tidies its own memory when nobody is looking
     # which is what the palette's one row is about: it names the node it would
     # act on, and with no node agent's conversation shown there is no row at all.
     When I press the palette shortcut
-    And I type "sleep now" into the palette
-    And I press the palette row "sleep-now"
+    And I type "tidy memory" into the palette
+    And I press the palette row "tidy-memory"
     Then the node agent "install" has been tidied
     And node "install" carries the sleep memo
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
@@ -243,7 +243,7 @@ Feature: A node agent tidies its own memory when nobody is looking
     # ...AND A SECOND ASK IS REFUSED, in the row's own said line — naming the
     # node it is already tidying, which is what a person is waiting for.
     When I open the node menu of "install"
-    And I choose "Sleep now" from the node menu
+    And I choose "Tidy memory" from the node menu
     Then the node menu of "install" says "olai is already tidying install the cabinets; wait for it to finish"
     # ...AND NOTHING SECOND STARTED: the one commit here is the held pass's own,
     # which lands when the fake lets go. The wait is the one every scenario uses
@@ -375,7 +375,7 @@ Feature: A node agent tidies its own memory when nobody is looking
     # ...AND A PERSON ASKS, from the item itself rather than from a menu — the same
     # verb, where they are looking. NOTHING IS DUE, deliberately: the loop would not
     # have touched this node, which is what makes the press the thing that did it.
-    When I press Sleep now on the strip
+    When I press Tidy memory on the strip
     Then the node agent "install" has been tidied
     And the sleep item has a memo
     And the last commit becomes "olai: sleep: install the cabinets" by "sleep"
@@ -392,7 +392,7 @@ Feature: A node agent tidies its own memory when nobody is looking
     # never had one is due on a single moved row by design — that is what
     # switching the pass on for old memory is for — and this scenario is about
     # every pass AFTER that one.
-    When I press Sleep now on the strip
+    When I press Tidy memory on the strip
     Then the node agent "install" has been tidied
     And node "install" carries the sleep memo
     # ONE ROW IS NOT PRESSURE: the fast policy's floor is two, so the loop leaves
