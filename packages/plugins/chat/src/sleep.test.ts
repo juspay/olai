@@ -147,7 +147,7 @@ test("the brief names the rows that moved, and says when the list was cut", () =
 })
 
 test("a pass nobody had to be due for names no rows at all", () => {
-  // `Sleep now` on a memory nothing has happened in: the whole subtree is the
+  // `Tidy memory` on a memory nothing has happened in: the whole subtree is the
   // person's ask, and a list of nothing would be a paragraph saying nothing.
   const brief = briefFor(AGENT)
   expect(brief).not.toContain("These are the rows that moved")

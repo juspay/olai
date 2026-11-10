@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { rowVerbs } from "./verbs.tsx"
+import { chatVerbs, rowVerbs } from "./verbs.tsx"
 import type { Roster } from "./agents/answered.tsx"
 import type { AgentChoice } from "../wire.ts"
 import type { Row } from "./agents/roster.ts"
@@ -36,7 +36,7 @@ test("a bare row offers one start choice of every startable engine", () => {
   expect(rowVerbs("one", roster()).every(action => action.writes)).toBe(true)
 })
 
-test("a node talking through a conversation offers fresh start, its own engine first, then the two sleeps and close", () => {
+test("a node talking through a conversation offers fresh start, its own engine first, then the sleeps and close", () => {
   const bound: Row = { ...node, engine: "codex", session: "existing" }
   expect(drawn(rowVerbs("one", roster(bound)))).toEqual([
     { id: "fresh-start", label: "Fresh start", choices: [
@@ -47,11 +47,45 @@ test("a node talking through a conversation offers fresh start, its own engine f
     // at all — and its LABEL is the indicator, read off the row.
     { id: "sleep-when-idle", label: "Sleep when idle" },
     // ...THEN THE PASS BY HAND, on the rows that have a conversation and above
-    // the release: sleeping on a node's memory is not being done with its agent,
-    // and `Close the agent` is the one that takes the binding away.
-    { id: "sleep-now", label: "Sleep now" },
+    // the release: tidying a node's memory is not being done with its agent,
+    // and `Close the agent` is the one that takes the binding away. The seat's
+    // own verb is absent here because this row is asleep — `unbound` standing
+    // with a session is the shape a roster frame has before anything is live.
+    { id: "tidy-memory", label: "Tidy memory" },
     { id: "close-agent", label: "Close the agent" },
   ])
+})
+
+test("put to sleep is drawn wherever a seat is held, including a stopped agent", () => {
+  const offered = (standing: Row["standing"]) =>
+    drawn(rowVerbs("one", roster({ ...node, session: "existing", standing })))
+      .some(verb => verb.id === "put-to-sleep")
+  // A SEAT IS WHAT THE VERB HANDS BACK, so the question is which standings
+  // HOLD one. `gone` is the sharp one, and it goes the other way from how it
+  // reads: the server says `gone` only for a node the scheduler still has a
+  // live slot for, so a stopped agent is holding one of the eight and nothing
+  // reaps it on its own. Asleep and unbound never had one.
+  for (const standing of ["needs-you", "working", "waking", "idle", "gone"] as const) {
+    expect([standing, offered(standing)]).toEqual([standing, true])
+  }
+  for (const standing of ["asleep", "unbound"] as const) {
+    expect([standing, offered(standing)]).toEqual([standing, false])
+  }
+  // ...and it reads, rather than writes: nothing of the vault moves when a
+  // chat goes to sleep, which is what keeps it out of the menu's write half.
+  const awakeRow = rowVerbs("one", roster({ ...node, session: "existing", standing: "idle" }))
+  expect(verbsOf(awakeRow).find(verb => verb.id === "put-to-sleep")?.writes).toBe(false)
+})
+
+test("the sidebar's menu and the outline row's menu draw the same chat verbs", () => {
+  // ONE CATALOG, TWO FACES. The `•••` in Chats hangs `chatVerbs` directly
+  // (`./agents/ChatRowMenu.tsx`); the outline row's menu hangs the same
+  // objects after its start/fresh-start half. A copy in the sidebar is how one
+  // of them ends up offering a verb the other does not.
+  const row: Row = { ...node, session: "existing", standing: "working" }
+  const inMenu = drawn(rowVerbs("one", roster(row))).map(verb => verb.id)
+  expect(drawn(chatVerbs(row)).map(verb => verb.id)).toEqual(["put-to-sleep", "tidy-memory", "close-agent"])
+  expect(inMenu.slice(-3)).toEqual(["put-to-sleep", "tidy-memory", "close-agent"])
 })
 
 test("the opt-in's label is the mark itself, in both directions", () => {

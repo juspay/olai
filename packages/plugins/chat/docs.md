@@ -182,7 +182,7 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 
 | Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
-| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); every row is `/zoom/#id` — the conversation's own page — and a Chats row is engine mark, title and age and draws NO dot — its standing is data (`data-standing`) and unread is the title's weight; Needs you keeps its dot |
+| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); every row is `/zoom/#id` — the conversation's own page — and a Chats row is engine mark, title, age and a `•••` of chat's own verbs, ordered awake-first and drawing the standing dot only where the agent is AWAKE (asleep, unbound and gone draw none; the standing is `data-standing` either way and unread is the title's weight); Needs you keeps its dot |
 | `outline.crumb.aside` | outlines' per-crumb face | a bound ancestor's agent mark — the same `/zoom/#id` door as a Chats row — on the breadcrumbs above a node, on a day's row and in a search result's place line |
 | `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
 | `outline.row.aside` | outlines, after the row's date and repeat pills | a bound row's standing, always; otherwise the start pill, only while an agent is available (on phones only on the tapped or focused row) |
@@ -376,8 +376,19 @@ their own bounded transcript scroller.
 Filing clears a conversation's previous manual wake picks. Trashing a node or
 its parent releases its live agent scope. Agent cleanup closes the protocol and
 stops the whole child process group, escalating when it ignores termination,
-before joining pending requests. Opening a ninth held agent reports the capacity
-refusal in its conversation, with an explicit retry.
+before joining pending requests.
+
+Opening a ninth held agent reports the capacity refusal in its conversation,
+and that refusal is the one the panel does NOT offer a retry for. `BusyFailure`
+carries a cause (`kind: "capacity"`) beside its sentence, and `server/readings.ts`
+reads it: the attempt stays on the reading, waiting on the scheduler's
+`Chat.seats` announcement, and is retried where it stood the moment a scope
+closes. The listener is registered in the reading's own scope, so a tab that
+leaves takes its wait with it; `Unopened` draws that cause quietly, with the
+sentence and no button, because the only thing to press is *Put to sleep* on
+another chat. `Chat.sleep(node)` is that verb: one `close(slot, "put to sleep")`,
+which stops the turn and withdraws the questions by stopping the subprocess, and
+which touches no binding — releasing one is `closeAgent`.
 
 Attention multiplexes watched-node identities over one activation-owned browser
 channel and one set of visibility listeners. Closing that activation releases
@@ -471,8 +482,9 @@ conversation that has said nothing is never unread. The row is not a per-node
 flag and not config: the record is keyed on the engine/session pair, it outlives
 the tab that wrote it, and it is capped with the rest of that file. Where it is
 DRAWN is each face's own business and no dot's: the Chats row carries it in the
-title's weight (with the word for assistive technology), and the tabs row carries
-it as the quieter of the two marks a tab can wear.
+title's weight (with the word for assistive technology) — the dot that row may
+wear says whether its agent is awake, which is a different fact — and the tabs
+row carries it as the quieter of the two marks a tab can wear.
 So a folded
 conversation, a tab behind another tab and a backgrounded window all leave the
 mark up, and looking at it clears it everywhere at once.

@@ -139,7 +139,7 @@ Given("the memory under {string} has moved", function (this: OlaiWorld, node: st
  * second call would pick that same row, restamp it, and the count would stay at
  * one for ever: exactly the shape of a scenario that can never reach `due`.
  *
- * In this scenario's own terms, after its `Sleep now`: `hinges` carries the
+ * In this scenario's own terms, after its `Tidy memory`: `hinges` carries the
  * retitle the fake wrote, which is OLDER than the memo written at the end of that
  * pass, so it is picked first and the next row under the node second — two moved
  * rows, and the floor of two is met.
@@ -304,8 +304,8 @@ Then("the standing line has wrapped", async function (this: OlaiWorld) {
  * THE PASS, ASKED FOR FROM THE STRIP — the item's own button, which is the same
  * verb the row menu and ⌘K carry.
  */
-When("I press Sleep now on the strip", async function (this: OlaiWorld) {
-  const button = this.chat(selector(TESTID.chatSleepNow));
+When("I press Tidy memory on the strip", async function (this: OlaiWorld) {
+  const button = this.chat(selector(TESTID.chatTidyMemory));
   await button.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await button.click();
 });

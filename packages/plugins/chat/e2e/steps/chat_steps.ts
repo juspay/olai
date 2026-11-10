@@ -3016,6 +3016,31 @@ Then(
   },
 );
 
+/**
+ * THE ONE REFUSAL WITH NOTHING TO PRESS, asserted as all three of its halves.
+ *
+ * A full pool is not a fault and not a thing to retry: the server is holding
+ * this attempt and opens the panel itself when a seat frees. So the body says
+ * the sentence, carries the cause that made it quiet rather than alarming, and
+ * — the half that would otherwise be easy to regress — draws no *Try again*,
+ * because a button whose only honest answer is "still full" is worse than no
+ * button.
+ */
+Then(
+  "the panel is waiting for a seat, saying {string}",
+  async function (this: OlaiWorld, said: string) {
+    const body = this.chat(CHAT_UNOPENED);
+    await body.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(
+      async () => await body.getAttribute("data-cause") === "capacity",
+      "the panel to say it is out of seats rather than refused",
+      HYDRATION_TIMEOUT,
+    );
+    await saysThat(this, CHAT_UNOPENED_WHY, said, "refusal");
+    assert.strictEqual(await this.chat(CHAT_REOPEN).count(), 0, "a seatless panel drew a retry");
+  },
+);
+
 When("I try to open it again", async function (this: OlaiWorld) {
   const again = this.chat(CHAT_REOPEN);
   await again.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

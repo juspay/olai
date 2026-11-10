@@ -639,7 +639,7 @@ A turn that finishes is silent, and that is deliberate — but silence is not th
 
 Two places carry it:
 
-- **its row in Chats**, drawn in the bold weight and named *unread* for assistive technology. A Chats row carries no dot at all, so the weight is the whole of the mark. The age line is still the last line that was heard, so the row says when the agent spoke as well as that you have not read it.
+- **its row in Chats**, drawn in the bold weight and named *unread* for assistive technology. The unread mark is never a dot: the only dot a Chats row wears says whether its agent is awake, so the weight and the word are the whole of this one. The age line is still the last line that was heard, so the row says when the agent spoke as well as that you have not read it.
 - **the tab holding that conversation**, with a muted dot — deliberately quieter than the needs-you dot, because a question is asking you for something and a finished turn is only news. Where both apply, the question's dot is the one drawn.
 
 **What clears it is looking.** The moment the conversation is on screen in a focused window, the tab that is reading it says so and the mark comes off: for every tab of this olai at once, and across a reload, because what was acknowledged is a record the serve keeps and not something a tab remembers. A conversation you are already reading never shows the mark at all — the reply is read as it lands.
@@ -839,6 +839,20 @@ anything and never deletes anything. The same verb appears in the row menu as
 **Close the agent**, and there is no confirmation dialog on either face: the
 row's return to the plain **start an agent** pill is the acknowledgement.
 
+**Put to sleep** is the other half of that pair, and the difference is the
+binding. It stops the turn the agent is in the middle of, discards any question
+it was holding, and closes its seat — and leaves the `chat-agent-session`
+property exactly where it is. The row stays in Chats, reading **asleep**;
+opening it starts the agent again and continues the same conversation, through
+a reload and a server restart. It is what olai's own idle timer and the
+capacity reaper do, with your hand on it, for the case neither covers: eight
+agents all busy, and you are the only one who knows which of them you are done
+with. It is on a Chats row's **•••**, on the node's row menu, and on ⌘K while
+that chat is the one on screen, and it is drawn only where there is a seat to
+hand back — which includes an agent whose process has stopped: that row is
+holding one of the eight until somebody says otherwise, and it is the one where
+sleeping costs nothing at all.
+
 ### Starting an agent
 
 Hover or focus a plain row to reveal **start an agent** in its aside. One engine
@@ -886,15 +900,29 @@ or **not running**. The region disappears when empty, and it is the region that
 carries a standing dot — the coloured one, with the working animation and the
 standing's name for assistive technology.
 
-**Chats** lists every standing, capped at ten: last-heard activity first, then
-nodes without speech by their vault edit time. A row is its engine's mark, its
-title, and its age — no dot: a list of chats is a list of what is there, and what
-each agent is doing is drawn where it is being *watched* (Needs you, and the
-outline row's aside). The title is drawn in the bold weight when the agent has
-said something since you last looked at the conversation, and the row says
-*Unread* for assistive technology
-([what you have not read yet](#what-you-have-not-read-yet)). An agent may appear
-in both regions.
+**Chats** lists every standing, capped at ten, and it answers one question
+first: **which agents are awake**. Only eight may be at once, so the rows that
+hold one of those seats lead — waiting on you, working, starting, then ready —
+newest activity first within each; everything else (asleep, unbound, stopped)
+follows by what it last said, or by its vault edit time where nobody has heard
+from it. The cap is applied **after** that order, so ten sleeping chats can
+never hide a live one.
+
+An awake row wears the standing's dot, with the standing's name for assistive
+technology; a sleeping one wears none, because the dot here says one thing —
+this agent is awake — and a list of chats is otherwise a list of what is
+there. The rest of a row is its engine's mark, its title and its age. The title
+is drawn in the bold weight when the agent has said something since you last
+looked at the conversation, and the row says *Unread* for assistive technology
+([what you have not read yet](#what-you-have-not-read-yet)) — the unread mark is
+never a second dot. An agent may appear in both regions.
+
+Each Chats row has a **•••** of its own, revealed on hover or focus, carrying
+the three verbs about a chat that exists: **Put to sleep** (only where there is
+a seat to hand back), **Tidy memory** and **Close the agent**. They are the same
+verbs the node's row menu in an outline carries, so a chat can be put to sleep
+from the column that shows you it is awake, without opening it. On a phone the
+column spends no width on a hover control, so the `•••` is not drawn there.
 
 Pressing either row opens the conversation's **own page** (`/zoom/#id`), where
 it is read without its outline; the row's fold is still unfolded in the file it
@@ -1065,14 +1093,14 @@ on — and it reads, by state:
 | the chat is | the item says |
 | --- | --- |
 | not asked for | **Sleep · Off · last 2d ago** (the age is left out when it has never slept) |
-| asked for, due later | **Sleep · On · last 3h ago · next in 4h if left alone · Sleep now** |
-| asked for, nothing moved since the memo | **Sleep · On · last 3h ago · nothing new to tidy · Sleep now** |
-| asked for, too little has moved | **Sleep · On · last 3h ago · too little to tidy · 2 of 5 rows · Sleep now** |
-| asked for, due but the chat is talking | **Sleep · On · last 3h ago · when this chat is quiet · Sleep now** |
+| asked for, due later | **Sleep · On · last 3h ago · next in 4h if left alone · Tidy memory** |
+| asked for, nothing moved since the memo | **Sleep · On · last 3h ago · nothing new to tidy · Tidy memory** |
+| asked for, too little has moved | **Sleep · On · last 3h ago · too little to tidy · 2 of 5 rows · Tidy memory** |
+| asked for, due but the chat is talking | **Sleep · On · last 3h ago · when this chat is quiet · Tidy memory** |
 | being tidied right now | **Sleep · On · tidying now** |
-| after a pass that failed | **Sleep · On · last pass failed · not before 14:05 · Sleep now** |
+| after a pass that failed | **Sleep · On · last pass failed · not before 14:05 · Tidy memory** |
 | `sleep: off` in `_olai/Settings.olai` | **Sleep · off in Settings** |
-| never slept, asked for, due later | **Sleep · On · never · next in 4h if left alone · Sleep now** |
+| never slept, asked for, due later | **Sleep · On · never · next in 4h if left alone · Tidy memory** |
 
 Hovering the item gives the whole sentence, rhythm and all: *olai tidies this
 chat's memory after 6 h alone and when it has changed since the last pass
@@ -1093,9 +1121,10 @@ tidied. `sleep: on` in `_olai/Settings.olai` stays the default and means "the
 loop runs for the chats that asked"; `sleep: off` turns everything off, the verb
 included, and pressing either verb is refused with the sentence saying so.
 
-**A person can ask for the pass now, marked or not.** *Sleep now* on the row's
-menu, on ⌘K while a node agent's conversation is the one on screen, and at the end
-of the item on the line above — the same verb in the three places a person may be
+**A person can ask for the pass now, marked or not.** *Tidy memory* on the row's
+menu, in the Chats row's own `•••`, on ⌘K while a node agent's conversation is
+the one on screen, and at the end of the item on the line above — the same verb
+in every place a person may be
 looking — runs the pass on that node whatever the mark says: a press is a choice,
 exactly as it skips the two tests below.
 Pressing either runs the pass the loop would have run — the same machine row, the same memo and the same one
@@ -1297,6 +1326,15 @@ cap bounds resident node agents to eight: pressure evicts the eligible idle scop
 least recently, even before its idle deadline. Credentials and
 write doors remain live for the scope’s longer lifetime. Operators can shorten
 the window with the chat plugin’s `idle-ms` setting.
+
+When nothing is eligible — all eight are busy, waiting on you, or being read —
+the start or the open is refused with *All 8 agents are awake — put one to
+sleep in Chats.* That sentence is the same in the node's row menu and in the
+panel, and the panel's version is deliberately quiet and has no **Try again**:
+nothing is wrong with the chat you asked for, so the server keeps the attempt
+and opens it by itself the moment a seat frees — putting one agent to sleep in
+Chats is enough, and you press nothing else. The attempt belongs to the panel
+that is holding it and goes away when that reader does.
 
 Doorbells are chosen per conversation. Kolu and Odu begin off, with a file
 picker and clear control. Saved choices can wake an offscreen or reaped agent;

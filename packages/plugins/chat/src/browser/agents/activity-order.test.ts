@@ -4,13 +4,24 @@ import { needing } from "./attention-order.ts"
 import type { Row } from "./roster.ts"
 const row = (id: string, over: Partial<Row> = {}): Row => ({ id, file: "a.olai", title: id, engine: "one", session: id, memory: 0, waiting: 0, standing: "asleep", said: null, seen: null, unread: false, sleeps: false, sleep: null, ...over })
 
-test("activity keeps every standing; speech leads vault edits and only the sidebar caps it", () => {
+test("what is awake leads, in standing order, and everything else follows by recency", () => {
   const rows = [row("unbound", { session: null, standing: "unbound", changed: "2026-03-01" }),
     row("sleep", { changed: "2026-02-01" }), row("idle", { standing: "idle", said: { text: "old", at: "2026-01-01" } }),
     row("working", { standing: "working", said: { text: "new", at: "2026-01-02" } }),
     row("waiting", { standing: "needs-you" }), row("gone", { standing: "gone" })]
-  expect(byActivity(rows).map(one => one.id)).toEqual(["working", "idle", "unbound", "sleep", "waiting", "gone"])
-  expect(byActivity(Array.from({ length: 12 }, (_, i) => row(String(i)))).length).toBe(12)
+  // THE QUESTION THE COLUMN HAS TO ANSWER is which agents are awake, because
+  // only eight may be at once. So the four awake standings lead in the order a
+  // person cares about them — wants you, busy, starting, ready — and the
+  // newest-speech rule they used to share with everything else now decides
+  // only the order WITHIN a band. `idle` leads `unbound` here despite being
+  // the older row, which under the old sort it did not.
+  expect(byActivity(rows).map(one => one.id)).toEqual(["waiting", "working", "idle", "unbound", "sleep", "gone"])
+  // SORTING NEVER FILTERS, and the cap is the sidebar's (`./Agents.tsx`): an
+  // awake row older than ten sleeping ones still comes back, at the top.
+  const crowded = [...Array.from({ length: 12 }, (_, i) => row(`sleep-${i}`, { changed: `2026-04-${String(i + 1).padStart(2, "0")}` })),
+    row("old-but-awake", { standing: "idle", changed: "2020-01-01" })]
+  expect(byActivity(crowded).length).toBe(13)
+  expect(byActivity(crowded)[0]?.id).toBe("old-but-awake")
   expect(rows[0]?.id).toBe("unbound")
 })
 test("waiting agents lead gone ones, each group newest speech first", () => {

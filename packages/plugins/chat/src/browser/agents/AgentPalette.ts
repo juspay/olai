@@ -11,7 +11,20 @@ import { byActivity } from "./activity-order.ts"
 import { hereNow, newChatRow } from "./new-chat-level.ts"
 import { agentAboveOf } from "./above.ts"
 import { LOOK } from "./roster.ts"
+import { chatVerbs } from "../verbs.tsx"
+import type { RowVerb } from "olai-plugin-outlines/slots"
 import type { Roster } from "./answered.tsx"
+
+/**
+ * EVERY CHAT VERB BUT THE ONE THAT UNBINDS.
+ *
+ * ⌘K is reached from anywhere and acts on whatever chat happens to be on
+ * screen, with no row under the cursor to say which one and no `•••` panel
+ * standing open to say it twice. *Close the agent* takes a node's chat away
+ * from it; a verb that far-reaching asks to be pressed where a person can see
+ * what they are pressing it on, which is the two menus.
+ */
+const inPalette = (verb: RowVerb): boolean => verb.id !== "close-agent"
 
 /** Listing reads the activation's roster; only selection opens a conversation. */
 export const createAgentPalette = (agents: Roster): PaletteAdapter => {
@@ -23,8 +36,8 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
   // the palette the same object, so its open path and drawing stay put.
   const newChat = creation === undefined ? undefined : newChatRow(creation, agents, memory)
   /**
-   * THE PASS, AND THE ANSWER THAT LETS IT RUN — two rows, both about the
-   * conversation a person is LOOKING AT (`../verbs.tsx` has the menu's halves).
+   * THE CHAT ON SCREEN, AS ⌘K ROWS — the opt-in, and then the menus' own
+   * verbs (`../verbs.tsx`'s `chatVerbs`) wearing this list's dressing.
    *
    * WHICH CONVERSATION IS NOT A QUESTION THIS LIST CAN ASK: the `•••` hangs off
    * a row and knows its node, and a palette is opened from anywhere and knows
@@ -35,10 +48,11 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
    * there are no rows at all, which is the rule the op rows already keep: a
    * palette acts on the page, never on a guess.
    *
-   * THE FIRST IS THE OPT-IN, and its LABEL is the indicator: nothing is tidied
-   * on its own until somebody says so, and the row says which way the press will
-   * go (`sleeps`, joined onto the roster row). The second is the pass itself,
-   * asked for now, on a node the loop would never have picked up.
+   * THE OPT-IN IS THE ONE ROW THIS LIST OWNS, because its LABEL is its
+   * indicator and the menus draw it differently: nothing is tidied on its own
+   * until somebody says so, and the row says which way the press will go
+   * (`sleeps`, joined onto the roster row). Which of the rest are offered is
+   * `chatVerbs`'s answer and not a second rule written here.
    *
    * A REFUSAL IS THE PALETTE'S OWN LINE, in the palette's own mood
    * (`{@link PaletteRunResult}`), and the sentence is the server's: a pass is
@@ -72,16 +86,23 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
           return {}
         } },
       },
-      {
-        id: "sleep-now", label: "Sleep now", place: `on “${shown.title}”`,
-        search: `sleep now ${shown.title}`.toLowerCase(), taking: atOnce,
+      /* ...AND THE REST ARE THE MENUS' OWN VERBS, drawn as palette rows rather
+         than written out again. The label, the id and what the press DOES are
+         one idea with three faces (`../verbs.tsx`'s `chatVerbs`), and the copy
+         that used to live here is how *Sleep now* came to be spelled in three
+         places and renamed in three places. What is the palette's is the
+         dressing: where the row says it acts, what a person can type to find
+         it, and that a refusal is a line rather than a failed call. */
+      ...chatVerbs(shown).filter(inPalette).map((verb): PaletteItem => ({
+        id: verb.id, label: verb.label, place: `on “${shown.title}”`,
+        search: `${verb.label} ${shown.title}`.toLowerCase(), taking: atOnce,
         action: { kind: "run", run: async () => {
-          const outcome = await runAsync(chatWire().procedures.conversation.sleepNow({ node: shown.id }))
-          if (Result.isFailure(outcome)) return { keepOpen: true, said: { tone: "alarm" as const, text: outcome.failure.message } }
-          if (outcome.success._tag === "Started") return {}
-          return { keepOpen: true, said: { tone: "alarm" as const, text: outcome.success.said } }
+          const said = await verb.run(shown.id)
+          return typeof said === "string"
+            ? { keepOpen: true, said: { tone: "alarm" as const, text: said } }
+            : {}
         } },
-      },
+      })),
     ]
   }
   /** THE ROW ABOVE the focused row (or the zoomed node): the pill's door, for

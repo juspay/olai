@@ -413,7 +413,7 @@ export default definePlugin({
      * THE PASS, once this row has wired it — `null` before that and after the
      * scope closes, which is what makes a request that arrives in either window
      * a sentence rather than a call into something that is not there
-     * ({@link conversation.sleepNow}).
+     * ({@link conversation.tidyMemory}).
      */
     let sleeper: {
       readonly now: (node: string) => Effect.Effect<Asked, never, Scope.Scope>
@@ -721,6 +721,18 @@ export default definePlugin({
           })),
         ),
       /**
+       * PUT ONE NODE'S AGENT TO SLEEP — the seat, handed back by hand.
+       *
+       * NO BINDING PERMIT AND NO FILER RUN, which is the whole difference from
+       * `closeAgent` above: nothing is written to the vault here. The property
+       * naming the conversation stays exactly where it is, so there is no
+       * binding to serialise against and nothing for the filer to re-file —
+       * what moves is the SCOPE, and the roster is republished by the
+       * scheduler's own `onLive` the moment it closes.
+       */
+      sleep: ({ input }: { input: { node: string } }) =>
+        withChat((open) => open.sleep(input.node)),
+      /**
        * THE PASS, ASKED FOR BY HAND — the row verb's half, and the only way into
        * the pass that is not the loop's own clock.
        *
@@ -729,7 +741,7 @@ export default definePlugin({
        * flip or a serve shutting down stop its turn rather than leave it writing
        * with nobody watching (`./server/sleep.ts`'s `now` argues the door).
        */
-      sleepNow: ({ input }: { input: { node: string } }) =>
+      tidyMemory: ({ input }: { input: { node: string } }) =>
         Effect.gen(function*() {
           const pass = sleeper
           if (pass === null) return { _tag: "Refused" as const, said: SLEEP_OFF }
@@ -1080,7 +1092,7 @@ export default definePlugin({
         // in words rather than run against a sleeper that is gone. The
         // finalizer is what makes the window between the two unobservable —
         // null BEFORE the pass exists and null AFTER it is gone, both of which
-        // are "no pass to ask for" (`conversation.sleepNow`).
+        // are "no pass to ask for" (`conversation.tidyMemory`).
         sleeper = yield* makeSleeper({
           nodes: () => nodeAgents.nodes(),
           // THE READING THE STRIP'S FORECAST IS JUDGED OVER: the set the rows

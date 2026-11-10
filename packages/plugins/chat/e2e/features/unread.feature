@@ -32,7 +32,11 @@ Feature: The conversations you have not read yet
     And the agent is released
     Then the Chats row "kitchen" is unread
     And the Chats row "kitchen" says it is unread
-    And the Chats row "kitchen" wears no dot
+    # THE UNREAD MARK IS NOT A DOT, which is the claim here and still holds:
+    # what this row wears is its STANDING — the agent is awake and idle — and
+    # the unread news is the weight and the word above. A second dot for
+    # "unread" would be two marks a reader has to tell apart.
+    And the Chats row "kitchen" wears the "Idle" dot
     And the tab has not marked the conversation as read
     And no chime rang
     And no notification has been raised

@@ -90,13 +90,13 @@ export function Sleeping(props: { readonly chat: Chat }) {
           there is no pass to ask for at all. */}
       <Show when={said().switch && on() && said().kind !== "running"}>
         <span aria-hidden="true" class="text-muted">·</span>
-        <button type="button" data-testid={TESTID.chatSleepNow} onClick={() => {
+        <button type="button" data-testid={TESTID.chatTidyMemory} onClick={() => {
           setProblem(undefined)
-          void runAsync(chatWire().procedures.conversation.sleepNow({ node: held().id })).then(outcome => {
+          void runAsync(chatWire().procedures.conversation.tidyMemory({ node: held().id })).then(outcome => {
             if (Result.isFailure(outcome)) { setProblem(outcome.failure.message); return }
             if (outcome.success._tag === "Refused") setProblem(outcome.success.said)
           })
-        }}>Sleep now</button>
+        }}>Tidy memory</button>
       </Show>
       <Show when={problem()}><span role="alert">{problem()}</span></Show>
     </span>

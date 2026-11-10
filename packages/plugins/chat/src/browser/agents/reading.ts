@@ -26,7 +26,7 @@ export const createAgentReadings = (agents: Roster) => {
    *
    *  ONE QUESTION WITH ONE ANSWER. The attention circuit asks it to know whether
    *  a question is being watched, and the palette asks it to name the node a
-   *  *Sleep now* row would act on; both used to assemble it from the same four
+   *  *Tidy memory* row would act on; both used to assemble it from the same four
    *  terms, in two files, which is the disagreement this exists to end. */
   const shownChat = (node: string): Chat | undefined => {
     const current = agents.at(node)

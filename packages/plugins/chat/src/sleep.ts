@@ -124,7 +124,7 @@ const RULE = "----"
 const NAMED = 40
 
 /** WHAT MOVED, as the paragraph the brief starts the work with — or nothing at
- *  all for a pass nobody had to be due for (`Sleep now` on a memory that has not
+ *  all for a pass nobody had to be due for (`Tidy memory` on a memory that has not
  *  moved), where the whole subtree is the person's ask. */
 const whereOf = (moved: ReadonlyArray<{ readonly id: string; readonly title: string }>): string => {
   if (moved.length === 0) return ""

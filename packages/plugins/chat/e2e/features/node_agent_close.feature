@@ -35,6 +35,17 @@ Feature: Closing a node's agent releases it back to an unclaimed chat
     Then no agent fold is open
     And the agents roster has no row for "install"
 
+  # THE THIRD PLACE THE VERB LIVES, and the one a person reaches from the
+  # column rather than from the file: the Chats row's own `•••`. Same catalog,
+  # same act — the binding goes, and the row goes with it.
+  Scenario: Closing from the Chats row menu releases the node as well
+    When I open the outline "yard.olai"
+    And I open the Chats menu of "install"
+    Then the Chats menu offers "Put to sleep, Tidy memory, Close the agent"
+    When I choose "Close the agent" from the Chats menu
+    Then the agents roster has no row for "install"
+    And the Inbox has 1 filed conversations
+
   Scenario: A closed agent stays plain across reload and server restart
     When I press the close-agent control
     Then no agent fold is open

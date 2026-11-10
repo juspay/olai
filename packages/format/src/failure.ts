@@ -80,11 +80,31 @@ export class ValidationFailure extends Schema.TaggedError<ValidationFailure>(
   }
 }
 
+/**
+ * WHY SOMETHING ELSE HOLDS IT, as a value rather than only as a sentence.
+ *
+ * ONE KIND SO FAR, and it is the one a face does something DIFFERENT about:
+ * every node agent seat is taken (`capacity` is how many there are). A panel
+ * that reads this knows the refusal heals on its own the moment a seat frees,
+ * so it keeps the attempt and offers no retry button — where an ordinary busy
+ * refusal is a thing to press again. The sentence stays on `reason`; this is
+ * what a reader may BRANCH on, and the two must not drift apart.
+ */
+export const BusyCause = Schema.Struct({
+  kind: Schema.Literal("capacity"),
+  /** How many node agents may be awake at once — the number the sentence
+   *  names, so a face never has to hard-code it. */
+  capacity: Schema.Int,
+})
+export type BusyCause = typeof BusyCause.Type
+
 /** Something else holds the thing this op needed: a turn already running, a
- *  write that kept colliding. Try again is the whole advice. */
+ *  write that kept colliding. Try again is the whole advice — except where
+ *  {@link BusyCause} says what is holding it, which is a refusal that mends
+ *  itself. */
 export class BusyFailure extends Schema.TaggedError<BusyFailure>(
   "@olai/format/BusyFailure",
-)("BusyFailure", { reason: Schema.String }) {
+)("BusyFailure", { reason: Schema.String, cause: Schema.optionalKey(BusyCause) }) {
   override get message(): string {
     return this.reason
   }
