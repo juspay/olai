@@ -68,7 +68,7 @@
   "search": {
     "src/agents/roster.ts": 5,
     "src/browser.tsx": 1,
-    "src/browser/agents/AgentPalette.ts": 5,
+    "src/browser/agents/AgentPalette.ts": 4,
     "src/browser/agents/new-chat-level.ts": 3,
     "src/browser/chat/Composer.tsx": 1,
     "src/browser/chat/Model.tsx": 1,
