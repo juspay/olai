@@ -245,6 +245,12 @@ Feature: A node agent tidies its own memory when nobody is looking
     When I open the node menu of "install"
     And I choose "Tidy memory" from the node menu
     Then the node menu of "install" says "olai is already tidying install the cabinets; wait for it to finish"
+    # ...AND THE SAME ASK FROM THE SIDEBAR IS REFUSED THE SAME WAY, in the
+    # Chats row's own said line: the two menus hang the same verb, so a refusal
+    # a person can read on one of them is a refusal they can read on both.
+    When I open the Chats menu of "install"
+    And I choose "Tidy memory" from the Chats menu
+    Then the Chats menu of "install" says "olai is already tidying install the cabinets; wait for it to finish"
     # ...AND NOTHING SECOND STARTED: the one commit here is the held pass's own,
     # which lands when the fake lets go. The wait is the one every scenario uses
     # for a commit a MACHINE made — the count below is an immediate read, and a

@@ -18,6 +18,7 @@
 
 import { createSignal, lazy, Show } from "solid-js"
 import { createSaying } from "@olai/web/client/saying.ts"
+import { WITHIN } from "@olai/web/client/layer.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { RowVerb } from "olai-plugin-outlines/slots"
 import { TESTID } from "../../testids.ts"
@@ -60,7 +61,7 @@ export function ChatRowMenu(props: { readonly row: Row }) {
     }</Show>
     <Show when={saying.said()}>{said =>
       <SaidLine said={said()} testid={TESTID.chatRowMenuSaid}
-        class="absolute right-1 top-full z-10 m-0 max-w-full rounded-control bg-panel px-2 py-1 text-label shadow-raised" />
+        class={`absolute right-0 top-full ${WITHIN.pop} m-0 mt-1 w-max max-w-[14rem] rounded-control bg-panel px-2 py-1 text-label shadow-raised`} />
     }</Show>
   </>
 }

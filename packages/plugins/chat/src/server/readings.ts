@@ -78,22 +78,30 @@ export const readings = (ready: Effect.Effect<Pick<Chat, "reading" | "seats">>) 
       )
       const chat = yield* ready
       /**
-       * A SEAT, WAITED FOR — and the listener goes away with this reading.
+       * A SEAT, WAITED FOR — and the listener goes away either way it ends.
        *
        * The scheduler announces a close to whoever is holding an attempt it
-       * refused ({@link Chat.seats}); `Effect.callback`'s teardown is what
-       * takes this one off, so a tab that left while the pool was full
-       * unregisters with the scope that owns the reading rather than waiting
-       * for a seat nobody wants any more.
+       * refused ({@link Chat.seats}). BOTH endings take the listener off, and
+       * they are two different endings: the announcement arrives, or the
+       * reading's scope closes under the wait. `Effect.callback`'s teardown is
+       * only the second of those — a resumed callback is not torn down — so a
+       * wait that ended by being ANSWERED would otherwise leave the scheduler
+       * holding a listener for a conversation that is already open, one more
+       * every time the pool filled up again.
        */
       const seat = Effect.callback<void>((resume) => {
         let settled = false
-        const off = chat.seats(() => {
-          if (settled) return
+        let off: () => void = () => {}
+        const leave = (): void => {
           settled = true
+          off()
+        }
+        off = chat.seats(() => {
+          if (settled) return
+          leave()
           resume(Effect.void)
         })
-        return Effect.sync(off)
+        return Effect.sync(leave)
       })
       /**
        * THE ATTEMPT, KEPT — because this is the one refusal that mends itself.

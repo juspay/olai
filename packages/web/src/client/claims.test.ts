@@ -437,6 +437,7 @@ test("address recognition has one door: parseAddress( is called only in routes.t
 // has just re-imported the menu.
 test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
   expect(filesSpelling(/@kobalte\/core\/dropdown-menu/)).toEqual([
+    "plugins/chat/src/browser/agents/ChatRowPanel.tsx",
     "plugins/chat/src/browser/agents/EngineMenu.tsx",
     "plugins/files/src/NewMenu.tsx",
     "plugins/outlines/src/browser/menu/Confirm.tsx",
