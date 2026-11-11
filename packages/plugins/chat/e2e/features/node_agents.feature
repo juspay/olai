@@ -604,7 +604,10 @@ Feature: A node with an `agent-session` property IS an agent
     # what makes the row pressable and the chat unreadable at once.
     When the engine has no record of the chat remembered as "first"
     And I open the fold history
-    And I open the past session "the first chat"
+    # `begin` rather than `open`: opening is what is NOT going to happen here,
+    # so a step that waits for the panel to land in that conversation would be
+    # waiting for the bug.
+    And I begin opening the past session "the first chat"
     Then the panel says this chat is not on this machine
     And the refusal offers no fresh chat
     And the refusal still offers a retry
