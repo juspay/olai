@@ -140,7 +140,7 @@ let
   # its one surprise (it REPLACES the search path). Empty, nothing is set at
   # all: an unset variable is what makes the probe fall back to the unit's own
   # PATH, and `OLAI_AGENT_PATH=""` would be a search path with nothing on it.
-  fakeAgent = pkgs.writeShellScriptBin "opencode" "exit 1";
+  fakeAgent = pkgs.writeShellScriptBin "an-agent" "exit 1";
   linuxAgents = evalFor { isLinux = true; isDarwin = false; } { agents = [ fakeAgent ]; };
   darwinAgents = evalFor { isLinux = false; isDarwin = true; } { agents = [ fakeAgent ]; };
   _agents =

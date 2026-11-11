@@ -76,15 +76,15 @@ in
         service's own `PATH`, which is what it has always done.
 
         IT REPLACES RATHER THAN APPENDS, which is the trap this option exists
-        to take off a reader. `OLAI_AGENT_PATH` is the whole search path olai
-        probes for an engine — listing one agent here means the OTHERS stop
+        to take off a reader. `OLAI_AGENT_PATH` is the whole of where olai
+        looks for an engine — listing one agent here means the OTHERS stop
         being found, however installed they are. That is the variable's own
         semantics (docs/running.md); naming it as a list of packages is only
         what makes the consequence visible at the place the choice is made.
 
         It is the unit's environment, so it reaches the agents olai spawns
-        too: a chat agent is a child of this process and inherits what the
-        SERVICE was given, never your login shell's.
+        too: an agent olai seats is a child of this process and inherits what
+        the SERVICE was given, never your login shell's.
       '';
     };
 
