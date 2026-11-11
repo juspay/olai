@@ -78,8 +78,10 @@
 #     olai is a consumer of it the way it already is of `@kolu/surface*`: the
 #     ask / diff / usage / terminal shapes on `./wire`, the projections over
 #     the protocol's own payloads on `.`, and what an engine plugin registers
-#     on `./engine` — including `AGENT_ENV`, which the move respelled
-#     `KOLU_ACP_AGENT` → `KOLU_ACP_AGENT`.
+#     on `./engine` — including `AGENT_ENV`, which the move respelled from
+#     olai's old `OLAI_ACP_AGENT` to `KOLU_ACP_AGENT`. That old name is
+#     history and this line is the only place left that says it: a person
+#     with it still exported in a shell profile is pointing at nothing.
 #     https://github.com/juspay/kolu/pull/2350
 #     THE PIN IS THAT PR'S BRANCH (`acp-global`) while it is open, and goes
 #     back to `master` the moment it merges; nothing else here wants the
