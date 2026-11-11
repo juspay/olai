@@ -28,7 +28,7 @@ import { Grip, textCarry } from "./Grip.tsx"
  * palettes would have to be checked for.
  */
 
-import type { FileDiff } from "@olai/acp/wire"
+import type { FileDiff } from "@kolu/acp/wire"
 import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"

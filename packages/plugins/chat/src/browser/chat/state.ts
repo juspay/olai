@@ -51,7 +51,7 @@ import { Effect } from "effect"
 
 import { type Attached, CHAT_OFF, type ChatEntry, type ChatState, type Conversing, type PanelAddress, agentIn, transcriptRows, sayingRows, TRANSCRIPT_PAGE } from "olai-plugin-chat/wire"
 import { type OpFailure, UsageFailure } from "@olai/format"
-import { type AskAnswer } from "@olai/acp/wire"
+import { type AskAnswer } from "@kolu/acp/wire"
 import { type Accessor, createEffect, createMemo, createSelector, createSignal, on, onCleanup } from "solid-js"
 import { chatWire } from "../wire.ts"
 

@@ -3,7 +3,7 @@
  * retain the installation door, and identify the sentence only when they own
  * its testid; a menu identifies its item instead, never both item and child. */
 import { Show } from "solid-js"
-import type { NotHere } from "@olai/acp/engine"
+import type { NotHere } from "@kolu/acp/engine"
 import { AgentMark } from "../chat/AgentMark.tsx"
 
 export function EngineAbsence(props: {

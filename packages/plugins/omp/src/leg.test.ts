@@ -92,7 +92,7 @@ describe("an olai call, through the door this engine dispatches it", () => {
     // The other shape, and the reason this reader is not just the `xd://` one:
     // a session with omp's `tools.xdev` off announces the minted name as an
     // ordinary call and puts the arguments where every other agent puts them.
-    // That IS the shared rule, so it is spelled once in `@olai/acp/engine`.
+    // That IS the shared rule, so it is spelled once in `@kolu/acp/engine`.
     expect(OMP.mcpCall({ title: "mcp__olai_outlines_read", rawInput: { id: "order" } }, GIVEN))
       .toEqual({ server: "olai", tool: "outlines_read" })
   })

@@ -660,7 +660,7 @@ const terminalAuth = (mode: string, label: string) => ({
 
 /** THE NOTIFICATION BY WHICH AN AGENT SAYS WHO IT IS SIGNED IN AS — the
  *  `_meta`-based ACP extension both pinned adapters implement. Spelled here
- *  rather than imported from `@olai/acp`, because this fake is an independent
+ *  rather than imported from `@kolu/acp`, because this fake is an independent
  *  WITNESS: a name shared with the client would let both sides agree by
  *  construction, which is the whole reason there is a fake at all. */
 const AUTH_STATUS_METHOD = "_auth/status_update"

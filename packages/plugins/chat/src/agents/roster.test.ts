@@ -22,7 +22,7 @@
  * it pins the answers olai depends on when deciding what a person can start.
  */
 
-import type { Adapter, Engine, Leg, NotHere, Where } from "@olai/acp/engine"
+import type { Adapter, Engine, Leg, NotHere, Where } from "@kolu/acp/engine"
 import { describe, expect, test } from "bun:test"
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"

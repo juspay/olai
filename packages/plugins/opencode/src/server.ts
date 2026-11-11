@@ -20,7 +20,7 @@
  * `olai-plugin-chat` does the talking.
  */
 
-import { type Adapter, type NotHere } from "@olai/acp/engine"
+import { type Adapter, type NotHere } from "@kolu/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
@@ -55,7 +55,7 @@ export const ENGINE: Registering = {
   },
   // `_session/steering` does not exist on this wire and neither does a system
   // prompt: the standing instruction rides the first turn, like every engine
-  // olai ships (`@olai/acp/engine`'s `PromptChannel`).
+  // olai ships (`@kolu/acp/engine`'s `PromptChannel`).
   prompt: { kind: "first-turn" },
 }
 

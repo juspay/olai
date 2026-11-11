@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { namedExactly } from "@olai/acp/engine"
+import { namedExactly } from "@kolu/acp/engine"
 import { makePanel } from "./chat.ts"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"

@@ -17,7 +17,7 @@
  * The missing adapter comes from olai's wrapper, not the product download
  * page, so this reason has no installation link.
  */
-import type { NotHere } from "@olai/acp/engine"
+import type { NotHere } from "@kolu/acp/engine"
 
 export const NAME = "Codex"
 

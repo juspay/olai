@@ -1,6 +1,6 @@
 /** Chat spends the vault.files method held by its activation. Parsing belongs
  * to the vault; cancelling the drawing cancels this request too. */
-import type { FileDiff } from "@olai/acp/wire"
+import type { FileDiff } from "@kolu/acp/wire"
 import type { Directory } from "olai-plugin-vault/file-state"
 import type { OutlineDiff } from "olai-plugin-vault/surface"
 import { Effect } from "effect"

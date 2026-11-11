@@ -58,7 +58,7 @@ const MANIFEST = manifestOf(PIN)
 // Twin of startWeb: this file's `run()` does not go through withServe,
 // so it clears explicit engine paths and discovery independently. Listen tests
 // must not spawn an external engine found on the developer’s machine.
-process.env.OLAI_ACP_AGENT = ""
+process.env.KOLU_ACP_AGENT = ""
 process.env.OLAI_ACP_CODEX = ""
 process.env.OLAI_ACP_PI = ""
 process.env.OLAI_AGENT_PATH = ""
@@ -507,7 +507,7 @@ test("a settings edit reconciles a live row and malformed leaves default once", 
   const file = path.join(root, "_olai/Settings.olai")
   const write = (header: string) => fs.writeFileSync(file, JSON.stringify({ id: "person-policy", ord: "a0", title: "identity", custom: { "login-header": header } }) + "\n")
   write("Remote-User")
-  await withServing({ root, vars: { OLAI_ACP_AGENT: "" } }, async url => {
+  await withServing({ root, vars: { KOLU_ACP_AGENT: "" } }, async url => {
     const who = () => fetch(`${url}/olai/who`, { headers: { "Remote-User": "first", "Another-User": "second" } }).then(one => one.json())
     expect(await who()).toMatchObject({ login: "first" })
     write("Another-User")
@@ -553,7 +553,7 @@ test("a kolu watch edit and a git policy edit preserve their activation, while o
   ].map(one => JSON.stringify(one)).join("\n") + "\n")
   write("30s")
   await Effect.gen(function*() {
-    const plugins = yield* openPlugins({ vars: { OLAI_ACP_AGENT: "" }, now: () => new Date().toISOString() })
+    const plugins = yield* openPlugins({ vars: { KOLU_ACP_AGENT: "" }, now: () => new Date().toISOString() })
     yield* mountBundle(plugins.host)
     yield* provide(plugins.host, VaultBoot, () => ({ root, runtime: runtimePaths }))
     yield* settled(plugins.host, ["vault", "settings", "kolu"])

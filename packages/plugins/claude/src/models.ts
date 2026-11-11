@@ -1,6 +1,6 @@
 /**
  * WHAT THE CLAUDE CODE ADAPTER CALLS ITS OWN MODELS — this engine's whole
- * `ModelReading` (`@olai/acp/engine`), and nothing else's.
+ * `ModelReading` (`@kolu/acp/engine`), and nothing else's.
  *
  * The MACHINERY of the model picker is the protocol's and is `olai-plugin-chat`'s
  * (`agents/models.ts`): find the `configOptions` entry, read its labels, ask for
@@ -22,7 +22,7 @@
  *     else in olai should have to.
  */
 
-import { type ModelReading, namedExactly } from "@olai/acp/engine"
+import { type ModelReading, namedExactly } from "@kolu/acp/engine"
 
 /**
  * The context lane a model string carries, as the adapter spells it.

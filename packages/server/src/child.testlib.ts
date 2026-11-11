@@ -105,7 +105,7 @@ export const startWeb = (options: {
     OLAI_DIST_DIR: clientDist(),
     // No agent: none of these tests is about the chat panel, and a real one
     // would make them depend on a model and a network.
-    OLAI_ACP_AGENT: "",
+    KOLU_ACP_AGENT: "",
     OLAI_ACP_CODEX: "",
     OLAI_ACP_PI: "",
     OLAI_AGENT_PATH: "",

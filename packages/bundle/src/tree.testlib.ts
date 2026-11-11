@@ -30,11 +30,13 @@
  *
  * ## Where the other copies are
  *
- * `@olai/acp`'s `manifest.test.ts` reads manifests for its own first claim —
- * that acp imports no `@olai` sibling, which is the claim reaching for this
- * module would fail — and `@olai/tests`' `imports.test.ts` could import this
- * but only through a door, and a `./tree` door would put this file on the very
- * closure its claims walk. Both are structural, not sloppiness.
+ * `@kolu/acp`'s `manifest.test.ts` reads manifests for its own first claim —
+ * that the protocol package imports no sibling of its repository's — and it
+ * runs in kolu now, where the package lives; reaching for this module was
+ * never open to it, in either repository. `@olai/tests`' `imports.test.ts`
+ * could import this but only through a door, and a `./tree` door would put
+ * this file on the very closure its claims walk. Both are structural, not
+ * sloppiness.
  */
 
 import * as path from "node:path"

@@ -8,7 +8,7 @@
  * a call may cost a click, while guessing could grant authority nobody gave.
  *
  */
-import { namedExactly, type Leg, type Meta, type Reported } from "@olai/acp/engine"
+import { namedExactly, type Leg, type Meta, type Reported } from "@kolu/acp/engine"
 
 const fieldIn = (value: unknown, key: string): unknown =>
   typeof value === "object" && value !== null && !Array.isArray(value)

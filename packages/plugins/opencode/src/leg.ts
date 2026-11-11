@@ -1,5 +1,5 @@
 /**
- * What OPENCODE means by what it sends — the second leg (`@olai/acp/engine`'s
+ * What OPENCODE means by what it sends — the second leg (`@kolu/acp/engine`'s
  * `Leg`).
  *
  * Every reading here was captured live against **opencode 1.17.9** running
@@ -40,7 +40,7 @@
  * is not one.
  */
 
-import { mcpCallBy, allowingOurs, type Leg, namedExactly } from "@olai/acp/engine"
+import { mcpCallBy, allowingOurs, type Leg, namedExactly } from "@kolu/acp/engine"
 
 // ── which tool a call is ───────────────────────────────────────────────
 

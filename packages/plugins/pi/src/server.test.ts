@@ -45,7 +45,7 @@ describe("finding pi on a host", () => {
   })
 
   test("agent without adapter is the ADAPTER's sentence — a different reason", () => {
-    // The variable is the adapter's whole door, the way `OLAI_ACP_AGENT` is the
+    // The variable is the adapter's whole door, the way `KOLU_ACP_AGENT` is the
     // claude row's: a floating `npx -y pi-acp` is never run, because the wire
     // facts this leg is written against are one revision's. TWO ABSENCES, TWO
     // SENTENCES: telling somebody whose pin is unset to go and put `pi` on a

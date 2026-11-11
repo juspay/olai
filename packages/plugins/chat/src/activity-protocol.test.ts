@@ -2,7 +2,7 @@
  * validation before an ordinary session/update callback can receive them. */
 import { expect, test } from "bun:test"
 import { client, methods, type Stream } from "@agentclientprotocol/sdk"
-import { nativeActivity, type ActivityNotification } from "@olai/acp"
+import { nativeActivity, type ActivityNotification } from "@kolu/acp"
 const deliver = async (updates: unknown[]) => {
   const events: ActivityNotification[] = []
   const ordinary: unknown[] = []

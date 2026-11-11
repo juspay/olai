@@ -26,7 +26,7 @@ import type {
   ToolStatus,
   Json,
 } from "olai-plugin-chat/wire"
-import type { AskField, AskLink, AskOutcome, AuthStatus, FileDiff, Usage } from "@olai/acp/wire"
+import type { AskField, AskLink, AskOutcome, AuthStatus, FileDiff, Usage } from "@kolu/acp/wire"
 /** A slash command the agent offers. */
 export interface Command {
   readonly name: string
@@ -96,7 +96,7 @@ export type AgentEvent =
      *  different questions — what was asked for, and what is happening. */
     readonly progress: string | undefined
     /** The files it REWROTE, structured — path, what was there, what is there
-     *  now (`@olai/acp`'s `diffsOf`). Its own field rather than a line of
+     *  now (`@kolu/acp`'s `diffsOf`). Its own field rather than a line of
      *  `progress`, because a change flattened into a sentence is a change a
      *  panel can no longer draw. */
     readonly diffs: ReadonlyArray<FileDiff> | undefined
@@ -114,7 +114,7 @@ export type AgentEvent =
      * exists: a subagent's calls arrive on the same flat feed as everything
      * else, so without it a turn that spawned three agents is drawn as one
      * agent doing everything, and the reader cannot tell that the other three
-     * were ever there (`@olai/acp/engine`'s `Leg`'s `parentToolUse`).
+     * were ever there (`@kolu/acp/engine`'s `Leg`'s `parentToolUse`).
      *
      * `undefined` reads as "unchanged" here like every field beside it, which
      * costs nothing: a call is made where it is made, so nothing ever needs
@@ -123,7 +123,7 @@ export type AgentEvent =
     readonly parent: string | undefined
     /**
      * ... and, the other way round, that this call SENT one out
-     * (`@olai/acp/engine`'s `Leg`'s `spawned`).
+     * (`@kolu/acp/engine`'s `Leg`'s `spawned`).
      *
      * The two are not one field with two directions: `parent` is answered by
      * frames a subagent produced, so it says nothing at all until the subagent
@@ -140,7 +140,7 @@ export type AgentEvent =
     readonly spawned: Spawned | undefined
     /**
      * ... and that it ARMED A BACKGROUND TASK — a monitor, a background shell,
-     * an agent sent out to run past this turn (`@olai/acp/engine`'s `Leg`'s
+     * an agent sent out to run past this turn (`@kolu/acp/engine`'s `Leg`'s
      * `backgroundTask`).
      *
      * The third thing a call can leave behind and the only one that goes on
@@ -157,7 +157,7 @@ export type AgentEvent =
     readonly armed: Armed | undefined
     /**
      * ... and that the TITLE on this frame is a placeholder rather than the
-     * call's name (`@olai/acp/engine`'s `Leg`'s `provisionalTitle`).
+     * call's name (`@kolu/acp/engine`'s `Leg`'s `provisionalTitle`).
      *
      * `undefined` reads as "not provisional" rather than "unchanged", which is
      * the one place here that departs from every field beside it — and it has
@@ -182,10 +182,10 @@ export type AgentEvent =
     readonly fields: ReadonlyArray<AskField>
     /**
      * WHERE THE QUESTION SENDS THEM, for the one elicitation that asks for no
-     * fields at all — ACP's URL mode ({@link @olai/acp}'s `urlOf`). The message
+     * fields at all — ACP's URL mode ({@link @kolu/acp}'s `urlOf`). The message
      * above is the same message the card shows, so what this adds is the two
      * facts a link is: the place, and which machine it is
-     * (`@olai/acp/wire`'s `AskLink`).
+     * (`@kolu/acp/wire`'s `AskLink`).
      *
      * `null` for every question that is a thing to fill in, which is nearly all
      * of them — a permission request among them, since picking an option is an
@@ -218,7 +218,7 @@ export type AgentEvent =
    * running agent the panel cannot work out for itself.
    *
    * Not `initialize`'s payload and deliberately not near it: what crosses is
-   * two booleans a leg read (`@olai/acp/engine`'s `Leg`), so nothing above this
+   * two booleans a leg read (`@kolu/acp/engine`'s `Leg`), so nothing above this
    * file learns that agents advertise anything, let alone where.
    *
    * ONCE PER AGENT rather than per session, because that is when it is said:

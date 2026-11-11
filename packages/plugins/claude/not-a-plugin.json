@@ -1,4 +1,8 @@
 {
+  "//kolu": "the adapter knob is `KOLU_ACP_AGENT` — `@kolu/acp` declares the variable's name (AGENT_ENV) because kolu owns the protocol's words, and this row's `environment` entry has to spell what a person would set. It is not a reach for the kolu tenant.",
+  "kolu": {
+    "src/server.ts": 1
+  },
   "mcp": {
     "src/leg.ts": 5
   }

@@ -1661,7 +1661,6 @@
       hasInstallScript = false;
     };
   };
-  "@olai/acp" = copyPathToStore ./packages/acp;
   "@olai/appearance" = copyPathToStore ./packages/appearance;
   "@olai/bundle" = copyPathToStore ./packages/bundle;
   "@olai/child" = copyPathToStore ./packages/child;

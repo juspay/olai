@@ -23,13 +23,13 @@
  *
  * ## The executable path belongs to this engine
  *
- * `OLAI_ACP_AGENT` names this row's adapter. The packaged wrapper supplies a
+ * `KOLU_ACP_AGENT` names this row's adapter. The packaged wrapper supplies a
  * default path, and an explicit path overrides it. An empty path leaves this
  * engine unavailable; it does not disable chat or other engine rows. File
  * enablement decides which rows run, independently of executable discovery.
  */
 
-import { type Adapter, adapterFrom, AGENT_ENV, type NotHere } from "@olai/acp/engine"
+import { type Adapter, adapterFrom, AGENT_ENV, type NotHere } from "@kolu/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
@@ -124,7 +124,7 @@ export const ENGINE: Registering = {
   },
   // ACP has no system prompt on any wire, this one included, so the standing
   // instruction rides the first turn — where a person can read what their agent
-  // was told. `@olai/acp/engine`'s `PromptChannel` argues it, and `olai-plugin-chat`
+  // was told. `@kolu/acp/engine`'s `PromptChannel` argues it, and `olai-plugin-chat`
   // switches on it exhaustively.
   prompt: { kind: "first-turn" },
 }
@@ -146,7 +146,7 @@ export const ENGINE: Registering = {
  */
 export default definePlugin({
   environment: [
-    {"key": "OLAI_ACP_AGENT", "secret": false, "says": "the Claude ACP adapter"},
+    {"key": "KOLU_ACP_AGENT", "secret": false, "says": "the Claude ACP adapter"},
     {"key": "ANTHROPIC_API_KEY", "secret": true, "says": "the provider credential read by Claude"},
   ],
   name,

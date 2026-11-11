@@ -7,9 +7,9 @@
  * registry lived inside the ACP client's closure; here it is one test.
  */
 
-import type { Form } from "@olai/acp"
+import type { Form } from "@kolu/acp"
 import { UsageFailure } from "@olai/format"
-import type { AskField, AskOutcome } from "@olai/acp/wire"
+import type { AskField, AskOutcome } from "@kolu/acp/wire"
 import { describe, expect, test } from "bun:test"
 
 import { make } from "./questions.ts"

@@ -819,15 +819,26 @@ describe("a plugin is a sibling, and core computes none of its addresses", () =>
  *     declare.
  *   - **The FRAMEWORK tier is out of scope, and it is the one thing still
  *     spelled.** `@kolu/surface*` is olai's foundation, imported anywhere, like
- *     `effect`.
+ *     `effect`; `@kolu/acp` is the protocol's vocabulary, which every engine
+ *     plugin registers against and `olai-plugin-chat` speaks out loud, so it is
+ *     imported anywhere too.
  */
 
 /** THE FRAMEWORK TIER, and the only list in this block that a person wrote.
  *
+ *  TWO kolu packages, for two different reasons. `@kolu/surface*` is the wire
+ *  framework the whole app is built on. `@kolu/acp` is the ACP vocabulary —
+ *  kolu owns it because kolu seats an ACP conversation of its own, and olai
+ *  consumes it the way it consumes the surface: `./engine` under every engine
+ *  plugin and `@olai/plugin-api`, `./wire` under the chat row's members, the
+ *  projections under the one package that runs the subprocess. A tier rule
+ *  cannot hold a package that five plugins and two general packages import by
+ *  design.
+ *
  *  `cordis` AND `@cordisjs/plugin-*` USED TO BE ON THE SAME SIDE and are not any
  *  more: it is an ENGINE behind one package now, weighed as an ordinary hydrated
  *  specifier with {@link BRIDGE} as the one package allowed to reach it. */
-const FRAMEWORK = /^@kolu\/surface(-[a-z]+)*(\/|$)/
+const FRAMEWORK = /^@kolu\/(acp|surface(-[a-z]+)*)(\/|$)/
 
 /** THE ENGINE, and the one package that may see it. */
 const BRIDGE = "effect-cordis"
@@ -1236,8 +1247,8 @@ describe("a plugin stays in its directory, outside the source graph too", () => 
    *  assertions; real keys are corpus files, values the plugin words it may
    *  spell. */
   const ALLOWED: Record<string, ReadonlyArray<string> | string> = {
-    "// nix/kolu.nix": "the framework's surface pin shares the tenant's word kolu",
-    "nix/kolu.nix": ["kolu", "mcp"],
+    "// nix/kolu.nix": "the framework's surface pin shares the tenant's word kolu; the pin note spells `KOLU_ACP_AGENT` because that rename is what the bump did, and the knob happens to be the claude row's",
+    "nix/kolu.nix": ["claude#knob", "kolu", "mcp"],
     "// justfile": "kolu-deps names the framework pin; git/odu are tool names, files/pins are recipe names",
     justfile: ["git", "kolu", "odu", "files", "pins"],
     "// default.nix": "kolu is the framework pin; pins is the bundle's fold vocabulary; the comments enumerate the wrapper-baked knobs (OLAI_ACP_*, OLAI_ODU_BIN, OLAI_HIMALAYA) so the wrap text explains itself",

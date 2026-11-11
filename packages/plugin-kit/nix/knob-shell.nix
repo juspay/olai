@@ -4,7 +4,7 @@
 # A knob table is an attrset var → { kind = "file"; path; } or
 # { kind = "dir"; path; holds = "<exe>"; } (contract.nix). Each entry is one
 # executable a plugin ships: `file` names the executable itself
-# (`OLAI_ACP_AGENT`), `dir` names a bin DIRECTORY to splice onto PATH and the
+# (`KOLU_ACP_AGENT`), `dir` names a bin DIRECTORY to splice onto PATH and the
 # executable it is supposed to hold (`OLAI_ODU_BIN` → `odu`).
 #
 # Both renderings keep the same semantics the wrapper had when every knob was

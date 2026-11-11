@@ -31,7 +31,7 @@
  * `olai-plugin-chat` does the talking.
  */
 
-import { type Adapter, type NotHere } from "@olai/acp/engine"
+import { type Adapter, type NotHere } from "@kolu/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
@@ -66,7 +66,7 @@ export const ENGINE: Registering = {
     // flag omp forwards to `acp` rather than an option `acp` takes.
     return { command: bin, args: ["--approval-mode", "yolo", "acp"] }
   },
-  // ACP has no system prompt (see `@olai/acp/engine`'s `PromptChannel`), and
+  // ACP has no system prompt (see `@kolu/acp/engine`'s `PromptChannel`), and
   // omp is no exception: the standing instruction rides the first turn, like
   // every engine olai ships.
   prompt: { kind: "first-turn" },

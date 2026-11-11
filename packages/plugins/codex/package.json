@@ -21,7 +21,6 @@
   "//": "THE CODEX ENGINE \u2014 its shipped ACP adapter, conservative reading of that wire, and the faces that identify it.",
   "dependencies": {
     "olai-plugin-chat": "workspace:*",
-    "@olai/acp": "workspace:*",
     "@olai/plugin-api": "workspace:*",
     "effect": "4.0.0",
     "solid-js": "^1.9.0",

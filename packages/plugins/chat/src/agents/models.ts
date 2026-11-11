@@ -18,7 +18,7 @@
  * concrete: one CLI's alias table sat in the path every OTHER agent's model
  * name was read through.
  *
- * They are `ModelReading` now (`@olai/acp/engine`), answered by the LEG:
+ * They are `ModelReading` now (`@kolu/acp/engine`), answered by the LEG:
  *
  *   - **which entry is the model** — `id === "model"` is a bet, paid off by
  *     every agent olai ships, and an agent that spells its picker differently
@@ -34,7 +34,7 @@
  */
 
 import type { SessionConfigOption } from "@agentclientprotocol/sdk"
-import type { ModelReading } from "@olai/acp/engine"
+import type { ModelReading } from "@kolu/acp/engine"
 
 /** The model picker, as read: what is PICKED in it, and what the agent calls
  *  each of the values it offers. */

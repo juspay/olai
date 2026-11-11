@@ -17,7 +17,7 @@
  */
 
 import type { SessionConfigOption } from "@agentclientprotocol/sdk"
-import type { ModelReading } from "@olai/acp/engine"
+import type { ModelReading } from "@kolu/acp/engine"
 import { describe, expect, test } from "bun:test"
 
 import { modelPickerIn, pickerValueFor, sameModel } from "./models.ts"

@@ -17,7 +17,7 @@
  * `session/update` a word this package is the last to say: a caller passes the
  * ROSTER it detected and the directory to run in, never a protocol object. The
  * seam for a scripted agent is one level further out and more honest for it —
- * `OLAI_ACP_AGENT` pointed at a script, which is how the e2e suite drives every
+ * `KOLU_ACP_AGENT` pointed at a script, which is how the e2e suite drives every
  * turn it asserts on, and which exercises the subprocess and the wire that an
  * injected object would replace with an assumption.
  *
@@ -96,7 +96,7 @@ import type { Advertised } from "@olai/plugin-api/services"
 import { type Attached, type AttachChunk, type AuthMethod, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type SignIn, type Talking } from "olai-plugin-chat/wire"
 
 import { type OpFailure } from "@olai/format"
-import { type AskAnswer } from "@olai/acp/wire"
+import { type AskAnswer } from "@kolu/acp/wire"
 import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
 import { emitter } from "@olai/log"
 import { Deferred, Effect, Fiber, References, Semaphore } from "effect"
@@ -914,7 +914,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // ... AND WHAT IT MUST NOT SEE, which is the same row's data read from
         // the other direction: `env` can only add, and an adapter that guesses
         // something off the environment it is started in says here which
-        // variables to take away (`@olai/acp/engine`'s `Adapter.unset`).
+        // variables to take away (`@kolu/acp/engine`'s `Adapter.unset`).
         unset: row.adapter.unset,
         cwd: options.cwd,
         tools: options.tools,
@@ -1343,7 +1343,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         : reminds ? REMINDING : []
       // ...AND WHICH CHANNEL THIS ENGINE'S STANDING PROMPT RIDES, which is the
       // engine's own answer and not an assumption of this file's
-      // (`@olai/acp/engine`'s `PromptChannel`). The switch is EXHAUSTIVE on
+      // (`@kolu/acp/engine`'s `PromptChannel`). The switch is EXHAUSTIVE on
       // purpose: every engine olai ships rides the first turn, because ACP has
       // no system prompt on any wire — and the day one grows a real slot, the
       // arm added there is a `tsc` error HERE rather than a branch on an

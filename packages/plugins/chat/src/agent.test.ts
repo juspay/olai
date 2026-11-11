@@ -4,7 +4,7 @@
  * was pointed at will not run, and whether a leftover notification is about
  * a conversation this panel is not in.
  *
- * `OLAI_ACP_AGENT` is a path a PERSON sets, which makes it the likeliest thing
+ * `KOLU_ACP_AGENT` is a path a PERSON sets, which makes it the likeliest thing
  * in this package to be wrong — a typo, a moved binary, a nix path that was
  * garbage-collected. It is also the case that reported the least: an exec
  * failure arrives after `spawn` has returned, so the `Effect.try` around the

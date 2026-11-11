@@ -13,7 +13,7 @@ import { join } from "node:path"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 
 import { type Agent, make } from "./agent.ts"
-import type { Leg } from "@olai/acp/engine"
+import type { Leg } from "@kolu/acp/engine"
 import { QUEUES } from "./agents/legs.testlib.ts"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"

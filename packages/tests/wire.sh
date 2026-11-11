@@ -8,7 +8,7 @@
 #   AGENT=$PWD/../plugins/claude/e2e/fake/claude-agent-acp SESSION=chat ROOT=… LABEL=…
 #                             # one chat turn: bytes AND frames. The only
 #                             # session that needs an agent — serve.sh wires
-#                             # AGENT through as the server OLAI_ACP_AGENT,
+#                             # AGENT through as the server KOLU_ACP_AGENT,
 #                             # and without it the panel has nobody to send to.
 #   DELAY=125 …               # put that many ms in front of the server, each
 #                             # way, so a round trip costs twice it (delay.ts).

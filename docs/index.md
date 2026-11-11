@@ -26,7 +26,7 @@ The five ACP agents the chat panel can run. What a conversation is, for all of t
 
 | Page | What it covers |
 | --- | --- |
-| [plugins/claude.md](plugins/claude.md) | Claude Code: the pinned adapter, `OLAI_ACP_AGENT`, subagent lanes, tool naming, and the model and server readout. |
+| [plugins/claude.md](plugins/claude.md) | Claude Code: the pinned adapter, `KOLU_ACP_AGENT`, subagent lanes, tool naming, and the model and server readout. |
 | [plugins/codex.md](plugins/codex.md) | Codex: the pinned adapter and CLI, `OLAI_ACP_CODEX`, full-access policy, and visible mode-selection failures. |
 | [plugins/opencode.md](plugins/opencode.md) | opencode: the PATH probe, `--cwd`, tool naming, and the three things this wire lacks. |
 | [plugins/pi.md](plugins/pi.md) | pi: `OLAI_ACP_PI`, the queued mid-turn message, and the bridge that gives pi olai's tools. |

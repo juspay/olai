@@ -542,7 +542,8 @@ turn).
   the full-screen method. If `Adapter.unset` ever stops taking the five
   variables away, the methods that appear change and every one of those scenarios
   fails at its first press.
-- **Unit** (`packages/acp/src/asks.test.ts`, `packages/plugins/chat/src/agent.test.ts`,
+- **Unit** (`@kolu/acp`'s own `asks.test.ts`, which runs in kolu now that the
+  protocol's words are kolu's; `packages/plugins/chat/src/agent.test.ts`,
   `packages/plugins/claude/src/server.test.ts`): the URL-elicitation reader
   (message, host with its port, an unparseable URL carried whole, a vendor mode
   refused rather than read for a URL); `-32000` read as a refusal AND as a

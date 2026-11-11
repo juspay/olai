@@ -31,7 +31,7 @@
  *     `docs/format.md.bak` beside the file that was meant, which is a real
  *     review finding on `extension.test.ts` rather than a hypothetical.
  *
- * WHAT IS NOT SHARED, and why. `@olai/web`'s `claims.test.ts` and `@olai/acp`'s
+ * WHAT IS NOT SHARED, and why. `@olai/web`'s `claims.test.ts` and `@kolu/acp`'s
  * `manifest.test.ts` also walk a tree, and neither is a caller here: they walk
  * ONE PACKAGE'S directory rather than what the repository owns, they live in
  * packages that do not depend on `@olai/tests` — the dependency runs the other

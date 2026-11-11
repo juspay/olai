@@ -1,4 +1,4 @@
-# The vendored TypeScript sources olai consumes — SIX SEED NAMES, and kolu
+# The vendored TypeScript sources olai consumes — SEVEN SEED NAMES, and kolu
 # computes the rest.
 #
 # This file used to carry the whole closure: a hand-written 32-entry `members`
@@ -72,6 +72,19 @@
 #     window's `conversation.earlier` no longer has a first-open frame to fear.
 #     https://github.com/juspay/kolu/pull/2312
 #
+#   * PR #2350 — `@kolu/acp`, the Agent Client Protocol's words, moved there
+#     from olai's own `packages/acp`, which this bump DELETES. kolu is the
+#     vocabulary's owner now (it seats an ACP conversation of its own), and
+#     olai is a consumer of it the way it already is of `@kolu/surface*`: the
+#     ask / diff / usage / terminal shapes on `./wire`, the projections over
+#     the protocol's own payloads on `.`, and what an engine plugin registers
+#     on `./engine` — including `AGENT_ENV`, which the move respelled
+#     `KOLU_ACP_AGENT` → `KOLU_ACP_AGENT`.
+#     https://github.com/juspay/kolu/pull/2350
+#     THE PIN IS THAT PR'S BRANCH (`acp-global`) while it is open, and goes
+#     back to `master` the moment it merges; nothing else here wants the
+#     branch.
+#
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:
 # the slug is kolu's now, and a consumer inventing its own would be one more
 # thing to keep in step.
@@ -86,24 +99,30 @@ let
     src = npins.kolu;
 
     # THE SEEDS — what olai's own source imports by name. The list is in TWO
-    # halves, and the halves are different owners: the ROOT's three are the
-    # framework olai's app is built on (`@kolu/surface*` — imported anywhere,
-    # like `effect`), and the rest is the padi INTEGRATION the `kolu` plugin
-    # owns. A tenant seed is declared beside the tenant, in
-    # `packages/plugins/kolu/default.nix`'s `koluSeeds`, and arrives here as
-    # `extraSeeds` through the fold — so this file's own list may name only
-    # what the framework asks for, and a tenant's needs never have to migrate
-    # up to the root to be seen.
+    # halves, and the halves are different owners: the ROOT's four are what
+    # olai's app is built on wherever it likes — the framework (`@kolu/surface*`,
+    # imported anywhere, like `effect`) and the protocol vocabulary
+    # (`@kolu/acp`, whose `./wire` half `@olai/surface` re-exports and whose
+    # `./engine` half every engine plugin registers against) — and the rest is
+    # the padi INTEGRATION the `kolu` plugin owns. A tenant seed is declared
+    # beside the tenant, in `packages/plugins/kolu/default.nix`'s `koluSeeds`,
+    # and arrives here as `extraSeeds` through the fold — so this file's own
+    # list may name only what the framework asks for, and a tenant's needs
+    # never have to migrate up to the root to be seen.
     #
     # `@kolu/padi-client` and `@kolu/terminal-vocab` are not here because they
     # are not seeds: they arrive through `@kolu/solid-dockrow`, whose closure is
-    # 26 of the 32. That naming is load-bearing and was wrong here for a round —
+    # 37 of the 42. That naming is load-bearing and was wrong here for a round —
     # it credited `@kolu/detect`, whose closure is ONE member, itself. Nothing
-    # was missing, because the six-seed union is the same 32 either way; but an
+    # was missing, because the seven-seed union is the same 42 either way; but an
     # edit that believed it and dropped the dock row would hydrate a tree with no
     # `@kolu/padi-client` in it while `olai-plugin-kolu/appliance` still imports it, and
     # the sibling walk that used to catch exactly that is gone by design.
+    #
+    # `@kolu/acp` is a LEAF — its closure is one member, itself — so the seed
+    # buys exactly the directory it names.
     seeds = [
+      "@kolu/acp"
       "@kolu/surface-app"
       "@kolu/surface-cli"
       "@kolu/surface-mcp"

@@ -66,7 +66,7 @@ export interface StdioServer {
  *
  * IT IS SPELLED HERE, STRUCTURALLY, and that is the arrangement rather than a
  * duplication to tidy away. The shape an ENGINE plugin answers `at()` with is
- * `@olai/acp/engine`'s `NotHere` — that package is the floor under the leg and
+ * `@kolu/acp/engine`'s `NotHere` — that package is the floor under the leg and
  * the adapter an engine already opens, so the canonical spelling of an absent
  * ENGINE lives there. This door's reader is a different subject: an MCP server,
  * a padi, a mail probe, none of which is an ACP engine and none of which should
@@ -81,7 +81,7 @@ export interface StdioServer {
  * answer with anything that has these three fields, including an engine's own
  * `NotHere`, and nothing here has to import it to accept one.
  *
- * ## IT WENT TO `@olai/acp`, CAME BACK, AND IS NOT COMING BACK AGAIN
+ * ## IT WENT TO `@kolu/acp`, CAME BACK, AND IS NOT COMING BACK AGAIN
  *
  * The agents phase read it as a shape TWO WALLS needed — an engine plugin
  * saying how to get itself, and `olai-plugin-chat` saying what an absent MCP server
@@ -94,7 +94,7 @@ export interface StdioServer {
  * The engine-side reader has since arrived — `Registering.at` answers
  * `Adapter | NotHere` now, so the roster publishes a row for an engine this
  * machine has not got with the sentence attached instead of dropping it — and
- * it reaches the shape at `@olai/acp/engine`, which it already imports for the
+ * it reaches the shape at `@kolu/acp/engine`, which it already imports for the
  * leg and the adapter. This file re-exported that name for a revision, which
  * made a package of plugin CONTRACTS the second door onto a shape it does not
  * own: an MCP probe's absence would have been typed by the engine wall, and a
