@@ -74,11 +74,15 @@
           # (or a plugin and a root output) cannot collide.
           overlap = builtins.attrNames
             (builtins.intersectAttrs bundle.packages
-              { inherit (olai) olai olai-client olai-fonts base; });
+              { inherit (olai) olai olai-client olai-fonts base olai-deps; });
           clash = if overlap != [ ] then throw "flake packages: a plugin declares an output the root already names: ${builtins.concatStringsSep ", " overlap}" else null;
         in
         builtins.seq clash (bundle.packages // {
-          inherit (olai) olai olai-client olai-fonts base;
+          # `olai-deps` is an output of its own so the split can be MEASURED
+          # rather than asserted: `nix build .#olai-deps` is where the
+          # node_modules bytes live now, and two commits that touch no
+          # manifest build the same path.
+          inherit (olai) olai olai-client olai-fonts base olai-deps;
           default = olai.olai;
           # `nix run .#bun2nix -- -l bun.lock -o bun.nix` regenerates the
           # lockfile-derived nix expression (`just regenerate-bun-nix`).
