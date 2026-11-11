@@ -547,7 +547,10 @@ refused-chat body, and the body's press obeys it: the binding it returns to is
 the chat the node still names, which is the chat the refused body was about —
 so the words stay true over the refusal line they now carry. The refusal lands
 on that body's own line, the one a refused *Try again* already uses, rather
-than on an agent line the body is not drawn beside.
+than on an agent line the body is not drawn beside — said on the node's
+readers as they stand after the resume, because the resume has moved them from
+the node address to the pair's and the reader that was pressed is no longer
+the reader that is drawn.
 
 A fresh start that SUCCEEDS from there supersedes the refused pair on the node
 slot, exactly as it supersedes a conversation that opened (`scoped.ts`). The

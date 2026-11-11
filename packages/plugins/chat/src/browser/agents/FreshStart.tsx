@@ -10,7 +10,9 @@ import type { Row } from "./roster.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { createConfirming } from "@olai/web/client/confirming.ts"
 import { freshStartQuestion, startFreshChat } from "./fresh-start.ts"
+import { isPast as movedOn } from "./past.ts"
 import { TESTID } from "../../testids.ts"
+import type { Conversing } from "../../sessions.ts"
 
 /** The engine menu, loaded on the first press that needs it — the same lazy
  *  door the other two engine pickers use. */
@@ -47,16 +49,16 @@ export function FreshStart(props: {
     if (starting() || confirm.where() !== "asking") return
     confirm.begin()
     const node = props.agent.id
-    const previous = { engine: props.agent.engine, session: props.agent.session }
+    const previous: Conversing | null = props.agent.session === null
+      ? null
+      : { agent: props.agent.engine, session: props.agent.session }
     saying.say(undefined)
     void (async () => {
       // The node still bound to what it was bound to when this was pressed is
-      // the only node a refusal may send the reader back to.
+      // the only node a refusal may send the reader back to — asked of the one
+      // predicate that knows a conversation is a PAIR ({@link ./past.ts}).
       const failure = await startFreshChat(node, engine, () =>
-        previous.session !== null && props.agent.engine === previous.engine
-          && props.agent.session === previous.session
-          ? { agent: previous.engine, session: previous.session }
-          : null)
+        previous !== null && !movedOn(previous, props.agent) ? previous : null)
       confirm.done()
       // The completed history revision refreshes this tab and its siblings.
       if (failure !== null) saying.say({ tone: "alarm", text: failure.message, kind: failure._tag })

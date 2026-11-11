@@ -24,7 +24,9 @@
  * THE WAY OUT IS ON THE LAST TWO, and only for the node's CURRENT chat. A
  * fresh start re-points the node's `agent-session`; offering it while reading
  * an EARLIER chat of that node would re-point a binding the person is not
- * looking at. */
+ * looking at. That question belongs to the button that asks it
+ * ({@link StartFresh}) rather than to the body it sits in: a body's job is
+ * which words, and neither of these two reads the answer. */
 
 import { agentIn, type Unopened as Refused } from "olai-plugin-chat/wire"
 import { createSignal, Match, Show, Switch } from "solid-js"
@@ -34,7 +36,7 @@ import { useAgents } from "../agents/answered.tsx"
 import { startFreshChat } from "../agents/fresh-start.ts"
 import { isPast } from "../agents/past.ts"
 import { agentReadings } from "../agents/reading.ts"
-import type { Row } from "../agents/roster.ts"
+import type { Conversing } from "../../sessions.ts"
 import { TESTID } from "../../testids.ts"
 import { Refusal } from "./Refusal.tsx"
 import type { Chat } from "./state.ts"
@@ -51,33 +53,6 @@ import type { Chat } from "./state.ts"
 export function Unopened(
   props: { readonly chat: Chat; readonly unopened: Refused; readonly node: string },
 ) {
-  const agents = useAgents()
-  /**
-   * IS THE REFUSED CHAT THE ONE THIS NODE IS CURRENTLY BOUND TO?
-   *
-   * The whole gate on *Start fresh chat*, and the row is what the button needs
-   * anyway: the fresh start runs on the node's OWN engine, never on whichever
-   * one a picker would sort first. `null` for a bare node (nothing to replace),
-   * for a refused open nobody named a conversation for (a boot, a
-   * `session/new` that wanted a signature — there is no lost chat to move on
-   * from), and for an earlier chat of this node read out of its history.
-   *
-   * TWO QUESTIONS, and both have to answer yes. The reader must not be on a
-   * history visit at all ({@link ../agents/past.ts}, the same predicate the
-   * fold line draws *Earlier chat* from), and the pair that was REFUSED must
-   * be the bound pair — engine and session, never the session alone. Ids live
-   * in one engine's own space and an adapter may reuse one across engines
-   * (`../../scoped.ts` records replacements on that assumption), so an earlier
-   * chat on another engine with the same id would otherwise be handed the
-   * gesture that re-points the binding.
-   */
-  const current = (): Row | null => {
-    const row = agents.at(props.node)
-    if (row === undefined || row.session === null) return null
-    if (isPast(agentReadings()?.visiting(props.node), row)) return null
-    const refused = agentIn(props.chat.state())?.id
-    return refused === row.engine && props.unopened.what === row.session ? row : null
-  }
   return (
     <div
       class="olai-scroll min-h-0 flex-1 overflow-y-auto px-4 py-6 text-body text-muted"
@@ -85,13 +60,13 @@ export function Unopened(
       data-cause={props.unopened.cause?.kind}
     >
       <Switch
-        fallback={<AgentSaidNo chat={props.chat} unopened={props.unopened} node={props.node} current={current()} />}
+        fallback={<AgentSaidNo chat={props.chat} unopened={props.unopened} node={props.node} />}
       >
         <Match when={props.unopened.cause?.kind === "capacity"}>
           <WaitingForASeat why={props.unopened.why} />
         </Match>
         <Match when={props.unopened.cause?.kind === "missing"}>
-          <NotOnThisMachine chat={props.chat} unopened={props.unopened} node={props.node} current={current()} />
+          <NotOnThisMachine chat={props.chat} unopened={props.unopened} node={props.node} />
         </Match>
       </Switch>
 
@@ -124,7 +99,6 @@ function AgentSaidNo(props: {
   readonly chat: Chat
   readonly unopened: Refused
   readonly node: string
-  readonly current: Row | null
 }) {
   return (
     <>
@@ -148,23 +122,14 @@ function AgentSaidNo(props: {
         Your notes still work. Try again once the problem is fixed.
       </p>
 
-      {/* The header's own quiet pill, at the header's own scale — this sits in
-          prose rather than in the transcript's 11px mono line, so it is the
-          shared spelling rather than `Entry.tsx`'s smaller lookalike.
-
-          AND THE WAY OUT BESIDE IT where this is the node's current chat. The
+      {/* AND THE WAY OUT BESIDE IT where this is the node's current chat. The
           words above stay exactly what they were: this is still the agent
           saying no, and the problem may still be a thing somebody can fix —
           what changes is that waiting for that is no longer the only move a
           person has. */}
       <span class="flex flex-wrap gap-2">
-        <button type="button" class={QUIET_PILL} data-testid={TESTID.chatReopen}
-          onClick={() => props.chat.reopen()}>
-          Try again
-        </button>
-        <Show when={props.current}>
-          {(row) => <StartFresh chat={props.chat} node={props.node} bound={row()} />}
-        </Show>
+        <TryAgain chat={props.chat} />
+        <StartFresh chat={props.chat} node={props.node} />
       </span>
     </>
   )
@@ -208,7 +173,6 @@ function NotOnThisMachine(props: {
   readonly chat: Chat
   readonly unopened: Refused
   readonly node: string
-  readonly current: Row | null
 }) {
   return (
     <>
@@ -226,16 +190,27 @@ function NotOnThisMachine(props: {
         {props.unopened.why}
       </p>
 
+      {/* The way out first here, because on this body it is the move: the
+          retry beside it is for the store that comes back. */}
       <span class="flex flex-wrap gap-2">
-        <Show when={props.current}>
-          {(row) => <StartFresh chat={props.chat} node={props.node} bound={row()} />}
-        </Show>
-        <button type="button" class={QUIET_PILL} data-testid={TESTID.chatReopen}
-          onClick={() => props.chat.reopen()}>
-          Try again
-        </button>
+        <StartFresh chat={props.chat} node={props.node} />
+        <TryAgain chat={props.chat} />
       </span>
     </>
+  )
+}
+
+/** ASK FOR THE SAME CONVERSATION AGAIN — one control, because the two bodies
+ *  that draw it draw the SAME one: the header's own quiet pill at the header's
+ *  own scale, in prose rather than in the transcript's 11px mono line, so it
+ *  is the shared spelling rather than `Entry.tsx`'s smaller lookalike. What
+ *  differs between the bodies is where it sits, which is the body's to say. */
+function TryAgain(props: { readonly chat: Chat }) {
+  return (
+    <button type="button" class={QUIET_PILL} data-testid={TESTID.chatReopen}
+      onClick={() => props.chat.reopen()}>
+      Try again
+    </button>
   )
 }
 
@@ -255,6 +230,20 @@ function NotOnThisMachine(props: {
  * not an invitation to change engine — the engine menu belongs to the gesture
  * that has a conversation to compare against.
  *
+ * MAY IT BE OFFERED AT ALL? That is this button's question and nobody else's,
+ * so it is asked here: the bodies around it choose words, and neither reads
+ * the answer. The reader must not be on a history visit
+ * ({@link ../agents/past.ts}, the same predicate the fold line draws *Earlier
+ * chat* from), and the pair that was REFUSED must be the pair the node is
+ * bound to — engine and session, never the session alone. Ids live in one
+ * engine's own space and an adapter may reuse one across engines
+ * (`../../scoped.ts` records replacements on that assumption), so an earlier
+ * chat on another engine with the same id would otherwise be handed the
+ * gesture that re-points the binding. Nothing is drawn for a bare node, for a
+ * refused open nobody named a conversation for (a boot, a `session/new` that
+ * wanted a signature — there is no lost chat to move on from), or for an
+ * earlier chat read out of this node's history.
+ *
  * A REFUSED PRESS SAYS WHY, on the line this body already draws for a refused
  * *Try again* ({@link Unopened}'s `chat.refused()`), rather than silently
  * leaving the person on the same dead end they pressed to escape — and it puts
@@ -263,9 +252,20 @@ function NotOnThisMachine(props: {
  * gesture's ({@link ../agents/fresh-start.ts}); writing it a second time here
  * is what left a refused press showing one face over a different refusal.
  */
-function StartFresh(props: { readonly chat: Chat; readonly node: string; readonly bound: Row }) {
+function StartFresh(props: { readonly chat: Chat; readonly node: string }) {
+  const agents = useAgents()
   const [starting, setStarting] = createSignal(false)
-  const press = (): void => {
+  /** The pair this press would replace, or `null` where there is none to. */
+  const bound = (): Conversing | null => {
+    const row = agents.at(props.node)
+    if (row === undefined || row.session === null) return null
+    if (isPast(agentReadings()?.visiting(props.node), row)) return null
+    const refused = props.chat.state().unopened
+    return agentIn(props.chat.state())?.id === row.engine && refused?.what === row.session
+      ? { agent: row.engine, session: row.session }
+      : null
+  }
+  const press = (pair: Conversing): void => {
     if (starting()) return
     setStarting(true)
     // THE CONVERSATION THIS PRESS BELONGS TO, held across the round trip —
@@ -279,12 +279,10 @@ function StartFresh(props: { readonly chat: Chat; readonly node: string; readonl
     // a node that has none left.
     const chat = props.chat
     const node = props.node
-    const bound = { engine: props.bound.engine, session: props.bound.session }
     chat.refuse([])
     void (async () => {
       try {
-        const failure = await startFreshChat(node, bound.engine, () =>
-          bound.session === null ? null : { agent: bound.engine, session: bound.session })
+        const failure = await startFreshChat(node, pair.agent, () => pair)
         if (failure === null) return
         const bodies = agentReadings()?.at(node)
         for (const body of bodies === undefined || bodies.size === 0 ? [chat] : bodies) {
@@ -296,10 +294,14 @@ function StartFresh(props: { readonly chat: Chat; readonly node: string; readonl
     })()
   }
   return (
-    <button type="button" class={GO_PILL} data-testid={TESTID.chatUnopenedFresh}
-      data-node={props.node} disabled={starting()} aria-busy={starting()}
-      onClick={press}>
-      Start fresh chat
-    </button>
+    <Show when={bound()}>
+      {(pair) => (
+        <button type="button" class={GO_PILL} data-testid={TESTID.chatUnopenedFresh}
+          data-node={props.node} disabled={starting()} aria-busy={starting()}
+          onClick={() => press(pair())}>
+          Start fresh chat
+        </button>
+      )}
+    </Show>
   )
 }
