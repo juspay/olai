@@ -1271,3 +1271,33 @@ test("a node reader of the lagging binding does not retry the lost chat", async 
     expect(chat.state().unopened).toBe(null)
   }, ["--refuse-load"])
 })
+
+/**
+ * ...AND THE NODE DOOR STOPS DISTRUSTING THE BINDING THE MOMENT IT CATCHES UP.
+ *
+ * The skip above is about a WRITE THAT HAS NOT ARRIVED, not about the pair
+ * itself: `superseded` lives as long as the slot, and if the node door read it
+ * the node would ignore its own property for the rest of that life — so a
+ * binding pointed back at the replaced chat (an undo, a pull from the machine
+ * that minted it) would draw the fresh chat while the file said otherwise. The
+ * node door reads `lagging`, which empties as soon as the binding reads
+ * anything this slot is not waiting on.
+ */
+test("a binding re-pointed back at a replaced chat is opened once the write has landed", async () => {
+  await withLaggingBinding(async ({ chat, bind, readNode }) => {
+    bind("stored")
+    await run(readNode())
+    const fresh = (await run(chat.startAgentSession("one", "alpha")))!
+
+    // The write lands, and a reader sees it: the wait is over.
+    bind(fresh.session)
+    await run(readNode())
+    expect(chat.state().session?.id).toBe(fresh.session)
+
+    // Now the property says the old chat again. That is somebody asking for
+    // it, and the engine's refusal of it is the honest answer.
+    bind("stored")
+    const back = await run(readNode())
+    expect(back.state().unopened?.what).toBe("stored")
+  }, ["--refuse-load"])
+})

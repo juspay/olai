@@ -20,7 +20,7 @@
  */
 
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { sessionStore } from "@olai/tests/agent/session-store.ts";
 import { Then, When } from "@olai/tests/harness/runner.ts";
@@ -1049,6 +1049,15 @@ When("the engine has no record of the chat remembered as {string}", function (th
   const id = notedSessions.get(this)?.get(name);
   assert.ok(id, `no conversation remembered as ${name}`);
   writeFileSync(join(this.scratch(), `.agent-missing-${id}`), "");
+});
+
+/** ...AND FINDS IT AGAIN, which is what *Try again* exists for: a history
+ *  volume that was not mounted a second ago answers the same `-32002` and then
+ *  opens the chat on the very next press. */
+When("the engine finds the chat remembered as {string} again", function (this: OlaiWorld, name: string) {
+  const id = notedSessions.get(this)?.get(name);
+  assert.ok(id, `no conversation remembered as ${name}`);
+  rmSync(join(this.scratch(), `.agent-missing-${id}`), { force: true });
 });
 
 /** THE PROPERTY MOVED, asserted as a change rather than as a value: a fresh

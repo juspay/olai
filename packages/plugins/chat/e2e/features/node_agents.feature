@@ -612,6 +612,88 @@ Feature: A node with an `agent-session` property IS an agent
     And the refusal offers no fresh chat
     And the refusal still offers a retry
 
+  @scratch:lanes
+  Scenario: A fresh start the engine refuses says why, and leaves the same face behind
+    # The press is not a promise. If the engine will not open a NEW conversation
+    # either, what a person owes is the reason and both ways out still on
+    # screen — not a muted body about a chat that is elsewhere sitting over a
+    # refusal about something else entirely, which is what two copies of this
+    # gesture produced: the body's own copy never returned the reader to the
+    # chat the node is still bound to.
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "lanes.olai"
+    When I press the agent "door-live"
+    Then the panel says this chat is not on this machine
+    When the agent refuses to new a conversation
+    And I start a fresh chat from the refusal
+    Then the chat says the click was refused, with "will not start a conversation"
+    And the panel says this chat is not on this machine
+    And the refusal offers a fresh chat
+    And the refusal still offers a retry
+    # ...and nothing about the node moved, so the face a reload draws is the
+    # same face. The binding is untouched: the gesture that re-points it never
+    # got as far as a conversation.
+    When I reload the page
+    And I unfold node agent "door-live"
+    Then the panel says this chat is not on this machine
+    When I return to the conversation's outline
+    Then the vault node "door-live" has property "agent-session" holding "claude:fake-session-1"
+
+  @scratch:lanes
+  Scenario: A store that comes back is what Try again is for
+    # The second button is not decoration. An engine whose history lives on a
+    # volume that was not mounted a second ago answers exactly the same way,
+    # and the honest thing for that person is the same chat, not a new one.
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "lanes.olai"
+    When I press the agent start pill on "lane-fresh"
+    And the node agent's fold is ready
+    And I ask the agent "the only chat"
+    And the agent is idle
+    And I remember this conversation as "only"
+    # The store goes away under the chat the node is bound to, and the serve is
+    # restarted so the next open is a real load of it rather than a panel that
+    # already has it open.
+    When the engine has no record of the chat remembered as "only"
+    And the server stops
+    And the server starts again on the same port
+    And I open the app
+    And I unfold node agent "lane-fresh"
+    Then the panel says this chat is not on this machine
+    # ...and comes back.
+    When the engine finds the chat remembered as "only" again
+    And I try to open it again
+    Then the panel shows no such refusal
+    And the panel is in the remembered conversation "only"
+
+  @scratch:lanes
+  Scenario: A fresh chat nobody spoke in is lost to a restart, and is one press out again
+    # THE SECOND TRAP, and it is olai's own making rather than a second
+    # machine's: no engine writes a session until something is said in it. So a
+    # person who presses *Start fresh chat* on every agent and restarts the
+    # serve before typing meets this face again on every one of them — about
+    # chats this machine minted a minute ago.
+    #
+    # What is asserted is that it is still one press out and not a loop: the
+    # face is honest about the case (it says a chat may be one nothing was ever
+    # said in), and the press lands in a conversation that can be typed into.
+    Given the harness keeps distinct sessions on disk
+    And I open the outline "lanes.olai"
+    When I press the agent "door-live"
+    Then the panel says this chat is not on this machine
+    When I start a fresh chat from the refusal
+    Then the panel shows no such refusal
+    # Nothing is said into it. The engine has no transcript to write, so its
+    # store never learns the id olai has just bound the node to.
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And I unfold node agent "door-live"
+    Then the panel says this chat is not on this machine
+    When I start a fresh chat from the refusal
+    Then the panel shows no such refusal
+    And there is somewhere to type into
+
   @agent-stored @scratch:lanes
   Scenario: ... and names the conversations this agent has had before this one
     # Assigning claims the `/clear` chain in one gesture, so *past sessions* is

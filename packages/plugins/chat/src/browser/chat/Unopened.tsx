@@ -26,16 +26,15 @@
  * an EARLIER chat of that node would re-point a binding the person is not
  * looking at. */
 
-import type { Unopened as Refused } from "olai-plugin-chat/wire"
+import { agentIn, type Unopened as Refused } from "olai-plugin-chat/wire"
 import { createSignal, Match, Show, Switch } from "solid-js"
-import { Result } from "effect"
 
 import { GO_PILL, QUIET_PILL } from "@olai/web/client/pill.ts"
-import { runAsync } from "@olai/web/client/run.ts"
 import { useAgents } from "../agents/answered.tsx"
+import { startFreshChat } from "../agents/fresh-start.ts"
+import { isPast } from "../agents/past.ts"
 import { agentReadings } from "../agents/reading.ts"
 import type { Row } from "../agents/roster.ts"
-import { chatWire } from "../wire.ts"
 import { TESTID } from "../../testids.ts"
 import { Refusal } from "./Refusal.tsx"
 import type { Chat } from "./state.ts"
@@ -62,12 +61,22 @@ export function Unopened(
    * for a refused open nobody named a conversation for (a boot, a
    * `session/new` that wanted a signature — there is no lost chat to move on
    * from), and for an earlier chat of this node read out of its history.
+   *
+   * TWO QUESTIONS, and both have to answer yes. The reader must not be on a
+   * history visit at all ({@link ../agents/past.ts}, the same predicate the
+   * fold line draws *Earlier chat* from), and the pair that was REFUSED must
+   * be the bound pair — engine and session, never the session alone. Ids live
+   * in one engine's own space and an adapter may reuse one across engines
+   * (`../../scoped.ts` records replacements on that assumption), so an earlier
+   * chat on another engine with the same id would otherwise be handed the
+   * gesture that re-points the binding.
    */
   const current = (): Row | null => {
     const row = agents.at(props.node)
-    return row !== undefined && row.session !== null && row.session === props.unopened.what
-      ? row
-      : null
+    if (row === undefined || row.session === null) return null
+    if (isPast(agentReadings()?.visiting(props.node), row)) return null
+    const refused = agentIn(props.chat.state())?.id
+    return refused === row.engine && props.unopened.what === row.session ? row : null
   }
   return (
     <div
@@ -154,7 +163,7 @@ function AgentSaidNo(props: {
           Try again
         </button>
         <Show when={props.current}>
-          {(row) => <StartFresh chat={props.chat} node={props.node} engine={row().engine} />}
+          {(row) => <StartFresh chat={props.chat} node={props.node} bound={row()} />}
         </Show>
       </span>
     </>
@@ -188,6 +197,12 @@ function WaitingForASeat(props: { readonly why: string }) {
  * *Try again* stays too, and honestly: a store on a network volume that was not
  * mounted a second ago is the same refusal from an engine that will find the
  * chat on the next press.
+ *
+ * AND ONE OF THEM WAS MADE HERE, a minute ago. No engine writes a session
+ * nobody has spoken into, so a fresh chat left unused until the next restart
+ * is a real `-32002` of an id this machine minted — which is why the sentence
+ * names that too rather than only blaming another computer. It is one press
+ * out again, exactly as the first was.
  */
 function NotOnThisMachine(props: {
   readonly chat: Chat
@@ -200,8 +215,9 @@ function NotOnThisMachine(props: {
       <p class="m-0 mb-3 text-ink">This chat isn't on this machine.</p>
 
       <p class="m-0 mb-3">
-        The engine here has no record of it — it may live on another computer, or its
-        history was cleared. What this agent knows is in its notes, and that is untouched.
+        The engine here has no record of it — it may live on another computer, its history
+        was cleared, or nothing was ever said in it. What this agent knows is in its notes,
+        and that is untouched.
       </p>
 
       {/* Muted, not alarm: the same id, the same sentence, and no longer a
@@ -212,7 +228,7 @@ function NotOnThisMachine(props: {
 
       <span class="flex flex-wrap gap-2">
         <Show when={props.current}>
-          {(row) => <StartFresh chat={props.chat} node={props.node} engine={row().engine} />}
+          {(row) => <StartFresh chat={props.chat} node={props.node} bound={row()} />}
         </Show>
         <button type="button" class={QUIET_PILL} data-testid={TESTID.chatReopen}
           onClick={() => props.chat.reopen()}>
@@ -241,25 +257,39 @@ function NotOnThisMachine(props: {
  *
  * A REFUSED PRESS SAYS WHY, on the line this body already draws for a refused
  * *Try again* ({@link Unopened}'s `chat.refused()`), rather than silently
- * leaving the person on the same dead end they pressed to escape.
+ * leaving the person on the same dead end they pressed to escape — and it puts
+ * the reader back on the conversation the node is still bound to, so the body
+ * under that line is still the body about THAT chat. That half is the shared
+ * gesture's ({@link ../agents/fresh-start.ts}); writing it a second time here
+ * is what left a refused press showing one face over a different refusal.
  */
-function StartFresh(props: { readonly chat: Chat; readonly node: string; readonly engine: string }) {
+function StartFresh(props: { readonly chat: Chat; readonly node: string; readonly bound: Row }) {
   const [starting, setStarting] = createSignal(false)
   const press = (): void => {
     if (starting()) return
     setStarting(true)
-    // The reader follows this node's LIVE binding from here: whatever history
-    // visit put this body on screen is not where the new chat is going to be.
-    const reading = agentReadings()
-    reading?.visit(props.node)
-    props.chat.refuse([])
+    // THE CONVERSATION THIS PRESS BELONGS TO, held across the round trip —
+    // and it can MOVE while the request is in flight, by this gesture's own
+    // doing. A refusal returns the reader to the chat the node is still bound
+    // to ({@link ../agents/fresh-start.ts}), which is a different address and
+    // therefore a different `Chat` than the node-addressed one this body was
+    // drawn in: the line written on the object that was pressed would be a
+    // line nothing renders. So the refusal is said on the node's readers as
+    // they stand afterwards, with the pressed conversation as the fallback for
+    // a node that has none left.
+    const chat = props.chat
+    const node = props.node
+    const bound = { engine: props.bound.engine, session: props.bound.session }
+    chat.refuse([])
     void (async () => {
       try {
-        const outcome = await runAsync(
-          chatWire().procedures.conversation.startAgentSession({ node: props.node, agent: props.engine }),
-        )
-        if (Result.isFailure(outcome)) props.chat.refuse([outcome.failure.message])
-        else agentReadings()?.visit(props.node)
+        const failure = await startFreshChat(node, bound.engine, () =>
+          bound.session === null ? null : { agent: bound.engine, session: bound.session })
+        if (failure === null) return
+        const bodies = agentReadings()?.at(node)
+        for (const body of bodies === undefined || bodies.size === 0 ? [chat] : bodies) {
+          body.refuse([failure.message])
+        }
       } finally {
         setStarting(false)
       }

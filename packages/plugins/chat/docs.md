@@ -541,17 +541,29 @@ about — so that frame rebuilds the panel under the pointer; holding the fact
 here is what keeps a list the reader opened up across it.
 
 A refused fresh start resumes the unchanged live binding; it does not turn
-that reader into a history visit that masks later binding changes. Pressed from
-the refused-chat body there is no live binding to resume to — the chat it names
-could not be opened — so the refusal lands on that body's own refusal line,
-the one a refused *Try again* already uses, rather than on an agent line the
-body is not drawn beside.
+that reader into a history visit that masks later binding changes. That is one
+function (`browser/agents/fresh-start.ts`), shared by the agent line and the
+refused-chat body, and the body's press obeys it: the binding it returns to is
+the chat the node still names, which is the chat the refused body was about —
+so the words stay true over the refusal line they now carry. The refusal lands
+on that body's own line, the one a refused *Try again* already uses, rather
+than on an agent line the body is not drawn beside.
 
 A fresh start that SUCCEEDS from there supersedes the refused pair on the node
 slot, exactly as it supersedes a conversation that opened (`scoped.ts`). The
 pair is read off `state.unopened.what` when `state.session` is null, and both
-doors onto the slot honour the record: the pair-addressed one through
+doors onto the slot honour it: the pair-addressed one through
 `inNodeConversation`, and the node-addressed one — the address a tab holds
 while a node's chat is refused — through the reconcile in `reading`. Without
 both, the durable binding's lag was enough for a reader minted from it to load
 the lost id back over the chat the press had just opened.
+
+The two doors read two records with two lifetimes. `superseded` lives as long
+as the slot, because an explicit navigation to a replaced pair is a history
+visit for as long as the slot exists. `lagging` is the subset whose durable
+write has not been observed, and it is emptied the moment a node reader sees
+the binding read anything the slot is not waiting on. The node door reads only
+that one: it reconciles against the property rather than navigating, so a
+binding pointed BACK at a replaced chat — an undo, a pull from the machine
+that minted it — is a person asking for that chat and must be opened, not a
+write that has not arrived.
