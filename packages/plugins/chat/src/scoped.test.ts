@@ -1088,13 +1088,18 @@ test("filing clears old manual wakes and trash releases a running node", async (
 
 
 /** The node binding deliberately lags behind the live slot. Probes can be
- * held with Deferreds so the tests choose ordering without wall-clock sleeps. */
+ * held with Deferreds so the tests choose ordering without wall-clock sleeps.
+ * `args` reaches the fixture process, so a bench can have an engine that will
+ * not load a conversation — which is what a machine that never had it is. */
 const withLaggingBinding = async (use: (bench: {
   chat: Effect.Success<ReturnType<typeof make>>
   bind: (session: string) => void
   probe: (ask: Effect.Effect<void>) => void
   read: (session: string) => Effect.Effect<Effect.Success<ReturnType<typeof makePanel>>, OpFailure>
-}) => Promise<void>) => {
+  /** The reader the BROWSER holds while a node's chat is refused: the node
+   *  address, whose pair is whatever the durable binding currently says. */
+  readNode: () => Effect.Effect<Effect.Success<ReturnType<typeof makePanel>>, OpFailure>
+}) => Promise<void>, args: ReadonlyArray<string> = []) => {
   const { run, fork } = logging()
   let node: NodeAgent = {
     id: "one", file: "Work.olai", title: "one", engine: "alpha", session: null, memory: 2,
@@ -1102,7 +1107,7 @@ const withLaggingBinding = async (use: (bench: {
   let ask: Effect.Effect<void> = Effect.void
   const tab = Scope.makeUnsafe()
   const chat = await run(make({
-    fork, roster: () => [seated(installed("alpha"))], cwd, tools: () => null,
+    fork, roster: () => [seated(alphaWith(args))], cwd, tools: () => null,
     probes: () => Effect.succeed([{
       name: "fixture",
       ask: Effect.suspend(() => ask).pipe(Effect.as({ server: null, missing: null })),
@@ -1122,6 +1127,9 @@ const withLaggingBinding = async (use: (bench: {
       bind: session => { node = { ...node, session } },
       probe: next => { ask = next },
       read: session => chat.reading({ agent: "alpha", session }, {
+        state: () => {}, transcript: () => {},
+      }).pipe(Effect.provideService(Scope.Scope, tab)),
+      readNode: () => chat.reading({ node: "one" }, {
         state: () => {}, transcript: () => {},
       }).pipe(Effect.provideService(Scope.Scope, tab)),
     })
@@ -1211,4 +1219,55 @@ test("explicit navigation to a superseded session uses history despite a lagging
     expect(live.state().session?.id).toBe(second!.session)
     expect(second!.session).not.toBe(first.session)
   })
+})
+
+/**
+ * THE CHAT THAT IS NOT ON THIS MACHINE — the superseding rule met from the one
+ * side it did not cover.
+ *
+ * Every case above starts from a conversation that OPENED, so the pair a fresh
+ * start replaces is on `state.session` and `startAgentSession` could read it
+ * there. A binding carried to another machine never opens at all: the engine
+ * answers `session/load` with a no, the slot holds a REFUSED pair
+ * (`state.unopened.what`) and `state.session` is `null` — so nothing was
+ * recorded as superseded, and a reader still holding the lagging binding
+ * reached the LIVE slot and loaded the lost id straight over the conversation
+ * the fresh start had just opened. The same refusal came back, and its *Try
+ * again* pointed at the id that will never load: *Fresh start* looked like it
+ * did nothing at all.
+ */
+test("a fresh start after a refused load supersedes the lost pair", async () => {
+  await withLaggingBinding(async ({ chat, bind, read }) => {
+    bind("stored")
+    const refused = await run(read("stored"))
+    expect(refused.state().unopened?.what).toBe("stored")
+    expect(refused.state().session).toBe(null)
+
+    const fresh = (await run(chat.startAgentSession("one", "alpha")))!
+    expect(chat.state().session?.id).toBe(fresh.session)
+
+    // The durable write has not landed yet, so a reader minted from the
+    // binding still names the conversation the engine does not have.
+    await run(read("stored"))
+    expect(chat.state().session?.id).toBe(fresh.session)
+    expect(chat.state().unopened).toBe(null)
+  }, ["--refuse-load"])
+})
+
+/** ...AND FOR THE READER THE BROWSER ACTUALLY HOLDS. A node whose chat is
+ *  refused has no pair to subscribe to, so the tab reads the NODE address and
+ *  the scheduler reconciles it against the durable binding — which lags. That
+ *  reconcile is a second door onto the same lost id, and it has to be shut by
+ *  the same record. */
+test("a node reader of the lagging binding does not retry the lost chat", async () => {
+  await withLaggingBinding(async ({ chat, bind, readNode }) => {
+    bind("stored")
+    const first = await run(readNode())
+    expect(first.state().unopened?.what).toBe("stored")
+
+    const fresh = (await run(chat.startAgentSession("one", "alpha")))!
+    await run(readNode())
+    expect(chat.state().session?.id).toBe(fresh.session)
+    expect(chat.state().unopened).toBe(null)
+  }, ["--refuse-load"])
 })

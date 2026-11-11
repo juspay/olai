@@ -1177,7 +1177,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             const state = slot.panel.state()
             // A refused open belongs to this seat. Reading it must not replace
             // the pending new/resume operation with another load.
+            //
+            // ...AND A BINDING THIS SLOT HAS ALREADY REPLACED IS NOT A THING TO
+            // OPEN AT ALL. The durable write lags the live slot, so a reader
+            // arriving just after a fresh start is handed the OLD pair — and
+            // where that pair is one the engine does not have, loading it would
+            // put the refusal that was just escaped back over the conversation
+            // that escaped it. The slot's own record of what it superseded is
+            // the same one the pair-addressed door reads ({@link
+            // inNodeConversation}); this is that door for the node address.
             if (state.unopened === null && bound?.session != null
+              && !slot.superseded.has(readingKey({ agent: bound.engine, session: bound.session }))
               && (state.session === null || state.session.id !== bound.session || agentIn(state)?.id !== bound.engine || state.status === "gone")) {
               yield* Effect.catch(slot.panel.loadSession(bound.engine, bound.session), () => Effect.void)
             }
@@ -1427,8 +1437,18 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             slot.opening.withPermit(Effect.gen(function*() {
               activate(slot)
               options.onConversationClosed?.(slot.state)
-              const previous = slot.state.session === null ? null : {
-                agent: agentIn(slot.state)?.id, session: slot.state.session.id,
+              // WHAT THIS FRESH START REPLACES — and it is not always a
+              // conversation that OPENED. A binding carried to a machine whose
+              // engine store never had it has no `session` at all: the pair sits
+              // REFUSED on `state.unopened`, and reading only the first of the
+              // two left the lost id unrecorded. A reader still holding the
+              // lagging binding then loaded it straight back over the
+              // conversation this gesture had just opened — the same refusal,
+              // with a *Try again* pointing at an id that will never load, so
+              // *Fresh start* looked like it did nothing at all.
+              const replaced = slot.state.session?.id ?? slot.state.unopened?.what ?? null
+              const previous = replaced === null ? null : {
+                agent: agentIn(slot.state)?.id, session: replaced,
               }
               const before = [...slot.panel.entries()].map(([id]) => id)
               const completed = Effect.gen(function*() {
