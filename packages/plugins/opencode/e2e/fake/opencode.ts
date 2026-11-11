@@ -126,9 +126,10 @@
  * real opencode installed still gets the same suite CI does.
  */
 
-import { ran, script, type CallToolResult } from "olai-plugin-opencode/testlib";
+import { ran, script } from "olai-plugin-opencode/testlib";
 import { existsSync, rmSync } from "node:fs";
 
+import { commandLine } from "@olai/tests/agent/command.ts";
 import { readMessages } from "@olai/tests/harness/ndjson.ts";
 import { emitter, MARKER, released, speaking } from "@olai/tests/harness/scripted.ts";
 
@@ -439,7 +440,10 @@ const hold = async (): Promise<void> => {
 };
 
 const turn = async (text: string): Promise<string> => {
-  const said = text.trim();
+  // THE FIRST LINE and nothing else: olai's standing instruction and its node
+  // context ride the first turn of every conversation (`prompt: first-turn`),
+  // so the words a person typed are the head of what arrives here.
+  const said = commandLine(text);
   const [verb, ...rest] = said.split(/\s+/);
   const argument = rest.join(" ");
   const server = ours();

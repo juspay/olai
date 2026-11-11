@@ -626,25 +626,36 @@ Feature: Choosing a node agent's engine
     And the chat shows no question
 
   @opencode @scratch:chat
-  Scenario: OpenCode's subagents are drawn in their own lanes
+  Scenario: OpenCode's subagents get doors of their own, and the conversation keeps none of their calls
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
     # opencode 2 runs a subagent as a SESSION of its own and narrates it on a
     # channel olai has to ask for at the handshake. Two children, each with a
     # call and a word of its own: a panel reading the ordinary stream alone
     # would draw all of it in one column under the main agent, with nobody's
-    # work attributable to anybody.
+    # work attributable to anybody — which is what this engine did before, and
+    # what it would silently go back to if olai stopped asking for the channel.
     When I ask the agent "agents"
     Then the chat eventually shows "both subagents reported"
-    And the chat shows a tool call named "Survey the kitchen"
-    And the chat shows a tool call named "Count the orders"
-    And the chat shows 2 subagent lanes
-    # Each child's own call, in its own lane and nobody else's — and named the
-    # way opencode names a child's rows, with the child's title in front of the
-    # tool's. A row keeps the name it was given at its first titled frame, so
-    # what is asserted is the first title and not the refined one.
-    And the lane named "Survey the kitchen" holds a call named "Survey the kitchen: read"
-    And the lane named "Count the orders" holds a call named "Count the orders: shell"
+    And the agent is idle
+    And the conversation carries none of the subagent's calls
+    # The call that SENT an agent out stays the main agent's own row, and says
+    # which of opencode's agents it sent — read off the `subagent` call's own
+    # `rawInput`, not guessed from a tool's name.
+    And the chat still shows a call that sent out an "explore"
+    # ... and each child's own row carries a door onto that child's work alone.
+    # The door says only the COUNT here, and that is the panel being right
+    # rather than a gap: on this wire a child session's row is already named by
+    # what the agent was sent to do, so a door repeating it would say the same
+    # words twice on two lines (`doorOf`). Which agent is behind it is proved
+    # by opening it.
+    When I open the agent's work from the transcript
+    Then the agent's work is open, and it is "Survey the kitchen"
+    And the agent's work shows 1 calls
+    # Each child's rows carry their own session's title in front of the tool's,
+    # which is how opencode spells them — so this door holding one and not the
+    # other is the whole of the claim that two agents' work was told apart.
+    And the open agent's work contains "Survey the kitchen: read" but not "Count the orders"
 
   @opencode @scratch:chat
   Scenario: A subagent's question is asked in the subagent's name

@@ -806,6 +806,23 @@ turn — is not this wire and is deliberately not produced here: olai does not
 support that line, and a fake that still spoke it would be testing a reading
 olai no longer has.
 
+Behaviour is keyed on the prompt text: `hello` (prose), `shell` (a builtin
+whose title moves), `context <id>` / `done <id>` (one of olai's tools through
+Code Mode), `batch <id>` (two of them in one script), `fail` (one of them
+refused by olai's own ops layer), `throw` (a script that gave up before any
+tool ran), `permit <id>` / `foreign` / `dynamic <id>` / `nameless` (the four
+doors of the auto-allow rule), `agents` / `agent-asks` (a two-child fan-out,
+and a child that stops to ask), `slow` / `hush` (a held turn with and without
+something announced), `silent` (a turn that produced nothing) and `quota` (a
+provider failure as 2.2.7 really sends one). A message STEERED into a running
+turn is acted on by that turn — `done <id>` marks the node before anything is
+released — which is the whole difference between the interrupting gesture and
+an ordinary send, and the one thing a fake that merely answered the steer
+could not witness. It honours the shared `MARKER.holdOpen`, `MARKER.holdLoad`
+and `MARKER.release` markers, and with `OLAI_FAKE_OPENCODE_STORED` set it
+stores one conversation — `an opencode conversation` — whose `session/list`
+entry it answers only for the directory it was started in.
+
 A `.agent-hold-open` dot-file makes the next session open sit on the wire until
 `the agent is released`, which is how a scenario reaches the seconds between
 picking an agent and having a conversation: on a laptop that window is too short
