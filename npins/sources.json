@@ -61,9 +61,9 @@
       },
       "branch": "acp-global",
       "submodules": false,
-      "revision": "08a1132112479994bcdb528697f78eca452caaab",
-      "url": "https://github.com/juspay/kolu/archive/08a1132112479994bcdb528697f78eca452caaab.tar.gz",
-      "hash": "sha256-faMPVTevU9OOcqcRkh5bBLnopTw309WjpLfcgYjVNwg="
+      "revision": "6aca0aec969d2a40dbf700927535353997c0efc4",
+      "url": "https://github.com/juspay/kolu/archive/6aca0aec969d2a40dbf700927535353997c0efc4.tar.gz",
+      "hash": "sha256-KhCStO1FF+dGA90WnO508RNAxX+tSTYeow24bDmLFak="
     },
     "nixpkgs": {
       "type": "Git",
