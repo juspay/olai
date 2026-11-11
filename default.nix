@@ -230,10 +230,11 @@ let
     # path for path — `packages/plugins/<name>` is a member too, and a
     # basename would collide the two tiers.
     #
-    # The workspace links this leaves in `$out/node_modules/@olai/*` point at
-    # `../../packages/<member>`, which is NOT in this output and is not meant
-    # to be. They stay RELATIVE so they land on real source inside `base`'s
-    # tree; dangling here is the trick, not an accident.
+    # The workspace links in those farms are the sibling arrows — `@olai/log`,
+    # `olai-plugin-identity` — and they point at `../../plugins/identity` and
+    # the like, which is NOT in this output and is not meant to be. They stay
+    # RELATIVE so they land on real source once `olai-base` puts the farm back
+    # beside the manifest; dangling here is the trick, not an accident.
     installPhase = ''
       runHook preInstall
       mkdir -p $out
@@ -271,11 +272,10 @@ let
     #
     #   a symlink      — replayed VERBATIM. Every one bun writes is relative,
     #                    and the tree it means is THIS one: `.bun/…` lands on
-    #                    the reference this same loop makes, and
-    #                    `../../packages/<member>` on real source.
-    #   a scope (`@…`) — recursed into, because `@olai` holds workspace links
-    #                    and `@effect` holds dependency links and only the
-    #                    entries themselves know which.
+    #                    the reference this same loop makes.
+    #   a scope (`@…`) — recursed into, because `@kolu` holds hydrated source
+    #                    DIRECTORIES and `@effect` holds dependency links, and
+    #                    only the entries themselves know which.
     #   any other dir  — linked BY REFERENCE into the store. That is `.bun`
     #                    (nearly all of the bytes this split is about), `.bin`,
     #                    and the hydrated sources, whose imports resolve from
