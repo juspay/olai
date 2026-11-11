@@ -495,6 +495,12 @@ export const TESTID = {
   chatSignInCancel: "chat-sign-in-cancel",
   /** The way back into an attempt that ran and failed. */
   chatSignInRetry: "chat-sign-in-retry",
+  /** A method NOBODY here runs: the agent's label over the command line to
+   *  type into a terminal on the server. `data-method` is the method's id, and
+   *  there is no button — that is the point of it. */
+  chatSignInByHand: "chat-sign-in-by-hand",
+  /** ... and that command line on its own, for copying. */
+  chatSignInCommand: "chat-sign-in-command",
   /** WHO IS SIGNED IN NOW, over the chooser's buttons — the agent's own account
    *  of itself, so a person switching accounts can see which one they are about
    *  to leave. Absent when the agent has not reported an identity (and when the

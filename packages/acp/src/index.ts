@@ -38,4 +38,10 @@ export { usageIn } from "./usage.ts"
 
 export { terminalMetaIn } from "./terminal.ts"
 
-export { nativeActivity, type ActivityUpdate, type ActivityNotification } from "./activity.ts"
+export {
+  type ActivityNotification,
+  type ActivityUpdate,
+  type Heard,
+  nativeActivity,
+  type NativeActivity,
+} from "./activity.ts"

@@ -83,9 +83,9 @@ describe("an olai call, through the door this engine dispatches it", () => {
     // `write`, its id says `write:0`, and the tool actually being called is
     // named only inside the arguments.
     expect(OMP.mcpCall(announced("olai", "outlines_done", { id: "order" }), GIVEN))
-      .toEqual({ server: "olai", tool: "outlines_done" })
+      .toEqual([{ server: "olai", tool: "outlines_done" }])
     expect(OMP.mcpCall(announced("alpha", "outlines_read", { id: "order" }), GIVEN))
-      .toEqual({ server: "alpha", tool: "outlines_read" })
+      .toEqual([{ server: "alpha", tool: "outlines_read" }])
   })
 
   test("... and by its own name when the session dispatches it top-level", () => {
@@ -94,7 +94,7 @@ describe("an olai call, through the door this engine dispatches it", () => {
     // ordinary call and puts the arguments where every other agent puts them.
     // That IS the shared rule, so it is spelled once in `@olai/acp/engine`.
     expect(OMP.mcpCall({ title: "mcp__olai_outlines_read", rawInput: { id: "order" } }, GIVEN))
-      .toEqual({ server: "olai", tool: "outlines_read" })
+      .toEqual([{ server: "olai", tool: "outlines_read" }])
   })
 
   test("reads the path FIRST, so an intent text cannot rename a call", () => {
@@ -106,33 +106,33 @@ describe("an olai call, through the door this engine dispatches it", () => {
       ...announced("olai", "outlines_read", { id: "order" }),
       title: "mcp__olai_outlines_done",
     }
-    expect(OMP.mcpCall(frame, GIVEN)).toEqual({ server: "olai", tool: "outlines_read" })
+    expect(OMP.mcpCall(frame, GIVEN)).toEqual([{ server: "olai", tool: "outlines_read" }])
   })
 
   test("and NOTHING else is — these are the near misses that must stay misses", () => {
     // A path that is not the dispatch scheme: a real file, which is what most
     // `write` calls are.
-    expect(OMP.mcpCall({ rawInput: { path: "house.olai", content: "{…}" } }, GIVEN)).toBeNull()
+    expect(OMP.mcpCall({ rawInput: { path: "house.olai", content: "{…}" } }, GIVEN)).toEqual([])
     // The scheme, and then somebody else's namespace.
-    expect(OMP.mcpCall({ rawInput: { path: "xd://lsp" } }, GIVEN)).toBeNull()
+    expect(OMP.mcpCall({ rawInput: { path: "xd://lsp" } }, GIVEN)).toEqual([])
     // A server we were never given, by either road.
-    expect(OMP.mcpCall({ rawInput: { path: "xd://mcp__other_read" } }, GIVEN)).toBeNull()
-    expect(OMP.mcpCall({ title: "mcp__other_read" }, GIVEN)).toBeNull()
+    expect(OMP.mcpCall({ rawInput: { path: "xd://mcp__other_read" } }, GIVEN)).toEqual([])
+    expect(OMP.mcpCall({ title: "mcp__other_read" }, GIVEN)).toEqual([])
     // The prefix with NOTHING after it. `startsWith(prefix)` would take it;
     // requiring the name to continue does not.
-    expect(OMP.mcpCall({ rawInput: { path: "xd://mcp__olai_" } }, GIVEN)).toBeNull()
-    expect(OMP.mcpCall({ title: "mcp__olai_" }, GIVEN)).toBeNull()
+    expect(OMP.mcpCall({ rawInput: { path: "xd://mcp__olai_" } }, GIVEN)).toEqual([])
+    expect(OMP.mcpCall({ title: "mcp__olai_" }, GIVEN)).toEqual([])
     // A name that merely CONTAINS one of ours, in either direction.
-    expect(OMP.mcpCall({ title: "elsewhere_mcp__olai_read" }, GIVEN)).toBeNull()
-    expect(OMP.mcpCall({ title: "x_mcp__olai_read" }, GIVEN)).toBeNull()
+    expect(OMP.mcpCall({ title: "elsewhere_mcp__olai_read" }, GIVEN)).toEqual([])
+    expect(OMP.mcpCall({ title: "x_mcp__olai_read" }, GIVEN)).toEqual([])
     // A longer server-shaped name, which is what a rule widened to the bare
     // server name would let through.
-    expect(OMP.mcpCall({ title: "mcp__olaix_read" }, GIVEN)).toBeNull()
+    expect(OMP.mcpCall({ title: "mcp__olaix_read" }, GIVEN)).toEqual([])
     // A path that is not a string, and a frame with no arguments at all.
-    expect(OMP.mcpCall({ rawInput: { path: 7 } }, GIVEN)).toBeNull()
-    expect(OMP.mcpCall({ title: "write", rawInput: { command: "ls" } }, GIVEN)).toBeNull()
+    expect(OMP.mcpCall({ rawInput: { path: 7 } }, GIVEN)).toEqual([])
+    expect(OMP.mcpCall({ title: "write", rawInput: { command: "ls" } }, GIVEN)).toEqual([])
     // With no servers handed over, nothing is ours.
-    expect(OMP.mcpCall(announced("olai", "outlines_done", {}), [])).toBeNull()
+    expect(OMP.mcpCall(announced("olai", "outlines_done", {}), [])).toEqual([])
   })
 })
 

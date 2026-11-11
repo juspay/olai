@@ -17,8 +17,8 @@
  *
  *   - **olai's MCP servers reach pi through the bridge.** Its declared
  *     spelling is for display; pi's own settings still answer approval.
- *   - **the programmatic tool name is the `toolCallId` PREFIX, exactly as on
- *     the opencode wire**: `bash:0`, `edit:1`. Nothing on any frame says it —
+ *   - **the programmatic tool name is the `toolCallId` PREFIX**: `bash:0`,
+ *     `edit:1`. Nothing on any frame says it —
  *     a bash call's `_meta` corners are its terminal bookkeeping
  *     (`terminal_info`, `terminal_output`, `terminal_exit`), and the name is
  *     minted into the id and never moves.
@@ -45,10 +45,10 @@
  *     and a `session_info_update` carrying `_meta.piAcp.{queueDepth,
  *     running}`, and the REQUEST answers when its turn comes — verified with
  *     a 12-second held turn, the message run after it, in order. Not
- *     advertised at `initialize` anywhere; established against 0.0.33 the
- *     way opencode's was against 1.17.9. Nothing on this wire will steer a
- *     running turn: see `steering: null` below, and `docs/chat.md` for the
- *     statement a person gets.
+ *     advertised at `initialize` anywhere; established against 0.0.33 on the
+ *     wire, the way every capability claim in this tree is. Nothing on this
+ *     wire will steer a running turn: see `steering: null` below, and
+ *     `docs/chat.md` for the statement a person gets.
  *   - **an error inside a turn is silent.** A provider pi cannot reach maps to
  *     `stopReason: "end_turn"` with not one frame — no prose, no tool, and no
  *     usage either (pi-acp never sends `usage_update`). Olai's silence arm is
@@ -88,8 +88,8 @@
  *   - **nothing says whose a call was, or that one went BACKGROUND.** pi has
  *     no subagent stamp and no task registry on this wire, so {@link
  *     Leg.parentToolUse}, {@link Leg.spawned} and {@link Leg.backgroundTask}
- *     answer `null` for everything — the losing direction, as it is on the
- *     opencode wire.
+ *     answer `null` for everything — the losing direction, as it is on omp's
+ *     wire too.
  *
  * Two quirks of the adapter's authentication worth a reader's time, both
  * established on the wire rather than read off its README: an unauthenticated
@@ -107,16 +107,16 @@ import { mcpCallBy, type Leg, namedExactly } from "@olai/acp/engine"
 /**
  * The programmatic name of a tool, out of the head of its own call id.
  *
- * THE SAME MINT AS THE OPENCODE WIRE, and the two files keep their own copies
- * of these four lines on purpose: each is written against its own spike, and a
- * shared helper would make pi-acp's facts quietly depend on what opencode
- * 1.17.9 was seen to do. What is true of both is said in each: the id is
+ * THE SAME MINT TWO OTHER WIRES USE (omp's, and opencode's own before its 2.x
+ * line stopped putting a name in the id), and this file keeps its own copy of
+ * these four lines on purpose: each is written against its own spike, and a
+ * shared helper would make pi-acp's facts quietly depend on what somebody
+ * else's agent was seen to do. What is true here is said here: the id is
  * minted once and never moves; the TITLE is a display string a client may not
  * name a row by (`bash:0`'s title is the COMMAND, `edit:1`'s the tool's bare
  * name); and the FIRST separator is taken, so a name with a colon in it
- * under-reads rather than over-reads — the split is the same one
- * `olai-plugin-opencode`'s `leg.ts` argues, at the same weight, for the same
- * reason.
+ * under-reads rather than over-reads — the split every leg that reads an id
+ * argues, at the same weight, for the same reason.
  *
  * A `null` here is the same `null` the other legs' is: an extension UI request
  * (`pi-ui-<n>`, the only permission request this adapter makes) carries no
@@ -166,7 +166,7 @@ export const prologueIn = (opened: unknown): string | null => {
 // ── the leg ────────────────────────────────────────────────────────────
 
 /**
- * pi-acp's answers, beside `olai-plugin-opencode`'s `leg.ts`'s: nearest of the three legs
+ * pi-acp's answers, beside `olai-plugin-omp`'s `leg.ts`'s: nearest of the legs
  * to that one (plain ACP, the same call-id mint, the same two refused
  * extensions) and deliberately not sharing its files. Each `null` was a
  * request that would otherwise be sent and refused — a `session/set_mode` per

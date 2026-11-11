@@ -16,7 +16,7 @@ import { describe, expect, test } from "bun:test"
 import { allowedWithoutAsking, PI, prologueIn, toolNameOf } from "./leg.ts"
 
 describe("which tool a call is", () => {
-  test("is the head of the call id, minted once — as on the opencode wire", () => {
+  test("is the head of the call id, minted once — as on the omp wire", () => {
     expect(toolNameOf("bash:0")).toBe("bash")
     expect(toolNameOf("edit:1")).toBe("edit")
     expect(toolNameOf("write:12")).toBe("write")
@@ -135,9 +135,9 @@ test("MCP display reads this adapter's announcement and completion", () => {
   const reply = { id: "order", title: "order cabinets", file: "house.olai", sort: "done" }
   const result = { content: [{ type: "text" as const, text: JSON.stringify(reply) }], structuredContent: reply }
   const frame = { ...announced("olai", "outlines_done", { id: "order" }), name: PI.toolNameOf("olai_outlines_done:1") }
-  expect(PI.mcpCall(frame, ["olai"])).toEqual({ server: "olai", tool: "outlines_done" })
-  expect(PI.mcpCall(frame, ["foreign"])).toBeNull()
-  expect(PI.mcpCall({ title: "bash", rawInput: { server: "olai", tool: "outlines_done" } }, ["olai"])).toBeNull()
+  expect(PI.mcpCall(frame, ["olai"])).toEqual([{ server: "olai", tool: "outlines_done" }])
+  expect(PI.mcpCall(frame, ["foreign"])).toEqual([])
+  expect(PI.mcpCall({ title: "bash", rawInput: { server: "olai", tool: "outlines_done" } }, ["olai"])).toEqual([])
   expect(PI.replyIn(wrapped(result).rawOutput)).toEqual(reply)
   expect(PI.replyIn("permission denied")).toBeUndefined()
   expect(PI.replyIn({ stdout: "foreign tool" })).toBeUndefined()
@@ -147,6 +147,6 @@ test("MCP display reads this adapter's announcement and completion", () => {
 test("display accepts structuredContent fallback without granting approval", () => {
   expect(PI.replyIn({ structuredContent: { file: "one.olai" } })).toEqual({ file: "one.olai" })
   expect(PI.replyIn({ details: [] })).toBeUndefined()
-  expect(PI.mcpCall({ name: "olai_" }, ["olai"])).toBeNull()
-  expect(PI.mcpCall({ name: "elsewhere_olai_outlines_done" }, ["olai"])).toBeNull()
+  expect(PI.mcpCall({ name: "olai_" }, ["olai"])).toEqual([])
+  expect(PI.mcpCall({ name: "elsewhere_olai_outlines_done" }, ["olai"])).toEqual([])
 })

@@ -1527,6 +1527,22 @@ Then(
   },
 );
 
+/** ...and how many of them ENDED BADLY, which is a different claim from how
+ *  many there are: a row that failed and a row that completed look alike
+ *  until the strip beside it is read, and an agent whose calls all report
+ *  `completed` is the shape a panel is wrong about silently. */
+Then(
+  "the chat shows {int} failed tool call(s)",
+  async function (this: OlaiWorld, many: number) {
+    const failed = this.chat(`${CHAT_TOOL}${attr("data-tool-status", "failed")}`);
+    await this.waitUntil(
+      async () => (await failed.count()) === many,
+      `the chat to show ${many} failed tool call(s)`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
 /** ...and what one of them is CALLED, which the panel picks once and never
  *  moves: a title is a display string an agent may rewrite mid-call, and a row
  *  that renamed itself under a reader would be the panel changing its mind
@@ -4489,6 +4505,23 @@ Then("the open agent's work contains {string} but not {string}", async function 
 
 When("I open {string} from the open agent's work", async function (this: OlaiWorld, named: string) {
   await this.chat(`${CHAT_PREVIEW} ${CHAT_LANE_DOOR}`, { hasText: named }).click();
+});
+
+/** ... and the same press where the door has no NAME on it to aim at, which is
+ *  a door drawn correctly rather than a gap: a door says the description its
+ *  agent was sent with only when that differs from the row's own title, and on
+ *  a wire whose child session is already titled with that description the two
+ *  are the same string (`doorOf`). So the press is by PLACE — there is one
+ *  door in this shelf — and WHICH agent it opened is the assertion after it. */
+When("I open the nested agent's work", async function (this: OlaiWorld) {
+  const doors = this.chat(`${CHAT_PREVIEW} ${CHAT_LANE_DOOR}`);
+  await doors.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.strictEqual(
+    await doors.count(),
+    1,
+    "the open agent's work holds more than one door, so pressing by place names nothing",
+  );
+  await doors.first().click();
 });
 
 When("I return to the parent agent {string}", async function (this: OlaiWorld, name: string) {

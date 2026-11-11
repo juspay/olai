@@ -178,13 +178,39 @@ export function SignIn(props: { readonly chat: Chat }) {
         )}
       </Show>
       <div class="mt-2 flex flex-wrap items-center gap-2">
-        <For each={methods()}>{method => <button type="button"
+        <For each={methods().filter((method) => method.kind !== "byHand")}>{method => <button type="button"
           class="flex h-8 items-center rounded-control border border-accent px-3 text-label text-accent"
           data-testid={TESTID.chatSignInMethod} data-method={method.id}
           title={method.description ?? undefined} onClick={() => props.chat.signIn(method.id)}>
           {method.name}
         </button>}</For>
       </div>
+      {/* A METHOD NOBODY HERE CAN RUN: a label and the command line, never a
+          button. The agent's sign-in is an interactive wizard that refuses a
+          pipe, so a button would be one that could not finish what it looks
+          like it starts — and the command names an absolute path because the
+          engine may be one olai found on a search path of its own. */}
+      <For each={methods().filter((method) => method.kind === "byHand")}>{method => (
+        <div class="mt-2" data-testid={TESTID.chatSignInByHand} data-method={method.id}>
+          <p class="m-0 text-label text-muted">{method.name} — run this in a terminal on the server:</p>
+          <pre
+            class="mt-1 overflow-auto whitespace-pre-wrap break-all rounded-control border border-rule bg-paper px-2 py-1 font-mono text-label"
+            data-testid={TESTID.chatSignInCommand}
+          >
+            {method.command}
+          </pre>
+          {/* ... AND THEN THE AGENT HAS TO BE A NEW PROCESS. An engine that
+              reads its credentials once, at start, does not see one connected
+              while it is running — not even in a new conversation. `Put to
+              sleep` is the one gesture that ends the process and keeps the
+              chat ({@link ../../scoped.ts}'s `sleep`), so it is the one named
+              here rather than a restart of olai. */}
+          <p class="m-0 mt-1 text-label text-muted">
+            Then <strong>Put to sleep</strong> and open the chat again: the agent reads its account when it
+            starts, so the one already running will not see it.
+          </p>
+        </div>
+      )}</For>
     </Match>
     <Match when={body.attempt.kind === "terminal" ? body.attempt : undefined}>
       {held => <Output attempt={held()} />}
