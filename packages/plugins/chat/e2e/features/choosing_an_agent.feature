@@ -610,6 +610,22 @@ Feature: Choosing a node agent's engine
     And the chat shows no question
 
   @opencode @scratch:chat
+  Scenario: An olai call the ops layer refused is still that call, with no reply to draw
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The script ran one of olai's tools and olai refused it — a node that is
+    # not there. Code Mode does NOT fail the turn for that: the `execute`
+    # completes, reports the error in its metadata and returns the refusal as
+    # the script's value. So the row is still the olai call it was, named and
+    # linked, with nothing to draw a reply from — which is a different thing
+    # from a row nobody could name, and the fold has to say so rather than
+    # showing a success.
+    When I ask the agent "fail"
+    Then the chat eventually shows "could not mark it"
+    And the chat shows a tool call named "Mark done"
+    And the chat shows no question
+
+  @opencode @scratch:chat
   Scenario: OpenCode's subagents are drawn in their own lanes
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
@@ -623,8 +639,12 @@ Feature: Choosing a node agent's engine
     And the chat shows a tool call named "Survey the kitchen"
     And the chat shows a tool call named "Count the orders"
     And the chat shows 2 subagent lanes
-    And the lane named "Survey the kitchen" holds a call named "read house.olai"
-    And the lane named "Count the orders" holds a call named "ls"
+    # Each child's own call, in its own lane and nobody else's — and named the
+    # way opencode names a child's rows, with the child's title in front of the
+    # tool's. A row keeps the name it was given at its first titled frame, so
+    # what is asserted is the first title and not the refined one.
+    And the lane named "Survey the kitchen" holds a call named "Survey the kitchen: read"
+    And the lane named "Count the orders" holds a call named "Count the orders: shell"
 
   @opencode @scratch:chat
   Scenario: A subagent's question is asked in the subagent's name

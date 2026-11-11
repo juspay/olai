@@ -62,7 +62,8 @@
  *   batch <id>   ONE `execute` carrying TWO of olai's calls. A row has one
  *                title and one reply, so a batch is drawn as the batch it is
  *                rather than claiming to be either of the calls it made
- *   fail <id>    an `execute` whose olai call ERRORS: `status: "error"`,
+ *   fail         an `execute` whose olai call ERRORS — olai's ops layer
+ *                refuses a node that is not there: `status: "error"`,
  *                `metadata.error`, and the refusal as the returned value
  *   throw        an `execute` whose SCRIPT throws before any tool runs —
  *                `toolCalls: []` and the thrown message as the value
@@ -475,9 +476,13 @@ const turn = async (text: string): Promise<string> => {
     return "end_turn";
   }
 
-  if (verb === "fail" && argument !== "") {
-    const result = await codeMode("outlines_done", { id: argument });
-    say(result["isError"] === true ? `could not mark ${argument}` : `marked ${argument} done`);
+  if (said === "fail") {
+    // ONE of olai's calls, REFUSED by olai's own ops layer. The `execute` still
+    // completes — Code Mode reports the error in its metadata and returns the
+    // refusal as the script's value — so the row is a recognised olai call that
+    // has no reply to draw, which is a different thing from a row nobody named.
+    const result = await codeMode("outlines_done", { id: "no-such-node" });
+    say(result["isError"] === true ? "could not mark it" : "marked it done");
     return "end_turn";
   }
 
