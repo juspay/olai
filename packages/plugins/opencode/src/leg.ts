@@ -54,6 +54,7 @@
 import { allowFlavoured, type Leg, namedExactly } from "@olai/acp/engine"
 
 import { CHILD_SESSIONS } from "./activity.ts"
+import { type Called, toolsCalledIn } from "./script.ts"
 
 const record = (value: unknown): Record<string, unknown> | undefined =>
   typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
@@ -87,49 +88,17 @@ export const toolNameIn = (_meta: unknown, named?: string | null): string | null
  *  however many of them it ran. */
 const EXECUTE = "execute"
 
-/**
- * Every `tools.<server>.<tool>` the script NAMES, in source order — or `null`
- * for a script this cannot read exhaustively.
- *
- * `null` IS THE WHOLE POINT and it is not the same as an empty list. An empty
- * list is "this script calls no tool"; `null` is "this script reaches the tool
- * table in a way static reading cannot follow", which is
- * `tools["bash"]`, `tools[name]`, a destructured `const { ping } = tools.olai`,
- * anything. {@link allowedWithoutAsking} may only answer for a script it has
- * read ALL of, because opencode asks once per inner call with the same frame
- * each time — so one approval of this frame approves every tool the script
- * runs, and a reader that silently skipped the call it could not parse would
- * be approving it.
- *
- * The grammar is deliberately the narrow one: `tools` as a whole word, a dot,
- * an identifier, a dot, an identifier. A `tools` that is a property of
- * something else (`x.tools.a.b`) is not the table, and a `tools` followed by
- * anything but `.<identifier>.<identifier>` is a reach this cannot follow.
- */
-export const toolsNamedIn = (code: string): ReadonlyArray<{ server: string; tool: string }> | null => {
-  const called: { server: string; tool: string }[] = []
-  // Every mention of the table, so a reach this grammar cannot follow is seen
-  // rather than skipped — which is the difference between reading a script and
-  // finding the parts of it that look familiar.
-  const mentions = /(^|[^\w$.])tools\b([^]?)/g
-  let at: RegExpExecArray | null
-  while ((at = mentions.exec(code)) !== null) {
-    if (at[2] !== ".") return null
-    const pair = /^([A-Za-z_$][\w$-]*)\.([A-Za-z_$][\w$]*)/.exec(code.slice(at.index + at[0].length))
-    if (pair === null) return null
-    called.push({ server: pair[1]!, tool: pair[2]! })
-  }
-  return called
-}
+/** ... and the builtin a SPAWN arrives as: `name: "subagent"`, kind `think`. */
+const SUBAGENT = "subagent"
 
 /** ... and every one the COMPLETION reported, which is the agent's own account
  *  of what the script actually ran (`rawOutput.metadata.toolCalls`, entries
  *  `{ tool: "<server>.<tool>", status, input? }`). `null` for a frame carrying
  *  no such list — an announcement, or a call that is not an `execute`. */
-export const toolsRanIn = (rawOutput: unknown): ReadonlyArray<{ server: string; tool: string }> | null => {
+export const toolsRanIn = (rawOutput: unknown): ReadonlyArray<Called> | null => {
   const ran = record(record(rawOutput)?.["metadata"])?.["toolCalls"]
   if (!Array.isArray(ran)) return null
-  const called: { server: string; tool: string }[] = []
+  const called: Called[] = []
   for (const entry of ran) {
     const name = record(entry)?.["tool"]
     if (typeof name !== "string") return null
@@ -141,37 +110,42 @@ export const toolsRanIn = (rawOutput: unknown): ReadonlyArray<{ server: string; 
 }
 
 /**
- * Which of olai's tools this frame is about, or `null` for a frame that is not
- * about exactly one of them — the question the panel's TITLE, OUTLINE and
- * REPLY all hang off.
+ * Which of olai's tools this frame is about — every one of them, in the order
+ * the script ran them, and empty for a call that is not one of ours.
  *
  * DISPLAY ONLY. {@link allowedWithoutAsking} is the approval rule and is asked
- * a different question; this one decides what a row is CALLED. A call nothing
- * here recognises is drawn as the ordinary `execute` it looks like, with its
- * script as the row's detail, which is the losing direction this can afford.
+ * a different question; this one decides what a row is CALLED and which
+ * outline it links. A call nothing here recognises is drawn as the ordinary
+ * `execute` it looks like, with its script as the row's detail, which is the
+ * losing direction this can afford.
  *
- * EXACTLY ONE, and that is a ruling rather than a limitation this failed to
- * get past. One `execute` can carry several calls — the model batches them,
- * and three `tools.olai.*` calls in one script is an ordinary thing to see —
- * but a row has one title, one outline link and one reply. A row that named
- * itself after the first of three would be claiming to be a call that is a
- * third of what ran, and the fold under it would show one answer out of three.
- * So a batch is drawn as the batch it is: the `execute` row, its whole script,
- * and its whole returned value.
+ * EVERY CALL, not the first of them: a model batching three `tools.olai.*`
+ * calls into one script is an ordinary thing to see, and the row that used to
+ * answer `null` for it lost the friendly title, the outline link and the write
+ * story for the commonest case there is. The caller composes one row out of
+ * however many this answers (`olai-plugin-chat`'s `agent.ts`) and draws a
+ * structured reply only for a row that ran exactly one — the script returns
+ * ONE value, and which of three calls it belongs to is not on the wire.
  *
- * WHAT IT REPORTED BEATS WHAT IT SAID IT WOULD DO, for the same reason the id
- * used to beat the title: `rawOutput.metadata.toolCalls` is the agent's record
- * of what ran, and the script is the model's statement of intent. They agree
- * in every capture; where a completion carries the list, it is read.
+ * ALL OF THEM OR NONE: a script this cannot read in full answers nothing at
+ * all rather than the part of it that looked familiar, which is the same rule
+ * the approval below is held to and for the same reason — a row naming two of
+ * the three calls a script made is a row claiming the third did not happen.
+ *
+ * WHAT IT REPORTED BEATS WHAT IT SAID IT WOULD DO, for the same reason a frame
+ * beats a guess: `rawOutput.metadata.toolCalls` is the agent's record of what
+ * ran, and the script is the model's statement of intent. Where a completion
+ * carries the list, it is read — including for a script the grammar below
+ * cannot parse, which is how a `Promise.allSettled` batch still gets its name
+ * once it is over.
  */
 export const mcpCall: Leg["mcpCall"] = (frame, servers) => {
-  if (frame.name !== EXECUTE) return null
+  if (frame.name !== EXECUTE) return []
   const code = record(frame.rawInput)?.["code"]
   const called = toolsRanIn(frame.rawOutput)
-    ?? (typeof code === "string" ? toolsNamedIn(code) : null)
-  if (called === null || called.length !== 1) return null
-  const only = called[0]!
-  return servers.includes(only.server) ? { server: only.server, tool: only.tool } : null
+    ?? (typeof code === "string" ? toolsCalledIn(code) : null)
+  if (called === null || called.length === 0) return []
+  return called.every((one) => servers.includes(one.server)) ? called : []
 }
 
 // ── what an olai call answered ─────────────────────────────────────────
@@ -229,18 +203,25 @@ export function replyIn(_rawOutput: unknown, content?: unknown): Record<string, 
  * for all three and the only thing that tells them apart is the SCRIPT.
  *
  * ONE APPROVAL COVERS THE WHOLE SCRIPT. opencode asks once per inner tool
- * call and sends THE SAME FRAME each time (verified: a script with three calls
- * produced three identical requests). So answering one of them is answering
- * all of them, and this rule may only answer for a script it has read in full.
+ * call and sends THE SAME FRAME each time — the three requests a three-call
+ * script produced were byte-identical in every field, differing only in the
+ * JSON-RPC request id (captured against 2.2.7, 2026-11-11). Nothing says
+ * WHICH call a request is about, so answering one of them is answering all of
+ * them, and this rule may only answer for a script it has read IN FULL.
  *
  * FOUR CONDITIONS, every one of them positive:
  *
  *   1. the request is about an `execute` — a `shell`, a `subagent`, a `read`,
  *      an unnamed call, anything else, is a person's;
- *   2. its `rawInput.code` is a string this can read EXHAUSTIVELY
- *      ({@link toolsNamedIn} — a `null` there is a script reaching the tool
- *      table some way static reading cannot follow, and is a person's);
- *   3. it names at least one tool, and EVERY server it names is one WE handed
+ *   2. its `rawInput.code` PARSES under the closed grammar in
+ *      {@link ./script.ts}, where the only thing a script may do is call
+ *      `tools.<server>.<tool>` with literal arguments, bind the results and
+ *      return them. A script with a comment in it, a variable argument, an
+ *      operator, a `Promise.allSettled`, a template, a property read — any
+ *      token the grammar has no rule for — is a script this has NOT read, and
+ *      is a person's. Scanning for what looks familiar was tried and is
+ *      unsound: `./script.ts` says what it let through;
+ *   3. it calls at least one tool, and EVERY server it names is one WE handed
  *      this session — olai's own, plus whatever optional server answered this
  *      session's probe. `tools.opencode.*` is opencode's own builtins and is
  *      never one of those;
@@ -263,7 +244,7 @@ export const allowedWithoutAsking: Leg["allowedWithoutAsking"] = (tool, given, o
   if (tool !== EXECUTE || asked === undefined) return null
   const code = record(asked.rawInput)?.["code"]
   if (typeof code !== "string") return null
-  const called = toolsNamedIn(code)
+  const called = toolsCalledIn(code)
   if (called === null || called.length === 0) return null
   if (!called.every((one) => given.includes(one.server))) return null
   return allowFlavoured(options)
@@ -284,8 +265,16 @@ export const allowedWithoutAsking: Leg["allowedWithoutAsking"] = (tool, given, o
  *
  * The child's own work is NOT this: it arrives on the child-session channel
  * and is drawn in its own lane ({@link ./activity.ts}).
+ *
+ * GATED ON THE CALL BEING A `subagent`, which is what makes this positive
+ * recognition rather than a guess: `agent` and `description` are ordinary
+ * words, and a reader that answered for any call whose arguments carried one
+ * would draw `shell { command: "ls", description: "List files" }` as having
+ * sent an agent out — a rail, a door and a strip entry for an agent nobody
+ * started. The name is on the frame on this wire, so it is asked for.
  */
-export const spawned: Leg["spawned"] = (_meta, input) => {
+export const spawned: Leg["spawned"] = (_meta, input, named) => {
+  if (named !== SUBAGENT) return null
   const args = record(input)
   if (args === undefined) return null
   const kind = args["agent"], said = args["description"]

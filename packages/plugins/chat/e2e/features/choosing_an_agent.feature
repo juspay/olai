@@ -99,19 +99,25 @@ Feature: Choosing a node agent's engine
     And the page has not reloaded
 
   @opencode @scratch:chat
-  Scenario: A script that batches two of olai's calls is drawn as the batch it is
+  Scenario: A script that batches two of olai's calls names both of them
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
     # ONE call id, TWO of olai's tools — which the model does whenever it can,
-    # and which a row cannot honestly be named after. A row has one title, one
-    # outline link and one reply; naming it after the first of two would claim
-    # to be a call that is half of what ran, and the fold under it would show
-    # one answer out of two. So the row stays the `execute` it is, and the work
-    # still lands.
+    # so a row that could only name a script that ran exactly one would lose
+    # the friendly title and the outline link for the commonest case there is.
+    # The row is composed out of both instead, and the engine's own `execute`
+    # stays under the fold.
     And I ask the agent "batch order"
     Then the chat eventually shows "batched two calls on order"
     And node "order" is done
-    And the chat shows a tool call named "execute"
+    And the chat shows a tool call named "Read a node · Mark done"
+    # ... and NO outline link and NO write story, which is the wire and not a
+    # gap: both are drawn off the REPLY, a Code Mode script returns one value,
+    # and which of the two calls it belongs to is said nowhere. A row that
+    # drew them would be filing one answer under two questions.
+    And the chat shows no story under the call
+    When I unfold the tool call
+    Then the tool call is called "execute" underneath
     And the chat shows no question
 
   @opencode @scratch:chat
@@ -673,6 +679,120 @@ Feature: Choosing a node agent's engine
     When I choose "Allow once"
     And I answer the question
     Then the chat eventually shows "the subagent asked and was answered"
+
+  @opencode @scratch:chat
+  Scenario: A subagent that ends badly says so, in the word the agent used
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # opencode closes a child with one of four words and the channel has
+    # three: an `interrupted` child is one somebody stopped, not one that
+    # worked. A lane that closed `completed` for all of them would be the
+    # panel saying an agent that died came back.
+    When I ask the agent "agent-fails"
+    Then the chat eventually shows "both subagents ended badly"
+    And the agent is idle
+    # The spawning rows end with the agent's own failure on them: on this wire
+    # a child that did not finish takes its `subagent` call down with it
+    # (`status: failed`, with the session it was about named in the error).
+    # FOUR rows end failed, and the count is the claim: each child's own card
+    # closes `failed` (the channel has three words where opencode has four, so
+    # an `interrupted` child is not a completed one), and each takes its
+    # spawning call down with it.
+    And the chat shows 4 failed tool calls
+
+  @opencode @scratch:chat
+  Scenario: A child of a child stays inside its own parent's work
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # At depth 2 the root is still the root and `parentSessionId` is the first
+    # child's, so a panel that rooted a lane at the session a frame arrived
+    # under would file the grandchild's work in the main column.
+    When I ask the agent "agent-nests"
+    Then the chat eventually shows "the nested subagent reported"
+    And the conversation carries none of the subagent's calls
+    When I open the agent's work from the transcript
+    Then the agent's work is open, and it is "Survey the house"
+    # The grandchild's own CARD belongs in its parent's work — that is the
+    # nesting — but its CALLS do not: those are behind its own door.
+    And the open agent's work contains "Survey the house: read" but not "Count the hinges: shell"
+    When I open the nested agent's work
+    Then the agent's work is open, and it is "Count the hinges"
+    And the agent's work shows 1 calls
+    And the open agent's work contains "Count the hinges: shell" but not "Survey the house: read"
+    When I return to the parent agent "Survey the house"
+    Then the agent's work is open, and it is "Survey the house"
+
+  @opencode @scratch:chat
+  Scenario: One of olai's own, called by a SUBAGENT, is answered without asking
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The child's script is the same Code Mode script the main agent would
+    # have written, and its request is stamped with the ROOT session — so the
+    # auto-allow rule has to read it exactly as it reads the main agent's, and
+    # the row it names has to land behind the CHILD's door rather than in the
+    # conversation.
+    When I ask the agent "agent-calls-olai"
+    Then the chat eventually shows "the subagent marked it"
+    And node "order" is done
+    And the chat shows no question
+    And the conversation carries none of the subagent's calls
+    When I open the agent's work from the transcript
+    Then the agent's work is open, and it is "Mark the order"
+    And the open agent's work contains "Mark done" but not "opencode says"
+
+  @opencode @scratch:chat
+  Scenario: Cancel lands with an agent still out
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # A fan-out is the state a person is likeliest to press stop in, and the
+    # one where a panel can be left saying an agent is still working after
+    # everything has stopped. Both the strip and the panel have to settle.
+    When I ask the agent "agents-slow"
+    Then the agent is working
+    # TWO entries for ONE subagent, and the count is the honest record of a
+    # cost this wire imposes: the `subagent` call is the main agent's own row
+    # and the child session is a row of its own, and nothing joins them until
+    # the child is over (`rawOutput.metadata.sessionID` arrives on the
+    # terminal frame alone — `packages/plugins/opencode/docs.md`). Both are
+    # live, so both are on the strip.
+    And the strip lists 2 agents still out
+    When I cancel the turn
+    Then the agent is idle
+    And the strip lists no agent still out
+    And the chat says the turn was cancelled
+
+  @opencode @scratch:chat
+  Scenario: A steer that lost the race is sent again, and heard once
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The one race opencode's steering has: the turn goes idle in the instant
+    # the steer arrives, so the agent answers `promptRequired` — one of its
+    # only two outcomes — and the words have not been taken. The client sends
+    # them as an ordinary prompt instead. Heard ONCE is the whole claim: a
+    # client reading an unrecognised outcome as taken would lose them, and one
+    # that sent without checking would double them.
+    When I ask the agent "deaf"
+    Then the agent is working
+    When I type "hello" into the chat
+    And I send the chat message
+    Then the agent has answered "opencode says: hello" exactly once
+    And the agent is idle
+    And the chat shows no refusal
+
+  @opencode @agent-stored @scratch:chat
+  Scenario: A reopened conversation keeps the spawning row and no lane
+    When I open the filed "opencode" conversation "an opencode conversation" as node "filed-subagents"
+    And the node agent's fold is ready
+    # WHAT A REPLAY CARRIES, captured rather than assumed: `session/load`
+    # replays the `subagent` call and its report and NOTHING on the
+    # child-session channel, so a conversation that had a fan-out comes back
+    # with the record of the delegation and no lane. That is honest — the
+    # child's own calls are not in the stored conversation at all — and it is
+    # better said here than discovered by somebody pressing a door onto
+    # nothing.
+    Then the chat eventually shows "opencode remembers this conversation"
+    And the chat shows a tool call named "subagent"
+    And the call that spawned it offers no door yet
 
   @pi @scratch:chat
   Scenario: Pi's olai write has its title, outline, clickable story and one reply

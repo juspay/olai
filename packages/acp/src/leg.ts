@@ -156,16 +156,18 @@ export interface MCPFrame {
   readonly name?: string | null | undefined
 }
 
-/** Display only; allowedWithoutAsking remains the approval rule. */
+/** Display only; allowedWithoutAsking remains the approval rule. A wire that
+ *  announces one MCP tool per tool call answers a list of one or an empty one,
+ *  which is four of the five. */
 export const mcpCallBy = (spelling: (server: string) => string): Leg["mcpCall"] =>
   (frame, servers) => {
     const name = frame.name ?? frame.title
-    if (name == null) return null
+    if (name == null) return []
     for (const server of servers) {
       const prefix = spelling(server)
-      if (name.startsWith(prefix) && name.length > prefix.length) return { server, tool: name.slice(prefix.length) }
+      if (name.startsWith(prefix) && name.length > prefix.length) return [{ server, tool: name.slice(prefix.length) }]
     }
-    return null
+    return []
   }
 
 /**
@@ -336,9 +338,25 @@ export interface Reported {
 export interface Leg {
   /** Adapter prefix before an MCP tool name, or null when carried structurally. */
   readonly spelling: ((server: string) => string) | null
-  /** DISPLAY ONLY. Match a call against servers handed to this session;
-   * allowedWithoutAsking remains the only approval rule. */
-  readonly mcpCall: (frame: MCPFrame, servers: ReadonlyArray<string>) => { server: string; tool: string } | null
+  /**
+   * DISPLAY ONLY. Which of olai's tools this frame is about — EVERY one of
+   * them, in the order the agent ran them, and empty for a call that is none
+   * of ours. `allowedWithoutAsking` remains the only approval rule.
+   *
+   * A LIST because one frame can be several calls. Most wires announce one
+   * MCP tool per tool call and answer a list of one or none; opencode 2
+   * dispatches every MCP tool through one Code Mode `execute`, and a model
+   * batching three of olai's calls into one script is the ordinary case
+   * rather than an exotic one. A reader that answered only the first of them
+   * would be naming a row after a third of what it did.
+   *
+   * ALL OF THEM OR NONE: a frame whose calls are not ALL servers this session
+   * was handed answers empty rather than the recognisable part of it.
+   */
+  readonly mcpCall: (
+    frame: MCPFrame,
+    servers: ReadonlyArray<string>,
+  ) => ReadonlyArray<{ server: string; tool: string }>
   /**
    * The adapter's structured reply; absent for prose or another output shape.
    *
@@ -459,9 +477,18 @@ export interface Leg {
    *  direction this can afford. */
   readonly parentToolUse: (meta: Meta) => string | null
 
-  /** What this frame says about an agent this call STARTED, or `null` for a
-   *  frame that says nothing about one — which is nearly all of them. */
-  readonly spawned: (meta: Meta, input: unknown) => Spawn | null
+  /**
+   * What this frame says about an agent this call STARTED, or `null` for a
+   * frame that says nothing about one — which is nearly all of them.
+   *
+   * `named` is the frame's own `name` field, for the same reason
+   * {@link Leg.toolNameIn} takes it: a leg that read only the INPUT would
+   * answer for any call whose arguments happened to carry an `agent` or a
+   * `description`, and would draw an ordinary shell command as having sent an
+   * agent out. Positive recognition means recognising the CALL, and on the one
+   * wire whose spawn is a named builtin the name is where that is said.
+   */
+  readonly spawned: (meta: Meta, input: unknown, named?: string | null) => Spawn | null
 
   /** ... and what it says about a BACKGROUND TASK this call armed, or `null`
    *  for a frame that says nothing about one — see {@link Background}. An agent

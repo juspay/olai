@@ -20,7 +20,8 @@ import type { PermissionOption } from "@agentclientprotocol/sdk"
 import { describe, expect, test } from "bun:test"
 
 import { childIn, permissionIn, CHILD_SESSIONS } from "./activity.ts"
-import { allowedWithoutAsking, mcpCall, OPENCODE, replyIn, toolsNamedIn } from "./leg.ts"
+import { allowedWithoutAsking, mcpCall, OPENCODE, replyIn } from "./leg.ts"
+import { toolsCalledIn } from "./script.ts"
 import { announced, ran, script, wrapped } from "./testlib.ts"
 
 /** The servers a session is handed: olai's own, and an optional one when a
@@ -60,39 +61,96 @@ describe("which tool a call is", () => {
   })
 })
 
-describe("which tools a Code Mode script names", () => {
+describe("which tools a Code Mode script calls", () => {
   test("every `tools.<server>.<tool>` in it, in source order", () => {
-    expect(toolsNamedIn(script("olai", "outlines_done", { id: "n1" })))
+    expect(toolsCalledIn(script("olai", "outlines_done", { id: "n1" })))
       .toEqual([{ server: "olai", tool: "outlines_done" }])
-    expect(toolsNamedIn(
+    expect(toolsCalledIn(
       `const a = await tools.olai.ping({word:"one"});\nconst b = await tools.alpha.read({});\nreturn [a,b];`,
     )).toEqual([{ server: "olai", tool: "ping" }, { server: "alpha", tool: "read" }])
   })
 
-  test("a script that calls nothing names nothing — which is not the same as unreadable", () => {
-    expect(toolsNamedIn("return 1 + 1")).toEqual([])
-    expect(toolsNamedIn("return await search({ query: 'ping' })")).toEqual([])
+  test("a server whose name is not an identifier is reached by its literal key", () => {
+    // opencode spells a hyphenated server with its hyphen in the table
+    // (captured: `Object.keys(tools)` answers `xyne-spaces`), so the only way
+    // to call one is a bracketed STRING. A bracketed anything else is not.
+    expect(toolsCalledIn(`return await tools["xyne-spaces"].read({ id: "n1" });`))
+      .toEqual([{ server: "xyne-spaces", tool: "read" }])
+    expect(toolsCalledIn(`return await tools['xyne-spaces'].read({});`))
+      .toEqual([{ server: "xyne-spaces", tool: "read" }])
+    // A DOTTED hyphen is a subtraction, not a server — and is not a name.
+    expect(toolsCalledIn(`return await tools.olai-x.read({});`)).toBeNull()
   })
 
-  test("A REACH THIS CANNOT FOLLOW IS `null`, and this is the line that must never widen", () => {
-    // Dynamic indexing, in every spelling. One approval covers the WHOLE
-    // script, so a reader that skipped the part it could not parse would be
-    // approving it.
-    expect(toolsNamedIn(`return await tools["opencode"].shell({command:"rm -rf /"})`)).toBeNull()
-    expect(toolsNamedIn(`const n = "opencode"; return await tools[n].shell({})`)).toBeNull()
+  test("a script that calls nothing calls nothing — which is not the same as unreadable", () => {
+    expect(toolsCalledIn("")).toEqual([])
+    expect(toolsCalledIn("  \n ")).toEqual([])
+  })
+
+  test("ANYTHING OUTSIDE THE GRAMMAR IS `null` — this is the line that must never widen", () => {
+    // THE REVIEWER'S SCRIPTS, each of which a scan for the token `tools` read
+    // as "one olai call" and therefore auto-allowed. One approval covers the
+    // whole script, so every one of these was a `shell` olai would have
+    // approved on the strength of a mention.
+    for (
+      const code of [
+        `await tools.olai.outlines_read({ id: "n1" }); return await globalThis.tools.opencode.shell({ command: "rm -rf ~" })`,
+        `await tools.olai.outlines_read({}); return await this.tools.opencode.shell({ command: "x" })`,
+        `await tools.olai.outlines_read({}); const t = eval("to" + "ols"); return await t.opencode.shell({ command: "x" })`,
+        `await tools.olai.outlines_read({}); return await new Function("return to" + "ols")().opencode.shell({ command: "x" })`,
+        `await tools.olai.outlines_read({}); return await globalThis["to" + "ols"].opencode.shell({ command: "x" })`,
+        `// tools.olai.outlines_read\nreturn await globalThis["to"+"ols"].opencode.shell({ command: "x" })`,
+        `const s = "tools.olai.x"; return await globalThis["to"+"ols"].opencode.shell({ command: "x" })`,
+      ]
+    ) {
+      expect(toolsCalledIn(code), code).toBeNull()
+      expect(allowedWithoutAsking("execute", GIVEN, ASKED, asking(code)), code).toBeNull()
+    }
+  })
+
+  test("... and so is every other reach into the table", () => {
+    // Dynamic indexing, in every spelling.
+    expect(toolsCalledIn(`const n = "opencode"; return await tools[n].shell({})`)).toBeNull()
     // A destructure keeps the table but not the path.
-    expect(toolsNamedIn(`const { ping } = tools.olai; return ping({})`)).toBeNull()
-    expect(toolsNamedIn(`const t = tools; return t.olai.ping({})`)).toBeNull()
+    expect(toolsCalledIn(`const { ping } = tools.olai; return ping({})`)).toBeNull()
+    expect(toolsCalledIn(`const t = tools; return t.olai.ping({})`)).toBeNull()
     // The server named but no tool after it.
-    expect(toolsNamedIn(`return tools.olai`)).toBeNull()
-    // One readable call and one that is not: still `null`, because the script
-    // is read whole or not at all.
-    expect(toolsNamedIn(`await tools.olai.ping({}); return tools[x].y()`)).toBeNull()
+    expect(toolsCalledIn(`return tools.olai`)).toBeNull()
+    // One readable call and one that is not: the script is read whole or not
+    // at all.
+    expect(toolsCalledIn(`await tools.olai.ping({}); return tools[x].y()`)).toBeNull()
+    // A `tools` that is somebody else's property is not the table, and a
+    // script containing one is a script this has not read.
+    expect(toolsCalledIn(`return mine.tools.olai.ping({})`)).toBeNull()
+    expect(toolsCalledIn(`return toolsmith.olai.ping({})`)).toBeNull()
+    // Anything with an operator, a call that is not a tool call, or a name
+    // this never bound.
+    expect(toolsCalledIn("return 1 + 1")).toBeNull()
+    expect(toolsCalledIn(`return await search({ query: 'ping' })`)).toBeNull()
+    expect(toolsCalledIn(`return await tools.olai.ping({ word: name })`)).toBeNull()
+    expect(toolsCalledIn("return await tools.olai.ping({ word: `a${b}` })")).toBeNull()
+    expect(toolsCalledIn(`return await tools.olai.ping({ word: "a\\n" })`)).toBeNull()
+    expect(toolsCalledIn(`return x`)).toBeNull()
+    expect(toolsCalledIn(`const a = await tools.olai.ping({}); return [a, b];`)).toBeNull()
+    // Nothing may follow a return: a tail this decided did not matter is a
+    // tail nobody read.
+    expect(toolsCalledIn(`return await tools.olai.ping({}); tools.opencode.shell({})`)).toBeNull()
+    // A comment is refused rather than skipped, wherever it sits.
+    expect(toolsCalledIn(`/* hi */ return await tools.olai.ping({});`)).toBeNull()
+    expect(toolsCalledIn(`return await tools.olai.ping({}); // done`)).toBeNull()
   })
 
-  test("a `tools` that is somebody else's property is not the table", () => {
-    expect(toolsNamedIn(`return mine.tools.olai.ping({})`)).toEqual([])
-    expect(toolsNamedIn(`return toolsmith.olai.ping({})`)).toEqual([])
+  test("the shapes it DOES read are the ones opencode's own models write", () => {
+    expect(toolsCalledIn(`return await tools.olai.outlines_done({ id: "n1" });`))
+      .toEqual([{ server: "olai", tool: "outlines_done" }])
+    expect(toolsCalledIn(
+      `const read = await tools.olai.outlines_read({ id: "order" });\n`
+        + `const done = await tools.olai.outlines_done({ id: "order" });\nreturn [read, done];`,
+    )).toEqual([{ server: "olai", tool: "outlines_read" }, { server: "olai", tool: "outlines_done" }])
+    expect(toolsCalledIn(`await tools.olai.ping({ word: "x", n: 2, ok: true, deep: { a: [1, "b", null] } })`))
+      .toEqual([{ server: "olai", tool: "ping" }])
+    expect(toolsCalledIn(`const a = await tools.olai.ping({});\nreturn { first: a };`))
+      .toEqual([{ server: "olai", tool: "ping" }])
   })
 })
 
@@ -114,9 +172,12 @@ describe("which permissions are answered without asking", () => {
     expect(only(script("opencode", "shell", { command: "rm -rf /" }))).toBeNull()
     // Ours AND somebody else's in one script: one approval would cover both.
     expect(only(`await tools.olai.ping({}); return tools.opencode.shell({});`)).toBeNull()
-    // A script that reaches the table a way this cannot read.
-    expect(only(`return await tools["olai"].outlines_done({id:"n1"})`)).toBeNull()
-    // A script that calls no tool at all names nothing to recognise.
+    // A script that reaches the table a way this cannot read. The bracketed
+    // form IS readable for a LITERAL key, so the unreadable one is a computed
+    // key rather than a bracket.
+    expect(only(`const k = "olai"; return await tools[k].outlines_done({id:"n1"})`)).toBeNull()
+    // A script that calls no tool at all recognises nothing.
+    expect(only("")).toBeNull()
     expect(only("return 1 + 1")).toBeNull()
     // Not an `execute`: a shell, a subagent, a read, whatever.
     expect(only(null, "shell")).toBeNull()
@@ -165,29 +226,41 @@ describe("what a row is CALLED, and what it answered", () => {
   test("one olai tool in one script names the row and draws its reply", () => {
     const code = script("olai", "outlines_done", { id: "order" })
     const done = { ...announced(code), ...wrapped("olai", "outlines_done", { id: "order" }, result) }
-    expect(mcpCall(done, GIVEN)).toEqual({ server: "olai", tool: "outlines_done" })
+    expect(mcpCall(done, GIVEN)).toEqual([{ server: "olai", tool: "outlines_done" }])
     expect(replyIn(done.rawOutput, done.content)).toEqual(reply)
   })
 
   test("... and names it from the SCRIPT before the completion reports anything", () => {
     expect(mcpCall(announced(script("olai", "outlines_read", { id: "n1" })), GIVEN))
-      .toEqual({ server: "olai", tool: "outlines_read" })
+      .toEqual([{ server: "olai", tool: "outlines_read" }])
     // The empty first frame names nothing, which is why a row may not be
     // named from it.
-    expect(mcpCall(announced(null), GIVEN)).toBeNull()
+    expect(mcpCall(announced(null), GIVEN)).toEqual([])
   })
 
-  test("A BATCH IS THE BATCH, never the first of what it ran", () => {
-    const code = `const a = await tools.olai.ping({});\nreturn [a, await tools.olai.outlines_read({id:"n1"})];`
+  test("A BATCH IS EVERY CALL IT MADE, never the first of them and never none", () => {
+    const code = `const a = await tools.olai.ping({});\nconst b = await tools.olai.outlines_read({id:"n1"});\nreturn [a, b];`
     const batch = { ...announced(code), ...ran([{ tool: "olai.ping" }, { tool: "olai.outlines_read" }], [1, 2]) }
-    expect(mcpCall(batch, GIVEN)).toBeNull()
+    expect(mcpCall(batch, GIVEN))
+      .toEqual([{ server: "olai", tool: "ping" }, { server: "olai", tool: "outlines_read" }])
+    // ... in the order the agent ran them, which is the order the row names
+    // them in.
+    expect(mcpCall(announced(code), GIVEN))
+      .toEqual([{ server: "olai", tool: "ping" }, { server: "olai", tool: "outlines_read" }])
+  })
+
+  test("a batch that is not ALL ours is none of ours", () => {
+    // The row would otherwise name two of the three calls a script made,
+    // which is a row claiming the third did not happen.
+    const mixed = { ...announced(null), ...ran([{ tool: "olai.ping" }, { tool: "github.create_pr" }], [1, 2]) }
+    expect(mcpCall(mixed, GIVEN)).toEqual([])
   })
 
   test("a foreign server's tool, and a script that ran none, are nobody's row", () => {
-    expect(mcpCall(announced(script("github", "create_pr", {})), GIVEN)).toBeNull()
-    expect(mcpCall({ ...announced("return 1+1"), ...ran([], 2) }, GIVEN)).toBeNull()
+    expect(mcpCall(announced(script("github", "create_pr", {})), GIVEN)).toEqual([])
+    expect(mcpCall({ ...announced(""), ...ran([], 2) }, GIVEN)).toEqual([])
     // Not an `execute` at all.
-    expect(mcpCall({ name: "shell", title: "ls", rawInput: { command: "ls" } }, GIVEN)).toBeNull()
+    expect(mcpCall({ name: "shell", title: "ls", rawInput: { command: "ls" } }, GIVEN)).toEqual([])
   })
 
   test("what the completion REPORTED beats what the script said it would do", () => {
@@ -196,7 +269,7 @@ describe("what a row is CALLED, and what it answered", () => {
       ...announced(`await tools.olai.ping({}); return tools.olai.outlines_read({id:"n1"})`),
       ...ran([{ tool: "olai.outlines_read" }], reply),
     }
-    expect(mcpCall(frame, GIVEN)).toEqual({ server: "olai", tool: "outlines_read" })
+    expect(mcpCall(frame, GIVEN)).toEqual([{ server: "olai", tool: "outlines_read" }])
   })
 
   test("a failed olai call is still that call, and answers no reply", () => {
@@ -204,7 +277,7 @@ describe("what a row is CALLED, and what it answered", () => {
       ...announced(script("olai", "outlines_done", { id: "gone" })),
       ...ran([{ tool: "olai.outlines_done", status: "error" as const }], "Permission.DeclinedError"),
     }
-    expect(mcpCall(frame, GIVEN)).toEqual({ server: "olai", tool: "outlines_done" })
+    expect(mcpCall(frame, GIVEN)).toEqual([{ server: "olai", tool: "outlines_done" }])
     expect(replyIn(frame.rawOutput, frame.content)).toBeUndefined()
   })
 
@@ -224,12 +297,23 @@ describe("what a call SPAWNED", () => {
   test("a subagent call says which agent was sent and what it was sent to do", () => {
     expect(OPENCODE.spawned(undefined, {
       agent: "explore", description: "Summarise note.txt", prompt: "Read note.txt and…",
-    })).toEqual({ kind: "explore", said: "Summarise note.txt" })
+    }, "subagent")).toEqual({ kind: "explore", said: "Summarise note.txt" })
   })
 
-  test("an ordinary call spawned nobody", () => {
-    expect(OPENCODE.spawned(undefined, { command: "ls" })).toBeNull()
-    expect(OPENCODE.spawned(undefined, undefined)).toBeNull()
+  test("A CALL THAT IS NOT A SPAWN SPAWNED NOBODY, whatever its arguments say", () => {
+    // `agent` and `description` are ordinary words. A reader that answered off
+    // the input alone would hang a rail, a door and a strip entry off an
+    // ordinary shell command for an agent nobody started.
+    expect(OPENCODE.spawned(undefined, { command: "ls", description: "List files" }, "shell")).toBeNull()
+    expect(OPENCODE.spawned(undefined, { agent: "kolu", text: "hi" }, "execute")).toBeNull()
+    // ... including when nothing named the call at all.
+    expect(OPENCODE.spawned(undefined, { agent: "explore", description: "x" })).toBeNull()
+    expect(OPENCODE.spawned(undefined, { agent: "explore", description: "x" }, null)).toBeNull()
+  })
+
+  test("a subagent call with nothing to say about its agent says nothing", () => {
+    expect(OPENCODE.spawned(undefined, { command: "ls" }, "subagent")).toBeNull()
+    expect(OPENCODE.spawned(undefined, undefined, "subagent")).toBeNull()
   })
 })
 

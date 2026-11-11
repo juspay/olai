@@ -191,11 +191,13 @@ describe("what the frame's own name field said", () => {
 
 test("MCP identity shares session keys and lifetime with call facts", () => {
   const calls = new Calls({ ...NAMES_IN_META, nativeActivity: OWN_SESSIONS })
-  calls.recognized("same", { server: "olai", tool: "outlines_read" }, "one")
-  calls.recognized("same", { server: "foreign", tool: "read" }, "two")
-  calls.recognized("same", null, "one")
-  expect(calls.about("same", "one").mcp).toEqual({ server: "olai", tool: "outlines_read" })
-  expect(calls.about("same", "two").mcp).toEqual({ server: "foreign", tool: "read" })
+  calls.recognized("same", [{ server: "olai", tool: "outlines_read" }], "one")
+  calls.recognized("same", [{ server: "foreign", tool: "read" }], "two")
+  // An empty list is a frame that recognised nothing, and a frame refines
+  // rather than retracts: what was recognised stays recognised.
+  calls.recognized("same", [], "one")
+  expect(calls.about("same", "one").mcp).toEqual([{ server: "olai", tool: "outlines_read" }])
+  expect(calls.about("same", "two").mcp).toEqual([{ server: "foreign", tool: "read" }])
   calls.forget()
   expect(calls.about("same", "one").mcp).toBeUndefined()
 })

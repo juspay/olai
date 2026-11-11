@@ -1361,9 +1361,29 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             name: calls.about(update.toolCallId, notification.sessionId).name,
           }, given)
           calls.recognized(update.toolCallId, recognized, notification.sessionId)
-          const call = calls.about(update.toolCallId, notification.sessionId).mcp ?? null
-          const ours = call === null ? null : options.advertised?.(call.server, call.tool) ?? null
-          const decoded = ours === null ? undefined : options.leg.replyIn(update.rawOutput, update.content)
+          const called = calls.about(update.toolCallId, notification.sessionId).mcp ?? []
+          // WHAT OLAI ADVERTISES EACH OF THEM AS. A frame is one row however
+          // many calls it made, so the row is composed rather than picked: a
+          // Code Mode `execute` that ran three of olai's tools is three
+          // advertised titles on one line, and a row that showed the first of
+          // them would be claiming the other two did not happen.
+          const owned = called.map((one) => options.advertised?.(one.server, one.tool) ?? null)
+          const ours = owned.every((one) => one !== null) && owned.length > 0
+            ? {
+              title: [...new Set(owned.map((one) => one!.title))].join(" · "),
+              // ... and the OWNER only where they agree. Two plugins' tools in
+              // one script is one row that is not either of theirs, so it
+              // draws neither one's face rather than half of one.
+              owner: new Set(owned.map((one) => one!.owner)).size === 1 ? owned[0]!.owner : undefined,
+            }
+            : null
+          // THE REPLY IS SINGLE-CALL ONLY, and that is the wire rather than a
+          // choice: a Code Mode script returns ONE value, and which of three
+          // calls it belongs to is not said anywhere. A row that drew it for a
+          // batch would be filing one answer under three questions.
+          const decoded = ours === null || called.length !== 1
+            ? undefined
+            : options.leg.replyIn(update.rawOutput, update.content)
           const reply = decoded !== undefined && isJson(decoded) ? decoded : undefined
           // Read ONCE: the row wears it, and the terminal block below turns on
           // it. Two readings of one `_meta` corner are two places a later leg
@@ -1398,7 +1418,18 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // stamp is answered by a subagent's own frames and a subagent that
             // has not made a call yet has produced none — which is the whole
             // of the stretch a person is watching a fan-out through.
-            spawned: options.leg.spawned(update._meta, update.rawInput) ?? undefined,
+            spawned: options.leg.spawned(
+              update._meta,
+              update.rawInput,
+              // THE REMEMBERED NAME, not this frame's: one wire announces a
+              // call with its `name` and an EMPTY input, then refines it with
+              // the arguments and no name (opencode 2's `subagent`), so a
+              // reader asking the frame in front of it would never see both
+              // halves at once. The registry holds what any frame said
+              // ({@link ./calls.ts}), which is what positive recognition
+              // means when the facts arrive separately.
+              calls.about(update.toolCallId, notification.sessionId).name,
+            ) ?? undefined,
             // ... and whether it ARMED a background task — a monitor, a
             // background shell — which is the one kind of call that goes on
             // happening after this frame, after the turn, and (for a persistent
@@ -2112,10 +2143,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  NO LIMIT IS SENT and no `nextCursor` is followed: the protocol
      *  defaults apply, which on pi-acp is a page of fifty (its own
      *  `PAGE_SIZE`) — a directory with more stored pi conversations than one
-     *  page draws the newest and loses the rest. The posture is agreed, not
-     *  parked: the list answers which-conversation-recently rather than
-     *  indexing an agent's database, and `docs/chat.md` says the size
-     *  `pi`'s adapter pages at. */
+     *  page draws the newest and loses the rest. opencode 2.2.7 is the other
+     *  shape and costs nothing: it answers the WHOLE directory in one page,
+     *  ignores a `limit` entirely, and hands a `nextCursor` anyway — one that
+     *  answers zero rows when it is followed (captured over three stored
+     *  conversations). The posture is agreed, not parked: the list answers
+     *  which-conversation-recently rather than indexing an agent's database,
+     *  and `docs/chat.md` says the size `pi`'s adapter pages at. */
     const storedFor = (at: Live): Effect.Effect<ReadonlyArray<Stored>, AgentGone> =>
       at.canList
         ? Effect.map(

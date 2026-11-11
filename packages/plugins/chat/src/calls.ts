@@ -70,8 +70,10 @@ import type { Leg, Meta } from "@olai/acp/engine"
  * half of what it knows would take the other half back.
  */
 export interface Said {
-  /** Compact MCP identity for display; never the frame or its input. */
-  readonly mcp?: NonNullable<ReturnType<Leg["mcpCall"]>>
+  /** Compact MCP identity for display — every call this frame made, never the
+   *  frame or its input. Several, because one Code Mode `execute` can be
+   *  several of olai's calls. */
+  readonly mcp?: ReturnType<Leg["mcpCall"]>
   /** Which tool it is, programmatically — never the display title. */
   readonly name?: string
   /** The `Agent` call it was made INSIDE, by the id it arrived as, when a
@@ -132,10 +134,13 @@ export class Calls {
     this.#said.set(key, { ...this.#said.get(key), ...said })
   }
 
-  /** Keep only the recognized server/tool identity, never input bodies or frames.
-   * The same session-qualified owner holds this beside name and ancestry. */
+  /** Keep only the recognized server/tool identities, never input bodies or
+   * frames. The same session-qualified owner holds these beside name and
+   * ancestry. An EMPTY list is a frame that recognised nothing and is not
+   * remembered: a frame refines, never retracts, so a later frame that
+   * recognises what an earlier one could not still wins. */
   recognized(id: string, mcp: ReturnType<Leg["mcpCall"]>, session?: string): void {
-    if (mcp === null) return
+    if (mcp.length === 0) return
     const key = this.#key(id, session)
     this.#said.set(key, { ...this.#said.get(key), mcp })
   }

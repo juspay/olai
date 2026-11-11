@@ -811,9 +811,14 @@ whose title moves), `context <id>` / `done <id>` (one of olai's tools through
 Code Mode), `batch <id>` (two of them in one script), `fail` (one of them
 refused by olai's own ops layer), `throw` (a script that gave up before any
 tool ran), `permit <id>` / `foreign` / `dynamic <id>` / `nameless` (the four
-doors of the auto-allow rule), `agents` / `agent-asks` (a two-child fan-out,
-and a child that stops to ask), `slow` / `hush` (a held turn with and without
-something announced), `silent` (a turn that produced nothing) and `quota` (a
+doors of the auto-allow rule), `agents` / `agent-asks` / `agent-fails` /
+`agent-nests` / `agent-calls-olai` / `agents-slow` (a two-child fan-out, a
+child that stops to ask, children that end `failed` and `interrupted`, a child
+of a child at `depth: 2`, a child running one of olai's own tools, and a
+fan-out left running for a cancel to land in), `deaf` (a turn that goes idle
+in the instant a steer arrives, so the steer answers `promptRequired`),
+`slow` / `hush` (a held turn with and without something announced), `silent`
+(a turn that produced nothing) and `quota` (a
 provider failure as 2.2.7 really sends one). A message STEERED into a running
 turn is acted on by that turn — `done <id>` marks the node before anything is
 released — which is the whole difference between the interrupting gesture and

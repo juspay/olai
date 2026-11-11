@@ -83,6 +83,19 @@
  *                with its own calls and its own prose
  *   agent-asks   one subagent whose own call asks permission — a question that
  *                must be drawn in the CHILD's name and nobody else's
+ *   agent-fails  two subagents that end badly — one `failed`, one
+ *                `interrupted` — because opencode has four terminal words
+ *                where the channel has three
+ *   agent-nests  a child of a child: `rootSessionId` stays the root while
+ *                `parentSessionId` becomes the first child's, at `depth: 2`
+ *   agent-calls-olai  a subagent that runs one of OLAI's tools through its own
+ *                Code Mode `execute`, asking with the root's session id and
+ *                the child named only on the call
+ *   agents-slow  a fan-out left running, so a cancel can land with an agent
+ *                still out
+ *   deaf         a turn that goes idle in the instant a steer arrives, so the
+ *                steer answers `promptRequired` and the words go out as an
+ *                ordinary prompt instead — heard once
  *   slow         announce a tool call and hold it, until a scenario says when —
  *                long enough to look at a turn WHILE it is running, which is
  *                when a mid-turn message is a question anybody has
@@ -333,38 +346,62 @@ const askPermission = async (
 let nextChild = 0;
 
 /** One subagent, start to finish: the `subagent` call in the parent's own
- *  stream, and the child's whole life on the channel beside it. */
+ *  stream, and the child's whole life on the channel beside it.
+ *
+ *  `under` is the session this child hangs off — the root for an ordinary
+ *  spawn, and ANOTHER CHILD for a nested one, which is the only thing that
+ *  differs on the wire at `depth: 2` (`rootSessionId` stays the root,
+ *  `parentSessionId` becomes the child's). `ended` is how it finishes: the
+ *  four terminal words opencode has, so a scenario can watch a lane close
+ *  the ways it really closes. */
 const subagent = async (
   description: string,
   work: (child: string) => Promise<void>,
   report: string,
+  options: { ended?: "completed" | "failed" | "interrupted"; under?: string; depth?: number } = {},
 ): Promise<void> => {
+  const ended = options.ended ?? "completed";
+  const under = options.under ?? sessionId;
+  const depth = options.depth ?? 1;
   const child = `ses_child_${++nextChild}`;
   const toolCallId = callIdFor();
   const rawInput = { agent: "explore", description, prompt: `${description}. Report one line.` };
-  update({ sessionUpdate: "tool_call", toolCallId, name: "subagent", title: "subagent", kind: "think", status: "pending", locations: [], rawInput: {} });
-  update({ sessionUpdate: "tool_call_update", toolCallId, status: "in_progress", kind: "think", title: "subagent", locations: [], rawInput });
-  childStatus(child, description, "created");
-  childStatus(child, description, "running");
+  const announce = (value: Record<string, unknown>) =>
+    depth === 1 ? update(value) : childFrame(under, childTitles.get(under) ?? "", value, depth - 1, sessionId);
+  announce({ sessionUpdate: "tool_call", toolCallId, name: "subagent", title: "subagent", kind: "think", status: "pending", locations: [], rawInput: {} });
+  announce({ sessionUpdate: "tool_call_update", toolCallId, status: "in_progress", kind: "think", title: "subagent", locations: [], rawInput });
+  childTitles.set(child, description);
+  childStatus(child, description, "created", under, depth);
+  childStatus(child, description, "running", under, depth);
   await work(child);
-  childStatus(child, description, "completed");
-  update({
+  childStatus(child, description, ended, under, depth);
+  // THE JOIN ARRIVES ONLY HERE. The in-progress frames carry `rawOutput: null`
+  // on the real wire, so the child session id a completion names is the first
+  // and only thing tying this row to that lane — captured twice against 2.2.7.
+  announce({
     sessionUpdate: "tool_call_update",
     toolCallId,
-    status: "completed",
+    status: ended === "completed" ? "completed" : "failed",
     locations: [],
-    content: [{ type: "content", content: { type: "text", text: `<subagent sessionID="${child}" state="completed">\n${report}\n</subagent>` } }],
-    rawOutput: { metadata: { sessionID: child, status: "completed", truncated: false } },
+    content: [{ type: "content", content: { type: "text", text: `<subagent sessionID="${child}" state="${ended}">\n${report}\n</subagent>` } }],
+    rawOutput: ended === "completed"
+      ? { metadata: { sessionID: child, status: "completed", truncated: false } }
+      : { metadata: { sessionID: child, status: "running" }, error: `Tool execution interrupted (sessionID: ${child})` },
   });
 };
 
-const childStatus = (child: string, title: string, status: string): void => {
+/** What each live child was sent to do, which is the title its own frames are
+ *  prefixed with — kept so a NESTED spawn can stamp its announcement with its
+ *  parent's title the way the real one does. */
+const childTitles = new Map<string, string>();
+
+const childStatus = (child: string, title: string, status: string, under = sessionId, depth = 1): void => {
   if (!childSessionUpdates) return;
   notify("opencode/session/child_update", {
     rootSessionId: sessionId,
     childSessionId: child,
-    parentSessionId: sessionId,
-    depth: 1,
+    parentSessionId: under,
+    depth,
     title,
     type: "status",
     status,
@@ -377,19 +414,19 @@ const childStatus = (child: string, title: string, status: string): void => {
  * did not — stamped either way, with the child's id in front of the call id and
  * the child's title in front of the display one.
  */
-const childFrame = (child: string, title: string, value: Record<string, unknown>): void => {
+const childFrame = (child: string, title: string, value: Record<string, unknown>, depth = 1, under = sessionId): void => {
   const stamped = {
     ...value,
     ...(typeof value["toolCallId"] === "string" ? { toolCallId: `${child}:${String(value["toolCallId"])}` } : {}),
     ...(typeof value["title"] === "string" ? { title: `${title}: ${String(value["title"])}` } : {}),
-    _meta: { "opencode/child-session": { id: child, parentID: sessionId, depth: 1, title } },
+    _meta: { "opencode/child-session": { id: child, parentID: under, depth, title } },
   };
   if (childSessionUpdates) {
     notify("opencode/session/child_update", {
       rootSessionId: sessionId,
       childSessionId: child,
-      parentSessionId: sessionId,
-      depth: 1,
+      parentSessionId: under,
+      depth,
       title,
       type: "update",
       update: stamped,
@@ -410,6 +447,12 @@ let running = false;
  *  by the turn itself, which is the difference a scenario can see between a
  *  message that steered a turn and one that started another. */
 const steered: string[] = [];
+
+/** ... and whether THIS turn is one that goes idle in the instant a steer
+ *  arrives (`deaf`). The flag is the race, staged: the steer is answered
+ *  `promptRequired` and the turn is over, so the ordinary prompt the client
+ *  falls back to is one this agent will accept. */
+let deaf = false;
 
 /** Act on what was steered in, INSIDE the turn that is still running. A
  *  deliberate subset of what a prompt can ask for: `done <id>` is spelled out
@@ -651,6 +694,118 @@ const turn = async (text: string): Promise<string> => {
     return "end_turn";
   }
 
+  if (said === "agent-fails") {
+    // A CHILD THAT ENDED BADLY, twice over: one `failed` and one
+    // `interrupted`. opencode has four terminal words where the channel has
+    // three, and a lane that closed `completed` for all of them would be the
+    // panel saying an agent that died came back.
+    await subagent("Read the missing file", async (child) => {
+      childFrame(child, "Read the missing file", {
+        sessionUpdate: "agent_message_chunk", messageId: "msg_child_f1", content: { type: "text", text: "there is no such file" },
+      });
+    }, "there is no such file", { ended: "failed" });
+    await subagent("Wait for the lock", async (child) => {
+      childFrame(child, "Wait for the lock", {
+        sessionUpdate: "agent_message_chunk", messageId: "msg_child_f2", content: { type: "text", text: "still waiting" },
+      });
+    }, "stopped waiting", { ended: "interrupted" });
+    say("both subagents ended badly");
+    return "end_turn";
+  }
+
+  if (said === "agent-nests") {
+    // A CHILD OF A CHILD. `rootSessionId` stays the root and
+    // `parentSessionId` becomes the first child's, so a panel that rooted a
+    // lane at the request's own session would file the grandchild's work
+    // under the main agent — which is the one thing `depth` exists to stop.
+    await subagent("Survey the house", async (child) => {
+      childFrame(child, "Survey the house", {
+        sessionUpdate: "tool_call", toolCallId: "n1", name: "read", title: "read", kind: "read", status: "pending", locations: [], rawInput: {},
+      });
+      childFrame(child, "Survey the house", {
+        sessionUpdate: "tool_call_update", toolCallId: "n1", status: "completed", kind: "read", title: "read house.olai", locations: [],
+        content: [{ type: "content", content: { type: "text", text: "read it" } }],
+      });
+      await subagent("Count the hinges", async (grandchild) => {
+        childFrame(grandchild, "Count the hinges", {
+          sessionUpdate: "tool_call", toolCallId: "n2", name: "shell", title: "shell", kind: "execute", status: "pending", locations: [], rawInput: {},
+        }, 2, child);
+        childFrame(grandchild, "Count the hinges", {
+          sessionUpdate: "tool_call_update", toolCallId: "n2", status: "completed", kind: "execute", title: "ls hinges", locations: [],
+          content: [{ type: "content", content: { type: "text", text: "four hinges" } }],
+        }, 2, child);
+      }, "four hinges", { under: child, depth: 2 });
+    }, "the house has four hinges");
+    say("the nested subagent reported");
+    return "end_turn";
+  }
+
+  if (said === "agent-calls-olai") {
+    // ONE OF OLAI'S OWN, INSIDE A CHILD. The script is the same Code Mode
+    // script the main agent would have written and the permission request is
+    // stamped with the ROOT session, so the auto-allow rule has to read it
+    // and the row has to land behind the CHILD's door.
+    const code = script(ours(), "outlines_done", { id: "order" });
+    await subagent("Mark the order", async (child) => {
+      const answered = await request("session/request_permission", {
+        sessionId,
+        toolCall: {
+          toolCallId: `${child}:e1`,
+          name: "execute",
+          title: "Mark the order: execute",
+          kind: "other",
+          status: "pending",
+          locations: [],
+          rawInput: { code },
+          _meta: { "opencode/child-session": { id: child, parentID: sessionId, depth: 1, title: "Mark the order" } },
+        },
+        options: OPTIONS,
+      });
+      childFrame(child, "Mark the order", {
+        sessionUpdate: "tool_call", toolCallId: "e1", name: "execute", title: "execute", kind: "other", status: "pending", locations: [], rawInput: {},
+      });
+      const result = await callMcp("tools/call", { name: "outlines_done", arguments: { id: "order" } });
+      childFrame(child, "Mark the order", {
+        sessionUpdate: "tool_call_update", toolCallId: "e1", status: "completed", kind: "other", title: "execute", locations: [], rawInput: { code },
+        ...ran([{ tool: `${ours()}.outlines_done`, input: { id: "order" } }], returned(result)),
+      });
+      childFrame(child, "Mark the order", {
+        sessionUpdate: "agent_message_chunk", messageId: "msg_child_4", content: { type: "text", text: `the subagent was answered ${JSON.stringify(answered)}` },
+      });
+    }, "marked the order");
+    say("the subagent marked it");
+    return "end_turn";
+  }
+
+  if (said === "agents-slow") {
+    // A FAN-OUT LEFT RUNNING, so a scenario can press cancel with an agent
+    // still out and watch both the lane and the panel settle.
+    await subagent("Watch the kitchen", async (child) => {
+      childFrame(child, "Watch the kitchen", {
+        sessionUpdate: "tool_call", toolCallId: "s1", name: "shell", title: "shell", kind: "execute", status: "in_progress", locations: [], rawInput: { command: "sleep 20" },
+      });
+      await hold();
+    }, "stopped watching", { ended: "interrupted" });
+    say("the fan-out is over");
+    return "end_turn";
+  }
+
+  if (said === "deaf") {
+    // THE STEER THAT LOST THE RACE. The turn goes idle in the same instant
+    // the steer arrives, so the agent answers `promptRequired` — one of its
+    // only two outcomes — and the client sends the words as an ordinary
+    // prompt instead. The claim a scenario makes on this is that they are
+    // heard ONCE: a client reading an unrecognised outcome as taken would
+    // lose them, and one that sent twice would double them.
+    deaf = true;
+    const toolCallId = callIdFor();
+    update({ sessionUpdate: "tool_call", toolCallId, name: "shell", title: "shell", kind: "execute", status: "in_progress", locations: [], rawInput: { command: "sleep 20" } });
+    await hold();
+    update({ sessionUpdate: "tool_call_update", toolCallId, status: "completed", locations: [], content: [{ type: "content", content: { type: "text", text: "(no output)" } }] });
+    say("the turn was already over");
+    return "end_turn";
+  }
+
   await takeSteering();
   say(`opencode says: ${said}`);
   await takeSteering();
@@ -746,15 +901,18 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     }
 
     case "session/list":
-      // The real one filters by the request's own `cwd` and answers a paging
-      // cursor beside the rows. Olai's own client-side filter stays either
-      // way, because what it guards is an agent answering more broadly than
-      // it was asked.
+      // THE WHOLE DIRECTORY IN ONE PAGE, with a cursor beside it anyway: the
+      // real one filters by the request's own `cwd`, ignores a `limit`, and
+      // hands a `nextCursor` that answers zero rows when it is followed
+      // (captured against 2.2.7 over three stored conversations). Olai
+      // follows no cursor and its own client-side filter stays either way,
+      // because what that guards is an agent answering more broadly than it
+      // was asked.
       respond(id, {
         sessions: STORED === "" || params["cwd"] !== cwd
           ? []
           : [{ sessionId: STORED_SESSION, cwd, title: "an opencode conversation", updatedAt: "2026-11-11T10:00:00Z" }],
-        nextCursor: null,
+        nextCursor: "eyJvcmRlciI6ImRlc2MifQ==",
       });
       return;
 
@@ -765,8 +923,24 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         await released(cwd);
       } else if (holdingOpen()) await released(cwd);
       openSession(String(params["sessionId"]), params);
-      // A replay: collapsed final frames, and the person's own words as chunks.
+      // A replay: collapsed final frames, and the person's own words as
+      // chunks. NO CHILD-SESSION FRAMES, which is a fact about the wire and
+      // not an omission here: a reopened conversation that had a subagent
+      // replays the `subagent` call and its report and nothing on the
+      // channel, so the lane does not come back (captured against 2.2.7).
       update({ sessionUpdate: "user_message_chunk", messageId: "msg_replay_1", content: { type: "text", text: "what did we say" } });
+      update({ sessionUpdate: "tool_call", toolCallId: "chatcmpl-replay", name: "subagent", title: "subagent", kind: "think", status: "pending", locations: [], rawInput: {} });
+      update({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "chatcmpl-replay",
+        status: "completed",
+        kind: "think",
+        title: "subagent",
+        locations: [],
+        rawInput: { agent: "explore", description: "Survey the kitchen", prompt: "Survey the kitchen." },
+        content: [{ type: "content", content: { type: "text", text: `<subagent sessionID="ses_child_replay" state="completed">\nthe kitchen holds four rows\n</subagent>` } }],
+        rawOutput: { metadata: { sessionID: "ses_child_replay", status: "completed", truncated: false } },
+      });
       update({ sessionUpdate: "agent_message_chunk", messageId: "msg_replay_2", content: { type: "text", text: "opencode remembers this conversation" } });
       respond(id, { configOptions: configOptions() });
       return;
@@ -791,7 +965,20 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       // TWO OUTCOMES, which is the whole list the real one has. Steering an
       // idle session is `promptRequired`, and the client sends the words as an
       // ordinary prompt instead.
-      if (!running) {
+      //
+      // `deaf` is that same answer with a turn still on screen: the race the
+      // real one loses when a turn goes idle in the instant a steer arrives.
+      // The hold is released in the same breath, so by the time the client's
+      // fallback prompt lands there is a turn to start.
+      if (!running || deaf) {
+        if (deaf) {
+          deaf = false;
+          running = false;
+          // The marker the hold is waiting on, dropped rather than awaited:
+          // this turn is OVER, which is what makes the fallback prompt land
+          // on an agent with nothing running.
+          void Bun.write(`${cwd}/${MARKER.release}`, "");
+        }
         respond(id, { outcome: "promptRequired", reason: "noRunningTurn" });
         return;
       }
@@ -825,6 +1012,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         }
       } finally {
         running = false;
+        deaf = false;
         steered.length = 0;
       }
       return;

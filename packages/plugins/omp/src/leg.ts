@@ -180,7 +180,8 @@ const byName = mcpCallBy(spelling)
 export const mcpCall: Leg["mcpCall"] = (frame, servers) => {
   const path = record(frame.rawInput)?.["path"]
   const aimed = typeof path === "string" && path.startsWith(XD) ? path.slice(XD.length) : null
-  return (aimed === null ? null : byName({ title: aimed }, servers)) ?? byName(frame, servers)
+  const dispatched = aimed === null ? [] : byName({ title: aimed }, servers)
+  return dispatched.length > 0 ? dispatched : byName(frame, servers)
 }
 
 // ── what an olai call answered ─────────────────────────────────────────

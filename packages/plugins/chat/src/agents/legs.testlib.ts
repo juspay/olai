@@ -38,7 +38,7 @@ import type { Leg, Meta, NativeActivity } from "@olai/acp/engine"
  */
 export const SAYS_NOTHING: Leg = {
   spelling: null,
-  mcpCall: () => null,
+  mcpCall: () => [],
   replyIn: () => undefined,
   toolNameIn: () => null,
   toolNameOf: () => null,

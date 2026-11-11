@@ -58,7 +58,7 @@ export const CODEX: Leg = {
     const server = fieldIn(frame.rawInput, "server")
     const tool = fieldIn(frame.rawInput, "tool")
     return frame._meta?.["is_mcp_tool_call"] === true && typeof server === "string"
-      && typeof tool === "string" && tool !== "" && servers.includes(server) ? { server, tool } : null
+      && typeof tool === "string" && tool !== "" && servers.includes(server) ? [{ server, tool }] : []
   },
   replyIn,
   nativeActivity: AIR,
