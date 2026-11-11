@@ -2451,6 +2451,48 @@ Then(
   },
 );
 
+Then(
+  "the chat shows {int} subagent lane(s)",
+  async function (this: OlaiWorld, many: number) {
+    // HOW MANY AGENTS were out, counted by the rows they hang off rather than
+    // by lane boxes: a stretch of one agent's work opens a lane each time it
+    // is interrupted, so counting boxes counts interruptions. What a fan-out
+    // scenario is about is that TWO agents' work is told apart at all, which
+    // is the count of distinct `data-lane` keys.
+    await this.waitUntil(
+      async () => {
+        const keys = await this.chat(CHAT_LANE).evaluateAll((lanes) =>
+          [...new Set(lanes.map((lane) => lane.getAttribute("data-lane") ?? ""))].filter((key) => key !== "")
+        );
+        return keys.length === many;
+      },
+      `the chat to draw ${many} subagent lane(s)`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "the lane named {string} holds a call named {string}",
+  async function (this: OlaiWorld, lane: string, call: string) {
+    // WHOSE CALL IT WAS, which is the whole of what a lane buys and the one
+    // thing a flat fan-out cannot say. Found through the lane that INTRODUCES
+    // itself with that name and then asked for the row inside it, so a panel
+    // that drew both agents' calls under one name fails here rather than
+    // passing on a count.
+    await this.waitUntil(
+      async () => {
+        const named = this.chat(CHAT_LANE).filter({ has: this.page.locator(`${CHAT_LANE_LABEL}:text-is("${lane}")`) });
+        if (await named.count() === 0) return false;
+        const lines = await named.locator(`${CHAT_TOOL} ${CHAT_TOOL_FOLD}`).allTextContents();
+        return lines.some((line) => oneLine(line).includes(call));
+      },
+      `the lane "${lane}" to hold a call named "${call}"`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
 /** The lane a QUESTION is drawn in. `:has()` rather than a walk up the tree,
  *  because what is being claimed is containment: the form is INSIDE the lane's
  *  own box, which is what makes the rail run past it and the indent apply to

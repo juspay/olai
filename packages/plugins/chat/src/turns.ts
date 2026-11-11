@@ -7,9 +7,9 @@
  * message on every agent olai talks to: the words go out as a plain prompt, the
  * agent holds them behind the turn it is working on, and until it gets to them
  * there are two turns this process owns and neither has finished. It used to be
- * the opencode-shaped case only, because the Claude leg steered every mid-turn
- * message into the running turn instead — which is now the gesture somebody
- * makes on purpose, not what enter does.
+ * the held-prompt case only, on the agents that hold one, because the Claude leg
+ * steered every mid-turn message into the running turn instead — which is now
+ * the gesture somebody makes on purpose, not what enter does.
  *
  * A SET rather than a slot, and each of the readers below is the same question
  * asked of it:
@@ -101,8 +101,9 @@ export class Turns {
    *
    * A `Set` iterates in insertion order, and insertion order is the order these
    * prompts went on the wire: an agent that holds a mid-turn prompt runs them
-   * in the order it received them (the pinned adapter's `turnQueue` is a FIFO,
-   * and opencode's is too), so the oldest ticket is the one being worked on.
+   * in the order it received them (the pinned Claude adapter's `turnQueue` is a
+   * FIFO, and pi's adapter answers each held prompt when its turn comes), so the
+   * oldest ticket is the one being worked on.
    *
    * The FACT THE ROWS ARE DRAWN FROM: everything behind this one is waiting,
    * and this one is not any more. It is deliberately a read of the set rather

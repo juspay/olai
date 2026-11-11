@@ -64,33 +64,34 @@ Feature: Choosing a node agent's engine
   Scenario: A turn with opencode, from the box to the answer
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    And I ask the agent "bash"
+    And I ask the agent "shell"
     Then the chat eventually shows "ran it"
     And the page has not reloaded
     And there should be no page errors
 
   @opencode @scratch:chat
-  Scenario: A call is named from its id, and keeps that name while the title moves
+  Scenario: A call is named from the frame, and keeps that name while the title moves
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # Opencode sends no `_meta` at all, so the only place a tool's programmatic
-    # name is said is the head of the call id (`bash:0`). The `title` is not it:
-    # this agent rewrites it under the call, the way the real one does, and a
-    # panel that read the title would rename the row while somebody was looking
-    # at it.
-    And I ask the agent "bash"
-    Then the chat shows a tool call named "bash"
+    # Opencode 2 puts the programmatic name in a FIELD on the frame
+    # (`name: "shell"`) and mints an opaque `chatcmpl-tool-<hex>` id that says
+    # nothing. The `title` is not it either: this agent rewrites it under the
+    # call, the way the real one does — `shell` while it starts, the command
+    # once it is known — and a panel that read the title would rename the row
+    # while somebody was looking at it.
+    And I ask the agent "shell"
+    Then the chat shows a tool call named "shell"
     And the chat shows a completed tool call
 
   @opencode @scratch:chat
-  Scenario: A write through opencode's own tool naming reaches the outline
+  Scenario: A write through opencode's Code Mode reaches the outline
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # Opencode names an MCP server's tools `<server>_<tool>`, not
-    # `mcp__server__tool`. The panel has to recognise `olai_outlines_done` as one of
-    # the tools it handed this session — so no permission form is drawn, the
-    # write goes through the real ops layer, and the checkbox in front of a
-    # person moves.
+    # Opencode 2 hands an MCP tool to the model as JAVASCRIPT: there is no
+    # `olai_outlines_done` call on this wire at all, only one `execute` whose
+    # script calls `tools.olai.outlines_done`. The panel has to read the call
+    # out of that script — so no permission form is drawn, the write goes
+    # through the real ops layer, and the checkbox in front of a person moves.
     And I ask the agent "done order"
     Then the chat eventually shows "marked order done"
     And node "order" is done
@@ -98,105 +99,142 @@ Feature: Choosing a node agent's engine
     And the page has not reloaded
 
   @opencode @scratch:chat
+  Scenario: A script that batches two of olai's calls is drawn as the batch it is
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # ONE call id, TWO of olai's tools — which the model does whenever it can,
+    # and which a row cannot honestly be named after. A row has one title, one
+    # outline link and one reply; naming it after the first of two would claim
+    # to be a call that is half of what ran, and the fold under it would show
+    # one answer out of two. So the row stays the `execute` it is, and the work
+    # still lands.
+    And I ask the agent "batch order"
+    Then the chat eventually shows "batched two calls on order"
+    And node "order" is done
+    And the chat shows a tool call named "execute"
+    And the chat shows no question
+
+  @opencode @scratch:chat
   Scenario: One of olai's own is answered without anybody being asked
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The same rule at the other door: a permission REQUEST for one of ours is
-    # answered here and now — and by the option's own kind rather than by its
-    # place in the list, because opencode's options lead with an allow where the
-    # other agent's lead with the refusal.
-    And I ask the agent "permit"
-    Then the chat eventually shows "allow_once"
+    # The same rule at the other door: a permission REQUEST whose script calls
+    # only tools of servers olai handed over is answered here and now — and by
+    # the option's own kind rather than by its place in the list, because
+    # opencode's options lead with an allow where the other agent's lead with
+    # the refusal.
+    And I ask the agent "permit kitchen"
+    Then the chat eventually shows "once"
     And the chat shows no question
+
+  @opencode @scratch:chat
+  Scenario: A script olai did not hand the tools for is never approved for somebody
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The fail-safe rule, at the door it is most likely to be widened at. Every
+    # MCP tool on this wire arrives inside the same builtin, so the request
+    # says `execute` for olai's own tools, a foreign server's and opencode's
+    # own alike — and the only thing that tells them apart is the script. This
+    # one calls a server olai never handed over.
+    And I ask the agent "foreign"
+    Then the chat shows a question
+
+  @opencode @scratch:chat
+  Scenario: A script olai cannot read in full reaches a person even when every tool in it is ours
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # THE ONE THAT MATTERS MOST, and the reason the rule is written as narrowly
+    # as it is: opencode asks once per inner call and sends the same frame each
+    # time, so ONE approval covers a WHOLE script. This script reaches the tool
+    # table through a computed key — every tool in it is olai's, and olai still
+    # cannot prove that about the parts it cannot parse. A reader that skipped
+    # what it could not follow would be approving it.
+    And I ask the agent "dynamic order"
+    Then the chat shows a question
+    And node "order" is not done
 
   @opencode @scratch:chat
   Scenario: A tool nothing named is never approved by failing to recognise it
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The fail-safe rule, at the one place it can be walked end to end. The call
-    # id carries no name, so nothing can say which tool this is — and a tool
-    # olai cannot name is one a PERSON is asked about. A rule that widened here
-    # would approve somebody's permissions on their behalf.
+    # The other REFUSE half. The frame carries no name at all, so nothing can
+    # say which tool this is — and a tool olai cannot name is one a PERSON is
+    # asked about.
     And I ask the agent "nameless"
     Then the chat shows a question
 
   @opencode @scratch:chat
-  Scenario: The composer says what a mid-turn message will do
+  Scenario: The composer offers the interruption and promises no queue
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # What you type while a turn runs is an ordinary prompt opencode queues
-    # behind that turn — which since `compact-lost-to-steer` is what a mid-turn
-    # message is on EVERY agent olai talks to. This leg was the odd one out and
-    # is the one the other converged on, so the line is a promise now rather
-    # than a warning about a degradation.
-    #
-    # And opencode still has no steering method, so it is the leg with one
-    # gesture where the other has two: nothing here offers an interruption.
+    # THE PAIR THAT FLIPPED. opencode 1.17.9 had no steering and held a
+    # mid-turn prompt behind the running turn; 2.2.7 advertises
+    # `_meta.steering.supported` and REFUSES a second `session/prompt`
+    # outright. So the composer offers the gesture and promises nothing about
+    # waiting its turn — a promise this agent now does the opposite of.
     And I ask the agent "slow"
-    Then the composer says a message would queue
-    And the composer offers no interruption
+    Then the composer offers an interruption
+    And the composer says nothing about queueing
     When the agent is released
     Then the agent is idle
-    And the composer says nothing about queueing
+    And the composer offers no interruption
 
   @opencode @scratch:chat
-  Scenario: A message sent mid-turn goes out at once and is reached in its turn
+  Scenario: A message sent mid-turn reaches the turn in flight
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # What the composer's line is ABOUT, walked end to end. Nothing is held on
-    # this side — the words are on screen the moment they are sent — and the
-    # agent reaches them when the turn they were sent into is over. Until then
-    # the panel is working, because it is: two turns this server owns, and
-    # neither has finished.
+    # What the gesture is ABOUT, walked end to end: with no queue behind a
+    # running turn, an ordinary send while busy IS the interruption, and the
+    # words go INTO the turn that is already going rather than waiting for one
+    # that is not.
     And I ask the agent "slow"
     Then the chat shows a running tool call
-    When I type "hello" into the chat
+    When I type "done order" into the chat
     And I send the chat message
-    Then the chat shows my message "hello"
+    Then the chat shows my message "done order"
+    # THE CLAIM: the node moves while the first turn is STILL RUNNING. Nothing
+    # has been released and nothing has ended — a message that waited its turn
+    # could not have done this.
+    And node "order" is done
     And the agent is working
-    And the chat has not answered "opencode says: hello"
-    # ... and the call the FIRST turn is still making is still running. A turn
-    # that starts beside another must not mark the other's calls abandoned:
-    # they are live, and a clock that stopped here would be the panel saying a
-    # running call had been walked away from.
+    # ... and it is not waiting for anything: it is IN the turn, so there is no
+    # queue it could be in and nothing on the row to say there is.
+    And my message "done order" is no longer waiting
+    # ... and the call the turn is still making is still running. A clock that
+    # stopped here would be the panel saying a running call had been walked
+    # away from.
     And the chat says how long a running call has been going
     When the agent is released
     Then the chat eventually shows "done dawdling"
-    And the chat eventually shows "opencode says: hello"
     And the agent is idle
 
   @opencode @scratch:chat
-  Scenario: The panel settles when the LAST turn ends, not the first
+  Scenario: The interrupting gesture is the same door by button and by keyboard
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # Two held turns, one behind the other. The first ending is not the
-    # conversation ending — a panel that went idle there would be reporting a
-    # state it can see it is not in, over a turn still doing work.
+    # One gesture, two doors — the arrangement the other leg already has, and
+    # the one a hand already on the keyboard reaches for.
     And I ask the agent "slow"
-    And I ask the agent "slow"
-    Then the chat shows a running tool call
-    When the agent is released
-    Then the chat eventually shows "done dawdling"
+    Then the agent is working
+    When I interrupt the agent with "done order" by keyboard
+    Then node "order" is done
     And the agent is working
     When the agent is released
     Then the agent is idle
 
   @opencode @scratch:chat
-  Scenario: Cancel is about everything in flight, not the newest of it
+  Scenario: Cancel is about the turn in flight, and the panel settles
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # A person pressing cancel means the things they have going. With a message
-    # queued behind the running turn there are two, and both end — the panel
-    # settles rather than sitting at "working" over a turn nobody will ever
-    # hear from.
+    # A person pressing cancel means the thing they have going. There is only
+    # ever one on this wire now — the agent refuses a second — so the claim is
+    # that it ends and the panel says so rather than sitting at "working" over
+    # a turn nobody will ever hear from.
     And I ask the agent "slow"
-    And I type "hello" into the chat
-    And I send the chat message
     Then the agent is working
     When I cancel the turn
     Then the agent is idle
     And the chat says the turn was cancelled
-    And the chat has not answered "opencode says: hello"
 
   @opencode @agent-stored @scratch:chat
   Scenario: Reopening the conversation talks to the agent that has it
@@ -230,12 +268,18 @@ Feature: Choosing a node agent's engine
   Scenario: A turn that ends having said nothing says so
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # THE AUTH FAILURE, and the reason it needed a scenario rather than a unit
-    # test: nothing about it is an error. opencode with a provider key it cannot
-    # resolve takes the prompt, sends one zero-token usage report and answers
-    # `end_turn` — successfully. Every layer between the wire and the panel was
-    # working exactly as designed, and what a person got for their message was
-    # an empty space under it and a panel back at ready.
+    # A TURN THAT PRODUCED NOTHING, and the reason it needed a scenario rather
+    # than a unit test: nothing about it is an error. The agent takes the
+    # prompt, sends one zero-token usage report and answers `end_turn` —
+    # successfully. Every layer between the wire and the panel was working
+    # exactly as designed, and what a person got for their message was an empty
+    # space under it and a panel back at ready.
+    #
+    # It is olai's arm rather than one agent's shape, and it is driven on this
+    # leg because this leg's fake is the one that can produce it on demand.
+    # (opencode 1.17.9 sent exactly this for a provider key it could not
+    # resolve; 2.2.7 answers a provider failure with a JSON-RPC error instead,
+    # which is the scenario below.)
     And I ask the agent "silent"
     # THE CLAIM: the turn is accounted for. The words are the point — a person
     # reading this has to be told where to look, and the environment is the
@@ -287,17 +331,18 @@ Feature: Choosing a node agent's engine
   Scenario: A turn that failed after a usage frame is a message that did not land
     When I open the "opencode" agent on node "kitchen"
     And the node agent's fold is ready
-    # The other half of the split, and the half that has no face of its own: a
-    # usage report is not something a person can SEE, so a turn that sends one
-    # and then refuses has produced nothing — the words did not land, and the
-    # row has to say so and offer them again. The old single count read that
-    # frame as the agent having worked on the message and left it looking sent.
-    And I ask the agent "error-silent"
-    Then the chat shows my message "error-silent" as "refused"
-    And the strip under my message "error-silent" reads "Not sent"
+    # THE PROVIDER FAILURE, as opencode 2.2.7 really sends it: one usage frame
+    # and then a JSON-RPC error carrying the provider's own words. A usage
+    # report is not something a person can SEE, so the turn produced nothing —
+    # the words did not land, and the row has to say so and offer them again.
+    # The old single count read that frame as the agent having worked on the
+    # message and left it looking sent.
+    And I ask the agent "quota"
+    Then the chat shows my message "quota" as "refused"
+    And the strip under my message "quota" reads "Not sent"
     # ... and it is the REFUSAL a person is told about, not a silence: the agent
     # answered, in its own words.
-    And the chat eventually shows "No api key passed in"
+    And the chat eventually shows "Insufficient balance"
 
   @opencode @scratch:chat
   Scenario: While a turn runs, the panel says so where a person is looking
@@ -535,7 +580,10 @@ Feature: Choosing a node agent's engine
     When I press the node "order" in the write
     Then the node "order" is focused
     When I unfold the tool call
-    Then the tool call is called "olai_outlines_done" underneath
+    # The engine's own spelling underneath, which on this wire is the builtin
+    # the script ran inside rather than a name the tool was announced under:
+    # there is no `olai_outlines_done` frame anywhere in the conversation.
+    Then the tool call is called "execute" underneath
     And the tool call's reply is shown once
 
   @opencode @scratch:chat
@@ -547,6 +595,53 @@ Feature: Choosing a node agent's engine
     And the chat shows a tool call named "Read a node"
     And the tool call says which outline it touched
     And the chat shows no story under the call
+
+  @opencode @scratch:chat
+  Scenario: A Code Mode script that threw is still the row it was
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The script gave up before any tool ran, so the completion reports no
+    # calls at all. Nothing is olai's, nothing is named one of ours, and the
+    # row is the ordinary `execute` it looks like — which is the losing
+    # direction this can afford, and the one it takes.
+    When I ask the agent "throw"
+    Then the chat eventually shows "the script gave up"
+    And the chat shows a tool call named "execute"
+    And the chat shows no question
+
+  @opencode @scratch:chat
+  Scenario: OpenCode's subagents are drawn in their own lanes
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # opencode 2 runs a subagent as a SESSION of its own and narrates it on a
+    # channel olai has to ask for at the handshake. Two children, each with a
+    # call and a word of its own: a panel reading the ordinary stream alone
+    # would draw all of it in one column under the main agent, with nobody's
+    # work attributable to anybody.
+    When I ask the agent "agents"
+    Then the chat eventually shows "both subagents reported"
+    And the chat shows a tool call named "Survey the kitchen"
+    And the chat shows a tool call named "Count the orders"
+    And the chat shows 2 subagent lanes
+    And the lane named "Survey the kitchen" holds a call named "read house.olai"
+    And the lane named "Count the orders" holds a call named "ls"
+
+  @opencode @scratch:chat
+  Scenario: A subagent's question is asked in the subagent's name
+    When I open the "opencode" agent on node "kitchen"
+    And the node agent's fold is ready
+    # The request arrives stamped with the ROOT session — opencode asks the
+    # connection, and the connection is the root's — and names the child only
+    # on the call it is about. A panel that read the request's own session
+    # would draw a subagent's question in the main agent's voice, which is the
+    # one misattribution a permission form may never make.
+    When I ask the agent "agent-asks"
+    Then the chat shows a question
+    And the question is drawn in the lane of the agent that asked it
+    And the question's lane names itself, as "Open a terminal"
+    When I choose "Allow once"
+    And I answer the question
+    Then the chat eventually shows "the subagent asked and was answered"
 
   @pi @scratch:chat
   Scenario: Pi's olai write has its title, outline, clickable story and one reply

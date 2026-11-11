@@ -21,8 +21,9 @@
  * already been said on a frame. One frame answers both, so one thing
  * remembers both. It is true of the other agent too, for its own reason: an
  * opencode permission request names the call it is about by the same id the
- * announcement carried, and that id is where the tool's name is
- * (`olai-plugin-opencode`'s `leg.ts`).
+ * announcement carried, and the announcement is where the tool's NAME was said
+ * — the id itself is an opaque hash (`olai-plugin-opencode`'s `leg.ts`), so
+ * the frame already heard is the only thing that can answer.
  *
  * ONE RULE: **a frame refines, never retracts.** The facts arrive across
  * frames and each carries what it knows — a subagent's terminal output arrives

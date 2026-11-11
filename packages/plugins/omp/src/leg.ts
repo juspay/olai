@@ -235,9 +235,9 @@ export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined
  * session, and the request offers an allow-flavoured option. Any of those three
  * missing and a person is asked.
  *
- * `mcp__<server>_` is a strong separator and this rule leans on that: unlike
- * opencode's `_`, a builtin would have to be called `mcp__olai_something` to
- * collide, and the server half is olai's own name rather than a tool's. The
+ * `mcp__<server>_` is a strong separator and this rule leans on that: a
+ * builtin would have to be called `mcp__olai_something` to collide, and the
+ * server half is olai's own name rather than a tool's. The
  * bounds every leg keeps are nevertheless kept here: the match is a PREFIX
  * rather than a contains, and the server names are the ones olai itself handed
  * over — olai's own and whatever a probe answered with, never a name a person
@@ -291,9 +291,11 @@ export const listedIn = (meta: Meta): ListedFacts | null => {
 
 /**
  * omp's answers, beside `olai-plugin-opencode`'s so the difference can be read
- * in one screen — and the difference is entirely INSIDE two readers, because
- * the two rows are otherwise the same shape: found rather than shipped, plain
- * ACP, the same call-id mint, the same two refused extensions.
+ * in one screen — and the difference is no longer only inside two readers:
+ * both rows are found rather than shipped and both are plain ACP, but opencode
+ * 2 names a tool on the frame, dispatches every MCP tool through one Code Mode
+ * script, steers and runs child sessions, where this row mints the name into
+ * the call id and refuses both extensions.
  *
  * Every `null` here was a request that would otherwise be sent and refused, and
  * every one of them is the losing direction this can afford: a

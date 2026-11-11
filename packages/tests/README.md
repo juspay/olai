@@ -755,7 +755,7 @@ scenario must not inherit an installation it never requested.
 
 `.agent-says-nothing` is the same idiom over what an agent ADVERTISES: armed, the next handshake carries neither the queue capability nor the steering one, which is the panel's face for an agent it has been told nothing about — no promise that a message sent mid-turn will be got to, and no `interrupt` control to press. It is a dot-file rather than a tag because the handshake happens once, before the client has said anything, so a scenario arms it and restarts. What it must NOT change is the sending: the words still go at once, the row still says it is waiting, and the agent still gets to them.
 
-`refuse busy` is the third leg of that world, and it is a prompt verb rather than a dot-file because it is a property of the turn rather than of the handshake: from then on a `session/prompt` arriving while a turn RUNS is answered with an error, off the read loop, without joining the queue. Both agents olai ships against hold a mid-turn prompt — one advertises the queue, the other was verified — so an agent with no queue at all (an older adapter) was the one shape nothing here could produce, and "a busy send degrades honestly" was a sentence rather than a scenario. It does: the row keeps the words, wears *not sent*, and offers to send them again.
+`refuse busy` is the third leg of that world, and it is a prompt verb rather than a dot-file because it is a property of the turn rather than of the handshake: from then on a `session/prompt` arriving while a turn RUNS is answered with an error, off the read loop, without joining the queue. The pinned Claude adapter holds a mid-turn prompt and advertises the queue, so an agent with no queue at all was the one shape THIS file could not produce, and "a busy send degrades honestly" was a sentence rather than a scenario. It does: the row keeps the words, wears *not sent*, and offers to send them again. It is the opencode wire's ordinary behaviour too, which is the other reason to have it here rather than only next door.
 
 WHICH of the two is loaded is the thing several of those scenarios are about. A first boot has nothing written down, so it takes the most recently updated — the fallback, and once the whole rule. After a conversation has been PICKED, the server remembers it and a restart comes back to that one however much fresher its sibling is (`chat-restore-wrong`), and falls back to the newest again only when the remembered one has gone. A scenario takes one away with `.agent-forgot-<sessionId>`, a dot-file in the served directory like the `hold` release — the store's walk prunes those, so arming one is not an edit.
 
@@ -773,28 +773,43 @@ developer with the real opencode installed would otherwise run a different suite
 than a CI lane does. The fake `kolu` in its own plugin makes the same argument
 about PATH.
 
-Its differences from the file above are opencode 1.17.9's own, captured live
-(`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/opencode-chat.md`): no `_meta` on any frame, so the tool's
-name is the head of the `toolCallId` (`bash:0`) and the `title` moves under a
-running call; MCP tools spelled `<server>_<tool>`; permission options that lead
-with an ALLOW where the other's lead with the refusal; `session/set_mode` and
-`_session/steering` refused; the model in `configOptions` and changes only in
-method responses. And it QUEUES: one `session/prompt` at a time, because "sends
-wait their turn" is a claim a fake that answered two at once could not witness —
-which since `compact-lost-to-steer` is what every send does on every agent, so
-the scripted Claude agent next door queues the same way and this is no longer
-the leg that behaves differently. Behaviour is keyed on the prompt text
-(`done <id>`, `bash`, `permit`, `nameless`, `slow`, `silent`).
+Its differences from the file above are opencode 2.2.7's own, captured live,
+and the fake is only worth having while it keeps saying exactly what that wire
+says. The SHAPE it has to be faithful to: a tool's name is a `name` field on
+`tool_call`, `tool_call_update` and a permission request's `toolCall`, while
+the `toolCallId` is an opaque `chatcmpl-tool-<hex>` that says nothing (a child
+session's is that behind the child's own session id) and the `title` moves
+under a running call; olai's MCP tools never arrive as tool calls at all but
+inside one `execute` whose `rawInput.code` is JavaScript against
+`tools.<server>.<tool>`, whose completion reports what it ran in
+`rawOutput.metadata.toolCalls` and returns the script's value as a `content`
+text block — with no `structuredContent` and no `output` anywhere, and more
+than one call in one script as an ordinary case rather than an exotic one;
+permission options that lead with an ALLOW (`once`/`always`/`reject`, kinds
+`allow_once`/`allow_always`/`reject_once`), asked ONCE PER INNER CALL with the
+same frame each time, a refusal coming back as `Permission.DeclinedError` on
+the `execute` rather than as a failed turn; `_session/steering` answered
+(`injected` mid-turn, `promptRequired` when idle) while a second
+`session/prompt` during a running turn is REFUSED outright; subagents as real
+child sessions on `opencode/session/child_update`, sent only to a client whose
+`initialize` asked for them, with a child's permission request stamped with the
+ROOT session and the child named in the call's own `_meta`; `session/set_mode`
+refused; and the model in `configOptions`, changes answered in the method
+response.
 
-`silent` is the auth failure, whole: one zero-token `usage_update` and then a
-SUCCESSFUL `end_turn`, with no error anywhere. It is a scripted turn rather than
-a unit test because nothing about it is an error — every layer between the wire
-and the panel behaves correctly, and the bug was that the panel drew the result
-as an ordinary turn. A `.agent-hold-open` dot-file makes the next session open
-sit on the wire until `the agent is released`, which is how a scenario reaches
-the seconds between picking an agent and having a conversation: on a laptop that
-window is too short to aim at, and it is the window a message typed into it used
-to be lost in.
+Those are the facts a scenario about lanes, Code Mode rows or a refused busy
+send is actually asserting on, so a fake that drifted from any of them would
+make the suite agree with a client rather than with opencode. The old 1.x
+shape — a tool's name at the head of the call id, `<server>_<tool>` MCP
+spellings, a queued mid-turn prompt, a provider failure as a SUCCESSFUL silent
+turn — is not this wire and is deliberately not produced here: olai does not
+support that line, and a fake that still spoke it would be testing a reading
+olai no longer has.
+
+A `.agent-hold-open` dot-file makes the next session open sit on the wire until
+`the agent is released`, which is how a scenario reaches the seconds between
+picking an agent and having a conversation: on a laptop that window is too short
+to aim at, and it is the window a message typed into it used to be lost in.
 
 ### The Oh My Pi-shaped one
 

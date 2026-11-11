@@ -1486,7 +1486,8 @@ export const Talking = Schema.Union([
      *
      *   - **the agent said so**, at the handshake, and false until it has —
      *     a panel that has not been told cannot offer an interruption on an
-     *     agent's behalf. False for opencode, which has no such method at all.
+     *     agent's behalf. False for pi and omp, which have no such method at
+     *     all; true for the Claude adapter, Codex and opencode, which say so.
      *   - **and this CONVERSATION has not yet held a message behind a running
      *     turn.** That half is a guard around somebody else's defect rather
      *     than a property of anything here: the pinned Claude Code adapter
@@ -1510,11 +1511,12 @@ export const Talking = Schema.Union([
      * the turn it is working on is over.
      *
      * The composer's standing promise, made before anybody presses anything:
-     * what you send now waits its turn and is got to. True of both agents olai
-     * talks to and established per agent rather than assumed — the Claude Code
-     * adapter advertises the queue at the handshake (`promptQueueing`), and
-     * opencode's was verified against 1.17.9 — because "what happens to a
-     * prompt sent mid-turn" is not something the protocol answers for anybody.
+     * what you send now waits its turn and is got to. Established per agent
+     * rather than assumed — the Claude Code adapter advertises the queue at
+     * the handshake (`promptQueueing`) and pi's adapter announces a held
+     * prompt's position, while opencode REFUSES a second prompt mid-turn and
+     * omp cancels the turn to run it — because "what happens to a prompt sent
+     * mid-turn" is not something the protocol answers for anybody.
      *
      * An agent nothing is known about gets no promise made for it. Nothing else
      * changes: every send still goes at once, and the message's own row still
