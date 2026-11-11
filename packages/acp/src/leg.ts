@@ -46,6 +46,13 @@
 import type { PermissionOption } from "@agentclientprotocol/sdk"
 import type { Duration } from "effect"
 
+import type { NativeActivity } from "./activity.ts"
+
+/** The channel one agent runs its own child sessions and background tasks on,
+ *  re-offered here because a leg DECLARES one and `./engine.ts` is the door a
+ *  plugin reaches a leg's vocabulary through. */
+export type { ActivityNotification, ActivityUpdate, Heard, NativeActivity } from "./activity.ts"
+
 /** A `_meta`, as every reader here takes one: an object of unknown fields, or
  *  nothing at all. Spelled once because five signatures below take it. */
 export type Meta = { readonly [key: string]: unknown } | null | undefined
@@ -132,10 +139,19 @@ export interface RawMessages {
   readonly serversIn: (params: unknown) => ReadonlyArray<Reported> | null
 }
 
-/** A tool frame as needed for display; programmatic names take precedence. */
+/**
+ * A tool frame as needed for display; programmatic names take precedence.
+ *
+ * `rawOutput` is here because one agent says WHICH tools a call ran only in
+ * the call's own result: opencode 2's Code Mode dispatches every MCP tool
+ * through one `execute`, and the script's `rawInput.code` names them going in
+ * while `rawOutput.metadata.toolCalls` names them coming back. A leg whose
+ * wire announces the tool by name ignores it, as four of the five do.
+ */
 export interface MCPFrame {
   readonly title?: string | null | undefined
   readonly rawInput?: unknown
+  readonly rawOutput?: unknown
   readonly _meta?: Meta
   readonly name?: string | null | undefined
 }
@@ -171,6 +187,11 @@ export const mcpCallBy = (spelling: (server: string) => string): Leg["mcpCall"] 
  * olai's own tools on one wire and approve somebody's plan-mode exit on the
  * other. One rule, read off the option's own `kind`, is right on both.
  *
+ * NOT EVERY LEG CAN USE IT. An agent that dispatches every MCP tool through
+ * one builtin — opencode 2's Code Mode — has no tool NAME to match against,
+ * and writes a rule of its own over the frame instead. This stays the rule for
+ * the wires that do name the tool, which is four of the five.
+ *
  * @param spelling what this agent calls the tools of the server named
  */
 export const allowingOurs = (
@@ -179,8 +200,16 @@ export const allowingOurs = (
 (tool, given, options) => {
   const ours = tool !== null && given.some((server) => tool.startsWith(spelling(server)))
   if (!ours) return null
-  return options.find((option) => option.kind.startsWith("allow"))?.optionId ?? null
+  return allowFlavoured(options)
 }
+
+/** The option that ALLOWS, out of an agent's own list and by its own `kind` —
+ *  or `null` for a request that offers none. Spelled once because every leg's
+ *  rule ends here, and the one thing none of them may do is take the first
+ *  option: the two wires olai speaks order their lists oppositely. */
+export const allowFlavoured = (
+  options: ReadonlyArray<PermissionOption>,
+): string | null => options.find((option) => option.kind.startsWith("allow"))?.optionId ?? null
 
 /** What a leg says about a call that SPAWNED an agent — structural rather than
  *  `@olai/surface`'s `Spawned`, which is what the caller assigns it to:
@@ -310,11 +339,21 @@ export interface Leg {
   /** DISPLAY ONLY. Match a call against servers handed to this session;
    * allowedWithoutAsking remains the only approval rule. */
   readonly mcpCall: (frame: MCPFrame, servers: ReadonlyArray<string>) => { server: string; tool: string } | null
-  /** The adapter's structured reply; absent for prose or another output shape. */
-  readonly replyIn: (rawOutput: unknown) => Record<string, unknown> | undefined
-  /** Native child-session and AIR async-task lifecycle streams. Opt in only
-   * where the adapter implements these versioned extensions. */
-  readonly nativeActivity?: boolean
+  /**
+   * The adapter's structured reply; absent for prose or another output shape.
+   *
+   * `content` is the frame's own content blocks, for the agent that puts a
+   * tool's answer there rather than in its output: opencode 2's Code Mode
+   * returns the SCRIPT's value as a text block and keeps `rawOutput` for the
+   * run's bookkeeping. A leg that reads only the output ignores it — a missing
+   * second argument answers `undefined`, which draws no reply, which is the
+   * direction every reader in this file fails in.
+   */
+  readonly replyIn: (rawOutput: unknown, content?: unknown) => Record<string, unknown> | undefined
+  /** Native child-session and async-task lifecycle streams, in this agent's own
+   * spelling — see {@link NativeActivity}. Absent for an agent with no such
+   * channel, which is most of them. */
+  readonly nativeActivity?: NativeActivity
   /** Connection reports carried by ordinary session updates, where an adapter
    * exposes them. Display only: this must never grant tool permissions. */
   readonly serversInUpdate?: (update: unknown) => ReadonlyArray<Reported> | null
@@ -352,8 +391,16 @@ export interface Leg {
    * DISPLAY title, and "which tool is this" is what the answer depends on. An
    * agent that answers neither this nor {@link Leg.toolNameOf} leaves every call
    * unnamed, and a call nobody named is a call a person is asked about.
+   *
+   * TWO ARGUMENTS BECAUSE TWO WIRES SAY IT IN TWO PLACES: the pinned Claude
+   * Code adapter writes it into a `_meta` corner, and opencode 2 puts a `name`
+   * on the frame beside the title. `named` is that field, VERBATIM and
+   * unvalidated — a leg decides whether its agent's version of it may be
+   * believed. It is optional for the reason every reader here is fail-safe:
+   * a caller with no frame to hand passes nothing, the leg answers `null`,
+   * and a call nobody named is a call a person is asked about.
    */
-  readonly toolNameIn: (meta: Meta) => string | null
+  readonly toolNameIn: (meta: Meta, named?: string | null) => string | null
 
   /**
    * ... and out of the CALL ID, for a wire that puts it there.
@@ -380,15 +427,30 @@ export interface Leg {
    * and a leg that matched more loosely than its agent's spelling would be
    * widening the one rule in this package that must not widen.
    *
+   * THE FRAME IS THE FOURTH ARGUMENT, and it exists for the agent whose tool
+   * name is not the whole question. opencode 2 dispatches every MCP tool
+   * through one builtin, so the name a request carries is `execute` for
+   * olai's tools, a foreign server's, and its own — and WHICH is readable only
+   * in the script the request is about ({@link MCPFrame.rawInput}). A leg that
+   * matches on the name alone ignores it, as four of the five do.
+   *
+   * IT IS OPTIONAL AND THAT IS SAFE IN ONE DIRECTION ONLY, which is the
+   * direction it is: a caller that hands no frame leaves a Code-Mode leg
+   * unable to recognise anything, so it recognises nothing, so a person is
+   * asked. Nothing is ever approved by an argument going missing.
+   *
    * @param tool the programmatic name of the tool, or `null` when nothing named
    *   it — a name we do not know is answered by ASKING
    * @param given the MCP servers this conversation was handed, by name
    * @param options the request's own options, in the agent's own order
+   * @param asked the frame the request is ABOUT, for a wire that says which
+   *   tool a call really is somewhere other than its name
    */
   readonly allowedWithoutAsking: (
     tool: string | null,
     given: ReadonlyArray<string>,
     options: ReadonlyArray<PermissionOption>,
+    asked?: MCPFrame,
   ) => string | null
 
   /** The `Agent`/`Task` call a frame's own call was made INSIDE, or `null` for
@@ -480,10 +542,12 @@ export interface Leg {
    *
    * TAKES THE HANDSHAKE because one leg has an ADVERTISEMENT to read (the
    * pinned Claude Code adapter says `promptQueueing` in `agentCapabilities`)
-   * and the other has a verified fact of its own (opencode answers one prompt
-   * at a time, in order, 1.17.9). Both are the same kind of claim — this agent
-   * holds what you send while it is busy — and a leg answers it however it
-   * honestly can, which is this file's whole arrangement.
+   * and others have a verified fact of their own — omp CANCELS the running
+   * turn when a second prompt arrives, and opencode 2 REFUSES one outright
+   * (`-32603 Session already has an active ACP prompt`, captured against
+   * 2.2.7). All three are the same kind of claim — what this agent does with
+   * what you send while it is busy — and a leg answers it however it honestly
+   * can, which is this file's whole arrangement.
    *
    * WHAT IT DOES NOT GATE is the send. Every send is a plain prompt whatever
    * this says, because there is nothing else to do with a message somebody

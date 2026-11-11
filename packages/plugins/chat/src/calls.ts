@@ -97,8 +97,8 @@ const NOTHING: Said = Object.freeze({})
  *  news — a slice, two objects and a map write apiece, on the one path that
  *  runs on every frame of every conversation — to store an answer
  *  {@link Calls.about} can read off its own argument. */
-const saidIn = (leg: Leg, meta: Meta): Said => {
-  const name = leg.toolNameIn(meta)
+const saidIn = (leg: Leg, meta: Meta, named?: string | null): Said => {
+  const name = leg.toolNameIn(meta, named)
   const parent = leg.parentToolUse(meta)
   if (name === null && parent === null) return NOTHING
   return {
@@ -118,9 +118,14 @@ export class Calls {
   /** A frame went past. What it said about its call is folded in; a frame that
    *  said nothing leaves no entry and allocates nothing, so a conversation of
    *  ordinary calls keeps an empty map — which is nearly every conversation,
-   *  and this runs on every frame of all of them. */
-  heard(id: string, meta: Meta, session?: string): void {
-    const said = saidIn(this.#leg, meta)
+   *  and this runs on every frame of all of them.
+   *
+   *  `named` is the frame's own `name` field, for the wire that puts the
+   *  programmatic name THERE rather than in a corner or in the id. Carried
+   *  verbatim; whether it may be believed is the leg's answer, not this
+   *  registry's. */
+  heard(id: string, meta: Meta, named?: string | null, session?: string): void {
+    const said = saidIn(this.#leg, meta, named)
     if (said === NOTHING) return
     const key = this.#key(id, session)
     this.#said.set(key, { ...this.#said.get(key), ...said })

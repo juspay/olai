@@ -19,7 +19,7 @@
 
 import { describe, expect, test } from "bun:test"
 
-import { NAMES_IN_ID, NAMES_IN_META } from "./agents/legs.testlib.ts"
+import { NAMES_IN_ID, NAMES_IN_META, NAMES_ON_FRAME, OWN_SESSIONS } from "./agents/legs.testlib.ts"
 import { Calls } from "./calls.ts"
 
 /** A frame's `_meta`, as an adapter that writes one builds it — either field,
@@ -153,26 +153,44 @@ describe("a leg that reads the call id instead of a meta", () => {
 
 describe("native session call identity", () => {
   test("observations and permission lookups keep same-ID child calls distinct", () => {
-    const calls = new Calls({ ...NAMES_IN_META, nativeActivity: true })
-    calls.heard("same", meta({ toolName: "RootTool" }), "root")
-    calls.heard("same", meta({ toolName: "ChildTool" }), "child")
+    const calls = new Calls({ ...NAMES_IN_META, nativeActivity: OWN_SESSIONS })
+    calls.heard("same", meta({ toolName: "RootTool" }), undefined, "root")
+    calls.heard("same", meta({ toolName: "ChildTool" }), undefined, "child")
     expect(calls.about("same", "root").name).toBe("RootTool")
     expect(calls.about("same", "child").name).toBe("ChildTool")
-    calls.heard("same", meta({ toolName: "PermissionTool" }), "child")
+    calls.heard("same", meta({ toolName: "PermissionTool" }), undefined, "child")
     expect(calls.about("same", "root").name).toBe("RootTool")
     expect(calls.about("same", "child").name).toBe("PermissionTool")
     calls.forget()
     expect(calls.about("same", "child")).toEqual({})
   })
   test("name interpretation receives the raw wire ID", () => {
-    const calls = new Calls({ ...NAMES_IN_META, nativeActivity: true,
+    const calls = new Calls({ ...NAMES_IN_META, nativeActivity: OWN_SESSIONS,
       toolNameOf: (id) => id === "wire-id" ? "KnownTool" : null })
     expect(calls.about("wire-id", "child").name).toBe("KnownTool")
   })
 })
 
+describe("what the frame's own name field said", () => {
+  test("is remembered for the question that arrives without one", () => {
+    // The opencode 2 shape: the name is a field, the id is a hash, and the
+    // permission request about that call is answered from what was announced.
+    const calls = new Calls(NAMES_ON_FRAME)
+    calls.heard("chatcmpl-tool-a273", undefined, "execute")
+    expect(calls.about("chatcmpl-tool-a273").name).toBe("execute")
+  })
+
+  test("a frame that named nothing leaves the call unnamed", () => {
+    const calls = new Calls(NAMES_ON_FRAME)
+    calls.heard("chatcmpl-tool-a273", undefined, undefined)
+    calls.heard("chatcmpl-tool-b000", undefined, "")
+    expect(calls.about("chatcmpl-tool-a273")).toEqual({})
+    expect(calls.about("chatcmpl-tool-b000")).toEqual({})
+  })
+})
+
 test("MCP identity shares session keys and lifetime with call facts", () => {
-  const calls = new Calls({ ...NAMES_IN_META, nativeActivity: true })
+  const calls = new Calls({ ...NAMES_IN_META, nativeActivity: OWN_SESSIONS })
   calls.recognized("same", { server: "olai", tool: "outlines_read" }, "one")
   calls.recognized("same", { server: "foreign", tool: "read" }, "two")
   calls.recognized("same", null, "one")

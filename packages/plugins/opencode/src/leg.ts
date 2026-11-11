@@ -2,77 +2,217 @@
  * What OPENCODE means by what it sends — the second leg (`@olai/acp/engine`'s
  * `Leg`).
  *
- * Every reading here was captured live against **opencode 1.17.9** running
- * `opencode acp --cwd <dir>` (the spike, 2026-08-21; the wire facts and their
- * consequences are written up in `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/opencode-chat.md`). It is
- * plain ACP over stdio and most of it needs nothing said: the sessions, the
- * MCP handing, the permission round trip and the model picker are the
- * protocol's own and are read where the protocol is read.
+ * Every reading here was captured live against **opencode 2.2.7** running
+ * `opencode acp` (2026-11-11). It is plain ACP over stdio and most of it needs
+ * nothing said: the sessions, the MCP handing, the permission round trip and
+ * the model picker are the protocol's own and are read where the protocol is
+ * read.
  *
- * FOUR THINGS ARE NOT, and they are this file:
+ * **OPENCODE 1.x IS NOT THIS WIRE AND IS NOT SUPPORTED.** The 1.17.9 line put
+ * the tool's name at the head of the call id (`bash:0`), announced every MCP
+ * tool as `<server>_<tool>`, carried no `_meta` anywhere, had no steering and
+ * held a mid-turn prompt behind the running turn. Every one of those five is
+ * false on 2.x, and three of them are false in the direction that would make a
+ * 1.x reading WRONG rather than merely blind — so there is no dual leg here
+ * and no shim. An `opencode acp` from the old line matches nothing below,
+ * which means every call is unnamed, every permission reaches a person, and
+ * nothing is ever auto-approved. That is the direction this file fails in.
  *
- *   - **`_meta` never appears on any frame.** So the two questions the Claude
- *     leg answers out of one — which tool, and whose call — have to be answered
- *     some other way or not at all. The first is answered below; the second is
- *     not answerable, and says so.
- *   - **the programmatic tool name is the `toolCallId` PREFIX**: `bash:0`,
- *     `olaiprobe_ping:0`. It is also the only key correlating a permission
- *     request to the announcement that named the call, which is the shape olai
- *     already relies on.
- *   - **MCP tools are named `<server>_<tool>`**, not `mcp__server__tool`. So
- *     the auto-allow rule gets a spelling of its own, and it is the one thing
- *     in this file that must not be written loosely.
- *   - **there is no bypass mode and no steering.** `session/set_mode
- *     "bypassPermissions"` is refused (`-32602`; the modes are `build` and
- *     `plan`), and `_session/steering` does not exist (`-32601`). Both are
- *     `null` here rather than requests that fail, so olai asks for neither: the
- *     first would cost a refusal per session, and the second would cost a
- *     person their words on every mid-turn message. What the absence of
- *     steering COSTS is said out loud in the composer instead.
+ * FIVE THINGS ARE THIS FILE, and they are the five the protocol does not say:
  *
- * And one that is deliberately nothing: opencode's **subagents carry no parent
- * attribution** — a `task` tool of kind `think`, with nothing on its frames
- * naming who spawned what — so {@link Leg.parentToolUse} and
- * {@link Leg.spawned} answer `null` for everything and a fan-out renders flat.
- * That is the losing direction this can afford, and it is the direction it
- * loses in: a call drawn in the main agent's column is a call nobody is
- * misattributed for, and no permission form is drawn in a subagent's name that
- * is not one.
+ *   - **the tool's name is a FIELD ON THE FRAME** (`name: "shell"`,
+ *     `"execute"`, `"subagent"`), and the `toolCallId` is opaque
+ *     (`chatcmpl-tool-a27391eb035485a2`). The id said the name once; it does
+ *     not any more, and a reader still splitting it would name a call
+ *     `chatcmpl-tool-a27391eb035485a2` after nothing.
+ *   - **olai's own tools never arrive as tool calls at all.** opencode 2 hands
+ *     every MCP tool to the model as CODE MODE: one `execute` call whose
+ *     `rawInput.code` is JavaScript against a `tools.<server>.<tool>` object,
+ *     and whose completion reports what it ran in
+ *     `rawOutput.metadata.toolCalls`. {@link mcpCall} and
+ *     {@link allowedWithoutAsking} are both written over that, and the second
+ *     of them is the one thing in this file that must not be written loosely.
+ *   - **the reply is in the CONTENT, not the output.** `execute` returns the
+ *     script's value as a text block; `rawOutput` is the run's bookkeeping.
+ *   - **steering exists and queueing does not**, which is the pair that has to
+ *     be read together. `_session/steering` answers `{outcome:"injected"}`
+ *     mid-turn, and a second `session/prompt` while a turn runs is REFUSED
+ *     (`-32603 Session already has an active ACP prompt: <id>`). On 1.17.9 it
+ *     was exactly the other way round.
+ *   - **subagents are real child sessions with a channel of their own**
+ *     ({@link ./activity.ts}), so a fan-out draws in lanes and a child's
+ *     permission question is asked in the child's name.
+ *
+ * And one that is deliberately nothing: **there is still no bypass mode.**
+ * `session/set_mode "bypassPermissions"` is refused (`-32602 mode not found`;
+ * the modes are `build` and `plan`), so {@link Leg.bypassMode} is `null` here
+ * rather than a request that fails. Unattended auto-approval for opencode
+ * lives in its own `opencode.json` — olai answers what it is asked and never
+ * widens what it answers.
  */
 
-import { mcpCallBy, allowingOurs, type Leg, namedExactly } from "@olai/acp/engine"
+import { allowFlavoured, type Leg, namedExactly } from "@olai/acp/engine"
+
+import { CHILD_SESSIONS } from "./activity.ts"
+
+const record = (value: unknown): Record<string, unknown> | undefined =>
+  typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
 
 // ── which tool a call is ───────────────────────────────────────────────
 
-/** What separates a tool's name from the rest of a call id. Opencode mints
- *  `<tool>:<n>` — `bash:0`, `read:3` — and the number is the call's, not the
- *  tool's. */
-const AT = ":"
+/**
+ * The programmatic name of a tool, out of the FIELD the frame carries it in.
+ *
+ * `tool_call`, `tool_call_update` and the `toolCall` of a
+ * `session/request_permission` all carry `name` beside `title` on opencode 2,
+ * and the three agree. The TITLE is not it and never was: opencode rewrites a
+ * call's title over its life — `shell` while it starts, `sleep 20` once the
+ * command is known, and a child's titles are prefixed with the child's own
+ * (`Summarise note.txt: read`) — so a client reading the title has a different
+ * answer depending on when it looked.
+ *
+ * TAKES WHAT THE CALLER WAS GIVEN AND BELIEVES ONLY A NON-EMPTY STRING. A
+ * frame with no `name` is a call this cannot name, which is a call a person is
+ * asked about ({@link Leg.toolNameIn}). The `_meta` argument is unread: the
+ * only corner on this wire is the child-session stamp, which names a session
+ * rather than a tool.
+ */
+export const toolNameIn = (_meta: unknown, named?: string | null): string | null =>
+  typeof named === "string" && named !== "" ? named : null
+
+// ── an olai call, out of the script that dispatched it ─────────────────
+
+/** The builtin every MCP tool arrives inside. opencode 2's Code Mode: the
+ *  model writes JavaScript, the script calls the tools, and ONE call id covers
+ *  however many of them it ran. */
+const EXECUTE = "execute"
 
 /**
- * The programmatic name of a tool, out of the head of its own call id.
+ * Every `tools.<server>.<tool>` the script NAMES, in source order — or `null`
+ * for a script this cannot read exhaustively.
  *
- * THE STABLE NAME, and the reason the title is not it: opencode rewrites a
- * call's `title` over its life — the tool's name while it starts, a sentence
- * about what it is doing while it runs, and back to the tool's name when it
- * fails — so a client reading the title has a different answer depending on
- * when it looked. The id is minted once and never moves.
+ * `null` IS THE WHOLE POINT and it is not the same as an empty list. An empty
+ * list is "this script calls no tool"; `null` is "this script reaches the tool
+ * table in a way static reading cannot follow", which is
+ * `tools["bash"]`, `tools[name]`, a destructured `const { ping } = tools.olai`,
+ * anything. {@link allowedWithoutAsking} may only answer for a script it has
+ * read ALL of, because opencode asks once per inner call with the same frame
+ * each time — so one approval of this frame approves every tool the script
+ * runs, and a reader that silently skipped the call it could not parse would
+ * be approving it.
  *
- * A `null` here is the same `null` the other leg's is: a call nobody named is
- * a call a person is asked about ({@link Leg.toolNameOf}). It is answered for an
- * id with no separator in it — which is not a shape opencode has been seen to
- * send, and is exactly the shape a future version could — and for an id whose
- * name half is empty (`:0`). Neither guesses; a name this cannot read is a
- * name it does not have.
- *
- * The FIRST separator, not the last: a tool whose own name contained a colon
- * would be one this under-reads rather than over-reads, and under-reading a
- * name costs a question where over-reading one could cost an approval.
+ * The grammar is deliberately the narrow one: `tools` as a whole word, a dot,
+ * an identifier, a dot, an identifier. A `tools` that is a property of
+ * something else (`x.tools.a.b`) is not the table, and a `tools` followed by
+ * anything but `.<identifier>.<identifier>` is a reach this cannot follow.
  */
-export const toolNameOf = (toolCallId: string): string | null => {
-  const at = toolCallId.indexOf(AT)
-  if (at <= 0) return null
-  return toolCallId.slice(0, at)
+export const toolsNamedIn = (code: string): ReadonlyArray<{ server: string; tool: string }> | null => {
+  const called: { server: string; tool: string }[] = []
+  // Every mention of the table, so a reach this grammar cannot follow is seen
+  // rather than skipped — which is the difference between reading a script and
+  // finding the parts of it that look familiar.
+  const mentions = /(^|[^\w$.])tools\b([^]?)/g
+  let at: RegExpExecArray | null
+  while ((at = mentions.exec(code)) !== null) {
+    if (at[2] !== ".") return null
+    const pair = /^([A-Za-z_$][\w$-]*)\.([A-Za-z_$][\w$]*)/.exec(code.slice(at.index + at[0].length))
+    if (pair === null) return null
+    called.push({ server: pair[1]!, tool: pair[2]! })
+  }
+  return called
+}
+
+/** ... and every one the COMPLETION reported, which is the agent's own account
+ *  of what the script actually ran (`rawOutput.metadata.toolCalls`, entries
+ *  `{ tool: "<server>.<tool>", status, input? }`). `null` for a frame carrying
+ *  no such list — an announcement, or a call that is not an `execute`. */
+export const toolsRanIn = (rawOutput: unknown): ReadonlyArray<{ server: string; tool: string }> | null => {
+  const ran = record(record(rawOutput)?.["metadata"])?.["toolCalls"]
+  if (!Array.isArray(ran)) return null
+  const called: { server: string; tool: string }[] = []
+  for (const entry of ran) {
+    const name = record(entry)?.["tool"]
+    if (typeof name !== "string") return null
+    const dot = name.indexOf(".")
+    if (dot <= 0 || dot === name.length - 1) return null
+    called.push({ server: name.slice(0, dot), tool: name.slice(dot + 1) })
+  }
+  return called
+}
+
+/**
+ * Which of olai's tools this frame is about, or `null` for a frame that is not
+ * about exactly one of them — the question the panel's TITLE, OUTLINE and
+ * REPLY all hang off.
+ *
+ * DISPLAY ONLY. {@link allowedWithoutAsking} is the approval rule and is asked
+ * a different question; this one decides what a row is CALLED. A call nothing
+ * here recognises is drawn as the ordinary `execute` it looks like, with its
+ * script as the row's detail, which is the losing direction this can afford.
+ *
+ * EXACTLY ONE, and that is a ruling rather than a limitation this failed to
+ * get past. One `execute` can carry several calls — the model batches them,
+ * and three `tools.olai.*` calls in one script is an ordinary thing to see —
+ * but a row has one title, one outline link and one reply. A row that named
+ * itself after the first of three would be claiming to be a call that is a
+ * third of what ran, and the fold under it would show one answer out of three.
+ * So a batch is drawn as the batch it is: the `execute` row, its whole script,
+ * and its whole returned value.
+ *
+ * WHAT IT REPORTED BEATS WHAT IT SAID IT WOULD DO, for the same reason the id
+ * used to beat the title: `rawOutput.metadata.toolCalls` is the agent's record
+ * of what ran, and the script is the model's statement of intent. They agree
+ * in every capture; where a completion carries the list, it is read.
+ */
+export const mcpCall: Leg["mcpCall"] = (frame, servers) => {
+  if (frame.name !== EXECUTE) return null
+  const code = record(frame.rawInput)?.["code"]
+  const called = toolsRanIn(frame.rawOutput)
+    ?? (typeof code === "string" ? toolsNamedIn(code) : null)
+  if (called === null || called.length !== 1) return null
+  const only = called[0]!
+  return servers.includes(only.server) ? { server: only.server, tool: only.tool } : null
+}
+
+// ── what an olai call answered ─────────────────────────────────────────
+
+/**
+ * What one of olai's tools answered, out of the completion of the `execute`
+ * that dispatched it — or `undefined` for a frame that carries no such thing.
+ *
+ * THE SCRIPT'S VALUE IS THE REPLY, and it is in the CONTENT. `execute`
+ * completes with one `content` block holding its return value — pretty-printed
+ * JSON for an object, the raw string for a string — while `rawOutput` holds
+ * only `metadata`: which tools ran, whether anything errored, whether the
+ * output was truncated. There is no `structuredContent` and no `output` on
+ * this wire; both were 1.17.9's and reading them now answers `undefined`
+ * forever.
+ *
+ * ONLY EVER ASKED FOR A FRAME {@link mcpCall} RECOGNISED, which is what makes
+ * "the script's value is the tool's answer" true rather than a guess: that
+ * frame ran exactly one of olai's tools, and `tools.<server>.<tool>()` answers
+ * with the tool's structured content. A script that wrapped it, logged it or
+ * returned something else of its own is a script whose value is not a record
+ * olai's faces can draw — and parses to something that is not one, which is
+ * `undefined` here.
+ *
+ * Read POSITIVELY at every step, like every reader in this file: a shape that
+ * is not the one this expects answers `undefined` rather than a guess.
+ */
+export function replyIn(_rawOutput: unknown, content?: unknown): Record<string, unknown> | undefined {
+  if (!Array.isArray(content)) return undefined
+  for (const block of content) {
+    const outer = record(block)
+    if (outer?.["type"] !== "content") continue
+    const inner = record(outer["content"])
+    if (inner?.["type"] !== "text" || typeof inner["text"] !== "string") continue
+    try {
+      return record(JSON.parse(inner["text"]))
+    } catch {
+      return undefined
+    }
+  }
+  return undefined
 }
 
 // ── which permissions are answered without asking ──────────────────────
@@ -81,35 +221,80 @@ export const toolNameOf = (toolCallId: string): string | null => {
  * The option a permission request is answered with WITHOUT asking a person, or
  * `null` when it is a person's to answer.
  *
- * The Claude leg's rule in opencode's spelling, and nothing more: the tool is
- * named, the name begins `<server>_` for one of the MCP servers WE handed this
- * session — olai's mediated ops, plus whatever optional server answered this
- * session's probe — and the request offers an
- * allow-flavoured option. Any of those three missing and a person is asked.
+ * THE ONE THING IN THIS FILE THAT MUST NOT BE WRITTEN LOOSELY, and opencode 2
+ * makes it harder than every other wire olai speaks, because the request does
+ * not say which tool it is about. Every MCP tool — olai's own, a foreign
+ * server's, and opencode's own builtins under `tools.opencode.*` — is
+ * dispatched through one `execute`, so the `name` on the request is `execute`
+ * for all three and the only thing that tells them apart is the SCRIPT.
  *
- * `_` IS A WEAK SEPARATOR and that is the whole of the risk here. `mcp__x__y`
- * could not collide with anything; `olai_outlines_read` and a hypothetical builtin
- * called `olai_something` are told apart by nothing but the server's name, so a
- * session handed a server called `bash` would bypass a builtin `bash_…`. Three
- * things bound it, and they are why the rule is written as narrowly as it is:
- * the server names are OLAI'S OWN (it hands over `olai` and whatever a probe
- * answered with, never a
- * name a person or an agent chose), the prefix is required to be followed by
- * something (`startsWith(`${server}_`)` on the bare server name would match the
- * server name itself), and the match is a PREFIX rather than a contains. A
- * future reader widening any of the three is doing the one thing this file must
- * not do.
+ * ONE APPROVAL COVERS THE WHOLE SCRIPT. opencode asks once per inner tool
+ * call and sends THE SAME FRAME each time (verified: a script with three calls
+ * produced three identical requests). So answering one of them is answering
+ * all of them, and this rule may only answer for a script it has read in full.
  *
- * ALLOW-FLAVOURED, NEVER FIRST, and on this wire it matters for the opposite
- * reason it does on the other one: opencode's options are **allow-first**
- * (`allow_once`, `allow_always`, `reject_once`), where the Claude adapter's
- * ordinary list leads with the refusal. A client that took "the first option"
- * would be denying every one of olai's own tools here and approving somebody's
- * plan-mode exit there — one rule, read off the option's own `kind`, is right
- * on both.
+ * FOUR CONDITIONS, every one of them positive:
+ *
+ *   1. the request is about an `execute` — a `shell`, a `subagent`, a `read`,
+ *      an unnamed call, anything else, is a person's;
+ *   2. its `rawInput.code` is a string this can read EXHAUSTIVELY
+ *      ({@link toolsNamedIn} — a `null` there is a script reaching the tool
+ *      table some way static reading cannot follow, and is a person's);
+ *   3. it names at least one tool, and EVERY server it names is one WE handed
+ *      this session — olai's own, plus whatever optional server answered this
+ *      session's probe. `tools.opencode.*` is opencode's own builtins and is
+ *      never one of those;
+ *   4. the request offers an allow-flavoured option.
+ *
+ * Any one of the four missing and a person is asked. A future reader widening
+ * any of them is doing the one thing this file must not do.
+ *
+ * ALLOW-FLAVOURED, NEVER FIRST: opencode's options are allow-first
+ * (`once`/`allow_once`, `always`/`allow_always`, `reject`/`reject_once`),
+ * where the Claude adapter's ordinary list leads with the refusal. One rule,
+ * read off the option's own `kind`, is right on both.
+ *
+ * THE FRAME IS OPTIONAL IN THE CONTRACT AND DECISIVE HERE, which is safe in
+ * exactly one direction and that is the direction it is: a caller that hands
+ * no frame leaves this unable to recognise anything, so it recognises nothing,
+ * so a person is asked.
  */
-export const spelling = (server: string) => `${server}_`
-export const allowedWithoutAsking = allowingOurs(spelling)
+export const allowedWithoutAsking: Leg["allowedWithoutAsking"] = (tool, given, options, asked) => {
+  if (tool !== EXECUTE || asked === undefined) return null
+  const code = record(asked.rawInput)?.["code"]
+  if (typeof code !== "string") return null
+  const called = toolsNamedIn(code)
+  if (called === null || called.length === 0) return null
+  if (!called.every((one) => given.includes(one.server))) return null
+  return allowFlavoured(options)
+}
+
+// ── what a call SPAWNED ────────────────────────────────────────────────
+
+/**
+ * What this frame says about an agent this call started, or `null`.
+ *
+ * opencode's spawn is a `subagent` call of kind `think` whose `rawInput` is
+ * `{ agent, description, prompt }` — `agent` being which of opencode's own
+ * agents was sent (`explore`, `general`), `description` the one line it was
+ * sent to do, which is also the title the child session arrives under. Both
+ * are read, so the row that STARTED a fan-out says so from its first titled
+ * frame, which is the whole stretch a person watches a fan-out through before
+ * the child has made a call.
+ *
+ * The child's own work is NOT this: it arrives on the child-session channel
+ * and is drawn in its own lane ({@link ./activity.ts}).
+ */
+export const spawned: Leg["spawned"] = (_meta, input) => {
+  const args = record(input)
+  if (args === undefined) return null
+  const kind = args["agent"], said = args["description"]
+  if (typeof kind !== "string" && typeof said !== "string") return null
+  return {
+    ...(typeof kind === "string" ? { kind } : {}),
+    ...(typeof said === "string" ? { said } : {}),
+  }
+}
 
 // ── the leg ────────────────────────────────────────────────────────────
 
@@ -117,83 +302,85 @@ export const allowedWithoutAsking = allowingOurs(spelling)
  * Opencode's answers, beside `olai-plugin-claude`'s so the difference can be
  * read in one screen.
  *
- * FOUR `null`S AND A CONSTANT, which is what a leg for an agent that speaks
- * plain ACP mostly is. Each of them was a request that would otherwise be sent
- * and refused, and a refusal answered by nobody is the shape of the bug this
- * whole split exists to stop: `session/set_mode` refused per session,
- * `_session/steering` refused per mid-turn message with a person's words on the
- * floor, a `_meta` subscription nothing subscribes to.
+ * What used to be four `null`s and a constant is now a wire with three
+ * extensions on it, and the two that moved are the two a person feels: a
+ * message sent mid-turn now INTERRUPTS rather than queueing, and a fan-out
+ * draws in lanes rather than flat. Both are read off what the handshake said
+ * about itself, never off a request that might fail.
  */
 export const OPENCODE: Leg = {
-  spelling,
-  mcpCall: mcpCallBy(spelling),
+  // Carried structurally rather than by prefix: an MCP tool's name is a path
+  // inside a script (`tools.<server>.<tool>`), not a word at the head of a
+  // call's own name, so there is no spelling to hand anybody.
+  spelling: null,
+  mcpCall,
   replyIn,
-  // NOTHING is read off a frame — there is no `_meta` on this wire, and the
-  // `title` moves — so nothing about a call is remembered either: the name is
-  // in the key the question arrives under (`olai-plugin-chat`'s `calls.ts`).
-  toolNameIn: () => null,
-  toolNameOf,
+  nativeActivity: CHILD_SESSIONS,
+  toolNameIn,
+  // The id said the tool's name on 1.17.9 and says nothing on 2.x: it is an
+  // opaque `chatcmpl-tool-<hex>`, and a child's is that behind its session id.
+  // Reading either would name a call after a hash.
+  toolNameOf: () => null,
   allowedWithoutAsking,
-  // Nothing on an opencode frame says who made a call, so nothing here says it
-  // either. A fan-out renders flat.
+  // Attribution is the child-session channel's, not a frame's: the stamp
+  // opencode puts on a child's frames names the child SESSION, and the lane a
+  // row belongs in is decided from the session it arrived on
+  // (`olai-plugin-chat`'s `agent.ts`).
   parentToolUse: () => null,
-  spawned: () => null,
-  // ... nor whether a call left something RUNNING behind it. opencode's own
+  spawned,
+  // Nothing says a call left something RUNNING behind it. opencode's own
   // background work, if it grows any, will need a fact on this wire before the
   // panel can draw one: a client that inferred a live task from a tool's name
   // would be putting a ticking clock on somebody's ordinary call.
   backgroundTask: () => null,
-  // ... nor a harness-injected task-notification: opencode has no such
-  // turns, so a user chunk on this wire is a person speaking.
+  // ... nor a harness-injected task-notification: a subagent reports through
+  // its own session and the spawning call's result, never as a user turn, so a
+  // user chunk on this wire is a person speaking.
   taskNotification: () => null,
-  // ... and its `session/list` carries no `_meta` corner, so its rows say as
-  // much about a conversation as the protocol alone says.
+  // ... and its `session/list` rows carry no `_meta` corner — `sessionId`,
+  // `cwd`, `title`, `updatedAt` and a paging cursor is the whole of it — so
+  // its rows say as much about a conversation as the protocol alone says.
   listedIn: () => null,
   // ... and its `session/new` says nothing it will repeat as a chunk: an
-  //  answer on this wire is a row and a field, never both.
+  // answer on this wire is a row and a field, never both.
   prologueIn: () => null,
-  // Refused (`-32602`): the modes are `build` and `plan`. Unattended
-  // auto-approval for opencode lives in its own `opencode.json`, outside ACP —
-  // olai answers what it is asked and never widens what it answers.
+  // Refused (`-32602 mode not found`): the modes are `build` and `plan`.
   bypassMode: null,
-  // Refused (`-32601`), so there is no interrupting gesture to offer here —
-  // and, since `compact-lost-to-steer`, nothing else missing either: a message
-  // sent while opencode is working is a plain prompt it takes in order, which
-  // is what a message sent to ANY agent while it is working now is. This leg
-  // was the odd one out and is the one the other converged on.
-  steering: null,
-  // YES, and this is the leg answering from what it KNOWS rather than from what
-  // the handshake said — which is the one place the two legs differ on this
-  // fact and not on the behaviour. Opencode advertises no capability either
-  // way; what it does is take one `session/prompt` at a time and answer them in
-  // the order they arrived (verified against 1.17.9, and the fake in the e2e
-  // suite is built to that shape). That is exactly the kind of thing this file
-  // exists to record — a fact about ONE agent, established once, read as a
-  // value — and it is the same standard the spawn command and the permission
-  // spelling above are held to.
-  queues: () => true,
-  // Opencode forwards no CLI messages and needs no subscription: what the model
-  // is, is in `configOptions` — the reading below — and a change comes back in
-  // the method RESPONSE rather than as a pushed update.
+  steering: {
+    method: "_session/steering",
+    meta: { steering: { idleBehavior: "promptRequired" } },
+    timeout: "30 seconds",
+    // ONE OUTCOME MEANS TAKEN and the other does not, which is the whole list:
+    // opencode answers `{outcome:"injected"}` when the words went into the
+    // running turn and `{outcome:"promptRequired",reason:"noRunningTurn"}`
+    // when there was no turn to put them in. The second falls back to an
+    // ordinary prompt, which is exactly right — there is no turn running, so
+    // an ordinary prompt is what the person meant. Anything unrecognised is
+    // NOT taken: a message the agent hears twice is recoverable, a message
+    // nobody has is not.
+    taken: (answered) => record(answered)?.["outcome"] === "injected",
+    // Read off the handshake's own top-level corner, `_meta.steering.supported`.
+    advertised: (initialized) =>
+      record(record(record(initialized)?.["_meta"])?.["steering"])?.["supported"] === true,
+  },
+  // NO, AND THIS IS THE READING THAT FLIPPED. opencode 1.17.9 took one
+  // `session/prompt` at a time and answered them in the order they arrived;
+  // 2.2.7 REFUSES the second outright — `-32603 "Session already has an active
+  // ACP prompt: <sessionId>"` — so a composer promising that a mid-turn
+  // message waits its turn would be promising something this agent now does
+  // the opposite of. What a person gets instead is the gesture above: a
+  // mid-turn send steers, and the words reach the turn in flight.
+  queues: () => false,
+  // Opencode forwards no CLI messages and needs no subscription: what the
+  // model is, is in `configOptions` — the reading below — and a change comes
+  // back in the method RESPONSE rather than as a pushed update. Its `mode`
+  // entry answers the same way, and is an ordinary session setting the panel
+  // already draws.
   rawMessages: null,
   // THE PICKER, READ EXACTLY. opencode puts the model in the entry every agent
-  // olai talks to puts it in, and its picker offers THE IDS IT REPORTS — so the
-  // alias arithmetic one engine over (`olai-plugin-claude`'s `models.ts`, whose
-  // picker offers `sonnet` for `claude-sonnet-5`) is not this adapter's, and
-  // until this phase it nevertheless sat on the path every opencode
-  // conversation's model name was read through.
+  // olai talks to puts it in, and its picker offers THE IDS IT REPORTS
+  // (`opencode/claude-sonnet-5` under the label `opencode/Claude Sonnet 5`) —
+  // so the alias arithmetic one engine over (`olai-plugin-claude`'s
+  // `models.ts`) is not this adapter's.
   models: { config: "model", nameIn: namedExactly },
-}
-
-function record(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
-}
-
-export function replyIn(rawOutput: unknown): Record<string, unknown> | undefined {
-  const outer = record(rawOutput)
-  const structured = record(record(outer?.["metadata"])?.["structuredContent"])
-  if (structured !== undefined) return structured
-  const output = outer?.["output"]
-  if (typeof output !== "string") return undefined
-  try { return record(record(JSON.parse(output))?.["structuredContent"]) } catch { return undefined }
 }

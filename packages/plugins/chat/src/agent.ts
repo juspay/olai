@@ -801,7 +801,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       emit({ _tag: "signIn", signIn })
     }
 
-    const activity = options.leg.nativeActivity ? new Activity(emit) : null
+    // The agent's own child-session/async-task channel, in ITS spelling
+    // (`@olai/acp`'s `NativeActivity`) — and the conversation-side model of
+    // what those facts mean, which is this package's. An agent with no such
+    // channel has neither.
+    const dialect = options.leg.nativeActivity ?? null
+    const activity = dialect === null ? null : new Activity(emit)
     const sessionRoot = (id: string): string => activity?.root(id) ?? id
     const callId = (session: string, id: string): string => activity?.toolId(session, id) ?? id
     const terminalTools = new Map<string, readonly string[]>()
@@ -1226,13 +1231,21 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // name and, for a subagent's call, whose it is — so it goes in through
       // the same door rather than being read as a second kind of source. Both
       // questions below are then a lookup.
-      calls.heard(params.toolCall.toolCallId, params.toolCall._meta, params.sessionId)
+      calls.heard(params.toolCall.toolCallId, params.toolCall._meta, nameOn(params.toolCall), params.sessionId)
       // The tools olai handed this conversation are answered here and now —
       // already mediated, already validated — and everything else is put in
       // front of a person. Which is which is `allowedWithoutAsking`, and it is
       // there rather than here because it is the rule that stops this panel
-      // approving its own permissions.
-      const allowed = options.leg.allowedWithoutAsking(toolOf(params), given, params.options)
+      // approving its own permissions. THE WHOLE TOOL CALL goes with it: one
+      // agent dispatches every MCP tool through a single builtin, so which
+      // tool a request is really about is readable only in the call's own
+      // input (`@olai/acp/engine`).
+      const allowed = options.leg.allowedWithoutAsking(toolOf(params), given, params.options, {
+        name: nameOn(params.toolCall),
+        title: params.toolCall.title,
+        rawInput: params.toolCall.rawInput,
+        _meta: params.toolCall._meta,
+      })
       if (allowed !== null) {
         return { outcome: { outcome: "selected", optionId: allowed } }
       }
@@ -1336,18 +1349,21 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // which tool it is, and which agent made it — is what the two
           // handlers above need and what neither question they answer carries
           // ({@link ./calls.ts}).
-          calls.heard(update.toolCallId, update._meta, notification.sessionId)
+          calls.heard(update.toolCallId, update._meta, nameOn(update), notification.sessionId)
           // Recognition belongs to the leg; ownership belongs to the live catalogue.
           const recognized = options.leg.mcpCall({
             title: update.title,
             rawInput: update.rawInput,
+            // ... and what the call REPORTED, for the agent that names the
+            // tools a call ran only in its result (opencode 2's Code Mode).
+            rawOutput: update.rawOutput,
             _meta: update._meta,
             name: calls.about(update.toolCallId, notification.sessionId).name,
           }, given)
           calls.recognized(update.toolCallId, recognized, notification.sessionId)
           const call = calls.about(update.toolCallId, notification.sessionId).mcp ?? null
           const ours = call === null ? null : options.advertised?.(call.server, call.tool) ?? null
-          const decoded = ours === null ? undefined : options.leg.replyIn(update.rawOutput)
+          const decoded = ours === null ? undefined : options.leg.replyIn(update.rawOutput, update.content)
           const reply = decoded !== undefined && isJson(decoded) ? decoded : undefined
           // Read ONCE: the row wears it, and the terminal block below turns on
           // it. Two readings of one `_meta` corner are two places a later leg
@@ -1905,9 +1921,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             },
           )
         const stream = streamOver(child)
-        const extension = activity === null ? { stream, clientMeta: {} } : nativeActivity(opened, stream, ({ session, update }) => {
-          if (!fromElsewhere(sessionRoot(session), activeSession, closed)) activity.read(session, update)
-        })
+        const extension = dialect === null ? { stream, clientMeta: {} } : nativeActivity(opened, stream, ({ session, update }) => {
+          if (!fromElsewhere(sessionRoot(session), activeSession, closed)) activity?.read(session, update)
+        }, dialect)
         // The agent's own message, forwarded verbatim because the call that
         // OPENED this conversation asked for it (the leg's `openMeta`, on
         // `session/new` and `session/load` both — the Claude adapter reads the
@@ -3516,6 +3532,23 @@ export const fromElsewhere = (
 ): boolean =>
   typeof named === "string" &&
   (closed.has(named) || (current !== null && named !== current))
+
+/**
+ * The `name` a tool-call payload carried, or `undefined` for one that carried
+ * none.
+ *
+ * READ RATHER THAN DESTRUCTURED, because the pinned SDK's `ToolCall` does not
+ * declare it and one agent sends it on every frame and every permission
+ * request (opencode 2). Anything that is not a string is `undefined`: this
+ * hands the field to a leg VERBATIM, and whether an agent's version of it may
+ * be believed is the leg's answer. A frame that says nothing here leaves the
+ * call unnamed, which is a call a person is asked about.
+ */
+const nameOn = (frame: object): string | undefined => {
+  if (!("name" in frame)) return undefined
+  const named: unknown = frame.name
+  return typeof named === "string" ? named : undefined
+}
 
 const notify = (
   at: Live,

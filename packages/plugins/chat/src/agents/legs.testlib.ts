@@ -25,7 +25,7 @@
  * is where a bump of that adapter's pin goes red.
  */
 
-import type { Leg, Meta } from "@olai/acp/engine"
+import type { Leg, Meta, NativeActivity } from "@olai/acp/engine"
 
 /**
  * AN AGENT THAT SAYS NOTHING — every reader `null`, every capability absent.
@@ -87,7 +87,7 @@ export const NAMES_IN_META: Leg = {
 /**
  * ...and ONE THAT NAMES THEM AT THE HEAD OF THE CALL ID.
  *
- * The shape both of the other engines have: no `_meta` at all, and `<tool>:<n>`
+ * The shape two of the engines have: no `_meta` at all, and `<tool>:<n>`
  * as the id. The FIRST separator, and an id with none is a name this cannot
  * read rather than a guess — under-reading a name costs a question, where
  * over-reading one could cost an approval.
@@ -101,15 +101,42 @@ export const NAMES_IN_ID: Leg = {
 }
 
 /**
+ * ...and ONE THAT NAMES THEM ON THE FRAME ITSELF.
+ *
+ * The third place a wire can put it: a `name` field beside the display title,
+ * on the announcement and on the permission request alike, with an opaque id
+ * and nothing in any corner. Believed only when it is a non-empty string —
+ * what an agent's version of the field may be is the leg's answer, never the
+ * registry's.
+ */
+export const NAMES_ON_FRAME: Leg = {
+  ...SAYS_NOTHING,
+  toolNameIn: (_meta, named) => typeof named === "string" && named !== "" ? named : null,
+}
+
+/**
  * ...and ONE THAT HOLDS A PROMPT SENT WHILE IT IS BUSY.
  *
  * What the chat's own lifecycle cases need of a leg and the whole of it: an
  * agent that takes a mid-turn message and answers it in order, with no
- * interrupting gesture. Three of the four engines olai ships answer exactly this
- * way, and the cases that use it are about what the PANEL promises rather than
- * about which of them is speaking.
+ * interrupting gesture. The cases that use it are about what the PANEL
+ * promises rather than about which agent is speaking — which is just as well,
+ * because what the engines olai ships do with a busy send is now four
+ * different things.
  */
 export const QUEUES: Leg = { ...SAYS_NOTHING, queues: () => true }
+
+/**
+ * ...and ONE THAT RUNS ITS OWN CHILD SESSIONS.
+ *
+ * THE SHAPE AND NOTHING MORE: a dialect that claims nothing off the wire, for
+ * the cases whose subject is what HAVING one changes rather than what any
+ * agent's words are. Having one is what makes a call's remembered facts belong
+ * to a session rather than to a conversation ({@link ../calls.ts}), which is
+ * the claim those cases make; the channel's own behaviour is
+ * {@link ../activity-protocol.test.ts}'s.
+ */
+export const OWN_SESSIONS: NativeActivity = { clientMeta: {}, readIn: () => null }
 
 /**
  * ...and ONE THAT FORWARDS ITS AGENT'S OWN MESSAGES.

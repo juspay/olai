@@ -10,6 +10,8 @@
  */
 import { namedExactly, type Leg, type Meta, type Reported } from "@olai/acp/engine"
 
+import { AIR } from "./activity.ts"
+
 const fieldIn = (value: unknown, key: string): unknown =>
   typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)[key]
@@ -59,7 +61,7 @@ export const CODEX: Leg = {
       && typeof tool === "string" && tool !== "" && servers.includes(server) ? { server, tool } : null
   },
   replyIn,
-  nativeActivity: true,
+  nativeActivity: AIR,
   serversInUpdate,
   toolNameIn: (_meta: Meta) => null,
   toolNameOf: () => null,
