@@ -20,6 +20,8 @@
  */
 
 import assert from "node:assert/strict";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { sessionStore } from "@olai/tests/agent/session-store.ts";
 import { Then, When } from "@olai/tests/harness/runner.ts";
 
@@ -643,18 +645,26 @@ Then(
   },
 );
 
-/** PRESS THE FRESH SESSION — the one gesture that re-points a node's property,
- *  wherever the panel is drawing it.
+/** PRESS THE AGENT LINE'S FRESH SESSION — the one gesture that re-points a
+ *  node's property, through the confirmation that is the whole reason it is
+ *  safe to press.
  *
- *  It has two homes and this step names neither: the session picker in the
- *  header, and the refusal body drawn when the engine would not open the
- *  conversation the node names. The second is the one the trap needs, and a step
- *  that spelled a location would have to be two steps for one act. */
+ *  THE CONFIRM GROUP IS NAMED, and that is not decoration: the refusal body
+ *  below the line now carries a *Start fresh chat* of its own — one press, no
+ *  question, because a chat the engine has no record of cannot be moved to
+ *  earlier chats. Two buttons with one name are on screen together whenever
+ *  that body is drawn, so an unscoped `getByRole` would be ambiguous exactly
+ *  where the trap scenarios live. */
+const confirmFresh = async (world: OlaiWorld) => {
+  await world.page.getByRole("group", { name: "Confirm fresh start", exact: true })
+    .getByRole("button", { name: "Start fresh chat", exact: true }).click();
+};
+
 When("I start a fresh session", async function (this: OlaiWorld) {
   const fresh = this.chat(FRESH);
   await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await fresh.first().click();
-  await this.page.getByRole("button", { name: "Start fresh chat", exact: true }).click();
+  await confirmFresh(this);
 });
 
 /** PRESS THE FRESH SESSION AND NAME THE ENGINE — the multi-engine form of the
@@ -667,7 +677,7 @@ When("I start a fresh session with {string}", async function (this: OlaiWorld, e
   await fresh.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await fresh.first().click();
   await this.page.locator(selector(PLUGIN_TESTID.agentEngineMenu)).getByRole("menuitem", { name: engine, exact: true }).click();
-  await this.page.getByRole("button", { name: "Start fresh chat", exact: true }).click();
+  await confirmFresh(this);
 });
 
 /** PRESS THE CLOSE sentinel in the agent line — the gesture that takes the
@@ -1024,6 +1034,42 @@ Then("node {string} still binds remembered conversation {string} in {string}", a
     return row !== undefined && Object.values(row.custom as Record<string, unknown>).some(value => typeof value === "string" && value.endsWith(`:${id}`));
   }, `${node}'s binding to remain on ${name}`);
 });
+
+/**
+ * THE ENGINE LOSES A CHAT IT STILL NAMES — the second machine, reachable.
+ *
+ * A dot-file per session id in the served directory, read at the moment of the
+ * `session/load` (`@olai/tests/agent/scripted-acp.ts`'s `missingHere`), so the
+ * conversation stays in `session/list` — a row in past sessions a person can
+ * press — and only the transcript behind it is unreadable. The agent answers
+ * ACP's `-32002` for it, which is the one code the panel's *this chat isn't on
+ * this machine* face is drawn out of.
+ */
+When("the engine has no record of the chat remembered as {string}", function (this: OlaiWorld, name: string) {
+  const id = notedSessions.get(this)?.get(name);
+  assert.ok(id, `no conversation remembered as ${name}`);
+  writeFileSync(join(this.scratch(), `.agent-missing-${id}`), "");
+});
+
+/** THE PROPERTY MOVED, asserted as a change rather than as a value: a fresh
+ *  start mints an id nobody can write down in advance, and what the trap's way
+ *  out owes is that the node no longer names the chat that could not be
+ *  opened. Both halves — it names SOMETHING on the same engine, and it is not
+ *  that one — because an `agent-session` that had merely been emptied would
+ *  pass the second alone. */
+Then(
+  "the vault node {string} has property {string} naming a chat other than {string}",
+  async function (this: OlaiWorld, name: string, key: string, was: string) {
+    const file = await this.node(name).getAttribute("data-file");
+    assert.ok(file);
+    const engine = `${was.split(":")[0]}:`;
+    await this.waitUntil(async () => {
+      const node = this.servedNodes(file).find(row => row.id === this.nodeId(name));
+      const value = (node?.custom as Record<string, unknown> | undefined)?.[key];
+      return typeof value === "string" && value.startsWith(engine) && value !== was;
+    }, `the stored property ${key} on ${name} to name a chat other than ${was}`);
+  },
+);
 
 When("I begin opening the past session {string}", async function(this: OlaiWorld, title: string) {
   await this.chat(PAST_SESSION, { hasText: title }).click();

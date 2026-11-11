@@ -46,6 +46,24 @@ export const ALARM_PILL =
   "rounded-control border border-alarm bg-transparent px-2 py-1 text-label text-alarm hover:bg-alarm/10"
 
 /**
+ * ... AND THE THIRD TONE: the verb that GOES AHEAD when nothing is being
+ * destroyed.
+ *
+ * {@link ALARM_PILL} is the answer to a question about losing something — a
+ * trash, an empty, a chat replaced by a fresh one — and it is painted alarm
+ * because that is what the reader is being asked to weigh. A face where the
+ * thing is ALREADY gone has no such question: a chat the engine has no record
+ * of cannot be moved to earlier chats, so a red button there would be olai
+ * warning a person about a loss that happened before they arrived.
+ *
+ * The quiet pill's twin in every measurement, like its alarm sibling, and
+ * declared with them for the same reason: the day one of the three changes,
+ * all three move together.
+ */
+export const GO_PILL =
+  "rounded-control border border-accent bg-transparent px-2 py-1 text-label text-accent hover:bg-accent/10"
+
+/**
  * The way OUT of a panel a row opened — `Cancel` on the three panels that ask
  * one thing (`edit/RowPanel.tsx`), `Done` on the two that search
  * (`edges/EdgePanel.tsx`, `move/MovePicker.tsx`).
