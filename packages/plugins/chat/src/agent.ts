@@ -233,6 +233,24 @@ export class AgentGone extends Data.TaggedError("AgentGone")<{
    * so exactly once, here.
    */
   readonly auth?: boolean
+  /**
+   * ... AND WHETHER THE CONVERSATION IT WAS ASKED FOR IS SIMPLY NOT THERE —
+   * ACP's `-32002` ("Resource not found"), answered to a `session/load` of an
+   * id this engine's store has no record of.
+   *
+   * A second field for {@link auth}'s reason, and the same discipline: read off
+   * the protocol's own code and never off the sentence, because the prose
+   * around it is the adapter's to write and olai must not pattern-match an
+   * agent's English. True only for a refused `session/load` — `-32002` from a
+   * turn or a `session/new` is about some other resource, and a face that said
+   * "this chat isn't on this machine" about it would be guessing.
+   *
+   * What it buys is the one refusal with a DIFFERENT way out: retrying a
+   * conversation the store does not have is refused for ever, and the gesture
+   * that moves is a fresh one ({@link ./chat.ts}'s `refusedOpen` carries this
+   * to the browser as `Unopened.cause`).
+   */
+  readonly missing?: boolean
 }> {
   override get message(): string {
     return this.why
@@ -3401,6 +3419,11 @@ const request = (
         gone: goneOf(cause),
         why: `\`${method}\` failed: ${saidOf(cause)}`,
         auth: authOf(cause),
+        // THE READING IS BY CODE; the GATE is the method, and it is here
+        // because here is the one place the method is in hand. `-32002` means
+        // "the resource you named is not here", and which resource that is
+        // comes from what was asked: a load's resource is the conversation.
+        missing: method === methods.agent.session.load && missingOf(cause),
       })
     },
   })
@@ -3488,6 +3511,32 @@ export const authOf = (cause: unknown): boolean =>
 /** ACP's code for "authenticate first" — the protocol's own number, named once
  *  so the two readers of a rejection sit beside the constant they read. */
 const AUTH_REQUIRED = -32000
+
+/**
+ * ... AND WHETHER THE THING IT WAS ASKED FOR IS NOT THERE — ACP's `-32002`,
+ * the protocol's "Resource not found".
+ *
+ * THE WHOLE READING IS THE NUMBER, which is the point. Every agent words this
+ * refusal its own way — "no such conversation", "session not found", a path
+ * and an `ENOENT` — so a face that matched prose would be a face that worked
+ * on the adapter it was written against and quietly stopped working on the
+ * next one. The code is the one thing all of them agree on.
+ *
+ * It says nothing about WHICH resource: that is the method's to say, and
+ * {@link request} is where the two meet ({@link AgentGone}'s `missing` is set
+ * only for a `session/load`). A caller that reads it off a rejection with no
+ * method in hand is reading half a fact.
+ *
+ * Exported for its own test, beside {@link goneOf} and {@link authOf}: another
+ * reading of one rejection, and the one the "this chat isn't on this machine"
+ * face is drawn out of.
+ */
+export const missingOf = (cause: unknown): boolean =>
+  cause instanceof RequestError && cause.code === RESOURCE_NOT_FOUND
+
+/** ACP's code for "the resource you named is not here" — the protocol's own
+ *  number, named once beside {@link AUTH_REQUIRED} for the same reason. */
+const RESOURCE_NOT_FOUND = -32002
 
 /**
  * ... AND WHAT IT SAID, in the agent's own sentence rather than the protocol's

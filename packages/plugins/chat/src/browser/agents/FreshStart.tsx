@@ -2,18 +2,17 @@ import { createSignal, lazy, Show } from "solid-js"
 import { memoryOf } from "@olai/format"
 import { ALARM_PILL, QUIET_PILL } from "@olai/web/client/pill.ts"
 import { LINE_VERB } from "./verb.ts"
-import { run } from "@olai/web/client/run.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import type { AgentChoice } from "olai-plugin-chat/wire"
-import { chatWire } from "../wire.ts"
-import { agentReadings } from "./reading.ts"
 import { useAgents } from "./answered.tsx"
 import type { Row } from "./roster.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { createConfirming } from "@olai/web/client/confirming.ts"
-import { freshStartQuestion } from "./fresh-start.ts"
+import { freshStartQuestion, startFreshChat } from "./fresh-start.ts"
+import { isPast as movedOn } from "./past.ts"
 import { TESTID } from "../../testids.ts"
+import type { Conversing } from "../../sessions.ts"
 
 /** The engine menu, loaded on the first press that needs it — the same lazy
  *  door the other two engine pickers use. */
@@ -43,37 +42,27 @@ export function FreshStart(props: {
     trigger?.focus()
   }
 
-  /** The fresh start itself, on whichever engine the press named. */
+  /** The fresh start itself, on whichever engine the press named — the shared
+   *  gesture ({@link ./fresh-start.ts}), with this face's question in front of
+   *  it and this face's said-line under it. */
   const fresh = (engine: string): void => {
     if (starting() || confirm.where() !== "asking") return
     confirm.begin()
-    const reading = agentReadings()
     const node = props.agent.id
-    reading?.visit(node)
-    const previous = { engine: props.agent.engine, session: props.agent.session }
+    const previous: Conversing | null = props.agent.session === null
+      ? null
+      : { agent: props.agent.engine, session: props.agent.session }
     saying.say(undefined)
-    run(
-      chatWire().procedures.conversation.startAgentSession({
-        node,
-        agent: engine,
-      }),
-      (failure) => {
-        // A non-auth refusal ends this attempt, not the previous conversation.
-        // Auth-required returns successfully with no binding and keeps the
-        // node-scoped panel available for sign-in in the success arm below.
-        if (agentReadings() === reading && previous.session !== null
-          && props.agent.engine === previous.engine && props.agent.session === previous.session) {
-          reading?.resume(node, { agent: previous.engine, session: previous.session })
-        }
-        confirm.done()
-        saying.say({ tone: "alarm", text: failure.message, kind: failure._tag })
-      },
-      () => {
-        confirm.done()
-        if (agentReadings() === reading) reading?.visit(node)
-        // The completed history revision refreshes this tab and its siblings.
-      },
-    )
+    void (async () => {
+      // The node still bound to what it was bound to when this was pressed is
+      // the only node a refusal may send the reader back to — asked of the one
+      // predicate that knows a conversation is a PAIR ({@link ./past.ts}).
+      const failure = await startFreshChat(node, engine, () =>
+        previous !== null && !movedOn(previous, props.agent) ? previous : null)
+      confirm.done()
+      // The completed history revision refreshes this tab and its siblings.
+      if (failure !== null) saying.say({ tone: "alarm", text: failure.message, kind: failure._tag })
+    })()
   }
 
   const pressed = (event: MouseEvent): void => {

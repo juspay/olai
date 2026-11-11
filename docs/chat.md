@@ -50,7 +50,13 @@ with the previous conversation after a fresh start reads that conversation as
 history; it never replaces the node's new live session. Explicitly opening the
 previous conversation follows the same rule and selects its history view. This also holds while
 the saved node binding is catching up with the completed fresh start. Loading
-that history does not block another fresh start on the live conversation.
+that history does not block another fresh start on the live conversation. It
+holds for a conversation that never OPENED, too: where the chat a node named
+was refused — the engine here has no record of it — the fresh start that
+replaces it supersedes that pair all the same, so a reader still holding the
+old binding routes to history rather than asking the live seat for the id that
+was just refused. Without that, one press of *Start fresh chat* opened a chat
+and the next frame put the same refusal back over it.
 
 The list itself:
 
@@ -300,7 +306,7 @@ The button says **send** the whole time, because that is what it does the whole 
 
 **Cancel belongs to the conversation shown when you press it.** Another tab opening a different node does not redirect the control: it still cancels this conversation. If this conversation’s process lifetime has changed, the stale control refuses with “the conversation changed”.
 
-**Try again on a refused session belongs to that conversation too.** Each node keeps its own attempt available, and opening another conversation in this or another tab cannot redirect a retry to it.
+**Try again on a refused session belongs to that conversation too.** Each node keeps its own attempt available, and opening another conversation in this or another tab cannot redirect a retry to it. The same is true of the **Start fresh chat** on that body: it starts a chat for the node you are looking at, on that node's own engine, whatever another tab has selected.
 
 **Cancel stops the agent, and only that.** There is nothing else for it to do — every message you have typed already went. Anything waiting behind the turn you stopped is at the agent, not here, so it survives and runs next: cancel is about the turn in flight and nothing else. This is a change worth knowing about if you used olai in early 2026: a message sent mid-turn used to be held *by olai* until the turn ended, and cancelling threw away everything that was waiting. Those words were nowhere else. Nothing is held here now, so there is nothing to throw away.
 
@@ -312,7 +318,9 @@ The button says **send** the whole time, because that is what it does the whole 
 
 A queued message refused while an earlier turn is still running keeps this marker and its attachments even if that earlier turn continues streaming. Output from the earlier turn does not count as delivery of the refused message.
 
-**And a conversation the agent will not open is not a dead agent either.** Starting one, or re-opening a stored one, is a request like any other too — so an agent can say no to it: a directory it will not work in, a conversation it no longer has, a mode it cannot resume from. The panel then says *that*, in the agent's own words, where the conversation would be: the agent line goes on naming the model, because the agent answered and is therefore running; there is no box, because there is nothing to send to; and there is a **try again**, which asks for the same thing that was refused rather than for whatever olai would have picked. Before this the panel said *not running* about a live agent and left an empty transcript with a working box under it. Press *try again* twice and the second press is told there is nothing waiting — the first took it — because two retries of a refused *new conversation* would be a second fresh one wiping the first. That explanation goes away with the agent: a refusal is about one that is running, so a process that dies takes it with it and you are back to the rows it left.
+**And a conversation the agent will not open is not a dead agent either.** Starting one, or re-opening a stored one, is a request like any other too — so an agent can say no to it: a directory it will not work in, a mode it cannot resume from. The panel then says *that*, in the agent's own words, where the conversation would be: the agent line goes on naming the model, because the agent answered and is therefore running; there is no box, because there is nothing to send to; and there is a **try again**, which asks for the same thing that was refused rather than for whatever olai would have picked. Beside it, where the refused chat is the one this node is currently bound to, there is **Start fresh chat** — one press, no question — because a refusal of the node's own chat used to be a dead end: the gesture that moves was behind a picker a refused open had closed, and the row menu withholds *Start an agent* precisely because the node already has a session. Before this the panel said *not running* about a live agent and left an empty transcript with a working box under it. Press *try again* twice and the second press is told there is nothing waiting — the first took it — because two retries of a refused *new conversation* would be a second fresh one wiping the first. That explanation goes away with the agent: a refusal is about one that is running, so a process that dies takes it with it and you are back to the rows it left.
+
+**A chat the engine here has never had says so, and it is not an alarm.** One of those refusals is not a problem to fix and not a thing to press again: you open a vault on a second computer, an engine's history is cleared, or a chat was made and nothing was ever said in it — and the node's binding names a conversation that engine has no record of. Olai reads that off the protocol's own *Resource not found* answer — the code, never the sentence, because every engine words it differently — and draws a body of its own: **This chat isn't on this machine**, the plain reason under it, the engine's own line kept as a quiet detail rather than in red, and the one press that moves. What the agent knows was never in the transcript — it is in the notes, and nothing touches them — which is why starting fresh here costs nothing and is offered without a confirmation. *Try again* stays beside it, honestly: a store on a drive that was not mounted a second ago is the same refusal from an engine that will find the chat on the next press. A press that is itself refused says why on that line and leaves this body where it was, about the chat the node is still bound to. Reading one of that node's **earlier** chats that has gone the same way gets the same words and no fresh start: that gesture re-points the node's binding, and the chat you came to read is not the one it is bound to.
 
 **A message typed while a conversation is opening waits for it.** Opening one takes real time — a freshly picked agent is a subprocess starting, a handshake, and then a whole conversation replayed before it answers — and the box is not locked while it does, so the next thing you type lands in the gap. It goes into the conversation being opened, once it is: nothing is refused, nothing is lost, and nothing is sent twice. Before this it started a second open of its own, against the first, and the message died with it; and a message sent in the seconds after picking an agent lost its own bubble, because the replay of the conversation it was going into empties the transcript it had just been written to. What you see instead is the panel saying it is **starting** — from the moment you click, not from whenever the server's first frame arrives — and your message appearing when there is a conversation for it to appear in.
 
@@ -983,9 +991,33 @@ sign-in panel.
 
 The binding is in the vault, on the node. Moving or renaming the node preserves
 it. A session id is machine-local: another machine draws the node but its own
-engine may refuse to open that conversation. Starting fresh there writes a new
-binding, replacing the first machine's pointer. The subtree remains its knowledge base.
+engine answers *Resource not found* for that conversation. That is the one
+refusal with a face of its own — **This chat isn't on this machine**, calm
+rather than red, with a single **Start fresh chat** on it and no confirmation
+to get past, because there is no current chat to move to earlier chats.
+Pressing it writes a new binding, replacing the first machine's pointer.
+Reading one of that node's earlier chats that has gone the same way says the
+same thing and offers no fresh start: the gesture re-points the node, and that
+is not the chat the node is bound to. The subtree remains its knowledge base.
 Trashed nodes and nodes whose property was removed disappear from the roster.
+
+**Known limit: two machines on one vault still overwrite each other's
+pointers.** The binding is a single value in the file, so a fresh start on
+either computer re-points it for both — and the other machine then meets the
+same *This chat isn't on this machine*, because the id it has just been handed
+belongs to an engine store it cannot read. The face makes that recoverable in
+one press rather than a dead end; it does not make the pointer per-machine,
+and nothing here keeps the two in step.
+
+**Known limit: a fresh chat nobody has spoken in does not survive a
+restart.** The binding is written the moment the conversation is opened, and
+no engine writes a session down until something is said in it — so a chat you
+start and leave empty is an id this machine minted that its own engine will
+answer *Resource not found* for after a restart. You meet the same face about
+it, which is why that face also says a chat may be one nothing was ever said
+in; it is still one press out, and typing anything into a fresh chat settles
+it for good. Moving the write is a larger change than this face and is not
+made here.
 
 Machine-local `heard/` records keep what olai observed: teaching, how many
 messages a person has sent a node agent's session, assignment, replacement links, and
@@ -1278,7 +1310,8 @@ trashing it does not cause the filer to recreate it. The Unassigned list and
 assignment gesture are retired.
 
 Machine B files B's conversations; A's nodes retain their binding and the
-existing missing-session refusal on B. Moving a filed agent into another
+existing missing-session refusal on B — where B can start fresh in one press.
+Moving a filed agent into another
 agent's subtree makes its subtree part of the outer agent's memory. Both remain
 usable.
 
@@ -1287,7 +1320,11 @@ usable.
 **Fresh start** is on the agent line. Its tooltip says memory is the subtree and
 the transcript becomes history. Every fresh start asks for confirmation before
 replacing the current conversation, including the row menu and choosing another
-engine. Cancel or Escape on the agent line leaves the current conversation intact. The question explains
+engine. The one exception is the refused-chat body, where there is no current
+conversation to replace: a chat the engine would not open cannot move to
+earlier chats, so the question would be about something that is not going to
+happen and the press goes straight through.
+Cancel or Escape on the agent line leaves the current conversation intact. The question explains
 that the transcript remains in past sessions. On the agent line, a change to
 the bound conversation dismisses an unanswered confirmation.
 It opens a new session — with the node's own
@@ -1336,6 +1373,15 @@ nothing is wrong with the chat you asked for, so the server keeps the attempt
 and opens it by itself the moment a seat frees — putting one agent to sleep in
 Chats is enough, and you press nothing else. The attempt belongs to the panel
 that is holding it and goes away when that reader does.
+
+That is one of exactly two refusals olai classifies rather than merely repeats.
+The panel branches on the classification and on nothing else — never on the
+words, which belong to whoever refused: a full pool is drawn quiet with no
+button, and a chat the engine has no record of (*Resource not found*, read off
+the protocol's code) is drawn calm with a one-press fresh start. Every other
+refusal is an agent saying no in its own sentence, with the retry that is
+exactly what fixing the problem makes work — and, where it is the node's own
+current chat, the same fresh start beside it so no refusal is a dead end.
 
 Doorbells are chosen per conversation. Kolu and Odu begin off, with a file
 picker and clear control. Saved choices can wake an offscreen or reaped agent;

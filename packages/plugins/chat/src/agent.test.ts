@@ -24,7 +24,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { type Agent, adopt, authOf, childEnvOf, fromElsewhere, goneOf, make, refusalData, saidOf } from "./agent.ts"
+import { type Agent, adopt, authOf, childEnvOf, fromElsewhere, goneOf, make, missingOf, refusalData, saidOf } from "./agent.ts"
 import { SAYS_NOTHING } from "./agents/legs.testlib.ts"
 import type { AgentEvent, Stored } from "./events.ts"
 import type { Memory } from "./memory.ts"
@@ -197,6 +197,39 @@ describe("what a refusal says about a signature", () => {
     expect(authOf(new Error("ACP connection closed"))).toBe(false)
     expect(authOf("something nobody has seen before")).toBe(false)
     expect(authOf(null)).toBe(false)
+  })
+})
+
+describe("what a refusal says about a chat that is not here", () => {
+  /** ACP's own code for "Resource not found" — the one number the *this chat
+   *  isn't on this machine* face is drawn out of. */
+  const RESOURCE_NOT_FOUND = -32002
+
+  test("the protocol's not-found code is a missing conversation", () => {
+    expect(missingOf(new RequestError(RESOURCE_NOT_FOUND, "Session not found"))).toBe(true)
+    // ... AND IT IS STILL A REFUSAL, the way an auth-required one is: the agent
+    // answered. What the reading adds is that answering again cannot change
+    // the answer, which is why this one face offers a different gesture.
+    expect(goneOf(new RequestError(RESOURCE_NOT_FOUND, "Session not found"))).toBe("refused")
+    expect(authOf(new RequestError(RESOURCE_NOT_FOUND, "Session not found"))).toBe(false)
+  })
+
+  test("an agent that words it as an internal error is NOT one", () => {
+    // THE WHOLE DISCIPLINE, in one case. The sentence says exactly what the
+    // protocol's own code would have said, and a reader that matched prose
+    // would take it — which is a face claiming a store was searched when all
+    // that happened is an adapter throwing inside its handler.
+    expect(missingOf(new RequestError(-32603, "no such conversation: ede56b25"))).toBe(false)
+    expect(missingOf(new RequestError(-32602, "Resource not found"))).toBe(false)
+  })
+
+  test("silence is not a missing conversation either", () => {
+    // A dead pipe says nothing about any store: the conversation may be
+    // perfectly present on a machine that merely stopped answering, and
+    // offering a fresh start over it would throw away a chat that is there.
+    expect(missingOf(new Error("ACP connection closed"))).toBe(false)
+    expect(missingOf("something nobody has seen before")).toBe(false)
+    expect(missingOf(null)).toBe(false)
   })
 })
 
