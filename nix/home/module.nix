@@ -65,6 +65,29 @@ in
       '';
     };
 
+    agents = lib.mkOption {
+      type = lib.types.listOf lib.types.package;
+      default = [ ];
+      example = lib.literalExpression "[ pkgs.opencode ]";
+      description = ''
+        The coding agents this olai may seat, as packages. Non-empty, the
+        service is started with `OLAI_AGENT_PATH` set to their `bin`
+        directories; empty, the variable is not set at all and olai probes the
+        service's own `PATH`, which is what it has always done.
+
+        IT REPLACES RATHER THAN APPENDS, which is the trap this option exists
+        to take off a reader. `OLAI_AGENT_PATH` is the whole search path olai
+        probes for an engine — listing one agent here means the OTHERS stop
+        being found, however installed they are. That is the variable's own
+        semantics (docs/running.md); naming it as a list of packages is only
+        what makes the consequence visible at the place the choice is made.
+
+        It is the unit's environment, so it reaches the agents olai spawns
+        too: a chat agent is a child of this process and inherits what the
+        SERVICE was given, never your login shell's.
+      '';
+    };
+
     port = lib.mkOption {
       type = lib.types.port;
       default = runtime.defaultPort;
@@ -121,6 +144,8 @@ in
 
         } // lib.optionalAttrs (cfg.environmentFile != null) {
           EnvironmentFile = cfg.environmentFile;
+        } // lib.optionalAttrs (cfg.agents != [ ]) {
+          Environment = [ "OLAI_AGENT_PATH=${lib.makeBinPath cfg.agents}" ];
         };
         Install = {
           WantedBy = [ "default.target" ];
@@ -148,6 +173,11 @@ in
           StandardOutPath = "${config.home.homeDirectory}/Library/Logs/olai.out.log";
           StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/olai.err.log";
 
+        } // lib.optionalAttrs (cfg.agents != [ ]) {
+          # The same variable, in launchd's own spelling — an attrset of
+          # literals rather than a file, which is why `environmentFile` is
+          # refused here and this is not: a search path is not a secret.
+          EnvironmentVariables = { OLAI_AGENT_PATH = lib.makeBinPath cfg.agents; };
         };
       };
     };

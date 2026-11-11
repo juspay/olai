@@ -236,7 +236,15 @@ The module fills `package` from the flake for the host platform. The packaged bi
 
 `OLAI_ODU_BIN` is the one knob over the last of those: it names a **directory** whose `odu` the serve puts first on its PATH instead of the pin — how you test a development odu against a packaged olai — and the empty string is the explicit off switch (the probe then answers from the ambient PATH, and a PATH with no `odu` draws the row under the roster — [chat.md](chat.md#when-a-tool-server-does-not-arrive)). The three adapter knobs beside it (`OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI`) name executable *files*; this one names the *directory* the way the pin's own `bin/` does.
 
-**The one thing a user service does NOT inherit is your PATH**, and that is where some agents live. Olai looks for the ones it knows when it starts — the self-contained pinned Claude Code and Codex adapters, the pinned pi-acp adapter, and the agents on its own search path: an `opencode`, a `pi`, an `omp` — and a unit started by systemd sees neither your login shell nor your profile. So an `opencode` you can run in a terminal is not necessarily one this process can find, and `OLAI_AGENT_PATH` is how you say where to look:
+**The one thing a user service does NOT inherit is your PATH**, and that is where some agents live. Olai looks for the ones it knows when it starts — the self-contained pinned Claude Code and Codex adapters, the pinned pi-acp adapter, and the agents on its own search path: an `opencode`, a `pi`, an `omp` — and a unit started by systemd sees neither your login shell nor your profile. So an `opencode` you can run in a terminal is not necessarily one this process can find, and the agent search path is how you say where to look.
+
+**The module has an option for it, and it is the one to reach for**, because it is the same fact said as a list of packages rather than as a variable you have to know the name and the semantics of:
+
+```nix
+  services.olai.agents = [ pkgs.opencode ];
+```
+
+Non-empty, the unit is started with `OLAI_AGENT_PATH` set to those packages' `bin` directories — on the systemd unit and the launchd agent alike. Empty (the default), the variable is not set at all and the probe falls back to the service's own `PATH`, which is what olai has always done. The variable itself is still there for a directory that is not a package:
 
 ```nix
   systemd.user.services.olai.Environment = [
@@ -244,7 +252,7 @@ The module fills `package` from the flake for the host platform. The packaged bi
   ];
 ```
 
-Set, it REPLACES the search path rather than adding to it — including when it is set to the empty string, which is "look nowhere". The adapter variables are `OLAI_ACP_AGENT`, `OLAI_ACP_CODEX` and `OLAI_ACP_PI`; they point their rows at different ACP executables. An empty adapter path makes that engine unavailable; it does not switch off chat or suppress other engines. Use `on: no` on the chat node to remove the conversation. They are [chat.md](chat.md)'s, which says what the panel does with each.
+Set — by either door — it REPLACES the search path rather than adding to it — including when it is set to the empty string, which is "look nowhere". The adapter variables are `OLAI_ACP_AGENT`, `OLAI_ACP_CODEX` and `OLAI_ACP_PI`; they point their rows at different ACP executables. An empty adapter path makes that engine unavailable; it does not switch off chat or suppress other engines. Use `on: no` on the chat node to remove the conversation. They are [chat.md](chat.md)'s, which says what the panel does with each.
 
 **...except for the variables an engine says its adapter must not see.** That inheritance is the default, not the whole rule: an engine whose adapter GUESSES something off the environment can name variables for olai to take away from its own spawn. Claude Code is the one that does — the pinned adapter reads `NO_BROWSER`, `SSH_CONNECTION`, `SSH_CLIENT`, `SSH_TTY` and `CLAUDE_CODE_REMOTE` to decide the person is somewhere else and, on a session it calls remote, offers only a full-screen login instead of the sign-in the panel can run. Olai *is* the far end of a browser, so those five are removed from that adapter's environment whatever olai itself was started with, and the strip is declared by the engine rather than by a general allow-list ([plugins/claude.md](plugins/claude.md#what-is-only-true-of-this-wire), [chat.md](chat.md#signing-in)).
 

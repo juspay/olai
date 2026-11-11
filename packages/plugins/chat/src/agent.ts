@@ -2121,7 +2121,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // WHAT IT OFFERS TO SIGN IN WITH, read once here and kept for the
           // press: the half a button needs travels (below), and the command
           // line a `terminal` method wants run stays where the spawn happens.
-          offered = methodsIn(initialized, options.command, options.args)
+          offered = methodsIn(initialized, options.command, options.args, options.leg)
           emit({
             _tag: "advertised",
             steers: options.leg.steering !== null
@@ -2843,7 +2843,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // is looking at.
         void child.unstartable.then((why) => {
           if (stopped() || attempt?.method !== method) return
-          output = tailBytes(`${output}${why}\n`, SIGN_IN_CAP).output
+          // ONCE, as the REASON. It used to be appended to the output as
+          // well, and the card draws both — so a failure to start read as the
+          // same sentence twice, once quoted as the process's own words when
+          // the process never produced any.
           emitSignIn({ kind: "terminal", method, label, output, running: false, code: null, why })
         })
         // THE WAIT, with the kill behind it: this fiber is the panel's (it runs
@@ -3687,6 +3690,12 @@ const methodsIn = (
    *  arguments to pass when running the AGENT BINARY", so the command line is
    *  this agent's own with them appended. */
   baseArgs: ReadonlyArray<string>,
+  /** ... and the agent's own reading of WHICH spelling to believe. An agent
+   *  whose `_meta` corner names a program rather than a path says so here
+   *  (`@olai/acp/engine`'s `Leg.terminalAuth`), and the corner is skipped: the
+   *  protocol's `args` are for the binary this client resolved, which is the
+   *  only spelling that cannot be looked up on the wrong `PATH`. */
+  leg: Leg,
 ): ReadonlyArray<Offered> => {
   const offered: Array<Offered> = []
   for (const method of response.authMethods ?? []) {
@@ -3708,7 +3717,7 @@ const methodsIn = (
       offered.push({ method: wire, run: null })
       continue
     }
-    const written = terminalAuthIn(terminal)
+    const written = leg.terminalAuth === "agentBinary" ? null : terminalAuthIn(terminal)
     offered.push({
       method: wire,
       run: {

@@ -305,6 +305,17 @@ export const OPENCODE: Leg = {
   mcpCall,
   replyIn,
   nativeActivity: CHILD_SESSIONS,
+  // ITS SIGN-IN NAMES A PROGRAM, NOT A PATH. opencode's `terminal` method
+  // writes `{ command: "opencode", args: ["auth","login"] }` into its own
+  // `_meta` corner, and olai is the one process that must not run that as
+  // written: an engine found through `OLAI_AGENT_PATH` is on a search path the
+  // SERVER's own `PATH` has never heard of, so the word resolves to nothing
+  // and a person pressing sign-in gets `Executable not found in $PATH:
+  // "opencode"` for the binary olai is talking to. The protocol's own
+  // spelling has no such hole — `args: ["--login"]` against the agent binary,
+  // which is `opencode acp --login` and is a real verb (`if (e.login) return
+  // auth login`, 2.2.7) — so that is the one read.
+  terminalAuth: "agentBinary",
   toolNameIn,
   // The id said the tool's name on 1.17.9 and says nothing on 2.x: it is an
   // opaque `chatcmpl-tool-<hex>`, and a child's is that behind its session id.

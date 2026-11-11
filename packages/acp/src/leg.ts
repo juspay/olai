@@ -378,6 +378,31 @@ export interface Leg {
   /** Advertise/read the terminal-output metadata extension. */
   readonly terminalOutput?: boolean
   /**
+   * WHICH SPELLING A `terminal` SIGN-IN'S COMMAND LINE IS READ BY — absent for
+   * the agents whose own `_meta["terminal-auth"]` corner is the command to
+   * run, and `"agentBinary"` for one whose corner names a program rather than
+   * a path.
+   *
+   * ACP lets a `terminal` method say what to run two ways. The protocol's own
+   * `args` are documented as additional arguments to the AGENT BINARY, which
+   * is a path this client already resolved and is already talking to. The
+   * `_meta` corner is an adapter extension carrying a whole command line, and
+   * the pinned Claude adapter writes an absolute path into it.
+   *
+   * OPENCODE WRITES A BARE NAME. Its corner is
+   * `{ command: "opencode", args: ["auth","login"] }`, and a client that ran
+   * that as written looks the word up on ITS OWN `PATH` — which, on a server
+   * whose engine was found through `OLAI_AGENT_PATH`, is a `PATH` the agent is
+   * not on. A person pressing sign-in got *Executable not found in $PATH:
+   * "opencode"* for a binary olai was at that moment holding a session with.
+   * So this leg says to read the protocol's spelling instead, and the sign-in
+   * runs the file the probe found.
+   *
+   * ABSENT IS THE CORNER-FIRST READING every leg had, so an agent that says
+   * nothing here runs exactly what it ran before.
+   */
+  readonly terminalAuth?: "agentBinary"
+  /**
    * Whether the title THIS frame carries is a PLACEHOLDER the adapter has not
    * refined yet — absent for an agent that names a call once and means it.
    *

@@ -161,6 +161,31 @@ if (process.argv.includes("--cwd")) {
   process.stdout.write("USAGE\n  opencode acp [flags]\n");
   process.exit(0);
 }
+
+/**
+ * THE SIGN-IN, which is a flag on `acp` rather than a program of its own.
+ *
+ * `opencode acp --login` runs the auth login instead of starting the server
+ * (2.2.7: `if (e.login) return auth login`), and that is the command line
+ * olai's sign-in has to produce — the binary the PROBE found with the
+ * protocol's own `args` appended. The corner opencode writes beside it says
+ * `{ command: "opencode", … }`, a bare word that resolves on nobody's `PATH`
+ * when the engine was found through `OLAI_AGENT_PATH`.
+ *
+ * So this prints its OWN PATH and exits 0, which is what makes the scenario's
+ * claim checkable: the words on the sign-in card name the file that ran, and
+ * a client that had run the bare name would not have got this far.
+ */
+if (process.argv.includes("--login")) {
+  process.stdout.write(`signed in by ${process.argv[1] ?? "nothing"}\n`);
+  process.stdout.write("https://opencode.ai/fake-login?code=abc123\n");
+  // ... AND THEN IT WAITS, the way a real device-code login does: the panel's
+  // card is only on screen while there is a process to type into, so a login
+  // that exited the moment it printed would take its own words away before
+  // anybody read them. One line in is the code, and that is the end of it.
+  process.stdin.setEncoding("utf8");
+  process.stdin.on("data", () => process.exit(0));
+}
 const cwd = process.cwd();
 
 /** A turn that gave up because somebody pressed cancel. Its own class so the
@@ -888,6 +913,23 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           sessionCapabilities: { list: {}, resume: {}, close: {}, delete: {}, fork: {} },
           _meta: { "opencode/child-session-updates": true },
         },
+        // WHAT IT WILL SIGN SOMEBODY IN WITH, in both spellings, because the
+        // real one offers both and the whole bug is which one a client
+        // believes: `type: "terminal"` with `args: ["--login"]` for the agent
+        // binary, and a `_meta` corner naming the bare word `opencode`. Each
+        // half is conditional on the client having advertised for it, exactly
+        // as 2.2.7 is.
+        authMethods: [{
+          id: "opencode-login",
+          name: "Login with opencode",
+          description: "Run `opencode auth login` in the terminal",
+          ...(((capabilities["auth"] ?? {}) as Record<string, unknown>)["terminal"] === true
+            ? { type: "terminal", args: ["--login"] }
+            : {}),
+          ...(corner["terminal-auth"] === true
+            ? { _meta: { "terminal-auth": { command: "opencode", args: ["auth", "login"], label: "OpenCode Login" } } }
+            : {}),
+        }],
         _meta: { steering: { supported: true } },
       });
       return;
