@@ -146,7 +146,7 @@ export interface RawMessages {
  * the call's own result: opencode 2's Code Mode dispatches every MCP tool
  * through one `execute`, and the script's `rawInput.code` names them going in
  * while `rawOutput.metadata.toolCalls` names them coming back. A leg whose
- * wire announces the tool by name ignores it, as four of the five do.
+ * wire announces the tool by name ignores it.
  */
 export interface MCPFrame {
   readonly title?: string | null | undefined
@@ -157,8 +157,8 @@ export interface MCPFrame {
 }
 
 /** Display only; allowedWithoutAsking remains the approval rule. A wire that
- *  announces one MCP tool per tool call answers a list of one or an empty one,
- *  which is four of the five. */
+ *  announces one MCP tool per tool call answers a list of one or an empty
+ *  one. */
 export const mcpCallBy = (spelling: (server: string) => string): Leg["mcpCall"] =>
   (frame, servers) => {
     const name = frame.name ?? frame.title
@@ -192,7 +192,7 @@ export const mcpCallBy = (spelling: (server: string) => string): Leg["mcpCall"] 
  * NOT EVERY LEG CAN USE IT. An agent that dispatches every MCP tool through
  * one builtin — opencode 2's Code Mode — has no tool NAME to match against,
  * and writes a rule of its own over the frame instead. This stays the rule for
- * the wires that do name the tool, which is four of the five.
+ * the wires that do name the tool.
  *
  * @param spelling what this agent calls the tools of the server named
  */
@@ -378,28 +378,20 @@ export interface Leg {
   /** Advertise/read the terminal-output metadata extension. */
   readonly terminalOutput?: boolean
   /**
-   * WHICH SPELLING A `terminal` SIGN-IN'S COMMAND LINE IS READ BY — absent for
-   * the agents whose own `_meta["terminal-auth"]` corner is the command to
-   * run, and `"agentBinary"` for one whose corner names a program rather than
-   * a path.
+   * WHICH SPELLING A `terminal` SIGN-IN'S COMMAND LINE IS READ BY.
    *
    * ACP lets a `terminal` method say what to run two ways. The protocol's own
    * `args` are documented as additional arguments to the AGENT BINARY, which
    * is a path this client already resolved and is already talking to. The
-   * `_meta` corner is an adapter extension carrying a whole command line, and
-   * the pinned Claude adapter writes an absolute path into it.
-   *
-   * OPENCODE WRITES A BARE NAME. Its corner is
-   * `{ command: "opencode", args: ["auth","login"] }`, and a client that ran
-   * that as written looks the word up on ITS OWN `PATH` — which, on a server
-   * whose engine was found through `OLAI_AGENT_PATH`, is a `PATH` the agent is
-   * not on. A person pressing sign-in got *Executable not found in $PATH:
-   * "opencode"* for a binary olai was at that moment holding a session with.
-   * So this leg says to read the protocol's spelling instead, and the sign-in
-   * runs the file the probe found.
+   * `_meta["terminal-auth"]` corner is an adapter extension carrying a whole
+   * command line of its own.
    *
    * ABSENT IS THE CORNER-FIRST READING every leg had, so an agent that says
-   * nothing here runs exactly what it ran before.
+   * nothing here runs exactly what it ran before. `"agentBinary"` is for a
+   * leg whose agent writes a bare program NAME into that corner, where only
+   * the protocol's spelling — against the binary this client resolved — can
+   * be run at all. Why an agent does that is that leg's to say
+   * (`olai-plugin-opencode`).
    */
   readonly terminalAuth?: "agentBinary"
   /**
@@ -436,14 +428,15 @@ export interface Leg {
    * unnamed, and a call nobody named is a call a person is asked about.
    *
    * TWO ARGUMENTS BECAUSE TWO WIRES SAY IT IN TWO PLACES: the pinned Claude
-   * Code adapter writes it into a `_meta` corner, and opencode 2 puts a `name`
-   * on the frame beside the title. `named` is that field, VERBATIM and
-   * unvalidated — a leg decides whether its agent's version of it may be
-   * believed. It is optional for the reason every reader here is fail-safe:
-   * a caller with no frame to hand passes nothing, the leg answers `null`,
-   * and a call nobody named is a call a person is asked about.
+   * Code adapter writes it into a `_meta` corner, and opencode 2 puts it on
+   * the frame beside the title. The second argument is THE FRAME, verbatim —
+   * WHICH field on it carries the name is the leg's answer and not this
+   * caller's, so a wire that respells the field moves one plugin. It is
+   * optional for the reason every reader here is fail-safe: a caller with no
+   * frame to hand passes nothing, the leg answers `null`, and a call nobody
+   * named is a call a person is asked about.
    */
-  readonly toolNameIn: (meta: Meta, named?: string | null) => string | null
+  readonly toolNameIn: (meta: Meta, frame?: unknown) => string | null
 
   /**
    * ... and out of the CALL ID, for a wire that puts it there.
@@ -475,7 +468,7 @@ export interface Leg {
    * through one builtin, so the name a request carries is `execute` for
    * olai's tools, a foreign server's, and its own — and WHICH is readable only
    * in the script the request is about ({@link MCPFrame.rawInput}). A leg that
-   * matches on the name alone ignores it, as four of the five do.
+   * matches on the name alone ignores it.
    *
    * IT IS OPTIONAL AND THAT IS SAFE IN ONE DIRECTION ONLY, which is the
    * direction it is: a caller that hands no frame leaves a Code-Mode leg

@@ -72,14 +72,18 @@ const record = (value: unknown): Record<string, unknown> | undefined =>
  * (`Summarise note.txt: read`) — so a client reading the title has a different
  * answer depending on when it looked.
  *
- * TAKES WHAT THE CALLER WAS GIVEN AND BELIEVES ONLY A NON-EMPTY STRING. A
- * frame with no `name` is a call this cannot name, which is a call a person is
- * asked about ({@link Leg.toolNameIn}). The `_meta` argument is unread: the
- * only corner on this wire is the child-session stamp, which names a session
- * rather than a tool.
+ * TAKES THE FRAME AND READS ITS OWN FIELD, which is the point of the frame
+ * being what the contract hands over: `name` is this agent's spelling and
+ * nowhere else knows it. Only a non-empty string is believed; a frame with no
+ * `name` is a call this cannot name, which is a call a person is asked about
+ * ({@link Leg.toolNameIn}). The `_meta` argument is unread: the only corner on
+ * this wire is the child-session stamp, which names a session rather than a
+ * tool.
  */
-export const toolNameIn = (_meta: unknown, named?: string | null): string | null =>
-  typeof named === "string" && named !== "" ? named : null
+export const toolNameIn = (_meta: unknown, frame?: unknown): string | null => {
+  const named = record(frame)?.["name"]
+  return typeof named === "string" && named !== "" ? named : null
+}
 
 // ── an olai call, out of the script that dispatched it ─────────────────
 

@@ -144,6 +144,30 @@ const takeIdent = (cursor: Cursor): string | null => {
   return token.text
 }
 
+/** A comma-separated run of `element` between `open` and `close`, trailing
+ *  comma allowed. The one shape both grammars in this file share, so a
+ *  bracket rule has ONE place it can be wrong in rather than four — and in
+ *  this file a slip in one is an approval nobody pressed. */
+const takeRun = (cursor: Cursor, open: string, close: string, element: () => boolean): boolean => {
+  if (!takePunct(cursor, open)) return false
+  if (takePunct(cursor, close)) return true
+  for (;;) {
+    if (!element()) return false
+    if (!takePunct(cursor, ",")) return takePunct(cursor, close)
+    if (takePunct(cursor, close)) return true
+  }
+}
+
+/** ... and the same run with a `key:` in front of each element: the brace
+ *  form. A key is a string, or a word this grammar has not reserved. */
+const takeRecord = (cursor: Cursor, element: () => boolean): boolean =>
+  takeRun(cursor, "{", "}", () => {
+    const key = peek(cursor)
+    if (key?.kind !== "string" && (key?.kind !== "word" || RESERVED.has(key.text))) return false
+    cursor.at += 1
+    return takePunct(cursor, ":") && element()
+  })
+
 /** A JSON value: a string, a number, a boolean, `null`, an array of them or an
  *  object of them. NO identifiers — an argument built from a variable is an
  *  argument this cannot read, and the call it is passed to is a call nobody
@@ -157,34 +181,9 @@ const takeLiteral = (cursor: Cursor): boolean => {
     cursor.at += 1
     return true
   }
-  if (takePunct(cursor, "[")) {
-    if (takePunct(cursor, "]")) return true
-    for (;;) {
-      if (!takeLiteral(cursor)) return false
-      if (takePunct(cursor, ",")) {
-        if (takePunct(cursor, "]")) return true
-        continue
-      }
-      return takePunct(cursor, "]")
-    }
-  }
-  if (takePunct(cursor, "{")) {
-    if (takePunct(cursor, "}")) return true
-    for (;;) {
-      const key = peek(cursor)
-      if (key?.kind !== "string" && key?.kind !== "word") return false
-      if (key.kind === "word" && RESERVED.has(key.text)) return false
-      cursor.at += 1
-      if (!takePunct(cursor, ":")) return false
-      if (!takeLiteral(cursor)) return false
-      if (takePunct(cursor, ",")) {
-        if (takePunct(cursor, "}")) return true
-        continue
-      }
-      return takePunct(cursor, "}")
-    }
-  }
-  return false
+  return token.text === "["
+    ? takeRun(cursor, "[", "]", () => takeLiteral(cursor))
+    : takeRecord(cursor, () => takeLiteral(cursor))
 }
 
 /**
@@ -253,6 +252,13 @@ export const toolsCalledIn = (code: string): ReadonlyArray<Called> | null => {
   const called: Called[] = []
   const bound = new Set<string>()
 
+  /** A name this script already bound above — the only identifier a value may
+   *  be, so a script cannot return something it never computed here. */
+  const boundName = (): boolean => {
+    const name = takeIdent(cursor)
+    return name !== null && bound.has(name)
+  }
+
   /** A value: a call, a name already bound, or a list/record of such names. */
   const takeValue = (): boolean => {
     takeWord(cursor, "await")
@@ -263,37 +269,9 @@ export const toolsCalledIn = (code: string): ReadonlyArray<Called> | null => {
       called.push(call)
       return true
     }
-    if (takePunct(cursor, "[")) {
-      if (takePunct(cursor, "]")) return true
-      for (;;) {
-        const name = takeIdent(cursor)
-        if (name === null || !bound.has(name)) return false
-        if (takePunct(cursor, ",")) {
-          if (takePunct(cursor, "]")) return true
-          continue
-        }
-        return takePunct(cursor, "]")
-      }
-    }
-    if (takePunct(cursor, "{")) {
-      if (takePunct(cursor, "}")) return true
-      for (;;) {
-        const key = peek(cursor)
-        if (key?.kind !== "string" && key?.kind !== "word") return false
-        if (key.kind === "word" && RESERVED.has(key.text)) return false
-        cursor.at += 1
-        if (!takePunct(cursor, ":")) return false
-        const name = takeIdent(cursor)
-        if (name === null || !bound.has(name)) return false
-        if (takePunct(cursor, ",")) {
-          if (takePunct(cursor, "}")) return true
-          continue
-        }
-        return takePunct(cursor, "}")
-      }
-    }
-    const name = takeIdent(cursor)
-    return name !== null && bound.has(name)
+    if (token?.kind === "punct" && token.text === "[") return takeRun(cursor, "[", "]", boundName)
+    if (token?.kind === "punct" && token.text === "{") return takeRecord(cursor, boundName)
+    return boundName()
   }
 
   while (cursor.at < tokens.length) {

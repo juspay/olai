@@ -176,14 +176,14 @@ describe("what the frame's own name field said", () => {
     // The opencode 2 shape: the name is a field, the id is a hash, and the
     // permission request about that call is answered from what was announced.
     const calls = new Calls(NAMES_ON_FRAME)
-    calls.heard("chatcmpl-tool-a273", undefined, "execute")
+    calls.heard("chatcmpl-tool-a273", undefined, { name: "execute" })
     expect(calls.about("chatcmpl-tool-a273").name).toBe("execute")
   })
 
   test("a frame that named nothing leaves the call unnamed", () => {
     const calls = new Calls(NAMES_ON_FRAME)
     calls.heard("chatcmpl-tool-a273", undefined, undefined)
-    calls.heard("chatcmpl-tool-b000", undefined, "")
+    calls.heard("chatcmpl-tool-b000", undefined, { name: "" })
     expect(calls.about("chatcmpl-tool-a273")).toEqual({})
     expect(calls.about("chatcmpl-tool-b000")).toEqual({})
   })

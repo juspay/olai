@@ -42,7 +42,7 @@
  *      So it is re-stamped here, at the one place that knows this agent's
  *      spelling, rather than branched on in the panel.
  */
-import type { ActivityNotification, Heard, NativeActivity } from "@olai/acp/engine"
+import type { Heard, NativeActivity } from "@olai/acp/engine"
 
 const record = (value: unknown): Record<string, unknown> | undefined =>
   typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
@@ -61,20 +61,21 @@ export const CHILD_SESSION_UPDATES = "opencode/child-session-updates"
 const CHILD_STAMP = "opencode/child-session"
 
 /**
- * How a child session ENDED, in olai's words — or `undefined` while it is
- * still going.
+ * What one of opencode's status words means to the channel — a lane OPENED, a
+ * lane ENDED in olai's word, or nothing at all.
  *
  * `created` and `running` are both "open", and only one of them opens the
- * lane. opencode's four terminal words map onto the channel's three: a child
- * that was `interrupted` ended the way a cancelled one did, which is the word
- * the channel has for a child somebody stopped.
+ * lane: `running` says what the lane already said. opencode's four terminal
+ * words map onto the channel's three: a child that was `interrupted` ended
+ * the way a cancelled one did, which is the word the channel has for a child
+ * somebody stopped. One reader, so a sixth word has one place to be read in.
  */
-const ended = (status: unknown): "completed" | "failed" | "cancelled" | undefined => {
-  if (status === "completed") return "completed"
-  if (status === "failed") return "failed"
-  if (status === "interrupted") return "cancelled"
-  return undefined
-}
+const means = (status: unknown): "created" | "completed" | "failed" | "cancelled" | null =>
+  status === "created" || status === "completed" || status === "failed"
+    ? status
+    : status === "interrupted"
+    ? "cancelled"
+    : null
 
 /**
  * One `opencode/session/child_update`, as a lifecycle fact or as the ordinary
@@ -105,14 +106,14 @@ export const childIn = (message: unknown): Heard | null => {
   }
   if (params["type"] !== "status") return null
   const parent = text(params["parentSessionId"])
-  const title = text(params["title"]) ?? ""
-  const state = ended(params["status"])
-  if (state !== undefined) {
+  const state = means(params["status"])
+  if (state === null) return null
+  if (state !== "created") {
     return { kind: "activity", value: { session: parent ?? session, update: { kind: "childEnded", id: session, state } } }
   }
-  if (params["status"] !== "created" || parent === undefined) return null
-  const value: ActivityNotification = { session: parent, update: { kind: "child", id: session, name: title, task: title } }
-  return { kind: "activity", value }
+  if (parent === undefined) return null
+  const title = text(params["title"]) ?? ""
+  return { kind: "activity", value: { session: parent, update: { kind: "child", id: session, name: title, task: title } } }
 }
 
 /**

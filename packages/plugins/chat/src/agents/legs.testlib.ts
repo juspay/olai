@@ -111,7 +111,10 @@ export const NAMES_IN_ID: Leg = {
  */
 export const NAMES_ON_FRAME: Leg = {
   ...SAYS_NOTHING,
-  toolNameIn: (_meta, named) => typeof named === "string" && named !== "" ? named : null,
+  toolNameIn: (_meta, frame) => {
+    const named = frame !== null && typeof frame === "object" ? (frame as { name?: unknown }).name : undefined
+    return typeof named === "string" && named !== "" ? named : null
+  },
 }
 
 /**

@@ -47,8 +47,8 @@ const asking = (code: string | null, name = "execute") => ({
 
 describe("which tool a call is", () => {
   test("is the FIELD the frame carries, never the title and never the id", () => {
-    expect(OPENCODE.toolNameIn(undefined, "shell")).toBe("shell")
-    expect(OPENCODE.toolNameIn({ "opencode/child-session": { id: "ses_x" } }, "read")).toBe("read")
+    expect(OPENCODE.toolNameIn(undefined, { name: "shell" })).toBe("shell")
+    expect(OPENCODE.toolNameIn({ "opencode/child-session": { id: "ses_x" } }, { name: "read" })).toBe("read")
     // The id said the name on 1.17.9 and says nothing on 2.x.
     expect(OPENCODE.toolNameOf("chatcmpl-tool-a27391eb035485a2")).toBeNull()
     expect(OPENCODE.toolNameOf("bash:0")).toBeNull()
@@ -56,8 +56,8 @@ describe("which tool a call is", () => {
 
   test("a frame that named nothing names nothing", () => {
     expect(OPENCODE.toolNameIn(undefined, undefined)).toBeNull()
-    expect(OPENCODE.toolNameIn(undefined, null)).toBeNull()
-    expect(OPENCODE.toolNameIn(undefined, "")).toBeNull()
+    expect(OPENCODE.toolNameIn(undefined, { name: null })).toBeNull()
+    expect(OPENCODE.toolNameIn(undefined, { name: "" })).toBeNull()
   })
 })
 

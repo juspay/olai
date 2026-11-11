@@ -1249,7 +1249,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // name and, for a subagent's call, whose it is — so it goes in through
       // the same door rather than being read as a second kind of source. Both
       // questions below are then a lookup.
-      calls.heard(params.toolCall.toolCallId, params.toolCall._meta, nameOn(params.toolCall), params.sessionId)
+      calls.heard(params.toolCall.toolCallId, params.toolCall._meta, params.toolCall, params.sessionId)
       // The tools olai handed this conversation are answered here and now —
       // already mediated, already validated — and everything else is put in
       // front of a person. Which is which is `allowedWithoutAsking`, and it is
@@ -1259,7 +1259,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // tool a request is really about is readable only in the call's own
       // input (`@olai/acp/engine`).
       const allowed = options.leg.allowedWithoutAsking(toolOf(params), given, params.options, {
-        name: nameOn(params.toolCall),
         title: params.toolCall.title,
         rawInput: params.toolCall.rawInput,
         _meta: params.toolCall._meta,
@@ -1367,7 +1366,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // which tool it is, and which agent made it — is what the two
           // handlers above need and what neither question they answer carries
           // ({@link ./calls.ts}).
-          calls.heard(update.toolCallId, update._meta, nameOn(update), notification.sessionId)
+          calls.heard(update.toolCallId, update._meta, update, notification.sessionId)
           // Recognition belongs to the leg; ownership belongs to the live catalogue.
           const recognized = options.leg.mcpCall({
             title: update.title,
@@ -2121,7 +2120,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // WHAT IT OFFERS TO SIGN IN WITH, read once here and kept for the
           // press: the half a button needs travels (below), and the command
           // line a `terminal` method wants run stays where the spawn happens.
-          offered = methodsIn(initialized, options.command, options.args, options.leg)
+          offered = methodsIn(initialized, options.command, options.args, options.leg.terminalAuth)
           emit({
             _tag: "advertised",
             steers: options.leg.steering !== null
@@ -3619,23 +3618,6 @@ export const fromElsewhere = (
   typeof named === "string" &&
   (closed.has(named) || (current !== null && named !== current))
 
-/**
- * The `name` a tool-call payload carried, or `undefined` for one that carried
- * none.
- *
- * READ RATHER THAN DESTRUCTURED, because the pinned SDK's `ToolCall` does not
- * declare it and one agent sends it on every frame and every permission
- * request (opencode 2). Anything that is not a string is `undefined`: this
- * hands the field to a leg VERBATIM, and whether an agent's version of it may
- * be believed is the leg's answer. A frame that says nothing here leaves the
- * call unnamed, which is a call a person is asked about.
- */
-const nameOn = (frame: object): string | undefined => {
-  if (!("name" in frame)) return undefined
-  const named: unknown = frame.name
-  return typeof named === "string" ? named : undefined
-}
-
 const notify = (
   at: Live,
   method: string,
@@ -3695,7 +3677,7 @@ const methodsIn = (
    *  (`@olai/acp/engine`'s `Leg.terminalAuth`), and the corner is skipped: the
    *  protocol's `args` are for the binary this client resolved, which is the
    *  only spelling that cannot be looked up on the wrong `PATH`. */
-  leg: Leg,
+  terminalAuth: Leg["terminalAuth"],
 ): ReadonlyArray<Offered> => {
   const offered: Array<Offered> = []
   for (const method of response.authMethods ?? []) {
@@ -3717,7 +3699,7 @@ const methodsIn = (
       offered.push({ method: wire, run: null })
       continue
     }
-    const written = leg.terminalAuth === "agentBinary" ? null : terminalAuthIn(terminal)
+    const written = terminalAuth === "agentBinary" ? null : terminalAuthIn(terminal)
     offered.push({
       method: wire,
       run: {
