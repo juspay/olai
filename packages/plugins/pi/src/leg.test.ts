@@ -16,7 +16,7 @@ import { describe, expect, test } from "bun:test"
 import { allowedWithoutAsking, PI, prologueIn, toolNameOf } from "./leg.ts"
 
 describe("which tool a call is", () => {
-  test("is the head of the call id, minted once — as on the opencode wire", () => {
+  test("is the head of the call id, minted once — as on the omp wire", () => {
     expect(toolNameOf("bash:0")).toBe("bash")
     expect(toolNameOf("edit:1")).toBe("edit")
     expect(toolNameOf("write:12")).toBe("write")

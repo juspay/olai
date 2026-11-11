@@ -864,14 +864,15 @@ export function Composer(props: {
           {/* WHAT PRESSING SEND NOW DOES, while the agent is working.
 
               The box never locks and nothing is held here, which has not
-              changed. What has is that the answer is now the SAME on every
-              agent — the words go out as an ordinary message and the agent gets
-              to them when the turn it is working on is over — so this line is a
-              promise rather than a warning about a degradation. It is drawn
-              only where that queue is a fact somebody established (`queues`,
-              per agent: one advertises it at the handshake and the other was
-              verified), because a promise about an agent nobody has checked is
-              not olai's to make.
+              changed. What has is that the words go out as an ordinary message
+              on every agent — this line is the promise that the agent GETS to
+              them when the turn it is working on is over, so it is drawn only
+              where that queue is a fact somebody established (`queues`, per
+              agent: the Claude adapter advertises it at the handshake and pi's
+              was verified on the wire), because a promise about an agent
+              nobody has checked is not olai's to make — and two engines do
+              something else entirely with a busy send, which is why neither of
+              them draws it.
 
               Only while a turn RUNS, because that is the only time it says
               anything: an idle agent starts on what you type at once, and that
