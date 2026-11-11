@@ -9,7 +9,8 @@
  * it as a closed union so that a fourth engine was a core PR in two packages.
  * The engines are PLUGINS now — one directory each, one row each in
  * `olai.yml`, each with its own adapter pin and its own release clock (the
- * Claude adapter's moved five times in a month; opencode's has never moved) —
+ * Claude adapter's moved five times in a month; opencode has no pin at all
+ * and its WIRE moved under it instead, from the 1.x line to 2.x) —
  * so what used to be a table is a REGISTRATION, and this is what it carries.
  *
  * ## Why it lives in `@olai/acp`
