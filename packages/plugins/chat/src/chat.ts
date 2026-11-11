@@ -3263,7 +3263,18 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // where that is true.
       move({
         status: "idle",
-        unopened: { why: failure.message, what: attempting },
+        // ... AND THE ONE CLASSIFICATION A FACE MAY BRANCH ON, where the agent
+        // answered a `session/load` with ACP's `-32002` ({@link
+        // ./agent.ts}'s `missingOf`). `why` is still the agent's own sentence
+        // and still what is shown; this says that asking for the SAME
+        // conversation again can only ever get the same answer, which is the
+        // difference between a body with a retry on it and a body with a way
+        // out ({@link ./browser/chat/Unopened.tsx}).
+        unopened: {
+          why: failure.message,
+          what: attempting,
+          ...(failure.missing === true ? { cause: { kind: "missing" as const } } : {}),
+        },
         // ... AND WHOSE CONVERSATION IT WAS, which is the way OUT of this face
         // and used to be dropped exactly here. A node agent's *fresh session*
         // is drawn only where the header knows the node

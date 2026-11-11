@@ -1743,6 +1743,36 @@ export const sameStanding: (a: ServerStanding, b: ServerStanding) => boolean = S
   .toEquivalence(ServerStanding)
 
 /**
+ * THE CHAT IS NOT IN THIS ENGINE'S STORE — read off ACP's `-32002` answered to
+ * a `session/load` (`../agent.ts`'s `missingOf`) and never off the sentence
+ * around it.
+ *
+ * Olai's own vocabulary, one layer up from the protocol's number and one layer
+ * below the face: what a reader does with it is draw a different body, because
+ * this is the refusal that will NEVER heal on a retry. The id was minted by an
+ * engine on some other computer, or its store was cleared — and the way out is
+ * a fresh conversation rather than the same one asked for again.
+ *
+ * No payload. "Which chat" is already `Unopened.what`, and how to get out of it
+ * is the node's own gesture rather than anything this value could carry.
+ */
+export const Missing = Schema.Struct({ kind: Schema.Literal("missing") })
+export type Missing = typeof Missing.Type
+
+/**
+ * THE TWO REFUSALS WITH A FACE OF THEIR OWN, and the only thing a body may
+ * branch on.
+ *
+ * `BusyCause` is `@olai/format`'s because it is a fact about a REFUSED
+ * OPERATION that every op may carry (`BusyFailure` declares it); `Missing` is
+ * chat's because it is a fact about a CONVERSATION and nothing outside this
+ * plugin can produce one. They meet here, on the state a panel draws, which is
+ * the one place both are in hand.
+ */
+export const UnopenedCause = Schema.Union([BusyCause, Missing])
+export type UnopenedCause = typeof UnopenedCause.Type
+
+/**
  * The agent is there and there is NO CONVERSATION, because opening one was
  * REFUSED — and why.
  *
@@ -1775,16 +1805,16 @@ export const Unopened = Schema.Struct({
    *  opening ANY conversation: a fresh one, or a boot that chose for itself. */
   what: Schema.NullOr(Schema.String),
   /**
-   * ... AND WHAT A FACE MAY BRANCH ON, where the refusal was olai's own rather
-   * than the agent's ({@link BusyCause}).
+   * ... AND WHAT A FACE MAY BRANCH ON, where `why` alone would leave a person
+   * with nothing to press.
    *
    * Absent on nearly every one of these, because nearly every one of them is
-   * an agent saying no and `why` is the whole of it. Present where the pool of
-   * node agents was full: that refusal MENDS ITSELF — the panel keeps the
-   * attempt and opens the moment a seat frees — so the face draws no retry and
-   * no alarm. The sentence is still `why`, and the two must agree.
+   * an agent saying no and the sentence is the whole of it. Two have a face of
+   * their own ({@link UnopenedCause}), and both are refusals whose way OUT is
+   * not the retry the ordinary body offers: `capacity` MENDS ITSELF, and
+   * `missing` never will. The sentence is still `why`, and the two must agree.
    */
-  cause: Schema.optionalKey(BusyCause),
+  cause: Schema.optionalKey(UnopenedCause),
 })
 
 /**

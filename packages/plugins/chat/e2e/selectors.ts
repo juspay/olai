@@ -89,6 +89,7 @@ export const CHAT_MISSING_SERVER = selector(TESTID.chatMissingServer);
 export const CHAT_MISSING_WHY = selector(TESTID.chatMissingWhy);
 export const CHAT_UNOPENED = selector(TESTID.chatUnopened);
 export const CHAT_UNOPENED_WHY = selector(TESTID.chatUnopenedWhy);
+export const CHAT_UNOPENED_FRESH = selector(TESTID.chatUnopenedFresh);
 export const CHAT_REOPEN = selector(TESTID.chatReopen);
 export const CHAT_ENTRY = selector(TESTID.chatEntry);
 export const CHAT_NEW = selector(TESTID.chatNew);

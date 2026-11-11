@@ -413,7 +413,7 @@ The same-node toggle case exposed a product race: a reconnecting reader for the
 old binding could enqueue `session/load` while fresh-start was still opening.
 It then replaced the new session, forcing a second load of that unprompted id.
 The persistent ACP fixture correctly refuses such unsaved sessions. Chat now
-records successful replacements on the node slot and checks that record inside
+records replacements on the node slot and checks that record inside
 the node's opening permit. Superseded readers route to their own history scope
 after releasing the live permit. `scoped.test.ts` covers a completed fresh start
 with a lagging binding, a fresh start and late reader queued behind a third
@@ -422,6 +422,57 @@ to a superseded session while the binding still lags. Subscriptions and explicit
 loads share the same permit-protected routing function. Deferreds and
 immediate forks establish ordering without sleeps; both stale-reader cases fail
 against the previous implementation. The same-node off/on workflow now passes end to end.
+
+The record used to cover only replacements that SUCCEEDED, and a vault carried
+to a second machine is the case that is not one: the engine there answers
+`session/load` with not-found, so the slot holds a refused pair on
+`state.unopened` and `state.session` is null. Nothing was recorded, and a
+reader still holding the lagging binding loaded the lost id back over the chat
+the fresh start had just opened — which is why *Fresh start* appeared to do
+nothing at all on a moved vault. The replaced pair is now read off either
+field, and the node ADDRESS — the one a tab holds while a node's chat is
+refused, and a second door onto the same id — checks the record before it
+reconciles against the durable binding. That node-door record is a SUBSET of
+the supersessions and not the whole of it: it holds only pairs whose durable
+write has not been seen land, and empties as soon as a node reader observes
+the binding read anything the slot is not waiting on — otherwise a property
+pointed BACK at a replaced chat would be ignored for the rest of the slot's
+life. `scoped.test.ts` adds three: a fresh start after a refused open with a
+late pair reader, the same with a late node reader, and a binding re-pointed
+at the replaced chat AFTER the write landed, which is opened and refused
+rather than skipped. The first two fail against the previous implementation.
+
+The face that refusal gets is covered in `node_agents`. With the persistent
+ACP fixture on, the engine keeps a store, consults it and answers ACP's
+`-32002` for an id it never recorded — which is the real not-found a carried
+vault meets, and not a scripted no. One scenario presses a node bound to such
+an id and asserts the body olai draws for it: the classification (`data-cause`,
+read off the code rather than off the sentence), "This chat isn't on this
+machine.", the engine's own words kept but drawn as quietly as the prose around
+them, *Try again* still offered, and one press of **Start fresh chat** — no
+confirmation — landing in a working chat with no refusal, a composer, and an
+`agent-session` that names a different conversation. A reload afterwards is the
+late reader the unit cases make, and the refusal stays gone. A second scenario
+reads an EARLIER chat of a node that has gone the same way (`.agent-missing-
+<id>`: still in `session/list`, unreadable behind it) and asserts the same
+words with NO fresh start, because that gesture re-points a binding the reader
+is not looking at. A third presses *Start fresh chat* against an engine that
+refuses `session/new` as well: the reason is said on the body's own refusal
+line, both ways out stay, the binding is untouched, and a reload draws the
+same face — the case two copies of the fresh-start gesture got wrong, because
+only one of them returned the reader to the chat the node is still bound to. A
+fourth presses *Try again* after the store comes back, which is the whole
+warrant for keeping that button. A fifth covers the trap olai makes for
+itself: no engine writes a session nobody has spoken into, so a fresh chat
+left empty across a serve restart is a real `-32002` about an id this machine
+minted — and the scenario pins that it is one press out again rather than a
+loop. The existing *a node agent whose conversation the engine has
+lost* scenario — a generic refusal, `-32603`, from an agent that will not
+resume — keeps its own copy and alarm line and gains the same button beside its
+retry, so no refusal of a node's current chat is a dead end. Open: two machines
+sharing one vault invalidating each other's session refs, which no scenario
+drives; and moving when the binding is written, which would close the
+unwritten-chat case rather than make it recoverable.
 
 ## The UI revamp: shell and navigation
 
