@@ -1363,6 +1363,10 @@ export type AgentChoice = typeof AgentChoice.Type
  *   - `agent` — the AGENT runs it. Something happens at the other end of a URL
  *     and the agent says when it is done, so all this panel has is the page to
  *     send a person to and the wait.
+ *   - `byHand` — NOBODY here runs it. The method is an interactive wizard that
+ *     refuses a pipe, so what is drawn is the method's label and the command
+ *     to type into a terminal on the server — the one case where the command
+ *     line IS the content and therefore the one field below.
  */
 export const AuthMethod = Schema.Struct({
   id: Schema.String,
@@ -1371,7 +1375,12 @@ export const AuthMethod = Schema.Struct({
    *  button's tooltip rather than under it, because the chooser is a list of
    *  things to press and not a page to read. */
   description: Schema.NullOr(Schema.String),
-  kind: Schema.Literals(["terminal", "agent"]),
+  kind: Schema.Literals(["terminal", "agent", "byHand"]),
+  /** The command line to run in a terminal on the SERVER, for a `byHand`
+   *  method and `null` for every other — an absolute path, because the agent
+   *  this names may be reachable only through olai's own agent search path and
+   *  a bare name would not exist in that person's shell either. */
+  command: Schema.NullOr(Schema.String),
 })
 export type AuthMethod = typeof AuthMethod.Type
 

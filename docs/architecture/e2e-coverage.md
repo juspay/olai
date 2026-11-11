@@ -568,6 +568,14 @@ turn).
   is switched off goes with it — the row is gone because the agent it belonged to
   is, and the card can no longer arrive from a process that is not there. The two
   identity scenarios are below.
+- **`packages/plugins/opencode/e2e/features/opencode_signin.feature`** (1
+  scenario, the THIRD kind, on the `chat` corpus): a sign-in olai must not run.
+  opencode's login is an interactive wizard that refuses a pipe, so the chooser
+  draws the method as a label and one command line — the binary the probe found,
+  absolute, with `auth login --standalone` after it — and no button at all. That
+  nothing was spawned is proved by the fake rather than by the card: it writes
+  `.opencode-login-ran` the instant anybody starts it with `--login`, and the
+  step asserts the file is not there.
 - Both engines cover an auth-refused Chats `+`, a listed conversation resumed by its original id, and starting on an untouched node. Codex also covers a refused fresh start with stored conversations available, asserting the new session id and binding after sign-in. The first-start cases assert an engine-only binding before authentication; there is no fabricated session id. Node-addressed readings retain the refusal before any transcript exists. The untouched-node cases also cancel and retry, reload the page while authentication is still needed, and complete one terminal sign-in from another tab. Existing fresh-start and writable-history scenarios also caught a binding-delivery race: the new session could appear under the previous draft owner, so typing before the binding arrived lost those words. A node reader now waits for a session matching its draft owner before showing that session. The surface-client regression test also exercises in-place state reconciliation: while the binding lags, the reader exposes the opening state instead of retaining a mutable previous frame.
 - **`agent_signin_steps.ts`** is the vocabulary those two share, in the chat
   plugin because the feature is the panel's: arm the agent

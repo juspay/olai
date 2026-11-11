@@ -378,22 +378,28 @@ export interface Leg {
   /** Advertise/read the terminal-output metadata extension. */
   readonly terminalOutput?: boolean
   /**
-   * WHICH SPELLING A `terminal` SIGN-IN'S COMMAND LINE IS READ BY.
+   * WHETHER THIS AGENT'S `terminal` SIGN-IN CAN BE RUN BY THE PANEL AT ALL —
+   * and, when it cannot, THE COMMAND A PERSON IS SHOWN INSTEAD.
    *
-   * ACP lets a `terminal` method say what to run two ways. The protocol's own
-   * `args` are documented as additional arguments to the AGENT BINARY, which
-   * is a path this client already resolved and is already talking to. The
-   * `_meta["terminal-auth"]` corner is an adapter extension carrying a whole
-   * command line of its own.
+   * Absent, it can, which is what every leg did: olai spawns the method's
+   * command line over pipes, streams its output into the card and gives a
+   * person one line to type the code back on.
    *
-   * ABSENT IS THE CORNER-FIRST READING every leg had, so an agent that says
-   * nothing here runs exactly what it ran before. `"agentBinary"` is for a
-   * leg whose agent writes a bare program NAME into that corner, where only
-   * the protocol's spelling — against the binary this client resolved — can
-   * be run at all. Why an agent does that is that leg's to say
-   * (`olai-plugin-opencode`).
+   * `byHand` is for an agent whose sign-in is an INTERACTIVE WIZARD — one
+   * that refuses the moment it finds no TTY, so a pipe and a paste box can
+   * never finish it. Nothing is spawned for such a method and no button is
+   * drawn: the card shows the method's label and one command line, composed
+   * of the binary THIS client resolved and these arguments. A button that
+   * cannot finish what it looks like it starts is the one thing this panel
+   * does not draw (`docs/chat.md`).
+   *
+   * THE ARGUMENTS ARE THE LEG'S because the wire's are not usable: an agent
+   * that cannot be driven over a pipe tends to spell its by-hand verb
+   * somewhere other than the method it advertises, and the only part of it
+   * olai can supply from the handshake is the program. Why a given agent
+   * needs which words is that leg's to say (`olai-plugin-opencode`).
    */
-  readonly terminalAuth?: "agentBinary"
+  readonly terminalAuth?: { readonly byHand: ReadonlyArray<string> }
   /**
    * Whether the title THIS frame carries is a PLACEHOLDER the adapter has not
    * refined yet — absent for an agent that names a call once and means it.

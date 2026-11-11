@@ -309,17 +309,25 @@ export const OPENCODE: Leg = {
   mcpCall,
   replyIn,
   nativeActivity: CHILD_SESSIONS,
-  // ITS SIGN-IN NAMES A PROGRAM, NOT A PATH. opencode's `terminal` method
-  // writes `{ command: "opencode", args: ["auth","login"] }` into its own
-  // `_meta` corner, and olai is the one process that must not run that as
-  // written: an engine found through `OLAI_AGENT_PATH` is on a search path the
-  // SERVER's own `PATH` has never heard of, so the word resolves to nothing
-  // and a person pressing sign-in gets `Executable not found in $PATH:
-  // "opencode"` for the binary olai is talking to. The protocol's own
-  // spelling has no such hole — `args: ["--login"]` against the agent binary,
-  // which is `opencode acp --login` and is a real verb (`if (e.login) return
-  // auth login`, 2.2.7) — so that is the one read.
-  terminalAuth: "agentBinary",
+  // ITS SIGN-IN CANNOT BE RUN FROM HERE AT ALL, which is a statement about
+  // the program rather than about the spelling it advertises. opencode's
+  // `opencode-login` is an interactive wizard: `acp --login` and `auth login`
+  // both answer `Pass an integration ID or name when running without an
+  // interactive terminal` and exit 1 the moment they find no TTY, and even
+  // `auth login <target> --method key` answers `API key input requires an
+  // interactive terminal` — `--answer` fills a provider's form, never the key
+  // itself (2.2.7, captured). olai's sign-in card is a pipe and a paste box,
+  // so there is no shape of it that can finish this.
+  //
+  // So the card shows the command instead of pressing it, and the words are
+  // these rather than the wire's: `--standalone` is the path PROVEN to reach
+  // the store an `opencode acp` reads (`$XDG_DATA_HOME/opencode/opencode.db`);
+  // the default path goes through opencode's per-machine background service
+  // and is unverified. The program olai puts in front of them is the binary
+  // the probe found, absolute: the corner's bare `opencode` is not on the
+  // olai server's `PATH`, and on a deploy where the agent is reachable only
+  // through `OLAI_AGENT_PATH` it is not on that person's shell `PATH` either.
+  terminalAuth: { byHand: ["auth", "login", "--standalone"] },
   toolNameIn,
   // The id said the tool's name on 1.17.9 and says nothing on 2.x: it is an
   // opaque `chatcmpl-tool-<hex>`, and a child's is that behind its session id.

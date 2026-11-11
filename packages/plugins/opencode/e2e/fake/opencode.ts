@@ -140,7 +140,8 @@
  */
 
 import { ran, script } from "olai-plugin-opencode/testlib";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { commandLine } from "@olai/tests/agent/command.ts";
 import { readMessages } from "@olai/tests/harness/ndjson.ts";
@@ -163,28 +164,35 @@ if (process.argv.includes("--cwd")) {
 }
 
 /**
- * THE SIGN-IN, which is a flag on `acp` rather than a program of its own.
+ * THE SIGN-IN, WHICH REFUSES A PIPE — the fact the whole of olai's by-hand
+ * face is built on, and the one this file got wrong first.
  *
- * `opencode acp --login` runs the auth login instead of starting the server
- * (2.2.7: `if (e.login) return auth login`), and that is the command line
- * olai's sign-in has to produce — the binary the PROBE found with the
- * protocol's own `args` appended. The corner opencode writes beside it says
- * `{ command: "opencode", … }`, a bare word that resolves on nobody's `PATH`
- * when the engine was found through `OLAI_AGENT_PATH`.
+ * opencode's login is an interactive wizard. `acp --login` and `auth login`
+ * both answer `Pass an integration ID or name when running without an
+ * interactive terminal` and exit 1 when they find no TTY, and
+ * `auth login <target> --method key` answers `API key input requires an
+ * interactive terminal` (2.2.7, captured). olai spawns a sign-in over pipes,
+ * so there is no stdin here that could ever satisfy it.
  *
- * So this prints its OWN PATH and exits 0, which is what makes the scenario's
- * claim checkable: the words on the sign-in card name the file that ran, and
- * a client that had run the bare name would not have got this far.
+ * A fake that printed a URL and waited for a code would be a witness of a
+ * fiction — it was, for one round. This one refuses the way the real one
+ * does, so the scenario beside it can only pass if olai never spawns it.
  */
 if (process.argv.includes("--login")) {
-  process.stdout.write(`signed in by ${process.argv[1] ?? "nothing"}\n`);
-  process.stdout.write("https://opencode.ai/fake-login?code=abc123\n");
-  // ... AND THEN IT WAITS, the way a real device-code login does: the panel's
-  // card is only on screen while there is a process to type into, so a login
-  // that exited the moment it printed would take its own words away before
-  // anybody read them. One line in is the code, and that is the end of it.
-  process.stdin.setEncoding("utf8");
-  process.stdin.on("data", () => process.exit(0));
+  // ... and it LEAVES A MARK, because "nothing was spawned" is the claim the
+  // scenario beside this makes and a card that merely looks right is not
+  // evidence of it. The file is written in the served directory, which is the
+  // directory olai spawns a sign-in in.
+  try {
+    writeFileSync(join(process.cwd(), ".opencode-login-ran"), process.argv.join(" "));
+  } catch {
+    // A directory that cannot be written to is not this fake's business; the
+    // refusal below is still the whole of what the real one does.
+  }
+  process.stdout.write("│\n");
+  process.stdout.write("■  Pass an integration ID or name when running without an interactive terminal\n");
+  process.stdout.write("│\n└  Failed\n");
+  process.exit(1);
 }
 const cwd = process.cwd();
 

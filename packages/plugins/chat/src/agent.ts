@@ -2744,6 +2744,17 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               })
             }
             claim.label = found.method.name
+            // NOTHING TO PRESS, so nothing to run: a method whose sign-in is a
+            // wizard that refuses a pipe is drawn as a label and a command
+            // line, and a press that reached here anyway (an old tab, a
+            // scripted client) is told the same thing the card says rather
+            // than quietly starting the AGENT arm instead.
+            if (found.method.kind === "byHand") {
+              return yield* new AgentGone({
+                gone: "refused",
+                why: `\`${found.method.name}\` is run by hand: ${found.method.command ?? "see the sign-in card"}`,
+              })
+            }
             return found.run === null
               ? yield* runAgent(claim, at, found)
               : yield* runTerminal(claim, found, found.run)
@@ -3672,11 +3683,11 @@ const methodsIn = (
    *  arguments to pass when running the AGENT BINARY", so the command line is
    *  this agent's own with them appended. */
   baseArgs: ReadonlyArray<string>,
-  /** ... and the agent's own reading of WHICH spelling to believe. An agent
-   *  whose `_meta` corner names a program rather than a path says so here
-   *  (`@olai/acp/engine`'s `Leg.terminalAuth`), and the corner is skipped: the
-   *  protocol's `args` are for the binary this client resolved, which is the
-   *  only spelling that cannot be looked up on the wrong `PATH`. */
+  /** ... and the agent's own word on whether its `terminal` method can be run
+   *  here at all (`@olai/acp/engine`'s `Leg.terminalAuth`). `byHand` spawns
+   *  nothing and offers no button: the method becomes a label carrying one
+   *  command line — this binary, those arguments — to type into a terminal on
+   *  the server. */
   terminalAuth: Leg["terminalAuth"],
 ): ReadonlyArray<Offered> => {
   const offered: Array<Offered> = []
@@ -3689,19 +3700,41 @@ const methodsIn = (
     // rather than of a second read of the same field.
     const terminal = "type" in method && method.type === "terminal" ? method : null
     if ("type" in method && method.type === "env_var") continue
-    const wire: AuthMethod = {
-      id: method.id,
-      name: method.name,
-      description: method.description ?? null,
-      kind: terminal === null ? "agent" : "terminal",
-    }
     if (terminal === null) {
-      offered.push({ method: wire, run: null })
+      offered.push({
+        method: { id: method.id, name: method.name, description: method.description ?? null, kind: "agent", command: null },
+        run: null,
+      })
       continue
     }
-    const written = terminalAuth === "agentBinary" ? null : terminalAuthIn(terminal)
+    // BY HAND: the words a person needs, and nothing to press. The program is
+    // the one THIS client resolved — an absolute path, because an agent found
+    // through olai's own search path is not on the shell's `PATH` either — and
+    // the arguments are the leg's, the wire's being the ones that cannot run
+    // here.
+    const byHand = terminalAuth?.byHand
+    if (byHand !== undefined) {
+      offered.push({
+        method: {
+          id: method.id,
+          name: method.name,
+          description: method.description ?? null,
+          kind: "byHand",
+          command: [command, ...byHand].join(" "),
+        },
+        run: null,
+      })
+      continue
+    }
+    const written = terminalAuthIn(terminal)
     offered.push({
-      method: wire,
+      method: {
+        id: method.id,
+        name: method.name,
+        description: method.description ?? null,
+        kind: "terminal",
+        command: null,
+      },
       run: {
         command: written?.command ?? command,
         args: written?.args ?? [...baseArgs, ...(terminal.args ?? [])],
