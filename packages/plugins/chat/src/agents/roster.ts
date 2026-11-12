@@ -79,7 +79,7 @@
  * instructions and back — because somebody's `$HOME/.local/bin` was being
  * written to, or because a CLI was mid-upgrade and its file was briefly not
  * there. An agent installed while olai runs is offered when a person asks again,
- * which is the same bargain `OLAI_ACP_AGENT` has always made.
+ * which is the same bargain `KOLU_ACP_AGENT` has always made.
  *
  * The BUILD's half moves. Which engine PLUGINS are mounted is a fact about the
  * fibers, and a fiber can be turned off at the panel — so a row that leaves
@@ -108,7 +108,7 @@
  * over by the detector the composition root builds once.
  */
 
-import { type Adapter, type Engine, type Leg, type NotHere, type PromptChannel, type Where } from "@olai/acp/engine"
+import { type Adapter, type Engine, type Leg, type NotHere, type PromptChannel, type Where } from "@kolu/acp/engine"
 import type { AgentChoice, OffBecause } from "olai-plugin-chat/wire"
 import { AGENT_PATH_ENV } from "../adapter.ts"
 
@@ -246,7 +246,7 @@ export const rosterOf = (
  *  IT KEYS ON `why`, which is the field that carries the MEANING of the arm it
  *  belongs to: an absence is a sentence, and this package owns the reading that
  *  a sentence is what a `not-here` row is made of. Keying on `command` instead
- *  sniffed the OTHER package's shape — `@olai/acp`'s `Adapter`, whose fields are
+ *  sniffed the OTHER package's shape — `@kolu/acp`'s `Adapter`, whose fields are
  *  a spawn's business and not this table's — so a protocol-side field rename
  *  would have silently filed every installed engine as absent. */
 const standingOf = (engine: Engine, at: Adapter | NotHere): Standing =>

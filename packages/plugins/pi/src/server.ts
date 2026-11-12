@@ -25,7 +25,7 @@
  * behind it would fail at every `session/new`.
  */
 
-import { type Adapter, adapterFrom, type NotHere } from "@olai/acp/engine"
+import { type Adapter, adapterFrom, type NotHere } from "@kolu/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
@@ -74,7 +74,7 @@ export const ENGINE: Registering = {
     return { ...adapter, env: { [WRAPS]: bin } }
   },
   // pi-acp carries no system-prompt field either, so the standing instruction
-  // rides the first turn, like every engine olai ships (`@olai/acp/engine`'s
+  // rides the first turn, like every engine olai ships (`@kolu/acp/engine`'s
   // `PromptChannel`).
   prompt: { kind: "first-turn" },
 }

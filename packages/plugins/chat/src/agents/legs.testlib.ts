@@ -25,7 +25,7 @@
  * is where a bump of that adapter's pin goes red.
  */
 
-import type { Leg, Meta, NativeActivity } from "@olai/acp/engine"
+import type { Leg, Meta, NativeActivity } from "@kolu/acp/engine"
 
 /**
  * AN AGENT THAT SAYS NOTHING — every reader `null`, every capability absent.

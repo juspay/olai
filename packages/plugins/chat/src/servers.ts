@@ -39,7 +39,7 @@
 
 import type { McpServer } from "@agentclientprotocol/sdk"
 import { type ChatServer, sameStanding, type ServerStanding } from "olai-plugin-chat/wire"
-import type { Reported } from "@olai/acp/engine"
+import type { Reported } from "@kolu/acp/engine"
 
 /**
  * A server this host was meant to give a session and could not, as the PROBE
@@ -202,7 +202,7 @@ const asSaid = (
   const reported = said.find((one) => one.name === server.name)
   if (reported === undefined) return server
   // WHICH WORD MEANT YES was decided by the leg, which is the file allowed to
-  // be wrong about one agent (`@olai/acp/engine`'s `Leg`). What is left here is
+  // be wrong about one agent (`@kolu/acp/engine`'s `Leg`). What is left here is
   // the mapping onto a standing, which is true of every agent.
   const standing: ServerStanding = reported.attached
     ? { kind: "connected" }

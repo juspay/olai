@@ -1,5 +1,5 @@
 /**
- * OPENCODE 2'S CHILD SESSIONS, as a dialect of `@olai/acp`'s one native
+ * OPENCODE 2'S CHILD SESSIONS, as a dialect of `@kolu/acp`'s one native
  * activity channel ({@link NativeActivity}).
  *
  * Captured live against **opencode 2.2.7** (2026-11-11). A `subagent` call
@@ -42,7 +42,7 @@
  *      So it is re-stamped here, at the one place that knows this agent's
  *      spelling, rather than branched on in the panel.
  */
-import type { Heard, NativeActivity } from "@olai/acp/engine"
+import type { Heard, NativeActivity } from "@kolu/acp/engine"
 
 const record = (value: unknown): Record<string, unknown> | undefined =>
   typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined

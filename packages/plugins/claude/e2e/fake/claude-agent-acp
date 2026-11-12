@@ -4,7 +4,7 @@
  * 13.3. The generic driver lives in the harness core
  * (`@olai/tests/agent/scripted-acp.ts`); this executable names the engine it
  * speaks for by passing the claude vocabulary (this package's `./testlib`) and
- * the claude flavour, and the harness reaches THIS as `OLAI_ACP_AGENT` because
+ * the claude flavour, and the harness reaches THIS as `KOLU_ACP_AGENT` because
  * the descriptor next door says so — see `./index.ts`.
  *
  * Why the argument rather than the old `OLAI_FAKE_CODEX` switch: an executable

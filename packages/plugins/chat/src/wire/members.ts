@@ -61,7 +61,7 @@ import {
   FileDiff,
   Usage,
   YES_NO,
-} from "@olai/acp/wire"
+} from "@kolu/acp/wire"
 import {
   BusyCause,
   BusyFailure,
@@ -78,7 +78,7 @@ import { Schema } from "effect"
  * re-exported rather than declared.
  *
  * `AskChoice`, `AskField`, `AskAnswer`, `AskOutcome`, `YES_NO`, `FileDiff`,
- * `Usage` and `AuthStatus` belong to `@olai/acp` now — they are ACP's
+ * `Usage` and `AuthStatus` belong to `@kolu/acp` now — they are ACP's
  * elicitation, diff, usage and identity shapes in olai's spelling, and the
  * package that speaks the protocol is
  * the one that owns its words. They are re-exported HERE because they TRAVEL: the
@@ -87,7 +87,7 @@ import { Schema } from "effect"
  * — exactly the arrangement `RepoState` has, declared by `@olai/git` and
  * re-exported through `@olai/format`.
  *
- * They come off the `@olai/acp/wire` subpath, which is the half of that
+ * They come off the `@kolu/acp/wire` subpath, which is the half of that
  * package with no protocol payload in it: the projections over ACP's own
  * payloads ride the main entry, and only `olai-plugin-chat` reads those.
  */
@@ -107,7 +107,7 @@ export const Ask = Schema.Struct({
   fields: Schema.Array(AskField),
   /**
    * WHERE THE QUESTION SENDS THEM, for the one elicitation that is a place to
-   * go rather than something to fill in (ACP's URL mode, `@olai/acp`'s
+   * go rather than something to fill in (ACP's URL mode, `@kolu/acp`'s
    * `urlOf`): empty {@link fields} and a link, and the row draws the link
    * instead of a form.
    *
@@ -1599,7 +1599,7 @@ export type Command = typeof Command.Type
  *     tool it is writes the words).
  *
  * POSITIVE RECOGNITION, which is the rule the legs already read permissions by
- * (`@olai/acp`'s `./engine` door, where the `Leg` shape lives): `connected` is claimed only where an agent
+ * (`@kolu/acp`'s `./engine` door, where the `Leg` shape lives): `connected` is claimed only where an agent
  * said that word, and every other word it could send falls to `unattached`.
  * A tick on this panel is one somebody asserted, never one inferred from
  * silence — the losing direction being an agent whose servers are all fine

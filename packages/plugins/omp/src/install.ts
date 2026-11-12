@@ -19,7 +19,7 @@
  * own package knows.
  */
 
-import type { NotHere } from "@olai/acp/engine"
+import type { NotHere } from "@kolu/acp/engine"
 
 /** WHAT A PERSON READS. The engine's own name and not the plugin's word, and
  *  the two exist apart because they are different facts: the row is bound under

@@ -29,7 +29,7 @@
  * own package knows.
  */
 
-import type { NotHere } from "@olai/acp/engine"
+import type { NotHere } from "@kolu/acp/engine"
 
 /** WHAT A PERSON READS. The same word as the plugin's id here, which is a fact
  *  about this agent's own name rather than a rule. */

@@ -2,7 +2,7 @@
  * WHAT THIS ENGINE MAKES OF A HOST, over values.
  *
  * The probe is a pure function of an environment and a lookup
- * (`@olai/acp/engine`'s `Where`), which is the whole reason it is written that
+ * (`@kolu/acp/engine`'s `Where`), which is the whole reason it is written that
  * way: whether this row is offered depends on a variable and a filesystem, and
  * neither is a thing to arrange in order to check that a hand-rolled start is
  * still an absent row.
@@ -14,7 +14,7 @@
  * the reading (`olai-plugin-chat`'s `agents/roster.test.ts`).
  */
 
-import { AGENT_ENV } from "@olai/acp/engine"
+import { AGENT_ENV } from "@kolu/acp/engine"
 import { describe, expect, test } from "bun:test"
 
 import { DISABLE_AUTO_MEMORY_ENV, ENGINE, REMOTE_SIGNALS } from "./server.ts"

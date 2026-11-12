@@ -31,7 +31,7 @@ import * as path from "node:path"
 import { serve } from "./serve.ts"
 // These in-process boots do not exercise external chat engines. Clear explicit
 // executable paths and the discovery search path to keep each serve isolated.
-process.env.OLAI_ACP_AGENT = ""
+process.env.KOLU_ACP_AGENT = ""
 process.env.OLAI_ACP_CODEX = ""
 process.env.OLAI_ACP_PI = ""
 process.env.OLAI_AGENT_PATH = ""

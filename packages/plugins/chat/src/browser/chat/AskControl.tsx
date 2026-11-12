@@ -19,14 +19,14 @@
  * three turns ago.
  */
 
-import { type AskField, YES_NO } from "@olai/acp/wire"
+import { type AskField, YES_NO } from "@kolu/acp/wire"
 import { Key } from "@solid-primitives/keyed"
 import { Match, Show, Switch } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
 
 /** Yes and no, as the two choices they are. The VALUES are the protocol
- *  vocabulary's (`@olai/acp`, through the surface's re-export), not ours: the
+ *  vocabulary's (`@kolu/acp`, through the surface's re-export), not ours: the
  *  far end reads them back into an actual boolean, and both ends import the
  *  one spelling from the package whose reader lives beside it. */
 const BOOLEAN = [

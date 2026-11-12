@@ -21,7 +21,7 @@ import { servedDirectory } from "../vault.ts"
  * it took.
  */
 
-import type { FileDiff } from "@olai/acp/wire"
+import type { FileDiff } from "@kolu/acp/wire"
 import { createMemo, For, Show } from "solid-js"
 
 import { GLYPH, SAID } from "olai-plugin-outlines/changes"

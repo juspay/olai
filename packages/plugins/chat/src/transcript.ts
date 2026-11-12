@@ -57,7 +57,7 @@ import { isDeepStrictEqual } from "node:util"
 import { isRunningStatus, isTaskOut, sentToDo } from "olai-plugin-chat/wire"
 import type { Armed, ChatEntry, Delivery, Saying, Spawned, ToolEntry, TerminalView, ToolStatus, Json } from "olai-plugin-chat/wire"
 import type { OpFailure } from "@olai/format"
-import type { AskField, AskLink, AskOutcome, FileDiff } from "@olai/acp/wire"
+import type { AskField, AskLink, AskOutcome, FileDiff } from "@kolu/acp/wire"
 export interface Change {
   readonly upserts: ReadonlyArray<readonly [string, ChatEntry]>
   readonly removes: ReadonlyArray<string>
@@ -998,7 +998,7 @@ export class Transcript {
     // A PROVISIONAL TITLE IS DRAWN AND DOES NOT COUNT. One adapter announces a
     // call before the model's arguments have parsed and titles that frame off
     // arguments it does not have — a shell command arrives as the bare word
-    // "Terminal" — and says so on the frame (`@olai/acp/engine`'s `Leg`'s
+    // "Terminal" — and says so on the frame (`@kolu/acp/engine`'s `Leg`'s
     // `provisionalTitle`). The row wears the placeholder while the arguments
     // stream; the frame that refines them NAMES it; everything after that is
     // the rule as it always was.

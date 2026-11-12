@@ -1,5 +1,5 @@
 /**
- * What OPENCODE means by what it sends — the second leg (`@olai/acp/engine`'s
+ * What OPENCODE means by what it sends — the second leg (`@kolu/acp/engine`'s
  * `Leg`).
  *
  * Every reading here was captured live against **opencode 2.2.7** running
@@ -51,7 +51,7 @@
  * widens what it answers.
  */
 
-import { allowFlavoured, type Leg, namedExactly } from "@olai/acp/engine"
+import { allowFlavoured, type Leg, namedExactly } from "@kolu/acp/engine"
 
 import { CHILD_SESSIONS } from "./activity.ts"
 import { type Called, toolsCalledIn } from "./script.ts"

@@ -1,7 +1,7 @@
 import { refusalIn } from "@olai/surface"
 /**
  * What the Claude Code adapter MEANS by what it sends — olai's first leg
- * (`@olai/acp/engine`'s `Leg`), meaning unchanged from the day it was the only
+ * (`@kolu/acp/engine`'s `Leg`), meaning unchanged from the day it was the only
  * one.
  *
  * This is the part of `olai-plugin-chat`'s `agent.ts` that would be wrong if somebody
@@ -17,12 +17,12 @@ import { refusalIn } from "@olai/surface"
  * happens then is that a person is asked. **Nothing is ever approved by failing
  * to recognise it.**
  *
- * Everything is a PURE function over a payload — `@olai/acp`'s pattern, for
+ * Everything is a PURE function over a payload — `@kolu/acp`'s pattern, for
  * the reason that pattern exists: the rule that stops this panel approving
  * its own permissions is a function with unit tests rather than a branch
  * reachable only by starting a subprocess and talking it into asking. Which
  * side of that package boundary a new reader belongs on is not which payload
- * it reads but WHO has to have sent it: `@olai/acp` reads the protocol's own
+ * it reads but WHO has to have sent it: `@kolu/acp` reads the protocol's own
  * shapes, true of any agent — which is why it is a package and this is not —
  * and this is the file that is wrong about a different one.
  *
@@ -48,7 +48,7 @@ import {
   type Reported,
   type Spawn,
   type TaskNotice,
-} from "@olai/acp/engine"
+} from "@kolu/acp/engine"
 
 import { MODELS } from "./models.ts"
 
@@ -512,7 +512,7 @@ export const listedIn = (meta: Meta): ListedFacts | null => {
  * It gates NOTHING about delivery — every send is a plain prompt, on this wire
  * and on the other one, because there is nowhere else for a message to go that
  * is not the queue #194 deleted. What it gates is what the composer may PROMISE
- * about an agent that is working (`@olai/acp/engine`'s `Leg`'s `queues`).
+ * about an agent that is working (`@kolu/acp/engine`'s `Leg`'s `queues`).
  *
  * Read POSITIVELY, like everything else here: an agent that says nothing is one
  * this panel makes no promise for, which is the direction this is safe to lose

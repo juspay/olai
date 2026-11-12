@@ -201,8 +201,20 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
    * on the pinned Chromium: resizing the shared headless window reaches only
    * the tab in front, so a background tab never followed its pane, while the
    * override sizes exactly this tab, front or not. A running screencast sends
-   * no frame for the change, so it is restarted, and its first frame comes at
-   * the new size.
+   * no frame for the change, so it is restarted.
+   *
+   * **THE RESTART'S FIRST FRAME IS NOT NECESSARILY AT THE NEW SIZE**, and
+   * this file used to say it was. The override's reply means Chromium took
+   * the instruction, not that its compositor has produced a surface at that
+   * size: a screencast started in the gap sends the surface it has, whose
+   * `metadata` is the OLD viewport. The plugin's own packaged check caught it
+   * on a loaded machine (`surface.check.ts`, "the viewport did not follow the
+   * resize"), and it is why that check now waits for a frame of the size it
+   * asked for instead of reading the first one that arrives. Every frame is
+   * still DRAWN — a pane withholding pictures is a pane that goes blank — but
+   * the remembered one is dropped here, because {@link screencast} hands it
+   * to the next pane to join and it describes a viewport that no longer
+   * exists ({@link ofThisViewport}).
    *
    * A cross-process navigation keeps the override for the page's layout but
    * not for its screencast: measured on the pinned Chromium, a tab whose
@@ -222,9 +234,26 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     yield* instance.cdp.send("Emulation.setDeviceMetricsOverride", { ...want, deviceScaleFactor: 1, mobile: false }, sessionId)
     const cast = instance.casts.get(targetId)
     if (cast === undefined) return
+    cast.last = null
     yield* instance.cdp.send("Page.stopScreencast", {}, sessionId)
     yield* instance.cdp.send("Page.startScreencast", castOf(cast.quality), sessionId)
   })
+
+  /**
+   * IS THIS A PICTURE OF A VIEWPORT THIS TAB NO LONGER HAS — a frame whose
+   * `metadata` disagrees with the size the tab was last asked for.
+   *
+   * It is still DRAWN: a pane watching this tab is shown every frame that
+   * arrives, because withholding one is a pane that goes blank, and a picture
+   * of the wrong size is something a reader can see and act on while a blank
+   * one is not. What it may not become is {@link Cast.last} — the picture a
+   * pane joining later is handed at once, which would otherwise be a still,
+   * wrong-sized page for as long as nothing repaints.
+   */
+  const ofThisViewport = (instance: Instance, targetId: string, frame: Extract<Frame, { readonly _tag: "frame" }>): boolean => {
+    const want = instance.sizes.get(targetId)
+    return want === undefined || (frame.meta.deviceWidth === want.width && frame.meta.deviceHeight === want.height)
+  }
 
   /** Attach to a tab as soon as it appears, so its loads reach `reread`. */
   const follow = (instance: Instance, targetId: string) => own(instance, sessionFor(instance, targetId))
@@ -287,7 +316,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
           timestamp: meta["timestamp"] ?? 0,
         },
       }
-      cast.last = frame
+      if (ofThisViewport(instance, targetId, frame)) cast.last = frame
       for (const queue of cast.subscribers) Queue.offerUnsafe(queue, frame)
       return
     }

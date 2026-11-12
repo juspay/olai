@@ -529,7 +529,7 @@ const chat = async (
   // a timeout on an attribute minutes later. `off` is the panel with no agent
   // configured, which is what this session looks like when `AGENT=` was not
   // passed: `support/serve.sh` wires that through as the server's
-  // `OLAI_ACP_AGENT`, and without it there is nobody to send a prompt to.
+  // `KOLU_ACP_AGENT`, and without it there is nobody to send a prompt to.
   await page.waitForFunction(
     () => {
       const status = document

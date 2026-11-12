@@ -27,7 +27,7 @@ import { unreadOf } from "../../attention.ts"
 import type { Row } from "./roster.ts"
 import { chatWire } from "../wire.ts"
 
-import type { NotHere } from "@olai/acp/engine"
+import type { NotHere } from "@kolu/acp/engine"
 
 /** The shared roster, installed engines and stored history answer. */
 export interface Roster {

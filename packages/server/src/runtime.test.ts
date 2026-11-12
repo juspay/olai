@@ -37,7 +37,7 @@ import { NO_ROSTER } from "@olai/surface"
 import { DEFAULT_BUNDLE_NAMES } from "@olai/bundle"
 import type { RowReport } from "@olai/bundle/bundle"
 import { BUNDLE_NAMES as PLUGIN_NAMES } from "@olai/bundle"
-import type { Leg } from "@olai/acp/engine"
+import type { Leg } from "@kolu/acp/engine"
 import type { Plugins } from "@olai/plugin-api/services"
 import {
   Agents,

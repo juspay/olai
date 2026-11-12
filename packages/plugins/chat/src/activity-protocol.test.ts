@@ -17,7 +17,7 @@
  */
 import { expect, test } from "bun:test"
 import { client, methods, type Stream } from "@agentclientprotocol/sdk"
-import { nativeActivity, type ActivityNotification, type NativeActivity } from "@olai/acp"
+import { nativeActivity, type ActivityNotification, type NativeActivity } from "@kolu/acp"
 
 /** An agent that narrates child sessions with a word the SDK does not know,
  *  and nests the child's own frames inside a notification of its own — the two

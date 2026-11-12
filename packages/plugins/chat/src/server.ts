@@ -100,7 +100,7 @@ import {
   SessionStart,
   Watching,
 } from "@olai/plugin-api/services"
-import type { Engine, Registering } from "@olai/acp/engine"
+import type { Engine, Registering } from "@kolu/acp/engine"
 import type { ConversationSeen, Probed, Wake } from "@olai/plugin-api/services"
 import { Deferred, Duration, Effect, Scope, Semaphore } from "effect"
 

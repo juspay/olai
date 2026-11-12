@@ -42,7 +42,7 @@ olai_port_free() {
 # answers, and leave the pid in `$OLAI_SERVER` and the bound address in
 # `$OLAI_URL` for the caller.
 #
-# `OLAI_ACP_AGENT=` empty by default: most drivers are not chat scenarios, and
+# `KOLU_ACP_AGENT=` empty by default: most drivers are not chat scenarios, and
 # an agent one never speaks to is a process spawned for nothing. A driver that
 # IS about the conversation names one in `AGENT` — the scripted agent, whose
 # whole point is that a turn is deterministic — and gets it verbatim.
@@ -79,7 +79,7 @@ olai_serve() {
   # Unset rather than empty: callers run `set -u` and should die naming the
   # miss if we return without setting.
   unset OLAI_URL
-  OLAI_DIST_DIR="$root/packages/web/dist" OLAI_ACP_AGENT="${AGENT:-}" \
+  OLAI_DIST_DIR="$root/packages/web/dist" KOLU_ACP_AGENT="${AGENT:-}" \
     OLAI_AGENT_PATH= \
     OLAI_DIE_WITH_PARENT=$$ \
     bun "$root/packages/server/src/main.ts" web "$vault" --port "$port" \

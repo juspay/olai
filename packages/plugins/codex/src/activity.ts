@@ -1,6 +1,6 @@
 /**
  * CODEX-ACP'S NATIVE CHILD SESSIONS AND AIR v1 ASYNC TASKS, as a dialect of
- * `@olai/acp`'s one channel ({@link NativeActivity}).
+ * `@kolu/acp`'s one channel ({@link NativeActivity}).
  *
  * Captured against **codex-acp 1.10**. Five `sessionUpdate` kinds, sent on the
  * ORDINARY session stream — a child's frames arrive under the child's own
@@ -8,7 +8,7 @@
  * the adapter sends these only to a client whose `initialize` advertised the
  * AIR version and capabilities below.
  *
- * It lives in this plugin rather than in `@olai/acp` for the reason every
+ * It lives in this plugin rather than in `@kolu/acp` for the reason every
  * other reading of one agent's spelling does: these five words are codex's,
  * and a general package that knew them would be the place the SECOND agent's
  * words had to go too.
@@ -18,7 +18,7 @@
  * lane nobody drew is recoverable; a lane drawn for a session the agent never
  * mentioned is not.
  */
-import type { ActivityNotification, ActivityUpdate, Heard, NativeActivity } from "@olai/acp/engine"
+import type { ActivityNotification, ActivityUpdate, Heard, NativeActivity } from "@kolu/acp/engine"
 
 const field = (value: unknown, key: string): unknown =>
   typeof value === "object" && value !== null && !Array.isArray(value)

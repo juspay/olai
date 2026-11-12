@@ -28,7 +28,7 @@ import { Key } from "@solid-primitives/keyed"
  */
 
 import type { AskEntry } from "olai-plugin-chat/wire"
-import type { AskField } from "@olai/acp/wire"
+import type { AskField } from "@kolu/acp/wire"
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"

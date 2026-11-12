@@ -1,6 +1,6 @@
 /**
  * Codex's AIR v1 words, over values — the readings that used to sit in
- * `@olai/acp` and belonged here all along.
+ * `@kolu/acp` and belonged here all along.
  *
  * The CHANNEL they ride is general and is asserted through a real SDK
  * connection in `olai-plugin-chat`; what is asserted here is the only part

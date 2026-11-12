@@ -2,7 +2,7 @@
  * WHAT THIS ENGINE MAKES OF A HOST, over values.
  *
  * The probe is a pure function of an environment and a lookup
- * (`@olai/acp/engine`'s `Where`), so whether this row is offered — and what it
+ * (`@kolu/acp/engine`'s `Where`), so whether this row is offered — and what it
  * would spawn — is a claim a test can make without a filesystem.
  *
  * IT LIVES HERE and not in `olai-plugin-chat` because the row does: each engine's
@@ -67,7 +67,7 @@ describe("finding omp on a host", () => {
     // search path, which is the same gesture as installing it. `OLAI_AGENT_PATH`
     // is where the SERVE says where that path is — one decision, made once, for
     // every row.
-    expect(ENGINE.at({ env: { OLAI_ACP_AGENT: "/adapter" }, cwd: CWD, found: () => null })).toBe(INSTALL)
+    expect(ENGINE.at({ env: { KOLU_ACP_AGENT: "/adapter" }, cwd: CWD, found: () => null })).toBe(INSTALL)
     expect(ENGINE.at({ env: { OLAI_AGENT_PATH: "/somewhere" }, cwd: CWD, found: () => null })).toBe(INSTALL)
   })
 

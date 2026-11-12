@@ -79,12 +79,24 @@ const program = Effect.scoped(Effect.gen(function*() {
   const shown = tabs.find((tab) => tab.title === "check") ?? fail(`no tab carries the navigated page: ${JSON.stringify(tabs)}`)
   for (const [width, quality] of [[1280, 80], [1280, 60], [640, 50]] as const) {
     yield* live.resize(shown.id, { width, height: Math.round(width * 0.625) })
-    const frame = yield* Stream.runHead(live.screencast({ targetId: shown.id, quality }))
-    const got = Option.getOrElse(frame, () => fail("the screencast ended without a frame"))
+    // THE FIRST FRAME IS NOT THE ANSWER. `Emulation.setDeviceMetricsOverride`
+    // replying means Chromium took the instruction, not that its compositor
+    // has drawn at that size, so a screencast started in the gap sends the
+    // surface it already had — the old viewport, and this check read it as a
+    // resize that did not land (`live.ts`'s `sizeTab`). What the plugin
+    // promises is that a frame of the new size ARRIVES; that is what this
+    // waits for, and a viewport that never follows spends the timeout
+    // rather than the first frame's luck.
+    const atSize = live.screencast({ targetId: shown.id, quality }).pipe(
+      Stream.filter((frame) => frame._tag !== "frame" || frame.meta.deviceWidth === width),
+      Stream.runHead,
+      Effect.timeoutOption("30 seconds"),
+    )
+    const frame = Option.flatten(yield* atSize)
+    const got = Option.getOrElse(frame, () => fail(`the viewport did not follow the resize to ${width}px within 30s`))
     if (got._tag !== "frame") fail(`the screencast refused: ${got.says}`)
     if (got._tag === "frame") {
       const bytes = JSON.stringify(got).length
-      if (got.meta.deviceWidth !== width) fail(`the viewport did not follow the resize to ${width}px: ${JSON.stringify(got.meta)}`)
       console.log(`screencast ${width}px q${quality}: ${bytes} bytes on the wire (${(100 * bytes / RPC_MAX_FRAME_BYTES).toFixed(2)}% of ${RPC_MAX_FRAME_BYTES})`)
     }
   }

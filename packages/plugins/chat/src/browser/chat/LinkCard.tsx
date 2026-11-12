@@ -24,7 +24,7 @@ import { TESTID } from "../../testids.ts"
 /**
  * THE FOUR FACTS A CARD IS, flat rather than as one object, because there are
  * two callers carrying them in two SHAPES: a conversation's row holds the
- * message on the entry and the link on the ask (`@olai/acp/wire`'s `AskLink`),
+ * message on the entry and the link on the ask (`@kolu/acp/wire`'s `AskLink`),
  * and a sign-in row holds one `SignInLink` with all four. A nested prop would
  * make each caller rebuild the other's shape to satisfy this one — which is two
  * places knowing about a difference that is nobody's business here.
@@ -34,7 +34,7 @@ export function LinkCard(props: {
    *  type into the page — the reason this is quoted rather than summarised. */
   readonly message: string
   /** Where the page is, and which machine it goes to — the second read out of
-   *  the agent's own URL where the payload was (`@olai/acp`'s `hostOf`), since a
+   *  the agent's own URL where the payload was (`@kolu/acp`'s `hostOf`), since a
    *  browser's URL parser is not the authority on a string the agent sent. */
   readonly url: string
   readonly host: string

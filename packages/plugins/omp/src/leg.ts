@@ -1,6 +1,6 @@
 import { refusalIn } from "@olai/surface"
 /**
- * What OH-MY-PI means by what it sends — the fifth leg (`@olai/acp/engine`'s
+ * What OH-MY-PI means by what it sends — the fifth leg (`@kolu/acp/engine`'s
  * `Leg`).
  *
  * Every reading here was captured live against **omp 18.1.21** running
@@ -75,7 +75,7 @@ import {
   type ListedFacts,
   type Meta,
   namedExactly,
-} from "@olai/acp/engine"
+} from "@kolu/acp/engine"
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
@@ -164,7 +164,7 @@ const byName = mcpCallBy(spelling)
  *   - **the programmatic name**, which is what a session with `tools.xdev: false`
  *     sends instead: a top-level `mcp__olai_outlines_read:0` whose `rawInput` is
  *     the tool's arguments. That is the same shape the shared rule reads, so it
- *     is spelled once, in `@olai/acp/engine`, and read here.
+ *     is spelled once, in `@kolu/acp/engine`, and read here.
  *
  * The path is asked FIRST and the name second, so a `write` whose intent text
  * happens to begin like one of our tool names is still read as the tool its

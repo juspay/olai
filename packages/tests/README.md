@@ -299,7 +299,7 @@ AGENT=$PWD/../plugins/claude/e2e/fake/claude-agent-acp SESSION=chat bash wire.sh
 ```
 
 `support/serve.sh` wires `AGENT` through as the served server's
-`OLAI_ACP_AGENT` (and pins `OLAI_AGENT_PATH=` empty, so which agents the driver
+`KOLU_ACP_AGENT` (and pins `OLAI_AGENT_PATH=` empty, so which agents the driver
 finds is a property of the driver and never of the laptop it runs on). Without
 it the panel comes up with no agent to send to, and the driver says so and stops
 rather than waiting out a timeout on an attribute.
@@ -709,7 +709,7 @@ Scripted commands use the prompt's first line, in both ordinary turns and steeri
 flavour of the generic `scripted-acp` core, line-delimited JSON-RPC on stdio,
 just enough of the protocol to be indistinguishable from a real one as far as
 the server's client is concerned. Every server this suite spawns is pointed at
-it (the harness sets `OLAI_ACP_AGENT` to its executable from the generated
+it (the harness sets `KOLU_ACP_AGENT` to its executable from the generated
 fakes roster), for the same reason the Chromium flags are not branched on `CI`
 — a server configured differently for one feature than for another is a class
 of bug that only reproduces where it is hardest to see.

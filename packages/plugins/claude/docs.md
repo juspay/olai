@@ -6,7 +6,7 @@ This page is one engine's own account of itself. What a conversation IS — how 
 
 ## How olai finds it
 
-The packaged adapter is a wrapper inside the nix store. `OLAI_ACP_AGENT` supplies an explicit command; otherwise the row uses its packaged/search-path discovery.
+The packaged adapter is a wrapper inside the nix store. `KOLU_ACP_AGENT` supplies an explicit command; otherwise the row uses its packaged/search-path discovery.
 
 - **unset** → the pinned adapter, wherever one has been baked in. This is the ordinary case.
 - **set to a command** → that is the agent, pinned default ignored. Point it at your own build, or at a different ACP agent entirely: the override has always meant *read this the way you read Claude Code*, and it still does.
@@ -55,6 +55,6 @@ A version bump makes the patches FAIL rather than silently drop the behaviour, w
 
 It comes with olai: every documented way of starting it bakes the pinned adapter in, so there is nothing to install for this row.
 
-Chat distinguishes an unavailable adapter from a serve with no enabled agent. An empty `OLAI_ACP_AGENT` leaves Claude Code enabled but unavailable: it is not offered anywhere a chat starts, and its plugins row moves to **Needs you** with the explanation. It affects this engine only; turn the chat row off to remove the conversation. Switching an engine off and on re-probes it; changing the service's environment requires restarting it.
+Chat distinguishes an unavailable adapter from a serve with no enabled agent. An empty `KOLU_ACP_AGENT` leaves Claude Code enabled but unavailable: it is not offered anywhere a chat starts, and its plugins row moves to **Needs you** with the explanation. It affects this engine only; turn the chat row off to remove the conversation. Switching an engine off and on re-probes it; changing the service's environment requires restarting it.
 
 Its declared MCP prefix is `mcp__<server>__`; for display only, the leg parses JSON from a raw-output string or the first text block in a content array. The pinned adapter forwards the SDK’s `tool_result.content` unchanged; real sessions commonly use the string form, which the executable test fixture also emits. Prose refusals have no structured reply.

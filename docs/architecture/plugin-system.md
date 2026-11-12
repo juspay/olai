@@ -947,7 +947,7 @@ appliance olai has a judgement about. Smaller shape, same rules.
 
 - No `./wire`, no surface, no `faces`: `src/index.ts` holds the plugin's word and
   nothing else.
-- `src/leg.ts` is a `Leg` (`@olai/acp/engine`): every assumption about that
+- `src/leg.ts` is a `Leg` (`@kolu/acp/engine`): every assumption about that
   agent's wire, each a pure function with a unit test, each safe to lose in one
   direction — an agent matching none of them means the person is asked.
 - `src/server.ts` registers `{ name, leg, at, prompt }` on `Agents`: what a
@@ -1002,7 +1002,7 @@ name:
 | `koluSeeds` / `koluPins` | the kolu seeds this plugin's source imports and their closure grafts |
 | `generated` | files written into the plugin's own tree; the path must contain `.generated.` |
 | `npmTrees` | directories `just install` runs `npm ci` in, for a node_modules a test resolves |
-| `knobs` | the executable variables the packaged wrapper bakes as `--set-default` (the engine rows: `OLAI_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI`, `OLAI_ODU_BIN`) |
+| `knobs` | the executable variables the packaged wrapper bakes as `--set-default` (the engine rows: `KOLU_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI`, `OLAI_ODU_BIN`) |
 | `packages` | flake outputs this plugin contributes (`claude-agent`, `pi-agent`, `codex-agent`, `odu-bin`, …) |
 | `checks` | checks that need the built tree, as `checks.<system>.plugin-<name>-<check>` |
 

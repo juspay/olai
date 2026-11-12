@@ -1,5 +1,5 @@
 /**
- * What PI-ACP means by what it sends — the third leg (`@olai/acp/engine`'s
+ * What PI-ACP means by what it sends — the third leg (`@kolu/acp/engine`'s
  * `Leg`).
  *
  * Every reading here was captured live against **pi-acp 0.0.33**
@@ -100,7 +100,7 @@
  * inherits that the way it inherits opencode's `opencode.json`.
  */
 
-import { mcpCallBy, type Leg, namedExactly } from "@olai/acp/engine"
+import { mcpCallBy, type Leg, namedExactly } from "@kolu/acp/engine"
 
 // ── which tool a call is ───────────────────────────────────────────────
 

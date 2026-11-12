@@ -20,17 +20,16 @@
     "typecheck": "tsc --noEmit"
   },
   "//": "THE CLAUDE CODE ENGINE \u2014 the leg that reads its wire, the two model bets its picker needs, the adapter olai ships pinned, and the mark it wears. One directory, one row, one release clock: this adapter's pin moved five times in a month and no other engine's did, which is the whole argument for a plugin per engine rather than one roster plugin.",
-  "//dependencies": "`@olai/acp/engine` is the floor below this engine and chat: the leg, adapter and registration shapes let their server halves remain independent. The browser deliberately imports `olai-plugin-chat`'s slot and `browser-engines` contracts; it owns its row registration and acquires the live reading through the declared service. `@olai/plugin-api` supplies the Agents tag and slot service. `effect` owns apply and its lifetime; `solid-js` draws the mark and the acquired row.",
+  "//dependencies": "`@kolu/acp/engine` is the floor below this engine and chat: the leg, adapter and registration shapes let their server halves remain independent. The browser deliberately imports `olai-plugin-chat`'s slot and `browser-engines` contracts; it owns its row registration and acquires the live reading through the declared service. `@olai/plugin-api` supplies the Agents tag and slot service. `effect` owns apply and its lifetime; `solid-js` draws the mark and the acquired row.",
   "dependencies": {
     "olai-plugin-chat": "workspace:*",
-    "@olai/acp": "workspace:*",
     "@olai/surface": "workspace:*",
     "@olai/plugin-api": "workspace:*",
     "effect": "4.0.0",
     "solid-js": "^1.9.0",
     "@olai/ui-primitives": "workspace:*"
   },
-  "//devDependencies": "The protocol SDK for `PermissionOption`, in the leg's OWN bench alone: the leg itself names none of the SDK's types any more (`@olai/acp/engine` carries the ones a leg's signatures need), and the fixtures that stage a permission request do. Type-only, so no SDK code and no zod enter this package's closure \u2014 the claim `@olai/acp`'s manifest test makes about itself, kept here by the same instrument.",
+  "//devDependencies": "The protocol SDK for `PermissionOption`, in the leg's OWN bench alone: the leg itself names none of the SDK's types any more (`@kolu/acp/engine` carries the ones a leg's signatures need), and the fixtures that stage a permission request do. Type-only, so no SDK code and no zod enter this package's closure \u2014 the claim `@kolu/acp`'s manifest test makes about itself, kept here by the same instrument.",
   "devDependencies": {
     "@agentclientprotocol/sdk": "^1.3.0",
     "@olai/tests": "workspace:*"
@@ -40,7 +39,7 @@
       "./testids"
     ],
     "knobs": {
-      "OLAI_ACP_AGENT": {
+      "KOLU_ACP_AGENT": {
         "kind": "file"
       }
     }

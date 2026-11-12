@@ -42,7 +42,7 @@ serve:
     if [[ -z "${AGENT:-}" && -f "$HOME/olai-acp-agent" ]]; then
         AGENT="$(cat "$HOME/olai-acp-agent")"
     fi
-    export OLAI_ACP_AGENT="${AGENT:-}"
+    export KOLU_ACP_AGENT="${AGENT:-}"
     # THE CALL ANSWERS: ODU_WEB_ORIGIN from the environment, else a seed
     # file in HOME. Empty leaves the plugin's own default origin.
     if [[ -z "${ODU_WEB_ORIGIN:-}" && -f "$HOME/odu-web-origin" ]]; then

@@ -322,7 +322,7 @@ const webLeg = (): { readonly argv: ReadonlyArray<string>; readonly env: NodeJS.
     argv: [path.join(import.meta.dirname, "main.ts"), "web", served()],
     env: {
       OLAI_DIST_DIR: dist,
-      OLAI_ACP_AGENT: "",
+      KOLU_ACP_AGENT: "",
       XDG_RUNTIME_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "olai-tie-runtime-")),
     },
   }

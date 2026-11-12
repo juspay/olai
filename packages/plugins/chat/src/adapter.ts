@@ -6,7 +6,7 @@
  *
  * `Adapter`, `adapterFrom` and `OLAI_ACP_PI`. The first two are the shape of
  * *what to spawn to reach an ACP agent*, which is a thing an ENGINE PLUGIN
- * answers and `olai-plugin-chat` consumes — so they are `@olai/acp/engine`'s now,
+ * answers and `olai-plugin-chat` consumes — so they are `@kolu/acp/engine`'s now,
  * under both walls, which is what lets neither side import the other. The third
  * was one engine's own door onto one pin, and it is in that engine's directory
  * with that engine's patches (`olai-plugin-pi`'s `server.ts`).
@@ -28,9 +28,9 @@
  * worth more than a button that silently is not there.
  */
 
-import { AGENT_ENV } from "@olai/acp/engine"
+import { AGENT_ENV } from "@kolu/acp/engine"
 import type { OffBecause } from "olai-plugin-chat/wire"
-/** The variable, spelled once — `@olai/acp/engine`'s, re-exported so this
+/** The variable, spelled once — `@kolu/acp/engine`'s, re-exported so this
  *  package's own readers reach it where they already reach for the roster's
  *  vocabulary. It names an executable resource. */
 export { AGENT_ENV }

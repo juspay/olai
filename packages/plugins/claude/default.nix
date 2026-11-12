@@ -9,7 +9,7 @@
 # autoupdater or install checks, ripgrep from the store), and the Linux
 # patchelf of the bun-compiled `claude` binary the SDK ships.
 #
-# The knob `OLAI_ACP_AGENT` is a `file` the fold bakes into the `olai` wrapper
+# The knob `KOLU_ACP_AGENT` is a `file` the fold bakes into the `olai` wrapper
 # with `--set-default`, exactly as it now does for every plugin knob. The
 # flake output is `.#claude-agent` — `packages.claude-agent` at the bottom —
 # arrived at through the fold's disjoint-union merge rather than a root line.
@@ -61,7 +61,7 @@ in
 {
   # THE CLAUDE ROW'S EXECUTABLE RESOURCE. `file` kind: the knob points at the
   # wrapper itself, so the `just nix` lane can assert it is executable.
-  knobs.OLAI_ACP_AGENT = {
+  knobs.KOLU_ACP_AGENT = {
     kind = "file";
     path = "${adapter}/bin/claude-agent-acp";
   };

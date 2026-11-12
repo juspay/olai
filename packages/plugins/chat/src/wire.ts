@@ -30,7 +30,7 @@
  *
  * The composed group is on the static graph of everything that reads the surface
  * — the browser bundle and the server both. So this module may import the
- * framework, `effect`, `@olai/acp/wire`, `@olai/format` and its own wire slice
+ * framework, `effect`, `@kolu/acp/wire`, `@olai/format` and its own wire slice
  * and NOTHING ELSE: no `solid-js`, which would put a UI runtime on the server's
  * graph, and nothing that speaks ACP's transport, which would put a subprocess
  * on the browser's. `@olai/bundle`'s `fence.test.ts` walks this door's whole
@@ -641,7 +641,7 @@ export const faces = {
  * WHAT DOES NOT COME THROUGH IT is the vocabulary chat only PASSES ON.
  * `OpFailure`, `UsageFailure`, `BusyFailure`, `isOpFailure` and `kindOf` are
  * `@olai/format`'s; `AskAnswer`, `AskChoice`, `AskField`, `AskOutcome`,
- * `AuthStatus`, `FileDiff`, `Usage` and `YES_NO` are `@olai/acp/wire`'s. A
+ * `AuthStatus`, `FileDiff`, `Usage` and `YES_NO` are `@kolu/acp/wire`'s. A
  * reader that wants one of those goes to the package that owns it — a plugin
  * re-publishing the floor's words would put the fence's own arrow through: a
  * general package importing a refusal shape from a row is a general package

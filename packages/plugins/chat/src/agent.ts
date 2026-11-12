@@ -24,7 +24,7 @@
  *     `elicitation/create` is a form; a `session/request_permission` that is not
  *     one of ours is a single-select. What is HERE is that both are the same
  *     question and which methods carry them; the payload shapes are
- *     `@olai/acp`'s (its `asks.ts`) and the promise-per-question state machine
+ *     `@kolu/acp`'s (its `asks.ts`) and the promise-per-question state machine
  *     is {@link ./questions.ts}, so neither is one more thing this file's
  *     closure has to get right at the same time as a subprocess.
  *   - **which permission requests are answered without asking.** Bypass mode is
@@ -33,13 +33,13 @@
  *     this host answered a probe with — is allowed immediately, and everything
  *     else is a person's to answer. What is HERE is
  *     that the two paths exist and which one a request took; the rule that
- *     tells them apart is this agent's LEG (`@olai/acp/engine`'s `Leg`), where it is a pure function
+ *     tells them apart is this agent's LEG (`@kolu/acp/engine`'s `Leg`), where it is a pure function
  *     with unit tests rather than a branch inside a subprocess's callback.
  *   - **reading the payloads**: which update kind this is, what a content block
  *     says, how a session list sorts. An event carries what was READ, never the
  *     raw protocol value. What any of it means to the CLAUDE CODE adapter in
  *     particular — its `_meta`, its tool naming, the message it forwards, which
- *     config option its picker is — is its LEG's (`@olai/acp/engine`'s `Leg`); what is still
+ *     config option its picker is — is its LEG's (`@kolu/acp/engine`'s `Leg`); what is still
  *     here is what those readings are REMEMBERED as, which is a session's job.
  *
  * The MCP servers a session is given are olai's own internal one — the standard
@@ -85,7 +85,7 @@
 import type { Advertised } from "@olai/plugin-api/services"
 
 import { tailBytes, Terminals } from "./terminals.ts"
-import { terminalMetaIn, urlOf } from "@olai/acp"
+import { terminalMetaIn, urlOf } from "@kolu/acp"
 import { type Child, start as startChild } from "@olai/child"
 
 import {
@@ -124,21 +124,21 @@ import {
   Refused,
   relativeTo,
   usageIn,
-} from "@olai/acp"
+} from "@kolu/acp"
 import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
 import type { AuthMethod, ChatServer, SignIn, SignInLink } from "olai-plugin-chat/wire"
-import type { Reported } from "@olai/acp/engine"
-import type { AskAnswer, AuthStatus } from "@olai/acp/wire"
+import type { Reported } from "@kolu/acp/engine"
+import type { AskAnswer, AuthStatus } from "@kolu/acp/wire"
 import { Cause, Clock, Schema, Data, type Duration, Effect, Fiber, References, Semaphore } from "effect"
 
-import type { Leg, Meta, ModelReading } from "@olai/acp/engine"
+import type { Leg, Meta, ModelReading } from "@kolu/acp/engine"
 import { acceptsSetting, settingsIn } from "./agents/settings.ts"
 import type { SessionSetting } from "olai-plugin-chat/wire"
 import { modelPickerIn, type Picker, pickerValueFor, sameModel } from "./agents/models.ts"
 import { Calls } from "./calls.ts"
 import { Activity } from "./activity.ts"
-import { nativeActivity } from "@olai/acp"
+import { nativeActivity } from "@kolu/acp"
 import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import type { Models } from "./models.ts"
@@ -198,7 +198,7 @@ export interface ToolServer {
  * RESPONSE arrives as the SDK's own {@link RequestError}, and every other
  * rejection — a closed connection, an interrupted deadline — is silence wearing
  * an `Error`. That reading is {@link goneOf}, and it lives here rather than in
- * `@olai/acp/engine`'s `Leg` because it is the protocol SDK's vocabulary rather
+ * `@kolu/acp/engine`'s `Leg` because it is the protocol SDK's vocabulary rather
  * than one adapter's extension. `unreachable` is never read off a rejection: it
  * is what this file mints when there was nothing to reject.
  */
@@ -263,7 +263,7 @@ export class AgentGone extends Data.TaggedError("AgentGone")<{
  * agent with no steering at all is one of those: it refuses the method, in its
  * own words, and the caller owes a person their words back exactly as it does
  * for a dead pipe or a deadline. The handshake's advertisement decides whether
- * anybody is OFFERED the gesture (`@olai/acp/engine`'s `Leg`'s `advertised`) and
+ * anybody is OFFERED the gesture (`@kolu/acp/engine`'s `Leg`'s `advertised`) and
  * never what became of one that was made: a control has to be drawn before it
  * can be pressed, and what a request DID is the request's own to say.
  *
@@ -282,11 +282,11 @@ export interface Options {
    *  is remembered under, so that the next boot starts the same one. */
   readonly id: string
   /** ... and how to read what it sends. Every bet that is true of one agent
-   *  and not the other is behind this (`@olai/acp/engine`'s `Leg`); nothing in
+   *  and not the other is behind this (`@kolu/acp/engine`'s `Leg`); nothing in
    *  this file names an adapter. */
   readonly leg: Leg
   /** The executable to run — the roster row's, which for the Claude leg is
-   *  `OLAI_ACP_AGENT` or the adapter nix baked in. */
+   *  `KOLU_ACP_AGENT` or the adapter nix baked in. */
   readonly command: string
   readonly args: ReadonlyArray<string>
   /** Extra environment the ROSTER ROW asked for ({@link ../adapter.ts}'s
@@ -820,7 +820,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     // The agent's own child-session/async-task channel, in ITS spelling
-    // (`@olai/acp`'s `NativeActivity`) — and the conversation-side model of
+    // (`@kolu/acp`'s `NativeActivity`) — and the conversation-side model of
     // what those facts mean, which is this package's. An agent with no such
     // channel has neither.
     const dialect = options.leg.nativeActivity ?? null
@@ -933,7 +933,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     let replaying = false
 
     /** The prologue this conversation's OPEN announced it would double as one
-     *  ordinary chunk (`@olai/acp/engine`'s `Leg`'s `prologueIn`), or `null`.
+     *  ordinary chunk (`@kolu/acp/engine`'s `Leg`'s `prologueIn`), or `null`.
      *  Armed at the open and CONSUMED by the first chunk equal to it: one
      *  banner, once, and the comparison is the string the adapter itself
      *  published — never a shape of prose. */
@@ -1209,7 +1209,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       signal: AbortSignal,
     ): Promise<CreateElicitationResponse> => {
       // WHICH MODE, before anything else: the two draw different rows and the
-      // reader of one REFUSES the other (`@olai/acp`'s `formOf` and `urlOf`
+      // reader of one REFUSES the other (`@kolu/acp`'s `formOf` and `urlOf`
       // each say so), so the dispatch is what keeps a place-to-go from being
       // refused as an undrawable form.
       if (params.mode === "url") return await onUrlElicitation(params, signal)
@@ -1257,7 +1257,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // approving its own permissions. THE WHOLE TOOL CALL goes with it: one
       // agent dispatches every MCP tool through a single builtin, so which
       // tool a request is really about is readable only in the call's own
-      // input (`@olai/acp/engine`).
+      // input (`@kolu/acp/engine`).
       const allowed = options.leg.allowedWithoutAsking(toolOf(params), given, params.options, {
         title: params.toolCall.title,
         rawInput: params.toolCall.rawInput,
@@ -1529,7 +1529,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // and may revise `size` too, so the panel holds the newest rather
           // than the first.
           //
-          // Read by `@olai/acp` rather than by a leg, because this is
+          // Read by `@kolu/acp` rather than by a leg, because this is
           // ACP's own update kind and not one adapter's extension — any agent
           // may send one, and one that never does simply leaves the header
           // saying nothing about room.
@@ -1611,7 +1611,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     /**
      * HOW TO READ THIS AGENT'S PICKER — which `configOptions` entry the model is
-     * in, and what that agent calls its own rows (`@olai/acp/engine`'s
+     * in, and what that agent calls its own rows (`@kolu/acp/engine`'s
      * `ModelReading`). `null` for an agent with no picker at all, and every
      * reader below takes that arm.
      *
@@ -1862,7 +1862,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         /**
          * The same refusal, arriving the way it actually arrives.
          *
-         * `OLAI_ACP_AGENT` is a path a PERSON sets, which makes it the likeliest
+         * `KOLU_ACP_AGENT` is a path a PERSON sets, which makes it the likeliest
          * thing here to be wrong — and an exec that fails does so after `spawn`
          * has returned, so the `catch` above has never once seen one. What
          * happened instead was both halves of `@olai/child`'s argument at
@@ -1956,7 +1956,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           //
           // Custom method, so the SDK wants a parser; there is nothing to
           // validate beyond "it is an object", and {@link identityIn} does the
-          // reading (`@olai/acp`). Subscribed unconditionally rather than off
+          // reading (`@kolu/acp`). Subscribed unconditionally rather than off
           // the handshake marker, because the protocol says a client that
           // never saw the marker still accepts the notification — and the
           // empty `agentCapabilities._meta.authStatus` marker is therefore
@@ -2010,7 +2010,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           ))
           // Allowed without asking when it is one of the tools we handed this
           // session, and PUT IN FRONT OF A PERSON otherwise — the rule, and
-          // what it used to cost to get it wrong, in `@olai/acp/engine`.
+          // what it used to cost to get it wrong, in `@kolu/acp/engine`.
           .onRequest(methods.client.session.requestPermission, (context) =>
             onPermission(context.params, context.signal))
           // The agent's own structured question, which is a thing it can only
@@ -3684,7 +3684,7 @@ const methodsIn = (
    *  this agent's own with them appended. */
   baseArgs: ReadonlyArray<string>,
   /** ... and the agent's own word on whether its `terminal` method can be run
-   *  here at all (`@olai/acp/engine`'s `Leg.terminalAuth`). `byHand` spawns
+   *  here at all (`@kolu/acp/engine`'s `Leg.terminalAuth`). `byHand` spawns
    *  nothing and offers no button: the method becomes a label carrying one
    *  command line — this binary, those arguments — to type into a terminal on
    *  the server. */
@@ -3833,7 +3833,7 @@ const textOf = (content: ContentBlock): string => {
  * anyway. The second half is what stopped being true: a direct edit to a `.md`
  * or a source file shows up in NO outline, so naming the file was the whole of
  * what a person got and the answer to "what changed" was a terminal. It travels
- * structurally now (`@olai/acp`'s `diffsOf`) and the panel draws it, trimmed —
+ * structurally now (`@kolu/acp`'s `diffsOf`) and the panel draws it, trimmed —
  * naming it here as well would be the same file reported twice, once as a
  * change and once as a sentence about one.
  *
@@ -3855,7 +3855,7 @@ const progressOf = (
  *  the path alone when it did not — a `:0` invented for the second case would
  *  be a claim about a file nobody made.
  *
- *  Spelled root-relative by the same rule a diff's path is (`@olai/acp`'s
+ *  Spelled root-relative by the same rule a diff's path is (`@kolu/acp`'s
  *  `relativeTo`), because these two land on ONE row: a follow-along location and
  *  the diff under it naming the same file in two different ways is the row
  *  disagreeing with itself. */

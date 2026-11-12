@@ -24,7 +24,7 @@ import type { Fake } from "@olai/tests/harness/fake.ts";
 export const fake: Fake = {
   word: "claude",
   adapter: {
-    knob: "OLAI_ACP_AGENT",
+    knob: "KOLU_ACP_AGENT",
     exe: resolve(import.meta.dirname, "claude-agent-acp"),
   },
   env: ({ stored }): Readonly<Record<string, string>> => ({

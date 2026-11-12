@@ -1,7 +1,7 @@
 /** Activity remembered for one conversation. Explicit child-session ancestry
  * owns agent cards, tools and questions; task lifecycles own command status.
- * Wire decoding and negotiation are @olai/acp's; row policy is chat's. */
-import type { ActivityUpdate } from "@olai/acp"
+ * Wire decoding and negotiation are @kolu/acp's; row policy is chat's. */
+import type { ActivityUpdate } from "@kolu/acp"
 import type { AgentEvent } from "./events.ts"
 
 type Tool = Extract<AgentEvent, { _tag: "tool" }>

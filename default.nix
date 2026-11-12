@@ -355,7 +355,7 @@ let
   # the pin, empty → the off switch), one `--run` per `dir` knob splicing the
   # directory onto PATH. The ACP adapters are plugins now — claude, pi and
   # codex each own a `default.nix` declaring their knob — so every knob,
-  # engine and mail alike (OLAI_ACP_AGENT, OLAI_ACP_CODEX, OLAI_ACP_PI,
+  # engine and mail alike (KOLU_ACP_AGENT, OLAI_ACP_CODEX, OLAI_ACP_PI,
   # OLAI_ODU_BIN, OLAI_HIMALAYA), arrives here by composition; nothing is
   # hand-written any more.
 

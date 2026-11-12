@@ -5,7 +5,7 @@
  * "an agent, wired to the surface" in a handful of lines:
  *
  *   - {@link roster} and its companions answer WHICH AGENTS this machine has —
- *     a PATH probe per agent olai knows, plus the one `OLAI_ACP_AGENT` names.
+ *     a PATH probe per agent olai knows, plus the one `KOLU_ACP_AGENT` names.
  *     Detecting them is the caller's move (it owns the process); deciding what
  *     a detected one looks like is this package's;
  *   - {@link make} builds the scheduler over an agent factory it is handed;

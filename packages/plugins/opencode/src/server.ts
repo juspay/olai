@@ -20,7 +20,7 @@
  * `olai-plugin-chat` does the talking.
  */
 
-import { type Adapter, type NotHere } from "@olai/acp/engine"
+import { type Adapter, type NotHere } from "@kolu/acp/engine"
 import { Agents, definePlugin, type Registering } from "@olai/plugin-api/services"
 import { Effect } from "effect"
 
@@ -57,7 +57,7 @@ export const ENGINE: Registering = {
     return { command: bin, args: ["acp"] }
   },
   // There is no system-prompt door on this wire, so the standing instruction
-  // rides the first turn, like every engine olai ships (`@olai/acp/engine`'s
+  // rides the first turn, like every engine olai ships (`@kolu/acp/engine`'s
   // `PromptChannel`). Steering is a different question and opencode 2 has it
   // (`./leg.ts`), but steering carries a person's words into a running turn —
   // never olai's standing instruction into a session.

@@ -21,9 +21,9 @@
  * see; here it is four lines of test.
  */
 
-import { contentOf, type Form, Refused } from "@olai/acp"
+import { contentOf, type Form, Refused } from "@kolu/acp"
 import { UsageFailure } from "@olai/format"
-import type { AskAnswer, AskField, AskOutcome } from "@olai/acp/wire"
+import type { AskAnswer, AskField, AskOutcome } from "@kolu/acp/wire"
 /** How a question ended: what the row records, and what goes on the wire. The
  *  two are computed together and travel together, so a row that says "answered"
  *  cannot belong to a response that says anything else. */
