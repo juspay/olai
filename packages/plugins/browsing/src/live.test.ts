@@ -394,7 +394,7 @@ test("a resize sizes the tab's own viewport, once per size, and restarts a runni
   yield* Fiber.join(watching)
 })))
 
-test("a frame of the viewport a resize replaced is dropped, and is not what the next pane is handed", () => run(Effect.gen(function*() {
+test("every frame is drawn, and the one of the viewport a resize replaced is not what the next pane is handed", () => run(Effect.gen(function*() {
   const browser = double()
   const live = yield* openLive(browser.options())
   yield* live.start
@@ -403,33 +403,39 @@ test("a frame of the viewport a resize replaced is dropped, and is not what the 
   browser.emit(frame("S-T1", 1))
   yield* live.resize("T1", { width: 640, height: 400 })
   // The compositor has not caught up: this is the surface it already had, and
-  // `Page.startScreencast`'s reply does not wait for a new one.
+  // `Page.startScreencast`'s reply does not wait for a new one. The pane
+  // watching is shown it anyway — a withheld picture is a blank pane.
   browser.emit(frame("S-T1", 2))
+  // One at a time: a pane's queue slides, so a burst nobody drained would
+  // lose the middle picture for a reason that is not this test's subject.
+  yield* Effect.sleep("10 millis")
   browser.emit(frame("S-T1", 3, { width: 640, height: 400 }))
-  // A pane joining now is handed the picture of the viewport this tab HAS;
-  // the one the resize replaced was forgotten with it.
-  const joining = yield* Effect.forkChild(Stream.runHead(live.screencast({ targetId: "T1", quality: 60 })))
-  const held = yield* Fiber.join(joining)
-  expect(Option.map(held, (got) => got._tag === "frame" ? got.jpeg : got.says)).toEqual(Option.some("JPEG3"))
-  browser.emit(frame("S-T1", 4, { width: 640, height: 400 }))
   const seen = [...(yield* Fiber.join(watching))].map((got) => got._tag === "frame" ? [got.jpeg, got.meta.deviceWidth] : got.says)
-  expect(seen).toEqual([["JPEG1", 1280], ["JPEG3", 640], ["JPEG4", 640]])
+  expect(seen).toEqual([["JPEG1", 1280], ["JPEG2", 1280], ["JPEG3", 640]])
 })))
 
-test("a viewport that never follows its pane costs four frames, not the pane", () => run(Effect.gen(function*() {
+test("a pane joining after a resize is handed a picture of the viewport this tab has", () => run(Effect.gen(function*() {
   const browser = double()
   const live = yield* openLive(browser.options())
   yield* live.start
-  const watching = yield* Effect.forkChild(Stream.runCollect(Stream.take(live.screencast({ targetId: "T1", quality: 60 }), 1)))
+  // Four, so this pane is still watching when the second one joins: the last
+  // pane to leave stops the screencast, and a stopped one remembers nothing.
+  const watching = yield* Effect.forkChild(Stream.runCollect(Stream.take(live.screencast({ targetId: "T1", quality: 60 }), 4)))
   yield* Effect.sleep("10 millis")
+  browser.emit(frame("S-T1", 1))
   yield* live.resize("T1", { width: 640, height: 400 })
-  // Five frames, none of them at the size the override asked for. The budget
-  // is four, so the fifth is drawn rather than withheld: a picture of the
-  // wrong size is something a reader can see and act on; a pane that stays
-  // blank for ever is not.
-  for (const n of [1, 2, 3, 4, 5]) browser.emit(frame("S-T1", n))
+  browser.emit(frame("S-T1", 2))
+  yield* Effect.sleep("10 millis")
+  browser.emit(frame("S-T1", 3, { width: 640, height: 400 }))
+  yield* Effect.sleep("10 millis")
+  // JPEG2 is of the viewport the resize replaced, so it was never remembered:
+  // the pane joining here is handed JPEG3, the picture of the size this tab
+  // now has, rather than a still page at the wrong aspect.
+  const joining = yield* Effect.forkChild(Stream.runHead(live.screencast({ targetId: "T1", quality: 60 })))
+  expect(Option.map(yield* Fiber.join(joining), (got) => got._tag === "frame" ? got.jpeg : got.says)).toEqual(Option.some("JPEG3"))
+  browser.emit(frame("S-T1", 4, { width: 640, height: 400 }))
   const seen = [...(yield* Fiber.join(watching))].map((got) => got._tag === "frame" ? got.jpeg : got.says)
-  expect(seen).toEqual(["JPEG5"])
+  expect(seen).toEqual(["JPEG1", "JPEG2", "JPEG3", "JPEG4"])
 })))
 
 test("a sized tab is sized again once each of its own new pages has loaded, which a navigation's screencast drops", () => run(Effect.gen(function*() {

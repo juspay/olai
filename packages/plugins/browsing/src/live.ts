@@ -94,12 +94,6 @@ const castOf = (quality: number) => ({
   everyNthFrame: 1,
 })
 
-/** How many frames of the OLD viewport a resize may drop before the pictures
- *  are believed again, whatever their size says ({@link stale}). Four, because
- *  the compositor answers a resize with a new surface within a frame or two
- *  and a budget nobody can exhaust is a blank pane with no way back. */
-const SETTLING_FRAMES = 4
-
 /** One launch, alive. */
 interface Instance {
   readonly scope: Scope.Closeable
@@ -117,9 +111,6 @@ interface Instance {
    *  picture-driven ask already waiting. */
   readonly lastRead: Map<string, number>
   readonly soon: Set<string>
-  /** How many frames at a size this tab is no longer may still be dropped
-   *  before the pictures are believed again ({@link SETTLING_FRAMES}). */
-  readonly settling: Map<string, number>
 }
 
 const refused = (says: string) => new BrowserRefused({ says })
@@ -218,12 +209,12 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
    * size: a screencast started in the gap sends the surface it has, whose
    * `metadata` is the OLD viewport. The plugin's own packaged check caught it
    * on a loaded machine (`surface.check.ts`, "the viewport did not follow the
-   * resize"), and a pane would have drawn one frame at the wrong aspect for
-   * the same reason. So a resize distrusts the pictures for a moment: the
-   * remembered frame is dropped, because it describes a viewport that no
-   * longer exists and {@link screencast} hands it to the next pane to join,
-   * and the next few frames are weighed against the size that was asked for
-   * ({@link stale}).
+   * resize"), and it is why that check now waits for a frame of the size it
+   * asked for instead of reading the first one that arrives. Every frame is
+   * still DRAWN — a pane withholding pictures is a pane that goes blank — but
+   * the remembered one is dropped here, because {@link screencast} hands it
+   * to the next pane to join and it describes a viewport that no longer
+   * exists ({@link ofThisViewport}).
    *
    * A cross-process navigation keeps the override for the page's layout but
    * not for its screencast: measured on the pinned Chromium, a tab whose
@@ -241,7 +232,6 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     const want = instance.sizes.get(targetId)
     if (want === undefined) return
     yield* instance.cdp.send("Emulation.setDeviceMetricsOverride", { ...want, deviceScaleFactor: 1, mobile: false }, sessionId)
-    instance.settling.set(targetId, SETTLING_FRAMES)
     const cast = instance.casts.get(targetId)
     if (cast === undefined) return
     cast.last = null
@@ -250,28 +240,19 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
   })
 
   /**
-   * IS THIS PICTURE OF A VIEWPORT THIS TAB NO LONGER HAS — a frame whose
-   * `metadata` disagrees with the size the tab was last asked for, arriving
-   * while a resize is still settling.
+   * IS THIS A PICTURE OF A VIEWPORT THIS TAB NO LONGER HAS — a frame whose
+   * `metadata` disagrees with the size the tab was last asked for.
    *
-   * BOUNDED IN FRAMES rather than in time, and bounded on purpose. Dropping
-   * every mismatch for ever would hand a tab whose override never took effect
-   * a pane that stays blank, which is worse than a picture of the wrong size:
-   * a reader can see one and can do nothing about the other. So the budget is
-   * small, it is spent per resize, and the first frame that agrees ends the
-   * settling — the common case, since the compositor answers a resize with a
-   * new surface.
+   * It is still DRAWN: a pane watching this tab is shown every frame that
+   * arrives, because withholding one is a pane that goes blank, and a picture
+   * of the wrong size is something a reader can see and act on while a blank
+   * one is not. What it may not become is {@link Cast.last} — the picture a
+   * pane joining later is handed at once, which would otherwise be a still,
+   * wrong-sized page for as long as nothing repaints.
    */
-  const stale = (instance: Instance, targetId: string, frame: Frame & { readonly _tag: "frame" }): boolean => {
+  const ofThisViewport = (instance: Instance, targetId: string, frame: Extract<Frame, { readonly _tag: "frame" }>): boolean => {
     const want = instance.sizes.get(targetId)
-    const left = instance.settling.get(targetId) ?? 0
-    if (want === undefined || left === 0) return false
-    if (frame.meta.deviceWidth === want.width && frame.meta.deviceHeight === want.height) {
-      instance.settling.delete(targetId)
-      return false
-    }
-    instance.settling.set(targetId, left - 1)
-    return true
+    return want === undefined || (frame.meta.deviceWidth === want.width && frame.meta.deviceHeight === want.height)
   }
 
   /** Attach to a tab as soon as it appears, so its loads reach `reread`. */
@@ -335,8 +316,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
           timestamp: meta["timestamp"] ?? 0,
         },
       }
-      if (stale(instance, targetId, frame)) return
-      cast.last = frame
+      if (ofThisViewport(instance, targetId, frame)) cast.last = frame
       for (const queue of cast.subscribers) Queue.offerUnsafe(queue, frame)
       return
     }
@@ -376,7 +356,7 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
       yield* Scope.close(scope, Exit.void)
       return yield* refused(whyOf(opened.cause, "The browser launch was interrupted."))
     }
-    const instance: Instance = { scope, ...opened.value, sessions: new Map(), targets: new Map(), casts: new Map(), sizes: new Map(), lastRead: new Map(), soon: new Set(), settling: new Map() }
+    const instance: Instance = { scope, ...opened.value, sessions: new Map(), targets: new Map(), casts: new Map(), sizes: new Map(), lastRead: new Map(), soon: new Set() }
     yield* instance.cdp.listen(onEvent(instance)).pipe(Scope.provide(scope))
     const seeded = yield* Effect.exit(Effect.gen(function*() {
       yield* instance.cdp.send("Target.setDiscoverTargets", { discover: true })
@@ -469,7 +449,6 @@ export const openLive = (options: LiveOptions): Effect.Effect<Live, never, Scope
     instance.sessions.delete(targetId)
     instance.lastRead.delete(targetId)
     instance.sizes.delete(targetId)
-    instance.settling.delete(targetId)
     for (const [sessionId, held] of instance.targets) if (held === targetId) instance.targets.delete(sessionId)
   }
 
