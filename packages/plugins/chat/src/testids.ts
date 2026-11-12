@@ -394,6 +394,12 @@ export const TESTID = {
   chatUnopenedWhy: "chat-unopened-why",
   /** ...and the one thing that can change it: try opening it again. */
   chatReopen: "chat-reopen",
+  /** ...and the OTHER thing that can change it, where the refusal is about the
+   *  node's own current chat: start a fresh one on the same engine. Its own id
+   *  rather than `chatFreshSession`'s, because that one is the agent line's
+   *  gesture with its confirmation, and this is a single press on a body where
+   *  there is nothing left to displace. */
+  chatUnopenedFresh: "chat-unopened-fresh",
   /** The agent's finished prose, rendered as markdown. Its own name rather
    *  than a node note's: they are two different things on the page. */
   chatSaid: "chat-said",
@@ -489,6 +495,12 @@ export const TESTID = {
   chatSignInCancel: "chat-sign-in-cancel",
   /** The way back into an attempt that ran and failed. */
   chatSignInRetry: "chat-sign-in-retry",
+  /** A method NOBODY here runs: the agent's label over the command line to
+   *  type into a terminal on the server. `data-method` is the method's id, and
+   *  there is no button — that is the point of it. */
+  chatSignInByHand: "chat-sign-in-by-hand",
+  /** ... and that command line on its own, for copying. */
+  chatSignInCommand: "chat-sign-in-command",
   /** WHO IS SIGNED IN NOW, over the chooser's buttons — the agent's own account
    *  of itself, so a person switching accounts can see which one they are about
    *  to leave. Absent when the agent has not reported an identity (and when the

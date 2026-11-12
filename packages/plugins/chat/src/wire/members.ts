@@ -1363,6 +1363,10 @@ export type AgentChoice = typeof AgentChoice.Type
  *   - `agent` — the AGENT runs it. Something happens at the other end of a URL
  *     and the agent says when it is done, so all this panel has is the page to
  *     send a person to and the wait.
+ *   - `byHand` — NOBODY here runs it. The method is an interactive wizard that
+ *     refuses a pipe, so what is drawn is the method's label and the command
+ *     to type into a terminal on the server — the one case where the command
+ *     line IS the content and therefore the one field below.
  */
 export const AuthMethod = Schema.Struct({
   id: Schema.String,
@@ -1371,7 +1375,12 @@ export const AuthMethod = Schema.Struct({
    *  button's tooltip rather than under it, because the chooser is a list of
    *  things to press and not a page to read. */
   description: Schema.NullOr(Schema.String),
-  kind: Schema.Literals(["terminal", "agent"]),
+  kind: Schema.Literals(["terminal", "agent", "byHand"]),
+  /** The command line to run in a terminal on the SERVER, for a `byHand`
+   *  method and `null` for every other — an absolute path, because the agent
+   *  this names may be reachable only through olai's own agent search path and
+   *  a bare name would not exist in that person's shell either. */
+  command: Schema.NullOr(Schema.String),
 })
 export type AuthMethod = typeof AuthMethod.Type
 
@@ -1486,7 +1495,8 @@ export const Talking = Schema.Union([
      *
      *   - **the agent said so**, at the handshake, and false until it has —
      *     a panel that has not been told cannot offer an interruption on an
-     *     agent's behalf. False for opencode, which has no such method at all.
+     *     agent's behalf. False for pi and omp, which have no such method at
+     *     all; true for the Claude adapter, Codex and opencode, which say so.
      *   - **and this CONVERSATION has not yet held a message behind a running
      *     turn.** That half is a guard around somebody else's defect rather
      *     than a property of anything here: the pinned Claude Code adapter
@@ -1510,11 +1520,12 @@ export const Talking = Schema.Union([
      * the turn it is working on is over.
      *
      * The composer's standing promise, made before anybody presses anything:
-     * what you send now waits its turn and is got to. True of both agents olai
-     * talks to and established per agent rather than assumed — the Claude Code
-     * adapter advertises the queue at the handshake (`promptQueueing`), and
-     * opencode's was verified against 1.17.9 — because "what happens to a
-     * prompt sent mid-turn" is not something the protocol answers for anybody.
+     * what you send now waits its turn and is got to. Established per agent
+     * rather than assumed — the Claude Code adapter advertises the queue at
+     * the handshake (`promptQueueing`) and pi's adapter announces a held
+     * prompt's position, while opencode REFUSES a second prompt mid-turn and
+     * omp cancels the turn to run it — because "what happens to a prompt sent
+     * mid-turn" is not something the protocol answers for anybody.
      *
      * An agent nothing is known about gets no promise made for it. Nothing else
      * changes: every send still goes at once, and the message's own row still
@@ -1743,6 +1754,36 @@ export const sameStanding: (a: ServerStanding, b: ServerStanding) => boolean = S
   .toEquivalence(ServerStanding)
 
 /**
+ * THE CHAT IS NOT IN THIS ENGINE'S STORE — read off ACP's `-32002` answered to
+ * a `session/load` (`../agent.ts`'s `missingOf`) and never off the sentence
+ * around it.
+ *
+ * Olai's own vocabulary, one layer up from the protocol's number and one layer
+ * below the face: what a reader does with it is draw a different body, because
+ * this is the refusal that will NEVER heal on a retry. The id was minted by an
+ * engine on some other computer, or its store was cleared — and the way out is
+ * a fresh conversation rather than the same one asked for again.
+ *
+ * No payload. "Which chat" is already `Unopened.what`, and how to get out of it
+ * is the node's own gesture rather than anything this value could carry.
+ */
+export const Missing = Schema.Struct({ kind: Schema.Literal("missing") })
+export type Missing = typeof Missing.Type
+
+/**
+ * THE TWO REFUSALS WITH A FACE OF THEIR OWN, and the only thing a body may
+ * branch on.
+ *
+ * `BusyCause` is `@olai/format`'s because it is a fact about a REFUSED
+ * OPERATION that every op may carry (`BusyFailure` declares it); `Missing` is
+ * chat's because it is a fact about a CONVERSATION and nothing outside this
+ * plugin can produce one. They meet here, on the state a panel draws, which is
+ * the one place both are in hand.
+ */
+export const UnopenedCause = Schema.Union([BusyCause, Missing])
+export type UnopenedCause = typeof UnopenedCause.Type
+
+/**
  * The agent is there and there is NO CONVERSATION, because opening one was
  * REFUSED — and why.
  *
@@ -1775,16 +1816,16 @@ export const Unopened = Schema.Struct({
    *  opening ANY conversation: a fresh one, or a boot that chose for itself. */
   what: Schema.NullOr(Schema.String),
   /**
-   * ... AND WHAT A FACE MAY BRANCH ON, where the refusal was olai's own rather
-   * than the agent's ({@link BusyCause}).
+   * ... AND WHAT A FACE MAY BRANCH ON, where `why` alone would leave a person
+   * with nothing to press.
    *
    * Absent on nearly every one of these, because nearly every one of them is
-   * an agent saying no and `why` is the whole of it. Present where the pool of
-   * node agents was full: that refusal MENDS ITSELF — the panel keeps the
-   * attempt and opens the moment a seat frees — so the face draws no retry and
-   * no alarm. The sentence is still `why`, and the two must agree.
+   * an agent saying no and the sentence is the whole of it. Two have a face of
+   * their own ({@link UnopenedCause}), and both are refusals whose way OUT is
+   * not the retry the ordinary body offers: `capacity` MENDS ITSELF, and
+   * `missing` never will. The sentence is still `why`, and the two must agree.
    */
-  cause: Schema.optionalKey(BusyCause),
+  cause: Schema.optionalKey(UnopenedCause),
 })
 
 /**

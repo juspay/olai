@@ -85,9 +85,9 @@ test("MCP display reads this adapter's announcement and completion", () => {
   const reply = { id: "order", title: "order cabinets", file: "house.olai", sort: "done" }
   const result = { content: [{ type: "text" as const, text: JSON.stringify(reply) }], structuredContent: reply }
   const frame = { ...announced("olai", "outlines_done", { id: "order" }), name: CODEX.toolNameOf("olai_outlines_done:1") }
-  expect(CODEX.mcpCall(frame, ["olai"])).toEqual({ server: "olai", tool: "outlines_done" })
-  expect(CODEX.mcpCall(frame, ["foreign"])).toBeNull()
-  expect(CODEX.mcpCall({ title: "bash", rawInput: { server: "olai", tool: "outlines_done" } }, ["olai"])).toBeNull()
+  expect(CODEX.mcpCall(frame, ["olai"])).toEqual([{ server: "olai", tool: "outlines_done" }])
+  expect(CODEX.mcpCall(frame, ["foreign"])).toEqual([])
+  expect(CODEX.mcpCall({ title: "bash", rawInput: { server: "olai", tool: "outlines_done" } }, ["olai"])).toEqual([])
   expect(CODEX.replyIn(wrapped(result).rawOutput)).toEqual(reply)
   expect(CODEX.replyIn("permission denied")).toBeUndefined()
   expect(CODEX.replyIn({ stdout: "foreign tool" })).toBeUndefined()
@@ -95,7 +95,7 @@ test("MCP display reads this adapter's announcement and completion", () => {
 })
 
 test("dotted titles alone never identify an MCP call", () => {
-  expect(CODEX.mcpCall({ title: "mcp.olai.outlines_done" }, ["olai"])).toBeNull()
-  expect(CODEX.mcpCall({ _meta: { is_mcp_tool_call: true }, rawInput: { server: "olai", tool: 7 } }, ["olai"])).toBeNull()
+  expect(CODEX.mcpCall({ title: "mcp.olai.outlines_done" }, ["olai"])).toEqual([])
+  expect(CODEX.mcpCall({ _meta: { is_mcp_tool_call: true }, rawInput: { server: "olai", tool: 7 } }, ["olai"])).toEqual([])
   expect(CODEX.replyIn({ result: { structuredContent: [] } })).toBeUndefined()
 })

@@ -163,7 +163,14 @@ import { nativeActivity } from "./native-activity.ts"
  * than of anything the client says, and one of the two paths that opens a
  * conversation is a SERVER STARTING, which no prompt can reach. The agent stays
  * up, answers `session/list`, and says no to the one verb — which is a live
- * agent with no conversation, and not a dead one.
+ * agent with no conversation, and not a dead one. That refusal is `-32603`:
+ * an agent that WILL NOT resume, in its own words.
+ *
+ * A REAL NOT-FOUND is a different answer and wears the protocol's own code.
+ * With the on-disk store on (below), a `session/load` of an id the store never
+ * recorded is refused `-32002` — "Resource not found" — which is what an
+ * engine says about a conversation minted on some other computer, and the one
+ * refusal the panel draws its *this chat isn't on this machine* face for.
  *
  * STORED SESSIONS are an environment variable, because which boot path runs is
  * a property of the machine the agent woke up on rather than of anything the
@@ -511,6 +518,22 @@ const listedSessions = () => {
  *  mechanism. */
 const forgotten = (sessionId: string): boolean =>
   existsSync(`${cwd}/.agent-forgot-${sessionId}`)
+
+/**
+ * ...AND WHETHER ITS STORE CANNOT OPEN ONE IT STILL NAMES — `.agent-missing-
+ * <sessionId>`, answered `-32002` by `session/load` and invisible to
+ * everything else.
+ *
+ * NOT {@link forgotten}, and the difference is the whole reason there are two:
+ * a forgotten conversation is gone from `session/list`, so nothing can even
+ * offer it. This one is still LISTED — it is in the index, it has a title, a
+ * person can see it in past sessions — and the transcript behind it cannot be
+ * read. That is the real shape of a vault opened on a second machine, and the
+ * only way to reach the panel's *this chat isn't on this machine* face for a
+ * chat that is not the node's current one.
+ */
+const missingHere = (sessionId: string): boolean =>
+  existsSync(`${cwd}/.agent-missing-${sessionId}`)
 
 /**
  * Whether this agent REFUSES to open a conversation — `new`, `load`, or both.
@@ -3823,6 +3846,13 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         refuse(id, -32603, `no such conversation: ${String(params["sessionId"])}`)
         return
       }
+      // ONE NAMED CONVERSATION THE STORE CANNOT OPEN, while the index still
+      // has it ({@link missingHere}). `-32002`, like the store miss below, and
+      // before the hold: there is nothing to dawdle over.
+      if (missingHere(String(params["sessionId"]))) {
+        refuse(id, -32002, `no such conversation: ${String(params["sessionId"])}`)
+        return
+      }
       // ...and BEFORE any of it too, for the same reason: a load that is still
       // on the wire has opened nothing, and what a scenario looks at in that
       // window is a client that is between conversations.
@@ -3831,7 +3861,14 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         const directory = typeof params["cwd"] === "string" ? params["cwd"] : cwd
         const disk = sessionStore(directory)
         if (disk.enabled && disk.read(String(params["sessionId"])) === null) {
-          refuse(id, -32603, `no such conversation: ${String(params["sessionId"])}`)
+          // THE PROTOCOL'S OWN CODE FOR IT, because this is the one refusal in
+          // this file that is a REAL not-found: the store was consulted and the
+          // conversation is not in it, which is what a vault carried to another
+          // machine meets. `.agent-refuse-load` above stays `-32603` on purpose
+          // — that flag is an agent that WILL NOT resume, not an agent that
+          // cannot find it, and the two draw different faces (`-32002` is
+          // `olai-plugin-chat`'s `missingOf`).
+          refuse(id, -32002, `no such conversation: ${String(params["sessionId"])}`)
           return
         }
       }

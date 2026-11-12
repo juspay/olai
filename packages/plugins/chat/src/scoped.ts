@@ -229,8 +229,26 @@ interface NodeSlot {
    * failed one. This is not routing history: superseded records only successful
    * replacements and remains meaningful after notification delivery resumes. */
   mutingReaders: boolean
-  /** Successful replacements, keyed by engine and session; owned by this slot. */
+  /** Replacements this slot made, keyed by engine and session; owned by it.
+   *  Kept for the slot's whole life, because an explicit navigation to one of
+   *  these pairs is a HISTORY visit for as long as the slot exists. */
   readonly superseded: Set<string>
+  /**
+   * ... AND THE SUBSET THE DURABLE BINDING HAS NOT CAUGHT UP WITH YET, which is
+   * a much shorter life and has to be.
+   *
+   * The node ADDRESS is reconciled against `nodeAt` rather than navigated to:
+   * what a tab holding it asks for is "whatever this node is bound to", and
+   * the answer lags the live slot for as long as the property write takes. A
+   * pair in here is one this slot replaced and still sees on the binding, so
+   * loading it would undo the replacement; a pair that is merely SUPERSEDED is
+   * not, because a binding re-pointed BACK at an old chat — an undo, a pull
+   * from the other machine — is a person asking for it, and must be opened.
+   *
+   * Emptied the moment the binding reads anything this slot is not waiting on,
+   * which is the write having landed.
+   */
+  readonly lagging: Set<string>
   openingFor: Conversing | null
   readingFor: Conversing | null
   readonly opening: Semaphore.Semaphore
@@ -738,6 +756,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             uses: 1,
             mutingReaders: false,
             superseded: new Set(),
+            lagging: new Set(),
             openingFor: null,
             readingFor: null,
             opening: Semaphore.makeUnsafe(1),
@@ -1175,9 +1194,29 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           return yield* working(to.node, undefined, ({ slot }) => slot.opening.withPermit(Effect.gen(function*() {
             const bound = nodeAt(to.node)
             const state = slot.panel.state()
+            // HAS THE DURABLE WRITE LANDED? It has the moment the binding reads
+            // anything this slot is not waiting on — its own new pair, or a
+            // later one, or one somebody typed. The wait ends there and for
+            // good: what is left in `superseded` is history routing, and a
+            // binding pointed BACK at a replaced chat is a person asking for
+            // that chat rather than a write that has not arrived.
+            const binding = bound?.session == null
+              ? null
+              : readingKey({ agent: bound.engine, session: bound.session })
+            if (binding === null || !slot.lagging.has(binding)) slot.lagging.clear()
             // A refused open belongs to this seat. Reading it must not replace
             // the pending new/resume operation with another load.
-            if (state.unopened === null && bound?.session != null
+            //
+            // ...AND A BINDING THIS SLOT IS STILL WAITING TO SEE CHANGE IS NOT
+            // A THING TO OPEN AT ALL. A reader arriving just after a fresh
+            // start is handed the OLD pair — and where that pair is one the
+            // engine does not have, loading it would put the refusal that was
+            // just escaped back over the conversation that escaped it. The
+            // pair-addressed door reads `superseded` for the same race
+            // ({@link inNodeConversation}); this is that door for the node
+            // address, narrowed to the window where the two can disagree.
+            if (state.unopened === null && binding !== null && bound?.session != null
+              && !slot.lagging.has(binding)
               && (state.session === null || state.session.id !== bound.session || agentIn(state)?.id !== bound.engine || state.status === "gone")) {
               yield* Effect.catch(slot.panel.loadSession(bound.engine, bound.session), () => Effect.void)
             }
@@ -1427,8 +1466,18 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             slot.opening.withPermit(Effect.gen(function*() {
               activate(slot)
               options.onConversationClosed?.(slot.state)
-              const previous = slot.state.session === null ? null : {
-                agent: agentIn(slot.state)?.id, session: slot.state.session.id,
+              // WHAT THIS FRESH START REPLACES — and it is not always a
+              // conversation that OPENED. A binding carried to a machine whose
+              // engine store never had it has no `session` at all: the pair sits
+              // REFUSED on `state.unopened`, and reading only the first of the
+              // two left the lost id unrecorded. A reader still holding the
+              // lagging binding then loaded it straight back over the
+              // conversation this gesture had just opened — the same refusal,
+              // with a *Try again* pointing at an id that will never load, so
+              // *Fresh start* looked like it did nothing at all.
+              const replaced = slot.state.session?.id ?? slot.state.unopened?.what ?? null
+              const previous = replaced === null ? null : {
+                agent: agentIn(slot.state)?.id, session: replaced,
               }
               const before = [...slot.panel.entries()].map(([id]) => id)
               const completed = Effect.gen(function*() {
@@ -1439,9 +1488,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                 // Some adapters/fixtures may reuse an identity after changing
                 // engines. The newly opened pair is current, never superseded.
                 slot.superseded.delete(readingKey({ agent, session: session.id }))
+                slot.lagging.delete(readingKey({ agent, session: session.id }))
                 if (previous?.agent !== undefined
                   && (previous.agent !== agent || previous.session !== session.id)) {
                   slot.superseded.add(readingKey({ agent: previous.agent, session: previous.session }))
+                  // ... AND THE SAME PAIR AS A BINDING STILL TO MOVE. The write
+                  // is `committed` below; until a node reader sees it land, the
+                  // durable answer to "what is this node bound to" is the chat
+                  // that was just replaced ({@link NodeSlot.lagging}).
+                  slot.lagging.add(readingKey({ agent: previous.agent, session: previous.session }))
                 }
                 // Retain old identities for this slot's lifetime: readers may
                 // already hold a binding snapshot when persistence catches up.

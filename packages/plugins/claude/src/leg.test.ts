@@ -940,9 +940,9 @@ test("MCP display reads this adapter's announcement and completion", () => {
   const reply = { id: "order", title: "order cabinets", file: "house.olai", sort: "done" }
   const result = { content: [{ type: "text" as const, text: JSON.stringify(reply) }], structuredContent: reply }
   const frame = { ...announced("olai", "outlines_done", { id: "order" }), name: CLAUDE.toolNameOf("olai_outlines_done:1") }
-  expect(CLAUDE.mcpCall(frame, ["olai"])).toEqual({ server: "olai", tool: "outlines_done" })
-  expect(CLAUDE.mcpCall(frame, ["foreign"])).toBeNull()
-  expect(CLAUDE.mcpCall({ title: "bash", rawInput: { server: "olai", tool: "outlines_done" } }, ["olai"])).toBeNull()
+  expect(CLAUDE.mcpCall(frame, ["olai"])).toEqual([{ server: "olai", tool: "outlines_done" }])
+  expect(CLAUDE.mcpCall(frame, ["foreign"])).toEqual([])
+  expect(CLAUDE.mcpCall({ title: "bash", rawInput: { server: "olai", tool: "outlines_done" } }, ["olai"])).toEqual([])
   expect(CLAUDE.replyIn(wrapped(result).rawOutput)).toEqual(reply)
   expect(CLAUDE.replyIn("permission denied")).toBeUndefined()
   expect(CLAUDE.replyIn({ stdout: "foreign tool" })).toBeUndefined()
@@ -953,7 +953,7 @@ test("the first text block is the reply, and only a record is a reply", () => {
   expect(CLAUDE.replyIn([{ type: "text", text: "[]" }])).toBeUndefined()
   expect(CLAUDE.replyIn([{ type: "text", text: "refused" }, { type: "text", text: "{}" }])).toBeUndefined()
   expect(CLAUDE.replyIn({ structuredContent: { file: "one.olai" } })).toBeUndefined()
-  expect(CLAUDE.mcpCall({ name: "bash", title: "mcp__olai__outlines_done" }, ["olai"])).toBeNull()
+  expect(CLAUDE.mcpCall({ name: "bash", title: "mcp__olai__outlines_done" }, ["olai"])).toEqual([])
 })
 
 // Sanitized shape from the real Claude session reported on PR #583: the SDK

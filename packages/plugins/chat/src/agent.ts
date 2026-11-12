@@ -233,6 +233,24 @@ export class AgentGone extends Data.TaggedError("AgentGone")<{
    * so exactly once, here.
    */
   readonly auth?: boolean
+  /**
+   * ... AND WHETHER THE CONVERSATION IT WAS ASKED FOR IS SIMPLY NOT THERE —
+   * ACP's `-32002` ("Resource not found"), answered to a `session/load` of an
+   * id this engine's store has no record of.
+   *
+   * A second field for {@link auth}'s reason, and the same discipline: read off
+   * the protocol's own code and never off the sentence, because the prose
+   * around it is the adapter's to write and olai must not pattern-match an
+   * agent's English. True only for a refused `session/load` — `-32002` from a
+   * turn or a `session/new` is about some other resource, and a face that said
+   * "this chat isn't on this machine" about it would be guessing.
+   *
+   * What it buys is the one refusal with a DIFFERENT way out: retrying a
+   * conversation the store does not have is refused for ever, and the gesture
+   * that moves is a fresh one ({@link ./chat.ts}'s `refusedOpen` carries this
+   * to the browser as `Unopened.cause`).
+   */
+  readonly missing?: boolean
 }> {
   override get message(): string {
     return this.why
@@ -801,7 +819,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       emit({ _tag: "signIn", signIn })
     }
 
-    const activity = options.leg.nativeActivity ? new Activity(emit) : null
+    // The agent's own child-session/async-task channel, in ITS spelling
+    // (`@kolu/acp`'s `NativeActivity`) — and the conversation-side model of
+    // what those facts mean, which is this package's. An agent with no such
+    // channel has neither.
+    const dialect = options.leg.nativeActivity ?? null
+    const activity = dialect === null ? null : new Activity(emit)
     const sessionRoot = (id: string): string => activity?.root(id) ?? id
     const callId = (session: string, id: string): string => activity?.toolId(session, id) ?? id
     const terminalTools = new Map<string, readonly string[]>()
@@ -1226,13 +1249,20 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // name and, for a subagent's call, whose it is — so it goes in through
       // the same door rather than being read as a second kind of source. Both
       // questions below are then a lookup.
-      calls.heard(params.toolCall.toolCallId, params.toolCall._meta, params.sessionId)
+      calls.heard(params.toolCall.toolCallId, params.toolCall._meta, params.toolCall, params.sessionId)
       // The tools olai handed this conversation are answered here and now —
       // already mediated, already validated — and everything else is put in
       // front of a person. Which is which is `allowedWithoutAsking`, and it is
       // there rather than here because it is the rule that stops this panel
-      // approving its own permissions.
-      const allowed = options.leg.allowedWithoutAsking(toolOf(params), given, params.options)
+      // approving its own permissions. THE WHOLE TOOL CALL goes with it: one
+      // agent dispatches every MCP tool through a single builtin, so which
+      // tool a request is really about is readable only in the call's own
+      // input (`@kolu/acp/engine`).
+      const allowed = options.leg.allowedWithoutAsking(toolOf(params), given, params.options, {
+        title: params.toolCall.title,
+        rawInput: params.toolCall.rawInput,
+        _meta: params.toolCall._meta,
+      })
       if (allowed !== null) {
         return { outcome: { outcome: "selected", optionId: allowed } }
       }
@@ -1336,18 +1366,41 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // which tool it is, and which agent made it — is what the two
           // handlers above need and what neither question they answer carries
           // ({@link ./calls.ts}).
-          calls.heard(update.toolCallId, update._meta, notification.sessionId)
+          calls.heard(update.toolCallId, update._meta, update, notification.sessionId)
           // Recognition belongs to the leg; ownership belongs to the live catalogue.
           const recognized = options.leg.mcpCall({
             title: update.title,
             rawInput: update.rawInput,
+            // ... and what the call REPORTED, for the agent that names the
+            // tools a call ran only in its result (opencode 2's Code Mode).
+            rawOutput: update.rawOutput,
             _meta: update._meta,
             name: calls.about(update.toolCallId, notification.sessionId).name,
           }, given)
           calls.recognized(update.toolCallId, recognized, notification.sessionId)
-          const call = calls.about(update.toolCallId, notification.sessionId).mcp ?? null
-          const ours = call === null ? null : options.advertised?.(call.server, call.tool) ?? null
-          const decoded = ours === null ? undefined : options.leg.replyIn(update.rawOutput)
+          const called = calls.about(update.toolCallId, notification.sessionId).mcp ?? []
+          // WHAT OLAI ADVERTISES EACH OF THEM AS. A frame is one row however
+          // many calls it made, so the row is composed rather than picked: a
+          // Code Mode `execute` that ran three of olai's tools is three
+          // advertised titles on one line, and a row that showed the first of
+          // them would be claiming the other two did not happen.
+          const owned = called.map((one) => options.advertised?.(one.server, one.tool) ?? null)
+          const ours = owned.every((one) => one !== null) && owned.length > 0
+            ? {
+              title: [...new Set(owned.map((one) => one!.title))].join(" · "),
+              // ... and the OWNER only where they agree. Two plugins' tools in
+              // one script is one row that is not either of theirs, so it
+              // draws neither one's face rather than half of one.
+              owner: new Set(owned.map((one) => one!.owner)).size === 1 ? owned[0]!.owner : undefined,
+            }
+            : null
+          // THE REPLY IS SINGLE-CALL ONLY, and that is the wire rather than a
+          // choice: a Code Mode script returns ONE value, and which of three
+          // calls it belongs to is not said anywhere. A row that drew it for a
+          // batch would be filing one answer under three questions.
+          const decoded = ours === null || called.length !== 1
+            ? undefined
+            : options.leg.replyIn(update.rawOutput, update.content)
           const reply = decoded !== undefined && isJson(decoded) ? decoded : undefined
           // Read ONCE: the row wears it, and the terminal block below turns on
           // it. Two readings of one `_meta` corner are two places a later leg
@@ -1382,7 +1435,18 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // stamp is answered by a subagent's own frames and a subagent that
             // has not made a call yet has produced none — which is the whole
             // of the stretch a person is watching a fan-out through.
-            spawned: options.leg.spawned(update._meta, update.rawInput) ?? undefined,
+            spawned: options.leg.spawned(
+              update._meta,
+              update.rawInput,
+              // THE REMEMBERED NAME, not this frame's: one wire announces a
+              // call with its `name` and an EMPTY input, then refines it with
+              // the arguments and no name (opencode 2's `subagent`), so a
+              // reader asking the frame in front of it would never see both
+              // halves at once. The registry holds what any frame said
+              // ({@link ./calls.ts}), which is what positive recognition
+              // means when the facts arrive separately.
+              calls.about(update.toolCallId, notification.sessionId).name,
+            ) ?? undefined,
             // ... and whether it ARMED a background task — a monitor, a
             // background shell — which is the one kind of call that goes on
             // happening after this frame, after the turn, and (for a persistent
@@ -1905,9 +1969,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             },
           )
         const stream = streamOver(child)
-        const extension = activity === null ? { stream, clientMeta: {} } : nativeActivity(opened, stream, ({ session, update }) => {
-          if (!fromElsewhere(sessionRoot(session), activeSession, closed)) activity.read(session, update)
-        })
+        const extension = dialect === null ? { stream, clientMeta: {} } : nativeActivity(opened, stream, ({ session, update }) => {
+          if (!fromElsewhere(sessionRoot(session), activeSession, closed)) activity?.read(session, update)
+        }, dialect)
         // The agent's own message, forwarded verbatim because the call that
         // OPENED this conversation asked for it (the leg's `openMeta`, on
         // `session/new` and `session/load` both — the Claude adapter reads the
@@ -2056,7 +2120,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // WHAT IT OFFERS TO SIGN IN WITH, read once here and kept for the
           // press: the half a button needs travels (below), and the command
           // line a `terminal` method wants run stays where the spawn happens.
-          offered = methodsIn(initialized, options.command, options.args)
+          offered = methodsIn(initialized, options.command, options.args, options.leg.terminalAuth)
           emit({
             _tag: "advertised",
             steers: options.leg.steering !== null
@@ -2096,10 +2160,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  NO LIMIT IS SENT and no `nextCursor` is followed: the protocol
      *  defaults apply, which on pi-acp is a page of fifty (its own
      *  `PAGE_SIZE`) — a directory with more stored pi conversations than one
-     *  page draws the newest and loses the rest. The posture is agreed, not
-     *  parked: the list answers which-conversation-recently rather than
-     *  indexing an agent's database, and `docs/chat.md` says the size
-     *  `pi`'s adapter pages at. */
+     *  page draws the newest and loses the rest. opencode 2.2.7 is the other
+     *  shape and costs nothing: it answers the WHOLE directory in one page,
+     *  ignores a `limit` entirely, and hands a `nextCursor` anyway — one that
+     *  answers zero rows when it is followed (captured over three stored
+     *  conversations). The posture is agreed, not parked: the list answers
+     *  which-conversation-recently rather than indexing an agent's database,
+     *  and `docs/chat.md` says the size `pi`'s adapter pages at. */
     const storedFor = (at: Live): Effect.Effect<ReadonlyArray<Stored>, AgentGone> =>
       at.canList
         ? Effect.map(
@@ -2677,6 +2744,17 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               })
             }
             claim.label = found.method.name
+            // NOTHING TO PRESS, so nothing to run: a method whose sign-in is a
+            // wizard that refuses a pipe is drawn as a label and a command
+            // line, and a press that reached here anyway (an old tab, a
+            // scripted client) is told the same thing the card says rather
+            // than quietly starting the AGENT arm instead.
+            if (found.method.kind === "byHand") {
+              return yield* new AgentGone({
+                gone: "refused",
+                why: `\`${found.method.name}\` is run by hand: ${found.method.command ?? "see the sign-in card"}`,
+              })
+            }
             return found.run === null
               ? yield* runAgent(claim, at, found)
               : yield* runTerminal(claim, found, found.run)
@@ -2775,7 +2853,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // is looking at.
         void child.unstartable.then((why) => {
           if (stopped() || attempt?.method !== method) return
-          output = tailBytes(`${output}${why}\n`, SIGN_IN_CAP).output
+          // ONCE, as the REASON. It used to be appended to the output as
+          // well, and the card draws both — so a failure to start read as the
+          // same sentence twice, once quoted as the process's own words when
+          // the process never produced any.
           emitSignIn({ kind: "terminal", method, label, output, running: false, code: null, why })
         })
         // THE WAIT, with the kill behind it: this fiber is the panel's (it runs
@@ -3351,6 +3432,11 @@ const request = (
         gone: goneOf(cause),
         why: `\`${method}\` failed: ${saidOf(cause)}`,
         auth: authOf(cause),
+        // THE READING IS BY CODE; the GATE is the method, and it is here
+        // because here is the one place the method is in hand. `-32002` means
+        // "the resource you named is not here", and which resource that is
+        // comes from what was asked: a load's resource is the conversation.
+        missing: method === methods.agent.session.load && missingOf(cause),
       })
     },
   })
@@ -3438,6 +3524,32 @@ export const authOf = (cause: unknown): boolean =>
 /** ACP's code for "authenticate first" — the protocol's own number, named once
  *  so the two readers of a rejection sit beside the constant they read. */
 const AUTH_REQUIRED = -32000
+
+/**
+ * ... AND WHETHER THE THING IT WAS ASKED FOR IS NOT THERE — ACP's `-32002`,
+ * the protocol's "Resource not found".
+ *
+ * THE WHOLE READING IS THE NUMBER, which is the point. Every agent words this
+ * refusal its own way — "no such conversation", "session not found", a path
+ * and an `ENOENT` — so a face that matched prose would be a face that worked
+ * on the adapter it was written against and quietly stopped working on the
+ * next one. The code is the one thing all of them agree on.
+ *
+ * It says nothing about WHICH resource: that is the method's to say, and
+ * {@link request} is where the two meet ({@link AgentGone}'s `missing` is set
+ * only for a `session/load`). A caller that reads it off a rejection with no
+ * method in hand is reading half a fact.
+ *
+ * Exported for its own test, beside {@link goneOf} and {@link authOf}: another
+ * reading of one rejection, and the one the "this chat isn't on this machine"
+ * face is drawn out of.
+ */
+export const missingOf = (cause: unknown): boolean =>
+  cause instanceof RequestError && cause.code === RESOURCE_NOT_FOUND
+
+/** ACP's code for "the resource you named is not here" — the protocol's own
+ *  number, named once beside {@link AUTH_REQUIRED} for the same reason. */
+const RESOURCE_NOT_FOUND = -32002
 
 /**
  * ... AND WHAT IT SAID, in the agent's own sentence rather than the protocol's
@@ -3571,6 +3683,12 @@ const methodsIn = (
    *  arguments to pass when running the AGENT BINARY", so the command line is
    *  this agent's own with them appended. */
   baseArgs: ReadonlyArray<string>,
+  /** ... and the agent's own word on whether its `terminal` method can be run
+   *  here at all (`@kolu/acp/engine`'s `Leg.terminalAuth`). `byHand` spawns
+   *  nothing and offers no button: the method becomes a label carrying one
+   *  command line — this binary, those arguments — to type into a terminal on
+   *  the server. */
+  terminalAuth: Leg["terminalAuth"],
 ): ReadonlyArray<Offered> => {
   const offered: Array<Offered> = []
   for (const method of response.authMethods ?? []) {
@@ -3582,19 +3700,41 @@ const methodsIn = (
     // rather than of a second read of the same field.
     const terminal = "type" in method && method.type === "terminal" ? method : null
     if ("type" in method && method.type === "env_var") continue
-    const wire: AuthMethod = {
-      id: method.id,
-      name: method.name,
-      description: method.description ?? null,
-      kind: terminal === null ? "agent" : "terminal",
-    }
     if (terminal === null) {
-      offered.push({ method: wire, run: null })
+      offered.push({
+        method: { id: method.id, name: method.name, description: method.description ?? null, kind: "agent", command: null },
+        run: null,
+      })
+      continue
+    }
+    // BY HAND: the words a person needs, and nothing to press. The program is
+    // the one THIS client resolved — an absolute path, because an agent found
+    // through olai's own search path is not on the shell's `PATH` either — and
+    // the arguments are the leg's, the wire's being the ones that cannot run
+    // here.
+    const byHand = terminalAuth?.byHand
+    if (byHand !== undefined) {
+      offered.push({
+        method: {
+          id: method.id,
+          name: method.name,
+          description: method.description ?? null,
+          kind: "byHand",
+          command: [command, ...byHand].join(" "),
+        },
+        run: null,
+      })
       continue
     }
     const written = terminalAuthIn(terminal)
     offered.push({
-      method: wire,
+      method: {
+        id: method.id,
+        name: method.name,
+        description: method.description ?? null,
+        kind: "terminal",
+        command: null,
+      },
       run: {
         command: written?.command ?? command,
         args: written?.args ?? [...baseArgs, ...(terminal.args ?? [])],

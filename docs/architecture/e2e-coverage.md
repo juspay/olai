@@ -134,6 +134,17 @@ Codex has its own fixtures, one for steering a running turn and one for its nati
 - `codex_steering.feature`: the fixture rejects a second prompt while one is running, and advertises steering with no queue. An ordinary send must reach the running turn, completing or cancelling must clear both busy indicators, and steering that is refused leaves the message in the box for retry. The adapter build also runs upstream PR #441's steering tests, including the race where the turn goes idle just as a steer arrives, so a late steer cannot start an untracked background turn.
 - `codex_activity.feature`: tool calls from a child session staying separate when IDs collide, nested work and separate terminal output, an active agent completing or being cancelled, permissions and prompts attributed correctly when they carry no tool ID, background terminals completing, failing or being stopped after a turn or its child agent ends, active tasks being restored, and activity arriving after the user switched conversations. The fixtures negotiate the AIR capabilities that codex-acp advertises and send its native wire messages, with none of the Claude-specific metadata.
 
+
+## OpenCode 2
+
+OpenCode 2.2.7 changed enough of its wire that the 1.17.9 readings were wrong rather than stale, so the whole engine is covered through its own fake (`packages/plugins/opencode/e2e/fake/opencode.ts`, rebuilt to v2 frames) and the `@opencode` scenarios in `choosing_an_agent.feature`.
+
+- **Code Mode.** olai's own tools never arrive as tool calls on this wire; the model gets them as JavaScript inside one `execute`. Covered: a script calling one of olai's tools carries the advertised title, the outline link, the write story, the node link and one reply, with the engine's own spelling under the fold; a read draws no write story; a script that BATCHES two of olai's calls names BOTH of them on one row (`Read a node · Mark done`) with no reply and so no outline link or write story, because a script returns one value and which call it belongs to is said nowhere; a script that threw before any tool ran is an ordinary row; and a call olai's own ops layer refused is still that call, named and linked, with nothing to draw a reply from.
+- **The permission rule, which is the one that must not widen.** Every MCP tool reaches this wire inside the same builtin, so the request says `execute` for olai's tools, a foreign server's and opencode's own alike — and opencode asks once per inner call with THE SAME FRAME each time (byte-identical but for the JSON-RPC request id, captured), which means ONE approval covers a WHOLE script and nothing says which call it answered. So the rule parses the script under a closed grammar rather than scanning it, and the unit bench (`src/leg.test.ts`, `src/script.ts`) is where that is held: every script a reviewer produced that a scan read as "one olai call" — `globalThis.tools`, `this.tools`, an `eval`-built table, a `new Function`, a computed key, a mention in a comment, a mention in a string literal — parses to nothing and reaches a person. End to end, all four doors: a script calling only olai's handed servers is answered without anybody being asked (by the option's own `kind`, since this wire's options are allow-first); a script calling a server olai never handed reaches a person; a script whose every tool IS olai's but which reaches the table through a computed key STILL reaches a person; and a frame carrying no `name` reaches a person.
+- **Steering replaced queueing.** 2.2.7 advertises `_meta.steering.supported` and refuses a second `session/prompt` outright (`-32603 Session already has an active ACP prompt`), which is the exact reverse of 1.17.9. Covered: the composer offers the interruption and promises no queue; an ordinary send while busy goes INTO the running turn, so a node moves before anything is released and the row is not marked waiting; the same gesture by keyboard; the one race the extension has — the turn going idle as the steer arrives, answered `promptRequired`, the words sent again as an ordinary prompt and heard ONCE; and cancel settling the one turn there can be.
+- **Subagent lanes.** A subagent is a child SESSION narrated on `opencode/session/child_update`, and only to a client whose `initialize` advertised `opencode/child-session-updates` — the fake checks for the opt-in, so a client that stopped asking renders flat here rather than on somebody's machine. Covered, in the same vocabulary `codex_activity.feature` uses: a two-child fan-out leaving NONE of the children's calls in the conversation, the spawning row still saying which agent it sent (off the `subagent` call's own `rawInput`, gated on the call being a `subagent` so an ordinary command carrying a `description` is not drawn as a spawn), a door opening onto exactly that child's work and not the other's; a child of a child at `depth: 2`, where `parentSessionId` is the first child's and the grandchild's work stays inside its own parent's; a child that ends `failed` and one that ends `interrupted`, each taking its spawning row down with it; a child running one of OLAI's tools through its own `execute`, answered without asking and drawn behind the child's door; a child's permission request, which arrives stamped with the ROOT session and names the child only on the call, drawn in the child's lane under the child's name; cancel landing with an agent still out, clearing the strip; and a reopened conversation, where `session/load` replays the `subagent` call and NOTHING on the channel, so the record of the delegation comes back without a lane.
+- **A provider failure is now an error, not a silence.** 2.2.7 answers one with a JSON-RPC error carrying the provider's own words after a zero-token usage frame; covered as a message that did not land, with the row marked *Not sent*. olai's silence notice is still exercised on this leg (a turn that ends having produced nothing), because this fake is the one that can produce that on demand.
+
 ## The app element now survives plugin changes (kolu PR #2228)
 
 Kolu PR #2228 removed the rebuild of the whole app that a wire change used to trigger, so the page keeps its DOM across plugin changes.
@@ -203,7 +214,7 @@ The engine fixtures and browser workflows check MCP display ownership and payloa
 
 - `the_agent.feature` uses the JSON-string result observed in a real Claude session (the pinned adapter forwards SDK content unchanged) and checks Claude write titles, files, raw names, single replies, stories, nudges and node links, plus reads and refusals.
 - `codex_steering.feature` checks the same write/read display through Codex's structured announcement.
-- `choosing_an_agent.feature` checks OpenCode and Pi write/read display and preserves ordinary bash titles.
+- `choosing_an_agent.feature` checks Pi write/read display and preserves ordinary builtin titles, and checks OpenCode's whole Code Mode story: an `execute` whose script calls one of olai's tools keeps the advertised title, the outline link, the clickable write story and one reply, a read draws no write story, a script that BATCHES two of olai's calls is drawn as the `execute` it is rather than claiming to be either of them, and a script that threw before any tool ran is an ordinary row.
 - `an_external_agent.feature` checks a real attached foreign server's write-shaped reply keeps its adapter title without an outline or story.
 - `git_state.feature` checks the uncommitted-write reason in the reply fold.
 - `lifecycle.test.ts`, `calls.test.ts` and `transcript.test.ts` check absent catalogues, compact session-scoped identity and late friendly relabeling.
@@ -413,7 +424,7 @@ The same-node toggle case exposed a product race: a reconnecting reader for the
 old binding could enqueue `session/load` while fresh-start was still opening.
 It then replaced the new session, forcing a second load of that unprompted id.
 The persistent ACP fixture correctly refuses such unsaved sessions. Chat now
-records successful replacements on the node slot and checks that record inside
+records replacements on the node slot and checks that record inside
 the node's opening permit. Superseded readers route to their own history scope
 after releasing the live permit. `scoped.test.ts` covers a completed fresh start
 with a lagging binding, a fresh start and late reader queued behind a third
@@ -422,6 +433,57 @@ to a superseded session while the binding still lags. Subscriptions and explicit
 loads share the same permit-protected routing function. Deferreds and
 immediate forks establish ordering without sleeps; both stale-reader cases fail
 against the previous implementation. The same-node off/on workflow now passes end to end.
+
+The record used to cover only replacements that SUCCEEDED, and a vault carried
+to a second machine is the case that is not one: the engine there answers
+`session/load` with not-found, so the slot holds a refused pair on
+`state.unopened` and `state.session` is null. Nothing was recorded, and a
+reader still holding the lagging binding loaded the lost id back over the chat
+the fresh start had just opened — which is why *Fresh start* appeared to do
+nothing at all on a moved vault. The replaced pair is now read off either
+field, and the node ADDRESS — the one a tab holds while a node's chat is
+refused, and a second door onto the same id — checks the record before it
+reconciles against the durable binding. That node-door record is a SUBSET of
+the supersessions and not the whole of it: it holds only pairs whose durable
+write has not been seen land, and empties as soon as a node reader observes
+the binding read anything the slot is not waiting on — otherwise a property
+pointed BACK at a replaced chat would be ignored for the rest of the slot's
+life. `scoped.test.ts` adds three: a fresh start after a refused open with a
+late pair reader, the same with a late node reader, and a binding re-pointed
+at the replaced chat AFTER the write landed, which is opened and refused
+rather than skipped. The first two fail against the previous implementation.
+
+The face that refusal gets is covered in `node_agents`. With the persistent
+ACP fixture on, the engine keeps a store, consults it and answers ACP's
+`-32002` for an id it never recorded — which is the real not-found a carried
+vault meets, and not a scripted no. One scenario presses a node bound to such
+an id and asserts the body olai draws for it: the classification (`data-cause`,
+read off the code rather than off the sentence), "This chat isn't on this
+machine.", the engine's own words kept but drawn as quietly as the prose around
+them, *Try again* still offered, and one press of **Start fresh chat** — no
+confirmation — landing in a working chat with no refusal, a composer, and an
+`agent-session` that names a different conversation. A reload afterwards is the
+late reader the unit cases make, and the refusal stays gone. A second scenario
+reads an EARLIER chat of a node that has gone the same way (`.agent-missing-
+<id>`: still in `session/list`, unreadable behind it) and asserts the same
+words with NO fresh start, because that gesture re-points a binding the reader
+is not looking at. A third presses *Start fresh chat* against an engine that
+refuses `session/new` as well: the reason is said on the body's own refusal
+line, both ways out stay, the binding is untouched, and a reload draws the
+same face — the case two copies of the fresh-start gesture got wrong, because
+only one of them returned the reader to the chat the node is still bound to. A
+fourth presses *Try again* after the store comes back, which is the whole
+warrant for keeping that button. A fifth covers the trap olai makes for
+itself: no engine writes a session nobody has spoken into, so a fresh chat
+left empty across a serve restart is a real `-32002` about an id this machine
+minted — and the scenario pins that it is one press out again rather than a
+loop. The existing *a node agent whose conversation the engine has
+lost* scenario — a generic refusal, `-32603`, from an agent that will not
+resume — keeps its own copy and alarm line and gains the same button beside its
+retry, so no refusal of a node's current chat is a dead end. Open: two machines
+sharing one vault invalidating each other's session refs, which no scenario
+drives; and moving when the binding is written, which would close the
+unwritten-chat case rather than make it recoverable.
 
 ## The UI revamp: shell and navigation
 
@@ -506,6 +568,14 @@ turn).
   is switched off goes with it — the row is gone because the agent it belonged to
   is, and the card can no longer arrive from a process that is not there. The two
   identity scenarios are below.
+- **`packages/plugins/opencode/e2e/features/opencode_signin.feature`** (1
+  scenario, the THIRD kind, on the `chat` corpus): a sign-in olai must not run.
+  opencode's login is an interactive wizard that refuses a pipe, so the chooser
+  draws the method as a label and one command line — the binary the probe found,
+  absolute, with `auth login --standalone` after it — and no button at all. That
+  nothing was spawned is proved by the fake rather than by the card: it writes
+  `.opencode-login-ran` the instant anybody starts it with `--login`, and the
+  step asserts the file is not there.
 - Both engines cover an auth-refused Chats `+`, a listed conversation resumed by its original id, and starting on an untouched node. Codex also covers a refused fresh start with stored conversations available, asserting the new session id and binding after sign-in. The first-start cases assert an engine-only binding before authentication; there is no fabricated session id. Node-addressed readings retain the refusal before any transcript exists. The untouched-node cases also cancel and retry, reload the page while authentication is still needed, and complete one terminal sign-in from another tab. Existing fresh-start and writable-history scenarios also caught a binding-delivery race: the new session could appear under the previous draft owner, so typing before the binding arrived lost those words. A node reader now waits for a session matching its draft owner before showing that session. The surface-client regression test also exercises in-place state reconciliation: while the binding lags, the reader exposes the opening state instead of retaining a mutable previous frame.
 - **`agent_signin_steps.ts`** is the vocabulary those two share, in the chat
   plugin because the feature is the panel's: arm the agent

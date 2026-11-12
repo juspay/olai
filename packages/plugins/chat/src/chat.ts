@@ -739,11 +739,12 @@ interface Teaching {
  *     the pipe, drawn or not. {@link cancel} asks it of a turn it has told to
  *     stop: *is this process still alive down there?* A zero-token usage frame
  *     answers that — something is reading its input and reporting — and answers
- *     nothing at all about the first question. It IS the auth-failure signature:
- *     opencode with no provider key sends a lone `usage_update {used:0}` and
- *     then a SUCCESSFUL `end_turn`, so the one frame that arrived was the one
- *     that meant nothing had. One count serving both meant a message that never
- *     reached a model was neither marked unsent nor spoken about.
+ *     nothing at all about the first question. It IS the auth-failure signature
+ *     on the wires that fail quietly: an agent with no provider key it can
+ *     resolve sends a lone `usage_update {used:0}` and then a SUCCESSFUL
+ *     `end_turn`, so the one frame that arrived was the one that meant nothing
+ *     had. One count serving both meant a message that never reached a model
+ *     was neither marked unsent nor spoken about.
  *   - **`neither`** is everything olai says ABOUT the agent rather than
  *     anything the agent said: a boot that failed, a process that exited, a
  *     session that ended. A `model` announcement is one of these too — it
@@ -803,10 +804,12 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
  * it is is the whole of what this end KNOWS: the agent was asked, it answered
  * that the turn was over, and nothing came back — which is what an agent that
  * cannot reach a model looks like from the other side of a pipe, and there is
- * no frame anywhere that says so out loud. The sentence a person meets is
- * asserted where they would meet it (`packages/plugins/chat/e2e/features/choosing_an_agent.feature`,
- * against a scripted agent that answers exactly the way opencode does with no
- * key).
+ * no frame anywhere that says so out loud — on the wires that fail quietly;
+ * an agent that answers an unreachable provider with a JSON-RPC error takes
+ * the refusal arm instead and never reaches this. The sentence a person meets
+ * is asserted where they would meet it
+ * (`packages/plugins/chat/e2e/features/choosing_an_agent.feature`, against a
+ * scripted agent that ends a turn having said nothing).
  *
  * It names WHO was silent because a panel with two agents installed is a panel
  * where "the agent" is a question, and it says where to look rather than what
@@ -2799,10 +2802,10 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // this arm existed it was drawn as one: the agent answered
             // `end_turn`, the panel went idle, and what a person got back for
             // their message was an empty space under it. That is what an agent
-            // which cannot reach a model looks like from here — opencode with
-            // no provider key sends one zero-token usage frame and then a
-            // SUCCESSFUL end_turn, with no error anywhere on the wire — and it
-            // is the one failure the panel had no face for at all.
+            // which cannot reach a model can look like from here — one
+            // zero-token usage frame and then a SUCCESSFUL end_turn, with no
+            // error anywhere on the wire — and it is the one failure the panel
+            // had no face for at all.
             //
             // Said for EVERY agent rather than for the one it was found on: a
             // turn with nothing in it is nothing to read whoever produced it,
@@ -3263,7 +3266,18 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // where that is true.
       move({
         status: "idle",
-        unopened: { why: failure.message, what: attempting },
+        // ... AND THE ONE CLASSIFICATION A FACE MAY BRANCH ON, where the agent
+        // answered a `session/load` with ACP's `-32002` ({@link
+        // ./agent.ts}'s `missingOf`). `why` is still the agent's own sentence
+        // and still what is shown; this says that asking for the SAME
+        // conversation again can only ever get the same answer, which is the
+        // difference between a body with a retry on it and a body with a way
+        // out ({@link ./browser/chat/Unopened.tsx}).
+        unopened: {
+          why: failure.message,
+          what: attempting,
+          ...(failure.missing === true ? { cause: { kind: "missing" as const } } : {}),
+        },
         // ... AND WHOSE CONVERSATION IT WAS, which is the way OUT of this face
         // and used to be dropped exactly here. A node agent's *fresh session*
         // is drawn only where the header knows the node

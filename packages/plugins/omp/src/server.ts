@@ -56,11 +56,11 @@ export const ENGINE: Registering = {
     // the answer is this engine's own sentence rather than a dropped row —
     // the roster publishes it, the picker draws it greyed.
     if (bin === null) return INSTALL
-    // NO `--cwd`, unlike the opencode row next door: omp reads the directory it
-    // was STARTED in, which is the served directory olai spawns every child in,
-    // and its `session/new` and `session/list` both take an absolute `cwd` of
-    // their own (it asserts on the shape). So there is nothing here the command
-    // line has to say about where this conversation is.
+    // NOTHING ABOUT THE DIRECTORY ON THE COMMAND LINE: omp reads the directory
+    // it was STARTED in, which is the served directory olai spawns every child
+    // in, and its `session/new` and `session/list` both take an absolute `cwd`
+    // of their own (it asserts on the shape). So there is nothing here the
+    // command line has to say about where this conversation is.
     //
     // `--approval-mode yolo` BEFORE the subcommand, because it is a launch
     // flag omp forwards to `acp` rather than an option `acp` takes.

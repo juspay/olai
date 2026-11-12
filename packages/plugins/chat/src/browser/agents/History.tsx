@@ -9,6 +9,7 @@ import { whenOf } from "../chat/when.ts"
 import { agentReadings } from "./reading.ts"
 import { useAgents } from "./answered.tsx"
 import { pastOf, successorIn } from "../../lineage.ts"
+import { isPast as onEarlierChat } from "./past.ts"
 import { TESTID } from "../../testids.ts"
 
 /** The conversation's fold line owns its picker; selecting a past pair changes
@@ -29,7 +30,7 @@ export function History(props: { readonly chat: Chat; readonly node: string }) {
     return row?.session == null ? [] : pastOf(agents.chats()?.sessions ?? [], row.engine, row.session)
   })
   const visiting = () => agentReadings()?.visiting(props.node)
-  const isPast = () => visiting() !== undefined && (visiting()?.agent !== agent()?.engine || visiting()?.session !== agent()?.session)
+  const isPast = () => onEarlierChat(visiting(), agent())
   const opened = () => agents.chats()?.sessions.find(one => one.agent === (visiting()?.agent ?? agent()?.engine) && one.id === (visiting()?.session ?? agent()?.session))
   const count = () => past().every(one => one.messageCount !== null) ? past().reduce((sum, one) => sum + (one.messageCount ?? 0), 0) : null
   return <div class="relative flex flex-wrap items-center gap-2 border-b border-rule px-3 py-1.5 text-caption text-muted">

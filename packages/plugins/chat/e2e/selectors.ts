@@ -89,6 +89,7 @@ export const CHAT_MISSING_SERVER = selector(TESTID.chatMissingServer);
 export const CHAT_MISSING_WHY = selector(TESTID.chatMissingWhy);
 export const CHAT_UNOPENED = selector(TESTID.chatUnopened);
 export const CHAT_UNOPENED_WHY = selector(TESTID.chatUnopenedWhy);
+export const CHAT_UNOPENED_FRESH = selector(TESTID.chatUnopenedFresh);
 export const CHAT_REOPEN = selector(TESTID.chatReopen);
 export const CHAT_ENTRY = selector(TESTID.chatEntry);
 export const CHAT_NEW = selector(TESTID.chatNew);
@@ -151,6 +152,13 @@ export const CHAT_SIGN_IN_OUTPUT = selector(TESTID.chatSignInOutput);
 export const CHAT_SIGN_IN_INPUT = selector(TESTID.chatSignInInput);
 export const CHAT_SIGN_IN_CANCEL = selector(TESTID.chatSignInCancel);
 export const CHAT_SIGN_IN_RETRY = selector(TESTID.chatSignInRetry);
+/** One method's BUTTON, which is not every method: an agent whose sign-in is a
+ *  wizard that refuses a pipe is drawn as a label and a command line instead,
+ *  and the two are told apart by this rather than by the `data-method` they
+ *  both carry. */
+export const CHAT_SIGN_IN_METHOD = selector(TESTID.chatSignInMethod);
+export const CHAT_SIGN_IN_BY_HAND = selector(TESTID.chatSignInByHand);
+export const CHAT_SIGN_IN_COMMAND = selector(TESTID.chatSignInCommand);
 /** WHO IS SIGNED IN NOW, over the chooser's buttons. Absent for an engine that
  *  reports nothing and for the known logged-out state. */
 export const CHAT_SIGN_IN_CURRENT = selector(TESTID.chatSignInCurrent);

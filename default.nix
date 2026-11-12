@@ -59,9 +59,101 @@ let
     ];
   };
 
-  # The repo tree with node_modules installed and the @kolu/* sources
-  # hydrated from the npins kolu pin — bun-runnable as raw TypeScript, no
-  # build step (the kolu convention).
+  # THE WORKSPACE MEMBERS' MANIFESTS, read off the two globs `package.json`
+  # declares (`packages/*`, `packages/plugins/*`) rather than found by walking
+  # `packages/` for the name. A walk is what a `fileset.fileFilter` would do,
+  # and in a checkout that has run `bun install` it descends into every
+  # member's own `node_modules` — thousands of manifests, and `olai-deps`
+  # would hash differently on a machine depending on what a developer had done
+  # in it. Reading the two directories names exactly the manifests `bun
+  # install` has to resolve, and nothing a dev tree grew.
+  memberManifests =
+    let
+      membersOf = dir:
+        map (name: dir + "/${name}/package.json")
+          (builtins.attrNames
+            (pkgs.lib.filterAttrs (_: type: type == "directory")
+              (builtins.readDir dir)));
+    in
+    builtins.filter builtins.pathExists
+      (membersOf ./packages ++ membersOf ./packages/plugins);
+
+  # THE REGISTRY HALF OF bun.nix, and the reason this split works at all.
+  #
+  # `bun.nix` lists every package in the lockfile, and that includes the
+  # WORKSPACE MEMBERS — `"@olai/server" = copyPathToStore ./packages/server;`,
+  # one line per member, a second copy of this repo's own sources keyed by
+  # bare name because a member has no registry version. Handed to
+  # `fetchBunDeps` they each become a cache entry, so the dependency cache —
+  # and `olai-deps` with it — would move on every source edit, which is the
+  # whole thing this split exists to stop. bun resolves a `workspace:*` arrow
+  # from the tree it is installing in (the manifests are in `depsSrc`), never
+  # from the global cache, so the cache does not want them.
+  #
+  # The filter reads the KEY — `<name>@<version>` for a registry package, a
+  # bare name for a member — so no value is forced and no member is copied
+  # into the store just to decide. What it drops is then asserted to be
+  # exactly the workspace members: a future bun2nix entry that is neither
+  # (a git dependency, say) is also versionless, and would otherwise vanish
+  # from the cache silently, failing much later as an --offline miss.
+  #
+  # `bun.nix` itself stays generated and untouched; this is a filter over
+  # what it returns.
+  memberNames = map (m: (pkgs.lib.importJSON m).name) memberManifests;
+  registryPackages = args:
+    let
+      all = import ./bun.nix args;
+      versioned = name: builtins.match ".+@[^@]+" name != null;
+      dropped = builtins.filter (name: !versioned name) (builtins.attrNames all);
+      unexpected = pkgs.lib.subtractLists memberNames dropped;
+    in
+    if unexpected != [ ]
+    then
+      throw ''
+        bun.nix has versionless entries that are not workspace members: ${builtins.concatStringsSep ", " unexpected}.
+        olai-deps keeps only the registry packages (default.nix); teach that filter what these are.
+      ''
+    else pkgs.lib.filterAttrs (name: _: versioned name) all;
+
+  # WHAT `bun install` MAKES, and nothing of the source tree. Keyed on the
+  # manifests and the lockfile, so it is ONE store path for as long as the
+  # dependencies hold still.
+  #
+  # `olai-base` used to be this install and the sources in one derivation,
+  # which made ~600 MB of node_modules part of a package whose hash moves with
+  # every commit. The cache measured the cost: 35 copies of that closure in
+  # eight days, 22 GB of the `kolu-r2` bucket, every one of them the same
+  # dependencies re-pushed under a new name because a `.ts` file had changed.
+  # Split out, those bytes are stored once per lockfile. juspay/odu#175 made
+  # the same split for the same reason; this is that shape.
+  #
+  # The fileset is therefore everything `bun install --frozen-lockfile` READS
+  # and not one file more: the root manifest, the lockfile, `bunfig.toml` (the
+  # linker), `bun.nix` (the fetched tarballs) and every workspace member's
+  # `package.json` so the member resolves. No `tsconfig.base.json` — the
+  # install does not read it, and a file here that the install does not read
+  # gives the per-commit churn back. The hydrate copier is not here either:
+  # it comes off the kolu pin (`nix/kolu.nix`), already a store path.
+  depsSrc = pkgs.lib.fileset.toSource {
+    root = ./.;
+    fileset = pkgs.lib.fileset.unions ([
+      ./package.json
+      ./bun.lock
+      ./bun.nix
+      ./bunfig.toml
+    ] ++ memberManifests);
+  };
+
+  # The installed dependency tree, with the @kolu/*, @odu/* and cordis sources
+  # hydrated into it from the npins pins — raw TypeScript, no build step (the
+  # kolu convention).
+  #
+  # THE HYDRATES LIVE HERE because they write into `node_modules`, and a
+  # hydrated package resolves its own imports from its REALPATH: that realpath
+  # is inside this derivation, whose root `node_modules` is the one holding
+  # `effect`, `solid-js` and the rest — the walk-up invariant `bunfig.toml`
+  # states, now satisfied one derivation over. Their sources are pins, so they
+  # move when a pin moves and not when a commit does.
   #
   # `b2n.fetchBunDeps` reads the committed bun.nix and builds a fake Bun cache
   # from per-tarball FODs (hashes out of the lockfile, so no network in the
@@ -72,17 +164,23 @@ let
   # half — bun 1.4 otherwise wants to rewrite bun.lock (lockfileVersion 1→2)
   # and that rewrite is the thing that goes looking for manifests. The hook
   # does not pass either; olai does. See juspay/olai#503.
-  base = pkgs.stdenv.mkDerivation {
-    pname = "olai-base";
-    inherit version src;
+  olai-deps = pkgs.stdenv.mkDerivation {
+    pname = "olai-deps";
+    inherit version;
+    src = depsSrc;
 
     # b2n.hook propagates its own bun; listing ours first wins on PATH, so the
-    # bun that installs and the bun the wrapper execs are one version. No
-    # woff2 here: the faces are already woff2 when this build sees them
-    # (packages/fonts/default.nix), and its font step is a copy.
+    # bun that installs and the bun the wrapper execs are one version.
     nativeBuildInputs = [ pkgs.bun b2n.hook ];
 
-    bunDeps = b2n.fetchBunDeps { bunNix = ./bun.nix; };
+    # `bunNix` as a FUNCTION rather than the path: `fetchBunDeps` callPackages
+    # whatever it is handed, so the generated file is read with the same
+    # arguments it always had and the workspace entries are filtered out of
+    # the result (see `registryPackages`).
+    bunDeps = b2n.fetchBunDeps {
+      bunNix = { copyPathToStore, fetchFromGitHub, fetchgit, fetchurl, ... }@args:
+        registryPackages args;
+    };
 
     # Matches bunfig.toml, passed explicitly so the linker choice survives if
     # the hook ever stops reading bunfig.toml. Setting bunInstallFlags
@@ -96,11 +194,10 @@ let
       "--backend=symlink"
     ];
 
-    # The server runs its sources directly — nothing to compile — and the
-    # default fixup walk over node_modules is pure overhead. The BROWSER is the
-    # exception: it gets a real bundle, built below by the same script the dev
-    # loop runs, so there is one build and not two that could drift.
+    # Nothing to compile and nothing to fix up: the server runs its sources
+    # directly, and the default fixup walk over node_modules is pure overhead.
     dontUseBunBuild = true;
+    dontBuild = true;
     dontFixup = true;
 
     # The @kolu/* packages are not in bun.lock — they are Nix-store sources,
@@ -113,52 +210,138 @@ let
     # ...and CORDIS on a third line, four packages out of one pin
     # (nix/cordis.nix): the runtime the server's plugin composition is built
     # on, hydrated as raw TypeScript like everything else olai pins.
-    # ...and THE ROWS, AS CODE: the browser's rows, the stylesheet chain and the
-    # merged testid table, written out of packages/bundle/olai.yml so that file
-    # is the only place a plugin is named (packages/bundle/generate.ts). Here
-    # rather than in buildPhase for the mark's reason one line down — the
-    # generated files are gitignored, so they are never in the store copy of the
-    # tree, and a packaged build cannot ship a stale one.
-    # THE WEB ROWS AND THE NUMERIC TOKEN TABLES, for the mark's own reason
-    # one line up — generated sources the browser bundle reads as modules
-    # (fileset.toSource above takes tracked content only, so a store copy of
-    # the tree never has them and a packaged build cannot ship a stale one).
     postBunNodeModulesInstallPhase = ''
       sh ${kolu.hydrateScript} ${kolu.hydrateArgs}
       sh ${kolu.hydrateScript} ${cordis.hydrateArgs}
-      sh ${bundle.hydrateScript}
-      bun packages/bundle/generate.ts
     '';
 
-    buildPhase = ''
-      runHook preBuild
-      # @tailwindcss/cli transitively dlopen()s @parcel/watcher's native
-      # binding at startup — even without --watch — and that binding wants
-      # libstdc++, which the sandbox does not put on the loader path.
-      export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:''${LD_LIBRARY_PATH:-}"
-      export OLAI_FONTS_DIR="${olai-fonts}"
-      ${stamp.exportLine rev}
-      bun packages/web/src/build.ts packages/web/dist
-      runHook postBuild
-    '';
-
+    # TWO DIRECTORIES, and both are install output. `$out/node_modules` is
+    # exactly what bun wrote at the root — no manifest, no source, nothing this
+    # derivation was handed — because those inputs are already in the
+    # lockfile's hash and a copy of them here would be a second spelling of a
+    # tree whose whole point is not to have one.
+    #
+    # `$out/workspaces/<member path>` is the SECOND thing bun wrote: the
+    # isolated linker gives every workspace member its own farm beside its
+    # manifest (`bunfig.toml` says why isolated). It is kept beside
+    # node_modules rather than inside it so the sentence above stays true of
+    # the one directory a resolver reads, and each farm is filed under the
+    # member's own repo-relative path so `olai-base` puts it back by copying
+    # path for path — `packages/plugins/<name>` is a member too, and a
+    # basename would collide the two tiers.
+    #
+    # The workspace links in those farms are the sibling arrows — `@olai/log`,
+    # `olai-plugin-identity` — and they point at `../../plugins/identity` and
+    # the like, which is NOT in this output and is not meant to be. They stay
+    # RELATIVE so they land on real source once `olai-base` puts the farm back
+    # beside the manifest; dangling here is the trick, not an accident.
     installPhase = ''
       runHook preInstall
-      cp -r . $out
-      # The wrappers below hard-code these two paths. Fail the BUILD, not a
-      # user's first run, if either moves.
-      for entry in \
-        "$out/packages/server/src/main.ts" \
-        "$out/packages/web/dist/index.html"
-      do
-        test -e "$entry" || {
-          echo "installPhase: $entry is missing — update default.nix if the path changed" >&2
-          exit 1
-        }
+      mkdir -p $out
+      cp -a node_modules $out/node_modules
+      for member in packages/* packages/plugins/*; do
+        [ -d "$member/node_modules" ] || continue
+        mkdir -p "$out/workspaces/$member"
+        cp -a "$member/node_modules" "$out/workspaces/$member/node_modules"
       done
       runHook postInstall
     '';
   };
+
+  # The repo tree, bun-runnable with no build step (the kolu convention) — the
+  # source fileset, plus a node_modules that POINTS AT `olai-deps` rather than
+  # containing it. A commit's worth of difference is now a few megabytes of
+  # source, the browser bundle, and a tree of symlinks.
+  base = pkgs.runCommand "olai-base-${version}"
+    {
+      nativeBuildInputs = [ pkgs.bun ];
+      # The default fixup walk over a tree of sources and symlinks is pure
+      # overhead — bun runs the sources directly, and there is no bin dir here
+      # whose shebangs anyone reads.
+      dontFixup = true;
+      meta.description = "olai's source tree with node_modules resolved against olai-deps";
+    } ''
+    cp -r ${src} $out
+    chmod -R u+w $out
+    cd $out
+
+    shopt -s dotglob nullglob
+
+    # Mirror deps' node_modules one directory at a time. Three kinds of entry,
+    # three answers:
+    #
+    #   a symlink      — replayed VERBATIM. Every one bun writes is relative,
+    #                    and the tree it means is THIS one: `.bun/…` lands on
+    #                    the reference this same loop makes.
+    #   a scope (`@…`) — recursed into, because `@kolu` holds hydrated source
+    #                    DIRECTORIES and `@effect` holds dependency links, and
+    #                    only the entries themselves know which.
+    #   any other dir  — linked BY REFERENCE into the store. That is `.bun`
+    #                    (nearly all of the bytes this split is about), `.bin`,
+    #                    and the hydrated sources, whose imports resolve from
+    #                    their realpath inside `olai-deps`.
+    mirror() {
+      local from=$1 to=$2 path name
+      mkdir -p "$to"
+      for path in "$from"/*; do
+        name=''${path##*/}
+        if [ -L "$path" ]; then
+          cp -P "$path" "$to/$name"
+        elif [ -d "$path" ] && [ "''${name#@}" != "$name" ]; then
+          mirror "$path" "$to/$name"
+        else
+          ln -s "$path" "$to/$name"
+        fi
+      done
+    }
+    mirror ${olai-deps}/node_modules $out/node_modules
+
+    # And each member's own farm back beside its manifest, where the `../../`
+    # hops in it are true again. Copied path for path, so a plugin's farm
+    # lands under `packages/plugins/<name>` and a top-level member's under
+    # `packages/<name>`.
+    deps=${olai-deps}
+    for farm in "$deps"/workspaces/packages/*/node_modules \
+                "$deps"/workspaces/packages/plugins/*/node_modules; do
+      rel=''${farm#"$deps"/workspaces/}
+      mkdir -p "$(dirname "$out/$rel")"
+      cp -a "$farm" "$out/$rel"
+      chmod -R u+w "$out/$rel"
+    done
+
+    # NOW THE STEPS THAT NEED THE SOURCES, in the order they needed before.
+    # The plugin hydrate is here rather than in `olai-deps` because its second
+    # half writes into the plugins' own trees (`install -m 644 … into
+    # packages/plugins/<name>/`), and the generated rows are written here for
+    # the mark's own reason: the generated files are gitignored, so they are
+    # never in the store copy of the tree, and a packaged build cannot ship a
+    # stale one.
+    sh ${bundle.hydrateScript}
+    bun packages/bundle/generate.ts
+
+    # The BROWSER gets a real bundle, built by the same script the dev loop
+    # runs, so there is one build and not two that could drift.
+    #
+    # @tailwindcss/cli transitively dlopen()s @parcel/watcher's native binding
+    # at startup — even without --watch — and that binding wants libstdc++,
+    # which the sandbox does not put on the loader path.
+    export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:''${LD_LIBRARY_PATH:-}"
+    export OLAI_FONTS_DIR="${olai-fonts}"
+    ${stamp.exportLine rev}
+    bun packages/web/src/build.ts packages/web/dist
+
+    # The wrappers below hard-code these two paths. Fail the BUILD, not a
+    # user's first run, if either moves.
+    for entry in \
+      "$out/packages/server/src/main.ts" \
+      "$out/packages/web/dist/index.html"
+    do
+      test -e "$entry" || {
+        echo "olai-base: $entry is missing — update default.nix if the path changed" >&2
+        exit 1
+      }
+    done
+  '';
 
   # The static assets on their own, so the server's closure names the bundle
   # rather than reaching into the build tree for it.
@@ -202,5 +385,5 @@ let
   '';
 in
 {
-  inherit olai olai-client olai-fonts base bundle;
+  inherit olai olai-client olai-fonts base olai-deps bundle;
 }

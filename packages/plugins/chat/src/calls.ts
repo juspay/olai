@@ -21,8 +21,9 @@
  * already been said on a frame. One frame answers both, so one thing
  * remembers both. It is true of the other agent too, for its own reason: an
  * opencode permission request names the call it is about by the same id the
- * announcement carried, and that id is where the tool's name is
- * (`olai-plugin-opencode`'s `leg.ts`).
+ * announcement carried, and the announcement is where the tool's NAME was said
+ * — the id itself is an opaque hash (`olai-plugin-opencode`'s `leg.ts`), so
+ * the frame already heard is the only thing that can answer.
  *
  * ONE RULE: **a frame refines, never retracts.** The facts arrive across
  * frames and each carries what it knows — a subagent's terminal output arrives
@@ -69,8 +70,10 @@ import type { Leg, Meta } from "@kolu/acp/engine"
  * half of what it knows would take the other half back.
  */
 export interface Said {
-  /** Compact MCP identity for display; never the frame or its input. */
-  readonly mcp?: NonNullable<ReturnType<Leg["mcpCall"]>>
+  /** Compact MCP identity for display — every call this frame made, never the
+   *  frame or its input. Several, because one Code Mode `execute` can be
+   *  several of olai's calls. */
+  readonly mcp?: ReturnType<Leg["mcpCall"]>
   /** Which tool it is, programmatically — never the display title. */
   readonly name?: string
   /** The `Agent` call it was made INSIDE, by the id it arrived as, when a
@@ -97,8 +100,8 @@ const NOTHING: Said = Object.freeze({})
  *  news — a slice, two objects and a map write apiece, on the one path that
  *  runs on every frame of every conversation — to store an answer
  *  {@link Calls.about} can read off its own argument. */
-const saidIn = (leg: Leg, meta: Meta): Said => {
-  const name = leg.toolNameIn(meta)
+const saidIn = (leg: Leg, meta: Meta, frame?: unknown): Said => {
+  const name = leg.toolNameIn(meta, frame)
   const parent = leg.parentToolUse(meta)
   if (name === null && parent === null) return NOTHING
   return {
@@ -118,18 +121,26 @@ export class Calls {
   /** A frame went past. What it said about its call is folded in; a frame that
    *  said nothing leaves no entry and allocates nothing, so a conversation of
    *  ordinary calls keeps an empty map — which is nearly every conversation,
-   *  and this runs on every frame of all of them. */
-  heard(id: string, meta: Meta, session?: string): void {
-    const said = saidIn(this.#leg, meta)
+   *  and this runs on every frame of all of them.
+   *
+   *  `frame` is the payload the `_meta` came off, for the wire that puts the
+   *  programmatic name on the FRAME rather than in a corner or in the id.
+   *  Carried verbatim; which field on it is the name — and whether it may be
+   *  believed — is the leg's answer, not this registry's. */
+  heard(id: string, meta: Meta, frame?: unknown, session?: string): void {
+    const said = saidIn(this.#leg, meta, frame)
     if (said === NOTHING) return
     const key = this.#key(id, session)
     this.#said.set(key, { ...this.#said.get(key), ...said })
   }
 
-  /** Keep only the recognized server/tool identity, never input bodies or frames.
-   * The same session-qualified owner holds this beside name and ancestry. */
+  /** Keep only the recognized server/tool identities, never input bodies or
+   * frames. The same session-qualified owner holds these beside name and
+   * ancestry. An EMPTY list is a frame that recognised nothing and is not
+   * remembered: a frame refines, never retracts, so a later frame that
+   * recognises what an earlier one could not still wins. */
   recognized(id: string, mcp: ReturnType<Leg["mcpCall"]>, session?: string): void {
-    if (mcp === null) return
+    if (mcp.length === 0) return
     const key = this.#key(id, session)
     this.#said.set(key, { ...this.#said.get(key), mcp })
   }

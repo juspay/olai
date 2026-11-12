@@ -429,7 +429,7 @@ test("an absent catalogue leaves raw titles and never reads the reply", async ()
   const events: import("./events.ts").AgentEvent[] = []
   let reads = 0
   const agent = await Effect.runPromise(make({ ...options(),
-    leg: { ...QUEUES, mcpCall: () => ({ server: "ours", tool: "read" }), replyIn: () => { reads++; return {} } },
+    leg: { ...QUEUES, mcpCall: () => [{ server: "ours", tool: "read" }], replyIn: () => { reads++; return {} } },
     onEvent: event => events.push(event),
   }))
   try {
@@ -447,7 +447,7 @@ test.each([false, true])("completion uses remembered identity with late catalogu
   const events: import("./events.ts").AgentEvent[] = []
   let lookups = 0
   const agent = await Effect.runPromise(make({ ...options(),
-    leg: { ...QUEUES, mcpCall: frame => frame.title === "engine_tool" && frame.rawInput !== undefined ? { server: "ours", tool: "read" } : null,
+    leg: { ...QUEUES, mcpCall: frame => frame.title === "engine_tool" && frame.rawInput !== undefined ? [{ server: "ours", tool: "read" }] : [],
       replyIn: raw => raw as Record<string, unknown> },
     advertised: () => { lookups++; return late && lookups === 1 ? null : { title: "Read a node", owner: "notes" } },
     onEvent: event => events.push(event),

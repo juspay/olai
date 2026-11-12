@@ -47,15 +47,20 @@ export const ENGINE: Registering = {
     if (bin === null) return INSTALL
     // No `--cwd`: opencode 2 dropped the flag and answers it with its usage
     // text on stdout, which is not ACP. The spawn already runs the child in
-    // the served directory (`olai-plugin-chat`'s `agent.ts`), and both
-    // generations read their directory from there when no flag names one.
-    // The client-side filter over `session/list` stays mandatory either way
-    // (`agent.ts` and its `storedFor`).
+    // the served directory (`olai-plugin-chat`'s `agent.ts`), and opencode
+    // reads its directory from there — for where to run AND for which stored
+    // conversations to list. Verified against 2.2.7: `session/list` takes a
+    // `cwd` and answers that directory's sessions alone, with a paging cursor
+    // carrying the directory inside it. Olai's own client-side filter stays
+    // either way, because what it guards is an agent answering more broadly
+    // than it was asked (`agent.ts` and its `storedFor`).
     return { command: bin, args: ["acp"] }
   },
-  // `_session/steering` does not exist on this wire and neither does a system
-  // prompt: the standing instruction rides the first turn, like every engine
-  // olai ships (`@kolu/acp/engine`'s `PromptChannel`).
+  // There is no system-prompt door on this wire, so the standing instruction
+  // rides the first turn, like every engine olai ships (`@kolu/acp/engine`'s
+  // `PromptChannel`). Steering is a different question and opencode 2 has it
+  // (`./leg.ts`), but steering carries a person's words into a running turn —
+  // never olai's standing instruction into a session.
   prompt: { kind: "first-turn" },
 }
 

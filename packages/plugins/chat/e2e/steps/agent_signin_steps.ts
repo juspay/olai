@@ -35,9 +35,12 @@ import {
   CHAT_LINK,
   CHAT_LINK_OPEN,
   CHAT_SIGN_IN,
+  CHAT_SIGN_IN_BY_HAND,
   CHAT_SIGN_IN_CANCEL,
+  CHAT_SIGN_IN_COMMAND,
   CHAT_SIGN_IN_CURRENT,
   CHAT_SIGN_IN_INPUT,
+  CHAT_SIGN_IN_METHOD,
   CHAT_SIGN_IN_OUTPUT,
   CHAT_SIGN_IN_RETRY,
   CHAT_SIGN_IN_STATUS,
@@ -169,7 +172,12 @@ Then("the sign-in names no current account", async function (this: OlaiWorld) {
  *  attribute goes through the suite's `attr`, which is the only place a value a
  *  reader typed is escaped into a selector (`../selectors.test.ts`). */
 const methodButton = (world: OlaiWorld, method: string): Locator =>
-  world.chat(attr("data-method", method));
+  world.chat(`${CHAT_SIGN_IN_METHOD}${attr("data-method", method)}`);
+
+/** ... and the OTHER face a method can have: a label and the command line to
+ *  run in a terminal on the server, for a sign-in nothing here can finish. */
+const byHand = (world: OlaiWorld, method: string): Locator =>
+  world.chat(`${CHAT_SIGN_IN_BY_HAND}${attr("data-method", method)}`);
 
 When("I press the sign-in for {string}", async function (this: OlaiWorld, method: string) {
   const button = methodButton(this, method);
@@ -404,4 +412,38 @@ Then("the pending Inbox conversation is unfolded as {string} with engine {string
 Then("the open conversation has session id {string}", async function(this: OlaiWorld, session: string) {
   await this.waitUntil(async () => await this.chat(selector(PLUGIN_TESTID.chatPanel)).getAttribute("data-session-id") === session,
     `the intended session ${session} to be opened`, HYDRATION_TIMEOUT);
+});
+
+/** A method drawn as WORDS rather than as a button, which is a claim about
+ *  both halves: the label is there, and the thing a person could press is not.
+ *  The second half is what the whole arm exists for — a button that cannot
+ *  finish what it looks like it starts is the one thing this panel must not
+ *  draw. */
+Then("the sign-in shows {string} as a command to run by hand", async function (this: OlaiWorld, method: string) {
+  await this.waitUntil(
+    async () => (await byHand(this, method).count()) > 0,
+    `a by-hand sign-in for "${method}"`,
+    HYDRATION_TIMEOUT,
+  );
+  assert.equal(
+    await methodButton(this, method).count(),
+    0,
+    `the sign-in draws a button for "${method}", which cannot finish from here`,
+  );
+});
+
+Then("the command to run by hand includes {string}", async function (this: OlaiWorld, text: string) {
+  const shown = this.chat(CHAT_SIGN_IN_COMMAND);
+  await shown.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = oneLine(await shown.innerText());
+  assert.ok(said.includes(text), `the command reads "${said}", which does not include "${text}"`);
+});
+
+/** NOTHING WAS SPAWNED, said by the agent itself: the fake writes this file the
+ *  moment anybody runs it with `--login`, so its ABSENCE is the claim that no
+ *  process was started — a stronger thing than "the card looks right", and the
+ *  one the previous round got wrong. */
+Then("no sign-in process was started", function (this: OlaiWorld) {
+  const ran = path.join(this.scratch(), ".opencode-login-ran");
+  assert.ok(!fs.existsSync(ran), `a sign-in process ran: ${ran} exists`);
 });

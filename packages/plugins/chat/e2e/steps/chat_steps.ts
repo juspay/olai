@@ -148,6 +148,7 @@ import {
   CHAT_TOOL_REPORT,
   CHAT_TRANSCRIPT,
   CHAT_UNOPENED,
+  CHAT_UNOPENED_FRESH,
   CHAT_UNOPENED_WHY,
   CHAT_WAITING,
   CHAT_WORKING,
@@ -1521,6 +1522,22 @@ Then(
     await this.waitUntil(
       async () => (await calls.count()) === many,
       `the chat to show ${many} tool call(s)`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+/** ...and how many of them ENDED BADLY, which is a different claim from how
+ *  many there are: a row that failed and a row that completed look alike
+ *  until the strip beside it is read, and an agent whose calls all report
+ *  `completed` is the shape a panel is wrong about silently. */
+Then(
+  "the chat shows {int} failed tool call(s)",
+  async function (this: OlaiWorld, many: number) {
+    const failed = this.chat(`${CHAT_TOOL}${attr("data-tool-status", "failed")}`);
+    await this.waitUntil(
+      async () => (await failed.count()) === many,
+      `the chat to show ${many} failed tool call(s)`,
       HYDRATION_TIMEOUT,
     );
   },
@@ -3041,6 +3058,82 @@ Then(
   },
 );
 
+/**
+ * THE OTHER REFUSAL WITH A FACE OF ITS OWN — the chat that is not on this
+ * machine, asserted as the three things that make it different from the
+ * ordinary no.
+ *
+ * It is CLASSIFIED (`data-cause`, read off ACP's `-32002` rather than off the
+ * sentence), it is CALM — the engine's words stay, as a detail line in the
+ * body's own colour rather than in alarm — and it SAYS WHAT HAPPENED in words
+ * a person can act on, which is what the old body did not.
+ */
+Then(
+  "the panel says this chat is not on this machine",
+  async function (this: OlaiWorld) {
+    const body = this.chat(CHAT_UNOPENED);
+    await body.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(
+      async () => await body.getAttribute("data-cause") === "missing",
+      "the panel to classify the refusal as a chat this engine does not have",
+      HYDRATION_TIMEOUT,
+    );
+    const words = oneLine(await body.innerText());
+    assert.ok(
+      words.includes("This chat isn't on this machine."),
+      `the missing-chat headline, and the body says ${JSON.stringify(words)}`,
+    );
+    assert.ok(
+      words.includes("no record of it") && words.includes("notes"),
+      `the missing-chat body to say the engine has no record and the notes are intact, and it says ${
+        JSON.stringify(words)
+      }`,
+    );
+  },
+);
+
+/** ...AND THAT IT IS NOT AN ALARM. Asserted as a comparison rather than as a
+ *  class name: the engine's sentence is drawn in the same colour as the prose
+ *  around it, which is what "a muted detail line" means and what a regression
+ *  back to the red line would break. */
+Then("the engine's own words are not alarmed", async function (this: OlaiWorld) {
+  const why = await this.chat(CHAT_UNOPENED_WHY).evaluate((element) => getComputedStyle(element).color);
+  const body = await this.chat(CHAT_UNOPENED).evaluate((element) => getComputedStyle(element).color);
+  assert.strictEqual(why, body, "the engine's sentence to be drawn as quietly as the body around it");
+});
+
+/** THE ONE PRESS THAT MOVES — and it is one press: this body has nothing to
+ *  displace, so there is no confirmation between the click and the new chat. */
+When("I start a fresh chat from the refusal", async function (this: OlaiWorld) {
+  const fresh = this.chat(CHAT_UNOPENED_FRESH);
+  await fresh.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await fresh.click();
+});
+
+Then("the refusal offers a fresh chat", async function (this: OlaiWorld) {
+  await this.chat(CHAT_UNOPENED_FRESH).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+/** ...AND DOES NOT, where the refused chat is not the one the node is bound to.
+ *  A fresh start re-points `agent-session`; offering it while somebody reads an
+ *  EARLIER chat would re-point a binding they are not looking at. */
+Then("the refusal offers no fresh chat", async function (this: OlaiWorld) {
+  const body = this.chat(CHAT_UNOPENED);
+  await body.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.strictEqual(
+    await this.chat(CHAT_UNOPENED_FRESH).count(),
+    0,
+    "a refusal that is not about the node's current chat drew a fresh start",
+  );
+});
+
+/** ...AND *Try again* IS STILL THERE on both of them: a store that was merely
+ *  away for a moment is the same refusal from an engine that will find the chat
+ *  on the next press. */
+Then("the refusal still offers a retry", async function (this: OlaiWorld) {
+  await this.chat(CHAT_REOPEN).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
 When("I try to open it again", async function (this: OlaiWorld) {
   const again = this.chat(CHAT_REOPEN);
   await again.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -4412,6 +4505,23 @@ Then("the open agent's work contains {string} but not {string}", async function 
 
 When("I open {string} from the open agent's work", async function (this: OlaiWorld, named: string) {
   await this.chat(`${CHAT_PREVIEW} ${CHAT_LANE_DOOR}`, { hasText: named }).click();
+});
+
+/** ... and the same press where the door has no NAME on it to aim at, which is
+ *  a door drawn correctly rather than a gap: a door says the description its
+ *  agent was sent with only when that differs from the row's own title, and on
+ *  a wire whose child session is already titled with that description the two
+ *  are the same string (`doorOf`). So the press is by PLACE — there is one
+ *  door in this shelf — and WHICH agent it opened is the assertion after it. */
+When("I open the nested agent's work", async function (this: OlaiWorld) {
+  const doors = this.chat(`${CHAT_PREVIEW} ${CHAT_LANE_DOOR}`);
+  await doors.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.strictEqual(
+    await doors.count(),
+    1,
+    "the open agent's work holds more than one door, so pressing by place names nothing",
+  );
+  await doors.first().click();
 });
 
 When("I return to the parent agent {string}", async function (this: OlaiWorld, name: string) {

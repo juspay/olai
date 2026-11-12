@@ -104,7 +104,7 @@ export function Conversation(props: { readonly chat: Chat; readonly page?: boole
         <div class={props.page ? `sticky bottom-0 ${LAYER.row} bg-paper ${CLEARANCE}` : "contents"}>
           <Busy chat={props.chat} /><Composer chat={props.chat} holding={holding} onInsert={write => { insert = write; return () => { if (insert === write) insert = undefined } }} />
         </div>
-      </DropTarget>}>{unopened => <Unopened chat={props.chat} unopened={unopened()} />}</Show>
+      </DropTarget>}>{unopened => <Unopened chat={props.chat} unopened={unopened()} node={props.node} />}</Show>
     </ElapsedProvider>
   </div>
 }

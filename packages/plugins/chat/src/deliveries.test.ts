@@ -49,7 +49,8 @@ const TELLABLE = (): boolean => true
 const FIXTURE = join(import.meta.dirname, "fixtures", "doorbell-agent.ts")
 
 /**
- * opencode's leg with STEERING ADVERTISED, and nothing else changed.
+ * A LEG THAT HOLDS A BUSY PROMPT, with STEERING ADVERTISED and nothing else
+ * changed.
  *
  * The latch this pick is mostly about is only readable through
  * `Talking.steers`, which is `advertises.steers && !queuedHere` — so an agent

@@ -111,7 +111,7 @@ let
   # --- only bootstrap and environment options remain ---------------------
   _removed =
     assert builtins.attrNames linux.options.services.olai ==
-      [ "dataDir" "enable" "environmentFile" "host" "package" "port" ];
+      [ "agents" "dataDir" "enable" "environmentFile" "host" "package" "port" ];
     true;
 
   # --- the environment agents inherit ------------------------------------
@@ -133,6 +133,31 @@ let
     assert failed linux == [ ];
     assert failed darwin == [ ];
     assert builtins.length (failed darwinEnvFile) == 1;
+    true;
+
+  # --- the agent search path ---------------------------------------------
+  # The option exists so a consumer never has to know the variable's NAME or
+  # its one surprise (it REPLACES the search path). Empty, nothing is set at
+  # all: an unset variable is what makes the probe fall back to the unit's own
+  # PATH, and `OLAI_AGENT_PATH=""` would be a search path with nothing on it.
+  fakeAgent = pkgs.writeShellScriptBin "an-agent" "exit 1";
+  linuxAgents = evalFor { isLinux = true; isDarwin = false; } { agents = [ fakeAgent ]; };
+  darwinAgents = evalFor { isLinux = false; isDarwin = true; } { agents = [ fakeAgent ]; };
+  _agents =
+    assert !(linuxService.Service ? Environment);
+    assert !(darwinAgent.config ? EnvironmentVariables);
+    assert linuxAgents.config.systemd.user.services.olai.Service.Environment
+      == [ "OLAI_AGENT_PATH=${lib.makeBinPath [ fakeAgent ]}" ];
+    # ... and the same fact on the other supervisor, in its own spelling: a
+    # search path is not a secret, so launchd takes it where it refuses
+    # `environmentFile`.
+    assert darwinAgents.config.launchd.agents.olai.config.EnvironmentVariables
+      == { OLAI_AGENT_PATH = lib.makeBinPath [ fakeAgent ]; };
+    # Nothing else moved on either: this is an addition to the unit.
+    assert linuxAgents.config.systemd.user.services.olai.Service.Restart == "always";
+    assert darwinAgents.config.launchd.agents.olai.config.RunAtLoad == true;
+    assert failed linuxAgents == [ ];
+    assert failed darwinAgents == [ ];
     true;
 
   # --- Darwin (launchd) --------------------------------------------------
@@ -165,9 +190,11 @@ assert _linux;
 assert _darwin;
 assert _removed;
 assert _env;
+assert _agents;
 pkgs.runCommand "olai-hm-module-check" { } ''
   echo "services.olai module evaluates (linux systemd + darwin launchd)"
   echo "  ... and policy options are absent from both supervisors"
   echo "  ... and environmentFile reaches the unit on Linux, and is refused on Darwin"
+  echo "  ... and agents set OLAI_AGENT_PATH on both, and nothing when empty"
   touch $out
 ''

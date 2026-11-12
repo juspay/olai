@@ -232,7 +232,9 @@ The activation-owned roster publishes `only` beside `engines` and `standings`:
 exactly one startable engine, irrespective of missing siblings. Outline start and fresh start read that same memo. New chat's message
 level lists the startable engines in bundle order, the first chosen. Fresh start
 uses it only to decide whether to open a menu; its direct request always names
-the node's current engine.
+the node's current engine. The refused-chat body's own *Start fresh chat*
+follows that rule without the memo: it never opens a menu, because it is a way
+out of a conversation rather than an invitation to change engine.
 
 Optional dependencies remain in separate scoped components. Navigation supplies
 route changes and its declared `navigation.palette` control, which chat's
@@ -390,6 +392,17 @@ another chat. `Chat.sleep(node)` is that verb: one `close(slot, "put to sleep")`
 which stops the turn and withdraws the questions by stopping the subprocess, and
 which touches no binding — releasing one is `closeAgent`.
 
+A cause therefore says WHICH of three bodies rather than "draw this one
+quietly". `Unopened.cause` is `wire/members.ts`'s `UnopenedCause`: `BusyCause`
+from `@olai/format`, which any op may carry, and chat's own `Missing`, which
+`chat.ts` writes when `agent.ts` read ACP's `-32002` off a refused
+`session/load` (`missingOf`). `missing` never reaches the seat queue in
+`server/readings.ts` — that queue is keyed on `capacity` and on nothing else —
+because it is panel state rather than a refused `reading`, and it never heals
+on its own. Its body names the machine rather than the protocol, keeps the
+engine's sentence as a muted line, and carries a single `startAgentSession`
+press. Every other refusal keeps its own words, its alarm line and its retry.
+
 Attention multiplexes watched-node identities over one activation-owned browser
 channel and one set of visibility listeners. Closing that activation releases
 all listeners and heartbeat claims. Fold openness is keyed by the outline
@@ -528,4 +541,32 @@ about — so that frame rebuilds the panel under the pointer; holding the fact
 here is what keeps a list the reader opened up across it.
 
 A refused fresh start resumes the unchanged live binding; it does not turn
-that reader into a history visit that masks later binding changes.
+that reader into a history visit that masks later binding changes. That is one
+function (`browser/agents/fresh-start.ts`), shared by the agent line and the
+refused-chat body, and the body's press obeys it: the binding it returns to is
+the chat the node still names, which is the chat the refused body was about —
+so the words stay true over the refusal line they now carry. The refusal lands
+on that body's own line, the one a refused *Try again* already uses, rather
+than on an agent line the body is not drawn beside — said on the node's
+readers as they stand after the resume, because the resume has moved them from
+the node address to the pair's and the reader that was pressed is no longer
+the reader that is drawn.
+
+A fresh start that SUCCEEDS from there supersedes the refused pair on the node
+slot, exactly as it supersedes a conversation that opened (`scoped.ts`). The
+pair is read off `state.unopened.what` when `state.session` is null, and both
+doors onto the slot honour it: the pair-addressed one through
+`inNodeConversation`, and the node-addressed one — the address a tab holds
+while a node's chat is refused — through the reconcile in `reading`. Without
+both, the durable binding's lag was enough for a reader minted from it to load
+the lost id back over the chat the press had just opened.
+
+The two doors read two records with two lifetimes. `superseded` lives as long
+as the slot, because an explicit navigation to a replaced pair is a history
+visit for as long as the slot exists. `lagging` is the subset whose durable
+write has not been observed, and it is emptied the moment a node reader sees
+the binding read anything the slot is not waiting on. The node door reads only
+that one: it reconciles against the property rather than navigating, so a
+binding pointed BACK at a replaced chat — an undo, a pull from the machine
+that minted it — is a person asking for that chat and must be opened, not a
+write that has not arrived.

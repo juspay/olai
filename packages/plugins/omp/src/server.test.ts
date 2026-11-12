@@ -37,11 +37,11 @@ describe("finding omp on a host", () => {
   })
 
   test("the served directory is the child's own cwd, not an argument", () => {
-    // Unlike the opencode row, which has to say `--cwd`: omp reads the
-    // directory it was started in and takes an absolute `cwd` on every request
-    // that needs one. So nothing here may grow a `--cwd`, and the cwd handed to
-    // the probe is deliberately not read — which is what makes this assertion
-    // the one that would catch it.
+    // omp reads the directory it was started in and takes an absolute `cwd` on
+    // every request that needs one, like every other engine olai spawns. So
+    // nothing here may grow a `--cwd`, and the cwd handed to the probe is
+    // deliberately not read — which is what makes this assertion the one that
+    // would catch it.
     expect(ENGINE.at({ env: {}, cwd: "/elsewhere", found: () => "/bin/omp" }))
       .toEqual({ command: "/bin/omp", args: ["--approval-mode", "yolo", "acp"] })
   })
