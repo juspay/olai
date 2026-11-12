@@ -83,9 +83,8 @@
 #     history and this line is the only place left that says it: a person
 #     with it still exported in a shell profile is pointing at nothing.
 #     https://github.com/juspay/kolu/pull/2350
-#     THE PIN IS THAT PR'S BRANCH (`acp-global`) while it is open, and goes
-#     back to `master` the moment it merges; nothing else here wants the
-#     branch.
+#     MERGED, so the pin is back on `master` where it belongs; the branch it
+#     rode while the PR was open (`acp-global`) is gone from here.
 #
 # NOTE THE ATTR RENAME. Members are `kolu-surface`, not `kolu-src-surface`:
 # the slug is kolu's now, and a consumer inventing its own would be one more
