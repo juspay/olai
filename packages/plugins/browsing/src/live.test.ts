@@ -171,10 +171,10 @@ test("withdrawing the row mid-launch interrupts the launch and refuses its waite
   }))
 })
 
-const frame = (sessionId: string, n: number): CdpEvent => ({
+const frame = (sessionId: string, n: number, size: { readonly width: number; readonly height: number } = { width: 1280, height: 800 }): CdpEvent => ({
   method: "Page.screencastFrame",
   sessionId,
-  params: { data: `JPEG${n}`, sessionId: n, metadata: { deviceWidth: 1280, deviceHeight: 800, pageScaleFactor: 1, scrollOffsetX: 0, scrollOffsetY: 0, timestamp: n } },
+  params: { data: `JPEG${n}`, sessionId: n, metadata: { deviceWidth: size.width, deviceHeight: size.height, pageScaleFactor: 1, scrollOffsetX: 0, scrollOffsetY: 0, timestamp: n } },
 })
 
 test("one screencast per tab however many panes watch it; every frame acked; the last pane stops it", () => run(Effect.gen(function*() {
@@ -388,8 +388,48 @@ test("a resize sizes the tab's own viewport, once per size, and restarts a runni
     { method: "Page.stopScreencast", params: {} },
     { method: "Page.startScreencast", params: { format: "jpeg", quality: 60, maxWidth: 3840, maxHeight: 2160, everyNthFrame: 1 } },
   ])
-  browser.emit(frame("S-T1", 1))
+  // At the size that was just asked for: a frame of the old viewport is not
+  // this pane's picture (the test below).
+  browser.emit(frame("S-T1", 1, { width: 320, height: 2160 }))
   yield* Fiber.join(watching)
+})))
+
+test("a frame of the viewport a resize replaced is dropped, and is not what the next pane is handed", () => run(Effect.gen(function*() {
+  const browser = double()
+  const live = yield* openLive(browser.options())
+  yield* live.start
+  const watching = yield* Effect.forkChild(Stream.runCollect(Stream.take(live.screencast({ targetId: "T1", quality: 60 }), 3)))
+  yield* Effect.sleep("10 millis")
+  browser.emit(frame("S-T1", 1))
+  yield* live.resize("T1", { width: 640, height: 400 })
+  // The compositor has not caught up: this is the surface it already had, and
+  // `Page.startScreencast`'s reply does not wait for a new one.
+  browser.emit(frame("S-T1", 2))
+  browser.emit(frame("S-T1", 3, { width: 640, height: 400 }))
+  // A pane joining now is handed the picture of the viewport this tab HAS;
+  // the one the resize replaced was forgotten with it.
+  const joining = yield* Effect.forkChild(Stream.runHead(live.screencast({ targetId: "T1", quality: 60 })))
+  const held = yield* Fiber.join(joining)
+  expect(Option.map(held, (got) => got._tag === "frame" ? got.jpeg : got.says)).toEqual(Option.some("JPEG3"))
+  browser.emit(frame("S-T1", 4, { width: 640, height: 400 }))
+  const seen = [...(yield* Fiber.join(watching))].map((got) => got._tag === "frame" ? [got.jpeg, got.meta.deviceWidth] : got.says)
+  expect(seen).toEqual([["JPEG1", 1280], ["JPEG3", 640], ["JPEG4", 640]])
+})))
+
+test("a viewport that never follows its pane costs four frames, not the pane", () => run(Effect.gen(function*() {
+  const browser = double()
+  const live = yield* openLive(browser.options())
+  yield* live.start
+  const watching = yield* Effect.forkChild(Stream.runCollect(Stream.take(live.screencast({ targetId: "T1", quality: 60 }), 1)))
+  yield* Effect.sleep("10 millis")
+  yield* live.resize("T1", { width: 640, height: 400 })
+  // Five frames, none of them at the size the override asked for. The budget
+  // is four, so the fifth is drawn rather than withheld: a picture of the
+  // wrong size is something a reader can see and act on; a pane that stays
+  // blank for ever is not.
+  for (const n of [1, 2, 3, 4, 5]) browser.emit(frame("S-T1", n))
+  const seen = [...(yield* Fiber.join(watching))].map((got) => got._tag === "frame" ? got.jpeg : got.says)
+  expect(seen).toEqual(["JPEG5"])
 })))
 
 test("a sized tab is sized again once each of its own new pages has loaded, which a navigation's screencast drops", () => run(Effect.gen(function*() {
