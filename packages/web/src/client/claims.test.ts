@@ -630,3 +630,83 @@ test("comment stripping preserves MIME strings and the code following them", () 
 test("transcript grips belong to chat", () => {
   expect(filesSpelling(/data-grip/)).toEqual(["plugins/chat/src/browser/chat/Grip.tsx"])
 })
+
+// EVERY PICTURE SAYS WHEN IT IS FETCHED. An `<img>` with no `loading` and no
+// `decoding` is not a neutral omission — it is the browser's heuristics
+// deciding for a surface whose author never looked, and the two ways that goes
+// wrong are opposite and both expensive: a transcript's hundredth avatar
+// fetched before anybody scrolls to it, and the picture a page IS deferred
+// behind layout. The decision is per site and argued at each one, so what this
+// sweep holds is that a site EXISTS to argue at: a new `<img>` anywhere in the
+// browser graph lands on the first list and not the second, and this equality
+// is the only thing that will say so before a reader does.
+//
+// The markdown rewrite is on both lists without spelling `<img>` as markup: it
+// is the pass that turns a `![](shot.png)` into one (`markdown-ui/rewrite.ts`),
+// and it writes the same two attributes onto the element it keeps — the first
+// picture of a block eager, every later one lazy, which is why the pattern
+// reads through a ternary rather than demanding a literal.
+//
+// `claims.test.ts` cannot see the whole app: `website/` is not this graph, and
+// the hypertext preview draws pictures that are a FILE's markup rather than
+// this repo's. Those are not sites to decide at.
+test("every picture the app draws has decided when it is fetched", () => {
+  const pictures = [
+    "markdown-ui/src/rewrite.ts",
+    "plugins/browsing/src/browser/Page.tsx",
+    "plugins/chat/src/browser/chat/Attachments.tsx",
+    "plugins/chat/src/browser/chat/Speaker.tsx",
+    "plugins/identity/src/browser/Who.tsx",
+    "plugins/image/src/browser/Image.tsx"
+  ]
+  expect(filesSpelling(/<img\b|tagName === "img"/)).toEqual(pictures)
+  expect(filesSpelling(/\bloading\s*[=:][^\n]*?"(?:eager|lazy)"/)).toEqual(pictures)
+  expect(filesSpelling(/\bdecoding\s*[=:][^\n]*?"(?:async|sync)"/)).toEqual(pictures)
+})
+
+// LESS MOTION IS ANSWERED IN ONE PLACE, and these two patterns are the two
+// ways a second answer gets written.
+//
+// The app's answer is a stylesheet — one `@media (prefers-reduced-motion:
+// reduce)` block in `@olai/appearance/chrome.css`, which stills every
+// animation and keeps every colour transition alive for the whole tree at
+// once. A face that re-asks the question in JavaScript is not adding to that
+// policy, it is starting a second one: `matchMedia` read at module scope
+// answers with whatever was true when the tab loaded, and the reader who turns
+// the setting on half an hour in is exactly the reader it was for. So the
+// media query belongs to `motion.ts` and to nothing else.
+//
+// The word "smooth" is the same claim from the other end. CSS smooth scrolling
+// the stylesheet can turn off; a `scrollIntoView({ behavior: "smooth" })`
+// cannot be reached by any sheet, because the manner is an ARGUMENT — so every
+// such scroll has to take it from the one helper, and the only file allowed to
+// spell the word is the one that decides it. This sweep is the reason a new
+// reveal, jump or landing cannot quietly glide past a reader who asked it not
+// to.
+test("the motion preference is read in one file, and the smooth scroll it decides is spelled there", () => {
+  expect(filesSpelling(/prefers-reduced-motion/)).toEqual([
+    "appearance/src/motion.ts"
+  ])
+  expect(filesSpelling(/"smooth"|scroll-smooth|scroll-behavior:\s*smooth/)).toEqual([
+    "appearance/src/motion.ts"
+  ])
+})
+
+// A PERSISTENT ANIMATION IS A PROMISE TO KEEP SAYING SOMETHING, and under
+// `prefers-reduced-motion` the app stops it dead — so the two files below are
+// the two places where that stopping had to be thought about, and the list is
+// short on purpose. Both draw a live cue: the transcript's dot, which exists
+// only while a turn is in flight (its presence is the news, so stilling it
+// costs nothing), and the agent standings, where the pulse used to be the only
+// thing between "working" and "idle" and is now the second of two things
+// (`plugins/chat/src/browser/claims.test.ts` holds that pair apart).
+//
+// A third name here is a spinner, a ping or a bounce that nobody has asked the
+// question of yet: what does it say when it holds still? That is a line a
+// human answers, which is why this is an equality and not a cap.
+test("the app's never-ending animations are the two live cues", () => {
+  expect(filesSpelling(/animate-(?:pulse|spin|ping|bounce)/)).toEqual([
+    "plugins/chat/src/browser/agents/roster.ts",
+    "plugins/chat/src/browser/chat/live.ts"
+  ])
+})

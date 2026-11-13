@@ -243,6 +243,54 @@ mark.olai-hit {
   overflow-wrap: normal;
 }
 
+/* WHERE A LINE ENDS, which is the other half of the two rules above: those say
+ * where a word may be broken, these say which of the breaks that are already
+ * legal to take.
+ *
+ * PROSE IS WRAPPED `pretty`, which is the engine looking back over the last
+ * few lines of a block rather than taking each line as greedily as it can. The
+ * thing it buys is the one defect a reader notices without being able to name
+ * it: a paragraph whose last line is one word, which in a tree note or an
+ * agent's reply — blocks three or four lines long, which is most of what this
+ * app draws — is a visible hole under a sentence. `<li>` is on the list
+ * because a markdown list IS prose here, and `<blockquote>` because a quote is
+ * a paragraph somebody else wrote.
+ *
+ * HEADINGS ARE WRAPPED `balance`, which is a different algorithm for a
+ * different shape: a heading is short enough that the engine can search for
+ * line lengths that match, and a two-line `### Where the beds are planted`
+ * broken after its seventh word reads as a sentence that ran out of room.
+ * `h1` and `h2` are deliberately NOT on that list. They carry a rule under
+ * them (the border and pad below), and balancing text inside a box that keeps
+ * its full width is how you get a short centred-looking label over a line that
+ * runs the whole column — the guidance says to avoid it on exactly the
+ * elements that draw a visible box, and ours are the two that do. `<th>` is
+ * off for the same reason: it wears the tint.
+ *
+ * NEITHER IS APPLIED BROADLY, and that is not tidiness: `balance` is a binary
+ * search over line lengths and `pretty` a look-back, both of them real work
+ * per block. They are named at the elements whose shape they fix — never at
+ * `*`, and never at `.olai-md-inline`, which is a tree row's title: one line
+ * that ellipsizes rather than wraps, so there is nothing there to balance and
+ * the cost would be all there was.
+ *
+ * BOTH DEGRADE TO NOTHING. `text-wrap: pretty` is unimplemented in Firefox
+ * and `balance` landed in Chrome 114, three releases above this app's floor
+ * (`web/src/client/connection/Offline.tsx` states it) — a browser that does
+ * not know the value drops the declaration and wraps the way it always did.
+ * There is no fallback to write because there is nothing to fall back FROM:
+ * the paragraph is the same paragraph, read by the same reader, with a worse
+ * rag. A JavaScript shim for it would be this sheet's rhythm computed in the
+ * main thread on every resize, which is a far worse trade than a plainer
+ * last line. */
+.olai-md:not(.olai-md-inline) :is(p, li, blockquote) {
+  text-wrap: pretty;
+}
+
+.olai-md:not(.olai-md-inline) :is(h3, h4, h5, h6) {
+  text-wrap: balance;
+}
+
 /* THE GAP GOES UNDER. Every block reserves space below itself and none above,
  * which is what makes the space between any two of them exactly one value
  * instead of the larger of two that happened to meet — and what lets a

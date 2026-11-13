@@ -11,7 +11,7 @@
 
 import { TESTID } from "@olai/tests/harness/testids.ts";
 import * as assert from "node:assert";
-import { defineParameterType, Then, When } from "@olai/tests/harness/runner.ts";
+import { defineParameterType, Given, Then, When } from "@olai/tests/harness/runner.ts";
 
 
 import {
@@ -431,6 +431,96 @@ Then(
     await this.waitUntil(
       async () => (await this.frontLane().locator(`${DOCUMENT_REFERRERS}:visible`).count()) === 0,
       "what points at the document to be absent",
+    );
+  },
+);
+
+// ── when a document's pictures are fetched ─────────────────────────────
+
+/**
+ * A document long enough that its second picture is nowhere near the screen,
+ * written here rather than kept in the corpus because the SHAPE is the
+ * fixture: two pictures with several screens of prose between them, which is
+ * the one arrangement where "the first does not wait and the rest do" is
+ * visible at all. A corpus document everything else also reads could not be
+ * lengthened to this without changing what those scenarios see.
+ *
+ * The two files are the corpus's own pictures, so this writes a document and
+ * no bytes: `art/handle.png` at the top, `art/tall.png` past the fold.
+ */
+Given(
+  "a document whose second picture is far below the fold",
+  function (this: OlaiWorld) {
+    const prose = Array.from(
+      { length: 300 },
+      (_, at) => `Paragraph ${at + 1}, which is here to put the second picture off the screen.\n`,
+    );
+    this.writeServed(
+      "pictures.md",
+      ["# Pictures", "", "![the handle](art/handle.png)", "", ...prose, "![a tall picture](art/tall.png)", ""].join("\n"),
+    );
+  },
+);
+
+/** The pictures of the document on screen, in the order they were written —
+ *  which is the order the rewrite decides priority in (`@olai/markdown-ui`'s
+ *  `rewrite.ts`: the first may not be deferred, every later one is). */
+const pictures = async (world: OlaiWorld) => (await body(world)).locator("img");
+
+// WHAT THE READER GETS AT ONCE. Three facts about one element, because
+// separately none of them is the promise: the attribute says the decision was
+// made, the request log says the browser acted on it, and `naturalWidth` says
+// bytes came back. An `<img>` can carry `loading="eager"` and still be a
+// broken box.
+Then(
+  "the document's first picture is fetched at once",
+  async function (this: OlaiWorld) {
+    const first = (await pictures(this)).first();
+    await first.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(await first.getAttribute("loading"), "eager");
+    assert.strictEqual(await first.getAttribute("decoding"), "async");
+    await this.waitUntil(
+      async () => await first.evaluate((node) => (node as HTMLImageElement).naturalWidth > 0),
+      "the document's first picture to be decoded",
+    );
+  },
+);
+
+// …AND WHAT IT DOES NOT. The attribute is the decision; `requests` is the
+// outcome a person pays for, which is the one worth asserting: three hundred
+// paragraphs above it, the picture is far outside the distance a browser
+// pre-fetches a deferred image from, so this is the fetch that never happened.
+Then(
+  "the document's second picture has not been fetched",
+  async function (this: OlaiWorld) {
+    const second = (await pictures(this)).nth(1);
+    await second.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(await second.getAttribute("loading"), "lazy");
+    assert.strictEqual(await second.getAttribute("decoding"), "async");
+    assert.ok(
+      !this.requests.some((url) => url.endsWith("/media/art/tall.png")),
+      "the picture below the fold was fetched before anybody scrolled to it",
+    );
+  },
+);
+
+// The other half of the same promise, and the half that makes deferral safe
+// to ship: scrolling to it draws it. A `lazy` that never resolved would be a
+// hole in the document at exactly the moment the reader arrived.
+When(
+  "I scroll to the document's second picture",
+  async function (this: OlaiWorld) {
+    await (await pictures(this)).nth(1).scrollIntoViewIfNeeded();
+  },
+);
+
+Then(
+  "the document's second picture has drawn",
+  async function (this: OlaiWorld) {
+    const second = (await pictures(this)).nth(1);
+    await this.waitUntil(
+      async () => await second.evaluate((node) => (node as HTMLImageElement).naturalWidth > 0),
+      "the picture below the fold to arrive once the reader reached it",
     );
   },
 );

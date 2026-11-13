@@ -262,6 +262,27 @@ Feature: Documents
     When I open the document "notes/palette.md"
     Then the picture "/media/art/handle.png" is drawn in the document
 
+  # WHAT A LONG DOCUMENT COSTS TO OPEN. A vault's documents carry screenshots,
+  # and a reader who opens one pays for every picture in it before they have
+  # read a line — unless the pictures below the fold wait for them. They do
+  # (`@olai/markdown-ui`'s `rewrite.ts`), and the exception is the FIRST
+  # picture, which is left eager because deferring the image a page is painted
+  # by is the one thing that makes a page slower rather than faster.
+  #
+  # The second half of the scenario is the half that makes the first safe: a
+  # deferral that never resolved would be a hole in the document at exactly
+  # the moment the reader arrived at it.
+  @scratch:good
+  Scenario: A picture below the fold waits for the reader, and the first one does not
+    Given a document whose second picture is far below the fold
+    When I open the address "/pictures.md"
+    Then the document open is "pictures.md"
+    And the document's first picture is fetched at once
+    And the document's second picture has not been fetched
+    When I scroll to the document's second picture
+    Then the document's second picture has drawn
+    And there should be no page errors
+
   @corpus:good
   Scenario: Nothing outside the served directory is reachable through it
     # `outside.png` is a real picture one directory above the served root, so

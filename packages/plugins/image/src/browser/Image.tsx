@@ -54,6 +54,31 @@ export function Image(props: { readonly file: string }) {
          page saying the same thing in two voices. Not empty either — a
          picture that IS the page is never decoration. */
       alt={(() => { const claims = servedDirectory()?.claims(); return claims === undefined ? props.file : stemOf(claims, props.file) })()}
+      /* FETCHED AT ONCE, AND AHEAD OF EVERYTHING. This is the one case where
+         the largest contentful paint is not a guess: the picture is the whole
+         page, so whatever the browser ends up measuring, this is it. So it is
+         said in both directions — `eager`, because deferring the image a page
+         is painted by is the mistake the priority guidance names outright, and
+         `high`, because the default heuristics only raise an image's priority
+         once layout has placed it in the viewport, and this one can be known
+         to be there before a single byte of layout has run. It is also the
+         only picture this page asks for, so the boost is spent where the
+         guidance says to spend it rather than diluted across a gallery.
+
+         `eager` is spelled rather than left off for the reason the alt text
+         above is spelled: the default and the decision look identical in the
+         DOM, and only one of them tells the next person not to make this lazy
+         "for consistency" with the pictures inside a document, which ARE lazy
+         and for a reason that does not hold here (`@olai/markdown-ui`'s
+         `rewrite.ts` argues that side).
+
+         `decoding="async"` even so: the fetch is what must be early, the
+         decode is main-thread work, and a four-thousand-pixel screenshot
+         decoded synchronously stalls the frame the page's own chrome paints
+         in. */
+      loading="eager"
+      fetchpriority="high"
+      decoding="async"
       class="block h-auto max-w-full rounded-control border border-rule"
       data-testid={TESTID.imageView}
       data-file={props.file}

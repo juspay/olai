@@ -157,6 +157,16 @@ export function Speaker(props: Faced) {
                 width={14}
                 height={14}
                 referrerPolicy="no-referrer"
+                /* A face per message, fourteen pixels across, in a column that
+                   can be hundreds of rows long — and every one of them a fetch
+                   to somebody else's host. So it waits until its row is near
+                   the reader: what is on screen is a handful of them, and the
+                   rest are requests this tab never has to make. No
+                   `fetchpriority` to go with it: once a row IS on screen its
+                   avatar is wanted at the ordinary priority, which is what the
+                   guidance says lazy alone means. */
+                loading="lazy"
+                decoding="async"
                 class={`${MARK} rounded-full object-cover`}
               />
             )}

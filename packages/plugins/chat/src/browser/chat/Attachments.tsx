@@ -82,6 +82,19 @@ function Attachment(props: {
           <img
             src={url()}
             alt={props.name}
+            /* A thumbnail waits for the reader, which costs nothing and is
+               worth saying out loud: a transcript is a column of messages
+               scrolled through from the bottom, and the attachments on the
+               ones above are pictures nobody is looking at. The bytes are
+               already in this tab either way — an object URL over a Blob the
+               upload scope is holding — so what the deferral saves is not the
+               network but the DECODE, which is main-thread work done once per
+               picture at full resolution for a box 96 pixels wide. No
+               `fetchpriority`: there is no fetch to put in a queue, and the
+               guidance reserves `low` for a picture that IS being fetched and
+               is not wanted yet. */
+            loading="lazy"
+            decoding="async"
             class="max-h-16 max-w-24 rounded-control object-contain"
             data-testid={TESTID.chatAttachmentPreview}
           />
