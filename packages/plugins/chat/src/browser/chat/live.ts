@@ -19,5 +19,15 @@
  * divergence is deliberate: each belongs to the type around it, and converging
  * them would move pixels rather than unify a spelling — the distinction
  * `../pill.ts` already draws for its own lookalikes.
+ *
+ * WHAT IT SAYS WHEN IT HOLDS STILL. A reader who asks their system for less
+ * motion gets a dot that does not pulse (`@olai/appearance/chrome.css` says so
+ * once, for the whole app) — and loses nothing by it, because the pulse was
+ * never the news. The dot is DRAWN only while something is in flight: every
+ * one of the four sites hangs it off a `Show` over a live state, so its
+ * presence is the cue and the movement was only ever the flourish. The agent
+ * standings had the opposite arrangement and had to be fixed
+ * (`../agents/roster.ts`); this one was right by construction, which is worth
+ * writing down before somebody "helpfully" draws a grey dot for idle.
  */
 export const LIVE_DOT = "inline-block size-1.5 animate-pulse rounded-full bg-doing"

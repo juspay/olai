@@ -58,6 +58,39 @@ html {
   }
 }
 
+/* EVERY MODAL, AND THE PAGE IT IS OVER. `showModal()` makes the document
+ * under a dialog inert — no press, no caret, no tab stop — and says nothing at
+ * all about SCROLLING: a wheel or a drag over the dim scrolls the page behind
+ * it, and a gesture inside the panel chains to that page the moment the panel
+ * has no more to give (immediately, when its content does not overflow). Three
+ * surfaces in this app are modal dialogs — the offline freeze, the ⌘K palette
+ * and the shortcuts sheet — and none of them wants the outline moving under
+ * it, so the rule is written once, here, for the element rather than three
+ * times for the three panels.
+ *
+ * BOTH RULES OR NEITHER. `::backdrop` defaults to `overflow: visible`, which
+ * is not a scroll container, and a non-container ignores `overscroll-behavior`
+ * entirely — so the backdrop has to be made one before it can be asked to
+ * contain anything. Not `clip` and not `visible`: neither establishes a scroll
+ * container either.
+ *
+ * It is a progressive enhancement and deliberately not feature-detected:
+ * `@supports` answers yes for the property everywhere while only some engines
+ * honour it on a scroll container whose content does not overflow. Where it is
+ * not honoured the dialog still contains its own overflow and the page is
+ * still inert. What this must never become is `overflow: hidden` on `html` or
+ * `body`, which takes away the root scrollbar — a horizontal jolt on every
+ * open — resets the scroll position and breaks `position: sticky` on the page
+ * underneath. */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
 /* A FOCUS RING for keyboard travel, once. Every control in the app used to
  * spell its own `focus-visible:outline-*`, and about half of them did. The
  * ring is the accent at two pixels with a gap of paper, so it reads on every
@@ -68,4 +101,96 @@ html {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: var(--radius-control);
+}
+
+/* LESS MOTION, ASKED FOR ONCE AND ANSWERED ONCE. A reader who tells their
+ * system they want less movement has said something about THEMSELVES, not
+ * about any one row — so the answer belongs here, beside the focus ring and
+ * the scrollbar, rather than as a `motion-safe:` sprinkled over every chevron,
+ * knob and dot somebody animates next. The app had exactly one `motion-safe:`
+ * and a dozen unguarded transitions when this block was written, which is the
+ * shape a rule has when nobody can see it.
+ *
+ * WHAT GOES IS MOVEMENT, NOT INFORMATION. The chevrons still turn, the switch
+ * knob still ends up on the right, the fold still opens — they arrive there
+ * instead of travelling. Colour and opacity stay alive on purpose: a control
+ * lighting under the pointer, a put-back button fading up on hover, a dot
+ * going from `doing` to `done` are not motion, and taking them away costs the
+ * reader a cue while sparing them nothing. So the only thing done to
+ * transitions is to replace the PROPERTY LIST with the half of it that does
+ * not move; every element keeps its own duration and easing for the colours
+ * that remain.
+ *
+ * WHY NOT THE USUAL `animation-duration: 0.01ms` SWEEP: collapsing an
+ * animation to a sliver still RUNS it — a flicker, and an `animationend` a
+ * frame later for whoever was waiting on one — which is more jarring than the
+ * animation was, not less. `animation: none` instead, which leaves the element
+ * rendering the styles it declares; for every animation this tree has that IS
+ * the finished state — a live dot at full opacity, a row's reveal already
+ * revealed — so nothing is left hidden and no focus ring goes missing. The one
+ * animation this would be wrong for is one whose resting look lives in its
+ * keyframes (`animation-fill-mode: forwards`). There is none, and the sheet
+ * that grows one outranks a `*` with any real selector of its own — as
+ * `markdown-ui`'s waiting sweep and `outlines`' row reveal already do, both of
+ * which OPT IN to motion under `(prefers-reduced-motion: no-preference)`
+ * rather than being talked out of it, which is the better shape wherever an
+ * animation is written by hand rather than reached for as a utility.
+ *
+ * IT IS A FLOOR, AND ITS SELECTOR IS CAREFULLY WEAK. This sheet is unlayered
+ * and Tailwind's utilities are not, so layer order — which is settled before
+ * specificity is even looked at — puts every rule here above every utility on
+ * the same element. That is what makes a `*` enough to reach the motion this
+ * app's faces spell as utilities — a `transition-transform` or an
+ * `animate-pulse` at a time. It also means A COMPONENT CANNOT ARGUE BACK IN A
+ * CLASS: a `motion-reduce:` utility asking to keep its movement would lose to
+ * this block, silently, which is the worst way for a policy to be wrong. So the
+ * escape hatch is one this rule itself honours — `data-motion="keep"`, an
+ * attribute, greppable, and visible in the DOM a scenario reads. Nothing wears
+ * it today; the first thing that does owes a comment saying what motion it is
+ * that a reader asking for less of it should still see.
+ *
+ * `:where()` wraps the selector so the hatch costs no specificity: the floor
+ * stays at zero, which is what keeps it a floor.
+ *
+ * SO SAY WHAT THIS REACHES, EXACTLY: every piece of motion in this app that is
+ * written as a UTILITY. Not every piece of motion. The other plugin
+ * stylesheets are unlayered too, and an unlayered rule with a real selector
+ * beats a `:where(*)` on specificity — so a hand-written `transition:` or
+ * `@keyframes` in a plugin's `all.css` walks straight past this block and
+ * keeps moving for a reader who asked it not to. That is the right way round
+ * (a sheet that spells `transition: transform .15s` by hand has DECIDED
+ * something, and it should answer the preference where it decided it) and it
+ * is also the hole somebody will fall into. Three sites answer for themselves
+ * today, and they are the whole of the hand-written motion in this tree: the
+ * plugins panel's chevron (`plugins/plugin-inspector/src/all.css`, which turns
+ * its transition off), and markdown's waiting sweep and streaming caret
+ * (`markdown-ui/src/all.css`, both of which OPT IN under
+ * `(prefers-reduced-motion: no-preference)`). A fourth is caught by the sweep
+ * in `web/src/client/claims.test.ts` — every stylesheet in the tree that
+ * spells an `infinite` animation is named there, and each one has to carry its
+ * own answer — because nothing else in CSS will catch it.
+ *
+ * A PULSE THAT WAS THE ONLY SIGNAL IS A BUG THIS CANNOT FIX. Stilling a cue
+ * must not delete it, and a stylesheet cannot tell the difference — so the cue
+ * has to carry its fact without the movement in the first place. The agent
+ * standings are the case in point: working and idle were one colour apart from
+ * nothing and a pulse apart from each other, so working wears a halo now
+ * (`chat/browser/agents/roster.ts`) and this block takes the movement and
+ * leaves the fact.
+ *
+ * AND THE SCROLLING, in both grammars. CSS smooth scrolling is turned off
+ * here. The JavaScript side cannot be, because `scrollIntoView` takes its
+ * manner as an argument: `./motion.ts` is that one answer, asked at the moment
+ * of the scroll rather than at import, since a reader may change their mind
+ * without reloading the tab. */
+@media (prefers-reduced-motion: reduce) {
+  :where(*:not([data-motion="keep"])),
+  :where(*:not([data-motion="keep"]))::before,
+  :where(*:not([data-motion="keep"]))::after {
+    transition-property:
+      color, background-color, border-color, outline-color,
+      text-decoration-color, fill, stroke, opacity;
+    animation: none;
+    scroll-behavior: auto;
+  }
 }

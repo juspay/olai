@@ -529,6 +529,9 @@
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
       },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
+      },
     },
     "packages/plugins/journal": {
       "name": "olai-plugin-journal",
@@ -790,6 +793,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@kobalte/core": "^0.13.13",
+        "@olai/appearance": "workspace:*",
         "@olai/edit-history": "workspace:*",
         "@olai/edit-intents": "workspace:*",
         "@olai/format": "workspace:*",

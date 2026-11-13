@@ -1,3 +1,4 @@
+import { scrollManner } from "@olai/appearance/motion.ts"
 import { heldService } from "@olai/ui-primitives/held.ts"
 import { rowElements } from "./row-elements.ts"
 /** Outlines owns the row registry and selection/scroll act. Navigation owns
@@ -40,9 +41,14 @@ export const clearNode = (): void => {
   setFocused(null)
 }
 
-/** The content owner scrolls the row navigation asks to reveal. */
+/** The content owner scrolls the row navigation asks to reveal — gliding, so
+ *  a reader can see WHERE the row came from, unless they have asked their
+ *  system for less motion, in which case the row is simply there. The manner
+ *  is the app's one answer to that question (`@olai/appearance/motion.ts`),
+ *  read here at the moment of the scroll: a reveal half an hour into a session
+ *  obeys the switch the reader has just flipped. */
 export const bringOntoScreen = (row: Element): void => {
-  row.scrollIntoView({ block: "center", behavior: "smooth" })
+  row.scrollIntoView({ block: "center", behavior: scrollManner() })
 }
 
 /** Select only a visible row in the requested pane. Navigation chooses the

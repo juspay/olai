@@ -458,7 +458,17 @@ mark.olai-hit {
  * is was markdown's decision and nothing outside it can reach in. `::after`
  * can. The state is the row's `data-streaming`, which the transcript DERIVES
  * from the one entry it is writing into — so there is no second flag here to
- * disagree with it. */
+ * disagree with it.
+ *
+ * THE BLINK IS OPTED INTO, and the bar is not. A reader who asked their system
+ * for less motion still gets the caret — drawn, solid, at the end of the last
+ * block — because what it tells them is that the answer is UNFINISHED, and
+ * that is news rather than decoration. Only the blinking is the decoration,
+ * so only the blinking sits inside the query. It has to be said here: the
+ * app's one reduced-motion policy (`@olai/appearance/chrome.css`) reaches
+ * motion written as a utility, and a hand-written rule in an unlayered sheet
+ * like this one outranks it — which is exactly what the waiting sweep above
+ * does too, and for the same reason. */
 @keyframes olai-caret {
   50% {
     opacity: 0;
@@ -473,7 +483,12 @@ mark.olai-hit {
   margin-left: 0.125rem;
   vertical-align: middle;
   background: var(--color-muted);
-  animation: olai-caret 1s step-end infinite;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-streaming="true"] .olai-md > :last-child::after {
+    animation: olai-caret 1s step-end infinite;
+  }
 }
 
 .olai-md a {

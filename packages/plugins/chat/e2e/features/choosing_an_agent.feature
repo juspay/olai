@@ -360,6 +360,16 @@ Feature: Choosing a node agent's engine
     # message.
     And I ask the agent "slow"
     Then the panel says it is busy, with "working"
+    # THE SAME CUE FOR A READER WHO ASKED FOR LESS MOVEMENT. The dot pulses
+    # here and must not pulse there — the app stills every animation in one
+    # place (`@olai/appearance/chrome.css`) — but stilling a cue must never
+    # delete it: the dot stays drawn, fully opaque and painted, and the strip
+    # goes on saying the word. A preference about movement is not a preference
+    # to be told less.
+    And the live dot is pulsing
+    When the reader asks for less motion
+    Then the live dot holds still, and stays lit
+    And the panel says it is busy, with "working"
     # ... and it goes away, which is the other half of a cue being a cue.
     When the agent is released
     Then the agent is idle

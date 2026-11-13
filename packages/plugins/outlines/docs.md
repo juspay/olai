@@ -42,6 +42,16 @@ focused fields keep their own keyboard behavior. A cancelled split still records
 its inverse, but its late reply cannot reopen the editor or replace a freshly
 opened draft. Controlled reply/frame delays cover cancellation and subsequent Undo.
 
+Every box in the outline tells an on-screen keyboard what its return key does.
+A row's title says **Next**, because `Enter` ends the line and opens the one
+after it, and keeps the platform's corrections — a title is prose. The filter
+box says **Search** (it submits nothing: the rows narrow as you type), and a
+property chip's two boxes differ from each other — the key box says **Next**,
+since `Enter` there only moves the caret to the value beside it, and the value
+box says **Done**, since its `Enter` writes the property and closes the chip.
+The filter and both property boxes turn off autocorrect, autocapitalisation and
+spell-checking: a query and a property key are names, not sentences.
+
 The package's declared contract doors carry types, location names and scoped service handles. Chat's node-reference consumers use the reference capability; they do not import the outline implementation. The shared Markdown parser and the serial undo algorithm are static libraries, with no document-plugin or outline-plugin activation of their own.
 
 Outlines supplies pages for all node-holding kinds, node editing, zoomed views, filtering, rich
@@ -89,6 +99,10 @@ Submenus are Kobalte `Sub`s, portalled beside the panel into this row's overlay 
 ## Rows on a phone
 
 The row the caret or the last tap is on carries `data-active`. A plugin's offer on a row (chat's `Start an agent` pill, styled with `OFFER_REVEAL` from `@olai/ui-primitives/touch.ts`) is drawn on a phone only on that row; on a pointer device it appears on hover or keyboard focus. What a row already has, such as an agent's standing, is drawn on every row. A dated row on a day page or the Agenda becomes the active row when tapped.
+
+## Rows for a reader who asked for less motion
+
+A system set to *reduce motion* changes what the tree does, never what it says. A row's chevron still points the other way the moment you fold it — it simply does not turn through the angle. Revealing a row that navigation asked for (a reference, a search result, a permalink) puts it in the middle of the screen at once instead of gliding there; the row is still selected and still accented. Colour is untouched, so a row lighting under the pointer, the accent on the selected row and the note's own markdown read exactly as they do for everybody else. The whole policy is one block in `@olai/appearance/chrome.css`, and the scroll this row asks for in JavaScript reads the preference at the moment of the scroll — so turning the system setting on or off takes effect without reloading the tab.
 
 ## Empty pages
 

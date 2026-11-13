@@ -80,6 +80,15 @@ component names it to put a dot on a tab whose page is a conversation that needs
 you, and a quieter one on a tab whose page holds something nobody has read. The
 door holds no live value.
 
+**A standing is never told by movement alone.** The dot for an agent that is
+working or starting wears a ring as well as a pulse, because the pulse is the
+one part a reader can switch off: a system set to *reduce motion* stills every
+animation in olai, and working and idle are otherwise the same colour. With the
+preference set the ring stays, the conversation's live dot stops pulsing but
+stays drawn in full, and the words beside both — *Working…*, *Starting…*, the
+busy line under your message — are unchanged. The preference is about movement,
+never about being told less.
+
 So **a serve with no chat row leaves all of them `waiting`**, and the plugins panel says so per row, on whose account. That is not a failure and it is not silent: a plugin holding a door that nobody offers is a plugin that has not started, which is a legitimate state the runtime resolves the moment the door arrives.
 
 Enable the chat row alongside any tenant that needs its services. Each namespace’s `on` property controls that row; unspecified rows retain their profile and build defaults.
@@ -374,6 +383,15 @@ line stay at the top; the composer stays at the bottom with safe-area clearance.
 Memory and transcript share the pane scroll. Opening follows the newest line;
 new output follows only while the reader remains at the bottom. Row folds keep
 their own bounded transcript scroller.
+
+The composer tells a phone's keyboard what its return key does: **Send**, the
+same thing `Enter` has always done there (`Shift+Enter` is still the newline).
+Nothing else about the box changes — a message is prose, so autocorrect, the
+capital and the spell checker stay as the platform has them. The two boxes that
+hold names rather than sentences say the opposite: the model filter asks for a
+**Done** key, and the sign-in code box for **Send**, and both turn off
+autocorrect, autocapitalisation and spell-checking so a pasted or typed
+identifier arrives as it was written.
 
 Filing clears a conversation's previous manual wake picks. Trashing a node or
 its parent releases its live agent scope. Agent cleanup closes the protocol and

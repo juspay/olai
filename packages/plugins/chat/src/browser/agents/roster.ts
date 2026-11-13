@@ -51,7 +51,18 @@ export const seated = (standing: Standing): boolean => awake(standing) || standi
  *  row's dot, which is drawn for an awake agent and for no other
  *  (`./Agents.tsx`: a sleeping chat is a thing that is there, not a thing that
  *  is doing something). A row carries its standing as `data-standing` whatever
- *  it draws. */
+ *  it draws.
+ *
+ *  THE HALO ON THE TWO BUSY STANDINGS IS NOT DECORATION. Working and idle are
+ *  the same `done` dot, and for a year the ONLY thing between them was the
+ *  pulse — which is motion, and motion is a thing a reader is allowed to turn
+ *  off (`@olai/appearance/chrome.css` stills it for the whole app). A cue that
+ *  a preference can delete is a cue that stops being told to the reader who
+ *  needed it most, so the fact is drawn twice: a ring that is there whatever
+ *  the reader asked for, and a pulse on top of it for whoever is happy to
+ *  watch things move. `doing` is not available to say it with — the Chats
+ *  column paints a row that NEEDS YOU in that colour, and two standings one
+ *  colour apart from nothing is the bug this paragraph is about. */
 export const LOOK: Record<Standing, { readonly dot: string; readonly label: string; readonly detail: string }> = {
   "needs-you": {
     dot: NEEDS_YOU_DOT,
@@ -59,12 +70,12 @@ export const LOOK: Record<Standing, { readonly dot: string; readonly label: stri
     detail: "Waiting for your answer",
   },
   working: {
-    dot: "bg-done animate-pulse",
+    dot: "bg-done ring-2 ring-done/35 animate-pulse",
     label: "Working…",
     detail: "Working on a reply",
   },
   waking: {
-    dot: "bg-done animate-pulse",
+    dot: "bg-done ring-2 ring-done/35 animate-pulse",
     label: "Starting…",
     detail: "The agent is starting",
   },

@@ -262,18 +262,34 @@ test("overlays that hang over the outline mount on overlayRoot", () => {
   ])
 })
 
-// layer.ts's other claim, from the far end of the same table: ONE thing in
-// this client is above every layer in it, and it is above them because the
-// browser puts it there rather than because it out-numbered anybody. The
-// offline overlay opens as a modal `<dialog>` — the top layer, and the rest of
-// the document inert — which is the only way to promise that nothing
-// underneath is interactive: a panel portalled to the body after it, at the
-// same `LAYER.over`, would paint straight over a z-index that tried. A second
-// file reaching for the top layer is a second thing claiming to cover the app,
-// and it must argue with this list first.
-test("only the offline overlay takes the top layer", () => {
+// layer.ts's other claim, from the far end of the same table: what sits above
+// every layer in it is there because the BROWSER puts it there rather than
+// because it out-numbered anybody. A modal `<dialog>` is in the top layer —
+// above every stacking context at once, with the rest of the document inert —
+// which is the only way to promise that nothing underneath is interactive: a
+// panel portalled to the body after it, at the same `LAYER.over`, would paint
+// straight over a z-index that tried.
+//
+// THREE SURFACES ARE UP THERE NOW and the claim had to change shape with
+// them. It is two equalities because there are two different questions. WHO
+// MAY CALL `showModal` is the narrow one: `layer.ts`, which is the one door,
+// and the offline freeze, which is its own floor — it leaves the layer and
+// re-enters whenever something else arrives, and that re-entry cannot go
+// through the door without asking itself to stand aside. WHO ENTERS is the
+// list a reader actually wants: the ⌘K palette and the shortcuts sheet it
+// opens. A fourth name on the second list is a new thing claiming to cover
+// the app, and a second name on the first is a surface that took the layer
+// without the freeze being told — which is the half-alive page
+// `connection/Offline.tsx` exists to refuse.
+test("the top layer is entered through one door, and the freeze is its floor", () => {
   expect(filesSpelling(/showModal\s*\(/)).toEqual([
-    "web/src/client/connection/Offline.tsx"
+    "web/src/client/connection/Offline.tsx",
+    "web/src/client/layer.ts"
+  ])
+  expect(filesSpelling(/enterTopLayer/)).toEqual([
+    "plugins/navigation/src/palette/Palette.tsx",
+    "plugins/navigation/src/palette/Shortcuts.tsx",
+    "web/src/client/layer.ts"
   ])
 })
 
@@ -586,8 +602,12 @@ test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
 
 // ...and the other side of it: WHO JOINS THE STACK WITHOUT `dismissOn`, which
 // is the list of panels whose gestures are somebody else's. The `•••` menu's
-// are Kobalte's, one level up; the palette and the shortcuts dialog answer
-// Escape on the window and a press on their own scrims. Each has a reason
+// are Kobalte's, one level up; the palette and the shortcuts sheet are modal
+// `<dialog>`s, so theirs are the PLATFORM's — a close request reaches only the
+// topmost modal, and a press outside one lands on a backdrop the page cannot
+// see past. Those two take a ticket and never read it, which is deliberate
+// rather than dead: a layer UNDERNEATH asks this stack whether a gesture is
+// for it, and while a modal is up the answer has to be no. Each has a reason
 // written where it joins, and the list is short on purpose — a fourth joiner
 // here is either a panel that had to hand-roll its dismissal (worth arguing
 // about) or one that wanted the stack and skipped the dismissal, which is a
@@ -709,4 +729,53 @@ test("the app's never-ending animations are the two live cues", () => {
     "plugins/chat/src/browser/agents/roster.ts",
     "plugins/chat/src/browser/chat/live.ts"
   ])
+})
+
+// ...AND THE SAME QUESTION PUT TO THE STYLESHEETS, which the sweep above
+// cannot see at all: `SOURCES` is TypeScript, and the motion that escapes the
+// app's policy is precisely the motion that is NOT written in TypeScript.
+//
+// The policy (`appearance/src/chrome.css`) is unlayered and selects with
+// `:where(*)`, which beats every Tailwind utility — layer order is settled
+// before specificity — and loses to every other unlayered rule with a real
+// selector. Every plugin sheet in this tree is unlayered. So a `@keyframes`
+// and an `animation: … infinite` written by hand in a plugin's `all.css` goes
+// on running for a reader who asked for less motion, the policy
+// notwithstanding, and NOTHING in CSS will say so.
+//
+// Hence a reading of the sheets themselves, in two parts, because either half
+// alone passes by accident. The equality names every stylesheet that promises
+// a never-ending animation — a new one is a line a human has to answer for —
+// and the loop then demands that each of them spells the preference, which is
+// the answer. `markdown-ui` is the one today: the waiting sweep and the
+// streaming caret both opt IN under `(prefers-reduced-motion: no-preference)`,
+// the shape the policy's own comment argues for wherever an animation is
+// written by hand.
+//
+// What this deliberately does NOT do is parse CSS. A sheet could satisfy both
+// halves and still get it wrong — guarding one of its two animations and not
+// the other — and no regex will catch that honestly. The claim is that the
+// question was ASKED in the file where it is owed, not that the file answered
+// it well; the second is a reading a person does, which is what naming the
+// file in an equality is for.
+test("every stylesheet with an endless animation answers the motion preference", () => {
+  const sheets: string[] = []
+  const walk = (directory: string): void => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name === "node_modules" || entry.name === "dist") continue
+      const full = path.join(directory, entry.name)
+      if (entry.isDirectory()) walk(full)
+      else if (entry.name.endsWith(".css")) sheets.push(path.relative(PACKAGES, full))
+    }
+  }
+  walk(PACKAGES)
+  const endless = sheets
+    .filter(file => /animation[^;}]*\binfinite\b/.test(fs.readFileSync(path.join(PACKAGES, file), "utf8")))
+    .sort()
+  expect(endless).toEqual([
+    path.join("markdown-ui", "src", "all.css")
+  ])
+  for (const file of endless) {
+    expect(fs.readFileSync(path.join(PACKAGES, file), "utf8"), file).toContain("prefers-reduced-motion")
+  }
 })

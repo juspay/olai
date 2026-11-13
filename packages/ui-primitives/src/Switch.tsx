@@ -49,9 +49,16 @@ export function Switch(props: {
         if (!frozen()) props.onPick(props.on ? "off" : "on")
       }}
     >
+      {/* THE KNOB TRAVELS ON `translate`, not on `left`. Both draw the same
+          two positions, and only one of them stays off the layout and paint
+          work a moving `left` costs every frame — the platform's own advice,
+          and it costs this file one utility. Under `prefers-reduced-motion`
+          the knob lands at the end rather than sliding to it, which the app
+          says once rather than here (`@olai/appearance/chrome.css`): the
+          transition survives for colours, the travel does not. */}
       <span
-        class={`absolute top-[0.12rem] size-[0.9rem] rounded-full bg-panel shadow-raised transition-[left] duration-150 ${
-          props.on ? "left-[1.02rem]" : "left-[0.12rem]"
+        class={`absolute left-[0.12rem] top-[0.12rem] size-[0.9rem] rounded-full bg-panel shadow-raised transition-transform duration-150 ${
+          props.on ? "translate-x-[0.9rem]" : "translate-x-0"
         }`}
       />
     </button>

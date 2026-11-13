@@ -65,6 +65,8 @@ import { expect, test } from "bun:test"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
+import { LOOK } from "./agents/roster.ts"
+
 const BROWSER = import.meta.dirname
 const SELF = import.meta.filename
 
@@ -344,4 +346,29 @@ test("the live cue's classes are typed in exactly one file", () => {
   expect(filesSpelling(/animate-pulse[^"]*rounded-full[^"]*bg-doing/)).toEqual([
     path.join("chat", "live.ts"),
   ])
+})
+
+/**
+ * ...AND THE OTHER HALF OF A CUE THAT MOVES: what it says when it stops.
+ *
+ * Motion is a preference, and the app grants it in one place
+ * (`@olai/appearance/chrome.css` stills every animation under
+ * `prefers-reduced-motion`). So a standing whose only difference from the one
+ * beside it is `animate-pulse` is a standing that DISAPPEARS for the reader
+ * who asked for less movement — and that reader is told less about their
+ * agents than everyone else, which is the one thing a motion preference must
+ * never cost. `working` and `idle` were exactly that pair for a year: one
+ * `bg-done` dot each, a pulse apart.
+ *
+ * The claim is the comparison rather than a list of classes, because the list
+ * is `./agents/roster.ts`'s business and this is not: strip every `animate-*`
+ * from the table and it must tell apart exactly as many standings as it did
+ * with them. `working` and `waking` are one drawing in both readings — they
+ * are the same news, and the table says so in words.
+ */
+test("no standing is told apart from another by its pulse alone", () => {
+  const standings = Object.keys(LOOK) as ReadonlyArray<keyof typeof LOOK>
+  const still = (dot: string) => dot.split(" ").filter(one => !one.startsWith("animate-")).join(" ")
+  expect(new Set(standings.map(one => still(LOOK[one].dot))).size)
+    .toEqual(new Set(standings.map(one => LOOK[one].dot)).size)
 })
