@@ -30,6 +30,9 @@ Feature: Writing a node's edges — `see` and `after`
     When I open the node menu of "handles"
     And I choose "More › Link to…" from the node menu
     Then the see panel is open on "handles"
+    # Every node-picking panel in the client is this one box: a Go key, because
+    # the press two steps down takes the row and writes the link.
+    And the edge panel's search box asks for a Go key and no corrections
     When I search the edge panel for "compost"
     And I choose "the compost heap" from the edge panel
     Then "house.olai" holds the node "handles" seeing "compost"

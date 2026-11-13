@@ -147,6 +147,25 @@ export function FilterBar(props: {
             data-testid={TESTID.filterInput}
             placeholder={PLACEHOLDER}
             aria-label="Filter"
+            // `search`, and it is the honest one here precisely BECAUSE this
+            // box submits nothing: the rows narrow on every keystroke, so the
+            // return key's job is to say "that is the query" and put the
+            // keyboard away — which is what a Search key means on a phone.
+            // Not `go`: Enter here opens nothing (the shortlist boxes and the
+            // header's do, and say `go`); not `done`, which belongs to a box
+            // that closes. While the form hint is up Enter puts a form IN,
+            // which is still the query being finished rather than a
+            // navigation.
+            //
+            // The corrections off for the identifier reason: what is typed here
+            // is a query against titles, tags and the `is:`/`has:` forms the
+            // hint offers, not a sentence — so a phone's autocorrect rewriting
+            // a half-typed word, and its capital on the first letter of an
+            // empty box, are edits to somebody's search that they did not make.
+            enterkeyhint="search"
+            autocorrect="off"
+            autocapitalize="none"
+            spellcheck={false}
             aria-autocomplete="list"
             aria-expanded={focused() && !shut() && props.narrowing.text() === ""}
             value={props.narrowing.text()}

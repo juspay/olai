@@ -434,6 +434,28 @@ Then("the filter box has {string} selected", async function (this: OlaiWorld, se
   })) === selected, `the filter box to have "${selected}" selected`);
 });
 
+/**
+ * WHAT A PHONE IS TOLD THIS BOX IS — the one thing an on-screen keyboard has
+ * to go on.
+ *
+ * `search` on the return key, and the argument is in the client: this box
+ * submits nothing (the rows narrow on every keystroke), so the key's whole job
+ * is to say "that is the query" and get out of the way, which is what a Search
+ * cap means. A Go cap would promise a navigation the press does not make.
+ *
+ * The corrections are off because a filter is matched rather than read: a
+ * capital the keyboard adds to an empty box, or a half-typed word autocorrect
+ * "fixes", is an edit to somebody's search that they did not make.
+ */
+Then("the filter box asks for a Search key and no corrections", async function (this: OlaiWorld) {
+  const box = this.frontLane().locator(`${FILTER_INPUT}:visible`);
+  await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(await box.getAttribute("enterkeyhint"), "search", "the filter box's enterkeyhint");
+  assert.strictEqual(await box.getAttribute("autocapitalize"), "none", "the filter box's autocapitalize");
+  assert.strictEqual(await box.getAttribute("autocorrect"), "off", "the filter box's autocorrect");
+  assert.strictEqual(await box.getAttribute("spellcheck"), "false", "the filter box's spellcheck");
+});
+
 Then("there is no filter bar", async function (this: OlaiWorld) {
   assert.strictEqual(
     await this.page.locator(FILTER_BAR).count(),

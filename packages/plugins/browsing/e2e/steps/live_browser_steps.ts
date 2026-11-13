@@ -162,6 +162,30 @@ Then("the browser's address bar shows the site's {string} page", async function 
   await this.waitUntil(async () => (await address(this).inputValue().catch(() => "")) === want, `the address bar to show ${want}`, HYDRATION_TIMEOUT)
 })
 
+/**
+ * WHAT KEYBOARD THE ADDRESS BAR ASKS FOR — the whole of what a phone has to go
+ * on when it draws one. Read off the element, because the element is where the
+ * platform reads it; asserted in a scenario that then NAVIGATES with the same
+ * return key (`I go to the site's … page`, which presses Enter), so the Go cap
+ * and the thing the key does are checked together.
+ *
+ * `type` is asserted too, and it is the interesting one: `text` is deliberate
+ * here. A `type="url"` box would refuse `example.com` — which this bar accepts
+ * and completes — so an innocent-looking tightening of the markup is a real
+ * regression, and this is the line that would catch it.
+ */
+Then("the browser's address bar asks for a URL keyboard and a Go key", async function (this: OlaiWorld) {
+  const box = address(this)
+  await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  assert.equal(await box.getAttribute("inputmode"), "url", "the address bar's inputmode")
+  assert.equal(await box.getAttribute("enterkeyhint"), "go", "the address bar's enterkeyhint")
+  assert.equal(await box.getAttribute("type"), null, "the address bar must stay an ordinary text box")
+  // An address is an identifier: nothing a phone would capitalise or correct.
+  assert.equal(await box.getAttribute("autocapitalize"), "none", "the address bar's autocapitalize")
+  assert.equal(await box.getAttribute("autocorrect"), "off", "the address bar's autocorrect")
+  assert.equal(await box.getAttribute("spellcheck"), "false", "the address bar's spellcheck")
+})
+
 /** A press on the picture at a fraction of its drawn box. */
 const pressAt = async (world: OlaiWorld, index: number, fx: number, fy: number, modifiers: Array<"Alt"> = []) => {
   const frame = frameIn(world, index)

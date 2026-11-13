@@ -136,6 +136,17 @@ export function SignIn(props: { readonly chat: Chat }) {
           class="mt-2 w-full rounded-control border border-rule bg-paper px-2 py-1 font-mono text-label"
           data-testid={TESTID.chatSignInInput}
           placeholder="Paste the code here"
+          // Enter writes the line to the process that is waiting for it
+          // (`send`, below), so the return key says Send. A verification code
+          // is the identifier case par excellence — it is pasted or copied
+          // character for character, and a capital the keyboard added or a
+          // word autocorrect "fixed" is a code that will be refused by
+          // whatever is reading it. No `inputmode`: these codes are
+          // alphanumeric, so a numeric pad would be the wrong keyboard.
+          enterkeyhint="send"
+          autocorrect="off"
+          autocapitalize="none"
+          spellcheck={false}
           value={line()}
           onInput={(event) => setLine(event.currentTarget.value)}
           onKeyDown={(event) => {

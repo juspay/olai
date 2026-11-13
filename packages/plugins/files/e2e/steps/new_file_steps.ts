@@ -258,3 +258,30 @@ Then(
     );
   },
 );
+
+/**
+ * WHAT THE ON-SCREEN KEYBOARD IS TOLD about the path box — which on a phone is
+ * the whole of what it has to go on.
+ *
+ * The return key says Done because that is what it does here: the file is made
+ * and the box closes. The three corrections are off because a path is a NAME,
+ * and the capital is the one that actually bit — a phone shifts the first
+ * letter of an empty box, so `garden.olai` would arrive as `Garden.olai` on
+ * disk, in a tree that sorts and links by what was written.
+ *
+ * No `inputmode` at all, asserted rather than assumed: a path is typed on the
+ * ordinary keyboard, and `url` here would hand somebody a `.com` key for
+ * `plans/next.olai`.
+ */
+Then(
+  "the new {word} box asks for a Done key and no corrections",
+  async function (this: OlaiWorld, kind: string) {
+    const box = this.page.locator(selector(making(kind).testids.path));
+    await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await box.getAttribute("enterkeyhint"), "done", `the new ${kind} box's enterkeyhint`);
+    assert.strictEqual(await box.getAttribute("inputmode"), null, `the new ${kind} box asks for no special keyboard`);
+    assert.strictEqual(await box.getAttribute("autocapitalize"), "none", `the new ${kind} box's autocapitalize`);
+    assert.strictEqual(await box.getAttribute("autocorrect"), "off", `the new ${kind} box's autocorrect`);
+    assert.strictEqual(await box.getAttribute("spellcheck"), "false", `the new ${kind} box's spellcheck`);
+  },
+);

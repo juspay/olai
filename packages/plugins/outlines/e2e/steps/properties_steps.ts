@@ -473,6 +473,36 @@ Then(
 );
 
 /**
+ * THE TWO RETURN KEYS OF ONE CHIP, which is the whole reason this is asserted
+ * at all: the boxes do different things with Enter, so one cap for both would
+ * lie about one of them.
+ *
+ * The KEY box's Enter moves the caret to the value box beside it and writes
+ * nothing — `next`. The VALUE box's Enter commits the property and closes the
+ * chip — `done`. The scenario that reads this goes on to write the property
+ * with that value box's Enter, so the `done` cap is checked against the press
+ * it labels rather than on its own.
+ *
+ * A key and a value are both NAMES rather than prose (`pr`, a URL, an agent's
+ * id), so neither box is capitalised or corrected on the way in.
+ */
+Then(
+  "the property boxes on {string} ask for a Next key then a Done key",
+  async function (this: OlaiWorld, id: string) {
+    const keyBox = this.page.locator(`${nodeSelector(id)} ${PROP_EDIT_KEY}`).first();
+    await keyBox.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await keyBox.getAttribute("enterkeyhint"), "next", "the key box's enterkeyhint");
+    const valueBox = box(this, id);
+    assert.strictEqual(await valueBox.getAttribute("enterkeyhint"), "done", "the value box's enterkeyhint");
+    for (const [name, which] of [["key", keyBox], ["value", valueBox]] as const) {
+      assert.strictEqual(await which.getAttribute("autocapitalize"), "none", `the ${name} box's autocapitalize`);
+      assert.strictEqual(await which.getAttribute("autocorrect"), "off", `the ${name} box's autocorrect`);
+      assert.strictEqual(await which.getAttribute("spellcheck"), "false", `the ${name} box's spellcheck`);
+    }
+  },
+);
+
+/**
  * Every box of the editor is on the screen and big enough for a thumb.
  *
  * The chip is a pill holding one or two boxes, which is comfortable at 1200pt

@@ -998,7 +998,23 @@ function Box(props: {
       data-testid={props.testid}
       data-key={props.about}
       placeholder={props.placeholder}
+      // WHICH RETURN KEY, and the two boxes genuinely differ — which is why
+      // this reads off `mono` rather than being one constant. The KEY box of
+      // the add chip is the only box here whose Enter does not finish
+      // anything: it moves the caret to the value box beside it
+      // ({@link NewChip}'s `onCommit={() => box?.focus()}`), which is exactly
+      // what `next` labels. Every other box commits and closes, which is
+      // `done`. A `done` key over the key box would promise a chip that the
+      // press does not make.
+      enterkeyhint={props.mono === true ? "next" : "done"}
+      // A property is a NAME and a VALUE, neither of which is prose — `pr`,
+      // `due`, a URL, a number. The file already said so with `spellcheck`
+      // and `autocomplete`; the two a phone adds on top of them are the
+      // capital on an empty box and autocorrect, and a key typed as `pr` that
+      // arrives as `Pr` is a different property.
       autocomplete="off"
+      autocorrect="off"
+      autocapitalize="none"
       spellcheck={false}
       value={props.value}
       ref={(element) => {

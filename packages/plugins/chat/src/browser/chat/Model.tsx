@@ -94,6 +94,16 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
           <input type="search" aria-label="Filter models" data-testid={TESTID.chatModelFilter}
             class="block w-full rounded-control bg-transparent px-2 py-1 text-label text-ink outline-none placeholder:text-muted"
             placeholder="Filter"
+            // Enter TAKES the model under the cursor and shuts the list
+            // (`key`'s `"take"` arm, above), which is a choice being made
+            // rather than a search being run — so `done`, not `search`. A
+            // model name is an identifier (`claude-sonnet-4-5`), so the
+            // phone's capital and its autocorrect go off with the spell
+            // checker: all three would be rewriting what is being matched.
+            enterkeyhint="done"
+            autocorrect="off"
+            autocapitalize="none"
+            spellcheck={false}
             // The caret goes here as the list attaches — it was opened to be
             // typed in. `queueMicrotask` for the reason every panel in this
             // client uses one: the element is not in the document when the

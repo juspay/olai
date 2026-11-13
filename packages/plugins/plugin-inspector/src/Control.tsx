@@ -88,9 +88,20 @@ export function Control(props: {
           </button>
         </Match>
         <Match when={props.value.problem || metadata()?.kind === "number" || metadata()?.kind === "text"}>
+          {/* THE KEYBOARD A KNOB ASKS FOR. `enterkeyhint="done"` because Enter
+              here saves the draft and leaves the knob where it is (`keyboard`,
+              above) — nothing is sent and nowhere is gone to.
+
+              `inputmode` is set ONLY for a number, where the keyboard it asks
+              for genuinely differs. It used to say `text` for everything else,
+              which is the default spelled out: a value with no effect that
+              reads like a decision. A knob's text value is a setting rather
+              than prose — a path, a name, a duration — so the three
+              corrections go off with it. */}
           <input class="plugins-knob-input" style={{ width: knobWidth(props.value) }} aria-label={labelOf(props.value.key)} aria-invalid={invalid() ? "true" : undefined}
             disabled={disabled()} title={frozen()} value={draft()}
-            type={metadata()?.kind === "number" && !props.value.problem ? "number" : "text"} inputmode={metadata()?.kind === "number" ? "numeric" : "text"}
+            enterkeyhint="done" autocorrect="off" autocapitalize="none" spellcheck={false}
+            type={metadata()?.kind === "number" && !props.value.problem ? "number" : "text"} inputmode={metadata()?.kind === "number" ? "numeric" : undefined}
             min={metadata()?.kind === "number" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).min : undefined}
             max={metadata()?.kind === "number" ? (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).max : undefined}
             step={metadata()?.kind === "number" && (metadata() as Extract<NonNullable<PolicyReading["control"]>, { kind: "number" }>).integer ? 1 : "any"}

@@ -775,6 +775,18 @@ export function Composer(props: {
         ref={input}
         class="w-full resize-none rounded-control border border-rule bg-paper px-3 py-2 text-body outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/20"
         data-testid={TESTID.chatInput}
+        // WHAT THE RETURN KEY DOES, said to the on-screen keyboard: this box's
+        // Enter sends (`onKey`, one scroll down — Shift+Enter is the newline),
+        // so a phone draws a Send key rather than the generic carriage return
+        // every untyped box gets. It is a label and nothing else; the send is
+        // still `onKey`'s, and the two must not be allowed to disagree — if
+        // Enter ever stops sending here, this attribute goes with it.
+        //
+        // Nothing is turned off beside it. A message is PROSE, so autocorrect,
+        // autocapitalize and the spell checker are all wanted — the identifier
+        // rule that strips them off the address bar and the path boxes is
+        // about fields that hold names, not sentences.
+        enterkeyhint="send"
         // THE NODE HALF'S ANSWER, on the box rather than only on the list:
         // a query that named nothing draws no list (`open` is `rows().length
         // > 0`), and the wait still has to see that the search settled.

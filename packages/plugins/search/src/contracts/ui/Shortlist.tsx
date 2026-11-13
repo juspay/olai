@@ -255,6 +255,19 @@ export function Shortlist(props: {
         data-testid={props.testids.box}
         aria-label={props.label}
         placeholder={props.label}
+        // WHAT THE RETURN KEY DOES HERE, for the keyboard that has to draw it:
+        // `take` (the `"take"` arm below) — the row under the cursor is opened,
+        // moved to, linked. That is a Go rather than a Search: the rows are
+        // already under the box by the time anybody presses anything, so a
+        // Search key would label a search that has happened.
+        enterkeyhint="go"
+        // The three corrections off, together, for one reason: what is typed
+        // here is matched against titles and paths rather than read as a
+        // sentence. `spellcheck` was already off; a phone's capitalised first
+        // letter and its autocorrect are the two that were still rewriting
+        // somebody's query between the key and the match.
+        autocorrect="off"
+        autocapitalize="none"
         spellcheck={false}
         value={query()}
         // The caret goes here as the panel attaches — it was opened to be typed

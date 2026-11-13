@@ -140,3 +140,19 @@ Feature: Starting a new outline from the sidebar
     Then the new document box has the caret
     And the new outline box is gone
     And there should be no page errors
+
+  @phone
+  Scenario: On a phone the name box asks for a Done key, and Done is what the key does
+    # A path is a name, not a sentence, and a phone has to be told so: the
+    # return key says Done because the press makes the file and shuts the box,
+    # and the first letter is left exactly as it was typed — a capital the
+    # keyboard added would be a different file on disk from the one somebody
+    # meant. The gesture is made straight after the assertion, so the cap and
+    # the key cannot drift apart.
+    When I open the new outline box
+    Then the new outline box asks for a Done key and no corrections
+    When I create the outline "plans/next.olai" from the sidebar
+    Then the address is "/plans/next.olai"
+    And the new outline box is gone
+    And the outline list links to "plans/next.olai"
+    And there should be no page errors

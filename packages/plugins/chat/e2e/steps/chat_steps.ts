@@ -204,6 +204,36 @@ When("I ask the agent {string}", async function (this: OlaiWorld, text: string) 
 });
 
 /**
+ * The same message, sent WITH THE RETURN KEY — the gesture the composer's
+ * `enterkeyhint="send"` is a label for.
+ *
+ * Its own step beside `I ask the agent` rather than a flag on it, because the
+ * two are different presses: one is the button under the box, and this is the
+ * key a phone draws a Send cap on. A scenario that asserts the cap has to be
+ * able to press the key, or the attribute is decoration nobody checked.
+ */
+When("I type {string} into the chat and send it with the return key", async function (this: OlaiWorld, text: string) {
+  const box = await chatBox(this);
+  await box.fill(text);
+  await box.press("Enter");
+  await keysSettled(this);
+});
+
+/** WHAT THE ON-SCREEN KEYBOARD IS TOLD this box's return key does. Read off
+ *  the element, because that is the only place a phone reads it from — and
+ *  asserted beside a send in the same scenario, so a hint that stopped being
+ *  true would be a red step rather than a stale string nobody looks at. */
+Then("the chat composer's return key is labelled {string}", async function (this: OlaiWorld, hint: string) {
+  const box = await chatBox(this);
+  assert.strictEqual(await box.getAttribute("enterkeyhint"), hint, "the composer's enterkeyhint");
+  // ...and a message is PROSE: the corrections a phone makes to a sentence are
+  // wanted here, so the composer must NOT have been swept up with the boxes
+  // that hold names (the address bar, the path boxes, the query boxes).
+  assert.strictEqual(await box.getAttribute("autocapitalize"), null, "the composer's autocapitalize");
+  assert.strictEqual(await box.getAttribute("autocorrect"), null, "the composer's autocorrect");
+});
+
+/**
  * ... and the OTHER send: put these words into the turn the agent is running.
  *
  * Its own step rather than a flag on the one above, because it is a different

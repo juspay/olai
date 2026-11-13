@@ -262,8 +262,29 @@ export function BrowserPage(props: {
         </p>}>
           {(open) => (
             <>
+              {/* THE KEYBOARD THIS BOX ASKS FOR. `inputmode="url"` puts the
+                  slash and the `.com` key under a thumb and takes the space
+                  bar's width back, and `enterkeyhint="go"` labels the return
+                  key with what it does here (`onKeyDown` below: Enter
+                  navigates the tab and gives the caret back). Both are
+                  labels — nothing about the navigation is on them.
+
+                  `type` stays TEXT on purpose. `type="url"` would make the
+                  browser judge what is typed against its own idea of an
+                  absolute URL, and `example.com` — which `addressOf` is
+                  written to accept and complete — is not one; a box that
+                  refuses the shortest thing somebody types would be a
+                  regression bought with a validation nobody asked for.
+
+                  An address is an IDENTIFIER, not prose, so the three
+                  corrections go off: a capitalised host, an autocorrected
+                  path segment or a red underline under a domain are all
+                  wrong here. `spellcheck` already said so; the other two
+                  were missing, which on a phone is the one that bites —
+                  iOS capitalises the first letter of an empty box. */}
               <input class="w-full rounded border border-rule bg-paper px-2 py-1 font-mono text-caption" aria-label="Address"
-                data-testid={TESTID.browserAddress} spellcheck={false}
+                data-testid={TESTID.browserAddress} spellcheck={false} autocorrect="off" autocapitalize="none"
+                inputmode="url" enterkeyhint="go"
                 value={typing() ?? open().url}
                 onFocus={(event) => { type(open().url); event.currentTarget.select() }}
                 onInput={(event) => type(event.currentTarget.value)}
@@ -287,6 +308,19 @@ export function BrowserPage(props: {
                   {(held) => (
                     <img ref={picture} src={held().src} alt={open().title || "The page"} draggable={false}
                       class="mx-auto block h-auto max-h-full max-w-full select-none"
+                      /* The frame IS the page, and it is a NEW one several
+                         times a second: an object URL over the JPEG the
+                         screencast just handed us, revoked as soon as the next
+                         one lands. `lazy` on this would be the pane deferring
+                         the only thing it draws — and deferring a picture whose
+                         URL is about to be revoked is how you get a blank where
+                         a live page was. There is no `fetchpriority` to argue
+                         about: a blob URL is bytes this tab already holds, so
+                         there is no request to put in front of anything. The
+                         decode is the real cost here and it is handed off, so a
+                         frame arriving does not stall the one being drawn. */
+                      loading="eager"
+                      decoding="async"
                       data-testid={TESTID.browserFrame}
                       onPointerDown={(event) => {
                         const point = at(event)

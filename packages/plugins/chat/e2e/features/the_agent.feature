@@ -2013,6 +2013,20 @@ Feature: Talking to a node agent
     Then the agent read "porch.jpg, porch-1.jpg, door.jpg" in that order
 
   @scratch:chat @phone
+  Scenario: A thumb's return key says Send, and sends
+    # The whole of what a phone keyboard knows about a box is what the markup
+    # tells it. This composer's return key SENDS, so the cap says Send — and
+    # the press is made in the same scenario, because a hint whose key does
+    # something else is worse than no hint at all.
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    Then the chat composer's return key is labelled "send"
+    When I type "hello from a thumb" into the chat and send it with the return key
+    Then the chat shows my message "hello from a thumb"
+    And the agent's answer mentions "you said: hello from a thumb"
+    And there should be no page errors
+
+  @scratch:chat @phone
   Scenario: A dismissed capture touches nothing — not even somebody else's refusal
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
