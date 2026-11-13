@@ -68,10 +68,19 @@ Then(
   async function (this: OlaiWorld, id: string, key: string, value: string) {
     const found = line(this, id, key).locator(PROP_VALUE);
     await found.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    let drawn = "";
     await this.waitUntil(
-      async () => oneLine(await found.innerText()) === value,
+      async () => {
+        drawn = oneLine(await found.innerText());
+        return drawn === value;
+      },
       `\`${key}\` on ${JSON.stringify(id)} to hold ${JSON.stringify(value)}`,
-    );
+    ).catch(() => {
+      // What it DREW, not only what it would not say: a chip that gains a word
+      // (a door's face beside its id, a warning folded into the run) reads as
+      // a value that never arrived, and the two are a long way apart to debug.
+      assert.fail(`\`${key}\` on ${JSON.stringify(id)} draws ${JSON.stringify(drawn)}, not ${JSON.stringify(value)}`)
+    });
   },
 );
 

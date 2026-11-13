@@ -177,9 +177,13 @@ function Value(props: {
     >
       {(open) => (
         // THAT THE VALUE IS EDITABLE is the whole of what this says, and the
-        // button's own name is the value — so the verb rides hidden words
-        // after it rather than replacing it, and the tip repeats them for a
-        // pointer.
+        // `button` role already says it: "this answers a press, and a key".
+        // So the tip is a pointer's convenience and NOTHING is added to the
+        // name — the button's name is the value, which is what a scenario
+        // reads a property by and what a reader is told this chip holds. An
+        // `sr-only` verb inside it put " — change it" into the chip's own
+        // text, and a value that gained three words is a value that never
+        // arrived.
         <Tip text={`Change ${props.value}`}>
           <button
             type="button"
@@ -191,7 +195,7 @@ function Value(props: {
               open()()
             }}
           >
-            {props.value}<span class="sr-only"> — change it</span>
+            {props.value}
           </button>
         </Tip>
       )}
