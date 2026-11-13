@@ -72,7 +72,7 @@ export function Dock() {
                 route={zoomNode(agent().id)}
                 class="min-w-0 flex-1 truncate text-body font-medium text-ink no-underline hover:text-accent"
                 testid={TESTID.chatDockTitle}
-                title="Open the agent's page"
+                tip="Open the agent's page"
               >
                 {agent().title}
               </Link>

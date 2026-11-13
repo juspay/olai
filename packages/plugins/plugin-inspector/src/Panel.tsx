@@ -295,7 +295,7 @@ export function Panel(props: {
         <strong class="plugins-title">Plugins</strong>
         <Show when={props.state.file()} keyed fallback={<span class="plugins-head-file">{rosterFile().split("/").pop()}</span>}>
           {File => { const Link = File; return <span class="plugins-head-file" onClick={() => props.state.door.setOpen(false)}><Link
-            file={rosterFile()} label={rosterFile()} title={`Open ${rosterFile()}`} testid={TESTID.pluginsFile}>
+            file={rosterFile()} label={rosterFile()} tip={`Open ${rosterFile()}`} testid={TESTID.pluginsFile}>
             {rosterFile().split("/").pop()} ↗
           </Link></span> }}
         </Show>
@@ -378,7 +378,7 @@ function Chevron(props: { readonly hidden?: boolean }) {
 
 function NodeLink(props: { readonly node: { readonly file: string; readonly id: string } | undefined; readonly state: InspectorState }) {
   return <Show when={props.node ? props.state.file() : undefined} keyed>{Link => { return <span class="plugins-link" onClick={() => props.state.door.setOpen(false)}><Link
-    file={props.node!.file} at={props.node!.id} label={configurationLinkLabel} title={configurationLinkLabel} testid={TESTID.pluginConfigLink}>{configurationLinkLabel} ↗</Link></span> }}</Show>
+    file={props.node!.file} at={props.node!.id} label={configurationLinkLabel} tip={configurationLinkLabel} testid={TESTID.pluginConfigLink}>{configurationLinkLabel} ↗</Link></span> }}</Show>
 }
 
 function Environment(props: { readonly values: ReadonlyArray<EnvironmentReading> }) {

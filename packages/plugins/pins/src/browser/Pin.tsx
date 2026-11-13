@@ -107,7 +107,7 @@ export function Pin(props: {
         </a>
       }>{(route) =>
         <Link route={route()} class={ROW} testid={TESTID.pinLink}
-          current={props.current} title={props.pin.name}>
+          current={props.current} tip={props.pin.name}>
           <Face target={props.pin.target} name={props.pin.name} />
         </Link>
       }</Show>

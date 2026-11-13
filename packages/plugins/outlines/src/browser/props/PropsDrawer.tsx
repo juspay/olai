@@ -716,7 +716,7 @@ function Value(props: {
           <Show
             when={awayFrom(door())}
             fallback={
-              <Link route={inApp(door())} class={LINKED} title={door().says}>
+              <Link route={inApp(door())} class={LINKED} tip={door().says}>
                 {/* THE DOOR'S FACE and not the raw value, which is the whole
                     of the ref-chip half of this change: `agent grok` reads
                     `agent Grok`, because the vault declared the key a

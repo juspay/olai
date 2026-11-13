@@ -8,6 +8,7 @@
  * tone (`./said.ts`), so a browser that failed says so from the column; a
  * quiet tone draws no dot.
  */
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
 import { ENTRY_SHAPE } from "olai-plugin-layout/entry"
 import { TONE } from "olai-plugin-layout/slots"
@@ -30,7 +31,7 @@ export function BrowserEntry(props: { readonly door: Door }) {
   const look = () => lookOf(props.door.standing())
   return (
     <Link route={props.door.route} class={ENTRY_SHAPE} testid={TESTID.browserEntry}
-      current={props.door.showing(router.route())} title={look().detail}>
+      current={props.door.showing(router.route())} tip={look().detail}>
       <span class="min-w-0 truncate">Browser</span>
       <Show when={TONE[look().tone].dot}>
         {(dot) => <span class={`ml-auto size-2 shrink-0 rounded-full ${dot()}`} data-health={look().tone} aria-hidden="true" />}
@@ -43,12 +44,17 @@ export function BrowserEntry(props: { readonly door: Door }) {
 export function BrowserRail(props: { readonly door: Door }) {
   const router = useRouter()
   return (
-    <RailButton testid={TESTID.railBrowser} label="Open the browser" title="Browser" href={router.routes.href(props.door.route)}
-      data={{ "data-standing": props.door.standing().kind }}>
-      <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4">
-        <circle cx="8" cy="8" r="6.25" />
-        <path d="M1.75 8h12.5M8 1.75c1.9 1.8 2.75 3.9 2.75 6.25S9.9 12.45 8 14.25M8 1.75C6.1 3.55 5.25 5.65 5.25 8S6.1 12.45 8 14.25" />
-      </svg>
-    </RailButton>
+    // The rail's button is an icon alone, so the tip is the only place its
+    // word is drawn — and `label` is the same fact for a reader who is not
+    // hovering, which is what keeps the tip a convenience.
+    <Tip text="Browser">
+      <RailButton testid={TESTID.railBrowser} label="Open the browser" href={router.routes.href(props.door.route)}
+        data={{ "data-standing": props.door.standing().kind }}>
+        <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4">
+          <circle cx="8" cy="8" r="6.25" />
+          <path d="M1.75 8h12.5M8 1.75c1.9 1.8 2.75 3.9 2.75 6.25S9.9 12.45 8 14.25M8 1.75C6.1 3.55 5.25 5.65 5.25 8S6.1 12.45 8 14.25" />
+        </svg>
+      </RailButton>
+    </Tip>
   )
 }

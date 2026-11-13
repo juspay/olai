@@ -1,7 +1,8 @@
 import { localLink, type Intent } from "@olai/surface"
 /** Stateless route consumers. They receive the navigation provider through
  * context; importing this contract starts no history, observer or timer. */
-import { type Accessor,createContext,createMemo,type JSX,useContext } from "solid-js"
+import { type Accessor,createContext,createMemo,type JSX,Show,useContext } from "solid-js"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import type { Landing } from "./landing.ts"
 import type { RevealState } from "./reveal.ts"
 import { usePane } from "./pane/context.tsx"
@@ -279,7 +280,38 @@ export const useMaybeGo = (): ((route: Route) => void) | null => {
 export interface LinkProps {
   readonly route: Route
   readonly class?: string
-  readonly title?: string
+  /**
+   * THE SENTENCE A POINTER GETS, drawn by this app's own tip rather than by
+   * the browser ({@link Tip}, whose header holds the argument: the platform
+   * ran a long one off the right edge of the window, and it answered a hover
+   * and nothing else).
+   *
+   * It is NOT the link's name. A tip is a convenience, so whatever this says
+   * has to be said somewhere a reader who never hovers can reach: `label`
+   * where the anchor's own words do not already carry it, or nothing at all
+   * where they do. A link whose only copy of a fact is this prop has lost the
+   * fact for everybody reading with a keyboard, which is the half the
+   * platform tooltip was failing at too.
+   *
+   * IT IS CALLED `tip` BECAUSE IT IS ONE. This prop was `title` and was handed
+   * straight to the `<a>`, so the name was honest exactly while it named an
+   * attribute; keeping it over a component that no longer writes one is the
+   * trap the next person falls into — `title=` reads like the DOM everywhere
+   * else in a JSX file, and a reader who believes it would go looking for a
+   * tooltip this component has stopped drawing. The rename is also the only
+   * thing that makes the migration finishable: every one of the fourteen
+   * callers that passed `title` is a TYPE ERROR until somebody has looked at
+   * it, where the same edit under the old name would have taken the tip away
+   * from a row silently and compiled.
+   *
+   * The tip rides the PAGE's layer, which is what a link in a row wants. A
+   * link that sits in the bar or in the chat dock has to cover them, and that
+   * is a fact about the PLACE rather than about the link: such a caller wraps
+   * `<Link>` in its own `<Tip layer={LAYER.over}>` and passes nothing here —
+   * the `<a>` below is this component's root, so the tip measures the same box
+   * either way.
+   */
+  readonly tip?: string
   readonly label?: string
   readonly current?: boolean
   readonly testid?: string
@@ -291,11 +323,13 @@ export interface LinkProps {
 /** Content encodes its destination; navigation owns every press. */
 export function Link(props: LinkProps) {
   const router = useRouter()
-  return (
+  // ONE anchor, written once and built by whichever arm is live: the tip is a
+  // wrapper rather than an attribute now, and a second copy of this element
+  // under the tipped arm is the two-anchors-one-link bug `DropRef` names.
+  const anchor = (): JSX.Element => (
     <a
       href={router.routes.href(props.route)}
       class={props.class}
-      title={props.title}
       aria-label={props.label}
       aria-current={props.current === true ? "page" : undefined}
       data-testid={props.testid}
@@ -305,6 +339,15 @@ export function Link(props: LinkProps) {
     >
       {props.children}
     </a>
+  )
+  // The condition is a BOOLEAN, so a tip whose words change (a mark's own
+  // sentence, a row's date) updates inside the tip it already has rather than
+  // tearing the anchor out of the DOM and putting a new one back under the
+  // reader's pointer.
+  return (
+    <Show when={props.tip !== undefined} fallback={anchor()}>
+      <Tip text={props.tip!}>{anchor()}</Tip>
+    </Show>
   )
 }
 

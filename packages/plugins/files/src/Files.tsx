@@ -268,7 +268,7 @@ function DoorRow(props: {
   readonly route: Route
   readonly testid: string
   readonly current: boolean
-  readonly title?: string
+  readonly tip?: string
   readonly broken?: boolean
   readonly children: JSX.Element
 }) {
@@ -279,7 +279,7 @@ function DoorRow(props: {
         class={DOOR}
         testid={props.testid}
         current={props.current}
-        title={props.title}
+        tip={props.tip}
         broken={props.broken}
       >
         {props.children}
@@ -358,7 +358,7 @@ function VaultFile(props: {
       testid={TESTID.vaultLink}
       current={props.isActive(props.file)}
       broken={unreadable()}
-      title={props.file}
+      tip={props.file}
     >
       <FileAnatomy of={of()} name={name()} broken={unreadable()} />
     </DoorRow>
@@ -463,7 +463,7 @@ function File(props: {
         testid={drawingOf(props.row.of)?.testid ?? TESTID.fileLink}
         current={props.view.isActive(props.row.file)}
         broken={outline() && props.view.broken.has(props.row.file)}
-        title={props.row.file}
+        tip={props.row.file}
       >
         <FileAnatomy
           of={props.row.of}

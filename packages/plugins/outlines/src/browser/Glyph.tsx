@@ -76,7 +76,6 @@ export function Glyph(props: {
       // the 44px rule is argued and where everything that moves with it lives.
       class={`${CONTROL} group/glyph relative select-none text-center no-underline ${tone()}`}
       testid={TESTID.zoom}
-      title={props.status === undefined ? "Zoom in" : FACE[props.status].hint}
       label="Zoom in"
       // The halo is a FACT about the reading, not a colour: a scenario asks
       // for it the same way it asks for data-collapsed on the row.
@@ -139,8 +138,21 @@ export function Glyph(props: {
     </Link>
   )
 
+  /** WHAT THE GLYPH IS ABOUT, in the words a pointer gets. Two sentences and
+   *  one tip: what a waiting row WAITS ON, and otherwise what the mark it
+   *  draws MEANS. Both were a `title` on the link until this app drew its own
+   *  tip, and the second is why this tip is no longer switched off outside the
+   *  waiting face — "Done" over a check is the same answer the platform's
+   *  tooltip was giving. */
+  const said = (): string =>
+    waiting()
+      ? blockedBy(props.blocked)
+      : props.status === undefined
+      ? "Zoom in"
+      : FACE[props.status].hint
+
   // Keep the link and its focus when its waiting face changes.
   return (
-    <Tip disabled={!waiting()} text={waiting() ? blockedBy(props.blocked) : ""}><Cell /></Tip>
+    <Tip text={said()}><Cell /></Tip>
   )
 }

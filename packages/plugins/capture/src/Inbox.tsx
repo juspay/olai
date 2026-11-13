@@ -21,7 +21,7 @@ export function Inbox(props: {
         testid={TESTID.inboxLink}
         current={props.isActive(props.file)}
         broken={props.broken}
-        title={props.file}
+        tip={props.file}
       >
         Inbox
         <Show when={props.broken}>

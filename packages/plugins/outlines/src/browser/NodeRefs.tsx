@@ -138,7 +138,7 @@ export function NodeRefLink(props: {
   /** The hover text. Defaults to what the link does, which is all a row's link
    *  has to say; a pill says what it is a pill ABOUT instead, because its own
    *  text is one word. */
-  readonly title?: string
+  readonly tip?: string
   /** What the link SAYS, which is the target's title in a row and the name of
    *  the relation on a pill. */
   readonly children: JSX.Element
@@ -148,7 +148,7 @@ export function NodeRefLink(props: {
       route={atNode(props.to.id)}
       class={props.class}
       testid={props.testid}
-      title={props.title ?? `Open ${props.to.title}`}
+      tip={props.tip ?? `Open ${props.to.title}`}
     >
       <span data-ref={props.to.id}>{props.children}</span>
     </Link>

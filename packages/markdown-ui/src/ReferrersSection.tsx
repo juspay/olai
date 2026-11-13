@@ -76,6 +76,7 @@ import { createSignal, For, onCleanup, Show } from "solid-js"
 import { type Claims, type Reference, type Way, WAYS } from "@olai/format"
 import type { AnyTestId } from "@olai/ui-primitives/testids.ts"
 import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 import { TitleHtml } from "./TitleHtml.tsx"
 import { renderTitle } from "./title.ts"
@@ -98,8 +99,12 @@ export interface ReferrerRow {
   readonly callsFrom: string
   /** `undefined` for a document's own body, which has said its file already. */
   readonly where?: string
-  /** The hover text: what the link does, or what it is a link ABOUT. */
-  readonly title?: string
+  /** THE HOVER SENTENCE: what the link does, or what it is a link ABOUT. The
+   *  app's own tip draws it ({@link ./ReferrersSection.tsx}'s anchor below);
+   *  it adds no ARIA, because a link already says that it opens something and
+   *  its `href` already says where — what is left is a convenience for a
+   *  pointer, which is exactly what a tip may be. */
+  readonly tip?: string
   /** What the row's anchor carries in `data-ref`, when a browser test picks
    *  the link by what it opens. A record answers its node id; a body answers
    *  its path; a caller that needs no `data-ref` leaves it out. */
@@ -121,7 +126,7 @@ export const referrerRowOf = (one: Reference, open: {
       opens: open.file(one.source.path),
       calls: one.source.title,
       callsFrom: one.source.path,
-      title: `Open ${one.source.path}`,
+      tip: `Open ${one.source.path}`,
       ref: one.source.path,
     }
     : {
@@ -130,7 +135,7 @@ export const referrerRowOf = (one: Reference, open: {
       calls: one.source.node.title,
       callsFrom: one.source.file,
       where: one.source.file,
-      title: `Open ${one.source.node.title}`,
+      tip: `Open ${one.source.node.title}`,
       ref: one.source.node.id,
     }
 
@@ -273,30 +278,34 @@ export function ReferrersSection(props: ReferrersSectionProps) {
                 >
                   {(row) => (
                     <>
-                      <a
-                        class="inline-flex items-center text-accent no-underline hover:underline md:min-h-0"
-                        data-testid={props.linkTestid}
-                        href={row().opens}
-                        title={row().title}
-                      >
-                        {/* WHAT it opens, in `data-ref`, when the caller says
-                            so — a browser test picks the link by what it
-                            opens, because ids outlive titles. Carried on an
-                            INNER span, for the selector's own grammar: the
-                            step asks for a `node-ref` that HAS a `data-ref`
-                            child (`NODE_REF:has([data-ref])`), so the anchor
-                            must contain it rather than wear it. */}
-                        <Show when={row().ref}>
-                          {(ref) => <span data-ref={ref()} />}
-                        </Show>
-                        {/* A referrer's title is rendered like every other
-                            title: its `#tags` are styled and hued
-                            (`./title.ts`) — inside the anchor, so its links
-                            stay unwrapped (`links` false). */}
-                        <TitleHtml
-                          drawing={renderTitle(props.claims, row().calls, row().callsFrom, { links: false })}
-                        />
-                      </a>
+                      {/* The tip, around the anchor it is about: `disabled`
+                          rather than a second arm, so a row that names no
+                          sentence keeps the same element either way. */}
+                      <Tip text={row().tip ?? ""} disabled={row().tip === undefined}>
+                        <a
+                          class="inline-flex items-center text-accent no-underline hover:underline md:min-h-0"
+                          data-testid={props.linkTestid}
+                          href={row().opens}
+                        >
+                          {/* WHAT it opens, in `data-ref`, when the caller says
+                              so — a browser test picks the link by what it
+                              opens, because ids outlive titles. Carried on an
+                              INNER span, for the selector's own grammar: the
+                              step asks for a `node-ref` that HAS a `data-ref`
+                              child (`NODE_REF:has([data-ref])`), so the anchor
+                              must contain it rather than wear it. */}
+                          <Show when={row().ref}>
+                            {(ref) => <span data-ref={ref()} />}
+                          </Show>
+                          {/* A referrer's title is rendered like every other
+                              title: its `#tags` are styled and hued
+                              (`./title.ts`) — inside the anchor, so its links
+                              stay unwrapped (`links` false). */}
+                          <TitleHtml
+                            drawing={renderTitle(props.claims, row().calls, row().callsFrom, { links: false })}
+                          />
+                        </a>
+                      </Tip>
                       {/* WHERE it was written, muted beside it — a title in a
                           list of strangers means nothing, and for a record it
                           is the outline the reference is in. A document's own

@@ -271,6 +271,7 @@
         "@olai/plugin-api": "workspace:*",
         "@olai/plugin-kit": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
+        "@olai/web": "workspace:*",
         "effect": "4.0.0",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-navigation": "workspace:*",

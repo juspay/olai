@@ -7,6 +7,7 @@ import { createMemo, createSignal } from "solid-js"
 import { Effect } from "effect"
 import { fileKind, isPutAway, inOlaiDir } from "@olai/format"
 import { FileWake } from "@olai/ui-primitives/FileWake.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import type { Directory } from "olai-plugin-vault/file-state"
 import type { WakeContext } from "olai-plugin-chat/slots"
 import { wake } from "../wake.ts"
@@ -23,6 +24,10 @@ export function Wake(props: { context: WakeContext; directory: Directory }) {
   return <FileWake plugin="odu" subject={wake.subject} from="runs from" file={file()}
     fault={fault()}
     paths={offered()} picker={picker} triggerClass={QUIET_PILL}
+    // The primitive cannot reach the app's tip (its package declares only
+    // solid-js, and the tip's package declares IT), so the row that can hands
+    // one down around the picker's own trigger.
+    tip={(said, control) => <Tip text={said()}>{control}</Tip>}
     listClass={`absolute inset-x-3 top-full ${WITHIN.pop} mt-1 max-h-80 overflow-x-hidden overflow-y-auto rounded-surface border border-rule/60 bg-panel p-1 shadow-raised`}
     ids={{ picker: TESTID.chatWakePicker, fault: TESTID.chatWakeFault, clear: TESTID.chatWakeClear, list: TESTID.chatWakeList, query: TESTID.chatWakeQuery, file: TESTID.chatWakeFile }}
     problem={problem()} setPick={next => { setProblem(undefined); Effect.runFork(props.context.setPick(next).pipe(Effect.catch(error => Effect.sync(() => setProblem(error.reason))))) }} />

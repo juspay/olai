@@ -18,7 +18,14 @@
  * the ancestors are a navigation and, in a tree, a click that opens an editor —
  * and this press is neither of those. Doing it unconditionally rather than only
  * where an ancestor happens to care is what keeps a third caller safe.
+ *
+ * WHAT A POINTER READS is this app's own tip and not the platform's `title`,
+ * and the sentence is the SAME STRING as the `aria-label` below — which is why
+ * the tip adds no ARIA of its own: a description identical to the name is the
+ * name read twice. `title` said it a third time, in a tooltip the browser
+ * placed and only a pointer could ask for.
  */
+import { Tip } from "@olai/web/client/Tip.tsx"
 import type { AnyTestId as TestId } from "@olai/ui-primitives/testids.ts"
 export function DropRef(props: {
   /** Which × this is, to the browser tests. */
@@ -32,21 +39,23 @@ export function DropRef(props: {
   readonly title: string
   readonly onDrop: (id: string) => void
 }) {
+  const said = (): string => `Remove ${props.title}`
   return (
-    <button
-      type="button"
-      class="cursor-pointer border-0 bg-transparent p-0 text-label leading-none text-muted hover:text-alarm"
-      data-testid={props.testid}
-      data-ref={props.id}
-      aria-label={`Remove ${props.title}`}
-      title={`Remove ${props.title}`}
-      onClick={(event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        props.onDrop(props.id)
-      }}
-    >
-      ×
-    </button>
+    <Tip text={said()}>
+      <button
+        type="button"
+        class="cursor-pointer border-0 bg-transparent p-0 text-label leading-none text-muted hover:text-alarm"
+        data-testid={props.testid}
+        data-ref={props.id}
+        aria-label={said()}
+        onClick={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          props.onDrop(props.id)
+        }}
+      >
+        ×
+      </button>
+    </Tip>
   )
 }

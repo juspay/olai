@@ -16,6 +16,7 @@
 import { TESTID } from "olai-plugin-trash/testids"
 
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 import { ENTRY_SHAPE } from "olai-plugin-layout/entry"
 import { Link,useRouter } from "olai-plugin-navigation/routing"
@@ -44,9 +45,11 @@ export function Trash() {
 export function TrashRail() {
   const router = useRouter()
   return (
-    <RailButton testid={TESTID.railTrash} label="Open Trash" title="Trash" href={router.routes.href(TRASH_ROUTE)}>
-      <TrashGlyph class="size-4" />
-    </RailButton>
+    <Tip text="Trash">
+      <RailButton testid={TESTID.railTrash} label="Open Trash" href={router.routes.href(TRASH_ROUTE)}>
+        <TrashGlyph class="size-4" />
+      </RailButton>
+    </Tip>
   )
 }
 

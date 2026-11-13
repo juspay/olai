@@ -49,7 +49,6 @@ export function Preferences(props: {
       glyph="⚙"
       name="Preferences"
       testid={TESTID.prefsTrigger}
-      title="Preferences"
       panel={(at, inside) => <Panel at={at} inside={inside} sections={props.sections} />}
     />
   )

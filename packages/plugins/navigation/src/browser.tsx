@@ -39,7 +39,7 @@ import { createNavigation } from "./state.ts"
 import { guardPageInput } from "./page-input.ts"
 
 const File: FileLink = (props) => <Link route={props.at === undefined || fileClaims() === undefined ? atFile(props.file) : atElement(fileClaims()!, props.file, props.at)} class={props.class}
-  testid={props.testid} label={props.label} title={props.title}>{props.children}</Link>
+  testid={props.testid} label={props.label} tip={props.tip}>{props.children}</Link>
 export default definePlugin({ name, needs: [Offers], apply: Effect.gen(function*() {
   yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
     const root = document.documentElement

@@ -22,17 +22,26 @@
 import { TESTID } from "@olai/ui-primitives/testids.ts"
 import type { Progress } from "@olai/format"
 
-
+import { Tip } from "./Tip.tsx"
 
 export function ProgressBadge(props: { readonly progress: Progress }) {
+  /** The fraction in words. A `3/5` drawn in two digits is a shape before it
+   *  is a sentence, and the sentence is what a pointer used to get out of a
+   *  `title` — now the tip, and the `sr-only` echo after the badge, which is
+   *  how an annotation nobody can focus says the same thing to a reader who
+   *  cannot hover. INSIDE the badge it would land in its own words, and the
+   *  badge's words are the fraction a scenario reads. */
+  const said = (): string => `${props.progress.done} of ${props.progress.total} done`
   return (
-    <span
-      class="shrink-0 tabular-nums text-label text-muted"
-      data-testid={TESTID.progress}
-      data-progress={`${props.progress.done}/${props.progress.total}`}
-      title={`${props.progress.done} of ${props.progress.total} done`}
-    >
-      {props.progress.done}/{props.progress.total}
-    </span>
+    <Tip text={said()}>
+      <span
+        class="shrink-0 tabular-nums text-label text-muted"
+        data-testid={TESTID.progress}
+        data-progress={`${props.progress.done}/${props.progress.total}`}
+      >
+        {props.progress.done}/{props.progress.total}
+      </span>
+      <span class="sr-only">{said()}</span>
+    </Tip>
   )
 }

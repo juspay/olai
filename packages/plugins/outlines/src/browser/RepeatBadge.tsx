@@ -40,7 +40,7 @@ export function RepeatBadge(props: {
       testid={TESTID.repeat}
       classList={{ "bg-pill text-muted": true }}
       onPick={props.onPick}
-      title={props.onPick === undefined
+      tip={props.onPick === undefined
         ? `Repeats ${props.repeat}`
         : "Change repeat"}
     >

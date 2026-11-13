@@ -96,7 +96,7 @@ function Row(props: { readonly row: Accessor<OwedRow>; readonly today: string })
       <Link
         route={zoomNode(props.row().id)}
         class={`${ENTRY_SHAPE} ${ROW_GAP}`}
-        title={props.row().title}
+        tip={props.row().title}
         label={props.row().title}
       >
         <span
