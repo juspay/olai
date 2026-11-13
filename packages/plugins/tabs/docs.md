@@ -19,8 +19,11 @@ owns this geometry; tabs still contributes only to the existing strip seat.
 
 The tab in front is drawn on paper, and the others are muted. Each tab shows a
 glyph for the kind of page it holds, its title, and a close button at its right
-edge. The close button shows on the tab in front and on hover; its tooltip is
-`Close tab` and its accessible name is `Close <title>`.
+edge. The close button shows on the tab in front, on hover, and — through
+`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER` — on any screen with no hover at
+all, since the strip is drawn by width and a touch screen past that width has
+no pointer to reveal it with. Its tooltip is `Close tab` and its accessible
+name is `Close <title>`.
 
 A tab holding a file is named the way the files sidebar names it: a document
 (an outline or a markdown file) without the suffix, `garden`, not

@@ -152,6 +152,44 @@ When("I rename the pin {string}", async function (this: OlaiWorld, address: stri
 });
 
 /**
+ * THE SAME TWO CONTROLS, WITH A THUMB — and the reason this is a second pair
+ * of steps rather than a `hasTouch` branch inside the two above.
+ *
+ * The hovering steps `force` their click because a pointer's shelf keeps the
+ * strip at `opacity: 0` until a hand is on the row, and opacity is not
+ * something Playwright's actionability check sees through. A touch screen has
+ * no hand to put on a row, so the strip is drawn
+ * (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`) — which means the press here
+ * must be unforced and must not hover first. Those two absences ARE the claim:
+ * forcing one would pass just as well over a control nobody can see.
+ */
+Then(
+  "the pin {string} shows its controls without a hover",
+  async function (this: OlaiWorld, address: string) {
+    await this.showSidebar();
+    const strip = pinAt(this, address).locator(`span:has(${PIN_REMOVE})`);
+    await strip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // The opacity is the contract, and it is on the STRIP: the buttons inside
+    // it are opaque in their own right and would answer "1" to this question
+    // on a shelf nobody could see.
+    assert.equal(
+      await strip.evaluate((el) => getComputedStyle(el).opacity),
+      "1",
+      `the controls of "${address}" are drawn transparent on a screen with no hover`,
+    );
+    for (const control of [PIN_RENAME, PIN_REMOVE]) {
+      await pinAt(this, address).locator(control)
+        .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    }
+  },
+);
+
+When("I tap the unpin of {string}", async function (this: OlaiWorld, address: string) {
+  await this.showSidebar();
+  await this.press(pinAt(this, address).locator(PIN_REMOVE), "tap");
+});
+
+/**
  * The NAME, typed into the palette's own box and sent.
  *
  * The box is the palette's rather than a field of the question's own, which is

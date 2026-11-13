@@ -85,6 +85,34 @@ When("I open the Chats menu of {string}", async function (this: OlaiWorld, id: s
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
+/**
+ * THE SAME DOTS, ON A SCREEN WITH NO HOVER TO REVEAL THEM.
+ *
+ * The step above hovers the row first because that is how a pointer finds the
+ * `•••`. A tablet cannot, and the column is drawn there in full: the button is
+ * `hidden` below md for want of ROOM and opaque above it for want of a hover
+ * (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`). Opacity is what is asked,
+ * because that is the contract — Playwright counts a transparent button as
+ * visible, and so would a step that only waited for one.
+ */
+Then("the Chats ••• of {string} is drawn without a hover", async function (this: OlaiWorld, id: string) {
+  await this.showSidebar();
+  const dots = this.page.locator(`${menu}${attr("data-agent", this.nodeId(id))}`);
+  await dots.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal(
+    await dots.evaluate((el) => getComputedStyle(el).opacity),
+    "1",
+    `the ••• on the Chats row for "${id}" is drawn transparent on a screen with no hover`,
+  );
+});
+
+When("I tap the Chats ••• of {string}", async function (this: OlaiWorld, id: string) {
+  await this.showSidebar();
+  await this.press(this.page.locator(`${menu}${attr("data-agent", this.nodeId(id))}`), "tap");
+  await this.page.locator(`${panel}${attr("data-agent", this.nodeId(id))}`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
 When("I choose {string} from the Chats menu", async function (this: OlaiWorld, label: string) {
   const entry = this.page.locator(panel).locator(item).filter({ hasText: label }).first();
   await entry.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

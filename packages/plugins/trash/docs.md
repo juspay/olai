@@ -11,7 +11,10 @@ browser integration hides the entry without deleting archives or reversing
 accepted restore operations.
 
 Moving a row to Trash asks first: `Move “x” to Trash? You can put it back from
-Trash in the sidebar.` Each row on the Trash page has `Put back`. Emptying asks
+Trash in the sidebar.` Each row on the Trash page has `Put back`: with a hand
+on the row, with the keyboard on it, and always on a screen with no hover
+(`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`, which this page's own media
+query became). Emptying asks
 `Permanently delete all N rows in Trash? olai can't bring them back. Only what
 git has already saved can be recovered.` (or `the one row` / `it` for one). An
 empty Trash page says `Trash is empty` and `Deleted outlines and rows appear

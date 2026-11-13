@@ -260,3 +260,18 @@ Feature: Pinning a page to the sidebar
     When the directory grows a pin to "/agenda"
     Then the pinned shelf holds "/agenda"
     And the page has not reloaded
+
+  @phone
+  Scenario: A thumb takes a pin off the shelf
+    # The shelf is drawn at every width — on a phone it is inside the drawer —
+    # and both of its controls used to wait for a hover, which is the one
+    # gesture this screen does not have: a pin could be followed with a finger
+    # and never renamed or taken off. Nothing here is forced and nothing hovers
+    # first; that is the whole claim.
+    Given the directory has the pins:
+      | /zoom/#order |
+    Then the pinned shelf holds "/zoom/#order"
+    And the pin "/zoom/#order" shows its controls without a hover
+    When I tap the unpin of "/zoom/#order"
+    Then the pinned shelf is not drawn
+    And there should be no page errors

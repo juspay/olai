@@ -125,3 +125,20 @@ Feature: Agent activity is reachable from Chats and the palette
     And the node page conversation is ready for "filed"
     And there should be no page errors
 
+  @phone
+  Scenario: A wide touch screen draws a Chats row's ••• and a thumb opens it
+    # The dots are not drawn below md at all — a 390pt row spends its width on
+    # the title — so the screen that lost them was the one wide enough to draw
+    # them and with no hover to find them with: a tablet got a transparent
+    # square at the end of every row, in the way of the row's own press. The
+    # column here is the same column; only the pointer is different.
+    Given I open the outline "house.olai"
+    When I widen the window to a desk
+    And I open the "claude" agent on node "install"
+    And the node agent's fold is ready
+    Then the Chats ••• of "install" is drawn without a hover
+    When I tap the Chats ••• of "install"
+    And I choose "Put to sleep" from the Chats menu
+    Then the agent "install" stands "asleep"
+    And there should be no page errors
+

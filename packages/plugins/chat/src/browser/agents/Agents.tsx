@@ -7,6 +7,7 @@ import { ENTRY_SHAPE, REGION, REGION_HEAD, REGION_LABEL } from "olai-plugin-layo
 import { useShown, useRouter } from "olai-plugin-navigation/routing"
 import { isCurrent } from "../../attention.ts"
 import { DOT } from "@olai/web/client/readout.ts"
+import { SHOWN_WITHOUT_HOVER } from "@olai/ui-primitives/touch.ts"
 import { agoOf, createNow } from "@olai/web/client/ago.ts"
 import { TESTID } from "../../testids.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"
@@ -93,13 +94,16 @@ export function Chats() {
       {/* THE CONTROLS, beside the row rather than inside it: a control inside
           an anchor is a control whose activation is also a navigation (the
           pins' rule). Revealed on hover or focus, over the row's right edge on
-          the column's own ground. The `•••` is always there — every row has
-          verbs — and the dock door only where there is a seat to open, which
-          the dock component's shell decides. */}
+          the column's own ground — and on a screen with no hover to offer,
+          simply drawn (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`): the
+          dock door is only ever drawn beside a desktop-width dock, which a
+          touch tablet is. The `•••` is always there — every row has verbs —
+          and the dock door only where there is a seat to open, which the dock
+          component's shell decides. */}
       <div class="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
         <Show when={dock()?.desktop()}>
           <button type="button"
-            class={`inline-flex size-6 items-center justify-center rounded-control bg-desk text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100`}
+            class={`inline-flex size-6 items-center justify-center rounded-control bg-desk text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
             data-testid={TESTID.chatDockOpen} data-agent={row().id}
             aria-label={`Open ${row().title} in the panel`} title="Open in the panel"
             onClick={(event) => { event.stopPropagation(); dock()?.open(row().id) }}>

@@ -831,3 +831,23 @@ test("every box navigation does not cover checks composition itself", () => {
     "web/src/client/composition.ts"
   ])
 })
+
+// A CONTROL REVEALED ON HOVER IS A CONTROL A FINGER CANNOT FIND, unless the
+// recipe says otherwise — and in Tailwind 4 this is sharper than it sounds.
+// That version wraps `hover:` and `group-hover:` in `@media (hover: hover)`
+// itself, so on a touch screen the reveal arm does not merely lose a race: it
+// never matches at all, and the control stays at `opacity-0` for the life of
+// the page. Transparent, hit-testable, and invisible — which is worse than
+// absent, because nothing says it is there.
+//
+// `@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER` is the one answer, and the
+// three shared recipes carry it. What this sweeps is the SITES: a component
+// that spells its own `opacity-0` beside a reveal arm, rather than taking a
+// recipe, has re-invented the bug. The list is empty on purpose — every site
+// that had one now consumes the constant — so a name appearing here is a
+// control somebody just hid from every tablet.
+test("no component hides a control behind a hover of its own", () => {
+  const reveal = /opacity-0[\s\S]{0,400}?(?:group-hover(?:\/[\w-]+)?:opacity-100|hover:opacity-100)/
+  const answered = /SHOWN_WITHOUT_HOVER|\[@media\(hover:none\)\]:opacity-100/
+  expect(SOURCES.filter(one => reveal.test(one.code) && !answered.test(one.code)).map(one => one.file)).toEqual([])
+})

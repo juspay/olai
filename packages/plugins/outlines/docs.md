@@ -98,7 +98,7 @@ Submenus are Kobalte `Sub`s, portalled beside the panel into this row's overlay 
 
 ## Rows on a phone
 
-The row the caret or the last tap is on carries `data-active`. A plugin's offer on a row (chat's `Start an agent` pill, styled with `OFFER_REVEAL` from `@olai/ui-primitives/touch.ts`) is drawn on a phone only on that row; on a pointer device it appears on hover or keyboard focus. What a row already has, such as an agent's standing, is drawn on every row. A dated row on a day page or the Agenda becomes the active row when tapped.
+The row the caret or the last tap is on carries `data-active`. A plugin's offer on a row (chat's `Start an agent` pill, styled with `OFFER_REVEAL` from `@olai/ui-primitives/touch.ts`) is drawn on a phone only on that row; on a pointer device it appears on hover or keyboard focus. Those are two different questions — the phone's branch is about the WIDTH of a 390pt line, and the fade is about the pointer — so a touch screen past the breakpoint (a tablet, a touch laptop) is drawn the offer outright: there is room for it and no hover to reveal it with (`SHOWN_WITHOUT_HOVER`, which every reveal in that file now carries, and which does the same for the row's own `•••` and collapse triangle). What a row already has, such as an agent's standing, is drawn on every row. A dated row on a day page or the Agenda becomes the active row when tapped.
 
 ## Rows for a reader who asked for less motion
 

@@ -910,6 +910,13 @@ When("I press the agent start pill on {string}", async function (this: OlaiWorld
   this.activeAgent = node;
   await this.press(startFor(this, node));
 });
+/** The same offer, taken with a thumb: no hover before it and no `force` on
+ *  it, because a screen with no hover draws the pill rather than fading it in
+ *  (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`). */
+When("I tap the agent start pill on {string}", async function (this: OlaiWorld, node: string) {
+  this.activeAgent = node;
+  await this.press(startFor(this, node), "tap");
+});
 Then("the agent start pill on {string} is visible", async function (this: OlaiWorld, node: string) {
   await startFor(this, node).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.equal(await startFor(this, node).evaluate(el => getComputedStyle(el).opacity), "1");

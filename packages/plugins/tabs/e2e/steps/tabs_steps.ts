@@ -200,6 +200,32 @@ When("I close tab {int} with its button", async function (this: OlaiWorld, index
 });
 
 /**
+ * A BACKGROUND TAB'S `×`, SEEN AND PRESSED BY A FINGER.
+ *
+ * The step above hovers and clicks, which is the pointer's gesture and the
+ * only one it has. These two are the other device: no hover beforehand, and no
+ * `force` on the press, because on a screen with no hover the button is simply
+ * drawn (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`). The strip is a
+ * WIDTH decision and the reveal is a POINTER one, which is why a scenario can
+ * ask this at all: a tablet in landscape is past the breakpoint that draws the
+ * strip and has nothing to hover it with.
+ */
+Then("tab {int} shows its close control without a hover", async function (this: OlaiWorld, index: number) {
+  const close = tabAt(this, index).locator(CLOSE);
+  await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal(
+    await close.evaluate((el) => getComputedStyle(el).opacity),
+    "1",
+    `tab ${index}'s close button is drawn transparent on a screen with no hover`,
+  );
+});
+
+When("I tap the close control of tab {int}", async function (this: OlaiWorld, index: number) {
+  await this.press(tabAt(this, index).locator(CLOSE), "tap");
+  await settled(this);
+});
+
+/**
  * WHERE THE CLOSE BUTTON SITS, and what it is called. At the tab's right edge,
  * after the name — the last thing in the tab, the place a hand reaches for —
  * with the tooltip `Close tab` and an accessible name that says WHICH tab.

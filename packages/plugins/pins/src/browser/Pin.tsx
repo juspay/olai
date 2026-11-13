@@ -22,7 +22,7 @@ import { Show } from "solid-js"
  * face would draw.
  */
 import { TESTID } from "olai-plugin-pins/testids"
-import { CONTROL } from "@olai/ui-primitives/touch.ts"
+import { CONTROL, SHOWN_WITHOUT_HOVER } from "@olai/ui-primitives/touch.ts"
 import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 
@@ -116,7 +116,13 @@ export function Pin(props: {
           right edge and appear on hover or focus, the way the tree's own
           reveal-on-hover controls do (`../touch.ts`).
           TWO of them now, in one strip so the row's own layout decides where
-          they sit rather than each of them holding its own offset. */}
+          they sit rather than each of them holding its own offset.
+          …AND ON A TOUCH SCREEN THEY ARE SIMPLY THERE: this shelf is drawn at
+          every width — the sidebar is a drawer on a phone, not a thing that
+          goes away — so a thumb had no gesture at all for unpinning or
+          renaming until `SHOWN_WITHOUT_HOVER` (`@olai/ui-primitives`). The
+          ground they are drawn on is what keeps them legible over the row's
+          own right edge when they never fade out. */}
       <span
         class={`absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1.5 ${LAYER.row} ` +
           // ITS OWN GROUND, because it is drawn OVER the row's own right edge —
@@ -128,7 +134,7 @@ export function Pin(props: {
           // current row's accent wash faintly visible under it rather than
           // punching a hole in it.
           "rounded-control bg-desk px-1.5 py-1 opacity-0 shadow-raised transition-opacity " +
-          "focus-within:opacity-100 group-hover/pin:opacity-100"}
+          `focus-within:opacity-100 group-hover/pin:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
       >
         {/* WHAT IT IS CALLED, changed — the shelf's door onto the one question
             the palette asks (`./naming.ts`). It is here rather than on the row

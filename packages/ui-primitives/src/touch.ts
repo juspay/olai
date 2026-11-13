@@ -11,6 +11,15 @@
  * on a touchscreen laptop while the layout stayed in two columns would be a
  * third case nobody has looked at.
  *
+ * THE REVEALS BELOW DO NOT GET THAT PROXY, and that is the one place this
+ * file keeps two lines instead of one. A target that grows on a laptop costs
+ * a sidebar some air; a control that stays transparent on a tablet costs a
+ * person the control altogether, so the cheap answer is affordable for the
+ * size and is not affordable for the reveal. Width cannot answer whether
+ * there is a HOVER here — a tablet, a touchscreen laptop and a handset held
+ * sideways are all past 48rem with nothing to put on the row —
+ * so the reveals ask the pointer directly ({@link SHOWN_WITHOUT_HOVER}).
+ *
  * What a control is ABOVE that line is per control — a day of the month goes
  * back to a 1.75rem row, a pill to its padding, a bullet to 1rem — so the
  * reset is spelled at each site and only the target is spelled here. That is
@@ -160,6 +169,37 @@ export const MENU_CELL =
 export const HELD = "[-webkit-touch-callout:none]"
 
 /**
+ * WHERE THERE IS NO HOVER, THE CONTROL IS SIMPLY ON — the arm every reveal in
+ * this file was missing, written once and appended by all three.
+ *
+ * A fade-in-on-hover control has three states and only two of them were here:
+ * hovered, focused, and the device that can do neither. `md:` was standing in
+ * for the third, and it cannot: it answers a question about ROOM (is this the
+ * two-column layout; is there space on the line for a `•••`), and a wide
+ * touch screen answers that question YES while having no pointer to reveal
+ * anything with. Every control below `md:opacity-0` was therefore drawn
+ * transparent on a tablet and revealed by nothing a finger could do — a
+ * control that exists, takes its width, and cannot be found (WCAG 1.4.13's
+ * other half: content revealed on hover must be reachable without one).
+ *
+ * It is `hover: none` and not `pointer: coarse` because the question is
+ * whether a hover can reveal this, not how fat the finger is: a stylus is a
+ * fine pointer that cannot hover, and a remote's cursor is a coarse one that
+ * can. The spelling is the trash page's, which was the first surface here to
+ * answer this at all (`olai-plugin-trash`'s `TrashPage.tsx`) and is now a
+ * caller of this constant rather than a second answer.
+ *
+ * THAT IT IS A SINGLE APPENDED CLASS IS LOAD-BEARING, and it rests on the
+ * order Tailwind emits: an arbitrary at-rule variant sorts after `md:` and
+ * after `group-hover` (which v4 wraps in `@media (hover: hover)` of its own),
+ * so this clause is the last word wherever it matches and silent everywhere
+ * else. The mirror image — gating the `opacity-0` on `(hover: hover)` instead
+ * — reads better and is wrong: it would sort AFTER the `group-hover` that is
+ * meant to beat it, and a desk would get a control that never appeared.
+ */
+export const SHOWN_WITHOUT_HOVER = "[@media(hover:none)]:opacity-100"
+
+/**
  * Reveal policy for hover-only gutter controls (triangle; menu on md+).
  *
  * Below 48rem: always on (a finger has no hover). Above: invisible until the
@@ -179,10 +219,16 @@ export const HELD = "[-webkit-touch-callout:none]"
  * one layer up). A programmatic `focus()` counts as focus, which is what keeps
  * `workflowy_gutter.feature`'s keyboard path true: the caret put ON a control
  * is the state that clause exists for.
+ *
+ * And on a screen with no hover the width arm would have left nothing to
+ * reveal it, which is {@link SHOWN_WITHOUT_HOVER}'s clause: below 48rem it
+ * says again what the first class already said, and above it — the tablet —
+ * it is the only thing that draws the gutter at all.
  */
 export const HOVER_REVEAL =
   "opacity-100 md:opacity-0 md:group-hover/row:opacity-100 " +
-  "md:group-has-[:focus:not(input):not(textarea)]/row:opacity-100"
+  "md:group-has-[:focus:not(input):not(textarea)]/row:opacity-100 " +
+  SHOWN_WITHOUT_HOVER
 
 /**
  * Reveal for an OFFER a plugin hangs on a row — a verb a person may want
@@ -199,6 +245,13 @@ export const HOVER_REVEAL =
  * It carries the DISPLAY (`hidden`, then `inline-flex` where it shows), so the
  * element wearing it must not spell a display of its own — two display
  * utilities on one box are settled by emission order, not by the page.
+ *
+ * The two branches answer two questions and the `md:` one is kept for the
+ * question it really answers: whether a LINE has room for a pill beside the
+ * title. Below 48rem it does not, which is why the offer waits there for the
+ * tapped row. Above it there is room, so a touch screen gets the offer the
+ * way the guide asks for it — drawn, and not waiting on a hover it cannot
+ * perform ({@link SHOWN_WITHOUT_HOVER}).
  */
 export const OFFER_REVEAL =
   // `self-center`: a pill in a baseline-aligned line would otherwise STEER
@@ -209,7 +262,8 @@ export const OFFER_REVEAL =
   // nothing beside it.
   "hidden items-center self-center group-data-[active]/row:inline-flex md:inline-flex " +
   "md:opacity-0 md:group-hover/row:opacity-100 " +
-  "md:group-has-[:focus:not(input):not(textarea)]/row:opacity-100"
+  "md:group-has-[:focus:not(input):not(textarea)]/row:opacity-100 " +
+  SHOWN_WITHOUT_HOVER
 
 /**
  * Reveal for the `•••` menu button — hover/focus-only, and no phone branch,
@@ -225,11 +279,17 @@ export const OFFER_REVEAL =
  * The focus arm is {@link HOVER_REVEAL}'s, in its spelling and for its reason:
  * a hand on the row, or the caret on a CONTROL in it — never the caret in the
  * title, which is what made this button appear when a new line landed.
+ *
+ * The fourth arm is {@link SHOWN_WITHOUT_HOVER}, and this is the recipe it
+ * was most needed in: there is no width branch to fall back on here, so on
+ * every touch screen wide enough to be drawn the `•••` was a transparent
+ * square at the end of the row — in the way of the row's own press, and
+ * invisible to the one gesture that could have reached it.
  */
 export const MENU_REVEAL =
   "opacity-0 group-hover/row:opacity-100 " +
   "group-has-[:focus:not(input):not(textarea)]/row:opacity-100 " +
-  "data-[expanded]:opacity-100"
+  `data-[expanded]:opacity-100 ${SHOWN_WITHOUT_HOVER}`
 
 /** Past the glyph — where a day's row puts its note. */
 export const PAST_BULLET = "ml-8 md:ml-5"

@@ -62,6 +62,7 @@ import { Empty } from "@olai/web/client/Empty.tsx"
 import { PAGE_TITLE } from "@olai/web/client/look.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { createSaying } from "@olai/web/client/saying.ts"
+import { SHOWN_WITHOUT_HOVER } from "@olai/ui-primitives/touch.ts"
 
 import { applying } from "./writes.ts"
 import { useNarrowed } from "olai-plugin-outlines/filter"
@@ -227,9 +228,14 @@ function Branch(props: {
         </span>
         <Show when={props.row.kind === "node" ? props.row : undefined}>
           {(row) => (
+            // `Put back` appears with a hand on the row, and is simply there
+            // where there is no hand to put on one. This page was the first
+            // surface to answer that question and spelled the media query
+            // here; the spelling is now `@olai/ui-primitives`'s, so every
+            // reveal in the app says it once and says it the same way.
             <button
               type="button"
-              class="shrink-0 rounded-control border border-rule/60 bg-panel px-2 py-0.5 text-label text-muted opacity-0 transition-opacity hover:bg-rule/60 hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+              class={`shrink-0 rounded-control border border-rule/60 bg-panel px-2 py-0.5 text-label text-muted opacity-0 transition-opacity hover:bg-rule/60 hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
               data-testid={IDS_TRASH.trashPutBack}
               aria-label={`put back “${row().shows.node.title}”`}
               onClick={() => void putBack()}

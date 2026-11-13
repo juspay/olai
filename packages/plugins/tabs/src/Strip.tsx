@@ -17,6 +17,7 @@ import { createEffect, createMemo, createSelector, createSignal, on, Show } from
 
 import { DOT } from "@olai/web/client/readout.ts"
 import { createDrags } from "@olai/web/client/pointer.ts"
+import { SHOWN_WITHOUT_HOVER } from "@olai/ui-primitives/touch.ts"
 import type { Navigation } from "olai-plugin-navigation/contract"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { lone } from "olai-plugin-navigation/workspace"
@@ -186,12 +187,21 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
               <Show when={dot()}>{(mark) =>
                 <span data-testid={TESTID.tabsDot} data-tab-dot="true" role="img" aria-label={mark().label} class={`${DOT} ${mark().paint}`} />
               }</Show>
+              {/* THE × IS THE FRONT TAB'S ALWAYS and the others' on hover —
+                  a strip of eight tabs each wearing a close button is eight
+                  invitations to lose a page. On a touch screen there is no
+                  hover to make the offer with, and this strip is drawn
+                  wherever the window is wide enough for it: a tablet in
+                  landscape had a row of tabs it could only close through the
+                  long-press menu. `SHOWN_WITHOUT_HOVER` is the one rule for
+                  that (`@olai/ui-primitives`), and it leaves the pointer's
+                  strip exactly as it was. */}
               <button
                 type="button"
                 data-testid={TESTID.tabsClose}
                 aria-label={`Close ${title()}`}
                 title="Close tab"
-                class="flex size-5 shrink-0 items-center justify-center rounded-control text-body leading-none text-muted hover:bg-ink/10 hover:text-ink focus-visible:opacity-100 group-hover/tab:opacity-100"
+                class={`flex size-5 shrink-0 items-center justify-center rounded-control text-body leading-none text-muted hover:bg-ink/10 hover:text-ink focus-visible:opacity-100 group-hover/tab:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
                 classList={{ "opacity-0": !front() }}
                 onClick={(event) => {
                   event.stopPropagation()
