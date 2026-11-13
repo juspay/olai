@@ -93,7 +93,7 @@ import { atOnce,spend } from "@olai/web/client/settled.ts"
 
 import { useToday } from "./clock.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
-import { lightDismiss } from "@olai/web/client/dismiss.ts"
+import { claimCloseRequest, lightDismiss } from "@olai/web/client/dismiss.ts"
 import { resetPanelWidths } from "./shell.ts"
 import type { Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
@@ -894,7 +894,7 @@ export function Palette(props: {
       // this replaced was for. `closedby` is the declarative half and Safari
       // has none of it, so `lightDismiss` carries the other half on the
       // pointer's own position (`../../../../web/src/client/dismiss.ts`).
-      ref={(element) => { modal = element; lightDismiss(element) }}
+      ref={(element) => { modal = element; lightDismiss(element); claimCloseRequest(element) }}
       onCancel={(event) => {
         // ESCAPE IS A CLOSE REQUEST now, and the dismissal stack's order is
         // kept by the platform: a close request is offered to the TOPMOST

@@ -64,7 +64,10 @@ Feature: Confirming composed text does not invoke application shortcuts
       {"id":"ime-prop","ord":"a0","title":"Shelf"}
       """
     And I open the outline "ime-props.olai"
-    When I add a property on "ime-prop"
+    # The FIRST property is added from the menu: a node with no run has no `+`
+    # at the end of one (`plugins/outlines/e2e/features/properties.feature`).
+    When I open the node menu of "ime-prop"
+    And I choose "More › Add property…" from the node menu
     And I draft the property "maker" holding "" on "ime-prop"
     And I confirm the IME text "日本語" in the focused field
     Then the vault node "ime-prop" has no property "maker"

@@ -96,35 +96,47 @@ Then("the app is frozen under the offline overlay", async function (this: OlaiWo
   // behind it, which is a wire's clock rather than a render's.
   await overlay.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   const shown = (await overlay.innerText()).replace(/\s+/g, " ");
-  // On a desktop the connection's words ride the health dot: its tip carries
+  // On a desktop the connection's words ride the health dot: its STORY carries
   // each piece of news as `label — sentence`, the connection's among them, in
   // `client/connection/status.ts`'s own words. The overlay is the other reader
   // of that table: its card says what HAPPENED (`Connection lost`, `The server
   // restarted`) and what is being done about it (`Reconnecting…`), so the
   // connection's LABEL on the dot has to be one of the card's lines — the two
   // cannot name the state differently.
+  //
+  // Read off the inner `role="img"`'s NAME rather than off a `title`, which is
+  // where the story used to be. A `title` is drawn only under a pointer, so
+  // the one reader who cannot hover is the one it told nothing; the dot says
+  // the same sentence as a name now, and this step reads what a person is
+  // actually given.
   const dot = this.page.locator(HEALTH);
   if ((await dot.count()) > 0) {
-    const tip = (await dot.getAttribute("title")) ?? "";
-    const labels = tip.split("\n").slice(1).map((one) => one.split(" — ")[0]!.trim());
+    const story = (await dot.locator('[role="img"]').first().getAttribute("aria-label")) ?? "";
+    const labels = story.split("\n").slice(1).map((one) => one.split(" — ")[0]!.trim());
     const card = (await overlay.locator("h2, p").allInnerTexts()).map((one) => one.trim());
     assert.ok(
       labels.some((label) => card.includes(label)),
-      `the health dot's tip ${JSON.stringify(tip)} names no state the overlay's card ` +
+      `the health dot's story ${JSON.stringify(story)} names no state the overlay's card ` +
         `${JSON.stringify(card)} says — the dot and the freeze are two readers of one wire`,
     );
     return;
   }
   const pill = this.page.locator(CONNECTION);
   if ((await pill.count()) > 0) {
-    const said = await pill.getAttribute("title");
+    // The pill's own words, read off the pill. They used to be a `title` and
+    // are the drawn label plus the detail now — on a desktop the detail is a
+    // hidden copy beside the label, on a phone the banner draws both — so this
+    // reads what the element SAYS rather than an attribute only a pointer
+    // could reach.
+    const said = (await pill.innerText()).replace(/\s+/g, " ").trim();
     assert.ok(
-      said !== null && said.length > 0,
+      said.length > 0,
       "the connection pill says nothing, so there is no wording for the overlay to share",
     );
+    const words = said.split(" — ").map((one) => one.trim()).filter((one) => one.length > 0);
     assert.ok(
-      shown.includes(said.replace(/\s+/g, " ")),
-      `the overlay reads ${JSON.stringify(shown)}, which is not the pill's own sentence ` +
+      words.some((one) => shown.includes(one)),
+      `the overlay reads ${JSON.stringify(shown)}, which shares nothing with the pill's own sentence ` +
         `${JSON.stringify(said)} — two wordings of one wire are two claims free to disagree`,
     );
     return;

@@ -259,7 +259,9 @@ Then(
     const close = tab.locator(CLOSE);
     await close.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.equal(await close.getAttribute("aria-label"), name);
-    assert.equal(await close.getAttribute("title"), "Close tab");
+    // No `title` on the close button: "Close tab" is this app's own tip, and
+    // the button's NAME is the tab it closes, asserted on the line above.
+    assert.equal(await close.getAttribute("title"), null);
     const [face, button, title] = await Promise.all([tab.boundingBox(), close.boundingBox(), tab.locator(TITLE).boundingBox()]);
     assert.ok(face !== null && button !== null && title !== null, "the tab, its name or its button has no box");
     // Right-aligned: nothing but the tab's own padding after the button.

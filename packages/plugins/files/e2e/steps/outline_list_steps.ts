@@ -28,11 +28,18 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 const folderSelector = (path: string): string =>
   `${FILE_DIR}${attr("data-path", path)}`;
 
-/** The fold button of ONE folder — a direct child of its `<li>`, not a
- *  descendant's. Nested folders nest their `li`s, so an unscoped
- *  `FILE_DIR_TOGGLE` under a parent would match every toggle inside it. */
+/** The fold button of ONE folder — its own, not a nested folder's. Nested
+ *  folders nest their `li`s, so an unscoped `FILE_DIR_TOGGLE` under a parent
+ *  would match every toggle inside it.
+ *
+ *  `:scope > *:is(button, :has(> button)) > …` rather than the plain
+ *  `:scope > button` this used to be: the toggle wears a `<Tip>` now, whose
+ *  wrapper is a `display: contents` span — no box, nothing a reader can see,
+ *  and one more element between the `<li>` and its button. Matching the
+ *  button through at most one such wrapper keeps the claim ("this folder's
+ *  own toggle") while leaving a nested folder's two levels down out of it. */
 const folderToggle = (world: OlaiWorld, path: string) =>
-  world.fileDir(path).locator(":scope > button");
+  world.fileDir(path).locator(":scope > button, :scope > span > button").first();
 
 Then("the outline list is shown", async function (this: OlaiWorld) {
   await this.page

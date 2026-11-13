@@ -210,3 +210,34 @@ export const lightDismiss = (dialog: HTMLDialogElement): void => {
     dialog.removeEventListener("pointerup", up)
   })
 }
+
+/**
+ * THE CLOSE REQUEST IS THE TOPMOST MODAL'S, and nothing under it may spend it.
+ *
+ * A modal `<dialog>` makes the rest of the document inert, which stops presses
+ * and the caret but NOT listeners: a panel underneath with a `keydown` handler
+ * on the document still hears every key, because the event targets the control
+ * inside the dialog and bubbles the whole way up. The `•••` menu is exactly
+ * that panel — Kobalte's `DismissableLayer`, with a stack of its own that this
+ * app's cannot get onto (`./topmost.ts`) — and the key it answers is Escape.
+ *
+ * Escape on a modal is not an ordinary key: closing is the DEFAULT ACTION of
+ * the keydown, so a listener anywhere that calls `preventDefault()` on it
+ * leaves the dialog standing. A menu left open under the palette did that, and
+ * the palette stopped answering the one key it has always answered
+ * (`dismiss_stack.feature`'s "…and to the palette over it").
+ *
+ * So the dialog claims the key where it is unambiguously its own: a BUBBLE
+ * listener on the dialog itself. Everything inside has already had the event
+ * — a completion list over the palette's box takes Escape at the target, as it
+ * always did, and if it answers by preventing the default the dialog correctly
+ * stays — and nothing outside hears it at all, which is the whole claim. The
+ * default action is never touched here: the browser still routes the close
+ * request to the topmost modal, which is the rule this is protecting rather
+ * than replacing.
+ */
+export const claimCloseRequest = (dialog: HTMLDialogElement): void => {
+  const claim = (event: KeyboardEvent) => { if (event.key === "Escape") event.stopPropagation() }
+  dialog.addEventListener("keydown", claim)
+  onCleanup(() => dialog.removeEventListener("keydown", claim))
+}

@@ -38,7 +38,7 @@ import { createEffect,For,onCleanup,Show } from "solid-js"
 import { SHORTCUTS } from "@olai/web/client/keys.ts"
 import type { AppChord } from "../slots.ts"
 import { enterTopLayer } from "@olai/web/client/layer.ts"
-import { lightDismiss } from "@olai/web/client/dismiss.ts"
+import { claimCloseRequest, lightDismiss } from "@olai/web/client/dismiss.ts"
 
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
 
@@ -94,7 +94,7 @@ export function Shortcuts(props: {
       // and the name is the label below.
       class="fixed inset-x-4 top-[min(14vh,6rem)] bottom-auto mx-auto my-0 h-auto max-h-[70vh] w-auto max-w-lg overflow-y-auto rounded-surface border border-rule/40 bg-panel p-4 text-ink shadow-overlay backdrop:bg-ink/40"
       aria-label="Keyboard shortcuts"
-      ref={(element) => { sheet = element; lightDismiss(element) }}
+      ref={(element) => { sheet = element; lightDismiss(element); claimCloseRequest(element) }}
       // WHOEVER CLOSED IT says so once: Escape, a press outside, or the effect
       // above. The state is the palette's (`open` is a prop), so the sheet
       // tells it rather than keeping a second copy.
