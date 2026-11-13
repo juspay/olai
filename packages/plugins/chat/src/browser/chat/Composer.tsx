@@ -692,6 +692,20 @@ export function Composer(props: {
     // agent is an ordinary send rather than a key that does nothing.
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
+      // AND IT IS NOT THE IME'S ENTER. Confirming a candidate in Japanese,
+      // Chinese or Korean is a `keydown` whose `key` reads `Enter`, so without
+      // this the message leaves mid-conversion — fragments of a sentence the
+      // writer had not finished choosing. Navigation starts a window-capture
+      // guard (`@olai/web/client/composition.ts`) that stops such a key
+      // reaching any handler, and while the palette's row is on, this line
+      // never runs. But the composer is drawn from the DOCK (`app.panel`, the
+      // shell's slot) and from a row's fold (`outline.row.fold`, the
+      // outline's), neither of which carries navigation's lifetime — so with
+      // that row switched off the guard is simply absent and this is the only
+      // thing standing between an IME and a half-sent turn. `keyCode === 229`
+      // is the second half: Safari delivers the confirming key after
+      // `compositionend` has already cleared `isComposing`.
+      if (event.isComposing || event.keyCode === 229) return
       void send(event.altKey && interruptible())
     }
     // AFTER the send, so a key that moved the caret has moved it:

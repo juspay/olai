@@ -779,3 +779,55 @@ test("every stylesheet with an endless animation answers the motion preference",
     expect(fs.readFileSync(path.join(PACKAGES, file), "utf8"), file).toContain("prefers-reduced-motion")
   }
 })
+
+// WHO CHECKS FOR AN IME, and why it is a short list rather than every box.
+//
+// An input method's confirming key arrives as a `keydown` whose `key` reads
+// `Enter`, so any handler that acts on Enter either checks composition or can
+// prove it never sees one. Navigation's activation installs the proof for the
+// whole page — `protectComposition`, a window-CAPTURE listener that stops such
+// a key before it reaches anything (`./composition.ts`) — and that is why most
+// handlers do not repeat the check. The browser's address bar is the example:
+// it is registered at `app.route`, navigation's OWN slot contract, so nothing
+// draws it unless navigation is activated.
+//
+// The boxes below are drawn by owners that name navigation NOWHERE, which
+// makes that guard a fact about the page rather than a promise to them: the
+// chat composer comes from the dock (`app.panel`, the shell's slot) and from a
+// row's fold (`outline.row.fold`, the outline's); the node agent's plain box
+// is on a page the chat row draws; the new-file box is OFFERED (`files.state`'s
+// `New`) and drawn by whoever asks; a property value box is drawn into a
+// document's own properties by `document-properties`, whose needs are
+// `[browserState, markdownState, rendererSlots]`. With navigation switched off
+// each of them is still typeable, so each carries the check itself. The
+// palette is the one that belongs to navigation and checks anyway: it is the
+// box the guard's own row draws, and a modal that takes the whole keyboard is
+// where an ordering bug would be least visible.
+//
+// Every entry pairs `isComposing` with `keyCode === 229`, which is not
+// belt-and-braces: Safari delivers the confirming key AFTER `compositionend`
+// has already cleared `isComposing`, so the first test alone passes everywhere
+// except the browser half this app's floor includes.
+//
+// A new file here is either a hidden dependency somebody closed — fine, say so
+// — or a handler that did not need it, which is worth the argument. A file
+// LEAVING is the regression: a half-composed turn sent on the keystroke that
+// was choosing a word.
+test("every box navigation does not cover checks composition itself", () => {
+  expect(filesSpelling(/isComposing/)).toEqual([
+    "plugins/chat/src/browser/agents/Page.tsx",
+    "plugins/chat/src/browser/chat/Composer.tsx",
+    "plugins/files/src/file/NewFile.tsx",
+    "plugins/navigation/src/palette/Palette.tsx",
+    "plugins/outlines/src/browser/props/PropsDrawer.tsx",
+    "web/src/client/composition.ts"
+  ])
+  // The Safari half, at every site that acts on the key.
+  expect(filesSpelling(/keyCode\s*===\s*229/)).toEqual([
+    "plugins/chat/src/browser/agents/Page.tsx",
+    "plugins/chat/src/browser/chat/Composer.tsx",
+    "plugins/files/src/file/NewFile.tsx",
+    "plugins/outlines/src/browser/props/PropsDrawer.tsx",
+    "web/src/client/composition.ts"
+  ])
+})

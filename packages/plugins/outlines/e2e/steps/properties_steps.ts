@@ -609,3 +609,17 @@ Then("the vault node {string} has property {string} holding {string}", async fun
     return (node?.custom as Record<string, unknown> | undefined)?.[key] === value;
   }, `the stored property ${key} on ${name} to equal ${value}`);
 });
+
+/** The NEGATIVE of the step above, and it reads the vault rather than the row
+ *  for the same reason: a draft chip is on screen while a value is being
+ *  typed, so "no chip" would pass for a property that IS being written. What
+ *  this says is that nothing reached the file. */
+Then("the vault node {string} has no property {string}", async function(this: OlaiWorld, name: string, key: string) {
+  const file = await this.node(name).getAttribute("data-file");
+  assert.ok(file);
+  const node = this.servedNodes(file).find(row => row.id === this.nodeId(name));
+  assert.ok(
+    (node?.custom as Record<string, unknown> | undefined)?.[key] === undefined,
+    `the node ${name} already holds the property ${key}`,
+  );
+});

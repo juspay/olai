@@ -6,6 +6,8 @@ Escape cancels a held row drag: the drop indicator disappears and releasing the 
 
 While an input method is composing text, its keys select and confirm candidates. They do not send chat, split outline rows, choose app completions or submit forms. After composition ends, ordinary shortcuts resume.
 
+That rule is kept in two places on purpose. The command palette's row installs one window-wide guard that stops a composing key before it reaches anything on the page, which is why no handler drawn by that row repeats the check — the browser's address bar is registered at the palette's own route slot and cannot be on screen without it. The three boxes drawn by owners that name the palette's row nowhere — the chat composer (from the dock and from a row's fold), the new-file name box (offered to whoever draws it) and a property chip's value — check composition themselves, so the promise holds with that row switched off.
+
 When you navigate, the previous page stays visible until the requested page arrives. During that interval, a **Loading…** line appears and edits to the retained page are unavailable. You can still follow links, go Back, search in the command palette, and type outside the old page. The palette omits the old node’s actions until the new reading arrives. Browser shortcuts such as reload and find keep working.
 
 If the requested page fails, the loading line becomes an error. The previous page stays visible but cannot be edited as the new page; navigate elsewhere to recover. Text aimed at a still-focused old row during loading is not applied or replayed on the new page. Undo remains available for recorded edits; changing files clears that history even while a save is pending. The loading cue preserves the page’s layout and scroll position.

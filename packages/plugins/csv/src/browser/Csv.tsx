@@ -84,6 +84,7 @@ import { csvTable } from "@olai/format"
 import { createEffect, createSignal, onCleanup, createMemo, createUniqueId, Index, Show } from "solid-js"
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
+import { WITHIN } from "@olai/web/client/layer.ts"
 
 import { BodyRefused } from "olai-plugin-markdown/body-refused"
 import { clampSaid } from "./clamped.ts"
@@ -174,7 +175,13 @@ export function Csv(props: { readonly file: string }) {
                       (`BodyPage`) and a caption repeating it under the heading
                       is a second title nobody asked for. */}
                   <caption id={caption} class="sr-only">{props.file}</caption>
-                  <thead class="sticky top-0 z-1 bg-paper">
+                  {/* `WITHIN.raised`, not a number: `web/src/client/layer.ts`
+                      is the one place this client spells a z-index, and the
+                      header stacking over the rows that scroll under it is
+                      exactly what that file's single-digit band is for — a
+                      fact about the inside of this box, saying nothing about
+                      the page. */}
+                  <thead class={`sticky top-0 ${WITHIN.raised} bg-paper`}>
                     <tr>
                       <Index each={header() ?? []}>
                         {(cell) => (

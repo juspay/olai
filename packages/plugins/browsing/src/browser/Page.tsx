@@ -290,6 +290,21 @@ export function BrowserPage(props: {
                 onInput={(event) => type(event.currentTarget.value)}
                 onBlur={() => type(null)}
                 onKeyDown={(event) => {
+                  // NO `isComposing` GUARD HERE, and that is a claim about
+                  // WHO DRAWS THIS BOX rather than about the key. An IME's
+                  // confirming key reads `Enter`, so a handler that acts on
+                  // one must either check `isComposing`/`keyCode === 229` or
+                  // be certain it never sees one. This page is certain: it is
+                  // registered at `app.route`, navigation's OWN slot
+                  // contract, so nothing draws it unless navigation is
+                  // activated — and navigation's activation is what starts
+                  // `protectComposition`, the window-capture listener that
+                  // stops a composing key before it reaches any handler on
+                  // the page. Navigation withdrawn, this box is not on screen
+                  // to be typed in. The composer, the new-file box and the
+                  // property box each carry the check locally, because each
+                  // of them IS drawn under owners that name navigation
+                  // nowhere.
                   if (event.key === "Enter") { event.preventDefault(); navigate(); event.currentTarget.blur() }
                   if (event.key === "Escape") { type(null); event.currentTarget.blur() }
                 }} />

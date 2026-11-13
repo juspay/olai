@@ -1044,6 +1044,19 @@ function Box(props: {
         if (event.key === "Enter") {
           event.preventDefault()
           event.stopPropagation()
+          // AN IME CONFIRMATION IS NOT A COMMIT. The key that picks a candidate
+          // in Japanese, Chinese or Korean arrives as a `keydown` reading
+          // `Enter`, so without this a reader typing a property value would
+          // write whichever syllables were on screen when they chose the word.
+          // Navigation installs a window-capture guard that keeps a composing
+          // key out of every handler, and the drawer is drawn under it on an
+          // outline — but it is ALSO drawn into a document's own properties
+          // location by `document-properties`, whose needs are
+          // `[browserState, markdownState, rendererSlots]` and name navigation
+          // nowhere. A guard that happens to be installed is not a promise to
+          // this box. `keyCode === 229` covers Safari's delivery order, where
+          // `isComposing` is already false by the time the confirming key lands.
+          if (event.isComposing || event.keyCode === 229) return
           props.onCommit(held())
           return
         }

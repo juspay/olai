@@ -167,6 +167,19 @@ export function NewFile(props: {
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault()
+              // THE IME'S ENTER IS NOT THIS BOX'S ENTER. Confirming a candidate
+              // in Japanese, Chinese or Korean is a `keydown` whose `key` reads
+              // `Enter` — so without this, picking the first candidate of a
+              // filename would create the file under whatever was half-written.
+              // Navigation installs a window-capture guard that stops a
+              // composing key reaching any handler, but this box is OFFERED
+              // (`files.state`'s `New`) and drawn by whoever asks, including
+              // rows that declare nothing of navigation's — so the guard being
+              // installed is a fact about the page rather than a promise to
+              // this component. `keyCode === 229` is the other half, for the
+              // Safari ordering bug that resets `isComposing` before the
+              // confirming key is delivered.
+              if (event.isComposing || event.keyCode === 229) return
               void send()
             }
             if (event.key === "Escape") {
