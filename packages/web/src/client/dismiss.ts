@@ -14,11 +14,21 @@
  * WHICH panel a gesture is for, when more than one is up, is `./topmost.ts` —
  * one stack, and only the last thing opened answers. Every caller here is on it
  * because {@link dismissOn} puts it there, and the panels whose gestures are
- * somebody else's (the `•••` menu's are Kobalte's, the ⌘K palette's are its
- * own, the chat composer's completion takes keys in the capture phase) join that same
- * stack directly. That file lists them, and holds the one rule none of this can
- * enforce: a layer answers a dismissal from the DOCUMENT or later, never from
- * its own box.
+ * somebody else's (the `•••` menu's are Kobalte's, the ⌘K palette's and the
+ * shortcuts sheet's are the PLATFORM's, the chat composer's completion takes
+ * keys in the capture phase) join that same stack directly. That file lists
+ * them, and holds the one rule none of this can enforce: a layer answers a
+ * dismissal from the DOCUMENT or later, never from its own box.
+ *
+ * ## Which is the platform's, and the one half of it that is not
+ *
+ * The two modals (`palette/Palette.tsx`, `palette/Shortcuts.tsx`) are native
+ * `<dialog>`s opened with `showModal()`, so both of their gestures come with
+ * the element: Escape is a close request offered to the topmost modal and to
+ * nothing under it, and a press outside lands on a backdrop the rest of the
+ * page cannot see past. The one piece missing is WHICH of those backdrop
+ * presses closes anything — {@link lightDismiss} below — because the attribute
+ * that says so is not everywhere yet.
  *
  * ## Which is Kobalte's, not ours
  *
@@ -65,7 +75,7 @@
  */
 
 import { createEscapeKeyDown, createInteractOutside } from "@kobalte/core"
-import type { Accessor } from "solid-js"
+import { onCleanup, type Accessor } from "solid-js"
 
 import { topmostWhileOpen } from "./topmost.ts"
 
@@ -148,5 +158,55 @@ export const dismissOn = (on: Dismissable): void => {
       // caret is still on something on its way out.
       on.trigger?.()?.focus()
     },
+  })
+}
+
+/**
+ * A PRESS OUTSIDE PUTS A MODAL AWAY — the third gesture, for the one kind of
+ * panel the two above cannot serve.
+ *
+ * A modal `<dialog>` needs none of `dismissOn`: nothing under it can be
+ * pressed at all, so "outside" is not a question about the page, and Escape
+ * reaches it as a close request without a listener. What the platform does not
+ * yet agree on is whether a press on the BACKDROP is a dismissal. `closedby`
+ * says it declaratively — and Safari has no `closedby` at all, which is half
+ * of this app's floor — so the attribute is set for the browsers that have it
+ * and this carries the rest.
+ *
+ * Two details, both of them bugs the obvious version has:
+ *
+ *   - the POINTER'S POSITION decides, never `event.target`. A press on the
+ *     dialog's own padding, or on the gap between two of its children, also
+ *     targets the dialog — a target check would put the panel away under the
+ *     reader's finger.
+ *   - the press AND the release must both be outside, so a text selection
+ *     dragged out of the panel and released on the backdrop is not a
+ *     dismissal.
+ *
+ * It is a Solid primitive like the rest of this file: call it where the
+ * element is, and the listeners go with that owner.
+ */
+export const lightDismiss = (dialog: HTMLDialogElement): void => {
+  // The declarative half, for the browsers that have it. Written as an
+  // attribute rather than the `closedBy` property on purpose: a property on an
+  // engine that does not implement it is a value nothing reads.
+  dialog.setAttribute("closedby", "any")
+  if ("closedBy" in HTMLDialogElement.prototype) return
+
+  const outside = (event: PointerEvent): boolean => {
+    const box = dialog.getBoundingClientRect()
+    return event.clientX < box.left || event.clientX > box.right
+      || event.clientY < box.top || event.clientY > box.bottom
+  }
+  let pressedOutside = false
+  const down = (event: PointerEvent) => { pressedOutside = outside(event) }
+  const up = (event: PointerEvent) => {
+    if (pressedOutside && outside(event)) dialog.close()
+  }
+  dialog.addEventListener("pointerdown", down)
+  dialog.addEventListener("pointerup", up)
+  onCleanup(() => {
+    dialog.removeEventListener("pointerdown", down)
+    dialog.removeEventListener("pointerup", up)
   })
 }

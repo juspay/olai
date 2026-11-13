@@ -134,18 +134,23 @@ Feature: The ⌘K palette writes
     Then the palette asks "Move “install the cabinets” and the 3 rows under it to Trash? You can put them back from Trash in the sidebar."
     And "house.olai" holds a node titled "install the cabinets"
 
-  Scenario: The question takes the caret, and Tab cycles its two ways out
+  Scenario: The question takes the caret, and Tab stays inside the modal
     # A question nobody's keyboard can reach is a question only a mouse may
-    # answer — and the palette's own Tab trap made that literal, because it
-    # sent every Tab back to the box. While the question stands, the trap is
-    # the QUESTION's (review, 2026-08-14).
+    # answer. The caret coming onto the verb's own button is the panel's doing
+    # (review, 2026-08-14); KEEPING it in here is the platform's, now that the
+    # palette is a modal `<dialog>` — so the cycle is the dialog's whole tab
+    # order (the two ways out, and the box they were typed into) rather than
+    # the two buttons a hand-written trap allowed. What matters is unchanged:
+    # every way out is reachable, and none of them is outside this panel.
     Given I open the node "install"
     When I press the palette shortcut
     And I choose "Move to Trash" from the palette
     Then the palette's caret is on "go"
     When I press "Tab"
     Then the palette's caret is on "cancel"
+    # Round the box and back: the sheet has three stops with a question up.
     When I press "Tab"
+    And I press "Tab"
     Then the palette's caret is on "go"
     # …and the way out by keyboard is still Escape, which cancels the question
     # rather than the palette.

@@ -13,8 +13,10 @@
  * and the box above is already under the reader's hands, so this grabs nothing.
  *
  * The two ways out are the same two either way, because a pointer needs both
- * whichever kind is up, and the Tab trap that cycles them is the palette's
- * (there is one focus trap for this dialog, not one per panel).
+ * whichever kind is up. A KEYBOARD reaches them because the palette is a
+ * modal `<dialog>` and the caret cannot leave one — the hand-written Tab trap
+ * that used to cycle these two by their refs went with the overlay it
+ * belonged to, and the refs with it.
  */
 import { TESTID } from "olai-plugin-navigation/testids"
 import { ALARM_PILL,QUIET_PILL } from "@olai/web/client/pill.ts"
@@ -25,10 +27,6 @@ export function Question(props: {
   readonly asking: Asking
   readonly onGo: () => void
   readonly onCancel: () => void
-  /** The palette's own two refs: its Tab trap cycles these, because a dialog
-   *  has one focus trap and not one per panel. */
-  readonly setGo: (element: HTMLButtonElement) => void
-  readonly setCancel: (element: HTMLButtonElement) => void
 }) {
   return (
     <div class="px-4 py-3" role="group" aria-label={props.asking.question}>
@@ -54,13 +52,11 @@ export function Question(props: {
           type="button"
           // AND THE CARET COMES IN FOR A CONFIRM, which is the `•••` menu's
           // own rule (`../menu/Confirm.tsx`): a question nobody's keyboard can
-          // reach is a question only a mouse may answer, and the palette's Tab
-          // trap made that literal. A microtask because the element is not in
-          // the document at the instant the ref runs. A LINE does not take it:
-          // its answer is typed, and the caret is already in the box where it
-          // is being typed.
+          // reach is a question only a mouse may answer. A microtask because
+          // the element is not in the document at the instant the ref runs. A
+          // LINE does not take it: its answer is typed, and the caret is
+          // already in the box where it is being typed.
           ref={(element) => {
-            props.setGo(element)
             if (props.asking.kind === "confirm") {
               queueMicrotask(() => element.focus())
             }
@@ -74,7 +70,6 @@ export function Question(props: {
         </button>
         <button
           type="button"
-          ref={props.setCancel}
           class={`${QUIET_PILL} cursor-pointer`}
           data-testid={TESTID.paletteItem}
           data-id="cancel"

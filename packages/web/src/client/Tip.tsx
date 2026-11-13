@@ -200,10 +200,24 @@ export function Tip(props: {
       })
     })
 
+    /**
+     * WHERE THE PORTAL LANDS: the end of the document, unless the control this
+     * tip is about is inside a modal `<dialog>` — then the end of THAT.
+     *
+     * The top layer is the reason, and it is absolute rather than a matter of
+     * ordering: a modal opened with `showModal()` paints over every stacking
+     * context on the page at once, so a tip appended to `<body>` for a control
+     * inside one would be drawn UNDER the panel it belongs to, whatever layer
+     * it names — invisible, and unreachable by a pointer. Mounted in the
+     * dialog it is in the same top-layer box as its control and the question
+     * does not arise. It stays `position: fixed` either way, which is what
+     * keeps a dialog's own scroll from carrying it off, and the dialog's
+     * `overflow` does not clip it for the same reason the row's never did.
+     */
     return (
       <Show when={tipShowing(me) ? at() : undefined}>
         {(spot) => (
-          <Portal>
+          <Portal mount={anchor?.closest("dialog") ?? document.body}>
             <Drawn at={spot()} />
           </Portal>
         )}

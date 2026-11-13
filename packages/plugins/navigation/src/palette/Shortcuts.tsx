@@ -19,20 +19,26 @@
  * rather than recording: somebody who opened it to learn the keys pressed the
  * most universal one and nothing happened.
  *
- * It is on the client's one dismissal stack (`../topmost.ts`) like every other
- * panel, and answers on the WINDOW like the palette that opens it — the rule
- * being that a layer answers a dismissal from the document or later, never
- * from its own box. Nothing stands over it today (the palette closes on its
- * way through, and this covers the page), so the ticket buys nothing yet; it
- * costs a line and it means the next thing drawn over a modal does not have to
- * remember this one.
+ * IT IS THE PLATFORM'S ANSWER NOW. This is a native `<dialog>` opened with
+ * `showModal()`, so Escape is a close request the browser makes of the topmost
+ * modal, the page under it is inert, the dim is `::backdrop`, and the caret
+ * goes back to the row that opened it without this file arranging any of it.
+ * The window listener that used to do the first of those is gone, and so is
+ * the scrim that did the second: a press outside is `../../../../web/src/client/dismiss.ts`'s
+ * `lightDismiss`, which is the one half of a modal's dismissal Safari still
+ * lacks the attribute for.
+ *
+ * It keeps its ticket on the one dismissal stack (`../topmost.ts`) all the
+ * same, because a layer UNDERNEATH asks that stack whether a gesture is for
+ * it, and the answer has to be this sheet while it is up.
  */
 import { TESTID } from "olai-plugin-navigation/testids"
-import { For,onCleanup,onMount,Show } from "solid-js"
+import { createEffect,For,onCleanup,Show } from "solid-js"
 
 import { SHORTCUTS } from "@olai/web/client/keys.ts"
 import type { AppChord } from "../slots.ts"
-import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
+import { enterTopLayer } from "@olai/web/client/layer.ts"
+import { lightDismiss } from "@olai/web/client/dismiss.ts"
 
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
 
@@ -60,39 +66,42 @@ export function Shortcuts(props: {
       { group: REGISTERED_GROUP, keys: more.map((chord) => ({ keys: spellChord(chord), what: chord.said })) },
     ]
   }
-  const topmost = topmostWhileOpen(() => props.open)
+  topmostWhileOpen(() => props.open)
+  let sheet: HTMLDialogElement | undefined
+  // Withdrawal puts the layer down: a modal removed from the document leaves
+  // the top layer with no `close` behind it, so the element is closed while it
+  // is still in the page (the palette's own note says why).
+  onCleanup(() => { if (sheet?.open === true) sheet.close() })
 
-  // On the window, and registered once for the component's life rather than
-  // per open: this component is always mounted (the palette draws it beside
-  // itself), and being open is a prop it reads. Same shape as the palette's.
-  onMount(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (!props.open || !topmost() || event.key !== "Escape") return
-      event.preventDefault()
-      props.onClose()
+  // OPENING IS A CALL, not a class — the freeze's own shape
+  // (`web/src/client/connection/Offline.tsx`), for the same reason: the top
+  // layer is only entered through `showModal`, and everything a sheet over the
+  // whole app promises comes with it. Through `enterTopLayer` because the
+  // offline freeze is the floor of that layer and this may not stand over it.
+  createEffect(() => {
+    if (props.open) {
+      if (sheet !== undefined) enterTopLayer(sheet)
+      return
     }
-    window.addEventListener("keydown", onKey)
-    onCleanup(() => window.removeEventListener("keydown", onKey))
+    if (sheet?.open === true) sheet.close()
   })
 
   return (
-    <Show when={props.open}>
-      <div
-        class={`fixed inset-0 ${LAYER.over} flex items-start justify-center bg-ink/40 px-4 pt-[min(14vh,6rem)]`}
-        data-testid={TESTID.shortcuts}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Keyboard shortcuts"
-      >
-        <button
-          type="button"
-          class="absolute inset-0 cursor-default"
-          aria-label="Close"
-          onClick={() => props.onClose()}
-        />
-        <div
-          class={`relative ${WITHIN.raised} max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-surface border-0 bg-panel p-4 shadow-overlay ring-1 ring-rule/40`}
-        >
+    <dialog
+      // No `z-index`: `showModal` puts this over every stacking context on the
+      // page at once, which is a claim `web/src/client/layer.ts`'s table
+      // cannot make. No `role` or `aria-modal` either — a native modal is one,
+      // and the name is the label below.
+      class="fixed inset-x-4 top-[min(14vh,6rem)] bottom-auto mx-auto my-0 h-auto max-h-[70vh] w-auto max-w-lg overflow-y-auto rounded-surface border-0 bg-panel p-4 text-ink shadow-overlay ring-1 ring-rule/40 backdrop:bg-ink/40"
+      aria-label="Keyboard shortcuts"
+      ref={(element) => { sheet = element; lightDismiss(element) }}
+      // WHOEVER CLOSED IT says so once: Escape, a press outside, or the effect
+      // above. The state is the palette's (`open` is a prop), so the sheet
+      // tells it rather than keeping a second copy.
+      onClose={() => props.onClose()}
+    >
+      <Show when={props.open}>
+        <div data-testid={TESTID.shortcuts}>
           <For each={[...groups()]}>
             {(group) => (
               <section class="mb-4 last:mb-0">
@@ -118,7 +127,7 @@ export function Shortcuts(props: {
             )}
           </For>
         </div>
-      </div>
-    </Show>
+      </Show>
+    </dialog>
   )
 }

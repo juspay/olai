@@ -826,7 +826,10 @@ export const PALETTE_INPUT = selector(TESTID.paletteInput);
 export const PALETTE_CAPTURE = selector(TESTID.paletteCapture);
 export const PALETTE_CONFIRM = selector(TESTID.paletteConfirm);
 export const PALETTE_SAID = selector(TESTID.paletteSaid);
-export const PALETTE_SCRIM = selector(TESTID.paletteScrim);
+/** The palette's MODAL — the element the top layer holds, for the steps that
+ *  ask what is inert under it and where a press outside lands. The panel
+ *  inside it wears {@link PALETTE}. */
+export const PALETTE_MODAL = `dialog:has(${PALETTE})`;
 export const SHORTCUTS = selector(TESTID.shortcuts);
 /** The header box's panel of results, and the shelf of pins in the sidebar —
  *  here rather than spelled at a step file, which is where the rest of the

@@ -41,7 +41,6 @@ import {
   PALETTE_INPUT,
   PALETTE_ITEM,
   PALETTE_SAID,
-  PALETTE_SCRIM,
   SEARCH_COUNT,
   POLL_TIMEOUT,
   SHORTCUTS,
@@ -85,14 +84,19 @@ Then("the shortcuts are put away", async function (this: OlaiWorld) {
   );
 });
 
-/** The palette's own way out for a pointer: the full-screen scrim behind its
- *  card. It covers the page, so it is also a press outside every panel
- *  underneath — which is what `dismiss_stack.feature` asks it about. */
+/** The palette's own way out for a pointer: a press OUTSIDE the sheet, which
+ *  with a modal `<dialog>` lands on the browser's `::backdrop` and reaches
+ *  nothing on the page at all — which is what `dismiss_stack.feature` asks it
+ *  about. The step keeps its old name because the gesture is the same one;
+ *  what changed is who paints the dim. */
 When("I press the palette scrim", async function (this: OlaiWorld) {
-  // A CORNER of it, not the middle: the scrim covers the viewport, and the
-  // middle of the viewport is where the palette's own card is drawn — so the
-  // default centre press lands on the card and puts nothing away.
-  await this.page.locator(PALETTE_SCRIM).click({ position: { x: 20, y: 20 } });
+  // ABOVE THE SHEET, measured rather than guessed: the backdrop fills the
+  // viewport and the sheet is somewhere in the middle of it, so a press is
+  // taken halfway between the top of the window and the top of the panel. A
+  // fixed corner would be a guess that the phone's sheet does not reach.
+  const box = await this.page.locator(PALETTE).boundingBox();
+  assert.ok(box !== null, "the palette is not on screen, so there is no outside to press");
+  await this.page.mouse.click(box.x + box.width / 2, Math.max(1, box.y / 2));
   await this.waitForFrame();
 });
 

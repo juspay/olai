@@ -81,12 +81,22 @@ html {
  * still inert. What this must never become is `overflow: hidden` on `html` or
  * `body`, which takes away the root scrollbar — a horizontal jolt on every
  * open — resets the scroll position and breaks `position: sticky` on the page
- * underneath. */
-dialog:modal {
+ * underneath.
+ *
+ * `:where()` for the same reason the motion floor below wears it: this sheet
+ * is unlayered, so it already outranks every Tailwind utility by layer order
+ * and needs no specificity of its own. Kept at zero, a dialog that one day has
+ * a reason to chain its scroll — or to make its own backdrop scrollable — can
+ * say so in a hand-written rule with a real selector and be heard. The
+ * selectors are still the two the behaviour requires: a MODAL dialog (a
+ * non-modal one has no backdrop and is part of the page), and the backdrop
+ * itself, which has to be made a scroll container before it can contain
+ * anything. */
+:where(dialog:modal) {
   overscroll-behavior: contain;
 }
 
-dialog::backdrop {
+:where(dialog)::backdrop {
   overflow: hidden;
   overscroll-behavior: contain;
 }

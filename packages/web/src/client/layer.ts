@@ -34,19 +34,38 @@
  * something else entirely (it is sealed inside the chat panel, which rides at
  * 30). Nothing was broken and nothing could be read.
  *
- * ## The ONE thing above this table, and why it is not in it
+ * ## The THREE things above this table, and why they are not in it
  *
- * The offline overlay (`connection/Offline.tsx`) is a `<dialog>` opened with
- * `showModal()`, which puts it in the browser's TOP LAYER — above every
- * stacking context on the page at once, whatever number is on it — and makes
- * the rest of the document inert. It has to be: the freeze's whole claim is
- * that nothing underneath can be touched, and a `z-index` cannot make that
- * claim against a panel that portals to `document.body` LATER at the same
- * {@link LAYER.over} and paints over whatever was already there. So the freeze
- * spells no layer, and this paragraph is the entry it would otherwise have
- * had — a reader of this table needs to know that one thing sits over all of
- * it, and `claims.test.ts` holds `showModal` to that single file so a second
- * one cannot appear without an argument.
+ * A modal `<dialog>` — one opened with `showModal()` rather than with `show()`
+ * or the `open` attribute — is in the browser's TOP LAYER: above every
+ * stacking context on the page at once, whatever number is on it, with the
+ * rest of the document inert and the keyboard held inside it. A `z-index`
+ * cannot make that claim at all, which is the reason three surfaces here are
+ * modal dialogs rather than `fixed` boxes at {@link LAYER.over}: a panel that
+ * portals to `document.body` LATER at the same number paints straight over
+ * whatever was already there, and "nothing underneath can be touched" is
+ * exactly the promise that may not have a hole in it.
+ *
+ * The three, in the order they may stand on each other:
+ *
+ *   - the ⌘K palette (`plugins/navigation/.../palette/Palette.tsx`),
+ *   - the keyboard-shortcuts sheet it opens (`.../palette/Shortcuts.tsx`),
+ *   - the offline freeze (`connection/Offline.tsx`), which is the FLOOR.
+ *
+ * **The freeze is the floor**, and that is the one rule about the top layer
+ * this module owns rather than describes. Dialogs stack in the order they were
+ * opened, so a palette asked to open while the app is frozen would take the
+ * layer ABOVE the freeze — the page behind it would still be inert, but the
+ * freeze would be a dimmed card under a working door, which is the half-alive
+ * page `connection/Offline.tsx` exists to refuse. So every other modal enters
+ * through {@link enterTopLayer}, and the freeze claims the floor with
+ * {@link holdTopLayerFloor} for as long as it is mounted; anything entering
+ * over it is immediately stood back under it.
+ *
+ * `claims.test.ts` sweeps both halves — who calls `showModal` (this file and
+ * the freeze, which is its own floor) and who enters the layer (the two
+ * modals) — so a fourth surface reaching for it has to argue with that list
+ * first.
  *
  * ## The order, and what each step is holding
  *
@@ -58,6 +77,8 @@
  * the rest of them in `claims.test.ts`. That one is what keeps this from
  * becoming a nineteenth place to look.
  */
+
+import { onCleanup } from "solid-js"
 
 /**
  * THE PAGE'S STACK, bottom to top. The order of these fields is the order of
@@ -121,15 +142,19 @@ export const LAYER = {
    */
   header: "z-[45]",
   /**
-   * Over the bar as well: the two full-screen modals (the command palette and
-   * the keyboard-shortcut list it opens), the panels that are PORTALLED out
-   * of the header — the commit panel, preferences, the search results — and
-   * the tip of a header pill. Those hang against the viewport rather than
-   * inside the 3rem box they belong to, so they need a layer of their own up
-   * here; sitting at {@link LAYER.page} with the chat dock is how the bar's
-   * coral rule cut the first line of a tip and how the dock's own header
-   * painted through the rest. The modals need this layer because a question
-   * about the whole app may not have the app's own chrome on top of it.
+   * Over the bar as well: the panels that are PORTALLED out of the header —
+   * the commit panel, preferences, the search results — and the tip of a
+   * header pill. Those hang against the viewport rather than inside the 3rem
+   * box they belong to, so they need a layer of their own up here; sitting at
+   * {@link LAYER.page} with the chat dock is how the bar's coral rule cut the
+   * first line of a tip and how the dock's own header painted through the
+   * rest.
+   *
+   * The app's two full-screen modals USED TO BE HERE and are not any more:
+   * the palette and the shortcuts sheet are modal `<dialog>`s now, so the
+   * browser puts them over everything — the header included — and a number
+   * here would have been a claim the platform had already made better (see
+   * the top-layer section above).
    */
   over: "z-50",
 } as const
@@ -155,3 +180,44 @@ export const WITHIN = {
    *  in there — the chat composer's completion, the session list. */
   pop: "z-3",
 } as const
+
+/**
+ * THE FREEZE'S WAY BACK ON TOP, while one is mounted — see the header. `null`
+ * whenever no freeze owns the floor, which is every moment of an ordinary
+ * session.
+ *
+ * Module state because the top layer is the PAGE's, exactly as `./topmost.ts`
+ * keeps its tickets: "what is over everything" is one fact about one screen,
+ * and an owner per component tree would be several answers to it.
+ */
+let floor: (() => void) | null = null
+
+/**
+ * Put a modal dialog in the top layer, and leave the freeze over it.
+ *
+ * The `open` guard is the platform's rule rather than tidiness: `showModal()`
+ * on a dialog that is already open throws, and these are called from effects
+ * that re-run for reasons of their own.
+ */
+export const enterTopLayer = (dialog: HTMLDialogElement): void => {
+  if (!dialog.open) dialog.showModal()
+  floor?.()
+}
+
+/**
+ * CLAIM THE FLOOR of the top layer for as long as this owner lives: `lift` is
+ * called whenever anything else enters it, and must put its own dialog back on
+ * top of whatever just arrived.
+ *
+ * One claimant, not a stack — the floor is the freeze, which is the one
+ * surface in this client whose whole promise is that nothing else is usable.
+ * A second claimant would be a second answer to "what may stand over the app",
+ * so the last claim wins and withdrawal clears only its own, which is what
+ * keeps a remounted frame from leaving a dead closure holding the layer.
+ */
+export const holdTopLayerFloor = (lift: () => void): void => {
+  floor = lift
+  onCleanup(() => {
+    if (floor === lift) floor = null
+  })
+}

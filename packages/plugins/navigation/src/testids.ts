@@ -6,7 +6,6 @@ export const TESTID = {
   shortcuts: "shortcuts",
   shortcut: "shortcut",
   palette: "palette",
-  paletteScrim: "palette-scrim",
   paletteInput: "palette-input",
   paletteList: "palette-list",
   paletteItem: "palette-item",
