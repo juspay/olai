@@ -168,6 +168,11 @@ so a blur the APP caused is not a save); and the shell hands the keyboard back
 when the reconnect dialog closes (`@olai/web/client/connection/focus.ts`), which
 the browser alone cannot do once the control was disabled under the caret.
 
+A knob's box says **Done** on its return key, which is what Enter does there,
+and a number knob asks for the numeric keyboard; a text knob asks for no
+special one. A setting is a name rather than prose, so the boxes turn off
+autocorrect, autocapitalisation and spell-checking.
+
 `plugins.configure` is a browser procedure. It validates the leaf before an
 ordinary file write, creates a missing namespace or section child, and waits
 for the revision and follower. **Use default** deletes the property. An invalid

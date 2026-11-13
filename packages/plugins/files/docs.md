@@ -26,6 +26,11 @@ kind); picking an item opens that kind's path box under the heading, with the
 caret in it. Escape shuts the menu and returns focus to the `+`. Removing a
 content provider removes its item; with no kind left, the heading has no `+`.
 
+The path box is a box for a NAME, and it tells a phone so: the return key says
+**Done** (the press makes the file and shuts the box), nothing is autocorrected,
+capitalised or spell-checked, and no special keyboard is asked for — `garden.olai`
+typed on a phone is `garden.olai` on disk rather than `Garden.olai`.
+
 The two trees and the vault group live in files. The vault group (a parent
 named `olai` over the `_olai/` outlines such as Pins, Settings and the Inbox)
 is drawn only when `_olai/` holds such a file. Capture, pins and trash provide
