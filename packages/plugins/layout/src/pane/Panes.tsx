@@ -104,7 +104,14 @@ function LanePanes(props: { readonly page: Navigation["page"] }) {
           <div ref={root => { element = root; onCleanup(pane.mount(root)) }} class="flex min-h-0 min-w-0 flex-col"
             data-pane-id={pane.id}
             style={{ display: drawn() ? undefined : "none", "flex-grow": columns() ? String(share()) : "1", "flex-basis": "0" }}
-            classList={{ "ring-2 ring-inset ring-accent": columns() && focused(pane.index()) }}>
+            // WHICH PANE HAS THE CARET, as an OUTLINE rather than a ring: a
+            // Tailwind `ring` is a `box-shadow`, and High Contrast deletes
+            // box-shadows outright — so the one mark that said which half of a
+            // split a keystroke would land in simply vanished there. An inset
+            // outline draws the same two pixels inside the same box and is a
+            // real border-adjacent property the forcing repaints rather than
+            // throws away.
+            classList={{ "outline-2 -outline-offset-2 outline-accent": columns() && focused(pane.index()) }}>
             <Show when={columns()}><Header index={pane.index()} pane={reading()} row={() => row} focused={() => focused(pane.index())} /></Show>
             <div ref={host => { scrolls.set(host, { top: 0, left: 0, anchor: undefined }); onCleanup(() => scrolls.delete(host)) }} class="flex min-h-0 flex-1 flex-col" classList={{ "overflow-y-auto": columns() }}
               style={{ "--height-chrome": columns() ? "0px" : undefined }}>
@@ -218,7 +225,7 @@ function Rail(props: { readonly index: number; readonly pane: Pane; readonly foc
     <button
       type="button"
       class="flex w-9 shrink-0 flex-col items-center gap-2 border-x border-rule bg-desk py-3 text-muted hover:text-ink"
-      classList={{ "ring-2 ring-inset ring-accent": focused() }}
+      classList={{ "outline-2 -outline-offset-2 outline-accent": focused() }}
       style={{ width: `${PANE_RAIL_PX}px` }}
       data-testid={TESTID.paneRail}
       data-pane={String(props.index)}
@@ -307,9 +314,13 @@ function TabStrip() {
               role="tab"
               aria-selected={focused()}
               aria-current={focused() ? "page" : undefined}
-              class="shrink-0 truncate rounded-control px-2 py-1 text-label text-muted hover:text-ink"
+              // `olai-tab-filled` is the forced-colours hook for a tab told by
+              // its paint (`@olai/ui-primitives/all.css`), and the edge is an
+              // outline rather than a `ring-1`, which is a box-shadow High
+              // Contrast deletes.
+              class="olai-tab-filled shrink-0 truncate rounded-control px-2 py-1 text-label text-muted hover:text-ink"
               classList={{
-                "bg-panel text-ink ring-1 ring-accent": focused(),
+                "bg-panel text-ink outline-1 outline-accent": focused(),
               }}
               data-testid={TESTID.paneTab}
               data-pane={String(i())}

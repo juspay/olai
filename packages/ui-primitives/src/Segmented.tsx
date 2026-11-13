@@ -32,6 +32,36 @@ export interface Choice<T extends string> {
   readonly label: string
 }
 
+/**
+ * ONE SEGMENT'S PAINT, exported because there are two strips in this tree and
+ * only one of them can be this component: hledger's depth control gives each
+ * button a `data-depth` that `Segmented` has no way to emit, so it draws the
+ * same strip by hand. It used to do that by copying this class string, which
+ * meant the forced-colours answer below would have had to be written twice and
+ * would have rotted in one of the two places.
+ *
+ * `olai-segment` is what `../all.css` keys the forced-colours rule on: in
+ * force is `bg-accent/10` and idle is nothing, so under Windows High Contrast
+ * both flatten to `Canvas` and the strip forgets which one it is on.
+ *
+ * `[--olai-ring-offset:-2px]` puts the app's focus ring INSIDE the segment.
+ * The strip wears `overflow-hidden` to round its ends, so a ring at the
+ * sheet's default `+2px` would be clipped away on three sides and sit on the
+ * neighbour's edge on the fourth. This replaced a `focus-visible:ring-inset`
+ * that was never the whole story: the ring it was insetting was a
+ * `box-shadow`, which forced colours removes, and the `outline-none` beside it
+ * never stood the real ring down (`@olai/appearance/chrome.css` is unlayered).
+ */
+export const SEGMENT =
+  `${TARGET} olai-segment inline-flex items-center px-3 text-label [--olai-ring-offset:-2px] md:min-h-0 md:py-1`
+
+/** The segment that is in force: the FILL is the pick, because these share
+ *  their borders and a ring on one would sit on the next one's edge. */
+export const SEGMENT_IN_FORCE = "bg-accent/10 text-ink"
+
+/** The strip itself — a shared border, and the ends rounded off it. */
+export const SEGMENT_STRIP = "inline-flex overflow-hidden rounded-full border border-rule"
+
 export function Segmented<T extends string>(props: {
   readonly choices: ReadonlyArray<Choice<T>>
   readonly value: T
@@ -48,26 +78,20 @@ export function Segmented<T extends string>(props: {
   const isInForce = (value: T): boolean => props.value === value
 
   return (
-    <div
-      class={`inline-flex overflow-hidden rounded-full border border-rule ${
-        frozen() ? "opacity-60" : ""
-      }`}
-    >
+    <div class={`${SEGMENT_STRIP} ${frozen() ? "opacity-60" : ""}`}>
       <For each={props.choices}>
         {(choice) => (
           <button
             type="button"
-            // A target on a phone (../touch.ts), a pill on a laptop. The
-            // segments share a border, so what says which one is in force is
-            // the fill rather than a ring — a ring inside a strip lands on top
-            // of its neighbour's edge.
-            // The ring is the caret and the FILL is the pick — a segment shares
-            // its border with its neighbour, so a ring on the pressed one would
-            // sit on top of the edge beside it. `-inset` rather than an offset
-            // for the same reason: the ring has to stay inside the strip.
-            class={`${TARGET} inline-flex items-center px-3 text-label focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent md:min-h-0 md:py-1 ${
+            // A target on a phone (../touch.ts), a pill on a laptop. The FILL
+            // is the pick and the ring is the caret: a segment shares its
+            // border with its neighbour, so a ring drawn around the pressed
+            // one would sit on top of the edge beside it. Both of those facts
+            // live in `SEGMENT` above now, with the forced-colours answer that
+            // the fill alone cannot survive.
+            class={`${SEGMENT} ${
               isInForce(choice.value)
-                ? "bg-accent/10 text-ink"
+                ? SEGMENT_IN_FORCE
                 : `text-muted ${frozen() ? "" : "hover:text-ink"}`
             }`}
             data-testid={TESTID.prefsChoice}

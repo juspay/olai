@@ -152,7 +152,10 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
               // EVERY TAB THE SAME WIDTH, up to a cap: a title that changes
               // (a page naming itself as it arrives) must not move its
               // neighbours along the strip.
-              class="group/tab relative flex h-full min-w-[5rem] max-w-[14rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap border-r border-rule pl-3 pr-1 text-label"
+              // `olai-tab-filled` is the forced-colours hook, defined once in
+              // `@olai/ui-primitives/all.css`: paper under the front tab is a
+              // background, and High Contrast throws author backgrounds away.
+              class="olai-tab-filled group/tab relative flex h-full min-w-[5rem] max-w-[14rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap border-r border-rule pl-3 pr-1 text-label"
               classList={{
                 "bg-paper font-medium text-ink": front(),
                 "text-muted hover:bg-ink/5 hover:text-ink": !front(),

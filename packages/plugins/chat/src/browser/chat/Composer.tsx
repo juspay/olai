@@ -787,7 +787,12 @@ export function Composer(props: {
           their head until a box comes back is work the panel invented. */}
       <textarea
         ref={input}
-        class="w-full resize-none rounded-control border border-rule bg-paper px-3 py-2 text-body outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/20"
+        // The border lights on focus and that is all this box draws: the
+        // `focus:ring-2 focus:ring-accent/20` glow that used to sit beside it
+        // was a `box-shadow` under the app's own outline (the `outline-none`
+        // never removed that one — `@olai/appearance/chrome.css` is
+        // unlayered), and forced colours deletes box-shadows outright.
+        class="w-full resize-none rounded-control border border-rule bg-paper px-3 py-2 text-body placeholder:text-muted focus:border-accent"
         data-testid={TESTID.chatInput}
         // WHAT THE RETURN KEY DOES, said to the on-screen keyboard: this box's
         // Enter sends (`onKey`, one scroll down — Shift+Enter is the newline),

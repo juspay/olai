@@ -320,10 +320,13 @@ export function Dropdown(props: {
         // one drew, class for class.
         // `focus:outline-none` because the caret lands on this BOX when the
         // menu opens (see the ref above) and a box is not what anybody is
-        // aiming at — the ring belongs on the entry the keyboard is
-        // standing on, and that is `data-[highlighted]` in `./Panel.tsx`.
-        // Without it, Chromium rings the whole panel for a menu opened with
-        // a mouse.
+        // aiming at. It reaches only the plain `:focus` the UA draws for a
+        // mouse open — Chromium rings the whole panel without it. The app's
+        // own ring is `:focus-visible` and unlayered, so it is NOT stood down
+        // here and must not be: a keyboard that genuinely lands on this box
+        // is owed a mark saying so. Once the walk starts, the entry the
+        // keyboard is standing on carries the band and the ring both
+        // (`data-[highlighted]` in `./Panel.tsx`).
         // A PANEL TALLER THAN THE WINDOW STILL REACHES ITS LAST ENTRY, and the
         // height limit and scroll use the popper's own answer rather than a
         // measurement taken here. Floating-ui already flips this list to

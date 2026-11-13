@@ -55,7 +55,12 @@ export function Confirm(props: {
       <div class="mt-2 flex gap-2">
         <DropdownMenu.Item
           ref={go}
-          class={`${ALARM_PILL} cursor-pointer focus:outline-none`}
+          // No `focus:outline-none`: both pills carried one and neither ever
+          // did anything (`@olai/appearance/chrome.css` is unlayered and its
+          // ring outranks every utility). The pills keep their real borders,
+          // which is what makes them legible when a forced palette throws
+          // their tones away.
+          class={`${ALARM_PILL} cursor-pointer`}
           data-testid={TESTID.nodeMenuItem}
           data-action={props.action.id}
           onSelect={() => void props.onGo(props.action)}
@@ -63,7 +68,7 @@ export function Confirm(props: {
           {props.action.label}
         </DropdownMenu.Item>
         <DropdownMenu.Item
-          class={`${QUIET_PILL} cursor-pointer focus:outline-none`}
+          class={`${QUIET_PILL} cursor-pointer`}
           data-testid={TESTID.nodeMenuItem}
           data-action="cancel"
           closeOnSelect={false}

@@ -148,7 +148,16 @@ export const BANNER =
  * picks its own row rhythm. It is spelled at the call site rather than
  * parameterised here, because a constant taking an argument to vary the only
  * thing it does not own would be this shape pretending to own it.
+ *
+ * THE EDGE IS A `border`, NOT A `ring`. It was `border-0` with `ring-1
+ * ring-rule` — a one-pixel hairline drawn as a `box-shadow`, which is exactly
+ * the same picture at a fraction of a pixel's difference until a reader turns
+ * on Windows High Contrast, where box-shadows are REMOVED and this panel
+ * becomes a floating slab of `Canvas` on a page of `Canvas`, with the
+ * `shadow-overlay` under it gone too. A `border-color` is forced to a system
+ * colour rather than deleted, so the edge survives. Nothing else about the
+ * panel changes: `border-box` sizing keeps the outer measurement where it was.
  */
 export const PANEL_BOX = `fixed ${LAYER.over} ` +
   "flex min-h-0 flex-col overflow-y-auto overflow-x-hidden overscroll-contain " +
-  "rounded-surface border-0 bg-panel p-4 text-body shadow-overlay ring-1 ring-rule focus:outline-none"
+  "rounded-surface border border-rule bg-panel p-4 text-body shadow-overlay focus:outline-none"

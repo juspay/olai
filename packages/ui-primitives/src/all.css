@@ -1,1 +1,124 @@
 @source "./";
+
+/* WHAT THE SHARED CONTROLS LOOK LIKE WHEN THE SCREEN IS NOT OURS TO PAINT.
+ *
+ * `@olai/appearance/chrome.css` carries the half of the forced-colours answer
+ * that is about the READER — the focus ring, pinned to `Highlight` — and says
+ * in so many words why the other half cannot live there: a stylesheet cannot
+ * tell which of this app's thousand `bg-*` utilities was decoration and which
+ * one was the only thing saying what state a control is in. Windows High
+ * Contrast throws every author background away and repaints from `Canvas`, so
+ * a state told in background alone does not get duller, it STOPS EXISTING, and
+ * the control beside it that is in the other state looks identical.
+ *
+ * Three of this app's shared controls say their state exactly that way, and
+ * they are here rather than beside their components because these are
+ * stylesheet answers and `Switch.tsx`, `Segmented.tsx` and `menu.ts` are
+ * TypeScript — a `forced-colors:` variant spelled as a utility would be
+ * fourteen more tokens on an already long class string, and it would be
+ * invisible to anybody reading the policy in `chrome.css` looking for the rest
+ * of it. Each selector is keyed on the ATTRIBUTE that carries the state —
+ * `aria-checked`, `aria-pressed`, `aria-selected`, `data-highlighted` — never
+ * on the utility that paints it, so a repaint cannot silently unmate the rule.
+ *
+ * SYSTEM KEYWORDS, IN THE PAIRS THE PLATFORM GUARANTEES. `Highlight` with
+ * `HighlightText`, `ButtonFace` with `ButtonText`, `Canvas` with `CanvasText`:
+ * an author colour written inside a forced-colours block is overruled like any
+ * other, but a system keyword is already in the palette and is kept. Mixing
+ * halves of two pairs is how you get a control that is legible on one user's
+ * theme and a dark square on another's.
+ *
+ * NOT ONE `forced-color-adjust: none` IN THIS FILE. None of these controls IS
+ * its colour — a switch is a position, a segment is a word, a menu entry is a
+ * verb — so each of them can be told in the system's palette without losing
+ * anything. The one place in the tree where colour genuinely is the
+ * information is the theme plugin's palette swatches, and that file carries
+ * the exemption and the argument for it. */
+@media (forced-colors: active) {
+  /* THE SWITCH. Its track is `bg-done` or `bg-rule` and its knob is
+   * `bg-panel` over a `shadow-raised`; forced colours flattens all three to
+   * `Canvas` and deletes the shadow, which leaves a 33×18 rectangle of nothing
+   * where a yes-or-no answer used to be. The knob's TRAVEL survives untouched
+   * (a `translate` is geometry, not colour), so repainting the two parts is
+   * enough to get both cues back: which end the knob is at, and which of two
+   * system colours the track is. */
+  .prototype-switch {
+    background-color: ButtonFace;
+    border: 1px solid ButtonText;
+  }
+
+  .prototype-switch[aria-checked="true"] {
+    background-color: Highlight;
+    border-color: Highlight;
+  }
+
+  .prototype-switch > span {
+    background-color: ButtonText;
+  }
+
+  .prototype-switch[aria-checked="true"] > span {
+    background-color: HighlightText;
+  }
+
+  /* THE SEGMENTS of a strip — `Segmented.tsx` and hledger's depth control,
+   * which draws the same paint from the same constants. In force is
+   * `bg-accent/10 text-ink` and idle is `text-muted`, so forced colours leaves
+   * four identical words behind one shared border. `Highlight` is the
+   * platform's own word for the one that is chosen. */
+  .olai-segment[aria-pressed="true"] {
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
+  /* A TAB, for the same reason in a different grammar: the selected one is a
+   * two-pixel accent underline and the others' underlines are transparent.
+   * Whether a transparent border stays transparent under forcing is an
+   * engine's business and not something to find out in production, so both
+   * arms are spelled. */
+  .olai-tab[aria-selected="true"] {
+    border-bottom-color: Highlight;
+  }
+
+  .olai-tab[aria-selected="false"] {
+    border-bottom-color: Canvas;
+  }
+
+  /* A FILLED tab, which is the tab STRIP's grammar rather than hledger's: the
+   * front tab is told by paper under it and a heavier word, the rest by muted
+   * ink. The weight survives forcing and the paper does not, so a strip under
+   * High Contrast would say which tab is in front only in the one cue a
+   * reader at a glance does not read. Painted here the way the platform says
+   * "this is the one chosen", which is also what the segments above use. */
+  .olai-tab-filled[aria-selected="true"] {
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
+  /* THE MENU BAND. `data-[highlighted]:bg-ink/8` is where the keyboard is
+   * standing in a dropdown, and it is the one cue a pointer and a keyboard
+   * share — the app's focus ring is drawn on the entry too, but the band is
+   * what a mouse user sees, and a menu whose entries are all one colour is a
+   * menu nobody can walk. This is the native highlight, said in the native
+   * words. */
+  .olai-menu-item[data-highlighted] {
+    background-color: Highlight;
+    color: HighlightText;
+  }
+
+  /* A TONE DOT — an empty round span whose entire content is a colour, used
+   * for an agent's standing, a live turn and a transaction's mark. Flattened
+   * to `Canvas` it is a dot on a page the same colour as the dot, which is no
+   * dot at all. Every one of them sits beside a word that says the same thing
+   * (that rule predates this file and is why none of these needs
+   * `forced-color-adjust`), so what is owed here is VISIBILITY rather than a
+   * hue per tone: filled for a dot that is making a claim, `GrayText` for one
+   * that is making it quietly, and a hollow dot stays hollow because its
+   * border is forced to `CanvasText` and survives on its own. */
+  .olai-tone-dot {
+    background-color: CanvasText;
+  }
+
+  .olai-tone-dot-quiet {
+    background-color: GrayText;
+  }
+}

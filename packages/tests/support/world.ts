@@ -3023,6 +3023,14 @@ export class OlaiWorld extends World {
    *  a palette's paper IS is a design decision, and that it CHANGED is the
    *  claim. */
   paperBefore?: string;
+
+  /** The focus ring the caret's control wore before a preference was set, and
+   *  the overflow bar before one was. Both for the paper's reason: what a ring
+   *  or a thumb IS is a design decision, and that it CHANGED when the reader's
+   *  screen asked it to is the claim (the theme row's
+   *  `e2e/steps/forced_colours_steps.ts`). */
+  ringBefore?: { style: string; width: number; colour: string };
+  scrollbarBefore?: string;
   /** The seat's column width before a drag (`olai-plugin-chat`'s agent panel steps). */
   panelWidthBefore?: number;
 

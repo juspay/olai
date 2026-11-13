@@ -89,6 +89,14 @@ stays drawn in full, and the words beside both — *Working…*, *Starting…*, 
 busy line under your message — are unchanged. The preference is about movement,
 never about being told less.
 
+**Nor by a colour the screen may take away.** On a screen that forces its own
+colours — High Contrast — a dot painted in olai's palette would be repainted as
+the page behind it and stop being a dot at all, so every standing mark, the
+live dot and the tab's needs-you and unread marks are drawn from the reader's
+own palette instead. The busy ring is an outline rather than a shadow for the
+same reason: a shadow is deleted outright in that mode. The words beside them
+are, as ever, unchanged. [theme.md](theme.md) has the account.
+
 So **a serve with no chat row leaves all of them `waiting`**, and the plugins panel says so per row, on whose account. That is not a failure and it is not silent: a plugin holding a door that nobody offers is a plugin that has not started, which is a legitimate state the runtime resolves the moment the door arrives.
 
 Enable the chat row alongside any tenant that needs its services. Each namespace’s `on` property controls that row; unspecified rows retain their profile and build defaults.

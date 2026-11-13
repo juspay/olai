@@ -202,7 +202,12 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
         <input
           ref={box}
           type="search"
-          class="h-7 w-full min-w-0 rounded-control border border-rule bg-paper px-2.5 text-label text-ink outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/20"
+          // The border lights on focus; the ring is the app's one outline
+          // (`@olai/appearance/chrome.css`, unlayered — the `outline-none`
+          // that used to be here never stood it down). The `focus:ring-2
+          // focus:ring-accent/20` glow is gone: it was a `box-shadow`, which
+          // forced colours removes, drawn under a ring that survives.
+          class="h-7 w-full min-w-0 rounded-control border border-rule bg-paper px-2.5 text-label text-ink placeholder:text-muted focus:border-accent"
           data-testid={TESTID.headerSearch}
           // `go`, not `search`. Nothing is submitted here — the rows are live
           // under the box as you type, and the return key TAKES the row the
@@ -288,7 +293,14 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
         {(box_) => (
           <Portal>
             <div
-              class={`fixed ${LAYER.over} overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule`}
+              // A `border`, not the `ring-1` it was: a one-pixel hairline
+              // drawn as a `box-shadow` is the same picture until a reader
+              // turns on Windows High Contrast, where box-shadows are removed
+              // and this panel floats on the page with no edge and no shadow.
+              // (`@olai/web`'s `readout.ts` makes the same change for the four
+              // panels it owns; this one is anchored by hand rather than by
+              // that constant.)
+              class={`fixed ${LAYER.over} overflow-hidden rounded-surface border border-rule bg-panel shadow-overlay`}
               ref={results}
               onFocusOut={event => { if (!(event.relatedTarget instanceof Node && (results?.contains(event.relatedTarget) || event.relatedTarget === box))) setCaret(false) }}
               data-testid={TESTID.headerSearchResults}

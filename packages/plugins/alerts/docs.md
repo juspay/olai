@@ -22,6 +22,11 @@ The **Allow notifications** button, drawn only while Alerts is on and the
 browser has neither granted nor refused, offers a real gesture for permission
 requests.
 
+Both switches and that button are legible on a screen that forces its own
+colours: the switches say which way they are set from the reader's own palette
+rather than olai's, and the button wears the app's one focus ring, which is an
+outline and not a shadow. [theme.md](theme.md) has the account.
+
 The `tab-attention` component alone writes `theme.appearance`'s `chrome.waiting`;
 its withdrawal clears that mark. Chat is the badge's only claimant: it counts
 questions. Its `attention` component names `alerts.channel`, so removing this row

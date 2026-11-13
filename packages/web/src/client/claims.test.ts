@@ -851,3 +851,30 @@ test("no component hides a control behind a hover of its own", () => {
   const answered = /SHOWN_WITHOUT_HOVER|\[@media\(hover:none\)\]:opacity-100/
   expect(SOURCES.filter(one => reveal.test(one.code) && !answered.test(one.code)).map(one => one.file)).toEqual([])
 })
+
+// A RING IS A BOX-SHADOW, AND FORCED COLOURS DELETES BOX-SHADOWS. Both claims
+// below are about that one sentence, in the two grammars this app wrote it in.
+//
+// The first is the focus indicator. Fourteen controls used to spell
+// `focus-visible:outline-none` beside a `ring-*`, on the belief — written down
+// in `appearance/src/chrome.css` and wrong — that a utility outranks that
+// sheet's unlayered rule. It does not: layer order is resolved before
+// specificity and Tailwind's utilities are in `@layer utilities`, so every one
+// of those controls was drawing the app's outline AND a second shadow on top,
+// and a High Contrast reader got neither the shadow nor any say in it. The
+// pairing is now always a mistake: the app ring is universal, and a control
+// that wants it placed differently says so with `--olai-ring-offset` and
+// `--olai-ring-radius` rather than by opting out of it.
+//
+// The second is an EDGE drawn as a shadow — `ring-1` beside `border-0`, the
+// spelling a panel reaches for when it wants a hairline without the box model.
+// It disappears in High Contrast and in print, which is two readers for whom
+// the panel loses its boundary entirely.
+test("no control opts out of the app's focus ring in favour of a shadow", () => {
+  expect(filesSpelling(/outline-none[^"'`]*\bring-\d/)).toEqual([])
+  expect(filesSpelling(/\bring-\d[^"'`]*outline-none/)).toEqual([])
+})
+
+test("no edge is drawn as a shadow", () => {
+  expect(filesSpelling(/border-0[^"'`]*\bring-1\b|\bring-1\b[^"'`]*border-0/)).toEqual([])
+})

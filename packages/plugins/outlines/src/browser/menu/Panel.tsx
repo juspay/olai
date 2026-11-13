@@ -189,9 +189,15 @@ export function Panel(props: {
                 // `role="menuitem"` this time. `data-[highlighted]` is where
                 // the entry the KEYBOARD is standing on shows, in the same
                 // band a pointer gets: the arrow keys are new here, and a
-                // walk nobody can see is not a walk. It replaces the focus
-                // ring rather than joining it (`focus:outline-none`) —
-                // Chromium draws that one for pointer opens too.
+                // walk nobody can see is not a walk. It JOINS the app's focus
+                // ring rather than replacing it — this used to say the
+                // opposite, on the strength of a `focus:outline-none` that
+                // could never have worked (`@olai/appearance/chrome.css` is
+                // unlayered and outranks every utility). A pointer walk gets
+                // the band alone, because `:focus-visible` is false for one;
+                // a keyboard walk gets both, which is right. The band's own
+                // forced-colours answer is in `@olai/ui-primitives/all.css`,
+                // where the class it is keyed on lives.
                 class={MENU_ITEM}
                 data-testid={TESTID.nodeMenuItem}
                 data-action={action().id}

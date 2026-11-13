@@ -92,7 +92,7 @@ export function Shortcuts(props: {
       // page at once, which is a claim `web/src/client/layer.ts`'s table
       // cannot make. No `role` or `aria-modal` either — a native modal is one,
       // and the name is the label below.
-      class="fixed inset-x-4 top-[min(14vh,6rem)] bottom-auto mx-auto my-0 h-auto max-h-[70vh] w-auto max-w-lg overflow-y-auto rounded-surface border-0 bg-panel p-4 text-ink shadow-overlay ring-1 ring-rule/40 backdrop:bg-ink/40"
+      class="fixed inset-x-4 top-[min(14vh,6rem)] bottom-auto mx-auto my-0 h-auto max-h-[70vh] w-auto max-w-lg overflow-y-auto rounded-surface border border-rule/40 bg-panel p-4 text-ink shadow-overlay backdrop:bg-ink/40"
       aria-label="Keyboard shortcuts"
       ref={(element) => { sheet = element; lightDismiss(element) }}
       // WHOEVER CLOSED IT says so once: Escape, a press outside, or the effect

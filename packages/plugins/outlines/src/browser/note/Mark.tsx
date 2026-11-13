@@ -42,14 +42,21 @@ export function NoteMark(props: {
       // disappears. `leading-none` and the fixed width keep the baseline of the
       // line where it was whether or not a node carries a note.
       //
-      // THE FOCUS RING IS A RING and not a colour, which is the correction a
-      // review made: this mark is already accent-INK while the row is open, so
-      // a focus state that only accented the glyph was invisible on exactly the
-      // rows a keyboard reader is most likely to be standing on. `ring-2
-      // ring-accent` is what every other control in this client wears
-      // (`../settings/Segmented.tsx`, `../theme/FontSelect.tsx`), and the
-      // `rounded-control` is static so the ring has a shape to trace at 12px.
-      class="inline-flex w-3 shrink-0 cursor-pointer select-none justify-center rounded-control border-0 bg-transparent p-0 align-baseline text-body leading-none transition-colors duration-100 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      // THE FOCUS RING IS NOT A COLOUR, which was the correction a review
+      // made: this mark is already accent-INK while the row is open, so a
+      // focus state that only accented the glyph was invisible on exactly the
+      // rows a keyboard reader is most likely to be standing on. What that
+      // review reached for was a `focus-visible:ring-2` and an
+      // `outline-none` — and neither did what it looked like it did. The
+      // `outline-none` never stood the app's ring down (
+      // `@olai/appearance/chrome.css` is unlayered and outranks every
+      // utility), so this mark wore two rings; and the one it spelled for
+      // itself was a `box-shadow`, which is the first thing Windows High
+      // Contrast removes. The app's outline is the ring now, it is the only
+      // one, and it survives a forced palette. The `rounded-control` went
+      // with the ring it was shaping — the sheet gives the ring its own
+      // radius.
+      class="inline-flex w-3 shrink-0 cursor-pointer select-none justify-center border-0 bg-transparent p-0 align-baseline text-body leading-none transition-colors duration-100 hover:text-accent"
       classList={{
         "text-accent": props.open,
         "text-muted/60": !props.open,

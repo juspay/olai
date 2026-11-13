@@ -82,3 +82,31 @@ Deployment naming follows its own scoped source. Withdrawing the layout's name
 source restores the inherited document and Apple title without stopping theme
 state or the chat unread marker. A returning source starts a fresh naming
 subscription and updates those titles again.
+
+## When the screen is not olai's to paint
+
+Two system preferences arrive without passing through this row's controls, and
+olai answers both in the sheet this row owns (`@olai/appearance/chrome.css`).
+
+**High Contrast.** On a screen that forces its own colours, the browser throws
+olai's palette away and repaints from the reader's own set — and deletes every
+`box-shadow` on the way. The keyboard's focus ring survives that, because it
+is an outline and not a shadow; it is drawn around the same controls as ever,
+in the screen's own highlight colour. Controls that said their state in a
+background alone say it again from the system palette: a switch's on and off,
+the segment of a strip that is in force, the selected tab of a ledger, and the
+small round marks that stand for an agent's standing, a live turn or a
+transaction's status. The **Theme** swatches are the one exception in olai and
+they are exempt on purpose: a palette preview whose whole content is colour has
+nothing left to say once its colours are taken, so the discs keep theirs and
+the buttons around them do not.
+
+**More contrast.** The overflow bar is deliberately quiet — a quarter of the
+surface's ink, a hint rather than a furnishing. A reader who asks their system
+for more contrast gets the thumb at the full ink of whichever palette is in
+force, light or dark, rather than a black that would be a stranger on four of
+them. The track stays clear in both: a Mac draws it transparent whatever a page
+asks, so the thumb is made to read against the page instead.
+
+Both follow the system setting live; there is nothing to reload.
+

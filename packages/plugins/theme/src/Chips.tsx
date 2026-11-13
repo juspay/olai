@@ -39,12 +39,28 @@ export const themeInForce = (state: Appearance): string =>
     ? `System · ${paletteLabel(state.theme.current().name)}`
     : paletteLabel(state.theme.current().name)
 
+/* THE TARGET, and the one control in this app whose drawing is nothing but
+ * colour — which is why `./all.css` lets its disc out of forced colours and
+ * nothing else in the tree is allowed the same.
+ *
+ * `[--olai-ring-radius:9999px]` hands the app's ring the one fact the sheet
+ * cannot know: this is a circle, not a `--radius-control` box. There is no
+ * `outline-none` here any more — the one that used to be did nothing at all
+ * (`@olai/appearance/chrome.css` is unlayered and outranks every utility), so
+ * the swatch was wearing the app's outline AND the disc's own
+ * `group-focus-visible` ring the whole time. */
 const SWATCH =
-  `${TARGET_BOX} group inline-flex flex-none items-center justify-center rounded-full outline-none md:min-h-0 md:min-w-0 md:p-0`
+  `${TARGET_BOX} group inline-flex flex-none items-center justify-center rounded-full [--olai-ring-radius:9999px] md:min-h-0 md:min-w-0 md:p-0`
 
+/* THE DRAWING. The ring that says which palette is IN FORCE stays on the disc
+ * rather than moving to the button: on a phone the button is a 44px target
+ * around a 28px disc, and a mark drawn at the target's edge would be floating
+ * a finger's width from the thing it marks. The `group-focus-visible` ring
+ * that used to sit beside it is gone — it was a second ring under the app's
+ * outline, and a `box-shadow` at that. */
 const DISC =
-  "relative block size-7 rounded-full border ring-offset-2 ring-offset-panel group-hover:scale-105 " +
-  "group-focus-visible:ring-2 group-focus-visible:ring-accent group-aria-pressed:ring-2 group-aria-pressed:ring-ink/60 " +
+  "olai-swatch-disc relative block size-7 rounded-full border ring-offset-2 ring-offset-panel group-hover:scale-105 " +
+  "group-aria-pressed:ring-2 group-aria-pressed:ring-ink/60 " +
   "motion-safe:transition-transform md:size-6"
 
 export function ThemeChips(props: { readonly state: Appearance }) {

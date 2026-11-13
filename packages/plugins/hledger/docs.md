@@ -81,6 +81,14 @@ The view is per file. Opening another journal starts again on Transactions,
 which is the reading a journal is opened for; nothing remembers which tab you
 left a file on.
 
+On a screen that forces its own colours — High Contrast — the three status
+marks and the selected tab are drawn from the reader's own palette rather than
+olai's: a cleared dot stays filled, a pending one stays quieter, an unmarked
+one stays a ring, and the view you are on keeps its underline while the other
+two do not. The depth control's chosen clip is drawn the same way. Each mark
+also carries its word for a screen reader (`cleared`, `pending`, `not marked`),
+which is true in every palette. [theme.md](theme.md) has the account.
+
 ## View only
 
 A journal is claimed as text, but olai never writes one. There is no editor and

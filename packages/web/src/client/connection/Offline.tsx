@@ -241,8 +241,19 @@ export function Offline(props: {
       // button on it the dialog itself takes the focus, and a focus ring drawn
       // around a card nobody navigated to reads as a border somebody chose.
       // The focus itself is kept — it is half of what makes the page under this
-      // unreachable by keyboard.
-      class="m-auto max-w-sm rounded-surface border-0 bg-panel px-6 py-5 text-ink shadow-overlay ring-1 ring-rule/40 focus:outline-none backdrop:bg-black/60"
+      // unreachable by keyboard. (It works here, unlike on the controls that
+      // used to spell it: the app's ring selects buttons, links and fields,
+      // and a `<dialog>` is none of those — `@olai/appearance/chrome.css`.)
+      //
+      // THE EDGE IS A `border`, NOT A `ring`, for the reason `../readout.ts`'s
+      // panel box states at length: `ring-1` is a `box-shadow`, Windows High
+      // Contrast REMOVES box-shadows, and this card would be a slab of
+      // `Canvas` over a `Canvas` page — with its `shadow-overlay` gone too and
+      // the backdrop's own black repainted — at exactly the moment the app is
+      // trying to tell somebody it has lost the wire. A border's colour is
+      // forced, not deleted. `rule/40` goes with it: a hairline tuned to be
+      // half-there is not the thing to measure a system palette against.
+      class="m-auto max-w-sm rounded-surface border border-rule bg-panel px-6 py-5 text-ink shadow-overlay focus:outline-none backdrop:bg-black/60"
       data-testid={TESTID.offline}
       // WHICH state froze it, for a test and for whoever is reading the DOM —
       // the same attribute and the same values the pill publishes

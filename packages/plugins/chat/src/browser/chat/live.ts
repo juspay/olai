@@ -29,5 +29,11 @@
  * standings had the opposite arrangement and had to be fixed
  * (`../agents/roster.ts`); this one was right by construction, which is worth
  * writing down before somebody "helpfully" draws a grey dot for idle.
+ *
+ * AND WHAT IT SAYS WHEN THE PALETTE IS NOT OURS. A dot whose whole content is
+ * a colour is a dot that forced colours erases outright — `bg-doing` becomes
+ * the page's own `Canvas` and the cue is a hole the shade of the paper.
+ * `olai-tone-dot` is the hook that repaints it from the system palette
+ * (`@olai/ui-primitives/all.css`); it carries no colour of its own here.
  */
-export const LIVE_DOT = "inline-block size-1.5 animate-pulse rounded-full bg-doing"
+export const LIVE_DOT = "olai-tone-dot inline-block size-1.5 animate-pulse rounded-full bg-doing"

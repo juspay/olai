@@ -104,6 +104,10 @@ The row the caret or the last tap is on carries `data-active`. A plugin's offer 
 
 A system set to *reduce motion* changes what the tree does, never what it says. A row's chevron still points the other way the moment you fold it — it simply does not turn through the angle. Revealing a row that navigation asked for (a reference, a search result, a permalink) puts it in the middle of the screen at once instead of gliding there; the row is still selected and still accented. Colour is untouched, so a row lighting under the pointer, the accent on the selected row and the note's own markdown read exactly as they do for everybody else. The whole policy is one block in `@olai/appearance/chrome.css`, and the scroll this row asks for in JavaScript reads the preference at the moment of the scroll — so turning the system setting on or off takes effect without reloading the tab.
 
+## Rows on a screen that forces its own colours
+
+High Contrast takes olai's palette away and repaints from the reader's own, deleting every soft edge drawn as a shadow on the way. What the tree keeps is everything that was a fact rather than a flourish: the keyboard's focus ring, which is an outline and survives being recoloured; the band under the menu entry an arrow key is standing on, drawn in the system's own highlight; the filter box's lit border when the caret is in it; and the note mark's `¶`, which now wears the app's one ring rather than a glow of its own. The extra rings these controls used to draw for themselves are gone — they were shadows, and a shadow is the one kind of focus mark this mode removes. [theme.md](theme.md) has the account.
+
 ## Empty pages
 
 With no outlines at all the page says **No outlines yet** and offers **New outline**, which opens the files row's own new-file box through `files.state` (`browser/files.tsx`). With no files row mounted there is no box and no button. A path that names nothing says **Page not found**, names what was asked for, and offers **Go home**.

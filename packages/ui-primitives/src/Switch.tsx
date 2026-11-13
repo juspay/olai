@@ -42,7 +42,21 @@ export function Switch(props: {
       aria-disabled={frozen() ? true : undefined}
       title={props.title}
       data-testid={props.testid}
-      class={`prototype-switch relative h-[1.15rem] w-[2.05rem] shrink-0 rounded-full inset-ring inset-ring-ink/10 after:absolute after:-inset-x-[0.4rem] after:-inset-y-[0.8rem] after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-panel md:after:hidden ${
+      // `[--olai-ring-radius:9999px]` and nothing else about focus. The app's
+      // one ring is an `outline` drawn from `@olai/appearance/chrome.css`
+      // (which is unlayered, so no `outline-none` here could ever have stood
+      // it down — this control used to spell one, along with a `ring-2` of its
+      // own, and wore BOTH rings as a result). What the sheet cannot know is
+      // that this control is a pill rather than a `--radius-control` box, so
+      // the shape is the one thing handed back to it. The `ring-2` that was
+      // here is gone for the reason the sheet argues: a Tailwind ring is a
+      // `box-shadow`, and forced colours deletes box-shadows.
+      //
+      // ON AND OFF ARE A BACKGROUND APART, which is the other thing forced
+      // colours takes — both tracks flatten to `Canvas` and so does the knob.
+      // `../all.css` repaints all three from the system palette there; the
+      // knob's travel is geometry and needs no help.
+      class={`prototype-switch relative h-[1.15rem] w-[2.05rem] shrink-0 rounded-full inset-ring inset-ring-ink/10 after:absolute after:-inset-x-[0.4rem] after:-inset-y-[0.8rem] after:content-[''] [--olai-ring-radius:9999px] md:after:hidden ${
         frozen() ? "opacity-60" : "cursor-pointer"
       } ${props.on ? "bg-done" : "bg-rule"}`}
       onClick={() => {

@@ -3,3 +3,42 @@
 @source "./";
 
 @import "@olai/appearance/chrome.css";
+
+/* THE ONE `forced-color-adjust: none` IN THE TREE, and the argument for why
+ * it is allowed here and nowhere else.
+ *
+ * Windows High Contrast exists because a reader cannot read this app's
+ * palettes, so the browser throws them away and repaints from a palette the
+ * reader chose. Honouring that is the default everywhere, and
+ * `@olai/ui-primitives/all.css` is a whole file of controls being taught to
+ * say their state in the system's own words rather than in ours.
+ *
+ * A PALETTE SWATCH IS THE EXCEPTION BECAUSE IT IS NOT DRAWN IN A COLOUR — IT
+ * IS A PICTURE OF ONE. `Chips.tsx` paints each disc as a wedge of the paper
+ * and the accent that palette would put the whole page in; forcing them turns
+ * the row into six identical grey circles offering six identical choices, and
+ * the control stops being able to ask its question. That is the narrow case
+ * the property is for — a colour picker's swatch, a syntax specimen — and not
+ * one this file is reaching for to keep a look.
+ *
+ * BOTH HALVES OF THE PAIR, which is the rule that comes with the exemption: an
+ * element let out of forcing keeps its own transparency too, and a transparent
+ * box over the reader's `Canvas` is a box that may be light on light. The disc
+ * is opaque by construction — `Chips.tsx` writes an inline `background:
+ * linear-gradient(…)` with hard stops — and these two declarations are the
+ * floor under it, so a palette whose gradient ever fails to paint is a
+ * `Canvas` disc with a forced border round it rather than a hole.
+ *
+ * WHAT IS NOT EXEMPTED IS THE BUTTON. The target around the disc is ordinary
+ * chrome and keeps the system's colours, so the app's focus ring lands on it
+ * in `Highlight` like every other control's. The mark saying which palette is
+ * IN FORCE rides the disc — inside the exemption, so the `aria-pressed` ring
+ * survives being a `box-shadow` — and it is the one place in this app where
+ * that is true on purpose rather than by accident. */
+@media (forced-colors: active) {
+  .olai-swatch-disc {
+    forced-color-adjust: none;
+    color: CanvasText;
+    background-color: Canvas;
+  }
+}

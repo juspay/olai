@@ -66,7 +66,7 @@ import { TESTID } from "olai-plugin-hledger/testids"
 import { TAG_CLASS } from "@olai/markdown-ui/tags.ts"
 import { tagStyle } from "@olai/appearance/tagInk.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
-import { TARGET } from "@olai/ui-primitives/touch.ts"
+import { SEGMENT, SEGMENT_IN_FORCE, SEGMENT_STRIP } from "@olai/ui-primitives/Segmented.tsx"
 
 import { amountDigits, amountParts, amountText } from "./spell.ts"
 
@@ -266,7 +266,19 @@ export function TabStrip(props: {
             // Roving tabindex: the strip is ONE stop and the arrows move within
             // it, which is the tabs pattern and not three separate stops.
             tabindex={props.view === choice().value ? 0 : -1}
-            class={`-mb-px border-b-2 px-3 py-1.5 text-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+            // `olai-tab` is the hook, not the paint: the selected tab is an
+            // accent underline and ink text while the others are a
+            // transparent underline and muted text, and a forced palette
+            // flattens all four of those into one another. The rule that
+            // repaints the underline from the system's own `Highlight` lives
+            // in `@olai/ui-primitives/all.css` with the app's other
+            // forced-colours answers.
+            //
+            // No focus treatment here any more. The `focus-visible:ring-2`
+            // was a `box-shadow` — removed outright under forced colours —
+            // and the `outline-none` beside it never stood the app's real
+            // ring down, because `@olai/appearance/chrome.css` is unlayered.
+            class={`olai-tab -mb-px border-b-2 px-3 py-1.5 text-label transition-colors ${
               props.view === choice().value
                 ? "border-accent text-ink"
                 : "border-transparent text-muted hover:text-ink"
@@ -358,7 +370,17 @@ function TransactionRow(props: { readonly transaction: Transaction }) {
   )
 }
 
-/** The six-pixel dot that says how a transaction is marked. */
+/** The six-pixel dot that says how a transaction is marked.
+ *
+ *  Its whole content is a colour, so a forced palette is where it stops
+ *  existing: `bg-done` and `bg-doing` both flatten to the page's own `Canvas`
+ *  and the dot becomes a hole the same shade as the paper. The `olai-tone-dot`
+ *  classes (`@olai/ui-primitives/all.css`) repaint the two FILLED marks from
+ *  the system palette — `CanvasText` for cleared, `GrayText` for the quieter
+ *  pending — and the unmarked one needs nothing, because its border is forced
+ *  to a visible colour and a hollow dot stays hollow. Which keeps all three
+ *  apart there, as here. The word is never only in the colour anyway: this
+ *  span is a `role="img"` with the mark as its name. */
 function StatusDot(props: { readonly status: Transaction["status"] }) {
   const label = (): string =>
     props.status === "cleared" ? "cleared" : props.status === "pending" ? "pending" : "not marked"
@@ -369,7 +391,11 @@ function StatusDot(props: { readonly status: Transaction["status"] }) {
       data-testid={TESTID.hledgerStatus}
       data-status={props.status}
       class={`inline-block size-1.5 shrink-0 self-center rounded-full ${
-        props.status === "cleared" ? "bg-done" : props.status === "pending" ? "bg-doing" : "border border-muted"
+        props.status === "cleared"
+          ? "olai-tone-dot bg-done"
+          : props.status === "pending"
+            ? "olai-tone-dot-quiet bg-doing"
+            : "border border-muted"
       }`}
     />
   )
@@ -606,16 +632,21 @@ export function TransactionsPanel(props: {
 
 /** The depth control — a strip of four clips. Held here rather than taken from
  *  `@olai/ui-primitives`' `Segmented` because the DOM contract gives each
- *  button a `data-depth` (`1|2|3|all`) that `Segmented` has no way to emit. */
+ *  button a `data-depth` (`1|2|3|all`) that `Segmented` has no way to emit.
+ *  The PAINT is still that component's, imported rather than copied: the
+ *  strip's forced-colours answer — which of four identical words is in force,
+ *  once the palette is the system's and `bg-accent/10` is gone — is one rule
+ *  keyed on `olai-segment`, and a strip that had copied the class string
+ *  would have been the one that quietly stopped getting it. */
 function DepthControl(props: { readonly value: Depth; readonly onPick: (depth: Depth) => void }) {
   return (
-    <div class="inline-flex overflow-hidden rounded-full border border-rule" data-testid={TESTID.hledgerDepth}>
+    <div class={SEGMENT_STRIP} data-testid={TESTID.hledgerDepth}>
       <Index each={DEPTHS}>
         {(choice) => (
           <button
             type="button"
-            class={`${TARGET} inline-flex items-center px-3 text-label focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent md:min-h-0 md:py-1 ${
-              props.value === choice().value ? "bg-accent/10 text-ink" : "text-muted hover:text-ink"
+            class={`${SEGMENT} ${
+              props.value === choice().value ? SEGMENT_IN_FORCE : "text-muted hover:text-ink"
             }`}
             data-depth={choice().value}
             aria-pressed={props.value === choice().value ? "true" : "false"}
@@ -786,7 +817,11 @@ export function BalancesPanel(props: {
                     <Show when={hasChildren()} fallback={<span class="inline-block w-4 shrink-0" />}>
                       <button
                         type="button"
-                        class="inline-flex w-4 shrink-0 cursor-pointer justify-center text-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        // No ring of its own: the `focus-visible:ring-2` was
+                        // a `box-shadow` (gone under forced colours) drawn
+                        // beneath the app's own outline, which the
+                        // `outline-none` beside it never removed.
+                        class="inline-flex w-4 shrink-0 cursor-pointer justify-center text-muted hover:text-ink"
                         aria-expanded={isExpanded() ? "true" : "false"}
                         aria-label={isExpanded() ? `Collapse ${account()}` : `Expand ${account()}`}
                         data-testid={TESTID.hledgerBalanceToggle}

@@ -888,7 +888,7 @@ export function Palette(props: {
         rectangle, and a dialog stretched over the whole window would have no
         outside left to press. */}
     <dialog
-      class="fixed inset-x-3 top-[calc(var(--height-header)+0.5rem)] bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] mx-auto my-0 h-auto max-h-none w-auto max-w-xl rounded-surface border-0 bg-panel p-0 text-ink shadow-overlay ring-1 ring-rule backdrop:bg-ink/40 md:inset-x-4 md:bottom-auto md:top-[min(20vh,8rem)]"
+      class="fixed inset-x-3 top-[calc(var(--height-header)+0.5rem)] bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] mx-auto my-0 h-auto max-h-none w-auto max-w-xl rounded-surface border border-rule bg-panel p-0 text-ink shadow-overlay backdrop:bg-ink/40 md:inset-x-4 md:bottom-auto md:top-[min(20vh,8rem)]"
       aria-label="Command palette"
       // A press OUTSIDE puts it away, which is what the full-screen scrim
       // this replaced was for. `closedby` is the declarative half and Safari
