@@ -43,13 +43,35 @@ the first text set in them is set in them: a hosted face is `font-display:
 swap`, and a swap after first paint moves every line above wherever a reader
 landed. A document's own landing waits for `document.fonts.ready` for the same
 reason ([markdown.md](markdown.md)).
+
+That script restores four things, three of them attributes on `<html>`
+(`data-theme`, `data-font`, `data-size`) and the fourth the browser's own
+`<meta name="color-scheme">`. The canvas behind the document, the scrollbars
+and the form controls are the UA's to paint, and before the stylesheet lands
+that meta is the only thing that tells it which way they go — so a dark
+palette picked under a light OS used to spend the whole pre-sheet window in a
+light browser's chrome. The shell authors the meta as `light dark`, which is
+what a page whose JavaScript never ran shows and is the word for "follow the
+OS"; the script overwrites it only from `olai.scheme`, a copy of the picked
+palette's `scheme` that the provider stores beside the pick itself
+(`@olai/appearance/palettes.ts`). The script learns no theme name and no
+theme's polarity: it copies a word it was handed. A browser whose storage
+predates that key follows the OS for one load and is written up by the next.
+
 Pure appearance tables, CSS generators and mark drawing live in
 `@olai/appearance`; the typeface catalog remains `@olai/fonts`. Their import
 graphs acquire no observers or DOM state.
 
 Chrome state is freshly acquired with the appearance provider, including title,
-favicon blob and theme metadata. Cleanup restores inherited values, revokes
-blobs and invalidates retained writers. `theme.appearance.chrome` carries the
+favicon blob and theme metadata. The shell ships two `theme-color` metas, one
+per `prefers-color-scheme`, so an unpicked page has the right status bar before
+the bundle runs; a pick repaints **both** of them, because the browser uses the
+first meta whose media query matches and a dark palette under a light OS is
+answered by the second one. The `media` attributes are never touched: they are
+the shell's statement about a page nobody has picked on, and cleanup hands both
+metas back exactly as they were found, along with the canvas meta, the title,
+the favicon and the Apple title; it also revokes the mark's blobs and
+invalidates retained writers. `theme.appearance.chrome` carries the
 name/waiting behaviors; other plugins never import its implementation. A
 separate naming integration consumes layout's deployment reading. The `alerts`
 row's separate tab-attention integration consumes appearance and the alerts

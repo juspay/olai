@@ -225,6 +225,34 @@ export const THEME_ATTRIBUTE = "data-theme"
  *  the same page for everyone, and what it looks like to you is yours. */
 export const THEME_STORAGE_KEY = "olai.theme"
 
+/**
+ * …and where it keeps THE SCHEME OF THAT PICK, as the one word a browser
+ * understands: `light` or `dark`.
+ *
+ * A second key for something derivable looks like a redundancy, and from in
+ * here it is one — `paletteNamed(stored)?.scheme` is the same answer. It is
+ * not derivable in the ONE PLACE that needs it first: the shell's inline boot
+ * script runs before any module exists and deliberately knows no theme names,
+ * so the only thing it can do with `olai.theme` is copy it onto an attribute.
+ * The canvas, the scrollbars and the form controls of the pre-sheet window are
+ * the UA's, and the only thing that moves them is `<meta name="color-scheme">`
+ * — a word, not a theme name. So the scheme rides beside the pick as DATA the
+ * shell was handed, written from this table by whoever made the pick
+ * (theme/state.ts) and copied verbatim by a script that cannot read it.
+ *
+ * It is a cache of this table and is treated as one: every activation rewrites
+ * it from the palette in force, so an entry left by an older olai — or none at
+ * all, which is what every browser that picked before this key existed has —
+ * is right again after one load.
+ */
+export const SCHEME_STORAGE_KEY = "olai.scheme"
+
+/** What the canvas meta says when nobody has pinned it: BOTH, which is the
+ *  word for "follow the OS". The shell authors it (so a page whose JavaScript
+ *  never runs still follows the system), and handing the theme back to the
+ *  system puts it back. */
+export const SYSTEM_SCHEME = "light dark"
+
 /** One theme by name, or `undefined` for a name no row offers — which is what
  *  a value stored by an older olai looks like after a theme is renamed. */
 export const paletteNamed = (name: string): Palette | undefined =>

@@ -10,6 +10,10 @@ Feature: Appearance state and its preferences UI have independent lifetimes
     Then the preferences plugin has no rendered controls
     When another tab stores theme "reef", font "system", and size "medium"
     Then the page is in the theme "reef"
+    # A dark pick replaced by a light one in ANOTHER TAB: the browser's own
+    # canvas has to follow, or this tab would reload into a dark UA chrome it
+    # no longer has a theme for.
+    And the canvas is pinned to "light"
     And the page is in the font "system"
     And the page is set at "16px"
     When I switch the plugin "preferences" on
@@ -29,6 +33,10 @@ Feature: Appearance state and its preferences UI have independent lifetimes
     And I open the plugins panel
     And I switch the plugin "theme" off
     Then the appearance attributes have been released
+    # ...including the canvas, which goes back to the word the shell authored:
+    # withdrawing the provider hands the question to the OS rather than
+    # leaving the page pinned to a scheme nothing is painting any more.
+    And the canvas follows the system
     When another tab stores theme "reef", font "system", and size "medium"
     Then the appearance attributes have been released
     When I close the plugins panel
