@@ -25,9 +25,40 @@
  * THE FIRST ROW IS THE HEADER, and nothing in the file says so. Every tool that
  * writes a `.csv` writes one, and there is no mark in the format to detect —
  * so the convention is stated once, in the format's own reading, and drawn here
- * as a `<th>` row. That is the FACT this page asserts: it is a header cell,
- * which is what a screen reader announces and what a scenario reads. Whether a
- * header is bold is a look.
+ * as a `<th scope="col">` row. That is the FACT this page asserts: these cells
+ * name the COLUMNS under them, which is what a screen reader announces when it
+ * reaches a cell and what a scenario reads. Whether a header is bold is a look.
+ * There is no `scope="row"` anywhere here, and that is a refusal rather than an
+ * omission: a `.csv` declares a header ROW and nothing else, so calling the
+ * first column a row header would be this page inventing a fact about somebody's
+ * export — the one lie the format cannot correct.
+ *
+ * THE TABLE IS A REGION SOMEBODY CAN REACH. A wide export overflows, and a
+ * scroll container is reachable with a pointer and with a trackpad and — unless
+ * it is told to be — by nobody travelling with a keyboard, because nothing in a
+ * table of text takes focus. So the scroller carries `tabindex="0"`, which is
+ * what hands the arrow keys to it, `role="region"` and a name, so that landing
+ * in it is announced as arriving somewhere rather than as a silent stop; the
+ * name is the `<caption>`, which is the table's own name as well.
+ *
+ * THE RING IS THE APP'S, and that is a decision rather than a default. A
+ * focusable scroll container is exactly where a focus ring gets lost: the ring
+ * is drawn two pixels outside the box (`@olai/appearance`'s `chrome.css`, the
+ * one place a ring is described), and this box sits inside a pane that CLIPS.
+ * It survives because the pane's clip edge is its padding box and that padding
+ * is wider than the ring — so the answer here is to leave the ring alone and
+ * hold the geometry, which a scenario reads as a rectangle inside a rectangle
+ * rather than as a class name. A second ring spelled on this element would be
+ * outranked anyway: everything in `chrome.css` is unlayered and Tailwind's
+ * utilities are not.
+ *
+ * THE HEADER STAYS while the rows move. A bounded preview is still five hundred
+ * rows, and a column of numbers with its name scrolled off the top is data
+ * nobody can read — so the scroller has a height, the `<thead>` sticks to the
+ * top of it, and the borders are `separate` because a collapsed border belongs
+ * to the grid rather than to the cell and travels away from the sticky row.
+ * The opaque surface under the header is load-bearing in the same way: rows
+ * passing under a translucent one read as a smear.
  *
  * THE BOUND IS SAID, and it is a bound on the READING and not a slice taken
  * afterwards. A vault can hold a million-row export and this is a page, not a
@@ -50,7 +81,7 @@
  */
 import { TESTID } from "olai-plugin-csv/testids"
 import { csvTable } from "@olai/format"
-import { createEffect, createSignal, onCleanup, createMemo, Index, Show } from "solid-js"
+import { createEffect, createSignal, onCleanup, createMemo, createUniqueId, Index, Show } from "solid-js"
 
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 
@@ -99,6 +130,10 @@ export function Csv(props: { readonly file: string }) {
    *  header (`@olai/format`'s `csv.ts`). */
   const header = () => table()?.rows[0]
   const body = () => table()?.rows.slice(1) ?? []
+  /** The id the scroller borrows its name from — minted per instance, because
+   *  two panes can hold two csv pages at once and a duplicate id would point
+   *  both regions at whichever caption the document found first. */
+  const caption = createUniqueId()
 
   return (
     <>
@@ -118,17 +153,32 @@ export function Csv(props: { readonly file: string }) {
                   enough to overflow scrolls WITHIN the column instead of
                   widening the page under everything else, and a column of a
                   table cannot be broken mid-word without lying about the value
-                  in it. */}
-              <div class="overflow-x-auto">
+                  in it. The height is the other half of that bargain — it is
+                  what gives the sticky header something to stick to, and it
+                  bounds how much of the pane one file may claim. */}
+              <div
+                tabindex={0}
+                role="region"
+                aria-labelledby={caption}
+                data-testid={TESTID.csvScroller}
+                class="max-h-[min(32rem,80vh)] overflow-auto"
+              >
                 <table
-                  class="w-max border-collapse text-body"
+                  class="w-max border-separate border-spacing-0 text-body"
                   data-testid={TESTID.csvTable}
                 >
-                  <thead>
+                  {/* THE NAME, said once and heard twice: it names the table
+                      for a screen reader's table list and, through
+                      `aria-labelledby`, the region around it. Unseen, because
+                      the page's own heading is already this path in full
+                      (`BodyPage`) and a caption repeating it under the heading
+                      is a second title nobody asked for. */}
+                  <caption id={caption} class="sr-only">{props.file}</caption>
+                  <thead class="sticky top-0 z-1 bg-paper">
                     <tr>
                       <Index each={header() ?? []}>
                         {(cell) => (
-                          <th class="border-b border-muted bg-rule/40 px-2 py-1 text-left align-top font-semibold whitespace-pre">
+                          <th scope="col" class="border-b border-muted bg-rule/40 px-2 py-1 text-left align-top font-semibold whitespace-pre">
                             {cell()}
                           </th>
                         )}
