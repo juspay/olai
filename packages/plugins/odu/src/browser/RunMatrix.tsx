@@ -37,6 +37,7 @@ import type { BlockContext, OduClocks } from "./app.ts"
 import { useClocks } from "./clocks.tsx"
 import { TESTID } from "../testids.ts"
 import { inkOf } from "./hue.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { useRuns } from "./runs.tsx"
 
 /** How long this node ran, in the app's own register: the settled span in
@@ -52,7 +53,9 @@ const spanOf = (cell: RunCell, now: number, clocks: OduClocks): string => {
   return "—"
 }
 
-/** ...and the exact figure on the hover, where there is one to be exact about. */
+/** ...and the exact figure in the tip, where there is one to be exact about.
+ *  A reader gets it from the hidden twin beside the cell, since a tip exposes
+ *  nothing to one. */
 const spanTitle = (cell: RunCell, clocks: OduClocks): string | undefined =>
   cell.ms === null ? undefined : `Took ${clocks.exactOf(cell.ms / 1000)}`
 
@@ -129,12 +132,12 @@ function Matrix(props: { readonly run: CiRun }) {
               </span>
               <span class="shrink-0 text-muted">{cell.platform}</span>
               <span class={`shrink-0 ${inkOf(cell.hue)}`}>{cell.status}</span>
-              <span
-                class={`shrink-0 tabular-nums ${inkOf(cell.hue)}`}
-                title={spanTitle(cell, clocks)}
-              >
-                {spanOf(cell, now(), clocks)}
-              </span>
+              <Tip text={spanTitle(cell, clocks) ?? ""} disabled={spanTitle(cell, clocks) === undefined}>
+                <span class={`shrink-0 tabular-nums ${inkOf(cell.hue)}`}>
+                  {spanOf(cell, now(), clocks)}
+                </span>
+                <Show when={spanTitle(cell, clocks)}>{(exact) => <span class="sr-only">{exact()}</span>}</Show>
+              </Tip>
             </div>
           )}
         </For>

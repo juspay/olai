@@ -182,42 +182,51 @@ export const WITHIN = {
 } as const
 
 /**
- * THE FREEZE'S WAY BACK ON TOP, while one is mounted — see the header. `null`
- * whenever no freeze owns the floor, which is every moment of an ordinary
- * session.
+ * THE NEWS THAT SOMETHING ENTERED THE TOP LAYER, as a document event.
  *
- * Module state because the top layer is the PAGE's, exactly as `./topmost.ts`
- * keeps its tickets: "what is over everything" is one fact about one screen,
- * and an owner per component tree would be several answers to it.
+ * An event rather than a module variable holding the freeze's `lift`, and the
+ * reason is ownership rather than taste. A `let` here would be live state in a
+ * door — one page-wide slot that outlives every component that writes it, and
+ * a remounted frame could leave a dead closure holding the floor with nothing
+ * able to tell. A listener has an owner by construction: the freeze registers
+ * one inside its own reactive scope and `onCleanup` takes it away with the
+ * card, so "a freeze owns the floor" is true for exactly as long as a freeze
+ * is mounted and for not one frame longer. Two freezes would be two listeners
+ * and both would raise, which is the right answer to a question that cannot
+ * arise.
  */
-let floor: (() => void) | null = null
+const ENTERED = "olai:top-layer-entered"
 
 /**
- * Put a modal dialog in the top layer, and leave the freeze over it.
+ * Put a modal dialog in the top layer, and tell whoever holds its floor.
  *
  * The `open` guard is the platform's rule rather than tidiness: `showModal()`
  * on a dialog that is already open throws, and these are called from effects
  * that re-run for reasons of their own.
+ *
+ * The news is dispatched AFTER the entry and synchronously, so the floor is
+ * re-raised in the same task: nothing is painted in between, and the page is
+ * never un-frozen for a frame.
  */
 export const enterTopLayer = (dialog: HTMLDialogElement): void => {
   if (!dialog.open) dialog.showModal()
-  floor?.()
+  document.dispatchEvent(new CustomEvent(ENTERED, { detail: dialog }))
 }
 
 /**
  * CLAIM THE FLOOR of the top layer for as long as this owner lives: `lift` is
- * called whenever anything else enters it, and must put its own dialog back on
+ * called whenever anything ELSE enters it, and must put its own dialog back on
  * top of whatever just arrived.
  *
- * One claimant, not a stack — the floor is the freeze, which is the one
- * surface in this client whose whole promise is that nothing else is usable.
- * A second claimant would be a second answer to "what may stand over the app",
- * so the last claim wins and withdrawal clears only its own, which is what
- * keeps a remounted frame from leaving a dead closure holding the layer.
+ * The `detail` check is what keeps the freeze from lifting itself: its own
+ * entry is news too, and a card that closed and re-opened on hearing itself
+ * would be an endless one.
  */
-export const holdTopLayerFloor = (lift: () => void): void => {
-  floor = lift
-  onCleanup(() => {
-    if (floor === lift) floor = null
-  })
+export const holdTopLayerFloor = (dialog: () => HTMLDialogElement | undefined, lift: () => void): void => {
+  const heard = (event: Event) => {
+    if ((event as CustomEvent<HTMLDialogElement>).detail === dialog()) return
+    lift()
+  }
+  document.addEventListener(ENTERED, heard)
+  onCleanup(() => document.removeEventListener(ENTERED, heard))
 }

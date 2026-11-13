@@ -58,6 +58,7 @@ import { Match, Show, Switch } from "solid-js"
 
 import type { AgentChoice } from "olai-plugin-chat/wire"
 import { TESTID } from "../../testids.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import type { Who as Person } from "@olai/surface"
 import { Dynamic } from "solid-js/web"
 import { viewer } from "../viewer.ts"
@@ -129,6 +130,10 @@ export function Speaker(props: Faced) {
         return props.party.name
     }
   }
+  /** The person's login beside their name — only for a human, and only where
+   *  there is somebody to say it of. */
+  const account = (): string | undefined =>
+    props.party.of === "human" ? personTitle(person()) : undefined
   return (
     <div
       class="mb-1 flex min-w-0 items-center gap-1.5 text-caption text-muted"
@@ -181,16 +186,17 @@ export function Speaker(props: Faced) {
           {(name) => <PluginMark name={name()} />}
         </Match>
       </Switch>
-      {/* The full account of who this is goes under the POINTER rather than on
-          the line: on a shared vault the difference between a display name and
-          the account it belongs to is the whole question (`../who/saying.ts`),
-          and it does not fit in a drawer beside a page. */}
-      <span
-        class="min-w-0 truncate"
-        title={props.party.of === "human" ? personTitle(person()) : undefined}
-      >
-        {called()}
-      </span>
+      {/* The full account of who this is — the display name against the login
+          it belongs to, which on a shared vault is the whole question
+          (`../who/saying.ts`) and does not fit in a drawer beside a page. It
+          goes under the POINTER and, since the line's own words are only half
+          of it, to a reader as an sr-only companion after the name. */}
+      <Tip text={account() ?? ""} disabled={account() === undefined}>
+        <span class="min-w-0 truncate">
+          {called()}
+        </span>
+        <Show when={account()}>{one => <span class="sr-only">{one()}</span>}</Show>
+      </Tip>
     </div>
   )
 }

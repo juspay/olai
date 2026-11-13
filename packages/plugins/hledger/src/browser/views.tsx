@@ -66,6 +66,7 @@ import { TESTID } from "olai-plugin-hledger/testids"
 import { TAG_CLASS } from "@olai/markdown-ui/tags.ts"
 import { tagStyle } from "@olai/appearance/tagInk.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { SEGMENT, SEGMENT_IN_FORCE, SEGMENT_STRIP } from "@olai/ui-primitives/Segmented.tsx"
 
 import { amountDigits, amountParts, amountText } from "./spell.ts"
@@ -303,17 +304,26 @@ function TransactionHead(props: { readonly transaction: Transaction }) {
     <div class="col-span-full grid grid-cols-subgrid items-baseline py-0.5">
       {/* THE DATE IS THE DAY, not the ISO string: the band above already names
           the month, so `2026-07-01` under `JULY 2026` says July twice. The
-          whole date is still the row's `title` and its `data-date`, which is
-          what a scenario and a pointer read. */}
-      <span class="hidden font-mono text-label text-muted md:block" title={one().date} data-testid={TESTID.hledgerDate}>
-        {shortDay(one().date)}
-        <Show when={one().secondaryDate}>{(second) => <>{` =`}{shortDay(second())}</>}</Show>
-      </span>
+          whole date stays in `data-date`, in the tip a pointer gets, and in
+          the hidden line after the cell, which is the reader's copy — a
+          `title` was none of the last two. */}
+      <Tip text={one().date}>
+        <span class="hidden font-mono text-label text-muted md:block" data-testid={TESTID.hledgerDate}>
+          {shortDay(one().date)}
+          <Show when={one().secondaryDate}>{(second) => <>{` =`}{shortDay(second())}</>}</Show>
+        </span>
+        {/* Drawn where its cell is: below `md` the phone's own day carries it,
+            and two hidden dates would be read as two dates. */}
+        <span class="sr-only hidden md:block">{one().date}</span>
+      </Tip>
       <span class="col-span-full flex min-w-0 items-baseline gap-1.5 md:col-span-1">
         {/* On a phone the day rides this line, left of the status mark — there
             is no room for a column of dates, and a bare day is enough under
             the band. */}
-        <span class="font-mono text-caption text-muted md:hidden" title={one().date} data-testid={TESTID.hledgerDay}>{dayOfMonth(one().date)}</span>
+        <Tip text={one().date}>
+          <span class="font-mono text-caption text-muted md:hidden" data-testid={TESTID.hledgerDay}>{dayOfMonth(one().date)}</span>
+          <span class="sr-only md:hidden">{one().date}</span>
+        </Tip>
         <StatusDot status={one().status} />
         <span class="truncate text-body font-medium text-ink">{one().payee}</span>
         <Show when={one().note}>
@@ -446,14 +456,19 @@ function PostingRow(props: { readonly posting: Posting }) {
             wide as the widest annotation on the page: the `◌` would be a
             hundred pixels from the amount it is about. */}
         <Show when={props.posting.inferred}>
-          <span
-            class="leading-none text-muted md:hidden"
-            data-testid={TESTID.hledgerInferred}
-            title="inferred"
-            aria-label="inferred"
-          >
-            ◌
-          </span>
+          {/* The glyph is a mark and not a word, so it is hidden from a reader
+              and the word rides the line beside it — an `aria-label` on a span
+              with no role names nothing. */}
+          <Tip text="inferred">
+            <span
+              class="leading-none text-muted md:hidden"
+              data-testid={TESTID.hledgerInferred}
+              aria-hidden="true"
+            >
+              ◌
+            </span>
+            <span class="sr-only md:hidden">inferred</span>
+          </Tip>
         </Show>
       </span>
       {/* The tail: a suffix commodity, then whatever was written beside the
@@ -470,7 +485,10 @@ function PostingRow(props: { readonly posting: Posting }) {
       {/* The marker column: the laptop's. */}
       <span class="hidden justify-center self-center md:flex">
         <Show when={props.posting.inferred}>
-          <span class="leading-none text-muted" data-testid={TESTID.hledgerInferred} title="inferred" aria-label="inferred">◌</span>
+          <Tip text="inferred">
+            <span class="leading-none text-muted" data-testid={TESTID.hledgerInferred} aria-hidden="true">◌</span>
+            <span class="sr-only">inferred</span>
+          </Tip>
         </Show>
       </span>
       {/* WHAT WAS WRITTEN BESIDE THE AMOUNT takes a line of its own on a phone:
@@ -491,10 +509,20 @@ function Annotations(props: { readonly posting: Posting }) {
   return (
     <>
       <Show when={props.posting.cost}>
-        {(cost) => <span class="truncate text-muted" data-testid={TESTID.hledgerCost} title="cost annotation">{cost()}</span>}
+        {/* WHAT THE FIGURE IS — a cost, a claim about a balance — was the
+            `title` and nothing else said it. The tip draws it for a pointer;
+            the line after each figure says it to a reader, outside the cell so
+            that what the cell reads is still the figure the file wrote. */}
+        {(cost) => <Tip text="cost annotation">
+          <span class="truncate text-muted" data-testid={TESTID.hledgerCost}>{cost()}</span>
+          <span class="sr-only">cost annotation</span>
+        </Tip>}
       </Show>
       <Show when={props.posting.assertion}>
-        {(claim) => <span class="truncate text-muted" data-testid={TESTID.hledgerAssertion} title="balance assertion">{claim()}</span>}
+        {(claim) => <Tip text="balance assertion">
+          <span class="truncate text-muted" data-testid={TESTID.hledgerAssertion}>{claim()}</span>
+          <span class="sr-only">balance assertion</span>
+        </Tip>}
       </Show>
     </>
   )

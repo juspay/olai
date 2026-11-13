@@ -92,11 +92,29 @@ export function Markdown(props: {
       link.classList.toggle("olai-dead-link", dead)
       if (dead) link.setAttribute("data-dead", "true")
       else link.removeAttribute("data-dead")
+      // THE AUTHOR'S OWN TOOLTIP, and the only `title` this app still writes.
+      // `[x](y "…")` is a title the DOCUMENT carries — content, the same way
+      // an `<iframe>`'s is — so it is rendered the way every markdown reader
+      // renders it rather than restyled into this app's chrome.
       const authored = link.dataset["linkTitle"] ?? ""
-      const warning = dead ? deadLinkSaid({ written: link.dataset["linkWritten"]!, resolved: path, suggest: [] }) : ""
-      const title = [authored, warning].filter(Boolean).join(" — ")
-      if (title) link.title = title
+      if (authored) link.title = authored
       else link.removeAttribute("title")
+      // THE APP'S OWN SENTENCE IS NOT A TITLE. A dead link's reason rode that
+      // same attribute until now, where it answered a pointer and nobody
+      // else. `<Tip>` cannot take it over: a tip renders the control it
+      // explains and measures its own first element child, and these anchors
+      // are the sanitised HTML of somebody's document, written by
+      // `innerHTML` and replaced wholesale on every render — wrapping each
+      // one would mean a Solid root per link, minted and disposed inside this
+      // effect, which is a second ownership tree for a tooltip. So the reason
+      // goes where every reader gets it in every mode: the link's NAME, after
+      // the words it keeps (WCAG 2.5.3 — the visible label stays in the
+      // name), and off again the moment the file it points at is served.
+      if (dead) {
+        const warning = deadLinkSaid({ written: link.dataset["linkWritten"]!, resolved: path, suggest: [] })
+        const words = (link.textContent ?? "").trim()
+        link.setAttribute("aria-label", words === "" ? warning : `${words} — ${warning}`)
+      } else link.removeAttribute("aria-label")
     }
   })
   /** Is this block still WAITING on the renderer — the arrival's own answer

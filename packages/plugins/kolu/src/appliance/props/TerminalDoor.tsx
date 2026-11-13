@@ -68,6 +68,7 @@ import { LivePane } from "./LivePane.tsx"
 import { useFleet } from "./fleet.tsx"
 import { readingOf } from "./terminal.ts"
 import { TESTID } from "../../contracts/appliance-testids.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 /**
  * THE BLOCK — the fact on one line, and the row beneath it.
@@ -175,19 +176,24 @@ function Value(props: {
       }
     >
       {(open) => (
-        <button
-          type="button"
-          class="min-w-0 cursor-pointer truncate text-body text-muted hover:text-accent"
-          data-testid={props.valueId}
-          title={`Change ${props.value}`}
-          onClick={(event) => {
-            // The row's own line answers a click by opening the title editor.
-            event.stopPropagation()
-            open()()
-          }}
-        >
-          {props.value}
-        </button>
+        // THAT THE VALUE IS EDITABLE is the whole of what this says, and the
+        // button's own name is the value — so the verb rides hidden words
+        // after it rather than replacing it, and the tip repeats them for a
+        // pointer.
+        <Tip text={`Change ${props.value}`}>
+          <button
+            type="button"
+            class="min-w-0 cursor-pointer truncate text-body text-muted hover:text-accent"
+            data-testid={props.valueId}
+            onClick={(event) => {
+              // The row's own line answers a click by opening the title editor.
+              event.stopPropagation()
+              open()()
+            }}
+          >
+            {props.value}<span class="sr-only"> — change it</span>
+          </button>
+        </Tip>
       )}
     </Show>
   )
@@ -286,37 +292,44 @@ function Row(props: {
     })
   return (
     <DockSection surface="desktop" repoColor="var(--color-rule)">
-      <DockRow
-        id={props.row.id as never}
-        surface="desktop"
-        pip={pip()}
-        bucket={vocab().bucket}
-        agentState={narrowAgentState(props.row.agentState).attr}
-        // NOT TRANSPORTED YET. kolu#2250 gave the row a model tag, read off
-        // the agent record padi keeps per session; olai's wire row
-        // (`../../client/wire/kolu.ts`) carries no such field, and `fleet.ts`'s
-        // law is that an input crosses only when a fold here needs it. Until a
-        // producer sends it, `undefined` is the row's own word for "not named"
-        // and draws nothing — never an "unknown".
-        model={undefined}
-        label={props.row.label}
-        labelColor={props.row.labelColor}
-        // PLAIN TEXT, and it is a decision rather than a stub. The annotation
-        // line is markdown and the package requires a renderer be injected
-        // rather than defaulted, precisely so the choice is visible: olai's own
-        // markdown pipeline is a dynamic chunk a page waits on, and an intent
-        // line inside an outline row is not worth making forty rows wait for
-        // it. The day the pipeline is already loaded on these pages, this is
-        // one argument.
-        renderLabel={(markdown) => markdown}
-        subline={props.row.subline}
-        pr={props.row.pr}
-        recency={recency()}
-        onSelect={() => {
-          if (props.pressable) props.onSelect()
-        }}
-        title={props.pressable ? "Read this terminal's screen" : undefined}
-      />
+      {/* THE ROW'S OWN SENTENCE, drawn by this app rather than by the browser.
+          `DockRow` is kolu's package and takes a `title`; what it did with it
+          was the platform's tooltip, off the window edge and hidden from a
+          keyboard. The tip replaces it here, at the one call site, and adds
+          nothing to the row's name: `DockRow`'s root is `role="button"`, so
+          that a press reads the screen is what the role already says. */}
+      <Tip text="Read this terminal's screen" disabled={!props.pressable}>
+        <DockRow
+          id={props.row.id as never}
+          surface="desktop"
+          pip={pip()}
+          bucket={vocab().bucket}
+          agentState={narrowAgentState(props.row.agentState).attr}
+          // NOT TRANSPORTED YET. kolu#2250 gave the row a model tag, read off
+          // the agent record padi keeps per session; olai's wire row
+          // (`../../client/wire/kolu.ts`) carries no such field, and `fleet.ts`'s
+          // law is that an input crosses only when a fold here needs it. Until a
+          // producer sends it, `undefined` is the row's own word for "not named"
+          // and draws nothing — never an "unknown".
+          model={undefined}
+          label={props.row.label}
+          labelColor={props.row.labelColor}
+          // PLAIN TEXT, and it is a decision rather than a stub. The annotation
+          // line is markdown and the package requires a renderer be injected
+          // rather than defaulted, precisely so the choice is visible: olai's own
+          // markdown pipeline is a dynamic chunk a page waits on, and an intent
+          // line inside an outline row is not worth making forty rows wait for
+          // it. The day the pipeline is already loaded on these pages, this is
+          // one argument.
+          renderLabel={(markdown) => markdown}
+          subline={props.row.subline}
+          pr={props.row.pr}
+          recency={recency()}
+          onSelect={() => {
+            if (props.pressable) props.onSelect()
+          }}
+        />
+      </Tip>
     </DockSection>
   )
 }

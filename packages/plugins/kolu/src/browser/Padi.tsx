@@ -48,6 +48,8 @@ import { createMemo } from "solid-js"
 import { Show } from "solid-js"
 
 import { TONE } from "olai-plugin-layout/slots"
+import { Tip } from "@olai/web/client/Tip.tsx"
+import { LAYER } from "@olai/web/client/layer.ts"
 
 import { padiSaid, useFleet } from "../appliance/index.ts"
 
@@ -67,30 +69,34 @@ export function Padi(props: { readonly app: KoluApp }) {
   const pill = props.app.pill
   return (
     <Show when={props.app.desktop()}>
-      <button
-        type="button"
-        ref={popover.setTrigger}
-        class={`${pill.PILL} max-w-[9.5rem] shrink-0 cursor-pointer sm:max-w-none`}
-        data-testid={TESTID.padi}
-        // The STATUS as an attribute as well as a paint, so a scenario asserts
-        // the state rather than a colour — the same contract the terminal dot
-        // keeps with `data-face`. `data-padibeat` is the REGISTER, a second
-        // axis: the link can be `connected` while the beat is quiet, which is
-        // exactly the state this register was named to paint.
-        data-padi={fleet.link().status}
-        data-padibeat={said().beat?.kind ?? "none"}
-        title={said().detail}
-        aria-label={`kolu: ${said().detail}`}
-        aria-expanded={popover.open()}
-        aria-haspopup="true"
-        onClick={() => popover.toggle()}
-      >
-        <span class={`${pill.DOT} ${TONE[said().tone].dot}`} data-health={said().tone} aria-hidden="true" />
-        <span class="min-w-0 truncate">{said().label}</span>
-        <Show when={quiet() ? said().beat?.said : null}>
-          {(beat) => <span class={`shrink-0 ${TONE[said().tone].text}`}>· {beat()}</span>}
-        </Show>
-      </button>
+      {/* The pill's own sentence, over the bar: a header pill's tip has to
+          cover the chrome it hangs from. Nothing is added to the name — the
+          `aria-label` below already says the same detail. */}
+      <Tip text={said().detail} layer={LAYER.over}>
+        <button
+          type="button"
+          ref={popover.setTrigger}
+          class={`${pill.PILL} max-w-[9.5rem] shrink-0 cursor-pointer sm:max-w-none`}
+          data-testid={TESTID.padi}
+          // The STATUS as an attribute as well as a paint, so a scenario asserts
+          // the state rather than a colour — the same contract the terminal dot
+          // keeps with `data-face`. `data-padibeat` is the REGISTER, a second
+          // axis: the link can be `connected` while the beat is quiet, which is
+          // exactly the state this register was named to paint.
+          data-padi={fleet.link().status}
+          data-padibeat={said().beat?.kind ?? "none"}
+          aria-label={`kolu: ${said().detail}`}
+          aria-expanded={popover.open()}
+          aria-haspopup="true"
+          onClick={() => popover.toggle()}
+        >
+          <span class={`${pill.DOT} ${TONE[said().tone].dot}`} data-health={said().tone} aria-hidden="true" />
+          <span class="min-w-0 truncate">{said().label}</span>
+          <Show when={quiet() ? said().beat?.said : null}>
+            {(beat) => <span class={`shrink-0 ${TONE[said().tone].text}`}>· {beat()}</span>}
+          </Show>
+        </button>
+      </Tip>
       {/* The panel is the app's box — portalled, placed and layered by it —
           and drawn only while open, which is why there is no `Show` here. The
           wrench opens the configuration panel, so this drawer closes without

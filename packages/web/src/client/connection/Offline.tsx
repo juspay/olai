@@ -186,7 +186,7 @@ export function Offline(props: {
    * close gives the caret back for an instant, and the memory `./focus.ts`
    * keeps must not record that instant as somewhere a person put it.
    */
-  holdTopLayerFloor(() => {
+  holdTopLayerFloor(() => overlay, () => {
     if (!overlay.open) return
     overlay.close()
     withOfflineFocus(() => overlay.showModal())

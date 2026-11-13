@@ -14,23 +14,29 @@
  * FROZEN is dimmed and `aria-disabled` rather than `disabled`, for Segmented's
  * reason: a disabled button takes no focus, and a keyboard reader who tabs
  * onto it is owed the reason it will not move.
+ *
+ * NO HOVER SENTENCE OF ITS OWN. This package declares `solid-js` and nothing
+ * else, so it cannot reach `@olai/web`'s `<Tip>` — and the `title` it used to
+ * take was the browser's tooltip, placed off the window edge and hidden from
+ * anyone not holding a pointer. A caller that owes a sentence wraps this
+ * control in `<Tip>` and says the same words in {@link label}, which is the
+ * copy a screen reader gets (`plugin-inspector/src/Switch.tsx`).
  */
 import { splitProps } from "solid-js"
 import type { AnyTestId } from "@olai/ui-primitives/testids.ts"
 
 export function Switch(props: {
-  /** The accessible name — what is switched. */
+  /** The accessible name — what is switched, and any sentence a caller's tip
+   *  also says, since the tip itself exposes nothing to assistive tech. */
   readonly label: string
   readonly on: boolean
   readonly frozen?: boolean
   readonly onPick: (value: "on" | "off") => void
   readonly testid: AnyTestId
-  /** Said on hover. */
-  readonly title?: string | undefined
   /** The caller's own markings, passed through for its own styling. */
   readonly [data: `data-${string}`]: string | undefined
 }) {
-  const [, data] = splitProps(props, ["label", "on", "frozen", "onPick", "testid", "title"])
+  const [, data] = splitProps(props, ["label", "on", "frozen", "onPick", "testid"])
   const frozen = (): boolean => props.frozen === true
   return (
     <button
@@ -40,7 +46,6 @@ export function Switch(props: {
       aria-label={props.label}
       aria-checked={props.on}
       aria-disabled={frozen() ? true : undefined}
-      title={props.title}
       data-testid={props.testid}
       // `[--olai-ring-radius:9999px]` and nothing else about focus. The app's
       // one ring is an `outline` drawn from `@olai/appearance/chrome.css`

@@ -114,6 +114,7 @@ import { swallowGhost } from "../gestures.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { overlayRoot } from "../overlay.ts"
 import { Panel } from "./Panel.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 
 /**
@@ -254,25 +255,30 @@ export function Dropdown(props: {
           : props.door.at()?.getBoundingClientRect()
       }}
     >
-      <DropdownMenu.Trigger
-        ref={trigger}
-        class={DOTS}
-        data-testid={TESTID.nodeMenu}
-        aria-label="More"
-        title="More"
-        // Kobalte toggles on the POINTERDOWN (and on the click for a touch
-        // pointer), so both are stopped here: opening a row's menu is not
-        // also a press on the row it belongs to. It is also a gesture the
-        // caret's way home has to know about (`handBack`): pressing the
-        // `•••` to shut a menu the KEYBOARD opened is still a press.
-        onPointerDown={(event: PointerEvent) => {
-          lastGesture = "pointer"
-          event.stopPropagation()
-        }}
-        onClick={(event: MouseEvent) => event.stopPropagation()}
-      >
-        •••
-      </DropdownMenu.Trigger>
+      {/* The armed spelling of `./Dots.tsx`, and it wears the same tip for the
+          same reason: "More" is already the trigger's name, so the tip is a
+          convenience and adds no ARIA. The wrapper is `display: contents`, so
+          Kobalte's trigger is still the box `getAnchorRect` measures. */}
+      <Tip text="More">
+        <DropdownMenu.Trigger
+          ref={trigger}
+          class={DOTS}
+          data-testid={TESTID.nodeMenu}
+          aria-label="More"
+          // Kobalte toggles on the POINTERDOWN (and on the click for a touch
+          // pointer), so both are stopped here: opening a row's menu is not
+          // also a press on the row it belongs to. It is also a gesture the
+          // caret's way home has to know about (`handBack`): pressing the
+          // `•••` to shut a menu the KEYBOARD opened is still a press.
+          onPointerDown={(event: PointerEvent) => {
+            lastGesture = "pointer"
+            event.stopPropagation()
+          }}
+          onClick={(event: MouseEvent) => event.stopPropagation()}
+        >
+          •••
+        </DropdownMenu.Trigger>
+      </Tip>
       <DropdownMenu.Portal mount={overlayRoot()}>
       <ViewportContent
         {...{ [PAGE_SUBJECT]: String(here()) }}

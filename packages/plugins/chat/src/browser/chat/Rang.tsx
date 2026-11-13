@@ -50,6 +50,7 @@ import { createEffect, createMemo, Show } from "solid-js"
 import { createDeclared } from "../references.ts"
 import { useConversationUI } from "./ui.tsx"
 import { Quoted } from "./Quoted.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { rangRow } from "./rang.ts"
 import { markNodeRefs } from "./refs.ts"
 import { TESTID } from "../../testids.ts"
@@ -270,10 +271,13 @@ export function Rang(props: {
           `aria-expanded`, a real button so it is tabbed to and pressed with a
           key, and a name so a screen reader hears a verb rather than a triangle.
 
-          `title` stays, on the LINE rather than on the control, and that is
-          where it always belonged: the account under the pointer is a second
-          way in, and a hover that only worked over a 12px triangle would be a
-          way in nobody finds.
+          THE ACCOUNT UNDER THE POINTER stays on the LINE rather than on the
+          control, and that is where it always belonged: a hover that only
+          worked over a 12px triangle would be a way in nobody finds. It is
+          this app's tip now, disabled while the body is already open — and
+          it gets NO spoken copy on purpose. The body a reader needs is the
+          one the chevron reveals; an sr-only echo of it would put the whole
+          account back in the page the fold just took it out of.
 
           NOT UPPERCASE any more, which is the one look this change takes with
           it. The transform is inherited by everything on the line, ids
@@ -283,9 +287,9 @@ export function Rang(props: {
           what make this the chrome voice; the shouting was never the part
           doing that work. */}
       <Show when={said().folds} fallback={<RangBody said={said().body} />}>
+        <Tip text={said().body} disabled={said().open}>
         <div
           class="mb-0.5 flex w-full items-start gap-1.5 text-caption tracking-wider text-muted"
-          title={said().open ? undefined : said().body}
         >
           <button
             type="button"
@@ -310,6 +314,7 @@ export function Rang(props: {
             <Quoted said={said().byline} />
           </span>
         </div>
+        </Tip>
         {/* NOT `hidden`, but absent: a body kept in the page and painted away is
             a body a screen reader still walks and a scenario still finds, which
             is the whole of what the fold was for. */}

@@ -1,4 +1,5 @@
 import { createCarry } from "@olai/web/client/carry.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { landings } from "./landings.ts"
 import type { CarriedPath } from "./carry.ts"
 /** THE FILE LIST of the directory column: the Outlines heading and its `+`,
@@ -241,18 +242,24 @@ function NewFileButton(props: { readonly items: ReadonlyArray<Making> }) {
   // it again.
   let shutting = false
   return <>
-    <button type="button" class={HEAD_ACTION} data-testid={TESTID.newFile}
-      aria-label="New file" title="New outline or document" aria-haspopup="menu" aria-expanded={menu() !== null}
-      onPointerDown={() => { shutting = menu() !== null }}
-      onClick={(event) => {
-        // The sidebar body puts the phone drawer away on any click that
-        // bubbles to it; opening a menu is not leaving.
-        event.stopPropagation()
-        if (shutting) { shutting = false; setMenu(null); return }
-        setMenu(menu() === null ? event.currentTarget : null)
-      }}>
-      <PlusGlyph />
-    </button>
+    {/* What the `+` makes, which its name ("New file") does not say — so the
+        sentence is the NAME here, and the tip repeats it rather than being
+        the only copy of it. The glyph is `aria-hidden`, so there are no
+        visible words for a different name to contradict. */}
+    <Tip text="New outline or document">
+      <button type="button" class={HEAD_ACTION} data-testid={TESTID.newFile}
+        aria-label="New outline or document" aria-haspopup="menu" aria-expanded={menu() !== null}
+        onPointerDown={() => { shutting = menu() !== null }}
+        onClick={(event) => {
+          // The sidebar body puts the phone drawer away on any click that
+          // bubbles to it; opening a menu is not leaving.
+          event.stopPropagation()
+          if (shutting) { shutting = false; setMenu(null); return }
+          setMenu(menu() === null ? event.currentTarget : null)
+        }}>
+        <PlusGlyph />
+      </button>
+    </Tip>
     <Show when={menu()}>{anchor => <NewMenu anchor={anchor()} items={props.items}
       close={() => setMenu(null)} pick={(making) => { setMenu(null); openNewFile(making.of) }} />}</Show>
   </>
@@ -269,6 +276,10 @@ function DoorRow(props: {
   readonly testid: string
   readonly current: boolean
   readonly tip?: string
+  /** The row's NAME, where the words it draws are not the whole fact — a
+   *  basename over a path. The tip says the same thing to a pointer, so this
+   *  is what keeps the tip a convenience rather than the only copy. */
+  readonly label?: string
   readonly broken?: boolean
   readonly children: JSX.Element
 }) {
@@ -280,6 +291,7 @@ function DoorRow(props: {
         testid={props.testid}
         current={props.current}
         tip={props.tip}
+        label={props.label}
         broken={props.broken}
       >
         {props.children}
@@ -313,10 +325,19 @@ function FileAnatomy(props: {
       <Show when={props.of ?? undefined}>{(of) => <Glyph of={of()} />}</Show>
       <span class="min-w-0 truncate">{props.name}</span>
       <Show when={props.broken}>
-        {/* No margin of its own: the row has one gap and this is on it. */}
-        <span class="text-alarm" title="This file couldn't be read">
-          ⚠
-        </span>
+        {/* No margin of its own: the row has one gap and this is on it. The
+            ⚠ is the ONLY visible mark that the file could not be read, so the
+            sentence cannot live in a tip alone — a tip is drawn
+            `role="presentation"` and reaches nobody who does not hover. The
+            row's own name is spent on the file's path, so the sentence rides
+            a `role="img"` here, the way a waiting mark's does
+            (`outlines/src/browser/Glyph.tsx`): a bare span's `aria-label` is
+            not a name the platform exposes. */}
+        <Tip text="This file couldn't be read">
+          <span class="text-alarm" role="img" aria-label="This file couldn't be read">
+            ⚠
+          </span>
+        </Tip>
       </Show>
     </>
   )
@@ -359,6 +380,10 @@ function VaultFile(props: {
       current={props.isActive(props.file)}
       broken={unreadable()}
       tip={props.file}
+      // WHERE THE FILE IS, which the row's basename does not say. It was the
+      // anchor's `title`, which answered a pointer and nothing else; the tip
+      // is the pointer's half and this is everybody else's.
+      label={props.file}
     >
       <FileAnatomy of={of()} name={name()} broken={unreadable()} />
     </DoorRow>
@@ -401,39 +426,48 @@ function Dir(props: {
       data-path={props.row.path}
       data-collapsed={String(folded())}
     >
-      <button
-        type="button"
-        class={DIR}
-        data-testid={TESTID.fileDirToggle}
-        aria-expanded={!folded()}
-        aria-label={folded() ? `Expand ${props.row.name}` : `Collapse ${props.row.name}`}
-        title={props.row.path}
-        onClick={(event) => {
-          event.stopPropagation()
-          props.view.toggle(props.row.path)
-        }}
-      >
-        <span class={`${CONTROL} text-muted`} aria-hidden="true">
-          {/* Same weight as the glyphs beside it, not a font triangle at
-              0.55rem: that mark sat in the same cell and still read as a
-              different drawing. */}
-          <svg
-            class="size-2.5 shrink-0 transition-transform duration-100"
-            classList={{ "-rotate-90": folded() }}
-            viewBox="0 0 10 10"
-            fill="currentColor"
-          >
-            <path d="M2 3.25 L8 3.25 L5 7.25 Z" />
-          </svg>
-        </span>
-        {/* The triangle says whether it is OPEN; this says it is a folder at
-            all — which the triangle cannot, because every fold control in the
-            app is one (`./file/icons.tsx`). The triangle sits in CONTROL, and
-            a file row holds that same box empty, so this glyph and a file's
-            occupy one column. */}
-        <Glyph of="folder" />
-        <span class="min-w-0 truncate">{props.row.name}</span>
-      </button>
+      <Tip text={props.row.path}>
+        <button
+          type="button"
+          class={DIR}
+          data-testid={TESTID.fileDirToggle}
+          aria-expanded={!folded()}
+          aria-label={folded() ? `Expand ${props.row.name}` : `Collapse ${props.row.name}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            props.view.toggle(props.row.path)
+          }}
+        >
+          <span class={`${CONTROL} text-muted`} aria-hidden="true">
+            {/* Same weight as the glyphs beside it, not a font triangle at
+                0.55rem: that mark sat in the same cell and still read as a
+                different drawing. */}
+            <svg
+              class="size-2.5 shrink-0 transition-transform duration-100"
+              classList={{ "-rotate-90": folded() }}
+              viewBox="0 0 10 10"
+              fill="currentColor"
+            >
+              <path d="M2 3.25 L8 3.25 L5 7.25 Z" />
+            </svg>
+          </span>
+          {/* The triangle says whether it is OPEN; this says it is a folder at
+              all — which the triangle cannot, because every fold control in the
+              app is one (`./file/icons.tsx`). The triangle sits in CONTROL, and
+              a file row holds that same box empty, so this glyph and a file's
+              occupy one column.
+              IT IS ALSO WHERE THE FOLDER IS. The button's own name is spent on
+              what the press does ("Expand docs"), so the path — which used to
+              be this row's `title` and is now its tip — rides a `role="img"`
+              here, the way a waiting mark's sentence does
+              (`outlines/src/browser/Glyph.tsx`): a bare span's `aria-label` is
+              not a name the platform exposes. */}
+          <span role="img" aria-label={props.row.path}>
+            <Glyph of="folder" />
+          </span>
+          <span class="min-w-0 truncate">{props.row.name}</span>
+        </button>
+      </Tip>
       <Show when={!folded()}>
         <ul class="m-0 ml-2.5 list-none border-l border-rule p-0 pl-1.5">
           <Key each={props.row.children} by="key">
@@ -464,6 +498,11 @@ function File(props: {
         current={props.view.isActive(props.row.file)}
         broken={outline() && props.view.broken.has(props.row.file)}
         tip={props.row.file}
+        // WHERE THE FILE IS — the row DRAWS its basename, and the path was
+        // the anchor's `title`. The tip is the pointer's copy of it; this is
+        // the one a keyboard and a screen reader get. The path ends in the
+        // words the row draws, so the name still contains its visible label.
+        label={props.row.file}
       >
         <FileAnatomy
           of={props.row.of}

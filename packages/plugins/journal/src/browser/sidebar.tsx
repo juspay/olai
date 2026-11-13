@@ -119,31 +119,37 @@ export function TodayEntry() {
           testid={TESTID.calendarToday}
           current={open() === today()}
           tip={today()}
+          // WHICH DAY TODAY IS, in full. The row draws `Today` and the short
+          // day; the date itself was the anchor's `title`, which answered a
+          // pointer and nothing else. The name keeps both drawn words and
+          // adds the date, so the tip stays a convenience.
+          label={`Today, ${shortDay(today())}, ${today()}`}
         >
           Today
           <span class="ml-auto shrink-0 pl-2 text-label tabular-nums text-muted" data-testid={TESTID.calendarTodayDate}>
             {shortDay(today())}
           </span>
         </Link>
-        <button
-          type="button"
-          class={HEAD_ACTION}
-          data-testid={TESTID.calendarToggle}
-          aria-expanded={calendarOpen()}
-          aria-controls={grid}
-          aria-label={calendarOpen() ? "Hide month" : "Show month"}
-          title={calendarOpen() ? "Hide month" : "Show month"}
-          onClick={(event) => {
-            // The sidebar body puts the phone drawer away on any click that
-            // bubbles to it; unfolding the month is not leaving.
-            event.stopPropagation()
-            setCalendarOpen(!calendarOpen())
-          }}
-        >
-          <svg viewBox="0 0 16 16" class="size-3.5 transition-transform duration-100" classList={{ "rotate-90": calendarOpen() }} aria-hidden="true" fill="currentColor">
-            <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4 4a.75.75 0 0 1 0 1.06l-4 4a.75.75 0 1 1-1.06-1.06L9.44 8 6.22 4.28a.75.75 0 0 1 0-1.06z" />
-          </svg>
-        </button>
+        <Tip text={calendarOpen() ? "Hide month" : "Show month"}>
+          <button
+            type="button"
+            class={HEAD_ACTION}
+            data-testid={TESTID.calendarToggle}
+            aria-expanded={calendarOpen()}
+            aria-controls={grid}
+            aria-label={calendarOpen() ? "Hide month" : "Show month"}
+            onClick={(event) => {
+              // The sidebar body puts the phone drawer away on any click that
+              // bubbles to it; unfolding the month is not leaving.
+              event.stopPropagation()
+              setCalendarOpen(!calendarOpen())
+            }}
+          >
+            <svg viewBox="0 0 16 16" class="size-3.5 transition-transform duration-100" classList={{ "rotate-90": calendarOpen() }} aria-hidden="true" fill="currentColor">
+              <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4 4a.75.75 0 0 1 0 1.06l-4 4a.75.75 0 1 1-1.06-1.06L9.44 8 6.22 4.28a.75.75 0 0 1 0-1.06z" />
+            </svg>
+          </button>
+        </Tip>
       </div>
       <Show when={calendarOpen()}>
         <div id={grid}>

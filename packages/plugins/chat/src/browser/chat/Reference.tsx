@@ -2,6 +2,7 @@ import type { JSX } from "solid-js"
 
 import { useRouter } from "olai-plugin-navigation/routing"
 import { atNode } from "olai-plugin-navigation/routes"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { TESTID } from "../../testids.ts"
 
 export function Reference(props: {
@@ -15,16 +16,17 @@ export function Reference(props: {
   const router = useRouter()
 
   return (
-    <a
-      href={router.routes.href(atNode(props.id))}
-      class={`cursor-pointer border-0 bg-transparent p-0 text-left text-accent hover:underline ${
-        props.class ?? ""
-      }`}
-      data-testid={TESTID.chatNodeRef}
-      title="Show this row"
-      aria-label={`Show ${props.id}`}
-    >
-      {props.children}
-    </a>
+    <Tip text="Show this row">
+      <a
+        href={router.routes.href(atNode(props.id))}
+        class={`cursor-pointer border-0 bg-transparent p-0 text-left text-accent hover:underline ${
+          props.class ?? ""
+        }`}
+        data-testid={TESTID.chatNodeRef}
+        aria-label={`Show ${props.id}`}
+      >
+        {props.children}
+      </a>
+    </Tip>
   )
 }

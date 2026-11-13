@@ -22,7 +22,7 @@ glyph for the kind of page it holds, its title, and a close button at its right
 edge. The close button shows on the tab in front, on hover, and — through
 `@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER` — on any screen with no hover at
 all, since the strip is drawn by width and a touch screen past that width has
-no pointer to reveal it with. Its tooltip is `Close tab` and its accessible
+no pointer to reveal it with. Its tip is `Close tab` and its accessible
 name is `Close <title>`.
 
 A tab holding a file is named the way the files sidebar names it: a document
@@ -36,7 +36,14 @@ split tab's title is its panes' names joined with " + ". A tab brought back to
 the front keeps its title until its page reports a real name, and every tab in
 the strip is the same width, so nothing moves while a page arrives.
 
-A tab's tooltip is the address it holds. The strip draws no address of its
+A tab says the address it holds twice: in the app's own tip, which a pointer
+gets on hover and a keyboard gets on focus, and in the tab's own accessible
+name, after the words it draws. The tip alone would not do — the app draws it
+`role="presentation"`, so it reaches no screen reader — and the strip
+truncates a long title at 14rem, so the address is not something the drawn
+words carry either. Neither is the browser's `title` attribute, which the
+browser places itself (a long one ran off the right edge of the window) and
+which answers a pointer and nothing else. The strip draws no address of its
 own. The browser's address bar shows the address of the tab in front and
 nothing about the other tabs.
 

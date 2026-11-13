@@ -110,6 +110,7 @@ import {
 } from "@olai/surface"
 
 import { run } from "@olai/web/client/run.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { TESTID as PRIMITIVE } from "@olai/ui-primitives/testids.ts"
 
 import type { BrowserManagement } from "@olai/surface/management"
@@ -378,12 +379,16 @@ function Chevron(props: { readonly hidden?: boolean }) {
 
 function NodeLink(props: { readonly node: { readonly file: string; readonly id: string } | undefined; readonly state: InspectorState }) {
   return <Show when={props.node ? props.state.file() : undefined} keyed>{Link => { return <span class="plugins-link" onClick={() => props.state.door.setOpen(false)}><Link
-    file={props.node!.file} at={props.node!.id} label={configurationLinkLabel} tip={configurationLinkLabel} testid={TESTID.pluginConfigLink}>{configurationLinkLabel} ↗</Link></span> }}</Show>
+    file={props.node!.file} at={props.node!.id} label={configurationLinkLabel} testid={TESTID.pluginConfigLink}>{configurationLinkLabel} ↗</Link></span> }}</Show>
 }
 
 function Environment(props: { readonly values: ReadonlyArray<EnvironmentReading> }) {
   return <For each={props.values.filter(environmentVisible)}>{one => <>
-    <dt title={one.key}>{sentenceOf(one.says || one.key)}</dt>
+    {/* The raw variable name over the sentence that stands for it. No hidden
+        copy: the key itself is drawn in the value below, in monospace. The
+        tip hangs off the words rather than off the `<dt>`, because a `<dl>`
+        takes terms and values as its own children and nothing else. */}
+    <dt><Tip text={one.key}><span>{sentenceOf(one.says || one.key)}</span></Tip></dt>
     <dd class="plugins-env" data-testid={TESTID.pluginConfig} data-config={one.key} data-value={environmentValue(one)} data-set-by="env">
       <span class={one.set ? "" : "plugins-muted"}>{one.kind === "secret" ? (one.set ? "Set" : "Not set") : one.value === undefined ? "Not set" : <code>{one.value}</code>}</span>
       <code class="plugins-env-key">{one.key}</code>
@@ -464,11 +469,19 @@ function PluginRow(props: {
     <div ref={row} data-testid={PRIMITIVE.prefsRow} data-pref={pluginPref(plugin().name)} class="plugins-row" data-off={!plugin().running ? "true" : undefined}
       data-open={open() ? "true" : undefined} data-plugin-line>
       <div class="plugins-line">
+        {/* THE SETTINGS NAME, where the row reads by a different one or the
+            line has cut it short. The tip is for a pointer and says nothing a
+            reader can hear, so the same name follows the row's words in an
+            `sr-only` twin — after them, so the label a scenario reads off
+            `.plugins-name-text` is still the one word drawn. */}
         <Show when={reveals()} fallback={
-          <span class="plugins-name" title={shown() !== plugin().name ? plugin().name : undefined}>
-            <Chevron hidden />
-            <span class="plugins-name-text">{shown()}</span>
-          </span>
+          <Tip text={plugin().name} disabled={shown() === plugin().name}>
+            <span class="plugins-name">
+              <Chevron hidden />
+              <span class="plugins-name-text">{shown()}</span>
+            </span>
+            <Show when={shown() !== plugin().name}><span class="sr-only">{plugin().name}</span></Show>
+          </Tip>
         }>
           <button type="button" class="plugins-name" aria-expanded={open()} aria-controls={detailId}
             onClick={() => props.panel.state.setExpanded(plugin().name, !open())}>
@@ -570,11 +583,14 @@ function Controls(props: {
 }) {
   // Keys preserve drafts across unrelated publications; the reading stays live.
   // One label/value pair per knob: the label is the key in words, and the
-  // schema's own description is its tooltip.
+  // schema's own description is its tip — hung on the label's words rather
+  // than on the `<dt>`, since a `<dl>` takes terms and values as its children
+  // and nothing else. The reader's copy of that description is the knob's own
+  // (`./Control.tsx`), so it is said once in the pair rather than twice.
   return <For each={props.values.map(one => one.key)}>{key => {
     const value = () => props.values.find(one => one.key === key)!
     return <>
-      <dt title={value().says || undefined}>{labelOf(key)}</dt>
+      <dt><Tip text={value().says} disabled={value().says === ""}><span>{labelOf(key)}</span></Tip></dt>
       <dd><Control name={props.name} label={false} value={value()} configure={props.configure} frozen={props.frozen} /></dd>
     </>
   }}</For>

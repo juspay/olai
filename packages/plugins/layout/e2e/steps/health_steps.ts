@@ -42,10 +42,13 @@ Then("the health dot names {string}", async function (this: OlaiWorld, words: st
     `the health dot's name to include ${JSON.stringify(words)}`,
     HYDRATION_TIMEOUT,
   );
-  const tip = (await dot.getAttribute("title")) ?? "";
+  // The full story — the headline and a line per piece of news — is the tip a
+  // pointer gets, and the name of the dot inside the button, which is how a
+  // screen reader gets the same words. It was a `title`, which was neither.
+  const told = (await dot.locator('[role="img"]').getAttribute("aria-label")) ?? "";
   assert.ok(
-    tip.includes(words),
-    `the health dot's tip is ${JSON.stringify(tip)}, which does not say ${JSON.stringify(words)} — ` +
+    told.includes(words),
+    `the health dot's story is ${JSON.stringify(told)}, which does not say ${JSON.stringify(words)} — ` +
       "a pointer should hear what a screen reader hears",
   );
 });

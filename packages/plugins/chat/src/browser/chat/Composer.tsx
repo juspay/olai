@@ -126,6 +126,7 @@ import type { Written } from "@olai/markdown-ui/insert.ts"
 import { camera } from "./camera.ts"
 import { createChipTitles } from "./chips.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { sameIds } from "@olai/web/client/ids.ts"
 import { createSearch } from "../search.ts"
 import { atOnce } from "@olai/web/client/settled.ts"
@@ -1065,15 +1066,21 @@ export function Composer(props: {
             turn wants (stop it, or line something up behind it) and this is the
             middle one. */}
         <Show when={interruptible()}>
-          <button
-            type="button"
-            class={`${CONTROL} border-doing px-3 text-doing`}
-            data-testid={TESTID.chatInterrupt}
-            title="Send now, into the running turn (Alt+Enter)"
-            onClick={() => void send(true)}
-          >
-            Interrupt
-          </button>
+          <Tip text="Send now, into the running turn (Alt+Enter)">
+            <button
+              type="button"
+              class={`${CONTROL} border-doing px-3 text-doing`}
+              data-testid={TESTID.chatInterrupt}
+              onClick={() => void send(true)}
+            >
+              Interrupt
+              {/* WHAT IT INTERRUPTS, and the chord that does the same thing —
+                  the one word on the face says neither, and both were the
+                  `title`'s alone. After the visible word, so the name still
+                  starts with it. */}
+              <span class="sr-only"> — send now, into the running turn (Alt+Enter)</span>
+            </button>
+          </Tip>
         </Show>
         <button
           type="button"

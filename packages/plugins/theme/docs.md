@@ -14,7 +14,8 @@ the panel; `order: 0` within it) only while that location exists:
 - **Theme** — a *Follow the system* control, then four swatches: `chalk` and
   `reef` (light), `basalt` and `abyss` (dark), every swatch painted in its
   palette's paper with a wedge of its accent. A swatch carries no word: its
-  name is its tooltip and accessible name, and the theme in force is named
+  name is its accessible name and the app's own tip says the same thing to a
+  pointer, and the theme in force is named
   once beside the row's label — `System · Chalk` while the OS is choosing,
   the bare name once a swatch has been picked. A page that has picked nothing
   follows `prefers-color-scheme` between `chalk` and `basalt`; a pick wins

@@ -31,7 +31,8 @@ to balance the rest of its group — the ordinary postings, or the balanced
 virtual ones, since an unbalanced `(…)` posting balances nothing — is marked
 _inferred_ with a hollow circle, so you can tell the format's arithmetic from
 what was written. The date a row draws is the DAY (`Jul 01`), because the band
-above already names the month; the whole date is the cell's `title`. Every
+above already names the month; the whole date is one hover away, and is read
+out beside the day for anyone reading with a screen reader. Every
 amount in the view is one aligned column — the number right-aligned, a suffix
 commodity in its own column beside it — so a column of amounts can be read
 down rather than across, and the decimals line up whatever side the commodity

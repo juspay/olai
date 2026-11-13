@@ -838,6 +838,26 @@ Feature: Talking to a node agent
     And the panel header says the context is "26k/200k"
 
   @scratch:chat
+  Scenario: The context readout says what it counts, hovered or not
+    # `22k/200k` names nothing on its own, and what it counted used to be a
+    # `title` — the platform's tooltip, placed by the browser and answering a
+    # pointer and nothing else, which left a reader with a keyboard looking at
+    # a number with no noun. The readout is not a control, so there is no
+    # accessible name to put the words in (an `aria-label` on a role-less
+    # `<span>` is ignored); they are visually hidden words beside it instead,
+    # and the tip is this app's own.
+    When I open the "claude" agent on node "kitchen"
+    And the node agent's fold is ready
+    And I ask the agent "hello"
+    Then the agent is idle
+    And the panel header says the context is "13k/200k"
+    # The chip's own words are still the fraction and nothing more...
+    And the context readout is called "Context used" beside the number
+    And the context readout carries no native tooltip
+    When I hover the panel's context readout
+    Then a tip says "Context used"
+
+  @scratch:chat
   Scenario: The context window itself can move, and the header follows that too
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready

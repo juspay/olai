@@ -183,8 +183,10 @@ Then(
   async function (this: OlaiWorld, id: string, rule: string) {
     const pill = this.page.locator(`${nodeSelector(id)} ${REPEAT}`).first();
     await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    // The glyph is `aria-hidden` chrome; the words are the rule, verbatim,
-    // because the format stores it verbatim.
+    // The glyph is drawn chrome, not words: it is `role="img"` named
+    // "Repeats" now, which is what makes the pill read "Repeats every week"
+    // for somebody who cannot see a `↻`. Stripped here because this step is
+    // about the RULE, which the format stores verbatim.
     assert.strictEqual(oneLine(await pill.innerText()).replace(/^↻\s*/, ""), rule);
   },
 );

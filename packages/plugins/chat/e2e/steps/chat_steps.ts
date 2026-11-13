@@ -3891,6 +3891,47 @@ Then(
   },
 );
 
+/**
+ * WHAT THE NUMBER IS CALLED, and it is this parcel's own half of the tooltip
+ * migration rather than the rail's.
+ *
+ * `22k/200k` names nothing. The words that said what it counted were a
+ * `title` and nothing else — hover-only, so a reader with a keyboard met a
+ * number with no noun — and this readout is not a control, so there is no
+ * accessible name to put them in: an `aria-label` on a role-less `<span>` is
+ * ignored. They ride a visually hidden companion BESIDE the chip instead, in
+ * the same line, which is why the step below reads the line and the one above
+ * still reads the chip's own `22k/200k` exactly.
+ */
+When("I hover the panel's context readout", async function (this: OlaiWorld) {
+  const line = this.chat(CHAT_USAGE);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await line.hover();
+});
+
+Then(
+  "the context readout is called {string} beside the number",
+  async function (this: OlaiWorld, said: string) {
+    const beside = this.chat(CHAT_USAGE).locator("xpath=..");
+    assert.ok(
+      oneLine(await beside.innerText()).includes(said),
+      `the agent line does not say ${JSON.stringify(said)} beside the context readout: ` +
+        JSON.stringify(oneLine(await beside.innerText())),
+    );
+  },
+);
+
+/** The half that would otherwise pass silently: a readout that kept its
+ *  `title` draws the platform's tooltip over this app's, and both say the
+ *  same true thing. The ABSENCE is the migration. */
+Then("the context readout carries no native tooltip", async function (this: OlaiWorld) {
+  assert.equal(
+    await this.chat(CHAT_USAGE).getAttribute("title"),
+    null,
+    "the context readout still wears a native tooltip beside this app's own",
+  );
+});
+
 // ── which agent ────────────────────────────────────────────────────────
 //
 // A conversation is bound to one agent, chosen when it is created. The claims
@@ -4594,7 +4635,16 @@ Then("the tool call says which outline it touched", async function (this: OlaiWo
 Then("the tool call is called {string} underneath", async function (this: OlaiWorld, called: string) {
   const tool = heldTool(this);
   assert.equal(await tool.locator(CHAT_TOOL_CALLED).innerText(), called);
-  assert.equal(await tool.locator(CHAT_TOOL_TEXT).getAttribute("title"), called);
+  // THE REAL CALL IS IN THE LINE'S OWN NAME now, not on a `title`: the row
+  // draws a tidier word and the sentence that says what actually ran rides an
+  // sr-only companion inside the fold button (`ToolFrame.tsx`). The absence of
+  // the attribute is half the claim — a control wearing both draws the
+  // platform's tooltip over this app's.
+  assert.ok(
+    oneLine(await tool.locator(CHAT_TOOL_FOLD).innerText()).includes(called),
+    `the tool call's line does not say ${JSON.stringify(called)}`,
+  );
+  assert.equal(await tool.locator(CHAT_TOOL_TEXT).getAttribute("title"), null);
 });
 Then("the tool call's reply is shown once", async function (this: OlaiWorld) {
   const tool = heldTool(this);

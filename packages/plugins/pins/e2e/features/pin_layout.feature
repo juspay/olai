@@ -15,7 +15,7 @@ Feature: Pinning layouts
     When I name the pin "Planning"
     Then the pin "/s/house.olai/garden.olai" is named "Planning"
     And the pin "/s/house.olai/garden.olai" has a split mark
-    And the pin "/s/house.olai/garden.olai" has tooltip "house.olai · garden.olai"
+    And the pin "/s/house.olai/garden.olai" says its address "house.olai · garden.olai"
     And the pin "/s/house.olai/garden.olai" is current
     And "_olai/Pins.olai" holds a node titled "[Planning](/s/house.olai/garden.olai)"
     When I open the document "finishes.md"
@@ -29,6 +29,21 @@ Feature: Pinning layouts
     And there are 2 tabs
     When I press tab 0
     Then the address is exactly "/finishes.md"
+    And there should be no page errors
+
+  Scenario: A layout pin's address is a tip for a pointer and a name for everyone else
+    # The address a layout pin keeps is a fact its NAME does not carry —
+    # "Planning" says nothing about which pages open — and it lived in the
+    # platform's `title`, which the browser placed and only a pointer could
+    # ask. The app draws its own tip now, and a tip is `role="presentation"`:
+    # it reaches no screen reader at all. So the row says the address twice,
+    # and this asks for both halves rather than for either alone.
+    Given the directory has the pins:
+      | [Planning](/s/house.olai/garden.olai) |
+    When I hover the pin "/s/house.olai/garden.olai"
+    Then a tip says "house.olai · garden.olai"
+    And the pin "/s/house.olai/garden.olai" is named "Planning"
+    And the pin "/s/house.olai/garden.olai" says its address "house.olai · garden.olai"
     And there should be no page errors
 
   Scenario: A saved workspace opens a new front tab on a plain click

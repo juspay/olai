@@ -1218,6 +1218,35 @@ Then(
   },
 );
 
+/**
+ * WHAT THE MARK COLUMN SAYS, to a reader who is not pointing at it.
+ *
+ * Every face in that column is a shape and a tone, and every one of them is
+ * `aria-hidden` — so "Done", "Doing" and what a waiting row waits on were
+ * carried by the platform's `title` and then, once this app drew its own tip,
+ * by a hover and nothing else. They are the cell's own NAME now
+ * (`client/Glyph.tsx`), which is the one channel a keyboard and a screen
+ * reader get in every mode.
+ *
+ * Asserted as a NAME rather than as an attribute: `and()` pins the match to
+ * the gutter's zoom cell, and `getByRole` is what computes the name the
+ * platform would actually announce.
+ */
+Then(
+  "the mark column of {string} is named {string}",
+  async function (this: OlaiWorld, id: string, name: string) {
+    const zoom = this.within(id, ZOOM);
+    await zoom.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () =>
+        (await zoom
+          .and(this.page.getByRole("link", { name, exact: true }))
+          .count()) === 1,
+      `the mark column of "${id}" to be named ${JSON.stringify(name)}`,
+    );
+  },
+);
+
 // ── Workflowy gutter: hover-reveal, halo, menu ─────────────────────────
 
 /** Force the row's hover gutter visible for assertions that would otherwise

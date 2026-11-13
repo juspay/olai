@@ -7,6 +7,7 @@ import { ENTRY_SHAPE, REGION, REGION_HEAD, REGION_LABEL } from "olai-plugin-layo
 import { useShown, useRouter } from "olai-plugin-navigation/routing"
 import { isCurrent } from "../../attention.ts"
 import { DOT } from "@olai/web/client/readout.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { SHOWN_WITHOUT_HOVER } from "@olai/ui-primitives/touch.ts"
 import { agoOf, createNow } from "@olai/web/client/ago.ts"
 import { TESTID } from "../../testids.ts"
@@ -69,10 +70,14 @@ export function Chats() {
     </div>
     <NewChatSaid />
     <ul class="m-0 list-none p-0"><Key each={rows()} by="id">{row => <li class="group/chat relative">
+      {/* THE WHOLE TITLE under the pointer, because the row truncates it. It
+          is a convenience and nothing more: the same words are the anchor's
+          own text, so a reader who never hovers already has them. */}
+      <Tip text={row().title}>
       <a href={focus.href(row())} class={`${ENTRY_SHAPE} w-full gap-2 text-left`} data-testid={TESTID.agentRow}
         data-agent={row().id} data-engine={row().engine} data-standing={row().standing} aria-current={current(row().id) ? "page" : undefined}
         data-unread={row().unread ? "true" : undefined}
-        title={row().title} on:olai-navigated={() => focus.visit(row())}>
+        on:olai-navigated={() => focus.visit(row())}>
         <AgentMark id={row().engine} /><span class="sr-only">{row().engine}</span>
         {/* THE DOT SAYS WHETHER THIS CHAT IS AWAKE, and nothing finer: the
             four awake standings wear their own colour from the one table
@@ -91,6 +96,7 @@ export function Chats() {
         </span>
         <Show when={row().said?.at ?? row().changed}>{at => <span class="shrink-0 tabular-nums text-caption text-muted">{agoOf(at(), now())}</span>}</Show>
       </a>
+      </Tip>
       {/* THE CONTROLS, beside the row rather than inside it: a control inside
           an anchor is a control whose activation is also a navigation (the
           pins' rule). Revealed on hover or focus, over the row's right edge on
@@ -102,16 +108,18 @@ export function Chats() {
           component's shell decides. */}
       <div class="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
         <Show when={dock()?.desktop()}>
+          <Tip text="Open in the panel">
           <button type="button"
             class={`inline-flex size-6 items-center justify-center rounded-control bg-desk text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
             data-testid={TESTID.chatDockOpen} data-agent={row().id}
-            aria-label={`Open ${row().title} in the panel`} title="Open in the panel"
+            aria-label={`Open ${row().title} in the panel`}
             onClick={(event) => { event.stopPropagation(); dock()?.open(row().id) }}>
             <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
               <rect x="2" y="3" width="12" height="10" rx="1.5" />
               <path d="M9.5 3v10" />
             </svg>
           </button>
+          </Tip>
         </Show>
         <ChatRowMenu row={row()} />
       </div>

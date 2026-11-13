@@ -52,6 +52,8 @@ import { connectionReadout } from "@olai/web/client/wire.ts"
 import { createPopover } from "@olai/web/client/popover.ts"
 import { lookOf } from "@olai/web/client/connection/status.ts"
 import { ICON_BUTTON, PANEL_BOX, TONE } from "@olai/web/client/readout.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
+import { LAYER } from "@olai/web/client/layer.ts"
 
 import { hung } from "./faces.ts"
 import { nameOf, tipOf, worstFirst, worstOf } from "./health.ts"
@@ -97,30 +99,38 @@ export function Health(props: { readonly slots: RendererSlots }) {
 
   return (
     <>
-      <button
-        type="button"
-        ref={(el) => {
-          dot = el
-          popover.setTrigger(el)
-        }}
-        class={`${ICON_BUTTON} !px-0 md:!w-7`}
-        data-testid={TESTID.health}
-        data-health={tone()}
-        // The connection's own state rides the dot too: it is the bar's own
-        // readout, and "is this page still reading" should not need a click
-        // to be asserted or inspected.
-        data-connection={connectionReadout().status}
-        aria-label={nameOf(statuses())}
-        title={tipOf(statuses())}
-        aria-expanded={popover.open()}
-        aria-haspopup="true"
-        onClick={() => popover.toggle()}
-      >
-        <span
-          class={`inline-block size-2.5 rounded-full ${TONE[tone()].dot}`}
-          aria-hidden="true"
-        />
-      </button>
+      {/* THE WHOLE OF THE NEWS, over the bar the dot sits in. The button's own
+          name is the headline (`nameOf`); the lines under it — one per piece of
+          news — are a second sentence, so they ride the dot itself as a
+          `role="img"` name, which is a name the platform exposes where a bare
+          span's would be ignored. Not a `title`: the platform's tooltip is what
+          this tip replaces. */}
+      <Tip text={tipOf(statuses())} layer={LAYER.over}>
+        <button
+          type="button"
+          ref={(el) => {
+            dot = el
+            popover.setTrigger(el)
+          }}
+          class={`${ICON_BUTTON} !px-0 md:!w-7`}
+          data-testid={TESTID.health}
+          data-health={tone()}
+          // The connection's own state rides the dot too: it is the bar's own
+          // readout, and "is this page still reading" should not need a click
+          // to be asserted or inspected.
+          data-connection={connectionReadout().status}
+          aria-label={nameOf(statuses())}
+          aria-expanded={popover.open()}
+          aria-haspopup="true"
+          onClick={() => popover.toggle()}
+        >
+          <span
+            class={`inline-block size-2.5 rounded-full ${TONE[tone()].dot}`}
+            role="img"
+            aria-label={tipOf(statuses())}
+          />
+        </button>
+      </Tip>
       <Show when={popover.open() ? popover.at() : null}>
         {(at) => (
           <Portal>

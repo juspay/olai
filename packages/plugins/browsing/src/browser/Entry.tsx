@@ -30,8 +30,12 @@ export function BrowserEntry(props: { readonly door: Door }) {
   const router = useRouter()
   const look = () => lookOf(props.door.standing())
   return (
+    // WHERE THE BROWSER STANDS, which the word "Browser" and the dot beside
+    // it do not say. The tip is what a pointer gets; `label` is the same
+    // fact in the link's name, spelled as the bar's own pill spells it
+    // (`./Header.tsx`) so one sentence is not two.
     <Link route={props.door.route} class={ENTRY_SHAPE} testid={TESTID.browserEntry}
-      current={props.door.showing(router.route())} tip={look().detail}>
+      current={props.door.showing(router.route())} tip={look().detail} label={`Browser: ${look().detail}`}>
       <span class="min-w-0 truncate">Browser</span>
       <Show when={TONE[look().tone].dot}>
         {(dot) => <span class={`ml-auto size-2 shrink-0 rounded-full ${dot()}`} data-health={look().tone} aria-hidden="true" />}

@@ -27,7 +27,8 @@ sentence about what is wrong, the face its own plugin hangs, **Try again** or
 settings, the environment it reads, `Short name` (the settings namespace, where
 the label differs), `Saved in` (a link to its node) and, for a session-only
 switch, `This switch resets when olai restarts.` (the switch itself wears a
-dashed ring and the hover title `Resets when olai restarts`). A row with nothing to reveal
+dashed ring, says `Resets when olai restarts` on hover, and carries those words
+in its own name, so a screen reader hears them too). A row with nothing to reveal
 has no chevron; its label keeps the chevron's space so the names line up.
 
 ## Groups

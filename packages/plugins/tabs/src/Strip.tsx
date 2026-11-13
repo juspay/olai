@@ -7,8 +7,9 @@
  * pane header's threshold and pointer helper, a middle-click closes it, and a
  * right-click opens its menu. `+` opens a front-page tab. A tab says the name
  * of what it holds (`./face.ts`'s `facesOf`: a document by its stem, the way
- * the files sidebar says it) and carries its address as its tooltip; the
- * menu copies that address.
+ * the files sidebar says it) and carries its address in this app's own tip
+ * (`@olai/web`'s `client/Tip.tsx`) AND in its own accessible name, since a
+ * tip answers a pointer and nothing else; the menu copies that address.
  *
  * It draws the list and nothing else: every verb is `tabs.state`'s.
  */
@@ -19,6 +20,8 @@ import { DOT } from "@olai/web/client/readout.ts"
 import { createDrags } from "@olai/web/client/pointer.ts"
 import { SHOWN_WITHOUT_HOVER } from "@olai/ui-primitives/touch.ts"
 import type { Navigation } from "olai-plugin-navigation/contract"
+import { LAYER } from "@olai/web/client/layer.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { lone } from "olai-plugin-navigation/workspace"
 
@@ -136,93 +139,108 @@ export function Strip(props: { readonly tabs: TabsState; readonly router: Naviga
           const dot = () => tabs.dotted().get(tab().id)
           const isLifted = () => lifting(tab().id)
           const drop = () => (over()?.id === tab().id ? over()!.side : undefined)
+          /** WHAT THE TAB IS CALLED, to a reader who is not looking at it: the
+           *  words it draws, the mark it wears, and the ADDRESS it holds —
+           *  which the strip truncates at 14rem and used to keep in a `title`,
+           *  where only a pointer could ask for it. The tip says the address
+           *  too, but a tip is drawn `role="presentation"` and reaches nobody
+           *  who does not hover, and the strip must go on DRAWING no address
+           *  of its own, so this is a name rather than hidden words. */
+          const said = () =>
+            [title(), dot()?.label, face()?.tip ?? tab().href]
+              .filter((one): one is string => one !== undefined && one !== "")
+              .join(", ")
           return (
-            <div
-              role="tab"
-              aria-selected={front()}
-              tabIndex={front() ? 0 : -1}
-              title={face()?.tip ?? tab().href}
-              data-testid={TESTID.tabsTab}
-              data-tab={String(index())}
-              data-tab-id={tab().id}
-              data-tab-front={front() ? "true" : undefined}
-              data-href={tab().href}
-              data-lifted={isLifted() ? "true" : undefined}
-              data-drop={drop()}
-              // EVERY TAB THE SAME WIDTH, up to a cap: a title that changes
-              // (a page naming itself as it arrives) must not move its
-              // neighbours along the strip.
-              // `olai-tab-filled` is the forced-colours hook, defined once in
-              // `@olai/ui-primitives/all.css`: paper under the front tab is a
-              // background, and High Contrast throws author backgrounds away.
-              class="olai-tab-filled group/tab relative flex h-full min-w-[5rem] max-w-[14rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap border-r border-rule pl-3 pr-1 text-label"
-              classList={{
-                "bg-paper font-medium text-ink": front(),
-                "text-muted hover:bg-ink/5 hover:text-ink": !front(),
-                "opacity-40": isLifted(),
-              }}
-              draggable={false}
-              onPointerDown={(event) => press(event, tab())}
-              onMouseDown={(event) => { if (event.button === 1) event.preventDefault() }}
-              onAuxClick={(event) => {
-                if (event.button !== 1) return
-                event.preventDefault()
-                tabs.close(tab().id)
-              }}
-              onContextMenu={(event) => {
-                event.preventDefault()
-                setMenu({ id: tab().id, x: event.clientX, y: event.clientY })
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+            <Tip text={face()?.tip ?? tab().href} layer={LAYER.over}>
+              <div
+                role="tab"
+                aria-selected={front()}
+                aria-label={said()}
+                tabIndex={front() ? 0 : -1}
+                data-testid={TESTID.tabsTab}
+                data-tab={String(index())}
+                data-tab-id={tab().id}
+                data-tab-front={front() ? "true" : undefined}
+                data-href={tab().href}
+                data-lifted={isLifted() ? "true" : undefined}
+                data-drop={drop()}
+                // EVERY TAB THE SAME WIDTH, up to a cap: a title that changes
+                // (a page naming itself as it arrives) must not move its
+                // neighbours along the strip.
+                // `olai-tab-filled` is the forced-colours hook, defined once in
+                // `@olai/ui-primitives/all.css`: paper under the front tab is a
+                // background, and High Contrast throws author backgrounds away.
+                class="olai-tab-filled group/tab relative flex h-full min-w-[5rem] max-w-[14rem] flex-1 basis-0 cursor-default select-none items-center gap-1.5 whitespace-nowrap border-r border-rule pl-3 pr-1 text-label"
+                classList={{
+                  "bg-paper font-medium text-ink": front(),
+                  "text-muted hover:bg-ink/5 hover:text-ink": !front(),
+                  "opacity-40": isLifted(),
+                }}
+                draggable={false}
+                onPointerDown={(event) => press(event, tab())}
+                onMouseDown={(event) => { if (event.button === 1) event.preventDefault() }}
+                onAuxClick={(event) => {
+                  if (event.button !== 1) return
                   event.preventDefault()
-                  tabs.step(event.key === "ArrowRight" ? 1 : -1)
-                }
-              }}
-            >
-              {/* WHERE THE CARRIED TAB WOULD LAND, drawn on the tab it is over. */}
-              <Show when={drop()}>{(side) =>
-                <span aria-hidden="true" class="pointer-events-none absolute inset-y-1.5 w-0.5 rounded-full bg-accent"
-                  classList={{ "-left-0.5": side() === "before", "-right-0.5": side() === "after" }} />
-              }</Show>
-              <span aria-hidden="true" class="shrink-0 text-caption opacity-70">{glyph()}</span>
-              <span data-testid={TESTID.tabsTitle} class="min-w-0 flex-1 truncate">{title()}</span>
-              <Show when={dot()}>{(mark) =>
-                <span data-testid={TESTID.tabsDot} data-tab-dot="true" role="img" aria-label={mark().label} class={`${DOT} ${mark().paint}`} />
-              }</Show>
-              {/* THE × IS THE FRONT TAB'S ALWAYS and the others' on hover —
-                  a strip of eight tabs each wearing a close button is eight
-                  invitations to lose a page. On a touch screen there is no
-                  hover to make the offer with, and this strip is drawn
-                  wherever the window is wide enough for it: a tablet in
-                  landscape had a row of tabs it could only close through the
-                  long-press menu. `SHOWN_WITHOUT_HOVER` is the one rule for
-                  that (`@olai/ui-primitives`), and it leaves the pointer's
-                  strip exactly as it was. */}
-              <button
-                type="button"
-                data-testid={TESTID.tabsClose}
-                aria-label={`Close ${title()}`}
-                title="Close tab"
-                class={`flex size-5 shrink-0 items-center justify-center rounded-control text-body leading-none text-muted hover:bg-ink/10 hover:text-ink focus-visible:opacity-100 group-hover/tab:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
-                classList={{ "opacity-0": !front() }}
-                onClick={(event) => {
-                  event.stopPropagation()
                   tabs.close(tab().id)
                 }}
-              >×</button>
-            </div>
+                onContextMenu={(event) => {
+                  event.preventDefault()
+                  setMenu({ id: tab().id, x: event.clientX, y: event.clientY })
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+                    event.preventDefault()
+                    tabs.step(event.key === "ArrowRight" ? 1 : -1)
+                  }
+                }}
+              >
+                {/* WHERE THE CARRIED TAB WOULD LAND, drawn on the tab it is over. */}
+                <Show when={drop()}>{(side) =>
+                  <span aria-hidden="true" class="pointer-events-none absolute inset-y-1.5 w-0.5 rounded-full bg-accent"
+                    classList={{ "-left-0.5": side() === "before", "-right-0.5": side() === "after" }} />
+                }</Show>
+                <span aria-hidden="true" class="shrink-0 text-caption opacity-70">{glyph()}</span>
+                <span data-testid={TESTID.tabsTitle} class="min-w-0 flex-1 truncate">{title()}</span>
+                <Show when={dot()}>{(mark) =>
+                  <span data-testid={TESTID.tabsDot} data-tab-dot="true" role="img" aria-label={mark().label} class={`${DOT} ${mark().paint}`} />
+                }</Show>
+                {/* THE × IS THE FRONT TAB'S ALWAYS and the others' on hover —
+                    a strip of eight tabs each wearing a close button is eight
+                    invitations to lose a page. On a touch screen there is no
+                    hover to make the offer with, and this strip is drawn
+                    wherever the window is wide enough for it: a tablet in
+                    landscape had a row of tabs it could only close through the
+                    long-press menu. `SHOWN_WITHOUT_HOVER` is the one rule for
+                    that (`@olai/ui-primitives`), and it leaves the pointer's
+                    strip exactly as it was. */}
+                <Tip text="Close tab" layer={LAYER.over}>
+                  <button
+                    type="button"
+                    data-testid={TESTID.tabsClose}
+                    aria-label={`Close ${title()}`}
+                    class={`flex size-5 shrink-0 items-center justify-center rounded-control text-body leading-none text-muted hover:bg-ink/10 hover:text-ink focus-visible:opacity-100 group-hover/tab:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
+                    classList={{ "opacity-0": !front() }}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      tabs.close(tab().id)
+                    }}
+                  >×</button>
+                </Tip>
+              </div>
+            </Tip>
           )
         }}</Key>
       </div>
-      <button
-        type="button"
-        data-testid={TESTID.tabsNew}
-        aria-label="New tab"
-        title="New tab"
-        class="my-auto flex size-6 shrink-0 items-center justify-center rounded-control text-muted hover:bg-ink/5 hover:text-ink"
-        onClick={() => tabs.open(lone(HOME_ROUTE))}
-      >+</button>
+      <Tip text="New tab" layer={LAYER.over}>
+        <button
+          type="button"
+          data-testid={TESTID.tabsNew}
+          aria-label="New tab"
+          class="my-auto flex size-6 shrink-0 items-center justify-center rounded-control text-muted hover:bg-ink/5 hover:text-ink"
+          onClick={() => tabs.open(lone(HOME_ROUTE))}
+        >+</button>
+      </Tip>
       <Show when={menu()} keyed>{(open) =>
         <PointMenu x={open.x} y={open.y} label="Tab menu" close={() => setMenu(null)} entries={[
           { label: "Duplicate tab", run: () => tabs.duplicate(open.id) },

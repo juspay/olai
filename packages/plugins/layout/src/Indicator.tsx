@@ -49,6 +49,8 @@ import { Show } from "solid-js"
 import { isDegraded, lookOf, type SurfaceReadout } from "@olai/web/client/connection/status.ts"
 import { desktop } from "./layout/live.ts"
 import { BANNER, DOT, PILL, TONE } from "@olai/web/client/readout.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
+import { LAYER } from "@olai/web/client/layer.ts"
 
 
 /** The room a page keeps at the bottom of its reading column: the phone's home
@@ -71,31 +73,37 @@ export function Indicator(props: { readonly readout: SurfaceReadout }) {
   return (
     <>
       <Show when={desktop()}>
-        <div
-          // No position of its own: it is a READOUT and not a control — nothing
-          // here is tappable — so all it needs is to be legible wherever the layout
-          // decides to put it. The pill itself is `../readout.ts`'s, shared with
-          // the Commit pill beside it. The LABEL truncates against this cap; the
-          // box does not (`readout.ts`), so a long state still says a word rather
-          // than becoming an empty chip.
-          class={`${PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
-          data-testid={TESTID.connection}
-          data-connection={props.readout.status}
-          data-stopped={props.readout.stopped?.join(" ")}
-          title={look().detail}
-          aria-live="polite"
-        >
-          <span class={`${DOT} ${TONE[look().tone].dot}`} data-health={look().tone} aria-hidden="true" />
-          <span class="min-w-0 truncate">{look().label}</span>
-        </div>
+        {/* The detail is what the label leaves out, and it used to live in a
+            `title` — a pointer's only. It is the tip now, and the same words
+            sit inside the live region as hidden text, so a change is
+            announced whole rather than as a state with no reason. */}
+        <Tip text={look().detail} layer={LAYER.over}>
+          <div
+            // No position of its own: it is a READOUT and not a control — nothing
+            // here is tappable — so all it needs is to be legible wherever the layout
+            // decides to put it. The pill itself is `../readout.ts`'s, shared with
+            // the Commit pill beside it. The LABEL truncates against this cap; the
+            // box does not (`readout.ts`), so a long state still says a word rather
+            // than becoming an empty chip.
+            class={`${PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
+            data-testid={TESTID.connection}
+            data-connection={props.readout.status}
+            data-stopped={props.readout.stopped?.join(" ")}
+            aria-live="polite"
+          >
+            <span class={`${DOT} ${TONE[look().tone].dot}`} data-health={look().tone} aria-hidden="true" />
+            <span class="min-w-0 truncate">{look().label}</span>
+            <span class="sr-only">{look().detail}</span>
+          </div>
+        </Tip>
       </Show>
       <Show when={!desktop() && isDegraded(props.readout)}>
+        {/* No tip and no hidden copy: the banner already draws the detail. */}
         <div
           class={`${BANNER} ${TONE[look().tone].text}`}
           data-testid={TESTID.connection}
           data-connection={props.readout.status}
           data-stopped={props.readout.stopped?.join(" ")}
-          title={look().detail}
           aria-live="polite"
         >
           {look().label} — {look().detail}

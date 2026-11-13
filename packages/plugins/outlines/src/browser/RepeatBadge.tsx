@@ -40,14 +40,16 @@ export function RepeatBadge(props: {
       testid={TESTID.repeat}
       classList={{ "bg-pill text-muted": true }}
       onPick={props.onPick}
-      tip={props.onPick === undefined
-        ? `Repeats ${props.repeat}`
-        : "Change repeat"}
+      tip={props.onPick === undefined ? undefined : "Change repeat"}
     >
       {/* The glyph says RECURRENCE without a word of chrome, and the words say
-          which one. `aria-hidden` so a screen reader reads the rule rather
-          than the name of an arrow. */}
-      <span class="mr-1 opacity-70" aria-hidden="true">↻</span>
+          which one. `role="img"` rather than `aria-hidden`, and that is where
+          the word "Repeats" lives now: a read-only badge is a `<span>` that
+          states nothing, so a reader who never hovers used to get `every week`
+          with nothing saying what every week WAS. The arrow's own name says
+          it, once, in the order the line is read — and a pill that PICKS gets
+          the same word in front of the rule its button is named by. */}
+      <span class="mr-1 opacity-70" role="img" aria-label="Repeats">↻</span>
       {props.repeat}
     </Pill>
   )

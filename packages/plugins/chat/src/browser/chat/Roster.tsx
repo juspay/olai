@@ -75,6 +75,7 @@ import type { ChatServer } from "olai-plugin-chat/wire"
 import { For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { Missing } from "./Missing.tsx"
 import { SAID } from "./standing.ts"
 import type { Chat } from "./state.ts"
@@ -98,13 +99,18 @@ export function Roster(props: { readonly chat: Chat }) {
               one in between, and are not named at all on the other leg. A strip
               that ended at the last chip would be claiming a completeness this
               end has no way to have. */}
-          <span
-            class="text-muted/80"
-            data-testid={TESTID.chatRosterOwn}
-            title="Tools the agent set up itself aren't listed"
-          >
-            <span aria-hidden="true">· </span>Plus the agent&rsquo;s own
-          </span>
+          <Tip text="Tools the agent set up itself aren't listed">
+            <span
+              class="text-muted/80"
+              data-testid={TESTID.chatRosterOwn}
+            >
+              <span aria-hidden="true">· </span>Plus the agent&rsquo;s own
+            </span>
+            {/* WHY the list stops here, for a reader. After the line rather
+                than inside it, because a scenario reads the line's own
+                words back. */}
+            <span class="sr-only">Tools the agent set up itself aren&rsquo;t listed</span>
+          </Tip>
         </p>
         {/* THE WHOLE ROSTER, and it picks its own rows out of it: which
             standings mean "this conversation does not have it" is that
@@ -124,30 +130,34 @@ function Chip(props: { readonly server: ChatServer }) {
   const said = () => SAID[props.server.standing.kind]
   const mark = () => said().mark
   return (
-    <span
-      class="flex items-baseline gap-1 text-ink"
-      data-testid={TESTID.chatServer}
-      data-server={props.server.name}
-      // The STANDING as data, so a scenario can assert the state without
-      // asserting the mark: which glyph says "connected" is a decision about
-      // pixels, and a test that pinned it would fail the next time somebody
-      // improved it. Tests assert behaviour, not styling.
-      data-standing={props.server.standing.kind}
-      data-at={props.server.at}
-      title={`${props.server.name} ${said().sentence}${
-        props.server.where === null ? "" : ` — ${props.server.where}`
-      }`}
-    >
-      {/* A server whose plugin has a page for it is a LINK to that page —
-          an ordinary app address, so navigation answers a press on it as it
-          does any link. What the page shows is the plugin's business. */}
-      <Show when={props.server.at} fallback={<span>{props.server.name}</span>}>
-        {(at) => <a href={at()} class="underline decoration-rule underline-offset-2 hover:decoration-ink">{props.server.name}</a>}
-      </Show>
-      <Show when={mark()}>
-        {(one) => <span class={one().tint} aria-hidden="true">{one().glyph}</span>}
-      </Show>
-      <span class="sr-only">{said().sentence}</span>
-    </span>
+    <Tip text={`${props.server.name} ${said().sentence}${
+      props.server.where === null ? "" : ` — ${props.server.where}`
+    }`}>
+      <span
+        class="flex items-baseline gap-1 text-ink"
+        data-testid={TESTID.chatServer}
+        data-server={props.server.name}
+        // The STANDING as data, so a scenario can assert the state without
+        // asserting the mark: which glyph says "connected" is a decision about
+        // pixels, and a test that pinned it would fail the next time somebody
+        // improved it. Tests assert behaviour, not styling.
+        data-standing={props.server.standing.kind}
+        data-at={props.server.at}
+      >
+        {/* A server whose plugin has a page for it is a LINK to that page —
+            an ordinary app address, so navigation answers a press on it as it
+            does any link. What the page shows is the plugin's business. */}
+        <Show when={props.server.at} fallback={<span>{props.server.name}</span>}>
+          {(at) => <a href={at()} class="underline decoration-rule underline-offset-2 hover:decoration-ink">{props.server.name}</a>}
+        </Show>
+        <Show when={mark()}>
+          {(one) => <span class={one().tint} aria-hidden="true">{one().glyph}</span>}
+        </Show>
+        {/* HOW IT STANDS, and WHERE IT IS — the second half used to be the
+            `title`'s alone, and `where` is the fact that tells two copies of
+            one binary apart. */}
+        <span class="sr-only">{said().sentence}{props.server.where === null ? "" : ` — ${props.server.where}`}</span>
+      </span>
+    </Tip>
   )
 }

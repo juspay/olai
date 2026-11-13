@@ -18,6 +18,7 @@ import { createSignal, Show } from "solid-js"
 import { useDocumentActions } from "../editing.ts"
 import { Result } from "effect"
 import { Refused } from "@olai/web/client/Refused.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { useRouter, useHere } from "olai-plugin-navigation/routing"
 import { TESTID } from "../../testids.ts"
 import { runAsync } from "@olai/web/client/run.ts"
@@ -49,18 +50,22 @@ export function DayMint(props: { readonly date: string }) {
 
   return (
     <Show when={useDocumentActions()}><div class="flex flex-col items-end gap-2">
-      <button
-        type="button"
-        class="cursor-pointer rounded-control border border-rule bg-transparent px-2 py-0.5 text-body text-muted hover:bg-rule/60 hover:text-ink"
-        data-testid={TESTID.dayMint}
-        disabled={sending()}
-        aria-busy={sending()}
-        aria-label={`Create a note for ${props.date}`}
-        title={`Create a note for ${props.date}`}
-        onClick={() => void mint()}
-      >
-        {sending() ? "Creating…" : "+ Day note"}
-      </button>
+      {/* The tip repeats the button's own name — what the press makes, and
+          for which day — so the sentence a pointer gets is the one a reader
+          who never hovers already has. */}
+      <Tip text={`Create a note for ${props.date}`}>
+        <button
+          type="button"
+          class="cursor-pointer rounded-control border border-rule bg-transparent px-2 py-0.5 text-body text-muted hover:bg-rule/60 hover:text-ink"
+          data-testid={TESTID.dayMint}
+          disabled={sending()}
+          aria-busy={sending()}
+          aria-label={`Create a note for ${props.date}`}
+          onClick={() => void mint()}
+        >
+          {sending() ? "Creating…" : "+ Day note"}
+        </button>
+      </Tip>
       <Refused said={said()} testid={TESTID.dayMintSaid} />
     </div></Show>
   )

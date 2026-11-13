@@ -480,23 +480,24 @@ Then(
 
 // WHAT THE ROW DRAWS FOR ITS DATE, which is the DAY and not the ISO string:
 // the band above already names the month, so `2026-07-01` under `JULY 2026`
-// would say July twice. The whole date is still the cell's `title`, which is
-// what a pointer reads — asserted here rather than left to the markup.
+// would say July twice. The whole date is still said beside the cell — in the
+// tip a pointer gets and in the hidden line a screen reader reads — and that
+// is asserted here rather than left to the markup.
 Then(
   "the ledger transaction {int} draws the date {string}",
   async function (this: World, at: number, drawn: string) {
-    const cell = (await transaction(this, at)).locator(HLEDGER_DATE);
+    const row = await transaction(this, at);
+    const cell = row.locator(HLEDGER_DATE);
     await cell.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
       ((await cell.textContent()) ?? "").trim(),
       drawn,
       `the date transaction ${String(at)} draws`,
     );
-    const title = await cell.getAttribute("title");
     assert.match(
-      title ?? "",
-      /^\d{4}-\d{2}-\d{2}$/,
-      `the whole date of transaction ${String(at)}, kept for a pointer`,
+      (await row.textContent()) ?? "",
+      /\d{4}-\d{2}-\d{2}/,
+      `the whole date of transaction ${String(at)}, kept for a pointer and a reader`,
     );
   },
 );
@@ -845,9 +846,9 @@ Then(
   },
 );
 
-// A BALANCE ASSERTION (`= $5,123.45`) is drawn the same way, with a `title` —
-// it is a claim about a running total this reader never kept, so it is shown
-// and not checked.
+// A BALANCE ASSERTION (`= $5,123.45`) is drawn the same way, named beside the
+// figure — it is a claim about a running total this reader never kept, so it
+// is shown and not checked.
 Then(
   "the ledger transaction {int} posting {int} shows the assertion {string}",
   async function (this: World, at: number, which: number, assertion: string) {
@@ -866,15 +867,16 @@ Then(
       `the assertion drawn on transaction ${String(at)}'s posting ${String(which)}`,
     );
     assert.ok(
-      ((await span.getAttribute("title")) ?? "").length > 0,
-      `the assertion on transaction ${String(at)}'s posting ${String(which)} to carry a title`,
+      ((await span.locator("xpath=..").textContent()) ?? "").includes("balance assertion"),
+      `the assertion on transaction ${String(at)}'s posting ${String(which)} to be named`,
     );
   },
 );
 
 // THE INFERRED MARK: a posting whose amount the reader COMPUTED (an omission
 // it filled in to balance the transaction) is drawn with a marker in the
-// last column and a `title` — the visible half of `data-inferred`.
+// last column, named in the line beside it — the visible half of
+// `data-inferred`.
 Then(
   "the ledger transaction {int} posting {int} carries the inferred mark",
   async function (this: World, at: number, which: number) {
@@ -883,7 +885,7 @@ Then(
     const mark = posting.locator(`${HLEDGER_INFERRED}:visible`);
     await mark.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
     assert.strictEqual(
-      await mark.getAttribute("title"),
+      ((await mark.locator("xpath=..").textContent()) ?? "").replace("◌", "").trim(),
       "inferred",
       `the inferred mark on transaction ${String(at)}'s posting ${String(which)}`,
     );

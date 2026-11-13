@@ -135,20 +135,19 @@ export function NodeRefLink(props: {
   readonly to: NodeRef
   readonly class: string
   readonly testid: TestId
-  /** The hover text. Defaults to what the link does, which is all a row's link
-   *  has to say; a pill says what it is a pill ABOUT instead, because its own
-   *  text is one word. */
-  readonly tip?: string
   /** What the link SAYS, which is the target's title in a row and the name of
    *  the relation on a pill. */
   readonly children: JSX.Element
 }) {
+  // NO TIP. It used to carry `Open <title>` as a platform `title`, which is
+  // the link's own words with a verb in front of them — and the verb is what
+  // "link" already says, in every reading of the page. A tip is for a fact
+  // the control does not state; this control states its fact.
   return (
     <Link
       route={atNode(props.to.id)}
       class={props.class}
       testid={props.testid}
-      tip={props.tip ?? `Open ${props.to.title}`}
     >
       <span data-ref={props.to.id}>{props.children}</span>
     </Link>

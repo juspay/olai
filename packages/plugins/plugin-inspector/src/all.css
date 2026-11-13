@@ -52,7 +52,9 @@ details[open] > summary > .plugins-chevron, .plugins-row[data-open] > .plugins-l
 .plugins-row[data-off] .plugins-name-text { color: var(--color-muted); }
 .plugins-status { flex: none; max-width: 55%; font-size: var(--text-label); color: var(--color-doing); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plugins-status.plugins-alarm { color: var(--color-alarm); }
-.plugins-line > [data-testid="plugin-switch"] { flex: none; }
+/* Descendant, not child: the session-only switch is wrapped in a tip, whose
+   span is `display: contents` — no box in this row, but an element between. */
+.plugins-line [data-testid="plugin-switch"] { flex: none; }
 
 .plugins-confirm { margin: 0 8px 8px 28px; padding: 10px 12px; border-radius: var(--radius-control); border: 1px solid color-mix(in srgb, var(--color-alarm) 40%, transparent); background: color-mix(in srgb, var(--color-alarm) 10%, var(--color-panel)); }
 .plugins-confirm p { font-size: var(--text-label); line-height: 1.45; margin-bottom: 8px; }

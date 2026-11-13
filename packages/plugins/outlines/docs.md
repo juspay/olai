@@ -26,6 +26,18 @@ the link menu, while the rest of the row keeps the row menu
 it is visible in that pane and otherwise opens the node's file at that row. The
 bullet and **Zoom in** use `/zoom/#id`, the node's own page.
 
+**What a row's quiet marks mean is said in words, not only in a shape.** The
+glyph cell is named for what it is: `Done, zoom in`, `Doing, zoom in`, what a
+waiting row waits on (`blocked by …, zoom in`), and plain `Zoom in` where the
+node carries no mark — so a keyboard or a screen reader gets the mark, which
+used to be a shape and a hover and nothing else. The app's own tip says the
+same sentence to a pointer. The rest of the row's small marks keep a hidden
+copy of their sentence beside them for the same reason: the `⇢` before a
+mirrored title, the `+N done` a collapsed row leaves as a receipt, and a hot
+fact drawn short of its full value. The repeat badge's `↻` is named `Repeats`,
+so `↻ every week` reads as `Repeats every week`. None of them is a platform
+tooltip any more.
+
 An outline page declares the row chip, pane, block, action and door locations, along with typed title, dated-row, page-shell and property-navigation extension points. Journal supplies date destinations. Markdown supplies document destinations. Missing integrations produce ordinary text or no contribution, rather than importing or starting the missing provider.
 
 Unrelated plugin changes preserve existing editor instances and drafts. Removing outlines withdraws its pages and row locations, releases its observers, clears its focus and retained draft/form memory and prevents old reference lookups from publishing into a new activation. Restoring outlines creates a new activation and reads persisted browser preferences again.

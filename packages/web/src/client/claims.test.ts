@@ -878,3 +878,43 @@ test("no control opts out of the app's focus ring in favour of a shadow", () => 
 test("no edge is drawn as a shadow", () => {
   expect(filesSpelling(/border-0[^"'`]*\bring-1\b|\bring-1\b[^"'`]*border-0/)).toEqual([])
 })
+
+// THE `title` ATTRIBUTE IS NOT THIS APP'S TOOLTIP, and `./Tip.tsx`'s own
+// header is the argument: the browser places it, so a long one runs off the
+// right edge of the window, and it is hover-only, so what it says is
+// unavailable to anyone reading with a keyboard or a screen reader. There were
+// 154 of them and seven `<Tip>`s; there are now none, and this is what keeps
+// it that way — a spelling cannot be renamed into safety by the type checker,
+// so it is swept.
+//
+// The list is of FILES, not of attributes, because `title=` has three other
+// meanings in this tree and a regex cannot tell them apart honestly:
+//
+//   - a PROP named `title` that is content. `NodeTitle`, `NodeLine`,
+//     `DropRef` and `TrashPage`'s row all take the node's own words under
+//     that name, which is what the records call them.
+//   - `<iframe title>`, which is a frame's ACCESSIBLE NAME rather than a
+//     tooltip, and is required (`hypertext`).
+//   - `<option title>`, the one DOM `title` left in the app and the one place
+//     it is not AT-dead: a `<select>`'s content model admits no element a tip
+//     could be, a closed option has no box to measure, and HTML-AAM maps
+//     `option/@title` to the accessible description — so the words do reach a
+//     reader there. `chat/.../Model.tsx` argues it at the site.
+//
+// A new file here is a tooltip somebody wrote as an attribute, or one of the
+// three above arriving somewhere new. Either way it owes a sentence.
+test("the title attribute is left only where it is not a tooltip", () => {
+  expect(filesSpelling(/\stitle=/)).toEqual([
+    "plugins/chat/src/browser/chat/Model.tsx",
+    "plugins/hypertext/src/browser/Hypertext.tsx",
+    "plugins/outlines/src/browser/Breadcrumbs.tsx",
+    "plugins/outlines/src/browser/DatedRow.tsx",
+    "plugins/outlines/src/browser/LinkPreview.tsx",
+    "plugins/outlines/src/browser/NodeLine.tsx",
+    "plugins/outlines/src/browser/NodePage.tsx",
+    "plugins/outlines/src/browser/NodeRefs.tsx",
+    "plugins/outlines/src/browser/Tree.tsx",
+    "plugins/outlines/src/browser/edges/EdgePanel.tsx",
+    "plugins/trash/src/browser/TrashPage.tsx"
+  ])
+})

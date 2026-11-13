@@ -25,8 +25,10 @@
  * THE TESTIDS ARE THE OLD CONTRACT, unchanged, because merging two columns is a
  * design decision and not a licence to move what the browser tests find things
  * by: the cell carries `zoom`, the marked glyph inside it carries `checkbox`
- * with its `data-status` / `data-face`, and a waiting one carries `blocked` with
- * the sentence naming what it waits on. A node with NO mark carries neither of
+ * with its `data-status` / `data-face`, and a waiting one carries `blocked`
+ * with its `data-blocked-by`. The SENTENCE naming what a row is — "Done", or
+ * what it waits on — is the cell's own name (see `named` below), not a mark
+ * on any of those. A node with NO mark carries neither of
  * the inner two — which is still how a bullet is told from an unstarted task.
  */
 import { TESTID } from "olai-plugin-outlines/testids"
@@ -76,7 +78,7 @@ export function Glyph(props: {
       // the 44px rule is argued and where everything that moves with it lives.
       class={`${CONTROL} group/glyph relative select-none text-center no-underline ${tone()}`}
       testid={TESTID.zoom}
-      label="Zoom in"
+      label={named()}
       // The halo is a FACT about the reading, not a colour: a scenario asks
       // for it the same way it asks for data-collapsed on the row.
       halo={halo()}
@@ -111,15 +113,17 @@ export function Glyph(props: {
               </span>
             }
           >
-            {/* `role="img"` so the sentence below is a name the platform
-                actually exposes — a bare span's `aria-label` is not. NOT
-                `title`: the platform's tooltip is what `Tip` replaces, and two
-                tooltips on one control is one of them written twice. */}
+            {/* `aria-hidden` like every other face in this column: what the
+                glyph MEANS is the link's own name now (see {@link named}),
+                and a second copy on an inner element would be the sentence
+                read twice — or, on the platforms that announce only a
+                named link's name, read in a place nothing reaches. The
+                testid and the `data-` facts stay exactly where the browser
+                tests have always found them. */}
             <span
               class="relative"
-              role="img"
               data-testid={TESTID.blocked}
-              aria-label={blockedBy(props.blocked)}
+              aria-hidden="true"
             >
               {/* The mark is still the node's, so it stays in `data-status`
                   where a scenario reads it — the face is what is DRAWN, not a
@@ -150,6 +154,26 @@ export function Glyph(props: {
       : props.status === undefined
       ? "Zoom in"
       : FACE[props.status].hint
+
+  /**
+   * THE SAME SENTENCE, SOMEWHERE A HOVER IS NOT NEEDED — the link's own name.
+   *
+   * A tip is a convenience and must never be the only copy ({@link Tip}), and
+   * this column is the only place a tree says what a row IS: the faces are a
+   * shape and a tone, every one of them `aria-hidden`, so "Done", "Doing" and
+   * "blocked by X" reached nobody reading with a keyboard or a screen reader
+   * once the platform's `title` — which browsers expose as a description —
+   * went. The name is the one channel every reader gets in every mode, which
+   * is why the sentence lands here rather than on an `aria-label` inside the
+   * anchor: a named link is announced BY ITS NAME, and an image nested in one
+   * is not reliably read at all.
+   *
+   * The verb stays on the end of it, lowercase, because what this control
+   * DOES is still the thing a reader is choosing: "Done, zoom in". A node
+   * with no mark has nothing to say first and is the bare verb it always was.
+   */
+  const named = (): string =>
+    props.status === undefined ? "Zoom in" : `${said()}, zoom in`
 
   // Keep the link and its focus when its waiting face changes.
   return (

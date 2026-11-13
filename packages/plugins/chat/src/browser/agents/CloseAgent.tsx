@@ -6,6 +6,7 @@ import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { chatWire } from "../wire.ts"
 import { fold } from "./folding.ts"
 import { TESTID } from "../../testids.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 /** The node's close gesture: take the binding property off, so the seat
  *  closes and the conversation becomes an unclaimed chat again — the next
@@ -35,9 +36,14 @@ export function CloseAgent(props: { readonly node: string }) {
   }
 
   return <span class="relative">
-    <button type="button" class={LINE_VERB} data-testid={TESTID.chatCloseAgent}
-      disabled={closing()} aria-busy={closing()}
-      title="Close the agent. The chat moves to Chats."
-      onClick={close}>Close</button>
+    <Tip text="Close the agent. The chat moves to Chats.">
+      {/* WHERE THE CHAT GOES, in the button's own name: "Close" alone does
+          not say that the conversation survives under Chats, and the tip is
+          drawn rather than spoken. The visible word stays first, so the name
+          still begins with the label a person reads (WCAG 2.5.3). */}
+      <button type="button" class={LINE_VERB} data-testid={TESTID.chatCloseAgent}
+        disabled={closing()} aria-busy={closing()}
+        onClick={close}>Close<span class="sr-only"> the agent. The chat moves to Chats.</span></button>
+    </Tip>
   </span>
 }

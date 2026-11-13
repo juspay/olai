@@ -1,5 +1,7 @@
 /** The browser's row in the bar's health popover: where it stands, and a
  *  link to the pane. */
+import { LAYER } from "@olai/web/client/layer.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { TONE } from "olai-plugin-layout/slots"
 import type { Accessor } from "solid-js"
 import { TESTID } from "../testids.ts"
@@ -13,10 +15,16 @@ export interface BrowserBar {
 export function BrowserHeader(props: { readonly app: BrowserBar; readonly standing: Accessor<Standing>; readonly href: string }) {
   const look = () => lookOf(props.standing())
   return (
-    <a href={props.href} class={`${props.app.pill.PILL} shrink-0`} data-testid={TESTID.browserHeader}
-      data-standing={props.standing().kind} title={look().detail} aria-label={`Browser: ${look().detail}`}>
-      <span class={`${props.app.pill.DOT} ${TONE[look().tone].dot}`} data-health={look().tone} aria-hidden="true" />
-      <span class="min-w-0 truncate">{look().label}</span>
-    </a>
+    // A PILL IN THE BAR, so its tip rides over the chrome and over the chat
+    // dock that shares the page's layer. The sentence is already the pill's
+    // name, which is what keeps the tip a convenience rather than the only
+    // copy of where the browser stands.
+    <Tip text={look().detail} layer={LAYER.over}>
+      <a href={props.href} class={`${props.app.pill.PILL} shrink-0`} data-testid={TESTID.browserHeader}
+        data-standing={props.standing().kind} aria-label={`Browser: ${look().detail}`}>
+        <span class={`${props.app.pill.DOT} ${TONE[look().tone].dot}`} data-health={look().tone} aria-hidden="true" />
+        <span class="min-w-0 truncate">{look().label}</span>
+      </a>
+    </Tip>
   )
 }

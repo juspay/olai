@@ -29,6 +29,7 @@ import { createSaying } from "@olai/web/client/saying.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
 import { SHOWN_WITHOUT_HOVER } from "@olai/ui-primitives/touch.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import type { RowVerb } from "olai-plugin-outlines/slots"
 import { TESTID } from "../../testids.ts"
 import { chatVerbs } from "../verbs.tsx"
@@ -59,12 +60,13 @@ export function ChatRowMenu(props: { readonly row: Row }) {
         Above md that same sentence is why the dots do not fade at all on a
         touch screen: the hole they would otherwise leave is a tablet, which
         is wide enough to draw them and has no hover to find them with. */}
+    <Tip text="More">
     <button type="button"
       class={"hidden size-6 items-center justify-center rounded-control bg-desk text-caption leading-none tracking-[0.05em] text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100 md:inline-flex " + SHOWN_WITHOUT_HOVER}
       classList={{ "opacity-100": anchor() !== null }}
       data-testid={TESTID.chatRowMenu} data-agent={props.row.id}
       aria-haspopup="menu" aria-expanded={anchor() !== null}
-      aria-label={`More for ${props.row.title}`} title="More"
+      aria-label={`More for ${props.row.title}`}
       onClick={event => {
         // A control inside the row's own anchor would navigate as well as
         // open; the row draws this one beside it, and the press stops here.
@@ -73,6 +75,7 @@ export function ChatRowMenu(props: { readonly row: Row }) {
         const button = event.currentTarget
         setAnchor(before => before === null ? button : null)
       }}>•••</button>
+    </Tip>
     <Show when={anchor()}>{at =>
       <ChatRowPanel anchor={at()} node={props.row.id} verbs={verbs()}
         pick={verb => void run(verb)} close={() => setAnchor(null)} />

@@ -485,8 +485,39 @@ Then("the layout panes have equal widths", async function (this: OlaiWorld) {
 
 
 
-Then("the pin {string} has tooltip {string}", async function (this: OlaiWorld, address: string, tooltip: string) {
-  assert.strictEqual(await pinAt(this, address).locator(PIN_LINK).getAttribute("title"), tooltip);
+/**
+ * WHERE A LAYOUT PIN GOES, and who can learn it.
+ *
+ * The address used to be the row's `title`: the platform's tooltip, placed by
+ * the browser and answered to a pointer and nothing else. It is this app's own
+ * tip now (`@olai/web`'s `client/Tip.tsx`) — and because a tip is drawn
+ * `role="presentation"`, it exposes nothing at all to a reader who never
+ * hovers. So the address is ALSO in the row's own accessible name, after the
+ * name somebody gave the pin, and these two steps are the two halves: what the
+ * pointer gets, and what everybody else gets.
+ */
+Then("the pin {string} says its address {string}", async function (this: OlaiWorld, address: string, bare: string) {
+  await this.showSidebar();
+  const link = pinAt(this, address).locator(PIN_LINK);
+  await this.waitUntil(
+    async () => ((await link.getAttribute("aria-label")) ?? "").includes(bare),
+    `the pin at ${JSON.stringify(address)} to carry its address ${JSON.stringify(bare)} in its own name`,
+  );
+  // Without this the assertion above passes over a row wearing both, which is
+  // one sentence written twice and two tooltips on one control.
+  const title = await link.getAttribute("title");
+  assert.strictEqual(
+    title,
+    null,
+    `the pin still wears title=${JSON.stringify(title)}, so the browser draws its own tooltip beside the app's`,
+  );
+});
+
+When("I hover the pin {string}", async function (this: OlaiWorld, address: string) {
+  await this.showSidebar();
+  const link = pinAt(this, address).locator(PIN_LINK);
+  await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await link.hover();
 });
 
 

@@ -54,8 +54,13 @@ Rendered prose is cached by claims, source, writing file, and directory
 membership snapshot. The snapshot supplies both membership lookup and cache
 identity, so callers cannot pair a changing predicate with a stale revision. Code spans,
 code fences and frontmatter cannot introduce missing-link warnings; queries
-and fragments are excluded from membership checks. Authored link titles are
-preserved alongside the warning.
+and fragments are excluded from membership checks. An authored link title —
+`[x](y "…")` — is still rendered as the document's own tooltip, because it is
+content the author wrote rather than chrome this app chose. The app's own
+sentence about a dead link is not a tooltip: it rides the link's spoken name,
+after the words the link keeps, so it reaches a keyboard and a screen reader
+and not only a pointer, and it comes off again the moment the target is
+served.
 
 ## Draft and rendering lifetime
 

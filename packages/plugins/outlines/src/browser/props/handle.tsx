@@ -12,7 +12,7 @@
  */
 import { TESTID } from "olai-plugin-outlines/testids"
 import { Show } from "solid-js"
-
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 
 export function Handle(props: { readonly label: string; readonly onOpen?: () => void }) {
@@ -24,20 +24,26 @@ export function Handle(props: { readonly label: string; readonly onOpen?: () => 
       }
     >
       {(open) => (
-        <button
-          type="button"
-          class="shrink-0 cursor-pointer font-mono text-caption text-muted hover:text-accent"
-          data-testid={TESTID.propKey}
-          title={`Change ${props.label}`}
-          onClick={(event) => {
-            // The row's own line answers a click by opening the title editor,
-            // and this one is about the fact under the pointer.
-            event.stopPropagation()
-            open()()
-          }}
-        >
-          {props.label}
-        </button>
+        // The key's own words are the button's name and the BUTTON is the
+        // promise — press the key, get the editor, always. So the verb is the
+        // pointer's hint and nothing is added beside the name: a screen reader
+        // already says "button" after the key, and `Change due` in the name
+        // behind `due` would be the key said twice.
+        <Tip text={`Change ${props.label}`}>
+          <button
+            type="button"
+            class="shrink-0 cursor-pointer font-mono text-caption text-muted hover:text-accent"
+            data-testid={TESTID.propKey}
+            onClick={(event) => {
+              // The row's own line answers a click by opening the title editor,
+              // and this one is about the fact under the pointer.
+              event.stopPropagation()
+              open()()
+            }}
+          >
+            {props.label}
+          </button>
+        </Tip>
       )}
     </Show>
   )

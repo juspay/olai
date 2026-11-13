@@ -178,6 +178,26 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
                     {(select) => <select aria-label={select().name} value={select().currentValue}
                       disabled={disabled()} class="max-w-40 rounded-control border border-rule bg-panel px-1 py-1"
                       onChange={(event) => { const value = event.currentTarget.value; event.currentTarget.value = select().currentValue; choose(setting, value) }}>
+                      {/* THE ONE `title` THIS APP KEEPS, and it is kept
+                          because an `<option>` can hold nothing else. A
+                          `<select>`'s content model admits `<option>`,
+                          `<optgroup>` and `<hr>` and nothing more, so the
+                          `<span>` `Tip` wraps a control in may not stand here;
+                          `Tip` measures `firstElementChild`'s rectangle, and a
+                          closed select's options have no box at all, which is
+                          the all-zeros read its own comment calls the tip in
+                          the corner of the window; and the opened list is
+                          drawn by the platform, over the page, where no node
+                          of ours can be. Folding the description into the
+                          option's words is the other candidate and it costs
+                          more than it buys: the closed box is `max-w-40` and
+                          shows the SELECTED option, so every model would read
+                          as a truncated sentence instead of its name.
+                          `title` on an `option` is mapped to the accessible
+                          DESCRIPTION (HTML-AAM), so unlike a bare `<span>`
+                          this element really does hand the words to a reader —
+                          which is the whole reason the attribute is wrong
+                          everywhere else and right here. */}
                       <For each={select().options}>{(option) =>
                         <option value={option.value} title={option.description}>{option.name}</option>
                       }</For>

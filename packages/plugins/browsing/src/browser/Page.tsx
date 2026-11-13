@@ -13,6 +13,7 @@
  * words line and is never thrown.
  */
 import { Effect, Fiber, Stream } from "effect"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { useGo, useShown } from "olai-plugin-navigation/routing"
 import type { Route } from "olai-plugin-navigation/routes"
 import { batch, createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js"
@@ -245,15 +246,28 @@ export function BrowserPage(props: {
       <Banner standing={standing()} start={() => void Effect.runPromise(Effect.ignore(calls.browser.start({}))).then(() => say(null))} />
       <Show when={up() !== null}>
         <nav class="flex flex-wrap items-center gap-1" aria-label="Browser tabs">
-          <For each={props.browsing.tabs()}>{(one) => (
+          <For each={props.browsing.tabs()}>{(one) => {
+            const face = one.title || one.url || "New tab"
+            return (
             <span class="flex max-w-[14rem] items-center gap-1 rounded border border-rule px-1.5 py-0.5 text-caption data-[active=true]:bg-ink/10"
               data-testid={TESTID.browserTab} data-target={one.id} data-active={one.id === shown() ? "true" : "false"}
               data-title={one.title}>
-              <a href={props.href(one.id)} class="min-w-0 truncate" title={one.url}>{one.title || one.url || "New tab"}</a>
+              {/* WHERE THE TAB GOES, which its own words only say when it has
+                  none of its own. It was the anchor's `title`, read by a
+                  pointer and nobody else; the tip is the pointer's copy and
+                  the link's NAME is everybody else's. The name opens with the
+                  words the link draws, so the two cannot come apart. */}
+              <Tip text={one.url}>
+                <a href={props.href(one.id)} class="min-w-0 truncate"
+                  aria-label={face === one.url ? undefined : `${face}, ${one.url}`}>
+                  {face}
+                </a>
+              </Tip>
               <button type="button" class="text-muted hover:text-ink" aria-label={`Close ${one.title || "tab"}`}
                 data-testid={TESTID.browserTabClose} onClick={() => void run(calls.tab.close({ targetId: one.id }))}>×</button>
             </span>
-          )}</For>
+            )
+          }}</For>
           <button type="button" class={BUTTON} data-testid={TESTID.browserNewTab} aria-label="New tab"
             onClick={() => void run(Effect.map(calls.tab.open({}), ({ targetId }) => go(props.route(targetId))))}>+</button>
         </nav>

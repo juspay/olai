@@ -34,6 +34,7 @@ import { For, type JSX, Show } from "solid-js"
 import { StatePip } from "@kolu/solid-statepip"
 import { RowLabel } from "@kolu/solid-dockrow"
 import { narrowRowVocab } from "@kolu/solid-dockrow/rowValues"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 import type { KoluEvent } from "olai-plugin-kolu/appliance/wire"
 
@@ -63,65 +64,71 @@ export function EventRow(props: {
   // says so, and the vocab the door reads is the vocab the feed reads.
   const vocab = () =>
     row() === null ? undefined : narrowRowVocab({ pip: row()!.pip, bucket: row()!.bucket })
+  const about = () => line().about
   return (
     <li
       data-testid={TESTID.eventsRow}
       data-kind={props.event.kind}
       data-asking={line().asking}
-      title={line().about ?? undefined}
     >
-      {row() === null
-        ? (
-          // THE PULSE, in one line — see the fold for the sentence of a
-          // watcher that has nothing else to say.
-          <div class="flex items-baseline gap-2">
-            <span class="shrink-0 text-caption text-muted" aria-hidden="true">
-              ⌁
-            </span>
-            <span class="min-w-0 flex-1 text-caption text-muted">{line().words}</span>
-            <span class="shrink-0 text-caption text-muted">{line().age}</span>
-          </div>
-        )
-        : (
-          <div class="flex gap-1.5">
-            <span class="mt-0.5 inline-flex shrink-0 items-start">
-              <Show when={vocab()}>
-                {(v) => (
-                  // The FROZEN bag, passed through whole — the wire's own
-                  // active/bytesLive are already false, so motion folds to
-                  // none and the pip is a memory rather than a flare.
-                  <StatePip
-                    variant={v().pip.variant}
-                    glyph={v().pip.glyph}
-                    motion={v().pip.motion}
-                    bytesLive={v().pip.bytesLive}
+      {/* WHAT THE EVENT WAS ABOUT, for a pointer — and, because a tip exposes
+          nothing to a screen reader, in the hidden line that closes the row.
+          It used to be this row's `title`, which said it to neither. */}
+      <Tip text={about() ?? ""} disabled={about() === undefined}>
+        {row() === null
+          ? (
+            // THE PULSE, in one line — see the fold for the sentence of a
+            // watcher that has nothing else to say.
+            <div class="flex items-baseline gap-2">
+              <span class="shrink-0 text-caption text-muted" aria-hidden="true">
+                ⌁
+              </span>
+              <span class="min-w-0 flex-1 text-caption text-muted">{line().words}</span>
+              <span class="shrink-0 text-caption text-muted">{line().age}</span>
+            </div>
+          )
+          : (
+            <div class="flex gap-1.5">
+              <span class="mt-0.5 inline-flex shrink-0 items-start">
+                <Show when={vocab()}>
+                  {(v) => (
+                    // The FROZEN bag, passed through whole — the wire's own
+                    // active/bytesLive are already false, so motion folds to
+                    // none and the pip is a memory rather than a flare.
+                    <StatePip
+                      variant={v().pip.variant}
+                      glyph={v().pip.glyph}
+                      motion={v().pip.motion}
+                      bytesLive={v().pip.bytesLive}
+                    />
+                  )}
+                </Show>
+              </span>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-baseline gap-2">
+                  {/* THE WHO — `repo·label` in the Dock's own spelling, fed
+                      from the fold's `who` (the frozen `label` alone is
+                      what made three repos read `master` alike). */}
+                  <RowLabel
+                    markdown={line().who === "" ? props.event.row!.terminal : line().who}
+                    render={(markdown) => markdown}
+                    class="min-w-0 text-body leading-4"
+                    color={line().labelColor === ""
+                      ? undefined
+                      : line().labelColor}
                   />
-                )}
-              </Show>
-            </span>
-            <div class="min-w-0 flex-1">
-              <div class="flex items-baseline gap-2">
-                {/* THE WHO — `repo·label` in the Dock's own spelling, fed
-                    from the fold's `who` (the frozen `label` alone is
-                    what made three repos read `master` alike). */}
-                <RowLabel
-                  markdown={line().who === "" ? props.event.row!.terminal : line().who}
-                  render={(markdown) => markdown}
-                  class="min-w-0 text-body leading-4"
-                  color={line().labelColor === ""
-                    ? undefined
-                    : line().labelColor}
-                />
-                <span class="ml-auto shrink-0 text-caption text-muted">
-                  {line().age}
-                </span>
-              </div>
-              <div class="text-caption text-muted" data-testid={TESTID.eventsWords}>
-                {line().words}
+                  <span class="ml-auto shrink-0 text-caption text-muted">
+                    {line().age}
+                  </span>
+                </div>
+                <div class="text-caption text-muted" data-testid={TESTID.eventsWords}>
+                  {line().words}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        <Show when={about()}>{(said) => <span class="sr-only">{said()}</span>}</Show>
+      </Tip>
     </li>
   )
 }

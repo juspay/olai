@@ -39,6 +39,7 @@ import { offsetAt, widthIn } from "../edit/point.ts"
 import { HIT_CLASS, type Run } from "@olai/markdown-ui/lit.ts"
 
 import { ROW_NOTE } from "@olai/ui-primitives/touch.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 export function NoteLine(props: {
   /** The line, as the runs it is drawn from — one unlit run for a preview,
@@ -57,47 +58,55 @@ export function NoteLine(props: {
    *  answer the title's click made of its filler. */
   readonly onOpen?: (at: number | undefined) => void
 }) {
+  // WHAT THE POINTER GETS, and only the pointer. The verb is not echoed for a
+  // reader who never hovers, and that is the one place this app leaves a tip
+  // alone: the button's name is the note's own first line, "button" is what
+  // says it answers a press, and the press only puts a caret in those same
+  // words. An `sr-only` copy here would be one "Edit note" per ROW in a tree
+  // of hundreds — the open note says it once, where it is worth saying
+  // (`../NodeBody.tsx`).
   return (
-    <button
-      type="button"
-      class={`mt-0.5 mb-1 block w-full max-w-full cursor-text truncate border-0 bg-transparent p-0 text-left ${ROW_NOTE}`}
-      data-testid={props.hit === true ? IDS_OUTLINES.descHit : IDS_OUTLINES.desc}
-      data-preview="true"
-      data-open="false"
-      title="Edit note"
-      onClick={(event) => {
-        event.stopPropagation()
-        // Keyboard and screen-reader activation has no x to measure: the
-        // synthesized click arrives with detail 0 and clientX 0, which
-        // would measure as offset 0 and land a keyboard reader at the head
-        // of a textarea instead of in the note they asked for. Their door
-        // stays the old gesture — the caller's `undefined` answer.
-        if (event.detail === 0) {
-          props.onOpen?.(undefined)
-          return
-        }
-        const host = event.currentTarget
-        const rect = host.getBoundingClientRect()
-        const at = offsetAt(
-          props.runs.map((run) => run.text).join(""),
-          { left: rect.left, width: rect.width },
-          event.clientX,
-          widthIn(host),
-        )
-        props.onOpen?.(at)
-      }}
-    >
-      {/* `Index` rather than `For`: the runs are a fresh array of fresh objects
-          on every keystroke, so reference keying would tear down and rebuild
-          every mark and text node where position keying patches the text in
-          place. */}
-      <Index each={props.runs}>
-        {(run) => (
-          run().lit
-            ? <mark class={HIT_CLASS} data-testid={IDS_MARKDOWN_UI.hit}>{run().text}</mark>
-            : <>{run().text}</>
-        )}
-      </Index>
-    </button>
+    <Tip text="Edit note">
+      <button
+        type="button"
+        class={`mt-0.5 mb-1 block w-full max-w-full cursor-text truncate border-0 bg-transparent p-0 text-left ${ROW_NOTE}`}
+        data-testid={props.hit === true ? IDS_OUTLINES.descHit : IDS_OUTLINES.desc}
+        data-preview="true"
+        data-open="false"
+        onClick={(event) => {
+          event.stopPropagation()
+          // Keyboard and screen-reader activation has no x to measure: the
+          // synthesized click arrives with detail 0 and clientX 0, which
+          // would measure as offset 0 and land a keyboard reader at the head
+          // of a textarea instead of in the note they asked for. Their door
+          // stays the old gesture — the caller's `undefined` answer.
+          if (event.detail === 0) {
+            props.onOpen?.(undefined)
+            return
+          }
+          const host = event.currentTarget
+          const rect = host.getBoundingClientRect()
+          const at = offsetAt(
+            props.runs.map((run) => run.text).join(""),
+            { left: rect.left, width: rect.width },
+            event.clientX,
+            widthIn(host),
+          )
+          props.onOpen?.(at)
+        }}
+      >
+        {/* `Index` rather than `For`: the runs are a fresh array of fresh
+            objects on every keystroke, so reference keying would tear down and
+            rebuild every mark and text node where position keying patches the
+            text in place. */}
+        <Index each={props.runs}>
+          {(run) => (
+            run().lit
+              ? <mark class={HIT_CLASS} data-testid={IDS_MARKDOWN_UI.hit}>{run().text}</mark>
+              : <>{run().text}</>
+          )}
+        </Index>
+      </button>
+    </Tip>
   )
 }

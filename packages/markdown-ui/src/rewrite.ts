@@ -228,6 +228,18 @@ const resolvePicture = (
   }]
 }
 
+/** THE WORDS A LINK DRAWS, read off the tree rather than off the DOM, because
+ *  this pass runs on the server where there is no DOM. It is what the name of
+ *  a dead link has to open with (WCAG 2.5.3), and `mdast-util-to-string`'s
+ *  hast sibling is not a dependency this package carries — the shape is five
+ *  lines and a `text` node is the only one that holds any. */
+const textIn = (node: { readonly type: string; readonly value?: unknown; readonly children?: ReadonlyArray<unknown> }): string => {
+  if (node.type === "text") return typeof node.value === "string" ? node.value : ""
+  const children = node.children
+  if (children === undefined) return ""
+  return children.map((child) => textIn(child as Parameters<typeof textIn>[0])).join("")
+}
+
 /**
  * The one thing this decides that the path resolver does not is the FRAGMENT. A
  *
@@ -265,8 +277,26 @@ const resolveDocument = (element: Element, claims: Claims | undefined, from: str
     const warning = deadLinkSaid({ written, resolved, suggest: [] })
     const authored = element.properties["title"]
     const classes = element.properties["className"]
+    // THE WARNING GOES IN THE NAME, not on `title`. The authored title — the
+    // `"…"` a writer put in their own `[x](y "…")` — stays exactly where
+    // markdown put it, because that is the DOCUMENT's content and this pass
+    // is not its editor. What this app has to SAY about the link is a
+    // different kind of thing, and `title` was the wrong carrier for it
+    // twice over: it is drawn only under a pointer, and a reader who never
+    // hovers is precisely the reader who most needs to be told the target is
+    // not there.
+    //
+    // The name OPENS with the link's own words, and that is WCAG 2.5.3
+    // (Label in Name) rather than taste: a name that threw the visible text
+    // away would leave somebody speaking "x" at a link their screen reader
+    // calls something else. `../Markdown.tsx` composes the same sentence the
+    // same way when it re-normalises these anchors in the browser — one
+    // shape, two places it can be produced.
+    const words = textIn(element).trim()
     element.properties = { ...element.properties, "data-dead": true,
-      title: typeof authored === "string" ? `${authored} — ${warning}` : warning,
+      "aria-label": [words, typeof authored === "string" ? authored : "", warning]
+        .filter((part) => part !== "")
+        .join(" — "),
       className: [...(Array.isArray(classes) ? classes : []), "olai-dead-link"] }
   }
   if (claims === undefined) return

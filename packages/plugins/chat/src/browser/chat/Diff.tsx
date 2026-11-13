@@ -32,6 +32,7 @@ import type { FileDiff } from "@kolu/acp/wire"
 import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { type DiffLine, diffOf } from "./diff.ts"
 import { useConversationUI } from "./ui.tsx"
 
@@ -100,9 +101,14 @@ export function Diff(props: {
     >
       <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-caption">
         <Grip has={true} carry={carry} />
-        <span class="ml-4 min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
-          {props.diff.path}
-        </span>
+        {/* THE WHOLE PATH under the pointer, because the line truncates it.
+            No companion for a reader: the same path is this span's own text,
+            so nothing is lost when nobody hovers. */}
+        <Tip text={props.diff.path}>
+          <span class="ml-4 min-w-0 flex-1 truncate text-muted">
+            {props.diff.path}
+          </span>
+        </Tip>
         {/* A file that did not exist before is different news from one that was
             rewritten, and the counts alone cannot say it: a new file is all
             additions, and so is a file everything was appended to. */}

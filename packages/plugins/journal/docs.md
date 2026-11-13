@@ -113,8 +113,8 @@ and never stops the reading: the badge stays live while it is shut. The list is
 not drawn while `/agenda` is the page in front, because the page is the fuller
 answer to the same question; the badge keeps its count.
 
-The Agenda entry's badge shows one number; its tooltip and accessible name say
-both in words, such as `Agenda — 1 due today` or `Agenda — 2 overdue, 3 due
+The Agenda entry's badge shows one number; the app's own tip and the entry's
+accessible name both say it in words, such as `Agenda — 1 due today` or `Agenda — 2 overdue, 3 due
 today`. An agenda with nothing owed says `Nothing due` and `Rows with a date
 show up here.` An empty day says `Nothing is on today.` (or `Nothing is on
 2026-08-10.` for another day).

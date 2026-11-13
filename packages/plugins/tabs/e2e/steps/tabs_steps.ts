@@ -59,10 +59,14 @@ const tabsNow = async (world: OlaiWorld) =>
   world.page.locator(TAB).evaluateAll((faces, title) => faces.map((face) => ({
     href: face.getAttribute("data-href"),
     front: face.getAttribute("data-tab-front") === "true",
-    // What the tab SAYS, and what it says on hover — two facts now: the name,
-    // and the address it holds.
+    // What the tab DRAWS, and what it is CALLED — two facts now: the words in
+    // the strip, and the name that carries the address behind them. The
+    // address used to be a `title` attribute, which the browser drew itself
+    // and only a pointer could ask for; it is this app's own tip plus the
+    // tab's own accessible name now, so `native` is asserted to be gone.
     title: face.querySelector(title)?.textContent?.trim() ?? null,
-    tip: face.getAttribute("title"),
+    said: face.getAttribute("aria-label"),
+    native: face.getAttribute("title"),
   })), TITLE);
 
 /** Wait for the strip to say something, and say what it held when it would not. */
@@ -112,9 +116,24 @@ Then("the tabs hold {string}", async function (this: OlaiWorld, hrefs: string) {
     `the tabs to hold ${hrefs}`);
 });
 
-/** The address is on each tab's tooltip — there is no readout beside the strip. */
-Then("tab {int}'s tooltip is {string}", async function (this: OlaiWorld, index: number, tip: string) {
-  await untilTabs(this, (tabs) => tabs[index]?.tip === tip, `tab ${index}'s tooltip to be ${tip}`);
+/**
+ * THE ADDRESS A TAB HOLDS, and who can learn it — there is no readout beside
+ * the strip, so this is the only place it is said.
+ *
+ * It used to be the tab's `title`: the platform's tooltip, placed by the
+ * browser and answered to a pointer and nothing else. It is this app's own
+ * tip now (`@olai/web`'s `client/Tip.tsx`) — which is drawn
+ * `role="presentation"` and reaches nobody who does not hover — so the
+ * address is ALSO at the end of the tab's own accessible name, after the
+ * words it draws. The absence of `title` is asserted beside it: a tab wearing
+ * both would draw two tooltips over one control.
+ */
+Then("tab {int} carries the address {string}", async function (this: OlaiWorld, index: number, address: string) {
+  await untilTabs(
+    this,
+    (tabs) => (tabs[index]?.said ?? "").endsWith(address) && tabs[index]?.native === null,
+    `tab ${index} to be named for the address ${address}, with no native tooltip`,
+  );
 });
 
 Then("the tab strip spells no address", async function (this: OlaiWorld) {

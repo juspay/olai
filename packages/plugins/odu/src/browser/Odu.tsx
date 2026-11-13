@@ -14,6 +14,8 @@ import type { OduLink } from "olai-plugin-odu/appliance/wire"
 import { TESTID } from "../testids.ts"
 import { oduSaid } from "./said.ts"
 import { TONE } from "olai-plugin-layout/slots"
+import { Tip } from "@olai/web/client/Tip.tsx"
+import { LAYER } from "@olai/web/client/layer.ts"
 
 /** The furniture this face spends of the app's bar — redeclared so this
  *  package does not import kolu. */
@@ -30,19 +32,25 @@ export function OduReadout(props: {
   readonly link: Accessor<OduLink>
 }) {
   const said = createMemo(() => oduSaid(props.link()))
+  const detail = () => said().detail
   const pill = props.app.pill
   return (
     <Show when={props.app.desktop()}>
-      <span
-        class={`${pill.PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
-        data-testid={TESTID.odu}
-        data-odu={props.link().status}
-        title={said().detail}
-        aria-label={`odu: ${said().detail}`}
-      >
-        <span class={`${pill.DOT} ${TONE[said().tone].dot}`} data-health={said().tone} aria-hidden="true" />
-        <span class="min-w-0 truncate">{said().label}</span>
-      </span>
+      {/* A READOUT, not a control: the sentence rides a hidden twin after the
+          pill, because an `aria-label` on a bare span names nothing a screen
+          reader will read. The tip draws the same words for a pointer, over
+          the bar the pill sits in. */}
+      <Tip text={detail() ?? ""} layer={LAYER.over} disabled={detail() === undefined}>
+        <span
+          class={`${pill.PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
+          data-testid={TESTID.odu}
+          data-odu={props.link().status}
+        >
+          <span class={`${pill.DOT} ${TONE[said().tone].dot}`} data-health={said().tone} aria-hidden="true" />
+          <span class="min-w-0 truncate">{said().label}</span>
+        </span>
+        <Show when={detail()}>{(told) => <span class="sr-only">{`odu: ${told()}`}</span>}</Show>
+      </Tip>
     </Show>
   )
 }
