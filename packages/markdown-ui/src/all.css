@@ -275,9 +275,9 @@ mark.olai-hit {
  * the cost would be all there was.
  *
  * BOTH DEGRADE TO NOTHING. `text-wrap: pretty` is unimplemented in Firefox
- * and `balance` landed in Chrome 114, three releases above this app's floor
- * (`web/src/client/connection/Offline.tsx` states it) — a browser that does
- * not know the value drops the declaration and wraps the way it always did.
+ * and `balance` landed in Chrome 114, above this app's support floor
+ * (`@olai/appearance`'s `chrome.css` states it) — a browser that does not
+ * know the value drops the declaration and wraps the way it always did.
  * There is no fallback to write because there is nothing to fall back FROM:
  * the paragraph is the same paragraph, read by the same reader, with a worse
  * rag. A JavaScript shim for it would be this sheet's rhythm computed in the

@@ -1,4 +1,20 @@
-/* ONE SURFACE. The page, the header and the directory column are steps of the
+/* THE SUPPORT FLOOR, stated once, here, because this package owns the
+ * Tailwind sheet that sets it: **Safari 16.4, Chrome 111, Firefox 128** —
+ * Tailwind 4's own floor, which is what the app can be no older than. It
+ * moves when Tailwind is upgraded or a release ages out, on a clock that has
+ * nothing to do with any face, so nothing else restates the numbers; the
+ * places that straddle it cite this paragraph instead, and together they are
+ * the checklist for the next bump:
+ *
+ *   - `@supports not (scrollbar-color: auto)` below — retire when Safari 26.2
+ *     is the floor;
+ *   - `@olai/web`'s `client/dismiss.ts` pointer fallback — retire when every
+ *     engine at the floor has `closedby`;
+ *   - `@olai/markdown-ui`'s `text-wrap` prose — `pretty` and `balance` both
+ *     degrade to nothing, so there is nothing to retire, only to stop
+ *     explaining.
+ *
+ * ONE SURFACE. The page, the header and the directory column are steps of the
  * same paper — the page on `paper`, the furniture around it on `desk`, a
  * hairline of `rule` between them — rather than a sheet of paper in a frame
  * of ink. Unstyled flash is the paper, so a load does not blink dark on a
@@ -78,8 +94,8 @@ html {
 }
 
 /* THE LEGACY BAR, for the browsers this app's floor still includes.
- * `scrollbar-color` is Chrome 121 and Safari 26.2; the floor is Chrome 111 and
- * Safari 16.4, so there are real readers on both sides of it. `@supports not`
+ * `scrollbar-color` is Chrome 121 and Safari 26.2, above the floor this file
+ * opens with, so there are real readers on both sides of it. `@supports not`
  * is what keeps the two grammars from being spoken at once on an engine that
  * understands both — and the custom properties above need no second spelling,
  * because they are inherited by these pseudo-elements like any other. */
@@ -108,11 +124,10 @@ html {
  * under a dialog inert — no press, no caret, no tab stop — and says nothing at
  * all about SCROLLING: a wheel or a drag over the dim scrolls the page behind
  * it, and a gesture inside the panel chains to that page the moment the panel
- * has no more to give (immediately, when its content does not overflow). Three
- * surfaces in this app are modal dialogs — the offline freeze, the ⌘K palette
- * and the shortcuts sheet — and none of them wants the outline moving under
- * it, so the rule is written once, here, for the element rather than three
- * times for the three panels.
+ * has no more to give (immediately, when its content does not overflow). No
+ * modal dialog in this app wants the outline moving under it (the list of
+ * them is `@olai/web`'s `client/layer.ts`), so the rule is written once, here,
+ * for the element rather than once per panel.
  *
  * BOTH RULES OR NEITHER. `::backdrop` defaults to `overflow: visible`, which
  * is not a scroll container, and a non-container ignores `overscroll-behavior`
