@@ -61,16 +61,13 @@ export function Aside(props: {
             // ONLY WHERE THE WORDS ARE SHORT FOR SOMETHING: `full` is absent
             // when the drawn text IS the value (`./hot.ts`), and a tip that
             // repeated the words under the pointer would be the row read
-            // twice. Where it is there, the tip is the pointer's copy and the
-            // `sr-only` companion is everybody else's — AFTER the span rather
-            // than inside it, because the span's own words are what a
-            // scenario reads off the hot fact.
+            // twice. Where it is there, `say` gives the same sentence to
+            // everybody else.
             return (
               <Show when={prop().full} fallback={fact()}>
                 {(full) => (
-                  <Tip text={full()}>
+                  <Tip text={full()} say>
                     {fact()}
-                    <span class="sr-only">{full()}</span>
                   </Tip>
                 )}
               </Show>
@@ -86,7 +83,7 @@ export function Aside(props: {
             // `+3 done` is a count and a word; what those three stand for —
             // rows, finished, held back by THIS fold — was the tooltip's
             // alone. Same shape as the fact above it.
-            <Tip text={said()}>
+            <Tip text={said()} say>
               <span
                 class="shrink-0 tabular-nums text-label text-muted"
                 data-testid={TESTID.foldedDone}
@@ -94,7 +91,6 @@ export function Aside(props: {
               >
                 +{count()} done
               </span>
-              <span class="sr-only">{said()}</span>
             </Tip>
           )
         }}

@@ -485,9 +485,8 @@ function PostingRow(props: { readonly posting: Posting }) {
       {/* The marker column: the laptop's. */}
       <span class="hidden justify-center self-center md:flex">
         <Show when={props.posting.inferred}>
-          <Tip text="inferred">
+          <Tip text="inferred" say>
             <span class="leading-none text-muted" data-testid={TESTID.hledgerInferred} aria-hidden="true">◌</span>
-            <span class="sr-only">inferred</span>
           </Tip>
         </Show>
       </span>
@@ -513,15 +512,13 @@ function Annotations(props: { readonly posting: Posting }) {
             `title` and nothing else said it. The tip draws it for a pointer;
             the line after each figure says it to a reader, outside the cell so
             that what the cell reads is still the figure the file wrote. */}
-        {(cost) => <Tip text="cost annotation">
+        {(cost) => <Tip text="cost annotation" say>
           <span class="truncate text-muted" data-testid={TESTID.hledgerCost}>{cost()}</span>
-          <span class="sr-only">cost annotation</span>
         </Tip>}
       </Show>
       <Show when={props.posting.assertion}>
-        {(claim) => <Tip text="balance assertion">
+        {(claim) => <Tip text="balance assertion" say>
           <span class="truncate text-muted" data-testid={TESTID.hledgerAssertion}>{claim()}</span>
-          <span class="sr-only">balance assertion</span>
         </Tip>}
       </Show>
     </>

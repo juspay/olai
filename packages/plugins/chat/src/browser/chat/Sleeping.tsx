@@ -53,7 +53,7 @@ export function Sleeping(props: { readonly chat: Chat }) {
     // chat slept and when it will next — and it is deliberately not asked whether
     // the mark is on.
     const on = () => held().sleeps
-    return <Tip text={said().title}>
+    return <Tip text={said().title} say>
     <span
       class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
       data-testid={TESTID.chatSleeping}
@@ -100,12 +100,6 @@ export function Sleeping(props: { readonly chat: Chat }) {
       </Show>
       <Show when={problem()}><span role="alert">{problem()}</span></Show>
     </span>
-    {/* THE WHOLE FORECAST for a reader. `role="group"` is named "Sleep" and
-        the items beside it are fragments, so the sentence that says when this
-        chat was last tidied and when it will be again was the `title`'s alone.
-        AFTER the group, outside it, because scenarios read the item's own
-        words back. */}
-    <span class="sr-only">{said().title}</span>
     </Tip>
   }}</Show>
 }

@@ -115,7 +115,7 @@ export function CiChip(context: ChipContext) {
             // A CHIP IS NOT A CONTROL on this arm, so the sentence behind its
             // few words rides a hidden twin after it: a tip draws nothing a
             // screen reader can reach, and this span has no role to name.
-            <Tip text={said().title}>
+            <Tip text={said().title} say>
               <span
                 class={`${CHIP} ${TONE[said().tone]}`}
                 data-testid={TESTID.ciChip}
@@ -124,7 +124,6 @@ export function CiChip(context: ChipContext) {
               >
                 {said().text}
               </span>
-              <span class="sr-only">{said().title}</span>
             </Tip>
           }
         >

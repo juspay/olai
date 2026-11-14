@@ -136,9 +136,8 @@ export function Control(props: {
             sentence it stands for rides an `sr-only` twin beside it — the tip
             draws nothing a reader can reach. */}
         <Show when={knobAuthored(props.value)}>
-          <Tip text={configurationAuthored}>
+          <Tip text={configurationAuthored} say>
             <span class="plugins-knob-source" data-testid={TESTID.pluginSource} aria-hidden="true">●</span>
-            <span class="sr-only">{configurationAuthored}</span>
           </Tip>
         </Show>
         <Show when={knobAuthored(props.value) || props.value.problem !== undefined}>

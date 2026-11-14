@@ -58,7 +58,7 @@ export function Identity(props: {
            is a `<span>` here — nothing to name — so the sentence rides an
            sr-only companion AFTER it, outside the chip, because scenarios
            read the chip's own words back. */
-        <Tip text={title()}>
+        <Tip text={title()} say>
           <span
             class={CHIP}
             data-testid={TESTID.chatIdentity}
@@ -67,7 +67,6 @@ export function Identity(props: {
           >
             {said()}
           </span>
-          <span class="sr-only">{title()}</span>
         </Tip>
       }
     >

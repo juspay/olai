@@ -89,7 +89,7 @@ function GoingChip(props: { readonly started: string; readonly worked: number | 
   const banked = () => props.worked ?? 0
   const story = () => liveStoryOf(props.worked, props.started, now()).join("\n")
   return (
-    <Tip text={story()}>
+    <Tip text={story()} say>
       <span
         class={GOING}
         data-testid={TESTID.took}
@@ -103,7 +103,6 @@ function GoingChip(props: { readonly started: string; readonly worked: number | 
           on the same clock — folded in, a dead face with a live story
           would still read as moving. Same document order for a reader with
           no eyes; the tip's wrapper adds no box. */}
-      <span class="sr-only">{story()}</span>
     </Tip>
   )
 }
@@ -155,7 +154,7 @@ export function TookChip(props: {
             }).join("\n")
           }
           return (
-            <Tip text={story()}>
+            <Tip text={story()} say>
               <span
                 class={SETTLED}
                 data-testid={TESTID.took}
@@ -166,7 +165,6 @@ export function TookChip(props: {
               </span>
               {/* Beside the chip — the going arm's comment says why the
                   copy never folds INTO the face. */}
-              <span class="sr-only">{story()}</span>
             </Tip>
           )
         }}

@@ -45,9 +45,8 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
         ride an sr-only companion AFTER the chip — outside it, because a
         scenario reads the chip's own text — and the tip is the pointer's
         half of the same sentence. */}
-    <Show when={usageOf(state().usage)}>{usage => <Tip text="Context used">
+    <Show when={usageOf(state().usage)}>{usage => <Tip text="Context used" say>
       <span data-testid={TESTID.chatUsage}>{usage()}</span>
-      <span class="sr-only">Context used</span>
     </Tip>}</Show>
     <Show when={doing()?.kind === "working" || doing()?.kind === "waiting"}>
       <span class="flex items-center gap-1 text-doing" data-testid={TESTID.chatWorking} aria-live="polite"><span class={LIVE_DOT} aria-hidden="true" />{doing()?.kind === "waiting" ? "Waiting on you" : "Working…"}</span>
