@@ -172,6 +172,7 @@ import { Handle } from "./handle.tsx"
 import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "olai-plugin-navigation/routing"
 import { useDoors, useLicences, useNames } from "../reading.tsx"
+import { composing } from "@olai/web/client/composition.ts"
 import type { Said } from "@olai/web/client/saying.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
@@ -1077,9 +1078,8 @@ function Box(props: {
           // location by `document-properties`, whose needs are
           // `[browserState, markdownState, rendererSlots]` and name navigation
           // nowhere. A guard that happens to be installed is not a promise to
-          // this box. `keyCode === 229` covers Safari's delivery order, where
-          // `isComposing` is already false by the time the confirming key lands.
-          if (event.isComposing || event.keyCode === 229) return
+          // this box.
+          if (composing(event)) return
           props.onCommit(held())
           return
         }

@@ -125,6 +125,7 @@ import { batch, createEffect, createMemo, createSignal, on, Show } from "solid-j
 import type { Written } from "@olai/markdown-ui/insert.ts"
 import { camera } from "./camera.ts"
 import { createChipTitles } from "./chips.ts"
+import { composing } from "@olai/web/client/composition.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { sameIds } from "@olai/web/client/ids.ts"
@@ -703,10 +704,8 @@ export function Composer(props: {
       // shell's slot) and from a row's fold (`outline.row.fold`, the
       // outline's), neither of which carries navigation's lifetime — so with
       // that row switched off the guard is simply absent and this is the only
-      // thing standing between an IME and a half-sent turn. `keyCode === 229`
-      // is the second half: Safari delivers the confirming key after
-      // `compositionend` has already cleared `isComposing`.
-      if (event.isComposing || event.keyCode === 229) return
+      // thing standing between an IME and a half-sent turn.
+      if (composing(event)) return
       void send(event.altKey && interruptible())
     }
     // AFTER the send, so a key that moved the caret has moved it:

@@ -39,6 +39,7 @@ import { servedDirectory } from "../vault.ts"
 import { createSignal,Show } from "solid-js"
 
 import { meantAt } from "olai-plugin-files/completing"
+import { composing } from "@olai/web/client/composition.ts"
 import { Refused } from "@olai/web/client/Refused.tsx"
 import type { Making } from "olai-plugin-files/making"
 
@@ -176,10 +177,8 @@ export function NewFile(props: {
               // (`files.state`'s `New`) and drawn by whoever asks, including
               // rows that declare nothing of navigation's — so the guard being
               // installed is a fact about the page rather than a promise to
-              // this component. `keyCode === 229` is the other half, for the
-              // Safari ordering bug that resets `isComposing` before the
-              // confirming key is delivered.
-              if (event.isComposing || event.keyCode === 229) return
+              // this component.
+              if (composing(event)) return
               void send()
             }
             if (event.key === "Escape") {
