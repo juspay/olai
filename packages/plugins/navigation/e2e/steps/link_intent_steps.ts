@@ -43,7 +43,21 @@ Then("the unified link menu offers Open in new tab", async function(this: OlaiWo
   await this.page.getByRole("menuitem", { name: "Open in new tab", exact: true }).waitFor({ state: "visible" })
 })
 Then("the unified destination row {string} is selected", async function(this: OlaiWorld, id: string) {
-  await this.waitUntil(async () => this.page.locator(`a${attr("href", `/zoom/#${encodeURIComponent(id)}`)}`).evaluateAll(links => links.some(el => el.closest("[data-node-id]")?.getAttribute("data-focused") === "true" || el.closest("[data-active]") !== null)), "destination row selected")
+  const links = () => this.page.locator(`a${attr("href", `/zoom/#${encodeURIComponent(id)}`)}`)
+  await this.waitUntil(
+    async () => links().evaluateAll(found => found.some(el => el.closest("[data-node-id]")?.getAttribute("data-focused") === "true" || el.closest("[data-active]") !== null)),
+    "destination row selected",
+  ).catch(async () => {
+    // WHAT IT FOUND, because "the link is not there" and "the row it is in is
+    // not marked" are different failures and the message decided which one
+    // somebody went looking for.
+    const seen = await links().evaluateAll(found => found.map(el => {
+      const row = el.closest("[data-node-id]")
+      return `${row?.getAttribute("data-node-id") ?? "no row"}:focused=${row?.getAttribute("data-focused") ?? "-"}`
+    }))
+    const focused = await this.page.locator("[data-node-id][data-focused='true']").evaluateAll(rows => rows.map(row => row.getAttribute("data-node-id")))
+    assert.fail(`no destination row for ${JSON.stringify(id)} is selected — links in rows [${seen.join(", ")}], rows marked focused [${focused.join(", ")}]`)
+  })
 })
 Then("the unified destination row {string} is selected in pane {int}", async function(this: OlaiWorld, id: string, pane: number) {
   await this.page.locator(`${attr("data-pane", String(pane))} ${attr("data-node-id", id)}[data-focused="true"]`).first().waitFor({ state: "visible" })

@@ -479,13 +479,18 @@ export function Palette(props: {
    * MOVE say so, and the `close` listener puts the hand-back down again
    * rather than arranging one.
    */
-  let moved = false
   /** Who had the keyboard when this palette opened — the element the browser
    *  hands it back to when the modal closes. Kept so that the one case the
-   *  hand-back is wrong in (a navigation) can be undone WITHOUT undoing a
-   *  caret the app itself has since placed. */
+   *  hand-back is wrong in, a NAVIGATION, can let go of it first. */
   let invoker: Element | null = null
-  const navigated = () => { moved = true; close() }
+  /** The reader went somewhere: drop the control they left behind before the
+   *  modal closes, so the browser has nothing to hand the keyboard back to
+   *  and the page keeps the row it has just revealed. */
+  const navigated = () => {
+    if (invoker instanceof HTMLElement) invoker.blur()
+    invoker = null
+    close()
+  }
   // Navigation can close the palette through its activation-owned shortcut.
   // Every closing door releases this renderer's query identically.
   createEffect(on(paletteOpen, (opened) => {
@@ -632,7 +637,20 @@ export function Palette(props: {
       })
       return
     }
-    if (action.kind === "route") { props.go(action.route); moved = true }
+    if (action.kind === "route") {
+      // LET GO OF THE INVOKER FIRST. A modal hands the keyboard back to
+      // whatever opened it, and that is wrong exactly here: the reader went
+      // SOMEWHERE, and the control they left behind is not where the caret
+      // belongs. Dropping it BEFORE the close is what matters — undoing it
+      // afterwards is too late, because the hand-back's own `focusin` has
+      // already run, and one of the things that listens for it is a parked
+      // row clearing the page's selection (`outlines`' `NewRow.tsx`). The
+      // destination this is about to reveal would be selected and then
+      // unselected by a control nobody is looking at.
+      if (invoker instanceof HTMLElement) invoker.blur()
+      invoker = null
+      props.go(action.route)
+    }
     else if (action.kind === "shortcuts") setKeys(true)
     else if (action.kind === "toggle-sidebar") props.toggleDirectory()
     else if (action.kind === "reset-widths") resetPanelWidths()
@@ -966,18 +984,6 @@ export function Palette(props: {
         // is the one thing a rebuild is supposed to survive.
         if (modal !== undefined && !modal.isConnected) return
         close()
-        if (!moved) return
-        moved = false
-        // …and the one case the hand-back is wrong in: the reader went
-        // SOMEWHERE, so the control they left behind is not where the caret
-        // belongs. The browser has already handed it back by the time this
-        // task runs, so the undoing is a blur rather than a decision not to
-        // focus — and it undoes the HAND-BACK only. If the caret is anywhere
-        // else by now, the app put it there (a destination row taking it on
-        // arrival is exactly that), and blurring it would be this panel
-        // reaching into a page it has already left.
-        const holder = document.activeElement
-        if (holder === invoker && holder instanceof HTMLElement) holder.blur()
         invoker = null
       }}
     >
