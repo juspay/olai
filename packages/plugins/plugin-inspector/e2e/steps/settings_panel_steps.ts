@@ -103,7 +103,12 @@ Then("the plugin {string} line reads {string} beside its labelled enable switch"
   const line = row.locator(".plugins-line")
   await this.waitUntil(async () => (await line.locator(".plugins-name-text").innerText()).trim() === label,
     `the ${name} line to read ${JSON.stringify(label)}`)
-  assert.equal(await line.getByRole("switch", { name: `Enable ${label}`, exact: true }).count(), 1)
+  // The switch is NAMED for the row, and may say one more thing after it: a
+  // session-only switch carries "Resets when olai restarts" in its own name,
+  // because that sentence used to be a `title` and a `title` is a pointer's
+  // answer and nobody else's. So the name OPENS with the label rather than
+  // being it, which is also WCAG 2.5.3's rule about the visible words.
+  assert.equal(await line.getByRole("switch", { name: new RegExp(`^Enable ${label}\\b`) }).count(), 1)
   assert.equal(await line.locator(".plugins-status").count(), 0)
   assert.equal(await row.locator('[data-testid="plugin-summary"], [data-testid="plugin-defaults"]').count(), 0)
 })

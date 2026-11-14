@@ -480,6 +480,11 @@ export function Palette(props: {
    * rather than arranging one.
    */
   let moved = false
+  /** Who had the keyboard when this palette opened — the element the browser
+   *  hands it back to when the modal closes. Kept so that the one case the
+   *  hand-back is wrong in (a navigation) can be undone WITHOUT undoing a
+   *  caret the app itself has since placed. */
+  let invoker: Element | null = null
   const navigated = () => { moved = true; close() }
   // Navigation can close the palette through its activation-owned shortcut.
   // Every closing door releases this renderer's query identically.
@@ -542,8 +547,16 @@ export function Palette(props: {
     // layer and this must not stand over it (`../../../../web/src/client/layer.ts`).
     queueMicrotask(() => {
       if (!paletteOpen() || modal === undefined) return
+      if (modal.open !== true) invoker = document.activeElement
       enterTopLayer(modal)
-      input?.focus()
+      // …and the CARET goes to the box, unless a question is standing in it.
+      // A confirm takes the caret onto its own verb (`./Question.tsx`, and
+      // the `•••` menu's rule before it), and this effect re-runs for reasons
+      // of its own — a level arriving, a drawing rebuilt — so without the
+      // guard the box pulls the keyboard back off a question the reader is
+      // being asked, which is the one moment the box is not what they are
+      // answering.
+      if (paletteAsking() === null) input?.focus()
     })
   })
 
@@ -806,7 +819,11 @@ export function Palette(props: {
    * modal but another modal, and the browser already knows which of those is
    * on top.
    */
-  topmostWhileOpen(paletteOpen)
+  // READ as well as taken, now: the close request is the platform's, but a
+  // layer the palette itself opened — a level's list, a completion — is above
+  // it on this stack and the key is that layer's first. `claimCloseRequest`
+  // asks this before it lets the browser close anything.
+  const nearest = topmostWhileOpen(paletteOpen)
 
   /** Escape backs out of the question first and closes the palette second —
    *  one key, the nearest thing it can dismiss, which is what it means
@@ -894,7 +911,18 @@ export function Palette(props: {
       // this replaced was for. `closedby` is the declarative half and Safari
       // has none of it, so `lightDismiss` carries the other half on the
       // pointer's own position (`../../../../web/src/client/dismiss.ts`).
-      ref={(element) => { modal = element; lightDismiss(element); claimCloseRequest(element) }}
+      ref={(element) => {
+        modal = element
+        lightDismiss(element)
+        claimCloseRequest(element, nearest)
+        // AND OPENED FROM HERE TOO, for the one case the effect below cannot
+        // see: a REDRAW. A plugin arriving or leaving rebuilds this component
+        // with the open signal already true, so the effect — which tracks that
+        // signal — has nothing to re-run on, and the new element would stand
+        // in the page closed while the app believed the palette was up. The
+        // element is the thing that knows it is new.
+        if (paletteOpen()) queueMicrotask(() => { if (paletteOpen()) enterTopLayer(element) })
+      }}
       onCancel={(event) => {
         // ESCAPE IS A CLOSE REQUEST now, and the dismissal stack's order is
         // kept by the platform: a close request is offered to the TOPMOST
@@ -931,14 +959,26 @@ export function Palette(props: {
         // reopened, with nothing but a flicker to show for it. The element is
         // the fact: if it is open, this news is about a palette that is gone.
         if (modal?.open === true) return
+        // …nor when the element is no longer in the page. A redraw — a plugin
+        // arriving or leaving — tears this dialog down and builds another,
+        // and a `close` fired on the way out is news about the OLD element.
+        // Answering it would shut a palette the reader still has open, which
+        // is the one thing a rebuild is supposed to survive.
+        if (modal !== undefined && !modal.isConnected) return
         close()
         if (!moved) return
         moved = false
-        // …and the one case the hand-back is wrong in. The browser has
-        // already given the keyboard back by the time this task runs, so the
-        // undoing is a blur rather than a decision not to focus.
+        // …and the one case the hand-back is wrong in: the reader went
+        // SOMEWHERE, so the control they left behind is not where the caret
+        // belongs. The browser has already handed it back by the time this
+        // task runs, so the undoing is a blur rather than a decision not to
+        // focus — and it undoes the HAND-BACK only. If the caret is anywhere
+        // else by now, the app put it there (a destination row taking it on
+        // arrival is exactly that), and blurring it would be this panel
+        // reaching into a page it has already left.
         const holder = document.activeElement
-        if (holder instanceof HTMLElement) holder.blur()
+        if (holder === invoker && holder instanceof HTMLElement) holder.blur()
+        invoker = null
       }}
     >
       <Show when={paletteOpen()}>

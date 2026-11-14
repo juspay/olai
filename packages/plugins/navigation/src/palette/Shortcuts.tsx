@@ -66,7 +66,7 @@ export function Shortcuts(props: {
       { group: REGISTERED_GROUP, keys: more.map((chord) => ({ keys: spellChord(chord), what: chord.said })) },
     ]
   }
-  topmostWhileOpen(() => props.open)
+  const nearest = topmostWhileOpen(() => props.open)
   let sheet: HTMLDialogElement | undefined
   // Withdrawal puts the layer down: a modal removed from the document leaves
   // the top layer with no `close` behind it, so the element is closed while it
@@ -94,7 +94,7 @@ export function Shortcuts(props: {
       // and the name is the label below.
       class="fixed inset-x-4 top-[min(14vh,6rem)] bottom-auto mx-auto my-0 h-auto max-h-[70vh] w-auto max-w-lg overflow-y-auto rounded-surface border border-rule/40 bg-panel p-4 text-ink shadow-overlay backdrop:bg-ink/40"
       aria-label="Keyboard shortcuts"
-      ref={(element) => { sheet = element; lightDismiss(element); claimCloseRequest(element) }}
+      ref={(element) => { sheet = element; lightDismiss(element); claimCloseRequest(element, nearest) }}
       // WHOEVER CLOSED IT says so once: Escape, a press outside, or the effect
       // above. The state is the palette's (`open` is a prop), so the sheet
       // tells it rather than keeping a second copy.

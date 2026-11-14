@@ -167,7 +167,12 @@ Then(
   "the pin {string} shows its controls without a hover",
   async function (this: OlaiWorld, address: string) {
     await this.showSidebar();
-    const strip = pinAt(this, address).locator(`span:has(${PIN_REMOVE})`);
+    // The OUTERMOST span holding the remove button, not every span that does:
+    // the button wears the app's own tip now, and the tip's wrapper is a
+    // `display: contents` span inside the strip — a second match, with no box
+    // and no opacity of its own. `.first()` is the strip, which is the element
+    // the reveal rule is on.
+    const strip = pinAt(this, address).locator(`span:has(${PIN_REMOVE})`).first();
     await strip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     // The opacity is the contract, and it is on the STRIP: the buttons inside
     // it are opaque in their own right and would answer "1" to this question

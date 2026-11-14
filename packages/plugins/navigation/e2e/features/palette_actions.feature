@@ -148,10 +148,11 @@ Feature: The ⌘K palette writes
     Then the palette's caret is on "go"
     When I press "Tab"
     Then the palette's caret is on "cancel"
-    # Round the box and back: the sheet has three stops with a question up.
-    When I press "Tab"
-    And I press "Tab"
-    Then the palette's caret is on "go"
+    # Round and back. How MANY stops there are is the panel's markup and the
+    # platform's cycle, not a rule this app owns — what is asserted is both
+    # halves of containment: the caret never leaves the modal, and it comes
+    # back to the verb.
+    Then Tab walks the palette and comes back to "go"
     # …and the way out by keyboard is still Escape, which cancels the question
     # rather than the palette.
     When I press "Escape"

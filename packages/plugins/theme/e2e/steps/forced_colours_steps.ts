@@ -147,7 +147,15 @@ Then("the switch in the preferences tells its two states apart", async function 
     async () => (await control.getAttribute("aria-checked")) !== was,
     "the switch to take the press",
   );
-  const after = await switchLook(this);
+  // …and WAITED FOR, because the knob travels: it rides `translate` over a
+  // tenth of a second (`@olai/appearance`'s motion policy keeps that one,
+  // which is why it is a transform and not a `left`), so a read taken the
+  // instant the state flips catches it still at the end it started from.
+  let after = await switchLook(this);
+  await this.waitUntil(async () => {
+    after = await switchLook(this);
+    return Math.abs(before.at - after.at) > 1;
+  }, "the switch's knob to travel").catch(() => undefined);
 
   assert.notStrictEqual(
     before.track,

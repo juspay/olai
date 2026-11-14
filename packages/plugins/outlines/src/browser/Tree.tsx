@@ -135,8 +135,8 @@ import { applying } from "./writes.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 
 /** What the ⇢ before a mirrored row's title means. One string because the
- *  arrow draws it and the `sr-only` copy beside it says it — one sentence,
- *  two readers. */
+ *  arrow draws it and names itself with it — one sentence, two readers, and
+ *  no second copy inside the row's own words. */
 const MIRRORED = "Mirrored from elsewhere"
 
 export function Tree(props: {
@@ -796,14 +796,18 @@ function Branch(props: {
                 <Show when={props.row.kind !== "node"}>
                   {/* ⇢ is the whole of what this says on screen, so the words
                       behind it rode the platform's tooltip and reached nobody
-                      who was not pointing at them. The tip draws them now and
-                      the `sr-only` companion after the arrow is the copy a
-                      keyboard or a screen reader gets. */}
+                      who was not pointing at them. The tip draws them for a
+                      pointer, and the ARROW ITSELF carries them as a name —
+                      `role="img"`, the pattern `./Glyph.tsx` and the repeat
+                      badge use. NOT an `sr-only` copy beside it: this mark
+                      sits inside a row's TITLE, and hidden words there land in
+                      the title's own text, where a reader asking what the row
+                      is called hears `⇢ Mirrored from elsewhere replacement
+                      source` for a row called `replacement source`. */}
                   <Tip text={MIRRORED}>
-                    <span class="mr-1 text-muted" aria-hidden="true">
+                    <span class="mr-1 text-muted" role="img" aria-label={MIRRORED}>
                       ⇢
                     </span>
-                    <span class="sr-only">{MIRRORED}</span>
                   </Tip>
                 </Show>
               </NodeLine>
