@@ -135,9 +135,16 @@ describe("the shell's boot script", () => {
     // Asked of the SCRIPT and not the file: the prose around it argues about
     // palettes by name, which is what prose is for, and a comment is not a
     // thing that runs.
+    // Sliced between the tags rather than matched with a regexp: a pattern
+    // that hunts `<script>…</script>` is a pattern that disagrees with a
+    // parser about what closes a script, and the test below already reads
+    // this shell by position for the same reason.
     const html = await shell()
-    const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1]
-    expect(script).toBeDefined()
+    const opens = html.indexOf("<script>")
+    const closes = html.indexOf("</script>", opens)
+    expect(opens).toBeGreaterThanOrEqual(0)
+    expect(closes).toBeGreaterThan(opens)
+    const script = html.slice(opens + "<script>".length, closes)
     expect(script).toContain(`localStorage.getItem("${SCHEME_STORAGE_KEY}")`)
     expect(script).toContain(`document.querySelector('meta[name="color-scheme"]').content = `)
     for (const name of THEME_NAMES) expect(script).not.toContain(name)
