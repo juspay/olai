@@ -468,30 +468,56 @@ export function Palette(props: {
 
   const close = closePalette
   /**
-   * A NAVIGATION MOVED THE READER, so the caret may NOT go back.
+   * WHERE THE CARET GOES WHEN THIS CLOSES, and why the platform is not asked.
    *
-   * Closing a modal dialog hands the keyboard to whatever had it when the
-   * dialog opened — the platform's own promise, and the reason nothing here
-   * records a `previousFocus` any more. It is wrong for exactly one of the
-   * ways this palette closes: a row that navigates has taken the reader
-   * somewhere else, and putting the caret back in the editor they came from
-   * would take an in-place reveal's selection with it. So the two doors that
-   * MOVE say so, and the `close` listener puts the hand-back down again
-   * rather than arranging one.
+   * A modal dialog hands the keyboard back to whatever was focused when
+   * `showModal()` ran, and the dialog guide says plainly: DON'T write code to
+   * return focus on close. This panel is the exception, and the reason is that
+   * it has close paths that must NOT hand back — a row that navigates has
+   * taken the reader somewhere else, and the control they left behind is not
+   * where the caret belongs. The platform offers no way to decline the
+   * hand-back: it is decided at `showModal()`, from whatever has focus at that
+   * instant, and letting go of that element afterwards changes nothing,
+   * because the restore is SYNCHRONOUS inside `close()` and the `focusin` it
+   * fires has already run by the time any `close` task could undo it. One of
+   * the things listening for that `focusin` is a parked row clearing the
+   * page's selection (`outlines`' `NewRow.tsx`), which is how a destination
+   * the palette had just revealed ended up unselected by a control nobody was
+   * looking at.
+   *
+   * So: nothing is left for the platform to remember. The invoker is taken off
+   * the keyboard BEFORE `showModal()`, and this panel gives the caret back
+   * itself on the closes that did not move the reader. "Moved" is two
+   * readings, because the doors are not all alike: the two that navigate say
+   * so outright, and a `run` whose work navigated is caught by comparing WHERE
+   * THE READER IS against where they were when this opened.
    */
-  /** Who had the keyboard when this palette opened — the element the browser
-   *  hands it back to when the modal closes. Kept so that the one case the
-   *  hand-back is wrong in, a NAVIGATION, can let go of it first. */
   const topLayer = useTopLayer()
-  let invoker: Element | null = null
-  /** The reader went somewhere: drop the control they left behind before the
-   *  modal closes, so the browser has nothing to hand the keyboard back to
-   *  and the page keeps the row it has just revealed. */
-  const navigated = () => {
-    if (invoker instanceof HTMLElement) invoker.blur()
+  /** Who had the keyboard when this opened, blurred at that instant. */
+  let invoker: HTMLElement | null = null
+  /** The focused pane's address when this opened — the second reading of
+   *  "the reader moved", for a door that navigates from inside its own work. */
+  let cameFrom: string | undefined
+  /** A door that MOVED the reader said so. */
+  let moved = false
+  /** The reader asked for the shortcuts sheet, which opens once this one is
+   *  out of the way and the caret is back where it came from — so the sheet
+   *  records THAT control as its own hand-back rather than an input that is
+   *  about to unmount with this panel. */
+  let wantKeys = false
+  const whereabouts = (): string => router.routes.href(router.route())
+  /** Give the caret back, unless the reader moved, something else has taken it
+   *  since, or the control they left is no longer in the page. */
+  const handBack = (): void => {
+    const left = invoker
     invoker = null
-    close()
+    const went = moved || whereabouts() !== cameFrom
+    moved = false
+    if (went || left === null || !left.isConnected) return
+    if (document.activeElement !== null && document.activeElement !== document.body) return
+    left.focus()
   }
+  const navigated = () => { moved = true; close() }
   // Navigation can close the palette through its activation-owned shortcut.
   // Every closing door releases this renderer's query identically.
   createEffect(on(paletteOpen, (opened) => {
@@ -554,7 +580,17 @@ export function Palette(props: {
     // (`../../../../web/src/client/layer.ts`).
     queueMicrotask(() => {
       if (!paletteOpen() || modal === undefined) return
-      if (modal.open !== true) invoker = document.activeElement
+      if (modal.open !== true) {
+        // REMEMBERED AND RELEASED IN THE SAME BREATH, before the layer is
+        // entered: the platform decides its hand-back from whatever has focus
+        // at `showModal()`, and leaving it nothing to remember is the only way
+        // to decline one (see the note on `handBack`).
+        const had = document.activeElement
+        invoker = had instanceof HTMLElement ? had : null
+        invoker?.blur()
+        cameFrom = whereabouts()
+        moved = false
+      }
       topLayer.enter(modal)
       // …and the CARET goes to the box, unless a question is standing in it.
       // A confirm takes the caret onto its own verb (`./Question.tsx`, and
@@ -640,20 +676,15 @@ export function Palette(props: {
       return
     }
     if (action.kind === "route") {
-      // LET GO OF THE INVOKER FIRST. A modal hands the keyboard back to
-      // whatever opened it, and that is wrong exactly here: the reader went
-      // SOMEWHERE, and the control they left behind is not where the caret
-      // belongs. Dropping it BEFORE the close is what matters — undoing it
-      // afterwards is too late, because the hand-back's own `focusin` has
-      // already run, and one of the things that listens for it is a parked
-      // row clearing the page's selection (`outlines`' `NewRow.tsx`). The
-      // destination this is about to reveal would be selected and then
-      // unselected by a control nobody is looking at.
-      if (invoker instanceof HTMLElement) invoker.blur()
-      invoker = null
+      // A DOOR THAT MOVES THE READER: the caret stays wherever the page puts
+      // it, and the control they left behind does not get it back (`handBack`).
+      moved = true
       props.go(action.route)
     }
-    else if (action.kind === "shortcuts") setKeys(true)
+    // …and the sheet waits for this panel to be out of the way, so that the
+    // control it records as ITS hand-back is the one the reader came from
+    // rather than an input that unmounts a moment later (`handBack`).
+    else if (action.kind === "shortcuts") wantKeys = true
     else if (action.kind === "toggle-sidebar") props.toggleDirectory()
     else if (action.kind === "reset-widths") resetPanelWidths()
     else if (action.kind === "close-pane") router.close()
@@ -986,7 +1017,11 @@ export function Palette(props: {
         // is the one thing a rebuild is supposed to survive.
         if (modal !== undefined && !modal.isConnected) return
         close()
-        invoker = null
+        // THE CARET GOES BACK HERE, from the one place that knows the panel
+        // is really gone — and the sheet, if it was asked for, opens after it
+        // so that it records a control that is still in the page.
+        handBack()
+        if (wantKeys) { wantKeys = false; setKeys(true) }
       }}
     >
       <Show when={paletteOpen()}>
