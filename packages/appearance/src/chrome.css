@@ -278,14 +278,15 @@ html {
  * app's faces spell as utilities — a `transition-transform` or an
  * `animate-pulse` at a time. It also means A COMPONENT CANNOT ARGUE BACK IN A
  * CLASS: a `motion-reduce:` utility asking to keep its movement would lose to
- * this block, silently, which is the worst way for a policy to be wrong. So the
- * escape hatch is one this rule itself honours — `data-motion="keep"`, an
- * attribute, greppable, and visible in the DOM a scenario reads. Nothing wears
- * it today; the first thing that does owes a comment saying what motion it is
- * that a reader asking for less of it should still see.
+ * this block, silently, which is the worst way for a policy to be wrong. There
+ * is no escape hatch here, because nothing has asked for one: the first motion
+ * that must survive the preference can add an attribute this rule honours,
+ * with the argument for why a reader who asked for less should still see it.
+ * A hatch with no wearer is a branch nobody has thought about.
  *
- * `:where()` wraps the selector so the hatch costs no specificity: the floor
- * stays at zero, which is what keeps it a floor.
+ * `:where()` wraps the selector so the floor stays at zero specificity, which
+ * is what keeps it a floor: anything with a real selector of its own outranks
+ * it and answers the preference where it decided to move.
  *
  * SO SAY WHAT THIS REACHES, EXACTLY: every piece of motion in this app that is
  * written as a UTILITY. Not every piece of motion. The other plugin
@@ -319,9 +320,9 @@ html {
  * of the scroll rather than at import, since a reader may change their mind
  * without reloading the tab. */
 @media (prefers-reduced-motion: reduce) {
-  :where(*:not([data-motion="keep"])),
-  :where(*:not([data-motion="keep"]))::before,
-  :where(*:not([data-motion="keep"]))::after {
+  :where(*),
+  :where(*)::before,
+  :where(*)::after {
     transition-property:
       color, background-color, border-color, outline-color,
       text-decoration-color, fill, stroke, opacity;
