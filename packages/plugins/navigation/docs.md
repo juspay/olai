@@ -261,13 +261,23 @@ as a result, and none of it is spelled in this plugin any more:
   key first (the palette refuses the request and drops the question); with
   nothing standing, the dialog closes and its `close` event is the one place
   the open signal is written;
-- the caret goes back to whatever held it when the palette opened — the
-  browser's own hand-back. The one exception is a row that NAVIGATES: the
-  reader has been moved, so the palette blurs rather than hands back;
-- a press outside puts it away. `closedby="any"` says so where the browser has
-  it, and `web/src/client/dismiss.ts`'s `lightDismiss` carries the rest by
-  measuring the pointer's position against the panel's own rectangle — Safari
-  has no `closedby` at all.
+- the caret goes back to whatever held it when the palette opened, and the
+  palette does that itself. The platform's hand-back is decided at
+  `showModal()` and cannot be declined afterwards, so the invoker is taken off
+  the keyboard BEFORE the layer is entered and `handBack` returns it on close
+  — unless the reader MOVED, in which case the page keeps whatever it has
+  revealed. Moving is read both ways: a `route` row says so, and a `run` whose
+  own work navigated is caught by comparing where the reader is now against
+  where they were when the panel opened. The shortcuts sheet opens only once
+  this hand-back has happened, so the control it records is one that is still
+  in the page;
+- a press outside puts it away, as a close REQUEST rather than a close:
+  `closedby="any"` says so where the browser has it, and
+  `web/src/client/dismiss.ts`'s `lightDismiss` carries the rest by measuring
+  the pointer's position against the panel's own rectangle and dispatching a
+  cancelable `cancel` — Safari has no `closedby` at all, and a question
+  standing in the box must answer a backdrop press the same way on every
+  engine.
 
 Scroll containment for every modal in the app (`dialog:modal` and
 `dialog::backdrop`) is one rule in `appearance/src/chrome.css`; nothing locks
