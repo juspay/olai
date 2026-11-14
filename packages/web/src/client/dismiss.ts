@@ -182,6 +182,13 @@ export const dismissOn = (on: Dismissable): void => {
  *   - the press AND the release must both be outside, so a text selection
  *     dragged out of the panel and released on the backdrop is not a
  *     dismissal.
+ *   - a light dismiss is a CLOSE REQUEST, not a close. `closedby="any"` fires
+ *     `cancel` first on the engines that have it, which is how a question
+ *     standing inside the palette gets to answer a press on the backdrop by
+ *     backing itself out and leaving the panel up ({@link claimCloseRequest}
+ *     is the same rule for the key). A fallback that called `close()` would
+ *     take the whole panel away with the question still in it — the same
+ *     gesture, two different answers, depending on the engine.
  *
  * It is a Solid primitive like the rest of this file: call it where the
  * element is, and the listeners go with that owner.
@@ -201,7 +208,10 @@ export const lightDismiss = (dialog: HTMLDialogElement): void => {
   let pressedOutside = false
   const down = (event: PointerEvent) => { pressedOutside = outside(event) }
   const up = (event: PointerEvent) => {
-    if (pressedOutside && outside(event)) dialog.close()
+    if (!pressedOutside || !outside(event)) return
+    pressedOutside = false
+    const request = new Event("cancel", { cancelable: true })
+    if (dialog.dispatchEvent(request)) dialog.close()
   }
   dialog.addEventListener("pointerdown", down)
   dialog.addEventListener("pointerup", up)
