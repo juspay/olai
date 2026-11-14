@@ -72,3 +72,95 @@ Feature: The palette is a modal the browser owns
     # the caret comes back to its box, which is where the freeze found it.
     And the command palette is open
     And the palette box has the caret
+
+  Scenario: A row that navigates hands nothing back
+    # THE ONE CLOSE THAT MUST NOT RETURN THE CARET. A modal dialog hands the
+    # keyboard to whatever had it when it opened, and here that is a row's own
+    # editor on the page the reader is leaving: putting the caret back there
+    # re-opens an editor nobody asked for and, worse, the parked row clears
+    # the page's selection on the way in — so the destination the palette just
+    # revealed ends up selected by nothing. The palette takes the keyboard off
+    # the invoker BEFORE it opens and gives it back itself, on the closes that
+    # did not move the reader (`palette/Palette.tsx`'s `handBack`).
+    When I click the title of "handles"
+    And I press "Enter"
+    Then a new row is being typed
+    When I press the palette shortcut
+    And I type "hinges" into the palette
+    And I pick the palette item "hinges"
+    Then the unified destination row "hinges" is selected
+    And the caret is not back in the row editor
+
+  Scenario: The shortcuts sheet is a modal of its own
+    # It opens from the palette, so it was the surface most likely to inherit
+    # a half-modality: covered but reachable, or dismissable only by its own
+    # scrim. The same three readings the palette gets, and both ways out.
+    When I press the palette shortcut
+    And I pick the palette item "Keyboard shortcuts"
+    Then the shortcuts are showing
+    And the page behind the shortcuts sheet is out of reach
+    When I press outside the shortcuts sheet
+    Then the shortcuts are put away
+
+  Scenario: The sheet gives the caret back to where the reader came from
+    # TWO MODALS IN A ROW, and the hand-back has to survive the handover: the
+    # sheet is asked for from inside the palette, whose box unmounts a moment
+    # later. So the palette closes FIRST and puts the caret back in the filter
+    # box, and only then does the sheet open and record that box as its own
+    # hand-back — which is what Escape on the sheet returns to.
+    When I type "kitchen" into the filter box
+    And I press the palette shortcut
+    And I pick the palette item "Keyboard shortcuts"
+    Then the shortcuts are showing
+    When I press "Escape"
+    Then the shortcuts are put away
+    And the keyboard is back in the filter box
+
+  Scenario: There is no door at all while the wire is dead
+    # THE REVERSE ORDER, and the answer is stronger than a floor: the freeze
+    # swallows every chord for as long as it is up (`connection/Offline.tsx`),
+    # so a ⌘K pressed at a frozen app never reaches navigation and there is no
+    # second modal to stand anywhere. The page stays the freeze's, and the
+    # chord works again the moment the wire does.
+    When the browser goes offline
+    Then the app is frozen under the offline overlay
+    When I press the palette shortcut
+    Then the command palette does not open
+    And the app is frozen under the offline overlay
+    When the browser comes back online
+    Then the overlay is gone
+    When I press the palette shortcut
+    Then the command palette is open
+    And the palette box has the caret
+
+  Scenario: Without `closedby`, the fallback answers the same three ways
+    # Safari has no `closedby`, so for half this app's floor the light
+    # dismiss is the hand-written one in `client/dismiss.ts` — and the suite
+    # runs on Chromium, where every press below would otherwise be answered by
+    # the engine and the fallback would never run at all. The property is
+    # taken away so it does.
+    Given this browser has no light dismiss of its own
+    When I press the palette shortcut
+    And I press the palette's own edge
+    Then the command palette is open
+    When I drag from inside the palette onto the scrim
+    Then the command palette is open
+    When I press the palette scrim
+    Then the command palette is closed
+
+  @scratch:good
+  Scenario: Without `closedby`, a press outside answers the question first
+    # A light dismiss is a CLOSE REQUEST, not a close: the dismissal stack
+    # inside the panel gets it first, exactly as Escape does. The fallback
+    # therefore asks — it dispatches a cancelable `cancel` — rather than
+    # calling `close()` and taking the whole palette away with a question
+    # still standing in it.
+    Given this browser has no light dismiss of its own
+    And I open the node "install"
+    When I press the palette shortcut
+    And I choose "Move to Trash" from the palette
+    Then the palette asks "Move “install the cabinets” and the 3 rows under it to Trash? You can put them back from Trash in the sidebar."
+    When I press the palette scrim
+    Then the palette is not asking anything
+    And the command palette is open
+    And "house.olai" holds a node titled "install the cabinets"
