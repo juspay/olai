@@ -904,15 +904,33 @@ export function Palette(props: {
         // request is refused. With nothing standing, the default runs: the
         // dialog closes, and the `close` below is what tells the rest of the
         // app so.
-        if (paletteAsking() === null) return
-        event.preventDefault()
-        escape()
+        if (paletteAsking() !== null) {
+          event.preventDefault()
+          escape()
+          return
+        }
+        // NOTHING STANDING: the default runs and the dialog closes. The signal
+        // is written HERE as well as in `close` below, because `cancel` is
+        // synchronous with the key and `close` is a task of its own — and in
+        // between, a ⌘K pressed in the same breath would read a palette that
+        // is still "open" and toggle it SHUT. The two writes agree; this one
+        // is merely in time.
+        close()
       }}
       onClose={() => {
         // THE ONE PLACE A CLOSED PALETTE IS ANSWERED, whoever closed it: this
         // renderer's own effect, a press on the backdrop, the platform's
         // close request. The signal is the app's copy of that fact, so it is
         // written here rather than at each door.
+        //
+        // …unless the palette is ALREADY OPEN AGAIN. `close` is dispatched in
+        // a task of its own, so an Escape and a ⌘K in the same breath — which
+        // is a gesture a person makes, and one `palette_write_pending.feature`
+        // makes on purpose — run as close, reopen, and only THEN this handler.
+        // Writing the signal there would shut the palette the reader has just
+        // reopened, with nothing but a flicker to show for it. The element is
+        // the fact: if it is open, this news is about a palette that is gone.
+        if (modal?.open === true) return
         close()
         if (!moved) return
         moved = false

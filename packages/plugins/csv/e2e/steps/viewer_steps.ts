@@ -440,11 +440,25 @@ const TAB_BUDGET = 300;
 // `focus()`. Nothing in a table of text takes focus, so a scroll container
 // without `tabindex` is a part of the page a pointer can read and a keyboard
 // cannot — and `locator.focus()` would pass on exactly that page.
+//
+// The walk starts at the top of the document on purpose: a traveller arrives
+// at the page through the chrome, and what is being claimed is that the table
+// is ON the path rather than that it can be focused once you are standing on
+// it. One thing on that path answers focus by opening a panel of its own — the
+// header's search box, whose kinds row is drawn while the box has the caret
+// and whose own dismissal is Escape — so the walk dismisses it the way a
+// person would and carries on. Without that it is not a long path, it is a
+// loop, and the budget below only decides how long we take to say so.
 When("I travel by keyboard to the table's scroller", async function (this: OlaiWorld) {
   const found = await scroller(this);
   const arrived = async () => found.evaluate((element) => element === document.activeElement);
+  await this.page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur() });
   for (let presses = 0; presses < TAB_BUDGET; presses++) {
     if (await arrived()) return;
+    const inPanel = await this.page.evaluate(() =>
+      document.activeElement?.closest('[data-testid="header-search"], [data-testid="search-panel"]') !== null
+      || document.activeElement?.getAttribute("type") === "search");
+    if (inPanel) await this.page.keyboard.press("Escape");
     await this.page.keyboard.press("Tab");
   }
   assert.ok(await arrived(), `no keyboard path reached the csv scroller in ${String(TAB_BUDGET)} presses`);

@@ -75,6 +75,19 @@ const narrowed = (at: Anchor, edge: number | undefined): Record<string, string |
   return { ...styleOf(at), left: `${right - width}px`, width: `${width}px` }
 }
 
+/** The right edge of the BOX the dot sits in, skipping any ancestor that is
+ *  not a box at all. The app's tip wraps what it explains in a
+ *  `display: contents` span (`@olai/web/client/Tip.tsx`), which draws nothing
+ *  and measures as all zeros — so a plain `parentElement` walk from a tipped
+ *  control answers 0 and pins whatever it positions to the left edge of the
+ *  window. `undefined` where there is nothing to measure, which is what
+ *  `narrowed` already reads as "no edge to stay inside of". */
+const clusterRight = (control: HTMLElement | undefined): number | undefined => {
+  let node = control?.parentElement ?? null
+  while (node !== null && getComputedStyle(node).display === "contents") node = node.parentElement
+  return node === null ? undefined : node.getBoundingClientRect().right
+}
+
 /** The connection's own row, ordered among the seats like any of them. */
 const CONNECTION = "connection"
 type Row = typeof CONNECTION | Hung<BarSeat>
@@ -137,7 +150,14 @@ export function Health(props: { readonly slots: RendererSlots }) {
             <section
               ref={popover.setPanel}
               class={`${PANEL_BOX} gap-0.5 !p-2`}
-              style={narrowed(at(), dot?.parentElement?.getBoundingClientRect().right)}
+              // THE CLUSTER'S RIGHT EDGE, found by climbing past anything with
+              // no box. The dot's parent used to be the bar's cluster; it is
+              // the tip's wrapper now, which is `display: contents` — no box,
+              // and `getBoundingClientRect()` on one answers all zeros, which
+              // pinned this panel to the left edge of the window and under the
+              // sidebar. A wrapper that adds no box must not be allowed to
+              // answer a question about boxes.
+              style={narrowed(at(), clusterRight(dot))}
               tabindex="-1"
               data-testid={TESTID.healthPanel}
               aria-label="status"
