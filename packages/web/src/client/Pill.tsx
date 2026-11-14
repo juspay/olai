@@ -70,7 +70,14 @@ export function Pill(props: {
 }) {
   const picks = (): boolean => props.onPick !== undefined
 
-  const pill = (): JSX.Element => (
+  // ONE pill, drawn once and WRAPPED ALWAYS — `Tip`'s `disabled` rather than
+  // two arms, because a tip arriving or leaving must not replace the control
+  // under the reader (a press in flight, the hover that asked for the tip).
+  // The wrapper is `display: contents` and adds no box when it says nothing.
+  return (
+    <Tip text={props.tip ?? ""} disabled={props.tip === undefined}>
+      {/* The pill FIRST: the tip reads its rectangle off the wrapper's first
+          element child, and the echo after it is not the control. */}
     <Dynamic
       component={picks() ? "button" : "span"}
       type={picks() ? "button" : undefined}
@@ -90,16 +97,7 @@ export function Pill(props: {
     >
       {props.children}
     </Dynamic>
-  )
-
-  return (
-    <Show when={props.tip !== undefined} fallback={pill()}>
-      {/* The pill FIRST: the tip reads its rectangle off the wrapper's first
-          element child, and the echo after it is not the control. */}
-      <Tip text={props.tip!}>
-        {pill()}
-        <Show when={!picks()}><span class="sr-only">{props.tip}</span></Show>
-      </Tip>
-    </Show>
+      <Show when={props.tip !== undefined && !picks()}><span class="sr-only">{props.tip}</span></Show>
+    </Tip>
   )
 }

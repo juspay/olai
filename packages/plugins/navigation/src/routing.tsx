@@ -1,7 +1,7 @@
 import { localLink, type Intent } from "@olai/surface"
 /** Stateless route consumers. They receive the navigation provider through
  * context; importing this contract starts no history, observer or timer. */
-import { type Accessor,createContext,createMemo,type JSX,Show,useContext } from "solid-js"
+import { type Accessor,createContext,createMemo,type JSX,useContext } from "solid-js"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import type { Landing } from "./landing.ts"
 import type { RevealState } from "./reveal.ts"
@@ -323,10 +323,14 @@ export interface LinkProps {
 /** Content encodes its destination; navigation owns every press. */
 export function Link(props: LinkProps) {
   const router = useRouter()
-  // ONE anchor, written once and built by whichever arm is live: the tip is a
-  // wrapper rather than an attribute now, and a second copy of this element
-  // under the tipped arm is the two-anchors-one-link bug `DropRef` names.
-  const anchor = (): JSX.Element => (
+  // ONE anchor, drawn once and WRAPPED ALWAYS. The tip is a wrapper rather
+  // than an attribute now, and the obvious shape — two arms, one tipped — is
+  // a second `<a>`: a link that gains or loses its sentence would have the
+  // element replaced under the reader, taking focus, hover and a press in
+  // flight with it. `Tip`'s `disabled` is for exactly this; its wrapper is
+  // `display: contents`, so the untipped case adds no box either.
+  return (
+    <Tip text={props.tip ?? ""} disabled={props.tip === undefined}>
     <a
       href={router.routes.href(props.route)}
       class={props.class}
@@ -339,15 +343,7 @@ export function Link(props: LinkProps) {
     >
       {props.children}
     </a>
-  )
-  // The condition is a BOOLEAN, so a tip whose words change (a mark's own
-  // sentence, a row's date) updates inside the tip it already has rather than
-  // tearing the anchor out of the DOM and putting a new one back under the
-  // reader's pointer.
-  return (
-    <Show when={props.tip !== undefined} fallback={anchor()}>
-      <Tip text={props.tip!}>{anchor()}</Tip>
-    </Show>
+    </Tip>
   )
 }
 
