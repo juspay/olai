@@ -1,4 +1,20 @@
-/* ONE SURFACE. The page, the header and the directory column are steps of the
+/* THE SUPPORT FLOOR, stated once, here, because this package owns the
+ * Tailwind sheet that sets it: **Safari 16.4, Chrome 111, Firefox 128** —
+ * Tailwind 4's own floor, which is what the app can be no older than. It
+ * moves when Tailwind is upgraded or a release ages out, on a clock that has
+ * nothing to do with any face, so nothing else restates the numbers; the
+ * places that straddle it cite this paragraph instead, and together they are
+ * the checklist for the next bump:
+ *
+ *   - `@supports not (scrollbar-color: auto)` below — retire when Safari 26.2
+ *     is the floor;
+ *   - `@olai/web`'s `client/dismiss.ts` pointer fallback — retire when every
+ *     engine at the floor has `closedby`;
+ *   - `@olai/markdown-ui`'s `text-wrap` prose — `pretty` and `balance` both
+ *     degrade to nothing, so there is nothing to retire, only to stop
+ *     explaining.
+ *
+ * ONE SURFACE. The page, the header and the directory column are steps of the
  * same paper — the page on `paper`, the furniture around it on `desk`, a
  * hairline of `rule` between them — rather than a sheet of paper in a frame
  * of ink. Unstyled flash is the paper, so a load does not blink dark on a
@@ -33,23 +49,69 @@ html {
 /* ONE overflow bar: thin, currentColour, gutter reserved on desktop so
  * a classic scrollbar cannot steal a strip (the month's 7 cells, a
  * conversation). Thumb follows the surface. Phone leaves the gutter: the
- * drawer's 44px day cells already spend the width. */
+ * drawer's 44px day cells already spend the width.
+ *
+ * THE TWO COLOURS ARE CUSTOM PROPERTIES because they are said three times —
+ * once in `scrollbar-color`, once more each in the two legacy pseudo-elements
+ * — and a bar whose thumb and whose `::-webkit-scrollbar-thumb` drifted apart
+ * would be wrong on exactly half the browsers this app supports and right on
+ * the other half, which is the hardest kind of wrong to see. Declared on the
+ * same element, so they cascade into the legacy selectors for free.
+ *
+ * A THUMB AT 24% OF THE INK CANNOT MEET 3:1 against the paper it floats on,
+ * and that is the whole point of it: the bar is meant to be a hint until a
+ * hand goes looking for it. A reader who has told their system they want MORE
+ * CONTRAST has withdrawn permission for that trade, so the thumb goes to the
+ * full ink of the surface it is on — not to black, which would be a stranger
+ * on five of the palettes; `currentColor` is this app's maximum against its
+ * own paper, whichever palette is in force, and it is the same colour the
+ * words beside it are set in.
+ *
+ * THE TRACK STAYS TRANSPARENT in both answers, and that is deliberate rather
+ * than lazy: macOS draws overlay scrollbars whose gutter is transparent no
+ * matter what an author asks for, even with `scrollbar-gutter: stable`, so a
+ * thumb that only read against a track colour would be a thumb that
+ * disappeared on a Mac. It reads against the PAGE, which is the one surface
+ * that is always actually there. `scrollbar-width` is not a style choice here
+ * either — macOS ignores `scrollbar-color` entirely without it.
+ *
+ * AND NOTHING EVER TRANSITIONS `scrollbar-color`. WebKit flickers the whole
+ * bar on every change of it (bugs.webkit.org 311752), so the preference flips
+ * the value and the bar is simply repainted. The reduced-motion floor below
+ * names the properties that may still transition and this is not among them,
+ * which is the second lock on the same door. */
 .olai-scroll {
+  --olai-scroll-thumb: color-mix(in srgb, currentColor 24%, transparent);
+  --olai-scroll-track: transparent;
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, currentColor 24%, transparent) transparent;
+  scrollbar-color: var(--olai-scroll-thumb) var(--olai-scroll-track);
 }
 
-.olai-scroll::-webkit-scrollbar {
-  width: 0.5rem;
+@media (prefers-contrast: more) {
+  .olai-scroll {
+    --olai-scroll-thumb: currentColor;
+  }
 }
 
-.olai-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* THE LEGACY BAR, for the browsers this app's floor still includes.
+ * `scrollbar-color` is Chrome 121 and Safari 26.2, above the floor this file
+ * opens with, so there are real readers on both sides of it. `@supports not`
+ * is what keeps the two grammars from being spoken at once on an engine that
+ * understands both — and the custom properties above need no second spelling,
+ * because they are inherited by these pseudo-elements like any other. */
+@supports not (scrollbar-color: auto) {
+  .olai-scroll::-webkit-scrollbar {
+    width: 0.5rem;
+  }
 
-.olai-scroll::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, currentColor 24%, transparent);
-  border-radius: 999px;
+  .olai-scroll::-webkit-scrollbar-track {
+    background: var(--olai-scroll-track);
+  }
+
+  .olai-scroll::-webkit-scrollbar-thumb {
+    background: var(--olai-scroll-thumb);
+    border-radius: 999px;
+  }
 }
 
 @media (min-width: 48rem) {
@@ -58,14 +120,228 @@ html {
   }
 }
 
+/* EVERY MODAL, AND THE PAGE IT IS OVER. `showModal()` makes the document
+ * under a dialog inert — no press, no caret, no tab stop — and says nothing at
+ * all about SCROLLING: a wheel or a drag over the dim scrolls the page behind
+ * it, and a gesture inside the panel chains to that page the moment the panel
+ * has no more to give (immediately, when its content does not overflow). No
+ * modal dialog in this app wants the outline moving under it (the list of
+ * them is `@olai/web`'s `client/layer.ts`), so the rule is written once, here,
+ * for the element rather than once per panel.
+ *
+ * BOTH RULES OR NEITHER. `::backdrop` defaults to `overflow: visible`, which
+ * is not a scroll container, and a non-container ignores `overscroll-behavior`
+ * entirely — so the backdrop has to be made one before it can be asked to
+ * contain anything. Not `clip` and not `visible`: neither establishes a scroll
+ * container either.
+ *
+ * It is a progressive enhancement and deliberately not feature-detected:
+ * `@supports` answers yes for the property everywhere while only some engines
+ * honour it on a scroll container whose content does not overflow. Where it is
+ * not honoured the dialog still contains its own overflow and the page is
+ * still inert. What this must never become is `overflow: hidden` on `html` or
+ * `body`, which takes away the root scrollbar — a horizontal jolt on every
+ * open — resets the scroll position and breaks `position: sticky` on the page
+ * underneath.
+ *
+ * `:where()` for the same reason the motion floor below wears it: this sheet
+ * is unlayered, so it already outranks every Tailwind utility by layer order
+ * and needs no specificity of its own. Kept at zero, a dialog that one day has
+ * a reason to chain its scroll — or to make its own backdrop scrollable — can
+ * say so in a hand-written rule with a real selector and be heard. The
+ * selectors are still the two the behaviour requires: a MODAL dialog (a
+ * non-modal one has no backdrop and is part of the page), and the backdrop
+ * itself, which has to be made a scroll container before it can contain
+ * anything. */
+:where(dialog:modal) {
+  overscroll-behavior: contain;
+}
+
+:where(dialog)::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
 /* A FOCUS RING for keyboard travel, once. Every control in the app used to
  * spell its own `focus-visible:outline-*`, and about half of them did. The
  * ring is the accent at two pixels with a gap of paper, so it reads on every
- * surface; a control that draws its own (an outline row, a text field with a
- * border that lights) opts out with `outline-none`, which being a utility
- * outranks this unlayered rule. */
+ * surface.
+ *
+ * THERE IS NO OPTING OUT, AND THERE NEVER WAS. This comment used to say that a
+ * control drawing its own indicator could stand this one down with the
+ * `outline-none` utility. That was false, and fourteen call sites had been
+ * written against it: this sheet is unlayered and Tailwind's utilities live in
+ * `@layer utilities`, layer order is settled BEFORE specificity is looked at,
+ * so a `:where()` selector at zero specificity here still beats
+ * `focus-visible:outline-none` — the ring was being drawn on every one of
+ * those controls all along, underneath whatever second ring they had spelled
+ * for themselves. The same fact is why the motion floor below can reach every
+ * `transition-*` in the app with a `*`.
+ *
+ * SO THE FOURTEEN LOST THEIR RINGS RATHER THAN THE SHEET GAINING A HATCH, and
+ * the reason is forced colours rather than tidiness. Every one of those sites
+ * drew its own ring with Tailwind's `ring-*`, which compiles to a
+ * `box-shadow`, and Windows High Contrast REMOVES box-shadows outright. An
+ * opt-out would therefore have been a loaded gun: the controls most likely to
+ * reach for it are the ones that think they have an indicator, and the
+ * indicator they have is the one kind that evaporates for the readers who
+ * need it most. An `outline` is the only focus indicator in CSS that forced
+ * colours keeps — it recolours it from the system palette and leaves the
+ * geometry alone — so the app has exactly one, it is an outline, and it is
+ * drawn for everybody.
+ *
+ * WHAT A CONTROL MAY STILL SAY is WHERE the ring goes, because that is
+ * geometry and the control is the only thing that knows its own. Two custom
+ * properties, and no others: `--olai-ring-offset` for a control inside a box
+ * that clips (a segment of a strip wearing `overflow-hidden` has to have its
+ * ring drawn INSIDE it or the strip cuts the ring off), and
+ * `--olai-ring-radius` for a control that is not `--radius-control`-shaped (a
+ * switch, a round swatch). They are set as ordinary declarations from a
+ * utility, and a custom property set in `@layer utilities` reaches a `var()`
+ * read from an unlayered rule perfectly well — the cascade is resolved per
+ * property, and nothing here declares either of them. Which is the whole
+ * difference between a knob and the hatch that was not there.
+ *
+ * A control that wants a SECOND cue — a menu band, a border that lights — adds
+ * it on top. It does not replace this. */
 :where(button, [role="button"], a[href], input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-  border-radius: var(--radius-control);
+  outline-offset: var(--olai-ring-offset, 2px);
+  border-radius: var(--olai-ring-radius, var(--radius-control));
+}
+
+/* FORCED COLOURS, ASKED FOR ONCE AND ANSWERED IN TWO PLACES — and this is the
+ * half that is about the READER rather than about any one control.
+ *
+ * Windows High Contrast (and the `forced-colors` media feature everywhere
+ * else) is not a palette the page gets to negotiate with. The browser throws
+ * away author colours and repaints from the system's own small set —
+ * `Canvas`, `CanvasText`, `Highlight`, `HighlightText`, `ButtonFace`,
+ * `ButtonText`, `GrayText`, `LinkText` — and on the way it DELETES
+ * `box-shadow`, `text-shadow` and gradient backgrounds outright. A system
+ * colour keyword written by the author survives, because it is already in the
+ * palette; everything else is overruled.
+ *
+ * THE RING IS PINNED TO `Highlight` rather than left to be forced. The browser
+ * would force `outline-color` to something of its own choosing anyway, and
+ * something is better than nothing — but `Highlight` is the palette's own word
+ * for "the thing you are on", it is guaranteed to carry against `Canvas`, and
+ * saying it here means the ring's colour is a decision this file made in both
+ * worlds rather than a decision it made in one and surrendered in the other.
+ * The `box-shadow` ring that fourteen controls used to draw instead is, in
+ * this mode, not dimmer or differently coloured: it is GONE.
+ *
+ * AND THE OTHER HALF IS NOT HERE, because a stylesheet cannot find it. Every
+ * state in this app that was told by BACKGROUND COLOUR alone — a switch's
+ * on and off, a pressed segment, the selected tab, a tone dot — collapses into
+ * its neighbour the moment the palette is the system's, and no selector in
+ * this file can tell which background was decoration and which one was the
+ * news. So those answers live with the SHARED CONTROL each state belongs to,
+ * never with the dozen faces that draw one: the switch, a strip's segments, a
+ * tab's underline, a menu's band and the round tone marks are all five in
+ * `@olai/ui-primitives/all.css`, keyed on the ARIA attribute that carries the
+ * state rather than on the utility that paints it, so hledger's hand-rolled
+ * depth strip and chat's standing dots are answered by the same rules as the
+ * components they copied. The one exception is the theme plugin's palette
+ * swatches, in its own `all.css` — the only `forced-color-adjust: none` in
+ * this tree, because a palette preview IS its colours and has nothing left to
+ * say once they are taken. What belongs HERE is this paragraph, so the next
+ * person adding a state told in `bg-*` has somewhere to have read it. */
+@media (forced-colors: active) {
+  :where(button, [role="button"], a[href], input, select, textarea, summary, [tabindex]):focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+/* LESS MOTION, ASKED FOR ONCE AND ANSWERED ONCE. A reader who tells their
+ * system they want less movement has said something about THEMSELVES, not
+ * about any one row — so the answer belongs here, beside the focus ring and
+ * the scrollbar, rather than as a `motion-safe:` sprinkled over every chevron,
+ * knob and dot somebody animates next. The app had exactly one `motion-safe:`
+ * and a dozen unguarded transitions when this block was written, which is the
+ * shape a rule has when nobody can see it.
+ *
+ * WHAT GOES IS MOVEMENT, NOT INFORMATION. The chevrons still turn, the switch
+ * knob still ends up on the right, the fold still opens — they arrive there
+ * instead of travelling. Colour and opacity stay alive on purpose: a control
+ * lighting under the pointer, a put-back button fading up on hover, a dot
+ * going from `doing` to `done` are not motion, and taking them away costs the
+ * reader a cue while sparing them nothing. So the only thing done to
+ * transitions is to replace the PROPERTY LIST with the half of it that does
+ * not move; every element keeps its own duration and easing for the colours
+ * that remain.
+ *
+ * WHY NOT THE USUAL `animation-duration: 0.01ms` SWEEP: collapsing an
+ * animation to a sliver still RUNS it — a flicker, and an `animationend` a
+ * frame later for whoever was waiting on one — which is more jarring than the
+ * animation was, not less. `animation: none` instead, which leaves the element
+ * rendering the styles it declares; for every animation this tree has that IS
+ * the finished state — a live dot at full opacity, a row's reveal already
+ * revealed — so nothing is left hidden and no focus ring goes missing. The one
+ * animation this would be wrong for is one whose resting look lives in its
+ * keyframes (`animation-fill-mode: forwards`). There is none, and the sheet
+ * that grows one outranks a `*` with any real selector of its own — as
+ * `markdown-ui`'s waiting sweep and `outlines`' row reveal already do, both of
+ * which OPT IN to motion under `(prefers-reduced-motion: no-preference)`
+ * rather than being talked out of it, which is the better shape wherever an
+ * animation is written by hand rather than reached for as a utility.
+ *
+ * IT IS A FLOOR, AND ITS SELECTOR IS CAREFULLY WEAK. This sheet is unlayered
+ * and Tailwind's utilities are not, so layer order — which is settled before
+ * specificity is even looked at — puts every rule here above every utility on
+ * the same element. That is what makes a `*` enough to reach the motion this
+ * app's faces spell as utilities — a `transition-transform` or an
+ * `animate-pulse` at a time. It also means A COMPONENT CANNOT ARGUE BACK IN A
+ * CLASS: a `motion-reduce:` utility asking to keep its movement would lose to
+ * this block, silently, which is the worst way for a policy to be wrong. There
+ * is no escape hatch here, because nothing has asked for one: the first motion
+ * that must survive the preference can add an attribute this rule honours,
+ * with the argument for why a reader who asked for less should still see it.
+ * A hatch with no wearer is a branch nobody has thought about.
+ *
+ * `:where()` wraps the selector so the floor stays at zero specificity, which
+ * is what keeps it a floor: anything with a real selector of its own outranks
+ * it and answers the preference where it decided to move.
+ *
+ * SO SAY WHAT THIS REACHES, EXACTLY: every piece of motion in this app that is
+ * written as a UTILITY. Not every piece of motion. The other plugin
+ * stylesheets are unlayered too, and an unlayered rule with a real selector
+ * beats a `:where(*)` on specificity — so a hand-written `transition:` or
+ * `@keyframes` in a plugin's `all.css` walks straight past this block and
+ * keeps moving for a reader who asked it not to. That is the right way round
+ * (a sheet that spells `transition: transform .15s` by hand has DECIDED
+ * something, and it should answer the preference where it decided it) and it
+ * is also the hole somebody will fall into. Three sites answer for themselves
+ * today, and they are the whole of the hand-written motion in this tree: the
+ * plugins panel's chevron (`plugins/plugin-inspector/src/all.css`, which turns
+ * its transition off), and markdown's waiting sweep and streaming caret
+ * (`markdown-ui/src/all.css`, both of which OPT IN under
+ * `(prefers-reduced-motion: no-preference)`). A fourth is caught by the sweep
+ * in `web/src/client/claims.test.ts` — every stylesheet in the tree that
+ * spells an `infinite` animation is named there, and each one has to carry its
+ * own answer — because nothing else in CSS will catch it.
+ *
+ * A PULSE THAT WAS THE ONLY SIGNAL IS A BUG THIS CANNOT FIX. Stilling a cue
+ * must not delete it, and a stylesheet cannot tell the difference — so the cue
+ * has to carry its fact without the movement in the first place. The agent
+ * standings are the case in point: working and idle were one colour apart from
+ * nothing and a pulse apart from each other, so working wears a halo now
+ * (`chat/browser/agents/roster.ts`) and this block takes the movement and
+ * leaves the fact.
+ *
+ * AND THE SCROLLING, in both grammars. CSS smooth scrolling is turned off
+ * here. The JavaScript side cannot be, because `scrollIntoView` takes its
+ * manner as an argument: `./motion.ts` is that one answer, asked at the moment
+ * of the scroll rather than at import, since a reader may change their mind
+ * without reloading the tab. */
+@media (prefers-reduced-motion: reduce) {
+  :where(*),
+  :where(*)::before,
+  :where(*)::after {
+    transition-property:
+      color, background-color, border-color, outline-color,
+      text-decoration-color, fill, stroke, opacity;
+    animation: none;
+    scroll-behavior: auto;
+  }
 }

@@ -79,7 +79,8 @@ import type { Edit } from "@olai/surface"
 import { Result as Outcome } from "effect"
 
 import { CHORDS,isEditingTarget,listKey,matchChord,matchKey,paneKey } from "@olai/web/client/keys.ts"
-import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
+import { composing } from "@olai/web/client/composition.ts"
+import { enterTopLayer } from "@olai/web/client/layer.ts"
 import { only } from "@olai/web/client/narrow.ts"
 import { paletteFaces } from "../faces.ts"
 import { Refusals } from "@olai/web/client/refusals.tsx"
@@ -93,6 +94,7 @@ import { atOnce,spend } from "@olai/web/client/settled.ts"
 
 import { useToday } from "./clock.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
+import { claimCloseRequest, lightDismiss } from "@olai/web/client/dismiss.ts"
 import { resetPanelWidths } from "./shell.ts"
 import type { Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
@@ -254,11 +256,16 @@ export function Palette(props: {
    */
   const [sending, setSending] = memory.sending
   let input: HTMLInputElement | undefined
-  let previousFocus: HTMLElement | null = null
-  /** The confirm's own buttons while a question is up — where the caret goes
-   *  when the question is raised, and what Tab cycles between. */
-  let go: HTMLButtonElement | undefined
-  let cancel: HTMLButtonElement | undefined
+  /** The modal itself. Everything a hand-written overlay had to keep — what
+   *  covers the page, what the caret may reach, where it goes back to — is
+   *  this element's, because it is opened with `showModal` (see the markup). */
+  let modal: HTMLDialogElement | undefined
+  // ...AND WITHDRAWAL PUTS IT DOWN. A modal removed from the document leaves
+  // the top layer with no `close` event behind it: nothing tells the app the
+  // palette is gone and nobody is handed the keyboard back. Navigation going
+  // away with the palette open is exactly that, so the element is closed
+  // while it is still in the page.
+  onCleanup(() => { if (modal?.open === true) modal.close() })
 
   /**
    * WHAT THE BOX IS DOING — one value, so "showing the list", "composing a
@@ -461,17 +468,61 @@ export function Palette(props: {
   }
 
   const close = closePalette
-  /** A navigation moved the reader: the caret they left is not where they went,
-   *  and refocusing it would take an in-place reveal's selection back. */
-  const navigated = () => { previousFocus = null; close() }
+  /**
+   * WHERE THE CARET GOES WHEN THIS CLOSES, and why the platform is not asked.
+   *
+   * A modal dialog hands the keyboard back to whatever was focused when
+   * `showModal()` ran, and the dialog guide says plainly: DON'T write code to
+   * return focus on close. This panel is the exception, and the reason is that
+   * it has close paths that must NOT hand back — a row that navigates has
+   * taken the reader somewhere else, and the control they left behind is not
+   * where the caret belongs. The platform offers no way to decline the
+   * hand-back: it is decided at `showModal()`, from whatever has focus at that
+   * instant, and letting go of that element afterwards changes nothing,
+   * because the restore is SYNCHRONOUS inside `close()` and the `focusin` it
+   * fires has already run by the time any `close` task could undo it. One of
+   * the things listening for that `focusin` is a parked row clearing the
+   * page's selection (`outlines`' `NewRow.tsx`), which is how a destination
+   * the palette had just revealed ended up unselected by a control nobody was
+   * looking at.
+   *
+   * So: nothing is left for the platform to remember. The invoker is taken off
+   * the keyboard BEFORE `showModal()`, and this panel gives the caret back
+   * itself on the closes that did not move the reader. "Moved" is two
+   * readings, because the doors are not all alike: the two that navigate say
+   * so outright, and a `run` whose work navigated is caught by comparing WHERE
+   * THE READER IS against where they were when this opened.
+   */
+  /** Who had the keyboard when this opened, blurred at that instant. */
+  let invoker: HTMLElement | null = null
+  /** The focused pane's address when this opened — the second reading of
+   *  "the reader moved", for a door that navigates from inside its own work. */
+  let cameFrom: string | undefined
+  /** A door that MOVED the reader said so. */
+  let moved = false
+  /** The reader asked for the shortcuts sheet, which opens once this one is
+   *  out of the way and the caret is back where it came from — so the sheet
+   *  records THAT control as its own hand-back rather than an input that is
+   *  about to unmount with this panel. */
+  let wantKeys = false
+  const whereabouts = (): string => router.routes.href(router.route())
+  /** Give the caret back, unless the reader moved, something else has taken it
+   *  since, or the control they left is no longer in the page. */
+  const handBack = (): void => {
+    const left = invoker
+    invoker = null
+    const went = moved || whereabouts() !== cameFrom
+    moved = false
+    if (went || left === null || !left.isConnected) return
+    if (document.activeElement !== null && document.activeElement !== document.body) return
+    left.focus()
+  }
+  const navigated = () => { moved = true; close() }
   // Navigation can close the palette through its activation-owned shortcut.
-  // Every closing door releases this renderer's query and focus identically.
+  // Every closing door releases this renderer's query identically.
   createEffect(on(paletteOpen, (opened) => {
     if (opened) return
     blank()
-    const back = previousFocus
-    previousFocus = null
-    queueMicrotask(() => back?.focus())
   }, {defer:true}))
 
   /** The box, primed with a prefix and the caret after it — what the capture
@@ -502,10 +553,13 @@ export function Palette(props: {
    */
   let firstOpening = true
   createEffect(() => {
-    if (!paletteOpen()) return
-    previousFocus = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null
+    if (!paletteOpen()) {
+      // CLOSED IS A CALL TOO, and it is the only one: `close()` is what takes
+      // the element out of the top layer, lifts the inertness off the page,
+      // gives the keyboard back and fires the `close` the markup listens to.
+      if (modal?.open === true) modal.close()
+      return
+    }
     // A drawing rebuilt over an open palette restores what was open; an
     // opening that came with a path (`showAt`) goes there; any other opening
     // is a blank box at the root. Whichever of this and the request effect
@@ -518,8 +572,34 @@ export function Palette(props: {
       untrack(() => openAt(at))
     }
     firstOpening = false
-    // The element is not attached at the instant the signal flips.
-    queueMicrotask(() => input?.focus())
+    // The element is not attached at the instant the signal flips — and the
+    // body of the modal is drawn by the `<Show>` inside it, so there is
+    // nothing to focus until Solid has put it there. Through
+    // `enterTopLayer` because the surfaces that take the whole app are a list
+    // (`../../../../web/src/client/layer.ts`).
+    queueMicrotask(() => {
+      if (!paletteOpen() || modal === undefined) return
+      if (modal.open !== true) {
+        // REMEMBERED AND RELEASED IN THE SAME BREATH, before the layer is
+        // entered: the platform decides its hand-back from whatever has focus
+        // at `showModal()`, and leaving it nothing to remember is the only way
+        // to decline one (see the note on `handBack`).
+        const had = document.activeElement
+        invoker = had instanceof HTMLElement ? had : null
+        invoker?.blur()
+        cameFrom = whereabouts()
+        moved = false
+      }
+      enterTopLayer(modal)
+      // …and the CARET goes to the box, unless a question is standing in it.
+      // A confirm takes the caret onto its own verb (`./Question.tsx`, and
+      // the `•••` menu's rule before it), and this effect re-runs for reasons
+      // of its own — a level arriving, a drawing rebuilt — so without the
+      // guard the box pulls the keyboard back off a question the reader is
+      // being asked, which is the one moment the box is not what they are
+      // answering.
+      if (paletteAsking() === null) input?.focus()
+    })
   })
 
   /**
@@ -594,8 +674,16 @@ export function Palette(props: {
       })
       return
     }
-    if (action.kind === "route") { props.go(action.route); previousFocus = null }
-    else if (action.kind === "shortcuts") setKeys(true)
+    if (action.kind === "route") {
+      // A DOOR THAT MOVES THE READER: the caret stays wherever the page puts
+      // it, and the control they left behind does not get it back (`handBack`).
+      moved = true
+      props.go(action.route)
+    }
+    // …and the sheet waits for this panel to be out of the way, so that the
+    // control it records as ITS hand-back is the one the reader came from
+    // rather than an input that unmounts a moment later (`handBack`).
+    else if (action.kind === "shortcuts") wantKeys = true
     else if (action.kind === "toggle-sidebar") props.toggleDirectory()
     else if (action.kind === "reset-widths") resetPanelWidths()
     else if (action.kind === "close-pane") router.close()
@@ -762,18 +850,26 @@ export function Palette(props: {
   }
 
   /**
-   * The palette on the client's one dismissal stack (`../topmost.ts`).
+   * The palette on the client's one dismissal stack (`../topmost.ts`) — a
+   * TICKET TAKEN AND NEVER READ, which is the whole of what is left here.
    *
-   * It is a layer like any other — it answers Escape (below) and a press on its
-   * own scrim — and being off that stack was the same bug the `•••` menu had
-   * against the header's popovers: `⌘K` is `whileEditing: true`, so it opens
-   * with the caret inside an open popover and WITHOUT a press anywhere, which
-   * leaves both up. One Escape then ran the popover's handler (on the document)
-   * and this one (on the window, which is later in the same bubble) — two
-   * panels, one keystroke. The ticket is what makes the popover defer; the
-   * guard below is the other direction, for whatever opens over this one next.
+   * Being off that stack was the same bug the `•••` menu had against the
+   * header's popovers: `⌘K` is `whileEditing: true`, so it opens with the
+   * caret inside an open popover and WITHOUT a press anywhere, which leaves
+   * both up. One Escape then ran the popover's handler (on the document) and
+   * this one (on the window, which is later in the same bubble) — two panels,
+   * one keystroke.
+   *
+   * The ticket is what makes those panels defer, and it is still needed for
+   * exactly that: a layer underneath asks the stack, and this has to be the
+   * answer. What is GONE is the other direction. This panel no longer asks
+   * the stack anything, because both of its gestures are the platform's now —
+   * a close request reaches only the topmost modal dialog, and a press on the
+   * backdrop is a press the inert page never sees. Nothing can stand over a
+   * modal but another modal, and the browser already knows which of those is
+   * on top.
    */
-  const topmost = topmostWhileOpen(paletteOpen)
+  topmostWhileOpen(paletteOpen)
 
   /** Escape backs out of the question first and closes the palette second —
    *  one key, the nearest thing it can dismiss, which is what it means
@@ -810,31 +906,7 @@ export function Palette(props: {
         chord.press()
         return
       }
-      if (match === null) {
-        if (paletteOpen() && topmost() && event.key === "Escape") {
-          event.preventDefault()
-          escape()
-        }
-        // Simple focus trap: keep Tab inside the dialog while open — and
-        // inside the QUESTION while one is up, which is the part that stopped
-        // being simple when the confirm moved in here. Sending Tab back to the
-        // box then would have been a trap that made the two buttons it draws
-        // unreachable by keyboard (review, 2026-08-14), so while the question
-        // is standing Tab cycles its two ways out and nothing else.
-        if (paletteOpen() && event.key === "Tab") {
-          event.preventDefault()
-          const question = paletteAsking()
-          if (question === null) input?.focus()
-          else if (document.activeElement === go) cancel?.focus()
-          // A TYPED question's answer is written in the box, so the box is one
-          // of its ways out and the cycle goes back through it. A confirm's is
-          // not: there is nothing to type, and Tab there is the two buttons.
-          else if (document.activeElement === cancel && question.kind === "line") {
-            input?.focus()
-          } else go?.focus()
-        }
-        return
-      }
+      if (match === null) return
       if (!match.whileEditing && isEditingTarget(event.target)) return
       event.preventDefault()
       if (match.action === "palette") return // Navigation owns this shortcut.
@@ -854,37 +926,103 @@ export function Palette(props: {
   return (
     <>
     <Shortcuts open={keys()} onClose={() => setKeys(false)} more={chords()} />
-    <Show when={paletteOpen()}>
-      {/* On a phone this is a sheet under the header, not a card hanging in
-          20vh of empty air: a `max-h-72` list under that padding sliced the
-          last row through the rounded clip, and the teaching placeholder
-          ended `agent, -`. Desktop keeps the floating card. */}
-      <div
-        class={`fixed inset-0 ${LAYER.over} flex items-stretch justify-center bg-ink/40 px-3 pt-[calc(var(--height-header)+0.5rem)] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] md:items-start md:px-4 md:pb-4 md:pt-[min(20vh,8rem)]`}
-        data-testid={TESTID.palette}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Command palette"
-      >
-        <button
-          type="button"
-          class="absolute inset-0 cursor-default"
-          aria-label="Close"
-          data-testid={TESTID.paletteScrim}
-          // Asked of the stack like the key is, and for the same reason: this
-          // is the palette's other dismissal, and a press on a full-screen
-          // scrim is a press outside every panel underneath as well. Nothing
-          // stands over the palette today (a row that opens another surface
-          // calls `close` on its way through, and the scrim covers the page),
-          // so this guard changes no pixel now — it is the pointer half of the
-          // rule the Escape above keeps, left unguarded once and worth exactly
-          // one line to not leave unguarded twice.
-          onClick={() => {
-            if (topmost()) close()
-          }}
-        />
+    {/* On a phone this is a sheet under the header, not a card hanging in
+        20vh of empty air: a `max-h-72` list under that padding sliced the
+        last row through the rounded clip, and the teaching placeholder
+        ended `agent, -`. Desktop keeps the floating card.
+
+        THE SHEET IS THE DIALOG, rather than a card inside a scrim of this
+        panel's own. What that buys is everything an overlay used to rebuild
+        by hand and this file no longer spells: the page behind it is INERT
+        (no press, no tab stop, nothing for a screen reader to wander into),
+        the keyboard cannot leave the box, the dim is the browser's
+        `::backdrop`, Escape is a close request, and the caret goes back to
+        whoever opened it. No `role`, no `aria-modal` and no focus trap
+        either: a native modal already is one, and saying so twice is how a
+        panel ends up announced as a dialog inside a dialog.
+
+        It spells no `z-index` at all. `showModal` puts it in the TOP LAYER,
+        which is over every stacking context on the page at once — the one
+        claim `../../../../web/src/client/layer.ts`'s table cannot make — and
+        a number here would be a second, weaker answer to the same question.
+
+        The box is the SHEET rather than the viewport for the pointer's sake:
+        light dismiss below measures a press against this element's own
+        rectangle, and a dialog stretched over the whole window would have no
+        outside left to press. */}
+    <dialog
+      class="fixed inset-x-3 top-[calc(var(--height-header)+0.5rem)] bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] mx-auto my-0 h-auto max-h-none w-auto max-w-xl rounded-surface border border-rule bg-panel p-0 text-ink shadow-overlay backdrop:bg-ink/40 md:inset-x-4 md:bottom-auto md:top-[min(20vh,8rem)]"
+      aria-label="Command palette"
+      // A press OUTSIDE puts it away, which is what the full-screen scrim
+      // this replaced was for. `closedby` is the declarative half and Safari
+      // has none of it, so `lightDismiss` carries the other half on the
+      // pointer's own position (`../../../../web/src/client/dismiss.ts`).
+      ref={(element) => {
+        modal = element
+        lightDismiss(element)
+        claimCloseRequest(element)
+        // AND OPENED FROM HERE TOO, for the one case the effect below cannot
+        // see: a REDRAW. A plugin arriving or leaving rebuilds this component
+        // with the open signal already true, so the effect — which tracks that
+        // signal — has nothing to re-run on, and the new element would stand
+        // in the page closed while the app believed the palette was up. The
+        // element is the thing that knows it is new.
+        if (paletteOpen()) queueMicrotask(() => { if (paletteOpen()) enterTopLayer(element) })
+      }}
+      onCancel={(event) => {
+        // ESCAPE IS A CLOSE REQUEST now, and the dismissal stack's order is
+        // kept by the platform: a close request is offered to the TOPMOST
+        // modal and to nothing under it. What is still this panel's own is
+        // the layer INSIDE it — a question standing in the box is the nearest
+        // thing the key can dismiss, so that one is answered here and the
+        // request is refused. With nothing standing, the default runs: the
+        // dialog closes, and the `close` below is what tells the rest of the
+        // app so.
+        if (paletteAsking() !== null) {
+          event.preventDefault()
+          escape()
+          return
+        }
+        // NOTHING STANDING: the default runs and the dialog closes. The signal
+        // is written HERE as well as in `close` below, because `cancel` is
+        // synchronous with the key and `close` is a task of its own — and in
+        // between, a ⌘K pressed in the same breath would read a palette that
+        // is still "open" and toggle it SHUT. The two writes agree; this one
+        // is merely in time.
+        close()
+      }}
+      onClose={() => {
+        // THE ONE PLACE A CLOSED PALETTE IS ANSWERED, whoever closed it: this
+        // renderer's own effect, a press on the backdrop, the platform's
+        // close request. The signal is the app's copy of that fact, so it is
+        // written here rather than at each door.
+        //
+        // …unless the palette is ALREADY OPEN AGAIN. `close` is dispatched in
+        // a task of its own, so an Escape and a ⌘K in the same breath — which
+        // is a gesture a person makes, and one `palette_write_pending.feature`
+        // makes on purpose — run as close, reopen, and only THEN this handler.
+        // Writing the signal there would shut the palette the reader has just
+        // reopened, with nothing but a flicker to show for it. The element is
+        // the fact: if it is open, this news is about a palette that is gone.
+        if (modal?.open === true) return
+        // …nor when the element is no longer in the page. A redraw — a plugin
+        // arriving or leaving — tears this dialog down and builds another,
+        // and a `close` fired on the way out is news about the OLD element.
+        // Answering it would shut a palette the reader still has open, which
+        // is the one thing a rebuild is supposed to survive.
+        if (modal !== undefined && !modal.isConnected) return
+        close()
+        // THE CARET GOES BACK HERE, from the one place that knows the panel
+        // is really gone — and the sheet, if it was asked for, opens after it
+        // so that it records a control that is still in the page.
+        handBack()
+        if (wantKeys) { wantKeys = false; setKeys(true) }
+      }}
+    >
+      <Show when={paletteOpen()}>
         <div
-          class={`relative ${WITHIN.raised} flex h-full min-h-0 w-full max-w-xl flex-col overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule md:h-auto`}
+          class="flex h-full min-h-0 w-full flex-col md:h-auto"
+          data-testid={TESTID.palette}
         >
           {/* THE BOX ROW: a crumb per open level, then the input. A crumb is
               the pointer's and the finger's way back — pressing one closes
@@ -911,6 +1049,11 @@ export function Palette(props: {
           <input
             ref={input}
             type="text"
+            // WHERE THE CARET LANDS when the modal opens, said to the platform
+            // as well as done by the effect above: a dialog with no `autofocus`
+            // focuses the dialog itself, and a reader who pressed ⌘K is already
+            // typing.
+            autofocus
             class="min-w-[8rem] flex-1 bg-transparent font-sans text-title text-ink outline-none placeholder:text-muted"
             data-testid={TESTID.paletteInput}
             data-depth={inLevel() ? depth() : 0}
@@ -947,7 +1090,7 @@ export function Palette(props: {
             onKeyDown={(e) => {
               // BACKSPACE ON AN EMPTY BOX GOES BACK one level. Never mid-IME:
               // a composition's own Backspace is not ours.
-              if (e.key === "Backspace" && !e.isComposing && inLevel() && e.currentTarget.value === "") {
+              if (e.key === "Backspace" && !composing(e) && inLevel() && e.currentTarget.value === "") {
                 e.preventDefault()
                 levels.pop(depth() - 1)
                 return
@@ -1132,8 +1275,6 @@ export function Palette(props: {
                   asking={it().question}
                   onGo={() => answer(it().question)}
                   onCancel={escape}
-                  setGo={(element) => (go = element)}
-                  setCancel={(element) => (cancel = element)}
                 />
               )}
             </Match>
@@ -1153,8 +1294,8 @@ export function Palette(props: {
             </Match>
           </Switch>
         </div>
-      </div>
-    </Show>
+      </Show>
+    </dialog>
     </>
   )
 }

@@ -50,6 +50,7 @@ import type { Terminal } from "@xterm/xterm"
 import { gridsEqual } from "@kolu/terminal-vocab/schema"
 import { DEFAULT_FONT_SIZE, FONT_FAMILY, getThemeByName } from "terminal-themes"
 import { Effect, Fiber, Stream } from "effect"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 import { TESTID } from "../../contracts/appliance-testids.ts"
 import {
@@ -451,17 +452,22 @@ export function LivePane(props: {
             replaced. */}
         <span data-testid={TESTID.terminalLive}>● Live</span>
         <span class="ml-auto flex gap-2">
-          <button
-            type="button"
-            class="cursor-pointer hover:text-accent"
-            title="Stop watching"
-            onClick={(event) => {
-              event.stopPropagation()
-              props.onClose()
-            }}
-          >
-            Close
-          </button>
+          {/* WHAT CLOSING DOES — the watch ends with the pane. "Close" alone
+              is the gesture; the words after it are the consequence, hidden
+              from the drawing and said to a reader, because the tip beside
+              them exposes nothing to one. */}
+          <Tip text="Stop watching">
+            <button
+              type="button"
+              class="cursor-pointer hover:text-accent"
+              onClick={(event) => {
+                event.stopPropagation()
+                props.onClose()
+              }}
+            >
+              Close<span class="sr-only"> — stop watching this terminal</span>
+            </button>
+          </Tip>
         </span>
       </div>
       {/* THE SENTENCE, in the reading face, IN PLACE OF the terminal — a pane

@@ -64,6 +64,15 @@ export function Tip(props: {
    *  `aria-label`, so this is never the only copy. */
   readonly text: string
   readonly disabled?: boolean
+  /**
+   * SAY IT OUT LOUD as well as drawing it. A tip is a convenience for a
+   * pointer and must never be the only copy of a fact, so the words go out
+   * again in a visually hidden span — AFTER the control, which is the one
+   * ordering this component can guarantee and the reason it is spelled here
+   * rather than by every face that needs it. Left off where the control's own
+   * accessible name already carries the sentence.
+   */
+  readonly say?: boolean
   /** The control being explained. It MUST be the wrapper's first element
    *  child: the tip's rectangle is read off exactly that (the wrapper is
    *  `display: contents` and has no box of its own). Companions that are
@@ -200,10 +209,25 @@ export function Tip(props: {
       })
     })
 
+    /**
+     * WHERE THE PORTAL LANDS: the end of the document, which is where every
+     * tip this app draws belongs today. `position: fixed` is what places it,
+     * so no ancestor's scroll or `overflow` has a say.
+     *
+     * THE ONE PLACE THIS WOULD BE WRONG is a control inside a modal
+     * `<dialog>`: `showModal()` paints over every stacking context on the page
+     * at once, so a tip appended to `<body>` about a control up there would be
+     * drawn UNDER the panel it belongs to, whatever layer it names. No modal
+     * in this app raises a tip (`./layer.ts` holds that list), so the branch
+     * that would mount into the dialog is not written: an untested arm is
+     * worse than an absent one. The first face that puts a tip in a modal
+     * adds `anchor?.closest("dialog")` here, with a scenario that sees the
+     * sentence.
+     */
     return (
       <Show when={tipShowing(me) ? at() : undefined}>
         {(spot) => (
-          <Portal>
+          <Portal mount={document.body}>
             <Drawn at={spot()} />
           </Portal>
         )}
@@ -214,6 +238,7 @@ export function Tip(props: {
   return (
     <span ref={anchor} class="contents">
       {props.children}
+      <Show when={props.say === true}><span class="sr-only">{props.text}</span></Show>
       <Show when={!props.disabled}><Enabled /></Show>
     </span>
   )

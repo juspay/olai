@@ -16,14 +16,20 @@
  * pay for all of them on every roster frame.
  *
  * AND NOT DRAWN AT ALL BELOW md, which is the same rule the outline's `•••`
- * keeps (`@olai/ui-primitives`'s `MENU_CELL`): a hover affordance on a device
- * with no hover is a target a thumb can hit and an eye cannot find.
+ * keeps (`@olai/ui-primitives`'s `MENU_CELL`): that is a fact about ROOM, and
+ * a 390pt row spends its width on the title. Above it, where the width is
+ * there, whether the dots are VISIBLE is a fact about the pointer instead —
+ * `SHOWN_WITHOUT_HOVER` draws them for a tablet, which used to get the one
+ * state worth nobody's while: a transparent target a thumb can hit and an
+ * eye cannot find.
  */
 
 import { createSignal, lazy, Show } from "solid-js"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { WITHIN } from "@olai/web/client/layer.ts"
+import { SHOWN_WITHOUT_HOVER } from "@olai/ui-primitives/touch.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import type { RowVerb } from "olai-plugin-outlines/slots"
 import { TESTID } from "../../testids.ts"
 import { chatVerbs } from "../verbs.tsx"
@@ -47,16 +53,20 @@ export function ChatRowMenu(props: { readonly row: Row }) {
   }
   return <Show when={verbs().length > 0}>
     {/* NOT DRAWN BELOW md, and `hidden` rather than transparent: a phone
-        spends no width on a hover affordance (`ui-primitives/touch.ts`'s
-        `MENU_REVEAL` says the same thing for the outline's `•••`), and an
-        `opacity-0` control is still a 24px target a thumb can hit at the
-        row's right edge — invisible, and in the way of the row itself. */}
+        spends no width on a control it has no room for (`ui-primitives/
+        touch.ts`'s `MENU_REVEAL` says the same thing for the outline's `•••`),
+        and an `opacity-0` control is still a 24px target a thumb can hit at
+        the row's right edge — invisible, and in the way of the row itself.
+        Above md that same sentence is why the dots do not fade at all on a
+        touch screen: the hole they would otherwise leave is a tablet, which
+        is wide enough to draw them and has no hover to find them with. */}
+    <Tip text="More">
     <button type="button"
-      class="hidden size-6 items-center justify-center rounded-control bg-desk text-caption leading-none tracking-[0.05em] text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100 md:inline-flex"
+      class={"hidden size-6 items-center justify-center rounded-control bg-desk text-caption leading-none tracking-[0.05em] text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100 md:inline-flex " + SHOWN_WITHOUT_HOVER}
       classList={{ "opacity-100": anchor() !== null }}
       data-testid={TESTID.chatRowMenu} data-agent={props.row.id}
       aria-haspopup="menu" aria-expanded={anchor() !== null}
-      aria-label={`More for ${props.row.title}`} title="More"
+      aria-label={`More for ${props.row.title}`}
       onClick={event => {
         // A control inside the row's own anchor would navigate as well as
         // open; the row draws this one beside it, and the press stops here.
@@ -65,6 +75,7 @@ export function ChatRowMenu(props: { readonly row: Row }) {
         const button = event.currentTarget
         setAnchor(before => before === null ? button : null)
       }}>•••</button>
+    </Tip>
     <Show when={anchor()}>{at =>
       <ChatRowPanel anchor={at()} node={props.row.id} verbs={verbs()}
         pick={verb => void run(verb)} close={() => setAnchor(null)} />

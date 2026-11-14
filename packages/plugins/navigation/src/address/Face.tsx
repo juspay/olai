@@ -64,6 +64,7 @@
  * address answered for itself.
  */
 import { TESTID } from "olai-plugin-navigation/testids"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { Show } from "solid-js"
 
 import type { AddressTarget } from "./address.ts"
@@ -131,14 +132,17 @@ export function Face(props: {
             sidebar's ink, which is where a pin actually sits. A long query
             used to be `shrink-0` as well, so `created:yesterday..today`
             took the row and left the name as `c…`. It can shrink now, and
-            the full query rides `title` for the half that does not fit. */}
-        <span
-          class={`min-w-0 max-w-[55%] ${labelClass()} rounded-control bg-current/10 px-1 font-mono text-caption`}
-          data-testid={TESTID.addressFilter}
-          title={filter()}
-        >
-          {filter()}
-        </span>
+            the full query rides this app's own tip for the half that does
+            not fit — no copy beside it, because the words in the tip ARE
+            the words in the box. */}
+        <Tip text={filter()}>
+          <span
+            class={`min-w-0 max-w-[55%] ${labelClass()} rounded-control bg-current/10 px-1 font-mono text-caption`}
+            data-testid={TESTID.addressFilter}
+          >
+            {filter()}
+          </span>
+        </Tip>
       </Show>
     </>
   )

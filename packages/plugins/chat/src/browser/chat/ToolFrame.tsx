@@ -79,6 +79,7 @@ import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { armedOf, endedOf, watchOf } from "./background.ts"
 import { Diff } from "./Diff.tsx"
@@ -235,8 +236,17 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
           {look().mark}
         </span>
         <span class="sr-only">{look().said}</span>
-        <span class="min-w-0 flex-1 truncate" data-testid={TESTID.chatToolText}
-          title={props.entry.called !== props.entry.text ? props.entry.called : undefined}>{props.entry.text}</span>
+        {/* WHAT WAS ACTUALLY CALLED, where the drawn words are a tidier name
+            for it. It was the `title`'s alone; it is in the row's own name
+            now — this line is inside the fold button — and under the pointer
+            as a tip. The companion is OUTSIDE the text span, because a
+            scenario reads that span's words back. */}
+        <Tip text={props.entry.called ?? ""} disabled={!props.entry.called || props.entry.called === props.entry.text}>
+          <span class="min-w-0 flex-1 truncate" data-testid={TESTID.chatToolText}>{props.entry.text}</span>
+          <Show when={props.entry.called && props.entry.called !== props.entry.text ? props.entry.called : undefined}>
+            {(called) => <span class="sr-only">{called()}</span>}
+          </Show>
+        </Tip>
         {/* WHO WAS SENT, on the line, from the moment the spawn is announced —
             which is a good while before the agent has done anything to draw a
             lane out of ({@link ./spawn.ts}). It shares the slot a call's
@@ -322,13 +332,17 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
         </Show>
         <Show when={props.entry.locations}>
           {(locations) => (
-            <span
-              class="min-w-0 max-w-[45%] shrink truncate text-muted/80"
-              data-testid={TESTID.chatToolLocations}
-              title={locations().join("\n")}
-            >
-              {locations().join(" ")}
-            </span>
+            /* ONE PER LINE under the pointer, where the row draws them in a
+               run — the same strings either way, so the spoken half is the
+               span's own text and needs no companion. */
+            <Tip text={locations().join("\n")}>
+              <span
+                class="min-w-0 max-w-[45%] shrink truncate text-muted/80"
+                data-testid={TESTID.chatToolLocations}
+              >
+                {locations().join(" ")}
+              </span>
+            </Tip>
           )}
         </Show>
         <Show when={replyFile()}>{file => <span class="min-w-0 max-w-[45%] shrink truncate text-muted/80" data-testid={TESTID.chatToolFile}>{file()}</span>}</Show>

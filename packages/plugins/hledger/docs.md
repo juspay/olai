@@ -31,7 +31,8 @@ to balance the rest of its group — the ordinary postings, or the balanced
 virtual ones, since an unbalanced `(…)` posting balances nothing — is marked
 _inferred_ with a hollow circle, so you can tell the format's arithmetic from
 what was written. The date a row draws is the DAY (`Jul 01`), because the band
-above already names the month; the whole date is the cell's `title`. Every
+above already names the month; the whole date is one hover away, and is read
+out beside the day for anyone reading with a screen reader. Every
 amount in the view is one aligned column — the number right-aligned, a suffix
 commodity in its own column beside it — so a column of amounts can be read
 down rather than across, and the decimals line up whatever side the commodity
@@ -80,6 +81,14 @@ sub-lines are that directive, and they carry its mark.
 The view is per file. Opening another journal starts again on Transactions,
 which is the reading a journal is opened for; nothing remembers which tab you
 left a file on.
+
+On a screen that forces its own colours — High Contrast — the three status
+marks and the selected tab are drawn from the reader's own palette rather than
+olai's: a cleared dot stays filled, a pending one stays quieter, an unmarked
+one stays a ring, and the view you are on keeps its underline while the other
+two do not. The depth control's chosen clip is drawn the same way. Each mark
+also carries its word for a screen reader (`cleared`, `pending`, `not marked`),
+which is true in every palette. [theme.md](theme.md) has the account.
 
 ## View only
 

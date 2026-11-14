@@ -88,6 +88,11 @@ import { customEntries, drawerEntries } from "olai-plugin-outlines/property-valu
 import { PropsDrawer, type SetProp } from "./props/PropsDrawer.tsx"
 import { EdgeRefs } from "./edges/EdgeRefs.tsx"
 import { ROW_NOTE } from "@olai/ui-primitives/touch.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
+
+/** What pressing an open note does. One string: the tip says it to a pointer
+ *  and the `sr-only` copy inside the control says it to everybody else. */
+const EDIT_NOTE = "Edit note"
 
 export function NodeBody(props: {
   readonly record?: string
@@ -245,33 +250,41 @@ export function NodeBody(props: {
             <div class="olai-row-detail" data-open="true">
               <Show when={props.shows.node.desc}>
                 {(desc) => (
-                  <div
-                    class={`mt-0.5 mb-1 cursor-text ${ROW_NOTE}`}
-                    role="button"
-                    tabindex={0}
-                    title="Edit note"
-                    onClick={(event) => {
-                      if (event.target instanceof Element && event.target.closest("a")) return
-                      event.stopPropagation()
-                      // Already open: the click is the caret's. Folding back is
-                      // what the pilcrow does, and what clicking AWAY does
-                      // (./note/expand.ts), which is also what commits.
-                      props.onEdit?.()
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.target instanceof Element && event.target.closest("a")) return
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault()
+                  <Tip text={EDIT_NOTE}>
+                    <div
+                      class={`mt-0.5 mb-1 cursor-text ${ROW_NOTE}`}
+                      role="button"
+                      tabindex={0}
+                      onClick={(event) => {
+                        if (event.target instanceof Element && event.target.closest("a")) return
+                        event.stopPropagation()
+                        // Already open: the click is the caret's. Folding back is
+                        // what the pilcrow does, and what clicking AWAY does
+                        // (./note/expand.ts), which is also what commits.
                         props.onEdit?.()
-                      }
-                    }}
-                  >
-                    <Note
-                      desc={desc()}
-                      from={props.shows.file}
-                      open
-                    />
-                  </div>
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.target instanceof Element && event.target.closest("a")) return
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault()
+                          props.onEdit?.()
+                        }
+                      }}
+                    >
+                      <Note
+                        desc={desc()}
+                        from={props.shows.file}
+                        open
+                      />
+                      {/* INSIDE the control and after the note, which is where
+                          a button's own words end: this block's name is the
+                          note it holds, and what pressing it DOES was the
+                          platform tooltip's alone. Outside the note's own
+                          element, so the words a scenario reads off `desc` are
+                          still the note's. */}
+                      <span class="sr-only">{EDIT_NOTE}</span>
+                    </div>
+                  </Tip>
                 )}
               </Show>
               <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />

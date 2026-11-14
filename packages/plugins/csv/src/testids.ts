@@ -2,6 +2,7 @@
 export const TESTID = {
   csvLink: "csv-link",
   csvTable: "csv-table",
+  csvScroller: "csv-scroller",
   csvClamp: "csv-clamp",
 } as const
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

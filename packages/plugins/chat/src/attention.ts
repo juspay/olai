@@ -76,8 +76,12 @@ export const isCurrent = (route: Route, row: Pick<AttentionRow, "id" | "file">, 
     || (route.kind === "at" && route.address?.kind === "node" && route.address.id === row.id)
 
 /** The paint of the needs-you dot — the one piece of a standing's look another
- *  row draws (a tab's dot). The rest of the table is chat's (`browser/agents/roster.ts`). */
-export const NEEDS_YOU_DOT = "bg-doing"
+ *  row draws (a tab's dot). The rest of the table is chat's (`browser/agents/roster.ts`).
+ *
+ *  `olai-tone-dot` is not paint: it is the hook that keeps this dot EXISTING
+ *  under a forced palette, where `bg-doing` is thrown away and repainted as
+ *  the same `Canvas` the page behind it is (`@olai/ui-primitives/all.css`). */
+export const NEEDS_YOU_DOT = "olai-tone-dot bg-doing"
 
 /**
  * ... AND THE PAINT OF THE UNREAD DOT, for {@link NEEDS_YOU_DOT}'s reason: the
@@ -93,4 +97,4 @@ export const NEEDS_YOU_DOT = "bg-doing"
  * ({@link ../plugins/tabs/src/contract.ts}'s `Dots.rank`, which is what makes
  * that a rule rather than a registration order).
  */
-export const UNREAD_DOT = "bg-muted/60"
+export const UNREAD_DOT = "olai-tone-dot-quiet bg-muted/60"

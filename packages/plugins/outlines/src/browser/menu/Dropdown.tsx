@@ -114,6 +114,7 @@ import { swallowGhost } from "../gestures.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { overlayRoot } from "../overlay.ts"
 import { Panel } from "./Panel.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 
 /**
@@ -254,25 +255,30 @@ export function Dropdown(props: {
           : props.door.at()?.getBoundingClientRect()
       }}
     >
-      <DropdownMenu.Trigger
-        ref={trigger}
-        class={DOTS}
-        data-testid={TESTID.nodeMenu}
-        aria-label="More"
-        title="More"
-        // Kobalte toggles on the POINTERDOWN (and on the click for a touch
-        // pointer), so both are stopped here: opening a row's menu is not
-        // also a press on the row it belongs to. It is also a gesture the
-        // caret's way home has to know about (`handBack`): pressing the
-        // `•••` to shut a menu the KEYBOARD opened is still a press.
-        onPointerDown={(event: PointerEvent) => {
-          lastGesture = "pointer"
-          event.stopPropagation()
-        }}
-        onClick={(event: MouseEvent) => event.stopPropagation()}
-      >
-        •••
-      </DropdownMenu.Trigger>
+      {/* The armed spelling of `./Dots.tsx`, and it wears the same tip for the
+          same reason: "More" is already the trigger's name, so the tip is a
+          convenience and adds no ARIA. The wrapper is `display: contents`, so
+          Kobalte's trigger is still the box `getAnchorRect` measures. */}
+      <Tip text="More">
+        <DropdownMenu.Trigger
+          ref={trigger}
+          class={DOTS}
+          data-testid={TESTID.nodeMenu}
+          aria-label="More"
+          // Kobalte toggles on the POINTERDOWN (and on the click for a touch
+          // pointer), so both are stopped here: opening a row's menu is not
+          // also a press on the row it belongs to. It is also a gesture the
+          // caret's way home has to know about (`handBack`): pressing the
+          // `•••` to shut a menu the KEYBOARD opened is still a press.
+          onPointerDown={(event: PointerEvent) => {
+            lastGesture = "pointer"
+            event.stopPropagation()
+          }}
+          onClick={(event: MouseEvent) => event.stopPropagation()}
+        >
+          •••
+        </DropdownMenu.Trigger>
+      </Tip>
       <DropdownMenu.Portal mount={overlayRoot()}>
       <ViewportContent
         {...{ [PAGE_SUBJECT]: String(here()) }}
@@ -320,10 +326,13 @@ export function Dropdown(props: {
         // one drew, class for class.
         // `focus:outline-none` because the caret lands on this BOX when the
         // menu opens (see the ref above) and a box is not what anybody is
-        // aiming at — the ring belongs on the entry the keyboard is
-        // standing on, and that is `data-[highlighted]` in `./Panel.tsx`.
-        // Without it, Chromium rings the whole panel for a menu opened with
-        // a mouse.
+        // aiming at. It reaches only the plain `:focus` the UA draws for a
+        // mouse open — Chromium rings the whole panel without it. The app's
+        // own ring is `:focus-visible` and unlayered, so it is NOT stood down
+        // here and must not be: a keyboard that genuinely lands on this box
+        // is owed a mark saying so. Once the walk starts, the entry the
+        // keyboard is standing on carries the band and the ring both
+        // (`data-[highlighted]` in `./Panel.tsx`).
         // A PANEL TALLER THAN THE WINDOW STILL REACHES ITS LAST ENTRY, and the
         // height limit and scroll use the popper's own answer rather than a
         // measurement taken here. Floating-ui already flips this list to

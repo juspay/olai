@@ -1,17 +1,18 @@
 @scratch:good
 Feature: What a tab is called
   A tab names a document the way the files sidebar does — `garden`, not
-  `garden.olai` — and carries the address it holds as its tooltip. A file that
+  `garden.olai` — and carries the address it holds in this app's own tip and
+  in its own accessible name, never in the browser's `title`. A file that
   is not a document keeps its suffix, and two open documents that would say the
   same name are both spelled out.
 
-  Scenario: A document's tab drops the suffix, and its address is on hover
+  Scenario: A document's tab drops the suffix, and its address is in its name
     Given I open the outline "house.olai"
     When I choose "Open in new tab" from the menu of the document link "finishes.md"
     Then there are 2 tabs
     And tab 0 is titled "house"
     And tab 1 is titled "finishes"
-    And tab 1's tooltip is "/finishes.md"
+    And tab 1 carries the address "/finishes.md"
     And the tab strip spells no address
     And there should be no page errors
 
@@ -19,7 +20,7 @@ Feature: What a tab is called
     Given I open the address "/reports/q3.pdf"
     Then there is 1 tab
     And tab 0 is titled "q3.pdf"
-    And tab 0's tooltip is "/reports/q3.pdf"
+    And tab 0 carries the address "/reports/q3.pdf"
     And there should be no page errors
 
   Scenario: Two documents with one name are told apart, and only while both are open
@@ -55,7 +56,7 @@ Feature: What a tab is called
     And I open the address "/finishes.md"
     Then there is 1 tab
     And tab 0 is titled "finishes"
-    And tab 0's tooltip is "/finishes.md"
+    And tab 0 carries the address "/finishes.md"
     When I open the plugins panel
     And I switch the plugin "outlines" on
     And I close the plugins panel

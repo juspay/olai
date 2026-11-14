@@ -80,7 +80,7 @@ export interface Rewrite {
  *  in document order, which is the order a table of contents is read in. */
 export const rewrite = (tree: Root, options: Rewrite): readonly Heading[] => {
   const headings: Heading[] = []
-  walk(tree, options, headings, headingRoute(options.claims, options.from))
+  walk(tree, options, headings, headingRoute(options.claims, options.from), { drawn: 0 })
   return headings
 }
 
@@ -109,10 +109,11 @@ const walk = (
   options: Rewrite,
   headings: Heading[],
   route: HeadingRoute | null,
+  pictures: { drawn: number },
 ): void => {
   for (const child of parent.children) {
     if (child.type !== "element") continue
-    if (child.tagName === "img") resolvePicture(child, options.claims, options.from)
+    if (child.tagName === "img") resolvePicture(child, options.claims, options.from, pictures)
     if (child.tagName === "a") {
       // Document first: a relative `.md` becomes a page address and must not then
       // be treated as something that leaves the app.
@@ -122,7 +123,7 @@ const walk = (
     // The slug as authored, before `mint` moves it into this block's namespace.
     const slug = child.properties?.["id"]
     mint(child, options.ids, route)
-    walk(child, options, headings, route)
+    walk(child, options, headings, route, pictures)
     // AFTER the subtree, so what a heading reads as is what is left of it.
     const heading = headingOf(child)
     if (heading === null) continue
@@ -152,12 +153,55 @@ const walk = (
  * The element is REWRITTEN rather than replaced so the walk above stays one
  * pass over one array: an `<img>` is void, so there is no subtree to carry.
  */
-const resolvePicture = (element: Element, claims: Claims | undefined, from: string): void => {
+const resolvePicture = (
+  element: Element,
+  claims: Claims | undefined,
+  from: string,
+  pictures: { drawn: number },
+): void => {
   const written = element.properties?.["src"]
   const src = typeof written === "string" ? written : ""
   const picture = src === "" || claims === undefined ? null : pictureOf(claims, from, src)
   if (picture !== null) {
-    element.properties = { ...element.properties, src: mediaHref(picture) }
+    /* WHICH PICTURES WAIT, and the one that may not.
+     *
+     * A document is prose with pictures in it, and the pictures are the
+     * heaviest thing on the page: a screenshot somebody saved at four thousand
+     * pixels wide is megabytes, and a page of them is a reader spending their
+     * first second on bytes for a figure they have not scrolled to. So every
+     * picture after the first defers its own fetch until the reader comes near
+     * it. That is the browser's answer rather than ours — one attribute here,
+     * no observer, no scroll handler, nothing to get wrong.
+     *
+     * THE FIRST ONE DOES NOT WAIT, and that exception is the whole decision.
+     * Deferring the picture a page is largest-contentful-painted by is the one
+     * mistake the priority guidance names outright: it takes an image the
+     * browser would have fetched alongside the stylesheet and moves it behind
+     * layout. This pass cannot see the fold — it is a string becoming a tree,
+     * with no viewport, no fonts and no idea how much prose sits above any of
+     * it — but it can see ORDER, and the only picture that can be the largest
+     * paint is the one no other picture precedes. So the first is left eager
+     * and the browser's own heuristics, which DO know where the fold is, get
+     * to decide what it costs. SAID rather than omitted, because a default and
+     * a decision look identical in the DOM and only one of them survives
+     * somebody editing this line.
+     *
+     * NO `fetchpriority`. `high` is for an image measured as the LCP, and a
+     * figure halfway down `plan.md` is not that; `low` on the deferred ones
+     * would be this file asking for them to arrive LATE once the reader is
+     * looking at them, which is the opposite of what lazy is for.
+     *
+     * PER RENDERED BLOCK rather than per page, because a block is what this
+     * pass is handed: a note under a row, an agent's reply and a document body
+     * are each their own run (the id namespace above is the same fact read
+     * another way), and each is one thing a reader looks at at once.
+     *
+     * `decoding="async"` on all of them: decoding is main-thread work, and a
+     * four-thousand-pixel screenshot decoded synchronously stalls the frame
+     * the prose around it would have painted in. */
+    const first = pictures.drawn++ === 0
+    element.properties = { ...element.properties,
+      src: mediaHref(picture), loading: first ? "eager" : "lazy", decoding: "async" }
     return
   }
 
@@ -182,6 +226,18 @@ const resolvePicture = (element: Element, claims: Claims | undefined, from: stri
       ? "this picture could not be drawn: its address was empty, or not one this page may fetch"
       : `this picture could not be drawn: ${src}`,
   }]
+}
+
+/** THE WORDS A LINK DRAWS, read off the tree rather than off the DOM, because
+ *  this pass runs on the server where there is no DOM. It is what the name of
+ *  a dead link has to open with (WCAG 2.5.3), and `mdast-util-to-string`'s
+ *  hast sibling is not a dependency this package carries — the shape is five
+ *  lines and a `text` node is the only one that holds any. */
+const textIn = (node: { readonly type: string; readonly value?: unknown; readonly children?: ReadonlyArray<unknown> }): string => {
+  if (node.type === "text") return typeof node.value === "string" ? node.value : ""
+  const children = node.children
+  if (children === undefined) return ""
+  return children.map((child) => textIn(child as Parameters<typeof textIn>[0])).join("")
 }
 
 /**
@@ -221,8 +277,26 @@ const resolveDocument = (element: Element, claims: Claims | undefined, from: str
     const warning = deadLinkSaid({ written, resolved, suggest: [] })
     const authored = element.properties["title"]
     const classes = element.properties["className"]
+    // THE WARNING GOES IN THE NAME, not on `title`. The authored title — the
+    // `"…"` a writer put in their own `[x](y "…")` — stays exactly where
+    // markdown put it, because that is the DOCUMENT's content and this pass
+    // is not its editor. What this app has to SAY about the link is a
+    // different kind of thing, and `title` was the wrong carrier for it
+    // twice over: it is drawn only under a pointer, and a reader who never
+    // hovers is precisely the reader who most needs to be told the target is
+    // not there.
+    //
+    // The name OPENS with the link's own words, and that is WCAG 2.5.3
+    // (Label in Name) rather than taste: a name that threw the visible text
+    // away would leave somebody speaking "x" at a link their screen reader
+    // calls something else. `../Markdown.tsx` composes the same sentence the
+    // same way when it re-normalises these anchors in the browser — one
+    // shape, two places it can be produced.
+    const words = textIn(element).trim()
     element.properties = { ...element.properties, "data-dead": true,
-      title: typeof authored === "string" ? `${authored} — ${warning}` : warning,
+      "aria-label": [words, typeof authored === "string" ? authored : "", warning]
+        .filter((part) => part !== "")
+        .join(" — "),
       className: [...(Array.isArray(classes) ? classes : []), "olai-dead-link"] }
   }
   if (claims === undefined) return

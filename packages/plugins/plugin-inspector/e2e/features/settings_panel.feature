@@ -122,6 +122,16 @@ Feature: Edit plugin settings on the panel
     And the plugin "kolu" marks "watch.held-for" as authored by "default"
     And there should be no page errors
 
+  # WHAT A KNOB IS FOR used to be the row's `title`: a pointer's only, and
+  # unreachable by anyone reading with a keyboard or a screen reader. It is the
+  # app's own tip now — which draws nothing assistive technology can see — so
+  # the same sentence is written beside the knob, out of sight and in the text.
+  Scenario: A knob says what it is for where a screen reader can reach it
+    Given I open the app
+    When I open the plugins panel
+    Then the "kolu" setting "watch.held-for" is described as "How long a terminal waits before it is reported"
+    And there should be no page errors
+
   Scenario: An unrelated revision preserves a draft and two tabs settle on the last accepted edit
     Given I open the app
     When I open the plugins panel

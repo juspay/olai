@@ -25,7 +25,6 @@ export function Plugins(props: {
       glyph="⧉"
       name="Plugins"
       testid={TESTID.pluginsTrigger}
-      title="Plugins"
       // Keep this door open when its switch removes a plugin provider.
       held={props.state.door}
       panel={(_at, inside) => <Panel inside={inside} state={props.state} management={props.management} rows={props.rows} />}

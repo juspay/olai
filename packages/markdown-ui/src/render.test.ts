@@ -106,6 +106,20 @@ test("a relative picture points at the media route", () => {
     .toContain(`src="/media/shot.png"`)
 })
 
+// …and the one after it waits for the reader. ORDER is the whole rule: this
+// pass has no viewport to measure a fold against, so the only picture it can
+// refuse to defer is the one no other picture precedes — deferring THAT is
+// deferring whatever the page is painted by. A picture that is not drawn is
+// not counted either, which is why the second one here is still the eager one.
+test("the first picture of a block is fetched at once and the rest wait", () => {
+  const html = renderMarkdown(TEST_CLAIMS, "![a](art/shot.png)\n\n![b](../shot.png)\n", "notes/plan.md")
+  expect(html).toContain(`<img src="/media/notes/art/shot.png" alt="a" loading="eager" decoding="async">`)
+  expect(html).toContain(`<img src="/media/shot.png" alt="b" loading="lazy" decoding="async">`)
+  const after = renderMarkdown(TEST_CLAIMS, "![a](shot.pngg)\n\n![b](art/shot.png)\n", "notes/plan.md")
+  expect(after).toContain(`loading="eager"`)
+  expect(after).not.toContain(`loading="lazy"`)
+})
+
 // Anything else is not drawn AT ALL — a remote image would tell a third party
 // what someone is reading, and the rest are ways of drawing something that is
 // not a file in this directory.

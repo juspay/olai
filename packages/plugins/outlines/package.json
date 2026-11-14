@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@kobalte/core": "^0.13.13",
+    "@olai/appearance": "workspace:*",
     "@olai/format": "workspace:*",
     "@olai/surface": "workspace:*",
     "@solid-primitives/keyed": "^1.5.3",

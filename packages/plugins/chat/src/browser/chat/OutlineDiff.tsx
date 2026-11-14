@@ -28,6 +28,7 @@ import { GLYPH, SAID } from "olai-plugin-outlines/changes"
 import { renderTitle } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
 import { TESTID } from "../../testids.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { useConversationUI } from "./ui.tsx"
 import { createOutlineDiff } from "./outline.ts"
 
@@ -73,9 +74,13 @@ export function OutlineDiff(props: {
     >
       <p class="group/row relative flex items-baseline gap-2 border-b border-rule px-2 py-1 font-mono text-caption">
         <Grip has={changes().length > 0} carry={carry} />
-        <span class="ml-4 min-w-0 flex-1 truncate text-muted" title={props.diff.path}>
-          {props.diff.path}
-        </span>
+        {/* The whole path under the pointer; the line truncates it and the
+            span's own text is already the whole of it. */}
+        <Tip text={props.diff.path}>
+          <span class="ml-4 min-w-0 flex-1 truncate text-muted">
+            {props.diff.path}
+          </span>
+        </Tip>
         <Show when={props.diff.oldText === null}>
           <span class="shrink-0 text-done">New</span>
         </Show>
@@ -110,28 +115,34 @@ export function OutlineDiff(props: {
           <ul class="px-2 py-1 text-label">
             <For each={shown()}>
               {(change) => (
-                <li
-                  class="flex items-baseline gap-2 py-0.5"
-                  data-testid={TESTID.chatOutlineChange}
-                  data-node-id={change.id}
-                  data-sort={change.sort}
-                  title={change.fields.join(", ")}
-                >
-                  <span class="w-3 shrink-0 text-muted" aria-hidden="true">
-                    {GLYPH[change.sort]}
-                  </span>
-                  {/* A TITLE, drawn the way a title is drawn anywhere: its
-                      `#tags` are pills in their own hues through the same
-                      pipeline the tree's rows read (`../markdown/title.ts`),
-                      not two characters of grey. The pipeline, not
-                      `../NodeTitle.tsx`: this panel is no page, and a title
-                      that names an address is spelled as written here, the
-                      same contract a search row keeps (`../search/row.ts`). */}
-                  <span class="min-w-0 truncate text-ink">
-                    <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file)} />
-                  </span>
-                  <span class="ml-auto shrink-0 text-muted">{SAID[change.sort]}</span>
-                </li>
+                <Tip text={change.fields.join(", ")}>
+                  <li
+                    class="flex items-baseline gap-2 py-0.5"
+                    data-testid={TESTID.chatOutlineChange}
+                    data-node-id={change.id}
+                    data-sort={change.sort}
+                  >
+                    <span class="w-3 shrink-0 text-muted" aria-hidden="true">
+                      {GLYPH[change.sort]}
+                    </span>
+                    {/* A TITLE, drawn the way a title is drawn anywhere: its
+                        `#tags` are pills in their own hues through the same
+                        pipeline the tree's rows read (`../markdown/title.ts`),
+                        not two characters of grey. The pipeline, not
+                        `../NodeTitle.tsx`: this panel is no page, and a title
+                        that names an address is spelled as written here, the
+                        same contract a search row keeps (`../search/row.ts`). */}
+                    <span class="min-w-0 truncate text-ink">
+                      <TitleHtml drawing={renderTitle(servedDirectory()?.claims(), change.title, change.file)} />
+                    </span>
+                    <span class="ml-auto shrink-0 text-muted">{SAID[change.sort]}</span>
+                    {/* WHICH FIELDS MOVED — the one fact `⊕ Pick the hinges
+                        changed` does not carry, and the `title`'s alone until
+                        now. Inside the row, at its end, because a `<span>`
+                        between two `<li>`s is not a thing a list may hold. */}
+                    <span class="sr-only">{change.fields.join(", ")}</span>
+                  </li>
+                </Tip>
               )}
             </For>
           </ul>

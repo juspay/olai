@@ -27,6 +27,7 @@ import { runAsync } from "@olai/web/client/run.ts"
 import { agentReadings } from "../agents/reading.ts"
 import { chatWire } from "../wire.ts"
 import { TESTID } from "../../testids.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { createNow } from "./elapsed.ts"
 import type { Chat } from "./state.ts"
 import { addressOf, sameAddress } from "./address.ts"
@@ -52,7 +53,8 @@ export function Sleeping(props: { readonly chat: Chat }) {
     // chat slept and when it will next — and it is deliberately not asked whether
     // the mark is on.
     const on = () => held().sleeps
-    return <span
+    return <Tip text={said().title} say>
+    <span
       class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
       data-testid={TESTID.chatSleeping}
       role="group"
@@ -62,8 +64,6 @@ export function Sleeping(props: { readonly chat: Chat }) {
       // asserting the phrasing rather than the fact.
       data-next={said().kind}
       data-last={held().sleep?.lastSlept ?? undefined}
-      // THE WHOLE SENTENCE, rhythm and all, where a person hovers.
-      title={said().title}
     >
       <span class="text-muted">Sleep</span>
       <span aria-hidden="true" class="text-muted">·</span>
@@ -100,5 +100,6 @@ export function Sleeping(props: { readonly chat: Chat }) {
       </Show>
       <Show when={problem()}><span role="alert">{problem()}</span></Show>
     </span>
+    </Tip>
   }}</Show>
 }

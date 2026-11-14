@@ -26,6 +26,23 @@ kind); picking an item opens that kind's path box under the heading, with the
 caret in it. Escape shuts the menu and returns focus to the `+`. Removing a
 content provider removes its item; with no kind left, the heading has no `+`.
 
+Every row in the column says where its file IS, not only what it is called.
+The app's own tip gives a pointer the whole path on hover and a keyboard the
+same path on focus; the path is also in the row's accessible name, after the
+basename it draws. A folder's fold button keeps its own name (`Expand
+<folder>`, `Collapse <folder>`) and carries its path on the folder glyph
+instead. A file that could not be read wears a ⚠ whose sentence — `This file
+couldn't be read` — is both the tip and words inside the row, since the glyph
+is the only visible sign of it. The `+` on the Outlines heading is named for
+what it makes: `New outline or document`. None of these is the browser's
+`title` attribute, which the browser places itself and answers to a pointer
+and nothing else.
+
+The path box is a box for a NAME, and it tells a phone so: the return key says
+**Done** (the press makes the file and shuts the box), nothing is autocorrected,
+capitalised or spell-checked, and no special keyboard is asked for — `garden.olai`
+typed on a phone is `garden.olai` on disk rather than `Garden.olai`.
+
 The two trees and the vault group live in files. The vault group (a parent
 named `olai` over the `_olai/` outlines such as Pins, Settings and the Inbox)
 is drawn only when `_olai/` holds such a file. Capture, pins and trash provide

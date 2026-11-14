@@ -39,7 +39,14 @@ function AllowNotify(props: { readonly channel: Channel }) {
     <Show when={props.channel.alertsOn() && props.channel.consent() === "default"}>
       <button
         type="button"
-        class={`${TARGET} mb-1 mt-1.5 rounded-full border border-rule px-3 text-label text-ink hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1`}
+        // No focus treatment of its own. The ring this used to spell
+        // (`focus-visible:ring-2`) was a `box-shadow` drawn UNDER the app's
+        // real one — the `outline-none` beside it never stood that down,
+        // because `@olai/appearance/chrome.css` is unlayered — and a
+        // box-shadow is what forced colours removes first.
+        // `[--olai-ring-radius:9999px]` because this one is a pill and the
+        // sheet's default ring is `--radius-control`-shaped.
+        class={`${TARGET} mb-1 mt-1.5 rounded-full border border-rule px-3 text-label text-ink hover:border-accent [--olai-ring-radius:9999px] md:min-h-0 md:py-1`}
         data-testid={TESTID.prefsAllowNotify}
         onClick={() => void props.channel.ask(true)}
       >

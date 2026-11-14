@@ -5,7 +5,7 @@ import { createSignal } from "solid-js"
 import { DEFAULT_TYPEFACE, FONT_ATTRIBUTE, FONT_STORAGE_KEY, typefaceNamed } from "@olai/fonts"
 import { readPreference, watchPreference, writePreference } from "@olai/web/client/preference.ts"
 import { createChrome } from "./chrome.ts"
-import { defaultPaletteFor, THEME_ATTRIBUTE, THEME_STORAGE_KEY, paletteNamed } from "@olai/appearance/palettes.ts"
+import { defaultPaletteFor, SCHEME_STORAGE_KEY, THEME_ATTRIBUTE, THEME_STORAGE_KEY, paletteNamed } from "@olai/appearance/palettes.ts"
 import { DEFAULT_TYPE_SIZE, SIZE_ATTRIBUTE, SIZE_STORAGE_KEY, sizeNamed } from "@olai/appearance/sizes.ts"
 import type { Appearance, Choice, ThemeChoice } from "./index.ts"
 
@@ -19,7 +19,11 @@ const choice = <T extends { readonly name: string }>(config: {
    *  the theme that answer is the OS's and moves. */
   readonly fallback: () => T
   readonly named: (name: string) => T | undefined
-  readonly shown?: (value: T) => void
+  /** Called with the value IN FORCE and, separately, with the pick behind it
+   *  — `undefined` when that value is the fallback. Two arguments because one
+   *  reader (the browser chrome) has a question the resolved palette cannot
+   *  answer: whether to pin the canvas or hand it back to the OS. */
+  readonly shown?: (value: T, selected: T | undefined) => void
 }) => Effect.gen(function*() {
   const root = document.documentElement
   yield* Effect.acquireRelease(Effect.sync(() => root.getAttribute(config.attribute)), (previous) => Effect.sync(() => {
@@ -34,7 +38,7 @@ const choice = <T extends { readonly name: string }>(config: {
     const value = selected ?? config.fallback()
     setPicked(() => selected)
     setCurrent(() => value)
-    config.shown?.(value)
+    config.shown?.(value, selected)
   }
   const stored = readPreference(config.key)
   const selected = stored === null ? undefined : config.named(stored)
@@ -102,7 +106,20 @@ export const createAppearance = Effect.gen(function*() {
     key: THEME_STORAGE_KEY,
     fallback: () => defaultPaletteFor(os.dark() ? "dark" : "light"),
     named: paletteNamed,
-    shown: chrome.paint,
+    // Every showing of a theme writes BOTH halves of what the next load's
+    // shell needs: the paper, into every `theme-color` meta the shell ships;
+    // and the polarity, into the canvas meta and beside the pick in storage
+    // (@olai/appearance/palettes.ts says why that word is stored rather than
+    // looked up). Written here rather than in `pick` so the three ways a
+    // theme changes — a chip here, a chip in ANOTHER TAB arriving as a
+    // storage event, a pick restored on boot — all leave the same two
+    // records, and a browser carrying an older olai's storage is repaired by
+    // the next load rather than by a migration.
+    shown: (palette, selected) => {
+      chrome.paint(palette)
+      chrome.scheme(selected?.scheme)
+      writePreference(SCHEME_STORAGE_KEY, selected?.scheme ?? null)
+    },
   })
   // The OS flipping is a change to the FALLBACK, which only an unpicked page
   // reads: re-answer so the chrome (the status bar, the tab's mark) follows.

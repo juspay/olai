@@ -35,8 +35,10 @@
  * knows it, and this file has no opinion about colour beyond the neutral box.
  */
 
-import type { JSX } from "solid-js"
+import { type JSX, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
+
+import { Tip } from "./Tip.tsx"
 
 export function Pill(props: {
   readonly testid: string
@@ -51,13 +53,31 @@ export function Pill(props: {
   /** Open whatever changes this fact. Absent wherever the row is drawn
    *  read-only, and then the pill is a `<span>` again. */
   readonly onPick?: () => void
-  /** What it says when it is a control, for a pointer. */
-  readonly title?: string
+  /**
+   * WHAT IT SAYS ON A HOVER — this app's own tip ({@link ./Tip.tsx}), never
+   * the platform's, which placed a long one off the edge of the window and
+   * answered nothing but a pointer.
+   *
+   * Where the pill PICKS, the sentence is about pressing it ("Change date")
+   * and the `<button>` has already said the pressable half out loud: a role is
+   * a fact a screen reader states, so nothing is added for it. Where it does
+   * not pick, the pill is a `<span>` that states nothing, so the same sentence
+   * goes out a second time in an `sr-only` companion below — a tip is a
+   * convenience and must never be the only copy.
+   */
+  readonly tip?: string
   readonly children: JSX.Element
 }) {
   const picks = (): boolean => props.onPick !== undefined
 
+  // ONE pill, drawn once and WRAPPED ALWAYS — `Tip`'s `disabled` rather than
+  // two arms, because a tip arriving or leaving must not replace the control
+  // under the reader (a press in flight, the hover that asked for the tip).
+  // The wrapper is `display: contents` and adds no box when it says nothing.
   return (
+    <Tip text={props.tip ?? ""} disabled={props.tip === undefined}>
+      {/* The pill FIRST: the tip reads its rectangle off the wrapper's first
+          element child, and the echo after it is not the control. */}
     <Dynamic
       component={picks() ? "button" : "span"}
       type={picks() ? "button" : undefined}
@@ -65,7 +85,6 @@ export function Pill(props: {
       classList={{ "cursor-pointer hover:text-ink": picks(), ...props.classList }}
       data-testid={props.testid}
       data-picks={String(picks())}
-      title={props.title}
       {...props.attrs}
       onClick={picks()
         ? (event: MouseEvent) => {
@@ -78,5 +97,7 @@ export function Pill(props: {
     >
       {props.children}
     </Dynamic>
+      <Show when={props.tip !== undefined && !picks()}><span class="sr-only">{props.tip}</span></Show>
+    </Tip>
   )
 }

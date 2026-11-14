@@ -25,11 +25,14 @@
  *
  *   - the `•••` menu (`menu/Dropdown.tsx`) — Kobalte's `DismissableLayer`,
  *     which has a stack of its own that these panels cannot get onto;
- *   - the ⌘K palette (`palette/Palette.tsx`) — Escape on the window, and a
- *     press on its own full-screen scrim;
- *   - the keyboard-shortcuts dialog (`palette/Shortcuts.tsx`), which the
- *     palette opens — the same two, and it answered neither until review
- *     found it;
+ *   - the ⌘K palette (`palette/Palette.tsx`) and the keyboard-shortcuts sheet
+ *     it opens (`palette/Shortcuts.tsx`) — modal `<dialog>`s, so both of their
+ *     gestures are the PLATFORM's: a close request reaches the topmost modal
+ *     and nothing under it, and a press outside lands on a backdrop the page
+ *     cannot see past. These two take a ticket and never read it, which is the
+ *     one direction that still needs saying: while a modal is up, the panels
+ *     UNDERNEATH ask this stack whether a gesture is theirs, and the answer
+ *     has to be no;
  *   - the chat composer's completion (`chat/CompletionMenu.tsx`) — the box
  *     over the message input, drawing the agent's commands under a `/` and the
  *     directory's files under an `@`; a capture-phase listener that takes the

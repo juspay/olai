@@ -66,7 +66,8 @@ import { TESTID } from "olai-plugin-hledger/testids"
 import { TAG_CLASS } from "@olai/markdown-ui/tags.ts"
 import { tagStyle } from "@olai/appearance/tagInk.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
-import { TARGET } from "@olai/ui-primitives/touch.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
+import { SEGMENT, SEGMENT_IN_FORCE, SEGMENT_STRIP } from "@olai/ui-primitives/Segmented.tsx"
 
 import { amountDigits, amountParts, amountText } from "./spell.ts"
 
@@ -266,7 +267,19 @@ export function TabStrip(props: {
             // Roving tabindex: the strip is ONE stop and the arrows move within
             // it, which is the tabs pattern and not three separate stops.
             tabindex={props.view === choice().value ? 0 : -1}
-            class={`-mb-px border-b-2 px-3 py-1.5 text-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+            // `olai-tab` is the hook, not the paint: the selected tab is an
+            // accent underline and ink text while the others are a
+            // transparent underline and muted text, and a forced palette
+            // flattens all four of those into one another. The rule that
+            // repaints the underline from the system's own `Highlight` lives
+            // in `@olai/ui-primitives/all.css` with the app's other
+            // forced-colours answers.
+            //
+            // No focus treatment here any more. The `focus-visible:ring-2`
+            // was a `box-shadow` — removed outright under forced colours —
+            // and the `outline-none` beside it never stood the app's real
+            // ring down, because `@olai/appearance/chrome.css` is unlayered.
+            class={`olai-tab -mb-px border-b-2 px-3 py-1.5 text-label transition-colors ${
               props.view === choice().value
                 ? "border-accent text-ink"
                 : "border-transparent text-muted hover:text-ink"
@@ -291,17 +304,26 @@ function TransactionHead(props: { readonly transaction: Transaction }) {
     <div class="col-span-full grid grid-cols-subgrid items-baseline py-0.5">
       {/* THE DATE IS THE DAY, not the ISO string: the band above already names
           the month, so `2026-07-01` under `JULY 2026` says July twice. The
-          whole date is still the row's `title` and its `data-date`, which is
-          what a scenario and a pointer read. */}
-      <span class="hidden font-mono text-label text-muted md:block" title={one().date} data-testid={TESTID.hledgerDate}>
-        {shortDay(one().date)}
-        <Show when={one().secondaryDate}>{(second) => <>{` =`}{shortDay(second())}</>}</Show>
-      </span>
+          whole date stays in `data-date`, in the tip a pointer gets, and in
+          the hidden line after the cell, which is the reader's copy — a
+          `title` was none of the last two. */}
+      <Tip text={one().date}>
+        <span class="hidden font-mono text-label text-muted md:block" data-testid={TESTID.hledgerDate}>
+          {shortDay(one().date)}
+          <Show when={one().secondaryDate}>{(second) => <>{` =`}{shortDay(second())}</>}</Show>
+        </span>
+        {/* Drawn where its cell is: below `md` the phone's own day carries it,
+            and two hidden dates would be read as two dates. */}
+        <span class="sr-only hidden md:block">{one().date}</span>
+      </Tip>
       <span class="col-span-full flex min-w-0 items-baseline gap-1.5 md:col-span-1">
         {/* On a phone the day rides this line, left of the status mark — there
             is no room for a column of dates, and a bare day is enough under
             the band. */}
-        <span class="font-mono text-caption text-muted md:hidden" title={one().date} data-testid={TESTID.hledgerDay}>{dayOfMonth(one().date)}</span>
+        <Tip text={one().date}>
+          <span class="font-mono text-caption text-muted md:hidden" data-testid={TESTID.hledgerDay}>{dayOfMonth(one().date)}</span>
+          <span class="sr-only md:hidden">{one().date}</span>
+        </Tip>
         <StatusDot status={one().status} />
         <span class="truncate text-body font-medium text-ink">{one().payee}</span>
         <Show when={one().note}>
@@ -358,7 +380,17 @@ function TransactionRow(props: { readonly transaction: Transaction }) {
   )
 }
 
-/** The six-pixel dot that says how a transaction is marked. */
+/** The six-pixel dot that says how a transaction is marked.
+ *
+ *  Its whole content is a colour, so a forced palette is where it stops
+ *  existing: `bg-done` and `bg-doing` both flatten to the page's own `Canvas`
+ *  and the dot becomes a hole the same shade as the paper. The `olai-tone-dot`
+ *  classes (`@olai/ui-primitives/all.css`) repaint the two FILLED marks from
+ *  the system palette — `CanvasText` for cleared, `GrayText` for the quieter
+ *  pending — and the unmarked one needs nothing, because its border is forced
+ *  to a visible colour and a hollow dot stays hollow. Which keeps all three
+ *  apart there, as here. The word is never only in the colour anyway: this
+ *  span is a `role="img"` with the mark as its name. */
 function StatusDot(props: { readonly status: Transaction["status"] }) {
   const label = (): string =>
     props.status === "cleared" ? "cleared" : props.status === "pending" ? "pending" : "not marked"
@@ -369,7 +401,11 @@ function StatusDot(props: { readonly status: Transaction["status"] }) {
       data-testid={TESTID.hledgerStatus}
       data-status={props.status}
       class={`inline-block size-1.5 shrink-0 self-center rounded-full ${
-        props.status === "cleared" ? "bg-done" : props.status === "pending" ? "bg-doing" : "border border-muted"
+        props.status === "cleared"
+          ? "olai-tone-dot bg-done"
+          : props.status === "pending"
+            ? "olai-tone-dot-quiet bg-doing"
+            : "border border-muted"
       }`}
     />
   )
@@ -420,14 +456,19 @@ function PostingRow(props: { readonly posting: Posting }) {
             wide as the widest annotation on the page: the `◌` would be a
             hundred pixels from the amount it is about. */}
         <Show when={props.posting.inferred}>
-          <span
-            class="leading-none text-muted md:hidden"
-            data-testid={TESTID.hledgerInferred}
-            title="inferred"
-            aria-label="inferred"
-          >
-            ◌
-          </span>
+          {/* The glyph is a mark and not a word, so it is hidden from a reader
+              and the word rides the line beside it — an `aria-label` on a span
+              with no role names nothing. */}
+          <Tip text="inferred">
+            <span
+              class="leading-none text-muted md:hidden"
+              data-testid={TESTID.hledgerInferred}
+              aria-hidden="true"
+            >
+              ◌
+            </span>
+            <span class="sr-only md:hidden">inferred</span>
+          </Tip>
         </Show>
       </span>
       {/* The tail: a suffix commodity, then whatever was written beside the
@@ -444,7 +485,9 @@ function PostingRow(props: { readonly posting: Posting }) {
       {/* The marker column: the laptop's. */}
       <span class="hidden justify-center self-center md:flex">
         <Show when={props.posting.inferred}>
-          <span class="leading-none text-muted" data-testid={TESTID.hledgerInferred} title="inferred" aria-label="inferred">◌</span>
+          <Tip text="inferred" say>
+            <span class="leading-none text-muted" data-testid={TESTID.hledgerInferred} aria-hidden="true">◌</span>
+          </Tip>
         </Show>
       </span>
       {/* WHAT WAS WRITTEN BESIDE THE AMOUNT takes a line of its own on a phone:
@@ -465,10 +508,18 @@ function Annotations(props: { readonly posting: Posting }) {
   return (
     <>
       <Show when={props.posting.cost}>
-        {(cost) => <span class="truncate text-muted" data-testid={TESTID.hledgerCost} title="cost annotation">{cost()}</span>}
+        {/* WHAT THE FIGURE IS — a cost, a claim about a balance — was the
+            `title` and nothing else said it. The tip draws it for a pointer;
+            the line after each figure says it to a reader, outside the cell so
+            that what the cell reads is still the figure the file wrote. */}
+        {(cost) => <Tip text="cost annotation" say>
+          <span class="truncate text-muted" data-testid={TESTID.hledgerCost}>{cost()}</span>
+        </Tip>}
       </Show>
       <Show when={props.posting.assertion}>
-        {(claim) => <span class="truncate text-muted" data-testid={TESTID.hledgerAssertion} title="balance assertion">{claim()}</span>}
+        {(claim) => <Tip text="balance assertion" say>
+          <span class="truncate text-muted" data-testid={TESTID.hledgerAssertion}>{claim()}</span>
+        </Tip>}
       </Show>
     </>
   )
@@ -606,16 +657,21 @@ export function TransactionsPanel(props: {
 
 /** The depth control — a strip of four clips. Held here rather than taken from
  *  `@olai/ui-primitives`' `Segmented` because the DOM contract gives each
- *  button a `data-depth` (`1|2|3|all`) that `Segmented` has no way to emit. */
+ *  button a `data-depth` (`1|2|3|all`) that `Segmented` has no way to emit.
+ *  The PAINT is still that component's, imported rather than copied: the
+ *  strip's forced-colours answer — which of four identical words is in force,
+ *  once the palette is the system's and `bg-accent/10` is gone — is one rule
+ *  keyed on `olai-segment`, and a strip that had copied the class string
+ *  would have been the one that quietly stopped getting it. */
 function DepthControl(props: { readonly value: Depth; readonly onPick: (depth: Depth) => void }) {
   return (
-    <div class="inline-flex overflow-hidden rounded-full border border-rule" data-testid={TESTID.hledgerDepth}>
+    <div class={SEGMENT_STRIP} data-testid={TESTID.hledgerDepth}>
       <Index each={DEPTHS}>
         {(choice) => (
           <button
             type="button"
-            class={`${TARGET} inline-flex items-center px-3 text-label focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent md:min-h-0 md:py-1 ${
-              props.value === choice().value ? "bg-accent/10 text-ink" : "text-muted hover:text-ink"
+            class={`${SEGMENT} ${
+              props.value === choice().value ? SEGMENT_IN_FORCE : "text-muted hover:text-ink"
             }`}
             data-depth={choice().value}
             aria-pressed={props.value === choice().value ? "true" : "false"}
@@ -786,7 +842,11 @@ export function BalancesPanel(props: {
                     <Show when={hasChildren()} fallback={<span class="inline-block w-4 shrink-0" />}>
                       <button
                         type="button"
-                        class="inline-flex w-4 shrink-0 cursor-pointer justify-center text-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        // No ring of its own: the `focus-visible:ring-2` was
+                        // a `box-shadow` (gone under forced colours) drawn
+                        // beneath the app's own outline, which the
+                        // `outline-none` beside it never removed.
+                        class="inline-flex w-4 shrink-0 cursor-pointer justify-center text-muted hover:text-ink"
                         aria-expanded={isExpanded() ? "true" : "false"}
                         aria-label={isExpanded() ? `Collapse ${account()}` : `Expand ${account()}`}
                         data-testid={TESTID.hledgerBalanceToggle}

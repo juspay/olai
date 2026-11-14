@@ -16,19 +16,21 @@ import { Show } from "solid-js"
  * elsewhere updates on the shelf" — there is no second copy to update, on
  * either side of the wire.
  *
- * ONE NAME, read three times here — the face, the row's tooltip and the unpin's
- * label — and resolved once, in `./pins.ts`. It used to arrive as a prop beside
- * the pin, computed by the shelf, with a comment promising it matched what the
- * face would draw.
+ * ONE NAME, read three times here — the face, the rename's label and the
+ * unpin's — and resolved once, in `./pins.ts`. It used to arrive as a prop
+ * beside the pin, computed by the shelf, with a comment promising it matched
+ * what the face would draw. A fourth reading, the row's own tooltip, is gone:
+ * a tip repeating the words under the pointer is one sentence written twice.
  */
 import { TESTID } from "olai-plugin-pins/testids"
-import { CONTROL } from "@olai/ui-primitives/touch.ts"
+import { CONTROL, SHOWN_WITHOUT_HOVER } from "@olai/ui-primitives/touch.ts"
 import { Face } from "olai-plugin-navigation/address/Face.tsx"
 import { LAYER } from "@olai/web/client/layer.ts"
 
 import { ENTRY_SHAPE,ROW_GAP } from "olai-plugin-layout/entry"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { Link } from "olai-plugin-navigation/routing"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import type { Pin } from "./pins.ts"
 
 /**
@@ -101,13 +103,23 @@ export function Pin(props: {
       }}
     >
       <Show when={page()} fallback={
-        <a data-link-intent={props.pin.target.kind === "layout" ? "new-tab" : undefined} href={href()} class={ROW} data-testid={TESTID.pinLink}
-          aria-current={props.current ? "page" : undefined} title={props.pin.bare}>
-          <Face target={props.pin.target} name={props.pin.name} />
-        </a>
+        // THE ADDRESS THE PIN KEEPS, which the name a reader gave it does not
+        // carry: "Planning" says nothing about which pages open. It was this
+        // anchor's `title` — a pointer's answer and nobody else's — so the
+        // tip is the pointer's half and the row's own NAME is everybody
+        // else's. The name opens with the words the face draws, so the two
+        // cannot come apart.
+        <Tip text={props.pin.bare}>
+          <a data-link-intent={props.pin.target.kind === "layout" ? "new-tab" : undefined} href={href()} class={ROW} data-testid={TESTID.pinLink}
+            aria-current={props.current ? "page" : undefined} aria-label={`${props.pin.name}, ${props.pin.bare}`}>
+            <Face target={props.pin.target} name={props.pin.name} />
+          </a>
+        </Tip>
       }>{(route) =>
+        // No tip: a page pin's face IS its name, and a tooltip repeating the
+        // words under the pointer is one sentence written twice.
         <Link route={route()} class={ROW} testid={TESTID.pinLink}
-          current={props.current} title={props.pin.name}>
+          current={props.current}>
           <Face target={props.pin.target} name={props.pin.name} />
         </Link>
       }</Show>
@@ -116,7 +128,13 @@ export function Pin(props: {
           right edge and appear on hover or focus, the way the tree's own
           reveal-on-hover controls do (`../touch.ts`).
           TWO of them now, in one strip so the row's own layout decides where
-          they sit rather than each of them holding its own offset. */}
+          they sit rather than each of them holding its own offset.
+          …AND ON A TOUCH SCREEN THEY ARE SIMPLY THERE: this shelf is drawn at
+          every width — the sidebar is a drawer on a phone, not a thing that
+          goes away — so a thumb had no gesture at all for unpinning or
+          renaming until `SHOWN_WITHOUT_HOVER` (`@olai/ui-primitives`). The
+          ground they are drawn on is what keeps them legible over the row's
+          own right edge when they never fade out. */}
       <span
         class={`absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1.5 ${LAYER.row} ` +
           // ITS OWN GROUND, because it is drawn OVER the row's own right edge —
@@ -128,47 +146,49 @@ export function Pin(props: {
           // current row's accent wash faintly visible under it rather than
           // punching a hole in it.
           "rounded-control bg-desk px-1.5 py-1 opacity-0 shadow-raised transition-opacity " +
-          "focus-within:opacity-100 group-hover/pin:opacity-100"}
+          `focus-within:opacity-100 group-hover/pin:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
       >
         {/* WHAT IT IS CALLED, changed — the shelf's door onto the one question
             the palette asks (`./naming.ts`). It is here rather than on the row
             itself because pressing the row is the navigation it has always
             been: a shelf of five doors cannot spend its click on anything but
             going somewhere. */}
-        <button
-          type="button"
-          class={`${CONTROL} cursor-pointer rounded-control border-0 bg-transparent p-0 ` +
-            "text-label leading-none text-muted hover:text-accent"}
-          data-testid={TESTID.pinRename}
-          aria-label={`Rename ${props.pin.name}`}
-          title="Rename"
-          onClick={(event) => {
-            event.preventDefault()
-            event.stopPropagation()
-            props.onRename()
-          }}
-        >
-          {/* The CHARACTER, for the reason the `×` beside it is one. */}
-          ✎
-        </button>
-        <button
-          type="button"
-          class={`${CONTROL} cursor-pointer rounded-control border-0 bg-transparent p-0 ` +
-            "text-label leading-none text-muted hover:text-alarm"}
-          data-testid={TESTID.pinRemove}
-          aria-label={`Unpin ${props.pin.name}`}
-          title="Unpin"
-          onClick={(event) => {
-            event.preventDefault()
-            event.stopPropagation()
-            props.onRemove()
-          }}
-        >
-          {/* The CHARACTER, as every other `×` in this app is drawn
-              (`../edges/DropRef.tsx`): a path of its own would be a second
-              drawing of a mark the type already has. */}
-          ×
-        </button>
+        <Tip text="Rename">
+          <button
+            type="button"
+            class={`${CONTROL} cursor-pointer rounded-control border-0 bg-transparent p-0 ` +
+              "text-label leading-none text-muted hover:text-accent"}
+            data-testid={TESTID.pinRename}
+            aria-label={`Rename ${props.pin.name}`}
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              props.onRename()
+            }}
+          >
+            {/* The CHARACTER, for the reason the `×` beside it is one. */}
+            ✎
+          </button>
+        </Tip>
+        <Tip text="Unpin">
+          <button
+            type="button"
+            class={`${CONTROL} cursor-pointer rounded-control border-0 bg-transparent p-0 ` +
+              "text-label leading-none text-muted hover:text-alarm"}
+            data-testid={TESTID.pinRemove}
+            aria-label={`Unpin ${props.pin.name}`}
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              props.onRemove()
+            }}
+          >
+            {/* The CHARACTER, as every other `×` in this app is drawn
+                (`../edges/DropRef.tsx`): a path of its own would be a second
+                drawing of a mark the type already has. */}
+            ×
+          </button>
+        </Tip>
       </span>
     </li>
   )

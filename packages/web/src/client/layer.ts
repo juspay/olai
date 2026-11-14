@@ -34,19 +34,47 @@
  * something else entirely (it is sealed inside the chat panel, which rides at
  * 30). Nothing was broken and nothing could be read.
  *
- * ## The ONE thing above this table, and why it is not in it
+ * ## The THREE things above this table, and why they are not in it
  *
- * The offline overlay (`connection/Offline.tsx`) is a `<dialog>` opened with
- * `showModal()`, which puts it in the browser's TOP LAYER — above every
- * stacking context on the page at once, whatever number is on it — and makes
- * the rest of the document inert. It has to be: the freeze's whole claim is
- * that nothing underneath can be touched, and a `z-index` cannot make that
- * claim against a panel that portals to `document.body` LATER at the same
- * {@link LAYER.over} and paints over whatever was already there. So the freeze
- * spells no layer, and this paragraph is the entry it would otherwise have
- * had — a reader of this table needs to know that one thing sits over all of
- * it, and `claims.test.ts` holds `showModal` to that single file so a second
- * one cannot appear without an argument.
+ * A modal `<dialog>` — one opened with `showModal()` rather than with `show()`
+ * or the `open` attribute — is in the browser's TOP LAYER: above every
+ * stacking context on the page at once, whatever number is on it, with the
+ * rest of the document inert and the keyboard held inside it. A `z-index`
+ * cannot make that claim at all, which is the reason three surfaces here are
+ * modal dialogs rather than `fixed` boxes at {@link LAYER.over}: a panel that
+ * portals to `document.body` LATER at the same number paints straight over
+ * whatever was already there, and "nothing underneath can be touched" is
+ * exactly the promise that may not have a hole in it.
+ *
+ * The three, in the order they may stand on each other:
+ *
+ *   - the ⌘K palette (`plugins/navigation/.../palette/Palette.tsx`),
+ *   - the keyboard-shortcuts sheet it opens (`.../palette/Shortcuts.tsx`),
+ *   - the offline freeze (`connection/Offline.tsx`), which arrives last
+ *     whenever it arrives at all.
+ *
+ * **NOTHING ENTERS OVER THE FREEZE**, and it is worth saying why rather than
+ * arranging it. Dialogs stack in the order they were opened, so a palette
+ * asked to open while the app is frozen would take the layer ABOVE the freeze
+ * — a working door on a page whose whole news is that there is nowhere to
+ * send anything. It cannot be asked for: every entry here is either a GESTURE
+ * (the freeze swallows chords at the window's capture phase for as long as it
+ * is up, and the page under it is inert) or the arrival of a MESSAGE (which
+ * means the wire is alive, the one thing a freeze says it is not). A
+ * mechanism that re-raised the freeze over whatever had just entered was
+ * written and then deleted: three stagings — another tab changing the plugin
+ * roster, the settings file taking the overlay host away and giving it back,
+ * and the server restarting under an open palette — never once entered this
+ * layer with the freeze standing. A surface that can open from a TIMER rather
+ * than from a gesture or a message is the one that would change that, and it
+ * owes this paragraph an answer.
+ *
+ * `claims.test.ts` sweeps both halves — who calls `showModal` and who enters
+ * through {@link enterTopLayer} — so a fourth surface reaching for the layer
+ * has to argue with that list first. It owes one more answer while it is
+ * here: a `<Tip>` drawn inside it would portal to `document.body` and be
+ * painted UNDER it (`./Tip.tsx` says what to add), because nothing in this
+ * list raises one today.
  *
  * ## The order, and what each step is holding
  *
@@ -121,15 +149,19 @@ export const LAYER = {
    */
   header: "z-[45]",
   /**
-   * Over the bar as well: the two full-screen modals (the command palette and
-   * the keyboard-shortcut list it opens), the panels that are PORTALLED out
-   * of the header — the commit panel, preferences, the search results — and
-   * the tip of a header pill. Those hang against the viewport rather than
-   * inside the 3rem box they belong to, so they need a layer of their own up
-   * here; sitting at {@link LAYER.page} with the chat dock is how the bar's
-   * coral rule cut the first line of a tip and how the dock's own header
-   * painted through the rest. The modals need this layer because a question
-   * about the whole app may not have the app's own chrome on top of it.
+   * Over the bar as well: the panels that are PORTALLED out of the header —
+   * the commit panel, preferences, the search results — and the tip of a
+   * header pill. Those hang against the viewport rather than inside the 3rem
+   * box they belong to, so they need a layer of their own up here; sitting at
+   * {@link LAYER.page} with the chat dock is how the bar's coral rule cut the
+   * first line of a tip and how the dock's own header painted through the
+   * rest.
+   *
+   * The app's two full-screen modals USED TO BE HERE and are not any more:
+   * the palette and the shortcuts sheet are modal `<dialog>`s now, so the
+   * browser puts them over everything — the header included — and a number
+   * here would have been a claim the platform had already made better (see
+   * the top-layer section above).
    */
   over: "z-50",
 } as const
@@ -155,3 +187,16 @@ export const WITHIN = {
    *  in there — the chat composer's completion, the session list. */
   pop: "z-3",
 } as const
+
+/**
+ * ENTER THE TOP LAYER. The `open` guard is the platform's rule rather than
+ * tidiness: `showModal()` on a dialog that is already open throws, and these
+ * are called from effects that re-run for reasons of their own.
+ *
+ * One line, and it is a DOOR rather than a convenience: the sweep in
+ * `./claims.test.ts` is written over this name, so the surfaces that take the
+ * whole app are a list somebody has to join on purpose.
+ */
+export const enterTopLayer = (dialog: HTMLDialogElement): void => {
+  if (!dialog.open) dialog.showModal()
+}

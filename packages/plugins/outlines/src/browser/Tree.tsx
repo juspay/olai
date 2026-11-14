@@ -132,6 +132,12 @@ import {
   ROW_TITLE,
 } from "@olai/ui-primitives/touch.ts"
 import { applying } from "./writes.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
+
+/** What the ⇢ before a mirrored row's title means. One string because the
+ *  arrow draws it and names itself with it — one sentence, two readers, and
+ *  no second copy inside the row's own words. */
+const MIRRORED = "Mirrored from elsewhere"
 
 export function Tree(props: {
   readonly rows: ReadonlyArray<Row>
@@ -788,9 +794,21 @@ function Branch(props: {
                 titleEditor={typing("title") === undefined ? undefined : titleCell}
               >
                 <Show when={props.row.kind !== "node"}>
-                  <span class="mr-1 text-muted" title="Mirrored from elsewhere">
-                    ⇢
-                  </span>
+                  {/* ⇢ is the whole of what this says on screen, so the words
+                      behind it rode the platform's tooltip and reached nobody
+                      who was not pointing at them. The tip draws them for a
+                      pointer, and the ARROW ITSELF carries them as a name —
+                      `role="img"`, the pattern `./Glyph.tsx` and the repeat
+                      badge use. NOT an `sr-only` copy beside it: this mark
+                      sits inside a row's TITLE, and hidden words there land in
+                      the title's own text, where a reader asking what the row
+                      is called hears `⇢ Mirrored from elsewhere replacement
+                      source` for a row called `replacement source`. */}
+                  <Tip text={MIRRORED}>
+                    <span class="mr-1 text-muted" role="img" aria-label={MIRRORED}>
+                      ⇢
+                    </span>
+                  </Tip>
                 </Show>
               </NodeLine>
             )}

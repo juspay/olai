@@ -15,6 +15,7 @@ import { FreshStart } from "./FreshStart.tsx"
 import type { Chat } from "../chat/state.ts"
 import { TESTID } from "../../testids.ts"
 import { dock } from "../dock.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { LINE_VERB } from "./verb.ts"
 
 export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly dock?: boolean }) {
@@ -40,15 +41,27 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
       pressable={(agentIn(state())?.methods.length ?? 0) > 0 && state().signIn === null}
     />}</Show>
     <Show when={state().model || state().settings.length > 0} fallback={<Show when={doing() === null || doing()?.kind === "starting"}><span>{doing()?.kind === "starting" ? "Starting…" : state().status === "off" ? "Not set up" : state().status === "gone" ? "Not running" : "Ready"}</span></Show>}><Model chat={props.chat} name={state().model ?? "Settings"} /></Show>
-    <Show when={usageOf(state().usage)}>{usage => <span data-testid={TESTID.chatUsage} title="Context used">{usage()}</span>}</Show>
+    {/* WHAT THE NUMBER IS. The percentage alone names nothing, so the words
+        ride an sr-only companion AFTER the chip — outside it, because a
+        scenario reads the chip's own text — and the tip is the pointer's
+        half of the same sentence. */}
+    <Show when={usageOf(state().usage)}>{usage => <Tip text="Context used" say>
+      <span data-testid={TESTID.chatUsage}>{usage()}</span>
+    </Tip>}</Show>
     <Show when={doing()?.kind === "working" || doing()?.kind === "waiting"}>
       <span class="flex items-center gap-1 text-doing" data-testid={TESTID.chatWorking} aria-live="polite"><span class={LIVE_DOT} aria-hidden="true" />{doing()?.kind === "waiting" ? "Waiting on you" : "Working…"}</span>
     </Show>
     <span class="flex-1" />
     <AgentAbove node={props.node} />
     <Show when={dockable()}>
-      <button type="button" class={LINE_VERB} data-testid={TESTID.chatDockHere} title="Keep this conversation beside the page (⌘J shows or hides the panel)"
-        onClick={() => dock()?.open(props.node)}>Open in panel ›</button>
+      <Tip text="Keep this conversation beside the page (⌘J shows or hides the panel)">
+        <button type="button" class={LINE_VERB} data-testid={TESTID.chatDockHere}
+          onClick={() => dock()?.open(props.node)}>Open in panel ›{/*
+          THE CHORD, in the button's own name: ⌘J is the only way back to a
+          panel this button opened, and the tip that used to be its only
+          copy is drawn rather than spoken. */}
+          <span class="sr-only"> — ⌘J shows or hides the panel</span></button>
+      </Tip>
     </Show>
     <Show when={!props.page}><Link route={atNode(props.node)} class={LINE_VERB}>Show in outline ›</Link></Show>
     <Show when={agents.at(props.node)}>

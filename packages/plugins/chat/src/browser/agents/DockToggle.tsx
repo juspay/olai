@@ -9,6 +9,8 @@
 import { Show } from "solid-js"
 
 import { ICON_BUTTON } from "@olai/web/client/readout.ts"
+import { LAYER } from "@olai/web/client/layer.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import type { ToolWhere } from "olai-plugin-layout/contract"
 
 import { TESTID } from "../../testids.ts"
@@ -18,21 +20,25 @@ export function DockToggle(props: { readonly where: ToolWhere }) {
   const door = () => dock()
   return (
     <Show when={props.where === "header" && door()?.desktop()}>
-      <button
-        type="button"
-        class={`${ICON_BUTTON} !px-0 md:!w-7`}
-        classList={{ "bg-ink/8 text-ink": door()?.opened() === true }}
-        data-testid={TESTID.chatToggle}
-        aria-pressed={door()?.opened() === true ? "true" : "false"}
-        aria-label={door()?.opened() === true ? "Hide the agent panel" : "Show the agent panel"}
-        title="Agent panel (⌘J)"
-        onClick={() => door()?.toggle()}
-      >
-        <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.75" />
-          <path d="M9.75 2.75v10.5" />
-        </svg>
-      </button>
+      <Tip text="Agent panel (⌘J)" layer={LAYER.over}>
+        <button
+          type="button"
+          class={`${ICON_BUTTON} !px-0 md:!w-7`}
+          classList={{ "bg-ink/8 text-ink": door()?.opened() === true }}
+          data-testid={TESTID.chatToggle}
+          aria-pressed={door()?.opened() === true ? "true" : "false"}
+          // THE CHORD IN THE NAME. The glyph is hidden and the button has no
+          // words, so the tip is the only place ⌘J was ever said and a reader
+          // who never hovers would never have met it.
+          aria-label={`${door()?.opened() === true ? "Hide" : "Show"} the agent panel (⌘J)`}
+          onClick={() => door()?.toggle()}
+        >
+          <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.75" />
+            <path d="M9.75 2.75v10.5" />
+          </svg>
+        </button>
+      </Tip>
     </Show>
   )
 }

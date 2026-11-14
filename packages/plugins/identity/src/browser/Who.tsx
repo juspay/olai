@@ -117,6 +117,19 @@ function Chip(props: { readonly person: Person }) {
               width={20}
               height={20}
               referrerPolicy="no-referrer"
+              /* NOT DEFERRED, and it is the chip's position that decides it:
+                 this is chrome, drawn in the header the moment the app does,
+                 so it is on screen before anything is scrolled and `lazy`
+                 would only move the one request this strip makes behind
+                 layout. Not boosted either — twenty pixels of somebody's face
+                 is never the largest paint, and the guidance keeps `high` for
+                 the one or two images that are, so spending it here would
+                 dilute the boost the picture-as-a-page takes
+                 (`olai-plugin-image`'s `Image.tsx`). The decode is still
+                 handed off the main thread, because nothing on this row is
+                 worth a frame of the first paint. */
+              loading="eager"
+              decoding="async"
               class="size-5 rounded-full"
             />
           )}

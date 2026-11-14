@@ -26,7 +26,12 @@ import type { Appearance } from "./index.ts"
 export function FontSelect(props: { readonly state: Appearance }) {
   return (
     <select
-      class="min-h-11 max-w-[12rem] rounded-control border border-rule bg-paper px-2 text-body text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1"
+      // No focus treatment of its own: the app's one ring is an `outline`
+      // drawn from `@olai/appearance/chrome.css`, which is unlayered — so the
+      // `focus-visible:outline-none` that used to be here did nothing and the
+      // `focus-visible:ring-2` beside it drew a second, redundant ring. A
+      // Tailwind ring is a `box-shadow`, and forced colours deletes those.
+      class="min-h-11 max-w-[12rem] rounded-control border border-rule bg-paper px-2 text-body text-ink md:min-h-0 md:py-1"
       style={{ "font-family": props.state.font.current().sans }}
       data-testid={TESTID.fontSelect}
       value={props.state.font.current().name}

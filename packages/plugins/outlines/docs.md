@@ -26,6 +26,18 @@ the link menu, while the rest of the row keeps the row menu
 it is visible in that pane and otherwise opens the node's file at that row. The
 bullet and **Zoom in** use `/zoom/#id`, the node's own page.
 
+**What a row's quiet marks mean is said in words, not only in a shape.** The
+glyph cell is named for what it is: `Done, zoom in`, `Doing, zoom in`, what a
+waiting row waits on (`blocked by …, zoom in`), and plain `Zoom in` where the
+node carries no mark — so a keyboard or a screen reader gets the mark, which
+used to be a shape and a hover and nothing else. The app's own tip says the
+same sentence to a pointer. The rest of the row's small marks keep a hidden
+copy of their sentence beside them for the same reason: the `⇢` before a
+mirrored title, the `+N done` a collapsed row leaves as a receipt, and a hot
+fact drawn short of its full value. The repeat badge's `↻` is named `Repeats`,
+so `↻ every week` reads as `Repeats every week`. None of them is a platform
+tooltip any more.
+
 An outline page declares the row chip, pane, block, action and door locations, along with typed title, dated-row, page-shell and property-navigation extension points. Journal supplies date destinations. Markdown supplies document destinations. Missing integrations produce ordinary text or no contribution, rather than importing or starting the missing provider.
 
 Unrelated plugin changes preserve existing editor instances and drafts. Removing outlines withdraws its pages and row locations, releases its observers, clears its focus and retained draft/form memory and prevents old reference lookups from publishing into a new activation. Restoring outlines creates a new activation and reads persisted browser preferences again.
@@ -41,6 +53,16 @@ frame that draws its new row. The focused pane handles that gap; other panes and
 focused fields keep their own keyboard behavior. A cancelled split still records
 its inverse, but its late reply cannot reopen the editor or replace a freshly
 opened draft. Controlled reply/frame delays cover cancellation and subsequent Undo.
+
+Every box in the outline tells an on-screen keyboard what its return key does.
+A row's title says **Next**, because `Enter` ends the line and opens the one
+after it, and keeps the platform's corrections — a title is prose. The filter
+box says **Search** (it submits nothing: the rows narrow as you type), and a
+property chip's two boxes differ from each other — the key box says **Next**,
+since `Enter` there only moves the caret to the value beside it, and the value
+box says **Done**, since its `Enter` writes the property and closes the chip.
+The filter and both property boxes turn off autocorrect, autocapitalisation and
+spell-checking: a query and a property key are names, not sentences.
 
 The package's declared contract doors carry types, location names and scoped service handles. Chat's node-reference consumers use the reference capability; they do not import the outline implementation. The shared Markdown parser and the serial undo algorithm are static libraries, with no document-plugin or outline-plugin activation of their own.
 
@@ -88,7 +110,15 @@ Submenus are Kobalte `Sub`s, portalled beside the panel into this row's overlay 
 
 ## Rows on a phone
 
-The row the caret or the last tap is on carries `data-active`. A plugin's offer on a row (chat's `Start an agent` pill, styled with `OFFER_REVEAL` from `@olai/ui-primitives/touch.ts`) is drawn on a phone only on that row; on a pointer device it appears on hover or keyboard focus. What a row already has, such as an agent's standing, is drawn on every row. A dated row on a day page or the Agenda becomes the active row when tapped.
+The row the caret or the last tap is on carries `data-active`. A plugin's offer on a row (chat's `Start an agent` pill, styled with `OFFER_REVEAL` from `@olai/ui-primitives/touch.ts`) is drawn on a phone only on that row; on a pointer device it appears on hover or keyboard focus. Those are two different questions — the phone's branch is about the WIDTH of a 390pt line, and the fade is about the pointer — so a touch screen past the breakpoint (a tablet, a touch laptop) is drawn the offer outright: there is room for it and no hover to reveal it with (`SHOWN_WITHOUT_HOVER`, which every reveal in that file now carries, and which does the same for the row's own `•••` and collapse triangle). What a row already has, such as an agent's standing, is drawn on every row. A dated row on a day page or the Agenda becomes the active row when tapped.
+
+## Rows for a reader who asked for less motion
+
+A system set to *reduce motion* changes what the tree does, never what it says. A row's chevron still points the other way the moment you fold it — it simply does not turn through the angle. Revealing a row that navigation asked for (a reference, a search result, a permalink) puts it in the middle of the screen at once instead of gliding there; the row is still selected and still accented. Colour is untouched, so a row lighting under the pointer, the accent on the selected row and the note's own markdown read exactly as they do for everybody else. The whole policy is one block in `@olai/appearance/chrome.css`, and the scroll this row asks for in JavaScript reads the preference at the moment of the scroll — so turning the system setting on or off takes effect without reloading the tab.
+
+## Rows on a screen that forces its own colours
+
+High Contrast takes olai's palette away and repaints from the reader's own, deleting every soft edge drawn as a shadow on the way. What the tree keeps is everything that was a fact rather than a flourish: the keyboard's focus ring, which is an outline and survives being recoloured; the band under the menu entry an arrow key is standing on, drawn in the system's own highlight; the filter box's lit border when the caret is in it; and the note mark's `¶`, which now wears the app's one ring rather than a glow of its own. The extra rings these controls used to draw for themselves are gone — they were shadows, and a shadow is the one kind of focus mark this mode removes. [theme.md](theme.md) has the account.
 
 ## Empty pages
 

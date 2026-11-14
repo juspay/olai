@@ -30,6 +30,19 @@ Feature: See the outline
     And the node "hinges" shows the waiting mark
     And the node "hinges" shows no checkbox
 
+  Scenario: The mark column says what it means in words as well as in a shape
+    # A face is a shape and a tone, and every one of them is hidden from a
+    # screen reader — so what a row IS reached a reader by hovering the glyph
+    # and no other way. The cell's own name carries it now: the sentence
+    # first, then the verb that cell has always had.
+    Then the mark column of "demo" is named "Done, zoom in"
+    # ...including the DERIVED one. Nothing else on the row says what is in
+    # the way, and a blocker is named by its title, in the order the set
+    # derives them.
+    And the mark column of "hinges" is named "blocked by order the new cabinets, zoom in"
+    # A row with no mark is not work, so it has nothing to say first.
+    And the mark column of "handles" is named "Zoom in"
+
   Scenario: A row is its title, and a pilcrow says there is more
     # Compact: nothing under the title, and the mark beside it is the door.
     # What the open state holds, and the other densities, are

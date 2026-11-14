@@ -56,3 +56,21 @@ Feature: Confirming composed text does not invoke application shortcuts
     When I press "Enter"
     Then "_olai/Inbox.olai" holds a node titled "日本語"
     And there should be no page errors
+
+  @scratch:good
+  Scenario: Confirming a composed property value writes nothing until a later Enter
+    Given I rewrite "ime-props.olai" as:
+      """
+      {"id":"ime-prop","ord":"a0","title":"Shelf"}
+      """
+    And I open the outline "ime-props.olai"
+    # The FIRST property is added from the menu: a node with no run has no `+`
+    # at the end of one (`plugins/outlines/e2e/features/properties.feature`).
+    When I open the node menu of "ime-prop"
+    And I choose "More › Add property…" from the node menu
+    And I draft the property "maker" holding "" on "ime-prop"
+    And I confirm the IME text "日本語" in the focused field
+    Then the vault node "ime-prop" has no property "maker"
+    When I press "Enter"
+    Then the vault node "ime-prop" has property "maker" holding "日本語"
+    And there should be no page errors

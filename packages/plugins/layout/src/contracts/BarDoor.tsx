@@ -14,9 +14,10 @@
  *
  * That the two panels answer different questions is exactly the argument for
  * two DOORS, and no argument at all for two implementations of a door. What is
- * per-door is the glyph, the words, the testid, the sentence a hover gets, and
- * what the panel IS. Everything else is what a door in this bar is, and this is
- * that.
+ * per-door is the glyph, the word — which is the name AND the tip, because a
+ * door that hovered differently from what it is called would be two doors —
+ * the testid, and what the panel IS. Everything else is what a door in this
+ * bar is, and this is that.
  *
  * ## What it owns, and each of these fails silently on its own
  *
@@ -64,6 +65,9 @@
 import { createContext, type JSX, Show, useContext } from "solid-js"
 import { Portal } from "solid-js/web"
 
+import { LAYER } from "@olai/web/client/layer.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
+
 import type { Anchor } from "@olai/web/client/anchor.ts"
 import type { ToolWhere } from "olai-plugin-layout/contract"
 import { ENTRY_SHAPE, ROW_GAP } from "olai-plugin-layout/entry"
@@ -88,13 +92,16 @@ export function BarDoor(props: {
   /** One character, drawn `aria-hidden` — the word is the name. */
   readonly glyph: string
   /** The door's word: drawn beside the glyph on a row (the phone drawer, the
-   *  health popover), and the accessible name of the glyph-only bar chip. The
-   *  bar used to draw a short second word (`prefs`) beside the glyph; a calm
-   *  bar draws the glyph and nothing else, so one word is enough. */
+   *  health popover), the accessible name of the glyph-only bar chip, and the
+   *  words of its tip. The bar used to draw a short second word (`prefs`)
+   *  beside the glyph; a calm bar draws the glyph and nothing else, so one
+   *  word is enough.
+   *
+   *  ONE string for all three, which is what retired the separate hover
+   *  sentence this component used to take: both doors passed it their own
+   *  name, spelled twice, and a tip that repeats the control's accessible name
+   *  is a sentence a screen reader would read out a second time for nothing. */
   readonly name: string
-  /** The hover sentence: what is behind this door, in the words a person who
-   *  has not opened it yet would use. */
-  readonly title: string
   readonly testid: string
   /** What opens. A FUNCTION rather than an element, because the panel must be
    *  created inside the `Show` — built eagerly it would exist (and subscribe)
@@ -125,6 +132,11 @@ export function BarDoor(props: {
   if (seat !== undefined) popover.setTrigger(seat.dot())
 
   const trigger = (
+    // OVER the bar, not under it: this chip sits IN the header, so its tip has
+    // to cover the bar and the chat dock that shares the page's layer — the
+    // same claim the panel behind this button already makes. At the page's
+    // layer the coral rule cut the first line of it.
+    <Tip text={props.name} layer={LAYER.over}>
       <button
         type="button"
         ref={(el) => {
@@ -140,7 +152,6 @@ export function BarDoor(props: {
         data-testid={props.testid}
         aria-expanded={open()}
         aria-haspopup="true"
-        title={props.title}
         onClick={() => {
           seat?.shut()
           popover.toggle()
@@ -151,6 +162,7 @@ export function BarDoor(props: {
           {props.name}
         </span>
       </button>
+    </Tip>
   )
 
   return (

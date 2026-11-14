@@ -520,8 +520,12 @@ Then(
   "the finished box's tooltip says {string}",
   async function (this: OlaiWorld, said: string) {
     const flip = await flipOfAddressed(this.page);
-    await this.waitUntil(async () => (await flip.getAttribute("title")) === said,
-      `the finished box's tooltip to say ${said}`);
+    // The sentence is the app's own tip for a pointer and a visually hidden
+    // copy right after the group for everybody else — it was a `title`, which
+    // only a pointer could ever reach. This reads the copy a reader is given.
+    const echo = flip.locator("xpath=following-sibling::span[1]");
+    await this.waitUntil(async () => (await echo.textContent())?.trim() === said,
+      `the finished box's sentence to say ${said}`);
   },
 );
 
@@ -1563,7 +1567,12 @@ Then("the plugin {string} marks {string} as authored by {string}", async functio
   if (await knob.count()) {
     assert.equal(await knob.locator('[data-testid="plugin-source"]').count(), author === "vault" ? 1 : 0);
     if (author === "vault") {
-      assert.equal(await knob.locator('[data-testid="plugin-source"]').getAttribute("title"), "set in Settings.olai");
+      // The dot is a mark, so the sentence it stands for is a visually hidden
+      // twin beside it rather than a `title` only a pointer could reach.
+      assert.equal(
+        (await knob.locator('[data-testid="plugin-source"] + span').textContent())?.trim(),
+        "set in Settings.olai",
+      );
       assert.equal(await knob.locator('[data-testid="plugin-reset"]').isVisible(), true);
     }
   }

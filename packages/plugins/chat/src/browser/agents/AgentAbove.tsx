@@ -39,6 +39,7 @@
 import { createMemo, Show } from "solid-js"
 import { hrefOfPlain, zoomNode } from "olai-plugin-navigation/routes"
 import { useMaybeRouter } from "olai-plugin-navigation/routing"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 import { TESTID } from "../../testids.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"
@@ -51,20 +52,28 @@ import { focusAgent, visitAgent } from "./focus.ts"
  *  the engine beside it. */
 function Pill(props: { readonly row: Row; readonly engine: string }) {
   return (
-    <a
-      href={hrefOfPlain(zoomNode(props.row.id))}
-      class="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full border border-rule px-2 py-0.5 text-label text-muted no-underline hover:bg-rule hover:text-ink"
-      data-testid={TESTID.agentAbove}
-      data-agent={props.row.id}
-      data-engine={props.row.engine}
-      title={`Open the conversation with ${props.row.title}`}
-      on:olai-navigated={() => visitAgent(props.row)}
-    >
-      <span aria-hidden="true">↑</span>
-      <AgentMark id={props.row.engine} />
-      <span class="min-w-0 truncate text-ink">{props.row.title}</span>
-      <span class="shrink-0 text-muted">· {props.engine}</span>
-    </a>
+    <Tip text={`Open the conversation with ${props.row.title}`}>
+      <a
+        href={hrefOfPlain(zoomNode(props.row.id))}
+        class="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full border border-rule px-2 py-0.5 text-label text-muted no-underline hover:bg-rule hover:text-ink"
+        data-testid={TESTID.agentAbove}
+        data-agent={props.row.id}
+        data-engine={props.row.engine}
+        on:olai-navigated={() => visitAgent(props.row)}
+      >
+        <span aria-hidden="true">↑</span>
+        <AgentMark id={props.row.engine} />
+        <span class="min-w-0 truncate text-ink">{props.row.title}</span>
+        <span class="shrink-0 text-muted">· {props.engine}</span>
+        {/* WHAT THE ↑ SAYS, for a reader who never hovers. The arrow is
+            `aria-hidden` and the tip is drawn by this app rather than
+            announced, so the one fact the pill's own words do not carry —
+            that this link goes UP, to the conversation holding this node —
+            rides the name itself, after the visible words so the name still
+            starts with them (WCAG 2.5.3). */}
+        <span class="sr-only"> — open the conversation above</span>
+      </a>
+    </Tip>
   )
 }
 
@@ -108,29 +117,30 @@ export function CrumbMark(props: { readonly node: string }) {
   return (
     <Show when={agents.at(props.node)}>
       {(row) => (
-        <button
-          type="button"
-          tabIndex={-1}
-          class="inline-flex shrink-0 items-center rounded-control p-0.5 text-muted hover:bg-rule hover:text-ink"
-          data-testid={TESTID.crumbMark}
-          data-agent={row().id}
-          data-engine={row().engine}
-          aria-label={`Open the conversation with ${row().title}`}
-          title={`Open the conversation with ${row().title}`}
-          onClick={(event) => {
-            // The row this can sit in is itself a link (a search result), so
-            // the press belongs to this control and to no other.
-            event.preventDefault()
-            event.stopPropagation()
-            if (router === undefined) return
-            focusAgent((route) => router.go(route), row())
-            // What a followed link says after it moved (`routing.tsx`'s
-            // `follow`), so a palette or a header box closes itself.
-            event.currentTarget.dispatchEvent(new CustomEvent("olai-navigated", { bubbles: true }))
-          }}
-        >
-          <AgentMark id={row().engine} />
-        </button>
+        <Tip text={`Open the conversation with ${row().title}`}>
+          <button
+            type="button"
+            tabIndex={-1}
+            class="inline-flex shrink-0 items-center rounded-control p-0.5 text-muted hover:bg-rule hover:text-ink"
+            data-testid={TESTID.crumbMark}
+            data-agent={row().id}
+            data-engine={row().engine}
+            aria-label={`Open the conversation with ${row().title}`}
+            onClick={(event) => {
+              // The row this can sit in is itself a link (a search result), so
+              // the press belongs to this control and to no other.
+              event.preventDefault()
+              event.stopPropagation()
+              if (router === undefined) return
+              focusAgent((route) => router.go(route), row())
+              // What a followed link says after it moved (`routing.tsx`'s
+              // `follow`), so a palette or a header box closes itself.
+              event.currentTarget.dispatchEvent(new CustomEvent("olai-navigated", { bubbles: true }))
+            }}
+          >
+            <AgentMark id={row().engine} />
+          </button>
+        </Tip>
       )}
     </Show>
   )

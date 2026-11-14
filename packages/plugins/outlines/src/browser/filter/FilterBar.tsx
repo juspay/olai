@@ -143,10 +143,35 @@ export function FilterBar(props: {
             ref={input}
             type="text"
             role="combobox"
-            class="min-h-11 w-full min-w-0 rounded-control border border-rule bg-desk/60 py-1 pl-2.5 pr-11 text-body md:pr-9 text-ink outline-none placeholder:text-muted focus:border-accent focus:bg-paper focus:ring-2 focus:ring-accent/20 md:min-h-0 md:h-8"
+            // The border lights and the background goes to paper on focus;
+            // the app's one outline is the ring (`@olai/appearance/chrome.css`
+            // — unlayered, so the `outline-none` that used to be here never
+            // stood it down). The `focus:ring-2 focus:ring-accent/20` glow
+            // beside it was a second, redundant `box-shadow`, and a
+            // box-shadow is the first thing forced colours removes.
+            class="min-h-11 w-full min-w-0 rounded-control border border-rule bg-desk/60 py-1 pl-2.5 pr-11 text-body md:pr-9 text-ink placeholder:text-muted focus:border-accent focus:bg-paper md:min-h-0 md:h-8"
             data-testid={TESTID.filterInput}
             placeholder={PLACEHOLDER}
             aria-label="Filter"
+            // `search`, and it is the honest one here precisely BECAUSE this
+            // box submits nothing: the rows narrow on every keystroke, so the
+            // return key's job is to say "that is the query" and put the
+            // keyboard away — which is what a Search key means on a phone.
+            // Not `go`: Enter here opens nothing (the shortlist boxes and the
+            // header's do, and say `go`); not `done`, which belongs to a box
+            // that closes. While the form hint is up Enter puts a form IN,
+            // which is still the query being finished rather than a
+            // navigation.
+            //
+            // The corrections off for the identifier reason: what is typed here
+            // is a query against titles, tags and the `is:`/`has:` forms the
+            // hint offers, not a sentence — so a phone's autocorrect rewriting
+            // a half-typed word, and its capital on the first letter of an
+            // empty box, are edits to somebody's search that they did not make.
+            enterkeyhint="search"
+            autocorrect="off"
+            autocapitalize="none"
+            spellcheck={false}
             aria-autocomplete="list"
             aria-expanded={focused() && !shut() && props.narrowing.text() === ""}
             value={props.narrowing.text()}

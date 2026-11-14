@@ -6,6 +6,10 @@ The browser provider owns a document reader and a fresh edit-history scope. Its 
 
 While a page's first reading is on its way it says `Loading…`. An address that names no such file says `Page not found`, with a detail such as `There is no document named notes/plan.md.` The source editor's accessible name is `Edit <file>`.
 
+A rendered document is set to be read. Paragraphs, list items and quotes are wrapped with `text-wrap: pretty`, so a block does not end on a single orphaned word; headings below the two ruled levels (`h3` and down) are wrapped with `text-wrap: balance`, so a two-line heading breaks near its middle instead of running out of room. `h1`, `h2` and table headers are deliberately left alone — balancing text inside an element that draws a rule or a tint under its full width leaves a short line over a long box. A pasted URL, hash or key still breaks anywhere rather than widening the column past the screen. Browsers that do not implement these values wrap the way they always did; nothing moves, nothing is missing, and no script is loaded to make up the difference.
+
+The pictures in a document are fetched in the order a reader meets them: the first at once, the rest when the reader scrolls near them ([format.md](../format.md#documents)). The same renderer draws outline notes and chat replies, so the rule holds per rendered block rather than per page.
+
 Heading fragments remain in each pane's navigation route and scroll history.
 A heading link and a contents entry both encode `/document.md#slug` directly
 (the authored slug; element ids on the page stay namespaced), and there is no
@@ -50,8 +54,13 @@ Rendered prose is cached by claims, source, writing file, and directory
 membership snapshot. The snapshot supplies both membership lookup and cache
 identity, so callers cannot pair a changing predicate with a stale revision. Code spans,
 code fences and frontmatter cannot introduce missing-link warnings; queries
-and fragments are excluded from membership checks. Authored link titles are
-preserved alongside the warning.
+and fragments are excluded from membership checks. An authored link title —
+`[x](y "…")` — is still rendered as the document's own tooltip, because it is
+content the author wrote rather than chrome this app chose. The app's own
+sentence about a dead link is not a tooltip: it rides the link's spoken name,
+after the words the link keeps, so it reaches a keyboard and a screen reader
+and not only a pointer, and it comes off again the moment the target is
+served.
 
 ## Draft and rendering lifetime
 

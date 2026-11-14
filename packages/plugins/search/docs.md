@@ -32,6 +32,10 @@ The `lead` word arrived with this row. It is the seat ahead of the health dot an
 
 The shortlist, result rows and count are search's public presentation contracts. Navigation, chat and outlines supply their own selection behavior and retain their own editing state. The generic cursor is a UI primitive.
 
+Both boxes say what their return key does, which is what an on-screen keyboard draws: **Go**, because Enter opens the row the cursor is on rather than submitting a search. A query is matched rather than read, so neither box is autocapitalised, autocorrected or spell-checked — the header box keeps `type="search"` for its clear affordance, and the shortlist stays a plain text box.
+
+Neither box draws a focus ring of its own any more: olai has one, it is an outline rather than a glow, and it is the only kind that survives a screen forcing its own colours — the glow these boxes used to add was a shadow, which that mode deletes. The results panel's hairline is a real border for the same reason. What the boxes keep is their own lit border when the caret is in them. [theme.md](theme.md) has the account.
+
 Live queries arrive through the scoped `search.readings` service. Removing search disposes each query subscription, clears actionable results and shows an unavailable message in surviving pickers. Returning search starts a fresh query for the consumer's current input. No implementation is cached in a process-global handle, and no general web module imports a search implementation.
 
 ## Semantic recall

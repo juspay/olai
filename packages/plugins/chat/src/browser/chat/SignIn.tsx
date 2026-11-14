@@ -29,6 +29,7 @@ import { agentIn } from "olai-plugin-chat/wire"
 import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { identityOf } from "./identityChip.ts"
 import { LinkCard } from "./LinkCard.tsx"
 import { linkify } from "./links.ts"
@@ -136,6 +137,17 @@ export function SignIn(props: { readonly chat: Chat }) {
           class="mt-2 w-full rounded-control border border-rule bg-paper px-2 py-1 font-mono text-label"
           data-testid={TESTID.chatSignInInput}
           placeholder="Paste the code here"
+          // Enter writes the line to the process that is waiting for it
+          // (`send`, below), so the return key says Send. A verification code
+          // is the identifier case par excellence — it is pasted or copied
+          // character for character, and a capital the keyboard added or a
+          // word autocorrect "fixed" is a code that will be refused by
+          // whatever is reading it. No `inputmode`: these codes are
+          // alphanumeric, so a numeric pad would be the wrong keyboard.
+          enterkeyhint="send"
+          autocorrect="off"
+          autocapitalize="none"
+          spellcheck={false}
           value={line()}
           onInput={(event) => setLine(event.currentTarget.value)}
           onKeyDown={(event) => {
@@ -178,12 +190,18 @@ export function SignIn(props: { readonly chat: Chat }) {
         )}
       </Show>
       <div class="mt-2 flex flex-wrap items-center gap-2">
-        <For each={methods().filter((method) => method.kind !== "byHand")}>{method => <button type="button"
-          class="flex h-8 items-center rounded-control border border-accent px-3 text-label text-accent"
-          data-testid={TESTID.chatSignInMethod} data-method={method.id}
-          title={method.description ?? undefined} onClick={() => props.chat.signIn(method.id)}>
-          {method.name}
-        </button>}</For>
+        {/* WHAT THE METHOD IS. The agent's own description was the `title`'s
+            alone; it is in the button's name now, after the method's visible
+            name, and under the pointer as this app's own tip. */}
+        <For each={methods().filter((method) => method.kind !== "byHand")}>{method =>
+          <Tip text={method.description ?? ""} disabled={!method.description}><button type="button"
+            class="flex h-8 items-center rounded-control border border-accent px-3 text-label text-accent"
+            data-testid={TESTID.chatSignInMethod} data-method={method.id}
+            onClick={() => props.chat.signIn(method.id)}>
+            {method.name}
+            <Show when={method.description}>{said => <span class="sr-only"> — {said()}</span>}</Show>
+          </button></Tip>
+        }</For>
       </div>
       {/* A METHOD NOBODY HERE CAN RUN: a label and the command line, never a
           button. The agent's sign-in is an interactive wizard that refuses a

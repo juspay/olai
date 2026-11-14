@@ -27,6 +27,8 @@
 
 import { Show } from "solid-js"
 
+import { Tip } from "@olai/web/client/Tip.tsx"
+
 import type { AuthStatus } from "olai-plugin-chat/wire"
 
 import { TESTID } from "../../testids.ts"
@@ -52,28 +54,39 @@ export function Identity(props: {
     <Show
       when={props.pressable}
       fallback={
-        <span
-          class={CHIP}
-          data-testid={TESTID.chatIdentity}
-          data-kind={kind()}
-          data-pressable="false"
-          title={title()}
-        >
-          {said()}
-        </span>
+        /* THE WHOLE ACCOUNT, for a reader as well as for a pointer. The chip
+           is a `<span>` here — nothing to name — so the sentence rides an
+           sr-only companion AFTER it, outside the chip, because scenarios
+           read the chip's own words back. */
+        <Tip text={title()} say>
+          <span
+            class={CHIP}
+            data-testid={TESTID.chatIdentity}
+            data-kind={kind()}
+            data-pressable="false"
+          >
+            {said()}
+          </span>
+        </Tip>
       }
     >
-      <button
-        type="button"
-        class={`${CHIP} hover:bg-ink/10 hover:text-ink`}
-        data-testid={TESTID.chatIdentity}
-        data-kind={kind()}
-        data-pressable="true"
-        title={`${title()} — press to sign in as someone else`}
-        onClick={() => props.chat.signIn(null)}
-      >
-        {said()}
-      </button>
+      <Tip text={`${title()} — press to sign in as someone else`}>
+        <button
+          type="button"
+          class={`${CHIP} hover:bg-ink/10 hover:text-ink`}
+          data-testid={TESTID.chatIdentity}
+          data-kind={kind()}
+          data-pressable="true"
+          onClick={() => props.chat.signIn(null)}
+        >
+          {said()}
+        </button>
+        {/* AFTER the button, not inside it: the chip's own words are its name
+            and a scenario reads them back exactly, so the fields the line
+            leaves out — organization, plan, the agent's own detail — follow
+            the control as a sentence rather than lengthening its name. */}
+        <span class="sr-only">{title()}</span>
+      </Tip>
     </Show>
   )
 }

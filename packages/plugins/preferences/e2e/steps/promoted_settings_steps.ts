@@ -155,9 +155,11 @@ Then(
     await showPreferences(this.page);
     // The freeze is announced by whichever element IS the control: the group a
     // segmented choice draws its buttons in, a select, a switch, or an input.
-    const titled = preferenceKnob(this, pref).locator("[title]");
+    // It rides that control's own NAME now — a `title` said it only to a
+    // pointer, and a frozen setting is exactly the thing a reader needs told.
+    const named = preferenceKnob(this, pref).locator("[aria-label]");
     await this.waitUntil(
-      async () => (await titled.evaluateAll((els) => els.map((el) => el.getAttribute("title") ?? ""))).some((one) => one.includes(text)),
+      async () => (await named.evaluateAll((els) => els.map((el) => el.getAttribute("aria-label") ?? ""))).some((one) => one.includes(text)),
       `the ${pref} preference to be frozen because ${JSON.stringify(text)}`,
     );
   },

@@ -84,6 +84,9 @@ Feature: A stale Enter is claimed and spends nothing
     Given I open the outline "house.olai"
     When I search the header for "compost"
     Then the header search lists the node "the compost heap"
+    # The cap on the key this scenario is about: Go, because the press opens
+    # the row the cursor is on rather than submitting a search.
+    And the header search box asks for a Go key and no corrections
     When I retype the header search as "mint" and press Enter at once
     Then the address is "/house.olai"
     And the header search lists the node "split the mint"

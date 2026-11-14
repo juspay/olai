@@ -67,15 +67,20 @@
  * cannot make that claim: `../layer.ts`'s table orders the page's own stack,
  * and a menu portalled to the body AFTER this mounted would sit at the same
  * number and paint over it, which is exactly the hole a freeze may not have.
- * So this is the one thing in the client that is above the table, `../layer.ts`
- * says so beside it, and `../claims.test.ts` holds it to being the only
- * `showModal` in the client.
+ * IT IS NO LONGER THE ONLY ONE UP THERE, and that is the half of this worth
+ * reading twice. The ⌘K palette and the shortcuts sheet it opens are modal
+ * dialogs too, for their own reasons, and the top layer stacks in the order
+ * it was ENTERED — so a palette opened after this card would stand over the
+ * freeze. It cannot be: a chord is swallowed while this is up and the page
+ * under it is inert, and nothing else in this client opens a modal without a
+ * gesture or a message. `../layer.ts` argues that in full beside its table,
+ * and `../claims.test.ts` sweeps who may call `showModal` at all.
  *
- * No fallback for a browser without `showModal`, deliberately: this client's
- * stylesheet is Tailwind 4, whose own floor (Safari 16.4, Chrome 111, Firefox
- * 128) is already years above the dialog's (Safari 15.4, March 2022). A guard
- * here would be a branch nothing this app runs in can take, drawing a
- * half-freeze in the name of a browser that cannot render the page anyway.
+ * No fallback for a browser without `showModal`, deliberately: this app's
+ * support floor (`@olai/appearance`'s `chrome.css` states it) is already
+ * years above the dialog's (Safari 15.4, March 2022). A guard here would be a
+ * branch nothing this app runs in can take, drawing a half-freeze in the name
+ * of a browser that cannot render the page anyway.
  *
  * The one thing the top layer does not cover is a listener on the WINDOW: an
  * inert element cannot be pressed, but a global chord is not pressed on an
@@ -215,8 +220,19 @@ export function Offline(props: {
       // button on it the dialog itself takes the focus, and a focus ring drawn
       // around a card nobody navigated to reads as a border somebody chose.
       // The focus itself is kept — it is half of what makes the page under this
-      // unreachable by keyboard.
-      class="m-auto max-w-sm rounded-surface border-0 bg-panel px-6 py-5 text-ink shadow-overlay ring-1 ring-rule/40 focus:outline-none backdrop:bg-black/60"
+      // unreachable by keyboard. (It works here, unlike on the controls that
+      // used to spell it: the app's ring selects buttons, links and fields,
+      // and a `<dialog>` is none of those — `@olai/appearance/chrome.css`.)
+      //
+      // THE EDGE IS A `border`, NOT A `ring`, for the reason `../readout.ts`'s
+      // panel box states at length: `ring-1` is a `box-shadow`, Windows High
+      // Contrast REMOVES box-shadows, and this card would be a slab of
+      // `Canvas` over a `Canvas` page — with its `shadow-overlay` gone too and
+      // the backdrop's own black repainted — at exactly the moment the app is
+      // trying to tell somebody it has lost the wire. A border's colour is
+      // forced, not deleted. `rule/40` goes with it: a hairline tuned to be
+      // half-there is not the thing to measure a system palette against.
+      class="m-auto max-w-sm rounded-surface border border-rule bg-panel px-6 py-5 text-ink shadow-overlay focus:outline-none backdrop:bg-black/60"
       data-testid={TESTID.offline}
       // WHICH state froze it, for a test and for whoever is reading the DOM —
       // the same attribute and the same values the pill publishes

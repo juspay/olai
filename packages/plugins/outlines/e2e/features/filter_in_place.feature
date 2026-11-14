@@ -311,3 +311,18 @@ Feature: Filtering the outline in place
     Then the filter box holds ""
     And the address is exactly "/house.olai"
     And there should be no page errors
+
+  @phone
+  Scenario: A thumb's filter box asks for a search keyboard, and typing in it still narrows
+    # The bar is one line on a phone too, which makes it the search box a thumb
+    # actually reaches — the header's own box is desktop-only and the phone's
+    # magnifier opens the palette instead. So this is where the query box's
+    # keyboard is held: a Search cap on the return key, and nothing of what is
+    # typed capitalised or corrected on its way to the matcher.
+    Given I open the outline "house.olai"
+    Then the filter box asks for a Search key and no corrections
+    When I focus the filter box
+    And I type "hinges" into the filter box
+    Then the node "hinges" is shown
+    And the node "handles" is not shown
+    And there should be no page errors

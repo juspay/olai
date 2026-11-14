@@ -1,6 +1,6 @@
 /**
  * WHO the agent is signed in as, as a line short enough to sit in the agent
- * line — and as the longer account of itself a `title` can hold.
+ * line — and as the longer account of itself the chip's tip holds.
  *
  * `Claude Max · you@example.com`. The label is the AGENT'S own ready-made
  * string ("Claude Max", "ChatGPT Plus", "Anthropic API key") and the second
@@ -17,9 +17,9 @@
  * a state. `null` — an agent that does not report — draws no chip at all
  * ({@link identityOf}), and is deliberately not the same thing.
  *
- * Organization, plan and the agent's detail go in the `title` and never in the
- * line: the line has to stay one glance wide, and a plan string is the fact
- * that matters least often.
+ * Organization, plan and the agent's detail go in the longer account and never
+ * in the line: the line has to stay one glance wide, and a plan string is the
+ * fact that matters least often.
  */
 
 import type { AuthStatus } from "olai-plugin-chat/wire"
@@ -33,10 +33,10 @@ export const identityOf = (identity: AuthStatus): string => {
 }
 
 /**
- * Everything the agent said, on one line for the chip's `title` — the same
- * fields the line shows plus the ones it leaves out, deduplicated so an agent
- * that reports its email as both `account.email` and `detail` is not read
- * twice.
+ * Everything the agent said, on one line for the chip's tip and for the
+ * visually hidden sentence beside it — the same fields the line shows plus
+ * the ones it leaves out, deduplicated so an agent that reports its email as
+ * both `account.email` and `detail` is not read twice.
  */
 export const identityTitleOf = (identity: AuthStatus): string => {
   if (identity.kind === "none") return "Not signed in"

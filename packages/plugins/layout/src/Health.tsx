@@ -52,6 +52,8 @@ import { connectionReadout } from "@olai/web/client/wire.ts"
 import { createPopover } from "@olai/web/client/popover.ts"
 import { lookOf } from "@olai/web/client/connection/status.ts"
 import { ICON_BUTTON, PANEL_BOX, TONE } from "@olai/web/client/readout.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
+import { LAYER } from "@olai/web/client/layer.ts"
 
 import { hung } from "./faces.ts"
 import { nameOf, tipOf, worstFirst, worstOf } from "./health.ts"
@@ -71,6 +73,19 @@ const narrowed = (at: Anchor, edge: number | undefined): Record<string, string |
   const right = Math.min(at.left + at.width, edge ?? Number.POSITIVE_INFINITY)
   const width = Math.min(at.width, ROWS_WIDTH, right)
   return { ...styleOf(at), left: `${right - width}px`, width: `${width}px` }
+}
+
+/** The right edge of the BOX the dot sits in, skipping any ancestor that is
+ *  not a box at all. The app's tip wraps what it explains in a
+ *  `display: contents` span (`@olai/web/client/Tip.tsx`), which draws nothing
+ *  and measures as all zeros — so a plain `parentElement` walk from a tipped
+ *  control answers 0 and pins whatever it positions to the left edge of the
+ *  window. `undefined` where there is nothing to measure, which is what
+ *  `narrowed` already reads as "no edge to stay inside of". */
+const clusterRight = (control: HTMLElement | undefined): number | undefined => {
+  let node = control?.parentElement ?? null
+  while (node !== null && getComputedStyle(node).display === "contents") node = node.parentElement
+  return node === null ? undefined : node.getBoundingClientRect().right
 }
 
 /** The connection's own row, ordered among the seats like any of them. */
@@ -97,37 +112,52 @@ export function Health(props: { readonly slots: RendererSlots }) {
 
   return (
     <>
-      <button
-        type="button"
-        ref={(el) => {
-          dot = el
-          popover.setTrigger(el)
-        }}
-        class={`${ICON_BUTTON} !px-0 md:!w-7`}
-        data-testid={TESTID.health}
-        data-health={tone()}
-        // The connection's own state rides the dot too: it is the bar's own
-        // readout, and "is this page still reading" should not need a click
-        // to be asserted or inspected.
-        data-connection={connectionReadout().status}
-        aria-label={nameOf(statuses())}
-        title={tipOf(statuses())}
-        aria-expanded={popover.open()}
-        aria-haspopup="true"
-        onClick={() => popover.toggle()}
-      >
-        <span
-          class={`inline-block size-2.5 rounded-full ${TONE[tone()].dot}`}
-          aria-hidden="true"
-        />
-      </button>
+      {/* THE WHOLE OF THE NEWS, over the bar the dot sits in. The button's own
+          name is the headline (`nameOf`); the lines under it — one per piece of
+          news — are a second sentence, so they ride the dot itself as a
+          `role="img"` name, which is a name the platform exposes where a bare
+          span's would be ignored. Not a `title`: the platform's tooltip is what
+          this tip replaces. */}
+      <Tip text={tipOf(statuses())} layer={LAYER.over}>
+        <button
+          type="button"
+          ref={(el) => {
+            dot = el
+            popover.setTrigger(el)
+          }}
+          class={`${ICON_BUTTON} !px-0 md:!w-7`}
+          data-testid={TESTID.health}
+          data-health={tone()}
+          // The connection's own state rides the dot too: it is the bar's own
+          // readout, and "is this page still reading" should not need a click
+          // to be asserted or inspected.
+          data-connection={connectionReadout().status}
+          aria-label={nameOf(statuses())}
+          aria-expanded={popover.open()}
+          aria-haspopup="true"
+          onClick={() => popover.toggle()}
+        >
+          <span
+            class={`inline-block size-2.5 rounded-full ${TONE[tone()].dot}`}
+            role="img"
+            aria-label={tipOf(statuses())}
+          />
+        </button>
+      </Tip>
       <Show when={popover.open() ? popover.at() : null}>
         {(at) => (
           <Portal>
             <section
               ref={popover.setPanel}
               class={`${PANEL_BOX} gap-0.5 !p-2`}
-              style={narrowed(at(), dot?.parentElement?.getBoundingClientRect().right)}
+              // THE CLUSTER'S RIGHT EDGE, found by climbing past anything with
+              // no box. The dot's parent used to be the bar's cluster; it is
+              // the tip's wrapper now, which is `display: contents` — no box,
+              // and `getBoundingClientRect()` on one answers all zeros, which
+              // pinned this panel to the left edge of the window and under the
+              // sidebar. A wrapper that adds no box must not be allowed to
+              // answer a question about boxes.
+              style={narrowed(at(), clusterRight(dot))}
               tabindex="-1"
               data-testid={TESTID.healthPanel}
               aria-label="status"

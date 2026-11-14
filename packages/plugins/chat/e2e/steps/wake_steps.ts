@@ -133,7 +133,9 @@ Then("this conversation offers no {string} wake control", async function (this: 
 });
 
 When("I clear this conversation's {string} wake", async function (this: OlaiWorld, plugin: string) {
-  const row = (await thePicker(this, plugin)).locator("..");
+  // The row by what it holds, not by one step up: the trigger wears a tip
+  // whose wrapper is a `display: contents` span (see the warning step below).
+  const row = (await thePicker(this, plugin)).locator('xpath=ancestor::*[.//button[normalize-space(.)="Clear"]][1]');
   await this.press(row.getByRole("button", { name: "Clear", exact: true }));
 });
 
@@ -386,7 +388,12 @@ Then(
 );
 
 Then("this conversation's {string} missing-file warning is queued", async function (this: OlaiWorld, plugin: string) {
-  const row = (await thePicker(this, plugin)).locator("..");
+  // The ROW the picker sits in, found by what it holds rather than by counting
+  // steps up the tree: the trigger wears the app's own tip now, whose wrapper
+  // is a `display: contents` span, so a bare `..` lands on the wrapper instead
+  // of the row and the warning beside it is out of reach.
+  const row = (await thePicker(this, plugin))
+    .locator('xpath=ancestor::*[.//*[@data-testid="chat-wake-fault"]][1]');
   await this.waitUntil(async () =>
     await row.locator(CHAT_WAKE_FAULT).getAttribute("data-fault") === "gone"
       && await row.locator(CHAT_WAKE_WAITING).getAttribute("data-waiting") === "1",

@@ -10,7 +10,7 @@ Feature: Tabs above the panes
     And tab 0 is in front
     And tab 0 holds "/house.olai"
     And tab 0 is titled "house"
-    And tab 0's tooltip is "/house.olai"
+    And tab 0 carries the address "/house.olai"
     And the tab strip spells no address
     And there should be no page errors
 
@@ -20,7 +20,7 @@ Feature: Tabs above the panes
     Then there is 1 tab
     And tab 0 holds "/garden.olai"
     And tab 0 is titled "garden"
-    And tab 0's tooltip is "/garden.olai"
+    And tab 0 carries the address "/garden.olai"
     And there should be no page errors
 
   Scenario: Open in new tab from a link's menu adds a tab behind

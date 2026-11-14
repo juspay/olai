@@ -631,16 +631,23 @@ Then("the past sessions hold {string}", async function (this: OlaiWorld, title: 
 
 /** WHAT THE FRESH SESSION SAYS, asserted as words: the label is the whole
  *  reason the gesture is safe to press, so it is the feature rather than its
- *  paint. */
+ *  paint. It is the BUTTON'S OWN NAME now rather than a `title` — the drawn
+ *  words plus an sr-only run saying where the memory stays — so a reader who
+ *  never hovers gets the same promise a pointer does. */
 Then(
   "the panel offers a fresh session, saying {string}",
   async function (this: OlaiWorld, words: string) {
-    const fresh = this.chat(FRESH);
+    const fresh = this.chat(FRESH).first();
     await fresh.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const says = (await fresh.innerText()).replace(/\s+/g, " ").trim();
     assert.ok(
-      (await fresh.getAttribute("title") ?? "").includes(words),
-      `the fresh session to say ${JSON.stringify(words)}, and it says ` +
-        JSON.stringify((await fresh.getAttribute("title") ?? "")),
+      says.includes(words),
+      `the fresh session to say ${JSON.stringify(words)}, and it says ${JSON.stringify(says)}`,
+    );
+    assert.equal(
+      await fresh.getAttribute("title"),
+      null,
+      "the fresh session still wears a native tooltip beside this app's own",
     );
   },
 );
@@ -910,6 +917,13 @@ When("I press the agent start pill on {string}", async function (this: OlaiWorld
   this.activeAgent = node;
   await this.press(startFor(this, node));
 });
+/** The same offer, taken with a thumb: no hover before it and no `force` on
+ *  it, because a screen with no hover draws the pill rather than fading it in
+ *  (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`). */
+When("I tap the agent start pill on {string}", async function (this: OlaiWorld, node: string) {
+  this.activeAgent = node;
+  await this.press(startFor(this, node), "tap");
+});
 Then("the agent start pill on {string} is visible", async function (this: OlaiWorld, node: string) {
   await startFor(this, node).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.equal(await startFor(this, node).evaluate(el => getComputedStyle(el).opacity), "1");
@@ -941,10 +955,16 @@ Then("all bound node agents are asleep", async function (this: OlaiWorld) {
   }, "every bound node agent to remain asleep before a conversation is opened");
 });
 
+/** A Chats row by the conversation it names. The row used to be found by the
+ *  `title` attribute it wore; that attribute is gone — the words are the
+ *  anchor's own text and the hover is this app's tip now — so the row is
+ *  found by what it SAYS, which is what a person reads off it anyway. */
+const rowTitled = (title: string): string => `${ROW}:has-text(${JSON.stringify(title)})`
+
 /** Filed ids are minted; bind a scenario name after finding the actual row. */
 const filedConversationRow = async (world: OlaiWorld, title: string, name: string) => {
   await world.showSidebar();
-  const row = world.page.locator(`${ROSTER} ${ROW}${attr("title", title)}${attr("data-engine", "claude")}`);
+  const row = world.page.locator(`${ROSTER} ${rowTitled(title)}${attr("data-engine", "claude")}`);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const id = await row.getAttribute("data-agent");
   assert.ok(id);
@@ -998,7 +1018,7 @@ When("a terminal stores a conversation titled {string}", function (this: OlaiWor
 
 When("I open the filed {string} conversation {string} as node {string}", async function (this: OlaiWorld, engine: string, title: string, name: string) {
   await this.showSidebar();
-  const row = this.page.locator(`${ROSTER} ${ROW}${attr("title", title)}${attr("data-engine", engine)}`);
+  const row = this.page.locator(`${ROSTER} ${rowTitled(title)}${attr("data-engine", engine)}`);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const id = await row.getAttribute("data-agent");
   assert.ok(id);
@@ -1020,7 +1040,7 @@ Then("the filed node {string} has no message count in its note", async function 
 When("I open the {string} conversation for delivery", async function (this: OlaiWorld, kind: string) {
   await this.showSidebar();
   const row = kind === "node-bound" ? rowFor(this, "door-live")
-    : this.page.locator(`${ROSTER} ${ROW}${attr("title", "the last conversation")}${attr("data-engine", "claude")}`);
+    : this.page.locator(`${ROSTER} ${rowTitled("the last conversation")}${attr("data-engine", "claude")}`);
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   this.activeAgent = await row.getAttribute("data-agent");
   await this.press(row);

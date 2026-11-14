@@ -233,9 +233,56 @@ gesture callbacks cannot rearm the departed owner.
 The palette shortcut belongs to navigation's activation, not to the overlay
 component. A shortcut received before layout renders is retained as palette
 state and opens the focused input when its overlay arrives. Closing through
-the shortcut, Escape or a command uses the same renderer cleanup for its query
-and prior focus. Removing navigation releases the shortcut listener; changing
-layout does not create a gap in keyboard handling.
+the shortcut, Escape or a command uses the same renderer cleanup for its
+query. Removing navigation releases the shortcut listener; changing layout
+does not create a gap in keyboard handling.
+
+### The palette is a modal the browser owns
+
+The palette (`palette/Palette.tsx`) and the keyboard-shortcuts sheet it opens
+(`palette/Shortcuts.tsx`) are native `<dialog>` elements opened with
+`showModal()`. Everything an overlay used to rebuild by hand is the platform's
+as a result, and none of it is spelled in this plugin any more:
+
+- the page behind is **inert** — no press, no caret, no tab stop, nothing for
+  a screen reader to wander into — and the keyboard cannot leave the panel, so
+  there is no focus trap;
+- the dim is `::backdrop` rather than a full-screen button, so there is no
+  scrim element and no `palette-scrim` test id;
+- neither carries `role="dialog"` or `aria-modal`; a native modal already is
+  one, and each is named with `aria-label` instead;
+- neither spells a `z-index`. `showModal()` puts them in the TOP LAYER, above
+  every stacking context at once. They enter it through one door
+  (`web/src/client/layer.ts`'s `enterTopLayer`), which is what keeps the
+  surfaces claiming the whole app a list rather than a habit. Neither can be
+  opened while the offline freeze is up — a chord is swallowed and the page is
+  inert — so the freeze is always the last one in;
+- **Escape** is a close request the browser offers the topmost modal, so the
+  dismissal stack orders itself. A question standing in the box answers the
+  key first (the palette refuses the request and drops the question); with
+  nothing standing, the dialog closes and its `close` event is the one place
+  the open signal is written;
+- the caret goes back to whatever held it when the palette opened, and the
+  palette does that itself. The platform's hand-back is decided at
+  `showModal()` and cannot be declined afterwards, so the invoker is taken off
+  the keyboard BEFORE the layer is entered and `handBack` returns it on close
+  — unless the reader MOVED, in which case the page keeps whatever it has
+  revealed. Moving is read both ways: a `route` row says so, and a `run` whose
+  own work navigated is caught by comparing where the reader is now against
+  where they were when the panel opened. The shortcuts sheet opens only once
+  this hand-back has happened, so the control it records is one that is still
+  in the page;
+- a press outside puts it away, as a close REQUEST rather than a close:
+  `closedby="any"` says so where the browser has it, and
+  `web/src/client/dismiss.ts`'s `lightDismiss` carries the rest by measuring
+  the pointer's position against the panel's own rectangle and dispatching a
+  cancelable `cancel` — Safari has no `closedby` at all, and a question
+  standing in the box must answer a backdrop press the same way on every
+  engine.
+
+Scroll containment for every modal in the app (`dialog:modal` and
+`dialog::backdrop`) is one rule in `appearance/src/chrome.css`; nothing locks
+`html` or `body` overflow.
 
 File pages contribute to `navigation.pages`, keyed by row id or `holds`.
 Navigation reads the current vault Claims cell and chooses the exact kind

@@ -17,11 +17,12 @@
  * place both values meet, is the only place that decision can be made at all.
  */
 import { TESTID } from "olai-plugin-outlines/testids"
-import { Match, Show, Switch } from "solid-js"
+import { type JSX, Match, Show, Switch } from "solid-js"
 
 import { foldSays } from "@olai/web/client/hidden.ts"
 import type { Hot } from "./hot.ts"
 import { ProgressBadge } from "@olai/web/client/ProgressBadge.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 
 export function Aside(props: {
@@ -47,29 +48,52 @@ export function Aside(props: {
           {(hot) => <ProgressBadge progress={hot().progress} />}
         </Match>
         <Match when={props.hot?.kind === "prop" ? props.hot : undefined}>
-          {(prop) => (
-            <span
-              class="shrink-0 text-label text-muted"
-              data-testid={TESTID.hotFact}
-              data-key={prop().key}
-              title={prop().full}
-            >
-              <span class="font-mono">{prop().key}</span> {prop().text}
-            </span>
-          )}
+          {(prop) => {
+            const fact = (): JSX.Element => (
+              <span
+                class="shrink-0 text-label text-muted"
+                data-testid={TESTID.hotFact}
+                data-key={prop().key}
+              >
+                <span class="font-mono">{prop().key}</span> {prop().text}
+              </span>
+            )
+            // ONLY WHERE THE WORDS ARE SHORT FOR SOMETHING: `full` is absent
+            // when the drawn text IS the value (`./hot.ts`), and a tip that
+            // repeated the words under the pointer would be the row read
+            // twice. Where it is there, `say` gives the same sentence to
+            // everybody else.
+            return (
+              <Show when={prop().full} fallback={fact()}>
+                {(full) => (
+                  <Tip text={full()} say>
+                    {fact()}
+                  </Tip>
+                )}
+              </Show>
+            )
+          }}
         </Match>
       </Switch>
       <Show when={fold()}>
-        {(count) => (
-          <span
-            class="shrink-0 tabular-nums text-label text-muted"
-            data-testid={TESTID.foldedDone}
-            data-done={String(count())}
-            title={`${count()} finished ${count() === 1 ? "row" : "rows"} folded here`}
-          >
-            +{count()} done
-          </span>
-        )}
+        {(count) => {
+          const said = (): string =>
+            `${count()} finished ${count() === 1 ? "row" : "rows"} folded here`
+          return (
+            // `+3 done` is a count and a word; what those three stand for —
+            // rows, finished, held back by THIS fold — was the tooltip's
+            // alone. Same shape as the fact above it.
+            <Tip text={said()} say>
+              <span
+                class="shrink-0 tabular-nums text-label text-muted"
+                data-testid={TESTID.foldedDone}
+                data-done={String(count())}
+              >
+                +{count()} done
+              </span>
+            </Tip>
+          )
+        }}
       </Show>
     </>
   )

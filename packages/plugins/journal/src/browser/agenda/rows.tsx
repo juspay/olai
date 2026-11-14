@@ -49,6 +49,7 @@
  */
 
 import { feltOn, type OwedReading, type OwedRow, owedMore } from "@olai/format"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { Key } from "@solid-primitives/keyed"
 import { type Accessor, createMemo, Show } from "solid-js"
 
@@ -96,7 +97,7 @@ function Row(props: { readonly row: Accessor<OwedRow>; readonly today: string })
       <Link
         route={zoomNode(props.row().id)}
         class={`${ENTRY_SHAPE} ${ROW_GAP}`}
-        title={props.row().title}
+        tip={props.row().title}
         label={props.row().title}
       >
         <span
@@ -184,28 +185,32 @@ export function AgendaFold() {
   const folded = agendaRowsFolded
   const said = () => (folded() ? "Show what is owed" : "Hide what is owed")
   return (
-    <button
-      type="button"
-      class={HEAD_ACTION}
-      data-testid={TESTID.agendaFold}
-      aria-expanded={!folded()}
-      aria-controls={ROWS_ID}
-      aria-label={said()}
-      title={said()}
-      onClick={(event) => {
-        event.stopPropagation()
-        setAgendaRowsFolded(!folded())
-      }}
-    >
-      <svg
-        viewBox="0 0 16 16"
-        class="size-3.5 transition-transform duration-100"
-        classList={{ "rotate-90": !folded() }}
-        aria-hidden="true"
-        fill="currentColor"
+    // The tip repeats the button's own name, which is what keeps it a
+    // convenience: the fold says what it does to a pointer and to a reader
+    // who only ever tabs to it, in one sentence written once.
+    <Tip text={said()}>
+      <button
+        type="button"
+        class={HEAD_ACTION}
+        data-testid={TESTID.agendaFold}
+        aria-expanded={!folded()}
+        aria-controls={ROWS_ID}
+        aria-label={said()}
+        onClick={(event) => {
+          event.stopPropagation()
+          setAgendaRowsFolded(!folded())
+        }}
       >
-        <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4 4a.75.75 0 0 1 0 1.06l-4 4a.75.75 0 1 1-1.06-1.06L9.44 8 6.22 4.28a.75.75 0 0 1 0-1.06z" />
-      </svg>
-    </button>
+        <svg
+          viewBox="0 0 16 16"
+          class="size-3.5 transition-transform duration-100"
+          classList={{ "rotate-90": !folded() }}
+          aria-hidden="true"
+          fill="currentColor"
+        >
+          <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4 4a.75.75 0 0 1 0 1.06l-4 4a.75.75 0 1 1-1.06-1.06L9.44 8 6.22 4.28a.75.75 0 0 1 0-1.06z" />
+        </svg>
+      </button>
+    </Tip>
   )
 }

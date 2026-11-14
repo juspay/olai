@@ -776,13 +776,15 @@ Then("the commit panel says a lock file is in the way", async function (this: Ol
     said.includes("lock file is in the way"),
     `the refusal line says "${said}", which is not the sentence about a lock file`,
   );
-  // ... AND GIT'S OWN WORDS ARE ONE HOVER AWAY. The sentence says what to do
-  // about the file; the `title` is where the path git actually refused over
-  // survives, which is what a person with a terminal is looking for.
-  const title = (await line.getAttribute("title")) ?? "";
+  // ... AND GIT'S OWN WORDS ARE BESIDE IT, for a pointer in the tip and for a
+  // screen reader in the hidden line the tip wraps with the sentence. The
+  // sentence says what to do about the file; git's own words are where the
+  // path it refused over survives, which is what a person with a terminal is
+  // looking for. Read off the pair's own box, which holds both.
+  const both = oneLine(await line.locator("xpath=..").innerText());
   assert.ok(
-    title.includes("index.lock"),
-    `the refusal line's title is "${title}", which does not carry git's own words`,
+    both.includes("index.lock"),
+    `the refusal line reads "${both}", which does not carry git's own words`,
   );
 });
 

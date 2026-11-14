@@ -80,6 +80,23 @@ component names it to put a dot on a tab whose page is a conversation that needs
 you, and a quieter one on a tab whose page holds something nobody has read. The
 door holds no live value.
 
+**A standing is never told by movement alone.** The dot for an agent that is
+working or starting wears a ring as well as a pulse, because the pulse is the
+one part a reader can switch off: a system set to *reduce motion* stills every
+animation in olai, and working and idle are otherwise the same colour. With the
+preference set the ring stays, the conversation's live dot stops pulsing but
+stays drawn in full, and the words beside both — *Working…*, *Starting…*, the
+busy line under your message — are unchanged. The preference is about movement,
+never about being told less.
+
+**Nor by a colour the screen may take away.** On a screen that forces its own
+colours — High Contrast — a dot painted in olai's palette would be repainted as
+the page behind it and stop being a dot at all, so every standing mark, the
+live dot and the tab's needs-you and unread marks are drawn from the reader's
+own palette instead. The busy ring is an outline rather than a shadow for the
+same reason: a shadow is deleted outright in that mode. The words beside them
+are, as ever, unchanged. [theme.md](theme.md) has the account.
+
 So **a serve with no chat row leaves all of them `waiting`**, and the plugins panel says so per row, on whose account. That is not a failure and it is not silent: a plugin holding a door that nobody offers is a plugin that has not started, which is a legitimate state the runtime resolves the moment the door arrives.
 
 Enable the chat row alongside any tenant that needs its services. Each namespace’s `on` property controls that row; unspecified rows retain their profile and build defaults.
@@ -182,10 +199,10 @@ Each seat is declared by the plugin that owns the place it is in, and chat bring
 
 | Seat | Owner and placement | Chat contribution |
 | --- | --- | --- |
-| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); every row is `/zoom/#id` — the conversation's own page — and a Chats row is engine mark, title, age and a `•••` of chat's own verbs, ordered awake-first and drawing the standing dot only where the agent is AWAKE (asleep, unbound and gone draw none; the standing is `data-standing` either way and unread is the title's weight); Needs you keeps its dot |
+| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); every row is `/zoom/#id` — the conversation's own page — and a Chats row is engine mark, title, age and a `•••` of chat's own verbs (not drawn at all below the desktop breakpoint, where the row has no width to spare, and drawn rather than hover-revealed on a screen with no hover — `@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`), ordered awake-first and drawing the standing dot only where the agent is AWAKE (asleep, unbound and gone draw none; the standing is `data-standing` either way and unread is the title's weight); Needs you keeps its dot |
 | `outline.crumb.aside` | outlines' per-crumb face | a bound ancestor's agent mark — the same `/zoom/#id` door as a Chats row — on the breadcrumbs above a node, on a day's row and in a search result's place line |
 | `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
-| `outline.row.aside` | outlines, after the row's date and repeat pills | a bound row's standing, always; otherwise the start pill, only while an agent is available (on phones only on the tapped or focused row) |
+| `outline.row.aside` | outlines, after the row's date and repeat pills | a bound row's standing, always; otherwise the start pill, only while an agent is available (on phones only on the tapped or focused row, which is about the width of the line; above that breakpoint a screen with no hover gets the pill drawn rather than faded in) |
 | `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
 | `outline.page.head` | outlines, under title above property drawer | agent line |
 | `outline.page.foot` | outlines, after the zoomed subtree | unbounded conversation and composer, or a plain-node composer |
@@ -374,6 +391,15 @@ line stay at the top; the composer stays at the bottom with safe-area clearance.
 Memory and transcript share the pane scroll. Opening follows the newest line;
 new output follows only while the reader remains at the bottom. Row folds keep
 their own bounded transcript scroller.
+
+The composer tells a phone's keyboard what its return key does: **Send**, the
+same thing `Enter` has always done there (`Shift+Enter` is still the newline).
+Nothing else about the box changes — a message is prose, so autocorrect, the
+capital and the spell checker stay as the platform has them. The two boxes that
+hold names rather than sentences say the opposite: the model filter asks for a
+**Done** key, and the sign-in code box for **Send**, and both turn off
+autocorrect, autocapitalisation and spell-checking so a pasted or typed
+identifier arrives as it was written.
 
 Filing clears a conversation's previous manual wake picks. Trashing a node or
 its parent releases its live agent scope. Agent cleanup closes the protocol and

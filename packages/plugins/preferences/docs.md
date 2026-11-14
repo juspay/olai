@@ -44,6 +44,24 @@ Sound and Reminders are dimmed while Alerts is off. The Alerts row reads what
 the browser has said about notifications: not asked yet (the button that can
 raise the prompt), blocked, or unable to show them.
 
+**What this panel deliberately does not offer is a motion switch.** Whether
+movement is welcome is a thing the reader has already told their operating
+system, and olai reads that answer (`prefers-reduced-motion`) rather than
+asking a second time: with it set, chevrons and switches land in their new
+state instead of travelling to it, live cues hold still, and a reveal puts the
+row on screen rather than gliding to it. Colour transitions are untouched, and
+nothing a cue was saying goes away with its movement. The whole of that policy
+is one block in `@olai/appearance/chrome.css`, and it follows the system
+setting live — there is nothing to reload.
+
+**Nor a contrast switch, for the same reason.** On a screen that forces its own
+colours — High Contrast — this panel's switches and strips are repainted from
+the reader's own palette rather than olai's: a switch still says which way it
+is set, a strip still says which choice is in force, and the keyboard's ring is
+still drawn round whatever has the caret. A reader who has asked for more
+contrast gets a stronger overflow bar. Both answers live beside the motion one
+and follow the system setting live. [theme.md](theme.md) has the account.
+
 A **promoted** row is drawn by the plugin inspector, not by this package: a
 config schema leaf a plugin annotates with `preference` (see
 `@olai/plugin-api/configuration`) is drawn under a heading named after that

@@ -70,8 +70,9 @@ export const expandedRow = async (world: OlaiWorld, name: string): Promise<Locat
   return shownLine(world, name)
 }
 
-/** What a session-only switch says on hover (`@olai/ui-primitives`'s Switch). */
-const SESSION_TITLE = "Resets when olai restarts"
+/** What a session-only switch says — in its tip for a pointer, and in its
+ *  accessible name, which is the copy a reader gets (`../../src/Switch.tsx`). */
+const SESSION_SAID = "Resets when olai restarts"
 
 const control = async (world: OlaiWorld, name: string, key: string): Promise<Locator> =>
   (await expandedRow(world, name)).locator(`${selector(TESTID.pluginKnob)}${attr("data-config", key)}`)
@@ -102,7 +103,12 @@ Then("the plugin {string} line reads {string} beside its labelled enable switch"
   const line = row.locator(".plugins-line")
   await this.waitUntil(async () => (await line.locator(".plugins-name-text").innerText()).trim() === label,
     `the ${name} line to read ${JSON.stringify(label)}`)
-  assert.equal(await line.getByRole("switch", { name: `Enable ${label}`, exact: true }).count(), 1)
+  // The switch is NAMED for the row, and may say one more thing after it: a
+  // session-only switch carries "Resets when olai restarts" in its own name,
+  // because that sentence used to be a `title` and a `title` is a pointer's
+  // answer and nobody else's. So the name OPENS with the label rather than
+  // being it, which is also WCAG 2.5.3's rule about the visible words.
+  assert.equal(await line.getByRole("switch", { name: new RegExp(`^Enable ${label}\\b`) }).count(), 1)
   assert.equal(await line.locator(".plugins-status").count(), 0)
   assert.equal(await row.locator('[data-testid="plugin-summary"], [data-testid="plugin-defaults"]').count(), 0)
 })
@@ -142,7 +148,9 @@ Then("the {string} setting {string} has no problem", async function(this: OlaiWo
 })
 Then("the {string} setting {string} is frozen because {string}", async function(this: OlaiWorld, name: string, key: string, text: string) {
   const line = await control(this, name, key)
-  await this.waitUntil(async () => await line.locator("[title]").evaluateAll((elements, text) => elements.some(el => el.getAttribute("title") === text), text), "the frozen control's reason")
+  // The reason a frozen knob will not move reaches a READER, which the
+  // `title` it used to wear never did: it rides the control's own name.
+  await this.waitUntil(async () => await line.locator("[aria-label]").evaluateAll((elements, text) => elements.some(el => (el.getAttribute("aria-label") ?? "").includes(text)), text), "the frozen control's reason")
   const inputs = line.locator("input, select, button")
   assert.ok(await inputs.count() > 0)
   for (const input of await inputs.all()) assert.equal(await input.isDisabled(), true)
@@ -157,6 +165,15 @@ Then("the {string} setting {string} is an integer input from {int} to {int}", as
 })
 Then("the {string} setting {string} suggests {string}", async function(this: OlaiWorld, name: string, key: string, expected: string) {
   assert.equal(await (await control(this, name, key)).locator("input").getAttribute("placeholder"), expected)
+})
+/** THE SCHEMA'S OWN DESCRIPTION of a knob. It was the row's `title` — a
+ *  pointer's only — and is now the tip a pointer gets plus the hidden line
+ *  beside the knob, which is the one a screen reader reads. Asserted off the
+ *  pair's own box (the knob and that line), never off a class. */
+Then("the {string} setting {string} is described as {string}", async function(this: OlaiWorld, name: string, key: string, said: string) {
+  const knob = await control(this, name, key)
+  await this.waitUntil(async () => ((await knob.locator("xpath=..").textContent()) ?? "").includes(said),
+    `the ${name}.${key} knob to say what it is for`)
 })
 Then("file {string} has namespace {string} setting {string} as {string}", async function(this: OlaiWorld, file: string, name: string, key: string, value: string) {
   await this.waitUntil(async () => {
@@ -206,7 +223,7 @@ Then("the plugin {string} is off without prose", async function(this: OlaiWorld,
 Then("the plugin {string} has a session-only switch ring", async function(this: OlaiWorld, name: string) {
   const row = await this.showPluginRow(name)
   const toggle = row.locator(selector(TESTID.pluginSwitch))
-  await this.waitUntil(async () => await toggle.getAttribute("title") === SESSION_TITLE, "the session switch")
+  await this.waitUntil(async () => (await toggle.getAttribute("aria-label") ?? "").endsWith(SESSION_SAID), "the session switch")
   assert.equal(await toggle.evaluate(el => getComputedStyle(el, "::before").borderTopStyle), "dashed")
   // The words live in the row's detail, once, rather than beside the switch.
   assert.ok(!(await row.locator(".plugins-line").innerText()).includes("restarts"))
@@ -249,7 +266,7 @@ Then("the plugins panel section counts match their switches", async function(thi
   const groups = await this.pluginsPanel().locator(selector(TESTID.pluginGroup)).all()
   assert.ok(groups.length > 0)
   for (const group of groups) {
-    const switches = group.locator('[data-plugin-line] > .plugins-line > [role="switch"]')
+    const switches = group.locator('[data-plugin-line] .plugins-line [role="switch"]')
     const total = await switches.count()
     assert.ok(total > 0, `the group ${await group.getAttribute("data-section")} draws no rows`)
     const enabled = await switches.evaluateAll(elements => elements.filter(el => el.getAttribute('aria-checked') === 'true').length)
@@ -278,8 +295,8 @@ Then("the plugins panel has one column and fits the phone", async function(this:
 Then("every plugin enable switch has a session-only ring", async function(this: OlaiWorld) {
   const switches = this.pluginsPanel().getByRole("switch", { name: /^Enable /, includeHidden: true })
   await this.waitUntil(async () => {
-    const titles = await switches.evaluateAll(elements => elements.map(el => el.getAttribute("title")))
-    return titles.length > 1 && titles.every(title => title === SESSION_TITLE)
+    const names = await switches.evaluateAll(elements => elements.map(el => el.getAttribute("aria-label")))
+    return names.length > 1 && names.every(name => (name ?? "").endsWith(SESSION_SAID))
   }, "every enable switch becomes session-only while the reader is absent")
   for (const toggle of await switches.all()) {
     assert.equal(await toggle.evaluate(el => getComputedStyle(el, "::before").borderTopStyle), "dashed")

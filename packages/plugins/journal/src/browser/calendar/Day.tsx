@@ -162,7 +162,7 @@ export function Day(props: {
       <Link
         route={dayRoute(props.date)}
         class={look()}
-        title={props.date}
+        tip={props.date}
         label={said()}
         current={props.open}
       >

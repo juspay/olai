@@ -13,6 +13,7 @@
  * words line and is never thrown.
  */
 import { Effect, Fiber, Stream } from "effect"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { useGo, useShown } from "olai-plugin-navigation/routing"
 import type { Route } from "olai-plugin-navigation/routes"
 import { batch, createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js"
@@ -245,15 +246,28 @@ export function BrowserPage(props: {
       <Banner standing={standing()} start={() => void Effect.runPromise(Effect.ignore(calls.browser.start({}))).then(() => say(null))} />
       <Show when={up() !== null}>
         <nav class="flex flex-wrap items-center gap-1" aria-label="Browser tabs">
-          <For each={props.browsing.tabs()}>{(one) => (
+          <For each={props.browsing.tabs()}>{(one) => {
+            const face = one.title || one.url || "New tab"
+            return (
             <span class="flex max-w-[14rem] items-center gap-1 rounded border border-rule px-1.5 py-0.5 text-caption data-[active=true]:bg-ink/10"
               data-testid={TESTID.browserTab} data-target={one.id} data-active={one.id === shown() ? "true" : "false"}
               data-title={one.title}>
-              <a href={props.href(one.id)} class="min-w-0 truncate" title={one.url}>{one.title || one.url || "New tab"}</a>
+              {/* WHERE THE TAB GOES, which its own words only say when it has
+                  none of its own. It was the anchor's `title`, read by a
+                  pointer and nobody else; the tip is the pointer's copy and
+                  the link's NAME is everybody else's. The name opens with the
+                  words the link draws, so the two cannot come apart. */}
+              <Tip text={one.url}>
+                <a href={props.href(one.id)} class="min-w-0 truncate"
+                  aria-label={face === one.url ? undefined : `${face}, ${one.url}`}>
+                  {face}
+                </a>
+              </Tip>
               <button type="button" class="text-muted hover:text-ink" aria-label={`Close ${one.title || "tab"}`}
                 data-testid={TESTID.browserTabClose} onClick={() => void run(calls.tab.close({ targetId: one.id }))}>×</button>
             </span>
-          )}</For>
+            )
+          }}</For>
           <button type="button" class={BUTTON} data-testid={TESTID.browserNewTab} aria-label="New tab"
             onClick={() => void run(Effect.map(calls.tab.open({}), ({ targetId }) => go(props.route(targetId))))}>+</button>
         </nav>
@@ -262,13 +276,49 @@ export function BrowserPage(props: {
         </p>}>
           {(open) => (
             <>
+              {/* THE KEYBOARD THIS BOX ASKS FOR. `inputmode="url"` puts the
+                  slash and the `.com` key under a thumb and takes the space
+                  bar's width back, and `enterkeyhint="go"` labels the return
+                  key with what it does here (`onKeyDown` below: Enter
+                  navigates the tab and gives the caret back). Both are
+                  labels — nothing about the navigation is on them.
+
+                  `type` stays TEXT on purpose. `type="url"` would make the
+                  browser judge what is typed against its own idea of an
+                  absolute URL, and `example.com` — which `addressOf` is
+                  written to accept and complete — is not one; a box that
+                  refuses the shortest thing somebody types would be a
+                  regression bought with a validation nobody asked for.
+
+                  An address is an IDENTIFIER, not prose, so the three
+                  corrections go off: a capitalised host, an autocorrected
+                  path segment or a red underline under a domain are all
+                  wrong here. `spellcheck` already said so; the other two
+                  were missing, which on a phone is the one that bites —
+                  iOS capitalises the first letter of an empty box. */}
               <input class="w-full rounded border border-rule bg-paper px-2 py-1 font-mono text-caption" aria-label="Address"
-                data-testid={TESTID.browserAddress} spellcheck={false}
+                data-testid={TESTID.browserAddress} spellcheck={false} autocorrect="off" autocapitalize="none"
+                inputmode="url" enterkeyhint="go"
                 value={typing() ?? open().url}
                 onFocus={(event) => { type(open().url); event.currentTarget.select() }}
                 onInput={(event) => type(event.currentTarget.value)}
                 onBlur={() => type(null)}
                 onKeyDown={(event) => {
+                  // NO `isComposing` GUARD HERE, and that is a claim about
+                  // WHO DRAWS THIS BOX rather than about the key. An IME's
+                  // confirming key reads `Enter`, so a handler that acts on
+                  // one must either check `isComposing`/`keyCode === 229` or
+                  // be certain it never sees one. This page is certain: it is
+                  // registered at `app.route`, navigation's OWN slot
+                  // contract, so nothing draws it unless navigation is
+                  // activated — and navigation's activation is what starts
+                  // `protectComposition`, the window-capture listener that
+                  // stops a composing key before it reaches any handler on
+                  // the page. Navigation withdrawn, this box is not on screen
+                  // to be typed in. The composer, the new-file box and the
+                  // property box each carry the check locally, because each
+                  // of them IS drawn under owners that name navigation
+                  // nowhere.
                   if (event.key === "Enter") { event.preventDefault(); navigate(); event.currentTarget.blur() }
                   if (event.key === "Escape") { type(null); event.currentTarget.blur() }
                 }} />
@@ -287,6 +337,19 @@ export function BrowserPage(props: {
                   {(held) => (
                     <img ref={picture} src={held().src} alt={open().title || "The page"} draggable={false}
                       class="mx-auto block h-auto max-h-full max-w-full select-none"
+                      /* The frame IS the page, and it is a NEW one several
+                         times a second: an object URL over the JPEG the
+                         screencast just handed us, revoked as soon as the next
+                         one lands. `lazy` on this would be the pane deferring
+                         the only thing it draws — and deferring a picture whose
+                         URL is about to be revoked is how you get a blank where
+                         a live page was. There is no `fetchpriority` to argue
+                         about: a blob URL is bytes this tab already holds, so
+                         there is no request to put in front of anything. The
+                         decode is the real cost here and it is handed off, so a
+                         frame arriving does not stall the one being drawn. */
+                      loading="eager"
+                      decoding="async"
                       data-testid={TESTID.browserFrame}
                       onPointerDown={(event) => {
                         const point = at(event)

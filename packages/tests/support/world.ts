@@ -826,7 +826,10 @@ export const PALETTE_INPUT = selector(TESTID.paletteInput);
 export const PALETTE_CAPTURE = selector(TESTID.paletteCapture);
 export const PALETTE_CONFIRM = selector(TESTID.paletteConfirm);
 export const PALETTE_SAID = selector(TESTID.paletteSaid);
-export const PALETTE_SCRIM = selector(TESTID.paletteScrim);
+/** The palette's MODAL — the element the top layer holds, for the steps that
+ *  ask what is inert under it and where a press outside lands. The panel
+ *  inside it wears {@link PALETTE}. */
+export const PALETTE_MODAL = `dialog:has(${PALETTE})`;
 export const SHORTCUTS = selector(TESTID.shortcuts);
 /** The header box's panel of results, and the shelf of pins in the sidebar —
  *  here rather than spelled at a step file, which is where the rest of the
@@ -3020,6 +3023,14 @@ export class OlaiWorld extends World {
    *  a palette's paper IS is a design decision, and that it CHANGED is the
    *  claim. */
   paperBefore?: string;
+
+  /** The focus ring the caret's control wore before a preference was set, and
+   *  the overflow bar before one was. Both for the paper's reason: what a ring
+   *  or a thumb IS is a design decision, and that it CHANGED when the reader's
+   *  screen asked it to is the claim (the theme row's
+   *  `e2e/steps/forced_colours_steps.ts`). */
+  ringBefore?: { style: string; width: number; colour: string };
+  scrollbarBefore?: string;
   /** The seat's column width before a drag (`olai-plugin-chat`'s agent panel steps). */
   panelWidthBefore?: number;
 

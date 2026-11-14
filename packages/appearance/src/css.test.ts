@@ -10,7 +10,10 @@ import {
   DEFAULT_THEME,
   PALETTE_TOKENS,
   PALETTES,
+  SCHEME_STORAGE_KEY,
+  SYSTEM_SCHEME,
   THEME_ATTRIBUTE,
+  THEME_NAMES,
   THEME_STORAGE_KEY,
 } from "./palettes.ts"
 import { TAG_INK } from "./tagInk.ts"
@@ -88,11 +91,12 @@ describe("the generated palette blocks", () => {
 /**
  * The border with the SHELL.
  *
- * `index.html` runs four lines before anything else on the page, and it spells
- * the storage key and the attribute as literals because it runs before any
- * module exists. Nothing checks that but this: a renamed key leaves a picker
- * writing one place and a boot script reading another, and the symptom is a
- * flash of the default on every load — which nobody would call a bug report.
+ * `index.html` runs a handful of lines before anything else on the page, and
+ * it spells the storage keys, the attribute and the canvas meta as literals
+ * because it runs before any module exists. Nothing checks that but this: a
+ * renamed key leaves a picker writing one place and a boot script reading
+ * another, and the symptom is a flash of the default — or of the wrong
+ * polarity of chrome — on every load, which nobody would call a bug report.
  */
 describe("the shell's boot script", () => {
   const shell = (): Promise<string> =>
@@ -116,6 +120,45 @@ describe("the shell's boot script", () => {
     expect(html).toContain(
       `<meta name="theme-color" media="(prefers-color-scheme: dark)" content="${DEFAULT_DARK_PALETTE.colors.paper}" />`,
     )
+  })
+
+  test("pins the canvas from a word it was handed, and knows no theme by name", async () => {
+    // THE PRE-SHEET WINDOW belongs to the UA: until the stylesheet lands, the
+    // canvas, the scrollbars and the form controls go the way this meta says,
+    // and a dark pick under a light OS used to spend that window in light
+    // chrome. The fix is one more copied string, and the thing worth pinning
+    // is that it stays a COPY: the script may read the scheme this table
+    // wrote beside the pick, and may not learn that `basalt` is dark — the
+    // day it does, a renamed or retired palette is a wrong canvas no test
+    // catches.
+    //
+    // Asked of the SCRIPT and not the file: the prose around it argues about
+    // palettes by name, which is what prose is for, and a comment is not a
+    // thing that runs.
+    // Sliced between the tags rather than matched with a regexp: a pattern
+    // that hunts `<script>…</script>` is a pattern that disagrees with a
+    // parser about what closes a script, and the test below already reads
+    // this shell by position for the same reason.
+    const html = await shell()
+    const opens = html.indexOf("<script>")
+    const closes = html.indexOf("</script>", opens)
+    expect(opens).toBeGreaterThanOrEqual(0)
+    expect(closes).toBeGreaterThan(opens)
+    const script = html.slice(opens + "<script>".length, closes)
+    expect(script).toContain(`localStorage.getItem("${SCHEME_STORAGE_KEY}")`)
+    expect(script).toContain(`document.querySelector('meta[name="color-scheme"]').content = `)
+    for (const name of THEME_NAMES) expect(script).not.toContain(name)
+  })
+
+  test("authors the canvas as both, with the script after the meta it edits", async () => {
+    // `light dark` is what a page whose JavaScript never ran shows, so it is
+    // the shell's word and not the script's: CSS — and the browser's own
+    // painting — must not depend on JS having run. And the script comes
+    // AFTER the element, because a `querySelector` for a meta the parser has
+    // not reached yet finds nothing.
+    const html = await shell()
+    expect(html).toContain(`<meta name="color-scheme" content="${SYSTEM_SCHEME}" />`)
+    expect(html.indexOf('<meta name="color-scheme"')).toBeLessThan(html.indexOf("<script>"))
   })
 })
 

@@ -17,6 +17,8 @@ import { TESTID } from "../testids.ts"
 import type { Account } from "../wire.ts"
 import { mailSaid } from "./said.ts"
 import { TONE } from "olai-plugin-layout/slots"
+import { Tip } from "@olai/web/client/Tip.tsx"
+import { LAYER } from "@olai/web/client/layer.ts"
 
 /** The furniture this face spends of the app's bar — redeclared so this package
  *  does not import layout's, exactly as odu's readout does. */
@@ -33,20 +35,26 @@ export function MailReadout(props: {
   readonly account: Accessor<Account>
 }) {
   const said = createMemo(() => mailSaid(props.account()))
+  const detail = () => said().detail
   const pill = props.app.pill
   return (
     <Show when={props.app.desktop()}>
-      <span
-        class={`${pill.PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
-        data-testid={TESTID.mail}
-        data-mail={props.account().status}
-        data-address={props.account().address ?? undefined}
-        title={said().detail}
-        aria-label={`mail: ${said().detail}`}
-      >
-        <span class={`${pill.DOT} ${TONE[said().tone].dot}`} data-health={said().tone} aria-hidden="true" />
-        <span class="min-w-0 truncate">{said().label}</span>
-      </span>
+      {/* A READOUT, not a control: the sentence rides a hidden twin after the
+          pill, because an `aria-label` on a bare span names nothing a screen
+          reader will read. The tip draws the same words for a pointer, over
+          the bar the pill sits in. */}
+      <Tip text={detail() ?? ""} layer={LAYER.over} disabled={detail() === undefined}>
+        <span
+          class={`${pill.PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
+          data-testid={TESTID.mail}
+          data-mail={props.account().status}
+          data-address={props.account().address ?? undefined}
+        >
+          <span class={`${pill.DOT} ${TONE[said().tone].dot}`} data-health={said().tone} aria-hidden="true" />
+          <span class="min-w-0 truncate">{said().label}</span>
+        </span>
+        <Show when={detail()}>{(told) => <span class="sr-only">{`mail: ${told()}`}</span>}</Show>
+      </Tip>
     </Show>
   )
 }

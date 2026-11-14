@@ -21,9 +21,10 @@
 import { createMemo, For, Show } from "solid-js"
 
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
-import { WITHIN } from "@olai/web/client/layer.ts"
+import { LAYER, WITHIN } from "@olai/web/client/layer.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { ICON_BUTTON } from "@olai/web/client/readout.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { MENU_ITEM } from "@olai/ui-primitives/menu.ts"
 import { Link } from "olai-plugin-navigation/routing"
 import { zoomNode } from "olai-plugin-navigation/routes"
@@ -67,30 +68,48 @@ export function Dock() {
           {(agent) => (
             <>
               <AgentMark id={agent().engine} />
-              <span class={`${DOT} ${LOOK[agent().standing].dot}`} title={LOOK[agent().standing].detail} aria-hidden="true" />
-              <Link
-                route={zoomNode(agent().id)}
-                class="min-w-0 flex-1 truncate text-body font-medium text-ink no-underline hover:text-accent"
-                testid={TESTID.chatDockTitle}
-                title="Open the agent's page"
-              >
-                {agent().title}
-              </Link>
+              {/* THE STANDING UNDER THE POINTER, and nowhere else: the dot is
+                  `aria-hidden`, so its detail was already unreachable by a
+                  reader — the standing a reader gets is the panel's own
+                  `data-standing` and the roster row that names it in words. A
+                  tip on the dot takes the hover back without claiming the dot
+                  is anything a screen reader should stop at. */}
+              <Tip text={LOOK[agent().standing].detail} layer={LAYER.over}>
+                <span class={`${DOT} ${LOOK[agent().standing].dot}`} aria-hidden="true" />
+              </Tip>
+              {/* `<Tip>` AROUND THE LINK rather than its `tip` prop, because
+                  this one is in the dock's header and has to cover it
+                  (`routing.tsx`'s `tip` rides the page's layer, which the dock
+                  shares). The sentence is a pointer's convenience only: the
+                  anchor is named by the agent's title and the link role says
+                  the rest. */}
+              <Tip text="Open the agent's page" layer={LAYER.over}>
+                <Link
+                  route={zoomNode(agent().id)}
+                  class="min-w-0 flex-1 truncate text-body font-medium text-ink no-underline hover:text-accent"
+                  testid={TESTID.chatDockTitle}
+                >
+                  {agent().title}
+                </Link>
+              </Tip>
               <AgentAbove node={agent().id} />
             </>
           )}
         </Show>
         <Switch rows={rows()} current={row()?.id} />
-        <button
-          type="button"
-          class={`${ICON_BUTTON} !px-0 md:!w-7`}
-          data-testid={TESTID.chatDockClose}
-          aria-label="Close the agent panel"
-          title="Close the agent panel (⌘J)"
-          onClick={() => door()?.close()}
-        >
-          <span aria-hidden="true" class="text-title leading-none">×</span>
-        </button>
+        <Tip text="Close the agent panel (⌘J)" layer={LAYER.over}>
+          <button
+            type="button"
+            class={`${ICON_BUTTON} !px-0 md:!w-7`}
+            data-testid={TESTID.chatDockClose}
+            // THE CHORD IN THE NAME: × is hidden and the button has no words,
+            // so the only place ⌘J can reach a reader is here.
+            aria-label="Close the agent panel (⌘J)"
+            onClick={() => door()?.close()}
+          >
+            <span aria-hidden="true" class="text-title leading-none">×</span>
+          </button>
+        </Tip>
       </header>
       <Show when={row()?.id} keyed fallback={<Picker rows={rows()} />}>
         {(id) => <Docked node={id} />}
@@ -155,20 +174,21 @@ function Switch(props: { readonly rows: ReadonlyArray<Row>; readonly current: st
   const picker = createInlinePicker<true>({ opening: () => true })
   return (
     <Show when={props.rows.length > 1 || (props.rows.length === 1 && props.current === undefined)}>
-      <button
-        type="button"
-        ref={picker.setTrigger}
-        class={`${ICON_BUTTON} !px-0 md:!w-7`}
-        data-testid={TESTID.chatDockSwitch}
-        aria-label="Switch conversation"
-        title="Switch conversation"
-        aria-expanded={picker.open()}
-        onClick={picker.toggle}
-      >
-        <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="currentColor">
-          <path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06z" />
-        </svg>
-      </button>
+      <Tip text="Switch conversation" layer={LAYER.over}>
+        <button
+          type="button"
+          ref={picker.setTrigger}
+          class={`${ICON_BUTTON} !px-0 md:!w-7`}
+          data-testid={TESTID.chatDockSwitch}
+          aria-label="Switch conversation"
+          aria-expanded={picker.open()}
+          onClick={picker.toggle}
+        >
+          <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="currentColor">
+            <path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06z" />
+          </svg>
+        </button>
+      </Tip>
       <Show when={picker.open()}>
         {/* Its own class list rather than `MENU_PANEL`, which spells `relative`:
             two position utilities on one box are settled by emission order,

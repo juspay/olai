@@ -215,6 +215,17 @@ export function TitleEditor(props: {
         data-testid={TESTID.titleEditor}
         value={props.text}
         placeholder={props.placeholder}
+        // `next`: Enter in a title ends this row and opens the one after it
+        // (`./editing.tsx`'s split), which is the one thing on an outline that
+        // a Next key means — the caret moves on to the following field. Not
+        // `done`, which would say the box closes, and not `send`.
+        //
+        // A title is PROSE, so autocorrect and the capital stay as the
+        // platform has them: this is where somebody writes a sentence. Only
+        // the spell checker is off, and it was before this change — a red
+        // underline running down a column of half-written lines is noise, and
+        // the completion widget already underlines what it cares about.
+        enterkeyhint="next"
         autocomplete="off"
         spellcheck={false}
         onInput={(event) => {

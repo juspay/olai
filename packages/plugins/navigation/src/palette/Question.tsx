@@ -13,8 +13,10 @@
  * and the box above is already under the reader's hands, so this grabs nothing.
  *
  * The two ways out are the same two either way, because a pointer needs both
- * whichever kind is up, and the Tab trap that cycles them is the palette's
- * (there is one focus trap for this dialog, not one per panel).
+ * whichever kind is up. A KEYBOARD reaches them because the palette is a
+ * modal `<dialog>` and the caret cannot leave one — the hand-written Tab trap
+ * that used to cycle these two by their refs went with the overlay it
+ * belonged to, and the refs with it.
  */
 import { TESTID } from "olai-plugin-navigation/testids"
 import { ALARM_PILL,QUIET_PILL } from "@olai/web/client/pill.ts"
@@ -25,10 +27,6 @@ export function Question(props: {
   readonly asking: Asking
   readonly onGo: () => void
   readonly onCancel: () => void
-  /** The palette's own two refs: its Tab trap cycles these, because a dialog
-   *  has one focus trap and not one per panel. */
-  readonly setGo: (element: HTMLButtonElement) => void
-  readonly setCancel: (element: HTMLButtonElement) => void
 }) {
   return (
     <div class="px-4 py-3" role="group" aria-label={props.asking.question}>
@@ -52,18 +50,25 @@ export function Question(props: {
             press with different testids. */}
         <button
           type="button"
-          // AND THE CARET COMES IN FOR A CONFIRM, which is the `•••` menu's
-          // own rule (`../menu/Confirm.tsx`): a question nobody's keyboard can
-          // reach is a question only a mouse may answer, and the palette's Tab
-          // trap made that literal. A microtask because the element is not in
-          // the document at the instant the ref runs. A LINE does not take it:
-          // its answer is typed, and the caret is already in the box where it
-          // is being typed.
+          // THE CARET COMES IN FOR A CONFIRM, which is the `•••` menu's own
+          // rule (`../menu/Confirm.tsx`): a question nobody's keyboard can
+          // reach is a question only a mouse may answer. A microtask because
+          // the element is not in the document at the instant the ref runs.
+          //
+          // AND IT IS TAKEN AGAIN whenever this row is redrawn, because the
+          // redraw replaces these buttons and the browser drops the caret to
+          // the body when the one holding it leaves. Guarded on where the
+          // caret already IS: if it is anywhere in this row the reader put it
+          // there — Tab onto Cancel is the case — and a second grab would be
+          // a cycle they cannot complete. A LINE takes nothing: its answer is
+          // typed, and the caret is already in the box.
           ref={(element) => {
-            props.setGo(element)
-            if (props.asking.kind === "confirm") {
-              queueMicrotask(() => element.focus())
-            }
+            if (props.asking.kind !== "confirm") return
+            queueMicrotask(() => {
+              const at = element.ownerDocument.activeElement
+              if (at !== null && element.parentElement?.contains(at) === true) return
+              element.focus()
+            })
           }}
           class={`${props.asking.kind === "confirm" ? ALARM_PILL : QUIET_PILL} cursor-pointer`}
           data-testid={TESTID.paletteItem}
@@ -74,7 +79,6 @@ export function Question(props: {
         </button>
         <button
           type="button"
-          ref={props.setCancel}
           class={`${QUIET_PILL} cursor-pointer`}
           data-testid={TESTID.paletteItem}
           data-id="cancel"

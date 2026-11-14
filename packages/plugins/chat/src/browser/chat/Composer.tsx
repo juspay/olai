@@ -125,7 +125,9 @@ import { batch, createEffect, createMemo, createSignal, on, Show } from "solid-j
 import type { Written } from "@olai/markdown-ui/insert.ts"
 import { camera } from "./camera.ts"
 import { createChipTitles } from "./chips.ts"
+import { composing } from "@olai/web/client/composition.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { sameIds } from "@olai/web/client/ids.ts"
 import { createSearch } from "../search.ts"
 import { atOnce } from "@olai/web/client/settled.ts"
@@ -692,6 +694,18 @@ export function Composer(props: {
     // agent is an ordinary send rather than a key that does nothing.
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
+      // AND IT IS NOT THE IME'S ENTER. Confirming a candidate in Japanese,
+      // Chinese or Korean is a `keydown` whose `key` reads `Enter`, so without
+      // this the message leaves mid-conversion — fragments of a sentence the
+      // writer had not finished choosing. Navigation starts a window-capture
+      // guard (`@olai/web/client/composition.ts`) that stops such a key
+      // reaching any handler, and while the palette's row is on, this line
+      // never runs. But the composer is drawn from the DOCK (`app.panel`, the
+      // shell's slot) and from a row's fold (`outline.row.fold`, the
+      // outline's), neither of which carries navigation's lifetime — so with
+      // that row switched off the guard is simply absent and this is the only
+      // thing standing between an IME and a half-sent turn.
+      if (composing(event)) return
       void send(event.altKey && interruptible())
     }
     // AFTER the send, so a key that moved the caret has moved it:
@@ -773,8 +787,25 @@ export function Composer(props: {
           their head until a box comes back is work the panel invented. */}
       <textarea
         ref={input}
-        class="w-full resize-none rounded-control border border-rule bg-paper px-3 py-2 text-body outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/20"
+        // The border lights on focus and that is all this box draws: the
+        // `focus:ring-2 focus:ring-accent/20` glow that used to sit beside it
+        // was a `box-shadow` under the app's own outline (the `outline-none`
+        // never removed that one — `@olai/appearance/chrome.css` is
+        // unlayered), and forced colours deletes box-shadows outright.
+        class="w-full resize-none rounded-control border border-rule bg-paper px-3 py-2 text-body placeholder:text-muted focus:border-accent"
         data-testid={TESTID.chatInput}
+        // WHAT THE RETURN KEY DOES, said to the on-screen keyboard: this box's
+        // Enter sends (`onKey`, one scroll down — Shift+Enter is the newline),
+        // so a phone draws a Send key rather than the generic carriage return
+        // every untyped box gets. It is a label and nothing else; the send is
+        // still `onKey`'s, and the two must not be allowed to disagree — if
+        // Enter ever stops sending here, this attribute goes with it.
+        //
+        // Nothing is turned off beside it. A message is PROSE, so autocorrect,
+        // autocapitalize and the spell checker are all wanted — the identifier
+        // rule that strips them off the address bar and the path boxes is
+        // about fields that hold names, not sentences.
+        enterkeyhint="send"
         // THE NODE HALF'S ANSWER, on the box rather than only on the list:
         // a query that named nothing draws no list (`open` is `rows().length
         // > 0`), and the wait still has to see that the search settled.
@@ -1034,15 +1065,21 @@ export function Composer(props: {
             turn wants (stop it, or line something up behind it) and this is the
             middle one. */}
         <Show when={interruptible()}>
-          <button
-            type="button"
-            class={`${CONTROL} border-doing px-3 text-doing`}
-            data-testid={TESTID.chatInterrupt}
-            title="Send now, into the running turn (Alt+Enter)"
-            onClick={() => void send(true)}
-          >
-            Interrupt
-          </button>
+          <Tip text="Send now, into the running turn (Alt+Enter)">
+            <button
+              type="button"
+              class={`${CONTROL} border-doing px-3 text-doing`}
+              data-testid={TESTID.chatInterrupt}
+              onClick={() => void send(true)}
+            >
+              Interrupt
+              {/* WHAT IT INTERRUPTS, and the chord that does the same thing —
+                  the one word on the face says neither, and both were the
+                  `title`'s alone. After the visible word, so the name still
+                  starts with it. */}
+              <span class="sr-only"> — send now, into the running turn (Alt+Enter)</span>
+            </button>
+          </Tip>
         </Show>
         <button
           type="button"

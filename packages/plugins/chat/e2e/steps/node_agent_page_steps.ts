@@ -141,8 +141,14 @@ Then("the page has fresh start above its fold history", async function(this: Ola
   })
   const fresh = this.chat(selector(PLUGIN_TESTID.chatFreshSession));
   const history = this.chat(selector(PLUGIN_TESTID.chatSessions));
-  assert.equal((await fresh.innerText()).trim(), "Fresh start");
-  assert.ok((await fresh.getAttribute("title"))?.includes("keeping memory in"));
+  // THE WORDS ON IT, and the ones only a reader gets. "Fresh start" is what
+  // is drawn; where the memory survives used to live on a `title` and now
+  // rides an sr-only run inside the button, so it is in the control's own
+  // name — and the attribute is gone, which is the other half of the claim.
+  const says = (await fresh.innerText()).replace(/\s+/g, " ").trim();
+  assert.ok(says.startsWith("Fresh start"), `the page's fresh start reads ${JSON.stringify(says)}`);
+  assert.ok(says.includes("keeping memory in"), `the page's fresh start reads ${JSON.stringify(says)}`);
+  assert.equal(await fresh.getAttribute("title"), null);
   const top = await this.box(fresh, "fresh start");
   const line = await this.box(history, "the fold history");
   const transcript = await this.box(this.chat(CHAT_TRANSCRIPT), "the transcript");

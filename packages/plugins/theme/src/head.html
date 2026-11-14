@@ -1,3 +1,36 @@
+    <!-- The browser chrome around an installed app: a phone's status bar, an
+         installed window's title bar. TWO of them, one per OS scheme, each
+         holding the paper of the default a page that has picked nothing reads
+         in under that scheme — because that is all this shell can know before
+         the bundle runs — and the qualifiers stay the shell's own, because
+         they are a statement about the page NOBODY HAS PICKED ON.
+
+         Once the bundle is up the question those queries ask is already
+         answered: the page is in one palette whatever the OS says. The
+         browser uses the FIRST meta whose media matches, so both are repainted
+         with the paper in force (theme/state.ts, theme/chrome.ts) and both are
+         handed back untouched when the provider leaves. Writing only the first
+         one is the bug this replaced: a dark palette under a light OS left the
+         matching meta holding the dark DEFAULT's paper, so an installed
+         `abyss` window wore basalt's near-black instead of its own.
+
+         The values are `--color-paper` of the two defaults, which cannot be
+         read from here (the sheet is a build artifact and this shell is what
+         loads it) and are pinned by appearance/css.test.ts instead. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FBFBF9" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161718" />
+    <!-- WHAT THE BROWSER PAINTS ITSELF IN, which is not the same question as
+         what the page paints itself in: the canvas behind the document, the
+         scrollbars, the form controls and the focus ring are the UA's, and
+         this is the only thing that tells it which way they go.
+
+         AUTHORED AS BOTH, on purpose. A page whose JavaScript never ran — a
+         browser with scripting off, a storage read that threw — follows the
+         OS, and that has to be true of the shell itself rather than of what
+         the script below gets to. Once the sheet is in, each palette's own
+         `color-scheme` declaration wins over this hint anyway; the window this
+         meta owns is the one between the parse and the sheet. -->
+    <meta name="color-scheme" content="light dark" />
     <!-- INLINE-NESS IS LOAD-BEARING, and this is the only script in the shell.
          A theme picked in this browser has to be on <html> before the FIRST
          PAINT; everything else on this page is deferred, so a theme restored
@@ -10,18 +43,40 @@
          whose flash would be worst: a page that painted at 16px and reflowed to
          18px would move every line under a reader who had just opened it.
 
+         A FOURTH LINE IS NOT A PREFERENCE but the same pick seen from the
+         browser's side. Restoring `data-theme` alone left the canvas meta
+         saying `light dark` for the whole pre-sheet window, so a reader whose
+         OS is light and whose palette is dark got a light canvas, light form
+         controls and a light scrollbar until the sheet landed — the exact
+         flash this script exists to prevent, on the one surface it did not
+         cover. The word is read from storage and copied, NOT decided here: the
+         app writes the scheme of the palette it put in force beside the pick
+         (theme/state.ts, from the table in appearance/palettes.ts), so this
+         stays a script that knows no theme and no theme's polarity. A browser
+         that stored a pick before this key existed finds nothing, follows the
+         OS for one load exactly as it did before, and is written up by the
+         bundle. It goes LAST of the four: the meta it edits is the element
+         immediately above (which is also where the dark-mode guidance puts
+         this script), and if a future shell ever moves the two apart, the
+         throw costs this line and not the three attributes.
+
          It deliberately knows no theme, font or size names: the sheet carries a
          block per palette, per typeface and per size, and the tables that
          generate them live in one place each (src/client/theme/palettes.ts,
          src/client/theme/sizes.ts, and @olai/fonts's catalog). A stored name no
          row offers is forgotten by the app once it is up, which is the first
          moment anything knows the lists. The keys are those tables'
-         THEME_STORAGE_KEY / FONT_STORAGE_KEY / SIZE_STORAGE_KEY and the
-         attributes are THEME_ATTRIBUTE / FONT_ATTRIBUTE / SIZE_ATTRIBUTE;
-         theme/css.test.ts and theme/fonts.test.ts hold this script to them.
+         THEME_STORAGE_KEY / FONT_STORAGE_KEY / SIZE_STORAGE_KEY /
+         SCHEME_STORAGE_KEY and the attributes are THEME_ATTRIBUTE /
+         FONT_ATTRIBUTE / SIZE_ATTRIBUTE; theme/css.test.ts and
+         theme/fonts.test.ts hold this script to them.
 
          `setAttribute`, not `dataset.theme`: they are the same thing today,
-         and the day a pref's name has a hyphen in it they are not. -->
+         and the day a pref's name has a hyphen in it they are not.
+
+         The whole thing is in one `try`: a browser with site data blocked
+         throws on the first read, and the only thing this script has to do
+         about that is not take the page down with it. -->
     <script>
       try {
         var picked = localStorage.getItem("olai.theme");
@@ -30,21 +85,7 @@
         if (face) document.documentElement.setAttribute("data-font", face);
         var size = localStorage.getItem("olai.size");
         if (size) document.documentElement.setAttribute("data-size", size);
+        var canvas = localStorage.getItem("olai.scheme");
+        if (canvas) document.querySelector('meta[name="color-scheme"]').content = canvas;
       } catch {}
     </script>
-    <!-- The browser chrome around an installed app: a phone's status bar, an
-         installed window's title bar. TWO of them, one per OS scheme, each
-         holding the paper of the default a page that has picked nothing reads
-         in under that scheme — because that is all this shell can know before
-         the bundle runs. A page that did pick (and the unpicked page, once the
-         bundle is up) repaints ONE unqualified meta from the table
-         (theme/state.ts, theme/chrome.ts). The values are `--color-paper` of
-         the two defaults, which cannot be read from here (the sheet is a build
-         artifact and this shell is what loads it) and are pinned by
-         appearance/css.test.ts instead. -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FBFBF9" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161718" />
-    <!-- What the browser should assume before the sheet lands: it cannot know
-         yet which theme this page is in, and the themes come both ways. Once
-         the sheet is in, each palette's own `color-scheme` is what wins. -->
-    <meta name="color-scheme" content="light dark" />

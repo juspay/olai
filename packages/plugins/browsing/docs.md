@@ -30,7 +30,11 @@ the right, as any link does) and its page title is the pane's title.
 - **Address bar.** Shows the tab's live URL; type a URL and press Enter to go
   there. Words that are not a URL are searched on **DuckDuckGo**
   (`https://duckduckgo.com/?q=…`) — the one place the pane sends what you
-  typed to a third party, and only because you pressed Enter on it.
+  typed to a third party, and only because you pressed Enter on it. On a phone
+  it asks for the URL keyboard and a **Go** return key, and nothing you type
+  is capitalised, autocorrected or spell-checked: an address is a name. It
+  stays an ordinary text box rather than `type="url"`, so `example.com` is
+  still something you can type.
 - **The page.** A live picture of the tab. Press, drag and scroll on it as on a
   page. Click it and **keys go to the page** — the line under it says so — and
   pasting sends the clipboard's text. **Esc** gives the keys back to olai.

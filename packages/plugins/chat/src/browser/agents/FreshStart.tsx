@@ -9,6 +9,7 @@ import { useAgents } from "./answered.tsx"
 import type { Row } from "./roster.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { createConfirming } from "@olai/web/client/confirming.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { freshStartQuestion, startFreshChat } from "./fresh-start.ts"
 import { isPast as movedOn } from "./past.ts"
 import { TESTID } from "../../testids.ts"
@@ -87,10 +88,16 @@ export function FreshStart(props: {
   }
 
   return <span class="relative">
-    <button ref={trigger} type="button" class={LINE_VERB} data-testid={TESTID.chatFreshSession}
-      data-agent={props.agent.id} disabled={starting()} aria-busy={starting()}
-      title={`Start over, keeping memory in ${memoryOf(props.agent)}`}
-      onClick={pressed}>Fresh start</button>
+    {/* WHERE THE MEMORY GOES. "Fresh start" does not say that the subtree's
+        memory file survives the new chat, and that is the whole reason a
+        person presses it rather than closing the agent — so the sentence is
+        in the button's own name, after the visible words, as well as under
+        the pointer. */}
+    <Tip text={`Start over, keeping memory in ${memoryOf(props.agent)}`}>
+      <button ref={trigger} type="button" class={LINE_VERB} data-testid={TESTID.chatFreshSession}
+        data-agent={props.agent.id} disabled={starting()} aria-busy={starting()}
+        onClick={pressed}>Fresh start<span class="sr-only"> — start over, keeping memory in {memoryOf(props.agent)}</span></button>
+    </Tip>
     <Show when={confirm.where() === "asking"}>
       <span role="group" aria-label="Confirm fresh start" class="block max-w-sm whitespace-normal text-label"
         onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); cancel() } }}>

@@ -151,3 +151,18 @@ Feature: An agent is offered only where one can start
     When I click the title of "order"
     Then the agent start pill on "order" is visible
     And the agent start pill on "install" is not shown
+
+  @phone @scratch:chat
+  Scenario: On a wide touch screen the offer is drawn rather than waiting
+    # The scenario above is about ROOM: a 390pt line has none to spare, so the
+    # offer waits there for the row a finger tapped. Past the breakpoint the
+    # line has room for a pill beside the title and the only question left is
+    # the POINTER — and this screen has none, so the offer is simply there and
+    # a thumb takes it. Same context as above, widened.
+    Given I open the outline "house.olai"
+    When I widen the window to a desk
+    Then the agent start pill on "order" is visible
+    And the agent start pill on "install" is visible
+    When I tap the agent start pill on "order"
+    Then node agent "order" is unfolded
+    And there should be no page errors

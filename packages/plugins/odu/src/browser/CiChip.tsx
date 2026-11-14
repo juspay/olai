@@ -57,6 +57,7 @@ import { useClocks } from "./clocks.tsx"
 import type { ChipContext } from "./app.ts"
 import { useRuns } from "./runs.tsx"
 import { runningIn, type CiTone, wordsFor } from "./words.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 /** The chip's box — the run's own chip geometry, in the mono face a figure
  *  that moves needs (`tabular-nums` keeps a ticking `m:ss` from shimmying). */
@@ -111,35 +112,43 @@ export function CiChip(context: ChipContext) {
         <Show
           when={context.onToggle}
           fallback={
-            <span
-              class={`${CHIP} ${TONE[said().tone]}`}
-              data-testid={TESTID.ciChip}
-              data-state={said().tone}
-              data-run={context.entry.value}
-              title={said().title}
-            >
-              {said().text}
-            </span>
+            // A CHIP IS NOT A CONTROL on this arm, so the sentence behind its
+            // few words rides a hidden twin after it: a tip draws nothing a
+            // screen reader can reach, and this span has no role to name.
+            <Tip text={said().title} say>
+              <span
+                class={`${CHIP} ${TONE[said().tone]}`}
+                data-testid={TESTID.ciChip}
+                data-state={said().tone}
+                data-run={context.entry.value}
+              >
+                {said().text}
+              </span>
+            </Tip>
           }
         >
           {(toggle) => (
-            <button
-              type="button"
-              class={`${CHIP} ${TONE[said().tone]} cursor-pointer`}
-              data-testid={TESTID.ciChip}
-              data-state={said().tone}
-              data-run={context.entry.value}
-              data-open={context.opened ? "yes" : "no"}
-              title={`${said().title} · Show all runs`}
-              onClick={(event) => {
-                // The row beneath answers a click by opening; this one is a
-                // door of its own and the run's line must not also move.
-                event.stopPropagation()
-                toggle()()
-              }}
-            >
-              {said().text}
-            </button>
+            // The pressable arm: the chip's words are its name, so the
+            // sentence and what pressing does follow them inside the button
+            // rather than replacing them.
+            <Tip text={`${said().title} · Show all runs`}>
+              <button
+                type="button"
+                class={`${CHIP} ${TONE[said().tone]} cursor-pointer`}
+                data-testid={TESTID.ciChip}
+                data-state={said().tone}
+                data-run={context.entry.value}
+                data-open={context.opened ? "yes" : "no"}
+                onClick={(event) => {
+                  // The row beneath answers a click by opening; this one is a
+                  // door of its own and the run's line must not also move.
+                  event.stopPropagation()
+                  toggle()()
+                }}
+              >
+                {said().text}<span class="sr-only"> — {said().title} · show all runs</span>
+              </button>
+            </Tip>
           )}
         </Show>
         )

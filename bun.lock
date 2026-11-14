@@ -271,6 +271,7 @@
         "@olai/plugin-api": "workspace:*",
         "@olai/plugin-kit": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
+        "@olai/web": "workspace:*",
         "effect": "4.0.0",
         "olai-plugin-layout": "workspace:*",
         "olai-plugin-navigation": "workspace:*",
@@ -528,6 +529,9 @@
         "olai-plugin-ui-renderer": "workspace:*",
         "olai-plugin-vault": "workspace:*",
         "solid-js": "^1.9.0",
+      },
+      "devDependencies": {
+        "@olai/tests": "workspace:*",
       },
     },
     "packages/plugins/journal": {
@@ -790,6 +794,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@kobalte/core": "^0.13.13",
+        "@olai/appearance": "workspace:*",
         "@olai/edit-history": "workspace:*",
         "@olai/edit-intents": "workspace:*",
         "@olai/format": "workspace:*",
@@ -1183,6 +1188,7 @@
         "@olai/format": "workspace:*",
         "@olai/plugin-api": "workspace:*",
         "@olai/ui-primitives": "workspace:*",
+        "@olai/web": "workspace:*",
         "effect": "4.0.0",
         "solid-js": "^1.9.0",
       },

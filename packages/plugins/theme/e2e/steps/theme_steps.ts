@@ -28,8 +28,7 @@ import {
   THEME_ATTRIBUTE,
   THEME_STORAGE_KEY,
 } from "@olai/web/testlib";
-import { DEFAULT_DARK_THEME, PALETTES, THEME_NAMES } from "@olai/appearance/palettes.ts";
-
+import { DEFAULT_DARK_THEME, PALETTES, SYSTEM_SCHEME, THEME_NAMES } from "@olai/appearance/palettes.ts";
 import { focusedOn } from "@olai/tests/harness/caret.ts";
 import { manifestOf } from "@olai/tests/harness/manifest.ts";
 import { showPreferences } from "@olai/tests/harness/preferences.ts";
@@ -54,12 +53,23 @@ const PAPER = customProperty("paper");
  * runs `toString()` of a callback in the page, and a `: string` or an `as`
  * cast is a syntax error there. The mark is a blob the page minted; fetching
  * it is how this step reads the paper it was drawn in.
+ *
+ * THE META THE BROWSER USES, not the first one in the head: the shell ships
+ * two, each with a `prefers-color-scheme` query, and the rule is the first
+ * whose media matches — asked here with the page's own `matchMedia`, which is
+ * the same answer the UA gives itself. Reading `querySelector` instead was
+ * how a dark palette under a light OS could wear the dark DEFAULT's paper
+ * with nothing failing: the meta that was repainted was not the one in force.
  */
 const CHROME_OF = `async (property) => {
   const paper = getComputedStyle(document.documentElement)
     .getPropertyValue(property).trim().toLowerCase();
-  const chrome = document.querySelector('meta[name="theme-color"]')
-    ?.getAttribute("content")?.toLowerCase() ?? null;
+  const used = [...document.querySelectorAll('meta[name="theme-color"]')]
+    .find((meta) => {
+      const query = meta.getAttribute("media");
+      return !query || matchMedia(query).matches;
+    });
+  const chrome = used?.getAttribute("content")?.toLowerCase() ?? null;
   const href = document.querySelector("link[rel=icon]")?.href;
   let mark = null;
   if (href) {
@@ -469,6 +479,13 @@ When("I watch for the theme landing", async function (this: OlaiWorld) {
   //
   // `document` with a subtree filter, because at this point `<html>` does not
   // exist and there is nothing narrower to observe.
+  //
+  // THE CANVAS IS READ IN THE SAME BREATH, because it is the same moment: the
+  // boot script writes the attribute and then the meta, and this callback is
+  // a microtask after both. What it catches is the half of the first paint
+  // the attribute does not own — the browser's own canvas, scrollbars and
+  // form controls, which until the sheet lands go the way the meta says and
+  // not the way `data-theme` does.
   await this.page.addInitScript(
     ([key, attribute]: ReadonlyArray<string>) => {
       const window_ = window as unknown as Record<string, unknown>;
@@ -478,6 +495,9 @@ When("I watch for the theme landing", async function (this: OlaiWorld) {
         if (!records.some((record) => record.attributeName === attribute)) return;
         window_[key as string] = {
           theme: document.documentElement.getAttribute(attribute as string),
+          canvas: document
+            .querySelector('meta[name="color-scheme"]')
+            ?.getAttribute("content") ?? null,
           parsing: document.readyState === "loading",
         };
       }).observe(document, {
@@ -490,13 +510,20 @@ When("I watch for the theme landing", async function (this: OlaiWorld) {
   );
 });
 
+/** What the probe caught, or `null` on a load where no theme was ever
+ *  written. One reader for the two steps that ask about that moment. */
+const landing = async (
+  world: OlaiWorld,
+): Promise<{ theme: string; canvas: string | null; parsing: boolean } | null> =>
+  (await world.page.evaluate(
+    (key) => (window as unknown as Record<string, unknown>)[key],
+    PROBE,
+  )) as { theme: string; canvas: string | null; parsing: boolean } | null;
+
 Then(
   "the theme {string} landed while the page was still parsing",
   async function (this: OlaiWorld, theme: string) {
-    const landed = (await this.page.evaluate(
-      (key) => (window as unknown as Record<string, unknown>)[key],
-      PROBE,
-    )) as { theme: string; parsing: boolean } | null;
+    const landed = await landing(this);
     assert.ok(landed, "no theme was ever written on <html>");
     assert.equal(landed.theme, theme);
     assert.ok(
@@ -505,6 +532,47 @@ Then(
     );
   },
 );
+
+Then(
+  "the canvas was already {string} while the page was still parsing",
+  async function (this: OlaiWorld, scheme: string) {
+    // The failure this catches is invisible in a screenshot of the finished
+    // page: the sheet puts the canvas right the moment it lands, so the only
+    // evidence that a dark palette spent the parse in a light browser is what
+    // the meta said during it.
+    const landed = await landing(this);
+    assert.ok(landed, "no theme was ever written on <html>");
+    assert.ok(
+      landed.parsing,
+      "the theme landed after the parse: the page flashed the wrong one",
+    );
+    assert.equal(
+      landed.canvas,
+      scheme,
+      `the browser was told "${landed.canvas}" while the page was parsing`,
+    );
+  },
+);
+
+/** Where the browser is told what to paint ITSELF in — the canvas behind the
+ *  page, the scrollbars, the form controls. Asserted through
+ *  `expectChromeAttribute`, which WAITS: a pick repaints this a frame later,
+ *  the same way the status bar's colour is repainted. */
+const CANVAS = 'meta[name="color-scheme"]';
+
+Then(
+  "the canvas is pinned to {string}",
+  async function (this: OlaiWorld, scheme: string) {
+    await this.expectChromeAttribute(CANVAS, "content", scheme, "the canvas");
+  },
+);
+
+Then("the canvas follows the system", async function (this: OlaiWorld) {
+  // Both words, which is the shell's authored default and the only state in
+  // which a page whose JavaScript never ran and a page that handed the theme
+  // back look the same — as they should.
+  await this.expectChromeAttribute(CANVAS, "content", SYSTEM_SCHEME, "the canvas");
+});
 
 // ── and nothing reaches the server ─────────────────────────────────────
 

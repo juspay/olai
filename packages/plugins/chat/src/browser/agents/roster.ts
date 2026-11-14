@@ -51,7 +51,33 @@ export const seated = (standing: Standing): boolean => awake(standing) || standi
  *  row's dot, which is drawn for an awake agent and for no other
  *  (`./Agents.tsx`: a sleeping chat is a thing that is there, not a thing that
  *  is doing something). A row carries its standing as `data-standing` whatever
- *  it draws. */
+ *  it draws.
+ *
+ *  THE HALO ON THE TWO BUSY STANDINGS IS NOT DECORATION. Working and idle are
+ *  the same `done` dot, and for a year the ONLY thing between them was the
+ *  pulse — which is motion, and motion is a thing a reader is allowed to turn
+ *  off (`@olai/appearance/chrome.css` stills it for the whole app). A cue that
+ *  a preference can delete is a cue that stops being told to the reader who
+ *  needed it most, so the fact is drawn twice: a ring that is there whatever
+ *  the reader asked for, and a pulse on top of it for whoever is happy to
+ *  watch things move. `doing` is not available to say it with — the Chats
+ *  column paints a row that NEEDS YOU in that colour, and two standings one
+ *  colour apart from nothing is the bug this paragraph is about.
+ *
+ *  AND THE HALO IS AN `outline`, NOT A `ring`, WHICH IS THE SAME ARGUMENT ONE
+ *  PREFERENCE FURTHER ON. Tailwind's `ring-*` compiles to a `box-shadow`, and
+ *  Windows High Contrast removes box-shadows outright — so a halo spelled that
+ *  way would have been a cue the reduced-motion reader keeps and the
+ *  forced-colours reader loses, which is the identical failure in a different
+ *  preference. An `outline` is recoloured from the system palette and kept.
+ *  It draws in the same two pixels immediately outside the dot.
+ *
+ *  `olai-tone-dot` is on every FILLED standing for the same reason the halo
+ *  changed: a disc painted in `bg-done` or `bg-alarm` is flattened to the
+ *  page's own `Canvas` there and stops being a dot at all. The rule that
+ *  repaints it lives in `@olai/ui-primitives/all.css`; `unbound` needs none of
+ *  it, because a hollow dot is a border and borders are forced rather than
+ *  deleted. */
 export const LOOK: Record<Standing, { readonly dot: string; readonly label: string; readonly detail: string }> = {
   "needs-you": {
     dot: NEEDS_YOU_DOT,
@@ -59,27 +85,27 @@ export const LOOK: Record<Standing, { readonly dot: string; readonly label: stri
     detail: "Waiting for your answer",
   },
   working: {
-    dot: "bg-done animate-pulse",
+    dot: "olai-tone-dot bg-done outline-2 outline-done/35 animate-pulse",
     label: "Working…",
     detail: "Working on a reply",
   },
   waking: {
-    dot: "bg-done animate-pulse",
+    dot: "olai-tone-dot bg-done outline-2 outline-done/35 animate-pulse",
     label: "Starting…",
     detail: "The agent is starting",
   },
   idle: {
-    dot: "bg-done",
+    dot: "olai-tone-dot bg-done",
     label: "Idle",
     detail: "Ready for your next message",
   },
   gone: {
-    dot: "bg-alarm",
+    dot: "olai-tone-dot bg-alarm",
     label: "Not running",
     detail: "The agent stopped",
   },
   asleep: {
-    dot: "bg-muted/40",
+    dot: "olai-tone-dot-quiet bg-muted/40",
     label: "Asleep",
     detail: "Saved. Open it to continue.",
   },

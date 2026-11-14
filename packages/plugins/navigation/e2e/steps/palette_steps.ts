@@ -41,7 +41,6 @@ import {
   PALETTE_INPUT,
   PALETTE_ITEM,
   PALETTE_SAID,
-  PALETTE_SCRIM,
   SEARCH_COUNT,
   POLL_TIMEOUT,
   SHORTCUTS,
@@ -85,14 +84,19 @@ Then("the shortcuts are put away", async function (this: OlaiWorld) {
   );
 });
 
-/** The palette's own way out for a pointer: the full-screen scrim behind its
- *  card. It covers the page, so it is also a press outside every panel
- *  underneath — which is what `dismiss_stack.feature` asks it about. */
+/** The palette's own way out for a pointer: a press OUTSIDE the sheet, which
+ *  with a modal `<dialog>` lands on the browser's `::backdrop` and reaches
+ *  nothing on the page at all — which is what `dismiss_stack.feature` asks it
+ *  about. The step keeps its old name because the gesture is the same one;
+ *  what changed is who paints the dim. */
 When("I press the palette scrim", async function (this: OlaiWorld) {
-  // A CORNER of it, not the middle: the scrim covers the viewport, and the
-  // middle of the viewport is where the palette's own card is drawn — so the
-  // default centre press lands on the card and puts nothing away.
-  await this.page.locator(PALETTE_SCRIM).click({ position: { x: 20, y: 20 } });
+  // ABOVE THE SHEET, measured rather than guessed: the backdrop fills the
+  // viewport and the sheet is somewhere in the middle of it, so a press is
+  // taken halfway between the top of the window and the top of the panel. A
+  // fixed corner would be a guess that the phone's sheet does not reach.
+  const box = await this.page.locator(PALETTE).boundingBox();
+  assert.ok(box !== null, "the palette is not on screen, so there is no outside to press");
+  await this.page.mouse.click(box.x + box.width / 2, Math.max(1, box.y / 2));
   await this.waitForFrame();
 });
 
@@ -436,13 +440,62 @@ Then(
 Then(
   "the palette's caret is on {string}",
   async function (this: OlaiWorld, id: string) {
+    const where = async () => await this.page.evaluate(() => {
+      const at = document.activeElement
+      return at === null ? "nothing" : `${at.tagName.toLowerCase()}${at.getAttribute("data-id") === null ? "" : `[${at.getAttribute("data-id")}]`}${at.getAttribute("data-testid") === null ? "" : `(${at.getAttribute("data-testid")})`}`
+    })
     await this.waitUntil(
       async () =>
         (await this.page.evaluate(() =>
           document.activeElement?.getAttribute("data-id") ?? null
         )) === id,
       `the palette's caret to be on ${JSON.stringify(id)}`,
-    );
+    ).catch(async () => {
+      // WHERE IT ACTUALLY IS, because "not on the verb" and "on the box this
+      // panel opened with" are different bugs and the message decided which
+      // one somebody went looking for.
+      assert.fail(`the palette's caret is on ${await where()}, not ${JSON.stringify(id)}`)
+    });
+  },
+);
+
+/**
+ * TAB GOES ROUND AND COMES BACK, which is the claim — not how many stops
+ * there are on the way. The cycle is the PLATFORM's now (a modal `<dialog>`
+ * contains the keyboard; the hand-written trap that allowed exactly two
+ * buttons is gone), so the number of stops is the panel's markup rather than
+ * this app's rule, and a scenario that counted them would fail the day a row
+ * gained a control. What must hold is both halves of containment: the caret
+ * never leaves the modal, and every press eventually brings it back.
+ */
+Then(
+  "Tab walks the palette and comes back to {string}",
+  async function (this: OlaiWorld, id: string) {
+    const stops: string[] = []
+    for (let press = 0; press < 8; press++) {
+      await this.page.keyboard.press("Tab")
+      const at = await this.page.evaluate(() => {
+        const active = document.activeElement
+        const dialog = document.querySelector("dialog[open]")
+        return {
+          // The document ROOT is a stop the browser wraps through at the end
+          // of a modal's cycle — `document.body` holds the caret for one
+          // press and the next one is back inside. It is not the page: a
+          // control under the modal would be a named element, which is what
+          // this is really asking about.
+          inside: active === null || active === document.body || active === document.documentElement
+            || (dialog !== null && dialog.contains(active)),
+          at: active?.getAttribute("data-id") ?? null,
+          id: `${active?.tagName.toLowerCase() ?? "nothing"}:${active?.getAttribute("data-id") ?? active?.getAttribute("data-testid") ?? "-"}`,
+          modal: dialog !== null && dialog.matches(":modal"),
+          dialogs: document.querySelectorAll("dialog[open]").length,
+        }
+      })
+      stops.push(at.id)
+      assert.ok(at.inside, `Tab left the palette and landed on ${at.id} (modal: ${String(at.modal)}, open dialogs: ${String(at.dialogs)}, stops: ${stops.join(" → ")})`)
+      if (at.at === id) return
+    }
+    assert.fail(`Tab never came back to ${JSON.stringify(id)} (stops: ${stops.join(" → ")})`)
   },
 );
 

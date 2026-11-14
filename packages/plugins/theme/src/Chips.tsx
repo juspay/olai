@@ -29,6 +29,7 @@ import { PALETTES } from "@olai/appearance/palettes.ts"
 import type { Appearance } from "./index.ts"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 /** A palette's name as a person reads it. */
 export const paletteLabel = (name: string): string => name.charAt(0).toUpperCase() + name.slice(1)
@@ -39,12 +40,28 @@ export const themeInForce = (state: Appearance): string =>
     ? `System · ${paletteLabel(state.theme.current().name)}`
     : paletteLabel(state.theme.current().name)
 
+/* THE TARGET, and the one control in this app whose drawing is nothing but
+ * colour — which is why `./all.css` lets its disc out of forced colours and
+ * nothing else in the tree is allowed the same.
+ *
+ * `[--olai-ring-radius:9999px]` hands the app's ring the one fact the sheet
+ * cannot know: this is a circle, not a `--radius-control` box. There is no
+ * `outline-none` here any more — the one that used to be did nothing at all
+ * (`@olai/appearance/chrome.css` is unlayered and outranks every utility), so
+ * the swatch was wearing the app's outline AND the disc's own
+ * `group-focus-visible` ring the whole time. */
 const SWATCH =
-  `${TARGET_BOX} group inline-flex flex-none items-center justify-center rounded-full outline-none md:min-h-0 md:min-w-0 md:p-0`
+  `${TARGET_BOX} group inline-flex flex-none items-center justify-center rounded-full [--olai-ring-radius:9999px] md:min-h-0 md:min-w-0 md:p-0`
 
+/* THE DRAWING. The ring that says which palette is IN FORCE stays on the disc
+ * rather than moving to the button: on a phone the button is a 44px target
+ * around a 28px disc, and a mark drawn at the target's edge would be floating
+ * a finger's width from the thing it marks. The `group-focus-visible` ring
+ * that used to sit beside it is gone — it was a second ring under the app's
+ * outline, and a `box-shadow` at that. */
 const DISC =
-  "relative block size-7 rounded-full border ring-offset-2 ring-offset-panel group-hover:scale-105 " +
-  "group-focus-visible:ring-2 group-focus-visible:ring-accent group-aria-pressed:ring-2 group-aria-pressed:ring-ink/60 " +
+  "olai-swatch-disc relative block size-7 rounded-full border ring-offset-2 ring-offset-panel group-hover:scale-105 " +
+  "group-aria-pressed:ring-2 group-aria-pressed:ring-ink/60 " +
   "motion-safe:transition-transform md:size-6"
 
 export function ThemeChips(props: { readonly state: Appearance }) {
@@ -54,50 +71,55 @@ export function ThemeChips(props: { readonly state: Appearance }) {
 
   return (
     <>
-      <button
-        type="button"
-        class={SWATCH}
-        data-testid={TESTID.themeFollow}
-        title="Follow the system"
-        aria-label="Follow the system"
-        aria-pressed={props.state.theme.following() ? "true" : "false"}
-        onClick={() => props.state.theme.follow()}
-      >
-        {/* Half light, half dark: the two defaults the OS chooses between. */}
-        <span
-          aria-hidden="true"
-          class={`${DISC} border-rule`}
-          style={{
-            background: `linear-gradient(90deg, ${PALETTES[0]!.colors.paper} 0 50%, ${PALETTES.find((p) => p.scheme === "dark")!.colors.paper} 50% 100%)`,
-          }}
-        />
-      </button>
+      {/* Every tip here repeats the swatch's own `aria-label` — a swatch is a
+          disc of colour with no words, so the palette's name has to be the
+          NAME, and the tip is the same sentence drawn for a pointer. */}
+      <Tip text="Follow the system">
+        <button
+          type="button"
+          class={SWATCH}
+          data-testid={TESTID.themeFollow}
+          aria-label="Follow the system"
+          aria-pressed={props.state.theme.following() ? "true" : "false"}
+          onClick={() => props.state.theme.follow()}
+        >
+          {/* Half light, half dark: the two defaults the OS chooses between. */}
+          <span
+            aria-hidden="true"
+            class={`${DISC} border-rule`}
+            style={{
+              background: `linear-gradient(90deg, ${PALETTES[0]!.colors.paper} 0 50%, ${PALETTES.find((p) => p.scheme === "dark")!.colors.paper} 50% 100%)`,
+            }}
+          />
+        </button>
+      </Tip>
       <span aria-hidden="true" class="mx-1 h-5 w-px self-center bg-rule" />
       <For each={PALETTES}>
         {(palette) => (
-          <button
-            type="button"
-            // The button is the target (44px on a phone, `../touch.ts`); the
-            // swatch inside it is the drawing. The ring says which is in force,
-            // and the focus ring where the caret is — the page's accent, so it
-            // shows against any swatch.
-            class={SWATCH}
-            data-testid={TESTID.themeChip}
-            data-value={palette.name}
-            title={paletteLabel(palette.name)}
-            aria-label={paletteLabel(palette.name)}
-            aria-pressed={isInForce(palette.name) ? "true" : "false"}
-            onClick={() => props.state.theme.pick(palette)}
-          >
-            <span
-              aria-hidden="true"
-              class={DISC}
-              style={{
-                background: `linear-gradient(135deg, ${palette.colors.paper} 0 55%, ${palette.colors.accent} 55% 100%)`,
-                "border-color": palette.colors.rule,
-              }}
-            />
-          </button>
+          <Tip text={paletteLabel(palette.name)}>
+            <button
+              type="button"
+              // The button is the target (44px on a phone, `../touch.ts`); the
+              // swatch inside it is the drawing. The ring says which is in force,
+              // and the focus ring where the caret is — the page's accent, so it
+              // shows against any swatch.
+              class={SWATCH}
+              data-testid={TESTID.themeChip}
+              data-value={palette.name}
+              aria-label={paletteLabel(palette.name)}
+              aria-pressed={isInForce(palette.name) ? "true" : "false"}
+              onClick={() => props.state.theme.pick(palette)}
+            >
+              <span
+                aria-hidden="true"
+                class={DISC}
+                style={{
+                  background: `linear-gradient(135deg, ${palette.colors.paper} 0 55%, ${palette.colors.accent} 55% 100%)`,
+                  "border-color": palette.colors.rule,
+                }}
+              />
+            </button>
+          </Tip>
         )}
       </For>
     </>

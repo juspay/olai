@@ -242,7 +242,10 @@ export type FileLink = (props: {
   readonly class?: string
   readonly testid?: string
   readonly label: string
-  readonly title?: string
+  /** The sentence a pointer gets over the link, drawn by the app's own tip.
+   *  Never the only copy of anything: `label` above is what a reader who does
+   *  not hover is owed. */
+  readonly tip?: string
   readonly children: JSX.Element
 }) => JSX.Element
 

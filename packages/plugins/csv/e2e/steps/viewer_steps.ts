@@ -43,6 +43,7 @@ import {
 } from "@olai/tests/harness/world.ts";
 import {
   CSV_CLAMP,
+  CSV_SCROLLER,
   CSV_TABLE,
 } from "../selectors.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
@@ -364,3 +365,194 @@ Then("the CSV table stayed mounted during its revision", async function(this: Ol
   assert.equal(await (await table(this)).evaluate(element =>
     (element as HTMLElement & { retainedTable?: boolean }).retainedTable), true)
 })
+
+// ── the table a keyboard can reach ─────────────────────────────────────
+
+/**
+ * A WIDE file, written by the scenario, because the thing under test is what
+ * happens when a table does not fit. The corpus's `data/sales.csv` is four
+ * columns and reads whole on any screen worth drawing on — a scroller that
+ * never has anything to scroll proves nothing about the keys that move it. So
+ * the shape is the argument: enough columns to run off the side, enough rows to
+ * run off the bottom, and cells wide enough that neither is a near thing on a
+ * narrow lane. Both counts stay under the format's bounds (`CSV_COLUMNS`,
+ * `CSV_ROWS`), so what this file exercises is the SCROLLER and not the clamp,
+ * which has a scenario of its own.
+ */
+Given(
+  "a csv of {int} data rows and {int} columns exists at {string}",
+  function (this: OlaiWorld, rows: number, columns: number, file: string) {
+    const head: Array<string> = [];
+    for (let column = 1; column <= columns; column++) head.push(`column ${String(column)} heading`);
+    const lines = [head.join(",")];
+    for (let row = 1; row <= rows; row++) {
+      const cells: Array<string> = [];
+      for (let column = 1; column <= columns; column++) cells.push(`r${String(row)}c${String(column)} value`);
+      lines.push(cells.join(","));
+    }
+    this.writeServed(file, `${lines.join("\n")}\n`);
+  },
+);
+
+/** The scroller on screen — the region around the table, waited for the way
+ *  every csv step waits for the table itself. */
+const scroller = async (world: OlaiWorld) => {
+  const found = world.frontLane().locator(CSV_SCROLLER);
+  await found.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  return found;
+};
+
+// WHAT IT IS, to somebody who cannot see it. A scroll container that announces
+// nothing is a place a screen reader's user arrives in with no idea what they
+// are standing in, so the promise is a named region — and the name is the
+// file's own path, which is also the table's `<caption>`. Read through the
+// ROLE rather than through the attributes that produce it: `aria-labelledby`
+// pointing at an element that does not exist spells the same markup and
+// computes to no name at all.
+Then(
+  "the table's scroller is a region named {string}",
+  async function (this: OlaiWorld, name: string) {
+    const found = await scroller(this);
+    const named = found.and(this.frontLane().getByRole("region", { name, exact: true }));
+    await this.waitUntil(async () => (await named.count()) === 1,
+      `the csv scroller to be a region named ${JSON.stringify(name)}`);
+  },
+);
+
+// The header row's FACT, read as the attribute a screen reader acts on: these
+// cells head the columns under them. A `<th>` with no scope is a guess the
+// browser makes from the table's shape and gets wrong the moment a file has one
+// column or a ragged row.
+Then("every header cell heads its column", async function (this: OlaiWorld) {
+  const cells = (await table(this)).locator("thead th");
+  const scopes = await cells.evaluateAll((list) => list.map((cell) => cell.getAttribute("scope")));
+  assert.ok(scopes.length > 0, "the table drew a header row with no cells in it");
+  assert.deepStrictEqual([...new Set(scopes)], ["col"], "the scopes of the header cells");
+});
+
+/** How many Tab presses a keyboard traveller is allowed before the suite calls
+ *  the scroller unreachable. Generous — the whole shell is ahead of it — and
+ *  finite, because the failure this guards against is a page where no number of
+ *  presses would do. */
+const TAB_BUDGET = 300;
+
+// REACHED BY KEYBOARD, proved by pressing the key rather than by calling
+// `focus()`. Nothing in a table of text takes focus, so a scroll container
+// without `tabindex` is a part of the page a pointer can read and a keyboard
+// cannot — and `locator.focus()` would pass on exactly that page.
+//
+// The walk starts at the top of the document on purpose: a traveller arrives
+// at the page through the chrome, and what is being claimed is that the table
+// is ON the path rather than that it can be focused once you are standing on
+// it. One thing on that path answers focus by opening a panel of its own — the
+// header's search box, whose kinds row is drawn while the box has the caret
+// and whose own dismissal is Escape — so the walk dismisses it the way a
+// person would and carries on. Without that it is not a long path, it is a
+// loop, and the budget below only decides how long we take to say so.
+When("I travel by keyboard to the table's scroller", async function (this: OlaiWorld) {
+  const found = await scroller(this);
+  const arrived = async () => found.evaluate((element) => element === document.activeElement);
+  await this.page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur() });
+  for (let presses = 0; presses < TAB_BUDGET; presses++) {
+    if (await arrived()) return;
+    const inPanel = await this.page.evaluate(() =>
+      document.activeElement?.closest('[data-testid="header-search"], [data-testid="search-panel"]') !== null
+      || document.activeElement?.getAttribute("type") === "search");
+    if (inPanel) await this.page.keyboard.press("Escape");
+    await this.page.keyboard.press("Tab");
+  }
+  assert.ok(await arrived(), `no keyboard path reached the csv scroller in ${String(TAB_BUDGET)} presses`);
+});
+
+// THE RING, and whether it is on the SCREEN. A scroll container made focusable
+// earns the trap the ring guards against: the app's ring is drawn two pixels
+// outside the box it marks (`@olai/appearance`'s `chrome.css`), and a box
+// inside a pane that clips can have a ring that exists in the stylesheet and
+// nowhere a person can see. So the assertion is geometric — the ring's own
+// rectangle, inflated out of the element by the offset and the width it
+// computes to, still sits inside every clipping ancestor.
+//
+// Side by side rather than rectangle against rectangle, because a pane is
+// allowed to have the table's bottom below its scrollport: what is being read
+// is the MARGIN. On any side where the element's own edge is inside the clip,
+// the ring's edge on that side must be inside it too.
+Then("the focus ring on the table's scroller is not clipped away", async function (this: OlaiWorld) {
+  const ring = await (await scroller(this)).evaluate((element) => {
+    const style = getComputedStyle(element);
+    const grow = parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth);
+    const box = element.getBoundingClientRect();
+    const edges = {
+      left: box.left - grow, top: box.top - grow,
+      right: box.right + grow, bottom: box.bottom + grow,
+    };
+    let clipped: string | null = null;
+    for (let parent = element.parentElement; parent !== null && clipped === null; parent = parent.parentElement) {
+      const seen = getComputedStyle(parent);
+      if (seen.overflowX === "visible" && seen.overflowY === "visible") continue;
+      const rect = parent.getBoundingClientRect();
+      // The clip edge is the PADDING box, so the border is not room the ring
+      // may use.
+      const clip = {
+        left: rect.left + parseFloat(seen.borderLeftWidth),
+        top: rect.top + parseFloat(seen.borderTopWidth),
+        right: rect.right - parseFloat(seen.borderRightWidth),
+        bottom: rect.bottom - parseFloat(seen.borderBottomWidth),
+      };
+      const tight = 0.5;
+      const lost =
+        (box.left >= clip.left - tight && edges.left < clip.left - tight) ||
+        (box.top >= clip.top - tight && edges.top < clip.top - tight) ||
+        (box.right <= clip.right + tight && edges.right > clip.right + tight) ||
+        (box.bottom <= clip.bottom + tight && edges.bottom > clip.bottom + tight);
+      if (lost) clipped = `${parent.tagName.toLowerCase()} [${parent.className}]`;
+    }
+    return {
+      focused: element.matches(":focus-visible"),
+      style: style.outlineStyle,
+      width: parseFloat(style.outlineWidth),
+      colour: style.outlineColor,
+      clipped,
+    };
+  });
+  assert.ok(ring.focused, "the scroller does not match :focus-visible, so no ring is asked for");
+  assert.notStrictEqual(ring.style, "none", "the focused scroller draws no outline at all");
+  assert.ok(ring.width >= 2, `the focus ring is ${String(ring.width)}px wide`);
+  assert.ok(!/^(transparent|rgba\(0, 0, 0, 0\))$/.test(ring.colour), `the focus ring is ${ring.colour}`);
+  assert.strictEqual(ring.clipped, null, `the focus ring is clipped away by ${String(ring.clipped)}`);
+});
+
+// THE KEYS THAT MOVE IT. Both directions in one press run, because a scroller
+// that answers one arrow and not the other is a bug with no separate cause, and
+// the mark left on the element is this file's own way of carrying a before and
+// an after across two steps (`I remember the CSV table`).
+When("the arrow keys move the table", async function (this: OlaiWorld) {
+  const found = await scroller(this);
+  await found.evaluate((element) => {
+    (element as HTMLElement & { scrolledFrom?: { x: number; y: number } }).scrolledFrom =
+      { x: element.scrollLeft, y: element.scrollTop };
+  });
+  for (let press = 0; press < 12; press++) await this.page.keyboard.press("ArrowRight");
+  for (let press = 0; press < 12; press++) await this.page.keyboard.press("ArrowDown");
+});
+
+Then("the table has moved sideways and down under them", async function (this: OlaiWorld) {
+  const found = await scroller(this);
+  await this.waitUntil(async () => found.evaluate((element) => {
+    const from = (element as HTMLElement & { scrolledFrom?: { x: number; y: number } }).scrolledFrom;
+    return from !== undefined && element.scrollLeft > from.x && element.scrollTop > from.y;
+  }), "the scroller to have moved sideways and down under the arrow keys");
+});
+
+// THE HEADER STAYS. Read as geometry rather than as a class: after the rows
+// have moved under it, the first header cell is still against the top edge of
+// the scroller, which is the whole of what sticky is FOR — a column of numbers
+// whose name has scrolled away is data nobody can read.
+Then("the header row is still against the top of the scroller", async function (this: OlaiWorld) {
+  const found = await scroller(this);
+  const gap = await found.evaluate((element) => {
+    const head = element.querySelector("thead th");
+    if (head === null) throw new Error("the table drew no header cell");
+    return head.getBoundingClientRect().top - element.getBoundingClientRect().top;
+  });
+  assert.ok(Math.abs(gap) <= 2, `the header sits ${String(gap)}px from the top of the scrolled table`);
+});

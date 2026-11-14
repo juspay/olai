@@ -3,6 +3,7 @@
 import { TESTID } from "olai-plugin-sidebar/testids"
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
 import { LAYER,WITHIN } from "@olai/web/client/layer.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { PluginEntries,PluginSections } from "./Seats.tsx"
 
 import { setSidebarOpen } from "./shell.ts"
@@ -50,18 +51,19 @@ export function Sidebar(props: SidebarRegionProps) {
       >
         {/* Desktop: collapse sits at the bottom of the column so it cannot
             cover the calendar's month-step chevrons (top-right of the body). */}
-        <button
-          type="button"
-          class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded-control text-muted hover:bg-ink/5 hover:text-ink md:inline-flex md:min-h-7 md:min-w-7`}
-          data-testid={TESTID.sidebarCollapse}
-          aria-label="Collapse sidebar"
-          title="Collapse sidebar"
-          onClick={() => setSidebarOpen(false)}
-        >
-          <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
-            <path d="M9.78 3.22a.75.75 0 0 1 0 1.06L6.56 8l3.22 3.72a.75.75 0 1 1-1.06 1.06l-4-4a.75.75 0 0 1 0-1.06l4-4a.75.75 0 0 1 1.06 0z" />
-          </svg>
-        </button>
+        <Tip text="Collapse sidebar">
+          <button
+            type="button"
+            class={`absolute bottom-2 right-2 ${WITHIN.raised} hidden ${TARGET_BOX} items-center justify-center rounded-control text-muted hover:bg-ink/5 hover:text-ink md:inline-flex md:min-h-7 md:min-w-7`}
+            data-testid={TESTID.sidebarCollapse}
+            aria-label="Collapse sidebar"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
+              <path d="M9.78 3.22a.75.75 0 0 1 0 1.06L6.56 8l3.22 3.72a.75.75 0 1 1-1.06 1.06l-4-4a.75.75 0 0 1 0-1.06l4-4a.75.75 0 0 1 1.06 0z" />
+            </svg>
+          </button>
+        </Tip>
         <div class="hidden md:contents">
           <props.Resize />
         </div>

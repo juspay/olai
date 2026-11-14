@@ -483,6 +483,26 @@ Then("the edge panel search reads {string}", async function (this: OlaiWorld, qu
     `the edge panel to retain the query ${JSON.stringify(query)}`);
 });
 
+/**
+ * The SHORTLIST's keyboard — every node-picking panel in this client is built
+ * from the same box (`olai-plugin-search`'s `ui/Shortlist.tsx`), so this is
+ * asserted once, at the door that happens to open one.
+ *
+ * `go` on the return key because the press TAKES the row under the cursor —
+ * the link is written and the panel is answered — and the corrections are off
+ * because what is typed is matched against titles rather than read as a
+ * sentence. Asserted in a scenario that then takes a row, so the cap and the
+ * gesture stand or fall together.
+ */
+Then("the edge panel's search box asks for a Go key and no corrections", async function (this: OlaiWorld) {
+  const box = (await panelOf(this)).locator(EDGE_SEARCH);
+  await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.equal(await box.getAttribute("enterkeyhint"), "go", "the shortlist's enterkeyhint");
+  assert.equal(await box.getAttribute("autocapitalize"), "none", "the shortlist's autocapitalize");
+  assert.equal(await box.getAttribute("autocorrect"), "off", "the shortlist's autocorrect");
+  assert.equal(await box.getAttribute("spellcheck"), "false", "the shortlist's spellcheck");
+});
+
 Then("no edge panel is open", async function (this: OlaiWorld) {
   await this.waitUntil(async () => (await this.page.locator(EDGE_PANEL).count()) === 0,
     "the edge panel to be closed");

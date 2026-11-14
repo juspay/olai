@@ -48,8 +48,9 @@ import { Dynamic } from "solid-js/web"
  * row of the board three lines of prose it did not ask for.
  *
  * A LONG DOOR IS NOT PROSE and does not fold — it CLAMPS ({@link Clamped}): one
- * line, ellipsized by the browser, still a link, the whole of it in the
- * tooltip. Length was the whole of the fold rule once, and it swallowed the two
+ * line, ellipsized by the browser, still a link, and the whole of it still in
+ * the DOM for a reader, a copy and the door's own tip.
+ * Length was the whole of the fold rule once, and it swallowed the two
  * door kinds most likely to run past it — a URL and a deep vault path — taking
  * away the link the door rule had just given them (both reviewers, 2026-08-24).
  * A name is one token however long it is.
@@ -171,9 +172,11 @@ import { Handle } from "./handle.tsx"
 import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "olai-plugin-navigation/routing"
 import { useDoors, useLicences, useNames } from "../reading.tsx"
+import { composing } from "@olai/web/client/composition.ts"
 import type { Said } from "@olai/web/client/saying.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 import { TARGET } from "@olai/ui-primitives/touch.ts"
 
@@ -430,19 +433,22 @@ export function PropsDrawer(props: {
             the reason the header gives. Hidden while the add chip is open,
             because two ways to open one box is one of them doing nothing. */}
         <Show when={props.onSet !== undefined && laid().run.length > 0 && !naming()}>
-          <button
-            type="button"
-            class={`${CHIP} cursor-pointer items-baseline rounded-full text-muted hover:text-accent`}
-            data-testid={IDS_OUTLINES.propAdd}
-            title="Add property"
-            aria-label="Add property"
-            onClick={(event) => {
-              event.stopPropagation()
-              setEditing(null)
-            }}
-          >
-            +
-          </button>
+          {/* The tip repeats the button's own name, which is what a `+` with
+              nothing else to say needs — and so it adds no ARIA of its own. */}
+          <Tip text="Add property">
+            <button
+              type="button"
+              class={`${CHIP} cursor-pointer items-baseline rounded-full text-muted hover:text-accent`}
+              data-testid={IDS_OUTLINES.propAdd}
+              aria-label="Add property"
+              onClick={(event) => {
+                event.stopPropagation()
+                setEditing(null)
+              }}
+            >
+              +
+            </button>
+          </Tip>
         </Show>
         </div>
       </Show>
@@ -550,8 +556,9 @@ function Chip(props: {
    * the link the door rule had just given it (both reviewers, 2026-08-24).
    *
    * So a value with a door never folds. What it does instead is CLAMP — one
-   * line, ellipsized, still a link, the whole of it in the pointer's tooltip
-   * ({@link Face}). That is the display folded and the link kept.
+   * line, ellipsized, still a link, and the whole of it still said: by the
+   * door's own tip to a pointer, and by the text itself to everybody else
+   * ({@link Clamped}). That is the display folded and the link kept.
    */
   const folds = () =>
     props.entry.value.length > FOLDS_PAST && doors().every((one) => one === null)
@@ -700,11 +707,28 @@ function Value(props: {
   readonly door: Door | null
   readonly onOpen?: () => void
 }) {
-  /** WHAT THE POINTER IS OWED, which is whichever half the face is not: these
-   *  words where the face IS the record's value (every door but one), and what
-   *  the door SAYS where it is not — the stored id under a ref chip's title. */
-  const says = (door: Door): string | undefined =>
+  /** THE HALF THE FACE IS NOT, and only then: absent where the words on the
+   *  chip ARE the record's value (every door but one), and the stored id
+   *  where they are not — a ref chip draws the target's title. */
+  const unsaid = (door: Door): string | undefined =>
     door.face === props.value ? undefined : door.says
+  /**
+   * …and the way that id reaches a reader who never hovers.
+   *
+   * `role="img"` with a name and no words, INSIDE the link, so the id joins
+   * the link's own name ("Grok grok") instead of replacing the face a sighted
+   * reader sees — an `aria-label` on the anchor would take the face off the
+   * platform's reading of it (WCAG 2.5.3), and an `sr-only` span would put the
+   * id in the chip's `innerText`, which is the string a scenario reads a
+   * property's value by. The pattern is `../Glyph.tsx`'s: a bare span's
+   * `aria-label` is not a name the platform exposes, and an element with a
+   * role is.
+   */
+  const Stored = (one: { readonly door: Door }) => (
+    <Show when={unsaid(one.door)}>
+      {(id) => <span role="img" aria-label={id()} />}
+    </Show>
+  )
   return (
     <Show when={props.door} fallback={<Plain value={props.value} onOpen={props.onOpen} />}>
       {(door) => (
@@ -716,18 +740,15 @@ function Value(props: {
           <Show
             when={awayFrom(door())}
             fallback={
-              <Link route={inApp(door())} class={LINKED} title={door().says}>
+              <Link route={inApp(door())} class={LINKED} tip={door().says}>
                 {/* THE DOOR'S FACE and not the raw value, which is the whole
                     of the ref-chip half of this change: `agent grok` reads
                     `agent Grok`, because the vault declared the key a
                     reference and a reference's name is not its identity. Every
                     other door's face IS the value, so this is one field read
                     in one place rather than a branch here (`./door.ts`). */}
-                <Face
-                  value={door().face}
-                  day={door().kind === "day"}
-                  says={says(door())}
-                />
+                <Face value={door().face} day={door().kind === "day"} />
+                <Stored door={door()} />
               </Link>
             }
           >
@@ -737,16 +758,18 @@ function Value(props: {
               // `openExternal`): `noopener` so the new tab cannot reach back at
               // this one, `noreferrer` because where somebody's vault points is
               // not this page's to announce to the far end.
-              <a
-                class={LINKED}
-                href={href()}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={door().says}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <Face value={door().face} day={false} says={says(door())} />
-              </a>
+              <Tip text={door().says}>
+                <a
+                  class={LINKED}
+                  href={href()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <Face value={door().face} day={false} />
+                  <Stored door={door()} />
+                </a>
+              </Tip>
             )}
           </Show>
         </span>
@@ -763,17 +786,23 @@ function Plain(props: { readonly value: string; readonly onOpen?: () => void }) 
   return (
     <Show when={props.onOpen} fallback={<>{props.value}</>}>
       {(open) => (
-        <button
-          type="button"
-          class="cursor-text text-left hover:text-accent"
-          title="Change"
-          onClick={(event) => {
-            event.stopPropagation()
-            open()()
-          }}
-        >
-          {props.value}
-        </button>
+        // "Change" is what the BUTTON already is — a press on a value that
+        // answers a key too is the affordance, and a screen reader states the
+        // role where this tip only states it again. So the tip is the
+        // pointer's hint and nothing is added for anybody else, which is the
+        // ruling the date and repeat pills take as well (`../Pill.tsx`).
+        <Tip text="Change">
+          <button
+            type="button"
+            class="cursor-text text-left hover:text-accent"
+            onClick={(event) => {
+              event.stopPropagation()
+              open()()
+            }}
+          >
+            {props.value}
+          </button>
+        </Tip>
       )}
     </Show>
   )
@@ -785,13 +814,9 @@ function Plain(props: { readonly value: string; readonly onOpen?: () => void }) 
 function Face(props: {
   readonly value: string
   readonly day: boolean
-  /** What the pointer is told about these words — see {@link Clamped}. The
-   *  words themselves for every face that IS the record's value, which is all
-   *  of them but one. */
-  readonly says?: string
 }) {
   return (
-    <Show when={props.day} fallback={<Clamped value={props.value} says={props.says} />}>
+    <Show when={props.day} fallback={<Clamped value={props.value} />}>
       <span class="rounded-full bg-pill px-1.5">{props.value}</span>
     </Show>
   )
@@ -813,21 +838,20 @@ function Face(props: {
  * the chip is drawing. Cutting the text would have made the chip say something
  * the file does not.
  *
- * THE TOOLTIP IS THESE WORDS unless somebody says otherwise, and the one caller
- * that does is the ref chip: its face is the target's TITLE, so what a pointer
- * is owed is the id the file actually holds ({@link Value}). It is said HERE
- * rather than on the anchor above because a `title` on an inner element wins —
- * the anchor's has never been what a clamped face shows.
+ * WHAT A POINTER IS OWED about a clamped face is the DOOR's tip, one element
+ * up ({@link Value}): a tip and the `title` it replaces are both about the
+ * control, and the control is the link. This span said it a second time back
+ * when a `title` on an inner element won over the anchor's, which is a rule
+ * about an attribute nothing here writes any more. Nothing is lost by the
+ * ellipsis itself — the whole string stays in the DOM, so what is read by a
+ * screen reader, by a copy and by a scenario's `innerText` is the whole value.
  *
  * `align-bottom` because an `inline-block` in a baseline row otherwise sits its
  * own descender below the key beside it.
  */
-function Clamped(props: { readonly value: string; readonly says?: string }) {
+function Clamped(props: { readonly value: string }) {
   return (
-    <span
-      class="inline-block max-w-[min(22rem,100%)] truncate align-bottom"
-      title={props.says ?? props.value}
-    >
+    <span class="inline-block max-w-[min(22rem,100%)] truncate align-bottom">
       {props.value}
     </span>
   )
@@ -998,7 +1022,23 @@ function Box(props: {
       data-testid={props.testid}
       data-key={props.about}
       placeholder={props.placeholder}
+      // WHICH RETURN KEY, and the two boxes genuinely differ — which is why
+      // this reads off `mono` rather than being one constant. The KEY box of
+      // the add chip is the only box here whose Enter does not finish
+      // anything: it moves the caret to the value box beside it
+      // ({@link NewChip}'s `onCommit={() => box?.focus()}`), which is exactly
+      // what `next` labels. Every other box commits and closes, which is
+      // `done`. A `done` key over the key box would promise a chip that the
+      // press does not make.
+      enterkeyhint={props.mono === true ? "next" : "done"}
+      // A property is a NAME and a VALUE, neither of which is prose — `pr`,
+      // `due`, a URL, a number. The file already said so with `spellcheck`
+      // and `autocomplete`; the two a phone adds on top of them are the
+      // capital on an empty box and autocorrect, and a key typed as `pr` that
+      // arrives as `Pr` is a different property.
       autocomplete="off"
+      autocorrect="off"
+      autocapitalize="none"
       spellcheck={false}
       value={props.value}
       ref={(element) => {
@@ -1028,6 +1068,18 @@ function Box(props: {
         if (event.key === "Enter") {
           event.preventDefault()
           event.stopPropagation()
+          // AN IME CONFIRMATION IS NOT A COMMIT. The key that picks a candidate
+          // in Japanese, Chinese or Korean arrives as a `keydown` reading
+          // `Enter`, so without this a reader typing a property value would
+          // write whichever syllables were on screen when they chose the word.
+          // Navigation installs a window-capture guard that keeps a composing
+          // key out of every handler, and the drawer is drawn under it on an
+          // outline — but it is ALSO drawn into a document's own properties
+          // location by `document-properties`, whose needs are
+          // `[browserState, markdownState, rendererSlots]` and name navigation
+          // nowhere. A guard that happens to be installed is not a promise to
+          // this box.
+          if (composing(event)) return
           props.onCommit(held())
           return
         }

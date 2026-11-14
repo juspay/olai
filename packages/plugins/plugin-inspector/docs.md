@@ -27,7 +27,8 @@ sentence about what is wrong, the face its own plugin hangs, **Try again** or
 settings, the environment it reads, `Short name` (the settings namespace, where
 the label differs), `Saved in` (a link to its node) and, for a session-only
 switch, `This switch resets when olai restarts.` (the switch itself wears a
-dashed ring and the hover title `Resets when olai restarts`). A row with nothing to reveal
+dashed ring, says `Resets when olai restarts` on hover, and carries those words
+in its own name, so a screen reader hears them too). A row with nothing to reveal
 has no chevron; its label keeps the chevron's space so the names line up.
 
 ## Groups
@@ -167,6 +168,11 @@ in the mounted control and refuses the write that the blur would otherwise make
 so a blur the APP caused is not a save); and the shell hands the keyboard back
 when the reconnect dialog closes (`@olai/web/client/connection/focus.ts`), which
 the browser alone cannot do once the control was disabled under the caret.
+
+A knob's box says **Done** on its return key, which is what Enter does there,
+and a number knob asks for the numeric keyboard; a text knob asks for no
+special one. A setting is a name rather than prose, so the boxes turn off
+autocorrect, autocapitalisation and spell-checking.
 
 `plugins.configure` is a browser procedure. It validates the leaf before an
 ordinary file write, creates a missing namespace or section child, and waits

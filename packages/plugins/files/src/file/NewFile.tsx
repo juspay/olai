@@ -39,6 +39,7 @@ import { servedDirectory } from "../vault.ts"
 import { createSignal,Show } from "solid-js"
 
 import { meantAt } from "olai-plugin-files/completing"
+import { composing } from "@olai/web/client/composition.ts"
 import { Refused } from "@olai/web/client/Refused.tsx"
 import type { Making } from "olai-plugin-files/making"
 
@@ -133,6 +134,25 @@ export function NewFile(props: {
           aria-label={props.making.aria}
           aria-busy={sending()}
           placeholder={props.making.placeholder}
+          // `done`, because that is literally what the return key does here:
+          // `send()` makes the file and `close()` takes the box off the screen
+          // (`onKeyDown`, below). Not `go` — nothing is navigated to from the
+          // box itself — and not `next`, which would promise a second field
+          // this draft does not have.
+          //
+          // No `inputmode`. A path is typed on the ordinary keyboard: `url`
+          // would hand somebody a `.com` key for a name like
+          // `notes/garden.olai`, which is a worse keyboard than the default
+          // rather than a better one.
+          //
+          // A FILE NAME IS AN IDENTIFIER, so the corrections go off. The
+          // capital is the one that bit on a phone: iOS shifts the first
+          // letter of an empty box, so `Garden.olai` is the file somebody got
+          // after typing `garden.olai`, and the tree sorts and matches on what
+          // was written. `spellcheck` already said the same thing one line up.
+          enterkeyhint="done"
+          autocorrect="off"
+          autocapitalize="none"
           spellcheck={false}
           value={path()}
           // The caret in the box the moment it is drawn, on the microtask the
@@ -148,6 +168,17 @@ export function NewFile(props: {
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault()
+              // THE IME'S ENTER IS NOT THIS BOX'S ENTER. Confirming a candidate
+              // in Japanese, Chinese or Korean is a `keydown` whose `key` reads
+              // `Enter` — so without this, picking the first candidate of a
+              // filename would create the file under whatever was half-written.
+              // Navigation installs a window-capture guard that stops a
+              // composing key reaching any handler, but this box is OFFERED
+              // (`files.state`'s `New`) and drawn by whoever asks, including
+              // rows that declare nothing of navigation's — so the guard being
+              // installed is a fact about the page rather than a promise to
+              // this component.
+              if (composing(event)) return
               void send()
             }
             if (event.key === "Escape") {

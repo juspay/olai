@@ -35,6 +35,7 @@ import { type ChatServer, whyNot } from "olai-plugin-chat/wire"
 import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { SAID } from "./standing.ts"
 
 export function Missing(props: { readonly servers: ReadonlyArray<ChatServer> }) {
@@ -91,16 +92,19 @@ function Row(props: { readonly server: ChatServer }) {
       {/* WHICH file was asked. The incident this whole feature comes from was
           exactly this question: a `kolu` on PATH is not necessarily the host's
           kolu, and a padi-spawned terminal prepends its own bundled copy. It
-          truncates and keeps the whole of it on the `title`, because a store
-          path is longer than this drawer and the tail of one is the half that
-          identifies it.
+          truncates and keeps the whole of it under the pointer, because a
+          store path is longer than this drawer and the tail of one is the half
+          that identifies it. The tip needs no spoken copy: the path IS this
+          paragraph's text, whole, and only the drawing is cut.
 
           Absent for the one failure that never reached a file, where the
           reason above is the whole of it — an empty line under it would be
           this panel implying a path it does not have. */}
       <Show when={props.server.where}>
         {(where) => (
-          <p class="truncate pl-3 text-muted/80" title={where()}>{where()}</p>
+          <Tip text={where()}>
+            <p class="truncate pl-3 text-muted/80">{where()}</p>
+          </Tip>
         )}
       </Show>
     </div>

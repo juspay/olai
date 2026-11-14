@@ -44,6 +44,7 @@ import { createSignal, Show } from "solid-js"
 import { agoOf } from "@olai/web/client/ago.ts"
 import { type Anchor, styleOf } from "@olai/web/client/anchor.ts"
 import { PANEL_BOX } from "@olai/web/client/readout.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import {
   AUTO_ARMED,
   AUTO_STOPPED,
@@ -137,12 +138,12 @@ export function Panel(props: {
   }
 
   /**
-   * The refusal line: what it SAYS, and what it is titled with.
+   * The refusal line: what it SAYS, and what the tip beside it says.
    *
    * One derivation rather than two readings of the same fault. `says` is olai's
    * lock sentence when the refusal was about a lock file — with the age phrased
    * against THIS panel's clock, which ticks — and git's own words otherwise;
-   * `title` is always git's own, which names the path a person with a terminal
+   * `tip` is always git's own, which names the path a person with a terminal
    * is looking for.
    */
   const refusal = () => {
@@ -151,7 +152,7 @@ export function Panel(props: {
     const stopped = lock()
     return {
       says: stopped === null ? said : lockSays(stopped.since, props.now),
-      title: said,
+      tip: said,
     }
   }
 
@@ -283,15 +284,20 @@ export function Panel(props: {
           One line painting both the same would be telling a reader that a
           broken git is a thing they are in the middle of. */}
       <Show when={!ready()}>
-        <p
-          class={`text-label ${
-            pending().repo._tag === "Unusable" ? "text-alarm" : "text-doing"
-          }`}
-          data-testid={TESTID.commitBlocked}
-          title={verbatim(pending().repo)}
-        >
-          ⚠ {because(pending().repo)}
-        </p>
+        {/* Git's own words ride the tip for a pointer and the hidden line
+            after it for a reader: the sentence drawn is olai's, and the
+            verbatim one is what you paste into a search. */}
+        <Tip text={verbatim(pending().repo) ?? ""} disabled={verbatim(pending().repo) === undefined}>
+          <p
+            class={`text-label ${
+              pending().repo._tag === "Unusable" ? "text-alarm" : "text-doing"
+            }`}
+            data-testid={TESTID.commitBlocked}
+          >
+            ⚠ {because(pending().repo)}
+          </p>
+          <Show when={verbatim(pending().repo)}>{(said) => <span class="sr-only">{said()}</span>}</Show>
+        </Tip>
       </Show>
 
       <Show when={anything()}>
@@ -315,16 +321,21 @@ export function Panel(props: {
 
           A LOCK FILE is the one refusal with a gesture behind it, so it reads
           as olai's sentence rather than as a `fatal:` line naming a path — with
-          git's own words on the `title`, which is where that path stays. */}
+          git's own words in the tip and in the hidden line beside it, which is
+          where that path stays for a pointer and for a reader alike. */}
       <Show when={refusal()}>
         {(line) => (
-          <p
-            class="wrap-anywhere text-label text-alarm"
-            data-testid={TESTID.commitRefused}
-            title={line().title}
-          >
-            {line().says}
-          </p>
+          <Tip text={line().tip}>
+            <p
+              class="wrap-anywhere text-label text-alarm"
+              data-testid={TESTID.commitRefused}
+            >
+              {line().says}
+            </p>
+            <Show when={line().tip !== line().says}>
+              <span class="sr-only">{line().tip}</span>
+            </Show>
+          </Tip>
         )}
       </Show>
 

@@ -262,18 +262,32 @@ test("overlays that hang over the outline mount on overlayRoot", () => {
   ])
 })
 
-// layer.ts's other claim, from the far end of the same table: ONE thing in
-// this client is above every layer in it, and it is above them because the
-// browser puts it there rather than because it out-numbered anybody. The
-// offline overlay opens as a modal `<dialog>` — the top layer, and the rest of
-// the document inert — which is the only way to promise that nothing
-// underneath is interactive: a panel portalled to the body after it, at the
-// same `LAYER.over`, would paint straight over a z-index that tried. A second
-// file reaching for the top layer is a second thing claiming to cover the app,
-// and it must argue with this list first.
-test("only the offline overlay takes the top layer", () => {
+// layer.ts's other claim, from the far end of the same table: what sits above
+// every layer in it is there because the BROWSER puts it there rather than
+// because it out-numbered anybody. A modal `<dialog>` is in the top layer —
+// above every stacking context at once, with the rest of the document inert —
+// which is the only way to promise that nothing underneath is interactive: a
+// panel portalled to the body after it, at the same `LAYER.over`, would paint
+// straight over a z-index that tried.
+//
+// THREE SURFACES ARE UP THERE NOW and the claim had to change shape with
+// them. It is two equalities because there are two different questions. WHO
+// MAY CALL `showModal` is the narrow one: `layer.ts`, which is the one door,
+// and the offline freeze, whose own opening is wrapped in the focus memory
+// `connection/focus.ts` keeps. WHO ENTERS is the list a reader actually
+// wants: the ⌘K palette and the shortcuts sheet it opens. A fourth name on
+// either list is a new thing claiming to cover the whole app — and one that
+// can open from a timer rather than from a gesture or a message would be the
+// first thing able to stand over the freeze (`layer.ts` says why).
+test("the top layer is entered through one door", () => {
   expect(filesSpelling(/showModal\s*\(/)).toEqual([
-    "web/src/client/connection/Offline.tsx"
+    "web/src/client/connection/Offline.tsx",
+    "web/src/client/layer.ts"
+  ])
+  expect(filesSpelling(/enterTopLayer/)).toEqual([
+    "plugins/navigation/src/palette/Palette.tsx",
+    "plugins/navigation/src/palette/Shortcuts.tsx",
+    "web/src/client/layer.ts"
   ])
 })
 
@@ -586,8 +600,12 @@ test("only dismiss.ts reaches for Kobalte's dismissal primitives", () => {
 
 // ...and the other side of it: WHO JOINS THE STACK WITHOUT `dismissOn`, which
 // is the list of panels whose gestures are somebody else's. The `•••` menu's
-// are Kobalte's, one level up; the palette and the shortcuts dialog answer
-// Escape on the window and a press on their own scrims. Each has a reason
+// are Kobalte's, one level up; the palette and the shortcuts sheet are modal
+// `<dialog>`s, so theirs are the PLATFORM's — a close request reaches only the
+// topmost modal, and a press outside one lands on a backdrop the page cannot
+// see past. Those two take a ticket and never read it, which is deliberate
+// rather than dead: a layer UNDERNEATH asks this stack whether a gesture is
+// for it, and while a modal is up the answer has to be no. Each has a reason
 // written where it joins, and the list is short on purpose — a fourth joiner
 // here is either a panel that had to hand-roll its dismissal (worth arguing
 // about) or one that wanted the stack and skipped the dismissal, which is a
@@ -629,4 +647,278 @@ test("comment stripping preserves MIME strings and the code following them", () 
 
 test("transcript grips belong to chat", () => {
   expect(filesSpelling(/data-grip/)).toEqual(["plugins/chat/src/browser/chat/Grip.tsx"])
+})
+
+// EVERY PICTURE SAYS WHEN IT IS FETCHED. An `<img>` with no `loading` and no
+// `decoding` is not a neutral omission — it is the browser's heuristics
+// deciding for a surface whose author never looked, and the two ways that goes
+// wrong are opposite and both expensive: a transcript's hundredth avatar
+// fetched before anybody scrolls to it, and the picture a page IS deferred
+// behind layout. The decision is per site and argued at each one, so what this
+// sweep holds is that a site EXISTS to argue at: a new `<img>` anywhere in the
+// browser graph that decided neither is named here before a reader finds it.
+//
+// The markdown rewrite passes without spelling `<img>` as markup: it is the
+// pass that turns a `![](shot.png)` into one (`markdown-ui/rewrite.ts`), and
+// it writes the same two attributes onto the element it keeps — the first
+// picture of a block eager, every later one lazy, which is why the patterns
+// read through a ternary rather than demanding a literal.
+//
+// `claims.test.ts` cannot see the whole app: `website/` is not this graph, and
+// the hypertext preview draws pictures that are a FILE's markup rather than
+// this repo's. Those are not sites to decide at.
+test("every picture the app draws has decided when it is fetched", () => {
+  // A RULE, not a roster. Which files draw pictures rides the plugin-and-face
+  // clock — any plugin that adds an avatar or a preview moves it — while the
+  // policy rides the guidance's, which is to say hardly at all. Enumerating
+  // the drawers made a plugin author who did the right thing edit a test in
+  // `@olai/web` to say so; what is asserted instead is that the set of
+  // drawers that did NOT decide is empty.
+  const draws = filesSpelling(/<img\b|tagName === "img"/)
+  const decided = (pattern: RegExp): ReadonlyArray<string> => {
+    const answered = new Set(filesSpelling(pattern))
+    return draws.filter(file => !answered.has(file))
+  }
+  expect(decided(/\bloading\s*[=:][^\n]*?"(?:eager|lazy)"/)).toEqual([])
+  expect(decided(/\bdecoding\s*[=:][^\n]*?"(?:async|sync)"/)).toEqual([])
+  // ...and a picture is drawn SOMEWHERE, so an empty result is a sweep that
+  // stopped seeing the tree rather than a tree that stopped drawing.
+  expect(draws.length).toBeGreaterThan(0)
+})
+
+// LESS MOTION IS ANSWERED IN ONE PLACE, and these two patterns are the two
+// ways a second answer gets written.
+//
+// The app's answer is a stylesheet — one `@media (prefers-reduced-motion:
+// reduce)` block in `@olai/appearance/chrome.css`, which stills every
+// animation and keeps every colour transition alive for the whole tree at
+// once. A face that re-asks the question in JavaScript is not adding to that
+// policy, it is starting a second one: `matchMedia` read at module scope
+// answers with whatever was true when the tab loaded, and the reader who turns
+// the setting on half an hour in is exactly the reader it was for. So the
+// media query belongs to `motion.ts` and to nothing else.
+//
+// The word "smooth" is the same claim from the other end. CSS smooth scrolling
+// the stylesheet can turn off; a `scrollIntoView({ behavior: "smooth" })`
+// cannot be reached by any sheet, because the manner is an ARGUMENT — so every
+// such scroll has to take it from the one helper, and the only file allowed to
+// spell the word is the one that decides it. This sweep is the reason a new
+// reveal, jump or landing cannot quietly glide past a reader who asked it not
+// to.
+test("the motion preference is read in one file, and the smooth scroll it decides is spelled there", () => {
+  expect(filesSpelling(/prefers-reduced-motion/)).toEqual([
+    "appearance/src/motion.ts"
+  ])
+  expect(filesSpelling(/"smooth"|scroll-smooth|scroll-behavior:\s*smooth/)).toEqual([
+    "appearance/src/motion.ts"
+  ])
+})
+
+// A PERSISTENT ANIMATION IS A PROMISE TO KEEP SAYING SOMETHING, and under
+// `prefers-reduced-motion` the app stops it dead — so the two files below are
+// the two places where that stopping had to be thought about, and the list is
+// short on purpose. Both draw a live cue: the transcript's dot, which exists
+// only while a turn is in flight (its presence is the news, so stilling it
+// costs nothing), and the agent standings, where the pulse used to be the only
+// thing between "working" and "idle" and is now the second of two things
+// (`plugins/chat/src/browser/claims.test.ts` holds that pair apart).
+//
+// A third name here is a spinner, a ping or a bounce that nobody has asked the
+// question of yet: what does it say when it holds still? That is a line a
+// human answers, which is why this is an equality and not a cap.
+test("the app's never-ending animations are the two live cues", () => {
+  expect(filesSpelling(/animate-(?:pulse|spin|ping|bounce)/)).toEqual([
+    "plugins/chat/src/browser/agents/roster.ts",
+    "plugins/chat/src/browser/chat/live.ts"
+  ])
+})
+
+// ...AND THE SAME QUESTION PUT TO THE STYLESHEETS, which the sweep above
+// cannot see at all: `SOURCES` is TypeScript, and the motion that escapes the
+// app's policy is precisely the motion that is NOT written in TypeScript.
+//
+// The policy (`appearance/src/chrome.css`) is unlayered and selects with
+// `:where(*)`, which beats every Tailwind utility — layer order is settled
+// before specificity — and loses to every other unlayered rule with a real
+// selector. Every plugin sheet in this tree is unlayered. So a `@keyframes`
+// and an `animation: … infinite` written by hand in a plugin's `all.css` goes
+// on running for a reader who asked for less motion, the policy
+// notwithstanding, and NOTHING in CSS will say so.
+//
+// Hence a reading of the sheets themselves, in two parts, because either half
+// alone passes by accident. The equality names every stylesheet that promises
+// a never-ending animation — a new one is a line a human has to answer for —
+// and the loop then demands that each of them spells the preference, which is
+// the answer. `markdown-ui` is the one today: the waiting sweep and the
+// streaming caret both opt IN under `(prefers-reduced-motion: no-preference)`,
+// the shape the policy's own comment argues for wherever an animation is
+// written by hand.
+//
+// What this deliberately does NOT do is parse CSS. A sheet could satisfy both
+// halves and still get it wrong — guarding one of its two animations and not
+// the other — and no regex will catch that honestly. The claim is that the
+// question was ASKED in the file where it is owed, not that the file answered
+// it well; the second is a reading a person does, which is what naming the
+// file in an equality is for.
+test("every stylesheet with an endless animation answers the motion preference", () => {
+  const sheets: string[] = []
+  const walk = (directory: string): void => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name === "node_modules" || entry.name === "dist") continue
+      const full = path.join(directory, entry.name)
+      if (entry.isDirectory()) walk(full)
+      else if (entry.name.endsWith(".css")) sheets.push(path.relative(PACKAGES, full))
+    }
+  }
+  walk(PACKAGES)
+  // THE RULES, WITHOUT THE PROSE. A comment ARGUING about endless animations
+  // is not one — the motion policy's own note names the word twice — and a
+  // sweep that cannot tell a rule from a sentence about rules makes every
+  // explanation a liability.
+  const rules = (file: string): string =>
+    fs.readFileSync(path.join(PACKAGES, file), "utf8").replace(/\/\*[\s\S]*?\*\//g, " ")
+  const endless = sheets.filter(file => /animation[^;}]*\binfinite\b/.test(rules(file))).sort()
+  expect(endless).toEqual([
+    path.join("markdown-ui", "src", "all.css")
+  ])
+  for (const file of endless) {
+    expect(rules(file), file).toContain("prefers-reduced-motion")
+  }
+})
+
+// WHO CHECKS FOR AN IME, and why it is a short list rather than every box.
+//
+// An input method's confirming key arrives as a `keydown` whose `key` reads
+// `Enter`, so any handler that acts on Enter either checks composition or can
+// prove it never sees one. Navigation's activation installs the proof for the
+// whole page — `protectComposition`, a window-CAPTURE listener that stops such
+// a key before it reaches anything (`./composition.ts`) — and that is why most
+// handlers do not repeat the check. The browser's address bar is the example:
+// it is registered at `app.route`, navigation's OWN slot contract, so nothing
+// draws it unless navigation is activated.
+//
+// The boxes below are drawn by owners that name navigation NOWHERE, which
+// makes that guard a fact about the page rather than a promise to them: the
+// chat composer comes from the dock (`app.panel`, the shell's slot) and from a
+// row's fold (`outline.row.fold`, the outline's); the node agent's plain box
+// is on a page the chat row draws; the new-file box is OFFERED (`files.state`'s
+// `New`) and drawn by whoever asks; a property value box is drawn into a
+// document's own properties by `document-properties`, whose needs are
+// `[browserState, markdownState, rendererSlots]`. With navigation switched off
+// each of them is still typeable, so each carries the check itself. The
+// palette is the one that belongs to navigation and checks anyway: it is the
+// box the guard's own row draws, and a modal that takes the whole keyboard is
+// where an ordering bug would be least visible.
+//
+// The rule is ONE predicate (`composition.ts`'s `composing`) because it has
+// two halves and a half-spelled one passes everywhere except the browser half
+// this app's floor includes: Safari delivers the confirming key AFTER
+// `compositionend` has already cleared `isComposing`, which is what
+// `keyCode === 229` is left to catch. Spelling either half by hand is the
+// regression this sweeps for.
+//
+// A new file here is either a hidden dependency somebody closed — fine, say so
+// — or a handler that did not need it, which is worth the argument. A file
+// LEAVING is the regression: a half-composed turn sent on the keystroke that
+// was choosing a word.
+test("every box navigation does not cover checks composition itself", () => {
+  expect(filesSpelling(/composing\(/)).toEqual([
+    "plugins/chat/src/browser/agents/Page.tsx",
+    "plugins/chat/src/browser/chat/Composer.tsx",
+    "plugins/files/src/file/NewFile.tsx",
+    "plugins/navigation/src/palette/Palette.tsx",
+    "plugins/outlines/src/browser/props/PropsDrawer.tsx",
+    "web/src/client/composition.ts"
+  ])
+  // ...and nowhere else asks the question in halves.
+  expect(filesSpelling(/isComposing|keyCode\s*===\s*229/)).toEqual([
+    "web/src/client/composition.ts"
+  ])
+})
+
+// A CONTROL REVEALED ON HOVER IS A CONTROL A FINGER CANNOT FIND, unless the
+// recipe says otherwise — and in Tailwind 4 this is sharper than it sounds.
+// That version wraps `hover:` and `group-hover:` in `@media (hover: hover)`
+// itself, so on a touch screen the reveal arm does not merely lose a race: it
+// never matches at all, and the control stays at `opacity-0` for the life of
+// the page. Transparent, hit-testable, and invisible — which is worse than
+// absent, because nothing says it is there.
+//
+// `@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER` is the one answer, and the
+// three shared recipes carry it. What this sweeps is the SITES: a component
+// that spells its own `opacity-0` beside a reveal arm, rather than taking a
+// recipe, has re-invented the bug. The list is empty on purpose — every site
+// that had one now consumes the constant — so a name appearing here is a
+// control somebody just hid from every tablet.
+test("no component hides a control behind a hover of its own", () => {
+  const reveal = /opacity-0[\s\S]{0,400}?(?:group-hover(?:\/[\w-]+)?:opacity-100|hover:opacity-100)/
+  const answered = /SHOWN_WITHOUT_HOVER|\[@media\(hover:none\)\]:opacity-100/
+  expect(SOURCES.filter(one => reveal.test(one.code) && !answered.test(one.code)).map(one => one.file)).toEqual([])
+})
+
+// A RING IS A BOX-SHADOW, AND FORCED COLOURS DELETES BOX-SHADOWS. Both claims
+// below are about that one sentence, in the two grammars this app wrote it in.
+//
+// The first is the focus indicator. Fourteen controls used to spell
+// `focus-visible:outline-none` beside a `ring-*`, on the belief — written down
+// in `appearance/src/chrome.css` and wrong — that a utility outranks that
+// sheet's unlayered rule. It does not: layer order is resolved before
+// specificity and Tailwind's utilities are in `@layer utilities`, so every one
+// of those controls was drawing the app's outline AND a second shadow on top,
+// and a High Contrast reader got neither the shadow nor any say in it. The
+// pairing is now always a mistake: the app ring is universal, and a control
+// that wants it placed differently says so with `--olai-ring-offset` and
+// `--olai-ring-radius` rather than by opting out of it.
+//
+// The second is an EDGE drawn as a shadow — `ring-1` beside `border-0`, the
+// spelling a panel reaches for when it wants a hairline without the box model.
+// It disappears in High Contrast and in print, which is two readers for whom
+// the panel loses its boundary entirely.
+test("no control opts out of the app's focus ring in favour of a shadow", () => {
+  expect(filesSpelling(/outline-none[^"'`]*\bring-\d/)).toEqual([])
+  expect(filesSpelling(/\bring-\d[^"'`]*outline-none/)).toEqual([])
+})
+
+test("no edge is drawn as a shadow", () => {
+  expect(filesSpelling(/border-0[^"'`]*\bring-1\b|\bring-1\b[^"'`]*border-0/)).toEqual([])
+})
+
+// THE `title` ATTRIBUTE IS NOT THIS APP'S TOOLTIP, and `./Tip.tsx`'s own
+// header is the argument: the browser places it, so a long one runs off the
+// right edge of the window, and it is hover-only, so what it says is
+// unavailable to anyone reading with a keyboard or a screen reader. There were
+// 154 of them and seven `<Tip>`s; there are now none, and this is what keeps
+// it that way — a spelling cannot be renamed into safety by the type checker,
+// so it is swept.
+//
+// The list is of FILES, not of attributes, because `title=` has three other
+// meanings in this tree and a regex cannot tell them apart honestly:
+//
+//   - a PROP named `title` that is content. `NodeTitle`, `NodeLine`,
+//     `DropRef` and `TrashPage`'s row all take the node's own words under
+//     that name, which is what the records call them.
+//   - `<iframe title>`, which is a frame's ACCESSIBLE NAME rather than a
+//     tooltip, and is required (`hypertext`).
+//   - `<option title>`, the one DOM `title` left in the app and the one place
+//     it is not AT-dead: a `<select>`'s content model admits no element a tip
+//     could be, a closed option has no box to measure, and HTML-AAM maps
+//     `option/@title` to the accessible description — so the words do reach a
+//     reader there. `chat/.../Model.tsx` argues it at the site.
+//
+// A new file here is a tooltip somebody wrote as an attribute, or one of the
+// three above arriving somewhere new. Either way it owes a sentence.
+test("the title attribute is left only where it is not a tooltip", () => {
+  expect(filesSpelling(/\stitle=/)).toEqual([
+    "plugins/chat/src/browser/chat/Model.tsx",
+    "plugins/hypertext/src/browser/Hypertext.tsx",
+    "plugins/outlines/src/browser/Breadcrumbs.tsx",
+    "plugins/outlines/src/browser/DatedRow.tsx",
+    "plugins/outlines/src/browser/LinkPreview.tsx",
+    "plugins/outlines/src/browser/NodeLine.tsx",
+    "plugins/outlines/src/browser/NodePage.tsx",
+    "plugins/outlines/src/browser/NodeRefs.tsx",
+    "plugins/outlines/src/browser/Tree.tsx",
+    "plugins/outlines/src/browser/edges/EdgePanel.tsx",
+    "plugins/trash/src/browser/TrashPage.tsx"
+  ])
 })

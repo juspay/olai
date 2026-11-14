@@ -10,6 +10,7 @@ import { TESTID } from "../../testids.ts"
 import { createSignal, lazy, Show } from "solid-js"
 import { HEAD_ACTION } from "olai-plugin-layout/entry"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { palette } from "../navigation.ts"
 import { useAgents } from "./answered.tsx"
 import { agentReadings } from "./reading.ts"
@@ -24,8 +25,9 @@ export function NewChat() {
   // has shut by the time the click lands, and must not open again.
   let shutting = false
   return <>
+    <Tip text="New chat">
     <button type="button" class={HEAD_ACTION} data-testid={TESTID.chatNew}
-      aria-label="New chat" title="New chat" aria-haspopup={agents.engines().length === 0 ? "menu" : "dialog"}
+      aria-label="New chat" aria-haspopup={agents.engines().length === 0 ? "menu" : "dialog"}
       aria-expanded={menu() !== null} aria-busy={creation?.pending()}
       onPointerDown={() => { shutting = menu() !== null }}
       onClick={event => {
@@ -44,6 +46,7 @@ export function NewChat() {
         <path d="M8 2.75a.75.75 0 0 1 .75.75v3.75h3.75a.75.75 0 0 1 0 1.5H8.75v3.75a.75.75 0 0 1-1.5 0V8.75H3.5a.75.75 0 0 1 0-1.5h3.75V3.5A.75.75 0 0 1 8 2.75z" />
       </svg>
     </button>
+    </Tip>
     <Show when={menu()}>{anchor => <EngineMenu layer={LAYER.over} anchor={anchor()} engines={agents.standings()}
       close={() => setMenu(null)} pick={() => setMenu(null)} />}</Show>
   </>

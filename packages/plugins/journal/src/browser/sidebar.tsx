@@ -3,6 +3,7 @@ import { createMemo, Show } from "solid-js"
 import { CountChip } from "@olai/ui-primitives/CountChip.tsx"
 import { ENTRY_SHAPE, HEAD_ACTION } from "olai-plugin-layout/entry"
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { Link, useRouter } from "olai-plugin-navigation/routing"
 import { useToday } from "./clock.ts"
 
@@ -68,7 +69,7 @@ export function AgendaEntry() {
           testid={TESTID.agendaLink}
           current={current()}
           label={mark().said}
-          title={mark().said}
+          tip={mark().said}
         >
           Agenda
           <CountChip count={mark().count} paint={mark().chip} testid={TESTID.agendaCount} />
@@ -117,32 +118,38 @@ export function TodayEntry() {
           class={`${ENTRY_SHAPE} min-w-0 flex-1`}
           testid={TESTID.calendarToday}
           current={open() === today()}
-          title={today()}
+          tip={today()}
+          // WHICH DAY TODAY IS, in full. The row draws `Today` and the short
+          // day; the date itself was the anchor's `title`, which answered a
+          // pointer and nothing else. The name keeps both drawn words and
+          // adds the date, so the tip stays a convenience.
+          label={`Today, ${shortDay(today())}, ${today()}`}
         >
           Today
           <span class="ml-auto shrink-0 pl-2 text-label tabular-nums text-muted" data-testid={TESTID.calendarTodayDate}>
             {shortDay(today())}
           </span>
         </Link>
-        <button
-          type="button"
-          class={HEAD_ACTION}
-          data-testid={TESTID.calendarToggle}
-          aria-expanded={calendarOpen()}
-          aria-controls={grid}
-          aria-label={calendarOpen() ? "Hide month" : "Show month"}
-          title={calendarOpen() ? "Hide month" : "Show month"}
-          onClick={(event) => {
-            // The sidebar body puts the phone drawer away on any click that
-            // bubbles to it; unfolding the month is not leaving.
-            event.stopPropagation()
-            setCalendarOpen(!calendarOpen())
-          }}
-        >
-          <svg viewBox="0 0 16 16" class="size-3.5 transition-transform duration-100" classList={{ "rotate-90": calendarOpen() }} aria-hidden="true" fill="currentColor">
-            <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4 4a.75.75 0 0 1 0 1.06l-4 4a.75.75 0 1 1-1.06-1.06L9.44 8 6.22 4.28a.75.75 0 0 1 0-1.06z" />
-          </svg>
-        </button>
+        <Tip text={calendarOpen() ? "Hide month" : "Show month"}>
+          <button
+            type="button"
+            class={HEAD_ACTION}
+            data-testid={TESTID.calendarToggle}
+            aria-expanded={calendarOpen()}
+            aria-controls={grid}
+            aria-label={calendarOpen() ? "Hide month" : "Show month"}
+            onClick={(event) => {
+              // The sidebar body puts the phone drawer away on any click that
+              // bubbles to it; unfolding the month is not leaving.
+              event.stopPropagation()
+              setCalendarOpen(!calendarOpen())
+            }}
+          >
+            <svg viewBox="0 0 16 16" class="size-3.5 transition-transform duration-100" classList={{ "rotate-90": calendarOpen() }} aria-hidden="true" fill="currentColor">
+              <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4 4a.75.75 0 0 1 0 1.06l-4 4a.75.75 0 1 1-1.06-1.06L9.44 8 6.22 4.28a.75.75 0 0 1 0-1.06z" />
+            </svg>
+          </button>
+        </Tip>
       </div>
       <Show when={calendarOpen()}>
         <div id={grid}>
@@ -159,30 +166,35 @@ export function JournalRail() {
   const mark = createAgendaMark(today)
   return (
     <>
-      <RailButton
-        testid={TESTID.railCalendar}
-        label="Open today"
-        title="Today"
-        href={router.routes.href(todayRoute)}
-      >
-        <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
-          <path d="M3.5 2A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 12.5 2h-1V1a.75.75 0 0 0-1.5 0v1h-4V1A.75.75 0 0 0 4.5 1v1h-1zM3.5 6h9v6.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5V6z" />
-        </svg>
-      </RailButton>
-      <RailButton
-        testid={TESTID.railAgenda}
-        label={mark().said ?? "Open Agenda"}
-        title={mark().said ?? "Agenda"}
-        data={{ get "data-owed"() { return mark().face } }}
-        href={router.routes.href(agendaRoute)}
-      >
-        <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
-          <path d="M6.25 3.5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zm0 5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zm0 5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75z" />
-        </svg>
-        <Show when={mark().dot !== ""}>
-          <span class={`absolute right-1 top-1 size-2 rounded-full ${mark().dot}`} aria-hidden="true" />
-        </Show>
-      </RailButton>
+      {/* The rail is glyphs alone, so each tip is where the word is drawn —
+          and each `label` beside it is the same door said to a reader who is
+          not hovering, which is what keeps a tip a convenience. */}
+      <Tip text="Today">
+        <RailButton
+          testid={TESTID.railCalendar}
+          label="Open today"
+          href={router.routes.href(todayRoute)}
+        >
+          <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
+            <path d="M3.5 2A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 12.5 2h-1V1a.75.75 0 0 0-1.5 0v1h-4V1A.75.75 0 0 0 4.5 1v1h-1zM3.5 6h9v6.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5V6z" />
+          </svg>
+        </RailButton>
+      </Tip>
+      <Tip text={mark().said ?? "Agenda"}>
+        <RailButton
+          testid={TESTID.railAgenda}
+          label={mark().said ?? "Open Agenda"}
+          data={{ get "data-owed"() { return mark().face } }}
+          href={router.routes.href(agendaRoute)}
+        >
+          <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
+            <path d="M6.25 3.5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zm0 5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75zm0 5a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75z" />
+          </svg>
+          <Show when={mark().dot !== ""}>
+            <span class={`absolute right-1 top-1 size-2 rounded-full ${mark().dot}`} aria-hidden="true" />
+          </Show>
+        </RailButton>
+      </Tip>
     </>
   )
 }

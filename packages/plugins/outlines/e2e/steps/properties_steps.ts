@@ -68,10 +68,19 @@ Then(
   async function (this: OlaiWorld, id: string, key: string, value: string) {
     const found = line(this, id, key).locator(PROP_VALUE);
     await found.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    let drawn = "";
     await this.waitUntil(
-      async () => oneLine(await found.innerText()) === value,
+      async () => {
+        drawn = oneLine(await found.innerText());
+        return drawn === value;
+      },
       `\`${key}\` on ${JSON.stringify(id)} to hold ${JSON.stringify(value)}`,
-    );
+    ).catch(() => {
+      // What it DREW, not only what it would not say: a chip that gains a word
+      // (a door's face beside its id, a warning folded into the run) reads as
+      // a value that never arrived, and the two are a long way apart to debug.
+      assert.fail(`\`${key}\` on ${JSON.stringify(id)} draws ${JSON.stringify(drawn)}, not ${JSON.stringify(value)}`)
+    });
   },
 );
 
@@ -473,6 +482,36 @@ Then(
 );
 
 /**
+ * THE TWO RETURN KEYS OF ONE CHIP, which is the whole reason this is asserted
+ * at all: the boxes do different things with Enter, so one cap for both would
+ * lie about one of them.
+ *
+ * The KEY box's Enter moves the caret to the value box beside it and writes
+ * nothing — `next`. The VALUE box's Enter commits the property and closes the
+ * chip — `done`. The scenario that reads this goes on to write the property
+ * with that value box's Enter, so the `done` cap is checked against the press
+ * it labels rather than on its own.
+ *
+ * A key and a value are both NAMES rather than prose (`pr`, a URL, an agent's
+ * id), so neither box is capitalised or corrected on the way in.
+ */
+Then(
+  "the property boxes on {string} ask for a Next key then a Done key",
+  async function (this: OlaiWorld, id: string) {
+    const keyBox = this.page.locator(`${nodeSelector(id)} ${PROP_EDIT_KEY}`).first();
+    await keyBox.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await keyBox.getAttribute("enterkeyhint"), "next", "the key box's enterkeyhint");
+    const valueBox = box(this, id);
+    assert.strictEqual(await valueBox.getAttribute("enterkeyhint"), "done", "the value box's enterkeyhint");
+    for (const [name, which] of [["key", keyBox], ["value", valueBox]] as const) {
+      assert.strictEqual(await which.getAttribute("autocapitalize"), "none", `the ${name} box's autocapitalize`);
+      assert.strictEqual(await which.getAttribute("autocorrect"), "off", `the ${name} box's autocorrect`);
+      assert.strictEqual(await which.getAttribute("spellcheck"), "false", `the ${name} box's spellcheck`);
+    }
+  },
+);
+
+/**
  * Every box of the editor is on the screen and big enough for a thumb.
  *
  * The chip is a pill holding one or two boxes, which is comfortable at 1200pt
@@ -578,4 +617,18 @@ Then("the vault node {string} has property {string} holding {string}", async fun
     const node = this.servedNodes(file).find(row => row.id === this.nodeId(name));
     return (node?.custom as Record<string, unknown> | undefined)?.[key] === value;
   }, `the stored property ${key} on ${name} to equal ${value}`);
+});
+
+/** The NEGATIVE of the step above, and it reads the vault rather than the row
+ *  for the same reason: a draft chip is on screen while a value is being
+ *  typed, so "no chip" would pass for a property that IS being written. What
+ *  this says is that nothing reached the file. */
+Then("the vault node {string} has no property {string}", async function(this: OlaiWorld, name: string, key: string) {
+  const file = await this.node(name).getAttribute("data-file");
+  assert.ok(file);
+  const node = this.servedNodes(file).find(row => row.id === this.nodeId(name));
+  assert.ok(
+    (node?.custom as Record<string, unknown> | undefined)?.[key] === undefined,
+    `the node ${name} already holds the property ${key}`,
+  );
 });

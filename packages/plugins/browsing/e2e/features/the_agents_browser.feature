@@ -71,8 +71,12 @@ Feature: The person sees and uses the browser their agents use
     When I tap Start in the browser pane
     Then the browser pane says the browser is up
     And the browser pane shows 1 tab
+    # The bar a thumb types an address into: a URL keyboard and a Go key, and
+    # the step below then navigates with that very key.
+    And the browser's address bar asks for a URL keyboard and a Go key
     When I go to the site's "fixture" page in the browser's address bar
     Then pane 0 draws a picture of the page
+    And the browser's address bar shows the site's "fixture" page
     And there should be no page errors
 
   @phone

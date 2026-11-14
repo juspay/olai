@@ -16,6 +16,7 @@
  */
 import { TESTID } from "olai-plugin-sidebar/testids"
 import { RailButton } from "@olai/ui-primitives/RailButton.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { PluginRailEntries } from "./Seats.tsx"
 
 import { setSidebarOpen } from "./shell.ts"
@@ -42,17 +43,20 @@ export function Rail(props: {
       data-testid={TESTID.sidebarRail}
       aria-label="Sidebar"
     >
-      <RailButton
-        testid={TESTID.sidebarExpand}
-        label="Expand sidebar"
-        title="Expand sidebar"
-        onClick={() => setSidebarOpen(true)}
-      >
-        {/* chevron-right */}
-        <svg viewBox="0 0 16 16" class={ICON} aria-hidden="true" fill="currentColor">
-          <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4 4a.75.75 0 0 1 0 1.06l-4 4a.75.75 0 1 1-1.06-1.06L9.44 8 6.22 4.28a.75.75 0 0 1 0-1.06z" />
-        </svg>
-      </RailButton>
+      {/* The one word this button has, said twice on purpose: the tip is what
+          a pointer reads, `label` what everybody else does. */}
+      <Tip text="Expand sidebar">
+        <RailButton
+          testid={TESTID.sidebarExpand}
+          label="Expand sidebar"
+          onClick={() => setSidebarOpen(true)}
+        >
+          {/* chevron-right */}
+          <svg viewBox="0 0 16 16" class={ICON} aria-hidden="true" fill="currentColor">
+            <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4 4a.75.75 0 0 1 0 1.06l-4 4a.75.75 0 1 1-1.06-1.06L9.44 8 6.22 4.28a.75.75 0 0 1 0-1.06z" />
+          </svg>
+        </RailButton>
+      </Tip>
 
       <PluginRailEntries place="top" />
 

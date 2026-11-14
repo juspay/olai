@@ -7,6 +7,7 @@ import { createTicking, MINUTE } from "@olai/web/client/clock.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { createSaying } from "@olai/web/client/saying.ts"
 import { SaidLine } from "@olai/web/client/SaidLine.tsx"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { AgentMark } from "../chat/AgentMark.tsx"
 import { createNow, outFor } from "../chat/elapsed.ts"
 import { chatWire } from "../wire.ts"
@@ -63,15 +64,22 @@ function AgentStanding(props: { readonly row: Row; readonly record?: string }) {
   const now = createNow(busy)
   const age = createTicking(MINUTE, () => props.row.standing === "asleep")
   const look = () => LOOK[props.row.standing]
-  return <button type="button" class="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-1.5 text-caption text-muted enabled:hover:bg-ink/5 enabled:hover:text-ink"
-    classList={{ "text-doing": props.row.standing === "needs-you" }}
-    disabled={props.row.session === null && props.row.unopened !== true} title={look().detail}
-    data-testid={TESTID.agentStanding} data-agent={props.row.id} data-standing={props.row.standing}
-    aria-expanded={props.row.session === null && props.row.unopened !== true ? undefined : unfolded(props.record ?? props.row.id)}
-    onClick={event => { event.stopPropagation(); unfolded(props.record ?? props.row.id) ? fold(props.record ?? props.row.id) : unfold(props.record ?? props.row.id) }}>
-    <AgentMark id={props.row.engine} /><span class={`${DOT} ${look().dot}`} aria-hidden="true" />
-    {look().label}
-    <Show when={busy() && props.row.since}>{since => <span class="tabular-nums"> · {outFor(since(), now())}</span>}</Show>
-    <Show when={props.row.standing === "asleep" && props.row.said}>{said => <span class="tabular-nums"> · {agoOf(said().at, age())}</span>}</Show>
-  </button>
+  return <Tip text={look().detail}>
+    <button type="button" class="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-1.5 text-caption text-muted enabled:hover:bg-ink/5 enabled:hover:text-ink"
+      classList={{ "text-doing": props.row.standing === "needs-you" }}
+      disabled={props.row.session === null && props.row.unopened !== true}
+      data-testid={TESTID.agentStanding} data-agent={props.row.id} data-standing={props.row.standing}
+      aria-expanded={props.row.session === null && props.row.unopened !== true ? undefined : unfolded(props.record ?? props.row.id)}
+      onClick={event => { event.stopPropagation(); unfolded(props.record ?? props.row.id) ? fold(props.record ?? props.row.id) : unfold(props.record ?? props.row.id) }}>
+      <AgentMark id={props.row.engine} /><span class={`${DOT} ${look().dot}`} aria-hidden="true" />
+      {look().label}
+      <Show when={busy() && props.row.since}>{since => <span class="tabular-nums"> · {outFor(since(), now())}</span>}</Show>
+      <Show when={props.row.standing === "asleep" && props.row.said}>{said => <span class="tabular-nums"> · {agoOf(said().at, age())}</span>}</Show>
+      {/* WHAT THE STANDING MEANS, which the one-word label does not say —
+          "Waiting" against "the agent asked you something". It was the
+          `title`'s alone, so it rides the button's own name after the words
+          a person reads. */}
+      <span class="sr-only"> — {look().detail}</span>
+    </button>
+  </Tip>
 }

@@ -35,6 +35,16 @@ under the list). The same entry's `rail` icon follows it; a `foot` entry's icon
 sits at the rail's bottom. Sidebar draws a placement, not a contributor: the
 Trash is at the foot because the trash row asked for `foot`.
 
+A rail icon says what it opens in a tip this app draws, and is NAMED for a
+reader who never hovers — the two carry different words on purpose (`Outlines`
+on the tip, `Open outlines` as the name). Neither is the browser's `title`
+attribute: the browser places its own tooltip, which ran a long one off the
+edge of the window, and shows it to a pointer and nobody else. The button
+itself (`@olai/ui-primitives`' `RailButton`) draws no tip, because that package
+declares only `solid-js` while the tip lives in `@olai/web`, which declares
+that package; so whichever row draws the icon wraps it in the tip, the same way
+every other control in the app does.
+
 Every heading in the column (Pinned, Needs you, Chats, Outlines) wears one
 treatment: the words are written in Sentence case and styled as small, spaced
 capitals (`olai-plugin-layout/entry`'s `REGION_LABEL`), so an accessible name

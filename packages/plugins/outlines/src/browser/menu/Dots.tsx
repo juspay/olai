@@ -27,6 +27,7 @@
  */
 import { TESTID } from "olai-plugin-outlines/testids"
 import { MENU_CELL, MENU_REVEAL } from "@olai/ui-primitives/touch.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 
 
 /**
@@ -63,27 +64,30 @@ export function Dots(props: { readonly onArm: () => void }) {
   }
 
   return (
-    <button
-      type="button"
-      class={DOTS}
-      data-testid={TESTID.nodeMenu}
-      aria-haspopup="true"
-      aria-expanded={false}
-      aria-label="More"
-      title="More"
-      onPointerDown={arm}
-      onKeyDown={(event) => {
-        if (!["Enter", " ", "ArrowDown", "ArrowUp"].includes(event.key)) return
-        // Prevented HERE, unlike the press above: Space would scroll the page
-        // out from under the menu it just opened, and Enter on a button
-        // synthesises a click that would arrive at whatever took this one's
-        // place.
-        event.preventDefault()
-        arm(event)
-      }}
-      onClick={(event) => event.stopPropagation()}
-    >
-      •••
-    </button>
+    // "More" is already the button's name, so the tip repeats it and adds
+    // nothing: a description identical to the name is the name read twice.
+    <Tip text="More">
+      <button
+        type="button"
+        class={DOTS}
+        data-testid={TESTID.nodeMenu}
+        aria-haspopup="true"
+        aria-expanded={false}
+        aria-label="More"
+        onPointerDown={arm}
+        onKeyDown={(event) => {
+          if (!["Enter", " ", "ArrowDown", "ArrowUp"].includes(event.key)) return
+          // Prevented HERE, unlike the press above: Space would scroll the page
+          // out from under the menu it just opened, and Enter on a button
+          // synthesises a click that would arrive at whatever took this one's
+          // place.
+          event.preventDefault()
+          arm(event)
+        }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        •••
+      </button>
+    </Tip>
   )
 }

@@ -202,8 +202,30 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
         <input
           ref={box}
           type="search"
-          class="h-7 w-full min-w-0 rounded-control border border-rule bg-paper px-2.5 text-label text-ink outline-none placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/20"
+          // The border lights on focus; the ring is the app's one outline
+          // (`@olai/appearance/chrome.css`, unlayered — the `outline-none`
+          // that used to be here never stood it down). The `focus:ring-2
+          // focus:ring-accent/20` glow is gone: it was a `box-shadow`, which
+          // forced colours removes, drawn under a ring that survives.
+          class="h-7 w-full min-w-0 rounded-control border border-rule bg-paper px-2.5 text-label text-ink placeholder:text-muted focus:border-accent"
           data-testid={TESTID.headerSearch}
+          // `go`, not `search`. Nothing is submitted here — the rows are live
+          // under the box as you type, and the return key TAKES the row the
+          // cursor is on, which is a navigation (`open`, above: a route and a
+          // blur). A Search key over a box whose search already happened would
+          // promise a second thing to wait for; Go is what the press does.
+          enterkeyhint="go"
+          // A query is an identifier's neighbourhood, not prose: an
+          // autocapitalised first letter and an autocorrected half-typed node
+          // title both change what is being matched, and a red underline under
+          // a word somebody is deliberately typing in fragments is noise.
+          // `type="search"` is the box's own shape and stays — it is what
+          // gives it the browser's clear affordance (the outline's filter bar
+          // argues the other side of that choice, where a second cross would
+          // collide with the one it draws itself).
+          autocorrect="off"
+          autocapitalize="none"
+          spellcheck={false}
           placeholder="Search"
           aria-label="Search"
           value={query()}
@@ -271,7 +293,14 @@ export function HeaderSearch(props: { readonly claims: Claims | undefined }) {
         {(box_) => (
           <Portal>
             <div
-              class={`fixed ${LAYER.over} overflow-hidden rounded-surface border-0 bg-panel shadow-overlay ring-1 ring-rule`}
+              // A `border`, not the `ring-1` it was: a one-pixel hairline
+              // drawn as a `box-shadow` is the same picture until a reader
+              // turns on Windows High Contrast, where box-shadows are removed
+              // and this panel floats on the page with no edge and no shadow.
+              // (`@olai/web`'s `readout.ts` makes the same change for the four
+              // panels it owns; this one is anchored by hand rather than by
+              // that constant.)
+              class={`fixed ${LAYER.over} overflow-hidden rounded-surface border border-rule bg-panel shadow-overlay`}
               ref={results}
               onFocusOut={event => { if (!(event.relatedTarget instanceof Node && (results?.contains(event.relatedTarget) || event.relatedTarget === box))) setCaret(false) }}
               data-testid={TESTID.headerSearchResults}

@@ -40,6 +40,14 @@ Feature: The theme is a pick, and it is yours
   every single load. Four lines in `<head>` are what prevent it, and nothing
   else on the page can.
 
+  HALF OF THAT FIRST PAINT IS NOT OURS. The canvas behind the document, the
+  scrollbars and the form controls are the browser's, and the only thing that
+  moves them before the sheet lands is `<meta name="color-scheme">` — so the
+  shell's script copies the scheme of the pick onto it, as a word it was handed
+  and not a theme name it understands. The meta is authored as `light dark`,
+  which is a page with no JavaScript following the OS; handing the theme back
+  to the system puts those two words back.
+
   Scenario: A fresh browser reads in the default theme
     When I open the app
     Then the page names no theme
@@ -128,6 +136,30 @@ Feature: The theme is a pick, and it is yours
     Then the theme "basalt" landed while the page was still parsing
     And the lit theme chip is "basalt"
 
+  Scenario: The browser's own surfaces are in the picked scheme before the sheet lands
+    # The pre-sheet window, in both directions: a dark palette under a light OS
+    # used to spend it on a light canvas with light scrollbars, which is the
+    # same flash the attribute above exists to prevent. Read at the moment the
+    # theme lands, because the sheet puts it right immediately afterwards and
+    # the finished page looks identical either way.
+    When I open the app
+    And the system prefers "light"
+    And I pick the theme "basalt"
+    And I watch for the theme landing
+    And I reload the page
+    Then the theme "basalt" landed while the page was still parsing
+    And the canvas was already "dark" while the page was still parsing
+    When the system prefers "dark"
+    And I pick the theme "reef"
+    And I reload the page
+    Then the theme "reef" landed while the page was still parsing
+    And the canvas was already "light" while the page was still parsing
+    When I hand the theme back to the system
+    Then the canvas follows the system
+    When I reload the page
+    Then the canvas follows the system
+    And there should be no page errors
+
   Scenario: Picking the default is a pick like any other
     # Stored explicitly rather than by falling back to it: otherwise the
     # default's name would mean two different things, and a later change of
@@ -152,15 +184,28 @@ Feature: The theme is a pick, and it is yours
     And the lit theme chip is the default
     And this browser has stored no theme
 
-  Scenario: The browser chrome follows the paper
+  Scenario: The browser chrome follows the paper, whichever way the OS leans
     # The status bar on a phone, the title bar of an installed window, and the
     # tab's own mark. The shell ships the default's paper, so the status bar is
     # right on the first paint; the tab starts as the install file. A page that
     # picked (and the default, once the bundle is up) repaints both from the
     # same table that painted the page.
+    #
+    # The last four lines are the case that was WRONG: the shell's two metas
+    # are qualified by `prefers-color-scheme`, the browser uses the first whose
+    # query matches, and a pick that disagrees with the OS is answered by the
+    # meta the old code left holding a DEFAULT's paper — an installed `abyss`
+    # window wearing basalt's near-black. The step reads the meta in force, so
+    # it is the browser's own rule being checked and not ours.
     When I open the app
     Then the browser chrome matches the paper
     When I pick the theme "reef"
+    Then the browser chrome matches the paper
+    When the system prefers "light"
+    And I pick the theme "abyss"
+    Then the browser chrome matches the paper
+    When the system prefers "dark"
+    And I pick the theme "chalk"
     Then the browser chrome matches the paper
 
   Scenario: The manifest opens the app in the paper an unpicked page paints

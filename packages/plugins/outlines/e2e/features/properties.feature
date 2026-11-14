@@ -543,6 +543,10 @@ Feature: Properties on a node, from the web
     Then the node menu is open
     When I tap "More › Add property…" in the node menu
     Then the property editor on "handles" fits the screen
+    # ...and the two boxes tell the keyboard apart: the key box's return key
+    # moves the caret along to the value, the value box's finishes the chip —
+    # which is the press the next step makes.
+    And the property boxes on "handles" ask for a Next key then a Done key
     When I write the property "pr" holding "https://github.com/juspay/olai/pull/179" on "handles"
     Then the node "handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/179"
     And "house.olai" holds the node "handles" with "pr" set to "https://github.com/juspay/olai/pull/179"

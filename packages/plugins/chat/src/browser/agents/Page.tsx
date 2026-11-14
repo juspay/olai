@@ -1,3 +1,4 @@
+import { composing } from "@olai/web/client/composition.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { memoryOf, UsageFailure } from "@olai/format"
@@ -176,10 +177,14 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
           }>{reason => <EngineAbsence id={id()} missing={reason()} testid={TESTID.chatInstall} />}</Show>
         }</Show>
       }>
+        {/* `composing` (`@olai/web/client/composition.ts`) because this page
+            is reached from a node's own address and is drawn by the chat row,
+            which names navigation nowhere — so the window-wide guard that
+            keeps an IME's key out of every handler is not promised to it. */}
         <textarea class="min-h-20 w-full resize-y bg-transparent text-body outline-none" data-testid={TESTID.agentPlainInput}
           aria-label={`Ask about ${node().title}`} placeholder={`Ask about ${node().title}…`}
           value={props.page.draft()} onInput={event => props.page.setDraft(event.currentTarget.value)}
-          onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); send() } }} />
+          onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (composing(event)) return; send() } }} />
         <div class="flex flex-wrap items-center gap-2 text-label text-muted">
           <select aria-label="Agent" data-testid={TESTID.agentPlainEngine} value={engine()} disabled={props.page.starting() || agents.at(props.node) !== undefined}
             onChange={event => choose(event.currentTarget.value)}>
