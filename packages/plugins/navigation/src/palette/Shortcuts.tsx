@@ -37,7 +37,7 @@ import { createEffect,For,onCleanup,Show } from "solid-js"
 
 import { SHORTCUTS } from "@olai/web/client/keys.ts"
 import type { AppChord } from "../slots.ts"
-import { enterTopLayer } from "@olai/web/client/layer.ts"
+import { useTopLayer } from "@olai/web/client/layer.ts"
 import { claimCloseRequest, lightDismiss } from "@olai/web/client/dismiss.ts"
 
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
@@ -67,6 +67,7 @@ export function Shortcuts(props: {
     ]
   }
   const nearest = topmostWhileOpen(() => props.open)
+  const topLayer = useTopLayer()
   let sheet: HTMLDialogElement | undefined
   // Withdrawal puts the layer down: a modal removed from the document leaves
   // the top layer with no `close` behind it, so the element is closed while it
@@ -76,11 +77,12 @@ export function Shortcuts(props: {
   // OPENING IS A CALL, not a class — the freeze's own shape
   // (`web/src/client/connection/Offline.tsx`), for the same reason: the top
   // layer is only entered through `showModal`, and everything a sheet over the
-  // whole app promises comes with it. Through `enterTopLayer` because the
-  // offline freeze is the floor of that layer and this may not stand over it.
+  // whole app promises comes with it. Through the TOP LAYER THIS FRAME HOLDS
+  // because the offline freeze is the floor of that layer and this may not
+  // stand over it.
   createEffect(() => {
     if (props.open) {
-      if (sheet !== undefined) enterTopLayer(sheet)
+      if (sheet !== undefined) topLayer.enter(sheet)
       return
     }
     if (sheet?.open === true) sheet.close()

@@ -18,7 +18,7 @@
  * pane. What each PANE shows is a subscription of its own
  * (`./reading.tsx`), asked of the address that pane is drawing.
  */
-import { LAYER } from "@olai/web/client/layer.ts"
+import { createTopLayer, LAYER, TopLayerProvider } from "@olai/web/client/layer.ts"
 import { TipFloor } from "@olai/web/client/Tip.tsx"
 import { TESTID as LAYOUT_TESTID } from "./testids.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -82,6 +82,14 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
 
   return (
       <RouterProvider router={router}>
+      {/* THE TOP LAYER, held by the one owner that renders both parties to it:
+          the freeze below and the `overlays` slot under it, where the palette
+          and its shortcuts sheet live. The freeze claims the FLOOR of that
+          layer and every other modal enters through this value, which stands
+          the freeze back on top in the same task
+          (`@olai/web/client/layer.ts`). It is a context rather than anything
+          page-wide because two apps on one document must not share it. */}
+      <TopLayerProvider value={createTopLayer()}>
       <TipFloor.Provider value={() => (stripElement?.isConnected ? stripElement : header)?.getBoundingClientRect().bottom ?? 0}>
       <PluginsMounted>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
@@ -223,6 +231,7 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
       </div>
       </PluginsMounted>
       </TipFloor.Provider>
+      </TopLayerProvider>
       </RouterProvider>
   )
 }

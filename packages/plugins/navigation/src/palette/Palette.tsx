@@ -79,7 +79,7 @@ import type { Edit } from "@olai/surface"
 import { Result as Outcome } from "effect"
 
 import { CHORDS,isEditingTarget,listKey,matchChord,matchKey,paneKey } from "@olai/web/client/keys.ts"
-import { enterTopLayer } from "@olai/web/client/layer.ts"
+import { useTopLayer } from "@olai/web/client/layer.ts"
 import { only } from "@olai/web/client/narrow.ts"
 import { paletteFaces } from "../faces.ts"
 import { Refusals } from "@olai/web/client/refusals.tsx"
@@ -482,6 +482,7 @@ export function Palette(props: {
   /** Who had the keyboard when this palette opened — the element the browser
    *  hands it back to when the modal closes. Kept so that the one case the
    *  hand-back is wrong in, a NAVIGATION, can let go of it first. */
+  const topLayer = useTopLayer()
   let invoker: Element | null = null
   /** The reader went somewhere: drop the control they left behind before the
    *  modal closes, so the browser has nothing to hand the keyboard back to
@@ -547,13 +548,14 @@ export function Palette(props: {
     firstOpening = false
     // The element is not attached at the instant the signal flips — and the
     // body of the modal is drawn by the `<Show>` inside it, so there is
-    // nothing to focus until Solid has put it there. `enterTopLayer` rather
-    // than a bare `showModal` because the offline freeze is the floor of that
-    // layer and this must not stand over it (`../../../../web/src/client/layer.ts`).
+    // nothing to focus until Solid has put it there. Through the TOP LAYER
+    // THIS FRAME HOLDS rather than a bare `showModal` because the offline
+    // freeze is the floor of that layer and this must not stand over it
+    // (`../../../../web/src/client/layer.ts`).
     queueMicrotask(() => {
       if (!paletteOpen() || modal === undefined) return
       if (modal.open !== true) invoker = document.activeElement
-      enterTopLayer(modal)
+      topLayer.enter(modal)
       // …and the CARET goes to the box, unless a question is standing in it.
       // A confirm takes the caret onto its own verb (`./Question.tsx`, and
       // the `•••` menu's rule before it), and this effect re-runs for reasons
@@ -939,7 +941,7 @@ export function Palette(props: {
         // signal — has nothing to re-run on, and the new element would stand
         // in the page closed while the app believed the palette was up. The
         // element is the thing that knows it is new.
-        if (paletteOpen()) queueMicrotask(() => { if (paletteOpen()) enterTopLayer(element) })
+        if (paletteOpen()) queueMicrotask(() => { if (paletteOpen()) topLayer.enter(element) })
       }}
       onCancel={(event) => {
         // ESCAPE IS A CLOSE REQUEST now, and the dismissal stack's order is

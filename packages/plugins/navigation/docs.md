@@ -252,9 +252,9 @@ as a result, and none of it is spelled in this plugin any more:
 - neither carries `role="dialog"` or `aria-modal`; a native modal already is
   one, and each is named with `aria-label` instead;
 - neither spells a `z-index`. `showModal()` puts them in the TOP LAYER, above
-  every stacking context at once. They enter it through
-  `web/src/client/layer.ts`'s `enterTopLayer`, which keeps the offline freeze
-  the FLOOR of that layer: a palette opened while the app is frozen stands
+  every stacking context at once. They enter it through the top layer the
+  frame holds (`web/src/client/layer.ts`'s `useTopLayer`), which keeps the
+  offline freeze the FLOOR of that layer: a palette opened while the app is frozen stands
   under the freeze rather than over it;
 - **Escape** is a close request the browser offers the topmost modal, so the
   dismissal stack orders itself. A question standing in the box answers the

@@ -73,7 +73,7 @@
  * it was ENTERED — so a palette opened after this card would stand over the
  * freeze: a working door on a page whose whole news is that there is nowhere
  * to send anything. The freeze is therefore the FLOOR of that layer rather
- * than its only tenant ({@link holdTopLayerFloor}): every other modal enters
+ * than its only tenant ({@link TopLayer.holdFloor}): every other modal enters
  * through `../layer.ts`, which stands this one back on top of it in the same
  * breath. `../layer.ts` says the whole of it beside the table, and
  * `../claims.test.ts` sweeps who may call `showModal` at all.
@@ -97,7 +97,7 @@ import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
 import { createEffect, createMemo, createSignal, onCleanup, Show, type Accessor } from "solid-js"
 
 import { handBackFocus, withOfflineFocus, type FocusMemory } from "./focus.ts"
-import { holdTopLayerFloor } from "../layer.ts"
+import { useTopLayer } from "../layer.ts"
 import { reachable } from "./reaching.ts"
 import { frozenLookOf, isFrozen, type SurfaceReadout } from "./status.ts"
 import { Reload } from "../Reload.tsx"
@@ -186,7 +186,7 @@ export function Offline(props: {
    * close gives the caret back for an instant, and the memory `./focus.ts`
    * keeps must not record that instant as somewhere a person put it.
    */
-  holdTopLayerFloor(() => overlay, () => {
+  useTopLayer().holdFloor(() => {
     if (!overlay.open) return
     overlay.close()
     withOfflineFocus(() => overlay.showModal())

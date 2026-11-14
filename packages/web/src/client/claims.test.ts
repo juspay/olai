@@ -286,9 +286,17 @@ test("the top layer is entered through one door, and the freeze is its floor", (
     "web/src/client/connection/Offline.tsx",
     "web/src/client/layer.ts"
   ])
-  expect(filesSpelling(/enterTopLayer/)).toEqual([
+  expect(filesSpelling(/useTopLayer/)).toEqual([
     "plugins/navigation/src/palette/Palette.tsx",
     "plugins/navigation/src/palette/Shortcuts.tsx",
+    "web/src/client/connection/Offline.tsx",
+    "web/src/client/layer.ts"
+  ])
+  // And ONE owner hands it to them. A second provider is a second floor: two
+  // frames on one page, each believing it holds the layer, and a palette that
+  // lifts whichever freeze it happened to be rendered under.
+  expect(filesSpelling(/createTopLayer/)).toEqual([
+    "plugins/layout/src/Frame.tsx",
     "web/src/client/layer.ts"
   ])
 })
@@ -769,14 +777,18 @@ test("every stylesheet with an endless animation answers the motion preference",
     }
   }
   walk(PACKAGES)
-  const endless = sheets
-    .filter(file => /animation[^;}]*\binfinite\b/.test(fs.readFileSync(path.join(PACKAGES, file), "utf8")))
-    .sort()
+  // THE RULES, WITHOUT THE PROSE. A comment ARGUING about endless animations
+  // is not one — the motion policy's own note names the word twice — and a
+  // sweep that cannot tell a rule from a sentence about rules makes every
+  // explanation a liability.
+  const rules = (file: string): string =>
+    fs.readFileSync(path.join(PACKAGES, file), "utf8").replace(/\/\*[\s\S]*?\*\//g, " ")
+  const endless = sheets.filter(file => /animation[^;}]*\binfinite\b/.test(rules(file))).sort()
   expect(endless).toEqual([
     path.join("markdown-ui", "src", "all.css")
   ])
   for (const file of endless) {
-    expect(fs.readFileSync(path.join(PACKAGES, file), "utf8"), file).toContain("prefers-reduced-motion")
+    expect(rules(file), file).toContain("prefers-reduced-motion")
   }
 })
 
