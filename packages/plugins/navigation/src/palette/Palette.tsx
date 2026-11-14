@@ -79,7 +79,8 @@ import type { Edit } from "@olai/surface"
 import { Result as Outcome } from "effect"
 
 import { CHORDS,isEditingTarget,listKey,matchChord,matchKey,paneKey } from "@olai/web/client/keys.ts"
-import { useTopLayer } from "@olai/web/client/layer.ts"
+import { composing } from "@olai/web/client/composition.ts"
+import { enterTopLayer } from "@olai/web/client/layer.ts"
 import { only } from "@olai/web/client/narrow.ts"
 import { paletteFaces } from "../faces.ts"
 import { Refusals } from "@olai/web/client/refusals.tsx"
@@ -492,7 +493,6 @@ export function Palette(props: {
    * so outright, and a `run` whose work navigated is caught by comparing WHERE
    * THE READER IS against where they were when this opened.
    */
-  const topLayer = useTopLayer()
   /** Who had the keyboard when this opened, blurred at that instant. */
   let invoker: HTMLElement | null = null
   /** The focused pane's address when this opened — the second reading of
@@ -574,9 +574,8 @@ export function Palette(props: {
     firstOpening = false
     // The element is not attached at the instant the signal flips — and the
     // body of the modal is drawn by the `<Show>` inside it, so there is
-    // nothing to focus until Solid has put it there. Through the TOP LAYER
-    // THIS FRAME HOLDS rather than a bare `showModal` because the offline
-    // freeze is the floor of that layer and this must not stand over it
+    // nothing to focus until Solid has put it there. Through
+    // `enterTopLayer` because the surfaces that take the whole app are a list
     // (`../../../../web/src/client/layer.ts`).
     queueMicrotask(() => {
       if (!paletteOpen() || modal === undefined) return
@@ -591,7 +590,7 @@ export function Palette(props: {
         cameFrom = whereabouts()
         moved = false
       }
-      topLayer.enter(modal)
+      enterTopLayer(modal)
       // …and the CARET goes to the box, unless a question is standing in it.
       // A confirm takes the caret onto its own verb (`./Question.tsx`, and
       // the `•••` menu's rule before it), and this effect re-runs for reasons
@@ -870,11 +869,7 @@ export function Palette(props: {
    * modal but another modal, and the browser already knows which of those is
    * on top.
    */
-  // READ as well as taken, now: the close request is the platform's, but a
-  // layer the palette itself opened — a level's list, a completion — is above
-  // it on this stack and the key is that layer's first. `claimCloseRequest`
-  // asks this before it lets the browser close anything.
-  const nearest = topmostWhileOpen(paletteOpen)
+  topmostWhileOpen(paletteOpen)
 
   /** Escape backs out of the question first and closes the palette second —
    *  one key, the nearest thing it can dismiss, which is what it means
@@ -965,14 +960,14 @@ export function Palette(props: {
       ref={(element) => {
         modal = element
         lightDismiss(element)
-        claimCloseRequest(element, nearest)
+        claimCloseRequest(element)
         // AND OPENED FROM HERE TOO, for the one case the effect below cannot
         // see: a REDRAW. A plugin arriving or leaving rebuilds this component
         // with the open signal already true, so the effect — which tracks that
         // signal — has nothing to re-run on, and the new element would stand
         // in the page closed while the app believed the palette was up. The
         // element is the thing that knows it is new.
-        if (paletteOpen()) queueMicrotask(() => { if (paletteOpen()) topLayer.enter(element) })
+        if (paletteOpen()) queueMicrotask(() => { if (paletteOpen()) enterTopLayer(element) })
       }}
       onCancel={(event) => {
         // ESCAPE IS A CLOSE REQUEST now, and the dismissal stack's order is
@@ -1095,7 +1090,7 @@ export function Palette(props: {
             onKeyDown={(e) => {
               // BACKSPACE ON AN EMPTY BOX GOES BACK one level. Never mid-IME:
               // a composition's own Backspace is not ours.
-              if (e.key === "Backspace" && !e.isComposing && inLevel() && e.currentTarget.value === "") {
+              if (e.key === "Backspace" && !composing(e) && inLevel() && e.currentTarget.value === "") {
                 e.preventDefault()
                 levels.pop(depth() - 1)
                 return

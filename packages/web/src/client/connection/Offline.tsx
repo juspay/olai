@@ -71,18 +71,16 @@
  * reading twice. The ⌘K palette and the shortcuts sheet it opens are modal
  * dialogs too, for their own reasons, and the top layer stacks in the order
  * it was ENTERED — so a palette opened after this card would stand over the
- * freeze: a working door on a page whose whole news is that there is nowhere
- * to send anything. The freeze is therefore the FLOOR of that layer rather
- * than its only tenant ({@link TopLayer.holdFloor}): every other modal enters
- * through `../layer.ts`, which stands this one back on top of it in the same
- * breath. `../layer.ts` says the whole of it beside the table, and
- * `../claims.test.ts` sweeps who may call `showModal` at all.
+ * freeze. It cannot be: a chord is swallowed while this is up and the page
+ * under it is inert, and nothing else in this client opens a modal without a
+ * gesture or a message. `../layer.ts` argues that in full beside its table,
+ * and `../claims.test.ts` sweeps who may call `showModal` at all.
  *
- * No fallback for a browser without `showModal`, deliberately: this client's
- * stylesheet is Tailwind 4, whose own floor (Safari 16.4, Chrome 111, Firefox
- * 128) is already years above the dialog's (Safari 15.4, March 2022). A guard
- * here would be a branch nothing this app runs in can take, drawing a
- * half-freeze in the name of a browser that cannot render the page anyway.
+ * No fallback for a browser without `showModal`, deliberately: this app's
+ * support floor (`@olai/appearance`'s `chrome.css` states it) is already
+ * years above the dialog's (Safari 15.4, March 2022). A guard here would be a
+ * branch nothing this app runs in can take, drawing a half-freeze in the name
+ * of a browser that cannot render the page anyway.
  *
  * The one thing the top layer does not cover is a listener on the WINDOW: an
  * inert element cannot be pressed, but a global chord is not pressed on an
@@ -97,7 +95,6 @@ import { reloadForUpdate } from "@kolu/surface-app/lifecycle"
 import { createEffect, createMemo, createSignal, onCleanup, Show, type Accessor } from "solid-js"
 
 import { handBackFocus, withOfflineFocus, type FocusMemory } from "./focus.ts"
-import { useTopLayer } from "../layer.ts"
 import { reachable } from "./reaching.ts"
 import { frozenLookOf, isFrozen, type SurfaceReadout } from "./status.ts"
 import { Reload } from "../Reload.tsx"
@@ -173,24 +170,6 @@ export function Offline(props: {
   const stopHanding = () => { handing?.(); handing = undefined }
   onCleanup(stopHanding)
   const look = () => frozenLookOf(props.readout)
-
-  /**
-   * BACK ON TOP OF WHATEVER JUST ARRIVED — the floor claim, for the life of
-   * this component (`../layer.ts`). A dialog cannot be re-promoted while it is
-   * open, so the only way back over a modal that entered after this one is to
-   * leave the layer and enter it again; it happens inside the same task as the
-   * entry that provoked it, so nothing is painted in between and the page is
-   * never un-frozen for a frame.
-   *
-   * `withOfflineFocus` wraps the re-entry exactly as the opening does: the
-   * close gives the caret back for an instant, and the memory `./focus.ts`
-   * keeps must not record that instant as somewhere a person put it.
-   */
-  useTopLayer().holdFloor(() => {
-    if (!overlay.open) return
-    overlay.close()
-    withOfflineFocus(() => overlay.showModal())
-  })
 
   // OPENING IS A CALL, not a class: the top layer is only entered through
   // `showModal`, and the inertness of everything else comes with it. Guarded on

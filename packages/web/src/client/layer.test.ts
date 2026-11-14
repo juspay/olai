@@ -13,9 +13,8 @@
  */
 
 import { expect, test } from "bun:test"
-import { createRoot } from "solid-js"
 
-import { createTopLayer, LAYER, WITHIN } from "./layer.ts"
+import { LAYER, WITHIN } from "./layer.ts"
 
 /** The number a Tailwind `z-*` utility sets, in the two spellings this table
  *  uses: `z-30` and the arbitrary `z-[45]`. Reading it back out is what makes
@@ -65,85 +64,4 @@ test("the strip covers page headings and yields to chrome and the header", () =>
   expect(rank(LAYER.strip)).toBeGreaterThan(rank(LAYER.page))
   expect(rank(LAYER.strip)).toBeLessThan(rank(LAYER.chrome))
   expect(rank(LAYER.strip)).toBeLessThan(rank(LAYER.header))
-})
-
-/**
- * THE FLOOR, which is the one piece of this module that is behaviour rather
- * than a table — and the one the browser suite cannot reach.
- *
- * It only runs when something enters the top layer while a freeze is up, and
- * the freeze swallows every chord for as long as it is up
- * (`./connection/Offline.tsx`), so there is no gesture that opens a second
- * modal over it: `palette_modality.feature` holds the reader-visible half of
- * that ("there is no door at all while the wire is dead") and this holds the
- * code. A dialog is faked because what matters here is the ORDER of two calls
- * and the lifetime of one claim, neither of which needs a layout engine.
- */
-/** The whole of the dialog this module touches: one field it reads and one
- *  call it makes. `entries` counts the calls, which is what the claims below
- *  are about. */
-interface FakeDialog {
-  open: boolean
-  entries: number
-  showModal: () => void
-}
-const dialog = (): FakeDialog => {
-  const fake: FakeDialog = {
-    open: false,
-    entries: 0,
-    showModal: () => { fake.entries++; fake.open = true },
-  }
-  return fake
-}
-/** `enter` takes the real element type; nothing it does to one can be
- *  checked at runtime, so the cast is named once, here, rather than spelled
- *  at each call. */
-const asDialog = (fake: FakeDialog): HTMLDialogElement => fake as unknown as HTMLDialogElement
-
-test("whatever enters the top layer, the floor is raised after it", () => {
-  createRoot(dispose => {
-    const layer = createTopLayer()
-    const raised: number[] = []
-    const palette = dialog()
-    layer.holdFloor(() => raised.push(palette.entries))
-    layer.enter(asDialog(palette))
-    // AFTER the entry, in the same task: a floor raised first would be a page
-    // un-frozen for however long the next paint took.
-    expect(raised).toEqual([1])
-    dispose()
-  })
-})
-
-test("...and an already-open dialog is not opened twice", () => {
-  createRoot(dispose => {
-    const layer = createTopLayer()
-    const palette = dialog()
-    layer.enter(asDialog(palette))
-    layer.enter(asDialog(palette))
-    // `showModal()` on an open dialog throws, and these calls come from
-    // effects that re-run for reasons of their own.
-    expect(palette.entries).toBe(1)
-    dispose()
-  })
-})
-
-test("the floor goes with its owner, and the next owner may claim it", () => {
-  createRoot(dispose => {
-    const layer = createTopLayer()
-    let raised = 0
-    const freeze = createRoot(withdraw => {
-      layer.holdFloor(() => { raised++ })
-      return withdraw
-    })
-    // A second claim while the first stands is two freezes over one frame.
-    expect(() => layer.holdFloor(() => {})).toThrow()
-    freeze()
-    layer.enter(asDialog(dialog()))
-    expect(raised).toBe(0)
-    // ...and the floor is free again, rather than held by a dead closure.
-    layer.holdFloor(() => { raised++ })
-    layer.enter(asDialog(dialog()))
-    expect(raised).toBe(1)
-    dispose()
-  })
 })

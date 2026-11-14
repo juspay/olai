@@ -37,7 +37,7 @@ import { createEffect,For,onCleanup,Show } from "solid-js"
 
 import { SHORTCUTS } from "@olai/web/client/keys.ts"
 import type { AppChord } from "../slots.ts"
-import { useTopLayer } from "@olai/web/client/layer.ts"
+import { enterTopLayer } from "@olai/web/client/layer.ts"
 import { claimCloseRequest, lightDismiss } from "@olai/web/client/dismiss.ts"
 
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
@@ -66,8 +66,7 @@ export function Shortcuts(props: {
       { group: REGISTERED_GROUP, keys: more.map((chord) => ({ keys: spellChord(chord), what: chord.said })) },
     ]
   }
-  const nearest = topmostWhileOpen(() => props.open)
-  const topLayer = useTopLayer()
+  topmostWhileOpen(() => props.open)
   let sheet: HTMLDialogElement | undefined
   // Withdrawal puts the layer down: a modal removed from the document leaves
   // the top layer with no `close` behind it, so the element is closed while it
@@ -77,12 +76,10 @@ export function Shortcuts(props: {
   // OPENING IS A CALL, not a class — the freeze's own shape
   // (`web/src/client/connection/Offline.tsx`), for the same reason: the top
   // layer is only entered through `showModal`, and everything a sheet over the
-  // whole app promises comes with it. Through the TOP LAYER THIS FRAME HOLDS
-  // because the offline freeze is the floor of that layer and this may not
-  // stand over it.
+  // whole app promises comes with it.
   createEffect(() => {
     if (props.open) {
-      if (sheet !== undefined) topLayer.enter(sheet)
+      if (sheet !== undefined) enterTopLayer(sheet)
       return
     }
     if (sheet?.open === true) sheet.close()
@@ -96,7 +93,7 @@ export function Shortcuts(props: {
       // and the name is the label below.
       class="fixed inset-x-4 top-[min(14vh,6rem)] bottom-auto mx-auto my-0 h-auto max-h-[70vh] w-auto max-w-lg overflow-y-auto rounded-surface border border-rule/40 bg-panel p-4 text-ink shadow-overlay backdrop:bg-ink/40"
       aria-label="Keyboard shortcuts"
-      ref={(element) => { sheet = element; lightDismiss(element); claimCloseRequest(element, nearest) }}
+      ref={(element) => { sheet = element; lightDismiss(element); claimCloseRequest(element) }}
       // WHOEVER CLOSED IT says so once: Escape, a press outside, or the effect
       // above. The state is the palette's (`open` is a prop), so the sheet
       // tells it rather than keeping a second copy.

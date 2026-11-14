@@ -58,9 +58,9 @@ Feature: The palette is a modal the browser owns
 
   Scenario: The freeze still covers an open palette, and the palette survives it
     # TWO MODAL DIALOGS, and the order they stack in is the order they were
-    # opened — so the freeze arriving over an open palette is the easy half.
-    # The hard half is that `client/layer.ts` keeps the freeze the FLOOR of
-    # that layer whatever opens next, which is what this leaves honest.
+    # opened — so the freeze arriving over an open palette has to cover it,
+    # and the palette has to survive being covered. The other order is the
+    # scenario below, and it cannot happen at all.
     When I press the palette shortcut
     Then the command palette is open
     When the browser goes offline
@@ -117,7 +117,7 @@ Feature: The palette is a modal the browser owns
     And the keyboard is back in the filter box
 
   Scenario: There is no door at all while the wire is dead
-    # THE REVERSE ORDER, and the answer is stronger than a floor: the freeze
+    # THE REVERSE ORDER, and the answer is that it cannot arise: the freeze
     # swallows every chord for as long as it is up (`connection/Offline.tsx`),
     # so a ⌘K pressed at a frozen app never reaches navigation and there is no
     # second modal to stand anywhere. The page stays the freeze's, and the

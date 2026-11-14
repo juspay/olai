@@ -50,24 +50,31 @@
  *
  *   - the ⌘K palette (`plugins/navigation/.../palette/Palette.tsx`),
  *   - the keyboard-shortcuts sheet it opens (`.../palette/Shortcuts.tsx`),
- *   - the offline freeze (`connection/Offline.tsx`), which is the FLOOR.
+ *   - the offline freeze (`connection/Offline.tsx`), which arrives last
+ *     whenever it arrives at all.
  *
- * **The freeze is the floor**, and that is the one rule about the top layer
- * this module owns rather than describes. Dialogs stack in the order they were
- * opened, so a palette asked to open while the app is frozen would take the
- * layer ABOVE the freeze — the page behind it would still be inert, but the
- * freeze would be a dimmed card under a working door, which is the half-alive
- * page `connection/Offline.tsx` exists to refuse. So every other modal enters
- * through {@link TopLayer.enter}, and the freeze claims the floor with
- * {@link TopLayer.holdFloor} for as long as it is mounted; anything entering
- * over it is immediately stood back under it. Both are read off a CONTEXT the
- * owner of all three surfaces provides (`olai-plugin-layout`'s `Frame.tsx`),
- * so the channel between them has a lifetime and belongs to one app.
+ * **NOTHING ENTERS OVER THE FREEZE**, and it is worth saying why rather than
+ * arranging it. Dialogs stack in the order they were opened, so a palette
+ * asked to open while the app is frozen would take the layer ABOVE the freeze
+ * — a working door on a page whose whole news is that there is nowhere to
+ * send anything. It cannot be asked for: every entry here is either a GESTURE
+ * (the freeze swallows chords at the window's capture phase for as long as it
+ * is up, and the page under it is inert) or the arrival of a MESSAGE (which
+ * means the wire is alive, the one thing a freeze says it is not). A
+ * mechanism that re-raised the freeze over whatever had just entered was
+ * written and then deleted: three stagings — another tab changing the plugin
+ * roster, the settings file taking the overlay host away and giving it back,
+ * and the server restarting under an open palette — never once entered this
+ * layer with the freeze standing. A surface that can open from a TIMER rather
+ * than from a gesture or a message is the one that would change that, and it
+ * owes this paragraph an answer.
  *
- * `claims.test.ts` sweeps both halves — who calls `showModal` (this file and
- * the freeze, which is its own floor) and who asks the frame for the layer
- * (the two modals) — so a fourth surface reaching for it has to argue with that list
- * first.
+ * `claims.test.ts` sweeps both halves — who calls `showModal` and who enters
+ * through {@link enterTopLayer} — so a fourth surface reaching for the layer
+ * has to argue with that list first. It owes one more answer while it is
+ * here: a `<Tip>` drawn inside it would portal to `document.body` and be
+ * painted UNDER it (`./Tip.tsx` says what to add), because nothing in this
+ * list raises one today.
  *
  * ## The order, and what each step is holding
  *
@@ -79,8 +86,6 @@
  * the rest of them in `claims.test.ts`. That one is what keeps this from
  * becoming a nineteenth place to look.
  */
-
-import { createContext, onCleanup, useContext } from "solid-js"
 
 /**
  * THE PAGE'S STACK, bottom to top. The order of these fields is the order of
@@ -184,70 +189,14 @@ export const WITHIN = {
 } as const
 
 /**
- * THE TOP LAYER'S FLOOR, as a value an owner holds.
+ * ENTER THE TOP LAYER. The `open` guard is the platform's rule rather than
+ * tidiness: `showModal()` on a dialog that is already open throws, and these
+ * are called from effects that re-run for reasons of their own.
  *
- * Two parties that never import each other need one live fact between them:
- * the freeze (`./connection/Offline.tsx`) must stand back on top whenever
- * ANYTHING else enters the top layer, and the things that enter it are the
- * palette and the shortcuts sheet in another plugin entirely. The channel
- * carrying that fact is a CONTEXT the owner of both provides —
- * `olai-plugin-layout`'s `Frame.tsx`, which renders the freeze and the
- * `overlays` slot the palette is contributed into — and never a document
- * event or a module-scope `let`. Both of those are one page-wide slot shared
- * by every app on the document: app A's palette would lift app B's freeze,
- * which `docs/architecture/cordis.md`'s per-app rule forbids, and neither has
- * a lifetime anything can withdraw.
- *
- * The default is the honest answer for a tree with no freeze in it — a test
- * rendering the palette alone, a surface that never draws one: enter the
- * layer, and there is no floor to re-raise.
+ * One line, and it is a DOOR rather than a convenience: the sweep in
+ * `./claims.test.ts` is written over this name, so the surfaces that take the
+ * whole app are a list somebody has to join on purpose.
  */
-export interface TopLayer {
-  /**
-   * Put a modal dialog in the top layer, and stand the floor back on top of
-   * it. The `open` guard is the platform's rule rather than tidiness:
-   * `showModal()` on a dialog that is already open throws, and these are
-   * called from effects that re-run for reasons of their own.
-   *
-   * The floor is raised AFTER the entry and synchronously, so it happens in
-   * the same task: nothing is painted in between, and the page is never
-   * un-frozen for a frame.
-   */
-  readonly enter: (dialog: HTMLDialogElement) => void
-  /**
-   * CLAIM THE FLOOR for as long as the calling owner lives: `lift` is called
-   * whenever anything else enters the layer, and must put its own dialog back
-   * on top of whatever just arrived. One claimant at a time — two freezes over
-   * one frame is a bug in the frame, not a case to merge — and the release
-   * only lets go of a claim that is still this one's, so a remount whose
-   * cleanup lands late cannot take the floor away from its successor.
-   */
-  readonly holdFloor: (lift: () => void) => void
+export const enterTopLayer = (dialog: HTMLDialogElement): void => {
+  if (!dialog.open) dialog.showModal()
 }
-
-const plainTopLayer: TopLayer = {
-  enter: dialog => { if (!dialog.open) dialog.showModal() },
-  holdFloor: () => {},
-}
-
-/** The floor one owner keeps for the life of its subtree. */
-export const createTopLayer = (): TopLayer => {
-  let floor: (() => void) | undefined
-  return {
-    enter: dialog => {
-      if (!dialog.open) dialog.showModal()
-      floor?.()
-    },
-    holdFloor: lift => {
-      if (floor !== undefined) throw new Error("the top layer's floor is already claimed")
-      floor = lift
-      onCleanup(() => { if (floor === lift) floor = undefined })
-    },
-  }
-}
-
-const Layer = createContext<TopLayer>(plainTopLayer)
-export const TopLayerProvider = Layer.Provider
-
-/** The top layer, as the owner above this component holds it. */
-export const useTopLayer = (): TopLayer => useContext(Layer)

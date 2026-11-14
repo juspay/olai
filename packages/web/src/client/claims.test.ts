@@ -273,30 +273,20 @@ test("overlays that hang over the outline mount on overlayRoot", () => {
 // THREE SURFACES ARE UP THERE NOW and the claim had to change shape with
 // them. It is two equalities because there are two different questions. WHO
 // MAY CALL `showModal` is the narrow one: `layer.ts`, which is the one door,
-// and the offline freeze, which is its own floor — it leaves the layer and
-// re-enters whenever something else arrives, and that re-entry cannot go
-// through the door without asking itself to stand aside. WHO ENTERS is the
-// list a reader actually wants: the ⌘K palette and the shortcuts sheet it
-// opens. A fourth name on the second list is a new thing claiming to cover
-// the app, and a second name on the first is a surface that took the layer
-// without the freeze being told — which is the half-alive page
-// `connection/Offline.tsx` exists to refuse.
-test("the top layer is entered through one door, and the freeze is its floor", () => {
+// and the offline freeze, whose own opening is wrapped in the focus memory
+// `connection/focus.ts` keeps. WHO ENTERS is the list a reader actually
+// wants: the ⌘K palette and the shortcuts sheet it opens. A fourth name on
+// either list is a new thing claiming to cover the whole app — and one that
+// can open from a timer rather than from a gesture or a message would be the
+// first thing able to stand over the freeze (`layer.ts` says why).
+test("the top layer is entered through one door", () => {
   expect(filesSpelling(/showModal\s*\(/)).toEqual([
     "web/src/client/connection/Offline.tsx",
     "web/src/client/layer.ts"
   ])
-  expect(filesSpelling(/useTopLayer/)).toEqual([
+  expect(filesSpelling(/enterTopLayer/)).toEqual([
     "plugins/navigation/src/palette/Palette.tsx",
     "plugins/navigation/src/palette/Shortcuts.tsx",
-    "web/src/client/connection/Offline.tsx",
-    "web/src/client/layer.ts"
-  ])
-  // And ONE owner hands it to them. A second provider is a second floor: two
-  // frames on one page, each believing it holds the layer, and a palette that
-  // lifts whichever freeze it happened to be rendered under.
-  expect(filesSpelling(/createTopLayer/)).toEqual([
-    "plugins/layout/src/Frame.tsx",
     "web/src/client/layer.ts"
   ])
 })
@@ -666,30 +656,34 @@ test("transcript grips belong to chat", () => {
 // fetched before anybody scrolls to it, and the picture a page IS deferred
 // behind layout. The decision is per site and argued at each one, so what this
 // sweep holds is that a site EXISTS to argue at: a new `<img>` anywhere in the
-// browser graph lands on the first list and not the second, and this equality
-// is the only thing that will say so before a reader does.
+// browser graph that decided neither is named here before a reader finds it.
 //
-// The markdown rewrite is on both lists without spelling `<img>` as markup: it
-// is the pass that turns a `![](shot.png)` into one (`markdown-ui/rewrite.ts`),
-// and it writes the same two attributes onto the element it keeps — the first
-// picture of a block eager, every later one lazy, which is why the pattern
-// reads through a ternary rather than demanding a literal.
+// The markdown rewrite passes without spelling `<img>` as markup: it is the
+// pass that turns a `![](shot.png)` into one (`markdown-ui/rewrite.ts`), and
+// it writes the same two attributes onto the element it keeps — the first
+// picture of a block eager, every later one lazy, which is why the patterns
+// read through a ternary rather than demanding a literal.
 //
 // `claims.test.ts` cannot see the whole app: `website/` is not this graph, and
 // the hypertext preview draws pictures that are a FILE's markup rather than
 // this repo's. Those are not sites to decide at.
 test("every picture the app draws has decided when it is fetched", () => {
-  const pictures = [
-    "markdown-ui/src/rewrite.ts",
-    "plugins/browsing/src/browser/Page.tsx",
-    "plugins/chat/src/browser/chat/Attachments.tsx",
-    "plugins/chat/src/browser/chat/Speaker.tsx",
-    "plugins/identity/src/browser/Who.tsx",
-    "plugins/image/src/browser/Image.tsx"
-  ]
-  expect(filesSpelling(/<img\b|tagName === "img"/)).toEqual(pictures)
-  expect(filesSpelling(/\bloading\s*[=:][^\n]*?"(?:eager|lazy)"/)).toEqual(pictures)
-  expect(filesSpelling(/\bdecoding\s*[=:][^\n]*?"(?:async|sync)"/)).toEqual(pictures)
+  // A RULE, not a roster. Which files draw pictures rides the plugin-and-face
+  // clock — any plugin that adds an avatar or a preview moves it — while the
+  // policy rides the guidance's, which is to say hardly at all. Enumerating
+  // the drawers made a plugin author who did the right thing edit a test in
+  // `@olai/web` to say so; what is asserted instead is that the set of
+  // drawers that did NOT decide is empty.
+  const draws = filesSpelling(/<img\b|tagName === "img"/)
+  const decided = (pattern: RegExp): ReadonlyArray<string> => {
+    const answered = new Set(filesSpelling(pattern))
+    return draws.filter(file => !answered.has(file))
+  }
+  expect(decided(/\bloading\s*[=:][^\n]*?"(?:eager|lazy)"/)).toEqual([])
+  expect(decided(/\bdecoding\s*[=:][^\n]*?"(?:async|sync)"/)).toEqual([])
+  // ...and a picture is drawn SOMEWHERE, so an empty result is a sweep that
+  // stopped seeing the tree rather than a tree that stopped drawing.
+  expect(draws.length).toBeGreaterThan(0)
 })
 
 // LESS MOTION IS ANSWERED IN ONE PLACE, and these two patterns are the two
@@ -816,17 +810,19 @@ test("every stylesheet with an endless animation answers the motion preference",
 // box the guard's own row draws, and a modal that takes the whole keyboard is
 // where an ordering bug would be least visible.
 //
-// Every entry pairs `isComposing` with `keyCode === 229`, which is not
-// belt-and-braces: Safari delivers the confirming key AFTER `compositionend`
-// has already cleared `isComposing`, so the first test alone passes everywhere
-// except the browser half this app's floor includes.
+// The rule is ONE predicate (`composition.ts`'s `composing`) because it has
+// two halves and a half-spelled one passes everywhere except the browser half
+// this app's floor includes: Safari delivers the confirming key AFTER
+// `compositionend` has already cleared `isComposing`, which is what
+// `keyCode === 229` is left to catch. Spelling either half by hand is the
+// regression this sweeps for.
 //
 // A new file here is either a hidden dependency somebody closed — fine, say so
 // — or a handler that did not need it, which is worth the argument. A file
 // LEAVING is the regression: a half-composed turn sent on the keystroke that
 // was choosing a word.
 test("every box navigation does not cover checks composition itself", () => {
-  expect(filesSpelling(/isComposing/)).toEqual([
+  expect(filesSpelling(/composing\(/)).toEqual([
     "plugins/chat/src/browser/agents/Page.tsx",
     "plugins/chat/src/browser/chat/Composer.tsx",
     "plugins/files/src/file/NewFile.tsx",
@@ -834,12 +830,8 @@ test("every box navigation does not cover checks composition itself", () => {
     "plugins/outlines/src/browser/props/PropsDrawer.tsx",
     "web/src/client/composition.ts"
   ])
-  // The Safari half, at every site that acts on the key.
-  expect(filesSpelling(/keyCode\s*===\s*229/)).toEqual([
-    "plugins/chat/src/browser/agents/Page.tsx",
-    "plugins/chat/src/browser/chat/Composer.tsx",
-    "plugins/files/src/file/NewFile.tsx",
-    "plugins/outlines/src/browser/props/PropsDrawer.tsx",
+  // ...and nowhere else asks the question in halves.
+  expect(filesSpelling(/isComposing|keyCode\s*===\s*229/)).toEqual([
     "web/src/client/composition.ts"
   ])
 })

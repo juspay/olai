@@ -252,10 +252,11 @@ as a result, and none of it is spelled in this plugin any more:
 - neither carries `role="dialog"` or `aria-modal`; a native modal already is
   one, and each is named with `aria-label` instead;
 - neither spells a `z-index`. `showModal()` puts them in the TOP LAYER, above
-  every stacking context at once. They enter it through the top layer the
-  frame holds (`web/src/client/layer.ts`'s `useTopLayer`), which keeps the
-  offline freeze the FLOOR of that layer: a palette opened while the app is frozen stands
-  under the freeze rather than over it;
+  every stacking context at once. They enter it through one door
+  (`web/src/client/layer.ts`'s `enterTopLayer`), which is what keeps the
+  surfaces claiming the whole app a list rather than a habit. Neither can be
+  opened while the offline freeze is up — a chord is swallowed and the page is
+  inert — so the freeze is always the last one in;
 - **Escape** is a close request the browser offers the topmost modal, so the
   dismissal stack orders itself. A question standing in the box answers the
   key first (the palette refuses the request and drops the question); with

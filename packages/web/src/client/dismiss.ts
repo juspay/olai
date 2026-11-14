@@ -170,7 +170,9 @@ export const dismissOn = (on: Dismissable): void => {
  * reaches it as a close request without a listener. What the platform does not
  * yet agree on is whether a press on the BACKDROP is a dismissal. `closedby`
  * says it declaratively — and Safari has no `closedby` at all, which is half
- * of this app's floor — so the attribute is set for the browsers that have it
+ * of this app's support floor (`@olai/appearance`'s `chrome.css` states it,
+ * and lists this fallback among the things waiting on the next bump) — so the
+ * attribute is set for the browsers that have it
  * and this carries the rest.
  *
  * Two details, both of them bugs the obvious version has:
@@ -238,30 +240,20 @@ export const lightDismiss = (dialog: HTMLDialogElement): void => {
  * (`dismiss_stack.feature`'s "…and to the palette over it").
  *
  * So the dialog claims the key where it is unambiguously its own: a BUBBLE
- * listener on the dialog itself. Everything inside has already had the event
- * — a completion list over the palette's box takes Escape at the target, as it
- * always did, and if it answers by preventing the default the dialog correctly
- * stays — and nothing outside hears it at all, which is the whole claim. The
- * default action is never touched here: the browser still routes the close
- * request to the topmost modal, which is the rule this is protecting rather
- * than replacing.
+ * listener on the dialog itself. Everything INSIDE has already had the event
+ * — a completion list over the panel's box takes Escape at the target, as it
+ * always did, and if it answers by preventing the default the dialog
+ * correctly stays — and nothing outside hears it at all, which is the whole
+ * claim. The default action is never touched here: the browser still routes
+ * the close request to the topmost modal, which is the rule this is
+ * protecting rather than replacing.
  */
-export const claimCloseRequest = (dialog: HTMLDialogElement, mine: Accessor<boolean>): void => {
+export const claimCloseRequest = (dialog: HTMLDialogElement): void => {
   const claim = (event: KeyboardEvent) => {
     if (event.key !== "Escape") return
-    if (mine()) {
-      // Nothing inside wants it: stop it here so no panel UNDER the modal
-      // spends it, and leave the default alone so the browser closes.
-      event.stopPropagation()
-      return
-    }
-    // A LAYER INSIDE IS ABOVE THIS DIALOG — a level's list, a completion, a
-    // menu the panel opened. It listens on the document, which is where this
-    // app's layers are required to listen (`./topmost.ts`), so the event has
-    // to carry on; what must not happen is the dialog closing underneath the
-    // one thing the key was for. Refusing the default is exactly that, and the
-    // next Escape finds the stack one shorter.
-    event.preventDefault()
+    // Stop it here so no panel UNDER the modal spends it, and leave the
+    // default alone so the browser closes the topmost dialog.
+    event.stopPropagation()
   }
   dialog.addEventListener("keydown", claim)
   onCleanup(() => dialog.removeEventListener("keydown", claim))
