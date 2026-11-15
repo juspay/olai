@@ -87,7 +87,7 @@ Both halves declare the same `name`, and it has to be the folder's own word. A h
 
 ## Knobs
 
-A server half may expose a `Config` schema exactly as a built row does. Give every field a decoding default and a description annotation, pass it as `config` to `definePlugin`, and `apply` receives the decoded object:
+A server half may expose a `Config` schema exactly as a built row does. Give every field a decoding default and a description annotation, pass it as `config` to `definePlugin`, and `apply` receives the decoded object. This one is the whole of `plugins/greeting/server.ts`:
 
 ```ts
 import { definePlugin } from "@olai/plugin-api"
@@ -100,8 +100,8 @@ const Config = Schema.Struct({
 })
 
 export default definePlugin({
-  name: "swatch", needs: [], config: Config,
-  apply: (config) => Effect.logInfo(`swatch tone: ${config.tone}`),
+  name: "greeting", needs: [], config: Config,
+  apply: (config) => Effect.logInfo(`greeting tone: ${config.tone}`),
 })
 ```
 
