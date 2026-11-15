@@ -59,7 +59,7 @@ retain their instances. Enabling it restores the scoped contributions.
 
 ## What waits on it
 
-Every plugin that could reach a conversation names one of the five doors this row stands behind:
+Every plugin that could reach a conversation names one of the six doors this row stands behind:
 
 | door | what it is | who names it |
 | --- | --- | --- |
@@ -67,6 +67,7 @@ Every plugin that could reach a conversation names one of the five doors this ro
 | `deliveries` | where a doorbell may ring | [kolu](kolu.md), [odu](odu.md), [mail](mail.md) |
 | `session-start` | what to ask this host when a conversation opens | kolu, odu |
 | `chat.seating` | the durable nodes, engines and sessions over one vault reading | xyne-spaces |
+| `chat.conversations` | starting a conversation, speaking into it, and which engines can be started | [vault-plugins](vault-plugins.md) |
 | `watching` | what a plugin that mirrors a conversation is told | [xyne-spaces](xyne-spaces.md) |
 
 In the browser, the row publishes its roster as `chat.state`. The static door
@@ -79,6 +80,28 @@ modules. The tabs row's `attention`
 component names it to put a dot on a tab whose page is a conversation that needs
 you, and a quieter one on a tab whose page holds something nobody has read. The
 door holds no live value.
+
+**Starting one, and speaking into it.** `chat.conversations`
+(`olai-plugin-chat/conversations`) is how a row that is not chat gets a
+conversation of its own: `open` runs the same three acts *New chat* runs — a
+node, a binding, a session — and sends a first message with the caller's own
+sentences riding under it on the `[olai] ` seam a node agent's contract already
+rides, said exactly once per conversation and never again on a reopened one.
+`say` speaks into a conversation that is already there, write-only and under
+the asking plugin's own name; it lands the way a doorbell's delivery does (an
+idle agent takes it as a turn, a working one at the turn boundary) and answers
+`false` where the node no longer has one. `engines` is what this machine can
+actually start, best first — empty on a serve with no installed engine, where
+`open` refuses in chat's own words. **There is no reading verb**, deliberately:
+a row may start a conversation and talk to it, never hold a copy of what it
+said.
+
+**And putting one beside the page.** `chat.dock` (`olai-plugin-chat/dock`) is
+two verbs — `open` a node's conversation into the seat on the right, and
+`desktop` for whether this viewport has a seat at all. It is offered by chat's
+`dock` *component*, not by the row, so a serve with no shell — content under
+another layout, a phone — holds a consumer `waiting` on the key rather than
+handing it a door that does nothing.
 
 **A standing is never told by movement alone.** The dot for an agent that is
 working or starting wears a ring as well as a pulse, because the pulse is the
