@@ -457,7 +457,12 @@ test("only the chunked menu names @kobalte/core's dropdown-menu", () => {
     "plugins/outlines/src/browser/menu/Confirm.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
     "plugins/outlines/src/browser/menu/Panel.tsx",
-    "plugins/tabs/src/Menu.tsx"
+    "plugins/tabs/src/Menu.tsx",
+    // The `•••` on a plugin's own page, behind the same `import()`: one page
+    // draws one of these and the overwhelmingly common visit presses the
+    // primary button and leaves, so the primitive stays off the first paint
+    // (that file's own header argues it).
+    "plugins/vault-plugins/src/browser/page/MorePanel.tsx"
   ])
 })
 
@@ -580,6 +585,9 @@ test("every dynamic import() the client spells takes a literal the bundler can r
     "plugins/kolu/src/appliance/props/LivePane.tsx",
     "plugins/outlines/src/browser/menu/chunk.ts",
     "plugins/tabs/src/chunk.ts",
+    // The plugin page's `•••` panel, lazily: a literal specifier the bundler
+    // reads and splits, which is the whole of what this claim asks.
+    "plugins/vault-plugins/src/browser/page/Verbs.tsx",
     "web/src/client/wire.ts"
   ])
 })
@@ -630,6 +638,10 @@ test("the stack is joined directly only where the gestures are not dismissOn's",
     "plugins/navigation/src/palette/Shortcuts.tsx",
     "plugins/outlines/src/browser/menu/Dropdown.tsx",
     "plugins/tabs/src/Menu.tsx",
+    // The plugin page's `•••`, which is the same Kobalte menu as the three
+    // above and takes its dismissal the same way: it is on the tab's one
+    // stack, so Escape over it shuts it and not whatever is under it.
+    "plugins/vault-plugins/src/browser/page/MorePanel.tsx",
     "web/src/client/dismiss.ts",
     "web/src/client/topmost.ts"
   ])
@@ -729,7 +741,14 @@ test("the motion preference is read in one file, and the smooth scroll it decide
 test("the app's never-ending animations are the two live cues", () => {
   expect(filesSpelling(/animate-(?:pulse|spin|ping|bounce)/)).toEqual([
     "plugins/chat/src/browser/agents/roster.ts",
-    "plugins/chat/src/browser/chat/live.ts"
+    "plugins/chat/src/browser/chat/live.ts",
+    // ...AND A THIRD, which owes the same answer and has it: the dot beside
+    // *Being built* on a plugin's page and in the sidebar's Plugins section.
+    // Held still it is a filled dot beside the words "Being built", which is
+    // the news; the pulse only says the files are still landing right now. It
+    // is the agent standings' arrangement one row over — a cue that is the
+    // second of two things rather than the only one.
+    "plugins/vault-plugins/src/browser/state.ts"
   ])
 })
 

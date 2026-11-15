@@ -35,6 +35,7 @@
 
 import { Key } from "@solid-primitives/keyed"
 import { DOT } from "@olai/web/client/readout.ts"
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { CHIP_ALARM, CHIP_QUIET } from "olai-plugin-layout/chip"
 import { ENTRY_SHAPE, HEAD_ACTION, REGION, REGION_HEAD, REGION_LABEL, ROW_GAP } from "olai-plugin-layout/entry"
 import type { BrowserManagement } from "@olai/surface/management"
@@ -83,18 +84,24 @@ export function Section(props: { readonly management: BrowserManagement }) {
           <h2 class={REGION_LABEL}>Plugins</h2>
           <Show when={palette()}>
             {(box) => (
-              <button
-                type="button"
-                class={HEAD_ACTION}
-                data-testid={TESTID.sectionNew}
-                aria-label="New plugin"
-                title="New plugin"
-                onClick={() => box().showAt([NEW_PLUGIN_ROW])}
-              >
-                <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M8 3.5v9M3.5 8h9" />
-                </svg>
-              </button>
+              // A TIP, NOT A `title=`. The DOM attribute of that name is a
+              // tooltip a touch screen never shows and a screen reader never
+              // reads, which is why this client sweeps it out of its faces
+              // (`@olai/web`'s `claims.test.ts`); the button's own
+              // `aria-label` carries the same words for everyone else.
+              <Tip text="New plugin">
+                <button
+                  type="button"
+                  class={HEAD_ACTION}
+                  data-testid={TESTID.sectionNew}
+                  aria-label="New plugin"
+                  onClick={() => box().showAt([NEW_PLUGIN_ROW])}
+                >
+                  <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M8 3.5v9M3.5 8h9" />
+                  </svg>
+                </button>
+              </Tip>
             )}
           </Show>
         </div>
@@ -136,7 +143,7 @@ function Row(props: { readonly plugin: Defined; readonly current: boolean }) {
   return (
     <a
       href={addressable() ? pluginPage.href({ word: props.plugin.name }) : undefined}
-      title={addressable() ? undefined : faultSaid(props.plugin)}
+      aria-description={addressable() ? undefined : faultSaid(props.plugin)}
       class={`${ENTRY_SHAPE} ${ROW_GAP} w-full text-left`}
       classList={{ "opacity-60": mark() === "quiet" }}
       data-testid={TESTID.sectionRow}

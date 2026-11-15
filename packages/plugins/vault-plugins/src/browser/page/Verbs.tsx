@@ -36,6 +36,7 @@
 
 import { createSignal, lazy, Show } from "solid-js"
 
+import { Tip } from "@olai/web/client/Tip.tsx"
 import { TESTID } from "../../testids.ts"
 import type { Defined, Stage } from "../state.ts"
 import type { MoreVerb } from "./MorePanel.tsx"
@@ -122,9 +123,15 @@ function Primary(props: { readonly plugin: Defined; readonly stage: Stage; reado
   return (
     <>
       <Show when={props.stage === "building"}>
-        <button type="button" class={QUIET} data-testid={TESTID.pageVerb} data-verb="stop" disabled={props.acts.busy()}
-          title="It won't start when it's finished. The conversation keeps its own Stop."
-          onClick={() => props.acts.stop()}>Stop</button>
+        {/* A TIP RATHER THAN A `title=`: the attribute is a tooltip a touch
+            screen never shows and a screen reader never reads, and this client
+            sweeps it out of its faces (`@olai/web`'s `claims.test.ts`). The
+            sentence matters here — Stop is about the PLUGIN, and the agent
+            writing it has a Stop of its own. */}
+        <Tip text="It won't start when it's finished. The conversation keeps its own Stop.">
+          <button type="button" class={QUIET} data-testid={TESTID.pageVerb} data-verb="stop" disabled={props.acts.busy()}
+            onClick={() => props.acts.stop()}>Stop</button>
+        </Tip>
       </Show>
       <Show when={props.stage === "review"}>
         <button type="button" class={PRIMARY} data-testid={TESTID.pageVerb} data-verb="turn-on" disabled={props.acts.busy()}

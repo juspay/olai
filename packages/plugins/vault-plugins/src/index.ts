@@ -19,9 +19,23 @@ export const chunks = serviceTag<{ readonly chunk: (path: string) => string | nu
  * something `WORD` refuses — a title of nothing but punctuation slugs to the
  * empty string — so the caller checks; what it cannot do is surprise the caller
  * with a shape neither of them expected.
+ *
+ * THE ENDS ARE TRIMMED BY INDEX AND NOT BY A SECOND PATTERN. `/^-+|-+$/` reads
+ * perfectly and is quadratic on the one input this function is actually given:
+ * a sentence a person typed, where a long run of punctuation becomes a long
+ * run of hyphens and the `-+$` arm then backtracks over it from every position
+ * (CodeQL's `js/polynomial-redos`, and it is right — this runs on each
+ * keystroke in the palette's name box). Two walks from the ends are linear and
+ * say the same thing.
  */
-export const slugOf = (title: string): string =>
-  title.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+export const slugOf = (title: string): string => {
+  const hyphenated = title.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-")
+  let from = 0
+  let to = hyphenated.length
+  while (from < to && hyphenated[from] === "-") from += 1
+  while (to > from && hyphenated[to - 1] === "-") to -= 1
+  return hyphenated.slice(from, to)
+}
 
 /** One definition, at one version, as the panel asks about it. */
 export interface ApprovalRequest {

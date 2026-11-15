@@ -46,6 +46,7 @@
 import { Markdown } from "@olai/markdown-ui/Markdown.tsx"
 import { PLUGIN_BROWSER_FILE, PLUGIN_README_FILE, PLUGIN_SERVER_FILE } from "@olai/surface"
 import type { BrowserManagement } from "@olai/surface/management"
+import { LAYER } from "@olai/web/client/layer.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { run } from "@olai/web/client/run.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
@@ -189,7 +190,7 @@ function Known(props: { readonly plugin: Defined; readonly management: BrowserMa
       </Show>
 
       <Show when={source().readme !== undefined && stage() !== "paused"}>
-        <Block title="What it does">
+        <Block heading="What it does">
           {/* THE README, RENDERED — the author's own prose through the app's
               own pipeline, never a second renderer and never raw text. */}
           <div data-testid={TESTID.pageReadme}>
@@ -199,14 +200,14 @@ function Known(props: { readonly plugin: Defined; readonly management: BrowserMa
       </Show>
 
       <Show when={stage() === "building"}>
-        <Block title="The code" note={source().folder}>
+        <Block heading="The code" note={source().folder}>
           <Landing source={source()} />
         </Block>
       </Show>
 
       <Show when={stage() === "on"}>
         <Show when={(props.plugin.configurationValues ?? []).length > 0}>
-          <Block title="Settings" note="Saved in Settings.olai, for everyone using this directory">
+          <Block heading="Settings" note="Saved in Settings.olai, for everyone using this directory">
             <div class="flex flex-wrap gap-4">
               <For each={props.plugin.configurationValues ?? []}>
                 {(value) => (
@@ -226,7 +227,7 @@ function Known(props: { readonly plugin: Defined; readonly management: BrowserMa
       <Ask acts={acts} builder={source().builder} />
 
       <Show when={(source().uses ?? []).length > 0}>
-        <Block title="What it uses" note={stage() === "paused" ? "unchanged" : undefined}>
+        <Block heading="What it uses" note={stage() === "paused" ? "unchanged" : undefined}>
           <ul class="m-0 flex list-none flex-col gap-1 p-0 text-label" data-testid={TESTID.pageUses}>
             <For each={source().uses ?? []}>
               {(use) => (
@@ -245,7 +246,7 @@ function Known(props: { readonly plugin: Defined; readonly management: BrowserMa
 
       <Show when={stage() !== "building"}>
         <Block
-          title={stage() === "paused" ? "What changed" : "The code"}
+          heading={stage() === "paused" ? "What changed" : "The code"}
           note={stage() === "paused" ? "since the version you turned on" : "Read it, or don't. It is all here."}
         >
           <Code source={source()} diffing={stage() === "paused"} />
@@ -255,7 +256,7 @@ function Known(props: { readonly plugin: Defined; readonly management: BrowserMa
       {/* THE PHONE'S FOOT: one decision, where a thumb is, with the standing
           sentence under it. */}
       <div
-        class={`sticky bottom-0 z-10 -mx-4 mt-8 flex flex-col gap-1 border-t border-line/60 bg-panel px-4 pt-3 ${CLEARANCE} md:hidden`}
+        class={`sticky bottom-0 ${LAYER.row} -mx-4 mt-8 flex flex-col gap-1 border-t border-line/60 bg-panel px-4 pt-3 ${CLEARANCE} md:hidden`}
         data-testid={TESTID.pageFoot}
       >
         <Verbs plugin={props.plugin} stage={stage()} acts={acts} />
@@ -353,12 +354,23 @@ const changedSaid = (plugin: Defined): string => {
   return `${total} ${total === 1 ? "line" : "lines"} changed${where}.`
 }
 
+/**
+ * THE SENTENCE OVER A PLUGIN THAT IS NOT RUNNING — amber for *paused*, red for
+ * *could not start*.
+ *
+ * NO `data-tone` ON IT, and that is this app's rule rather than an omission: a
+ * mood READ FROM A VALUE is `SaidLine`'s and nobody else's (`@olai/web`'s
+ * `claims.test.ts`), because four surfaces deciding for themselves what
+ * alarmed looks like and how it is announced is the drift that component
+ * ended. This is not one of those lines — it is a box with two skins — so what
+ * it carries is its testid, its skin, and the `role` the skin implies.
+ */
 function Banner(props: { readonly tone: "amber" | "red"; readonly testid: string; readonly children: unknown }) {
   return (
     <p
       class={`mt-4 rounded-control px-3 py-2 text-label ${props.tone === "red" ? "bg-alarm/10 text-alarm" : "bg-doing/10 text-ink"}`}
       data-testid={props.testid}
-      data-tone={props.tone}
+      role={props.tone === "red" ? "alert" : "status"}
     >
       {props.children as never}
     </p>
@@ -367,11 +379,19 @@ function Banner(props: { readonly tone: "amber" | "red"; readonly testid: string
 
 /** One section of the page: a heading, an optional aside in the heading, and
  *  whatever is under it. */
-function Block(props: { readonly title: string; readonly note?: string; readonly children: unknown }) {
+/** One section of the page: a heading, an optional aside in the heading, and
+ *  whatever is under it.
+ *
+ *  THE PROP IS `heading` AND NOT `title`, which is this client's own rule
+ *  rather than taste: `title=` in a face is swept repo-wide (`@olai/web`'s
+ *  `claims.test.ts`), because the DOM attribute of that name is a tooltip no
+ *  screen reader and no touch screen reaches — and a prop spelled the same way
+ *  is a file the sweep cannot tell apart from the mistake. */
+function Block(props: { readonly heading: string; readonly note?: string; readonly children: unknown }) {
   return (
     <section class="mt-6">
       <h2 class="m-0 flex flex-wrap items-baseline gap-2 text-body font-semibold">
-        {props.title}
+        {props.heading}
         <Show when={props.note}>{(note) => <small class="font-normal text-label text-muted">{note()}</small>}</Show>
       </h2>
       <div class="mt-2">{props.children as never}</div>
