@@ -70,7 +70,7 @@ import { newChat, chatLocations, type LocationQuery, type NewChatInput } from ".
 
 import { deliveryProvision } from "./server/deliveries.ts"
 import { conversationsProvision } from "./server/conversations.ts"
-import { CONVERSATIONS } from "./conversations.ts"
+import { Conversations } from "./conversations.ts"
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
@@ -862,7 +862,7 @@ export default definePlugin({
      * starts working when the chat does, which is the same bargain the surface
      * procedures make.
      */
-    yield* offers.own(CONVERSATIONS, conversationsProvision({
+    yield* offers.offer(Conversations, conversationsProvision({
       mint: (input) => withChat(open => mintConversation(open, input)).pipe(Effect.tap(() => published)),
       // THE FIRST MESSAGE, through `inConversation` exactly as a keystroke's
       // send is: the conversation it was opened for is named, so a session

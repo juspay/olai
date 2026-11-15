@@ -34,6 +34,7 @@ import {
   CHAT_DOCK,
   HYDRATION_TIMEOUT,
   PALETTE,
+  PALETTE_ASK_ERROR,
   PALETTE_INPUT,
   PALETTE_ITEM,
   PALETTE_SAID,
@@ -150,9 +151,15 @@ When("I accept the name", async function (this: OlaiWorld) {
  * and they can only do that if the box they typed into is still there.
  */
 Then("the new plugin level refuses with {string}", async function (this: OlaiWorld, said: string) {
-  const line = this.page.locator(PALETTE_SAID)
+  // THE PALETTE HAS TWO LINES AND A REFUSAL LANDS ON EITHER, which is its
+  // arrangement rather than this row's: a level's own `validate` refuses
+  // before anything is sent and lands on the ask line, while a refusal the
+  // SERVE answered comes back as what the submit said. A scenario about a
+  // refused name must not care which — what it is about is that the sentence
+  // reached the person with the box still in front of them.
+  const line = this.page.locator(`:is(${PALETTE_ASK_ERROR}, ${PALETTE_SAID})`)
   await this.waitUntil(
-    async () => (await line.innerText()).includes(said),
+    async () => (await line.allInnerTexts()).some((text) => text.includes(said)),
     `the level to refuse with ${JSON.stringify(said)}`,
   )
   await this.page.locator(PALETTE_INPUT).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
@@ -221,6 +228,13 @@ Then("the builder conversation for {string} is docked", async function (this: Ol
   const builder = consentOf(this, word)?.["builder"] as string
   await this.page.locator(`${CHAT_DOCK}${attr("data-agent", builder)}`)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  // ...AND IT IS THE CONVERSATION THE SUITE NOW ADDRESSES. Chat's own steps
+  // speak to the agent a scenario SELECTED, and every way to select one is a
+  // gesture a person makes on a chat surface — opening a fold, a page, the
+  // panel's picker. Landing here nobody made one: the dock was filled by the
+  // mint. Saying which conversation that was is what makes chat's vocabulary
+  // usable from a plugin's page.
+  this.activeAgent = builder
 })
 
 /** The one line of the preamble nothing else in this product says — enough to

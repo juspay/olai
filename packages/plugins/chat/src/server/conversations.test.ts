@@ -129,7 +129,10 @@ test("a refused mint fails the caller — there is no node to answer with", asyn
   })))
   expect(result._tag).toBe("Failure")
   if (result._tag !== "Failure") throw new Error("unreachable")
-  expect(result.failure.message).toContain("chat is off")
+  // NARROWED AT THIS EDGE, which is what every consumer of core's
+  // structurally-spelled refusal does: the door answers `{ _tag }` because
+  // `@olai/plugin-api` may not import the format, and this package does.
+  expect((result.failure as UsageFailure).message).toContain("chat is off")
 })
 
 test("say lands as the asking plugin, with its own activation riding the body", async () => {

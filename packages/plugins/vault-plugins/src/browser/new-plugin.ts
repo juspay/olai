@@ -168,7 +168,13 @@ const nameLevel = (minting: Minting, sentence: string, engine: string): PaletteV
     if (signal.aborted) return {}
     if (result._tag === "Failure") return { keepOpen: true, said: { tone: "alarm", text: result.failure.message } }
     minting.go(result.success.name)
-    return result.success.refusal === null ? {} : { said: { tone: "alarm", text: result.success.refusal } }
+    // THE FOLDER EXISTS, SO THE BOX IS DONE. A mint that could not start a
+    // builder — no chat on this serve, no agent on this machine, a start the
+    // engine refused — still made the plugin, and the PAGE says so in its own
+    // words with the folder in front of the reader. Keeping the level up over
+    // that page would say it twice and leave a box asking for a name that has
+    // already been taken.
+    return {}
   },
 })
 

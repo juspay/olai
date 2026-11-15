@@ -430,6 +430,75 @@ export interface Deliveries extends DeliveryDoor {}
 export const Deliveries = serviceTag<Deliveries>("deliveries")
 
 /**
+ * STARTING A CONVERSATION, AND SAYING SOMETHING INTO ONE — the door a row
+ * stands behind when it can run a chat, and the second of the two things core
+ * knows about conversations.
+ *
+ * {@link Deliveries} is speaking into one that already exists, which is a
+ * doorbell's whole need. This is the other half: a row that offers a person a
+ * BUTTON which brings a conversation into being — *New plugin*, today — and
+ * then hands it its first message with whatever the row needs the agent to
+ * know before it starts.
+ *
+ * ## `teach` RIDES THE PROVIDER'S OWN SEAM, and that is the point of it being
+ * here rather than a message the caller composes
+ *
+ * Whatever olai says to an agent beside a person's words is said in one lane,
+ * marked, and delivered once per conversation. A caller that composed a first
+ * message by hand would be a second channel with none of that — re-taught on
+ * every turn, unmarked, and put in the person's mouth on replay. So the lines
+ * are an input and the provider's teaching seam is what carries them.
+ *
+ * ## WRITE-ONLY, like the delivery door beside it
+ *
+ * There is no read of a transcript on this type and no arm where one could be
+ * added without saying so. A row may create a conversation and may speak into
+ * one; it can never learn what is in one.
+ */
+export interface Conversations {
+  /** Mint a conversation, start it on `engine`, and send `say` as its first
+   *  message with `teach` riding the provider's teaching seam. The node comes
+   *  back even when the start refuses, because a conversation that exists and
+   *  has not begun is something a person can open later. */
+  readonly open: (input: {
+    readonly parent: string | null
+    readonly title: string
+    readonly engine: string
+    readonly say: string
+    readonly teach: ReadonlyArray<string>
+  }) => Effect.Effect<{ readonly node: string; readonly refusal: string | null }, Refusal>
+  /** Say something into the conversation seated on `node`. `false` is one of
+   *  three ordinary absences: no such node, no conversation on it, or a roster
+   *  that moved between a draw and a press. */
+  readonly say: (input: { readonly node: string; readonly text: string }) => Effect.Effect<boolean>
+  /** The engines this machine can actually start, best first. */
+  readonly engines: () => ReadonlyArray<{ readonly id: string; readonly name: string }>
+}
+export const Conversations = serviceTag<Conversations>("conversations")
+
+/**
+ * ...AND CORE'S NARROW BROKER OVER IT, which is the whole reason a row can
+ * offer a person a *New plugin* button on a serve with no chat at all.
+ *
+ * {@link ConfigurationWatch}'s arrangement, one door over, for the reason that
+ * one gives and the `HostServices` paragraph above states as a rule: a row that
+ * named {@link Conversations} directly would go `waiting` with chat switched
+ * off — and a row's report folds its components, so a COMPONENT naming it does
+ * the same to the whole row. For a plugin whose conversations are an optional
+ * half of one feature that is the wrong answer twice over: the row leaves the
+ * roster, the tab stops loading its chunk, and a page that had nothing to do
+ * with chat goes with it.
+ *
+ * `undefined` is the absence, and every consumer draws its own arm for it —
+ * here, a folder that is minted with nobody building it and a page that says
+ * so. Read PER CALL, because the roster moves under a standing reader.
+ */
+export interface ConversationsWatch {
+  readonly current: () => Conversations | undefined
+}
+export const ConversationsWatch = serviceTag<ConversationsWatch>("conversations-watch")
+
+/**
  * WHAT THE PLUGINS TEACH THE VAULT'S VOCABULARY — a table the format takes as
  * data and never imports.
  *
@@ -1243,6 +1312,7 @@ export interface Offers extends OwnServices {
   /** Stand behind one door, for as long as the calling plugin is loaded. */
   readonly offer: {
     (key: typeof ConfigurationSource, door: Provision<ConfigurationSource>): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof Conversations, door: Provision<Conversations>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof VaultSettings, door: Provision<VaultSettings>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Ops, door: Provision<Ops>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Vault, door: Provision<Vault>): Effect.Effect<void, never, Scope.Scope>
@@ -1425,6 +1495,7 @@ export const Ops = serviceTag<Ops>("ops")
 
 export const OFFERABLE = [
   ConfigurationSource,
+  Conversations,
   VaultSettings,
   VaultViews,
   Ops,
@@ -1814,6 +1885,14 @@ export const openPlugins = (
         source === undefined ? Stream.succeed(undefined) : source.changes),
     }))
 
+    // ...AND THE CONVERSATION BROKER, for the same reason one door over: a row
+    // that can ask an agent to build something must still stand up on a serve
+    // with no chat, and both a `needs` and a component would take it out of the
+    // roster when there is none ({@link ConversationsWatch}).
+    yield* provide(host, ConversationsWatch, (plugin) => ({
+      current: () => readOffered(host, Conversations, plugin),
+    }))
+
     // ...AND ONE LOCAL-STATE DOOR PER PLUGIN NAME, not per activation. The write chain
     // that orders a plugin's saves lives on the door, and this provision runs
     // once per ACTIVATION — so a plugin that unloads and comes back used to get a
@@ -1920,6 +1999,7 @@ export const SERVICES = [
   BundleModules,
   Served,
   ConfigurationWatch,
+  ConversationsWatch,
   VaultViews,
   VaultSettings,
   Env,

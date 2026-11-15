@@ -29,7 +29,7 @@ import { openDynamic, RESERVED } from "./runtime.ts"
 import { pluginChunks } from "./route.ts"
 import { claim } from "./claim.ts"
 import { GUIDE } from "./guide.ts"
-import { builderDoor, conversations, holdConversations } from "./builder.ts"
+import { ConversationsWatch } from "./builder.ts"
 import { APPROVED_KEY, isApproved, ON_KEY, versionOf, WORD } from "./source.ts"
 export { name } from "./index.ts"
 
@@ -76,12 +76,17 @@ const preambleFor = (word: string, title: string): ReadonlyArray<string> => [
 ]
 
 export default definePlugin({
-  name, needs: [HostLoading, Ops, Offers, Surfaces, Vault, BundleModules, FileKinds],
+  name, needs: [HostLoading, Ops, Offers, Surfaces, Vault, BundleModules, FileKinds, ConversationsWatch],
   apply: Effect.gen(function*() {
     const moduleCatalog = yield* (yield* BundleModules).read
     const describedSlots = slotCatalog(moduleCatalog.map(module => module.exports))
     const loading = yield* HostLoading
     const gate = (yield* Ops).gate as Gate
+    // THE CONVERSATION DOOR, READ PER CALL rather than held: the broker is
+    // core's and is always there, and what stands behind it comes and goes
+    // with the chat row (`./builder.ts` argues why this is a broker and not
+    // a component).
+    const builders = yield* ConversationsWatch
     // THE CLAIM FIRST, because nothing below can see a plugin until `.ts` under
     // `plugins/` is a kind of file this serve holds. It leaves with this row:
     // switch vault-plugins off and the halves stop being in the set, which is
@@ -164,7 +169,7 @@ export default definePlugin({
           }, "web")
           yield* followed(yield* Effect.catch(gate.read, () => Effect.succeed(null)))
           const address = `/plugins/${word}`
-          const chat = builderDoor()
+          const chat = builders.current()
           if (chat === undefined) {
             return { name: word, address, builder: null,
               refusal: "No agent is available on this serve, so nobody is building it. The folder is "
@@ -178,13 +183,21 @@ export default definePlugin({
               refusal: "No agent is set up on this machine, so nobody is building it. The folder is "
                 + "there and you can write the files yourself." }
           }
-          const started = yield* chat.open({
-            parent: null,
-            title,
-            engine,
-            say: sentence === "" ? `Build a plugin called ${title}.` : sentence,
-            teach: preambleFor(word, title),
-          })
+          // THE REFUSAL IS NARROWED HERE, once, and this is the edge the
+          // structural spelling is for: core's door answers `{ _tag }` because
+          // `@olai/plugin-api` may not import the format, and this row does —
+          // so a failure chat produced is one of the gate's own, with the
+          // sentence a person reads already on it.
+          const started = yield* Effect.catch(
+            chat.open({
+              parent: null,
+              title,
+              engine,
+              say: sentence === "" ? `Build a plugin called ${title}.` : sentence,
+              teach: preambleFor(word, title),
+            }),
+            (refusal) => Effect.fail(refusal as UsageFailure),
+          )
           yield* dynamic.bind(word, started.node)
           return { name: word, address, builder: started.node, refusal: started.refusal }
         }),
@@ -192,7 +205,7 @@ export default definePlugin({
       ask: ({ input }) =>
         Effect.gen(function*() {
           const one = yield* lookingAt(input.name)
-          const chat = builderDoor()
+          const chat = builders.current()
           if (chat === undefined || one.builder === null) return { builder: null }
           const row = dynamic.rows(yield* loading.reports).find(row => row.name === input.name)
           const fault = one.fault ?? row?.fault ?? null
@@ -315,16 +328,6 @@ export default definePlugin({
 export const components = {
   http: definePlugin({ name: "http", needs: [chunks, TransportSurface], apply: Effect.gen(function*() {
     yield* (yield* TransportSurface).register({ passive: true, routes: pluginChunks(yield* chunks) })
-  }) }),
-  /**
-   * THE BUILDER'S DOOR, on a component of its own — see `./builder.ts` for why
-   * this is a component and not a `needs` on the row. With chat off this one
-   * waits, naming `chat.conversations`, and every other thing this row does
-   * goes on working.
-   */
-  builder: definePlugin({ name: "builder", needs: [conversations], apply: Effect.gen(function*() {
-    const door = yield* conversations
-    yield* Effect.acquireRelease(Effect.sync(() => holdConversations(door)), stop => Effect.sync(stop))
   }) }),
 }
 

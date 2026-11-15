@@ -14,7 +14,6 @@
   },
   "chat": {
     "src/browser.tsx": 1,
-    "src/builder.ts": 1,
     "src/server.ts": 7
   },
   "files": {
