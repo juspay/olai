@@ -18,6 +18,9 @@ import {
   sentenceOf,
   NEEDS_YOU,
   pluginConfig,
+  pluginFolder,
+  pluginPage,
+  pluginPageLabel,
   pluginConfirm,
   pluginGroups,
   pluginRows,
@@ -436,10 +439,12 @@ test("vault-defined plugins are Your plugins; pending ones are Needs attention",
     running: state === "running",
     state,
     source: {
-      node: name,
-      file: "plugins.olai",
+      folder: `plugins/${name}/`,
+      title: name,
+      description: "",
       version: "v",
       approved: state === "running",
+      on: true,
       server: "export {}",
     },
   })
@@ -523,9 +528,37 @@ test("a row reads the build's label; vault-defined rows and unlabelled rows read
   const defined: BuiltPlugin = {
     name: "local-tool",
     running: true,
-    source: { node: "n", file: "plugins.olai", version: "v", approved: true, server: "export {}" },
+    source: {
+      folder: "plugins/local-tool/", title: "Local tool", description: "", version: "v",
+      approved: true, on: true, server: "export {}",
+    },
   }
   expect(displayName(defined, { label: "Ignored" })).toBe("local-tool")
+})
+
+/**
+ * THE FOLDER AND THE PAGE ARE ONE FACT. A row the build has has neither, and
+ * the reading that draws the link is the reading that decides whether there is
+ * one — so the panel cannot reach an address it invented for a row with no
+ * source.
+ */
+test("a vault row says its folder and the address of its page; a built row says neither", () => {
+  const built: BuiltPlugin = { name: "claude", running: true }
+  expect(pluginPage(built)).toBeUndefined()
+  expect(pluginFolder(built)).toBeUndefined()
+  const defined: BuiltPlugin = {
+    name: "hex-swatch",
+    running: true,
+    source: {
+      folder: "plugins/hex-swatch/", title: "Hex swatch", description: "A colour chip in the margin.",
+      version: "v1", approved: true, on: true, server: "export {}",
+    },
+  }
+  // The trailing slash is a path's and the leading one is an address's; the
+  // word between them is the folder's, never spelled here.
+  expect(pluginFolder(defined)).toBe("plugins/hex-swatch/")
+  expect(pluginPage(defined)).toBe("/plugins/hex-swatch")
+  expect(pluginPageLabel).toBe("Open its page")
 })
 
 /**

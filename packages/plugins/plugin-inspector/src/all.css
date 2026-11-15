@@ -81,7 +81,11 @@ details[open] > summary > .plugins-chevron, .plugins-row[data-open] > .plugins-l
 .plugins-env { display: flex; flex-direction: column; gap: 1px; }
 .plugins-env-key { color: var(--color-muted); font-size: var(--text-caption); }
 .plugins-link { font-size: var(--text-label); color: var(--color-accent); }
-.plugins-link a:hover { text-decoration: underline; }
+/* Two shapes wear this: a SPAN around the app's own `File` link, and a plain
+   `<a>` the row draws itself for a plugin's page. Both underline on hover, so
+   the rule names the anchor either way rather than assuming the wrapper. */
+.plugins-link a:hover, a.plugins-link:hover { text-decoration: underline; }
+a.plugins-link code { color: inherit; }
 
 .prototype-switch[data-session]::before { content: ""; position: absolute; inset: -3px; border: 1px dashed var(--color-muted); border-radius: 9999px; }
 .plugins-knob { display: inline-flex; flex-direction: column; min-width: 0; max-width: 100%; font-size: var(--text-label); }

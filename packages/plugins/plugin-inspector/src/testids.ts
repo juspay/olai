@@ -24,6 +24,8 @@ export const TESTID = {
   pluginsApprove: "plugins-approve",
   pluginsApproveAlways: "plugins-approve-always",
   pluginsMoved: "plugins-moved",
+  /** The way from a vault plugin's row to the page that is that plugin. */
+  pluginsPage: "plugins-page",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

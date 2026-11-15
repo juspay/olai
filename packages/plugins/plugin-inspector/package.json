@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "//exports": "`./control` is a BROWSER-ONLY contract: one settings knob and the pure readings it draws from, for the page a plugin the vault defines has of its own. It is not `./contract`, because that door is one a server graph may open and this one mounts Solid.",
   "exports": {
     ".": "./src/index.ts",
     "./browser": "./src/browser.tsx",
     "./contract": "./src/index.ts",
+    "./control": "./src/contracts/control.ts",
     "./all.css": "./src/all.css",
     "./testids": "./src/testids.ts",
     "./slots": "./src/slots.ts"
@@ -29,6 +31,7 @@
   },
   "olai": {
     "contracts": [
+      "./control",
       "./slots",
       "./testids"
     ]

@@ -12,6 +12,7 @@ import type { BuiltPlugin, PluginRoster } from "@olai/surface"
 import { pluginState } from "@olai/surface"
 import type { PluginLook } from "@olai/surface/management"
 import type { PreferencesPanel } from "olai-plugin-preferences/contract"
+import { rowValues, type PolicyReading } from "./contracts/knobs.ts"
 
 /** The rows to draw, in the order the build lists its plugins. A build with no
  *  plugins, and a page that has not heard from the server yet, both draw none —
@@ -68,18 +69,6 @@ export const pluginSwitch = (
   value: plugin.running ? "on" : "off",
   frozen: flipping,
 })
-
-/**
- * THE ROW'S CONFIG, as pairs core can draw without knowing any plugin's
- * words. Empty when the row has none — the panel draws nothing extra.
- */
-export const pluginConfig = (
-  plugin: BuiltPlugin,
-): ReadonlyArray<readonly [string, string]> => {
-  const config = plugin.config
-  if (config === undefined) return []
-  return Object.entries(config).map(([key, value]) => [key, typeof value === "object" && value !== null ? JSON.stringify(value) : String(value)] as const)
-}
 
 /** One component of a running row that is stuck in this tab — `component` is
  *  the part after the row's name (`shell/palette` → `palette`), or `undefined`
@@ -249,6 +238,46 @@ export const NEEDS_YOU = "Needs attention"
 export const displayName = (plugin: BuiltPlugin, look: PluginLook = {}): string =>
   plugin.source === undefined ? look.label ?? plugin.name : plugin.name
 
+/**
+ * WHERE A PLUGIN THE VAULT DEFINES LIVES, as the two things a row can say about
+ * it: the folder it IS, and the address of the page that draws that folder.
+ *
+ * ## The address is DERIVED from the folder, because they are the same place
+ *
+ * `plugins/hex-swatch/` and `/plugins/hex-swatch` are one fact spelled for two
+ * audiences — a path somebody can open in their editor, and an address this app
+ * can route. Spelling the second one independently here would be this package
+ * holding a copy of another row's route grammar, and a copy that agreed with it
+ * right up until the day somebody moved the page: the panel would go on drawing
+ * a link to an address nothing claims, which is a dead link no type can catch.
+ * So the folder the ROSTER carries is the single input, and the only thing this
+ * function adds is the leading slash a route needs and the trailing one a path
+ * has (`@olai/surface`'s `BuiltPlugin.source.folder`, whose own note says the
+ * slash is part of it).
+ *
+ * ## It answers `undefined` for a built row, and that is the whole guard
+ *
+ * A row compiled into this build has no folder and no page — there is nothing
+ * to draw and no address to invent — so the reading that decides whether to
+ * draw the link is the same one that produces it. A panel that asked "is this a
+ * vault plugin?" in one place and built the href in another would be two
+ * answers to one question, and the second one would be reachable with no
+ * source.
+ */
+export const pluginPage = (plugin: BuiltPlugin): string | undefined =>
+  plugin.source === undefined ? undefined : `/${plugin.source.folder.replace(/\/+$/, "")}`
+
+/** THE FOLDER, as a person reads it — the roster's own spelling, trailing slash
+ *  and all, because what this says is *there is a directory here* and a path
+ *  without one reads like a file. */
+export const pluginFolder = (plugin: BuiltPlugin): string | undefined => plugin.source?.folder
+
+/** The sentence over the link to a plugin's page. It names the PAGE rather than
+ *  the plugin, because the plugin's own name is already the row this link sits
+ *  in, and a link that repeated it would say the word twice to a reader hearing
+ *  the row read out. */
+export const pluginPageLabel = "Open its page"
+
 /** A group whose every row is off by the BUILD's own default — maintained test
  *  fixtures nobody asked for — is not listed at all. It reappears the moment
  *  one of its rows is switched on (a test serve selecting it), so nothing a
@@ -373,15 +402,26 @@ export const groupCount = (rows: ReadonlyArray<BuiltPlugin>): string => {
 export const environmentVisible = (one: EnvironmentReading): boolean =>
   one.kind !== "resource" || one.source !== "wrapper"
 
-export type PolicyReading = NonNullable<BuiltPlugin["configurationValues"]>[number]
-export const labelOf = (key: string): string => {
-  const words = key.replace(/[.-]/g, " ")
-  return words.charAt(0).toUpperCase() + words.slice(1)
-}
-export const controlOf = (value: PolicyReading | EnvironmentReading) => "control" in value ? value.control : undefined
+/** THE KNOB READINGS, defined one directory over and re-exported here.
+ *
+ *  They were defined in this file, and the panel's own files still import them
+ *  from it. What moved is where they are DEFINED, not where they are read:
+ *  another package draws a knob now, and a door onto this file would be a door
+ *  onto the panel's whole walk (`./contracts/control.ts`). */
+export {
+  configurationAuthored,
+  controlOf,
+  knobAuthored,
+  knobLabel,
+  knobUnit,
+  knobWidth,
+  labelOf,
+  pluginConfig,
+  rowValues,
+  type PolicyReading,
+} from "./contracts/knobs.ts"
 export const enableLabel = (name: string): string => `Enable ${name}`
 
-export const configurationAuthored = `set in ${CONFIGURATION_FILE.split("/").pop()}`
 export const configurationLinkLabel = `Open in ${CONFIGURATION_FILE.split("/").pop()}`
 /** ONE LINK REPLACES A PROMOTED LEAF'S CONTROL, where the panel that drew it
  *  is up. The words say where the setting went, not what the control does. */
@@ -395,22 +435,6 @@ export const sentenceOf = (said: string): string => said.charAt(0).toUpperCase()
 export const environmentValue = (one: EnvironmentReading): string =>
   one.kind === "secret" ? (one.set ? "set" : "unset") : (one.value ?? "unset")
 
-/** Compact spelling is derived from the leaf, never a plugin-specific table. */
-export const knobLabel = (key: string): string => key.split(".").at(-1)!.split("-")[0]!.toLowerCase()
-export const knobUnit = (key: string): string | undefined => {
-  const suffix = key.split("-").at(-1)!
-  return ["ms", "seconds", "minutes", "bytes"].includes(suffix) ? suffix : undefined
-}
-export const knobWidth = (value: PolicyReading): string => value.control?.kind === "number" ? "9ch"
-  : /(?:header|template)$/.test(value.key) ? "22ch" : "6ch"
-export const knobAuthored = (value: PolicyReading): boolean => value.setBy !== "default"
-
-/** WHAT A ROW'S SETTINGS ARE, read in one place: the reader's published values
- *  where a serve has them, and the build-patch pairs the row carries where it
- *  has not — an older serve publishes no `configurationValues`, and its rows
- *  still draw their `config`. */
-export const rowValues = (plugin: BuiltPlugin): ReadonlyArray<PolicyReading> =>
-  plugin.configurationValues ?? pluginConfig(plugin).map(([key, value]) => ({ key, value, setBy: "default" as const, says: "" }))
 
 /** WHAT THIS ROW PROMOTED — the leaves its declaration marked as preferences
  *  (`@olai/plugin-api/configuration`'s `preference`). Empty on every row that
