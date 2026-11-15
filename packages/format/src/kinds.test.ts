@@ -92,13 +92,39 @@ test("no kind's suffix ends in another kind's, so the table's order decides noth
 // Every registered kind is CLAIMED by the function that reads the table — the
 // round trip, so an entry that is in the table and answered for by nothing is a
 // failure here rather than a file the sidebar lists and no page can open.
+//
+// A SCOPED CLAIM IS ASKED WHERE IT APPLIES, which is the whole of what a scope
+// is: `.ts` under `plugins/` is a plugin's half and `.ts` anywhere else is
+// somebody's checkout, so the round trip has to name a path inside the scope
+// for those and the case below is what holds the other half of it.
 test("every kind in the registry claims a file named for it", () => {
   for (const [kind, claim] of ENTRIES) {
     // EVERY suffix of it, not just the first: a kind with more than one
     // spelling is a kind with more than one way to be missed.
     for (const ext of claim.exts) {
-      expect({ kind, ext, claims: fileKind(TEST_CLAIMS, `a/b/thing${ext}`) })
+      const path = `${claim.under ?? ""}a/b/thing${ext}`
+      expect({ kind, ext, claims: fileKind(TEST_CLAIMS, path) })
         .toEqual({ kind, ext, claims: kind })
+    }
+  }
+})
+
+// ...AND A SCOPED CLAIM CLAIMS NOTHING OUTSIDE ITS SCOPE, which is the reason
+// the scope exists: a vault with a checkout in it is full of `.ts`, and a bare
+// suffix claim would put every one of them in the set, in the revision's
+// memory and in the sidebar's Reference tree.
+test("a scoped claim reaches inside its folder and nowhere else", () => {
+  for (const [kind, claim] of ENTRIES) {
+    if (claim.under === undefined) continue
+    for (const ext of claim.exts) {
+      expect({ kind, ext, inside: fileKind(TEST_CLAIMS, `${claim.under}one/half${ext}`) })
+        .toEqual({ kind, ext, inside: kind })
+      expect({ kind, ext, outside: fileKind(TEST_CLAIMS, `src/index${ext}`) })
+        .toEqual({ kind, ext, outside: null })
+      // ...and a path that merely CONTAINS the folder's name deeper down is
+      // outside it: the scope is a prefix of the path from the served root.
+      expect({ kind, ext, nested: fileKind(TEST_CLAIMS, `app/${claim.under}one/half${ext}`) })
+        .toEqual({ kind, ext, nested: null })
     }
   }
 })

@@ -1,9 +1,11 @@
 import { Clock, definePlugin, Deliveries, serviceTag, Vault } from "@olai/plugin-api"
 import { Effect, Schedule } from "effect"
 
-// WHEN, and HOW OFTEN THIS LOOKS. The source is the configuration — a plugin a
-// vault defines has no settings file — so changing either is an edit, and an
-// edit is a fresh approval.
+// WHEN, and HOW OFTEN THIS LOOKS. Kept in the source rather than in a `Config`,
+// which is a choice and not an oversight: a knob is a thing the owner can move
+// without reading code again, and the hour somebody wants their morning at is
+// exactly that. Left here, changing either is an EDIT — and an edit is a fresh
+// approval.
 //
 // THE HOUR IS THE SERVER'S OWN, which is the machine olai is serving from and
 // not the machine you are reading on: `Clock` answers an instant and `Date`

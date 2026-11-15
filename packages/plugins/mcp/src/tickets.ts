@@ -19,19 +19,18 @@ import type { Reading } from "./live-client.ts"
  * Phase 12 draws its boundary on a surface member: `plugins.approve` is on the
  * BROWSER face and no other, and `faces.test.ts` pins that as an exact set. But
  * the STATE that member guards is an ordinary custom property on an ordinary
- * node — `approved`, recorded in the vault so it travels with it and is in the
- * ledger like the source (the ruling, 2026-09-05) — and `set_prop` writes any
- * custom key that is not spelled like a field. A node agent's door writes the
- * vault, and the plugin an agent defines is a node the agent can otherwise
- * edit. So:
+ * node — `approved`, on the plugin's own row in `_olai/Settings.olai`, where
+ * every other row's consent already lives — and `set_prop` writes any custom
+ * key that is not spelled like a field. A node agent's door writes the vault,
+ * and the settings file is a file in it. So:
  *
- *     set_prop {"id": "<its own plugin node>", "key": "approved", "value": "always"}
+ *     set_prop {"id": "<the plugin's settings node>", "key": "approved", "value": "always"}
  *
  * is a legal write through a door the agent already held, the revision
- * publishes, `isApproved` reads true, and the plugin mounts with the process's
- * authority having been read by nobody. The verb was closed and the fact was
- * not: the boundary was drawn on one member of a face and reached around
- * through another.
+ * publishes, the approval reads true, and code an agent wrote mounts with the
+ * process's authority having been read by nobody. The verb was closed and the
+ * fact was not: the boundary was drawn on one member of a face and reached
+ * around through another.
  *
  * ## Why it is closed HERE
  *
@@ -44,11 +43,12 @@ import type { Reading } from "./live-client.ts"
  * half carrying the clause its own author wrote.
  *
  * IT IS EVERY NODE AND NOT ONLY A PLUGIN'S, deliberately. An agent that could
- * write `approved` onto a node that is not yet a plugin could write the two
- * halves afterwards and be approved from the first revision it was one — so a
- * rule that asked "is this node a plugin right now" would be a rule about the
- * order of two writes. The word is core's under phase 12 ([docs/dynamic-plugins.md]),
- * and a word core claims is one a session's door does not write.
+ * write `approved` onto a node nothing reads yet could write the folder
+ * afterwards and be approved from the first revision it was a plugin — so a
+ * rule that asked "is this the settings node of a plugin right now" would be a
+ * rule about the order of two writes. The word is core's
+ * ([docs/dynamic-plugins.md]), and a word core claims is one a session's door
+ * does not write.
  *
  * A PERSON'S face is untouched: `plugins.approve` runs under this runtime's own
  * writer with no session rule at all, which is the same shape a keystroke has.

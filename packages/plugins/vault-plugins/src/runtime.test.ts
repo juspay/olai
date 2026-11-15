@@ -72,14 +72,17 @@ const vault = (options: {
   const files = new Map<string, string>([[`plugins/${word}/server.ts`, options.server ?? SERVER]])
   if (options.browser != null) files.set(`plugins/${word}/browser.tsx`, options.browser)
   if (options.readme !== undefined) files.set(`plugins/${word}/README.md`, options.readme)
+  // THE SETTINGS ROW EXISTS even when it says nothing, because that is the
+  // ordinary state of a vault somebody has opened the settings file in: the
+  // node is there and the words a person has not said yet are absent from it.
+  // A folder with NO row at all is its own case, and it is written out by hand
+  // where it is the subject.
   const custom = {
     ...(options.approved == null ? {} : { approved: options.approved }),
     ...(options.on === false ? { on: "no" } : options.approved == null && options.on !== true ? {} : { on: "yes" }),
     ...options.props,
   }
-  if (Object.keys(custom).length > 0) {
-    files.set("_olai/Settings.olai", `{"id":"c","ord":"a0","title":"${word}","custom":${JSON.stringify(custom)}}`)
-  }
+  files.set("_olai/Settings.olai", `{"id":"c","ord":"a0","title":"${word}","custom":${JSON.stringify(custom)}}`)
   return readingOfVault(files)
 }
 

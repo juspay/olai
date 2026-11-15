@@ -16,7 +16,7 @@
  * A test that held its own copy of the example would have compiled that copy
  * happily while the doc went on saying something else. So the fenced blocks are
  * READ, from the file a person reads, and put through `buildHalf` — the same
- * call `./runtime.ts` makes on a note in somebody's vault.
+ * call `./runtime.ts` makes on a file in somebody's vault.
  *
  * ## What this does and does not prove
  *
