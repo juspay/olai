@@ -13,7 +13,7 @@ olai serves a directory of outlines and Markdown files as a web app that people 
 | [chat.md](chat.md) | The chat agent: which agents olai finds, binding a conversation to a node, ACP adapter overrides, node tools, pictures, and how a conversation wakes. |
 | [live-properties.md](live-properties.md) | Properties whose value updates on its own, how a plugin turns one on, and the two shapes a live face takes. |
 | [format.md](format.md) | The file format: record shapes, fields, status, references, days, the pinned shelf, which file types are served, and merge safety. |
-| [dynamic-plugins.md](dynamic-plugins.md) | Writing a plugin into the served directory itself: the definition shape, allowed imports, approval, and worked examples. |
+| [dynamic-plugins.md](dynamic-plugins.md) | Asking for a plugin, and writing one: the folder under `plugins/`, the three files, where consent lives, allowed imports, approval, and worked examples. |
 
 
 ## Plugins
@@ -44,7 +44,7 @@ The five ACP agents the chat panel can run. What a conversation is, for all of t
 | [plugins/identity.md](plugins/identity.md) | Who is looking: trusted header names and the `captured-by` chip. |
 | [plugins/git.md](plugins/git.md) | The commit ledger and its `commit` / `push` policy. |
 | [plugins/search.md](plugins/search.md) | The query matcher, and what still works when it is switched off. |
-| [plugins/vault-plugins.md](plugins/vault-plugins.md) | Discovery, approval, and activation of plugins defined in the vault. |
+| [plugins/vault-plugins.md](plugins/vault-plugins.md) | Discovery, approval, and activation of the plugin folders a vault holds. |
 
 ### Integrations
 

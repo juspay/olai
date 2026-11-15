@@ -1,45 +1,65 @@
 # Plugins the vault defines
 
-Everything else under `docs/plugins/` is a plugin olai was built with. This page is about the other kind: a plugin somebody writes **into the directory olai is serving**, usually a node agent, which olai compiles and mounts while it is running.
+Everything else under `docs/plugins/` is a plugin olai was built with. This page is about the other kind: a plugin somebody writes **into the directory olai is serving**, usually a node agent asked for it by its owner, which olai compiles and mounts while it is running.
 
-A plugin like that is an ordinary row once it is up. It has the same seven states on the plugins panel, the same containment when its `apply` throws, the same switch, and the same reach into the app as `kolu` or `journal` — a property kind, a chip on a row, a pane its press opens, a sibling on the wire. What differs is where it came from and that **a person has to say yes to it first**.
+A plugin like that is an ordinary row once it is up. It has the same seven states, the same containment when its `apply` throws, the same switch, and the same reach into the app as `kolu` or `journal` — a property kind, a chip on a row, a pane its press opens, a sibling on the wire. What differs is where it came from, that it has **a page of its own** rather than a line on a panel, and that **a person has to say yes to it first**.
 
-## The shape of a definition
+## What a person does
 
-A plugin is a node with a `plugin` property, and two children:
+Nobody is asked about halves, slots, service keys or a word grammar. The whole of it is five gestures:
+
+1. **⌘K → New plugin**, and say in one sentence what it should do. The same two-level palette shape **New chat** already has, so there is nothing new to learn.
+2. **Name it.** olai suggests a name from the sentence; the folder it is kept in is that name slugged, and the level says so — *Kept in your vault as `plugins/hex-swatch/`*.
+3. **Watch.** The press lands on the plugin's own page at `/plugins/<word>`, with the conversation that is building it docked beside. The page fills in as the three files land. It is an ordinary chat, under **Chats** in the sidebar: close the panel, come back tomorrow, and an alert says when the builder wants you.
+4. **Turn on.** One button, on the page, with what the plugin does, what it uses and its source under it. That press is the approval *and* the switch, and the faces appear with no reload.
+5. It is in the **Plugins** section of the sidebar from then on, beside Chats and Outlines. A vault with no plugins has no such section.
+
+Three verbs are a person's and no agent has any of them: **Turn on** (which approves exactly the version on the screen and sets the switch), **Always trust changes** (under `•••`, for a plugin somebody is iterating on), and the switch itself.
+
+<!-- guide:start -->
+## The folder
+
+A plugin the vault defines is a **folder** under `plugins/`, and the folder's name is the plugin's word:
 
 ```
-A swatch for hex colours          plugin: swatch
-├── server.ts                     ← the server half, in the node's note
-└── browser.tsx                   ← the browser half, in the node's note
+plugins/hex-swatch/
+  README.md     what it does, for a person
+  server.ts     required
+  browser.tsx   optional
 ```
 
-- the `plugin` property's **value is the plugin's word** — the row's name, the key its wire members are composed under, the word the panel draws. It is the property rather than the title because a title is prose somebody renames, and a row's identity is not.
-- the two halves are **notes** on child nodes titled `server.ts` and `browser.tsx`. A note is markdown stored verbatim with embedded newlines, so a whole file lives in one comfortably.
-- `browser.tsx` is optional. A plugin that only teaches the vault a property kind, or only rings a doorbell, is a whole plugin.
-- any other child is ordinary outline content — notes about the plugin, a to-do — and is passed over.
+- **The word** is the folder's name — the row's id, the key its wire members are composed under, the word the page and the sidebar draw. It takes the same shape a built row's id does (`[a-z][a-z0-9-]*`) and it may not be a word this serve already has; a folder named anything else is drawn with a sentence saying so rather than compiled.
+- **`README.md`** is `# Title`, a blank line, one sentence, and then as much prose as the plugin deserves. The heading is what a person is told the plugin is called and the first paragraph is the line under it, on the page and in the sidebar's tip. It is an ordinary document — **markdown's own claim**, openable, editable and searchable like any other `.md` — and the only thing this row says about it is where it sits.
+- **`server.ts`** is required. A plugin with no face — one that teaches the vault a property kind, or rings a doorbell at seven — is a whole plugin.
+- **`browser.tsx`** is optional, and is the half that draws.
+- Anything else in the folder is ordinary vault content and is passed over.
 
-Nothing about that needs a new write door. An agent writes a definition with `outlines_add`, `outlines_desc` and `outlines_prop`; and the `.olai` file the nodes live in is committed by the ledger like any other change. There is no `.ts` on the disk, because `.ts` is not a kind of file olai serves — the source is vault content, and it travels, versions and diffs like vault content.
+**The two halves are files, and that is new.** `.ts` was not a kind of file olai served, so the halves used to live in the notes of two child nodes under a node carrying a `plugin` property. Every clause of the argument for that is now false: a file claim may say WHERE it applies (`@olai/format`'s `Claim.under`), so the `vault-plugins` row claims `.ts` and `.tsx` **scoped to `plugins/`** — a checkout somebody keeps beside their notes is full of TypeScript that has nothing to do with olai, and none of it is swept into the set. Inside that folder the two halves are kept text like a document's body: the store reads them, the revision holds them, the write gate writes them, the ledger records them and the Commit panel lists them by path.
 
-## Knobs on the definition
+**They are not in the sidebar's Reference tree**, and that is the claim's `elsewhere` flag rather than secrecy. They are in the set, they are in the ledger, an address names them, and the plugin's own page is where they are read — with the file names over them and a diff when they change. Two front doors onto one file is how a sidebar fills up with the app's own plumbing.
 
-A server half may expose a `Config` schema just like a built row. Give every field a decoding default and a description annotation, then pass it as `config` to `definePlugin`; `apply` receives the decoded object. Properties on the definition node supply its leaves, and children may supply schema sections. These values belong on this node, not a second namespace in the shared settings file. `plugin` and `approved` are reserved definition keys: declaring either in Config faults the row. `vault-plugins_inspect` describes this layout, and `vault-plugins_run` returns the current configuration values with their authors.
+**What that buys is not tidiness.** It is that a plugin is a thing you can show somebody: a folder, with a README at the top of it, that travels by being copied, that git records line by line, and that a pull request can review.
 
-```ts
-import { definePlugin } from "@olai/plugin-api"
-import { Effect, Schema } from "effect"
-const Config = Schema.Struct({
-  tone: Schema.String.pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed("blue")),
-    Schema.annotate({ description: "the colour to draw" })),
-})
-export default definePlugin({
-  name: "swatch", needs: [], config: Config,
-  apply: (config) => Effect.logInfo(`swatch tone: ${config.tone}`),
-})
+### Consent lives in Settings, not in the folder
+
+`on`, `approved`, the `builder` binding and the plugin's own knobs are properties on a root node titled `<word>` in `_olai/Settings.olai` — the same file, the same shape and the same reader every row olai ships already keeps its settings in.
+
+```
+hex-swatch            on: yes
+                      approved: 3fa9c1d2b7e45610
+                      builder: n-7f3a
+                      size: large
 ```
 
-A definition’s schema-derived controls appear in its row’s detail on the plugins panel (press the chevron beside its name). Descriptions are tooltips and a ● marks authored values; for a definition, the authored value lives on its own node. ↺ removes the property. `Saved in` in the same detail links to that definition. The browser’s `plugins.configure` validates before writing and refuses `plugin` and `approved` as configuration keys, preserving the definition’s identity and approval. A knob edit re-applies the row; setting an explicit value equal to its default changes authorship without restarting it. Invalid leaves use defaults, warn once, and show the file text and schema message beneath their controls; an invalid schema fails only that definition. Source approval hashes the server and browser source, so a knob edit keeps approval while a source edit requires approval of its new version. A plugin declaring live config updates retains its activation and can follow its own node through its declared vault service.
+Three things follow, and all three are the point:
+
+- **A folder copied in from another vault arrives off and unapproved.** The code travels; the consent does not. A plugin with no settings node is off, whatever it says about itself.
+- **Enablement survives a restart.** So does a stop: `on: no` is in a file, not in a set in the server's memory.
+- **`approved`, `on` and `builder` are reserved.** A `Config` schema declaring any of them faults the row, and `plugins.configure` refuses to write one, with the same sentence either way: *`on` is reserved for the plugin's approval, its switch and the conversation building it.*
+
+### Only a person can turn it on
+
+An agent can write every byte of a plugin and ask what became of it. It cannot approve one. The code runs with the server's own authority — there is no sandbox and this page is not pretending there is one — so the boundary is an owner, at a page, having read what the folder holds. `vault-plugins_run` on a plugin nobody has approved answers `pending`, which is that boundary said back to the author. The right thing to do with a `pending` is to say so and stop.
 
 ## What a half may import
 
@@ -51,7 +71,7 @@ import { Effect } from "effect"
 import { createSignal } from "solid-js"
 ```
 
-olai resolves all three itself, against the modules **inside the running binary** — so a face an agent wrote draws with the same Solid the app does and can read a context a shipped plugin provided. A vault has no `node_modules` and never will, so anything else is refused with a sentence naming it, at the moment the plugin is defined rather than at the moment it dies:
+olai resolves all three itself, against the modules **inside the running binary** — so a face an agent wrote draws with the same Solid the app does and can read a context a shipped plugin provided. A vault has no `node_modules` and never will, so anything else is refused with a sentence naming it, at the moment the half is compiled rather than at the moment it dies:
 
 ```
 olai resolves @olai/plugin-api, effect and solid-js for a plugin it mounts from
@@ -59,53 +79,69 @@ a vault, and nothing else — so "left-pad" names nothing this serve can hand
 over. A vault has no node_modules.
 ```
 
-Subpaths are refused too (`effect/Schema`, `solid-js/web`), and so is a computed `import()`: what a person approved is the source they read, so every module a plugin uses has to be visible in it.
+Subpaths are refused too (`effect/Schema`, `solid-js/web`), and so is a computed `import()`: what a person approved is the source they read, so every module a plugin uses has to be visible in it. A relative import of a fourth file in the folder is refused for the same reason — a plugin is two halves, and what is approved is both of them whole.
 
-The server half's `@olai/plugin-api` is the runtime door (`Kinds`, `Vault`, `Surfaces`, `Deliveries`, …); the browser half's is the app door (`Slots`, `Clocks`, `Wired`, …). One name in the source, and each half gets the door it is written against.
+The server half's `@olai/plugin-api` is the runtime door (`Kinds`, `Vault`, `Surfaces`, `Deliveries`, `Offers`, …); the browser half's is the app door (`Slots`, `Clocks`, `Wired`, `Offers`, …). One name in the source, and each half gets the door it is written against.
 
-## Approval
+Both halves declare the same `name`, and it has to be the folder's own word. A half that signed another word would be a fiber bound under a name no row draws.
 
-Nothing mounts until a person approves it, at the plugins panel, with the source in front of them.
+## Knobs
 
-The panel draws the definition **on its own row**, under **Your plugins** once it is running, and under **Needs attention** while it is `pending`, with its detail open: the two halves in full, and — on a row that is `pending` — two buttons.
+A server half may expose a `Config` schema exactly as a built row does. Give every field a decoding default and a description annotation, pass it as `config` to `definePlugin`, and `apply` receives the decoded object:
 
-- **Approve this version** writes `approved: <content hash>` on the plugin's node.
-- **Approve always** writes `approved: always`.
+```ts
+import { definePlugin } from "@olai/plugin-api"
+import { Effect, Schema } from "effect"
 
-Both are ordinary property writes: they go through the same gate a keystroke does, land on the node beside the source, travel with the vault, and are in the ledger. There is no settings file and nothing per machine.
+const Config = Schema.Struct({
+  tone: Schema.String.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed("blue")),
+    Schema.annotate({ description: "the colour to draw" })),
+})
 
-An approval names a **version**, which is a hash of both halves. So an edit to either half puts the row back to `pending` — which is what stops *approve once* from meaning *approve whatever this becomes*. `always` is the escape for a plugin somebody is iterating on with an agent, where re-approving every edit is a gesture that stops being read after the third time.
-
-The panel sends back the version it drew. If the definition moved while somebody was reading it, the approval is refused rather than applied:
-
+export default definePlugin({
+  name: "swatch", needs: [], config: Config,
+  apply: (config) => Effect.logInfo(`swatch tone: ${config.tone}`),
+})
 ```
-"swatch" has been edited since this page drew it, so approving it now would
-approve source nobody has read. Look again, read what it says, and approve that.
+
+The values are properties on the plugin's node in `_olai/Settings.olai`, and child nodes under it supply schema sections — the same layout, read by the same reader, as a built row's. A plugin's schema-derived controls are drawn **on its own page**, under **Settings**, and in its row's detail on the plugins panel: descriptions are tooltips, a ● marks an authored value and ↺ removes the property. A knob edit re-applies the row without touching its approval, because the version is a hash of code and a setting is not code. An invalid leaf uses its default, warns once, and shows the file text and the schema message under its control; an invalid schema fails only this plugin.
+
+`vault-plugins_inspect` answers this layout — the folder's three names, the settings file, and the three reserved words — so an agent writing a plugin does not have to read it out of prose.
+
+## Faces and slots
+
+A browser half hangs a face in a named slot:
+
+```tsx
+yield* slots.register("outline.row.chip", "hex", Swatch)
 ```
 
-**The code runs with the server's own authority.** There is no sandbox and this is not pretending to be one: approval by the owner is the boundary. That is why the panel shows the source, why the verb is on the browser face only, and why an agent cannot approve its own plugin.
+**A face is handed a context, not a value.** `outline.row.chip` takes a `ChipContext` — `entry` (the property's `key`, its `value`, its `values`), `opened`, `onToggle`, `chrome` — so what you draw is `context.entry.value`. A face that reads `props.value` gets `undefined` and fails in the worst way available: it compiles, it mounts, the page says **On**, and the chip is invisible. `vault-plugins_inspect` names every slot and what keys each; the shapes are `@olai/plugin-api`'s `plugin.ts`.
 
-## What an agent can do
+A registration is held by the activation that made it, so nothing has to be taken back by hand: the switch, `vault-plugins_stop`, an edit that puts the plugin back to pending, and the row leaving all unwind every face, kind and offer the plugin acquired.
 
-Three tools, on the agent face:
+## Sharing a plugin-owned service
 
-- **`vault-plugins_inspect`** — what a plugin may name: the three modules, service records marked by half (including declared browser-owned keys), the slots a browser half may register a face into with what keys each, the node layout above, and the words already taken. Read this before writing code; server provisions and browser declarations are distinguished by `availability`. `taken` is every word this serve has — the build's rows **and** every definition in the vault, including ones other agents wrote — because a definition may take neither.
-- **`vault-plugins_run`** — ask olai to look at a definition now and say what became of it: the state, the version, and the fault sentence where there is one. A definition nobody has approved answers `pending`, which is the boundary said back to the author.
-- **`vault-plugins_stop`** — unmount one, for as long as this serve runs. It reaches **definitions only**: an agent cannot turn off the row that seats it, the row that watches its writes, or the row whose tools it is holding.
+A server half can provide a service without changing core's catalog. Name `Offers` in `needs`, then yield `offers.own("fleet", consumer => ({ ... }))`. Olai stamps the key with the offering fiber's name: a plugin named `fleet-source` offers `fleet-source.fleet`. The callback receives the **consumer's** runtime name, so it can return a per-consumer view. Neither name is a caller-supplied argument. Both segments must start with a lowercase letter and contain only lowercase letters, digits or hyphens; dots are reserved for the separator.
 
-(On the wire those are `plugins.inspect`, `plugins.run` and `plugins.stop`; the tool names are the agent-facing words, the way `commit` is `git.commit`.)
+A consumer defines `const Fleet = serviceTag<FleetShape>("fleet-source.fleet")` using `serviceTag` from `@olai/plugin-api`, includes `Fleet` in `needs`, and reads it with `yield* Fleet`. Minting a tag names a dependency; it does not grant permission to provide that key or access the runtime host. Providers and consumers must agree on the shape; the string key does not validate arbitrary dynamic code's types at runtime.
 
-Defining a plugin needs no tool of its own — it is `outlines_add` and `outlines_desc`. Retracting one is `outlines_trash`, or removing the `plugin` property: the row goes on the next revision and the fiber unwinds every registration it made. A node in `_olai/Trash.olai` is not a definition — the reader skips what was put away, the way every other live reading of the tree does.
+The consumer waits until the provider finishes initialization. Removing or replacing the provider unloads the consumer, awaits its cleanup while the old resource is still alive, and reactivates it with the new provision when ready. Failed initialization publishes no usable service. Duplicate offers fail the offering activation and unwind its registrations.
 
-## What happens when it mounts
+`vault-plugins_inspect` includes currently offered plugin-owned keys beside the core catalog. A stopped or removed provider's keys disappear; consumers can still name a missing key and wait for it. This is discovery of keys, not a schema registry. `Offers.offer` accepts only the core-defined `OFFERABLE` keys. Any row may stand behind one, one at a time; Cordis refuses a second provider and names both rows and the contested key. Once the first leaves, a differently named provider can take its place without a core edit. Other host services remain closed: `own("vault", ...)` means `your-plugin.vault` and cannot replace core's `vault`.
 
-The server half is compiled, evaluated, and mounted as a fiber on the same registry the bundle's rows are on. Everything downstream follows the way it does for a built row: the kind vocabulary gains its words, a sibling surface reaches the wire, the roster moves, and every open tab redials.
+**A door worth naming answers in its OWN shape**, rather than in whatever type it happens to build the answer out of. `journal.agenda`'s row is four fields the journal promises; the page model behind it is free to move, and a plugin in somebody's vault does not find out about it on a Tuesday morning. The same argument runs the other way: a plugin a vault defines cannot import `@olai/format`, so it writes down the fields it reads and the provider's own types satisfy them structurally.
 
-**And the vault is read again.** Approving writes one property; nothing else on disk moved, and the reading every page is drawn from was validated a revision ago — before the fiber existed and so before the word did. So the mount is followed by a re-read of the served directory, which is what puts a face on values that were already there. Without it a plugin would mount, its kind would be in force, its values would be held to it, and its chip would not draw until the next keystroke anywhere in the vault. This is the same re-read the plugins panel's switch has always done, in the other direction: a plugin switched off takes its words with it, and its values have to go back to being plain text on the same press.
+### Browser-owned services
 
-The browser half is compiled to a chunk and served at `/_olai/plugins/<name>-<version>.js`. The roster carries that URL, the tab loads it exactly as it loads a built plugin's chunk, and the faces appear **without a reload**. The version is in the path, so a re-approved edit is a different URL and no cache can hand back code that was approved before the edit.
+Browser halves import `Offers` from `@olai/plugin-api` and publish with `yield* (yield* Offers).own("palette", consumer => ({ ... }))`. A browser consumer declares `serviceTag<Shape>("provider.palette")` in `needs` and yields that tag in `apply`, just like a server consumer. Each local segment must start with a lowercase letter and contain only lowercase letters, digits or hyphens; the provider name comes from the owning plugin's binding.
 
-A half that will not compile, a module that exports no plugin, a half that calls itself a different word, and an `apply` that throws all land the row on `failed` with the sentence that explains it, and touch no sibling.
+Browser `Offers` has only `own`: plugins cannot replace `Slots`, `Wired`, or the shell furniture. Keys live in the tab host, independently of identically named server keys. Providers publish only after successful initialization. A missing provider keeps the consumer waiting with no faces; withdrawal releases those faces before the provider resources, and reactivation receives a fresh service. The plugin's page and the plugins panel both show browser waiting and failed states beside the server's state, including the missing service key and the component's name. Shapes remain a contract between the two authors.
+
+To make a browser key discoverable, the server half names `Offers` in `needs` and calls `yield* (yield* Offers).browser(["palette"])`. These local words use the same namespace grammar and fiber stamp as `own`, and their declarations leave when the server provider unloads. This call does not provide a server service or execute browser code on the server.
+
+`vault-plugins_inspect` returns service records with `key`, `half` (`server` or `browser`) and `availability`: `core` for core server vocabulary, `provided` for server-owned keys, and `declared` for browser contracts. A browser declaration can be discovered without a connected tab; the page reports whether this tab actually activated the provider.
 
 ## A worked example: the morning agenda
 
@@ -122,11 +158,15 @@ A plugin that reads the journal's agenda each morning and puts it into the node 
 ]
 ```
 
-`journal.agenda` is the journal row's own — offered with `Offers.own`, so the key is stamped from that fiber's name and no other row can take it. Naming it in `needs` is all a consumer does: the plugin waits while the journal is switched off, saying so on its row, activates when it returns, and unloads if it leaves. Nothing in core knows these two are connected.
+`journal.agenda` is the journal row's own — offered with `Offers.own`, so the key is stamped from that fiber's name and no other row can take it. Naming it in `needs` is all a consumer does: the plugin waits while the journal is switched off, saying so on its page, activates when it returns, and unloads if it leaves. Nothing in core knows these two are connected.
 
-**Both ends spell the shape.** A plugin the vault defines cannot import `@olai/format`, so it writes the fields it reads and the provider's own types satisfy them structurally. The string key names a dependency; it does not check a shape (see [Sharing a plugin-owned service](#sharing-a-plugin-owned-service)).
+The folder is two files — this plugin draws nothing, so it has no `browser.tsx`:
 
-Which is why a door worth naming answers in **its own** shape rather than in whatever type it happens to build the answer out of. `journal.agenda`'s row is four fields the journal promises; the page model behind it is free to move, and a plugin in somebody's vault does not find out about it on a Tuesday morning.
+```
+plugins/morning-agenda/
+  README.md
+  server.ts
+```
 
 `server.ts`:
 
@@ -134,9 +174,11 @@ Which is why a door worth naming answers in **its own** shape rather than in wha
 import { Clock, definePlugin, Deliveries, serviceTag, Vault } from "@olai/plugin-api"
 import { Effect, Schedule } from "effect"
 
-// WHEN, and HOW OFTEN THIS LOOKS. The source is the configuration — a plugin a
-// vault defines has no settings file — so changing either is an edit, and an
-// edit is a fresh approval.
+// WHEN, and HOW OFTEN THIS LOOKS. Kept in the source rather than in a `Config`,
+// which is a choice and not an oversight: a knob is a thing the owner can move
+// without reading code again, and the hour somebody wants their morning at is
+// exactly that. Left here, changing either is an EDIT — and an edit is a fresh
+// approval.
 //
 // THE HOUR IS THE SERVER'S OWN, which is the machine olai is serving from and
 // not the machine you are reading on: `Clock` answers an instant and `Date`
@@ -236,15 +278,35 @@ export default definePlugin({
 })
 ```
 
-**The beat is forked onto the plugin's own scope**, so stopping the row — the panel's switch, `vault-plugins_stop`, an edit that puts it back to pending — interrupts it with everything else the plugin acquired. There is no timer to clear.
+**The beat is forked onto the plugin's own scope**, so stopping the plugin — the switch, `vault-plugins_stop`, an edit that puts it back to pending — interrupts it with everything else the plugin acquired. There is no timer to clear.
 
 **A morning that reaches nobody is not a morning that has passed.** `said` is set after a delivery went out, so a serve with no conversation open at seven o'clock still says it when one is opened. And `deliveries.deliver` takes a thunk rather than a string: the words are composed at the moment they enter the conversation, which for a message that may wait through a running turn is the only time they are true.
 
-**This ships as nothing.** The source above is not in the binary and is not meant to be: a morning agenda somebody actually reads is written into their own vault by their own agent, or pasted from here, and approved on their own panel. It is vault content.
+**This ships as nothing.** The source above is not in the binary and is not meant to be: a morning agenda somebody actually reads is written into their own vault by their own agent, or pasted from here, and turned on by them. It is vault content.
 
 ## A second example: a face
 
-A dressing for a `hex` property — a swatch beside the value. Where the first example does something, this one draws something, which is the other half of what a definition can be.
+A dressing for a `hex` property — a swatch beside the value. Where the first example does something, this one draws something, which is the other half of what a plugin can be. Its folder has all three files:
+
+```
+plugins/hex-swatch/
+  README.md
+  server.ts
+  browser.tsx
+```
+
+`README.md`:
+
+```md
+# Hex swatch
+
+A colour swatch beside any hex colour.
+
+Draws a small colour swatch beside any property whose kind is `hex`, so a
+palette written as text reads as a palette. Declare a property as
+`hex-swatch-hex` and give it a value like `#ff8800`; anything that is not six
+hex digits is refused when you type it.
+```
 
 `server.ts`:
 
@@ -253,7 +315,7 @@ import { definePlugin, Kinds } from "@olai/plugin-api"
 import { Effect } from "effect"
 
 export default definePlugin({
-  name: "swatch",
+  name: "hex-swatch",
   needs: [Kinds],
   apply: Effect.gen(function*() {
     const kinds = yield* Kinds
@@ -273,7 +335,7 @@ const Swatch = (context: { readonly entry: { readonly value: string } }) => (
 )
 
 export default definePlugin({
-  name: "swatch",
+  name: "hex-swatch",
   needs: [Slots],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
@@ -282,19 +344,17 @@ export default definePlugin({
 })
 ```
 
-**A face is handed a context, not a value.** `outline.row.chip` takes a `ChipContext` — `entry` (the property's `key`, its `value`, its `values`), `opened`, `onToggle`, `chrome` — so the value you draw is `context.entry.value`. A face that reads `props.value` gets `undefined` and fails silently in the worst way available: it compiles, it mounts, the row says `running`, and the chip is invisible. `vault-plugins_inspect` names the slots and what keys each; the shapes are `@olai/plugin-api`'s `plugin.ts`.
+**The kind word is `hex-swatch-hex`, and it is CLAIMED rather than declared.** A plugin contributes the bare word and the registry composes it with the plugin's own name, exactly as for a built plugin — and that composed word is claimed by the registration, so `shade: "#ff8800"` is held to it with no `_olai/Properties.olai` in the vault at all. That is the whole of what an author has to do.
 
-**The kind word is `swatch-hex`, and it is CLAIMED rather than declared.** A plugin contributes the bare word and the registry composes it with the plugin's own name, exactly as for a built plugin — and that composed word is claimed by the registration, so `shade: "#ff8800"` is held to it with no `_olai/Properties.olai` in the vault at all. That is the whole of what a definition's author has to do.
-
-What you cannot do is *declare* it. A `type` in `_olai/Properties.olai` is judged against what the BINARY was built with, and that list is read off the bundle's rows — a definition is in no row and teaches its word by calling `Kinds.register` at mount, so `{"title":"colour","custom":{"type":"swatch-hex"}}` is refused. The asymmetry is real and currently one-way: a compiled-in plugin's kind can be pointed at a key of the vault's own choosing, a definition's cannot. Use the claimed word as the key.
-
-Both halves declare the same `name`, and it has to be the word the node's `plugin` property carries — a half that signed another word would be a fiber bound under a name no row draws.
+What you cannot do is *declare* it. A `type` in `_olai/Properties.olai` is judged against what the BINARY was built with, and that list is read off the bundle's rows — a vault's own plugin is in no row and teaches its word by calling `Kinds.register` at mount, so `{"title":"colour","custom":{"type":"hex-swatch-hex"}}` is refused. The asymmetry is real and currently one-way: a compiled-in plugin's kind can be pointed at a key of the vault's own choosing, a vault plugin's cannot. Use the claimed word as the key.
 
 ## Checking a half before you ask
 
-Every edit changes the version, and every version costs a person a decision. So be sure before you ask. Two checks, and one trap.
+Every edit changes the version, and every version costs a person a decision. So be sure before you ask. Three checks, and one trap.
 
-**Compile it** — the same call the serve makes, so the answer is the answer:
+**Write it through the door that answers.** `vault-plugins_write` puts one file of one plugin through the vault's ordinary write gate — same planner, same validation, same ledger commit as a keystroke — and answers in the same reply whether that half **compiles** and, when it does not, why. That makes the loop one call rather than a write and a guess, and it is the check to reach for first.
+
+**Or compile it by hand** — the same call the serve makes, so the answer is the answer:
 
 ```ts
 import { buildHalf } from "@olai/plugin-build"
@@ -303,121 +363,83 @@ console.log(await buildHalf("browser", source))   // { ok: true, text } | { ok: 
 
 Run it from a package that depends on `@olai/plugin-build` (`packages/server` does). This catches every way a half can fail to become a module: a module olai does not bind, a relative import, a computed `import()`, a syntax error.
 
-**Typecheck it** — drop the two halves into some package's `src/` and `bun x tsc --noEmit`.
+**Typecheck it** — the two halves are real `.ts` and `.tsx` files in the vault, so point a `tsc` at them, or drop copies into some package's `src/` and `bun x tsc --noEmit`.
 
-**The trap in the second one.** A half writes the bare `@olai/plugin-api` in both files and olai binds each to a different door: a server half to `./services`, a browser half to the root. So typechecking a *server* half exactly as written reports `has no exported member 'Kinds'` — and that error is the **check** being wrong, not your source. Point the import at `@olai/plugin-api/services` for the duration of the typecheck, and put it back.
+**The trap in the last one.** A half writes the bare `@olai/plugin-api` in both files and olai binds each to a different door: a server half to `./services`, a browser half to the root. So typechecking a *server* half exactly as written reports `has no exported member 'Kinds'` — and that error is the **check** being wrong, not your source. Point the import at `@olai/plugin-api/services` for the duration of the typecheck, and put it back.
 
-`vault-plugins_run` is the third check and the only one that is the real thing: it answers the state, the version and the fault sentence off the same row a person is looking at.
+`vault-plugins_run` is the last check and the only one that is the real thing: it answers the state, the version and the fault sentence off the same plugin a person is looking at. A `pending` there is not a failure — it is the one person who can turn it on not having been asked yet.
+<!-- guide:end -->
 
-## What this is not
+## Approval
 
-- **Not sandboxed.** See above. Approval is the boundary.
-- **Not a lock, and the fence has a shape.** olai refuses a session's write of the `approved` property at its own door — that is a real refusal, with a sentence, and it is what stops an agent approving the plugin it just wrote *through olai*. It is not a claim about the file. `approved` is an ordinary property in a `.olai` in the served directory, the store watches that directory, and an approval that simply *appears* there is an ordinary revision. The agents this is about are processes on the same host with their own file and shell tools. The vault is the owner's directory: treating it as an attack surface leads somewhere silly, and olai does not pretend to police what it does not serve. What the fence covers is writes through olai's door (ruled, 2026-09-04).
-- **Not a report of what the FACE did.** A half whose `apply` throws lands the row on `failed` with its own sentence, on the server. A face that throws while it is being *drawn* does not: the tab's fault boundary contains it the way it contains a shipped plugin's, the console says which plugin it was, and the row goes on saying `running` — because on the server it is. Initialization failures and missing browser dependencies are reported beside the server state in the plugins panel. Render-time faults remain the drawing boundary’s responsibility.
-- **Not persisted enablement.** A `plugins.stop`, or the panel's switch on a definition, lasts as long as the process. What survives a restart is the definition and its approval, which are in the vault.
-- **Not a package.** There is no `olai plugin add`, no npins pin and no out-of-tree build. A definition is two notes in a directory olai is already serving.
+Nothing mounts until a person approves it, on the plugin's page, with the source in front of them.
+
+The page says what the plugin does **in words before code**: the README's own title and sentence, then **What it uses** — the kinds it teaches, the slots it draws into, the services it names — read off the code's own imports rather than off anything the author wrote in prose. The source is one scroll further, with a tab per file, for whoever wants it. Under the primary button is one plain line: *Runs on your server with everything olai can reach.*
+
+- **Turn on** writes `approved: <version>` and `on: yes`, in one write, on the plugin's node in `_olai/Settings.olai`. They were one gesture when the switch was a set in the server's memory and the approval was the only durable thing about a plugin; they are both durable now, and both land together so a press cannot leave half of itself behind.
+- **Always trust changes** (under `•••`) writes `approved: always`.
+
+Both are ordinary property writes: they go through the same gate a keystroke does, land in the same settings file every other row's switch does, and are in the ledger.
+
+**An approval names a VERSION**, which is a hash of both halves. An edit to either half therefore puts the plugin back to pending **and unmounts it** — which is what stops *approve once* from meaning *approve whatever this becomes*. The page then shows **what changed**: a diff against the version that was approved, not the whole file again, because you already read that one. `always` is the escape for a plugin somebody is iterating on with an agent, where re-approving every edit is a gesture that stops being read after the third time.
+
+**The README is not in the version.** Fixing a typo in the prose is not a fresh decision about code, and a plugin that paused itself every time its description improved would teach people to press Turn on without looking.
+
+The page sends back the version it drew. If the folder moved while somebody was reading it, the approval is refused rather than applied:
+
+```
+"hex-swatch" has been edited since this page drew it, so approving it now would
+approve source nobody has read. Look again, read what it says, and approve that.
+```
+
+**The code runs with the server's own authority.** There is no sandbox and this is not pretending to be one: approval by the owner is the boundary. That is why the page shows the source, why the verb is on the browser face only, and why an agent cannot approve the plugin it just wrote.
+
+## What an agent can do
+
+Five tools, on the agent face:
+
+- **`vault-plugins_guide`** — how to write one. It is this page's authoring section, shipped inside the binary, because an agent working in somebody's vault has no olai checkout to read and a plugin written from memory is a plugin written wrong. It answers the text, the three file names and the folder, so nothing has to be parsed out of the prose.
+- **`vault-plugins_inspect`** — what a plugin may name: the three modules, service records marked by half (including declared browser-owned keys), the slots a browser half may register a face into with what keys each, the folder layout and the settings file, and the words already taken. `taken` is every word this serve has — the build's rows **and** every plugin in the vault, including ones other agents wrote — because a new plugin may take neither.
+- **`vault-plugins_write`** — one file of one plugin, through the vault's own write gate, answering that half's compile result. It creates the folder if it is not there. This is the whole of the vocabulary an agent needs: no vault paths, no claim rules, no guessing which file is which.
+- **`vault-plugins_run`** — ask olai to look at a plugin now and say what became of it: the state, the version, the configuration values and the fault sentence where there is one. The only refusal is *no such folder*; a half that will not compile, a word already taken and an `apply` that threw are **states with sentences**, because those are answers about a plugin rather than failures of the call.
+- **`vault-plugins_stop`** — turn one off. It reaches **vault plugins only**: an agent cannot turn off the row that seats it, the row that watches its writes, or the row whose tools it is holding. It is durable now — `on: no` in the settings file — so a restart comes back to it.
+
+(On the wire those are `plugins.guide`, `plugins.inspect`, `plugins.write`, `plugins.run` and `plugins.stop`; the tool names are the agent-facing words, the way `commit` is `git.commit`.)
+
+Retracting a plugin is deleting its folder: the row goes on the next revision and the fiber unwinds every registration it made. Its settings node is left where it is, which is the honest behaviour — a folder that comes back comes back to the decision somebody already made about it, and a node nobody wants is one row to delete.
+
+**The browser's own three** — `plugins.approve`, `plugins.mint` (what ⌘K → New plugin presses) and `plugins.ask` (what *Ask for a change* and *Ask Claude to fix it* press) — are on the browser face and nowhere else. `@olai/server`'s `faces.test.ts` pins the agent face as an exact set, so those absences are asserted rather than trusted to nobody having typed them.
+
+## What happens when it mounts
+
+The server half is compiled, evaluated, and mounted as a fiber on the same registry the bundle's rows are on. Everything downstream follows the way it does for a built row: the kind vocabulary gains its words, a sibling surface reaches the wire, the roster moves, and every open tab redials.
+
+**And the vault is read again.** Turning a plugin on writes two properties; nothing else on disk moved, and the reading every page is drawn from was validated a revision ago — before the fiber existed and so before the word did. So the mount is followed by a re-read of the served directory, which is what puts a face on values that were already there. Without it a plugin would mount, its kind would be in force, its values would be held to it, and its chip would not draw until the next keystroke anywhere in the vault. The switch does the same thing in the other direction: a plugin switched off takes its words with it, and its values have to go back to being plain text on the same press.
+
+The browser half is compiled to a chunk and served at `/_olai/plugins/<name>-<version>.js`. The roster carries that URL, the tab loads it exactly as it loads a built plugin's chunk, and the faces appear **without a reload**. The version is in the path, so a re-approved edit is a different URL and no cache can hand back code that was approved before the edit.
+
+A half that will not compile, a module that exports no plugin, a half that calls itself a different word, and an `apply` that throws all land the plugin on `failed` with the sentence that explains it, and touch no sibling. The page says that sentence in words, with the line it is about, and its primary button hands the fault **verbatim** to the conversation that built the plugin — an agent told "it broke" has to go and find out what, and the serve already knows.
 
 ## Initialization and stopping
 
 A server half stays `waiting` while its `apply` initializes. Services it offers
 become available to consumers only after initialization succeeds. If it fails,
-its acquired registrations and resources are unwound and the row shows its fault.
+its acquired registrations and resources are unwound and the page shows its fault.
 
-The panel's switch and `plugins.stop` can stop a half that is still initializing.
+The switch and `plugins.stop` can stop a half that is still initializing.
 Stopping interrupts its Effect work, waits for background work and cleanup, and
-then leaves it switched off. Losing a required service also interrupts
-initialization, but leaves the row `waiting`, naming the missing service; when
-that service returns, initialization runs again. Host shutdown closes every
-plugin, including one with no declared needs. Dependent cleanup finishes before
-the provider releases the resources those dependents use.
+then leaves it switched off — in the file, so a restart finds it off. Losing a
+required service also interrupts initialization, but leaves the plugin `waiting`,
+naming the missing service; when that service returns, initialization runs again.
+Host shutdown closes every plugin, including one with no declared needs.
+Dependent cleanup finishes before the provider releases the resources those
+dependents use.
 
 Cancellation is cooperative: synchronous JavaScript cannot be preempted in this
 process, and uninterruptible acquisitions and finalizers must finish themselves.
 There is no per-plugin initialization timeout.
 
-## Sharing a plugin-owned service
-
-A server half can provide a service without changing core's catalog. Name
-`Offers` in `needs`, then yield `offers.own("fleet", consumer => ({ ... }))`.
-Olai stamps the key with the offering fiber's name: a plugin named `fleet-source`
-offers `fleet-source.fleet`. The callback receives the **consumer's** runtime name,
-so it can return a per-consumer view. Neither name is a caller-supplied argument.
-Both segments must start with a lowercase letter and contain only lowercase
-letters, digits or hyphens; dots are reserved for the separator.
-
-A consumer defines `const Fleet = serviceTag<FleetShape>("fleet-source.fleet")`
-using `serviceTag` from `@olai/plugin-api`, includes `Fleet` in `needs`, and reads
-it with `yield* Fleet`. Minting a tag names a dependency; it does not grant
-permission to provide that key or access the runtime host. Providers and
-consumers must agree on the shape; the
-string key does not validate arbitrary dynamic code's types at runtime.
-
-The consumer waits until the provider finishes initialization. Removing or
-replacing the provider unloads the consumer, awaits its cleanup while the old
-resource is still alive, and reactivates it with the new provision when ready.
-Failed initialization publishes no usable service. Duplicate offers fail the
-offering activation and unwind its registrations.
-
-`plugins.inspect` includes currently offered plugin-owned keys beside the core
-catalog. A stopped or removed provider's keys disappear; consumers can still name
-a missing key and wait for it. This is discovery of keys, not a schema registry.
-`Offers.offer` accepts only the core-defined `OFFERABLE` keys. Any row may
-stand behind one, one at a time; Cordis refuses a second provider and names
-both rows and the contested key. Once the first leaves, a differently named
-provider can take its place without a core edit. Other host services remain
-closed: `own("vault", ...)` means `your-plugin.vault` and cannot replace
-core's `vault`.
-
-**Two shipped ones to read, and they are the two cases.**
-
-The Spaces mirror uses this mechanism between two rows this build compiles together: chat offers `chat.seating`, whose `in(derived)` returns the node seating for that snapshot, including nodes without a session. The mirror declares that key in `needs`; switching chat off removes the mirror's registrations and switching it on restores them. The mirror declares no dependency on the chat package to do it: a key is a name, so a consumer that names one takes on nothing of the provider's build.
-
-`journal.agenda` ([the journal](plugins/journal.md#the-agenda-as-a-service)) is the other case, and the one a key like this exists for: its consumer is a plugin somebody wrote into a vault, which nothing rebuilds when the provider changes. Three things follow, and all three are visible in the door. The journal takes the reading IN, so the answer is about one snapshot and the caller says which. The ask is opaque, because the consumer cannot name a `Reading` and does not have to — it passes on what the revision door gave it. And the answer is the door's OWN shape rather than the type the journal happens to build it out of, so the page model behind it stays free to move.
-
-### Browser-owned services
-
-Browser halves import `Offers` from `@olai/plugin-api` and publish with
-`yield* (yield* Offers).own("palette", consumer => ({ ... }))`. A browser
-consumer declares `serviceTag<Shape>("provider.palette")` in `needs` and
-yields that tag in `apply`, just like a server consumer. Each local segment
-must start with a lowercase letter and contain only lowercase letters, digits
-or hyphens; the provider name comes from the owning plugin’s binding.
-
-Browser `Offers` has only `own`: plugins cannot replace `Slots`, `Wired`, or
-the shell furniture. Keys live in the tab host, independently of identically
-named server keys. Providers
-publish only after successful initialization. A missing provider keeps the
-consumer waiting with no faces; withdrawal releases those faces before the
-provider resources, and reactivation receives a fresh service. The plugins
-panel shows browser waiting and failed states beside the server's state,
-including the missing service key and the component's name. Shapes remain a
-contract between the two authors.
-
-To make a browser key discoverable, the server half names `Offers` in `needs`
-and calls `yield* (yield* Offers).browser(["palette"])`. These local words
-use the same namespace grammar and fiber stamp as `own`, and their declarations
-leave when the server provider unloads. This call does not provide a server
-service or execute browser code on the server.
-
-`plugins.inspect` returns service records with `key`, `half` (`server` or
-`browser`) and `availability`: `core` for core server vocabulary, `provided`
-for server-owned keys, and `declared` for browser contracts. A browser declaration
-can be discovered without a connected tab; the panel reports whether this tab
-actually activated the provider. In a built plugin, keep the local word list in
-the shared definition and use it in both `Offers.browser` and `Offers.own`.
-
-Identity offers `identity.viewer`, including the resource over `who.get`,
-`saying` and `UserIcon`. Chat exports a `components` record containing its
-speaker's plugin definition. Each browser component gets a separate dependency
-lifecycle, a name stamped as `parent/component`, and is removed with its parent
-row. The activation name is separate from the owning plugin: components share
-the row’s service namespace, sibling client and slot ownership, while each
-registration still closes with its component. A service factory receives the
-consuming plugin’s owner name, including when that consumer is a component.
-A waiting speaker leaves chat's anonymous face available. Components have no
-host access and cannot offer a different row's keys.
-
-### Where a live value may live
+## Where a live value may live
 
 A service carries a value; a module variable does not. The rule is one
 sentence: **a module another package can open holds no live value.** Every
@@ -471,3 +493,15 @@ same is asked of the implementation behind them, because a `let` one import back
 is state you can open with nothing in the door to see. What is allowed is named
 there with a reason each: a process's signals, a page's layer stack, memos over
 immutable input, and the `Wired` broker §6 establishes.
+
+## Moving one you wrote under the old shape
+
+A plugin used to be a node carrying a `plugin` property with two children whose notes held the halves. Nothing reads that shape any more, and there is no migration in the product: move it by hand, once. Make `plugins/<word>/`, paste each child's note into `server.ts` and `browser.tsx` beside a `README.md` saying in a heading and a sentence what the thing does, delete the old node, and press **Turn on** on the plugin's page. The approval does not come across — the version is a hash of files now, and consent lives in `_olai/Settings.olai` — so you are asked once, about source you can finally read in an editor.
+
+## What this is not
+
+- **Not sandboxed.** See above. Approval is the boundary.
+- **Not a lock, and the fence has a shape.** olai refuses a session's write of `approved` and `on` at its own door — that is a real refusal, with a sentence, and it is what stops an agent approving the plugin it just wrote *through olai*. It is not a claim about the file. Those are ordinary properties in an `.olai` in the served directory, the store watches that directory, and an approval that simply *appears* there is an ordinary revision. The agents this is about are processes on the same host with their own file and shell tools. The vault is the owner's directory: treating it as an attack surface leads somewhere silly, and olai does not pretend to police what it does not serve. What the fence covers is writes through olai's door (ruled, 2026-09-04).
+- **Not a report of what the FACE did.** A half whose `apply` throws lands the plugin on `failed` with its own sentence, on the server. A face that throws while it is being *drawn* does not: the tab's fault boundary contains it the way it contains a shipped plugin's, the console says which plugin it was, and the page goes on saying **On** — because on the server it is. Initialization failures and missing browser dependencies are reported beside the server state. Render-time faults remain the drawing boundary's responsibility.
+- **Not a second settings namespace.** A plugin's knobs are in `_olai/Settings.olai` with everybody else's, under a node named for the plugin. There is nothing per machine and no file beside the source.
+- **Not a package.** There is no `olai plugin add`, no npins pin and no out-of-tree build. A plugin is three files in a directory olai is already serving.

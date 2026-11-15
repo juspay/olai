@@ -478,7 +478,11 @@ A pin title may also be a workspace address: `/s/` followed by percent-encoded p
 
 What is in a vault is not only outlines and notes: a saved article, a report a build wrote, the bank's export, the screenshot of the thing that broke, the diagram somebody drew, the receipt. Four kinds of file are those, and olai treats all four the same way — it claims them, lists them, addresses them and **draws** them, and never writes one.
 
-Each served file is claimed by a live row in the vault-owned `vault.file-kinds` registry. Olai claims `.olai`, Markdown `.md`, Hypertext `.html`, CSV `.csv`, Image its nine picture suffixes, and PDF `.pdf`. Files with no current claim are outside the set. Suffixes match exactly as registered: `IMG_1234.JPG` and `a.OLAI` are unclaimed. Adding a kind means registering its server claim and contributing its browser glyph and page; node-holding formats share Outlines' renderer.
+Each served file is claimed by a live row in the vault-owned `vault.file-kinds` registry. Olai claims `.olai`, Markdown `.md`, Hypertext `.html`, CSV `.csv`, Image its nine picture suffixes, PDF `.pdf`, and Vault plugins `.ts` and `.tsx`. Files with no current claim are outside the set. Suffixes match exactly as registered: `IMG_1234.JPG` and `a.OLAI` are unclaimed. Adding a kind means registering its server claim and contributing its browser glyph and page; node-holding formats share Outlines' renderer. The last of those is not one of the four this section is about: a plugin's halves are **kept** text, written through the ordinary gate by the vault's own write door, which is what lets an agent build a plugin where it is read ([dynamic-plugins.md](dynamic-plugins.md)).
+
+**A claim may say WHERE it applies, and exactly one does.** A suffix is the whole of the question for every kind but the last: nothing but an outline is a `.olai`, and a vault that holds a `.png` holds a picture. It cannot be the whole question for `.ts`, which names a file a directory is likely to be full of for reasons that have nothing to do with olai — a checkout beside the notes. So the claim carries `under: "plugins/"` (`@olai/format`'s `Claim.under`), and a `.ts` outside that folder is unclaimed exactly as it was before the claim existed. The walk CONTINUES past a suffix match whose scope the path is outside rather than answering nothing, so two claims may share a suffix while one of them is scoped. Everything downstream reads the scope rather than the bare name: `stemOf` is asked of the full path, so a claim that applies in one folder is never judged on a basename that has had its folder cut off.
+
+**And a claim may say its files are reached from somewhere else**, which is `Claim.elsewhere` and which only that same claim sets. A plugin's two halves are in the set, in the ledger, listed by the Commit panel and addressable like any other file — what they are not is rows in the sidebar's **Reference** tree, because the plugin's own page is where they are read, with the file names over them and a diff when they change. Two front doors onto one file is how a sidebar fills up with the app's own plumbing. The flag is a drawing rule and never a permission: nothing is hidden, and nothing is withheld from anybody who asks for the path.
 
 A picture is the one kind with more than one spelling, and that is what a kind with a list of suffixes is for: `.png` and `.webp` are not two names for one thing, they are two encodings of the one thing olai does with either, which is draw it in an `<img>`. A kind per encoding would be nine rows owing nine identical glyphs, nine identical faces and nine identical nouns.
 
@@ -576,7 +580,7 @@ For outline-olai, each node is one line with a stable id, so plain line-based gi
 
 PR #54 is the working reference implementation of this format — read it, don't extend it. Three of its features are deliberately **not** part of the new format: `include` records (glob or literal), the stored year→month journal scaffolding with day-titled nodes (replaced by the `date` field), and `.scrbl` docs.
 
-The top-level `olai` namespace holds the serve's `log-level` and `log-format`. A vault-defined plugin reads its schema leaves from its own definition node instead; those knobs share the source's versioned outline but do not change its source-approval hash. The default front page prefers ordinary outlines over `_olai/` convention files; all of them remain directly addressable.
+The top-level `olai` namespace holds the serve's `log-level` and `log-format`. A plugin the vault defines keeps its schema leaves in exactly the same place every built row does — a root node titled with its word in `_olai/Settings.olai`, carrying `on`, `approved`, `builder` and the plugin's own knobs — and a knob edit re-applies the plugin without touching its approval, since the approved version is a hash of the two source files and a setting is not source. The default front page prefers ordinary outlines over `_olai/` convention files; all of them remain directly addressable.
 
 ## File claims and convention names
 
@@ -586,6 +590,13 @@ new outlines use, and its first registered suffix is what a mint writes.
 Existing files are selected by live claims, not by that setting. An absent
 configured row refuses a mint; an unclaimed address is a `notFound` answer,
 not a schema decoding failure.
+
+A claim's `under` scopes it to a path prefix and its `elsewhere` keeps its
+files out of the sidebar's Reference tree. Both are the `vault-plugins` row's
+alone today: `.ts` and `.tsx` under `plugins/`, read on a plugin's own page.
+Neither changes membership, validation, addressing or the ledger — a scoped
+claim decides which paths are claimed at all, and `elsewhere` decides only
+where a claimed file is listed.
 
 `Trash`, `Inbox`, `Pins` and `Properties` are case-insensitive stems directly
 under `_olai/`, matched only among files whose claims hold nodes. They work
