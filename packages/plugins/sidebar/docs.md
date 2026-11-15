@@ -23,11 +23,19 @@ notebook reading and imports no file tree or content editor.
 Top to bottom: the `top` entries (Agenda — with the journal's short list of what
 is owed folded under it while anything is overdue or due today — then Today with
 the month folded under it), Inbox (capture), the plugin sections (chat's
-Needs you and Chats), the pinned shelf, the file list (files: Outlines,
-Reference and the `_olai/` group), and, pinned under the scrolling list, the
-`foot` entries (Trash). On a phone the foot sits above the drawer's own foot
-with preferences and plugins; on a desktop it shares a line with the collapse
-button.
+Needs you and Chats, then vault-plugins' Plugins), the pinned shelf, the file
+list (files: Outlines, Reference and the `_olai/` group), and, pinned under the
+scrolling list, the `foot` entries (Trash). On a phone the foot sits above the
+drawer's own foot with preferences and plugins; on a desktop it shares a line
+with the collapse button.
+
+**Plugins** is a section like Chats and Needs you, contributed by the row that
+owns the plugins a vault defines: one entry per folder under `plugins/`, named
+by its README's heading, wearing what it needs from a person (`Review`,
+`Problem`) and a `+` on the heading that opens the palette at **New plugin**.
+It is drawn only while the vault holds one, so a directory with no plugins has
+no such heading — the same rule the pinned shelf and the `_olai/` group keep.
+Sidebar itself knows none of that: it draws a placement.
 
 A `sidebar.entry` names where it stands with a placement word, never a pixel or
 another plugin: `top`, `bottom` (after the plugin sections), or `foot` (pinned
@@ -45,11 +53,12 @@ declares only `solid-js` while the tip lives in `@olai/web`, which declares
 that package; so whichever row draws the icon wraps it in the tip, the same way
 every other control in the app does.
 
-Every heading in the column (Pinned, Needs you, Chats, Outlines) wears one
-treatment: the words are written in Sentence case and styled as small, spaced
-capitals (`olai-plugin-layout/entry`'s `REGION_LABEL`), so an accessible name
-or a test reads `Outlines`, not `OUTLINES`. A heading that carries an action
-(the `+` beside Chats, which opens the palette at New chat, and the `+` beside Outlines,
+Every heading in the column (Pinned, Needs you, Chats, Plugins, Outlines) wears
+one treatment: the words are written in Sentence case and styled as small,
+spaced capitals (`olai-plugin-layout/entry`'s `REGION_LABEL`), so an accessible
+name or a test reads `Outlines`, not `OUTLINES`. A heading that carries an
+action (the `+` beside Chats, which opens the palette at New chat, the `+`
+beside Plugins, which opens it at New plugin, and the `+` beside Outlines,
 which opens the New outline / New document menu) is drawn by the plugin that owns both the heading and the action,
 using the shared `REGION_HEAD` and `HEAD_ACTION` paint. When that plugin's row
 switches off, the heading and its `+` leave together.

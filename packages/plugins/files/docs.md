@@ -2,8 +2,10 @@
 
 Files owns the outline tree, the collapsed Reference section and file creation/deletion controls. It consumes
 the vault's file-access service and keeps browser-local folder and Reference preferences under
-its own scope. Two walks select by the served claim: `holds: nodes` goes in Outlines; every other claimed file goes in Reference. Each walk omits empty folders, and both share directory-path fold keys. The sidebar receives both through one contribution; disabling
+its own scope. Two walks select by the served claim: `holds: nodes` goes in Outlines; every other claimed file goes in Reference, except one whose claim says its files are reached from somewhere else. Each walk omits empty folders, and both share directory-path fold keys. The sidebar receives both through one contribution; disabling
 files removes browsing UI without withdrawing an open content editor.
+
+**A claim may keep its files out of both trees** (`@olai/format`'s `Claim.elsewhere`), and today exactly one does: the two halves of a plugin the vault defines, which are read on that plugin's own page with the file names over them. That is a DRAWING rule and nothing else — the files are in the set, in the ledger and in the Commit panel, an address opens each of them, and search finds them. What the flag buys is that the column does not grow a second front door onto a file the app already draws better somewhere, which is the same argument the `_olai/` group settles for the vault's own furniture.
 
 Sidebar file rows carry their served path through the host-supplied `Landings` table. A press still opens the file; a travelled carry suppresses navigation. Holding a file on a phone closes the drawer through the sidebar region’s existing owner-supplied `onClose` callback, without unmounting the carrier.
 

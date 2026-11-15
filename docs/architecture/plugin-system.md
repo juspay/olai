@@ -1082,12 +1082,12 @@ The vault also offers `vault.outline-row`, the configured mint row id, to server
 | Scope | browser services are unchanged; these are server-half dependencies |
 
 See [the authoring contract](../dynamic-plugins.md#sharing-a-plugin-owned-service)
-and the two-definition lifecycle scenario in
+and the two-plugin lifecycle scenario in
 `a_plugin_the_vault_defines.feature`.
 
 ### `journal.agenda`, a key whose consumer cannot be recompiled (12d)
 
-12b built the mechanism with two vault-defined fixtures behind it, and 12c gave
+12b built the mechanism with two vault-written fixtures behind it, and 12c gave
 it its first shipped user, `chat.seating`, between two rows this build compiles
 together. This case is the one the mechanism was built for: the consumer is a
 plugin somebody wrote into a vault, which olai never rebuilds.
@@ -1108,7 +1108,7 @@ plugin somebody wrote into a vault, which olai never rebuilds.
   an answer the provider spells with the format's own types. Both ends agree
   structurally; the string key names a dependency and checks no shape.
 
-`the_morning_agenda.feature` covers the lifecycle end to end: a definition
+`the_morning_agenda.feature` covers the lifecycle end to end: a plugin folder
 approved on the panel, waiting on the key while the journal row is switched off,
 running when it returns, and one delivery reaching a node agent's own
 conversation through `Deliveries` — with the key appearing in and disappearing
@@ -1255,8 +1255,8 @@ flags.
   transports included. Settings-reader owners ignore file `on`, and disabling
   every transport opens no listener.
 - The browser test harness explicitly composes its socket, assets and MCP carrier
-  for nonempty test tags. `BUNDLE_NAMES` includes every transport, so dynamic
-  definitions cannot replace those reserved names.
+  for nonempty test tags. `BUNDLE_NAMES` includes every transport, so a plugin
+  a vault defines cannot replace those reserved names.
 - The generator reads package exports: only a declared `./browser` gets a
   browser-table entry and a chunk, and only a declared `./all.css` enters the
   style chain. Server-only packages need neither stub.
@@ -1341,13 +1341,14 @@ Wire schemas belong to the plugins that implement them, not to one core spec.
   and write authority. Supplemental vault and plugin-chunk HTTP routes do not
   open a listener without an actual transport, and a failed or absent vault
   leaves the host control plane usable.
-- `vault-plugins` owns discovery, version approval, compilation and chunk
-  delivery through a generic owned loader: acquired children, catalogs and
+- `vault-plugins` owns the `plugins/` folders, version approval, compilation and
+  chunk delivery through a generic owned loader: acquired children, catalogs and
   pending starts leave with their owner, while accepted vault writes stay
   durable. The host knows module declarations and lifecycle reports, not source
-  approval policy. Approval writes stay reserved from agent access even when the
-  policy provider is absent. Catalog changes refresh host reports, including
-  definitions waiting for another definition's service.
+  approval policy. Approval and enablement writes — `approved` and `on` on the
+  plugin's node in the settings file — stay reserved from agent access even when
+  the policy provider is absent. Catalog changes refresh host reports, including
+  one vault plugin waiting for another's service.
 
 ### Presentation resources and recovery
 

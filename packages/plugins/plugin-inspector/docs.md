@@ -23,13 +23,20 @@ so nothing classifies a row by its words.
 
 Everything else is the row's detail, behind a chevron before the label: the full
 sentence about what is wrong, the face its own plugin hangs, **Try again** or
-**Reload** for a browser half that failed, a vault definition's source, its
+**Reload** for a browser half that failed, its
 settings, the environment it reads, `Short name` (the settings namespace, where
 the label differs), `Saved in` (a link to its node) and, for a session-only
 switch, `This switch resets when olai restarts.` (the switch itself wears a
 dashed ring, says `Resets when olai restarts` on hover, and carries those words
 in its own name, so a screen reader hears them too). A row with nothing to reveal
 has no chevron; its label keeps the chevron's space so the names line up.
+
+**A plugin the vault defines keeps its source off this panel.** Its row's detail
+carries a link to the plugin's own page instead, and that page is where the
+README, what it uses, the three files, the diff against an approved version and
+the **Turn on** button are. The panel is a list of switches over a whole serve;
+reading code and deciding about it is a page's work, and drawing a plugin's
+source twice would make one of the two the stale one.
 
 ## Groups
 
@@ -78,8 +85,8 @@ the component pends and draws no stale diagnosis.
 
 ## Ownership
 
-Its provider owns panel visibility, which groups and rows are open, and the
-source versions the reader has acknowledged. A separate integration consumes
+Its provider owns panel visibility and which groups and rows are open. A
+separate integration consumes
 `browser-management` and `ui-renderer.slots`, contributing through
 `layout.tools` with `desktop: "health"` and the door's `open` reading, so a
 rebuilt shell reopens the health popover and the panel with it. Removing the
@@ -122,12 +129,13 @@ owner. The inspector reads build-supplied label, section, quiet, opt-in and
 switch-hint facts through that capability rather than importing the bundle that
 loads it.
 
-Source approval belongs to `vault-plugins`. The inspector calls its optional,
-scoped browser client with the source version the reader acknowledged. If that
-browser provider is absent, approval reports a refusal and releases the pending
-control; the inspector remains usable. A returning provider supplies a fresh
-client for the next request. No host approval binding or hard dependency keeps
-the definition provider alive.
+Approval belongs to `vault-plugins` and is drawn on the plugin's own page, not
+here. What this panel keeps is the switch and the row's state, so a plugin the
+vault defines that nobody has approved reads `Needs approval` under **Needs
+attention** and its detail offers the way to the page where that decision is
+made. With that row's browser provider absent, the link is not offered and the
+inspector remains usable; no host approval binding or hard dependency keeps the
+vault-plugins provider alive.
 
 ## Layout
 
