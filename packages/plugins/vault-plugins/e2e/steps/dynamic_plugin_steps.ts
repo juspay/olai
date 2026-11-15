@@ -379,7 +379,11 @@ Then("the plugin run reports {string} as {string} from {string}", function (this
   )
 })
 
-Then("the palette {word} the colour {string}", async function (this: OlaiWorld, verdict: string, value: string) {
+/** WHAT THE VAULT WILL HOLD A VALUE TO, asked through the ordinary write door:
+ *  the kind a plugin registered is in force or it is not, and an agent's write
+ *  is where that is felt. The verdict belongs to whichever plugin registered
+ *  the kind — its own `admits`, or a palette another folder offers. */
+Then("the vault {word} the colour {string}", async function (this: OlaiWorld, verdict: string, value: string) {
   const { connectTerminalAgent, tryTool } = await import("@olai/tests/harness/mcp.ts")
   this.terminalAgent ??= await connectTerminalAgent(`${this.baseUrl}/mcp`)
   const answer = await tryTool(this.terminalAgent, "outlines_prop", { id: "amber", key: "swatch-hex", value })
