@@ -1,106 +1,141 @@
 /**
- * A PLUGIN, AS THE VAULT HOLDS ONE — the reading phase 12 is built on, and the
- * whole of what this serve knows about a plugin nobody compiled in.
+ * A PLUGIN, AS THE VAULT HOLDS ONE — the reading everything else here is built
+ * on, and the whole of what this serve knows about a plugin nobody compiled in.
  *
- * ## Where the source lives, and why it is nodes rather than files
+ * ## It is a FOLDER
  *
- * *In the vault, under the node agent's subtree, as the configuration ruling
- * requires: a node with a `plugin` property whose subtree holds `server.ts` and,
- * optionally, `browser.tsx`, written by the agent through the ordinary vault
- * write door, so the plugin is versioned by the ledger like any other file.*
+ * ```
+ * plugins/hex-swatch/
+ *   README.md     what it does, for a person
+ *   server.ts     required
+ *   browser.tsx   optional
+ * ```
  *
- * Every clause of that is kept HERE, and the way it is kept is that the source
- * is a NOTE. A node's note is markdown stored verbatim with embedded newlines
- * (`@olai/format`'s `desc`), `outlines_desc` is the ordinary write door onto one, and
- * a `.olai` outline is a file the ledger commits like any other. A `.ts` on the
- * disk beside the outlines would have been none of those things: `@olai/format`
- * claims six kinds of file and `.ts` is not one of them, so the store would not
- * serve it, `markdown_write` refuses anything that is not a `.md`, and the
- * ledger records the paths olai WROTE — which, for a file olai does not know
- * about, is no path at all.
+ * Three plain files a person can open in any editor, review in a pull request
+ * and keep in git — which is the whole of why the shape changed. It used to be
+ * a node with a `plugin` property and two children carrying the halves in their
+ * notes, and the argument for that was real at the time: `.ts` was not a kind
+ * of file olai served, so a half on the disk was a half the store would not
+ * read, the ledger would not record and no write door would write. Every clause
+ * of that is now false. A claim may say WHERE it applies (`@olai/format`'s
+ * `Claim.under`), so `.ts` under `plugins/` is a kind of file this serve holds
+ * and nothing else in the vault is swept up with it; `create-doc` mints any
+ * kept-text kind the claims admit; and the write gate, the revision, the
+ * commit panel and the diff all treat the three files as what they are.
  *
- * So the two halves are two child nodes, titled for the files they would have
- * been, each carrying its half in its note. An agent writes them with `outlines_add`
- * and `outlines_desc`; a person reads them in the outliner like anything else; a
- * revision moves them like anything else. There is no second write door and no
- * new kind of file.
+ * What that bought is not tidiness. It is that a plugin is now a thing you can
+ * SHOW somebody: a folder, with a README at the top of it, that travels by
+ * being copied.
  *
- * ## What is a plugin here, exactly
+ * ## ...and the CONSENT is somewhere else entirely
  *
- * A node with a `plugin` property. The property's VALUE is the plugin's word —
- * the row's `id`, the sibling key, the word the panel draws and the file’s row selection
- * would take if this were a built row. It is the property rather than the title
- * because a title is prose somebody renames and a row's identity is not: the
- * `LocalState` records, the slot table and the approval below are all keyed by the
- * word, and a rename that moved a plugin's identity would orphan every one of
- * them.
+ * `on`, `approved` and the plugin's own knobs live on the plugin's node in
+ * `_olai/Settings.olai` — the same file, the same shape and the same reader
+ * every row this build shipped already keeps its settings in (the human,
+ * 2026-11: *exactly where built rows keep theirs*).
  *
- * ## APPROVAL IS A SECOND PROPERTY, on the same node
- *
- * `approved` carries the version a person said yes to, or the word `always`
- * (the human, 2026-09-05: *recorded in the vault, next to the plugin, as a
- * property on the plugin's node, so it travels with the vault and is versioned
- * by the ledger like the source*). A version the property does not name is
- * PENDING again, which is what makes an edit to the source a fresh decision
- * rather than a plugin that quietly became something else after it was trusted.
+ * The consequence is the point: **a folder copied in from another vault arrives
+ * off and unapproved**, because consent did not travel with it. The code is
+ * portable and the yes is not. It also means enablement SURVIVES A RESTART,
+ * which a definition's switch never did — it used to be a set in this process's
+ * memory, so a plugin somebody turned off came back on at the next boot.
  *
  * ## Nothing here builds, mounts or judges a person's decision
  *
  * This module answers what is written down. `./runtime.ts` is what does anything
  * about it, and the split is the usual one: a reading is a pure function of a
- * revision and is benched as one.
+ * revision.
  */
 
-import { customText, type Derived, type Located, isPutAway, isRegular, type RegularNode } from "@olai/format"
-import { PLUGIN_BROWSER_NODE as BROWSER_NODE, PLUGIN_SERVER_NODE as SERVER_NODE } from "@olai/surface"
+import {
+  customText,
+  type Located,
+  type Reading,
+  isRegular,
+} from "@olai/format"
+import { configurationNode, configurationNodes } from "@olai/plugin-api/configuration"
+import {
+  PLUGIN_BROWSER_FILE,
+  PLUGIN_FOLDER,
+  PLUGIN_README_FILE,
+  PLUGIN_SERVER_FILE,
+} from "@olai/surface"
+import { isMarkdown } from "@olai/format"
 
-/** THE TWO HALVES, by the titles their child nodes wear — `@olai/surface`'s,
- *  because the panel draws them as headings over the source and
- *  `plugins.inspect` tells an agent what to title what it writes. Three readers,
- *  one spelling; that member's own doc argues why. */
-export { BROWSER_NODE, SERVER_NODE }
+import { usesOf, type Uses } from "./uses.ts"
 
-/** The property that says *this node is a plugin*, and the one that says a
- *  person approved a version of it. Core's own words, undeclared and therefore
- *  plain text like any other custom key (`@olai/format`'s `typing.ts`: typing is
- *  opt-in per key, and a vault that declares nothing behaves as it always did). */
-export const PLUGIN_KEY = "plugin"
+export { PLUGIN_BROWSER_FILE, PLUGIN_FOLDER, PLUGIN_README_FILE, PLUGIN_SERVER_FILE }
+
+/** The two consent properties, on the plugin's node in the settings file. Core's
+ *  own words, undeclared and therefore plain text like any other custom key —
+ *  and `on` is spelled exactly as a built row's is, because it IS a built row's:
+ *  one reader, one word, one meaning. */
 export const APPROVED_KEY = "approved"
+export const ON_KEY = "on"
+
+/** The property that binds the conversation building a plugin to the plugin it
+ *  is building. It sits on the plugin's settings node beside the consent,
+ *  because that is the row's own record and the chat is a fact about this
+ *  plugin rather than about that conversation. */
+export const BUILDER_KEY = "builder"
 
 /** What `approved` carries when a person approved this plugin and every later
  *  version of it, rather than one. */
 export const ALWAYS = "always"
 
+/** THE WORD — the folder's name, and the same shape a bundle row's `id` has. */
+export const WORD = /^[a-z][a-z0-9-]*$/
+
 /**
  * ONE PLUGIN THE VAULT DEFINES.
  *
- * `fault` is the arm this reading can produce on its own — a word that is not a
- * word, a half that is not there, two nodes claiming one name — and it is a
- * whole sentence because it is drawn under a row on the panel beside the
- * failures a plugin's own `apply` produces. It is CORE's sentence here, unlike
- * those: what is wrong is the shape of the definition, which is olai's
- * vocabulary and not the author's.
+ * `fault` is the arm this reading can produce on its own — a folder named
+ * something that is not a word, a folder with no `server.ts`, a word this build
+ * already has — and it is a whole sentence because it is drawn under a row on
+ * the panel and on the plugin's own page, beside the failures a plugin's own
+ * `apply` produces. It is CORE's sentence here, unlike those: what is wrong is
+ * the shape of the folder, which is olai's vocabulary and not the author's.
  */
 export interface Defined {
-  /** This definition node and its sections, from the owner's current revision. */
-  readonly configuration?: { readonly node: Located; readonly nodes: ReadonlyArray<Located> }
-  /** The word — the row's `id`. */
+  /** The word — the folder's name, and the row's `id`. */
   readonly name: string
-  /** The node the definition hangs off, and the file it is in: what a panel
-   *  links to and what a refusal names. */
-  readonly node: string
-  readonly file: string
-  /** The two halves' sources, verbatim. `browser` is absent for a plugin with
-   *  no face — a server-only plugin is a whole plugin (a kind, a doorbell), the
-   *  same way an engine is a browser-only one. */
+  /** The folder, with its trailing slash. */
+  readonly folder: string
+  /** What a person calls it: the README's first heading, or the word. */
+  readonly title: string
+  /** One sentence: the README's first paragraph, or empty. */
+  readonly description: string
+  /** The README verbatim, or `null` for a folder with none. */
+  readonly readme: string | null
+  /**
+   * The two halves' sources, verbatim. `browser` is absent for a plugin with
+   * no face — a server-only plugin is a whole plugin (a kind, a doorbell), the
+   * same way an engine is a browser-only one.
+   */
   readonly server: string
   readonly browser: string | null
   /** THE VERSION: a content hash of both halves. What a person approves, and
-   *  what tells an edit from a redraw. */
+   *  what tells an edit from a redraw. The README is NOT in it: fixing a typo
+   *  in the prose is not a fresh decision about code. */
   readonly version: string
   /** What the `approved` property says, verbatim — the version, {@link ALWAYS},
    *  or `null` for a plugin nobody has decided about. */
   readonly approved: string | null
+  /** Whether the person's switch is up. A folder with no settings node is OFF:
+   *  consent does not travel with a copied folder. */
+  readonly on: boolean
+  /** The conversation building this plugin, where one is bound. */
+  readonly builder: string | null
+  /** What the code reaches for, read off its own imports. */
+  readonly uses: ReadonlyArray<Uses>
+  /** This plugin's node in the settings file and the file's nodes, for the
+   *  knob reader and for every write this row makes about consent. `node` is
+   *  absent until something writes one. */
+  readonly settings: {
+    readonly file: string | undefined
+    readonly node: Located | undefined
+    readonly nodes: ReadonlyArray<Located>
+  }
   /** Why this definition cannot be built, in a whole sentence, or `null`. */
   readonly fault: string | null
 }
@@ -110,142 +145,163 @@ export const isApproved = (one: Defined): boolean =>
   one.approved === ALWAYS || (one.approved !== null && one.approved === one.version)
 
 /**
- * EVERY PLUGIN THIS VAULT DEFINES, in corpus order.
+ * EVERY PLUGIN THIS VAULT DEFINES, in folder order.
  *
- * `taken` is the words this BUILD already has — the bundle's rows. A definition
+ * `taken` is the words this BUILD already has — the bundle's rows. A folder
  * that claims one of them is a fault rather than an override: the roster is
- * keyed by the word, the slot table and the `LocalState` records are keyed by the
- * word, and a vault that could rename a compiled-in plugin out of existence
+ * keyed by the word, the slot table and the `LocalState` records are keyed by
+ * the word, and a vault that could rename a compiled-in plugin out of existence
  * would be the vault deciding what the host runs, which is the one thing every
  * ruling in this lane refuses.
  *
- * WHAT IS LEFT OUT is a node whose file was put away. A trashed definition is
- * a regular node in `_olai/Trash.olai`, and without this skip the panel draws
- * it as a vault-defined plugin with the trash as its file. The rest of the
- * tree treats the trash as absent (`isPutAway`); this reader does too, so
- * `outlines_trash` is the retraction the doc already names.
+ * TWO FOLDERS CANNOT CLAIM ONE WORD, which is a guarantee the shape now keeps
+ * for free: the word IS the folder's name, and a directory holds one entry per
+ * name. The old reading had to refuse a word two nodes carried, because a
+ * property is not an identity.
  */
 export const definedIn = (
-  derived: Derived,
+  reading: Reading,
   taken: ReadonlyArray<string>,
 ): ReadonlyArray<Defined> => {
-  const claims = new Map<string, number>()
-  const read: Array<Defined> = []
-  for (const at of derived.nodes) {
-    if (!isRegular(at)) continue
-    // THE TRASH IS ABSENT, asked the way every live reading here asks it:
-    // once per file, of the one predicate (`isPutAway`) rather than of a
-    // basename. A leftover `Archive.olai` is the other half of that predicate
-    // and is skipped for the same reason — it is not a live definition either.
-    if (isPutAway(derived.claims, at.file)) continue
-    const word = (customText(at.node, PLUGIN_KEY) ?? "").trim()
-    if (word === "") continue
-    claims.set(word, (claims.get(word) ?? 0) + 1)
-    read.push(defined(derived, at.node, at.file, word, taken))
+  const settings = configurationNodes(reading)
+  const folders = new Map<string, Map<string, string>>()
+  for (const document of reading.set.documents) {
+    if (!document.path.startsWith(PLUGIN_FOLDER)) continue
+    const rest = document.path.slice(PLUGIN_FOLDER.length)
+    const cut = rest.indexOf("/")
+    // A FILE DIRECTLY UNDER `plugins/` IS NOT A PLUGIN, and neither is one
+    // nested deeper: the folder is the plugin, so `plugins/notes.md` and
+    // `plugins/hex-swatch/src/helper.ts` are ordinary vault content that
+    // nothing here claims.
+    if (cut <= 0) continue
+    const word = rest.slice(0, cut)
+    const name = rest.slice(cut + 1)
+    if (name !== PLUGIN_README_FILE && name !== PLUGIN_SERVER_FILE && name !== PLUGIN_BROWSER_FILE) continue
+    // Only a kept-text document carries its body in the revision; an unkept
+    // claim would hand back a face with nothing in it.
+    if (!isMarkdown(document)) continue
+    const held = folders.get(word) ?? new Map<string, string>()
+    held.set(name, document.body)
+    folders.set(word, held)
   }
-  // TWICE-CLAIMED IS A FAULT ON BOTH, and neither mounts. It is the rule
-  // `@olai/plugin-api`'s `Kinds` keeps one registry over and for its reason: the
-  // assembly underneath is a `Map.set`, so a collision resolves silently in
-  // favour of whoever was read last — one person's plugin quietly serving under
-  // another's name, with nothing red anywhere.
-  return read.map((one) =>
-    one.fault === null && (claims.get(one.name) ?? 0) > 1
-      ? { ...one, fault: `two nodes in this vault claim the plugin word "${one.name}", so neither is mounted. Give one of them another word.` }
-      : one
-  )
+  return [...folders.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([word, files]) => defined(word, files, settings, taken))
 }
 
-/** One node, read. */
+/** The settings file as this reading found it — the whole of what consent is
+ *  read out of, named here rather than inferred off the walk that builds it. */
+export interface Consent {
+  readonly file: string | undefined
+  readonly nodes: ReadonlyArray<Located>
+}
+
+/** One folder, read. */
 const defined = (
-  derived: Derived,
-  node: RegularNode,
-  file: string,
   name: string,
+  files: ReadonlyMap<string, string>,
+  settings: Consent,
   taken: ReadonlyArray<string>,
 ): Defined => {
-  const halves = children(derived, node.id)
-  const server = halves.get(SERVER_NODE) ?? null
-  const browser = halves.get(BROWSER_NODE) ?? null
-  const approved = ((): string | null => {
-    const said = (customText(node, APPROVED_KEY) ?? "").trim()
-    return said === "" ? null : said
-  })()
-  const ids = new Set([node.id])
-  let changed = true
-  while (changed) {
-    changed = false
-    for (const item of derived.nodes) {
-      if (isRegular(item) && item.node.parent !== undefined && ids.has(item.node.parent) && !ids.has(item.node.id)) {
-        ids.add(item.node.id); changed = true
-      }
-    }
+  const server = files.get(PLUGIN_SERVER_FILE) ?? null
+  const browser = files.get(PLUGIN_BROWSER_FILE) ?? null
+  const readme = files.get(PLUGIN_README_FILE) ?? null
+  const node = configurationNode(settings.nodes, name)
+  const said = (key: string): string | null => {
+    const raw = node === undefined || !isRegular(node) ? undefined : customText(node.node, key)
+    const trimmed = (raw ?? "").trim()
+    return trimmed === "" ? null : trimmed
   }
-  const nodes = derived.nodes.filter(item => ids.has(item.node.id))
-  const one = {
+  const told = toldBy(readme)
+  return {
     name,
-    configuration: { node: nodes.find(item => item.node.id === node.id)!, nodes },
-    node: node.id,
-    file,
+    folder: `${PLUGIN_FOLDER}${name}/`,
+    title: told.title === "" ? name : told.title,
+    description: told.description,
+    readme,
     server: server ?? "",
     browser,
     version: versionOf(server ?? "", browser),
-    approved,
+    approved: said(APPROVED_KEY),
+    on: said(ON_KEY) === "yes",
+    builder: said(BUILDER_KEY),
+    uses: usesOf(server ?? "", browser),
+    settings: { file: settings.file, node, nodes: settings.nodes },
+    fault: faultOf(name, server, taken),
   }
-  return { ...one, fault: faultOf(name, server, taken) }
 }
 
-/** What is wrong with this definition, in the order a person can act on it. */
+/**
+ * WHAT THE README SAYS THIS IS — the title a person reads and the one sentence
+ * under it.
+ *
+ * `# Title`, then a blank line, then one sentence: the shape the authoring
+ * guide asks for and the shape the builder is told to write. What this does
+ * with a README that is not that shape is take what it can — a first heading at
+ * any level, the first paragraph that is not a heading — because a person's own
+ * prose is not a format to refuse.
+ */
+export const toldBy = (readme: string | null): { readonly title: string; readonly description: string } => {
+  if (readme === null) return { title: "", description: "" }
+  let title = ""
+  const paragraph: Array<string> = []
+  for (const raw of readme.split("\n")) {
+    const line = raw.trim()
+    const heading = /^#{1,6}\s+(.*)$/.exec(line)
+    if (heading !== null) {
+      if (title === "") title = heading[1]!.trim()
+      if (paragraph.length > 0) break
+      continue
+    }
+    if (line === "") {
+      if (paragraph.length > 0) break
+      continue
+    }
+    paragraph.push(line)
+  }
+  return { title, description: paragraph.join(" ") }
+}
+
+/** What is wrong with this folder, in the order a person can act on it. */
 const faultOf = (
   name: string,
   server: string | null,
   taken: ReadonlyArray<string>,
 ): string | null => {
   if (!WORD.test(name)) {
-    return `"${name}" is not a plugin word. A word is lowercase letters, digits and hyphens, `
-      + `starting with a letter — it is the row's name, the key its members reach the wire `
-      + `under, and the address of its own docs.`
+    return `"${name}" is not a plugin word, so the folder \`${PLUGIN_FOLDER}${name}/\` defines `
+      + `nothing. A word is lowercase letters, digits and hyphens, starting with a letter — it `
+      + `is the row's name, the key its members reach the wire under, and the address of its `
+      + `own page. Rename the folder.`
   }
   if (taken.includes(name)) {
-    return `this build already has a plugin called "${name}", so a definition in the vault `
-      + `cannot take that word. Rename this one.`
+    return `this build already has a plugin called "${name}", so a folder in the vault `
+      + `cannot take that word. Rename the folder.`
   }
   if (server === null || server.trim() === "") {
-    return `this plugin has no ${SERVER_NODE}: give the node a child titled ${SERVER_NODE} `
-      + `and write the half in its note. A ${BROWSER_NODE} beside it is optional.`
+    return `this plugin has no \`${PLUGIN_SERVER_FILE}\`: put the server half in `
+      + `\`${PLUGIN_FOLDER}${name}/${PLUGIN_SERVER_FILE}\`. A \`${PLUGIN_BROWSER_FILE}\` `
+      + `beside it is optional.`
   }
   return null
 }
 
-/** THE WORD, and the same shape a bundle row's `id` has. */
-const WORD = /^[a-z][a-z0-9-]*$/
-
 /** What {@link versionOf} puts between the two halves — a byte no source file
  *  can contain, spelled as an escape so this file holds none itself. */
 const SEPARATOR = "\u0000"
-
-/** The two halves' notes, by the title of the child that carries each. A child
- *  titled neither is ordinary outline content — notes about the plugin, a
- *  to-do, whatever somebody put there — and is passed over rather than
- *  refused. */
-const children = (derived: Derived, node: string): ReadonlyMap<string, string> => {
-  const found = new Map<string, string>()
-  for (const at of derived.children.get(node) ?? []) {
-    if (!isRegular(at)) continue
-    const title = at.node.title.trim()
-    if (title !== SERVER_NODE && title !== BROWSER_NODE) continue
-    if (found.has(title)) continue
-    found.set(title, at.node.desc ?? "")
-  }
-  return found
-}
 
 /**
  * THE VERSION — a hash of what would run.
  *
  * BOTH HALVES, because approval is about the whole thing: a person who read a
  * server half and approved it has not approved a face that arrived afterwards.
- * The separator is a byte no source can contain, so two definitions cannot hash
+ * The separator is a byte no source can contain, so two plugins cannot hash
  * alike by having their halves cut at a different point.
+ *
+ * AND THE README IS NOT IN IT. The version is what a person said yes to, and
+ * what they said yes to is code. Prose about the code is prose: an author
+ * fixing a sentence in the README must not put a running plugin back to
+ * pending, because nothing that runs has changed.
  *
  * SHORT, because it is read aloud — it goes on the row, into the `approved`
  * property a person's approval writes, and into the URL of the browser chunk.

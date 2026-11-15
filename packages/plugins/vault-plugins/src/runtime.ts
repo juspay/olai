@@ -44,16 +44,16 @@
  */
 
 import { buildHalf, REGISTRY } from "@olai/plugin-build"
-import { UsageFailure, type OpFailure, type WriteRequest, type Derived } from "@olai/format"
+import { UsageFailure, type OpFailure, type WriteRequest, type Reading } from "@olai/format"
 import * as plugins from "@olai/plugin-api/services"
 import { type OwnedLoader, type Mounted, type Plugin, type RowReport } from "@olai/plugin-api/services"
 import type { BuiltPlugin } from "@olai/surface"
 import { PLUGIN_CHUNK_PREFIX, type PluginState } from "@olai/surface"
 import * as effect from "effect"
 import { Effect } from "effect"
-import { decodePolicy, policyEdit } from "@olai/plugin-api/configuration"
+import { CONFIGURATION_FILE, decodePolicy, policyEdit, type PolicyRow } from "@olai/plugin-api/configuration"
 
-import { type Defined, definedIn, isApproved } from "./source.ts"
+import { APPROVED_KEY, BUILDER_KEY, type Defined, definedIn, isApproved, ON_KEY } from "./source.ts"
 
 /**
  * THE HOST'S OWN MODULES, put where a module built at runtime can reach them.
@@ -105,7 +105,7 @@ export interface DynamicRuntime {
   /** Bring the mounted set into line with a revision. Answers whether anything
    *  moved, so a caller can re-compose exactly when there is something to
    *  re-compose. */
-  readonly follow: (derived: Derived | null) => Effect.Effect<boolean>
+  readonly follow: (reading: Reading | null) => Effect.Effect<boolean>
   /** ...and the same act against the reading this runtime last saw — what an
    *  approval and a switch need, since neither moves a file. */
   readonly again: Effect.Effect<boolean>
@@ -113,12 +113,25 @@ export interface DynamicRuntime {
    *  under. `null` for anything else, which is a stale tab asking for a version
    *  that has been replaced. */
   readonly chunk: (path: string) => string | null
-  /** Turn one dynamic row off or on for as long as this process runs — the
-   *  panel's switch, and the agent's `plugins.stop`. Answers whether there was
-   *  such a row. */
-  readonly set: (name: string, enabled: boolean) => Effect.Effect<boolean>
+  /**
+   * Turn one vault plugin off or on — the panel's switch, the page's, and the
+   * agent's `plugins.stop`. Answers whether there was such a row.
+   *
+   * IT WRITES, and that is the change the folder shape brought: this used to
+   * be a word added to a set in this process's memory, so a plugin somebody
+   * turned off came back on at the next boot. `on` is a property on the
+   * plugin's node in the settings file, like a built row's, and the answer to
+   * a restart is the file.
+   */
+  readonly set: (name: string, enabled: boolean) => Effect.Effect<boolean, OpFailure>
+  /** Say yes to a version, and turn it on — one write, because a press cannot
+   *  land half of itself. `forever` writes `always`. */
+  readonly approve: (name: string, forever: boolean) => Effect.Effect<boolean, OpFailure>
+  /** Bind a conversation to a plugin, so its page can dock the one that is
+   *  building it. */
+  readonly bind: (name: string, conversation: string) => Effect.Effect<boolean, OpFailure>
   readonly configure: (name: string, key: string, value: string | null) => Effect.Effect<boolean, OpFailure>
-  /** One definition as the vault holds it, for the two agent-facing verbs.
+  /** One plugin as the vault holds it, for the verbs that answer about one.
    *  `null` for a word this vault does not define. */
   readonly defined: (name: string) => Defined | null
 }
@@ -155,7 +168,7 @@ interface Live {
  * this version, and not tried again until the version moves.
  */
 type Started =
-  | ({ readonly up: true; readonly version: string; readonly policy: ReturnType<typeof decodePolicy>; readonly declaration: Plugin["config"]; readonly updates: Plugin["configUpdates"] } & Live)
+  | ({ readonly up: true; readonly version: string; readonly policy: PolicyRow; readonly declaration: Plugin["config"]; readonly updates: Plugin["configUpdates"] } & Live)
   | { readonly up: false; readonly version: string; readonly why: string }
 
 /**
@@ -174,10 +187,23 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
   /** Definitions as the last revision left them — what {@link rows} draws and
    *  what {@link again} re-follows. */
   let seen: ReadonlyArray<Defined> = []
-  /** Definitions stopped for this process. Unlike a built row's durable `on`
-   * switch, stopping a definition writes nothing. Restart rereads its source
-   * and approval from the vault. */
-  const stopped = new Set<string>()
+  /**
+   * THE HALVES AT THE VERSION A PERSON APPROVED, for the plugin that is now
+   * paused by an edit — which is the only thing a diff can be drawn against.
+   *
+   * Remembered here rather than fetched, because there is nowhere to fetch it
+   * from: the approved version is a HASH in the settings file, and the bytes
+   * it names are whatever the folder held at the time. So this takes a copy
+   * every time a reading arrives with its current version approved, and hands
+   * it back the moment the next reading is not.
+   *
+   * IT IS THIS PROCESS'S MEMORY, and the one case it cannot answer is honest
+   * and said on the page: a serve that was down while somebody edited an
+   * approved plugin comes back with the new source, the old hash, and no copy
+   * of what the hash named — so the page shows the code it has rather than a
+   * diff, and asks for the same decision either way.
+   */
+  const approvedSource = new Map<string, { readonly server: string; readonly browser: string | null }>()
 
   const follow = (defined: ReadonlyArray<Defined>): Effect.Effect<boolean> =>
     Effect.gen(function*() {
@@ -189,9 +215,25 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
       const said = wordsOf(seen)
       seen = defined
       let moved = wordsOf(defined) !== said
+      // THE COPY FOR THE DIFF, taken while the version on disk is the version
+      // that was approved — which is the only moment the bytes behind the hash
+      // are in hand. A word this reading no longer holds takes its copy with
+      // it, so a folder that was deleted and written again is not diffed
+      // against a predecessor nobody approved.
+      for (const one of defined) {
+        if (isApproved(one)) approvedSource.set(one.name, { server: one.server, browser: one.browser })
+      }
+      for (const name of [...approvedSource.keys()]) {
+        if (!defined.some((one) => one.name === name)) approvedSource.delete(name)
+      }
+      // WANTED IS APPROVED **AND** ON, and the two are different facts: a
+      // plugin a person approved and then switched off is approved and not
+      // running, and a plugin somebody switched on and then edited is on and
+      // paused. Both are written down, both survive a restart, and the row
+      // below says which is which.
       const wanted = new Map(
         defined
-          .filter((one) => one.fault === null && isApproved(one) && !stopped.has(one.name))
+          .filter((one) => one.fault === null && isApproved(one) && one.on)
           .map((one) => [one.name, one] as const),
       )
       // OUT FIRST, so a version that is being replaced has unwound every
@@ -233,31 +275,81 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
       return moved
     })
 
+  /**
+   * ONE CONSENT WRITE, wherever the settings file has got to.
+   *
+   * Three arms, and they are the three states a vault can be in rather than
+   * three code paths: the plugin already has a node in the settings file, so
+   * this is properties on it; the file exists and the plugin has no node yet,
+   * so this adds one; or there is no settings file at all, so this creates it
+   * holding exactly this row. `policyEdit` makes the same three decisions for
+   * a knob and this makes them for the two words beside the knobs.
+   *
+   * SEVERAL KEYS AT ONCE, because **Turn on** is two facts — *I have read this*
+   * and *I want it running* — and a press that landed one of them would leave
+   * a plugin approved and off, or on and unapproved, with nothing to say which
+   * half failed.
+   */
+  const consent = (one: Defined, props: Readonly<Record<string, string | null>>): WriteRequest => {
+    const node = one.settings.node
+    if (node !== undefined) {
+      const ops = Object.entries(props).map(([key, value]) => ({ op: "prop" as const, id: node.node.id, key, value }))
+      return ops.length === 1 ? ops[0]! : { op: "apply", ops }
+    }
+    const written = Object.fromEntries(Object.entries(props).filter(([, value]) => value !== null)) as Record<string, string>
+    return one.settings.file === undefined
+      ? { op: "create", file: CONFIGURATION_FILE, seed: { title: one.name, props: written } }
+      : { op: "add", file: one.settings.file, title: one.name, props: written }
+  }
+
   return {
     rows: (report) =>
-      seen.map((one) => rowOf(one, started.get(one.name), report.get(one.name), stopped)),
+      seen.map((one) => rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name))),
     names: () => seen.map((one) => one.name),
-    follow: (derived) => follow(derived === null ? [] : definedIn(derived, built)),
+    follow: (reading) => follow(reading === null ? [] : definedIn(reading, built)),
     again: Effect.suspend(() => follow(seen)),
     chunk: (path) => {
       for (const one of started.values()) if (one.up && one.path === path) return one.chunk
       return null
     },
 
-    set: (name, enabled) =>
-      Effect.suspend(() => {
-        if (!seen.some((one) => one.name === name)) return Effect.succeed(false)
-        if (enabled) stopped.delete(name)
-        else stopped.add(name)
-        return Effect.as(follow(seen), true)
-      }),
+    set: (name, enabled) => Effect.gen(function*() {
+      const one = seen.find((one) => one.name === name)
+      if (one === undefined) return false
+      // THE WRITE IS THE WHOLE ACT, and nothing here follows it: the write
+      // publishes a revision, the revision is followed by the caller that
+      // watches them, and the row moves because the file moved. A `follow` on
+      // this side would be a second clock, answering off a reading the store
+      // has not published yet.
+      if (one.on !== enabled) yield* write(consent(one, { [ON_KEY]: enabled ? "yes" : "no" }))
+      return true
+    }),
+    approve: (name, forever) => Effect.gen(function*() {
+      const one = seen.find((one) => one.name === name)
+      if (one === undefined) return false
+      yield* write(consent(one, { [APPROVED_KEY]: forever ? "always" : one.version, [ON_KEY]: "yes" }))
+      return true
+    }),
+    bind: (name, conversation) => Effect.gen(function*() {
+      const one = seen.find((one) => one.name === name)
+      if (one === undefined) return false
+      yield* write(consent(one, { [BUILDER_KEY]: conversation }))
+      return true
+    }),
     configure: (name, key, value) => Effect.gen(function*() {
       const one = seen.find(one => one.name === name)
       if (one === undefined) return false
-      if (key.split(".").some(part => part === "plugin" || part === "approved")) return yield* Effect.fail(new UsageFailure({ reason: `${key} is reserved for the definition's name and approval` }))
+      if (key.split(".").some(part => RESERVED.includes(part))) {
+        return yield* Effect.fail(new UsageFailure({
+          reason: `${key} is reserved for the plugin's approval, its switch and the conversation building it`,
+        }))
+      }
       const mounted = started.get(name)
       const declaration = mounted?.up === true ? mounted.declaration : undefined
-      const request = yield* Effect.try({ try: () => policyEdit(declaration, one.configuration?.nodes ?? [], one.configuration?.node, one.file, name, key, value), catch: error => error as UsageFailure })
+      const request = yield* Effect.try({
+        try: () => policyEdit(declaration, one.settings.nodes, one.settings.node, one.settings.file, name, key, value),
+        catch: error => error as UsageFailure,
+      })
       if (request !== undefined) yield* write(request)
       return true
     }),
@@ -266,28 +358,60 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
 }
 
 /**
+ * THE THREE WORDS NOTHING MAY DECLARE AS A KNOB — the plugin's approval, its
+ * switch and the conversation building it.
+ *
+ * They sit on the same node a plugin's knobs do, which is the whole of why
+ * they have to be refused by name: a `Config` field called `on` would be a
+ * plugin whose settings quietly decide whether it runs, and one called
+ * `approved` would be a plugin that can say yes to itself.
+ */
+export const RESERVED: ReadonlyArray<string> = [APPROVED_KEY, ON_KEY, BUILDER_KEY]
+
+/**
  * WHAT THE ROWS THIS RUNTIME DRAWS SAY, as one string — the comparison that
  * decides whether a revision moved anything.
  *
- * EVERY FIELD {@link rowOf} READS off a definition, and nothing else: the word,
- * where it lives, the version, what the approval property says and the shape
- * fault. `version` is a content hash of both halves, so the SOURCE is in here
- * without the source being in here.
+ * EVERY FIELD {@link rowOf} READS off a plugin, and nothing else: the word, the
+ * folder, the version, the consent, the prose and the shape fault. `version` is
+ * a content hash of both halves, so the SOURCE is in here without the source
+ * being in here — and the README is in here as itself, because the page draws
+ * it and an edit to it must reach an open tab even though it moves no version.
  *
- * A comparison rather than a diff, because the answer is one boolean: the caller
- * re-composes or it does not.
+ * A comparison rather than a diff, because the answer is one boolean: the
+ * caller re-composes or it does not.
  */
-const optionsKey = (one: Defined): string => JSON.stringify(one.configuration?.nodes.map(item => ({
-  id: item.node.id,
-  ...("parent" in item.node ? { parent: item.node.parent } : {}),
-  ...("title" in item.node ? { title: item.node.title } : {}),
-  custom: "custom" in item.node ? Object.fromEntries(Object.entries(item.node.custom ?? {}).filter(([key]) => key !== "approved" && key !== "plugin")) : {},
-})))
+const optionsKey = (one: Defined): string => {
+  const root = one.settings.node
+  if (root === undefined) return "null"
+  // THE WHOLE SUBTREE, because a schema section is a child node and a section
+  // inside one is a grandchild: `decodePolicy` recurses, so a fingerprint that
+  // stopped at the first level would miss a nested knob moving.
+  const ids = new Set([root.node.id])
+  for (let grew = true; grew;) {
+    grew = false
+    for (const item of one.settings.nodes) {
+      const parent = "parent" in item.node ? item.node.parent : undefined
+      if (parent !== undefined && ids.has(parent) && !ids.has(item.node.id)) { ids.add(item.node.id); grew = true }
+    }
+  }
+  return JSON.stringify(one.settings.nodes.filter(item => ids.has(item.node.id)).map(item => ({
+    id: item.node.id,
+    ...("parent" in item.node ? { parent: item.node.parent } : {}),
+    ...("title" in item.node ? { title: item.node.title } : {}),
+    custom: "custom" in item.node
+      ? Object.fromEntries(Object.entries(item.node.custom ?? {}).filter(([key]) => !RESERVED.includes(key)))
+      : {},
+  })))
+}
 
 /** Metadata fingerprint: field boundaries must survive text containing line breaks. */
 export const wordsOf = (defined: ReadonlyArray<Defined>): string =>
   defined
-    .map((one) => [one.name, one.node, one.file, one.version, one.approved, one.fault, optionsKey(one)].join("\0"))
+    .map((one) => [
+      one.name, one.folder, one.version, one.approved, String(one.on), one.builder,
+      one.title, one.description, one.readme, one.fault, optionsKey(one),
+    ].join("\0"))
     .join("\n")
 
 /**
@@ -304,13 +428,15 @@ export const wordsOf = (defined: ReadonlyArray<Defined>): string =>
  * what a row draws for it is the REPORT rather than anything this function knows.
  * Every arm below is a way the definition never became a fiber at all.
  */
-const policyFor = (schema: Plugin["config"], one: Defined, warn: (line: string) => void): ReturnType<typeof decodePolicy> => {
+const policyFor = (schema: Plugin["config"], one: Defined, warn: (line: string) => void): PolicyRow => {
   if (schema === undefined) return { config: {}, values: [] }
   if (schema.ast._tag === "Objects") for (const field of schema.ast.propertySignatures) {
-    if (field.name === "plugin" || field.name === "approved") throw new Error(`${String(field.name)} is reserved for the definition's name and approval`)
+    if (RESERVED.includes(String(field.name))) {
+      throw new Error(`${String(field.name)} is reserved for the plugin's approval, its switch and the conversation building it`)
+    }
   }
-  return decodePolicy(schema, one.configuration?.nodes ?? [], one.configuration?.node,
-    (key, value, reason) => warn(`${one.file}#${one.node}: ${key}: ${JSON.stringify(value)} uses its default — ${reason}`))
+  return decodePolicy(schema, one.settings.nodes, one.settings.node,
+    (key, value, reason) => warn(`${one.settings.file ?? CONFIGURATION_FILE}: ${one.name}.${key}: ${JSON.stringify(value)} uses its default — ${reason}`))
 }
 
 const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): Effect.Effect<Started> =>
@@ -332,11 +458,12 @@ const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): E
     // decided, so the half does not get to disagree with it.
     if (plugin.name !== one.name) {
       return faulted(
-        `this plugin's server half calls itself "${plugin.name}", but the node that defines it `
-          + `says "${one.name}". The node's \`plugin\` property is the name; make the half agree with it.`,
+        `this plugin's server half calls itself "${plugin.name}", but its folder is `
+          + `\`${one.folder}\`, so the word is "${one.name}". The folder's name is the name; `
+          + `make the half agree with it, or rename the folder.`,
       )
     }
-    let policy: ReturnType<typeof decodePolicy>
+    let policy: PolicyRow
     try { policy = policyFor(plugin.config, one, warn) }
     catch (error) { return faulted(`Invalid Config declaration: ${String(error)}`) }
     const mounted = yield* host.mount(plugin, policy.config)
@@ -383,40 +510,63 @@ const loaded = async (text: string): Promise<Plugin | string> => {
 }
 
 /**
- * ONE DEFINITION AS A ROSTER ROW.
+ * ONE PLUGIN AS A ROSTER ROW — and as the whole of its own page.
  *
- * Definition metadata decides pending approval, invalid shape, compilation
- * failure and a session stop. A mounted definition’s running, waiting or failed
+ * The folder decides pending approval, invalid shape, compilation failure and
+ * a switch somebody turned down. A mounted plugin's running, waiting or failed
  * state comes from its live registry report, just like a built row.
+ *
+ * `switched` IS THE PERSON'S `on` now, read off the settings file rather than
+ * off a set in this process. The two unapproved arms are told apart the way
+ * they always were: a version nobody said yes to is `pending` whatever the
+ * switch says, because the switch is not the question being asked.
  */
 const rowOf = (
   one: Defined,
   started: Started | undefined,
   report: RowReport | undefined,
-  stopped: ReadonlySet<string>,
+  approvedSource: { readonly server: string; readonly browser: string | null } | undefined,
 ): BuiltPlugin => {
   const up = started?.up === true ? started : null
+  // THE APPROVED HALVES ONLY WHERE THEY DIFFER, which is exactly the paused
+  // row and exactly where a diff is drawn. A row whose code nobody has touched
+  // would otherwise carry its own source twice on every roster.
+  const was = approvedSource === undefined || isApproved(one) ? undefined : approvedSource
   const source = {
-    node: one.node,
-    file: one.file,
+    folder: one.folder,
+    title: one.title,
+    description: one.description,
+    ...(one.readme === null ? {} : { readme: one.readme }),
     version: one.version,
     approved: isApproved(one),
+    on: one.on,
     server: one.server,
     ...(one.browser === null ? {} : { browser: one.browser }),
+    ...(was === undefined || was.server === one.server ? {} : { approvedServer: was.server }),
+    ...(was === undefined || was.browser === one.browser || was.browser === null ? {} : { approvedBrowser: was.browser }),
+    ...(one.uses.length === 0 ? {} : { uses: one.uses }),
+    ...(one.builder === null ? {} : { builder: one.builder }),
     ...(up?.path == null ? {} : { chunk: up.path }),
   }
   const at = (state: PluginState, more: Partial<BuiltPlugin> = {}): BuiltPlugin => ({
     name: one.name,
     running: state === "running",
     state,
+    switchPersistence: "file",
+    desiredOn: one.on,
     ...more,
     source,
-    ...(up === null ? {} : { configurationValues: up.policy.values, configurationNode: { file: one.file, id: one.node } }),
+    ...(up === null ? {} : {
+      configurationValues: up.policy.values,
+      ...(one.settings.node === undefined || one.settings.file === undefined
+        ? {}
+        : { configurationNode: { file: one.settings.file, id: one.settings.node.node.id } }),
+    }),
   })
   const said = one.fault ?? (started?.up === false ? started.why : undefined)
   if (said !== undefined) return at("failed", { fault: said })
   if (!isApproved(one)) return at("pending")
-  if (stopped.has(one.name)) return at("switched")
+  if (!one.on) return at("switched")
   if (up === null || report === undefined) return at("off")
   return at(report.state, {
     ...(report.state === "failed" && report.fault !== undefined ? { fault: report.fault } : {}),

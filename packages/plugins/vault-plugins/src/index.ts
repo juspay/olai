@@ -3,6 +3,26 @@ import type { Effect } from "effect"
 export const name = "vault-plugins"
 export const chunks = serviceTag<{ readonly chunk: (path: string) => string | null }>("vault-plugins.chunks")
 
+/**
+ * A TITLE, AS A FOLDER NAME — the one rule that turns what a person typed into
+ * the word a plugin is known by.
+ *
+ * It is here, in the package's own door, because BOTH ends spell it: the
+ * palette draws `Kept in your vault as plugins/<word>/` under the name box
+ * while somebody is still editing it, and the serve takes the same title and
+ * creates the folder. Two slug rules that agreed until they did not would show
+ * a person one folder and make another.
+ *
+ * Lowercase, letters and digits kept, everything else a hyphen, no run of
+ * hyphens and none at either end — which is `WORD`'s grammar (`./source.ts`)
+ * reached by construction rather than checked afterwards. It can still answer
+ * something `WORD` refuses — a title of nothing but punctuation slugs to the
+ * empty string — so the caller checks; what it cannot do is surprise the caller
+ * with a shape neither of them expected.
+ */
+export const slugOf = (title: string): string =>
+  title.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+
 /** One definition, at one version, as the panel asks about it. */
 export interface ApprovalRequest {
   readonly name: string

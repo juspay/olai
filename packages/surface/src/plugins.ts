@@ -265,8 +265,17 @@ export const BuiltPlugin = Schema.Struct({
    * — the whole of what a dynamic plugin adds to this member.
    *
    * ABSENT on every compiled-in row, and its presence IS the distinction: a row
-   * with a source is one somebody wrote into the directory this serve is about,
-   * and the four things that are true only of such a row all hang off it.
+   * with a source is one somebody wrote into the directory this serve is about
+   * — a FOLDER, `plugins/<word>/`, with a README for a person and one or two
+   * halves for the machine — and everything that is true only of such a row
+   * hangs off it.
+   *
+   * IT IS WHAT THE PLUGIN'S OWN PAGE IS DRAWN FROM, whole, which is why there
+   * is so much of it. The page is reached by address, so it must be drawable
+   * from the roster a tab already holds rather than from a second fetch per
+   * plugin — and everything on it (the title, the sentence, the README, the
+   * code, what it uses, which conversation is building it) is a fact about one
+   * row that moves when that row moves.
    *
    * `server` and `browser` are the SOURCE ITSELF, and they travel because
    * approving a plugin is reading it. That is the one gesture in this product
@@ -293,18 +302,65 @@ export const BuiltPlugin = Schema.Struct({
    * because every plugin's mount hangs off it.
    */
   source: Schema.optionalKey(Schema.Struct({
-    /** The node the definition hangs off, and the outline it is in — what the
-     *  panel links to, so a person can go and read it where it lives. */
-    node: Schema.String,
-    file: Schema.String,
-    /** The content hash of both halves — what an approval names. */
+    /** The folder the plugin IS, with its trailing slash — `plugins/hex-swatch/`.
+     *  What the page shows over the code and what the Commit panel's rows sit
+     *  under. */
+    folder: Schema.String,
+    /** What a person calls it: the README's first heading, or the folder word
+     *  where there is no README. Prose, renameable, never an identity — the
+     *  word is `name`, one field up. */
+    title: Schema.String,
+    /** One sentence, from the README's first paragraph. Empty where the README
+     *  has nothing under its heading, and the page says nothing rather than
+     *  inventing a line. */
+    description: Schema.String,
+    /** The README verbatim, for the page's *What it does* — rendered as the
+     *  markdown it is. Absent for a folder that has none. */
+    readme: Schema.optionalKey(Schema.String),
+    /** The content hash of both halves — what an approval names. README edits
+     *  do not move it, which is why a person can fix a typo in the prose
+     *  without being asked about code again. */
     version: Schema.String,
     /** Whether {@link version} is the version a person approved. */
     approved: Schema.Boolean,
+    /** Whether the person's `on` switch is up, independent of whether this
+     *  version is approved: a plugin can be on and PAUSED by an edit, which is
+     *  two facts and not one. */
+    on: Schema.Boolean,
     /** The two halves, verbatim. `browser` is absent for a plugin with no
      *  face. */
     server: Schema.String,
     browser: Schema.optionalKey(Schema.String),
+    /**
+     * ...AND THE HALVES AS THE APPROVED VERSION HAD THEM, present only when
+     * they DIFFER from the two above — which is exactly the paused row, and
+     * exactly when the page draws a diff.
+     *
+     * Absent otherwise, rather than a copy: a row whose code nobody has touched
+     * would be carrying its own source twice, on every roster, for a diff
+     * nothing draws.
+     */
+    approvedServer: Schema.optionalKey(Schema.String),
+    approvedBrowser: Schema.optionalKey(Schema.String),
+    /**
+     * WHAT THE CODE REACHES FOR, said in plain words with the technical name
+     * beside it — read statically off each half's imports and its service and
+     * slot literals (`olai-plugin-vault-plugins`' `uses.ts`).
+     *
+     * A SUMMARY OF THE IMPORTS and not a permission list, which is what the
+     * page says beneath it: the code runs with this server's authority and this
+     * is a reading of what it was written to use, not a fence around what it
+     * can.
+     */
+    uses: Schema.optionalKey(Schema.Array(Schema.Struct({
+      /** The plain sentence — "Adds a property kind to this vault: hex". */
+      said: Schema.String,
+      /** ...and the technical name beside it — `Kinds`, `outline.row.chip`. */
+      named: Schema.String,
+    }))),
+    /** The node of the conversation building this plugin, where one is bound to
+     *  it — what the page docks and what *Ask for a change* reopens. */
+    builder: Schema.optionalKey(Schema.String),
     /** Where the built browser half is served — only while it is running. */
     chunk: Schema.optionalKey(Schema.String),
   })),
@@ -324,21 +380,24 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
 export const PLUGIN_CHUNK_PREFIX = "/_olai/plugins/"
 
 /**
- * THE TWO HALVES OF A VAULT-DEFINED PLUGIN, by the titles their child nodes
- * wear — the file each would have been.
+ * A PLUGIN THE VAULT DEFINES IS A FOLDER, and these are its three names.
  *
- * Here for `PLUGIN_CHUNK_PREFIX`'s reason exactly: two ends spell them and
- * neither may invent one. The SERVE reads them to find the halves
- * (`@olai/server`'s `dynamic/source.ts`), the PANEL draws them as the headings
- * over the source a person is being asked to approve, and `plugins.inspect`
- * tells an agent what to title the children it writes. Three readers, one word
- * each, and they were two constants a package apart under a paragraph arguing
- * that a label and a lookup key are different things — which is true of what
- * they are FOR and false of when they change: rename the node title and every
- * one of the three moves on the same afternoon.
+ * Here for `PLUGIN_CHUNK_PREFIX`'s reason exactly: several ends spell them and
+ * none may invent one. The SERVE reads the folder to find the halves
+ * (`olai-plugin-vault-plugins`' `source.ts`), the PAGE draws the file names
+ * over the code it shows, the agent's `vault-plugins_write` takes one of them
+ * as its argument, and the file claim that puts `.ts` in the set at all is
+ * scoped to {@link PLUGIN_FOLDER}.
+ *
+ * `README.md` is MARKDOWN'S file, not this row's: it is a document a person
+ * reads, it is claimed by the markdown row like any other, and the only thing
+ * this package says about it is where it sits. The two halves are this row's,
+ * because nothing else in a vault would want `.ts` in its revision.
  */
-export const PLUGIN_SERVER_NODE = "server.ts"
-export const PLUGIN_BROWSER_NODE = "browser.tsx"
+export const PLUGIN_FOLDER = "plugins/"
+export const PLUGIN_README_FILE = "README.md"
+export const PLUGIN_SERVER_FILE = "server.ts"
+export const PLUGIN_BROWSER_FILE = "browser.tsx"
 
 /**
  * THE WORDS A ROW CAN BE IN, and each is a different morning.

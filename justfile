@@ -862,6 +862,23 @@ fmt:
 fmt-check:
     {{ nix_shell }} nixpkgs-fmt --check {{ nix_files }}
 
+# THE AUTHORING GUIDE AN AGENT IS HANDED is the region of
+# docs/dynamic-plugins.md between its `<!-- guide:start -->` and
+# `<!-- guide:end -->` markers, copied into the plugin package so it ships
+# inside the binary — an agent in somebody's vault has no docs/ to read. The
+# doc is the source; this copies it; `guide.test.ts` fails the suite when the
+# two have come apart, naming this recipe.
+[doc("Copy the doc's authoring guide into the shipped plugin guide")]
+guide:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    awk '/<!-- guide:start -->/{on=1; next} /<!-- guide:end -->/{on=0} on' \
+      docs/dynamic-plugins.md \
+      | sed -e '/./,$!d' \
+      > packages/plugins/vault-plugins/src/guide.md
+    printf 'wrote %s lines to packages/plugins/vault-plugins/src/guide.md\n' \
+      "$(wc -l < packages/plugins/vault-plugins/src/guide.md)"
+
 # One spelling of "derive bun.nix from bun.lock", so the freshness check below
 # and the regeneration cannot drift apart.
 [private]

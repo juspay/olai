@@ -1,203 +1,183 @@
 /**
- * WHAT THE VAULT DEFINES, read — the pure half of phase 12, benched as one.
+ * WHAT THE VAULT DEFINES, read — the pure half of this row.
  *
  * A reading is a function of a revision, so every claim here is made against a
  * vault written out as text and nothing else: no host, no compiler, no mount.
  */
-import { TEST_CLAIMS } from "@olai/format/testlib"
-import { TRASH_FILE } from "@olai/format"
 import { readingOfVault } from "@olai/format/testlib/scope"
 import { describe, expect, test } from "bun:test"
 
-import { ALWAYS, definedIn, isApproved, versionOf } from "./source.ts"
+import { ALWAYS, definedIn, isApproved, toldBy, versionOf } from "./source.ts"
 
-/** One vault, as its files. `.olai` is a record per line, which is the format's
- *  own shape and what an agent's `outlines_add` and `outlines_desc` leave behind. */
-const vault = (...lines: ReadonlyArray<string>) =>
-  readingOfVault(new Map([["plugins.olai", lines.join("\n")]])).derived
+/** One vault, as its files. A plugin is three of them in a folder; the settings
+ *  file is an outline, a record per line, which is what the settings reader and
+ *  every other row's consent already is. */
+const vault = (files: Readonly<Record<string, string>>) =>
+  readingOfVault(new Map(Object.entries(files)))
+
+const settings = (...lines: ReadonlyArray<string>) => ({ "_olai/Settings.olai": lines.join("\n") })
 
 const NOTHING_BUILT: ReadonlyArray<string> = []
 
-describe("a plugin is a node with a `plugin` property", () => {
-  test("its word, its two halves and its version", () => {
+const SERVER = `export default 1`
+const BROWSER = `export default 2`
+
+describe("a plugin is a folder under plugins/", () => {
+  test("its word, its prose, its two halves and its version", () => {
     const [one] = definedIn(
-      vault(
-        `{"id":"p","ord":"a0","title":"A dressing","custom":{"plugin":"swatch"}}`,
-        `{"id":"s","ord":"a0","parent":"p","title":"server.ts","desc":"export default 1"}`,
-        `{"id":"b","ord":"a1","parent":"p","title":"browser.tsx","desc":"export default 2"}`,
-      ),
+      vault({
+        "plugins/swatch/README.md": "# Hex swatch\n\nA colour swatch beside any hex colour.\n\nMore prose.\n",
+        "plugins/swatch/server.ts": SERVER,
+        "plugins/swatch/browser.tsx": BROWSER,
+      }),
       NOTHING_BUILT,
     )
     expect(one?.name).toBe("swatch")
-    expect(one?.node).toBe("p")
-    expect(one?.file).toBe("plugins.olai")
-    expect(one?.server).toBe("export default 1")
-    expect(one?.browser).toBe("export default 2")
+    expect(one?.folder).toBe("plugins/swatch/")
+    expect(one?.title).toBe("Hex swatch")
+    expect(one?.description).toBe("A colour swatch beside any hex colour.")
+    expect(one?.server).toBe(SERVER)
+    expect(one?.browser).toBe(BROWSER)
     expect(one?.fault).toBeNull()
-    expect(one?.version).toBe(versionOf("export default 1", "export default 2"))
-  })
-
-  test("a node without the property is not a plugin, and neither is a child of one", () => {
-    expect(
-      definedIn(
-        vault(
-          `{"id":"x","ord":"a0","title":"ordinary"}`,
-          `{"id":"s","ord":"a1","title":"server.ts","desc":"export default 1"}`,
-        ),
-        NOTHING_BUILT,
-      ),
-    ).toEqual([])
+    expect(one?.version).toBe(versionOf(SERVER, BROWSER))
   })
 
   test("a browser half is optional — a server-only plugin is a whole plugin", () => {
     const [one] = definedIn(
-      vault(
-        `{"id":"p","ord":"a0","title":"A kind","custom":{"plugin":"swatch"}}`,
-        `{"id":"s","ord":"a0","parent":"p","title":"server.ts","desc":"export default 1"}`,
-      ),
+      vault({ "plugins/agenda/server.ts": SERVER }),
       NOTHING_BUILT,
     )
     expect(one?.browser).toBeNull()
     expect(one?.fault).toBeNull()
   })
 
-  test("children that are neither half are ordinary outline content", () => {
-    const [one] = definedIn(
-      vault(
-        `{"id":"p","ord":"a0","title":"A dressing","custom":{"plugin":"swatch"}}`,
-        `{"id":"n","ord":"a0","parent":"p","title":"why I wrote this"}`,
-        `{"id":"s","ord":"a1","parent":"p","title":"server.ts","desc":"export default 1"}`,
-      ),
-      NOTHING_BUILT,
-    )
-    expect(one?.fault).toBeNull()
-    expect(one?.server).toBe("export default 1")
+  test("a folder with no README draws its word", () => {
+    const [one] = definedIn(vault({ "plugins/agenda/server.ts": SERVER }), NOTHING_BUILT)
+    expect(one?.title).toBe("agenda")
+    expect(one?.description).toBe("")
+    expect(one?.readme).toBeNull()
   })
-})
 
-describe("what is refused, and in whole sentences", () => {
-  test("a definition with no server half names the child it wants", () => {
+  test("a folder with no server half is a fault naming the file it wants", () => {
     const [one] = definedIn(
-      vault(`{"id":"p","ord":"a0","title":"A dressing","custom":{"plugin":"swatch"}}`),
+      vault({ "plugins/swatch/README.md": "# Swatch\n\nNothing else.\n" }),
       NOTHING_BUILT,
     )
     expect(one?.fault).toContain("server.ts")
   })
 
-  test("a word that is not a word", () => {
-    const [one] = definedIn(
-      vault(
-        `{"id":"p","ord":"a0","title":"A dressing","custom":{"plugin":"Swatch Two"}}`,
-        `{"id":"s","ord":"a0","parent":"p","title":"server.ts","desc":"export default 1"}`,
-      ),
-      NOTHING_BUILT,
-    )
+  test("a word this build already has is a fault rather than an override", () => {
+    const [one] = definedIn(vault({ "plugins/journal/server.ts": SERVER }), ["journal"])
+    expect(one?.fault).toContain("already has a plugin")
+  })
+
+  test("a folder whose name is not a word is a fault naming the grammar", () => {
+    const [one] = definedIn(vault({ "plugins/Hex Swatch/server.ts": SERVER }), NOTHING_BUILT)
     expect(one?.fault).toContain("not a plugin word")
   })
 
-  test("a word this build already has is a fault, not an override", () => {
+  test("a file loose under plugins/, and one nested deeper, define nothing", () => {
+    expect(definedIn(vault({ "plugins/notes.md": "# notes\n" }), NOTHING_BUILT)).toEqual([])
     const [one] = definedIn(
-      vault(
-        `{"id":"p","ord":"a0","title":"A dressing","custom":{"plugin":"kolu"}}`,
-        `{"id":"s","ord":"a0","parent":"p","title":"server.ts","desc":"export default 1"}`,
-      ),
-      ["kolu"],
-    )
-    expect(one?.fault).toContain(`already has a plugin called "kolu"`)
-  })
-
-  test("two nodes claiming one word fault BOTH — the collision is not resolved", () => {
-    const read = definedIn(
-      vault(
-        `{"id":"p","ord":"a0","title":"One","custom":{"plugin":"swatch"}}`,
-        `{"id":"s","ord":"a0","parent":"p","title":"server.ts","desc":"export default 1"}`,
-        `{"id":"q","ord":"a1","title":"Two","custom":{"plugin":"swatch"}}`,
-        `{"id":"t","ord":"a0","parent":"q","title":"server.ts","desc":"export default 2"}`,
-      ),
+      vault({ "plugins/swatch/server.ts": SERVER, "plugins/swatch/lib/helper.ts": "export const x = 1" }),
       NOTHING_BUILT,
     )
-    expect(read).toHaveLength(2)
-    for (const one of read) expect(one.fault).toContain("two nodes in this vault claim")
+    // The helper is vault content this row passes over — the folder holds three
+    // files and everything else in it is the author's own business.
+    expect(one?.server).toBe(SERVER)
+  })
+
+  test("TypeScript outside plugins/ is not a plugin and is not even in the set", () => {
+    const reading = vault({ "src/index.ts": "export const x = 1" })
+    expect(definedIn(reading, NOTHING_BUILT)).toEqual([])
+    expect(reading.set.documents.map(one => one.path)).toEqual([])
   })
 })
 
-describe("approval names a version, and an edit takes it back", () => {
-  const defined = (approved: string | null, server = "export default 1") =>
-    definedIn(
-      vault(
-        `{"id":"p","ord":"a0","title":"A dressing","custom":${
-          JSON.stringify(approved === null ? { plugin: "swatch" } : { plugin: "swatch", approved })
-        }}`,
-        `{"id":"s","ord":"a0","parent":"p","title":"server.ts","desc":${JSON.stringify(server)}}`,
-      ),
+describe("consent is in the settings file, and does not travel with the folder", () => {
+  const folder = { "plugins/swatch/server.ts": SERVER }
+
+  test("a folder nobody has decided about is off and unapproved", () => {
+    const [one] = definedIn(vault(folder), NOTHING_BUILT)
+    expect(one?.approved).toBeNull()
+    expect(one?.on).toBe(false)
+    expect(isApproved(one!)).toBe(false)
+  })
+
+  test("the approved version is the one a person said yes to, and an edit undoes it", () => {
+    const approved = versionOf(SERVER, null)
+    const [one] = definedIn(
+      vault({ ...folder, ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"approved":"${approved}","on":"yes"}}`) }),
       NOTHING_BUILT,
-    )[0]!
+    )
+    expect(isApproved(one!)).toBe(true)
+    expect(one?.on).toBe(true)
 
-  test("nobody has decided", () => {
-    expect(isApproved(defined(null))).toBe(false)
+    const [edited] = definedIn(
+      vault({
+        "plugins/swatch/server.ts": `${SERVER} + 1`,
+        ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"approved":"${approved}","on":"yes"}}`),
+      }),
+      NOTHING_BUILT,
+    )
+    expect(isApproved(edited!)).toBe(false)
+    // ...AND THE SWITCH IS STILL UP, which is the whole of what "paused" means:
+    // the person still wants it, and the code it would run is not the code they
+    // read.
+    expect(edited?.on).toBe(true)
   })
 
-  test("this version, and only this version", () => {
-    const one = defined(null)
-    expect(isApproved(defined(one.version))).toBe(true)
-    // The same approval against source that has moved on: the hash it names is
-    // not the hash of what is written now, so the plugin is pending again. This
-    // is the whole of what stops "approve once" meaning "approve whatever this
-    // becomes".
-    expect(isApproved(defined(one.version, "export default 999"))).toBe(false)
+  test("`always` approves every later version", () => {
+    const [one] = definedIn(
+      vault({ ...folder, ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"approved":"${ALWAYS}"}}`) }),
+      NOTHING_BUILT,
+    )
+    expect(isApproved(one!)).toBe(true)
   })
 
-  test("`always` survives an edit, which is what it is for", () => {
-    expect(isApproved(defined(ALWAYS))).toBe(true)
-    expect(isApproved(defined(ALWAYS, "export default 999"))).toBe(true)
-  })
-
-  test("the version covers BOTH halves — a face added after an approval is a new decision", () => {
-    expect(versionOf("a", null)).not.toBe(versionOf("a", "b"))
+  test("the conversation building it rides beside the consent", () => {
+    const [one] = definedIn(
+      vault({ ...folder, ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"builder":"chat-7"}}`) }),
+      NOTHING_BUILT,
+    )
+    expect(one?.builder).toBe("chat-7")
   })
 })
 
-/**
- * A NODE THAT WAS PUT AWAY IS NOT A DEFINITION — the skip `definedIn` makes,
- * and the half of the doc's retraction that was not true until it did.
- *
- * `outlines_trash` moves the records to `_olai/Trash.olai`. They stay regular
- * nodes, they still carry the `plugin` property, and without the skip they
- * were read like any other: the panel drew them as a vault-defined plugin
- * with the trash as its file. The rest of the tree treats that file as
- * absent (`isPutAway`); this reader does too.
- */
-describe("a node that was put away is not a definition", () => {
-  const records = [
-    `{"id":"p","ord":"a0","title":"A dressing","custom":{"plugin":"swatch"}}`,
-    `{"id":"s","ord":"a0","parent":"p","title":"server.ts","desc":"export default 1"}`,
-  ].join("\n")
-
-  test("moved to `_olai/Trash.olai` is gone", () => {
-    expect(
-      definedIn(
-        readingOfVault(new Map([[TRASH_FILE(TEST_CLAIMS, "outline-olai")!, records]])).derived,
-        NOTHING_BUILT,
-      ),
-    ).toEqual([])
+describe("the version is about the code and nothing else", () => {
+  test("a README edit does not move it", () => {
+    const read = (readme: string) =>
+      definedIn(vault({ "plugins/swatch/README.md": readme, "plugins/swatch/server.ts": SERVER }), NOTHING_BUILT)[0]!
+    expect(read("# A\n\nOne.\n").version).toBe(read("# A\n\nAnother sentence entirely.\n").version)
   })
 
-  test("a namesake still in the vault is the only definition — the collision is not with the trash", () => {
-    const read = definedIn(
-      readingOfVault(
-        new Map([
-          ["plugins.olai", records],
-          [TRASH_FILE(TEST_CLAIMS, "outline-olai")!, [
-            `{"id":"q","ord":"a0","title":"Put away","custom":{"plugin":"swatch"}}`,
-            `{"id":"t","ord":"a0","parent":"q","title":"server.ts","desc":"export default 2"}`,
-          ].join("\n")],
-        ]),
-      ).derived,
-      NOTHING_BUILT,
-    )
-    expect(read).toHaveLength(1)
-    expect(read[0]?.name).toBe("swatch")
-    expect(read[0]?.file).toBe("plugins.olai")
-    expect(read[0]?.fault).toBeNull()
+  test("either half moving does move it", () => {
+    expect(versionOf(SERVER, BROWSER)).not.toBe(versionOf(SERVER, `${BROWSER} `))
+    expect(versionOf(SERVER, BROWSER)).not.toBe(versionOf(`${SERVER} `, BROWSER))
+  })
+
+  test("two plugins cannot hash alike by cutting their halves at a different point", () => {
+    expect(versionOf("ab", "c")).not.toBe(versionOf("a", "bc"))
+  })
+})
+
+describe("what the README says this is", () => {
+  test("the first heading and the first paragraph under it", () => {
+    expect(toldBy("# Hex swatch\n\nA colour swatch.\n\nAnd more.\n")).toEqual({
+      title: "Hex swatch",
+      description: "A colour swatch.",
+    })
+  })
+
+  test("a paragraph that wraps is one sentence", () => {
+    expect(toldBy("# A\n\nA sentence\nthat wraps.\n").description).toBe("A sentence that wraps.")
+  })
+
+  test("a README with a heading and nothing else says nothing rather than inventing a line", () => {
+    expect(toldBy("# Only a title\n")).toEqual({ title: "Only a title", description: "" })
+  })
+
+  test("prose with no heading still has a sentence", () => {
+    expect(toldBy("Just prose.\n")).toEqual({ title: "", description: "Just prose." })
   })
 })
