@@ -14,14 +14,13 @@
  */
 
 import { expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
+import { readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { GUIDE, GUIDE_END, GUIDE_START } from "./guide.ts"
 
 const DOC = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "docs", "dynamic-plugins.md")
-
 test("the shipped authoring guide is the doc's own guide region", () => {
   const page = readFileSync(DOC, "utf8")
   const from = page.indexOf(GUIDE_START)
@@ -29,11 +28,18 @@ test("the shipped authoring guide is the doc's own guide region", () => {
   expect(from, `docs/dynamic-plugins.md is missing ${GUIDE_START}`).toBeGreaterThanOrEqual(0)
   expect(to, `docs/dynamic-plugins.md is missing ${GUIDE_END}`).toBeGreaterThan(from)
   const region = page.slice(from + GUIDE_START.length, to).trim()
-  expect(
-    GUIDE,
-    "packages/plugins/vault-plugins/src/guide.md is what every agent reads and it no longer "
-      + "matches docs/dynamic-plugins.md. Run `just guide` to copy the doc's guide region over it.",
-  ).toBe(region)
+  if (GUIDE === region) return
+  // THE FAILURE CARRIES THE FIX, because the two files are a copy apart and
+  // the person who moved one is the person who has to move the other. There
+  // is no recipe to name: a command that knew this file's path would have to
+  // live outside this package, where the fence refuses to let a plugin's
+  // directory be spelled at all.
+  writeFileSync(join(dirname(fileURLToPath(import.meta.url)), "guide.next.md"), `${region}\n`)
+  throw new Error(
+    "`guide.md` is what every agent reads and it no longer matches the guide region of "
+      + "docs/dynamic-plugins.md.\nThe region as the page now has it has been written beside it as "
+      + "`guide.next.md`: read the difference, then replace `guide.md` with it and delete that file.",
+  )
 })
 
 test("the guide says the three things an agent cannot work without", () => {

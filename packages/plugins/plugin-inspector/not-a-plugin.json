@@ -6,6 +6,9 @@
     "src/preferences-door.ts": 3,
     "src/rows.ts": 5
   },
+  "settings": {
+    "src/Panel.tsx": 1
+  },
   "vault": {
     "src/approval.ts": 1,
     "src/rows.ts": 2

@@ -131,7 +131,7 @@ export interface Defined {
   /** This plugin's node in the settings file and the file's nodes, for the
    *  knob reader and for every write this row makes about consent. `node` is
    *  absent until something writes one. */
-  readonly settings: {
+  readonly consent: {
     readonly file: string | undefined
     readonly node: Located | undefined
     readonly nodes: ReadonlyArray<Located>
@@ -163,7 +163,7 @@ export const definedIn = (
   reading: Reading,
   taken: ReadonlyArray<string>,
 ): ReadonlyArray<Defined> => {
-  const settings = configurationNodes(reading)
+  const consent = configurationNodes(reading)
   const folders = new Map<string, Map<string, string>>()
   for (const document of reading.set.documents) {
     if (!document.path.startsWith(PLUGIN_FOLDER)) continue
@@ -186,7 +186,7 @@ export const definedIn = (
   }
   return [...folders.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([word, files]) => defined(word, files, settings, taken))
+    .map(([word, files]) => defined(word, files, consent, taken))
 }
 
 /** The settings file as this reading found it — the whole of what consent is
@@ -200,13 +200,13 @@ export interface Consent {
 const defined = (
   name: string,
   files: ReadonlyMap<string, string>,
-  settings: Consent,
+  consent: Consent,
   taken: ReadonlyArray<string>,
 ): Defined => {
   const server = files.get(PLUGIN_SERVER_FILE) ?? null
   const browser = files.get(PLUGIN_BROWSER_FILE) ?? null
   const readme = files.get(PLUGIN_README_FILE) ?? null
-  const node = configurationNode(settings.nodes, name)
+  const node = configurationNode(consent.nodes, name)
   const said = (key: string): string | null => {
     const raw = node === undefined || !isRegular(node) ? undefined : customText(node.node, key)
     const trimmed = (raw ?? "").trim()
@@ -226,7 +226,7 @@ const defined = (
     on: said(ON_KEY) === "yes",
     builder: said(BUILDER_KEY),
     uses: usesOf(server ?? "", browser),
-    settings: { file: settings.file, node, nodes: settings.nodes },
+    consent: { file: consent.file, node, nodes: consent.nodes },
     fault: faultOf(name, server, taken),
   }
 }

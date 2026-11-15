@@ -291,15 +291,15 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
    * half failed.
    */
   const consent = (one: Defined, props: Readonly<Record<string, string | null>>): WriteRequest => {
-    const node = one.settings.node
+    const node = one.consent.node
     if (node !== undefined) {
       const ops = Object.entries(props).map(([key, value]) => ({ op: "prop" as const, id: node.node.id, key, value }))
       return ops.length === 1 ? ops[0]! : { op: "apply", ops }
     }
     const written = Object.fromEntries(Object.entries(props).filter(([, value]) => value !== null)) as Record<string, string>
-    return one.settings.file === undefined
+    return one.consent.file === undefined
       ? { op: "create", file: CONFIGURATION_FILE, seed: { title: one.name, props: written } }
-      : { op: "add", file: one.settings.file, title: one.name, props: written }
+      : { op: "add", file: one.consent.file, title: one.name, props: written }
   }
 
   return {
@@ -347,7 +347,7 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
       const mounted = started.get(name)
       const declaration = mounted?.up === true ? mounted.declaration : undefined
       const request = yield* Effect.try({
-        try: () => policyEdit(declaration, one.settings.nodes, one.settings.node, one.settings.file, name, key, value),
+        try: () => policyEdit(declaration, one.consent.nodes, one.consent.node, one.consent.file, name, key, value),
         catch: error => error as UsageFailure,
       })
       if (request !== undefined) yield* write(request)
@@ -382,7 +382,7 @@ export const RESERVED: ReadonlyArray<string> = [APPROVED_KEY, ON_KEY, BUILDER_KE
  * caller re-composes or it does not.
  */
 const optionsKey = (one: Defined): string => {
-  const root = one.settings.node
+  const root = one.consent.node
   if (root === undefined) return "null"
   // THE WHOLE SUBTREE, because a schema section is a child node and a section
   // inside one is a grandchild: `decodePolicy` recurses, so a fingerprint that
@@ -390,12 +390,12 @@ const optionsKey = (one: Defined): string => {
   const ids = new Set([root.node.id])
   for (let grew = true; grew;) {
     grew = false
-    for (const item of one.settings.nodes) {
+    for (const item of one.consent.nodes) {
       const parent = "parent" in item.node ? item.node.parent : undefined
       if (parent !== undefined && ids.has(parent) && !ids.has(item.node.id)) { ids.add(item.node.id); grew = true }
     }
   }
-  return JSON.stringify(one.settings.nodes.filter(item => ids.has(item.node.id)).map(item => ({
+  return JSON.stringify(one.consent.nodes.filter(item => ids.has(item.node.id)).map(item => ({
     id: item.node.id,
     ...("parent" in item.node ? { parent: item.node.parent } : {}),
     ...("title" in item.node ? { title: item.node.title } : {}),
@@ -435,8 +435,8 @@ const policyFor = (schema: Plugin["config"], one: Defined, warn: (line: string) 
       throw new Error(`${String(field.name)} is reserved for the plugin's approval, its switch and the conversation building it`)
     }
   }
-  return decodePolicy(schema, one.settings.nodes, one.settings.node,
-    (key, value, reason) => warn(`${one.settings.file ?? CONFIGURATION_FILE}: ${one.name}.${key}: ${JSON.stringify(value)} uses its default — ${reason}`))
+  return decodePolicy(schema, one.consent.nodes, one.consent.node,
+    (key, value, reason) => warn(`${one.consent.file ?? CONFIGURATION_FILE}: ${one.name}.${key}: ${JSON.stringify(value)} uses its default — ${reason}`))
 }
 
 const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): Effect.Effect<Started> =>
@@ -558,9 +558,9 @@ const rowOf = (
     source,
     ...(up === null ? {} : {
       configurationValues: up.policy.values,
-      ...(one.settings.node === undefined || one.settings.file === undefined
+      ...(one.consent.node === undefined || one.consent.file === undefined
         ? {}
-        : { configurationNode: { file: one.settings.file, id: one.settings.node.node.id } }),
+        : { configurationNode: { file: one.consent.file, id: one.consent.node.node.id } }),
     }),
   })
   const said = one.fault ?? (started?.up === false ? started.why : undefined)
