@@ -219,6 +219,115 @@ Feature: A plugin the vault defines
     And no row wears a swatch
     And there should be no page errors
 
+  @scratch:plugins
+  Scenario: The panel's switch and the page's are one fact
+    # The plugins panel still lists every row this serve has, and a vault
+    # plugin's switch there is CORE's switch — the same property, in the same
+    # file, read by the same reader. Two faces onto one fact is fine; two facts
+    # would not be, and this is the scenario that says which it is.
+    Given I open the outline "colours.olai"
+    When I approve the plugin "swatch"
+    Then the row "amber" wears a swatch for "#ff8800"
+
+    When I switch the plugin "swatch" off
+    Then file "_olai/Settings.olai" has namespace "swatch" setting "on" as "no"
+    And no row wears a swatch
+    When I close the plugins panel
+    And I go to the plugin "swatch"
+    Then the plugin page is "off"
+
+    When I press the plugin page verb
+    Then file "_olai/Settings.olai" has namespace "swatch" setting "on" as "yes"
+    When I click sidebar file "colours.olai"
+    Then the row "amber" wears a swatch for "#ff8800"
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: An edit to the SERVER half is a fresh decision too
+    # The version is a hash of BOTH halves. A page that only noticed the face
+    # moving would let an agent rewrite everything that actually runs under an
+    # approval somebody gave to something else.
+    Given I open the outline "colours.olai"
+    When I approve the plugin "swatch"
+    Then the row "amber" wears a swatch for "#ff8800"
+
+    When I go to the plugin "swatch"
+    And I rewrite "plugins/swatch/server.ts" as:
+      """
+      import { definePlugin, Kinds } from "@olai/plugin-api"
+      import { Effect } from "effect"
+
+      export default definePlugin({
+        name: "swatch",
+        needs: [Kinds],
+        apply: Effect.gen(function*() {
+          const kinds = yield* Kinds
+          yield* kinds.register({
+            kind: "hex",
+            takes: "`swatch-hex` (a #rrggbb colour)",
+            admits: (value: string) => value === "#00ff00",
+          })
+        }),
+      })
+      """
+    Then the plugin page is "paused"
+    And the plugin page's diff adds "value === \"#00ff00\""
+    And the plugin page has disarmed its verbs
+    And no row wears a swatch
+
+    When I read the plugin "swatch" again
+    And I press the plugin page verb
+    Then the plugin page is "on"
+    # ...and what is in force is the edited half: the vault's own colour is no
+    # longer one this plugin admits.
+    And the vault rejects the colour "#ff8800"
+    And the vault accepts the colour "#00ff00"
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: Only a folder directly under plugins/ is a plugin
+    # `plugins/notes.md` is somebody's note about their plugins and
+    # `plugins/swatch/src/helper.ts` is a file an agent left in a folder. The
+    # folder IS the plugin, so neither is one — and neither is swept into the
+    # one that is.
+    Given I open the app
+    Then the Plugins section lists "greeting, swatch"
+
+    When I rewrite "plugins/notes.md" as:
+      """
+      # Notes about my plugins
+
+      Not a plugin.
+      """
+    And I rewrite "plugins/swatch/src/helper.ts" as:
+      """
+      export const helper = () => 1
+      """
+    Then the Plugins section lists "greeting, swatch"
+    When I go to the plugin "swatch"
+    Then the plugin page's code tabs are "server.ts, browser.tsx"
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: A folder whose name is not a word is drawn with a sentence saying so
+    # The folder's name IS the word — the row's id, the settings namespace, the
+    # slot key and the address — so a name that is not one is a fact about the
+    # FOLDER, and the sentence is core's own rather than the author's: what is
+    # wrong is the shape of the thing rather than the code in it. (The other
+    # fault of this kind, a word this build already ships, is refused before a
+    # folder exists — `asking_for_a_plugin.feature`.)
+    Given I open the app
+    When I rewrite "plugins/Mixed/server.ts" as:
+      """
+      import { definePlugin } from "@olai/plugin-api"
+      import { Effect } from "effect"
+
+      export default definePlugin({ name: "whatever", needs: [], apply: Effect.void })
+      """
+    And I open the plugins panel
+    Then the plugins panel says "Mixed" is "is not a plugin word"
+    And there should be no page errors
+
   @scratch:good
   Scenario: A folder copied in from another vault arrives off and unapproved
     # THE CODE TRAVELS AND THE CONSENT DOES NOT, which is the whole argument for

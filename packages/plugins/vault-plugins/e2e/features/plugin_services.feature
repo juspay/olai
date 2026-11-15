@@ -35,9 +35,9 @@ Feature: One plugin the vault defines, standing on another
 
     # ...AND THE CONSUMER'S KIND IS THE PROVIDER'S ANSWER: what the vault will
     # accept for `swatch-hex` is decided by code in another folder.
-    And the palette accepts the colour "#0088ff"
+    And the vault accepts the colour "#0088ff"
     And the row "amber" wears a swatch for "#0088ff"
-    And the palette accepts the colour "#ff8800"
+    And the vault accepts the colour "#ff8800"
 
     When I switch the plugin "palette" off
     Then the plugins panel says "swatch" is "palette.colours"
@@ -62,9 +62,9 @@ Feature: One plugin the vault defines, standing on another
     And the agent service catalog includes "palette.colours"
     # ...and the REPLACEMENT is what the consumer got: a palette that admits two
     # colours and refuses the one the old one allowed.
-    And the palette rejects the colour "#0088ff"
+    And the vault rejects the colour "#0088ff"
     And the row "amber" wears a swatch for "#ff8800"
-    And the palette accepts the colour "#00ff00"
+    And the vault accepts the colour "#00ff00"
     And the row "amber" wears a swatch for "#00ff00"
     And there should be no page errors
     And no member of this page has gone silent
