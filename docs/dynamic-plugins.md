@@ -160,7 +160,7 @@ A plugin that reads the journal's agenda each morning and puts it into the node 
 
 `journal.agenda` is the journal row's own — offered with `Offers.own`, so the key is stamped from that fiber's name and no other row can take it. Naming it in `needs` is all a consumer does: the plugin waits while the journal is switched off, saying so on its page, activates when it returns, and unloads if it leaves. Nothing in core knows these two are connected.
 
-The folder is two files — this plugin draws nothing, so it has no `browser.tsx`:
+The folder is two files, because this plugin draws nothing and a plugin with no face needs no browser half:
 
 ```
 plugins/morning-agenda/
