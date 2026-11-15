@@ -27,6 +27,8 @@ import * as fs from "node:fs"
 import * as path from "node:path"
 
 import { Then, When } from "@olai/tests/harness/runner.ts"
+import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts"
+import { selector } from "@olai/web/testlib"
 import {
   attr,
   CHAT_DOCK,
@@ -34,11 +36,31 @@ import {
   PALETTE,
   PALETTE_INPUT,
   PALETTE_ITEM,
+  PALETTE_SAID,
   POLL_TIMEOUT,
 } from "@olai/tests/harness/world.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 
-import { consentOf, NEW_PLUGIN, NEW_PLUGIN_FOLDER, NEW_PLUGIN_NAME } from "./faces.ts"
+import { consentOf } from "./faces.ts"
+
+/**
+ * BOTH LEVELS ARE THE PALETTE'S OWN, and this row draws no node in either.
+ *
+ * That is why nothing below is located by an id of this package's: *New
+ * plugin* contributes a row and two level values, and navigation renders them
+ * with the same box, rows, option line, submit and said-line every other level
+ * uses. A testid of our own on one of them would be this row claiming a piece
+ * of furniture it does not own — and would stop being true the moment the
+ * palette redrew it.
+ *
+ * Level 1 is a GROUP: the sentence goes in the box and the rows are the
+ * engines that could build it (`new-plugin-by-<engine>`), with an empty box
+ * answering `new-plugin-say` and a machine with no agent answering
+ * `new-plugin-by-hand`. Level 2 is a VALUE: the name in the same box, the
+ * folder as the level's one option, and Enter or *Start building* to submit.
+ */
+const OPTION = selector(PLUGIN_TESTID.paletteOption)
+const SUBMIT = selector(PLUGIN_TESTID.paletteSubmit)
 
 /** The palette row this flow opens at — the same shape chat's `new-chat` row
  *  has, because it is deliberately the same gesture with a different noun. */
@@ -53,9 +75,15 @@ When("I open New plugin from the palette", async function (this: OlaiWorld) {
   await this.press(row)
 })
 
-/** THE FIRST LEVEL: one sentence about what it should do, in the palette's own
- *  box — which is what the README's first paragraph and the builder's first
- *  message are both made of. */
+/**
+ * THE FIRST LEVEL: one sentence about what it should do, and then WHO BUILDS
+ * IT.
+ *
+ * Enter takes the highlighted row and drills, which on a serve with an agent
+ * is the first engine under *Who builds it* and on one without is *Make the
+ * folder anyway* — so one step reads the same either way, and the scenarios
+ * that care which it was assert that afterwards.
+ */
 When("I ask for a plugin that {string}", async function (this: OlaiWorld, sentence: string) {
   const box = this.page.locator(PALETTE_INPUT)
   await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
@@ -74,7 +102,7 @@ When("I ask for a plugin that {string}", async function (this: OlaiWorld, senten
  * design promised one.
  */
 Then("a name is suggested for the new plugin", async function (this: OlaiWorld) {
-  const box = this.page.locator(NEW_PLUGIN_NAME)
+  const box = this.page.locator(PALETTE_INPUT)
   await box.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
   await this.waitUntil(
     async () => (await box.inputValue()).trim() !== "",
@@ -90,10 +118,10 @@ Then("a name is suggested for the new plugin", async function (this: OlaiWorld) 
  * and not an implementation detail.
  */
 Then("the new plugin will be kept in {string}", async function (this: OlaiWorld, folder: string) {
-  const line = this.page.locator(NEW_PLUGIN_FOLDER)
+  const line = this.page.locator(OPTION)
   await this.waitUntil(
     async () => (await line.innerText()).includes(folder),
-    `the level to say the folder is ${JSON.stringify(folder)}`,
+    `the level's option to say the folder is ${JSON.stringify(folder)}`,
   )
 })
 
@@ -101,13 +129,15 @@ Then("the new plugin will be kept in {string}", async function (this: OlaiWorld,
  *  says about the name while it is still being chosen, which is the whole
  *  point of that line. */
 When("I name the plugin {string}", async function (this: OlaiWorld, name: string) {
-  const box = this.page.locator(NEW_PLUGIN_NAME)
+  const box = this.page.locator(PALETTE_INPUT)
   await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
   await box.fill(name)
 })
 
+/** *Start building* — the level's own submit, pressed rather than typed, so
+ *  the scenario goes through the control a reader can see. */
 When("I accept the name", async function (this: OlaiWorld) {
-  await this.page.locator(NEW_PLUGIN_NAME).press("Enter")
+  await this.press(this.page.locator(SUBMIT))
 })
 
 /**
@@ -120,16 +150,17 @@ When("I accept the name", async function (this: OlaiWorld) {
  * and they can only do that if the box they typed into is still there.
  */
 Then("the new plugin level refuses with {string}", async function (this: OlaiWorld, said: string) {
-  const level = this.page.locator(NEW_PLUGIN)
+  const line = this.page.locator(PALETTE_SAID)
   await this.waitUntil(
-    async () => (await level.innerText()).includes(said),
+    async () => (await line.innerText()).includes(said),
     `the level to refuse with ${JSON.stringify(said)}`,
   )
-  await this.page.locator(NEW_PLUGIN_NAME).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.page.locator(PALETTE_INPUT).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
 })
 
 Then("the new plugin level is still open", async function (this: OlaiWorld) {
-  await this.page.locator(NEW_PLUGIN_NAME).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.page.locator(PALETTE).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.page.locator(PALETTE_INPUT).waitFor({ state: "visible", timeout: POLL_TIMEOUT })
 })
 
 // ── what the press left behind ─────────────────────────────────────────

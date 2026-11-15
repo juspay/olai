@@ -27,7 +27,12 @@ Feature: Asking for a plugin
     Given I open the outline "colours.olai"
     When I press the palette shortcut
     And I open New plugin from the palette
-    And I ask for a plugin that "draws a tiny bar beside any number"
+    # THE FIRST LEVEL IS THE SENTENCE AND WHO BUILDS IT: the rows are the
+    # engines this machine can actually start, so choosing one is choosing the
+    # agent that will write the three files.
+    And I type "draws a tiny bar beside any number" into the palette box
+    Then the palette sections are "Who builds it"
+    When I press "Enter" in the palette
     # THE SECOND LEVEL NAMES THE FOLDER, which is the only place a person sees
     # the slug they are choosing — and the folder is the plugin, so the slug is
     # the word every other face will draw.
@@ -62,57 +67,60 @@ Feature: Asking for a plugin
     And there should be no page errors
 
   @scratch:plugins
-  Scenario: A word this vault already has is refused where it was typed
+  Scenario: A folder this vault already has is refused where it was typed
     # THE WORD IS THE FOLDER'S NAME, and a directory holds one entry per name —
-    # so two plugins cannot claim one word, and the refusal says which kind of
-    # collision it is rather than "that name is unavailable".
+    # so two plugins cannot claim one word, and the refusal says so by naming
+    # the FOLDER rather than by saying "that name is unavailable".
     Given I open the outline "colours.olai"
     When I press the palette shortcut
     And I open New plugin from the palette
     And I ask for a plugin that "does something else entirely"
     And I name the plugin "Swatch"
     And I accept the name
-    Then the new plugin level refuses with "is already taken"
-    And the new plugin level refuses with "this vault already has a plugin in that folder"
+    Then the new plugin level refuses with "plugins/swatch/ is taken"
     And the new plugin level is still open
     And the address is "/colours.olai"
 
     # ...and the fix is two characters, in the box that is still open.
     When I name the plugin "Swatch two"
-    And I accept the name
+    Then the new plugin will be kept in "plugins/swatch-two/"
+    When I accept the name
     Then the address is "/plugins/swatch-two"
     And the folder "plugins/swatch-two" holds "README.md"
     And there should be no page errors
 
   @scratch:plugins
-  Scenario: A name this build already ships is refused, and says which kind of collision it is
-    # A folder may not take a built row's word: the roster is keyed by it, and a
-    # vault that could rename a compiled-in plugin out of existence would be the
-    # vault deciding what the host runs.
-    Given I open the outline "colours.olai"
-    When I press the palette shortcut
-    And I open New plugin from the palette
-    And I ask for a plugin that "replaces the journal somehow"
-    And I name the plugin "journal"
-    And I accept the name
-    Then the new plugin level refuses with "this build ships a plugin by that name"
-    And the new plugin level is still open
-    And there should be no page errors
-
-  @scratch:plugins
-  Scenario: A name that is not a word at all is refused with the grammar
+  Scenario: A name that cannot become a folder, and a name that is not there at all
     Given I open the outline "colours.olai"
     When I press the palette shortcut
     And I open New plugin from the palette
     And I ask for a plugin that "makes a noise"
     And I name the plugin "!!!"
     And I accept the name
-    Then the new plugin level refuses with "does not make a plugin word"
-    And the new plugin level refuses with "lowercase letters"
+    Then the new plugin level refuses with "can't become a folder"
     And the new plugin level is still open
-    # NOTHING WAS CREATED, which is why the word is judged before anything is
+    # NOTHING WAS CREATED, which is why the name is judged before anything is
     # written: a refusal has to arrive before there is a folder to clean up.
     And the folder "plugins/!!!" is gone
+
+    When I name the plugin ""
+    And I accept the name
+    Then the new plugin level refuses with "Give it a name."
+    And the new plugin level is still open
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: With nothing said about it, the first level asks again rather than drilling
+    # The sentence is what the README's first paragraph and the builder's first
+    # message are both made of, so an empty box has nothing to carry forward —
+    # and the level says so where it was typed instead of taking somebody to a
+    # second question it cannot answer either.
+    Given I open the outline "colours.olai"
+    When I press the palette shortcut
+    And I open New plugin from the palette
+    And I press the palette row "new-plugin-say"
+    Then the new plugin level is still open
+    And the palette path is "new-plugin"
     And there should be no page errors
 
   @scratch:good @rows-off:chat

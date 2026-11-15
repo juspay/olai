@@ -66,11 +66,8 @@ export const PAGE_MOVED = selector(TESTID.pageMoved)
 export const PAGE_MOVED_READ = selector(TESTID.pageMovedRead)
 export const PAGE_REFUSED = selector(TESTID.pageRefused)
 
-// ── ⌘K → New plugin ────────────────────────────────────────────────────
-
-export const NEW_PLUGIN = selector(TESTID.newPlugin)
-export const NEW_PLUGIN_NAME = selector(TESTID.newPluginName)
-export const NEW_PLUGIN_FOLDER = selector(TESTID.newPluginFolder)
+// ⌘K → New plugin draws no node of this row's: both levels are the palette's
+// own furniture, and `new_plugin_steps.ts` grips them through navigation's ids.
 
 /** The address one plugin's page is at. Spelled once, because a step that
  *  opens it cold and a step that asserts where a press landed have to mean the
