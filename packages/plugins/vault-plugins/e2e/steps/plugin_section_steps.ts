@@ -148,6 +148,26 @@ Then("the Plugins row {string} is a link to its page", async function (this: Ola
   )
 })
 
+/**
+ * ...AND A ROW WITH NOWHERE TO GO HAS NO `href` AT ALL.
+ *
+ * A folder whose name is not a word is on the roster — faulted, so a person
+ * can see what is wrong with it — but `/plugins/<that>` does not parse, and an
+ * address navigation does not recognise is read as the default outline. A row
+ * that linked there would carry the reader to an unrelated page for a press
+ * they made on this one. An `<a>` with no `href` is neither focusable nor
+ * pressable, which is the honest drawing of *there is nothing to open*.
+ */
+Then("the Plugins row {string} is not a link", async function (this: OlaiWorld, word: string) {
+  const row = sectionRowFor(this, word)
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  assert.equal(
+    await row.evaluate((element) => element.closest("a")?.getAttribute("href") ?? null),
+    null,
+    `the ${word} row links somewhere, and no address names it`,
+  )
+})
+
 /** The row that is open, which a sidebar says with `aria-current` rather than
  *  with ink alone. */
 Then("the Plugins row {string} is current", async function (this: OlaiWorld, word: string) {

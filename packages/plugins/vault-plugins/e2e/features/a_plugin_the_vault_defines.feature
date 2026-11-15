@@ -326,6 +326,20 @@ Feature: A plugin the vault defines
       """
     And I open the plugins panel
     Then the plugins panel says "Mixed" is "is not a plugin word"
+
+    When I close the plugins panel
+    # ...AND THE SIDEBAR LISTS IT WITHOUT OFFERING TO OPEN IT. The row is there,
+    # wearing the mark that says somebody has to do something, with the fault in
+    # its tip — and NO `href`, because `/plugins/Mixed` names no page and an
+    # address navigation does not recognise is read as the default outline. A
+    # row that linked there would answer a press about this folder by showing
+    # an unrelated one.
+    Then the Plugins row "Mixed" is marked "problem"
+    And the Plugins row "Mixed" is "broken"
+    And the Plugins row "Mixed" says "is not a plugin word"
+    # The address itself is nobody's — the page is reachable for a WORD only —
+    # so there is nothing to navigate to and the row does not pretend otherwise.
+    And the Plugins row "Mixed" is not a link
     And there should be no page errors
 
   @scratch:good
