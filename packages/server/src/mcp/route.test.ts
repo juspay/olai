@@ -534,7 +534,7 @@ for (const definitions of [true, false]) test(`a node ticket cannot write approv
     }
     expect(refused.result?.isError).toBe(true)
     expect(refused.result?.structuredContent?.reason).toContain("may not write")
-    expect(refused.result?.structuredContent?.reason).toContain("plugins panel")
+    expect(refused.result?.structuredContent?.reason).toContain("the plugin's own page")
 
     const contents = fs.readFileSync(path.join(root, "house.olai"), "utf8")
     expect(contents).toContain("some-other-key")
