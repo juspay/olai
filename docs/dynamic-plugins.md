@@ -133,6 +133,10 @@ The consumer waits until the provider finishes initialization. Removing or repla
 
 **A door worth naming answers in its OWN shape**, rather than in whatever type it happens to build the answer out of. `journal.agenda`'s row is four fields the journal promises; the page model behind it is free to move, and a plugin in somebody's vault does not find out about it on a Tuesday morning. The same argument runs the other way: a plugin a vault defines cannot import `@olai/format`, so it writes down the fields it reads and the provider's own types satisfy them structurally.
 
+**Two shipped ones to read, and they are the two cases.** The Spaces mirror uses this mechanism between two rows this build compiles together: chat offers `chat.seating`, whose `in(derived)` returns the node seating for that snapshot, including nodes without a session. The mirror declares that key in `needs`; switching chat off removes the mirror's registrations and switching it on restores them. The mirror declares no dependency on the chat package to do it: a key is a name, so a consumer that names one takes on nothing of the provider's build.
+
+`journal.agenda` ([the journal](plugins/journal.md#the-agenda-as-a-service)) is the other case, and the one a key like this exists for: its consumer is a plugin somebody wrote into a vault, which nothing rebuilds when the provider changes. Three things follow, and all three are visible in the door. The journal takes the reading IN, so the answer is about one snapshot and the caller says which. The ask is opaque, because the consumer cannot name a `Reading` and does not have to — it passes on what the revision door gave it. And the answer is the door's OWN shape rather than the type the journal happens to build it out of, so the page model behind it stays free to move.
+
 ### Browser-owned services
 
 Browser halves import `Offers` from `@olai/plugin-api` and publish with `yield* (yield* Offers).own("palette", consumer => ({ ... }))`. A browser consumer declares `serviceTag<Shape>("provider.palette")` in `needs` and yields that tag in `apply`, just like a server consumer. Each local segment must start with a lowercase letter and contain only lowercase letters, digits or hyphens; the provider name comes from the owning plugin's binding.
@@ -141,7 +145,9 @@ Browser `Offers` has only `own`: plugins cannot replace `Slots`, `Wired`, or the
 
 To make a browser key discoverable, the server half names `Offers` in `needs` and calls `yield* (yield* Offers).browser(["palette"])`. These local words use the same namespace grammar and fiber stamp as `own`, and their declarations leave when the server provider unloads. This call does not provide a server service or execute browser code on the server.
 
-`vault-plugins_inspect` returns service records with `key`, `half` (`server` or `browser`) and `availability`: `core` for core server vocabulary, `provided` for server-owned keys, and `declared` for browser contracts. A browser declaration can be discovered without a connected tab; the page reports whether this tab actually activated the provider.
+`vault-plugins_inspect` returns service records with `key`, `half` (`server` or `browser`) and `availability`: `core` for core server vocabulary, `provided` for server-owned keys, and `declared` for browser contracts. A browser declaration can be discovered without a connected tab; the page reports whether this tab actually activated the provider. In a built plugin, keep the local word list in the shared definition and use it in both `Offers.browser` and `Offers.own`.
+
+Identity offers `identity.viewer`, including the resource over `who.get`, `saying` and `UserIcon`. Chat exports a `components` record containing its speaker's plugin. Each browser component gets a separate dependency lifecycle, a name stamped as `parent/component`, and is removed with its parent row. The activation name is separate from the owning plugin: components share the row's service namespace, sibling client and slot ownership, while each registration still closes with its component. A service factory receives the consuming plugin's owner name, including when that consumer is a component. A waiting speaker leaves chat's anonymous face available. Components have no host access and cannot offer a different row's keys.
 
 ## A worked example: the morning agenda
 
