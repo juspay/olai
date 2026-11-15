@@ -38,17 +38,19 @@ import type { EnginesService } from "olai-plugin-chat/browser-engines"
 import type { DockDoor } from "olai-plugin-chat/dock"
 import type { Navigation, PaletteControl } from "olai-plugin-navigation/contract"
 
-/** Held by the `palette` component, which declares navigation's two services
- *  together: the box that opens at *New plugin*, and the router a submitted
- *  level navigates with. The sidebar's `+` reads the first and draws no `+`
- *  without it. */
+/** Held by the `palette` component, which declares both of the app shell's
+ *  addressing services together: the box that opens at *New plugin*, and the
+ *  router a submitted level navigates with. The sidebar's `+` reads the first
+ *  and draws no `+` without it. */
 const box = heldService<PaletteControl>()
 export const holdPalette = box.hold
 export const palette = box.read
 
-const router = heldService<Navigation>()
-export const holdRouter = router.hold
-export const navigation = router.read
+/** ...and the router, which the sidebar reads to wash the row whose page is in
+ *  front and the alert reads to open the page a press named. */
+const lane = heldService<Navigation>()
+export const holdRouter = lane.hold
+export const router = lane.read
 
 /** Held by the `dock` component. `undefined` is a serve with no chat, a chat
  *  with no shell seat, or a phone — and in all three the plugin page simply

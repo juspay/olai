@@ -44,6 +44,9 @@ export const TESTID = {
   pageReadme: "plugin-page-readme",
   /** *What it uses* — one row per reading of the code's imports. */
   pageUses: "plugin-page-uses",
+  /** *Ask for a change* — the section, which also holds the sentence said
+   *  where no agent is available to ask. */
+  pageAsk: "plugin-page-ask",
   /** *The code* — the tab strip, one tab, the body, and the folder path. */
   pageCode: "plugin-page-code",
   pageCodeTab: "plugin-page-code-tab",

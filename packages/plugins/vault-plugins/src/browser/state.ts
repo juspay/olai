@@ -45,17 +45,18 @@ import { type BuiltPlugin, pluginState } from "@olai/surface"
 export type Stage = "building" | "review" | "paused" | "on" | "off" | "broken"
 
 /** A roster row this row's page is about: one with a `source`, which is the
- *  presence that distinguishes a plugin the VAULT defines from one the build
- *  shipped (`@olai/surface`'s `BuiltPlugin.source`). */
-export type VaultPlugin = BuiltPlugin & { readonly source: NonNullable<BuiltPlugin["source"]> }
+ *  presence that distinguishes a plugin somebody's DIRECTORY defines from one
+ *  the build shipped (`@olai/surface`'s `BuiltPlugin.source`). The word is the
+ *  server half's own for the same reading (`../source.ts`'s `Defined`). */
+export type Defined = BuiltPlugin & { readonly source: NonNullable<BuiltPlugin["source"]> }
 
-/** Whether this row came out of the vault rather than out of the build. */
-export const defined = (plugin: BuiltPlugin): plugin is VaultPlugin => plugin.source !== undefined
+/** Whether this row was written into the directory rather than compiled in. */
+export const defined = (plugin: BuiltPlugin): plugin is Defined => plugin.source !== undefined
 
-/** Every plugin THIS VAULT defines, in the order the roster lists them — which
- *  is folder order, so the sidebar and the page agree with the panel and with
- *  `ls`. */
-export const vaultPlugins = (roster: { readonly built: ReadonlyArray<BuiltPlugin> } | undefined): ReadonlyArray<VaultPlugin> =>
+/** Every plugin this directory defines, in the order the roster lists them —
+ *  which is folder order, so the sidebar and the page agree with the panel and
+ *  with `ls`. */
+export const definedPlugins = (roster: { readonly built: ReadonlyArray<BuiltPlugin> } | undefined): ReadonlyArray<Defined> =>
   roster === undefined ? [] : roster.built.filter(defined)
 
 /** The one whose page is open, or nothing — a word nobody has a folder for is
@@ -63,14 +64,14 @@ export const vaultPlugins = (roster: { readonly built: ReadonlyArray<BuiltPlugin
 export const pluginNamed = (
   roster: { readonly built: ReadonlyArray<BuiltPlugin> } | undefined,
   word: string,
-): VaultPlugin | undefined => vaultPlugins(roster).find((plugin) => plugin.name === word)
+): Defined | undefined => definedPlugins(roster).find((plugin) => plugin.name === word)
 
 /**
  * WHICH OF THE SIX. The order of the tests is the order of the questions:
  * whether the folder is whole comes before whether it is approved, because an
  * unfinished folder is not something to decide about.
  */
-export const stageOf = (plugin: VaultPlugin): Stage => {
+export const stageOf = (plugin: Defined): Stage => {
   const source = plugin.source
   const state = pluginState(plugin)
   if (state === "failed") return building(plugin) ? "building" : "broken"
@@ -86,7 +87,7 @@ export const stageOf = (plugin: VaultPlugin): Stage => {
 /** A folder an agent is still writing: a conversation is bound to it and the
  *  required half has not landed. `server.ts` is the whole test, because it is
  *  the one file a plugin cannot be without (`../source.ts`'s `faultOf`). */
-const building = (plugin: VaultPlugin): boolean =>
+const building = (plugin: Defined): boolean =>
   plugin.source.builder !== undefined && plugin.source.server.trim() === ""
 
 /** How each stage looks and reads: the dot's paint, the word beside it, and
@@ -109,7 +110,7 @@ export const LOOK: { readonly [K in Stage]: { readonly dot: string; readonly wor
  * the line is read at a glance and a clause that is always there is a clause
  * nobody reads.
  */
-export const metaOf = (plugin: VaultPlugin, stage: Stage): string => {
+export const metaOf = (plugin: Defined, stage: Stage): string => {
   const source = plugin.source
   if (stage === "review") return `${halves(source)} · nobody has read it yet`
   if (stage === "paused") return "changed since you turned it on"
@@ -120,10 +121,10 @@ export const metaOf = (plugin: VaultPlugin, stage: Stage): string => {
 
 /** The size of what somebody is being asked to read: the two halves, which are
  *  the only files an approval is about. */
-const halves = (source: VaultPlugin["source"]): string => {
-  const files = source.browser === undefined ? 1 : 2
+const halves = (source: Defined["source"]): string => {
+  const written = source.browser === undefined ? 1 : 2
   const lines = count(source.server) + (source.browser === undefined ? 0 : count(source.browser))
-  return `${files} ${files === 1 ? "file" : "files"}, ${lines} ${lines === 1 ? "line" : "lines"}`
+  return `${written} ${written === 1 ? "file" : "files"}, ${lines} ${lines === 1 ? "line" : "lines"}`
 }
 
 const count = (text: string): number => (text.trim() === "" ? 0 : text.replace(/\n$/, "").split("\n").length)
@@ -137,7 +138,7 @@ const count = (text: string): number => (text.trim() === "" ? 0 : text.replace(/
  * vocabulary rather than anybody's prose, so it is the one this composes a
  * sentence around.
  */
-export const faultSaid = (plugin: VaultPlugin): string | undefined => {
+export const faultSaid = (plugin: Defined): string | undefined => {
   if (plugin.fault !== undefined) return plugin.fault
   const missing = plugin.missing
   if (missing === undefined || missing.length === 0) return undefined

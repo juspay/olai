@@ -1,20 +1,58 @@
 {
+  "//alerts": "`alertsChannel` is the seam's own name for its door, in an import clause — code the sweep reads though the specifier beside it is subtracted. The channel arrives as a declared service on a component of its own (`src/browser.tsx`'s `notices`), and the local binding is `noticeChannel` so the word is spelled once, where the exporter spells it.",
+  "alerts": {
+    "src/browser.tsx": 1
+  },
+  "//chat": "The same, one door over: `olai-plugin-chat/dock` exports its service tag as `chatDock`. The panel door and the engine roster both arrive as declared services on components of their own (`dock` and `engines`), the local bindings are `panelDoor` and `engineRoster`, and every other mention of the word in this package is prose.",
+  "chat": {
+    "src/browser.tsx": 1
+  },
+  "//files": "The page's status line counts what somebody is being asked to read — `2 files, 38 lines` — which is the English plural of a file, not the files row.",
+  "files": {
+    "src/browser/state.ts": 2
+  },
   "layout": {
     "src/server.ts": 1,
     "src/surface.ts": 1,
     "src/tools.ts": 1
   },
+  "//markdown": "`Markdown` is the shared renderer component the README is drawn through (`@olai/markdown-ui`), not a runtime lookup of the markdown row.",
+  "markdown": {
+    "src/browser/Page.tsx": 2
+  },
+  "//navigation": "`Navigation` is the type on navigation's own contract door, named in an import clause and in the holder it types. The live router arrives as a declared service on the `palette` component; the page, the section and the alert read this package's own hold on it.",
+  "navigation": {
+    "src/browser.tsx": 1,
+    "src/browser/alerts.ts": 2,
+    "src/browser/doors.ts": 2
+  },
   "outlines": {
     "src/tools.ts": 2
+  },
+  "//search": "`search` is the palette row's own key — the lowercase haystack every contributed row carries (`PaletteItem.search`) — and not the search row.",
+  "search": {
+    "src/browser/new-plugin.ts": 4
+  },
+  "//settings": "The page's own heading and the line under it name the FILE a plugin's consent and knobs are kept in, `_olai/Settings.olai`, which is a vault file and not the settings row.",
+  "settings": {
+    "src/browser/Page.tsx": 2
+  },
+  "//sidebar": "The slot a section is hung in is called `sidebar.section` by the row that owns it; naming a slot is how a face is contributed at all.",
+  "sidebar": {
+    "src/browser.tsx": 1
   },
   "trash": {
     "src/tools.ts": 1
   },
+  "//vault": "A person's own word for their directory, in prose they read: `Kept in your vault as plugins/<word>/` under the name box, and `This vault has no plugins/<word>/ folder` on a page for a word nobody has. The testid table's own key is the package's path. None of them reaches the vault row.",
   "vault": {
+    "src/browser/Page.tsx": 2,
+    "src/browser/new-plugin.ts": 2,
     "src/client.ts": 2,
     "src/index.ts": 3,
     "src/server.ts": 7,
     "src/source.ts": 2,
+    "src/testids.ts": 1,
     "src/tools.ts": 7
   }
 }
