@@ -1,0 +1,141 @@
+Feature: Asking for a plugin
+  Nobody is asked about halves, slots, service keys or a word grammar. A person
+  says in one sentence what they want, olai suggests a name and says where the
+  folder will be kept, and the press lands on the plugin's own page with the
+  conversation that is building it docked beside.
+
+  IT IS THE SHAPE **NEW CHAT** ALREADY HAS — ⌘K, a row, two levels, a submit —
+  because the gesture is the same gesture with a different noun, and a second
+  way of asking for something would be a second thing to learn for no reason
+  at all.
+
+  WHAT IS ASSERTED HERE IS THE DISK AND THE DOCK. A mint that drew the right
+  words and wrote nothing would pass any assertion made about the screen, so
+  these scenarios ask the vault what is in it: the folder with the README the
+  person's own sentence went into, the `builder` property binding the
+  conversation to the plugin, and the conversation itself in the seat beside
+  the page.
+
+  THE REFUSALS ARE IN PLACE, and that is the one interaction claim worth
+  spelling out. A word already taken and a word that is not a word are both
+  things a person fixes by typing two characters — which they can only do if
+  the box they typed into is still there. A level that closed and navigated
+  would leave somebody working out that nothing had happened.
+
+  @scratch:plugins
+  Scenario: One sentence, a name, and a page with the builder beside it
+    Given I open the outline "colours.olai"
+    When I press the palette shortcut
+    And I open New plugin from the palette
+    And I ask for a plugin that "draws a tiny bar beside any number"
+    # THE SECOND LEVEL NAMES THE FOLDER, which is the only place a person sees
+    # the slug they are choosing — and the folder is the plugin, so the slug is
+    # the word every other face will draw.
+    Then a name is suggested for the new plugin
+    When I name the plugin "Bar beside"
+    Then the new plugin will be kept in "plugins/bar-beside/"
+    When I accept the name
+    # ...AND THE PRESS LANDS ON THE PAGE. The answer carries the address rather
+    # than navigating, because where a press goes is the tab's business — but
+    # from here it is one place, and it is an address somebody can link to.
+    Then the address is "/plugins/bar-beside"
+    And the plugin page is about "bar-beside"
+    And the folder "plugins/bar-beside" holds "README.md"
+    # THE README IS WHAT CREATES THE FOLDER and it carries the person's own
+    # sentence verbatim: that sentence is the best description of the thing
+    # that will ever exist, and nobody should wait for an agent to paraphrase
+    # it.
+    And the plugin page's README says "draws a tiny bar beside any number"
+
+    # BEING BUILT is its own state, and it is not a fault: an agent halfway
+    # through writing a folder is exactly what this is.
+    And the plugin page is "building"
+    And the plugin page's status says "the files are still landing"
+    And the Plugins row "bar-beside" is marked "working"
+
+    # ...AND THE CONVERSATION IS BESIDE IT, which is what makes watching one get
+    # built one screen rather than two.
+    And the plugin "bar-beside" is being built by a conversation
+    And the builder conversation for "bar-beside" is docked
+    And the builder was told how to write a plugin exactly once
+    And the agent has answered "draws a tiny bar beside any number" exactly once
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: A word this vault already has is refused where it was typed
+    # THE WORD IS THE FOLDER'S NAME, and a directory holds one entry per name —
+    # so two plugins cannot claim one word, and the refusal says which kind of
+    # collision it is rather than "that name is unavailable".
+    Given I open the outline "colours.olai"
+    When I press the palette shortcut
+    And I open New plugin from the palette
+    And I ask for a plugin that "does something else entirely"
+    And I name the plugin "Swatch"
+    And I accept the name
+    Then the new plugin level refuses with "is already taken"
+    And the new plugin level refuses with "this vault already has a plugin in that folder"
+    And the new plugin level is still open
+    And the address is "/colours.olai"
+
+    # ...and the fix is two characters, in the box that is still open.
+    When I name the plugin "Swatch two"
+    And I accept the name
+    Then the address is "/plugins/swatch-two"
+    And the folder "plugins/swatch-two" holds "README.md"
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: A name this build already ships is refused, and says which kind of collision it is
+    # A folder may not take a built row's word: the roster is keyed by it, and a
+    # vault that could rename a compiled-in plugin out of existence would be the
+    # vault deciding what the host runs.
+    Given I open the outline "colours.olai"
+    When I press the palette shortcut
+    And I open New plugin from the palette
+    And I ask for a plugin that "replaces the journal somehow"
+    And I name the plugin "journal"
+    And I accept the name
+    Then the new plugin level refuses with "this build ships a plugin by that name"
+    And the new plugin level is still open
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: A name that is not a word at all is refused with the grammar
+    Given I open the outline "colours.olai"
+    When I press the palette shortcut
+    And I open New plugin from the palette
+    And I ask for a plugin that "makes a noise"
+    And I name the plugin "!!!"
+    And I accept the name
+    Then the new plugin level refuses with "does not make a plugin word"
+    And the new plugin level refuses with "lowercase letters"
+    And the new plugin level is still open
+    # NOTHING WAS CREATED, which is why the word is judged before anything is
+    # written: a refusal has to arrive before there is a folder to clean up.
+    And the folder "plugins/!!!" is gone
+    And there should be no page errors
+
+  @scratch:good @rows-off:chat
+  Scenario: With no agent on this serve, the folder is still minted and the page says so
+    # A SERVE WITH NO CHAT STILL MINTS. The folder is a folder somebody can
+    # write by hand, and that is the honest answer rather than a failure of the
+    # call — so the mint goes through, the builder comes back as nobody, and the
+    # page offers neither verb that would speak into a conversation.
+    Given I open the app
+    When I press the palette shortcut
+    And I open New plugin from the palette
+    And I ask for a plugin that "rings a bell at seven"
+    And I name the plugin "Doorbell"
+    And I accept the name
+    Then the address is "/plugins/doorbell"
+    And the folder "plugins/doorbell" holds "README.md"
+    And the plugin "doorbell" has no builder
+
+    # The page says what is missing in words, which is a thing a person can act
+    # on — rather than drawing a button that does nothing.
+    And the plugin page offers nobody to ask
+    And the plugin page does not say "Ask for a change"
+    # ...and with only a README on disk this is a folder that is not yet a
+    # plugin, which the page says with the name of the file it is short of.
+    And the plugin page says "server.ts"
+    And there should be no page errors

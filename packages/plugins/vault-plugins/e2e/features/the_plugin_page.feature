@@ -1,0 +1,196 @@
+Feature: A plugin's own page
+  `/plugins/<word>` is where a plugin the vault defines is read, decided about
+  and lived with. `a_plugin_the_vault_defines.feature` is the mechanism — a
+  folder reaching a fiber and a face reaching a tab. This one is the PAGE: the
+  states it wears, the verbs each one offers, the settings it writes, the fault
+  it hands to the conversation that caused it, and the two things it must not
+  do — reload, and be redrawn because some other plugin moved.
+
+  WHY A PAGE AT ALL, rather than a row on a panel. Because a plugin somebody
+  asked for is a folder with a README, three files, a conversation that built
+  it and a decision somebody has to make about code — and none of that fits
+  under a disclosure triangle in a list of forty rows. The one gesture it
+  exists for, reading source and saying yes to it, is the most consequential
+  press in this product.
+
+  THE SIX STATES ARE SPREAD WHERE THEY HAPPEN. *Being built* is in
+  `asking_for_a_plugin.feature`, because a folder is only half-written while an
+  agent is writing it; *Ready for you*, *Paused*, *On* and *Off* are in
+  `a_plugin_the_vault_defines.feature`, beside the gestures that reach them.
+  What is here is *Couldn't start* — which has a verb of its own and is the
+  only state that hands something to somebody else.
+
+  @scratch:good
+  Scenario: Couldn't start, and the fault goes back to whoever wrote it
+    # THE WHOLE LOOP, in one scenario: a person asks for a plugin, an agent
+    # writes a half that throws, the person turns it on, it does not start, and
+    # one press hands the fault VERBATIM to the conversation that produced it.
+    # An agent told "it broke" has to go and find out what, and the serve
+    # already knows.
+    Given I open the app
+    When I press the palette shortcut
+    And I open New plugin from the palette
+    And I ask for a plugin that "counts the hours"
+    And I name the plugin "Hours"
+    And I accept the name
+    Then the plugin page is "building"
+
+    When I rewrite "plugins/hours/server.ts" as:
+      """
+      import { definePlugin } from "@olai/plugin-api"
+      import { Effect } from "effect"
+
+      export default definePlugin({
+        name: "hours",
+        needs: [],
+        apply: Effect.die(new Error("the hours ran out")),
+      })
+      """
+    # THE FOLDER IS WHOLE, so it is no longer being built — it is a thing a
+    # person may decide about, even though deciding will not go well.
+    Then the plugin page is "review"
+    And the plugin page's verb is "turn-on"
+
+    When I press the plugin page verb
+    # FAILED IS A STATE WITH A SENTENCE, not an error: what is wrong is the
+    # plugin's own `apply`, so what the page says is the plugin's own words.
+    Then the plugin page is "broken"
+    And the plugin page says "the hours ran out"
+    And the plugin page's verb is "ask-fix"
+    And the Plugins row "hours" is marked "problem"
+
+    When I ask the builder to fix it
+    Then the builder conversation carries "will not start"
+    And the builder conversation carries "the hours ran out"
+    And the builder conversation carries "plugins/hours/"
+
+    # ...AND THE LOOP CLOSES. The agent writes the half again, which is an edit
+    # and therefore a fresh decision: the person reads what moved and says yes
+    # to it, and the plugin that would not start is running.
+    When I rewrite "plugins/hours/server.ts" as:
+      """
+      import { definePlugin } from "@olai/plugin-api"
+      import { Effect } from "effect"
+
+      export default definePlugin({ name: "hours", needs: [], apply: Effect.void })
+      """
+    And I read the plugin "hours" again
+    And I press the plugin page verb
+    Then the plugin page is "on"
+    # ...and NOW there is somewhere to send a change, so the page offers it.
+    And the plugin page offers to ask for a change
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: Settings on the page write the settings file, and an invalid one is refused where it was typed
+    # A KNOB IS NOT CODE. The version is a hash of the two halves, so moving a
+    # setting re-applies the row without touching its approval — which is what
+    # makes a knob a thing an owner can move without reading the source again.
+    Given I open the app
+    When I go to the plugin "greeting"
+    And I press the plugin page verb
+    Then the plugin page is "on"
+
+    When I pick "red" for the plugin page setting "tone"
+    Then file "_olai/Settings.olai" has namespace "greeting" setting "tone" as "red"
+    # ...AND IT IS STILL ON, which is the half that would be silently wrong if
+    # a configuration write went through the approval path.
+    And the plugin page is "on"
+    And the Plugins row "greeting" wears no mark
+
+    When I type "77" into the plugin page setting "size"
+    And I press "Enter" in the plugin page setting "size"
+    # REFUSED IN PLACE: the schema is the plugin's own, the serve is what judges
+    # it, and the reason lands under the control a person typed into rather than
+    # in a toast somewhere else.
+    Then the plugin page setting "size" is refused
+    And file "_olai/Settings.olai" has namespace "greeting" setting "size" as "<absent>"
+    And the plugin page is "on"
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: A plugin with no knobs draws no Settings at all
+    # Nothing is drawn where there is nothing to say: an empty *Settings*
+    # heading would be a control that does nothing, on the one page where every
+    # control means something.
+    Given I open the app
+    When I go to the plugin "swatch"
+    Then the plugin page has no settings
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: A word with no folder behind it is a page that says so
+    # The address PARSES — it is a plugin somebody deleted, or a link from
+    # another vault — and the page's own arm is the honest answer to it rather
+    # than a route that falls through to a general not-found.
+    Given I open the plugin page for "nothing-here"
+    Then there is no plugin called "nothing-here"
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: A plugin rebuilt elsewhere does not disturb the page I am reading
+    # A ROSTER IS PUBLISHED TO EVERY TAB, and a page keyed carelessly would be
+    # torn down and built again every time any plugin anywhere moved — losing
+    # the tab somebody had open, the place they were reading, and the version
+    # the verbs were armed against.
+    Given I open the app
+    When I go to the plugin "swatch"
+    And I press the plugin page verb
+    Then the plugin page is "on"
+
+    When I open the plugin page's "browser.tsx" tab
+    And I mark the plugin page
+    And I rewrite "plugins/greeting/server.ts" as:
+      """
+      import { definePlugin } from "@olai/plugin-api"
+      import { Effect } from "effect"
+
+      export default definePlugin({ name: "greeting", needs: [], apply: Effect.void })
+      """
+    Then the Plugins row "greeting" is marked "review"
+    And the plugin page is about "swatch"
+    And the plugin page is "on"
+    And the plugin page's code is "browser.tsx"
+    And the plugin page is the one I marked
+    And the page has not reloaded
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: The halves are addressable and deliberately not in the sidebar
+    # TWO FRONT DOORS ONTO ONE FILE is how a sidebar fills up with the app's own
+    # plumbing. The halves are in the set, in the ledger and at an address — and
+    # the plugin's own page is where they are READ, with the file names over them
+    # and a diff when they change. The README is the other half of the claim: an
+    # ordinary document, markdown's own, listed like any other `.md`.
+    Given I open the app
+    Then Reference lists the file "plugins/swatch/README.md"
+    And Reference does not list the file "plugins/swatch/server.ts"
+    And Reference does not list the file "plugins/swatch/browser.tsx"
+    # ...AND A `.ts` THAT IS NOT A PLUGIN'S IS NOT SERVED AT ALL. The claim is
+    # scoped to `plugins/`, so a checkout somebody keeps beside their notes is
+    # none of olai's business: no row, no address, nothing compiled.
+    And Reference does not list the file "toolbox.ts"
+
+    When I open the address "/plugins/swatch/server.ts"
+    Then the open file is "plugins/swatch/server.ts"
+
+    When I open the address "/toolbox.ts"
+    Then a not-found is shown
+    And there should be no page errors
+
+  @phone @scratch:plugins
+  Scenario: On a handset the press and its warning are in the foot
+    # The one press this page exists for may not be the thing a person has to
+    # scroll to find — and the sentence about what running a plugin costs
+    # belongs beside the press rather than a screen above it.
+    Given I open the app
+    When I go to the plugin "swatch"
+    Then the plugin page is "review"
+    And the plugin page's verb is in the foot
+    And the plugin page's verb is "turn-on"
+    And the plugin page says what running it costs
+
+    When I press the plugin page verb
+    Then the plugin page is "on"
+    And file "_olai/Settings.olai" has namespace "swatch" setting "on" as "yes"
+    And there should be no page errors
