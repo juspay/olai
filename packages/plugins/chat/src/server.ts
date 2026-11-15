@@ -869,8 +869,17 @@ export default definePlugin({
       // that moved under this call lands the words nowhere rather than in
       // somebody else's chat. No attachments and no armed nodes — a row that
       // wants a node looked at says so in its words.
+      //
+      // THE SCOPE IS `undefined` AND NOT `null`, which is the difference
+      // between *I am not claiming one* and *I claim the panel has none*. A
+      // browser's send carries the upload scope its composer is holding and is
+      // refused when the panel has moved to another; a server-side first
+      // message has no composer and no uploads, so naming `null` asserted
+      // something about a panel it knows nothing about — and every mint came
+      // back saying the conversation had changed while the words landed
+      // nowhere.
       send: (to, text, preamble) =>
-        withChat(open => open.inConversation(to, null, panel => panel.send(text, [], [], false, preamble))),
+        withChat(open => open.inConversation(to, undefined, panel => panel.send(text, [], [], false, preamble))),
       seat: (node) => {
         const row = nodeAgents.nodeAt(node)
         return row === null || row.session === null ? null : { agent: row.engine, session: row.session }
