@@ -31,12 +31,14 @@ dashed ring, says `Resets when olai restarts` on hover, and carries those words
 in its own name, so a screen reader hears them too). A row with nothing to reveal
 has no chevron; its label keeps the chevron's space so the names line up.
 
-**A plugin the vault defines keeps its source off this panel.** Its row's detail
-carries a link to the plugin's own page instead, and that page is where the
+**A plugin the vault defines carries its source and its approval here too, and
+a link to its own page.** The page is the better place for the decision — the
 README, what it uses, the three files, the diff against an approved version and
-the **Turn on** button are. The panel is a list of switches over a whole serve;
-reading code and deciding about it is a page's work, and drawing a plugin's
-source twice would make one of the two the stale one.
+one **Turn on** button — and the panel's detail is where somebody already
+working down a whole serve's rows can read the same source and say yes without
+leaving the list. Neither of them can approve a stale version: both send back
+the version they drew, and a serve whose reading has moved refuses rather than
+approving what is there now.
 
 ## Groups
 
@@ -129,11 +131,13 @@ owner. The inspector reads build-supplied label, section, quiet, opt-in and
 switch-hint facts through that capability rather than importing the bundle that
 loads it.
 
-Approval belongs to `vault-plugins` and is drawn on the plugin's own page, not
-here. What this panel keeps is the switch and the row's state, so a plugin the
-vault defines that nobody has approved reads `Needs approval` under **Needs
-attention** and its detail offers the way to the page where that decision is
-made. With that row's browser provider absent, the link is not offered and the
+Approval belongs to `vault-plugins`. This panel reaches one verb of it through
+a declared service and draws the same block the plugin's page does: the source,
+**Approve this version**, **Approve always**, and the refusal when the reading
+moved under the reader. A plugin nobody has approved reads `Needs approval`
+under **Needs attention**, and its detail also links to the page where the same
+decision is made with the README and what it uses beside it. With that row's
+browser provider absent, neither the block nor the link is offered and the
 inspector remains usable; no host approval binding or hard dependency keeps the
 vault-plugins provider alive.
 

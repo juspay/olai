@@ -387,6 +387,8 @@ The page says what the plugin does **in words before code**: the README's own ti
 
 Both are ordinary property writes: they go through the same gate a keystroke does, land in the same settings file every other row's switch does, and are in the ledger.
 
+The plugins panel draws the same block in a vault plugin's row detail, for somebody already working down a whole serve's rows, and links to the page from there. Neither door can approve a stale version: both send back the version they drew, and the refusal below is the same one.
+
 **An approval names a VERSION**, which is a hash of both halves. An edit to either half therefore puts the plugin back to pending **and unmounts it** — which is what stops *approve once* from meaning *approve whatever this becomes*. The page then shows **what changed**: a diff against the version that was approved, not the whole file again, because you already read that one. `always` is the escape for a plugin somebody is iterating on with an agent, where re-approving every edit is a gesture that stops being read after the third time.
 
 **The README is not in the version.** Fixing a typo in the prose is not a fresh decision about code, and a plugin that paused itself every time its description improved would teach people to press Turn on without looking.
