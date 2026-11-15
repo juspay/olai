@@ -15,6 +15,29 @@ export const ClaimData = Schema.Struct({
   picture: Schema.optionalKey(Schema.Boolean),
   /** Claimed suffixes served inert and excluded from inline pictures. */
   inert: Schema.optionalKey(Schema.Array(Schema.String)),
+  /**
+   * WHERE THIS CLAIM APPLIES — a path prefix, ending in `/`, or absent for a
+   * claim that applies everywhere, which is what every claim but one is.
+   *
+   * A suffix is enough to name a kind when the suffix is olai's: nothing but an
+   * outline is a `.olai`. It is not enough for `.ts`, which names a file a
+   * vault is likely to be full of for reasons that have nothing to do with
+   * olai — a checkout beside the notes. A claim that scoped itself to
+   * `plugins/` says what it means: the two halves of a plugin this vault
+   * defines, and no other TypeScript in the directory.
+   */
+  under: Schema.optionalKey(Schema.String),
+  /**
+   * A FILE OF THIS KIND IS REACHED FROM SOMEWHERE OF THE CLAIMING ROW'S OWN,
+   * so the sidebar's file trees leave it out.
+   *
+   * Not a secret and not unreadable: it is in the set, it is in the ledger, the
+   * Commit panel lists it, and an address names it. What it is not is a row in
+   * the Reference tree — because the row that claimed it draws a better place
+   * to open it from, and two front doors onto the same file is how a sidebar
+   * fills up with the app's own plumbing.
+   */
+  elsewhere: Schema.optionalKey(Schema.Boolean),
 })
 /** A registered claim adds its server-only parser to the serializable policy. */
 export interface Claim extends Schema.Schema.Type<typeof ClaimData> {
@@ -52,23 +75,49 @@ export const claims = (list: Iterable<Claim>): Claims => {
   return Object.freeze({ byKind, byExt })
 }
 
+/**
+ * THE CLAIM A PATH FALLS UNDER, or none.
+ *
+ * A suffix is the whole of the question for five of the six kinds. It cannot be
+ * for the sixth: `.ts` names a TypeScript file, and a vault that keeps a build
+ * beside its notes is full of them — so a bare suffix claim would sweep every
+ * one into the sidebar's Reference tree and into the revision's memory. {@link
+ * Claim.under} is the answer: a claim may say WHERE it applies, and a path
+ * outside that folder is unclaimed, exactly as it was before the claim existed.
+ *
+ * The walk CONTINUES past a suffix match whose scope the path is outside,
+ * rather than answering nothing: two claims may share a suffix when one of them
+ * is scoped, and the unscoped one is the answer everywhere else.
+ */
 const claimOf = (claims: Claims, path: string): Claim | undefined => {
-  for (const [ext, owner] of claims.byExt) if (path.endsWith(ext)) return claims.byKind.get(owner)
+  for (const [ext, owner] of claims.byExt) {
+    if (!path.endsWith(ext)) continue
+    const claim = claims.byKind.get(owner)
+    if (claim !== undefined && (claim.under === undefined || path.startsWith(claim.under))) return claim
+  }
   return undefined
 }
 export const fileKind = (claims: Claims, path: string): string | null => claimOf(claims, path)?.kind ?? null
-export const bareOf = (claims: Claims, path: string): string => {
-  for (const ext of claims.byExt.keys()) if (path.endsWith(ext)) return path.slice(0, -ext.length)
-  return path
+/** The path without the suffix that claimed it, and the whole path when
+ *  nothing claims it. */
+export const bareOf = (claims: Claims, path: string): string => withoutExt(claimOf(claims, path), path)
+/** ...and the same, of the basename — asked of the FULL path, so a scoped
+ *  claim is judged where the file actually is rather than on a bare name that
+ *  has had its folder cut off. */
+export const stemOf = (claims: Claims, path: string): string =>
+  withoutExt(claimOf(claims, path), path.slice(path.lastIndexOf("/") + 1))
+const withoutExt = (claim: Claim | undefined, name: string): string => {
+  for (const ext of claim?.exts ?? []) if (name.endsWith(ext)) return name.slice(0, -ext.length)
+  return name
 }
-export const stemOf = (claims: Claims, path: string): string => bareOf(claims, path.slice(path.lastIndexOf("/") + 1))
 /** The name a file is drawn by, in the sidebar and in a tab alike: a document
  * (a kept kind — an outline, a markdown file) drops the suffix that claimed it
  * (`garden.olai` is `garden`); every other file keeps it, since the suffix is
  * how a person tells `report.pdf` from `report.csv`. */
 export const nameOf = (claims: Claims, path: string): string => {
+  const claim = claimOf(claims, path)
   const base = basenameOf(path)
-  return claimOf(claims, path)?.kept === true ? bareOf(claims, base) : base
+  return claim?.kept === true ? withoutExt(claim, base) : base
 }
 export const holdsBody = (claims: Claims, kind: string): boolean => {
   const claim = claims.byKind.get(kind)

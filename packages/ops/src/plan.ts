@@ -3663,14 +3663,26 @@ export const outlinePath = (claims: Claims, row: string, raw: string): string | 
   return ext === null || claims.byKind.get(row)?.holds !== "nodes" ? null : creatable(raw, ext)
 }
 
-/** The same judgment for the other kind of file a call may mint: one relative
- *  `.md` under the served root. One rule, two extensions — the two create ops
- *  must not differ in what a path may smuggle, and both take their suffix from
- *  the format, because a mint that admits a name `fileKind` will not claim
- *  writes a file nothing ever reads back. */
+/**
+ * The same judgment for the other kind of file a call may mint: one relative
+ * path under the served root whose suffix a KEPT TEXT row claims.
+ *
+ * One rule, two create ops — they must not differ in what a path may smuggle.
+ * What differs is which suffix each requires, and both read it off the live
+ * claims, because a mint that admits a name `fileKind` will not claim writes a
+ * file nothing ever reads back.
+ *
+ * IT IS NOT MARKDOWN'S ALONE any more. It was `mintExt(claims, "markdown")`,
+ * which said `.md` and nothing else — and a plugin a vault defines is three
+ * files, two of which are claimed by `vault-plugins` under `plugins/`
+ * (`@olai/format`'s `Claim.under`). The rule the old one was really keeping is
+ * the one spelled here: the file must be a document the set will hold and a
+ * reader will read back, which is exactly a kept text claim.
+ */
 export const documentPath = (claims: Claims, raw: string): string | null => {
-  const ext = mintExt(claims, "markdown")
-  return ext === null ? null : creatable(raw, ext)
+  if (creatable(raw, "") === null) return null
+  const claim = claims.byKind.get(fileKind(claims, raw) ?? "")
+  return claim?.holds === "text" && claim.kept ? raw : null
 }
 
 const creatable = (raw: string, extension: string): string | null => {
@@ -5491,19 +5503,25 @@ const planCreateDocument = (
   scope: Scope,
   request: Extract<Request, { op: "create-doc" }>,
 ): Planned => {
-  if (!scope.claims.byKind.has("markdown")) return Result.fail(new UsageFailure({ reason: "the markdown row is off, so no document can be created" }))
   if (creatable(request.file, "") === null) return Result.fail(new UsageFailure({ reason: `\`${request.file}\` is not a relative file path under the served directory (no absolute path, no \`..\`, no \`.\`, and no directory the serve's walk prunes).` }))
   if (claimedOf(scope.claims, request.file) === null) return Result.fail(unclaimedPath(request.file, [...scope.asked.serves]))
   const file = documentPath(scope.claims, request.file)
   if (file === null) {
+    // WHICH SUFFIXES WOULD HAVE WORKED, read off the live table rather than
+    // spelled: `.md` is markdown's, and a serve with the plugin row up also
+    // holds `.ts` and `.tsx` under `plugins/`. A sentence naming only `.md`
+    // would be this planner telling a caller about a table it no longer reads.
+    const kept = [...scope.claims.byKind.values()]
+      .filter(claim => claim.holds === "text" && claim.kept)
+      .flatMap(claim => claim.exts.map(ext => claim.under === undefined ? `\`${ext}\`` : `\`${ext}\` under \`${claim.under}\``))
     return Result.fail(
       new UsageFailure({
-        reason:
-          `\`${request.file}\` is not a relative \`.md\` path under the served ` +
-          `directory (no absolute path, no \`..\`, no \`.\`, the name must end ` +
-          `in \`.md\`, and no directory in it starts with \`.\` or is ` +
-          `\`node_modules\` — the serve's walk prunes those, so a file under ` +
-          `one is never part of the set)`,
+        reason: kept.length === 0
+          ? "no row claims a kind of document this serve writes, so no document can be created"
+          : `\`${request.file}\` is not a relative path under the served directory that any `
+            + `document row claims (${kept.join(", ")}; no absolute path, no \`..\`, no \`.\`, `
+            + `and no directory in it starts with \`.\` or is \`node_modules\` — the serve's `
+            + `walk prunes those, so a file under one is never part of the set)`,
       }),
     )
   }

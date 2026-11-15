@@ -99,11 +99,16 @@ export function Files(props: SidebarRegionProps & {readonly active: string | und
     return claims === undefined ? [] : fileTree(claims, served().filter(file => !isTrashed(claims, file) && !inOlaiDir(file)), "nodes")
   })
 
+  // ...and the THIRD: a kind whose claim says its files are reached from
+  // somewhere of the claiming row's own (`Claim.elsewhere` — a plugin's two
+  // halves, opened from that plugin's page) is not a reference row either. The
+  // file is in the set, in the ledger and in the Commit panel; what it is not
+  // is a second front door in this column.
   const references = createMemo(() => {
     const claims = servedDirectory()?.claims()
     return claims === undefined ? [] : served().filter(file => {
-      const kind = fileKind(claims, file)
-      return !inOlaiDir(file) && kind !== null && claims.byKind.get(kind)?.holds !== "nodes"
+      const claim = claims.byKind.get(fileKind(claims, file) ?? "")
+      return !inOlaiDir(file) && claim !== undefined && claim.holds !== "nodes" && claim.elsewhere !== true
     })
   })
   const referenceTree = createMemo(() => {
