@@ -409,9 +409,11 @@ Two of them, and they are the two kinds:
   chip draws `data-swatch`, an attribute the FIXTURE's own source writes, because
   a plugin a vault defines is by definition not in this build's testid table.
 - `plugins/greeting/` is two, and it draws nothing. It is here for its **knobs**:
-  a `Config` with a choice (`tone`) and a bounded integer (`size`), so the
-  controls under *Settings* on the plugin's own page have something real to
-  write and something real to refuse.
+  a `Config` with one of each control the settings reader draws — a short
+  choice (`tone`), a switch (`bright`), a bounded integer (`size`) and a long
+  choice (`shape`) — so the controls under *Settings* on the plugin's own page
+  and in its row on the plugins panel have something real to write, and an
+  out-of-range number has something real to refuse.
 
 `toolbox.ts` sits at the root and is the point of the claim's scope: `.ts` is
 claimed **only under `plugins/`**, so this file is not served at all — no
