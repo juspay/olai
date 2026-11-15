@@ -46,7 +46,7 @@
 import { Effect } from "effect"
 
 import type { OpFailure } from "@olai/format"
-import type { Provision } from "@olai/effect-cordis"
+import type { Provision } from "@olai/plugin-api/services"
 
 import type { Conversations } from "../conversations.ts"
 import type { Conversing } from "../sessions.ts"
