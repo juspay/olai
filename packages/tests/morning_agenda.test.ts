@@ -51,7 +51,7 @@ import { expect, test } from "bun:test";
 import { ROOT } from "./support/sweep.ts";
 
 const DOC = path.join(ROOT, "docs", "dynamic-plugins.md");
-const FIXTURE = path.join(ROOT, "packages", "tests", "fixtures", "morning-agenda", "morning-agenda.olai");
+const FIXTURE = path.join(ROOT, "packages", "tests", "fixtures", "morning-agenda", "plugins", "morning-agenda", "server.ts");
 
 /**
  * THE TWO LINES THAT MAY DIFFER, and the whole list of them.
@@ -64,18 +64,12 @@ const CLOCK: ReadonlyArray<readonly [fixture: string, doc: string]> = [
   [`const EVERY = "1 second"`, `const EVERY = "5 minutes"`],
 ];
 
-/** The `server.ts` half out of the fixture — read as the outline it is, by the
- *  node's title, rather than by a line number that a second row would move. */
-const halfInFixture = (): string => {
-  const rows = fs.readFileSync(FIXTURE, "utf8").split("\n").filter((line) => line.trim() !== "")
-    .map((line) => JSON.parse(line) as { readonly title?: string; readonly desc?: string });
-  const half = rows.find((row) => row.title === "server.ts")?.desc;
-  if (half === undefined) throw new Error(`${FIXTURE} has no node titled server.ts carrying a note`);
-  return half;
-};
-
+/** The fixture's `server.ts`, which is a FILE now rather than the note of a
+ *  node — a plugin the vault defines is a folder, so the half is read the way
+ *  the serve reads it and the extractor this used to need is gone with the
+ *  shape it was reading. */
 test("the fixture's morning agenda is the doc's, with the two clock lines swapped", () => {
-  let source = halfInFixture();
+  let source = fs.readFileSync(FIXTURE, "utf8").trimEnd();
   for (const [fixture, doc] of CLOCK) {
     // A substitution that matched nothing is the failure this guard is for: it
     // would leave the comparison below passing on a source that never carried

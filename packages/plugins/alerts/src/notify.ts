@@ -19,11 +19,19 @@ import { createNotify } from "@kolu/surface-app/notify"
 import type { Consent, Notice, NotifyClick } from "./contract.ts"
 /** Read a click envelope the worker relayed, or `undefined` for anything that
  *  is not one of ours. Handed to `createNotify` as its validator, so a stale
- *  or malformed payload is dropped loudly rather than routed. */
+ *  or malformed payload is dropped loudly rather than routed.
+ *
+ *  The `plugin` arm is the one that carries a field, so it is the one that can
+ *  arrive HALF right — a kind this build knows beside a name a degraded worker
+ *  dropped. That is refused rather than narrowed to the kind: a press that
+ *  reached its claimant with no word would be asking the plugins row to pick a
+ *  plugin, which is exactly what naming it exists to prevent. */
 export const notifyClick = (data: unknown): NotifyClick | undefined => {
   if (typeof data !== "object" || data === null) return undefined
-  const kind = (data as { kind?: unknown }).kind
-  return kind === "ask" || kind === "due" ? { kind } : undefined
+  const { kind, name } = data as { kind?: unknown; name?: unknown }
+  if (kind === "ask" || kind === "due") return { kind }
+  if (kind === "plugin" && typeof name === "string" && name !== "") return { kind, name }
+  return undefined
 }
 
 const asked = (): Consent => typeof Notification === "undefined" ? "unsupported" : Notification.permission

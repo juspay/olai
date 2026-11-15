@@ -19,6 +19,7 @@ import type {} from "olai-plugin-outlines/slots"
 import type {} from "olai-plugin-sidebar/slots"
 import { slotContracts } from "./slots.ts"
 import type { Attention } from "./attention.ts"
+import { DOCK, type DockDoor } from "./dock.ts"
 import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
 import { definePlugin, Faces, Slots, Wired, Offers } from "@olai/plugin-api"
@@ -93,7 +94,7 @@ export default definePlugin({
     yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const agents = createAgents()
-      return { dispose, agents, engines: enginesService(agents.missing), readings: createAgentReadings(agents), folding: createFolding(), history: createHistory() }
+      return { dispose, agents, engines: enginesService(agents), readings: createAgentReadings(agents), folding: createFolding(), history: createHistory() }
     })), state => Effect.sync(state.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdAgentReadings(state.readings)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdFolding(state.folding)), stop => Effect.sync(stop))
@@ -183,12 +184,23 @@ export const components = {
    *  the bar's toggle, the ⌘J chord and the palette row leave with it, and the
    *  doors on a Chats row and an agent line draw nothing when `dock()` answers
    *  nothing. */
-  dock: definePlugin({ name: "dock", needs: [appShell, Slots, rendererSlots], apply: Effect.gen(function*() {
+  dock: definePlugin({ name: "dock", needs: [appShell, Slots, rendererSlots, Offers], apply: Effect.gen(function*() {
     const geometry = yield* appShell
     const slots = yield* Slots
     const renderer = yield* rendererSlots
     const door = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({ value: createDock(geometry), dispose }))), owner => Effect.sync(owner.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdDock(door.value)), stop => Effect.sync(stop))
+    // `chat.dock`, as its static door names it (`./dock.ts`): the seat beside
+    // the page, offered by the component that OWNS the seat rather than by the
+    // row — so a consumer that declares it waits for exactly what the column
+    // waits for, and a serve with no shell holds that consumer `waiting`
+    // naming the key instead of handing it a door that does nothing. The live
+    // `Dock` is not what crosses: the two verbs another row may spend are,
+    // which is why the door is a narrowing and not the value itself.
+    yield* (yield* Offers).own(DOCK, () => ({
+      open: (node: string) => door.value.open(node),
+      desktop: () => door.value.desktop(),
+    } satisfies DockDoor))
     const roster = () => agentReadings()?.agents
     yield* slots.register("app.panel", () => <Show when={roster()}>{agents => <AgentsProvider value={agents()}><Dock /></AgentsProvider>}</Show>)
     yield* slots.register("app.keys", { key: "j", whileEditing: true, said: "Show or hide the agent panel", press: () => { if (door.value.desktop()) door.value.toggle() } })

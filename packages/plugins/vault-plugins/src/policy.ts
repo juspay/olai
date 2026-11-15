@@ -7,19 +7,19 @@
  * and the whole boundary this lane has — *a person reads it and says yes* —
  * would be a formality an author could skip in one call.
  *
- * ## FILE-SCOPED, since consent moved into the settings file
+ * ## KEY-WIDE, not file-scoped, even though consent now lives in one file
  *
- * It used to be a bare key reservation, because approval was a property on the
- * plugin's own node wherever in the vault that node happened to be. It lives on
- * a node in `_olai/Settings.olai` now, beside `on`, which is where every row
- * this build shipped keeps its own — so the reservation is the file-scoped kind
- * (`@olai/ops`' `door.ts`), exactly like the settings row's `on`.
+ * `approved` is read off a node in `_olai/Settings.olai`, so a reservation
+ * scoped to that file would cover the place it is read FROM — and that is one
+ * step short. A key-wide reservation refuses the write wherever it lands, which
+ * closes three doors the narrow one leaves open: writing the property onto a
+ * node in some other file and moving that file into place, CREATING a
+ * shallower `Settings.olai` that masks the deeper one the serve is reading,
+ * and writing it where this build does not look but the next one might.
  *
- * That shape refuses four things a per-property comparison would miss, and
- * every one of them is a real way to approve code without writing the word:
- * renaming the plugin's node onto another one's, moving it, deleting it, and
- * adding a shallower `Settings.olai` that masks the deeper one the serve was
- * reading.
+ * What it costs is one property name in a person's own notes that an agent
+ * writing through olai cannot set. That is a price worth one sentence in the
+ * doc and no argument at all beside the thing it buys.
  *
  * ## It is a fence, not a lock, and the doc says so where a person can read it
  *
@@ -29,7 +29,6 @@
  */
 export const writeReservations = [{
   key: "approved",
-  file: "settings.olai",
   says: "it is a person's approval of code that runs with this server's authority, "
     + "and the plugin's own page — with what it does, what it uses and the code itself "
     + "in front of them — is where that is decided",

@@ -10,10 +10,15 @@ import type { Roster } from "./agents/answered.tsx"
 import { TESTID } from "../testids.ts"
 import { EngineAbsence } from "./agents/EngineAbsence.tsx"
 
-export const enginesService = (missing: Roster["missing"]): EnginesService => ({
+export const enginesService = (roster: Pick<Roster, "missing" | "engines">): EnginesService => ({
+  // THE ROSTER'S OWN FOLD, not a second one: `engines` is the memo every
+  // startable consumer in this row already reads (`./agents/answered.tsx`),
+  // and what crosses the door is it narrowed to the two fields another row may
+  // know — the id it would start and the name a person reads.
+  installed: () => roster.engines().map(({ id, name }) => ({ id, name })),
   row: engine => ({
-    needs: () => missing(engine) !== null,
-    body: () => <Show when={missing(engine)}>{reason =>
+    needs: () => roster.missing(engine) !== null,
+    body: () => <Show when={roster.missing(engine)}>{reason =>
       <p class="text-label leading-relaxed text-muted">
         <EngineAbsence id={engine} missing={reason()} testid={TESTID.engineMissing} />
       </p>

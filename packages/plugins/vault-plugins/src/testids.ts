@@ -1,0 +1,76 @@
+/**
+ * STABLE DOM IDENTIFIERS OWNED BY THIS ROW'S BROWSER HALF.
+ *
+ * A static contract and nothing else: importing this loads no activation, no
+ * client and no Solid owner, which is why a scenario package may open it while
+ * the faces it names are drawn by a plugin that may not even be mounted.
+ *
+ * The names are grouped the way the surface is — the sidebar's section, the
+ * plugin's own page, the two palette levels and the alert — because that is
+ * the order somebody debugging a failing scenario walks them in, and a flat
+ * alphabetical list is a list you have to already know to read.
+ */
+
+export const TESTID = {
+  /** The sidebar's Plugins region, and one row of it. Absent from the DOM
+   *  entirely while the vault defines no plugin — which is a thing a scenario
+   *  asserts, so the id has to exist even when the node does not. */
+  section: "plugins-section",
+  sectionNew: "plugins-section-new",
+  sectionRow: "plugins-section-row",
+  /** The state mark a row wears: `Review`, `Problem`, the working dot. */
+  sectionMark: "plugins-section-mark",
+
+  /** The page itself, keyed by the word in `data-plugin`. */
+  page: "plugin-page",
+  /** ...and the page for a word no plugin in this vault has. */
+  pageMissing: "plugin-page-missing",
+  /** The state line under the title: dot, word, meta. */
+  pageState: "plugin-page-state",
+  /** The one primary verb, whatever this state's verb is. */
+  pageVerb: "plugin-page-verb",
+  /** The `•••` beside it, and the rows inside it. */
+  pageMore: "plugin-page-more",
+  pageTrustAlways: "plugin-page-trust-always",
+  pageAskChange: "plugin-page-ask-change",
+  /** The running plugin's own switch. */
+  pageSwitch: "plugin-page-switch",
+  /** The phone's foot, where the primary verb sits below `md`. */
+  pageFoot: "plugin-page-foot",
+  /** The standing sentence about what running a plugin costs. It is asserted
+   *  by its own id because it may never quietly stop being drawn. */
+  pageTrustSaid: "plugin-page-trust",
+  /** *What it does* — the README, rendered. */
+  pageReadme: "plugin-page-readme",
+  /** *What it uses* — one row per reading of the code's imports. */
+  pageUses: "plugin-page-uses",
+  /** *The code* — the tab strip, one tab, the body, and the folder path. */
+  pageCode: "plugin-page-code",
+  pageCodeTab: "plugin-page-code-tab",
+  pageFolder: "plugin-page-folder",
+  /** ...and the same block drawn as a diff against the approved version. */
+  pageDiff: "plugin-page-diff",
+  /** The banner over a paused or broken plugin. */
+  pageBanner: "plugin-page-banner",
+  /** *Settings* — one knob per leaf the plugin declared. */
+  pageKnob: "plugin-page-knob",
+  /** The disarmed state: the version moved while somebody was reading it. */
+  pageMoved: "plugin-page-moved",
+  pageMovedRead: "plugin-page-moved-read",
+  /** What the page says when a call came back refused. */
+  pageRefused: "plugin-page-refused",
+
+  /** ⌘K → New plugin, at each of its two levels. */
+  newPlugin: "new-plugin",
+  newPluginName: "new-plugin-name",
+  /** `Kept in your vault as plugins/<word>/`, under the name box. */
+  newPluginFolder: "new-plugin-folder",
+} as const
+
+export type TestId = (typeof TESTID)[keyof typeof TESTID]
+
+import type {} from "@olai/ui-primitives/testids.ts"
+type OwnedTestIds = typeof TESTID
+declare module "@olai/ui-primitives/testids.ts" {
+  interface TestIdTables { readonly "plugins/vault-plugins": OwnedTestIds }
+}

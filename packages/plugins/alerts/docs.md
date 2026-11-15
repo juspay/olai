@@ -44,7 +44,14 @@ until a claimant arrives; delivered presses are forgotten, and withdrawal drops
 all held presses. Chat cannot consume another kind’s click.
 
 The click contract carries `{ kind: "ask" }`, meaning open the current question,
-and `{ kind: "due" }`, meaning open today’s agenda. Each goes only to its kind’s claimant.
+`{ kind: "due" }`, meaning open today’s agenda, and
+`{ kind: "plugin", name }`, meaning open that plugin’s page — raised when a
+plugin this vault defines reaches **Ready for you** or **Couldn’t start**, and
+claimed by `olai-plugin-vault-plugins`’ browser half. Each goes only to its
+kind’s claimant. The plugin arm is the only one that names what it is about,
+because it is the only one the app cannot work out at press time: two plugins
+can finish in the same minute. An envelope whose kind is `plugin` and whose
+`name` is missing or empty is dropped, not narrowed to the kind.
 The framework owns worker delivery and the durable click handshake; this row
 owns the page's listener. The app must be running to alert. A closed app hears
 nothing. Sound requires an earlier pointer or keyboard gesture in this page;

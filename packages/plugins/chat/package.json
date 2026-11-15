@@ -18,7 +18,9 @@
     "./testlib": "./src/testlib.ts",
     "./slots": "./src/slots.ts",
     "./carry": "./src/carry.ts",
-    "./attention": "./src/attention.ts"
+    "./attention": "./src/attention.ts",
+    "./conversations": "./src/conversations.ts",
+    "./dock": "./src/dock.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

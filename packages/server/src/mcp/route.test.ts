@@ -433,7 +433,9 @@ test("a node ticket can list and call the three plugin verbs", async () => {
     const listed = await (await post({ jsonrpc: "2.0", id: 40, method: "tools/list" }, bearer))
       .json() as { result?: { tools?: ReadonlyArray<{ name: string }> } }
     const names = (listed.result?.tools ?? []).map((one) => one.name)
+    expect(names).toContain("vault-plugins_guide")
     expect(names).toContain("vault-plugins_inspect")
+    expect(names).toContain("vault-plugins_write")
     expect(names).toContain("vault-plugins_run")
     expect(names).toContain("vault-plugins_stop")
 
@@ -452,12 +454,29 @@ test("a node ticket can list and call the three plugin verbs", async () => {
     expect((said?.slots as ReadonlyArray<{ name: string }>).map((one) => one.name))
       .toContain("outline.row.chip")
     expect(said?.layout).toEqual({
-      property: "plugin",
-      approved: "approved",
+      folder: "plugins/",
+      readme: "README.md",
       server: "server.ts",
       browser: "browser.tsx",
-      config: { schema: "Config", properties: "properties on the definition node; child nodes hold schema sections", reserved: ["plugin", "approved"] },
+      settings: {
+        file: "_olai/Settings.olai",
+        schema: "Config",
+        properties: "a node titled after the plugin's word in _olai/Settings.olai; its properties are the Config leaves and child nodes hold schema sections",
+        reserved: ["approved", "on", "builder"],
+      },
     })
+
+    // ...AND THE GUIDE, which is the one answer an agent in a vault with no
+    // olai checkout cannot get any other way: the page a person reads, shipped
+    // inside the binary.
+    const guided = await (await post({
+      jsonrpc: "2.0",
+      id: 43,
+      method: "tools/call",
+      params: { name: "vault-plugins_guide", arguments: {} },
+    }, bearer)).json() as { result?: { structuredContent?: { text?: string; folder?: string } } }
+    expect(guided.result?.structuredContent?.folder).toBe("plugins/")
+    expect(guided.result?.structuredContent?.text ?? "").toContain("@olai/plugin-api")
 
     // ...and the feedback loop, on a word this vault does not define: a refusal
     // that says what a definition IS, which is the sentence an author who has
