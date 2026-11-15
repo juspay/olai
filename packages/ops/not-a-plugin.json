@@ -15,7 +15,7 @@
   "markdown": {
     "src/asked.ts": 8,
     "src/ops.ts": 4,
-    "src/plan.ts": 12,
+    "src/plan.ts": 9,
     "src/query.ts": 5,
     "src/refusals.ts": 2,
     "src/sorted.ts": 2
