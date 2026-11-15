@@ -102,7 +102,13 @@ export function Verbs(props: {
         </div>
       }
     >
-      <div class="flex items-center gap-2">
+      {/* ONE ROW, AND AT THE PHONE'S FOOT THE DECISION FILLS IT. Beside the
+          head the primary sits at its own width with the `•••` next to it; at
+          the foot there is nothing beside it and the row is the width of the
+          screen, so a button at its own width would be a small target in a
+          wide empty bar — which is the one place a thumb is aiming. A switch
+          keeps its size: it is a control with a shape, not a label. */}
+      <div class={`flex items-center gap-2 ${props.menu === true ? "" : "[&>button:not([role=switch])]:w-full"}`}>
         <Primary plugin={props.plugin} stage={props.stage} acts={props.acts} />
         <Show when={props.menu === true}>
           <More plugin={props.plugin} stage={props.stage} acts={props.acts} />
