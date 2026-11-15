@@ -41,10 +41,11 @@ import type { BrowserManagement } from "@olai/surface/management"
 import { createMemo, createSelector, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import { WORD } from "../source.ts"
 import { palette, router } from "./doors.ts"
 import { NEW_PLUGIN_ROW } from "./new-plugin.ts"
 import { pluginPage } from "./route.ts"
-import { definedPlugins, LOOK, MARK_WORD, markOf, stageOf, type Defined } from "./state.ts"
+import { definedPlugins, faultSaid, LOOK, MARK_WORD, markOf, stageOf, type Defined } from "./state.ts"
 
 /** The mark a plugin the vault defines wears in the column — the same square
  *  the page heads with, so a row and the page it opens are recognisably one
@@ -111,12 +112,31 @@ export function Section(props: { readonly management: BrowserManagement }) {
   )
 }
 
+/**
+ * ONE ROW — and the one row that is not a link.
+ *
+ * A folder under `plugins/` is a plugin whatever it is called, so a folder
+ * named `My Plugin!` is on the roster, faulted, saying what is wrong with it
+ * (`../source.ts`'s `faultOf`). But its name is not a WORD, so there is no
+ * address for it: `/plugins/<that>` does not parse, and navigation reads an
+ * address it does not recognise as the default outline — a press would carry
+ * the reader off to an unrelated page, which is worse than a press that does
+ * nothing.
+ *
+ * So the row is drawn, wearing its Problem mark, with the fault under the
+ * pointer and NO `href`. An `<a>` without one is not focusable and not
+ * pressable, which is exactly the behaviour wanted, and it keeps one element
+ * and one set of bindings rather than a second subtree swapped in by a
+ * condition that never changes for a given folder.
+ */
 function Row(props: { readonly plugin: Defined; readonly current: boolean }) {
   const stage = () => stageOf(props.plugin)
   const mark = () => markOf(stage())
+  const addressable = () => WORD.test(props.plugin.name)
   return (
     <a
-      href={pluginPage.href({ word: props.plugin.name })}
+      href={addressable() ? pluginPage.href({ word: props.plugin.name }) : undefined}
+      title={addressable() ? undefined : faultSaid(props.plugin)}
       class={`${ENTRY_SHAPE} ${ROW_GAP} w-full text-left`}
       classList={{ "opacity-60": mark() === "quiet" }}
       data-testid={TESTID.sectionRow}
