@@ -25,7 +25,10 @@ Everything else is the row's detail, behind a chevron before the label: the full
 sentence about what is wrong, the face its own plugin hangs, **Try again** or
 **Reload** for a browser half that failed, its
 settings, the environment it reads, `Short name` (the settings namespace, where
-the label differs), `Saved in` (a link to its node) and, for a session-only
+the label differs), `Saved in` — a link to the row's settings node, and for a
+plugin the vault defines a link to its own page at `/plugins/<word>` with the
+folder as its words, its settings node named separately beneath — and, for a
+session-only
 switch, `This switch resets when olai restarts.` (the switch itself wears a
 dashed ring, says `Resets when olai restarts` on hover, and carries those words
 in its own name, so a screen reader hears them too). A row with nothing to reveal
@@ -224,6 +227,12 @@ note in their detail, so either can be restored from the panel. When the reader
 is absent, every switch is session-only and the panel says so above the groups.
 Broken configuration is named and must be repaired before another durable
 press can write.
+
+**A plugin the vault defines has a durable switch too**, like every built row:
+its `on` is a property on its own node in `_olai/Settings.olai`, so a plugin
+somebody turned off is still off after a restart. It used to be a word in the
+server's memory, which meant a press that looked exactly like this one quietly
+came undone at the next boot.
 
 The follower ignores file `on` values on the vault and configuration reader
 owners, warning once per row and file. Their session switches remain usable
