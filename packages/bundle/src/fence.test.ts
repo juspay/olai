@@ -609,6 +609,10 @@ describe("only the registry knows a plugin's name", () => {
       "server/src/mcp/tools.test.ts: olai-plugin-mcp/testlib",
       "server/src/resync.test.ts: olai-plugin-vault/testlib",
       "server/src/serve.test.ts: olai-plugin-web-app/testlib",
+      // The withdrawal bench needs the file-kind registry a real serve has,
+      // because the row it withdraws claims `.ts` under `plugins/` while it is
+      // up — and taking that claim away is part of what withdrawing it means.
+      "server/src/vault-policy-lifetime.test.ts: olai-plugin-vault/testlib",
       "server/src/who.test.ts: olai-plugin-identity/who",
     ],
   }
