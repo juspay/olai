@@ -63,11 +63,16 @@ export const TESTID = {
   /** What the page says when a call came back refused. */
   pageRefused: "plugin-page-refused",
 
-  /** ⌘K → New plugin, at each of its two levels. */
-  newPlugin: "new-plugin",
-  newPluginName: "new-plugin-name",
-  /** `Kept in your vault as plugins/<word>/`, under the name box. */
-  newPluginFolder: "new-plugin-folder",
+  /**
+   * ⌘K → **New plugin** HAS NO IDS HERE, and that is the honest table rather
+   * than an omission: both of its levels are drawn by the palette, out of the
+   * row and the two level values this row contributes
+   * (`./browser/new-plugin.ts`). The box, the crumb, the rows, the one option
+   * carrying `Kept in your vault as plugins/<word>/`, the submit and the line a
+   * refusal lands on are all `olai-plugin-navigation/testids`' — a scenario
+   * names them there, and this row names the ROW ID it contributes,
+   * `NEW_PLUGIN_ROW`, which is also the palette path the sidebar's `+` opens.
+   */
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]
