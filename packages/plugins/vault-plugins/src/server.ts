@@ -264,7 +264,7 @@ export default definePlugin({
           // WRITE OR CREATE, told apart by what the set holds — the same split
           // `markdown_write` and `markdown_create` keep, so a typo in the word
           // cannot quietly mint a second folder when the author meant an edit.
-          yield* gate.run(held ? { op: "doc", file: path, text: input.text } : { op: "create-doc", file: path, text: input.text }, "plugin")
+          yield* gate.run(held ? { op: "doc", file: path, text: input.text } : { op: "create-doc", file: path, text: input.text }, "mcp")
           yield* followed(yield* Effect.catch(gate.read, () => Effect.succeed(null)))
           const one = dynamic.defined(word)
           const version = one?.version ?? versionOf(input.file === PLUGIN_SERVER_FILE ? input.text : "", null)

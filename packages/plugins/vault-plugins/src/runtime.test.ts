@@ -105,13 +105,13 @@ const nothing = () => readingOfVault(new Map([["notes.md", "# notes\n"]]))
  * the switch and the approval do not move a fiber, they move a file, and a
  * bench that could not see the file would be asserting about neither.
  */
-const bench = <A>(
+const bench = <A, E>(
   use: (
     dynamic: DynamicRuntime,
     now: () => Effect.Effect<ReadonlyArray<BuiltPlugin>>,
     host: Host,
     written: ReadonlyArray<WriteRequest>,
-  ) => Effect.Effect<A>,
+  ) => Effect.Effect<A, E>,
 ): Promise<A> =>
   Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
@@ -128,7 +128,10 @@ const bench = <A>(
         [],
         request => Effect.sync(() => { written.push(request) }),
       )
-      return yield* use(
+      // A REFUSAL IS A FAILED CASE, not a value to assert about by accident:
+      // the consent verbs write, so they can fail, and a bench that swallowed
+      // one would pass having written nothing.
+      return yield* Effect.orDie(use(
         dynamic,
         () => plugins.changes.pipe(
           Stream.mapEffect(() => rowReport(plugins.host, dynamic.names())),
@@ -141,7 +144,7 @@ const bench = <A>(
         ),
         plugins.host,
         written,
-      )
+      ))
     })),
   )
 

@@ -79,7 +79,7 @@ const PLUMBING: Readonly<Record<string, true>> = { definePlugin: true, serviceTa
  * files are an implementation fact; "draws a chip on outline rows" is true of
  * the plugin whichever half does it.
  */
-export const usesOf = (server: string, browser: string | null): ReadonlyArray<Uses> => {
+export const usesOf = (server: string, browser: string | null = null): ReadonlyArray<Uses> => {
   const found = new Map<string, Uses>()
   for (const half of [server, browser ?? ""]) {
     for (const one of readHalf(half)) if (!found.has(one.named)) found.set(one.named, one)
