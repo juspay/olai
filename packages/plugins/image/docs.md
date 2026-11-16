@@ -1,14 +1,14 @@
 # Images
 
-olai draws a picture file as its own page, at the size the file says, never wider than the column.[^suffixes]
+olai gives each picture file a page of its own, and draws the picture at the size the file says, never wider than the column.[^suffixes]
 
 ## Pictures inside a document
 
-A document's `![](art/shot.png)` draws the file beside it, and an `.svg` is never drawn that way: see [documents and kinds](../documents-and-kinds.md) for what a document may point at.
+Writing `![](art/shot.png)` in a document, which is a `.md` file, draws the picture file beside it. An `.svg` is never drawn this way: see [documents and kinds](../documents-and-kinds.md) for what a document may point at.
 
-A document's reference matches a picture's suffix whatever its case, so `![](art/SHOT.PNG)` draws. The file itself is claimed only in lower case, so `SHOT.PNG` has no page of its own and the sidebar does not list it.
+A reference in a document matches a picture's suffix whatever its case, so `![](art/SHOT.PNG)` draws the picture. olai claims the file itself only in lower case. So `SHOT.PNG` has no page of its own, and the sidebar does not list it.
 
-A picture replaced on disk is fetched again rather than drawn out of the browser's cache, and a picture that goes missing or comes back updates an open page without a reload.
+A picture replaced on disk is fetched again rather than drawn from the browser's cache, and a picture that goes missing or comes back updates an open page without a reload.
 
 ## What an agent can do with it
 

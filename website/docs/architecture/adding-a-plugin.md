@@ -1,32 +1,32 @@
 # Adding a plugin
 
-The steps to add one plugin to olai. Everything except the name, and a surface where you compose one, is optional.[^outside]
+The steps to add one plugin to olai. Only the name is required, plus a file declaring the calls the plugin answers if it answers any.[^outside]
 
-A plugin that contributes one cell is a whole plugin: odu is. The words each file uses are in [plugin-vocabulary.md](plugin-vocabulary.md).
+A plugin that contributes one piece of live data is a whole plugin: the odu plugin is. What each word in those files means is in [plugin-vocabulary.md](plugin-vocabulary.md).
 
 | Step | Where it lands |
 | --- | --- |
 | 1. The package | `packages/plugins/<name>/package.json` |
-| 2. The wire | `src/wire.ts` |
-| 3. The server half | `src/server.ts` |
-| 4. The browser half | `src/browser.tsx`, only if it draws |
+| 2. The calls it answers | `src/wire.ts` |
+| 3. The server code | `src/server.ts` |
+| 4. The browser code | `src/browser.tsx`, only if the plugin draws something |
 | 5. The page | `packages/plugins/<name>/docs.md`, plus a symlink and an index row |
 | 6. The registry row | `packages/bundle/olai.yml` |
-| 7. If it is an engine | `src/leg.ts`, `src/install.ts`, no surface |
+| 7. If it runs a coding agent | `src/leg.ts`, `src/install.ts`, no surface |
 | 8. If it ships a binary, a pin or a generated file | `default.nix` |
-| 9. If it is an engine | `e2e/fake/` |
-| 10. Run the fence | `bun test packages/bundle` |
+| 9. If it runs a coding agent | `e2e/fake/` |
+| 10. Run the import check | `bun test packages/bundle` |
 
-[^outside]: What lands outside `packages/`: two artefacts, a symlink and a line in the docs index. No general package changes at all.
+[^outside]: What lands outside `packages/`: two files, a symlink to the plugin's page and a line in the docs index. No general package changes at all.
 
 <details>
-<summary>1–4: the package, the wire, and the two halves</summary>
+<summary>1–4: the package, the calls it answers, and its two pieces of code</summary>
 
 ## 1. The package: `packages/plugins/<name>/package.json`
 
-The package is `olai-plugin-<name>`, unscoped, and the directory is the plugin's word. `@olai/*` is the scope for the packages that are olai; a plugin is named the way an out-of-tree one would be. It goes in `packages/plugins/` and nowhere else.
+The package is called `olai-plugin-<name>`, with no `@scope/` in front, and its directory is the plugin's own word. `@olai/*` is the scope for the packages that are olai itself; a plugin is named the way a plugin written outside this repository would be. It goes in `packages/plugins/` and nowhere else.
 
-Copy another plugin's manifest: `main`, `types`, a `typecheck` script, and an `exports` map of the subpaths this plugin has.
+Copy another plugin's manifest: `main`, `types`, a `typecheck` script, and an `exports` map listing the subpaths this plugin offers.
 
 ```json
 "exports": {
@@ -39,15 +39,15 @@ Copy another plugin's manifest: `main`, `types`, a `typecheck` script, and an `e
 }
 ```
 
-- `./browser` is the one to get right: it is the subpath the generator emits the tab's dynamic `import()` against, so a manifest without it generates a browser row that will not resolve.
-- A server-only plugin omits `./browser` and `./all.css`. No empty modules are needed, and the generator emits neither a chunk nor a stylesheet import.
-- Declare `@olai/plugin-api`, `effect`, your appliance's client, `@olai/format` if you read the directory, `solid-js` if you draw, and everything else your own sources import. The linker gives a package exactly what its manifest names.
-- Never declare `@olai/bundle`, which imports you, or `@olai/effect-cordis` and `cordis`, which are the engine's business.
-- A plugin with slow tests records its share in its own `test-weights.json` at the package root, a map of repo-relative path to seconds, because the sharding is the harness's and the timings are the tests'.
+- `./browser` is the one to get right: it is the subpath the generator writes the browser's dynamic `import()` against, so a manifest without it generates a row the browser cannot load.
+- A plugin with no browser code leaves out `./browser` and `./all.css`. You do not need empty modules for them, and the generator writes neither a chunk nor a stylesheet import.
+- Declare `@olai/plugin-api`, `effect`, the client for whatever outside program you talk to, `@olai/format` if you read the directory, `solid-js` if you draw anything, and everything else your own source files import. Bun gives a package exactly what its manifest names.
+- Never declare `@olai/bundle`, which imports you, nor `@olai/effect-cordis` and `cordis`, which are the plugin engine's business.
+- A plugin with slow tests records how long they take in its own `test-weights.json` at the package root, a map of repo-relative path to seconds. The harness decides how to split the tests up, and only the tests know their own timings.
 
-## 2. The wire: `src/wire.ts`
+## 2. The calls it answers: `src/wire.ts`
 
-Export `name`, a `defineSurface` and the `faces` map. This module may not import SolidJS, an appliance client or a `node:` builtin.
+Export `name`, a `defineSurface` call declaring the calls this plugin answers, and the `faces` map saying who may make them. This module may not import SolidJS, a client for an outside program, or a `node:` builtin.
 
 ```ts
 export const name = "odu"
@@ -62,29 +62,29 @@ export const surface = defineSurface({
 export const faces = { browser: { ci: "resource", service: "resource" } }
 ```
 
-An engine has no such file. What an engine contributes to a tab already travels on the chat cell, so it composes no surface and puts its `name` in `src/index.ts`. See step 6.
+A plugin that runs a coding agent has no such file. What such a plugin shows in the browser already travels on the chat plugin's own data, so it declares no calls of its own and puts its `name` in `src/index.ts`. See step 6.
 
-## 3. The server half: `src/server.ts`
+## 3. The server code: `src/server.ts`
 
-Export a `default` of `definePlugin({ name, needs, apply })`, where `apply` is one Effect. Yield each service you named; the compiler refuses one you did not.
+Export as `default` a `definePlugin({ name, needs, apply })`, where `apply` is one Effect. Yield each service you listed in `needs`; the compiler refuses one you did not list.
 
-- This is where the appliance's client is called, `Surfaces.register(…)` puts your surface on the wire, `Kinds.register(…)` teaches the directory a word, and `Deliveries` posts into a conversation.
-- Register a `wake`, or the strip draws no picker for you and `chat.scope` refuses your name. That is the gate working.
-- Register on `SessionStart` if you have a tool to probe for, and on `Agents` if you are adding an engine.
-- Log with `Effect.logDebug` and `Effect.logWarning`, which arrive at the level the operator asked for.
-- If your appliance calls you back from a timer or a socket, take `detached` once and start Effects through it: `ring(work)` where nobody needs the fiber, `ring.held(work)` where something of yours must interrupt or await it.
-- Everything you register comes back out on unload, so write no teardown, unless you hold something the runtime cannot see. That is an `Effect.addFinalizer`, which is what `xyne-spaces` does for its mirrors.
+- This is where you call the client for your outside program, where `Surfaces.register(…)` puts your calls on the connection, where `Kinds.register(…)` teaches the directory a word, and where `Deliveries` sends a message into a conversation.
+- Register a `wake`, or no control appears for you in the agent panel and `chat.scope` refuses your plugin's name. That is the check working.
+- Register on `SessionStart` if you have a tool to look for on the machine, and on `Agents` if your plugin runs a coding agent.
+- Log with `Effect.logDebug` and `Effect.logWarning`, which are printed at whatever level the operator asked for.
+- If your outside program calls you back from a timer or a socket, take `detached` once and start Effects through it. Use `ring(work)` where nobody needs to track the work, and `ring.held(work)` where something of yours has to interrupt it or wait for it.
+- Everything you register is withdrawn for you when the plugin unloads, so write no teardown code, unless you hold something the runtime cannot see. That is an `Effect.addFinalizer`, which is what `xyne-spaces` does for the copies it keeps running.
 
 > Use `addFinalizer` only when nothing was awaited to obtain the thing it releases. A fiber parked in `Effect.promise` unwinds where it stands, so anything you waited for belongs in `Effect.acquireRelease`, which cannot be interrupted between acquiring and registering the release.
 
-## 4. The browser half: `src/browser.tsx`
+## 4. The browser code: `src/browser.tsx`
 
-Only if the plugin draws. Same shape: `name` and `surface` re-exported from `./wire.ts`, and a `default` `definePlugin` whose Effect registers your components into `Slots`. It is its own chunk, fetched only when the roster names your plugin.
+Only if the plugin draws something. Same shape: `name` and `surface` re-exported from `./wire.ts`, and a `default` `definePlugin` whose Effect registers your components into `Slots`. It is a chunk of its own, fetched only when the list of running plugins names yours.
 
-- A plugin that owns a page registers `app.route` here. A page made of nodes uses `defineAppRoute` and `defineAppPage`; any other page uses `defineSelfDrawnRoute` and `defineSelfDrawnPage`. Both are in `olai-plugin-navigation/routes`, and [navigation.md](../plugins/navigation.md) describes what they draw.
-- The slots you may hang a face in, and what each takes, are in [slot-ownership.md](slot-ownership.md).
+- A plugin that has a page of its own registers `app.route` here. A page made of rows uses `defineAppRoute` and `defineAppPage`; a page of any other sort uses `defineSelfDrawnRoute` and `defineSelfDrawnPage`. Both pairs are in `olai-plugin-navigation/routes`, and [navigation.md](../plugins/navigation.md) describes what they draw.
+- The slots you may put a component in, and what each one takes, are in [slot-ownership.md](slot-ownership.md).
 
-> An `onCleanup` registered after an `await` inside `onMount` runs with a null owner, which Solid's production build compiles to nothing. Anything you load before you can build registers its cleanup before the load, over an empty slot, and guards the continuation against an owner that has gone.
+> An `onCleanup` registered after an `await` inside `onMount` runs with no owner, and Solid's production build compiles that to nothing. So register the cleanup before the load, over an empty slot, and check afterwards that the owner has not gone away.
 
 </details>
 
@@ -108,66 +108,68 @@ One row, because the rest is generated.
 
 | Column | What it says |
 | --- | --- |
-| `id` | the plugin's word: the sibling key, the settings namespace, the fiber's name and the address of its page |
-| `name` | the module the loader mounts, as a specifier it resolves at mount rather than an import |
-| `section` | required: the plugins panel group this row sits in, spelled as the screen says it |
-| `label` | the name a person reads on that row, such as `Claude Code`. Absent draws the `id` |
-| `disabled` | `true` for a plugin that is opt-in, such as one needing a secret this machine may not have |
-| `profiles` | the extra profiles that select this row. The `web` profile takes the catalogue defaults |
-| `switchHint` | the warning shown before somebody switches this row off |
-| `quiet` | `true` lets its group start collapsed while every row in it is running with nothing to say |
+| `id` | the plugin's word: the key other plugins know it by, the name its settings are kept under, its fiber's name, and the address of its page |
+| `name` | the module the loader mounts, written as a string it looks up at mount time rather than as an import |
+| `section` | required: the group this plugin sits in on the plugins panel, spelled as the screen spells it |
+| `label` | the name a person reads on that row, such as `Claude Code`. Leave it out and the row shows the `id` |
+| `disabled` | `true` for a plugin somebody has to turn on, such as one needing a secret this machine may not have |
+| `profiles` | the extra profiles that include this plugin. The `web` profile takes the catalogue's defaults |
+| `switchHint` | the warning shown before somebody switches this plugin off |
+| `quiet` | `true` lets its group start collapsed while every plugin in it is running with nothing to say |
 
-Add one line to `packages/bundle/package.json`'s `dependencies`, without which the generated `import()` does not resolve. The generator writes the rest from the row: the browser's row table with a dynamic import per plugin, the stylesheet chain, the merged testid table, the asset and write-reservation tables, and the roster of engine fakes. All of them are produced by `just install` and by the Nix build in its own sandbox, so a packaged build cannot ship a stale copy.
+Add one line to the `dependencies` in `packages/bundle/package.json`, without which the generated `import()` does not resolve.
+
+The generator writes everything else from the row: the browser's table of plugins with a dynamic import for each, the chain of stylesheets, the merged table of test identifiers, and the tables of assets and write reservations. It also writes the list of stand-in agents the tests use. `just install` produces all of them, and so does the Nix build in its own sandbox, so a packaged build cannot ship an out-of-date copy.
 
 </details>
 
 <details>
-<summary>7–9: an engine, a Nix half, and a scripted fake</summary>
+<summary>7–9: running a coding agent, a Nix part, and a scripted stand-in</summary>
 
-## 7. If it is an engine
+## 7. If the plugin runs a coding agent
 
-An engine is an ACP coding agent the chat panel seats, rather than an appliance olai has a judgement about. Smaller shape, same rules.
+Such a plugin runs an ACP coding agent in the chat panel, rather than talking to an outside program the way the kolu and odu plugins do. Smaller shape, same rules.
 
 - No `./wire`, no surface, no `faces`: `src/index.ts` holds the plugin's word and nothing else.
-- `src/leg.ts` is a `Leg` from `@kolu/acp/engine`: every assumption about that agent's wire, each a pure function with a unit test. An agent matching none of them means the person is asked.
-- `src/server.ts` registers `{ name, leg, at, prompt }` on `Agents`: what a person reads, the leg, a probe answering `Adapter | NotHere` for this host, and the channel the standing prompt rides.
-- `src/install.ts` holds the absence sentence the probe spends: a `NotHere` whose `why` is a whole sentence the reader does not compose. One shared component draws it in the disabled picker row, the no-agent face and the inspector row.
-- `src/browser.tsx` registers the engine's mark in `delivery.mark` and may define its own `row` component, which it hands to `plugins.row` under the engine's own identity through the `chat.engines` service.
-- Its `testids` table is legitimately empty: an engine draws inside core's elements, under core's identifiers, with `data-agent` carrying its word.
-- The order of the engine rows in `olai.yml` is load-bearing: it is the order the picker draws and the install screen lists, and the first row is what a conversation naming no agent is read as being about.
+- `src/leg.ts` is a `Leg` from `@kolu/acp/engine`: every assumption about how that agent talks, each written as a pure function with a unit test. Where none of them matches, the person is asked.
+- `src/server.ts` registers `{ name, leg, at, prompt }` on `Agents`: the name a person reads, the leg, a probe answering `Adapter | NotHere` for this machine, and the channel the standing prompt travels on.
+- `src/install.ts` holds the sentence shown when the agent is not installed: a `NotHere` whose `why` is a whole sentence, which nothing else assembles. One shared component draws it in the greyed-out picker row, on the page shown when there is no agent, and in the plugins panel row.
+- `src/browser.tsx` registers the agent's logo in `delivery.mark`, and may define its own `row` component, which it gives to `plugins.row` under its own name through the `chat.engines` service.
+- Its `testids` table is rightly empty: such a plugin draws inside elements olai's own code owns, under olai's identifiers, with `data-agent` carrying its word.
+- The order of these rows in `olai.yml` matters: it is the order the picker draws them in and the order the install screen lists, and a conversation that names no agent is taken to be about the first row.
 
-There is no slot for picker words. The server supplies both the engine's name and its absence reason, so there is one author for that fact.
+There is no slot for the words in the picker. The server supplies both the agent's name and the reason it is missing, so one place is responsible for that fact.
 
 ## 8. If it ships a binary, a pin or a generated file: `default.nix`
 
-An optional `packages/plugins/<name>/default.nix` is the plugin's Nix half, folded by `packages/bundle/default.nix`. A plugin without one has no Nix half, which is the ordinary case. It is `{ pkgs, pins, kit, b2n ? null }:` and returns a contract attrset, every key optional and any other key refused by name.
+A plugin may have a `packages/plugins/<name>/default.nix`, which is its Nix part, folded in by `packages/bundle/default.nix`. Most plugins have none, which is the ordinary case. It takes `{ pkgs, pins, kit, b2n ? null }:` and returns an attrset whose keys are all optional, and any key not in the table below is refused by name.
 
 | Key | Meaning |
 | --- | --- |
 | `hydrate` | sources copied into `node_modules/<dest>` after `bun install` |
-| `externals` | the npm externals those sources need at the root |
-| `koluSeeds` and `koluPins` | the kolu seeds this plugin's source imports, and their closure grafts |
+| `externals` | the npm packages those sources need at the repository root |
+| `koluSeeds` and `koluPins` | the kolu sources this plugin imports, and the pins that complete their dependency closure |
 | `generated` | files written into the plugin's own tree. The path must contain `.generated.` |
-| `npmTrees` | directories `just install` runs `npm ci` in, for a `node_modules` a test resolves |
-| `knobs` | the executable variables the packaged wrapper bakes as `--set-default` |
+| `npmTrees` | directories `just install` runs `npm ci` in, where a test needs a real `node_modules` |
+| `knobs` | the environment variables the packaged wrapper sets with `--set-default` |
 | `packages` | flake outputs this plugin contributes, such as `claude-agent` or `odu-bin` |
 | `checks` | checks that need the built tree, exposed as `checks.<system>.plugin-<name>-<check>` |
 
-A shipped ACP adapter is the plugin's own `acp/` directory, with its patches and their rigs, plus a standalone lock and derivation where the adapter has its own release clock, as Codex keeps. The plugin's `default.nix` declares it through `@olai/plugin-kit`'s `npmAdapter`, and nothing outside the plugin's directory names any of it.
+An ACP adapter olai ships lives in the plugin's own `acp/` directory, with its patches and the test rigs for them. Where the adapter is released on its own schedule, as Codex is, it also has a lock file and derivation of its own. The plugin's `default.nix` declares it through `@olai/plugin-kit`'s `npmAdapter`, and nothing outside the plugin's directory names any of it.
 
-## 9. If it is an engine: `e2e/fake/`
+## 9. If the plugin runs a coding agent: `e2e/fake/`
 
-An engine's scripted browser-test fake lives at `packages/plugins/<name>/e2e/fake/`: an `index.ts` descriptor, typed by `@olai/tests`' `./harness/fake.ts`, plus the executables the harness spawns. `packages/tests/agent/` keeps only the engine-agnostic core, and the harness reaches the fakes through the generated `@olai/bundle/e2e-fakes` roster rather than by name.
+The scripted stand-in the browser tests run instead of the real agent lives at `packages/plugins/<name>/e2e/fake/`: an `index.ts` describing it, typed by `@olai/tests`' `./harness/fake.ts`, plus the executables the harness starts. `packages/tests/agent/` keeps only the part that is the same for every agent, and the harness finds the stand-ins through the generated `@olai/bundle/e2e-fakes` list rather than by name.
 
 </details>
 
 <details>
-<summary>10: run the fence</summary>
+<summary>10: run the import check</summary>
 
 ```
 bun test packages/bundle
 ```
 
-It tells you what you got wrong, and it is specific: a door you reached past, a word a general package spells, a knob your manifest and your module disagree about. [plugin-system.md](plugin-system.md) lists which file holds which rule.
+It tells you what you got wrong, and it is specific: a subpath you imported past, a word a general package reserves, an environment variable your manifest and your module spell differently. [plugin-system.md](plugin-system.md) lists which file holds which rule.
 
 </details>

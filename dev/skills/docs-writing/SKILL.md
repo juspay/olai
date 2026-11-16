@@ -56,13 +56,23 @@ A reader gives a page a few seconds to a minute. The **main flow** is what they 
 5. **Paragraphs and list items ≤ 80 words. [lint]**
 6. **Table cells ≤ 40 words. [lint]** A cell that needs more becomes an entry under its own heading.
 7. **≤ 300 words of running text under one heading of the main flow. [lint]** Tables and code do not count.
-8. **A page ≤ 2,500 words of running text, footnotes and `<details>` included. [lint]** A page that cannot fit is split. No page is exempt.
+8. **A page ≤ 3,000 words of running text, footnotes and `<details>` included. [lint]** A page that cannot fit is split. No page is exempt. Never meet this limit by compressing a sentence into a riddle: move or split instead.
 9. **Three or more parallel things with attributes go in a table or a list**, never inside one sentence. A sequence the reader performs is a numbered list.
 10. **No paragraph opens with a bold run-in. [lint]** Use a heading, a list or a table. A list item may open with a bold term, not a bold sentence.
 11. **Headings say what the reader finds or does** ("Serve a directory", "When an agent does not appear"), in words the reader would search for. The test: someone who reads only the index can say where each answer is.
 12. **At most two cautions per page**, written as a blockquote, ≤ 50 words each, for cautions and limits only.
 
 ## Sentences and words
+
+**Say the literal thing.** Every sentence is understood on first read by someone who has never seen olai. Short is good only when it is also clear: one plain sentence beats a compressed one.
+
+- Name what a thing is and what it does in the words a newcomer would use: "runs on a schedule", "every morning at 8", "adds a column to the list view".
+- Give a concrete example in place of an abstraction. Not "a service somebody else offers, a clock and a sentence", but what the example plugin actually reads, when it runs and what it writes.
+- No metaphor, no coined phrase, no "something", no clever parallel construction ("one that does X on a clock, and one that draws Y on a row").
+- No sentence that only makes sense after reading its footnote. The main flow stands on its own; a footnote adds detail.
+- A title says what the page is: "Two example plugins you can copy", not a riddle about them.
+- One of olai's own terms (a row, the directory, the journal, a node agent, the inbox) is explained in a few words the first time a page uses it.
+- Before calling a page done, reread it as that newcomer, and rewrite anything they would have to guess at.
 
 13. **No sentence over 40 words [lint]**; aim for an average under 20.
 14. **At most one em-dash and one semicolon per sentence. [lint]** A pair of dashes around an aside counts as two: use parentheses or commas. The lint reads `--` as a dash too, since a page renders it as one.

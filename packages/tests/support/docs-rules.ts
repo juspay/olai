@@ -52,8 +52,9 @@ const LIMIT = {
   /** Rule 7: running text under one heading, before the reader needs a new one. */
   section: 300,
   /** Rule 8: a whole page, footnotes and `<details>` included. A page that
-   *  cannot fit is two pages. */
-  page: 2500,
+   *  cannot fit is two pages. Plain sentences cost words, and the reading
+   *  budget below keeps what a reader sees short, so the whole page has room. */
+  page: 3000,
   /** Rule 13: one sentence. */
   sentence: 40,
   /** Rule 4a: the opening paragraph, the line or two that says the one thing. */

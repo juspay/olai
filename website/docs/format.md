@@ -1,143 +1,159 @@
-# The outline format
+# The outline file format
 
-One outline is one `.olai` file: one JSON object per line, one line per node — the two record shapes, their fields, and the properties beside them.
+An outline is one `.olai` file. Each line of it is one JSON object, and each object is one row of the outline.
 
 ```jsonl
 {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","date":"2026-08-10","after":["demo"]}
 ```
 
-Every `.olai` file under the served directory is an independent tree, so a `parent` names a node in the same file.[^set] Cross-file relations are mirrors and edges, written as a bare id.[^move]
+Every `.olai` file in the directory olai serves is its own separate tree, so the `parent` field names a row in the same file.[^set] To link rows in different files you name the other row's id, in a mirror or in `after`, `blocks` or `see`.[^move]
 
-## Two record shapes
+## The two kinds of line
 
-Carrying `mirror` decides which: a regular node is the node itself, a mirror is a second placement of one that exists elsewhere.[^shapes] A mirror carries exactly `{"id", "parent"?, "ord", "mirror"}`.[^mirror]
+A line is either a regular row or a mirror, which shows a row that lives somewhere else.[^shapes] A mirror holds at most four keys: `id`, `parent`, `ord` and `mirror`.[^mirror]
 
-## Fields
+## The fields a row can hold
 
-Writes re-serialize the whole record in this order.[^omit]
+olai writes each line's fields in the order of this table.[^omit]
 
 | Field | Required | What it holds |
 | --- | --- | --- |
-| [`id`](#id) | both shapes | Stable identity |
-| [`parent`](#parent) | no | The parent, in the same file |
-| [`ord`](#ord) | both shapes | Sibling order |
-| [`title`](#title) | regular nodes | The row's text |
-| [`mirror`](#mirror) | mirrors | The id it places again |
-| [`done`, `cancelled`, `doing`, `todo`](#done-cancelled-doing-todo) | no | The four marks, at most one |
-| [`started`](#started) | no | The current round's start |
-| [`worked`](#worked) | no | Work banked, in whole seconds |
-| [`date`](#date) | no | What it is scheduled for |
-| [`repeat`](#repeat) | no | How it comes back |
-| [`desc`](#desc) | no | The note |
-| [`after`, `blocks`, `see`](#after-blocks-see) | no | Arrays of target ids |
-| [`created`, `changed`](#created-changed) | no | The two stamps |
-| [`custom`](#custom) | no | The open map of properties |
+| [`id`](#id) | both kinds | The row's id; it never changes |
+| [`parent`](#parent) | no | The id of the row above this one |
+| [`ord`](#ord) | both kinds | Its order among its siblings |
+| [`title`](#title) | regular rows | The text of the row |
+| [`mirror`](#mirror) | mirrors | The id of the row it shows |
+| [`done`, `cancelled`, `doing`, `todo`](#done-cancelled-doing-todo) | no | The row's mark, at most one |
+| [`started`](#started) | no | When the current stretch of work started |
+| [`worked`](#worked) | no | Work recorded, in whole seconds |
+| [`date`](#date) | no | The day it is scheduled for |
+| [`repeat`](#repeat) | no | How often it comes back |
+| [`desc`](#desc) | no | The note under the row |
+| [`after`, `blocks`, `see`](#after-blocks-see) | no | Lists of ids of other rows |
+| [`created`, `changed`](#created-changed) | no | When it was made, and last written |
+| [`custom`](#custom) | no | Your own properties, any key |
 
-## Properties
+## Your own keys, in `custom`
 
-The top level of a record is closed, and `custom` is the one exception: any key may sit in there, holding text or a list of text.[^closed] Nothing in olai reads one.[^reads] A directory may declare that a key's values have a shape ([properties.md](properties.md)), which fences a value and still gives the key no meaning.
+The top level of a line holds only the fields above. `custom` is the exception: you may put any key in there, holding text or a list of text.[^closed] Nothing in olai reads these keys.[^reads] A directory can declare a shape for one key's values ([properties.md](properties.md)), which limits the value and still gives the key no meaning.
 
 ```jsonl
 {"id":"lane","ord":"a1","title":"the chat header goes stale","doing":true,"custom":{"agent":"claude-opus","pr":"https://github.com/juspay/olai/pull/176"}}
 ```
 
-[^set]: Ids are unique across the whole served directory, so a subtree moves between outlines whole and keeps its ids. `outlines_move` takes a `parent` or a `file` in another outline, and `outlines_trash` puts a subtree on its way to `_olai/Trash.olai`.
+[^set]: An id is unique across every file in the directory olai serves, so you can move a row and everything under it into another outline and all of those ids stay the same. `outlines_move` takes a `parent`, or a `file` naming another outline, and `outlines_trash` moves a row and everything under it to `_olai/Trash.olai`.
 
-[^move]: Every mirror, edge, `node`-typed property and pin aimed at what moved goes on resolving, and so does the day a dated node sits on. The exception is a `ref`-typed property, which asserts ancestry as well as existence: moving a variant out of its declared root is refused `bad-prop`, with nothing written ([properties.md](properties.md)).
+[^move]: After a move, everything that pointed at the moved rows still finds them: mirrors, the three id lists, properties declared `node`, and pins. A dated row stays on the same day. One kind of property is stricter: a property declared `ref` requires its value to be a child of a named row, so moving such a row out of that parent is refused with `bad-prop` and nothing is written ([properties.md](properties.md)).
 
-[^shapes]: The record is two shapes rather than one shape with optional fields: a mirror is a second placement of a node that already exists, so every field describing the node itself has its authoritative copy at the target. A regular node must carry `id`, `ord` and `title`, and may carry any of the other fields except `mirror`. There are no include records; the served directory is the only composition mechanism.
+[^shapes]: A mirror is a second placement of a row that already exists, so every field describing the row itself is stored once, on the row itself. That is why there are two kinds of line rather than one kind with optional fields.
 
-[^mirror]: A mirror record is exactly those four keys, and any other field on it is a `bad-record`. It stores no mark, no properties and no prose of its own, and children hang off the node it points at rather than off it.
+    A regular row must carry `id`, `ord` and `title`, and may carry any other field except `mirror`. There is no way to include one file in another: putting files in the same directory is the only way to bring outlines together.
 
-[^omit]: Field order is the table's order, on every write. An absent field is omitted, never written as `null` or `[]`. Required means the record is refused without it. Each field has its own entry in the closed block at the foot of this page.
+[^mirror]: A mirror carries `id`, `ord` and `mirror`, plus `parent` unless it sits at the top level of its file. Any other field on it is refused with `bad-record`. It stores no mark, no properties and no note of its own, and the rows underneath belong to the row it points at, not to the mirror.
 
-[^closed]: A key this format has no meaning for is a `bad-record` naming it, so a typo'd `titel` is caught rather than kept. `custom` is an exception in one direction only: the field is declared, what goes inside it is not. Nothing gives a key a meaning, so a URL is a string that looks like a URL.
+[^omit]: Fields are written in the table's order on every write. A field with no value is left out of the line, never written as `null` or `[]`. Required means olai refuses a line that does not carry it. Each field has its own entry in the first closed block at the foot of this page.
 
-[^reads]: Nothing in olai reads a key inside `custom`. The journal reads `date`, the checkbox reads the marks, and the blocking graph reads `after`. A custom key is read by the person who wrote it, by `prop:` in a query ([search.md](search.md)), and by the run of chips drawn under a node's title ([editing.md](editing.md)).
+[^closed]: A key at the top level that this format does not know is refused with `bad-record`, naming the key, so a mistyped `titel` is caught instead of stored. Only the `custom` field itself is part of the format; what you put inside it is up to you. A key inside it means nothing to olai, so a value that looks like a URL is just a string that looks like a URL.
+
+[^reads]: Nothing in olai reads a key inside `custom`. The journal reads `date`, the checkbox reads the marks, and the blocking graph reads `after`. A key inside `custom` is read by the person who wrote it, by `prop:` in a search query ([search.md](search.md)), and by the chips drawn in a row under a row's title ([editing.md](editing.md)).
 
 <details>
 <summary>Every field, and what it holds</summary>
 
 ### `id`
 
-A chosen slug or a minted short string, written in the mention alphabet: letters, digits, `_`, `-` and `/`. Every id a title or a note can name as `@<id>` is therefore legal, and a `/` inside an id is its own letter, exactly as it is inside a tag name. An id is unique across the whole loaded set and survives renames and moves. An id outside the alphabet is refused `bad-id`.
+A slug you choose, or a short string olai makes up. It may hold letters, digits, `_`, `-` and `/`, which are the same characters a tag or an `@` mention may hold, so every id can be written as `@<id>` in a title or a note. A `/` inside an id is an ordinary character, exactly as it is inside a tag name.
+
+An id is unique across every file olai has loaded, and it stays the same when the row is renamed or moved. An id holding any other character is refused with `bad-id`.
 
 ### `parent`
 
-The id of a node in the same file; absent at top level. A `parent` that resolves in another file is `foreign-parent`, since cross-file placement is a `mirror`, and one that resolves to a mirror is `parent-not-a-node`.
+The id of a row in the same file. A row at the top level of its file has no `parent`. A `parent` naming a row in another file is refused with `foreign-parent`, because you place a row in another file with a `mirror`. A `parent` naming a mirror is refused with `parent-not-a-node`.
 
 ### `ord`
 
-Sibling order, as a fractional-index string over base62 (`0-9A-Za-z`). Plain string comparison is the sort; it is never read as a float.
+Where the row sorts among its siblings, written as a fractional index: a string of the characters `0-9A-Za-z`. Rows are sorted by comparing these strings as text; the string is never read as a number.
 
 ### `title`
 
-Verbatim text. Inline tags live here and are extracted when the row is drawn: `#topic` and `@person` are two sigils over one alphabet (`[A-Za-z0-9_/-]`), so `#work/olai` is one tag, and two namespaces, so `#alice` and `@alice` are different tags. `@` is claimed only where a word starts, so `srid@srid.ca` is an address; `#` is claimed anywhere. A title renders as inline-only markdown (bold, links, code, and no block elements) through the sanitised pipeline a note uses.
+The text of the row, stored exactly as it was typed. Tags are written inside it and are picked out when the row is drawn. `#topic` and `@person` are two markers over one set of characters (`[A-Za-z0-9_/-]`), so `#work/olai` is one tag. They are two separate sets of tags, so `#alice` and `@alice` are different tags. An `@` only starts a mention where a word starts, so `srid@srid.ca` stays an email address, while a `#` starts a tag anywhere.
+
+A title is drawn as inline markdown only: bold, links and code work, and block elements such as headings and lists do not. It goes through the same sanitiser a note goes through.
 
 ### `done`, `cancelled`, `doing`, `todo`
 
-The four marks. Each holds `true` or an ISO date or datetime saying when that state was reached, and a record carries at most one of them. Any node may carry a mark, children or not, and a node carrying none is not a task at all. `done` and `cancelled` settle, and both are written with the instant they were made at, which is what puts the node on that day. See [dates-and-status.md](dates-and-status.md).
+The four marks. Each one holds `true`, or an ISO date or datetime saying when the row reached that state, and a row carries at most one of them. Any row may carry a mark, whether or not it has rows under it, and a row with no mark is not a task at all.
+
+Marking a row `done` or `cancelled` finishes it, and olai writes the moment you did it, which is what puts the row on that day. See [dates-and-status.md](dates-and-status.md).
 
 ### `started`
 
-An ISO datetime: when the current round of work started. `outlines_doing` stamps it on every start, so a re-opened node measures the fresh round. A settle keeps it when the round it closed was live, and drops it when none was.
+An ISO datetime: when the current stretch of work started. `outlines_doing` writes it every time you start, so a row you start again measures the new stretch from then. Finishing the row keeps the stamp when a stretch was running, and removes it when none was.
 
-Where a `doing` comes off without a settle, by `outlines_todo` or by undoing the start, the round banks there and the stamp goes with the `doing`. A day-only value is refused `bad-date`, because a span is subtracted from it. It puts the node on no day.
+When the `doing` mark comes off without the row being finished, through `outlines_todo` or by undoing the start, the stretch is added to `worked` and the stamp is removed along with the `doing`. A value holding a day and no time is refused with `bad-date`, because olai subtracts one instant from another to measure the stretch. This field puts the row on no day.
 
 ### `worked`
 
-A non-negative whole number of seconds: the work already banked. A round closes where its `doing` comes off, and each settle or peel adds the round it closed. A settle with no live round banks nothing, so no round is counted twice.
+A whole number of seconds, never negative: the work already recorded on this row. A stretch of work ends when the `doing` mark comes off, and finishing the row or taking the mark off adds the stretch that just ended. Finishing a row with no stretch running adds nothing, so no stretch is counted twice.
 
-No verb writes this field, and `outlines_prop` turns the key away toward the verbs that do. Absent means nothing is banked. `outlines_read` answers `took`, which is `worked` plus the live round while a node is doing, and is absent when there is no span to tell.
+No tool writes this field directly, and `outlines_prop` refuses the key and names the tools that do write it. No `worked` field means no work is recorded. `outlines_read` answers with `took`, which is `worked` plus the stretch running now while the row is `doing`; it is left out when there is no time to report.
 
 ### `date`
 
-An ISO date or datetime: what the node is scheduled for. A node carrying one is on that day ([dates-and-status.md](dates-and-status.md)).
+An ISO date or datetime: the day the row is scheduled for. A row carrying one appears on that day's page ([dates-and-status.md](dates-and-status.md)).
 
 ### `repeat`
 
-How the node comes back, in the format's own small grammar: `every day`, `every week on monday`, `every month` or `every year`. It needs a `date` beside it, which is what it repeats from. Text the grammar cannot read, and a rule with no `date` under it, are both `bad-repeat`. Only the occurrence that is next carries the rule ([dates-and-status.md](dates-and-status.md)).
+How often the row comes back, written in this format's own short grammar: `every day`, `every week on monday`, `every month` or `every year`. It needs a `date` on the same row, which is the date it repeats from. Text the grammar cannot read is refused with `bad-repeat`, and so is a rule on a row with no `date`. Only the next occurrence carries the rule ([dates-and-status.md](dates-and-status.md)).
 
 ### `desc`
 
-The note: one string with embedded newlines, stored verbatim. It is markdown, interpreted when it is drawn.
+The note under the row: one string, which may contain newlines, stored exactly as it was typed. It is markdown, and is interpreted when it is drawn.
 
 ### `after`, `blocks`, `see`
 
-Arrays of target ids, which may live in any file of the set, and the closed set of relations. `blocks` is sugar: `a blocks b` means `b after a`. `after`, with `blocks` normalized into it, must stay acyclic, and is what being blocked is derived from ([dates-and-status.md](dates-and-status.md)). `see` is a free cross-reference, and what it lands on reads it back ([documents-and-kinds.md](documents-and-kinds.md)).
+Three lists of ids. A target may live in any file of the directory, and these three are the only relations this format has. `blocks` is shorthand: `a blocks b` means the same as `b after a`. `after`, with every `blocks` folded into it, must not form a loop, and it is what olai works out blocking from ([dates-and-status.md](dates-and-status.md)). `see` is a free cross-reference, and whatever it points at lists it back ([documents-and-kinds.md](documents-and-kinds.md)).
 
-Each is a set: a target named twice is named once. A `.olai` is plain text, so a hand or a merge may write the repeat, and `outlines_see`, `outlines_after` and `outlines_add` take a re-add as a no-op. Every reading of the relation collapses it. The exemption is the reads that hand back the record: `outlines_read` and `search_nodes` answer these arrays exactly as the line on disk holds them.
+Each list holds a target once: a target named twice counts as named once. A `.olai` file is plain text, so a person or a git merge can write the same target twice, and `outlines_see`, `outlines_after` and `outlines_add` do nothing when you add a target that is already there.
+
+Every reading of these lists collapses a repeated target. The exception is the two reads that hand back the stored line: `outlines_read` and `search_nodes` answer with these lists exactly as the file holds them.
 
 ### `created`, `changed`
 
-ISO datetimes the ops layer stamps: `created` when a node is captured, `changed` on every write to it afterwards. No verb writes either, and `outlines_prop` refuses both by name. Both are absent on a node olai never wrote, and nothing invents a past it did not see. A `created` with no `changed` beside it means nothing has been written to that node since it was made. No commit names `changed` as a change, since every write stamps it.
+Two ISO datetimes olai writes itself: `created` when the row is first made, and `changed` on every write to it after that. No tool writes either one, and `outlines_prop` refuses both by name. Both are absent on a row olai never wrote, and olai never invents a history it did not see.
+
+A `created` with no `changed` beside it means nothing has been written to that row since it was made. The commit panel never lists `changed` as a change, because every write updates it.
 
 ### `custom`
 
-The one open field: a map of named facts olai gives no meaning to, with one named exception, `agent`.
+The one open field: a map of your own keys and values, which olai gives no meaning to. The one exception is a property declared with the type `chat-agent-session`, described below.
 
 ### `mirror`
 
-The id this record places a second time. The target may live in any file of the set, and may itself be a mirror: the chain is followed to the regular node at its end. A mirror inside the subtree it shows is `mirror-cycle`.
+The id of the row this line shows a second time. The target may live in any file of the directory, and may itself be a mirror: olai follows the chain to the regular row at the end of it. A mirror placed inside the rows it shows is refused with `mirror-cycle`.
 
 </details>
 
 <details>
 <summary>Writing a property, what the chips read, and what a file holds</summary>
 
-The run of chips under a node's title asks one question of a value: does this string name a file, a node, a day or a URL olai can open, so that the chip can be a link. Every read that situates a node hands the map back as it stands, a search hit as much as `outlines_read`.
+The chips drawn under a row's title ask one question of a value: does this string name a file, a row, a day or a URL that olai can open? If it does, the chip becomes a link. Every read that returns a row returns the whole `custom` map as it stands, a search hit as much as `outlines_read`.
 
 ### Writing a property
 
-`outlines_prop` takes `{id, key, value}`, and `null` or `""` removes the key. A write may also carry `was`, the value it expects to replace, with `null` for *the key should not exist yet*. Given, the write is conditional on the key still saying exactly that, and is refused with what it says now. That is what the chips send, since the box opens on the value as read. Left off, the write is unconditional.
+`outlines_prop` takes `{id, key, value}`, and a `value` of `null` or `""` removes the key. A write may also carry `was`, the value it expects to find there, with `null` meaning the key should not exist yet.
 
-A key that folds to one of this format's own field names, or to the word `status`, is turned away toward the verb that writes that fact. The two namespaces are two places, so `{"done":true,"custom":{"done":"yesterday"}}` is a legal record and an unreadable one.
+With `was`, the write happens only if the key still holds exactly that value, and is otherwise refused with what the key says now. That is what the chips send, because the editing box opened on the value as it was read. Without `was`, the write happens whatever the key holds.
 
-Three verbs write a property and they reach one planner: `outlines_prop`, `outlines_add`'s `props` on a node being captured, and `outlines_update`'s `props` merged key by key onto a node that exists. The shadowed-key refusal is the same sentence whichever one met it.
+A key that matches, ignoring case, one of this format's own field names or the word `status` is refused, and the refusal names the tool that writes that fact instead. A field and a key inside `custom` are two separate places, so `{"done":true,"custom":{"done":"yesterday"}}` is a legal line and a confusing one.
+
+Three tools write a property, and all three go through the same code: `outlines_prop`, the `props` argument of `outlines_add` when a row is created, and the `props` argument of `outlines_update`, which merges key by key onto a row that exists. The refusal for a key that shadows a field is the same sentence in all three.
 
 ### What a file holds
 
-Keys are written alphabetically, and a key holding nothing is not written at all — the two rules the fields above follow, one level in. A map with no keys left is no `custom` field rather than `{}`. A read answers the same map a write would produce, so a key holding nothing is absent from a search hit and from `outlines_read` exactly as it is absent from the line on disk.
+Inside `custom`, keys are written in alphabetical order, and a key with no value is not written at all. Those are the same two rules the fields above follow, one level in. A map with no keys left is written as no `custom` field at all, rather than as `{}`.
+
+A read answers with the same map a write would produce, so a key with no value is missing from a search hit and from `outlines_read` just as it is missing from the line on disk.
 
 </details>
 
@@ -146,16 +162,18 @@ Keys are written alphabetically, and a key holding nothing is not written at all
 
 ### `chat-agent-session`
 
-The one exception, and it is a plugin's declared type rather than a key olai reads. A node carrying a property of that type is a node agent. The node's title is the agent's name, its note is the charter, and its subtree is the memory, and the roster behind the agent panel is the query `prop:chat-agent-session` ([node-agents.md](node-agents.md)). The chat plugin contributes it, so a serve without chat does not read it ([live-properties.md](live-properties.md)).
+This is the one exception, and it is a type the chat plugin declares rather than a key olai itself reads. A row carrying a property of that type is a node agent: an agent that lives on a row.
 
-One key carries both halves (which engine the agent runs on, and which conversation it is talking through), split on the first colon:
+The row's title is the agent's name, the note under it is the agent's instructions, and the rows beneath it are its memory. The list behind the agent panel is the search `prop:chat-agent-session` ([node-agents.md](node-agents.md)). The chat plugin contributes the type, so a serve running without chat does not read it ([live-properties.md](live-properties.md)).
+
+One key holds two things, which engine the agent runs on and which conversation it is talking through, split at the first colon:
 
 ```
 chat-agent-session: claude          a node agent nobody has started a session for
 chat-agent-session: claude:0f3c…    ...and one that is talking through that conversation
 ```
 
-The engine is required and the session is optional, so the value's presence is what makes the node a node agent and its second half is the pointer. Only the first colon splits: an engine id is one of olai's own slugs and holds none, while a session id is somebody else's opaque string and may hold several. A directory may keep the type on a column of its own name ([plugins/chat.md](plugins/chat.md)).
+The engine is required and the session is optional, so a row is a node agent as soon as the value is there, and the second half says which conversation it is using. Only the first colon splits the value: an engine id is one of olai's own short names and holds no colon, while a session id comes from the engine and may hold several. A directory can put this type on a key of its own name ([plugins/chat.md](plugins/chat.md)).
 
 </details>
 
@@ -168,9 +186,9 @@ olai reads the suffixes its file kinds claim, and a `.jsonl` is not one of them:
 git ls-files '*.jsonl' | while read -r f; do git mv "$f" "${f%.jsonl}.olai"; done
 ```
 
-(`mv` instead of `git mv` outside a repository.)
+(Use `mv` instead of `git mv` outside a repository.)
 
-A top-level `doc` field is not part of a record: it is a `bad-record` like any unknown key. Attach material with a markdown link in the note instead. To keep the field's values as ordinary custom properties, run from the directory:
+A `doc` field at the top level of a line is not part of a record: it is refused with `bad-record`, like any other unknown key. Attach material with a markdown link in the note instead. To keep what those fields held as ordinary properties inside `custom`, run this from the directory:
 
 ```bash
 git ls-files -z '*.olai' | while IFS= read -r -d '' file; do
@@ -179,6 +197,6 @@ git ls-files -z '*.olai' | while IFS= read -r -d '' file; do
 done
 ```
 
-An undeclared custom `doc` property is an ordinary property: the value reading draws a door when it resolves to a served path. The `doc` property type declared in `_olai/Properties.olai` is a fence on the value ([properties.md](properties.md)).
+A `doc` key inside `custom` that nothing declares is an ordinary property: when its value names a file this directory serves, its chip becomes a link to that file. Declaring a `doc` property type in `_olai/Properties.olai` is a rule about what the value may be ([properties.md](properties.md)).
 
 </details>

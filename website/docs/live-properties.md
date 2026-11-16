@@ -1,23 +1,21 @@
-# Live properties
+# Properties that show what is happening now
 
-A property whose value names something still going on, such as a terminal's id or a CI run's id, can wear a face that updates itself.[^inert][^seam]
+Some property values name a terminal or a CI run that is still going on. olai shows what it is doing now.[^inert][^seam]
 
 ## What is live today
 
-| The kind | What it wears | Whose page |
+| The type | What the row shows | Whose page |
 | --- | --- | --- |
-| `kolu-terminal` | kolu's Dock row, and the read-only pane it opens | [plugins/kolu.md](plugins/kolu.md) |
-| `odu-run` | a CI chip for the named run, and the run matrix it opens | [plugins/odu.md](plugins/odu.md) |
-
-They are one mechanism wearing different clothes.[^mechanism]
+| `kolu-terminal` | a row in kolu's Dock, and the read-only pane it opens | [plugins/kolu.md](plugins/kolu.md) |
+| `odu-run` | a chip with the CI run's state, and the run matrix it opens | [plugins/odu.md](plugins/odu.md) |
 
 ## Switching one on
 
-Turn the plugin on and its faces work.[^default] Each plugin claims one key by convention, the kind's own word, which carries the plugin's name.[^names] So a row carrying `kolu-terminal 303dc985` gets the terminal door with nothing declared anywhere.
+Switch the plugin on and its live properties work.[^default] Each plugin claims one key, the type's own word, which carries the plugin's name.[^names] So a row carrying a `kolu-terminal` property shows that terminal, with nothing declared anywhere.
 
-## Pointing a kind at your own key
+## Pointing a type at one of your own keys
 
-`_olai/Properties.olai` says which of your own columns is which kind, and it always wins ([properties.md](properties.md)):[^own][^away]
+`_olai/Properties.olai` says which of your keys has which type, and it always wins ([properties.md](properties.md)):[^own][^away]
 
 ```jsonl
 {"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"kolu-terminal"}}
@@ -26,45 +24,45 @@ Turn the plugin on and its faces work.[^default] Each plugin claims one key by c
 
 ## Blocks and chips
 
-The difference is whether the thing is worth a row when nothing is happening. A row with no live property looks unchanged.
+A live property is drawn as a block or as a chip.[^mechanism] A row with no live property looks like any other.
 
-| Shape | Where it sits | When it appears |
+| Shape | Where it sits | When you see it |
 | --- | --- | --- |
-| a block | owns its row | always: there is something to say, including that the terminal has left the fleet |
-| a chip | beside the value | while there is something to say; a miss reads `unknown run` |
+| a block | on a row of its own | always, even when all it can say is that the terminal has left kolu's fleet |
+| a chip | beside the value | only while there is a state to show; a run it cannot find reads `unknown run` |
 
-Pressing a chip opens a pane beneath the property run.[^pane] A face reads and never touches,[^read] no tab dials anything,[^connection] and "we cannot see" is never drawn as "we looked and it is quiet".[^absence]
+Clicking a chip opens a pane under the row's properties.[^pane] A live property only reads, and never changes what it watches.[^read][^connection] olai never shows a terminal or a run it cannot see as one that is simply idle.[^absence]
 
 ## When the plugin is off
 
-A serve can run without a plugin.[^leave] A kind whose plugin is not running validates as plain text.[^text] It happens while you watch.[^switch][^judged]
+You can run a server without any given plugin.[^leave] A value whose type no running plugin provides is read as plain text and is still valid.[^text] Switching a plugin off or on takes effect while you watch.[^switch][^judged]
 
-[^inert]: Most of what a row records is inert: a title, a date, a path. A live property is the exception. The file goes on storing the name; the face finds out what that name is doing.
+[^inert]: Most of what a row stores just sits there: a title, a date, a path. A live property is the exception. The file goes on storing a name, and what the page draws for it looks up what that name is doing now.
 
-[^seam]: This page is the seam: what a live property is, what switches one on, and the two shapes a face takes. What each face draws is on its plugin's own page.
+[^seam]: This page covers what a live property is, how you switch one on, and the two shapes one takes on the page. What each one draws is on its plugin's own page.
 
-[^mechanism]: One mechanism wears the clothes of every live kind, so a third kind of living thing is a third set of clothes rather than a third mechanism.
+[^mechanism]: One mechanism serves every live type, so a third kind of live thing needs its own drawing rather than its own machinery. Which of the two shapes a type uses depends on whether it is worth a row of its own when nothing is happening.
 
-[^default]: Switching a plugin on is the whole of the default: there is no file to edit first, and olai never writes to your directory to make it so ([settings.md](settings.md)).
+[^default]: Switching the plugin on is the whole setup: there is no file to edit first, and olai never writes anything into your directory to make it work ([settings.md](settings.md)).
 
-[^names]: A kind's name carries the plugin's own name on purpose. A column you call `terminal` is yours, and switching a plugin on can never take it over, which is why the claim is `kolu-terminal` rather than `terminal`.
+[^names]: A type's name carries the plugin's own name on purpose. A key you call `terminal` is yours, and switching a plugin on can never take it over, which is why the type is called `kolu-terminal` and not `terminal`.
 
-[^own]: A declaration is your key, the plugin's kind, your file. A column called `pty` gets the terminal door the same way.
+[^own]: A declaration is your key, the plugin's type, and your file. A key you call `pty` opens the terminal pane the same way.
 
-[^away]: A declaration can also take a face away: declare `kolu-terminal` as `text` and the door goes dark, because you have said what that column means and a default does not argue. Two layers, one rule: the file wins, and a plugin's claim applies where the file said nothing.
+[^away]: A declaration can also take the behaviour away: declare `kolu-terminal` as `text` and olai draws nothing for that key, because you have said what the key means and a default does not argue. Two layers, one rule: what your file says wins, and a plugin's claim applies only where your file said nothing.
 
-[^pane]: A chip's pane opens one at a time per node, mounted only while it is open, so a page of twelve lanes with one live run has one clock ticking on it.
+[^pane]: A chip's pane opens one at a time per row, and runs only while it is open, so a page listing twelve rows with one live run among them is polling once.
 
-[^read]: A live face reads and never touches: a live pane is read-only, and a run matrix has no buttons in it, because watching something must not perturb it. The one exception is the [browser pane](plugins/browsing.md), which is a hand on your own browser by design.
+[^read]: A live property only reads, and never changes anything: a live terminal pane is read-only, and a run matrix has no buttons in it, because watching something must not disturb it. The one exception is the [browser pane](plugins/browsing.md), which drives your own browser by design.
 
-[^connection]: No tab dials anything itself. The server holds the one connection or takes the one reading, and every browser subscribes to it, so twelve tabs on a lanes outline are twelve readers of one sweep.
+[^connection]: No browser tab connects to a terminal or a CI service itself. The server holds the one connection, or takes the one reading, and every browser is sent what it finds, so twelve tabs open on one outline are twelve readers of a single reading.
 
-[^absence]: An absence is a state with its own words, because an absence and a quiet thing have opposite fixes. Each plugin's page lists the sentences it says.
+[^absence]: Not being able to see something is a state of its own, with its own wording, because it needs a different fix from a thing that is simply idle. Each plugin's page lists the sentences it says.
 
-[^leave]: To run a serve without a plugin, leave it out of the file's row selection at startup, or press its switch on the plugins panel while it runs ([settings.md](settings.md)).
+[^leave]: To run a serve without a plugin, leave it out of the plugin selection at startup, or switch it off in the **Plugins** panel while the server runs ([settings.md](settings.md)).
 
-[^text]: A kind read as plain text still holds a name, the file is still fine, and it wears no face — which is the state a directory that declared nothing is already in.
+[^text]: A value whose type nothing provides still holds a name, the file is still fine, and nothing is drawn for it. That is the same state a directory that declared nothing is in.
 
-[^switch]: Switch a plugin off and its words leave the running serve with it, the values under them read as plain text on the next reading, and switching it back on brings both the words and the faces back. The switch writes `on` to the policy file; your stored values never change.
+[^switch]: Switch a plugin off and its types leave the running server with it. The values under them are read as plain text from the next reading on, and switching the plugin back on brings the types back, along with what they draw. The switch writes `on` or `off` to the settings file; your stored values never change.
 
-[^judged]: A declaration is judged differently from a value, which is worth knowing before you go hunting for a bug. `{"type":"kolu-terminal"}` is a clean row on a serve running only odu, because a file's verdict may not depend on which plugins this machine is running. Only the face is missing.
+[^judged]: A declaration is checked differently from a value, which is worth knowing before you go hunting for a bug. `{"type":"kolu-terminal"}` is a fine row on a server running only odu, because whether a file is valid may not depend on which plugins this machine happens to run. Only the drawing is missing.

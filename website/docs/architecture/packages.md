@@ -2,110 +2,110 @@
 
 Every package in the repository, what each is for, and the tools they are built from.
 
-A Bun workspace over two globs, `packages/*` and `packages/plugins/*`, sharing `tsconfig.base.json`.[^container] The direction is downward.[^downward] Layering is declared in workspace dependencies and machine-checked by `bun install`.[^linker] The `@kolu/*` tier is held by the import fence instead.[^fence] A plugin is written against `@olai/plugin-api`.[^doors]
+The repository is one Bun workspace covering `packages/*` and `packages/plugins/*`, and every package in it shares `tsconfig.base.json`.[^container] A package may depend on packages below it and never on one above it.[^downward] Each package's dependencies are written in its own manifest, and `bun install` checks them.[^linker] The `@kolu/*` packages are checked by a test instead.[^fence] A plugin is written against `@olai/plugin-api`.[^imports]
 
 | Group | What it holds |
 | --- | --- |
 | General packages | each listed below, with what it is |
-| Plugin packages | one package per plugin, with a registry row and a page of its own |
+| Plugin packages | one package per plugin, each with a row in the plugin registry and a page of its own |
 | The stack | TypeScript on Bun, Effect 4, SolidJS and Tailwind, Nix, the tests |
 
-How the parts fit at runtime is in [overview.md](overview.md); the rules a change must keep are in [cordis.md](cordis.md).
+How the parts fit together while olai runs is in [overview.md](overview.md); the rules a change has to keep are in [cordis.md](cordis.md).
 
-[^container]: The two globs: `packages/plugins/` is a container and holds no package of its own.
+[^container]: The two paths: `packages/plugins/` is only a folder holding the plugin packages, and is not a package itself.
 
-[^downward]: What sits where: `server` and `web` sit on top. The leaves, which name no `@olai/*` sibling at all, are `format`, `store`, `child`, `log`, `state`, `sigterm`, `fonts`, `ui-primitives`, `plugin-kit` and `effect-cordis`.
+[^downward]: What sits where: `server` and `web` sit on top, so nothing depends on them. The packages at the bottom, which name no `@olai/*` sibling at all, are `format`, `store`, `child`, `log`, `state`, `sigterm`, `fonts`, `ui-primitives`, `plugin-kit` and `effect-cordis`.
 
-[^linker]: How layering is checked: the isolated linker (`bunfig.toml`) gives each member only the siblings its manifest names, so an undeclared one does not resolve.
+[^linker]: How the dependencies are checked: Bun's isolated linker (`bunfig.toml`) gives each package only the siblings its own manifest names, so importing one it did not name fails to resolve.
 
-[^fence]: The `@kolu/*` tier hydrates as raw TypeScript from the Nix store, where `bun install` cannot check it. The import fence does, as a test (`packages/bundle/src/fence.test.ts`), and version agreement with each pin stays in `scripts/check-hydrated-deps.sh`. See [cordis.md](cordis.md) for what the fence claims.
+[^fence]: Checking the `@kolu/*` packages: they are copied in as plain TypeScript from the Nix store, where `bun install` cannot check them. A test does it instead (`packages/bundle/src/fence.test.ts`), and `scripts/check-hydrated-deps.sh` checks that each version matches its pin. See [cordis.md](cordis.md) for what that test guarantees.
 
-[^doors]: What a plugin may import: another plugin only through a door that plugin's manifest declares. `@olai/bundle` names every plugin, and is the one package a plugin may not import.
+[^imports]: What a plugin may import: from another plugin, only the subpaths that plugin's manifest offers. `@olai/bundle` names every plugin, and is the one package a plugin may not import.
 
 <details>
 <summary>Every general package, and what it is</summary>
 
 | Package | What it is |
 | --- | --- |
-| `appearance` | Palette, type-size and text-scale tables, the CSS they generate, and contrast arithmetic. Importing it creates no state. |
-| `bundle` | The registry: the plugin catalogue, the generated modules, profiles, assets and write policy, plus the import fence. |
-| `child` | One owner for a subprocess: spawn, the exec failure that arrives after spawn returns, drained stderr, and a kill with a grace period. |
-| `edit-history` | The undo stack as the edits that reverse a write, and the face that says what was taken back. |
-| `edit-intents` | What a key or a menu entry meant, as exactly one ops request, worked out over the server's own reading. |
-| `effect-cordis` | Cordis in Effect's vocabulary: activation scopes, dispatch gates, teardown order, and the static fence. The only package that names Cordis. |
-| `fonts` | The typeface catalogue, in two entry points: the picks a page reads, and the generated sheet and file list a build takes. |
-| `format` | The format contracts, the set validator, the refusal vocabulary and the derivations. Depends on nothing, so every layer can read it. |
-| `log` | How olai says what it is doing: the two streams, the face each line wears, and the minimum level. No logger of its own. |
-| `markdown-ui` | The remark and rehype pipeline, split into its own chunk, and the components that draw a note, a document or a title. |
-| `ops` | The only thing that writes, and the only reader an agent gets: the semantic edits, the codec and the grammar a tool is built in. |
-| `plugin-api` | What a plugin programs against: generic services, scoped surface registration, owned module loading, and a typed location facade. |
+| `appearance` | The palette, type-size and text-scale tables, the CSS generated from them, and the contrast arithmetic. Importing it creates no state. |
+| `bundle` | The plugin registry: the catalogue of plugins, the modules generated from it, profiles, assets and write policy, plus the test that checks imports. |
+| `child` | One owner for a subprocess: starting it, the start-up failure that arrives after the start call returns, the error output it drains, and a kill with a grace period. |
+| `edit-history` | Undo, kept as the edits that reverse a write, and the component that says what was taken back. |
+| `edit-intents` | What a key press or a menu entry meant, turned into exactly one request to `ops`, worked out from the server's own reading of the file. |
+| `effect-cordis` | Cordis, the plugin engine, written in Effect's vocabulary: activation scopes, dispatch gates, teardown order, and the import check. The only package that names Cordis. |
+| `fonts` | The catalogue of typefaces, in two entry points: the choices a page reads, and the generated stylesheet and file list a build takes. |
+| `format` | The file format: its contracts, the validator, the wording it refuses in, and the values derived from a file. Depends on nothing, so every layer can read it. |
+| `log` | How olai says what it is doing: the two output streams, how each line is drawn, and the lowest level that is printed. No logger of its own. |
+| `markdown-ui` | The remark and rehype pipeline, in a chunk of its own, and the components that draw a note, a document or a title. |
+| `ops` | The only code that writes to the served directory, and the only reader an agent gets: the semantic edits, how they are encoded, and the grammar a tool is built in. |
+| `plugin-api` | What a plugin is programmed against: the generic services, registering a surface within a scope, loading a plugin's own modules, and a typed wrapper for referring to a slot. |
 | `plugin-build` | The compiler behind a plugin the served directory defines. Text in, text out, with imports bound to the host's own modules. |
-| `plugin-kit` | What a plugin's face in a conversation is made of: the mark, the node reference spelling, and the SVG transform Nix runs. |
-| `server` | The binary. Starts the host, composes capability declarations, binds transports, and exposes management. |
-| `sigterm` | The Linux `SIGTERM` guard `olai web` boots with: it names the sender and refuses a signal from anybody else. On macOS it does nothing. |
-| `state` | Machine-local state, never the served directory: the two per-user homes, one file per directory, guarded reads and atomic writes. |
-| `store` | Files as a revision-tagged snapshot, plus the `commit` write gate. Generic over content, so it carries no outline types. |
-| `surface` | The shared wire schemas and the process-management spec. Feature declarations live with the plugins that implement them. |
-| `tests` | The browser suite harness: the world, the hooks, the scratch corpora, the scripted agents, and the features no single plugin owns. |
-| `ui-primitives` | Stateless controls, touch-target rules and the held-service helper. Owns no subscription and no application state. |
-| `web` | Mounts the renderer, follows the live plugin roster, builds the browser bundle, and holds the shared client primitives. |
+| `plugin-kit` | What a plugin shows inside a conversation: its logo, how it spells a reference to a row, and the SVG transform Nix runs. |
+| `server` | The `olai` executable. Starts the host, composes what each plugin declares, binds the transports, and exposes management. |
+| `sigterm` | The Linux `SIGTERM` guard `olai web` starts with: it names the sender and refuses a signal from anybody else. On macOS it does nothing. |
+| `state` | State kept on the machine, never in the served directory: the two per-user state homes, one file per served directory, guarded reads and atomic writes. |
+| `store` | Files as a snapshot tagged with a revision, plus the `commit` write gate. Generic over what a file holds, so it carries no outline types. |
+| `surface` | The schemas both sides of the connection share, and the spec for managing processes. What each feature declares lives with the plugin that implements it. |
+| `tests` | The browser suite's harness: the world, the hooks, the scratch corpora, the scripted agents, and the features no single plugin owns. |
+| `ui-primitives` | Controls that hold no state, the touch-target rules, and the helper for reading a service held elsewhere. Owns no subscription and no application state. |
+| `web` | Mounts the renderer, follows the live list of running plugins, builds the browser bundle, and holds the client code the plugins share. |
 
 </details>
 
 <details>
 <summary>Every plugin package, and what it is</summary>
 
-Each is a package under `packages/plugins/`, an entry in `packages/bundle/olai.yml`, and a page of its own under `../plugins/`. `mail` and `xyne-spaces` are off until the served directory's settings turn them on, and the four test fixtures are off outside the test profile.
+Each is a package under `packages/plugins/`, a row in `packages/bundle/olai.yml`, and a page of its own under `../plugins/`. `mail` and `xyne-spaces` stay off until the served directory's settings turn them on, and the four test fixtures stay off outside the test profile.
 
 | Plugin | What it is |
 | --- | --- |
-| `alerts` | Notification permission, sound and the icon badge, owned by a tab-only channel. |
-| `browsing` | The browser olai runs for your agents: the pane, shared sign-ins and overrides. |
-| `capture` | Quick capture into the inbox, and its palette prefix. |
-| `chat` | Conversations over ACP sessions: the panel, the node-agent scheduler, and the seats it reserves. |
-| `claude` | The Claude Code engine, with its pinned adapter and patches. |
-| `codex` | The Codex engine, with its pinned adapter and CLI. |
-| `csv` | Table files: the claim, and the reading of tabular content. |
+| `alerts` | Permission to notify you, the sound, and the badge on the icon, owned by a channel that belongs to one browser tab. |
+| `browsing` | The web browser olai runs for your agents: the pane it draws, shared sign-ins and per-conversation overrides. |
+| `capture` | Capturing a row into the inbox, and the command palette prefix that does it. |
+| `chat` | Conversations with coding agents: the agent panel, the scheduler for agents bound to a row, and the slots it reserves. |
+| `claude` | Running Claude Code, with the pinned adapter and patches it needs. |
+| `codex` | Running Codex, with the pinned adapter and CLI it needs. |
+| `csv` | Table files (`.csv`): claiming that file kind, and reading the table out of one. |
 | `files` | Browsing the served directory, and creating files from the browser. |
-| `git` | The commit ledger, the commit and push policy, and the Commit readout. |
-| `hledger` | Ledger journals: the claim, and the transaction, balance and source readings. |
-| `hypertext` | Saved pages: the claim, and the sealed preview. |
-| `identity` | Who is looking: the trusted header family and the picture ladder. |
-| `image` | Picture files: the claim, and access through `/media/`. |
-| `journal` | The calendar, the day page, the agenda of dated work, and reminders. |
-| `kolu` | The kolu tenant: terminals, the live pane, the events feed and the doorbell. |
-| `layout` | The frame: panels, the header and its health dot, banners and viewer slots. |
-| `link-preview` | A read-only preview of a link that points into the set. |
-| `mail` | The Gmail tenant: connecting an account, and reading and filing mail from a conversation. |
-| `markdown` | Documents: editing, frontmatter and headings. |
-| `mcp` | The `/mcp` route: the protocol server, the tool projection and the session tickets. |
-| `navigation` | Addresses, history, pane focus and the palette. |
-| `odu` | The odu tenant: the run chip, the run matrix and the doorbell. |
-| `omp` | The Oh My Pi engine, found on the agent search path. |
-| `opencode` | The opencode engine, found on the agent search path. |
-| `outline-olai` | Outline files: the claim, the parser and the canonical writer. |
-| `outlines` | Outline pages: rows, the editor, folds, the filter and the row menu. |
-| `pdf` | PDF files: the claim, the viewer and access through `/media/`. |
-| `pi` | The pi engine, the one that is a pair: an adapter olai pins and an agent the machine supplies. |
-| `pins` | The pinned shelf in the sidebar, and the pin commands. |
-| `plugin-inspector` | The plugins panel: the switches, the activation reports and retry. |
-| `preferences` | The preferences panel, and the section other plugins add their controls to. |
-| `search` | The matcher's plumbing: a trigram table in `bun:sqlite`, kept level with the store's revisions. |
+| `git` | The list of files waiting to be committed, the commit and push policy, and the Commit readout in the header. |
+| `hledger` | Ledger journals (`.journal`): claiming that file kind, and reading its transactions, balances and source lines. |
+| `hypertext` | Saved web pages (`.html`): claiming that file kind, and the preview drawn in a locked-down frame. |
+| `identity` | Who is looking: the family of trusted headers, and the order of places a profile picture is looked for. |
+| `image` | Picture files: claiming those file kinds, and serving them under `/media/`. |
+| `journal` | The calendar, the page for one day, the agenda of dated work, and reminders. |
+| `kolu` | Working with kolu: its terminals, the live pane, the feed of events, and sending those events into a conversation. |
+| `layout` | The app frame: the panels, the header and its health dot, banners and the places a file viewer draws in. |
+| `link-preview` | A read-only preview of a link that points at something in the served directory. |
+| `mail` | Working with Gmail: connecting an account, and reading and filing mail from a conversation. |
+| `markdown` | Documents: editing them, their frontmatter and their headings. |
+| `mcp` | The `/mcp` address: the protocol server, the tools it offers and the tickets a session needs. |
+| `navigation` | Addresses, history, which pane has focus, and the command palette. |
+| `odu` | Working with odu: the chip for a run, the matrix of runs, and sending run events into a conversation. |
+| `omp` | Running Oh My Pi, found on the search path agents are looked for on. |
+| `opencode` | Running opencode, found on the same search path. |
+| `outline-olai` | Outline files: claiming that file kind, the parser, and the writer that puts a file back in canonical form. |
+| `outlines` | Outline pages: the rows, the editor, folds, the filter and the menu on a row. |
+| `pdf` | PDF files: claiming that file kind, the viewer, and serving them under `/media/`. |
+| `pi` | Running pi, which comes in two parts: an adapter olai pins, and the agent itself, which the machine supplies. |
+| `pins` | The shelf of pinned files in the sidebar, and the palette commands that pin and unpin. |
+| `plugin-inspector` | The plugins panel: the switches, the reports of what happened at start-up, and retrying a plugin that failed. |
+| `preferences` | The preferences panel, and the section other plugins add their own controls to. |
+| `search` | What search runs on: a trigram index in `bun:sqlite`, kept level with the store's revisions. |
 | `settings` | Policy for the served directory, read from one `Settings.olai` file. |
-| `sidebar` | The directory column, and the rail beside it. |
-| `tabs` | Several pages open as tabs above the panes, each with its own Back and Forward. |
-| `theme` | Palette, typeface and page size, stored per browser. |
+| `sidebar` | The column of files on the left, and the strip of icons beside it. |
+| `tabs` | Several pages open as tabs above the panes, each tab with its own Back and Forward. |
+| `theme` | The palette, typeface and page size, stored per browser. |
 | `trash` | Browsing trashed rows, restoring them, and emptying Trash. |
-| `ui-renderer` | The Solid renderer, and the scope-owned extension locations. |
-| `vault` | The served directory: the store, the lock, the `Vault`, `Directory` and `Ops` doors, and the file-kind registry. |
-| `vault-plugins` | Discovery, approval and activation of plugins the served directory defines. |
-| `web-app` | Serving the compiled browser app, independently of the websocket and MCP plugins. |
-| `ws` | The websocket the browser talks over, registered on the shared listener. |
-| `xyne-spaces` | The Spaces tenant, watch-only: one link cell mirroring doorbell digests into a channel. |
-| `test-counter` | A fixture proving the host runs with no served directory at all. |
-| `test-layout` | A fixture shell built on the public navigation outlet. |
-| `test-page` | A fixture registering a self-drawn page in the route slot. |
-| `test-palette` | A fixture contributing palette levels through the public adapter location. |
+| `ui-renderer` | The SolidJS renderer, and the slots whose contents are owned by a scope. |
+| `vault` | The served directory: the store, the lock, the `Vault`, `Directory` and `Ops` services, and the register of file kinds. |
+| `vault-plugins` | Finding, approving and running the plugins the served directory itself defines. |
+| `web-app` | Serving the compiled browser app, whether or not the websocket and MCP plugins are running. |
+| `ws` | The websocket the browser talks over, registered on the listener every transport shares. |
+| `xyne-spaces` | Working with Xyne Spaces, reading only: one link cell that copies summaries of delivered events into a channel. |
+| `test-counter` | A fixture plugin showing that the host runs with no served directory at all. |
+| `test-layout` | A fixture plugin that draws a different app frame, taking page content from navigation's public `content` slot. |
+| `test-page` | A fixture plugin that registers a page it draws itself, in the `app.route` slot. |
+| `test-palette` | A fixture plugin that adds command palette levels through the public palette-adapter slot. |
 
 </details>
 
@@ -118,7 +118,7 @@ TypeScript on Bun. Bun is the package manager, the test runner and the script ru
 
 ### Effect
 
-The whole stack is Effect 4: Effect Schema at process boundaries, `RpcGroup` on the wire, `HttpRouter` layers for HTTP, and `Schedule` for reconnection.
+The whole stack is Effect 4: Effect Schema wherever data enters or leaves the process, `RpcGroup` for the calls between browser and server, `HttpRouter` layers for HTTP, and `Schedule` for reconnecting.
 
 - `effect`, `@effect/platform-node` and `@effect/platform-browser` are pinned to `4.0.0` in the root manifest's `overrides`, because the version must match the pinned kolu's exactly.
 - On Bun it runs as `@effect/platform-node` under Node compatibility.
@@ -126,7 +126,7 @@ The whole stack is Effect 4: Effect Schema at process boundaries, `RpcGroup` on 
 
 ### The browser
 
-SolidJS 1.9 for the renderer, and Tailwind 4 for styling, with utilities inline in components and a CSS entry holding only `@theme` tokens and rules for markup this codebase does not author. There is no `@apply`.
+SolidJS 1.9 draws the pages, and Tailwind 4 styles them, with utility classes written inline in the components and a CSS entry file holding only `@theme` tokens and rules for markup this codebase does not write itself. There is no `@apply`.
 
 - A palette is eleven tokens, tabled in `appearance/src/palettes.ts`. The build generates one `:root[data-theme="…"]` block per palette, so adding a palette is adding a row to that table.
 - A typeface is three tokens, catalogued in `packages/fonts`. The default is Literata for titles and documents, Inter for the interface, and iA Writer Mono for code.
@@ -134,13 +134,13 @@ SolidJS 1.9 for the renderer, and Tailwind 4 for styling, with utilities inline 
 
 ### Nix
 
-A flake, npins and a justfile. The pins are `kolu`, `nixpkgs`, `oss-olai`, `cordis`, `odu`, `fenix`, `himalaya`, `pimalaya`, `agent-distro` and `osfacts`; `just update-pins` moves them. The `@kolu/*` packages hydrate as source from the Nix store.
+A flake, npins and a justfile. The pinned sources are `kolu`, `nixpkgs`, `oss-olai`, `cordis`, `odu`, `fenix`, `himalaya`, `pimalaya`, `agent-distro` and `osfacts`, and `just update-pins` moves them to newer versions. The `@kolu/*` packages are copied in as source from the Nix store.
 
-- `oss-olai` is a corpus rather than code: four differential test legs read a real directory at `OSS_OLAI_VAULT`, and throw naming that variable when it is unset.
-- The build is two derivations. `olai-deps` is what `bun install` makes, keyed on the manifests and `bun.lock` alone. `olai-base` is the source tree with a `node_modules` of symlinks into it, the plugin hydrate, the generated catalogues and the browser bundle. A commit touching no manifest rebuilds only the second.
+- `oss-olai` is a directory of real files rather than code: four test runs read it at the path `OSS_OLAI_VAULT` gives, and throw an error naming that variable when it is unset.
+- The build is two derivations. `olai-deps` is what `bun install` makes, and depends on the manifests and `bun.lock` alone. `olai-base` is the source tree with a `node_modules` of symlinks into that, plus the sources copied in from the Nix store, the generated catalogues and the browser bundle. A commit that touches no manifest rebuilds only the second.
 
 ### Tests
 
-Unit tests and benchmarks are `bun test`, beside the code they cover. The browser suite is Cucumber and Playwright, and it is not one directory. A plugin keeps the features it promises, and the steps that drive its own surface, under `packages/plugins/<name>/e2e/`, while `packages/tests` keeps the harness and the features no single plugin owns. One profile globs both, so it stays one process. See [browser-tests.md](browser-tests.md).
+Unit tests and benchmarks run under `bun test`, in the same folders as the code they cover. The browser suite runs under Cucumber and Playwright, and it is not one directory. Each plugin keeps the features it promises, and the steps that exercise its own calls, under `packages/plugins/<name>/e2e/`, while `packages/tests` keeps the harness and the features no single plugin owns. One profile matches both, so the suite stays one process. See [browser-tests.md](browser-tests.md).
 
 </details>

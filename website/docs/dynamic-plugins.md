@@ -1,63 +1,65 @@
-# Plugins the directory defines
+# Ask an agent for a plugin of your own
 
-Ask for a plugin of your own. An agent writes it into the directory olai serves, and olai compiles and mounts it while it runs, once you approve it.[^built]
+Ask for a plugin. An agent writes it into the directory olai serves, and olai compiles it and starts it without a restart, once you approve it.[^built]
 
 ## Ask for one
 
-1. Press `Cmd` + `K` (`Ctrl` elsewhere) and choose **New plugin**. Say in one sentence what it should do.
+1. Press `Cmd` + `K` (`Ctrl` elsewhere) to open the command palette, and choose **New plugin**. Say in one sentence what it should do.
 2. Name it.[^name]
 3. Watch it arrive on its own page at `/plugins/hex-swatch`.[^watch]
-4. Read it and press **Turn on**. The faces appear with no reload.
+4. Read what the agent wrote, then press **Turn on**. What the plugin draws appears with no reload.
 
-## Find your way to one
+## Three ways to start a new plugin
 
-Three doors open the same two levels, and all three are there before you have any plugin at all.[^sidebar]
+All three are there before you have any plugin at all.[^sidebar]
 
-| Door | Where |
+| What you click | Where it is |
 | --- | --- |
-| **New plugin** in the palette | `Cmd` + `K`, by name |
-| The `+` on the **Plugins** heading | the sidebar |
-| **New plugin** at the top of the panel | the health dot, then **Plugins** |
+| **New plugin** in the command palette | `Cmd` + `K`, then search for it by name |
+| The `+` on the **Plugins** heading | the sidebar, the left column of files |
+| **New plugin** at the top of the **Plugins** panel | the health dot, then **Plugins** |
 
-## Read it, then turn it on
+## Read the plugin, then turn it on
 
-The plugin's page says what it is in words before code, and shows you the source.[^page] An approval names a version.[^version]
+The plugin's page describes what it does in plain words first, and shows its source code below.[^page] When you approve a plugin, you approve one exact version of its code.[^version]
 
-> The code runs with the server's own authority. There is no sandbox, and your approval is the boundary. That is why the verb is on the browser face alone.
+> The code runs with the same authority as olai itself. There is no sandbox, and your approval is the only boundary. That is why **Turn on** is a button in the browser, which no agent can press.
 
-## Where your answer is kept
+## Where your approval is stored
 
-`on`, `approved`, the conversation building it and the plugin's own knobs are properties on a root node titled with the plugin's word in `_olai/Settings.olai`, the file every built plugin keeps its settings in.[^reserved][^travels]
+Whether the plugin is on, which version you approved, which conversation built it, and its own settings are kept as properties on one row in `_olai/Settings.olai`. That row is titled with the plugin's name, in the file every built-in plugin uses for its own settings.[^reserved][^travels]
 
-Two worked plugins, start to finish, are in [dynamic-plugins-examples.md](dynamic-plugins-examples.md).
+Two plugins written out in full are in [dynamic-plugins-examples.md](dynamic-plugins-examples.md).
 
-[^built]: Every page under [Plugins](index.md#plugins) is a plugin olai was built with. The ones here are yours, written into the directory by an agent.
+[^built]: Every page listed under [Plugins](index.md#plugins) describes a plugin olai was built with. The plugins on this page are yours: an agent writes them into the directory olai serves.
 
-[^name]: Naming a new plugin: olai suggests one from your sentence, and the level under the box says where it is kept, `Kept in your vault as plugins/hex-swatch/`. A name another plugin has, or one that is not a word, is refused while you type.
+[^name]: olai suggests a name from the sentence you wrote, and the line under the box says where the plugin will be kept, `Kept in your vault as plugins/hex-swatch/`. A name another plugin has, or one that is not lower-case letters, digits and hyphens starting with a letter, is refused while you type.
 
-[^watch]: The press lands on the plugin's own page, the conversation building it in the agent panel beside, and the page lists the files as they arrive. On a phone, and on a serve with no agent panel, the page links to the conversation's own page instead. The conversation is an ordinary one under **Chats**: close the panel, come back tomorrow, and an alert tells you when it wants you.
+[^watch]: The button opens the plugin's own page, with the conversation building it in the agent panel beside, and the page lists each file as the agent writes it. On a phone, and where there is no agent panel, the page links to the conversation's own page. That conversation is an ordinary one under **Chats**: close the panel, come back tomorrow, and an alert tells you when the agent needs you.
 
-[^sidebar]: The **Plugins** section of the sidebar lists one row per plugin once you have one, and a single row reading **Ask for your first plugin…** while you have none. A row carries a mark only when it wants something from you: `Review` for a version nobody has read, `Problem` for one that will not start, and a moving dot while an agent is still writing the folder. A plugin that is switched off is drawn dim.
+[^sidebar]: The **Plugins** section of the sidebar lists one row per plugin, and a single row reading **Ask for your first plugin…** while you have none. A row carries a mark only when it needs something from you: `Review` for a version nobody has read, `Problem` for one that will not start, and a moving dot while an agent is still writing its files. A plugin switched off is drawn dim.
 
-[^page]: The plugin's page opens with the title and first line of its `README.md`, then **What it uses**, read off the code's own imports. The files are under that, one tab each, beside the folder they are in. The knobs it declares sit under **Settings**, and **Ask for a change** opens the conversation that built it.
+    All three ask the same two questions: what the plugin should do, and what to call it.
 
-[^version]: A version is a hash of the two code files. An edit to either one pauses the plugin, unmounts it, and shows you a diff against what you approved. Editing the `README.md` changes nothing, because prose is not code. All three approvals carry the version the page drew, so one made over source that moved is refused rather than applied.
+[^page]: The plugin's page opens with the title and first line of its `README.md`, then **What it uses**, read off the code's own imports. The files are below that, one tab each, beside the folder they are in. Settings it declares sit under **Settings**, and **Ask for a change** opens the conversation that built it.
 
-[^reserved]: `on`, `approved`, `builder` and `checked` are reserved. A `Config` declaring one faults the plugin, and `plugins.configure` refuses to write one. `checked` is the version the building conversation last finished at, written by olai when that call comes in. A plugin that could write it would be a plugin that declares itself finished.
+[^version]: A version is a hash of the plugin's two code files. Editing either one pauses the plugin, stops it running, and shows what changed since the version you approved. Editing the `README.md` changes nothing, because prose is not code. Every approval carries the version the page showed you, so one made after the source changed is refused.
 
-[^travels]: A folder copied in from another directory arrives off and unapproved, because the code travels and your answer does not. The switch survives a restart, and so does a stop: `on: no` is a line in a file.
+[^reserved]: You cannot use `on`, `approved`, `builder` or `checked` as a plugin setting: a `Config` declaring one faults the plugin, and `plugins.configure` refuses to write one. `checked` is the version the building conversation last finished at, and olai writes it when that call comes in. A plugin that could write `checked` itself would declare itself finished.
+
+[^travels]: A plugin folder you copy in from another directory arrives switched off and unapproved, because the code travels and your approval does not. Your answer survives a restart and a stop, because it is a line in a file: `on: no`.
 
 <details>
-<summary>The verbs on the plugin's page, and an approval that is refused</summary>
+<summary>The buttons on the plugin's page, and the refusal when the code has changed</summary>
 
-| Verb | What it writes |
+| Button | What it writes |
 | --- | --- |
 | **Turn on** | `approved: <version>` and `on: yes`, in one write |
 | **Always trust changes**, under `•••` | `approved: always`, and nothing else |
 | **Stop trusting changes**, in its place | the version that is running |
-| **Delete…**, under `•••` | removes the folder's files and the plugin's settings node |
+| **Delete…**, under `•••` | removes the folder's files and the plugin's settings row |
 
-The refusal:
+The sentence you see when you approve code that has changed since the page drew it:
 
 ```
 "hex-swatch" has been edited since this page drew it, so approving it now would
@@ -67,22 +69,22 @@ approve source nobody has read. Look again, read what it says, and approve that.
 </details>
 
 <details>
-<summary>What olai tells you, and what it keeps quiet</summary>
+<summary>When olai notifies you, and when it stays quiet</summary>
 
-A plugin is a thing you ask for and walk away from, so three moments reach you wherever you are: as a system notification, as the sidebar's mark, and on the page.
+You ask for a plugin and then go and do something else, so three events reach you wherever you are: as a system notification, as a mark on the plugin's row in the sidebar, and on the plugin's page.
 
-| Moment | What has happened |
+| Event | What has happened |
 | --- | --- |
-| **Ready for you** | the agent called `vault-plugins_run` at the version on disk and got no fault back |
+| **Ready for you** | the agent called `vault-plugins_run` at the version on disk, and got no fault back |
 | **Paused** | a plugin that was running stopped, because its code changed |
-| **Couldn't start** | an `apply` that threw, or a half that will not compile |
+| **Couldn't start** | the plugin's `apply` threw an error, or one of its two code files will not compile |
 
-Nothing else rings. A plugin going on is not news, because you pressed the button, and one being built is not news, because you asked for it a minute ago.
+Nothing else notifies you. A plugin starting is not news, because you pressed the button, and one being built is not news, because you asked for it.
 
 </details>
 
 <details>
-<summary>The settings node, and what a plugin is not</summary>
+<summary>The settings row, and three things a plugin is not</summary>
 
 ```
 hex-swatch            on: yes
@@ -92,9 +94,9 @@ hex-swatch            on: yes
                       size: large
 ```
 
-- Not a lock. olai refuses a session's write of `approved` at its own door, which is what stops an agent approving the plugin it has just written. `approved` is an ordinary property, and one that appears on disk is an ordinary revision.
-- Not a report of what a face did. A face that throws while it is drawn is contained by the tab's fault boundary, the console says which plugin it was, and the plugin goes on saying `running`, because on the server it is.
-- Not a package. There is no command to add one, no pin and no build outside the tree: a plugin is a folder in a directory olai is already serving.
+- Not a lock. olai refuses any write of `approved` from an agent session, which stops an agent approving the plugin it just wrote. Otherwise `approved` is an ordinary property, and one that turns up on disk is an ordinary edit to your files.
+- Not a report of what the browser file did. A component that throws an error while it is drawn is caught by the tab, the browser console names the plugin, and the plugin still says `running`, because on the server it is.
+- Not a package. There is no command to install one, no version to pin and no build step: a plugin is a folder in a directory olai already serves.
 
 </details>
 
@@ -104,7 +106,7 @@ hex-swatch            on: yes
 <!-- guide:start -->
 ## The folder
 
-A plugin the directory defines is a folder under `plugins/`, and the folder's name is the plugin's word:
+A plugin your directory defines is a folder under `plugins/`, and the folder's name is the plugin's name:
 
 ```
 plugins/hex-swatch/
@@ -113,15 +115,17 @@ plugins/hex-swatch/
   browser.tsx   optional
 ```
 
-- The word takes the same shape a built plugin's name does, `[a-z][a-z0-9-]*`, and may not be a word this serve already has. A folder named anything else is drawn with a sentence saying so rather than compiled.
-- `README.md` is a `# Title`, a blank line, one sentence, then as much prose as the plugin deserves. The heading is what the plugin is called on screen and the first paragraph is the line under it.
-- `server.ts` is required. A plugin that teaches the directory a property kind, or rings a doorbell at seven, is a whole plugin.
-- `browser.tsx` is optional, and is the half that draws.
-- Anything else in the folder is ordinary content and is passed over.
+- The name has the same shape a built-in plugin's does, `[a-z][a-z0-9-]*`, and may not be a name this server already uses. A folder named anything else is not compiled, and is shown with a sentence saying so.
+- `README.md` is a `# Title`, a blank line, one sentence, then as much prose as the plugin deserves. The heading is the plugin's name on screen, and the first paragraph the line under it.
+- `server.ts` is required, and is a whole plugin on its own: it can teach the directory a property kind, or send a message at seven each morning.
+- `browser.tsx` is optional. It is the file that draws on screen.
+- Anything else in the folder is ordinary content, and olai leaves it alone.
 
-The two code files are claimed by olai only under `plugins/`, so a checkout somebody keeps beside their notes is untouched. They are kept text: the revision holds them, the ledger records them, and the commit panel lists them by path. They are not rows in the sidebar's **Reference** tree, because the plugin's page is where they are read. The path of one is an address onto that page: `/plugins/hex-swatch/server.ts` opens the plugin at that file.
+olai treats these two code files as a plugin only under `plugins/`, so a code checkout somebody keeps beside their notes is untouched. They stay plain text: stored like any other file, recorded in the ledger, and listed by path in the commit panel, where you commit changes.
 
-## What a half may import
+They are not rows in the sidebar's **Reference** tree, because you read them on the plugin's page. A file's path is an address too: `/plugins/hex-swatch/server.ts` opens the plugin at that file.
+
+## What each file may import
 
 Three modules, by their bare names:
 
@@ -131,7 +135,7 @@ import { Effect } from "effect"
 import { createSignal } from "solid-js"
 ```
 
-olai resolves all three itself, against the modules inside the running binary, so a face an agent wrote draws with the same Solid the app does. The directory has no `node_modules`, so anything else is refused when the plugin is read rather than when it dies:
+olai resolves all three itself, against the copies inside the running binary, so what a plugin draws uses the same Solid the app does. The directory has no `node_modules`, so any other import is refused when olai reads the plugin, not while it runs:
 
 ```
 olai resolves @olai/plugin-api, effect and solid-js for a plugin it mounts from
@@ -139,13 +143,13 @@ a vault, and nothing else — so "left-pad" names nothing this serve can hand
 over. A vault has no node_modules.
 ```
 
-Subpaths are also refused (`effect/Schema`, `solid-js/web`), and so is a computed `import()`: what a person approved is the source they read, so every module a plugin uses is visible in it. A relative import is refused with its own sentence, since a plugin is two halves and nothing else.
+A subpath is also refused (`effect/Schema`, `solid-js/web`), and so is an `import()` whose path is computed while the plugin runs. A person approves the source they read, so every module a plugin imports must be visible in it. A relative import is refused with its own sentence, because a plugin is these two files and nothing else.
 
-The server half's `@olai/plugin-api` is the runtime door (`Kinds`, `Vault`, `Surfaces`, `Deliveries`), and the browser half's is the app door (`Slots`, `Clocks`, `Wired`). One name in the source, and each half gets the door it is written against.
+Both files import the bare `@olai/plugin-api`, and olai gives each different services: the server file `Kinds`, `Vault`, `Surfaces` and `Deliveries`, the browser file `Slots`, `Clocks` and `Wired`.
 
-## Give it knobs
+## Give it settings
 
-A server half may expose a `Config` schema just as a built plugin does. Give every field a decoding default and a description annotation, then pass it as `config` to `definePlugin`; `apply` receives the decoded object.
+The server file may expose a `Config` schema, as a built-in plugin does. Give every field a decoding default and a description annotation, then pass it as `config` to `definePlugin`; `apply` receives the decoded object.
 
 ```ts
 import { definePlugin } from "@olai/plugin-api"
@@ -161,89 +165,89 @@ export default definePlugin({
 })
 ```
 
-- The leaves are properties on the plugin's node in `_olai/Settings.olai`, beside `on` and `approved`.
-- The controls appear under **Settings** on the plugin's page and in its row on the plugins panel. A ● marks an authored value and ↺ removes the property.
-- A knob edit re-applies the plugin and asks nobody for a fresh approval, because a setting is not source.
-- An invalid leaf uses its default, warns once, and shows the file text and the schema message under its control.
+- Each field is a property on the plugin's row in `_olai/Settings.olai`, beside `on` and `approved`.
+- Its control appears under **Settings** on the plugin's page, and in the plugin's row in the **Plugins** panel. A ● marks a value somebody set, and ↺ removes the property.
+- Changing a setting re-applies the plugin and asks for no fresh approval, because a setting is not source code.
+- A value that does not fit the schema falls back to the default, warns once, and shows the file's text and the schema's message under its control.
 
 ## What an agent can do
 
 | Tool | Answers |
 | --- | --- |
-| `vault-plugins_guide` | this guide, shipped inside the binary |
-| `vault-plugins_inspect` | what a plugin may name: the three modules, the service keys, the slots and their keys, the folder layout, and the words already taken |
-| `vault-plugins_write` | writes one file of one plugin, and says whether that half compiles |
-| `vault-plugins_run` | what became of one plugin now: its state, its version, and the fault sentence where there is one |
-| `vault-plugins_stop` | switches one off for good, by writing `on: no` |
+| `vault-plugins_guide` | this guide, which ships inside the binary |
+| `vault-plugins_inspect` | what a plugin may name: the three modules, the service keys, the slots and their keys, the folder layout, and the names in use |
+| `vault-plugins_write` | writes one file of one plugin, and says whether that file compiles |
+| `vault-plugins_run` | the state of one plugin right now: its state, its version, and the fault sentence if it has one |
+| `vault-plugins_stop` | switches one plugin off for good, by writing `on: no` |
 
-- Read `vault-plugins_inspect` before writing code. Service records are marked by half, and `availability` tells a server provision from a browser declaration.
-- Its `taken` list is every word this serve has, the built plugins and every folder under `plugins/` alike, because a new plugin may take neither.
-- `vault-plugins_write` creates the folder if it is not there. It is the whole vocabulary needed to write a plugin: no paths, no claim rules, no guessing which file is which.
-- A plugin nobody has approved answers `pending` from `vault-plugins_run`. That is the boundary said back to its author, and the right thing to do with it is to say so and stop.
-- `vault-plugins_stop` reaches these plugins only. Naming a built one is answered as no such plugin.
+- Call `vault-plugins_inspect` before you write code. Each service record says which file it belongs to, and `availability` says whether a server file provides it now or has declared it for the browser.
+- Its `taken` list holds every name this server uses, built-in plugins and folders under `plugins/` alike: a new plugin may use neither.
+- `vault-plugins_write` creates the folder if it is not there. It is all the vocabulary you need: no paths, no rules about which files olai claims, no guessing.
+- `vault-plugins_run` answers `pending` for a plugin nobody has approved. That is the approval boundary answering you: say so and stop.
+- `vault-plugins_stop` works on these plugins only. Naming a built-in plugin is answered as no such plugin.
 
-## Check a half before you ask
+## Check a file before you ask for approval
 
-Every edit changes the version, and every version costs a person a decision, so be sure before you ask.
+Every edit changes the version, and every version costs a person a decision, so be sure the file is right before you ask for approval.
 
-Write it with `vault-plugins_write`, which answers that half's compile result in the same reply. That makes the loop one call rather than a write and a guess. Or compile it by hand with the call the serve itself makes:
+Write the file with `vault-plugins_write`, which says in the same reply whether it compiled, so the loop is one call rather than a write and a guess. Or compile it yourself, with the call the server makes:
 
 ```ts
 import { buildHalf } from "@olai/plugin-build"
 console.log(await buildHalf("browser", source))   // { ok: true, text } | { ok: false, why }
 ```
 
-Run that from a package that depends on `@olai/plugin-build`; `packages/server` does. It catches every way a half can fail to become a module: a module olai does not bind, a relative import, a computed `import()`, a syntax error. Then typecheck the two files with `bun x tsc --noEmit`.
+Run that from a package that depends on `@olai/plugin-build`; `packages/server` does. It catches every way a file can fail to become a module: a module olai does not provide, a relative import, a computed `import()`, a syntax error. Then typecheck both files with `bun x tsc --noEmit`.
 
-> The typecheck has one trap. A half writes the bare `@olai/plugin-api` and olai binds each half to a different door, so typechecking a server half as written reports `has no exported member 'Kinds'`. Point that import at `@olai/plugin-api/services` for the duration of the check, and put it back.
+> The typecheck has one trap. Both files import the bare `@olai/plugin-api`, and each gets different services, so typechecking a server file as written reports `has no exported member 'Kinds'`. Point that import at `@olai/plugin-api/services` for the check, then put it back.
 
 ## Say when you are finished
 
-`vault-plugins_run` is the last check and the only one that is the real thing: it answers off the same plugin a person is looking at. It is also how you say the build is over.
+`vault-plugins_run` is the last check, and the only one that asks about the real thing: it answers about the same plugin the person is looking at. It is also how you say the build is over.
 
-Until that call comes in, the plugin's page says it is being built and nothing wakes anybody. A file landing cannot mean finished, because this guide has you write `browser.tsx` last. Call it when the folder is whole, at the version on disk, and the person is told the plugin is ready for them.
+Until that call comes in, the plugin's page says it is still being built, and nobody is notified. A file arriving cannot mean it is finished, because this guide has you write `browser.tsx` last. Call it once the folder is complete, at the version on disk, and the person is told it is ready.
 
-Call it again after every fix. Each call is about the version it was made at, and only a call with no fault in its answer ends the build. A mistake you found and fixed wakes nobody. olai writes that version onto the plugin's settings node, so a build that finished before a restart is still finished after one.
+Call it again after every fix. Each call is about the version it was made at, and only a call with no fault in its answer ends the build. A mistake you fixed yourself notifies nobody. olai writes that version onto the plugin's settings row, so a build finished before a restart is still finished after one.
 
 ## Share a service with another plugin
 
-A server half can provide a service without changing core's catalogue. Name `Offers` in `needs`, then yield `offers.own("fleet", consumer => ({ ... }))`. olai stamps the key with the offering plugin's name, so a plugin named `fleet-source` offers `fleet-source.fleet`. The callback receives the consumer's own name, so it can return a view per consumer.
+A server file can offer a service to other plugins, with no change to olai's own services. Name `Offers` in `needs`, then yield `offers.own("fleet", consumer => ({ ... }))`. olai puts the offering plugin's name in front of the key, so `fleet-source` offers `fleet-source.fleet`. The callback is given the asking plugin's name, so it can return a different view per plugin.
 
-- Both segments start with a lower-case letter and hold only lower-case letters, digits or hyphens. Dots are the separator.
-- A consumer writes `const Fleet = serviceTag<FleetShape>("fleet-source.fleet")`, puts `Fleet` in `needs`, and reads it with `yield* Fleet`. Minting a tag names a dependency and grants nothing.
-- Provider and consumer agree on the shape themselves. The string key checks none at runtime.
-- The consumer waits until the provider has finished initializing. Replacing a provider unloads the consumer, awaits its cleanup while the old resource is still alive, and starts it again on the new one.
-- A duplicate offer fails the offering plugin and unwinds its registrations. Cordis refuses a second provider for a contested key and names both.
-- `vault-plugins_inspect` lists the keys offered now beside the core catalogue. A stopped provider's keys disappear, and a consumer may name a missing key and wait for it.
+- Both parts of the key start with a lower-case letter and hold only lower-case letters, digits or hyphens. A dot separates them.
+- A plugin that wants it writes `const Fleet = serviceTag<FleetShape>("fleet-source.fleet")`, puts `Fleet` in `needs`, and reads it with `yield* Fleet`. Making a tag names a dependency; it grants nothing.
+- The two plugins agree between themselves on the service's shape. The string key checks nothing while they run.
+- A plugin waits until the service has started up. Replacing a provider unloads the plugin using it and waits for its cleanup while the old service is still alive, then starts it on the new one.
+- Offering a key already offered faults the offering plugin and undoes its registrations. Cordis, the registry olai runs plugins on, refuses a second provider for one key and names both.
+- `vault-plugins_inspect` lists the keys on offer now, beside olai's own. A stopped provider's keys leave the list, and a plugin may name a key nobody offers yet and wait for it.
 
-### A service a browser half offers
+### A service the browser file offers
 
-Browser halves import `Offers` the same way and publish with `yield* (yield* Offers).own("palette", consumer => ({ ... }))`. A browser consumer declares `serviceTag<Shape>("provider.palette")` in `needs` and yields it in `apply`.
+A browser file imports `Offers` the same way, and publishes with `yield* (yield* Offers).own("palette", consumer => ({ ... }))`. A browser file that wants it declares `serviceTag<Shape>("provider.palette")` in `needs` and yields it in `apply`.
 
-- Browser `Offers` has only `own`, so a plugin cannot replace `Slots`, `Wired` or the shell's furniture. These keys live in the tab, apart from server keys of the same name.
-- A provider publishes only after it has initialized. A missing one keeps the consumer waiting with no faces, and withdrawal releases those faces before the provider's resources.
-- To make a browser key discoverable, the server half names `Offers` in `needs` and calls `yield* (yield* Offers).browser(["palette"])`. Those declarations leave when the server provider unloads.
+- In the browser, `Offers` has only `own`, so a plugin cannot replace `Slots`, `Wired` or anything the app's shell provides. These keys live in the tab, apart from server keys of the same name.
+- A provider publishes only once it has started up. While it is missing, the plugin waiting for it draws nothing, and when the provider withdraws, what that plugin drew is removed before the provider's own resources are released.
+- To make a browser key visible to `vault-plugins_inspect`, the server file names `Offers` in `needs` and calls `yield* (yield* Offers).browser(["palette"])`. Those declarations go when the server file unloads.
 
-## What happens when it mounts
+## What happens when it starts
 
-The server half is compiled, evaluated and mounted as a fiber on the same registry the built plugins are on. The kind vocabulary gains its words, a sibling surface reaches the wire, the roster moves, and every open tab redials.
+The server file is compiled, evaluated and started as a fiber on the registry the built-in plugins run on. Its property kinds become available, a surface it adds reaches the wire, the list of plugins changes, and open tabs reconnect.
 
-Then the served directory is read again, which is what puts a face on values that were already there. Without it the plugin would mount, its kind would be in force, and its chip would not draw until the next keystroke anywhere in your files.
+Then olai reads the served directory again, which is what draws the plugin on values that were already there. Without that, the plugin's kind would be in force, but its chip would not be drawn until the next keystroke somewhere in your files.
 
-The browser half is compiled to a chunk and served at `/_olai/plugins/<word>-<version>.js`. The tab loads it as it loads a built plugin's chunk and the faces appear without a reload. The version is in the path, so a re-approved edit is a different address and no cache can hand back the code approved before the edit.
+The browser file is compiled to a chunk of JavaScript, served at `/_olai/plugins/<name>-<version>.js`. The tab loads it as it loads a built-in plugin's chunk, and what the plugin draws appears with no reload. The version is in the path, so an approved edit has a different address, and no cache can return the code approved before it.
 
-The serve keeps the last chunk each word served, so a tab still fetching one while the plugin stops gets the bytes that path named rather than a 404.
+The server keeps the last chunk served for each plugin name, so a tab still fetching one while the plugin stops gets that code rather than a 404.
 
-A half that will not compile, a module that exports no plugin, a half that calls itself a different word, and an `apply` that throws each land the plugin on `failed`. The sentence that explains it is on the page and on the row, no sibling is touched, and **Ask the agent to fix it** hands that sentence to the conversation verbatim.
+The plugin ends up `failed` if a file will not compile, exports no plugin, declares a name other than the folder's, or if `apply` throws. The sentence explaining it is on the plugin's page and its row, no other plugin is touched, and **Ask the agent to fix it** hands that sentence to the conversation verbatim.
 
 ## Starting and stopping
 
-A server half stays `waiting` while its `apply` initializes, and the services it offers reach consumers only after that succeeds. If it fails, its registrations and resources are unwound and the page shows its fault.
+The server file stays `waiting` while its `apply` starts up, and the services it offers reach other plugins only once that succeeds. If it fails, its registrations and resources are undone, and the page shows the fault.
 
-- The switch and `vault-plugins_stop` can stop a half that is still initializing. Stopping interrupts its work, waits for background work and cleanup, and leaves it switched off.
-- Losing a required service also interrupts initialization, leaves the plugin `waiting` and names the missing key. When that service returns, initialization runs again.
-- Shutting the host down closes every plugin, and a dependent's cleanup finishes before the provider releases what it was using.
-- Cancellation is cooperative: synchronous JavaScript cannot be preempted, and uninterruptible acquisitions and finalizers finish themselves. There is no per-plugin initialization timeout.
+- The switch and `vault-plugins_stop` can stop a plugin still starting up. Stopping interrupts its work, waits for background work and cleanup, and leaves it switched off.
+- Losing a service the plugin requires also interrupts start-up, leaves it `waiting`, and names the missing key. When that service comes back, start-up runs again.
+- Shutting the server down closes every plugin, and a plugin's cleanup finishes before the service it depends on releases what it was using.
+- Cancellation is cooperative: synchronous JavaScript cannot be interrupted, and acquisitions and cleanups marked uninterruptible run to the end. There is no time limit on start-up.
 <!-- guide:end -->
 
 </details>

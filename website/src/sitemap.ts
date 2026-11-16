@@ -44,8 +44,9 @@ export interface Place {
 
 type Node = { type: string; value?: string; children?: unknown[] }
 
+/** Text made safe for HTML, inside an element or a double-quoted attribute. */
 const escape = (text: string): string =>
-  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 
 /** Index text as inline HTML: code stays code, and a link points where the
  *  site has it. */

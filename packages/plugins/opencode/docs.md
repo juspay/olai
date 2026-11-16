@@ -1,86 +1,86 @@
 # opencode, as a chat agent
 
-olai runs the `opencode` it finds on this server's search path and offers it as **OpenCode**. Nothing is pinned.[^runs] For what a conversation is, read [talking to an agent](../chat.md).
+olai runs the `opencode` it finds on this server's search path, and offers it as **OpenCode**.[^runs] For what a conversation is, read [talking to an agent](../chat.md).
 
 ## What olai runs
 
-`OLAI_AGENT_PATH` is where olai looks for `opencode`, and olai's `PATH` is not your shell's.[^path] The child runs in the served directory.[^cwd] The **Plugins** panel has its switch.[^off]
+olai looks for `opencode` in the directories `OLAI_AGENT_PATH` lists, which are not the ones your shell searches.[^path] opencode runs in the directory olai serves.[^cwd] Its switch is on the **Plugins** panel.[^off]
 
-> opencode 2 only. Every reading here was taken against opencode 2.2.7; against the 1.x line nothing matches.[^one]
+> This page is about opencode 2, read against version 2.2.7. Against version 1 nothing here matches.[^one]
 
-## olai's tools arrive inside a script
+## olai's tools reach opencode as JavaScript
 
-opencode 2 hands every MCP tool to the model as **Code Mode**: one `execute` call whose `rawInput.code` is JavaScript against a `tools.<server>.<tool>` object.[^codemode] One script can call several of olai's tools, and the row names each.[^several] The tool's name is a frame field.[^naming]
+opencode 2 does not give the model olai's tools one at a time. It gives one `execute` tool whose argument is a short JavaScript program calling `tools.<server>.<tool>`, which opencode calls **Code Mode**.[^codemode] Several of olai's tools can go in one program, each named on its own line.[^several][^naming]
 
 ## What it asks you about
 
-Every MCP tool is dispatched through `execute`, so a permission request is named `execute` whichever tool is inside it. olai answers one without asking only when four things hold.[^four] One approval covers the whole script.[^once] There is no bypass mode here.[^bypass]
+Every tool call goes through `execute`, so a permission request is named `execute` whichever tool is inside. olai answers one without asking you only when four conditions hold, listed at the foot of this page.[^four] Answering once covers the whole program.[^once] Nothing turns permission questions off.[^bypass]
 
-## Talking while it works
+## Sending a message while it works
 
-A send while opencode works goes into the running turn; with no turn to put it in, olai sends it as an ordinary prompt.[^steer] There is no queue.[^noqueue] A spawn is a `subagent` call, a session behind a door of its own.[^subagent]
+A message you send while opencode works joins the reply already running; if none is running, olai sends it as an ordinary message.[^steer] There is no queue.[^noqueue] A subagent runs as a conversation of its own.[^subagent]
 
 ## Models, signing in, and when it does not appear
 
-The picker offers the ids opencode reports, under its own labels.[^models] Signing in is an interactive wizard, so the card names the command to run in a terminal on the server.[^login] Then put the chat to sleep and open it again.[^sleep] A missing `opencode` leaves the row unavailable.[^missing]
+The picker lists the model ids opencode reports, under its own labels.[^models] Signing in needs a terminal on the server, and the card names the command to run there.[^login] Then put the chat to sleep and open it again.[^sleep] A missing `opencode` is listed but cannot start.[^missing]
 
-[^runs]: olai spawns `opencode acp` in the served directory. It ships no adapter and no override variable for this agent, so the build on the search path is the build it runs.
+[^runs]: olai starts `opencode acp` in the directory it serves. It ships no copy of opencode and no adapter for it, and there is no variable for naming a different one, so the `opencode` on the search path is the one that runs.
 
-[^path]: `OLAI_AGENT_PATH` is the directories olai looks in for `opencode`, and set, it replaces the search path rather than adding to it. Run as a user service, olai inherits neither your profile nor your login shell ([keeping it running](../deploying.md)), so an `opencode` you can run in a terminal is not necessarily one this process can see.
+[^path]: `OLAI_AGENT_PATH` is the list of directories olai looks in for `opencode`. If you set it, it replaces the search path rather than adding to it. Run as a user service, olai inherits neither your profile nor your login shell ([keeping it running](../deploying.md)), so an `opencode` you can run in a terminal is not necessarily one this process can find.
 
-[^cwd]: There is no `--cwd` on the command line, because opencode 2 answers that flag with its usage text rather than with ACP. The child's own working directory is the served one, and that is also the directory opencode lists stored conversations for. olai filters the answer again on its own side.
+[^cwd]: olai does not pass a `--cwd` option, because opencode 2 answers that option with its usage text instead of starting. The program starts in the directory olai serves, which is also the directory opencode lists saved conversations for. olai filters that list again on its own side.
 
-[^off]: Switching the row off is `on: no` on the `opencode` node in `_olai/Settings.olai`, or its switch on the **Plugins** panel ([choosing what runs](../settings.md)).
+[^off]: Switch the plugin off either by putting `on: no` on the `opencode` node in `_olai/Settings.olai`, or with its switch on the **Plugins** panel, the list of olai's parts ([choosing what runs](../settings.md)).
 
-[^one]: The 1.x line is a different wire. It names a tool at the head of the call id, spells an MCP tool `<server>_<tool>`, and holds a mid-turn prompt instead of steering. Against it nothing on this page matches: every call is unnamed and every permission question reaches you.
+[^one]: Version 1 talks to olai differently. It puts a tool's name at the start of the call id, spells a tool from an MCP server `<server>_<tool>`, and holds a message you send mid-reply instead of adding it to the reply. Against version 1 nothing on this page holds: no call is named, and every permission question reaches you.
 
-[^codemode]: A **Code Mode** script reads like `return await tools.olai.outlines_done({ id: "n1" })`. Its completion reports what it actually ran, with `metadata.error: true` when anything threw or was refused. The script's return value comes back as a text block, and that is where olai reads a tool's answer. There is no structured output on this wire. `tools` also carries opencode's own builtins, under `tools.opencode.*`.
+[^codemode]: A **Code Mode** program reads like `return await tools.olai.outlines_done({ id: "n1" })`. What opencode reports back says what the program actually ran, with `metadata.error: true` when anything failed or was refused. The program's return value comes back as plain text, and that is where olai reads a tool's answer: there is no structured result here. `tools` also holds opencode's own built-in tools, under `tools.opencode.*`.
 
-[^several]: A script that calls several tools names each of them on a line of its own, with the `execute` call under the fold. What the completion reported beats what the script said it would do. Such a script gets no single reply, so the outline link and the write story drawn from one are missing for it.
+[^several]: A program that calls several tools shows each call on a line of its own, with the `execute` call itself folded away. Where the two disagree, what opencode reported running beats what the program said it would do. Such a program gets no single answer, so the link to the outline and the summary of what was written, which olai draws from a single answer, are missing for it.
 
-[^naming]: The name is a field on the frame. `tool_call`, `tool_call_update` and a permission request's `toolCall` all carry `name` beside `title`, and the three agree. The `toolCallId` is an opaque `chatcmpl-tool-<hex>`, and the `title` is display text that moves over a call's life, so neither names a row.
+[^naming]: The name of a tool is a field on the message rather than part of the call id. `tool_call`, `tool_call_update` and a permission request's `toolCall` all carry a `name` beside the `title`, and the three agree. The `toolCallId` is a meaningless `chatcmpl-tool-<hex>`, and the `title` is display text that changes over the life of a call, so neither one names a tool reliably.
 
-[^four]: The code inside is the only thing that tells one `execute` from another. All four conditions must hold, and the closed block at the foot of this page lists them. In short: the request is about an `execute`, its code parses under olai's closed grammar, every server it names is one olai handed this conversation, and the request offers an allow-flavoured option.
+[^four]: The JavaScript inside is the only thing that tells one `execute` call from another, so all four conditions below must hold. In short: the request is about an `execute` call, its code fits the small set of shapes olai accepts, every server it names is one olai handed this conversation, and the request offers an option that means allow.
 
-[^once]: opencode asks once per inner call and sends the same frame each time, so answering one request answers all of them, and nothing says which one you answered. Options arrive as `once`, `always` and `reject`, and olai reads each option's own kind rather than its position.
+[^once]: opencode asks once for each tool call inside the program and sends the same request every time, so answering one request answers all of them, and nothing tells you which one you answered. The options arrive as `once`, `always` and `reject`, and olai reads what each option says it means rather than where it sits in the list.
 
-    A rejected inner call does not fail the turn: the `execute` completes with `Permission.DeclinedError` as its content and `metadata.error: true`, which the model reads as the answer it got. A script that calls no tool is never asked about.
+    Refusing one call inside a program does not fail the reply: the `execute` call finishes with `Permission.DeclinedError` as its result and `metadata.error: true`, and the model reads that as the answer. A program that calls no tool at all is never asked about.
 
-[^bypass]: The modes are `build` and `plan`, and `session/set_mode "bypassPermissions"` is refused. Unattended auto-approval for opencode lives in its own `opencode.json`, outside ACP.
+[^bypass]: opencode's two modes are `build` and `plan`, and asking for `session/set_mode "bypassPermissions"` is refused. Approving everything unattended is configured in opencode's own `opencode.json`, outside the protocol olai speaks.
 
-[^steer]: `initialize` answers `_meta.steering.supported: true`, so the composer draws the interrupt gesture off a positive fact.
+[^steer]: When olai and opencode first connect, opencode answers `_meta.steering.supported: true`, so the box you type in shows **Interrupt**, which adds your message to the reply already running. olai draws that control on what opencode said rather than on a guess.
 
-[^noqueue]: A second `session/prompt` while a turn runs is refused with `-32603 "Session already has an active ACP prompt: <sessionId>"`, so nothing here promises that a mid-turn message waits its turn.
+[^noqueue]: A second message sent while a reply is running is refused with `-32603 "Session already has an active ACP prompt: <sessionId>"`, so nothing here promises that a message sent mid-reply is kept and answered when that reply ends.
 
-[^subagent]: A `subagent` call carries the agent it sent out and what it was sent to do. The frame joining the child to the spawning row arrives only when the child is over, so while a subagent is out you see two live rows for it.
+[^subagent]: A `subagent` call says which agent was sent out and what it was asked to do. The message joining the subagent to the line that started it arrives only once the subagent has finished, so while one is working you see two live lines for it.
 
-[^models]: The picker shows an id under opencode's own label: `opencode/claude-sonnet-5` under **opencode/Claude Sonnet 5**, so the agent line needs no aliases. A conversation's settings are `model`, `effort` (the thought level) and `mode`, and a change comes back in the response rather than as a pushed update. What its stored list holds is in a closed block at the foot of this page.
+[^models]: The picker shows an id under opencode's own label: `opencode/claude-sonnet-5` under **opencode/Claude Sonnet 5**, so olai needs no short names of its own. A conversation has three settings, `model`, `effort` (how much the model thinks) and `mode`, and a change comes back in opencode's reply rather than as a separate announcement. What opencode's list of saved conversations holds is in a closed block at the foot of this page.
 
-[^login]: The one method is `opencode-login`, and olai cannot run it for you, so the card draws no button. It names the method and the exact command to run in a terminal on the server, starting with the absolute path the probe found and ending `auth login --standalone`. `opencode acp --login` and `opencode auth login` both answer *Pass an integration ID or name when running without an interactive terminal* and exit 1 when they find no TTY, and `auth login <target> --method key` answers *API key input requires an interactive terminal*.
+[^login]: The one sign-in method is `opencode-login`, and olai cannot run it for you, so the card has no button. It names the method and the exact command to type in a terminal on the server, starting with the full path olai found and ending `auth login --standalone`. Both `opencode acp --login` and `opencode auth login` answer *Pass an integration ID or name when running without an interactive terminal* and exit 1 when they find no terminal, and `auth login <target> --method key` answers *API key input requires an interactive terminal*.
 
-[^sleep]: Sleep is what picks up a new credential. An `opencode acp` reads its credentials when it starts and never again, so a new conversation inside the running process does not see an account connected after it started, and **Fresh start** is not enough. **Put to sleep** is on the chat's row menu under **Chats**, on a node's row menu, and in the palette; opening the chat again continues it on a new process.
+[^sleep]: Putting the chat to sleep is what picks up a new sign-in. An `opencode acp` reads its credentials when it starts and never again, so a conversation inside the running program never sees an account connected afterwards, and **Fresh start** is not enough either. **Put to sleep** is on the chat's menu under **Chats**, on a node's own menu, and in the command palette, which `Cmd` + `K` opens (`Ctrl` elsewhere). Opening the chat again continues it in a newly started program.
 
-[^missing]: An unavailable row is not offered anywhere a chat starts, and the **Plugins** panel files it under **Needs you** saying *put `opencode` on this server's `PATH`*, with a link to <https://opencode.ai>. Install it where the olai server can see it, then switch the plugin off and on to probe again without restarting olai. Changing the service's environment needs the service restarted.
+[^missing]: opencode is then not offered anywhere a chat begins, and the **Plugins** panel files it under **Needs you**, saying *put `opencode` on this server's `PATH`*, with a link to <https://opencode.ai>. Install it where the olai server can see it, then switch the plugin off and on to look again without restarting olai. A change to the service's environment does need a restart.
 
-    A provider opencode cannot reach is a JSON-RPC error on the prompt, such as `-32603 "Internal error: Insufficient balance…"`, rather than a quiet successful end of turn. The turn ends with the agent's own words on the banner, and your message is marked undelivered.
+    A provider opencode cannot reach comes back as an error on your message, such as `-32603 "Internal error: Insufficient balance…"`, rather than as a quiet success. The reply ends with opencode's own words on the banner, and your message is marked undelivered.
 
 <details>
 <summary>When olai answers a permission without asking</summary>
 
-1. the request is about an `execute`. A `shell`, a `subagent`, a `read` or an unnamed call is yours;
-2. its `rawInput.code` parses under olai's closed grammar: a sequence of `tools.<server>.<tool>(literal)` calls, optionally bound to names and returned. A comment, a string, an operator, a variable argument, a template or a property read puts a script outside it;
-3. it calls at least one tool, and every server it names is one olai handed this conversation. `tools.opencode.*` never is. A server whose name is not a JavaScript identifier is reached as `tools["xyne-spaces"]`, which the grammar accepts for a literal key alone;
-4. the request offers an allow-flavoured option.
+1. the request is about an `execute` call. A `shell`, a `subagent`, a `read` or an unnamed call is yours to answer;
+2. its `rawInput.code` fits the small set of shapes olai accepts: a sequence of `tools.<server>.<tool>(literal)` calls, optionally given names and returned. A comment, a string, an operator, a variable argument, a template or a property read puts a program outside that set;
+3. it calls at least one tool, and every server it names is one olai handed this conversation. `tools.opencode.*` never is. A server whose name is not a valid JavaScript name is reached as `tools["xyne-spaces"]`, which olai accepts for a plain text key alone;
+4. the request offers an option that means allow.
 
 </details>
 
 <details>
-<summary>Stored conversations, memory, and where the login writes</summary>
+<summary>Saved conversations, memory, and where the sign-in writes</summary>
 
-Its stored list is the protocol's four fields: `sessionId`, `cwd`, `title` and `updatedAt`. It answers the whole directory in one page. A limit is ignored, and following the cursor beside the rows answers no rows at all, so olai sends no limit and follows no cursor.
+opencode's list of saved conversations holds the protocol's four fields: `sessionId`, `cwd`, `title` and `updatedAt`. It answers with the whole directory in one page. It ignores a limit, and asking for the next page returns no rows at all, so olai sends no limit and asks for no next page.
 
-opencode's memory is opt-in plugins and olai installs none, so a node's subtree is the conversation's only memory.
+opencode's memory is a plugin you add yourself, and olai installs none, so the rows under the node a chat hangs from are the conversation's only memory.
 
-`--standalone` is in the login line on purpose: it writes to `$XDG_DATA_HOME/opencode/opencode.db`, which is where the `opencode acp` olai spawns reads. The default path goes through opencode's own background service on `127.0.0.1:49374`, and whether what that stores is what `acp` reads is unverified here.
+`--standalone` is in the sign-in command on purpose: it writes to `$XDG_DATA_HOME/opencode/opencode.db`, which is where the `opencode acp` olai starts reads its credentials. Without it, opencode goes through its own background service on `127.0.0.1:49374`, and whether what that stores is what `acp` reads has not been checked here.
 
 </details>

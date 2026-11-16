@@ -21,11 +21,11 @@ if (plugins === undefined) throw new Error('docs/index.md has no "## Plugins" gr
 const { html } = markdownToHtml(
   `**Ask for one.** Press ⌘K, say in one sentence what it should do, and an agent writes it while you watch.[^agenda] Read what it does, press **Turn on**, and it starts drawing in the page you are on. No reload, no install, no build.[^folder] Your settings travel with your notes.[^settings]
 
-[^agenda]: The worked example is a morning agenda: each morning it reads the day and puts it into the conversation. [Read the morning agenda](/docs/dynamic-plugins-examples/#the-morning-agenda).
+[^agenda]: The worked example is a morning agenda: from 7 in the morning it sends the rows that are overdue or due today into each node agent's conversation, once a day. [Read the morning agenda](/docs/dynamic-plugins-examples/#the-morning-agenda).
 
-[^folder]: What you are left with is a folder in your own directory: a README anybody can read, and the code. Git records every line of it. Copy it elsewhere and it arrives switched off, waiting for that directory’s own yes.
+[^folder]: What you are left with is a folder in your own directory: a README anybody can read, and the code. Git records every line of it. Copy the folder into another directory and it arrives switched off, until a person there turns it on.
 
-[^settings]: A plugin you asked for keeps its settings there with everything else. A top-level row in \`_olai/Settings.olai\` names each plugin; its properties choose how it behaves and whether it runs. The panel writes the same file. See the [settings docs](/docs/settings/).
+[^settings]: A plugin you asked for keeps its settings in the same file as the plugins olai ships. A top-level row in \`_olai/Settings.olai\` names each plugin; its properties choose how it behaves and whether it runs. The **Plugins** panel writes the same file. See the [settings docs](/docs/settings/).
 `,
   { features: { gfm: true } },
 )
@@ -53,12 +53,12 @@ const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
         <a href="/docs/">Read the docs</a>
       </p>
       <nav class="chapters" aria-label="On this page">
-        <a href="#compare">why</a>
-        <a href="#agenda">due</a>
-        <a href="#find">search</a>
-        <a href="#type">typing</a>
-        <a href="#prefs">looks</a>
-        <a href="#agent">agent</a>
+        <a href="#compare">compared to others</a>
+        <a href="#agenda">what's due</a>
+        <a href="#find">filter a page</a>
+        <a href="#type">keys</a>
+        <a href="#prefs">colours</a>
+        <a href="#agent">coding agents</a>
         <a href="#plugins">plugins</a>
         <a href="#commit">git</a>
       </nav>
@@ -163,10 +163,10 @@ const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
 
 <section id="find">
   <div class="wrap">
-    <h2>Stay on the page</h2>
-    <p class="lead">The box above the outline hides what doesn’t match. A tag
-    you click does the same. The address holds the query, so a narrowed page
-    is a link you can send.</p>
+    <h2>Filter the page you are on</h2>
+    <p class="lead">Type in the box above the outline and the rows that don’t
+    match are hidden. Clicking a tag does the same. The query is in the page’s
+    address, so you can send the filtered page to someone as a link.</p>
     <div class="cols">
       <div class="panel">
         <div class="file">/house.olai?q=%23home+OR+alcove</div>
@@ -246,10 +246,10 @@ const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
 
 <section id="agent">
   <div class="wrap">
-    <h2>An agent in the same notebook</h2>
-    <p class="lead">Chat opens on the row it is about, and on that row’s page. You keep the keyboard. The
-    agent ticks boxes and rewrites the markdown, and you see it happen.
-    Git records both of you.</p>
+    <h2>A coding agent edits your outlines with you</h2>
+    <p class="lead">A chat opens on the row it is about, beside that row’s
+    page. You keep typing while it works. It ticks off tasks and rewrites
+    Markdown files, and you watch the page change. Git records both of you.</p>
     <div class="cols">
       <div class="panel chat">
         <div class="file">chat</div>
@@ -359,10 +359,10 @@ const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
 
 <section id="commit">
   <div class="wrap">
-    <h2>Every edit is a commit</h2>
-    <p class="lead">Writes go to disk immediately. Commit from the panel when
-    you’re ready — or turn on Auto-commit, and a quiet moment becomes one
-    commit.</p>
+    <h2>Git records your edits</h2>
+    <p class="lead">Every edit is written to disk at once. Commit from the panel
+    when you are ready, or turn on Auto-commit and olai makes one commit after
+    fifteen quiet seconds.</p>
     <div class="cols">
       <div>
         <pre><code>┌─ Changes ─────────────────────────────────┐

@@ -1,65 +1,65 @@
-# Who owns each extension location
+# Slots: where a plugin draws, and who owns each one
 
-A location, also called a slot, is a named place in the page where a plugin hangs a face, such as `app.banner`.[^api]
+A slot is a named place in the page where a plugin draws a component, such as `app.banner`.[^api]
 
-## Who owns what
+## Which plugin owns which slots
 
-Each capability owns its own locations, and the renderer owns `root`, the one permanent location.[^owners] Every owner and the locations it owns are in the closed block at the foot of this page, along with what each contribution is.
+Each plugin owns the slots it defines, and the renderer owns `root`, the slot that is always there.[^owners] The closed blocks below list every owner, its slots, and what each takes.
 
-## How a location is keyed
+## How many components a slot holds
 
-A location's key decides how many faces it holds and who may hold one. You never supply the key, except for a kind word, which is composed with the plugin's name.[^list]
+What a slot is keyed by decides how many components it holds and who may add one. You never supply the key, except a property kind's word, which olai joins to the plugin's name.[^list]
 
 | Keyed by | Holds | Example |
 | --- | --- | --- |
-| `plugin` | one face per plugin, under the name the runtime stamped | `app.header`, `delivery.mark` |
-| `kind` | one face per property kind, by its bare word | `outline.row.chip`, `outline.row.pane` |
-| `app` | one face in all, and a second claimant is refused by name | `app.panel`, `search.box.below` |
-| `nothing` | a list, in which a plugin may hang several faces | `outline.row.action`, `sidebar.entry` |
+| `plugin` | one component per plugin, under the name the runtime stamped | `app.header`, `delivery.mark` |
+| `kind` | one component per property kind, under that kind's bare word | `outline.row.chip`, `outline.row.pane` |
+| `app` | one component in all; a second plugin asking is refused by name | `app.panel`, `search.box.below` |
+| `nothing` | a list; one plugin may put several components in it | `outline.row.action`, `sidebar.entry` |
 
-## Register and withdraw a contribution
+## Adding a component and taking it away
 
-A contribution registers with `contribute(location, value, { children, activate })`, and the registration belongs to the caller.[^activate] `Slots.register(name, …)` is the name-only facade over the same registry.[^facade] Declaring a location in TypeScript creates nothing at runtime.[^declare] Conflicting registrations fail.[^checks]
+A plugin adds a component with `contribute(slot, value, { children, activate })`, and that registration belongs to it.[^activate] `Slots.register(name, …)` does the same with only the slot's name.[^facade] Declaring a slot in TypeScript creates nothing while olai runs.[^declare] Two registrations that conflict are refused.[^checks]
 
-## What survives an owner leaving
+## What survives a plugin leaving
 
-A plugin's departure clears its own state and leaves unrelated work standing.
+A plugin that goes away takes its own state and leaves unrelated work standing.
 
-- Changing an unrelated provider preserves an outline's editor, selection and pending confirmation.
-- Outlines drops its retained drafts when it departs, and starts fresh when it returns.[^outlines]
-- Undo history belongs to each content provider.[^undo]
-- File deletion confirmation follows the files owner.
-- Each appliance acquires its shared subscriptions inside its own activation.[^appliance]
+- Switching another plugin on or off leaves an outline's editor, selection and pending confirmation untouched.
+- The outlines plugin drops the drafts it held, and starts fresh when it comes back.[^outlines]
+- Undo history belongs to whichever plugin drew the content.[^undo]
+- The confirmation for deleting a file leaves with the files plugin.
+- A plugin talking to an outside program opens its shared subscriptions once, while it is mounted.[^appliance]
 - A header readout and the health dot cannot disagree.[^dot]
 
-[^api]: The plugin API defines the reference type and the register and withdraw verbs. It carries no catalogue of locations and no application face types: each capability owns its own static descriptors and its own types, exported from its `/slots` or `/contract` door.
+[^api]: The plugin API defines the type that refers to a slot, and the calls that add a component and take it away. It holds no list of slots and no types for what they draw: each plugin owns the descriptions of its own slots and its own types, exported from its `/slots` or `/contract` subpath.
 
-[^owners]: Owners are capabilities: outlines, navigation, layout, the sidebar, chat, markdown, files, preferences, search, the plugins panel and the renderer. Files also owns the `files.state` service rather than a location.
+[^owners]: The owners are these plugins: outlines, navigation, layout, the sidebar, chat, markdown, files, preferences, search, the plugins panel and the renderer. The files plugin also owns the `files.state` service, which is a service rather than a slot.
 
-[^list]: A list, the location keyed by nothing, refuses nothing, because there is no key to collide on. Where a collision in a list matters, such as two plugins claiming one chord, it is refused by whichever capability reads the list.
+[^list]: A slot keyed by nothing is a list, and it refuses nothing, because there is no key for two components to collide on. Where a collision in a list does matter, such as two plugins claiming one keyboard chord, the plugin that reads the list refuses it.
 
-[^activate]: `activate` acquires location-dependent resources in a separate scope, whose children exist only while that entry is active.
+[^activate]: What `activate` is for: it acquires whatever that one entry needs, in a scope of its own, and anything that scope holds exists only while the entry is in use.
 
-[^facade]: The name-only facade declares neither owner nor cardinality, since a name-only registration carries neither. Such a registration may arrive before its owner: it waits, then acquires its integration under the owner's key rules. Withdrawal drains that integration before releasing it. An owner that returns is new, so the registration acquires a fresh scope rather than reusing the old one.
+[^facade]: Registering by name alone: such a registration says neither who owns the slot nor how many components it holds, because it does not know. It may also arrive before the owner does: it waits, and then joins the slot under the owner's rules about keys. Taking it away drains it before releasing it. An owner that comes back is a new one, so the registration gets a fresh scope rather than reusing the old one.
 
-[^declare]: Declaring a location in TypeScript is separate from creating one at runtime. A consumer that wants types imports the owner's `/slots` door, and those descriptors become child declarations of the entry that consumes them. Declaring a static contract activates nothing and allocates nothing.
+[^declare]: Declaring a slot in TypeScript is not the same as creating one while olai runs. A plugin that wants the types imports the owner's `/slots` subpath, and those descriptions become child declarations of the entry using them. A declaration on its own starts nothing and allocates nothing.
 
-[^checks]: A conflict picks no winner silently. Reservations, key policies, duplicate ownership, cycles and failed acquisition are all checked while entries wait, as well as when they activate.
+[^checks]: What happens on a conflict: nothing picks a winner quietly. Reserved slots, the rules about keys, two plugins claiming ownership, cycles, and an entry that failed to start are all checked both while entries wait and when they start.
 
-    Inspection reports what a bundle could contribute and reads only static data: the descriptors exported by the bundle's capability modules, which are immutable and independent of the live table. An owner missing from the supplied catalogue contributes no locations, and no global list is kept between calls.
+    Inspecting a build reports what it could contribute, and reads only fixed data: the descriptions exported by that build's plugin modules, which never change and do not depend on what is running. An owner missing from the list you hand it contributes no slots, and nothing is kept between calls.
 
-[^outlines]: When outlines departs it clears its retained drafts and stops its queued editor work from issuing writes. When it returns, it starts fresh.
+[^outlines]: When the outlines plugin leaves it drops the drafts it was holding and stops its queued editor work from writing anything. When it comes back, it starts fresh.
 
-[^undo]: Undo history belongs to each content provider, and the undo notice follows the focused history. Navigating to a named file clears the old history at once, without waiting for streamed metadata.
+[^undo]: Undo history belongs to whichever plugin drew the content, and the undo notice follows whichever history has focus. Going to a named file clears the old history straight away, without waiting for metadata still arriving.
 
-[^appliance]: An appliance provides its shared subscriptions to its own subtree: one fleet for kolu, one run collection for odu, one link cell for Xyne Spaces, one account cell for mail. None of them wraps unrelated content in `app.mount`, whose renderer belongs to layout.
+[^appliance]: One subscription per outside program: kolu has one fleet, odu one collection of runs, Xyne Spaces one link cell, mail one account cell. Each is opened in that plugin's own activation, the scope that lasts as long as the plugin is mounted, and provided to that plugin's own part of the page. None of them wraps unrelated content in `app.mount`, whose renderer belongs to the layout plugin.
 
-[^dot]: The header readout and the health dot read the same activation-owned value, so they cannot disagree, and both leave with the registration.
+[^dot]: The readout in the header and the health dot read the same value, owned by the same plugin while it is mounted, so they cannot disagree, and both go away with the registration.
 
 <details>
-<summary>Every owner, and the locations it owns</summary>
+<summary>Every owner, and the slots it owns</summary>
 
-| Owner | Locations |
+| Owner | Slots |
 | --- | --- |
 | Outlines | `outline.row.chip`, `.pane`, `.block`, `.placement`, `.aside`, `.fold`, `.action`, `outline.crumb.aside`, `outline.page.head`, `.foot` |
 | Outlines | `outlines.dated-row`, `outlines.page-view`, `outlines.title`, `outlines.property-route` |
@@ -74,85 +74,85 @@ A plugin's departure clears its own state and leaves unrelated work standing.
 | Preferences | `preferences.sections` |
 | Search | `search.box.below` |
 | Plugins panel | `plugins.row` |
-| Renderer | `root`, the one permanent location |
+| Renderer | `root`, the one slot that is always there |
 
 </details>
 
 <details>
-<summary>What each location takes</summary>
+<summary>What each slot takes</summary>
 
 ### `preferences.sections`
 
 A contribution is `{ heading, order, scope, body }`.
 
-- `heading` is a key of preferences' own table (`appearance`, `outlines` or `notifications`, drawn in that order), or a plugin heading carrying a plugin's name and a reader for the words the build gives it.
-- `order` places a contribution among that heading's rows only, lower first.
-- `scope` says where its values are kept, `browser` or `shared`, and is declared rather than inferred. Browser groups draw first, then shared ones, each closing with the scope line for its run.
-- Contributions naming one heading are drawn together under it, and a heading whose contributors are all switched off is not drawn.
+- `heading` is a key of the preferences plugin's own table (`appearance`, `outlines` or `notifications`, drawn in that order), or a heading of a plugin's own, carrying that plugin's name and a way to read the words the build gives it.
+- `order` places a contribution among the rows under that heading only, lower numbers first.
+- `scope` says where its values are kept, `browser` or `shared`. It is declared rather than guessed. Groups kept in the browser are drawn first, then shared ones, and each run of them closes with a line saying which it was.
+- Contributions naming one heading are drawn together under it, and a heading whose contributors are all switched off is not drawn at all.
 
 ### `app.header`
 
 A contribution is `{ place, body, status? }`.
 
-- `place` is `lead`, the seat in the bar, or `cluster`, a row of the desktop health popover.
-- `status` is a reactive `{ tone, label, detail? }` read from state the contributor's own activation owns, so it is withdrawn with the registration.
-- `tone` is `healthy`, `quiet`, `notice` or `alarm`. Each row paints its own dot from one shared table, and the bar's health dot wears the worst tone present, so a dot that is not green always has a row of its colour under it.
+- `place` is `lead`, a place in the bar itself, or `cluster`, a row of the health popover on a desktop.
+- `status` is a `{ tone, label, detail? }` that updates itself, read from state the contributing plugin owns while it is mounted, so it goes away with the registration.
+- `tone` is `healthy`, `quiet`, `notice` or `alarm`. Each row paints its own dot from one shared table, and the health dot in the bar shows the worst tone present, so a dot that is not green always has a row of its colour under it.
 
 ### `layout.tools`
 
 A contribution is `{ body, headerOrder, closetOrder, mobileWithoutSidebar?, desktop? }`.
 
-- `desktop` picks the desktop seat, `header` or `health`, and `body` is told where it is drawn: `header`, `health` or `closet`.
-- A `health` door is mounted beside the dot and lends the popover its row. Clicking the row shuts the popover and opens that door's panel, anchored to the dot.
-- A door whose open state lives outside the shell, as the plugins panel keeps it in the inspector's activation, is drawn again by that standing door when the shell is rebuilt.
+- `desktop` picks where it goes on a desktop, `header` or `health`, and `body` is told where it is being drawn: `header`, `health` or `closet`.
+- A button placed at `health` is drawn beside the health dot and gives the popover a row of its own. Clicking that row closes the popover and opens the button's panel, anchored to the dot.
+- A button whose open or closed state is kept outside the app frame, as the plugins panel keeps its own inside the plugin inspector, is drawn again by that button when the frame is rebuilt.
 
 ### `sidebar.entry` and `sidebar.section`
 
 An entry is `{ place, body, rail? }` and a section is `{ said, body }`.
 
-- `place` is `top`, the column's first doors, `bottom`, after the plugin sections, or `foot`, pinned under the scrolling list where it stays in view however long the list runs.
-- A `foot` entry's icon sinks to the rail's foot, which is where Trash sits.
-- A section's `said` is the heading, in the plugin's own words.
+- `place` is `top`, the first entries in the column, `bottom`, after the sections other plugins add, or `foot`, pinned under the scrolling list where it stays in view however long the list gets.
+- A `foot` entry's icon sinks to the bottom of the strip of icons, which is where Trash sits.
+- A section's `said` is its heading, in the contributing plugin's own words.
 
 ### `files.types` and `files.state`
 
-A `files.types` contribution is `{ making, Create }`, contributed by the kind's own row.
+A `files.types` contribution is `{ making, Create }`, contributed by the plugin that owns the file kind.
 
-- `making` is the item the kind puts in the Outlines heading's `+` menu, and is `undefined` while that kind cannot create files, when there is no item.
-- `Create` is the kind's name box, drawn under the heading and empty until the item opens it.
+- `making` is the item that kind puts in the `+` menu under the Outlines heading, and is `undefined` while that kind cannot create files, in which case there is no item.
+- `Create` is that kind's box for naming a new file, drawn under the heading and empty until the item opens it.
 
-`files.state` is a service rather than a location, with `Delete`, `New` and `open(kind)`. `open` opens the new-file box for one kind, which is what clicking that kind's `+` item does, and is what a page offering the first file of a kind calls.
+`files.state` is a service rather than a slot, with `Delete`, `New` and `open(kind)`. `open` opens the new-file box for one kind, which is what clicking that kind's `+` item does, and what a page offering to make the first file of a kind calls.
 
 ### `files.kinds` and `navigation.pages`
 
-Both belong to their readers and take contributions keyed by a file kind: either a row id, `{ kind }`, or what the kind holds, `{ holds }`. A row-specific contribution wins over a general one.
+Both belong to the plugins that read them, and both take contributions keyed by a file kind: either a specific kind, `{ kind }`, or what that kind of file holds, `{ holds }`. A contribution for a specific kind wins over a general one.
 
-| Location | A contribution is |
+| Slot | A contribution is |
 | --- | --- |
 | `files.kinds` | `{ by, glyph, noun, article, testid }`: how a file of this kind is drawn and named |
-| `navigation.pages` | `{ by, page, edits }`: the page an address of this kind opens, and whether it edits |
+| `navigation.pages` | `{ by, page, edits }`: the page an address of this kind opens, and whether it can be edited |
 
-Glyph and page are independent, so one may be absent without the other. Outlines contributes both once, for `holds: "nodes"`, and a format row needs no browser half at all.
+The icon and the page are independent, so a kind may have one without the other. The outlines plugin contributes both once, for `holds: "nodes"`, and a plugin that only teaches olai a file format needs no browser code at all.
 
 ### `outline.row.action`
 
-A contribution is a function from a node to a list of entries, each a verb `{ id, label, writes, run, confirm? }` or a choice `{ id, label, writes, choices }`.
+A contribution is a function from a row to a list of entries, each one either a command, `{ id, label, writes, run, confirm? }`, or a group, `{ id, label, writes, choices }`.
 
-- A choice draws as a submenu, so a verb with several options costs the top level one line. A plugin with a single option hands a plain verb.
-- `writes` places the entry among the reads or among the writes. The menu keeps **Move to Trash** last.
-- `run` returns a refusal sentence, which the menu shows beside the originating row, so a plugin can explain an expected failure in its own words.
+- A group draws as a submenu, so a command with several options costs the top level of the menu one line. A plugin with a single option hands over a plain command.
+- `writes` puts the entry among the entries that read or among those that write. The menu keeps **Move to Trash** last.
+- `run` returns the sentence it refuses with, which the menu shows beside the row it was opened on, so a plugin can explain an expected failure in its own words.
 
 ### `outline.crumb.aside`
 
-A contribution is a face over `{ node, record? }`, drawn beside the crumb's link in every trail outlines owns, and handed by each search door to the place line. It is a door of its own, so it sits beside the link rather than inside it. Returning nothing leaves the crumb as it was, and with no contributor the location draws nothing.
+A contribution is a component taking `{ node, record? }`, drawn beside the link in every breadcrumb trail the outlines plugin owns, and handed by search to the line saying where a result is, wherever search draws one. It is a component of its own, so it sits beside the link rather than inside it. Returning nothing leaves the breadcrumb as it was, and with nobody contributing, the slot draws nothing.
 
 ### `navigation.link-previews`
 
-A contribution is `{ priority, matches, Preview }`, mounted once per route, and a route never changes during a mount.
+A contribution is `{ priority, matches, Preview }`, mounted once per page, and a page never changes while it is mounted.
 
-- The highest priority that matches wins. Chat's 100 beats outlines' 0 when the roster it already holds identifies a conversation.
-- Equal priorities sort by contribution owner, so activation order cannot change the selection.
-- A provider may take a route-specific lease at construction, and the card owns it. Navigation, anchor removal, dismissal and withdrawal all release that lease.
-- A plugin's withdrawal removes its face, and a returning provider is matched through the live roster of locations.
+- The highest priority that matches wins. The chat plugin's 100 beats the outlines plugin's 0 when the list chat already holds says this link is a conversation.
+- Equal priorities are sorted by which plugin contributed them, so the order plugins started in cannot change which one is picked.
+- A plugin may take out a lease for that page when the preview is built, and the card owns the lease. Navigating away, removing the link, dismissing the card and withdrawing the contribution all release it.
+- A plugin leaving removes its component, and a plugin coming back is matched through the live list of slots.
 
 </details>

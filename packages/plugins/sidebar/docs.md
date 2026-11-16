@@ -1,6 +1,6 @@
 # Sidebar
 
-`sidebar` draws the left column of the app, labelled **Sidebar**, and the narrow rail it collapses to.[^holds]
+The `sidebar` plugin draws the left column of the app, labelled **Sidebar**, and the narrow strip of icons the column collapses to.[^holds]
 
 Using the column day to day is [../getting-around.md](../getting-around.md).
 
@@ -8,9 +8,9 @@ Using the column day to day is [../getting-around.md](../getting-around.md).
 
 Top to bottom:[^phone]
 
-| Region | Contributed by |
+| Entry | Added by |
 | --- | --- |
-| Agenda, with what is owed folded under it while anything is overdue or due today, then Today with the month under it | [journal.md](journal.md) |
+| Agenda, with what is overdue or due today folded under it while there is any, then Today with the month under it | [journal.md](journal.md) |
 | Inbox | [capture.md](capture.md) |
 | **Needs you** and **Chats** | [chat.md](chat.md) |
 | **Plugins** | [vault-plugins.md](vault-plugins.md) |
@@ -18,46 +18,46 @@ Top to bottom:[^phone]
 | **Outlines**, **Reference** and the `olai` group of `_olai/` files | [files.md](files.md) |
 | **Trash**, pinned under the scrolling list | [trash.md](trash.md) |
 
-## The rail
+## The strip of icons
 
-Collapsing the column leaves a rail of icons, also named **Sidebar**, with **Expand sidebar** at the top and the same entries' icons under it in the same order.[^rail]
+Collapsing the column leaves a narrow strip of icons, also named **Sidebar**. **Expand sidebar** is at the top, and the icons of the entries above follow in the same order.[^rail]
 
-Opening and closing the column is `Cmd` + `\` (`Ctrl` + `\` away from a Mac), the palette's `Toggle sidebar`, and the burger on a phone.[^toggle]
+To open and close the column, press `Cmd` + `\` (`Ctrl` + `\` away from a Mac), run `Toggle sidebar` in the command palette, or tap the burger button on a phone.[^toggle]
 
 ## Headings
 
-Every heading in the column wears one treatment.[^case] Some of them carry an action.[^plus] A section decides for itself what an empty one looks like.[^empty]
+Every heading in the column is drawn the same way.[^case] Some headings carry a button.[^plus] A section with nothing in it either draws nothing or draws a line of its own.[^empty]
 
-## What other plugins contribute
+## How other plugins add to the column
 
-A contributor names a placement, never a pixel and never another plugin: the Trash is at the foot because the trash row asked for `foot`.[^waiting] The locations themselves are in the closed block at the foot of this page.
+A plugin that adds something asks for a named place, such as `foot`, and never for a pixel position or a place next to a named plugin. **Trash** sits at the bottom because the trash plugin asked for `foot`.[^waiting] The named places are listed in the block at the foot of this page.
 
-Switching `sidebar` off removes the column and the rail, and leaves the open page and its editor exactly as they are. The seat it fills is `layout.sidebar` ([layout.md](layout.md)).
+Switching `sidebar` off removes the column and the strip of icons, and leaves the open page and its editor exactly as they are. It fills the `layout.sidebar` place in the app frame ([layout.md](layout.md)).
 
-[^holds]: The column holds no files and no readings of its own: every row, heading and shelf in it is contributed by another plugin, and this row decides only where each one stands.
+[^holds]: The sidebar plugin has no files and no data of its own. Every entry, heading and section in the column comes from another plugin, and the sidebar only decides where each one stands.
 
-[^phone]: The column on a phone is a drawer, and its foot sits above the drawer's own foot, which carries the Preferences and Plugins rows. On a desktop the foot shares a line with **Collapse sidebar**.
+[^phone]: On a phone the column is a drawer that slides in. Its foot sits above the drawer's own foot, which carries the Preferences and Plugins entries. On a desktop the foot shares a line with **Collapse sidebar**.
 
-[^rail]: An entry placed `foot` has its icon sink to the rail's bottom. An icon says what it opens twice, because the two readings differ on purpose: the tip a pointer or a keyboard gets (`Outlines`) and the name everything else reads (`Open outlines`). Neither is the browser's own `title`, which it places itself and shows to a pointer alone.
+[^rail]: An entry placed `foot` has its icon sink to the bottom of the strip. Each icon carries two labels, which differ on purpose: the tooltip a pointer or the keyboard shows (`Outlines`), and the name a screen reader and the tests read (`Open outlines`). Neither of them is the browser's own `title` attribute, which the browser places itself and shows only to a pointer.
 
-[^toggle]: The burger on a phone is named **Show sidebar** and **Hide sidebar**. `Reset sidebar width` in the palette puts a dragged column back to its default.
+[^toggle]: On a phone the burger button is named **Show sidebar** and **Hide sidebar**. `Reset sidebar width` in the palette puts a column you have dragged back to its default width.
 
-[^case]: A heading's treatment: the words are written in sentence case and drawn as small, spaced capitals, so a test or a screen reader reads `Outlines`, not `OUTLINES`.
+[^case]: How a heading is drawn: the words are written in sentence case and drawn as small, widely spaced capitals, so a test or a screen reader reads `Outlines`, not `OUTLINES`.
 
-[^plus]: The actions on a heading: the `+` beside **Chats** opens the palette at New chat, the `+` beside **Plugins** opens it at New plugin, and the `+` beside **Outlines** opens the new-file menu. The plugin that owns the heading draws the action too, so the two leave together when its row switches off.
+[^plus]: The buttons on headings: the `+` beside **Chats** opens the palette at New chat, the `+` beside **Plugins** opens it at New plugin, and the `+` beside **Outlines** opens the menu for making a new file. The plugin that owns a heading draws its button too, so the heading and the button leave together when that plugin is switched off.
 
-[^empty]: An empty section: **Chats** and **Pinned** draw nothing at all until there is something in them. **Plugins** stands whatever the directory holds, with one row reading **Ask for your first plugin…**, because a directory with no plugins is where somebody is looking for the way to make one ([vault-plugins.md](vault-plugins.md)).
+[^empty]: An empty section: **Chats** and **Pinned** draw nothing at all until there is something in them. **Plugins** is always drawn, whatever the directory holds, with one entry reading **Ask for your first plugin…**, because a directory with no plugins is where somebody is looking for the way to make one ([vault-plugins.md](vault-plugins.md)).
 
-[^waiting]: Contributions wait while the sidebar or the layout row is absent and come back when their owner returns; the contributing plugin's own work stays mounted meanwhile.
+[^waiting]: While the sidebar plugin or the layout plugin is switched off, what other plugins contribute to the column waits, and comes back when the sidebar returns. Those plugins keep running and doing the rest of their work meanwhile.
 
 <details>
-<summary>Every location the sidebar offers</summary>
+<summary>Every place in the sidebar another plugin can fill</summary>
 
-| Location | Takes |
+| Place | Takes |
 | --- | --- |
-| `sidebar.entry` | a row placed `top` (the column's first doors), `bottom` (after the plugin sections) or `foot` (pinned under the list), with an optional rail icon |
+| `sidebar.entry` | an entry placed `top` (the first entries in the column), `bottom` (after the plugin sections) or `foot` (pinned under the list), with an icon for the collapsed strip if it wants one |
 | `sidebar.section` | a heading in the plugin's own words, and what sits under it |
 | `sidebar.regions` | a region of the column: `primary`, `shelf` or `files` |
-| `sidebar.rail` | an icon on the collapsed rail |
+| `sidebar.rail` | an icon on the collapsed strip |
 
 </details>

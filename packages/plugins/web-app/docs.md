@@ -1,19 +1,19 @@
-# web-app
+# web-app: serving the browser app
 
-Serves the compiled browser app over the shared listener: the shell, its hashed assets, the web manifest and the notification service worker.
-
-It is the only row that serves the build.
+The `web-app` plugin serves the compiled browser app, on the same port everything else uses.[^parts] It is the only plugin that serves that build.
 
 ## What turns it off
 
-The row runs in the `web` profile. Set `on: no` on the `web-app` node in `_olai/Settings.olai`, or use its switch, **Web app** under **Connections** on the plugins panel ([../settings.md](../settings.md)).
+The plugin runs in the `web` profile. Set `on: no` on the `web-app` row in `_olai/Settings.olai`, or use its switch, **Web app** under **Connections** in the plugins panel ([../settings.md](../settings.md)).
 
-With it off, those routes withdraw together and a browser gets nothing to load. Open websockets and `/mcp` keep serving on the same port.
+With it off, the app and the files it loads stop being served together, and a browser has nothing to load. Websockets that are open, and `/mcp`, keep serving on the same port.
 
-Serving the build enables nothing else: a socket, a directory and the agent tools each arrive with their own row.
+Serving the build switches nothing else on: the websocket, the directory of files and the tools an agent calls each come from a plugin of their own.
 
 ## What it refuses
 
-The row looks the browser build up when it starts. A build it cannot find fails the row, which the plugins panel reports, rather than leaving an empty shell on the port.
+The plugin looks for the compiled browser build when it starts. If it cannot find one, the plugin fails and the plugins panel says so, rather than leaving an empty app on the port.
 
-The row accepts no settings of its own.
+This plugin takes no settings of its own.
+
+[^parts]: What it serves: the app itself, the files it loads (each with a hash in its name), the web manifest a browser reads when you install olai as an app, and the service worker that shows notifications.

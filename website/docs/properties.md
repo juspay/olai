@@ -1,10 +1,10 @@
-# Typed properties
+# Property types
 
-A key with no declaration is text. A directory may declare that one key's values have a shape: the write gate then refuses a value that does not fit.[^meaning]
+A property is a key and a value on a row. A value can be any text, unless your directory declares a shape for that key's values.[^meaning]
 
 ## Declaring a key
 
-Declarations live in the `Properties` convention directly under `_olai/`, default `_olai/Properties.olai`.[^convention] One node per key: the title is the key, the type is written in that node's own properties, and an enum's variants are its children.
+Declarations live in `_olai/Properties.olai`.[^convention] Write one row per key: the row's title is the key, and the type is a property on that row. A key with a fixed list of choices has one row per choice underneath it.
 
 ```jsonl
 {"id":"prop-merge","ord":"a0","title":"merge","custom":{"type":"ref"}}
@@ -16,30 +16,30 @@ Declarations live in the `Properties` convention directly under `_olai/`, defaul
 {"id":"prop-agent","ord":"a3","title":"agent","custom":{"type":"ref","under":"agents-roster"}}
 ```
 
-Properties are one namespace across the whole directory, and a key is folded for case.[^case] A declaration is a node carrying properties, and three of its words are typed by a built-in table: `type`, `under` and `base`.[^words]
+Property keys are one set of names across the whole directory, and case makes no difference.[^case] Inside this file olai reads three keys of its own: `type`, `under` and `base`.[^words]
 
-## The property types
+## The types you can declare
 
-Seven types this format owns, and an eighth arm for the types a plugin contributes.[^clause]
+This format has seven types, and a plugin can add more.[^clause]
 
-| Type | A value is |
+| Type | What a value may be |
 | --- | --- |
-| [`text`](#text) | `text` (anything) |
-| [`date`](#date) | `date` (an ISO day or instant) |
-| [`int`](#int) | `int` (a digit run) |
-| [`path`](#path) | `path` (no whitespace; optional `base`) |
-| [`doc`](#doc) | `doc` (a served `.md`; optional `base`) |
-| [`ref`](#ref) | `ref` (a child's id; `under` names the parent) |
-| [`node`](#node) | `node` (any node id) |
-| [a contributed type](#a-type-a-plugin-contributes) | whatever the plugin says it is |
+| [`text`](#text) | anything |
+| [`date`](#date) | an ISO day, or a day and a time |
+| [`int`](#int) | a whole number |
+| [`path`](#path) | a path, with no spaces in it |
+| [`doc`](#doc) | a `.md` file this directory serves |
+| [`ref`](#ref) | the id of a named row's child |
+| [`node`](#node) | the id of any row |
+| [a type a plugin adds](#a-type-a-plugin-contributes) | whatever that plugin says it is |
 
 ## What a declared value names
 
-One declaration answers both questions, so the write gate's "is this allowed" and the chip's "what does it name" cannot disagree.[^names] An undeclared key is guessed at instead.[^guess]
+A declaration answers two questions at once: what olai accepts when you write a value, and what its chip opens when you click it.[^names] A chip is the label olai draws for one property under a row's title. For a key nothing declares, olai guesses what the value names.[^guess]
 
-## What a write is refused for
+## What a refusal says
 
-A live write is refused with the allowed values named and the closest one offered:[^refused]
+A refusal names the key, the allowed values, and the closest one to what you wrote:[^refused]
 
 ```
 outlines_prop {"id":"lane","key":"merge","value":"AUTO: grok review folded + CI green"}
@@ -64,42 +64,42 @@ outlines_add {file: "_olai/Properties.olai", title: "brainstorm", props: {type: 
   declare.
 ```
 
-## What typing does not do
+## What declaring a type does not do
 
-No required keys, no schema per kind of node, and no defaults. A node may carry any subset of keys. This is one rule about values.
+No key is required, no kind of row has a schema, and nothing has a default. A row may carry any keys you like: a declaration only limits values.
 
-[^meaning]: Typing constrains the value and grants no meaning. A key with no declaration is text, and that is nearly every key. A `date`-typed property still does not put its node on a day page, because a property is not a mark. What a property is, and how one is written, is [format.md](format.md).
+[^meaning]: A type limits what a value may be and gives the key no meaning. A key with no declaration holds text, and that is nearly every key. A key declared `date` still does not put its row on that day's page, because a property is not a mark. What a property is, and how you write one, is in [format.md](format.md).
 
-[^convention]: The `Properties` convention takes any node-holding suffix. Editing the vocabulary is editing an outline: adding a variant is adding a child row, the file opens in olai like any other, and nothing restarts. Only the top level of that file declares a key, and what hangs under a declaration is that declaration's own business.
+[^convention]: Declarations live in the file named `Properties` directly inside `_olai/`, which may have any suffix that holds rows; olai makes `_olai/Properties.olai`. Editing your vocabulary is editing an outline: adding a choice is adding a row underneath the key, the file opens in olai like any other file, and nothing has to restart. Only rows at the top level of that file declare a key, and what you hang under a declaration is yours.
 
-[^case]: A key is folded for case, to the fence, to `prop:` in a query ([search.md](search.md)) and to the shadowed-key refusal. So `pr` and `PR` are one key, declaring both is declaring one key twice, and `merge` on a lane and `merge` anywhere else are one key.
+[^case]: Upper and lower case make no difference to a key, when a value is checked, when `prop:` matches it in a search ([search.md](search.md)), and when a key is refused for shadowing a field. So `pr` and `PR` are one key, declaring both declares one key twice, and a `merge` key on one row and a `merge` key anywhere else are the same key.
 
-[^words]: `type`, `under` and `base` are typed by a built-in table in code, applied to the records of `_olai/Properties.olai` and nowhere else. A directory may not declare a key called `type`, `under` or `base`. The three words, and what each takes, are in the first closed block at the foot of this page.
+[^words]: olai gives `type`, `under` and `base` their meanings in code, and only in the rows of `_olai/Properties.olai`. You may not declare a key called `type`, `under` or `base`. The three words, and what each one takes, are in the first closed block at the foot of this page.
 
-[^clause]: The second column is the clause a refusal names the type with. Each type has an entry in the closed block at the foot of this page, the eighth arm included: `terminal` and `run` are not among the seven, and this format may not learn either word.
+[^clause]: Each type has its own entry in the second closed block at the foot of this page, including the types a plugin adds. A terminal and a CI run are not among the seven types, and this format never learns about either: a plugin adds a type for them instead.
 
-[^names]: What a declared value names is what its chip opens, one answer per type, in the closed block below. Three of those answer where the gate would refuse, and that is deliberate.
+[^names]: What each type's chip opens is in the third closed block below, one answer per type. For three of the types, the chip answers even where a write of that value would be refused, and that is deliberate.
 
-    A `date` written `2026-08-25 10:06` is refused as a spelling and still names the day it plainly names, and a `ref` holding an id from the wrong roster still names that node. `doc` is held to the gate exactly, because it is the one type that promised its value names something served.
+    A `date` written `2026-08-25 10:06` is refused as a spelling, and still names the day it plainly names; a `ref` holding an id from the wrong parent still names that row. `doc` is the exception, held to exactly what the write allows, because it is the one type that promised its value names a file this directory serves.
 
-[^guess]: An undeclared key is guessed at, in this order: a whole `http` or `https` URL, a date, an exact node id, a path this directory serves beside the writing file, and GitHub's `owner/repo#123`. Anything else is text. The whole value has to be the name of the thing, so a value with a URL inside it is not a URL and a value that reads like a title is not a node.
+[^guess]: For a key nothing declares, olai tries these readings in order: a whole `http` or `https` URL, a date, the exact id of a row, a path this directory serves beside the file being written, and GitHub's `owner/repo#123`. Anything else is text. The whole value has to be the name of the thing, so a value with a URL inside it is not a URL, and a value that reads like a title is not a row.
 
-[^refused]: A refusal names the key, the values that are allowed and the closest one to what you wrote. Two further refusals, a declaration whose existing values do not fit and a write that would strand a value somebody else wrote, are in the closed block at the foot of this page.
+[^refused]: Two further refusals are in the last closed block at the foot of this page: declaring a type while existing values do not fit it, and a write that would leave a value somewhere else pointing at nothing.
 
 <details>
 <summary><code>type</code>, <code>under</code> and <code>base</code></summary>
 
 ### `type`, `under` and `base`
 
-A declaration is a node carrying properties, and these three words are typed by a built-in table in code, applied to the records of `_olai/Properties.olai` and nowhere else. A directory may not declare a key called `type`, `under` or `base`; outside that file, a property called `type` is somebody's own vocabulary and none of this format's business.
+A declaration is a row carrying properties, and olai gives these three keys their meanings in code, in the rows of `_olai/Properties.olai` and nowhere else. You may not declare a key called `type`, `under` or `base`. Outside that file, a property called `type` is your own vocabulary and none of this format's business.
 
-| Word | What it takes |
+| Key | What it takes |
 | --- | --- |
-| `type` | one of the types below, or a word a plugin contributed |
-| `under` | the id of a node in the set, where a `ref`'s variants live |
-| `base` | `root` or `file`, where a `doc` or `path` value resolves from |
+| `type` | one of the types below, or a type a plugin added |
+| `under` | the id of the row whose children are a `ref`'s choices |
+| `base` | `root` or `file`: where a `doc` or `path` value is resolved from |
 
-`under` names a node and never a mirror: a placement has no children of its own, so a declaration pointed at one is refused where it is written.
+`under` must name a regular row and never a mirror. A mirror has no children of its own, so a declaration pointing at one is refused where it is written.
 
 </details>
 
@@ -108,32 +108,32 @@ A declaration is a node carrying properties, and these three words are typed by 
 
 ### `text`
 
-Anything. It is the default, and a declared `text` is the durable blessing for a key whose values are deliberately prose. A declared `text` value is read exactly as an undeclared key is, which is what keeps the URL in a `pr-url` a door.
+Anything. It is what a key holds when nothing declares it, and declaring `text` is how you say for good that this key's values are meant to be prose. A value declared `text` is read exactly as an undeclared value is, which is what keeps the URL in a `pr-url` a link.
 
 ### `date`
 
-An ISO day (`2026-08-25`) or an instant written as a mark records one (`2026-08-25T10:06:00-04:00`), and nothing else. The two widths each have one spelling, so a day stays a bare day.
+An ISO day (`2026-08-25`), or a day and a time written the way a mark records one (`2026-08-25T10:06:00-04:00`), and nothing else. Each of those two has exactly one spelling, so a day stays a bare day.
 
-Within a width the obvious spellings fold into one: surrounding space, a single-digit month or day, a space where ISO writes `T`, missing seconds and a fraction after them. A datetime with no zone is stamped with the offset of the clock the write is made on, and `Z` is held as the numeric `+00:00` that a mark's own stamp writes. Prose stapled to a date is not a spelling and is refused:
+In both, the obvious spellings are folded into one: surrounding spaces, a single-digit month or day, a space where ISO writes `T`, missing seconds, and a fraction of a second after them. A time with no zone on it is stamped with the offset of the clock the write is made on, and `Z` is stored as `+00:00`, which is what a mark's own stamp writes. Words stapled to a date are not a spelling, and are refused:
 
 ```
 `dispatched` is a date — got "2026-08-25 10:06 (sweep queue #5)". Write
 `2026-08-25T10:06:00-04:00` or `2026-08-25`; the story goes in the note.
 ```
 
-On disk the canonical form is the only legal one, so a hand-written `2026-08-25 10:06` makes the file broken, naming the key.
+On disk only the canonical form is legal, so a hand-written `2026-08-25 10:06` makes the file broken, and the error names the key.
 
 ### `int`
 
-A digit run: no sign, no leading zeros, no separators, and nothing after them. A typed key gains spans in search, so `prop:records=190..200` selects on it ([search.md](search.md)).
+A run of digits: no sign, no leading zeros, no separators, and nothing after the digits. A key declared `int` can be searched by range, so `prop:records=190..200` selects on it ([search.md](search.md)).
 
 ### `path`
 
-One run of characters with no whitespace in it. It may point anywhere and promises nothing but the shape. Where a relative value resolves from is the key's own to say, with [`base`](#base).
+One run of characters with no whitespace in it. It may point anywhere, and it promises nothing beyond that shape. Where a relative value is resolved from is the key's own business, set with [`base`](#base).
 
 ### `doc`
 
-A path naming a served markdown document. It resolves beside the writing file by default, or from the directory's root with `base: root`, and the write gate holds the value to that resolution. A `doc` naming a served `.olai` is refused: this type promises a document, and an outline is not one.
+A path naming a markdown document this directory serves. It is resolved beside the file the value is written in by default, or from the root of the served directory with `base: root`, and a write is refused unless the value resolves to a served file. A `doc` naming a served `.olai` file is refused: this type promises a document, and an outline is not one.
 
 ```
 `brief` names a document — `briefs/plan.md` resolves to `roadmap/briefs/plan.md`,
@@ -142,43 +142,47 @@ and no such `.md` file is served
 
 ### `ref`
 
-The id of one of a parent's children. `under` names the parent; absent, the variants are the declaration's own children. The value is an id, so a variant renames freely: the file holds `auto` and the chip draws the child's title, `automatic`.
+The id of one of a named row's children, which is how you write a key with a fixed list of choices. `under` names the row holding the choices; without `under`, the choices are the children of the declaration itself. The value is an id, so you can rename a choice freely: the file holds `auto`, and the chip draws that child's title, `automatic`.
 
-There is no separate sum type, because an enum is a `ref`: adding a variant is adding a child row rather than editing a pipe-separated string. A roster that lives elsewhere (`{"type":"ref","under":"agents-roster"}`) is the same mechanism pointed at a different place, and it stays data.
+There is no separate type for a list of choices, because `ref` is one: adding a choice is adding a row, rather than editing a string of words separated by pipes. A list that lives elsewhere (`{"type":"ref","under":"agents-roster"}`) is the same mechanism pointed at another row, and it stays ordinary data.
 
 ### `node`
 
-The id of any node in the set. A mirror is not one: a placement is a second view of something, so a property pointing at one points at a view rather than at the thing.
+The id of any row in the directory. A mirror is not one: a mirror is a second view of a row, so a property pointing at it would point at the view rather than at the row.
 
 ### A type a plugin contributes
 
-`terminal` and `run` are not among the seven, and this format may not learn either word. A plugin declares its own type, and a directory declares a key with it like anything else:
+A terminal and a CI run are not among the seven types, and this format never learns about either. A plugin declares a type of its own, and you declare a key with it like any other type:
 
 ```jsonl
 {"id":"prop-terminal","ord":"a6","title":"terminal","custom":{"type":"kolu-terminal"}}
 {"id":"prop-run","ord":"a7","title":"run","custom":{"type":"odu-run"}}
 ```
 
-The declaration is the licence. A key declared `kolu-terminal` gets the Dock row and the live pane ([plugins/kolu.md](plugins/kolu.md)); a key declared `odu-run` is a run id olai asks the odu service about ([plugins/odu.md](plugins/odu.md)). Both are live properties ([live-properties.md](live-properties.md)). Chat contributes three: `chat-agent-session`, which seats a conversation on a node, `chat-agent-slept`, the instant olai last tidied that node agent's memory, and `chat-agent-sleep`, your `on` or `off` answer to whether olai may tidy that chat on its own clock ([chat.md](chat.md)).
+The declaration is what turns the behaviour on. A key declared `kolu-terminal` gets kolu's Dock row and its live pane ([plugins/kolu.md](plugins/kolu.md)); a key declared `odu-run` holds a run id that olai asks the odu service about ([plugins/odu.md](plugins/odu.md)). Both of these are live properties, which show what is happening right now ([live-properties.md](live-properties.md)).
 
-An enabled plugin declares its own key for you, so a row carrying `kolu-terminal 303dc985` works without olai writing anything into your directory. The claimed key is always the type's own word, which carries the plugin's name, so a column you call `terminal` is never taken over by turning a plugin on. A row of yours always wins: declare the type on a short key to move it there, and declare the key `text` to take the face away.
+Chat contributes three types: `chat-agent-session`, which puts a conversation on a row, `chat-agent-slept`, the moment olai last tidied that agent's memory, and `chat-agent-sleep`, your `on` or `off` answer to whether olai may tidy that chat on its own schedule ([chat.md](chat.md)).
 
-A value under a type whose plugin this serve is not running reads exactly as an undeclared key does, so a URL written under a retired type is still a link. Neither face is licensed by a key's name, and there is no fallback to it: a shape cannot tell a document from a checkout, which is why declaring `path` buys neither face.
+A plugin you switch on declares its own key for you, so a row carrying `kolu-terminal 303dc985` works without olai writing anything into your directory. The key a plugin claims is always the type's own word, which carries the plugin's name in it, so a key you call `terminal` is never taken over by switching a plugin on.
+
+Your own declaration always wins. Declare the type on a shorter key to move the behaviour there, and declare the key `text` to take the behaviour away. A value under a type whose plugin this server is not running is read exactly as an undeclared key is, so a URL written under a type nothing provides is still a link.
+
+Neither behaviour comes from a key's name, and there is no falling back to the name: the shape of a value cannot tell a document from any other path, which is why declaring `path` buys neither of them.
 
 ### `base`
 
-A `doc` or a `path` declaration may say `base`, and it is `root` or `file`:
+A `doc` or a `path` declaration may also say `base`, which is `root` or `file`:
 
 ```jsonl
 {"id":"prop-brief","ord":"a5","title":"brief","custom":{"type":"doc","base":"root"}}
 ```
 
-| `base` | A relative value resolves |
+| `base` | A relative value is resolved |
 | --- | --- |
-| `file` | beside the file the value was written in, as a note's relative link does. The default |
-| `root` | from the served directory's root, wherever the value was written |
+| `file` | beside the file the value was written in, as a relative link in a note is. This is the default |
+| `root` | from the root of the served directory, wherever the value was written |
 
-`base` on any other type is refused where it is written, as `bad-prop`: a type that names no path has nothing to resolve, a contributed one included.
+`base` on any other type is refused where it is written, as `bad-prop`: a type that names no path has nothing to resolve, including a type a plugin added.
 
 </details>
 
@@ -187,15 +191,15 @@ A `doc` or a `path` declaration may say `base`, and it is `root` or `file`:
 
 | Type | The chip opens |
 | --- | --- |
-| `doc` | the `.md` the value resolves to, over the list the write gate is held to |
-| `path` | whatever this directory serves at the path it resolves to, an outline included |
-| `ref`, `node` | the record the id names, drawn with that record's title |
-| `date` | its day |
+| `doc` | the `.md` file the value resolves to, which a write is held to |
+| `path` | whatever this directory serves at that path, an outline included |
+| `ref`, `node` | the row the id names, drawn with that row's title |
+| `date` | that day's page |
 | `int` | nothing |
-| a contributed type | nothing of olai's own; the plugin's face draws it |
-| `text` | whatever an undeclared key resolves to, as a guessed key does |
+| a type a plugin added | nothing of olai's own; the plugin draws it |
+| `text` | whatever an undeclared value resolves to, as a guessed key does |
 
-The vocabulary itself stays on the server. What a browser is handed is the answers, one per value a page draws that names something, never the declarations that produced them.
+Your declarations stay on the server. What a browser is sent is the answers, one for each value on the page that names something, never the declarations that produced them.
 
 </details>
 
@@ -204,22 +208,24 @@ The vocabulary itself stays on the server. What a browser is handed is the answe
 
 ### A declaration with values that do not fit
 
-A declaration is refused while any existing governed value does not fit, naming the offenders by file, node and value. The same fence meets `outlines_prop` of `type` on a declaration, and a rename of a declaration onto another key. It meets a seed of `_olai/Properties.olai`, an `outlines_move` or `trash_restore` that lands a root there, an `outlines_duplicate` of a declaration, and an `outlines_split` or `outlines_merge` of a Properties root.
+A declaration is refused while any existing value under that key does not fit it, and the refusal names each offending value by file, row and value. The same check meets an `outlines_prop` that writes `type` on a declaration, and a rename of a declaration onto another key.
 
-One `outlines_apply` that rewrites every bad value in a file is the atomic repair: a single write leaves the others and the gate refuses the file, while the batch is one validated write.
+It also meets the creation of `_olai/Properties.olai`, an `outlines_move` or `trash_restore` that lands a top-level row in that file, an `outlines_duplicate` of a declaration, and an `outlines_split` or `outlines_merge` of a top-level row there.
 
-### A write that would strand a value
+One `outlines_apply` that rewrites every bad value in a file repairs it in one go: writing one value at a time leaves the others, and the file stays refused, while the batch is a single checked write.
 
-A write may also not strand a value it does not touch. Moving a `ref` variant out of the root its declaration names, trashing it, or merging it away leaves every value that says its id naming nothing, in whatever third file holds them. That write is refused, naming the file it would have broken:
+### A write that would leave a value pointing at nothing
+
+A write may also not strand a value it does not touch. Moving a `ref` choice out of the row its declaration names, trashing it, or merging it away would leave every value naming its id pointing at nothing, in whatever other file holds those values. Such a write is refused, and names the file it would have broken:
 
 ```
 `move: Claude` would leave `lanes.olai` invalid, so nothing was written
 ```
 
-The gate asks that question of the tree a write would leave against the tree that was standing, so any write that takes a file off the screen is turned back, whichever door it came through. A file that was already broken stops nothing, since it is off the screen and refusing its own writes already.
+olai asks that question of the directory the write would produce, against the directory as it stands, so any write that would take a file off the screen is turned back, whatever tool made it. A file that was already broken stops nothing, since it is off the screen and refusing its own writes already.
 
-Every door that writes a property is covered, because the check sits at the plan and validate seam: `outlines_prop`, `outlines_add`'s `props` including children, `outlines_apply`, `outlines_update` and `capture_add`. An `outlines_duplicate` of an ordinary subtree needs no value refusal of its own, since a copy is isomorphic to a subtree the validator approved. A hand edit that lands a bad value makes the file broken, naming the key, as `bad-prop` ([validation.md](validation.md)).
+Every tool that writes a property is covered, because the check sits where a write is planned and checked: `outlines_prop`, the `props` of `outlines_add` including those on children, `outlines_apply`, `outlines_update` and `capture_add`. An `outlines_duplicate` of an ordinary set of rows needs no check of its own, since a copy of rows olai already approved is just as valid. A value written by hand that does not fit makes the file broken, naming the key, as `bad-prop` ([validation.md](validation.md)).
 
-A `ref` or a `node` value is a reference, and the removals read it. `trash_empty` and `outlines_unmirror` refuse to delete a record a live one still names through a declared key, naming the record and the key. Delete a roster node while other records still name it and the validator says so, with a did-you-mean, exactly as it treats an `after` target that went away.
+A `ref` or a `node` value points at a row, and deleting is checked against those pointers. `trash_empty` and `outlines_unmirror` refuse to delete a row that a live row still names through a declared key, naming both the row and the key. Delete a row from a list of choices while other rows still name it and the validator says so, with a did-you-mean, exactly as it treats an `after` target that went away.
 
 </details>

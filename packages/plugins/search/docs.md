@@ -1,35 +1,37 @@
-# search
+# The search plugin: the index and the search box
 
-Keeps the index every search in olai is answered from, and brings the search box in the header. [../search.md](../search.md) is the query language; this page is the row.
+The `search` plugin keeps the index every search in olai is answered from, and draws the search box in the header.
+
+What you can type in a query is [../search.md](../search.md); this page is about the plugin itself.
 
 ## What turns it off
 
-The row is on by default. Set `on: no` on the `search` node in `_olai/Settings.olai`, or use its switch, **Search** under **Notes** on the plugins panel ([../settings.md](../settings.md)).
+The plugin is on by default. Set `on: no` on the `search` row in `_olai/Settings.olai`, or use its switch, **Search** under **Notes** in the plugins panel ([../settings.md](../settings.md)).
 
-With it off, the box, the palette and the `search_nodes` tool are all still there and none of them finds anything.[^reason] Switching it on restores the services and rebuilds the index.
+With it off, the box, the palette and the `search_nodes` tool are all still there, and none of them finds anything.[^reason] Switching it on brings search back and builds the index again.
 
-Narrowing the page in front of you is not this row's.[^filter]
+Narrowing the page in front of you is not this plugin's work.[^filter]
 
-The row accepts no settings of its own.
+This plugin takes no settings of its own.
 
-## What it gives
+## What it gives you
 
 | Where | What you get |
 | --- | --- |
-| the header | a box with the placeholder **Search**, and an **All** / **Rows** / **Files** selector under it that picks what kind of hit to ask for |
+| the header | a box with the placeholder **Search**, and an **All** / **Rows** / **Files** selector under it that chooses what kind of result to ask for |
 | a phone | a **Search** button in the bar that opens the palette |
-| an agent | `search_nodes`, the same question answered from the same index |
+| an agent | `search_nodes`, which asks the same question of the same index |
 
-Both boxes behave as a query box rather than a writing box.[^keys]
+The header's box and the palette both behave as a place to type a query, not a place to write text.[^keys]
 
 ## What it refuses
 
-The index is held in memory for the directory you are serving, and the row fails if it cannot be opened. The plugins panel says so on the row, every other row keeps running, and search refuses in words meanwhile.
+The index is held in memory for the directory you are serving. If the index cannot be opened, the plugin fails, the plugins panel says so on that plugin, every other plugin keeps running, and searches refuse with a message meanwhile.
 
-Switching the row off gives that memory back. Switching it on builds a fresh index, level with the next reading it is handed.
+Switching the plugin off gives that memory back. Switching it on builds a fresh index from the next reading of the directory it is handed.
 
-[^reason]: What a search says with the row off: each answers with no hits and the reason, `the search plugin is not running on this serve, so there is no matcher to look this up in`, carried in the same place a query the grammar could not read is reported.
+[^reason]: What a search says with the plugin off: it answers with no results and the reason, `the search plugin is not running on this serve, so there is no matcher to look this up in`, shown in the same place as the message for a query olai could not read.
 
-[^filter]: Narrowing a page: the filter bar over an outline, a day, the agenda or the trash reads the page a tab already holds, and goes on working with search off.
+[^filter]: Narrowing a page: the filter bar over an outline, a day, the agenda or the Trash reads the page the tab already holds, and goes on working with search off.
 
-[^keys]: The boxes on a touch screen: both say **Go** on an on-screen keyboard's return key, because pressing it opens the row the cursor is on rather than submitting a search. Neither is autocapitalized, autocorrected or spell-checked: a query is matched, not read.
+[^keys]: The boxes on a touch screen: both label the return key of the on-screen keyboard **Go**, because pressing it opens the result the cursor is on rather than submitting a search. Neither box capitalizes, corrects or spell-checks what you type: a query is matched, not read.

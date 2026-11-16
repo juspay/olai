@@ -1,29 +1,29 @@
-# Choose what runs
+# Switch olai's plugins on and off
 
-olai is a bundle of plugins.[^parts] This page is how you switch one on or off,
-and where each setting lives.
+olai is built out of plugins, separate parts you can switch on and off.[^parts]
+This page is how you switch one, and where each setting is kept.
 
-## The three doors
+## Where a setting is kept
 
-| Door | What it holds | Where it lives |
+| Where | What it holds | The place itself |
 | --- | --- | --- |
-| the directory | every policy knob, including which plugins run | `_olai/Settings.olai`, in git |
-| the environment | credentials and machine resources | the process environment, a wrapper, or `environmentFile` |
-| this browser | how this tab reads | the Preferences gear, in local storage |
+| the directory olai serves | which plugins run, and every other policy | `_olai/Settings.olai`, a file kept in git |
+| the machine | credentials and what the machine provides | the environment olai starts with, from a wrapper or `environmentFile` |
+| this browser | how this tab looks and reads | the Preferences gear, in this browser's local storage |
 
-The first is shared by everyone using the directory, the second is the
-machine's, the third is yours alone.[^prefs]
+Everyone using the directory shares the first. The second belongs to the
+machine; the third is yours alone.[^prefs]
 
 ## Switch a plugin on or off
 
-| Way | Lasts | Who sees it |
-| --- | --- | --- |
-| the panel's switch | until you change it: it writes the file | everyone on this directory |
-| `on: yes` or `on: no` on the plugin's node | until you change it | everyone on this directory |
-| the session-only switch, on the vault and settings-reader rows | this serve | everyone on this directory |
+| How you switch it | How long it lasts |
+| --- | --- |
+| the switch on the plugin's row in the plugins panel | until you change it again |
+| `on: yes` or `on: no` on the plugin's node in the settings file | until you change it again |
+| the switch on the directory's row and the settings reader's row | until the server restarts |
 
-The first two are one choice, not two.[^file] Use one top-level node per
-plugin:
+The first two are one choice, not two.[^file] Give each plugin its own
+top-level node in `_olai/Settings.olai`:
 
 ```jsonl
 {"id":"spaces","ord":"a0","title":"xyne-spaces","custom":{"on":"yes"}}
@@ -31,18 +31,19 @@ plugin:
 {"id":"chat","ord":"a2","title":"chat","custom":{"idle-ms":"1200000"}}
 ```
 
-`on: yes` enables a plugin this build ships off; `on: no` disables one.[^nodes]
+`on: yes` starts a plugin that this build leaves off, and `on: no` stops a
+plugin from starting.[^nodes]
 
 ## Read the plugins panel
 
-Open it from the **Plugins** row at the foot of the health-dot
-popover.[^panel] Click a plugin's name to expand its row.[^row] Above every
-group sits **New plugin**.[^new]
+Click the dot in the header, then the **Plugins** row at the foot of the
+list.[^panel] Click a plugin's name to open its row.[^row] **New plugin**
+sits above every group.[^new]
 
-## The git policy
+## Decide when git records your writes
 
-Whether writes record themselves, and whether commits push, is policy of the
-directory. Set it on the `git` node:
+Whether olai commits your writes for you, and whether it pushes, is set on the
+directory's `git` node:
 
 ```jsonl
 {"id":"git","ord":"a0","title":"git","custom":{"commit":"auto","push":"off"}}
@@ -53,88 +54,100 @@ directory. Set it on the `git` node:
 | `commit` | `off`, `manual`, `auto` | `manual` |
 | `push` | `off`, `auto` | `off` |
 
-They are independent.[^git]
+You set the two separately.[^git]
 
-## What being off means
+## What a plugin being off means
 
-A server with a plugin off is not a degraded server, and the health dot stays
-green.[^off] It is the same nothing whichever door turned it off.[^door]
+A plugin that is off does nothing, and that is not a fault: the dot in the
+header stays green.[^off][^door]
 
-[^parts]: olai's plugins are the outliner, the sidebar, git, the journal,
-    search, chat and the appliances beside them. Plugins the served directory
-    itself defines are listed in a closed block at the foot of this page, and
-    the whole of them is [dynamic-plugins.md](dynamic-plugins.md).
+[^parts]: olai's plugins include the outliner, the sidebar, git, the journal,
+    search, chat and the integrations beside them. The served directory can
+    also define plugins of its own: the closed block at the foot of this page
+    says what the panel does with one, and
+    [dynamic-plugins.md](dynamic-plugins.md) is the whole subject.
 
-[^prefs]: The browser's door is yours alone, and no server has an opinion on
-    it: theme, typeface, size, row density and whether finished work shows.
+[^prefs]: What this browser holds is yours alone, and no server has an opinion
+    on it: the theme, the typeface, the text size, how tightly rows are packed
+    and whether finished work is shown.
 
-    Beside the three doors, each plugin has one machine-local record for its
-    own private state, at `$XDG_STATE_HOME/olai/<plugin>/<hash>.json`, where
-    `hash` names the served directory's real path. The plugins panel names that
-    folder and never opens it. Chat keeps the open agent, model and doorbells
-    there, so switching chat off and on returns the same snapshot.
+    Besides those three places, each plugin keeps its own private state in one
+    file on this machine, at `$XDG_STATE_HOME/olai/<plugin>/<hash>.json`, where
+    `hash` stands for the real path of the directory olai serves. The plugins
+    panel names that folder and never opens it. Chat keeps the open agent, the
+    model and the doorbells there, so switching chat off and on again brings
+    the same state back.
 
-[^file]: The panel's switch writes `on` to the file through the ordinary write
-    door, and a restart reads the file again. So nothing wins over anything;
-    the file is the answer. A session-only switch is the exception, and it
-    exists so the panel cannot lock its own settings reader out. Those rows
-    wear a dashed ring and say `This switch resets when olai restarts.`
+[^file]: Everyone using the directory sees all three switches. The switch in
+    the panel writes `on` into the settings file, the same way any other write
+    happens, and a restart reads the file again. So neither overrides the
+    other: the file is the answer. The exception is the switch that lasts one
+    run, which exists so that the panel cannot switch off the plugin that
+    reads its settings and leave itself stuck. Those rows
+    have a dashed ring and say `This switch resets when olai restarts.`
 
-[^nodes]: An absent choice uses the build's default. The chat example shortens
-    the default 48-hour idle window, `172800000` ms, to 20 minutes.
+[^nodes]: A plugin with no `on` property uses the build's default. The chat
+    example above shortens the time chat waits before it calls a conversation
+    idle, from the default 48 hours (`172800000` ms) to 20 minutes.
 
-[^panel]: The **Plugins** row sits at the foot of the health-dot popover, and
-    at the foot of the phone's sidebar drawer. The panel is a list of
-    collapsible groups, each heading with a count: **Needs attention** first,
-    open whenever a row needs a person, then the sections the build names, then
-    **Your plugins**, then **Server**. Every other group starts closed.
+[^panel]: On a phone, the **Plugins** row is at the foot of the sidebar drawer
+    instead. The panel is a list of groups you can fold, each heading carrying
+    a count. **Needs attention** comes first and is open whenever a row needs a
+    person; then come the groups this build names, then **Your plugins**, then
+    **Server**. Every group other than **Needs attention** starts folded.
 
-[^row]: Each row is one line: the plugin's name, a short status only when it is
-    stuck, and a switch named after the row, as in `Enable Git`. An expanded
-    row shows a sentence about its state, whatever the plugin draws there, its
-    knobs, its environment readings, and `Saved in`, a link to its node in the
-    settings file.
+[^row]: A row is one line: the plugin's name, a short status when it is stuck,
+    and a switch named after it, such as `Enable Git`. Open the row and you
+    also see a sentence about its state, anything the plugin itself draws
+    there, its settings, what it found in the environment, and `Saved in`, a
+    link to its node in the settings file.
 
-    A plugin the directory defines carries a link to its own page instead of
-    its source, and that page is where you read it and turn it on.
+    A plugin that the directory defines links to its own page rather than to
+    its source code, and you read it and switch it on there.
 
 [^new]: Pressing **New plugin** shuts the panel and opens the palette at the
-    levels that ask an agent for a plugin of your own. The whole of that is
-    [dynamic-plugins.md](dynamic-plugins.md): what you type, what lands in
-    `plugins/`, and what you read first.
+    commands that ask an agent to write a plugin for you. The whole subject is
+    [dynamic-plugins.md](dynamic-plugins.md): what you type, what the agent
+    puts in the `plugins/` folder, and what to read before you switch it on.
 
-[^git]: Auto-commit records everything waiting after fifteen quiet seconds,
-    including writes made with no browser open. Auto-push follows every commit
-    olai makes. [git.md](git.md) is what the panel does with them. Switching
-    the git plugin off removes the ledger, the Commit row and the tools.
-    Setting `commit: off` keeps a ledger that has been told not to record.
+[^git]: With `commit: auto`, olai commits everything waiting once the
+    directory has been quiet for fifteen seconds, including writes made with no
+    browser open. With `push: auto`, olai pushes after every commit it makes.
+    [git.md](git.md) is what the commit panel does. Switching the git plugin
+    off takes away the list of waiting writes, the Commit row and git's tools,
+    while `commit: off` keeps that list and records nothing.
 
-[^off]: A plugin that is off has its members off the wire, its browser half
-    never mounted, and no row in the health popover. It probes for nothing, and
-    the kinds it would have taught the directory validate as ordinary text
-    ([live-properties.md](live-properties.md)). The outline it would have owned
-    is an ordinary outline.
+[^off]: A plugin that is off adds no tools for agents to call, draws nothing in
+    the browser, and has no line in the list the dot opens. It checks for
+    nothing on the machine. The property kinds it would have taught the
+    directory count as ordinary text
+    ([live-properties.md](live-properties.md)), and an outline it would have
+    owned is an ordinary outline.
 
-[^door]: A plugin disabled in the file and one you switched off a minute ago
-    are one state: registrations are undone as the plugin goes, so what is left
-    is absence rather than a disabled copy.
+[^door]: A plugin you switched off a minute ago and one the settings file
+    disables are in the same state. As a plugin goes, everything it registered
+    is undone, so what is left is the plugin's absence rather than a
+    switched-off copy of it.
 
 <details>
 <summary>What a switch does, and what it cannot do</summary>
 
-- A press moves the running server. Turn kolu off and its rows stop being
-  drawn, its row leaves the health popover and the words it taught the
-  directory go back to being ordinary text. No reload, no restart.
-- Every browser on this server follows the flip, which is why these rows are
-  not on the preferences panel with the theme.
-- Turning a plugin off takes its dependants with it, and the panel names them
-  before **Off** moves. Switching chat off leaves every engine, every doorbell
-  and the mirror `waiting`.
-- An agent cannot touch it. The verb is on the browser's face only, so nothing
-  reachable over `/mcp` can switch a plugin off, and an agent write cannot
-  change `on`.
-- There is no command-line verb for it, and no `--dump-config`: the panel is
-  the table.
+- A press changes the running server at once, with no reload and no restart.
+  Switch the kolu plugin off and it stops drawing its rows, its line leaves the
+  list the dot opens, and the words it taught the directory go back to being
+  ordinary text.
+- Every browser connected to this server follows the change, which is why
+  these switches are not on the Preferences panel beside the theme.
+- Switching a plugin off also switches off the plugins that depend on it, and
+  the panel names them before the switch moves to **Off**. Switch chat off and
+  olai leaves every engine, every doorbell and the mirror `waiting`. An engine
+  is the plugin that runs one agent. A doorbell messages a conversation when a
+  file changes, and the mirror posts a conversation into a Xyne Spaces channel.
+- An agent cannot do any of this. The switch exists in the browser only, so
+  nothing reaching the server over `/mcp` can switch a plugin off, and an
+  agent's write cannot change `on`.
+- There is no command for it and no `--dump-config`: the panel is where you
+  read and change what runs.
 
 </details>
 
@@ -150,119 +163,128 @@ green.[^off] It is the same nothing whichever door turned it off.[^door]
 | `Failed in this tab` | the browser half did not load; the detail offers **Try again** or **Reload** |
 | `Needs setup` | it is running and wants something from you |
 
-A row that is simply running draws no sentence: the switch has said it. Knob
-labels come from the setting's own keys and their descriptions are tooltips. A
-● marks a value authored in the file, with `set in Settings.olai` on its
-tooltip, and ↺ removes the property. `Enter` or a click away saves; `Escape`
-reverts a draft without closing the panel.
+A row that is simply running says nothing extra: the switch has already said
+it. The label on a setting comes from the setting's own key, and its
+description is the tooltip. A ● marks a value written in the settings file,
+with `set in Settings.olai` on its tooltip, and ↺ removes the property.
+`Enter`, or a click elsewhere, saves; `Escape` throws away what you typed
+without closing the panel.
 
 The **Server** section at the bottom edits Log level and Log format
-([running.md](running.md#logging)). Its other lines are read-only: Address,
-Machine name, Allowed origins, Access token (`Set` or `Not set`, never the
-value), State folder and Saved in.
+([running.md](running.md#logging)). Its other lines you can read but not
+change: Address, Machine name, Allowed origins, Access token (shown as `Set`
+or `Not set`, never the value itself), State folder and Saved in.
 
 ### When the panel will not let you edit
 
 | What you see | What to do |
 | --- | --- |
-| frozen knobs, tooltip `Settings can be edited when the configuration reader is running` | switch the settings reader back on with its session switch |
-| frozen knobs, tooltip `Repair _olai/Settings.olai before changing settings` | fix the named file; a durable switch cannot write until you do |
-| a refusal at the control itself | the value failed the setting's own validation and the file is unchanged |
+| the settings are frozen, with the tooltip `Settings can be edited when the configuration reader is running` | switch the settings reader back on with the switch on its row |
+| the settings are frozen, with the tooltip `Repair _olai/Settings.olai before changing settings` | fix the file it names; until you do, no switch can write to it |
+| the control itself refuses what you typed | the value failed that setting's own validation, and the file is unchanged |
 
-An invalid value in the file defaults and warns once, and the knob shows the
-refused text with the message and the effective default beneath it. A broken
-line defaults every plugin and names the broken file on the panel.
-
-</details>
-
-<details>
-<summary>Settings that live in Preferences, and how soon an edit applies</summary>
-
-A plugin may mark one of its settings as a preference, and the Preferences gear
-draws it under a heading named after the plugin: `git`'s `commit` and `push`,
-and `mail`'s `poll`. Those rows still write `_olai/Settings.olai` for everyone
-using the directory, and each run of groups closes with a line saying so.
-
-While the plugin runs, the plugins panel shows one **Set in Preferences** link
-in place of those knobs. Switch the plugin off, or disable the preference row,
-and the controls come back to the plugins panel.
-
-A few plugins follow the file live, keeping their state: git, kolu and mail.
-git's ledger reads the new `commit` and `push` at its next decision, so an open
-commit panel stays open. Every other plugin restarts on a settings change: the
-server mounts it afresh and every open tab follows.
-
-A plugin that needs a tool the machine lacks stays unavailable with the reason
-on its row, and nothing else is affected. Two plugins offering the same service
-is a failure for the second, named with both plugins and the service, and the
-first keeps running.
+A value in the file that olai cannot accept falls back to the default and is
+warned about once; the control then shows the refused text, the message and
+the default now in force beneath it. One broken line in the file sends every
+plugin back to its default, and the panel names the broken file.
 
 </details>
 
 <details>
-<summary>What each plugin takes with it when it goes off</summary>
+<summary>Settings shown in Preferences, and how soon an edit takes effect</summary>
+
+A plugin can mark one of its settings as a preference, and the Preferences
+gear then shows it under a heading named after the plugin: git's `commit` and
+`push`, and the mail plugin's `poll`. Those controls still write
+`_olai/Settings.olai` for everyone using the directory, and each run of groups
+ends with a line saying so.
+
+While that plugin runs, the plugins panel shows a **Set in Preferences** link
+where those settings would be. Switch the plugin off, or stop showing the
+setting in Preferences, and the controls come back to the plugins panel.
+
+Three plugins pick up a change to the file while they run, keeping what they
+were doing: git, kolu and mail. The git plugin reads the new `commit` and
+`push` the next time it decides whether to record, so an open commit panel
+stays open. Every other plugin restarts when its settings change: the server
+starts it again and every open tab follows.
+
+A plugin that needs a program this machine does not have stays unavailable,
+with the reason on its row, and nothing else is affected. If two plugins offer
+the same service, the second one fails, with both plugin names and the service
+named on its row, and the first keeps running.
+
+</details>
+
+<details>
+<summary>What each plugin takes with it when you switch it off</summary>
 
 | Plugin off | What goes | What stays |
 | --- | --- | --- |
-| git | the ledger, the Commit row, its tools | every write, unrecorded |
-| journal | the calendar, `/today`, day pages, Agenda and its badge | the `date` and `repeat` fields in your files |
-| search | the index and every ranked answer | the grammar, the box and the `search_nodes` tool, each answering with no hits and the reason |
-| chat | the conversation | nothing of its own; its engines, doorbells and the mirror stand `waiting` |
-| files | its browser and creation controls | the file metadata other plugins read to open content |
+| git | the list of waiting writes, the Commit row, git's tools | every write you made, unrecorded |
+| journal | the calendar, `/today`, day pages, Agenda and its badge | the `date` and `repeat` properties in your files |
+| search | the index and every ranked answer | the search grammar, the search box and the `search_nodes` tool, each answering with no hits and the reason |
+| chat | the conversation | nothing of its own; its engines, doorbells and the mirror are left `waiting` |
+| files | its file browser and its controls for making files | the file information other plugins read to open content |
 
 </details>
 
 <details>
 <summary>Plugins the directory itself defines</summary>
 
-A plugin can arrive from the served directory, asked for by you and written by
-an agent while olai is running. It is a folder under `plugins/`, and the whole
-of it is [dynamic-plugins.md](dynamic-plugins.md); what belongs here is what
-the panel does with one.
+The directory olai serves can bring its own plugin: one you asked for and an
+agent wrote while olai was running. It is a folder under `plugins/`, and
+[dynamic-plugins.md](dynamic-plugins.md) is the whole subject. What belongs
+here is what the plugins panel does with one.
 
 - It sits under **Your plugins**, below the built-in rows, with the same
-  switch, the same states and the same containment when its code throws.
-- Nothing mounts until you turn it on with the source in front of you, which
-  happens on the plugin's own page. Its row here links to that page.
-- An approval names a version, a hash of the two code files, so an edit to
-  either one pauses the plugin. You approve it, and an agent cannot approve the
-  plugin it has just written.
-- `on` and `approved` are properties on the plugin's node in this same file, so
-  the switch survives a restart and a folder copied in arrives off.
-- A folder named after a built-in plugin is a fault, named on the row and the
-  page, rather than an override.
+  switch, the same states, and the same containment when its code throws an
+  error.
+- Nothing of it runs until you switch it on with its source code in front of
+  you, which happens on the plugin's own page. Its row here links to that
+  page.
+- Approving it approves one version, identified by a hash of its two code
+  files, so editing either file pauses the plugin until you approve it again.
+  Only a person approves a plugin: an agent cannot approve the plugin it has
+  just written.
+- `on` and `approved` are properties on the plugin's node in this same
+  settings file, so a switch survives a restart, and a plugin folder you copy
+  in arrives switched off.
+- A folder named after a built-in plugin does not replace it. olai treats it
+  as a fault and says so on the row and on the page.
 
 </details>
 
 <details>
 <summary>Every environment variable olai reads</summary>
 
-These supply credentials and machine resources. Settings that belong to the
-directory, such as identity headers and logging, are in the file instead. The
-plugins panel shows a secret as `Set` or `Not set` and never its value.
+These variables carry credentials and say what this machine provides.
+Settings that belong to the directory, such as the identity headers and the
+log level, live in the settings file instead. The plugins panel shows a secret
+as `Set` or `Not set` and never shows the value.
 
 | Name | What it supplies |
 | --- | --- |
-| `OLAI_AGENT_PATH` | the engine search path; empty searches nowhere |
-| `KOLU_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI` | adapter executables, normally supplied by the packaging |
-| `CODEX_CONFIG` | a JSON overlay merged into the Codex session config on every spawn |
-| `OLAI_BROWSER_MCP` | the absolute Playwright MCP executable; empty omits the browser tools |
-| `OLAI_BROWSER_CHROMIUM` | the absolute Chromium olai runs; empty gives each conversation its own browser |
-| `OLAI_BROWSER_CHROMIUM_SANDBOX` | `chromium` (default) or `container`; anything else fails the launch with a sentence |
-| `OLAI_ODU_BIN` | a directory put first on the appliance's `PATH`; empty switches the pin off |
-| `ODU_WEB_ORIGIN` | the odu service origin to dial; default `http://127.0.0.1:18440` |
-| `OLAI_HIMALAYA` | the `himalaya` the mail plugin runs |
+| `OLAI_AGENT_PATH` | where olai looks for agent programs; empty means it looks nowhere |
+| `KOLU_ACP_AGENT`, `OLAI_ACP_CODEX`, `OLAI_ACP_PI` | the adapter programs olai runs, normally supplied by the packaging |
+| `CODEX_CONFIG` | JSON merged into the Codex session configuration each time olai starts Codex |
+| `OLAI_BROWSER_MCP` | the full path of the Playwright MCP program; empty leaves out the browser tools |
+| `OLAI_BROWSER_CHROMIUM` | the full path of the Chromium olai runs; empty gives each conversation its own browser |
+| `OLAI_BROWSER_CHROMIUM_SANDBOX` | `chromium` (default) or `container`; any other value fails the launch with a message |
+| `OLAI_ODU_BIN` | a directory put first on the odu program's `PATH`; empty switches off the version olai pins, leaving the `PATH` to decide |
+| `ODU_WEB_ORIGIN` | the address of the odu service to call; default `http://127.0.0.1:18440` |
+| `OLAI_HIMALAYA` | the `himalaya` program the mail plugin runs |
 | `OLAI_MAIL_OAUTH_CLIENT`, `OLAI_MAIL_OAUTH_SECRET` | the Google OAuth client id and secret for a mailbox |
-| `OLAI_MAIL_GOOGLE` | the Google origin this server talks to; loopback only, because the requests carry the secret |
-| `OLAI_SPACES_URL`, `OLAI_SPACES_TOKEN` | the Spaces origin and its installed-app token |
-| `PADI_SOCKET` | the local kolu socket path |
-| `OLAI_ALLOWED_ORIGINS` | browser origins to admit, comma-separated |
-| `OLAI_HOSTNAME` | the machine label the page shows |
-| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, other provider keys | secrets the agents inherit |
-| `OLAI_TOKEN` | the bearer the terminal client sends ([connecting-agents.md](connecting-agents.md)) |
+| `OLAI_MAIL_GOOGLE` | the Google address this server talks to; loopback only, because these requests carry the secret |
+| `OLAI_SPACES_URL`, `OLAI_SPACES_TOKEN` | the Xyne Spaces address and its installed-app token |
+| `PADI_SOCKET` | the path of the local kolu socket |
+| `OLAI_ALLOWED_ORIGINS` | the browser origins to admit, separated by commas |
+| `OLAI_HOSTNAME` | the machine name the page shows |
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, other provider keys | secrets the agents olai starts inherit |
+| `OLAI_TOKEN` | the token the terminal client sends ([connecting-agents.md](connecting-agents.md)) |
 
-An explicit path is never guessed from its spelling. In a row's environment
-readings, a path the packaging supplied reads `·wrapper` and one you set reads
-`·env`.
+A path you set is used as written, never guessed from how it is spelt. Where a
+row lists what it found in the environment, a path the packaging supplied
+reads `·wrapper` and one you set reads `·env`.
 
 </details>
