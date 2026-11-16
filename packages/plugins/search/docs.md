@@ -1,43 +1,29 @@
-# The matcher
+# search
 
-Search is a plugin. The trigram table the server keeps up to date, the walk over it that ranks and caps and situates a hit, and the box in the app header all arrive with one row in the build's plugin list. A serve that does not name that row still has the grammar, the tool and every box a person types into — and every one of them answers with the reason, naming the row: *the `search` plugin is not running on this serve*.
+Keeps the index every search in olai is answered from, and brings the search box in the header. [../search.md](../search.md) is the query language; this page is the row.
 
-What search *does* has its own page: [search.md](../search.md) is the grammar, the five doors and what a query means. This page is about the row.
+## What turns it off
 
-## What turns it on
+The row is on by default. Set `on: no` on the `search` node in `_olai/Settings.olai`, or use its switch, **Search** under **Notes** on the plugins panel ([../settings.md](../settings.md)).
 
-Nothing. It is on by default, like chat, git and the journal. Two things take it away, and they answer two different questions.
+With it off, the box, the palette and the `search_nodes` tool are all still there and none of them finds anything. Each answers with no hits and the reason, `the search plugin is not running on this serve, so there is no matcher to look this up in`, carried in the same place a query the grammar could not read is reported. Switching it on restores the services and rebuilds the index.
 
-Set `on: no` on the `search` node in `_olai/Settings.olai`, or use its switch (`Enable search`) on the plugins panel ([running.md](../running.md#which-integrations-this-serve-runs)). The switch writes that same property and the choice survives restart. Turning the row back on restores its services and browser contribution.
+Narrowing the page in front of you is not this row's. The filter bar over an outline, a day, the agenda or the trash reads the page a tab already holds, and goes on working with search off.
 
-**Either way, no query finds anything, and nothing is silent about it.** The refusal is carried on the answer's `refusals`, which is the field every one of those doors already draws for a query the grammar could not read — and which an agent reads in the result of `search_nodes`. There is no empty list with nothing to say.
+The row accepts no settings of its own.
 
-## The filter over a page is not on this row
+## What it gives
 
-Narrowing the rows in front of you — the filter bar over an outline, a day, the agenda, the trash — is a different question with a different answer: it is a reading of ONE page a browser already holds, asked as a standing view rather than as a call, and it never touched the index. It belongs to outlines and goes on working with search off. See [search.md](../search.md).
+| Where | What you get |
+| --- | --- |
+| the header | a box with the placeholder **Search**, and an **All** / **Rows** / **Files** selector under it that picks what kind of hit to ask for |
+| a phone | a **Search** button in the bar that opens the palette |
+| an agent | `search_nodes`, the same question answered from the same index |
 
-## On the wire
+Both boxes say **Go** on an on-screen keyboard's return key, because pressing it opens the row the cursor is on rather than submitting a search. Neither is autocapitalized, autocorrected or spell-checked: a query is matched, not read.
 
-Search owns its procedure and query-stream descriptors, registered with the server by its activation. The browser calls that capability's client. MCP keeps the established `search_nodes` spelling while withdrawing it when its provider leaves.
+## What it refuses
 
-The row stands behind `Search` on `Offers` alone, so it answers on a serve with no vault at all. Its `wire` component — the half that already waits for `Vault` — is where the same door is TOLD TO THE VAULT, through `vault-views`: the vault's settings carry a matcher, and the vault cannot name `Search` without a cycle. That was a lookup at the far end over the whole host; the provider registers now, and the registration leaves with this row.
+The index is held in memory for the directory you are serving, and the row fails if it cannot be opened. The plugins panel says so on the row, every other row keeps running, and search refuses in words meanwhile.
 
-## Where it hangs in the tab
-
-| seat | who declares it, and what they keep | what search brings |
-| --- | --- | --- |
-| `app.header` (`lead`) | `layout` — the seat, and what it costs when the bar runs out of width | the box (placeholder `Search`), and the phone's search button |
-
-The `lead` word arrived with this row. It is the seat ahead of the health dot and the Preferences gear — the one control in the bar that may shrink to nothing before anything beside it gives way, and the one drawn on a phone too, where it is a 44px magnifier button named `Search` that opens the ⌘K palette. Under the box, an **All / Rows / Files** selector picks what kind of hit to ask for ([search.md](../search.md)). The panel of results portals against the viewport, the way the commit and preferences panels do.
-
-The shortlist, result rows and count are search's public presentation contracts. Navigation, chat and outlines supply their own selection behavior and retain their own editing state. The generic cursor is a UI primitive.
-
-Both boxes say what their return key does, which is what an on-screen keyboard draws: **Go**, because Enter opens the row the cursor is on rather than submitting a search. A query is matched rather than read, so neither box is autocapitalised, autocorrected or spell-checked — the header box keeps `type="search"` for its clear affordance, and the shortlist stays a plain text box.
-
-Neither box draws a focus ring of its own any more: olai has one, it is an outline rather than a glow, and it is the only kind that survives a screen forcing its own colours — the glow these boxes used to add was a shadow, which that mode deletes. The results panel's hairline is a real border for the same reason. What the boxes keep is their own lit border when the caret is in them. [theme.md](theme.md) has the account.
-
-Live queries arrive through the scoped `search.readings` service. Removing search disposes each query subscription, clears actionable results and shows an unavailable message in surviving pickers. Returning search starts a fresh query for the consumer's current input. No implementation is cached in a process-global handle, and no general web module imports a search implementation.
-
-## Semantic recall
-
-A second provider row, whenever it arrives ([#165](https://github.com/juspay/olai/issues/165)). Core's door takes a query and answers located nodes; what stands behind it is a row, and a different matcher is a different row rather than a mode of this one.
+Switching the row off gives that memory back. Switching it on builds a fresh index, level with the next reading it is handed.

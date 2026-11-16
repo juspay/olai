@@ -1,74 +1,73 @@
 # UI renderer
 
-`ui-renderer` is a browser-only row selected by the default web bundle. The
-host supplies a mount element through `BrowserMount`; this plugin owns the
-Solid root, its disposal and the location registry. It provides
-`ui-renderer.slots`. Its static `/contract` export carries the typed root
-location and service contract without importing presentation code.
+`ui-renderer` draws nothing of its own. It owns the root the browser app is
+mounted into, and the registry every other browser plugin hangs its faces off.
+With it switched off, olai still serves and writes your files, and no page is
+drawn to read them on.
 
-`ui-renderer.slots` is also how another row WALKS a location: five packages
-read what is contributed at one, and each declares this service on the
-component that draws rather than reaching a module variable in this row's
-contract door. `ui-renderer.faces` is the same reading in the legacy slot
-vocabulary, and it answers in the BUILD's own row order — the rank arrives with
-the mount (`BrowserMount.rank`) and this row's facade spends it, so the tab and
-a plugin cannot get two different orders. `ui-renderer.clocks` carries what day
-it is beside its clock factories, because one timer ticks in a tab and it is
-this row's.
+## What has to be on for a page to appear
 
-Only `root` is permanent, and it permits one contribution. Register a face
-with `contribute(location, face, { children, activate })`. Child declarations
-belong to that particular entry, not merely to a plugin or a parent name.
-Their names are reserved while waiting, but they become available only when
-the owning entry activates successfully.
+`root` is the only location this plugin keeps permanently, and it takes exactly
+one contribution: the frame, which is [layout.md](layout.md)'s. Both rows must
+be on. A serve with no browser bundle selects neither, and runs headless.
 
-Put location-dependent subscriptions, listeners and other resources in the
-scoped `activate` effect. Cordis starts that integration when its location
-arrives, revokes child locations and drains dependent cleanup when it leaves,
-and starts a fresh scope when an owner returns. Independent plugin work stays
-outside this effect. Unrelated active contributions preserve their identity.
-Failures and hanging initialization are contained by the same lifecycle bridge
-as ordinary service consumers. Renderer withdrawal closes the entire registry.
+Switching rows on and off is [settings.md](settings.md) and the **Plugins**
+panel ([plugin-inspector.md](plugin-inspector.md)); the panel reports browser
+activation separately from the server's selection, because a row can be
+selected on the server and still have failed to load in this tab.
 
-Duplicate declarations, ownership cycles and incompatible cardinality fail
-with the responsible owners named, including registrations still waiting.
-`inspect()` distinguishes active, waiting and failed integrations; reserving a
-child name alone never reports a dependent integration active.
+## When one plugin's browser half fails
 
-The server does not import this plugin's browser module. Its loader fiber
-records selection, and its roster says `browserOnly: true`. The plugin panel
-shows browser activation separately from host selection. Headless profiles
-do not select this row.
+The failure is reported on that row alone. Every other loaded row still mounts
+and keeps working. The **Plugins** panel files the failed row under **Needs
+attention** and offers **Try again**, which re-fetches that entry only:
+successfully loaded modules, including ones recovered by an earlier retry, are
+kept through later roster changes.
 
-The earlier `Slots`/`Faces` API is a typed adapter over this same registry.
-`openApp` owns no slot tables. Legacy plugin, kind, list and single-slot key
-rules are retained; reservations, activation scopes and diagnostics are shared
-with native contributions. The renderer publishes these compatibility services
-as `ui-renderer.legacy-slots` and `ui-renderer.faces`. `Slots` and `Faces` imports
-remain the supported way to name them.
+## When nothing is drawn at all
 
-The host defers compatibility notifications across roster composition and joins
-location activations before publishing the result. This prevents a provider
-wrapper from disappearing while dependent faces are still drawn. Location
-failures and missing owners appear in the inspector. Retry restarts only failed
-integrations; successful entries and independent plugin providers survive.
+If startup cannot render an application (the renderer itself would not load,
+or the startup request failed), the page shows a small report named **olai
+couldn't start**, with the problem in a sentence and a button under it.
 
-If the socket has not delivered its first roster after the startup deadline,
-the browser asks the web-app provider for `/olai/browser-boot`. This uncached
-answer names only the host-selected browser-only rows, allowing the shell to
-show connecting state. Once the live roster has answered, a delayed bootstrap
-response cannot replace it. The browser never infers selection from defaults.
+| Button | When | What it does |
+| --- | --- | --- |
+| **Try again** | the module may still load | retries with the server's current selection |
+| **Reload page** | `Retry could not recover this browser module. Reload the page to recover its dependencies.` | nothing short of a reload will fix it |
 
-A failed browser module is reported on its own row; independent loaded rows
-still mount. The inspector files the row under Needs attention and offers **Try again** without reloading
-surviving plugins. If startup cannot render an application, the host displays a
-small error view with **Retry browser startup**, including when the renderer
-itself cannot load or the bootstrap request fails. Retry uses the latest host
-selection and does not infer a default shell.
+The report disappears as soon as an application renders. Retry never guesses a
+default shell; it asks for whatever the server says is selected.
 
-The browser build embeds entry URLs derived from Bun's output metadata in the
-uncached shell. These URLs describe available code, not selected plugins. Retry
-uses a fresh query on a failed entry to bypass the browser's cached import
-failure; relative dependencies retain their original URLs and shared runtime
-identity. Successfully loaded modules, including recovered ones, are retained
-across later roster changes.
+> While the first roster is still on its way, the shell asks the server which
+> browser-only rows are selected so it can draw its connecting state. The live
+> roster wins: a late answer to that first question cannot replace it.
+
+## For plugin authors
+
+`ui-renderer.slots` is both how a row contributes a face and how it reads one:
+`contribute(location, face, { children, activate })`. Name the service on the
+component that draws, not on the row, so a row whose renderer is absent waits
+instead of failing.
+
+| Service | Carries |
+| --- | --- |
+| `ui-renderer.slots` | contributing at a location, reading what is contributed at one, and `inspect()` |
+| `ui-renderer.faces`, `ui-renderer.legacy-slots` | the same registry under the older `Slots` and `Faces` names, in the roster's own order |
+| `ui-renderer.clocks` | the tab's one timer and what day it is |
+
+Child locations belong to the entry that declared them, not to a plugin or a
+parent name. Their names are reserved while the entry waits and become
+available once it activates. Put location-dependent subscriptions and listeners
+in the scoped `activate` effect: it starts when the location arrives, drains
+when it leaves, and starts fresh when the owner returns.
+
+Duplicate declarations, ownership cycles and incompatible cardinality fail with
+the responsible owners named, registrations still waiting included. `inspect()`
+tells active, waiting and failed apart; reserving a child name alone never
+reports an integration active. Withdrawing the renderer closes the whole
+registry.
+
+The runtime underneath is
+[../architecture/plugin-system.md](../architecture/plugin-system.md), and the
+words a manifest uses are
+[../architecture/plugin-vocabulary.md](../architecture/plugin-vocabulary.md).

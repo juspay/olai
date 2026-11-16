@@ -68,4 +68,4 @@ contract, and nothing about any particular plugin — the Nix twin of the
 import rule below.
 
 The whole checklist for adding one is
-[docs/architecture/plugin-system.md §9](../../docs/architecture/plugin-system.md).
+[docs/architecture/adding-a-plugin.md](../../docs/architecture/adding-a-plugin.md).

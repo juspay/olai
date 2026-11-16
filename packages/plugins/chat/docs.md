@@ -1,598 +1,120 @@
 # The conversation
 
-Chat contributes conversations to outline rows and zoomed node pages, plus the
-standing/start aside, Needs you and Chats, an Agents palette adapter with New
-chat's two levels, and the carry gesture. These faces arrive with chat's plugin row and leave
-with it. [chat.md](../chat.md) describes the workflows; this page describes their
-ownership.
+This plugin puts an agent conversation on any row, on a node's own page, and in the agent panel, with **Needs you** and **Chats** in the sidebar. It is on by default. [Talking to an agent](../chat.md) is the workflow; this page is the plugin's own account.
 
-Every reference the panel draws is a real anchor, so navigation answers it with
-the same gestures as any other link; the transcript has no click or keyboard
-handler of its own. An authored Reference chip, a write's result and a
-backticked id that names a node are `/#id` — REVEAL, selecting the row in
-whichever outline draws it. The sidebar's rows are not references to a place
-inside a file: a Chats row, a Needs you row and an Agents palette row are
-`/zoom/#id`, the conversation's OWN page, because opening a chat means reading
-it rather than returning to the file it was filed under. A backticked id
-streaming in is wrapped in its anchor once the node is known, and unwrapped if
-it stops being one.
+## What it needs
 
-## The dock
+One engine plugin, each of which is a separate row: [claude](claude.md), [codex](codex.md), [opencode](opencode.md), [pi](pi.md) and [omp](omp.md). With none of them available the agent menu says `No agent is set up` and offers **Open plugins**, and a Chats section with nothing in it reads `No chats yet. Start an agent on any row, or press + beside Chats.`
 
-The agent panel ([chat.md](../chat.md#the-agent-panel)) is chat's `dock`
-component, and it is a component of its own because it needs the shell's seat:
-it declares `layout.shell` and, through it, whether the seat's column is open
-(`panelOpen`, `setPanelOpen`, `togglePanel`) and whether this is a desktop. With
-no shell — content under another layout, a phone-only serve — the component
-pends and nothing it offers is drawn: the `app.panel` face, the bar's toggle
-(`layout.tools`), the ⌘J chord (`app.keys`) and the palette's show/hide row all
-leave with it, and the doors on a Chats row and an agent line read the held
-dock and draw nothing when it answers nothing.
+| Environment variable | What it says |
+| --- | --- |
+| `OLAI_AGENT_PATH` | The directories holding agent executables. Unset, olai searches `PATH`. |
 
-What is chat's is **which** conversation is docked: a node id this browser
-remembers under `olai.chat.dock`, held for the component's activation. The
-column — whether it is open, how wide, the handle on its edge — is the shell's
-(`olai.chat.open`, `olai.chat.width`), and the frame draws it only while the
-seat is taken, the reader has it open, and the viewport is a desktop. The face
-in the column leases the docked node's conversation exactly as a fold does
-(`createNodeConversation`), so a conversation read in the fold and in the dock
-is one reading, released when its last reader leaves.
+Switching an engine off, or emptying its own executable path, makes only that engine unavailable: the other enabled engines are still discovered, and conversations carry on.
 
-A phone has no seat, so chat's `thumb` component — the same shape, declaring
-`layout.shell` for the one thing it needs, revealing the drawer — contributes
-the **Chats** door to the frame's thumb bar
-([layout.md](layout.md#the-thumb-bar)). Its badge is `data-waiting`, the count
-of conversations that need somebody (the Needs you rows, `attention-order.ts`'s
-`needing`), drawn only while it is not zero; a tap opens the drawer and puts
-the caret on Needs you (`agentReadings().focusNeeds`), so the agent waiting on a
-person is one tap and a glance away.
+## Where its faces hang
 
-## What turns it on
+Chat contributes no tools of its own. What it adds to the agent face is one paragraph: its charter, which the [mcp](mcp.md) row composes into `initialize`'s instructions while this row is standing. The charter says that a person reads the answer in the panel beside the outline. It says that a backticked id in prose is clickable, that one in a code fence is a quotation, and that a link to an app address is followed in place.
 
-Nothing. It is on by default, like the appliances and the engines. Two things take it away, and they answer two different questions.
+| Place | What chat draws there |
+| --- | --- |
+| a row's fold | The conversation, the agent line and the composer. |
+| a node's page | The agent line under the title, and the conversation and composer after the subtree. |
+| a row's aside | A bound row's standing, or the start pill while an agent is available. |
+| a row's menu | **Start an agent** on a plain row; **Fresh start**, **Close the agent** and the sleep verbs on a row with one. |
+| the breadcrumbs | A bound ancestor's agent mark, on a trail, a day's row and a search result. |
+| the sidebar | The **Needs you** and **Chats** sections, with a `+` beside the Chats heading for **New chat**. |
+| the palette | Every agent, and the **New chat** row while an engine can start. |
+| the agent panel | The docked conversation, on a desktop. |
+| a phone's thumb bar | The **Chats** door, badged with how many conversations need somebody. |
 
-Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in `⧉`. The switch writes that same property and the choice survives restart. Turning the row back on restores its services and browser contribution.
+The agent panel opens and closes with `Cmd` + `J`, which is `Cmd` on a Mac and `Ctrl` elsewhere. Which conversation is docked is remembered per browser; whether the column is open, and how wide, belongs to the frame. A serve with no desktop shell draws no panel, no toggle and no shortcut.
 
-Disabling chat removes its wire members, folds, page faces, standings, sidebar
-regions, palette adapter and the dock, with any New chat level it had open. Surviving outline and document editors
-retain their instances. Enabling it restores the scoped contributions.
+Every reference the panel draws is a real link. An authored reference chip, a write's result and a backticked id that names a node select that row in whichever outline draws it. A sidebar row, a **Needs you** row and an agent row in the palette open the conversation's own page instead, because opening a chat means reading it.
 
-## What waits on it
+A standing is never told by movement alone. The dot for an agent that is working or starting wears a ring as well as a pulse, so a system set to reduce motion stills the animation without taking the fact away. On a screen that forces its own colours, every standing mark is drawn from your palette rather than olai's ([theme](theme.md)). The words beside them are unchanged either way.
 
-Every plugin that could reach a conversation names one of the five doors this row stands behind:
+## The properties a node agent carries
 
-| door | what it is | who names it |
-| --- | --- | --- |
-| `agents` | which ACP engines this build can seat | [claude](claude.md), [codex](codex.md), [opencode](opencode.md), [pi](pi.md), [omp](omp.md) |
-| `deliveries` | where a doorbell may ring | [kolu](kolu.md), [odu](odu.md), [mail](mail.md) |
-| `session-start` | what to ask this host when a conversation opens | kolu, odu |
-| `chat.seating` | the durable nodes, engines and sessions over one vault reading | xyne-spaces |
-| `watching` | what a plugin that mirrors a conversation is told | [xyne-spaces](xyne-spaces.md) |
+A node becomes a node agent by carrying a property whose kind is `chat-agent-session`. The subtree under that node is that agent's memory, and its writes reach your files.
 
-In the browser, the row publishes its roster as `chat.state`. The static door
-`olai-plugin-chat/attention` names it (`chatState`) with a narrow shape — the
-rows, the one `unread` fact about what a person has read, and the tab-local
-folds — and carries `isCurrent`, the predicate the Chats section lights a row
-with, and the two paints another row draws: `NEEDS_YOU_DOT` and `UNREAD_DOT`.
-The rest of a standing's look and the sidebar's ordering stay in chat's browser
-modules. The tabs row's `attention`
-component names it to put a dot on a tab whose page is a conversation that needs
-you, and a quieter one on a tab whose page holds something nobody has read. The
-door holds no live value.
+| Kind | What a value means |
+| --- | --- |
+| `chat-agent-session` | The engine, and after a colon the conversation: `claude`, or `claude:0f3c8d21-…`. |
+| `chat-agent-slept` | The instant olai last tidied that node agent's memory. Written by the pass alone. |
+| `chat-agent-sleep` | `on` means olai may tidy that memory on its own clock. Absent or `off` means it may not. |
 
-**A standing is never told by movement alone.** The dot for an agent that is
-working or starting wears a ring as well as a pulse, because the pulse is the
-one part a reader can switch off: a system set to *reduce motion* stills every
-animation in olai, and working and idle are otherwise the same colour. With the
-preference set the ring stays, the conversation's live dot stops pulsing but
-stays drawn in full, and the words beside both — *Working…*, *Starting…*, the
-busy line under your message — are unchanged. The preference is about movement,
-never about being told less.
-
-**Nor by a colour the screen may take away.** On a screen that forces its own
-colours — High Contrast — a dot painted in olai's palette would be repainted as
-the page behind it and stop being a dot at all, so every standing mark, the
-live dot and the tab's needs-you and unread marks are drawn from the reader's
-own palette instead. The busy ring is an outline rather than a shadow for the
-same reason: a shadow is deleted outright in that mode. The words beside them
-are, as ever, unchanged. [theme.md](theme.md) has the account.
-
-So **a serve with no chat row leaves all of them `waiting`**, and the plugins panel says so per row, on whose account. That is not a failure and it is not silent: a plugin holding a door that nobody offers is a plugin that has not started, which is a legitimate state the runtime resolves the moment the door arrives.
-
-Enable the chat row alongside any tenant that needs its services. Each namespace’s `on` property controls that row; unspecified rows retain their profile and build defaults.
-
-## The property a node agent carries
-
-A node becomes a **node agent** by carrying a property whose kind is `chat-agent-session`. Its value names the engine, and after a colon the conversation:
-
-```
-chat-agent-session: claude                     a node agent with no session yet
-chat-agent-session: claude:0f3c8d21-…          ...and one that is bound
-```
-
-The subtree under that node is that agent's memory — its home, its history, its doorbells. Writes reach the vault.
-
-### Keeping it on a column of your own name
-
-A kind claims the key equal to its own composed word, so `chat-agent-session` needs no declaration at all. To keep bindings under some other column — `agent-session`, say, which is the bare word core owned before chat became a plugin — **declare that key as this kind, with one row in `_olai/Properties.olai`:**
+A kind claims the key equal to its own word, so none of the three needs a declaration. To keep bindings under a column of your own name, say which column is this kind with one row in `_olai/Properties.olai`:
 
 ```json
 {"title":"agent-session","custom":{"type":"chat-agent-session"}}
 ```
 
-olai never writes that row for you, and it never reads an undeclared column as a binding either. A plugin may only ever declare a key carrying its own name, which is what makes enabling a plugin unable to take over a column you have been using for something of your own — a bare `agent-session` is a word any vault might mean something else by. Your board says which column it means; a release does not decide for you. Renaming the key to `chat-agent-session` works just as well and needs no row.
+olai never writes that row for you, and it never reads an undeclared column as a binding. A plugin may only declare a key carrying its own name, so enabling a plugin cannot take over a column you have been using for something else. The same holds for `last-consolidated` as `chat-agent-slept` and for `agent-sleep` as `chat-agent-sleep`.
 
-## The property a sleep leaves behind
+A seated session may write none of the three: an agent that opted itself in would be authorizing its own wake-up.
 
-Chat contributes a **second** kind, `chat-agent-slept`: the instant olai last
-tidied that node agent's own memory for it ([chat](../chat.md)). It is a date,
-it is written by the pass and by nothing else — a seated session may not write
-it, exactly as it may not write its own binding — and it is what keeps a node
-whose subtree has not moved from spending a turn on nothing. The turn itself hands
-the whole job to one subagent (`src/sleep.ts`), so the tidying's reads and rewrites
-stay out of the conversation a person goes on using. The same two rules
-apply: the kind claims `chat-agent-slept` with no declaration needed, and a
-column of your own name can carry it with one row.
+## What the sleep line says
 
-```json
-{"title":"last-consolidated","custom":{"type":"chat-agent-slept"}}
-```
+Nothing is tidied until you say so. Under a node agent's conversation, one standing line reads **Sleep**, then the **On** or **Off** switch, then what is due, then **Tidy memory** for a pass you want now. The row menu's **Sleep when idle** and **Stop sleeping when idle** write the same property, and the palette offers the same row for the conversation on screen.
 
-## The property that says whether olai may tidy at all
+| What it says | What is true |
+| --- | --- |
+| `off in Settings` | `sleep` is off for this directory, so there is no switch to offer. |
+| `last 3h ago` alone | Nobody has asked for this one. |
+| `no conversation yet` | The node has no conversation to hand a turn to. |
+| `nothing new to tidy` | Nothing has moved since the last pass. |
+| `too little to tidy · 2 of 5 rows` | Some rows moved, fewer than `sleep-floor`. |
+| `when this chat is quiet` | A turn, a question or an unanswered form is in the way. |
+| `next in 4h if left alone`, or `due now` | The quiet window is running, or has closed. |
+| `tidying now` | This node's pass is in flight. |
+| `last pass failed · not before 14:05` | A pass failed, and its backoff ends then. |
 
-Chat contributes a **third** kind, `chat-agent-sleep`, and it is the only one a
-person writes: `on` means olai may tidy that node agent's memory on its own
-clock, and the key being absent or `off` means it may not. **Nothing is tidied
-until you say so** — the pass is opt-in per chat, and this is the whole of the
-state. Under a node agent's conversation, on the one standing line chat draws
-under the tools roster, the mark is the **On**/**Off** switch of the sleep item
-(**Sleep · On · last 3h ago · next in 4h if left alone**); the row menu's **Sleep
-when idle** writes it and **Stop sleeping when idle** takes it off; ⌘K offers the
-same row for the conversation on screen — and any of them can be typed here
-instead:
+Asking for a pass with `sleep: off` is refused with `sleep is off in this directory's settings`.
 
-```json
-{"title":"agent-sleep","custom":{"type":"chat-agent-sleep"}}
-```
+## Settings
 
-A seated session may not write it, exactly as it may not write its own binding:
-an agent that opted itself in would be authorising its own wake-up. The switch in
-`_olai/Settings.olai` is the other half — `sleep: on` (the default) lets the loop
-run for the chats that asked, and `sleep: off` stops all of it, this verb
-included.
+All of these go on the `chat` node in `_olai/Settings.olai`, and each has a field in the plugins panel ([settings](../settings.md)). A span is a whole number and a unit out of `ms`, `s`, `m`, `h` and `d`, at most `2147483647ms`; an unreadable one warns and falls back to the default.
 
-## What the line says about a sleep
-
-The pass's judgement is **one function on the server** and one shape on the wire:
-the roster row carries a `sleep` forecast beside `sleeps`, judged by
-`forecastOf` in `src/server/sleep.ts` — the same judgement the loop picks a
-candidate with — and `src/browser/chat/sleeping.ts` turns it into words. So the
-line a person reads and the pass that acts cannot disagree about when a node is
-due, and the browser re-derives nothing:
-
-```ts
-{ lastSlept: "2026-10-12T06:00:00+00:00"      // the memo, as stored
-, after: 21600000                             // sleep-after, the rhythm
-, floor: 5                                    // sleep-floor, the pressure
-, latest: 604800000                           // sleep-latest, the backstop
-, next: { kind: "due", at: "…T15:00:00Z", rows: 6 }  // one of eight states
-}
-```
-
-`next.kind` is `unmarked` (nobody has said yes), `unbound` (no conversation to
-hand a turn to), `unchanged` (nothing has moved since the memo — zero rows),
-`little` (with how many did move: not enough for a pass yet), `busy` (a turn, a
-question or an unanswered open), `due` (with the number of moved rows and the
-instant its quiet window closes), `running` (this node's pass is in flight) or
-`skipped` (a failed pass, with the end of its 24 h backoff). **There is no `off`
-arm**: `sleep: off` in a directory's settings is no sleeper at all, so it is a
-`null` forecast, and an arm no judgement produces would be a claim the wire cannot
-keep. It rides the row as DATA — `data-next` on the item is
-that same `kind` — because the words are a sentence and a scenario should be
-asserting the state. The item's own clock is the strip's
-(`src/browser/chat/elapsed.ts`), and the relative times are read off fixed
-instants: `lastSlept` and `next.at` are the server's, never the reader's.
-
-## Where it hangs in the tab
-
-Each seat is declared by the plugin that owns the place it is in, and chat brings the face. That split is worth knowing if you are reading the code rather than using it:
-
-| Seat | Owner and placement | Chat contribution |
+| Setting | Default | What it does |
 | --- | --- | --- |
-| `sidebar.section` | sidebar's regions | Needs you and Chats; the Chats heading carries a `+` (New chat) that opens the palette at New chat's where level without creating anything (with no engine, the agent menu's "No agent is set up" line); every row is `/zoom/#id` — the conversation's own page — and a Chats row is engine mark, title, age and a `•••` of chat's own verbs (not drawn at all below the desktop breakpoint, where the row has no width to spare, and drawn rather than hover-revealed on a screen with no hover — `@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`), ordered awake-first and drawing the standing dot only where the agent is AWAKE (asleep, unbound and gone draw none; the standing is `data-standing` either way and unread is the title's weight); Needs you keeps its dot |
-| `outline.crumb.aside` | outlines' per-crumb face | a bound ancestor's agent mark — the same `/zoom/#id` door as a Chats row — on the breadcrumbs above a node, on a day's row and in a search result's place line |
-| `outline.row.placement` | outlines' kind-keyed chip placement | `{inRows: false}` for session properties; ordinary zoomed drawer retained |
-| `outline.row.aside` | outlines, after the row's date and repeat pills | a bound row's standing, always; otherwise the start pill, only while an agent is available (on phones only on the tapped or focused row, which is about the width of the line; above that breakpoint a screen with no hover gets the pill drawn rather than faded in) |
-| `outline.row.fold` | outlines, after row content and before children | bounded conversation, agent line and composer |
-| `outline.page.head` | outlines, under title above property drawer | agent line |
-| `outline.page.foot` | outlines, after the zoomed subtree | unbounded conversation and composer, or a plain-node composer |
-| `outline.row.action` | outlines' row menu | Start an agent on a plain row; Fresh start and Close the agent on a row with an agent. Start and Fresh start are one entry each — the verb with one available agent, a submenu of available agents with several, absent with none; Close the agent is always offered |
-| `paletteAdapters` | navigation's scoped adapter registry, via renderer slots | all agents, and — while an engine can start — the **New chat** row (`new-chat`), a group level of places whose rows open a value level for the message and engine |
+| `on` | `yes` | Whether this row runs at all. |
+| `idle-ms` | `172800000` | How long an idle chat keeps its agent running, in milliseconds. |
+| `sleep` | `on` | Whether olai may tidy a chat's memory on its own clock. Each chat still has to ask. |
+| `sleep-after` | `6h` | How long a node agent is left alone before olai tidies its memory. |
+| `sleep-floor` | `5` | How many rows must have moved since the last pass before olai tidies. |
+| `sleep-latest` | `7d` | How long a moved row may wait untidied before olai tidies anyway. |
+| `sleep-tick` | `15m` | How often olai looks for a node agent whose memory it could tidy. |
+| `sleep-question` | `20m` | How long a tidying turn may sit on a question before olai stops it. |
+| `sleep-limit` | `1h` | How long one tidying turn may run before olai stops it. |
+| `remind-every` | `20` | Every how many messages a node agent is reminded where to write. Zero never reminds. |
 
-Chat no longer contributes `app.panel` or `app.header` and names no layout shell
-service. Its four node faces are registered under `AgentsProvider`, reading one
-activation-owned roster. Outlines owns rendering placement and row lifetimes;
-chat owns each conversation reading. A page's head and foot lease one view owner
-keyed by pane and node. Those views and outline folds lease a shared reading
-keyed by engine/session, or by node while unbound. The last view lease releases
-the reading. Conversation UI has the same activation-owned keys, so drafts,
-refusals, question state and dismissed completions do not leak across conversations.
+## What it refuses
 
-**The agent above is a client join, not a second reading.** Which ancestor holds
-a conversation is answered from the page readings this tab already has (a zoomed
-page's trail, a day entry's trail, a file's own parent links) joined against the
-live roster by `src/browser/agents/above.ts`: no server map of node → nearest
-agent exists, and the pill, the crumb mark, the row menu and the palette all ask
-that one helper, so a roster frame retargets each of them in place. The pill is
-chat's `outline.page.head` face on an unbound page and part of `AgentLine` on a
-bound one; the crumb mark is chat's `outline.crumb.aside` face, drawn by
-outlines in every trail and handed by each search door's own faces holder to
-`PlaceLine`. With chat off the slot has no face and the crumbs render as before.
-`src/browser/verbs.tsx` takes the "open" door as an argument from
-`browser.tsx`, so the row menu's roster reading loads no router.
+Eight node agents are awake at once. Opening a ninth is refused in its own conversation with `All 8 agents are awake — put one to sleep in Chats.`, and that refusal alone offers no retry button, because the thing to press is **Put to sleep** on another chat. The attempt waits where it stands and is retried the moment a seat frees; a tab that leaves takes its wait with it.
 
-Chat declares `delivery.mark` and `conversation.wake`. The fold registration
-owns these shared child locations once; page faces consume the same locations.
-Reverse withdrawal removes page consumers before the fold's location owner.
-Engine absence is data on the roster, not a separate browser slot. One
-`EngineAbsence` component draws its mark and reason in the no-agent face, node
-composer and engine-owned inspector row. The agent menu (`EngineMenu`) draws
-only available engines; with none it says “No agent is set up” and, through the
-optional `plugins` component below, offers **Open plugins** on the row that
-explains (the first enabled engine that is not here, else chat's own row). Chat's declared browser `chat.engines` service
-supplies `row(engine): PluginsRowFace`, built over one activation-owned standing
-index. The static `olai-plugin-chat/browser-engines` door contains only its tag
-and interface. Each engine defines its own `row` component and registers the
-supplied face under its own identity. The component waits for chat and the
-inspector slot, and withdraws before chat releases its renderer.
-The activation-owned roster publishes `only` beside `engines` and `standings`:
-exactly one startable engine, irrespective of missing siblings. Outline start and fresh start read that same memo. New chat's message
-level lists the startable engines in bundle order, the first chosen. Fresh start
-uses it only to decide whether to open a menu; its direct request always names
-the node's current engine. The refused-chat body's own *Start fresh chat*
-follows that rule without the memo: it never opens a menu, because it is a way
-out of a conversation rather than an invitation to change engine.
+A conversation the engine cannot load is a different refusal. Its body names the machine, keeps the engine's own sentence as a muted line, and carries one press to start a session. It does not heal on its own, and it never queues for a seat.
 
-Optional dependencies remain in separate scoped components. Navigation supplies
-route changes and its declared `navigation.palette` control, which chat's
-`navigation` component holds for that activation only so the Chats `+` can
-open the palette at New chat (`showAt(["new-chat"])`); without it the `+` says
-**Chat isn't available**. Outline references supply focused-row context; the
-search reading supplies completions. The `plugins` component needs the inspector's declared
-`plugin-inspector.configuration` service and holds its `open` in a
-component-owned holder (`src/browser/plugins-door.ts`) for that activation only;
-while the inspector is off the component waits and the agent menu draws no
-**Open plugins** action. Removing an
-optional provider releases its held service, and reconnection holds the new
-instance. Pending callbacks cannot navigate a later chat activation.
+Chat keeps at most 32 wake choices, rejects any an agent tries to write, and revokes queued deliveries when a choice is cleared or replaced. It stores the pick and draws the waiting count without interpreting it: [kolu](kolu.md) and [odu](odu.md) draw their file pickers in that place, and [mail](mail.md) draws its switch.
 
-## On the wire
+A conversation verb that names a conversation you are not looking at is refused rather than acting on another one, which is how a read, a send or a retry cannot attach to the wrong chat.
 
-Chat owns engine and agent-roster cells and a session revision for history
-invalidation. State, transcript deltas and streaming prose are conversation-keyed
-streams taking the exact engine/session pair. Sends, attachments, settings,
-questions, retries and the sign-in trio all carry their conversation identity;
-stale scope tokens refuse rather than acting on another conversation. Multiple browser readers
-share the server's conversation scope. A server restart reopens each retained
-reading and replays its transcript.
+## What waits on this row
 
-`conversation.seen` is the one procedure nobody pressed: a tab that is showing a
-conversation tells the serve which of the agent's lines it has read, by the
-exact instant it was drawn from. It is keyed on the engine/session pair like
-every other conversation verb and refuses a stale one, so it can never attach
-somebody's reading to a conversation they were not looking at — the refusal is
-the scheduler's own matching of a conversation-keyed call, the one a gesture
-goes through, with the arm that would OPEN the conversation it names left out
-(a read is not a request for a process). The write lands
-in the machine-local heard record (below), not in the vault: a serve that
-restarts keeps it, and so does every other tab of this olai.
+Every plugin that can reach a conversation names one of five doors this row stands behind.
 
-`conversation.newChat` takes the engine, title and nullable parent (null means
-the current Inbox's Chats container). Under the existing creation permit it
-normalizes the title with the shared 60-character rule and refuses an empty
-title before any write, then validates an explicit parent or ensures Chats on demand with the Inbox recheck,
-mints a child through Ops as `filer`, and starts its session. Its result carries
-the node, session pair or auth-pending null, and any start refusal. Returning a
-minted plain node on refusal lets the browser land its draft there for retry.
-`conversation.locations` accepts filter/limit plus bounded exact id and parent
-lookups. It returns at most 20 filter matches plus those lookups, ancestor titles
-and the current default container id, independently of optional search. The
-outline-path set is built once per query; machinery under `_olai` is excluded
-except Inbox. A default container id is answered exactly while the vault's
-Inbox registry has an entry, which is how New chat offers its Default row
-without naming capture. The where level caps Recent at five and removes the
-default container from it (`browser/agents/where.ts`).
-There are no free-floating new/choose/load procedures and no global
-conversation selection. History changes the fold's local visiting pair without editing the
-node binding. `conversation.sessions` remains the stored-history listing.
-
-The filer belongs to chat's server scope. Capture registers its Inbox path in
-the vault-owned registry; chat reads absence immediately and never names a
-capture service. Filing runs only at boot, session revisions, registry arrival,
-and settled node-agent turns (the latter ask only their already-running engine).
-Withdrawal interrupts its work and releases subscriptions.
-
-The MCP face remains the existing vault tools and surface resources; browser
-conversation controls do not become agent tools. What chat adds to that face is
-one paragraph, not a verb: its sibling entry carries a `charter` — that a person
-reads the agent's answer in the panel beside the outline, that a backticked id
-in prose is pressable and a fenced one is a quotation, that a link to an app
-address is followed in place — which the MCP row composes into `initialize`'s
-`instructions` while this row is standing and drops when it is not
-(`src/charter.ts` argues each sentence; [mcp.md](mcp.md), "What `initialize`
-says", is the composition). Node credentials retain the
-reserved-key refusal and their session-owned cleanup.
-
-## Turning it off is not the same as turning the agent off
-
-Two switches, two meanings:
-
-- **Turning the row off** — `on: no` on its settings node, or the durable panel switch — removes the conversation, its members and its browser contributions.
-- An empty adapter path makes only that engine unavailable. It is not a conversation off switch; the other enabled engines are still discovered.
-
-The second is the one to reach for by habit. The first is a deployment's word, or a person deciding this serve should stop being a chat for a while.
-
-Chat's browser activation owns the roster, fold state, visiting pairs and the
-conversation UI cache. Each rendered fold owns its subscriptions; each page
-shares one reading between head and foot. Releasing one leaves other readers
-and ongoing work alone. New chat's two levels are contributed through chat's `paletteAdapters` adapter
-and withdrawn with it (`browser/agents/new-chat-level.ts`); navigation owns the
-open path and each level's scope. What chat runs inside a level — the bounded
-`conversation.locations` query and its memos — lives in the `LevelScope` the
-palette hands the level's function, and is disposed with that level; a late
-answer after the level is gone changes nothing. Here is read once, when the
-where level opens; the query is asked at once and then again only after typing
-pauses (`TYPING_PAUSE_MS`). Until an opening's first answer lands, Default is
-drawn from the default container the previous answer named, which the
-adapter's activation remembers, so a plain Enter at once can take it; the
-answer corrects it. The first opening in an activation waits for its answer.
-The shortlist rules are pure (`browser/agents/where.ts`).
-
-The one creation in flight is NOT the palette's: it is the browser activation's
-permit (`browser/agents/new-chat.ts`), shared by every submit, so a level opened
-again while one is starting is refused rather than spending a second
-`conversation.newChat`. The palette's own busy guard covers only one level.
-
-The hand-off of the first message — the arrivals, and the watches that return
-them — is one module (`handoff.ts`). The activation publishes reactive
-arrivals; existing and newly mounted page sessions atomically take them once,
-each waking only for its own node, and the standing watch reads nothing while
-no arrival is outstanding.
-What a claimed arrival means — prefer its engine, show its start's refusal,
-deliver to its conversation or else put the words in the plain draft — is the
-hand-off's `receive`; the page only lends its surfaces, owns the delivery it
-was handed and keeps refused text on disposal. Landing (open the page, or
-reclaim at once when the asking level is gone) is the hand-off's `land`; the
-sender only holds the permit and asks the server. An untaken arrival
-is reclaimed when the focused route leaves its node or its reading becomes
-unavailable/put away, and at once when the level that asked was aborted
-(popped or closed) before the server answered — in that case nothing
-navigates. Reclaimed words become the conversation's unsent draft; a node whose
-start was refused has no conversation yet, so its words are parked for that
-node and its page takes them when next opened. Every release clears the pending
-permit. Activation cleanup releases arrivals and invalidates late callbacks; no
-callback navigates a rebuilt owner.
-
-Chat's attention component names `alerts.channel` and owns its scoped watching,
-cross-tab beat and question subscriptions. It clears its badge claim on release.
-Alerts owns notification, audio and badge devices, and the Alerts and Sound
-preference switches with their storage. Without the alerts
-channel, attention waits while conversations and forms continue working. Reveal
-is identity-free and opens the first Needs you agent's own page, with that
-conversation shown; no waiting agent means no new fold.
-
-Session settings close while a send awaits acceptance, even before the server's
-working update. The pending count belongs to that conversation reading and
-clears as its sends settle. Sequential workflows wait for both acceptance and
-idle, rather than treating a stale idle frame as a completed turn.
-
-The zoomed agent page has one scroller per pane. Its breadcrumb, title and agent
-line stay at the top; the composer stays at the bottom with safe-area clearance.
-Memory and transcript share the pane scroll. Opening follows the newest line;
-new output follows only while the reader remains at the bottom. Row folds keep
-their own bounded transcript scroller.
-
-The composer tells a phone's keyboard what its return key does: **Send**, the
-same thing `Enter` has always done there (`Shift+Enter` is still the newline).
-Nothing else about the box changes — a message is prose, so autocorrect, the
-capital and the spell checker stay as the platform has them. The two boxes that
-hold names rather than sentences say the opposite: the model filter asks for a
-**Done** key, and the sign-in code box for **Send**, and both turn off
-autocorrect, autocapitalisation and spell-checking so a pasted or typed
-identifier arrives as it was written.
-
-Filing clears a conversation's previous manual wake picks. Trashing a node or
-its parent releases its live agent scope. Agent cleanup closes the protocol and
-stops the whole child process group, escalating when it ignores termination,
-before joining pending requests.
-
-Opening a ninth held agent reports the capacity refusal in its conversation,
-and that refusal is the one the panel does NOT offer a retry for. `BusyFailure`
-carries a cause (`kind: "capacity"`) beside its sentence, and `server/readings.ts`
-reads it: the attempt stays on the reading, waiting on the scheduler's
-`Chat.seats` announcement, and is retried where it stood the moment a scope
-closes. The listener is registered in the reading's own scope, so a tab that
-leaves takes its wait with it; `Unopened` draws that cause quietly, with the
-sentence and no button, because the only thing to press is *Put to sleep* on
-another chat. `Chat.sleep(node)` is that verb: one `close(slot, "put to sleep")`,
-which stops the turn and withdraws the questions by stopping the subprocess, and
-which touches no binding — releasing one is `closeAgent`.
-
-A cause therefore says WHICH of three bodies rather than "draw this one
-quietly". `Unopened.cause` is `wire/members.ts`'s `UnopenedCause`: `BusyCause`
-from `@olai/format`, which any op may carry, and chat's own `Missing`, which
-`chat.ts` writes when `agent.ts` read ACP's `-32002` off a refused
-`session/load` (`missingOf`). `missing` never reaches the seat queue in
-`server/readings.ts` — that queue is keyed on `capacity` and on nothing else —
-because it is panel state rather than a refused `reading`, and it never heals
-on its own. Its body names the machine rather than the protocol, keeps the
-engine's sentence as a muted line, and carries a single `startAgentSession`
-press. Every other refusal keeps its own words, its alarm line and its retry.
-
-Attention multiplexes watched-node identities over one activation-owned browser
-channel and one set of visibility listeners. Closing that activation releases
-all listeners and heartbeat claims. Fold openness is keyed by the outline
-record, so a mirror and its target open independently; their conversations
-still share the server reading keyed by engine and session.
-
-Filing and new-session binding share a server-owned permit. A live Chats
-container is reused wherever it was moved or renamed. A trashed or non-regular
-reserved record stays untouched; the next free `chats-N` id becomes the live
-container, reused by retries and new chat. Each completed filing write records
-assignment before cancellation can pass its completion boundary.
-
-Already-filed conversations from older builds have their inherited wake picks
-cleared once at startup. A marker in chat's existing local heard record prevents
-later restarts from clearing deliberate new wake choices. A failed cleanup is
-logged and retried, without starting an engine.
-
-The page and inline fold use the same owner-scoped `createNodeConversation`
-hook for history resolution, reading acquisition, and question tracking. Page
-opening drafts and fold visibility stay with their respective owners. The
-sidebar and palette compose their presentation with the same focus action;
-route selection cannot drift from returning to the current session and unfolding.
-The subagent shelf inherits page scroll mode, so it adds no scroller to a node
-page; inline shelves retain a bounded scroll.
-
-New-chat creation refreshes the roster from Ops’ committed reading before
-seating the new node: the revision notification used for display can still be
-queued after the write returns.
-
-The host supplies `Landings` once per app. Chat holds an activation scope and each
-conversation registers its own receiver for its component lifetime. Transcript
-rows carry the chat-owned static `/carry` text contract. Receivers arm their own
-nodes or use their mounted composer's rewrite function to insert a quote or path.
-Withdrawing the activation releases its receivers and cancels component gestures.
-
-Transcript source extraction (`chat/carried.ts`) is independent of the receiving
-composer's formatting and caret policy (`chat/insertion.ts`). Each mounted
-composer owns its insertion callback; shared conversation state does not choose
-which pane receives focus. Pointer and hold mechanics use the same component-owned
-`@olai/web/client/lifting.ts` primitive as outline rows and sidebar files.
-
-### Wake controls
-
-| Door | Owner | Contract |
+| Door | What it is | Who names it |
 | --- | --- | --- |
-| `conversation.wake` | Chat's conversation strip | One face per plugin, given its opaque pick, browser-only setter, waiting count and conversation address |
+| `agents` | Which engines this build can seat. | claude, codex, opencode, pi, omp |
+| `deliveries` | Where a doorbell may ring. | kolu, odu, mail |
+| `session-start` | What to ask this host when a conversation opens. | kolu, odu |
+| `chat.seating` | The durable nodes, engines and sessions over one vault reading. | [xyne-spaces](xyne-spaces.md) |
+| `watching` | What a plugin that mirrors a conversation is told. | xyne-spaces |
 
-Kolu and odu draw their file pickers; mail draws its switch. Chat does not inspect a pick. It persists at most 32 choices, rejects agent writes, and revokes queued deliveries when a choice is cleared or replaced.
+A serve with no chat row leaves all of them waiting, and the plugins panel says so per row, naming the account. That is a legitimate state the runtime resolves the moment the door arrives.
 
-Delivery-only plugins receive node conversation addresses from `Deliveries.scopes()` with `pick: null`. Those recipients expire when the node binding changes; they expose no file or subtree. Registered wake plugins receive only explicit conversation picks.
+## Switching it off
 
-Fresh Start asks before replacing the current conversation, on both the agent
-line and the row menu. The agent line owns its confirmation state and disarms
-it when the bound node/engine/session changes. Row actions carry an optional
-static confirmation sentence through the outlines slot contract; the existing
-row menu owns that question and its dismissal. Session work still runs through
-the chat wire service and retains its existing ownership and cleanup.
+Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in the plugins panel; the choice survives a restart. That removes the conversations, the sidebar sections, the palette rows, the agent panel and every face in the table above, with any **New chat** level it had open. Outline and document editors already on screen keep working. Switching the row back on restores its services and its faces.
 
-Location queries depend on the ordered recent ids, not activity-only roster
-updates. Superseded replies are ignored; a successful retry clears a prior
-query refusal. Sidebar opening refusals use the shared timed SaidLine below
-the Chats heading.
-
-## Retained conversations and attention
-
-A visited tab keeps its conversation mounted while hidden. An opened outline
-agent fold keeps its conversation and its server idle hold under the row owner
-when folded shut; closing the row or pane releases that reading. Unvisited restored tabs open no chat.
-Only shown conversation surfaces count as watched for badges, chimes and
-notifications. A hidden tab can therefore acquire its needs-you dot, and a
-notification reveals a shown copy or requests a visible conversation.
-
-**What has been read is written down by THIS document, and the two questions are
-deliberately not one.** `watching.ts` answers both: `watched` — this surface, or
-another window of this olai saying it is on it — decides whether a question
-deserves a chime, because a form on a screen somebody is already reading
-somewhere else is delivered; `here` — this document is showing the conversation
-and its window is in front — decides what may be acknowledged. The wider answer
-is a beat that decays over `WATCHED_LAPSE`, so an acknowledgement gated on it
-would write a line down as read on the strength of a window that had already
-looked away.
-
-The machine-local `heard` record (`src/sessions.ts`) carries, beside the last
-line olai heard from a conversation, the instant of that line a person has SEEN.
-A tab that is showing the conversation tells the serve so (`conversation.seen`),
-which keeps the LATER of two acknowledgements, and `unreadOf` — one pure
-predicate in `src/attention.ts` — is what every face reads off the roster row: a
-conversation whose agent has said something since that instant is unread, and a
-conversation that has said nothing is never unread. The row is not a per-node
-flag and not config: the record is keyed on the engine/session pair, it outlives
-the tab that wrote it, and it is capped with the rest of that file. Where it is
-DRAWN is each face's own business and no dot's: the Chats row carries it in the
-title's weight (with the word for assistive technology) — the dot that row may
-wear says whether its agent is awake, which is a different fact — and the tabs
-row carries it as the quieter of the two marks a tab can wear.
-So a folded
-conversation, a tab behind another tab and a backgrounded window all leave the
-mark up, and looking at it clears it everywhere at once.
-
-Hidden transcripts never scroll. On return they follow the latest line only
-if the reader had been following before hiding. Completion key handlers obey
-the same visibility boundary, and only the focused composer claims completion
-keyboard priority when several folds offer menus. Tool details, question fields, terminal output
-and sign-in output update their existing elements as wire rows are replaced.
-
-Conversation UI is owned within the chat activation by engine and session,
-or by node before binding. Joined readers share it. The final reader releases
-an empty UI after a same-turn handoff opportunity. Opened tool details, question
-answers, armed references, previews, refusals, pending starts, sends, uploads and
-unsent drafts retain UI while its node/session remains in the roster or answered
-stored-session listing. After the final view/work lease, an empty UI or a
-conversation absent from both is released. Unavailable listings do not prove
-absence; activation teardown releases everything.
-Roster lookups and per-tool choices notify only their dependent consumers.
-
-A folded conversation remains a live reader and therefore occupies its node
-agent slot. Capacity and idle eviction become possible when its row or pane
-leaves and no other reader or operation holds it.
-
-A fresh start that needs authentication is addressed by its node until a new
-session binds, even when the previous session is still recorded on disk.
-Signing in and retrying there cannot target that previous session. An ordinary
-failed fresh start returns to the previous conversation and keeps its roster.
-An explicit History visit leases the selected session and recovers its retained UI.
-
-The node's agent line, including a pending fresh-start request and its refusal,
-belongs to the node view. Changing the selected conversation replaces only the
-conversation-specific body and strips. A fresh-start refusal therefore remains
-visible even if the server transitions from a bound session to an unopened node.
-
-The history list's openness belongs to the same owner as the fold: chat's
-activation, keyed by node (`browser/agents/history.ts`), never the component
-that draws it and never the roster. A refusal gives the panel a new address for
-the same node — the session it could not open is no longer what the panel is
-about — so that frame rebuilds the panel under the pointer; holding the fact
-here is what keeps a list the reader opened up across it.
-
-A refused fresh start resumes the unchanged live binding; it does not turn
-that reader into a history visit that masks later binding changes. That is one
-function (`browser/agents/fresh-start.ts`), shared by the agent line and the
-refused-chat body, and the body's press obeys it: the binding it returns to is
-the chat the node still names, which is the chat the refused body was about —
-so the words stay true over the refusal line they now carry. The refusal lands
-on that body's own line, the one a refused *Try again* already uses, rather
-than on an agent line the body is not drawn beside — said on the node's
-readers as they stand after the resume, because the resume has moved them from
-the node address to the pair's and the reader that was pressed is no longer
-the reader that is drawn.
-
-A fresh start that SUCCEEDS from there supersedes the refused pair on the node
-slot, exactly as it supersedes a conversation that opened (`scoped.ts`). The
-pair is read off `state.unopened.what` when `state.session` is null, and both
-doors onto the slot honour it: the pair-addressed one through
-`inNodeConversation`, and the node-addressed one — the address a tab holds
-while a node's chat is refused — through the reconcile in `reading`. Without
-both, the durable binding's lag was enough for a reader minted from it to load
-the lost id back over the chat the press had just opened.
-
-The two doors read two records with two lifetimes. `superseded` lives as long
-as the slot, because an explicit navigation to a replaced pair is a history
-visit for as long as the slot exists. `lagging` is the subset whose durable
-write has not been observed, and it is emptied the moment a node reader sees
-the binding read anything the slot is not waiting on. The node door reads only
-that one: it reconciles against the property rather than navigating, so a
-binding pointed BACK at a replaced chat — an undo, a pull from the machine
-that minted it — is a person asking for that chat and must be opened, not a
-write that has not arrived.
+Turning the row off is a deployment's word, or a decision that this serve should stop being a chat for a while. To stop using one agent, reach for that engine's own row instead.

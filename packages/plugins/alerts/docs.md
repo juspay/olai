@@ -1,52 +1,47 @@
 # Alerts
 
-The tab-only `alerts` row owns the notification channel previously owned by
-chat. It offers `alerts.channel`: notification consent and permission requests,
-notification delivery and press subscriptions, a best-effort chime, and the app
-badge or tab mark. It has no server half or wire members.
+Alerts is how olai reaches you when you are looking at something else: a browser notification, a short chime, and a count on the app icon or a mark on the tab. Chat raises one when an agent has a question; journal raises one for what is due.
 
-The `channel` component acquires the notification seam, preference followers,
-first-gesture listeners and audio context before offering the service. On
-withdrawal consumers stop first, then the badge clears, audio closes, listeners
-leave and retained preference setters are invalidated. A second seam activation
-is refused. Reactivation reads current storage and permission.
+## The switches
 
-The `controls` component contributes two switches, **Alerts** and **Sound**,
-both default on, to `preferences.sections` as one `{ group, order, body }`
-entry under the **Notifications** group. Under Alerts one short line says *When
-the agent needs you* — or, only while it applies, *Notifications are blocked in
-this browser* or *This browser can't show notifications*. With Alerts off,
-Sound is dimmed and disabled, and so is journal's **Reminders** switch in the
-same group. Alerts off gates every device and immediately clears the badge.
-The **Allow notifications** button, drawn only while Alerts is on and the
-browser has neither granted nor refused, offers a real gesture for permission
-requests.
+Both sit under **Notifications** in the preferences panel, both start on, and both are kept in this browser alone.
 
-Both switches and that button are legible on a screen that forces its own
-colours: the switches say which way they are set from the reader's own palette
-rather than olai's, and the button wears the app's one focus ring, which is an
-outline and not a shadow. [theme.md](theme.md) has the account.
+| Switch | What it governs |
+| --- | --- |
+| **Alerts** | every notification, chime and badge on this device |
+| **Sound** | the chime alone |
 
-The `tab-attention` component alone writes `theme.appearance`'s `chrome.waiting`;
-its withdrawal clears that mark. Chat is the badge's only claimant: it counts
-questions. Its `attention` component names `alerts.channel`, so removing this row
-leaves conversations and their forms standing, while attention waits and
-nothing rings. Removing preferences or theme does not stop notification delivery.
-Journal names the same service on its `reminders` component. Without it,
-reminders wait and their preference row leaves, while calendar, day and agenda
-remain available. The channel's read-only `tabWaiting` accessor lets its own
-tab-attention component follow the badge fallback through the declared service.
+Under **Alerts** one line says what you are being told about:
 
-The channel subscribes to the framework once and dispatches through
-`onPress(kind, handler)`, with one claimant per kind. A duplicate claim names
-both handlers and installs nothing. An unclaimed press is held, newest per kind,
-until a claimant arrives; delivered presses are forgotten, and withdrawal drops
-all held presses. Chat cannot consume another kind’s click.
+| The line | What it means |
+| --- | --- |
+| `When the agent needs you` | nothing is in the way |
+| `Notifications are blocked in this browser` | the browser has refused, and only the browser can undo that |
+| `This browser can't show notifications` | this browser has no notifications to give |
 
-The click contract carries `{ kind: "ask" }`, meaning open the current question,
-and `{ kind: "due" }`, meaning open today’s agenda. Each goes only to its kind’s claimant.
-The framework owns worker delivery and the durable click handshake; this row
-owns the page's listener. The app must be running to alert. A closed app hears
-nothing. Sound requires an earlier pointer or keyboard gesture in this page;
-a call before that is skipped, never replayed. Notifications still require the
-browser's consent.
+The **Allow notifications** button is drawn while **Alerts** is on and the browser has neither granted nor refused; pressing it raises the browser's own prompt.
+
+Turning **Alerts** off dims **Sound** and journal's **Reminders**, and clears the badge at once.
+
+## What a press opens
+
+| The alert | Where it takes you |
+| --- | --- |
+| an agent's question | the question it is about |
+| something due | today's agenda |
+
+## What alerts cannot do
+
+- olai has to be running in a tab. A closed app hears nothing and rings nothing.
+- The chime needs an earlier click or keypress in this page, because a browser plays nothing before one. A chime called before that is skipped, never saved up.
+- Notifications need the browser's consent, which **Allow notifications** can ask for once.
+
+## When something is off
+
+| What is off | What you get |
+| --- | --- |
+| alerts | conversations and reminders stand, nothing rings, and attention waits |
+| chat | no agent questions to be alerted about, and no badge count |
+| journal | no reminders; the calendar, the day and the agenda are untouched |
+| preferences | the switches go, and alerts keep arriving |
+| theme | the tab's mark goes, and alerts keep arriving |

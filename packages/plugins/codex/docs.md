@@ -1,43 +1,79 @@
 # Codex, as a chat agent
 
-The ACP engine olai **ships**. `nix run`, the packaged binary, `just serve` and `just run` all carry a pinned [codex-acp](https://github.com/agentclientprotocol/codex-acp) adapter and the matching Codex executable, so the Codex row needs nothing from the server's PATH.
+Codex comes with olai. Every documented way of starting olai carries a pinned `codex-acp` adapter and the matching Codex executable, so the row needs nothing from the server's `PATH`. For what a conversation is, read [talking to an agent](../chat.md).
 
-This page records what is specific to this engine. The shared conversation model, MCP servers and earlier-chats list are documented in [chat.md](../chat.md).
+## What olai runs
 
-## How olai finds it
+| Variable | What it does |
+| --- | --- |
+| `OLAI_ACP_CODEX` | the command line olai runs as the adapter. The wrapper sets it to the pinned build unless you set it first |
+| `CODEX_PATH` | the Codex executable that adapter drives. The pinned wrapper sets it to the one olai ships |
+| `OPENAI_API_KEY` | the provider credential Codex reads |
+| `CODEX_CONFIG` | a JSON object olai merges into the Codex session config on every spawn |
 
-`OLAI_ACP_CODEX` names the ACP adapter for this row. The packaged wrapper sets it to the Nix-built `codex-acp`; the development recipes resolve the same derivation. Set it to another command line to test another adapter. An empty value leaves Codex enabled but unavailable: it is not offered anywhere a chat starts, and the plugins panel files it under **Needs you** with the adapter's explanation.
+| Pinned | Version |
+| --- | --- |
+| `codex-acp` | 1.13.1 |
+| Codex CLI | 0.156.1 |
 
-The adapter itself wraps the Codex app server. The plugin's `acp/` directory owns both its npm lock and Nix derivation, including the matching native Codex executable supplied through `CODEX_PATH`, so neither half drifts to an ambient install. This pin is separate from the Claude and pi adapters, which each declare their pin in their own plugin's `default.nix` through `@olai/plugin-kit`'s `npm-adapter.nix` over the shared shim: their release clocks and platform rules do not force one another — or Codex — to rebuild. Authentication and Codex configuration continue to use Codex's own normal files and environment.
+Set `OLAI_ACP_CODEX` to a command line of your own to run another adapter. Signing in and configuring Codex go through Codex's own files and environment.
 
-Turn this row off with `on: no` on the `codex` node in `_olai/Settings.olai`, or its durable switch on the plugins panel. The row stops probing and its browser contribution is withdrawn.
+To switch the row off, put `on: no` on the `codex` node in `_olai/Settings.olai`, or use its switch on the **Plugins** panel ([choosing what runs](../settings.md)). The row stops probing and withdraws what it draws.
 
-Engine detection is cached for each activation. Switching off and on asks again;
-changing the service's adapter environment requires restarting the service.
+## Full access, on every conversation
 
-### Model requires a newer Codex version
+> olai asks for `agent-full-access` before a conversation becomes active, new or resumed: `approvalPolicy: "never"`, `approvalsReviewer: "user"` and `sandboxPolicy: { type: "dangerFullAccess" }`. That is the equivalent of `codex --yolo`, so Codex reads and writes files and reaches the network without asking.
 
-Olai pins `codex-acp` 1.13.1 with Codex CLI 0.156.1. This updates the bundled 0.152.0 CLI, which could list `gpt-6-astra` but fail on the first prompt with a missing-model-metadata warning and “requires a newer version of Codex”. Update olai and restart the server to use the new bundle; upgrading a separate `codex` on PATH does not update the executable olai ships. If you override `OLAI_ACP_CODEX` or `CODEX_PATH`, update that installation too.
+If that selection fails, opening fails with the mode, the conversation and the adapter's error. The conversation is not activated or remembered, the provisional model, settings and replayed transcript are cleared, and a later prompt has to open it again.
 
-## What is only true of this wire
+A permission request Codex does send is yours to answer. The adapter shows MCP titles such as `mcp.server.tool`, but the fields olai's approval rule reads carry an opaque call id and no stable server or tool name, so olai asks rather than inferring one from display text.
 
-- **Busy sends steer the running turn.** Sending another message while Codex is working uses `_session/steering`, so the original prompt remains the one whose completion clears the working indicator. Ordinary messages are not sent as overlapping `session/prompt` requests.
-- **Codex supports interruption.** The adapter advertises `_session/steering`; the composer offers the gesture only when that positive advertisement is present. Olai requests `idleBehavior: "promptRequired"` through the backport of [upstream PR #441](https://github.com/agentclientprotocol/codex-acp/pull/441): if the running turn finishes before steering arrives, the adapter leaves the message unconsumed and Olai starts a normal, tracked prompt. Cancellation during this race does not start another turn. Adapter overrides returning `startedNewTurn` are still treated as consumed to avoid duplicate delivery, but should include this backport for correct idle-race tracking.
-- **The orchestrator selects full access on every new and resumed session.** Olai requests `agent-full-access` before making the conversation active: the approval/sandbox equivalent of `codex --yolo`, with `approvalPolicy: "never"`, `approvalsReviewer: "user"`, and `sandboxPolicy: { type: "dangerFullAccess" }` (`danger-full-access` in turn context). This intentionally allows unrestricted filesystem/network access without approval prompts. If mode selection fails, opening fails with the mode, session and adapter error; the session is not activated or remembered, provisional model/settings and replayed transcript state are cleared, and subsequent prompts must retry opening successfully. This is this orchestrator's product policy, not a change to host/user configuration or other engines' selected modes. The Codex leg explicitly requires successful mode selection; Claude's bypass selection remains optional, with a visible refusal and its existing permission backstop. Leaving the mode unset would retain the adapter's `agent` / “Approve for me” default, not inherit the user's Codex approval configuration. The advertised `read-only` / “Ask for approval” preset (`on-request`, reviewer `user`, workspace-write) and `agent` preset (`on-request`, reviewer `auto_review`, workspace-write) remain distinct settings; both restrict network access. An explicit setting change applies to the current session; reopening reasserts the orchestrator's full-access policy.
-- **Unknown tool identity is never an approval.** The adapter displays MCP titles such as `mcp.server.tool`, but the ACP fields olai uses for its approval boundary carry an opaque call id and no stable server/tool name. Codex permission requests therefore remain questions for the person instead of being inferred from display text.
-- **Subagents have their own cards and work doors.** Native child-session announcements identify each agent and its parent, including nested agents. Opening a nested agent replaces the work panel; its back button returns to the parent. Child tool calls appear inside that agent's work; its prose stays in the agent card's fold. Permissions and questions remain visible in the main conversation and name the child asking. Child settings, titles and usage never replace the main session's.
-- **Background terminals stay visible after the turn.** AIR async-task events attach running state and completion/failure/stoppage to the command row and activity strip. Active tasks announced while loading a session are restored there too. The adapter exposes task stopping, but Olai currently displays lifecycle events without individual stop controls, as with its other task rows.
-- **The agent line also exposes advertised chat settings**, such as reasoning effort and collaboration mode. Live ACP plans appear below it, and terminal-output metadata streams command output into its tool row with an exit status.
-- **Press the model name to switch models.** While the conversation is idle, the agent line offers the adapter's model options and applies the selection through ACP's `session/set_config_option`. Codex's adapter does not implement a `/model` slash command. The `model` option uses exact model ids, and the confirmed choice survives a restart of the conversation.
-- **It pushes its identity over ACP, so the agent line can say which account is signed in.** `_auth/status_update` is a connection-scoped notification announced by the empty `agentCapabilities._meta.authStatus` marker; Codex's carries `ChatGPT Plus`-style labels with the account's email and plan, `OpenAI API key` for a key, or `Not logged in`. The adapter reports after `initialize`, on each session create, and on Codex's own `account/updated` notification — so a sign-in it drove itself changes the chip as soon as it lands ([chat.md](../chat.md#signing-in)).
-- **Signing in is a device code and a page.** The adapter offers `chat-gpt-device-code` only to a client that advertises URL elicitation support, and `authenticate` with it makes the adapter press the Codex CLI for a one-time code and hand the person a verification URL plus the code (`elicitation/create`, `mode: "url"`). Olai draws that as a card with the destination host and a link, and answers the request when the adapter says the page is done with (`elicitation/complete`) — or declines it if somebody backs out, which cancels the login at the adapter's end. The `chat-gpt` method (a localhost redirect, which no server can receive) and `api-key` (a credential box the panel does not have) are not offered by the panel.
-- **No prompt queue is promised.** Codex advertises steering, not ordinary busy-turn prompt queueing, so the composer makes no queueing claim on its behalf.
-- **Its own memory is off, forced by olai.** Codex's `features.memories` (cross-session memories) defaults off, but a user's `~/.codex/config.toml` can enable them, and no environment variable switches them off. So every spawn carries a `CODEX_CONFIG` overlay — a JSON object merged into the session config — with `features.memories: false`; the node's subtree is the only memory. The overlay is a MERGE: every other key the operator set survives, and only `features.memories` is overridden. A `CODEX_CONFIG` that is not a JSON object is treated as absent, and the forced value stands alone.
+## Talking while it works
 
-## Where to get it
+A message sent while Codex works steers the running turn through `_session/steering`, so the original prompt stays the one whose completion clears the working indicator. The composer offers that gesture only because the adapter advertises it.
 
-The adapter and CLI are already in olai's Nix closure. Codex product and sign-in documentation lives at <https://developers.openai.com/codex>.
+- olai asks for `idleBehavior: "promptRequired"`. If the turn finishes before the steer arrives, the adapter leaves your message unconsumed and olai sends it as an ordinary tracked prompt instead.
+- Cancelling during that race starts no second turn.
+- Codex advertises steering rather than queueing, so nothing here promises that a mid-turn message waits its turn.
 
-The pinned codex-acp 1.13.1 contains [native child sessions](https://github.com/agentclientprotocol/codex-acp/pull/419) and [background-terminal tasks](https://github.com/agentclientprotocol/codex-acp/pull/460). Olai negotiates AIR version 1 `nativeSubagentSessions` and `asyncTasks`. Its ACP SDK predates these session-update variants, so the `@kolu/acp` extension channel negotiates capabilities, decodes typed activity values, and routes only the five known activity notifications around the SDK's closed update union; ordinary updates retain SDK validation. Tool IDs are scoped by session, and leaving a conversation clears its activity registry and fences late child events. No adapter patch is needed for activity display.
+## Subagents and background work
 
-The leg declares no MCP prefix. For display only it reads the MCP marker plus `rawInput.server` and `rawInput.tool`, and reads the reply from `rawOutput.result.structuredContent`. Dotted titles remain outside the approval boundary.
+A child session announces itself and its parent, nesting included, and draws a card of its own. Opening a nested agent replaces the work panel, and its back button returns you to the parent. Child tool calls appear inside that agent's work, and its prose stays in the agent card's fold.
+
+- Permissions and questions stay in the main conversation and name the child asking. A child's settings, title and usage never replace the main conversation's.
+- Background terminals stay visible after the turn. Running, completed, failed and stopped states attach to the command row and to the activity strip, and tasks announced while a conversation loads are restored there.
+- The adapter can stop a task, but olai draws no per-task stop control, as with its other task rows.
+
+## The agent line
+
+The agent line carries the chat settings the adapter advertises, such as reasoning effort and collaboration mode, with live plans below it. Terminal output streams into the tool row it belongs to, with an exit status.
+
+Click the model name while the conversation is idle to switch models. olai applies the choice through `session/set_config_option`, the values are exact model ids, and a confirmed choice survives a restart of the conversation. Codex's adapter has no `/model` command.
+
+## Who is signed in
+
+Codex pushes its account over ACP, so the agent line names it: a `ChatGPT Plus`-style label with the account's email and plan, `OpenAI API key` for a key, or `Not logged in`. It reports after `initialize`, on each conversation open, and on Codex's own `account/updated` notification, so a sign-in it drove itself changes the chip as soon as it lands.
+
+Signing in is a device code and a page. The adapter offers `chat-gpt-device-code` to a client that says it can show a URL. It then presses the Codex CLI for a one-time code and hands back a verification address.
+
+olai draws that as a card with the destination host, a link and the code, and answers the adapter when the page is done with. Backing out cancels the login at the adapter's end.
+
+Two methods are not offered: `chat-gpt`, which is a localhost redirect no server can receive, and `api-key`, which wants a credential box the panel does not have.
+
+## What it remembers
+
+Codex's cross-session memories are off, forced by olai. `features.memories` defaults off, your own `~/.codex/config.toml` can switch it on, and Codex has no environment variable for it, so every spawn carries a `CODEX_CONFIG` overlay that sets it false. The node's subtree is the conversation's only memory.
+
+The overlay is a merge: every other key you set in `CODEX_CONFIG` survives, and only `features.memories` is overridden. A `CODEX_CONFIG` that is not a JSON object is treated as absent, and the forced value stands alone.
+
+## When a model needs a newer Codex
+
+A model the shipped CLI does not know can appear in the picker and then fail on the first prompt, with a missing-model-metadata warning and *requires a newer version of Codex*. Update olai and restart the server to pick up a newer pair.
+
+A `codex` on your own `PATH` is not the executable olai runs, so upgrading it changes nothing. If you override `OLAI_ACP_CODEX` or `CODEX_PATH`, update that installation instead.
+
+## When Codex does not appear
+
+An empty `OLAI_ACP_CODEX` leaves the row enabled but unavailable. It is not offered anywhere a chat starts, and the **Plugins** panel files it under **Needs you** saying *not found — olai was started without the wrapper that carries the pinned adapter*.
+
+Detection is cached for each activation. Switching the row off and on asks again; changing the service's environment needs the service restarted.

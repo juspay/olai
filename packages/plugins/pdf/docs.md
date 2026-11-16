@@ -1,7 +1,20 @@
-# PDF
+# PDF files
 
-PDF claims PDF files and draws the browser's PDF object viewer and a file glyph. Its server claim controls directory membership and access through the vault's media route.
+olai claims `.pdf` files and gives each one a page that hands the file to your
+browser's own viewer, in a tall frame the document scrolls inside. Pages, zoom,
+search and print are the viewer's, and olai bundles no renderer of its own.
 
-The glyph and page are separate components. Turning Files off removes the glyph while the PDF page still opens. Turning Navigation off withdraws the page, tree and rail; the glyph component remains mounted with its contribution unread. Turning PDF off withdraws its files and makes media requests refuse them. A browser that will not draw a PDF says `This browser can't show a PDF here.` with an `Open <file>` link to the file itself.
+A browser that will not draw a PDF says `This browser can't show a PDF here.`
+and offers an `Open <file>` link to the file itself, which you can open in
+whatever does draw one.
 
-Page metadata is read from `vault.files.bodyPage`; disabling Markdown does not withdraw this page.
+A file replaced on disk is fetched again rather than drawn out of the browser's
+cache. [Documents and kinds](../documents-and-kinds.md) is the format's account
+of the kinds olai only shows.
+
+## What an agent can do with it
+
+No tool writes a `.pdf`. `files_delete` refuses one, saying `olai only shows
+files of this kind and never writes one`. You can attach a `.pdf` to a
+conversation, up to 50 MB, and the agent is handed the path
+([giving an agent work](../giving-an-agent-work.md)).

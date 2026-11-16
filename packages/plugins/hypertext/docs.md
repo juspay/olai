@@ -1,9 +1,40 @@
-# Hypertext
+# HTML files
 
-Hypertext claims HTML files and draws their sealed iframe preview and file glyph. The vault owns media delivery and builds the sealed page with its current claimed suffixes on each request.
+olai claims `.html` files and draws each one as the page it is, in a sealed
+frame: the file's own markup, stylesheets, pictures and scripts, served out of
+your directory. Nothing in the file is rewritten, and olai never writes one.
 
-Its page declares navigation, vault file access, Markdown's existing metadata reader and navigation's file-link service. The glyph has its own activation. Disabling Files leaves the page available; disabling Hypertext removes its files from the directory and media route. The page's echo bridge and subscriptions leave with its activation.
+## What you see
 
-A file that cannot be opened says `This file couldn't be opened, so there's nothing to show.` A link inside the page to a file the folder does not serve says `That link points to a file that isn't in this folder.`
+The file is served at `/media/<its path>`, so a relative address in it means
+the file beside it on disk, and the page runs its own scripts in an origin
+that is nobody's. What it may load, and the policy it is answered with, is
+[documents and kinds](../documents-and-kinds.md).
 
-Page metadata is read from `vault.files.bodyPage`; disabling Markdown does not withdraw this page.
+The frame is as tall as the page measures itself to be, never shorter than a
+heading and never longer than two screens.
+
+A file that is there but will not open says `This file couldn't be opened, so
+there's nothing to show.`
+
+## Links inside the page
+
+A link to another file in your directory opens that file's page in olai, the
+way clicking it in the sidebar does: `Alt` + click opens it on the right, and
+`Alt` + `Shift` + click forces a new pane. Hovering one gives the same preview
+card an ordinary link gives.
+
+Two links behave differently:
+
+- a link to a file your directory does not serve opens nothing, and the page
+  says `That link points to a file that isn't in this folder.`;
+- a page that sends the frame to another site is brought back three times, and
+  after that the frame is emptied. Opening the page again starts the count
+  over.
+
+## What an agent can do with it
+
+No tool writes a saved page. `files_delete` refuses one, saying `olai only
+shows files of this kind and never writes one`, and an `.html` file is not a
+kind you can attach to a conversation
+([giving an agent work](../giving-an-agent-work.md)).

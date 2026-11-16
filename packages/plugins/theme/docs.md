@@ -1,113 +1,54 @@
 # Theme
 
-`theme` is a browser-only provider for theme, font and type-size preferences.
-It offers `theme.appearance` through its static `/contract` door. Each activation
-owns fresh signals and storage listeners. User choices remain in local storage;
-listeners, HTML attributes, generated favicon URLs and palette metadata are
-released or restored when the provider leaves.
+Theme decides what olai looks like: the palette, the typeface and the size of everything. Its three rows, **Theme**, **Font** and **Size**, are the **Appearance** group at the top of the preferences panel. The choices are this browser's, carried to its other tabs and never sent to the server.
 
-Its preferences integration is a separate component. It contributes the
-**Appearance** heading's rows to `preferences.sections` (`heading:
-"appearance"`, a key of preferences' `HEADINGS` table, which puts it first in
-the panel; `order: 0` within it) only while that location exists:
+## Theme
 
-- **Theme** — a *Follow the system* control, then four swatches: `chalk` and
-  `reef` (light), `basalt` and `abyss` (dark), every swatch painted in its
-  palette's paper with a wedge of its accent. A swatch carries no word: its
-  name is its accessible name and the app's own tip says the same thing to a
-  pointer, and the theme in force is named
-  once beside the row's label — `System · Chalk` while the OS is choosing,
-  the bare name once a swatch has been picked. A page that has picked nothing
-  follows `prefers-color-scheme` between `chalk` and `basalt`; a pick wins
-  over the OS until the follow control hands the question back. Tab reaches
-  the swatches and Space or Enter picks one; the panel stays open, because a
-  palette is judged on the page it paints.
-- **Font** — a select of the `@olai/fonts` catalog. The default, `olai`, sets
-  titles and documents in Literata, the interface in Inter and code in iA
-  Writer Mono.
-- **Size** — the root font size, which moves every `rem` in the client.
+Four palettes, drawn as swatches in the colours they set: `chalk` and `reef` are light, `basalt` and `abyss` are dark. A swatch carries no words, so its name is its accessible name and the tip a pointer gets. The palette in force is named once beside the row's label.
 
-No row carries a line under it: each label says what its control sets.
+Ahead of the swatches stands **Follow the system**, which is where a browser that has picked nothing starts: the system's own light or dark setting chooses between `chalk` and `basalt`, and the label reads `System · Chalk`. Pick a swatch and that pick wins over the system until you press **Follow the system** again, and the label reads the bare name, `Chalk`.
 
-The provider keeps working when preferences, the sidebar or the layout is
-absent, and returning UI uses its current state. A returning provider rereads changes made while it
-was absent. Unknown stored choices are forgotten; unavailable storage still
-permits temporary choices for the current activation.
+Tab reaches the swatches and `Space` or `Enter` picks one. The panel stays open, because a palette is judged on the page it paints.
 
-The row's `/assets` build contribution owns the first-paint preference script,
-palette/size/scale CSS generation and hosted font installation. Bundle generation
-discovers static asset exports from its rows; the web builder consumes their
-generic head, stylesheet, preload and installation hooks without naming theme.
-The head it contributes also asks for the default typeface's three regular
-upright files (`@olai/fonts`'s `fontPreloadHtml`) before the sheet does, so
-the first text set in them is set in them: a hosted face is `font-display:
-swap`, and a swap after first paint moves every line above wherever a reader
-landed. A document's own landing waits for `document.fonts.ready` for the same
-reason ([markdown.md](markdown.md)).
+The palette paints more than the page: the colour a phone draws its status bar in, the mark in the browser tab, and the icon. When an agent is waiting on you, the tab's name takes a `●` in front of it and the icon is marked to match.
 
-That script restores four things, three of them attributes on `<html>`
-(`data-theme`, `data-font`, `data-size`) and the fourth the browser's own
-`<meta name="color-scheme">`. The canvas behind the document, the scrollbars
-and the form controls are the UA's to paint, and before the stylesheet lands
-that meta is the only thing that tells it which way they go — so a dark
-palette picked under a light OS used to spend the whole pre-sheet window in a
-light browser's chrome. The shell authors the meta as `light dark`, which is
-what a page whose JavaScript never ran shows and is the word for "follow the
-OS"; the script overwrites it only from `olai.scheme`, a copy of the picked
-palette's `scheme` that the provider stores beside the pick itself
-(`@olai/appearance/palettes.ts`). The script learns no theme name and no
-theme's polarity: it copies a word it was handed. A browser whose storage
-predates that key follows the OS for one load and is written up by the next.
+## Font
 
-Pure appearance tables, CSS generators and mark drawing live in
-`@olai/appearance`; the typeface catalog remains `@olai/fonts`. Their import
-graphs acquire no observers or DOM state.
+A select of olai's typeface catalogue, in three groups — **olai**, **Generic** and **Typefaces**. The default, `olai`, sets titles and documents in Literata, the interface in Inter and code in iA Writer Mono.
 
-Chrome state is freshly acquired with the appearance provider, including title,
-favicon blob and theme metadata. The shell ships two `theme-color` metas, one
-per `prefers-color-scheme`, so an unpicked page has the right status bar before
-the bundle runs; a pick repaints **both** of them, because the browser uses the
-first meta whose media query matches and a dark palette under a light OS is
-answered by the second one. The `media` attributes are never touched: they are
-the shell's statement about a page nobody has picked on, and cleanup hands both
-metas back exactly as they were found, along with the canvas meta, the title,
-the favicon and the Apple title; it also revokes the mark's blobs and
-invalidates retained writers. `theme.appearance.chrome` carries the
-name/waiting behaviors; other plugins never import its implementation. A
-separate naming integration consumes layout's deployment reading. The `alerts`
-row's separate tab-attention integration consumes appearance and the alerts
-channel, so losing theme withdraws the tab mark without disabling chat, the
-journal's reminders or the alerts themselves.
+The closed select is drawn in the face in force. The options are not: a browser asked to draw twenty names in twenty faces would fetch every one of them to open the list.
 
-Deployment naming follows its own scoped source. Withdrawing the layout's name
-source restores the inherited document and Apple title without stopping theme
-state or the chat unread marker. A returning source starts a fresh naming
-subscription and updates those titles again.
+## Size
+
+One number sets the whole page, furniture and type together.
+
+| Choice | What it is |
+| --- | --- |
+| **Medium** | your browser's own text size |
+| **Large** | one notch up, and olai's default |
+| **Larger** | two notches up |
+
+The line between the phone layout and the desktop one does not move with it, so asking for larger type gives you larger type rather than a laptop drawn as a phone.
+
+## What is restored, and what is forgotten
+
+Your palette, face and size are put back before the page is first drawn, so nothing flashes in one palette and settles in another. A stored choice naming a palette, face or size olai does not offer is forgotten: the face and the size go back to their defaults, and the palette goes back to following the system. Where a browser allows no storage at all, a pick still works and lasts until the page is closed.
 
 ## When the screen is not olai's to paint
 
-Two system preferences arrive without passing through this row's controls, and
-olai answers both in the sheet this row owns (`@olai/appearance/chrome.css`).
+Three system settings arrive without passing through these rows, and olai follows all three live, with nothing to reload.
 
-**High Contrast.** On a screen that forces its own colours, the browser throws
-olai's palette away and repaints from the reader's own set — and deletes every
-`box-shadow` on the way. The keyboard's focus ring survives that, because it
-is an outline and not a shadow; it is drawn around the same controls as ever,
-in the screen's own highlight colour. Controls that said their state in a
-background alone say it again from the system palette: a switch's on and off,
-the segment of a strip that is in force, the selected tab of a ledger, and the
-small round marks that stand for an agent's standing, a live turn or a
-transaction's status. The **Theme** swatches are the one exception in olai and
-they are exempt on purpose: a palette preview whose whole content is colour has
-nothing left to say once its colours are taken, so the discs keep theirs and
-the buttons around them do not.
+Asked for high contrast, a browser throws olai's palette away and repaints from the reader's own, deleting every shadow on the way. The keyboard's focus ring survives, because it is an outline rather than a shadow.
 
-**More contrast.** The overflow bar is deliberately quiet — a quarter of the
-surface's ink, a hint rather than a furnishing. A reader who asks their system
-for more contrast gets the thumb at the full ink of whichever palette is in
-force, light or dark, rather than a black that would be a stranger on four of
-them. The track stays clear in both: a Mac draws it transparent whatever a page
-asks, so the thumb is made to read against the page instead.
+Anything that said its state in a colour alone says it again in the system's colours: a switch's two positions, the segment of a strip in force, the selected tab of a ledger. So do the round marks for an agent's standing, a live turn and a transaction. The **Theme** swatches are the single exception, on purpose: a palette preview with its colours taken has nothing left to say.
 
-Both follow the system setting live; there is nothing to reload.
+Asked for more contrast, the overflow bar, which is deliberately quiet, draws its thumb at the full ink of whichever palette is in force.
 
+Asked for less movement, olai stops moving: switches and chevrons land in their new state rather than travelling to it, and live cues hold still. A reveal puts the row on screen rather than gliding to it. Colours still fade, and nothing a cue was saying is lost with its movement.
+
+## When something is off
+
+| What is off | What you get |
+| --- | --- |
+| theme | no **Appearance** rows and no tab mark; the rest of the preferences panel stands |
+| preferences, the sidebar or the layout | the palette, face and size keep working and keep following storage |

@@ -1,213 +1,165 @@
 # Tabs
 
-`tabs` is a browser-only row that keeps several pages open in the main column.
-On a desktop it draws a strip of tabs above the panes. Each tab holds a
-**workspace**: one page, or a whole split of panes. The header, the sidebar, the
-chat panel, the palette and the appearance stay shared, and so does the fold
-state of outline branches. A door in the sidebar changes the tab in front. The
-in-page filter and pane focus are part of the workspace, so each tab keeps its
-own.
+`tabs` keeps several pages open in the main column. On a desktop it draws the
+strip above the panes, labelled **Open tabs**. Each tab holds a workspace: one
+page, or a whole split of panes, with its own filter, its own pane focus and
+its own Back and Forward.
 
-## The strip
+The header, the sidebar, the agent panel, the palette, the appearance and the
+fold state of outline branches are shared by every tab. A door in the sidebar
+changes the tab in front rather than opening another.
 
-The strip stays directly under the app header while a lone page scrolls,
-including a chat page. Page headings pin below it and heading jumps clear it.
-In a split, panes still fill the remaining viewport and scroll independently;
-their headings pin to their own scrollport tops.
-On a phone, or with tabs switched off, the header alone is reserved. Layout
-owns this geometry; tabs still contributes only to the existing strip seat.
+## What a tab says
 
-The tab in front is drawn on paper, and the others are muted. Each tab shows a
-glyph for the kind of page it holds, its title, and a close button at its right
-edge. The close button shows on the tab in front, on hover, and — through
-`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER` — on any screen with no hover at
-all, since the strip is drawn by width and a touch screen past that width has
-no pointer to reveal it with. Its tip is `Close tab` and its accessible
-name is `Close <title>`.
+Each tab shows a glyph for the kind of page it holds, a title, and a close
+button whose tip is `Close tab` and whose name is `Close <title>`. The close
+button is drawn on the tab in front, under the pointer, and on any screen with
+no pointer to reveal it with.
 
-A tab holding a file is named the way the files sidebar names it: a document
-(an outline or a markdown file) without the suffix, `garden`, not
-`garden.olai`; any other file with it (`q3.pdf`, `sales.csv`). When two open
-tabs would say the same name for different files (`notes.md` and
-`notes.olai`, or `a/x.olai` and `b/x.olai`), both show their whole path
-instead, until one of them closes. Other pages show the title the page reported
-by its live page, even while the tab is behind another, or the page's label before it has reported one. A
-split tab's title is its panes' names joined with " + ". A tab brought back to
-the front keeps its title until its page reports a real name, and every tab in
+| Glyph | The page it holds |
+| --- | --- |
+| `⌂` | the front page |
+| `¶` | a file |
+| `•` | a row |
+| `⌫` | the Trash |
+| `◷` | a plugin's page over a row's reading |
+| `◇` | a page a plugin draws itself |
+| `◫` | a split of panes |
+
+A tab holding a file is named the way the sidebar names it: a document without
+its suffix, `garden` rather than `garden.olai`, and any other file with it,
+`q3.pdf`. When two open tabs would say the same word for different files, both
+show their whole path until one of them closes.
+
+A split tab joins its panes' names with ` + `. Any other page shows the title
+its page reported, or the page's own label until it reports one. Every tab in
 the strip is the same width, so nothing moves while a page arrives.
 
-A tab says the address it holds twice: in the app's own tip, which a pointer
-gets on hover and a keyboard gets on focus, and in the tab's own accessible
-name, after the words it draws. The tip alone would not do — the app draws it
-`role="presentation"`, so it reaches no screen reader — and the strip
-truncates a long title at 14rem, so the address is not something the drawn
-words carry either. Neither is the browser's `title` attribute, which the
-browser places itself (a long one ran off the right edge of the window) and
-which answers a pointer and nothing else. The strip draws no address of its
-own. The browser's address bar shows the address of the tab in front and
-nothing about the other tabs.
+A tab says the address it holds twice: in the tip, which a pointer gets on
+hover and a keyboard on focus, and at the end of the tab's accessible name. The
+strip truncates a long title at 14rem, and draws no address of its own. The
+browser's address bar shows the address of the tab in front and nothing about
+the rest.
 
-**A tab can wear one dot, and what it means is chat's to say.** The `attention`
-component asks `chat.state` which of its pages hold a conversation that needs
-you and which hold one whose agent has said something nobody has read, and
-registers one reading per mark — over ONE walk of the strip, so a tab's address
-is parsed once however many marks are asking. The needs-you dot is drawn in the
-alert colour; the unread dot is muted, because a question is asking for
-something and a finished turn is only news. A tab caught by both wears the
-question. The strip itself reads `dotted()` — one mark per tab, already decided —
-and names it for assistive technology. It is a dot and nothing more: no tab comes
-forward because of one.
+A tab can wear one dot, and what it means is [chat.md](chat.md)'s to say: a dot
+in the alert colour for a conversation that needs you, a muted one for a turn
+nobody has read. A tab caught by both wears the question. It is a dot and
+nothing more — no tab comes forward because of one.
 
-- Press a tab to bring it to the front.
-- Middle-click a tab, or press its ×, to close it. Closing the tab in front
-  brings the tab to its right forward, or the one to its left when it was the
+## Work the strip
+
+- Click a tab to bring it to the front.
+- Middle-click a tab, or click its ×, to close it. Closing the tab in front
+  brings the one to its right forward, or the one to its left when it was the
   rightmost. Closing the last tab leaves one tab on the front page.
 - Drag a tab to reorder the strip; a bar shows where it will land.
-- Right-click a tab for **Duplicate tab** (a copy right after it, brought to the
-  front), **Close other tabs**, **Copy address** (the tab's link, for pasting
-  elsewhere; if the browser will not write to the clipboard, the address is
-  shown to copy by hand) and **Close**.
-- Press **+** (`New tab`) for a new tab on the front page.
+- Right-click a tab for **Duplicate tab** (a copy right after it, brought to
+  the front), **Close other tabs**, **Copy address** and **Close**.
+- Click **+**, named **New tab**, for a new tab on the front page.
+- With the strip focused, `←` and `→` move between tabs.
 
-## Opening a page in a new tab
+The **Copy address** entry puts the tab's whole link on the clipboard. Where
+the browser refuses to write to it, olai shows the address in a prompt headed
+`Couldn't copy the address. Copy it from here:` for you to copy by hand.
 
-Right-click any link this app can open — a door in the sidebar, a link in a
-document — for **Open** and **Open in new tab**. A new tab opens right after the
-tab in front and stays behind it. A link to a heading inside its own document,
-and a line of a document's contents, opens that document at that heading;
-**Open** also updates the address to that heading. Links inside an outline row,
-its bullet included, have this same menu; the rest of the row keeps its row
-menu. The menu reads the link through navigation's `targetOf`, the same reading
-a click and a hover preview use, so a page-local `#fragment` gets no menu of
-its own. External links keep the browser's menu.
-Shift+right-click always shows the browser's menu. ⌘-click and middle-click on a
-link still open a browser tab, as they do everywhere else.
+## Open a page in a new tab
 
-With the `pins` row, pressing a pinned layout on the shelf opens it in a new tab
-in front; Alt and Alt+Shift still open its pages beside the current ones.
-Without the tabs row it opens in place. Tabs leases navigation's tab-opening
-capability for this and withdraws it before its own state is released.
+Right-click any link olai can open, a door in the sidebar or a link in a
+document, for **Open** and **Open in new tab**. A new tab opens right after
+the tab in front and stays behind it. A link to a heading in its own document,
+and a line of a document's contents, open that document at that heading;
+**Open** also puts the heading in the address.
+
+Links inside an outline row, its bullet included, carry this menu; the rest of
+the row keeps its row menu. A link to a fragment of the page you are on gets no
+menu, and an external link keeps the browser's. `Shift` and a right-click
+always show the browser's menu, and `Cmd` with a click or a middle-click still
+open a browser tab, as they do everywhere else.
+
+Clicking a pinned layout on the shelf opens it in a new tab in front
+([pins.md](pins.md)); `Alt` and `Alt` + `Shift` still open its pages beside the
+ones you have. Without this row it opens in place.
 
 ## Keys
 
 | Keys | What it does |
 | --- | --- |
-| ⌘⇧. / Ctrl+⇧. | Show the next tab |
-| ⌘⇧, / Ctrl+⇧, | Show the previous tab |
-| ⌘⇧O / Ctrl+⇧O | Open a new tab on the front page |
-| ⌘⇧X / Ctrl+⇧X | Close the tab in front |
+| `Cmd` + `Shift` + `.` | Show the next tab |
+| `Cmd` + `Shift` + `,` | Show the previous tab |
+| `Cmd` + `Shift` + `O` | Open a new tab on the front page |
+| `Cmd` + `Shift` + `X` | Close the tab in front |
 
-The browser keeps ⌘T, ⌘W, ⌘1 to ⌘9 and ⌘⇧[ ⌘⇧] for its own tabs, so they are
-not used here. The chords work while typing, and are listed in the shortcuts
-sheet under "Added by plugins". They do nothing below the desktop breakpoint.
-With the strip focused, ← and → move between tabs.
+`Cmd` is the modifier on a Mac and `Ctrl` elsewhere. The browser keeps `Cmd` +
+`T`, `Cmd` + `W`, `Cmd` + `1` to `Cmd` + `9`, `Cmd` + `Shift` + `[` and `Cmd` +
+`Shift` + `]` for its own tabs, so those are left alone. These four work while
+you are typing, are listed in the keyboard shortcuts sheet under `Added by
+plugins`, and do nothing below the desktop breakpoint.
 
 ## Back and Forward
 
 Back and Forward move within the tab in front. Bringing a tab to the front is
 not a history step, and closing a tab drops its history. Returning to a tab
-returns to where its page was scrolled. History is kept per document: after a
-reload every tab's history starts empty, and Back at the start of a tab's
-history stays on that tab. All of this holds only while the strip is drawn: on a
-phone, or with the layout row off, Back and Forward are the window's own.
+returns to where its page was scrolled.
 
-## What is kept
+History is kept per document: after a reload every tab's history starts empty,
+and Back at the start of a tab's history stays on that tab. All of this holds
+only while the strip is drawn. On a phone, or with the layout row off, Back and
+Forward are the window's own.
 
-A tab mounts its pages the first time it is shown. Those same page elements,
-subscriptions, composer drafts, open tool details, filters and scroll positions
-stay with it until it closes. Switching tabs hides the old lane and shows the
-new one; background page reports continue updating their own tab titles.
-A restored tab that has never been shown keeps only its saved address and title.
-It opens no page subscription until pressed. Closing a tab disposes its pages.
-Hidden pages do not handle keyboard gestures or draw their portalled menus.
-A hidden chat can still notify you when it needs an answer.
+## What a tab keeps
 
+A tab mounts its pages the first time it is shown, and those same page
+elements, subscriptions, composer drafts, open tool details, filters and scroll
+positions stay with it until it closes. Switching tabs hides the old pages and
+shows the new ones; closing a tab disposes them.
+
+A hidden page handles no keyboard gestures and draws no menus, but its page
+report still updates its tab's title, and a hidden conversation can still
+notify you when it needs an answer. A restored tab you have never looked at
+keeps its address and title alone, and opens nothing until you click it.
+
+## What is stored
 
 The set of tabs, their order, their addresses and titles, and which tab is in
-front are kept per browser under the `olai.tabs` preference. The tab in front is
-kept as its id alone, since opening olai always shows the address being opened
-in it, so the set is written when a tab opens, closes, moves, or changes places
-with the one in front, and not on every change to the page in front. Opening olai at an address shows that address in the tab that was
-in front, so a link you open or a reload always shows what you asked for.
-Another browser window does not pick up changes live: the window that writes
-last wins.
+front are kept per browser under the `olai.tabs` preference. The set is written
+when a tab opens, closes, moves, or changes places with the one in front, and
+not on every change to the page in front. Another window does not pick those
+changes up live: the window that writes last wins.
 
-A stored tab keeps its address, not a parsed page, so a plugin that was switched
-on or off since the tab was opened is honoured when the tab comes back. Tabs
-stored before `/zoom/#<id>` existed (version 1) spelled a zoom as `/#<id>`; they
-are read as zoom, so an old background tab still opens the page it held.
+Opening olai at an address shows that address in the tab that was in front, so
+a link you open, or a reload, always shows what you asked for. A stored tab
+keeps an address rather than a parsed page, so a plugin switched on or off
+since it was stored is honoured when the tab comes back.
 
-## Phones
+## On a phone
 
-Below the desktop breakpoint there is no strip. The front lane becomes the
-window's single lane and all background live lanes are disposed. Its pane
-subtrees remain mounted, with only the focused pane visible in a narrow split. The set is still kept and still written, so visiting on a phone does
-not erase the tabs of a desk. Open in new tab shows the page at once, since
-there is no strip to find it in, and Back returns to the page before it, in the
-window's own history. The chords do nothing.
+Below the desktop breakpoint there is no strip. The tab in front becomes the
+window's only page and the others are disposed, though the stored set is kept,
+so visiting on a phone does not erase the tabs of a desk. **Open in new tab**
+shows the page at once, since there is no strip to find it in, and Back returns
+to the page before it. The keys do nothing.
 
 ## When rows are switched off
 
-- **tabs** off: the strip goes, the page in front stays in the sole live lane,
-  background pages are disposed, and Back and Forward
-  walk the window's whole history again. Switching it back on restores the
-  stored set.
-- **chat** off: tabs wear no dot. Both marks are chat's facts.
-- **outlines** off: tabs holding other kinds of page are still named as above.
-- **pins** off: nothing changes here; pinned layouts are the pins row's.
-- **layout** off: no strip is drawn. The set is kept, the chords do nothing, and
-  Back and Forward walk the window's history.
+| Row off | What changes |
+| --- | --- |
+| `tabs` | the strip goes and the page in front stays; Back and Forward walk the window's whole history again. Switching it back on restores the stored set |
+| `layout` | no strip is drawn. The set is kept, the keys do nothing, and Back and Forward are the window's |
+| `chat` | tabs wear no dot. Both marks are chat's facts |
+| `pins` | nothing here changes; pinned layouts are the pins row's |
 
 ## For plugin authors
 
-The row offers `tabs.state` (`olai-plugin-tabs`'s `tabsState`, typed by
-`olai-plugin-tabs/contract`): the tabs, the id in front, and `open(workspace,
-{ behind })`, `show`, `step`, `close`, `closeOthers`, `duplicate` and
-`reorder`. `drawn` says whether a strip is drawing the tabs on a desktop; the
-strip registers that with `draw(desktop)`. `dot({ ids, paint, label, rank })`
-registers a reading of which tabs wear a mark, how it is painted and what it is
-called; `dotted()` is the collapse of every registered reading into one mark per
-tab, the highest `rank` winning. The `attention` component registers chat's two.
-Name `tabs.state` on a component of your own, so your row still works without
-tabs.
+`tabs.state` carries the tabs, the id in front, and `open(workspace, {
+behind })`, `show`, `step`, `close`, `closeOthers`, `duplicate` and `reorder`.
+Name it on a component of your own, so your row still works without this one.
 
-A tab's name is read from `navigation.state` as well: the page's reported
-title, and `routes.name(route)`, navigation's name for a document (the same
-`nameOf` the files sidebar uses, over the vault's claims). Tabs does not ask any
-page plugin for a name.
+`dot({ ids, paint, label, rank })` registers a reading of which tabs wear a
+mark, how it is painted and what it is called; `dotted()` collapses every
+registered reading into one mark per tab, the highest `rank` winning. `drawn()`
+says whether a strip is drawing the tabs on a desktop.
 
-The row itself needs only `navigation.state`. It names a history lane for the
-tab in front (see [navigation](navigation.md)) while the strip reports that it
-draws on a desktop, and gives the window its history back when it stops drawing
-and when the row is released. Without a lane, a tab brought forward is an
-ordinary navigation (`Router.open`). The strip is the `strip` component, contributed to
-layout's `layout.strip` seat and waiting for `layout.shell`; the link menu is
-the `links` component, contributed to `layout.overlays`; the needs-you dot is
-the `attention` component, waiting for `chat.state`.
-
-Layout records each split scrollport's horizontal and vertical position before
-hiding its lane and restores them after the host is shown. Window positions
-remain navigation's history-entry memory. Transcript followers can then advance
-to new text on their next frame; a reader who stopped following keeps the saved
-position.
-
-On a phone, opening another tab's address retargets the single lane's workspace.
-The pane owner survives, but changing its page subject ends that page's local
-editing visit. Phone navigation does not cache the visited desktop tabs' live
-pages. Crossing the breakpoint preserves the current workspace and its surviving
-pane elements; returning to desktop mounts other saved tabs only on demand.
-
-Hidden lane contents use `content-visibility: hidden` in a fixed box matching
-the lane's last drawn size and position. `visibility: hidden` and disabled
-pointer events keep the box noninteractive. This preserves browser layout
-work while taking the lane out of document flow. Layout explicitly snapshots
-and restores column scroll offsets; transcript following runs after restoration.
-
-The 300-row split-chat fixture (150 code blocks and opened diffs), measured
-from pointer press through the second animation frame in remote Chromium,
-returned in 73.6 ms median / 79.1 ms p95 with `display: none`, versus
-32.3 ms / 38.6 ms with hidden content visibility (10 measured returns each).
-The benchmark reports measurements without a timing pass/fail threshold.
-
-The switch benchmark is tagged `@skip` and excluded from default runs. It remains
-available for explicit measurement; its timings are observational, not assertions.
+The row needs only `navigation.state`. It names a history lane for the tab in
+front ([navigation.md](navigation.md)) while the strip reports that it draws,
+and gives the window its history back when it stops. A tab's name is read from
+navigation too, so tabs asks no page plugin what to call it.

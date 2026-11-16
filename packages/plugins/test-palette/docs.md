@@ -1,20 +1,34 @@
-# Palette levels fixture
+# Test palette fixture
 
-A maintained acceptance fixture, shipped disabled and selected only explicitly
-by tests. It contributes one palette row, **Test levels**, through the public
-`paletteAdapters` location, and opens the palette at a path through the declared
-`navigation.palette` service — the same two doors any plugin uses. It imports
-no outline, chat or search implementation.
+A test fixture, not a feature anyone turns on. It proves that the palette's
+levels work through the doors any plugin has: it contributes one row, **Test
+levels**, through the public `paletteAdapters` location, and opens the palette
+at a path through the declared `navigation.palette` service. It imports no
+outline, chat or search code.
 
-The row opens a group with sections, a nested group (**Citrus**), a group whose
-rows are a function of the typed text (**Word lookup**), and a value level
-(**Write a note**) with three tone options, a validator, and a submit whose
-answer is chosen by the note's first word (`keep`, `say`, `fail`, `hold`).
+The row opens a group with sections, and four levels under it:
 
-The scenario's hand is `window.olaiTestPalette`: open at a path, withdraw and
-restore the fixture's adapter while the row stays on, and read what was
-submitted. A held submit waits on a gate the page keeps, so a scenario can
-answer it after the fixture has gone and check that nothing changes.
+- a nested group, **Citrus**;
+- a group whose rows are a function of the text you type, **Word lookup**;
+- a group whose rows arrive a moment late, **Late rows**;
+- a value level, **Write a note**, with three tone options and a validator.
 
-`palette_levels.feature` ([navigation.md](navigation.md#palette-levels)) drives the real palette
-with it on desktop and phone. This is not a feature anyone turns on.
+The note's submit answers by the note's first word:
+
+| The note starts with | The submit |
+| --- | --- |
+| `keep` | leaves the palette open |
+| `say` | answers with a line |
+| `fail` | fails |
+| `hold` | waits on a gate the page keeps |
+
+A scenario's hand is `window.olaiTestPalette`: it opens the palette at a path,
+withdraws and restores the fixture's adapter while the row stays on, and reads
+what was submitted. Because a held submit waits on the page rather than on this
+plugin, a scenario can answer one after the fixture has gone and check that
+nothing changes. `palette_levels.feature` drives the real palette with it, on
+desktop and on a phone.
+
+The row is **Test palette**, under **Test fixtures** in the **Plugins** panel.
+It is off by default (`disabled: true` in `packages/bundle/olai.yml`) and comes
+on only for the `test-minimal` profile and the scenarios that name it.

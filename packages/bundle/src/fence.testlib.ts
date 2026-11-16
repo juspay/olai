@@ -105,7 +105,7 @@ const ALLOWANCES: Readonly<Record<string, string>> = {
   // with the sibling clients mutated in place. A DECLARED broker whose readers
   // name `Wired`, which is the distinction the audit's §5 draws — not a module
   // variable standing in for a service nobody declared.
-  "packages/web/src/client/wire.ts": "the connection Wired brokers — plugin-system.md §6",
+  "packages/web/src/client/wire.ts": "the connection Wired brokers — plugin-system.md, what crosses the wire",
   // THE PAGE'S MOUNTED ROSTER, which `wire.ts` composes through. What is mounted,
   // what failed to load and whether the page must reload are facts about the
   // DOCUMENT: one host per tab, created before the first plugin starts and gone

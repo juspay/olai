@@ -1,64 +1,39 @@
-# The ledger
+# git
 
-Git is a plugin. Everything about recording what olai wrote — the Commit readout in the header's health-dot popover, the phone banner, the commit panel, the `git_commit` and `git_push` tools, and the two cells an agent used to read as `surface://cells/git` and `surface://cells/pending` — arrives with one row in the build's plugin list. A serve that does not name that row has none of it: writes still land on disk, and nobody records them.
+Records what olai writes as git commits, and sends them on. It brings the Commit readout in the header, the commit panel, and the `git_commit` and `git_push` tools. [../git.md](../git.md) is how you use them.
 
-What git *does* has its own page: [git.md](../git.md) is the feature. This page is about the row.
+## What turns it off
 
-## What turns it on
+The row is on by default and needs the vault. Set `on: no` on the `git` node in `_olai/Settings.olai`, or use its switch, **Git** under **Notes** on the plugins panel ([../settings.md](../settings.md)).
 
-The `git` row is on by default. Set `on: no` on its top-level node in `_olai/Settings.olai`, or use its switch on the plugins panel. The switch writes the same property and restart reads it again.
+With it off you have an outliner whose writes wait for nobody: no Commit readout, no commit panel, and no git tools for an agent. Writes still land on disk, and anything that asks is told `nobody is recording writes here, so there is nobody to record a write`.
 
-```jsonl
-{"id":"git","ord":"a0","title":"git","custom":{"on":"no"}}
-```
+## Settings
 
-**Either way you are left with an outliner whose writes wait for nobody.** There is no Commit readout, no `surface/git/` on the wire, and nobody to record a write — not a disabled version of any of them, an absent one.
+Properties on the `git` node. Both take effect without restarting the row, which keeps its readout, its open panel and any pause or refusal it is holding.
 
-## The config
+| Key | Values | Default | What it means |
+| --- | --- | --- | --- |
+| `commit` | `off`, `manual`, `auto` | `manual` | `manual` waits for somebody to ask. `auto` records what is waiting once writes stop arriving for fifteen seconds, whoever made them. `off` means olai never touches git here |
+| `push` | `off`, `auto` | `off` | `auto` sends what has been recorded. `off` leaves the Push button as the only way |
 
-The row's `Config` schema declares `commit` (`manual` by default) and `push` (`off` by default), with validation and descriptions. Properties on the `git` node supply values; the reader derives the panel's vault/default authors and the composition root re-applies edits. `olai.yml` carries no config block. `commit: off` keeps the ledger mounted but disables recording; `on: no` removes the provider and its UI and tools.
+`commit: off` keeps the row mounted and records nothing; `on: no` takes the row, its readout and its tools away. Moving `push` from `off` to `auto` sends the commits already recorded here, once.
 
-**A config edit does NOT restart this row.** `commit` and `push` are `configUpdates: "live"`: the activation follows `_olai/Settings.olai` through core's configuration broker, seeds its policy before the first survey, and keeps its fiber, cells, pause and an open Commit panel. The `git: commit=… push=…` line is logged at boot and on every pick. A reader that is off (or absent) leaves the last policy standing; `push: off → auto` sends the commits already recorded here once. See [running.md](../running.md#the-git-policy).
+olai logs the policy at boot and at every change, as `git: commit=<mode> push=<mode>`, saying whether the quiet window is armed.
 
-## The door, and where it is told about
+## The tools an agent gets
 
-This row stands behind `Ledger`, and it TELLS THE VAULT about the same door
-through `vault-views`. The vault's settings carry a ledger — where a write is
-recorded — and the vault cannot name this key: this row waits for `Vault`, so
-the reverse edge would be a cycle. It used to be a lookup at the far end, over
-the whole host, for a key the vault never declared; the arrow points this way
-now, which costs this row no wait it did not already have. The registration
-unwinds with this activation, so a vault outliving the ledger falls back to
-refusing in its own words.
-On the push path the row fetches the upstream, and while it does it owns a
-temporary linked worktree under the git directory — the files you are served
-move onto the result only with one all-or-nothing tree update.
+| Tool | What it does |
+| --- | --- |
+| `git_commit` | Records everything waiting as one commit, or only the paths it passes. An omitted `message` is composed from what changed |
+| `git_push` | Fetches the upstream, rebases what is unpushed onto it, and pushes, never forcing |
 
-## In the browser
+A commit sweeps the whole repository: every file that differs from `HEAD`, including one a person edited by hand, and anything untracked that `.gitignore` does not cover. An agent cannot see what is pending.
 
-The desktop Commit readout uses `app.header`: it is a row of the health-dot popover, and it declares a `status` (read off the same two cells by a root this row's activation owns) so the dot turns amber while writes wait (in a busy repository too) or commits are unpushed, and red on a git error, a refused push or a paused loop. The row reads the same value (`readingOf` in `said.ts`: one tone, the words and their riders) and wears a dot of that tone, so the Commit row is always the one that explains an amber or red dot. `Not a git folder` and `Commits off` are quiet: they wear no dot and never colour the health dot. The phone notice uses `app.banner`, which the shell draws in normal flow directly below the header, before the page content. It disappears when no work or warning remains. This keeps its commit entry reachable while an agent conversation is open.
+`git_push` takes a plain divergence in and reports it as `integrated`. It refuses a conflict, naming the files, a fetch or push the remote refused, and an uncommitted edit in a path the upstream changed.
 
-## On the wire
+## What the browser gets
 
-Git's members compose as a sibling, under its own key:
+The Commit readout is a row of the health-dot popover, and the dot wears the readout's own state. It asks for attention while writes wait or commits are unpushed, and raises an alarm on a git error, a refused push or a paused loop. **Commits off** and **Not a git folder** leave the dot alone. On a phone the same news arrives as a banner under the header.
 
-- `surface/git/git` — what git is doing for this directory
-- `surface/git/pending` — what is waiting
-- `surface/git/git/commit`, `surface/git/git/push`, `surface/git/git/resume`, `surface/git/git/unlock` — the four verbs. `push` fetches the upstream, rebases what is unpushed onto it, and sends — a divergence is taken in rather than refused, and the only stop a push can meet is a conflict, a refused fetch or push, or an integration that could not run ([git.md](../git.md#pushing)). `unlock` removes the stale `index.lock` a commit was refused over — the commit panel's other button — and answers `Held` rather than removing one that is younger than a git command's own budget ([git.md](../git.md#a-lock-file-in-the-way)).
-
-They are on the browser face. The MCP tools an agent calls are `git_commit` and `git_push` — the row's word in front of its own verb, on every face (#546) — and they are THIS ROW'S now (`packages/plugins/git/src/tools.ts`, juspay/olai#546): they used to be two entries in `@olai/ops`' one closed table, which meant a serve with no ledger row still advertised them. They do not land on the sibling verbs above; they call through the ops layer's own ledger door, which this row stands behind when it is mounted and which refuses in words when it is not. So the row still puts nothing on the agent face. An agent cannot see what is pending, and `git_commit` records everything waiting unless it passes `paths`. The `surface://cells/git` and `surface://cells/pending` URIs are gone with them. The adapter HAS a sibling segment now (juspay/kolu#2234, so a row's resource reads `surface://cells/<row>/<member>`), and that is no longer what would keep them off the face: this row publishes no `resources` map, which is the decision rather than a limitation. An agent observes the recorder through `git_commit` and `git_push`.
-
-## Where it hangs in the tab
-
-| seat | who declares it, and what they keep | what git brings |
-| --- | --- | --- |
-| `app.header` | `layout` — where a readout sits, and the dot its status colours | the Commit readout and its status |
-| `app.banner` | `layout` — where a banner sits over the page | the phone banner (news only) |
-
-The panel travels with the readout, portalled against the viewport, the way it always did.
-
-The browser activation owns repository preparation in a synchronous computed
-resource scope, acquired before its faces mount. Readiness is derived separately.
-A transient repository-cell withdrawal retains the same claim; changing the
-repository releases the previous claim before acquiring the next, and activation
-cleanup releases it after the faces withdraw.
+Four verbs are the browser's, not an agent's: commit, push, resume, and unlock. Removing a stale `index.lock` is a person saying they have checked that no git command is running, which is not an agent's judgement to make.

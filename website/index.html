@@ -11,14 +11,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>olai — a git-native outliner</title>
 <meta name="description" content="An outliner that lives in files you own. Indent, check off, search. Markdown sits beside the outline. Git records every edit.">
-<link rel="canonical" href="https://olai.kolu.dev/">
+<link rel="canonical" href="https://olai.page/">
 <meta property="og:title" content="olai — a git-native outliner">
 <meta property="og:description" content="An outliner that lives in files you own. Indent, check off, search. Markdown sits beside the outline. Git records every edit.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://olai.kolu.dev/">
+<meta property="og:url" content="https://olai.page/">
 <meta property="og:site_name" content="olai">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://olai.kolu.dev/og.png">
+<meta property="og:image" content="https://olai.page/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="2400">
 <meta property="og:image:height" content="1260">
@@ -26,7 +26,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="olai — a git-native outliner">
 <meta name="twitter:description" content="An outliner that lives in files you own. Indent, check off, search. Markdown sits beside the outline. Git records every edit.">
-<meta name="twitter:image" content="https://olai.kolu.dev/og.png">
+<meta name="twitter:image" content="https://olai.page/og.png">
 <meta name="twitter:image:alt" content="olai — a git-native outliner. A palm leaf in ink on sea-glass paper.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -540,13 +540,14 @@
         <tr><td><kbd>⌘</kbd>+<kbd>Enter</kbd></td><td>tick it off, or take that back</td></tr>
         <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Enter</kbd></td><td>walk the mark on: to do, then doing, then none</td></tr>
         <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>D</kbd></td><td>duplicate the row, and everything under it</td></tr>
-        <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>M</kbd></td><td>move it under a node you search for, anywhere</td></tr>
+        <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>M</kbd></td><td>move it under a row you search for, anywhere</td></tr>
         <tr><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>write the note under it</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>drop what you were typing</td></tr>
       </table>
     </div>
-    <p class="caption">The full map — dragging, the palette, pins, the inbox —
-    is in the <a href="https://github.com/juspay/olai/blob/master/docs/editing.md">editing docs</a>.</p>
+    <p class="caption">Off a Mac, ⌘ is Ctrl. The full map — dragging, the
+    palette, pins, the inbox — is in the
+    <a href="https://github.com/juspay/olai/blob/master/docs/editing.md">editing docs</a>.</p>
   </div>
 </section>
 
@@ -635,7 +636,7 @@
     of spatiotemporal composability. The paper is on
     <a href="https://arxiv.org/abs/2608.25512" title="A Programming Paradigm for Spatiotemporal Composability">arXiv</a>.</p>
     <div class="plugmock" aria-label="The plugins panel: one line per plugin, grouped, each with its switch">
-      <div class="plughead"><strong>Plugins</strong><a href="https://github.com/juspay/olai/blob/master/docs/running.md#settings-declarations">Settings.olai ↗</a></div>
+      <div class="plughead"><strong>Plugins</strong><a href="https://github.com/juspay/olai/blob/master/docs/settings.md">Settings.olai ↗</a></div>
       <div class="plugbody">
 <details class="pluggroup plugneeds" open><summary><span class="plugchev">▶</span><span>Needs attention</span><span>1</span></summary>
 <div class="plugrow plugopen"><span class="plugchev">▶</span><span class="plugname">Mail</span><span class="plugstate">Needs setup</span><span class="plugswitch" aria-label="Enable mail"></span></div>
@@ -649,22 +650,23 @@
 <div class="plugrow plugoff"><span class="plugchev">▶</span><span class="plugname">Pi</span><span class="plugswitch" aria-label="Enable pi"></span></div>
 <div class="plugrow plugoff"><span class="plugchev">▶</span><span class="plugname">Oh My Pi</span><span class="plugswitch" aria-label="Enable omp"></span></div>
 </details>
-<details class="pluggroup"><summary><span class="plugchev">▶</span><span>Notes</span><span>18 on</span></summary></details>
+<details class="pluggroup"><summary><span class="plugchev">▶</span><span>Notes</span><span>19 on</span></summary></details>
 <details class="pluggroup"><summary><span class="plugchev">▶</span><span>Connections</span><span>6 on · 1 off</span></summary></details>
-<details class="pluggroup"><summary><span class="plugchev">▶</span><span>Interface</span><span>9 on</span></summary></details>
+<details class="pluggroup"><summary><span class="plugchev">▶</span><span>Interface</span><span>10 on</span></summary></details>
 <details class="pluggroup"><summary><span class="plugchev">▶</span><span>Server</span><span>laptop</span></summary></details>
       </div>
     </div>
     <div>
-        <p>An agent can write one into your vault. You read the source on the
-        panel and approve it. The worked example is a morning agenda: each
-        morning it reads the day and puts it into the conversation.
-        <a href="https://github.com/juspay/olai/blob/master/docs/dynamic-plugins.md#a-worked-example-the-morning-agenda">Read the morning agenda</a>.</p>
-        <p>The vault carries your settings. A top-level node in
-        <code>_olai/Settings.olai</code> names each tool; its properties choose
+        <p>An agent can write a plugin into your own directory. You read the
+        source on the panel and approve it before it runs. The worked example is
+        a morning agenda: each morning it reads the day and puts it into the
+        conversation.
+        <a href="https://github.com/juspay/olai/blob/master/docs/dynamic-plugins-examples.md#the-morning-agenda">Read the morning agenda</a>.</p>
+        <p>Your settings travel with your notes. A top-level row in
+        <code>_olai/Settings.olai</code> names each plugin; its properties choose
         how it behaves and whether it runs. The panel writes the same file.
         See the
-        <a href="https://github.com/juspay/olai/blob/master/docs/running.md">running docs</a>.</p>
+        <a href="https://github.com/juspay/olai/blob/master/docs/settings.md">settings docs</a>.</p>
     </div>
     <div class="tablewrap">
       <table class="plug">
@@ -682,8 +684,11 @@
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/codex.md">codex</a></td><td>Codex, also shipped.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/opencode.md">opencode</a></td><td>opencode, if it is on this machine.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/pi.md">pi</a></td><td>pi, if it is on this machine.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/omp.md">omp</a></td><td>Oh My Pi, if it is on this machine.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/kolu.md">kolu</a></td><td>Live terminals from a running Kolu.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/odu.md">odu</a></td><td>CI on the board, from a running odu.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/browsing.md">browsing</a></td><td>A browser your agents can drive, in a pane.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/mail.md">mail</a></td><td>Gmail, read and filed from a conversation.</td><td>off</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/xyne-spaces.md">xyne-spaces</a></td><td>Mirror the conversation into team chat.</td><td>off</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/ws.md">ws</a></td><td>The browser socket. Leave it on if you want a tab.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/mcp.md">mcp</a></td><td>The door agents dial.</td><td>on</td></tr>
@@ -691,12 +696,13 @@
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/ui-renderer.md">ui-renderer</a></td><td>The tab’s Solid root.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/layout.md">layout</a></td><td>The frame, the header, the seats.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/sidebar.md">sidebar</a></td><td>The directory column and the rail.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/tabs.md">tabs</a></td><td>Several pages open at once, each with its own history.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/preferences.md">preferences</a></td><td>How it looks, from this browser.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/theme.md">theme</a></td><td>Palette, typeface, size.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/plugin-inspector.md">plugin-inspector</a></td><td>The panel itself.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/navigation.md">navigation</a></td><td>Addresses, history, the palette.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/outlines.md">outlines</a></td><td>The outline editor.</td><td>on</td></tr>
-          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/markdown.md">markdown</a></td><td>Documents, and the files olai only shows.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/markdown.md">markdown</a></td><td>Documents: reading them, and writing them.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/files.md">files</a></td><td>Outlines in front, everything else under Reference.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/pins.md">pins</a></td><td>The pinned shelf.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/capture.md">capture</a></td><td>The inbox, and + in the palette.</td><td>on</td></tr>

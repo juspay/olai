@@ -1,36 +1,41 @@
 # Pins
 
-Pins owns the saved shelf, its live reading and its navigation commands. It
-contributes the shelf to the sidebar and contextual actions to the navigation
-palette. Pin writes use the domain write gate and the focused page's history,
-so keyboard Undo also reverses shelf reorders and removals. When the page has
-no history, pins retains its activation-owned fallback. Each write captures its
-history before sending the request.
-`pins.state` carries the shelf as the server last answered it — an accessor,
-because the answer is a fresh array each time the shelf changes. The outline
-names it on a component of its own to draw the pin glyph on a row, so an outline
-with no pins row mounted is a whole outline with no glyph.
+Pins keeps a shelf of saved pages in the sidebar, under **Pinned**. One click opens a pinned page, or a whole split layout. The shelf is saved in the directory, in `_olai/Pins.olai`, so every browser that opens this directory reads the same pins.
 
-Disabling pins withdraws its browser integrations and releases its subscription;
-persisted pins remain in the vault.
+## Pin the page you are on
 
-Pins uses the convention stem directly under `_olai/`, among node-holding
-claims. Its sidebar component declares vault file access to name the configured
-outline row when it is off. The Pins file remains an ordinary address and
-reports its unclaimed suffix; there is no separate Pins route.
+| Where | What it offers |
+| --- | --- |
+| the palette | **Pin this page**, or **Unpin this page** when it is already on the shelf |
+| the palette, in a split | **Pin this layout…**, or **Unpin this layout** |
+| a row's menu | **Pin to sidebar**, or **Unpin from sidebar** |
 
-Pins have a page or layout target. The palette offers the focused page command and, in a split, a layout command that always asks `Name this layout`. Pinning a page asks `Name this pin, or leave it blank`, and renaming one asks `Rename this pin, or leave it blank`. A saved layout compares only ordered pages, ignoring width and focus; renaming it refuses an empty name with `A layout needs a name`. On the shelf, each pin carries `Rename` and `Unpin` (accessible names `Rename <name>` and `Unpin <name>`); they are revealed by a hand on the row or the keyboard in it, and are drawn outright on a screen with no hover — the shelf is in the sidebar at every width, including the phone's drawer, so a thumb has no other way to either verb (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`). Layout shelf links have a split mark and request a new front tab through navigation’s shared intent path, falling back to replacing the workspace when tabs is absent. Page links retain pane navigation.
+A label ending in `…` is one that asks for a name first. Pinning a page asks `Name this pin, or leave it blank`: left blank, the pin reads as its target is called and follows it when the target is renamed. A row whose page is on the shelf carries a pin glyph in the outline.
 
-A layout pin says the address it keeps — `house.olai · garden.olai` — in the
-app's own tip and in the row's accessible name, after the name somebody gave
-it, because `Planning` says nothing about which pages open. The tip alone
-would not reach a reader who never hovers: it is drawn `role="presentation"`
-and exposes nothing to assistive technology. Neither row wears the browser's
-`title` attribute any more, and a page pin has no tip at all — its face IS its
-name, so a tooltip repeating the words under the pointer would be one sentence
-written twice. `Rename` and `Unpin` each carry a tip that repeats the button's
-own accessible name.
+## What a layout pin keeps
 
-Navigation supplies `WorkspaceRouting` on `routes`, including `layoutIn` and `layoutHref`; pins never parses the workspace prefix. The shared title resolver tries workspaces first, without changing page routing. Layout titles on the ordinary Pins outline use the same split-marked face; named links open the workspace in place and bare titles remain editable. Browser new-tab clicks are preserved. Pane labels use navigation's lifetime-bound `info(index)` reports when available. The pin status line remains owned by the pins activation for shelf removal and reorder refusals. Pinning is available through the palette and row menu.
+A layout pin keeps the pages of the split, in order, and always asks `Name this layout`. An empty name is refused with `A layout needs a name`.
 
-Shelf and outline layout faces render ordinary anchors. Navigation reads their layout href and applies the same click/Alt/Alt+Shift intent as every link; tabs supplies Open in new tab through its shared link menu. Pins no longer acquires a tabs service or owns a layout-click policy. The activation-owned status line lives in `status.ts`; pin mutations live beside the held edit capability in `writes.ts` and receive an address rather than deciding route spelling. On the first published vault snapshot, a scoped pins migration freezes legacy titles, records its work through `LocalState`, and rewrites old node pins and layout segments to `/zoom/#id` through the vault edit gate. Optimistic title checks preserve concurrent edits. A persisted completion marker means later `/#id` titles reveal rows like every other link.
+Pane widths and which pane has the caret are not part of it, so two splits of the same pages in the same order are one layout. The shelf draws the name you gave it; the addresses it opens follow in the app's tip and in the row's accessible name — `Planning`, then `house.olai · garden.olai`.
+
+## Rename, reorder, unpin
+
+| Verb | What it does |
+| --- | --- |
+| **Rename** | asks `Rename this pin, or leave it blank`, and changes the shelf row alone, never the page it opens |
+| **Unpin** | takes the pin off the shelf |
+
+Drag a pin up or down to reorder the shelf.
+
+Both verbs appear with the pointer on a pin or the keyboard in it, and are drawn outright on a screen with no hover: the shelf is in the sidebar at every width, the phone's drawer included.
+
+Undo reverses a reorder or an unpin, as it does any other write. A shelf gesture that is refused says so under the header.
+
+## When something is off
+
+| What is off | What you get |
+| --- | --- |
+| the `outline-olai` plugin | `Pins need outline-olai, which is turned off.` where the shelf was |
+| pins | no shelf, no pin commands and no glyph; the rows of `_olai/Pins.olai` stay where they are |
+
+`_olai/Pins.olai` is an ordinary outline at an ordinary address: you can open it and edit a pin's title by hand.

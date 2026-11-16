@@ -1,36 +1,34 @@
-# Git integration
+# Git
 
-Git is a plugin ([plugins/git.md](plugins/git.md)): one row in the build, on by default. A serve that does not name it has no Commit readout and nobody records a write. This page is what the row *does*.
+olai records what it writes to your files as git commits: an audit trail, not sync and not undo. Writes land on disk at once and wait to be committed — from the commit panel, from an agent's `git_commit` tool, or from the server when writes stop arriving.
 
-Git is how you see what olai did to your files — an audit trail, not sync and not undo. Writes land on disk and WAIT to be committed: from the Commit readout in the header's health-dot popover (or, on a phone, from a banner directly below the header when there is something to record), or by the agent's own `git_commit` tool, which is the better one to use — it knows where a train of thought ended, so its message can say `olai: reconcile the roadmap with the #70–#81 merges` instead of describing edits. The server can also press that button for you when the writes stop arriving — [Auto-commit](#committing-on-its-own), below.
+Git is one of the plugins and is on by default. A serve that does not run it has no Commit readout and records nothing ([plugins/git.md](plugins/git.md)).
 
-**The two places that "not undo" is load-bearing are the emptied Trash and a deleted file** — one unit each of the two that destroy ([editing.md](editing.md)). Emptying the archive is a write like any other — the file is rewritten holding no records — and deleting a file is the same write with the rewrite step missing. So history holds them to exactly the extent it had already recorded them, and no further. A directory that is not a repository, or one served `commit: off`, holds none of them. A directory whose file had been committed holds all of them — `git show HEAD:_olai/Trash.olai` reads a trashed row back, and the same door is the whole undo story of a deleted file. Olai will not do that for you: nothing in the app reads a commit onto disk.
+## Read what is waiting
 
-## The Commit readout
+On a desktop the Commit readout is a row of the popover the header's health dot opens, and it is always there. Its own dot folds into that health dot: writes waiting, unpushed commits and a busy repository turn it amber; a git error, a refused push and a paused loop turn it red. On a phone a healthy tree is silent, and uncommitted work is a banner under the header.
 
-On a desktop the readout is a row of the popover the header's health dot opens, with a dot of its own in the same tone the health dot folds, and it is always there, because *there is no audit trail here* is the most important thing it can say and a control that vanished is how you would never find that out. The dot itself folds the readout in, so you do not have to open anything to hear news: writes waiting, unpushed commits and a busy repository turn it amber; a git error, a refused push and a paused Auto-commit turn it red, and its tip names the readout's words. On a phone a healthy tree is silent and uncommitted work is a banner under the header. It reads:
+| It says | It means |
+| --- | --- |
+| `Committed · 12m ago` | everything is recorded |
+| `No commits yet` | this is a repository, and olai has not committed here |
+| `3 uncommitted` | that many writes are waiting |
+| `Git error` | git failed here, so changes are saved and not committed |
+| `Not a git folder` | the directory is not a repository |
+| `Commits off` | the policy is `commit: off` |
+| `· 2 unpushed` | this branch holds commits its upstream does not |
+| `· Push refused` | git said no to the last push |
+| `· Auto-commit paused` | the loop stopped; see [when the loop stops](#when-the-loop-stops) |
 
-- `Committed · 12m ago`, beside a green dot, when everything is recorded;
-- `No commits yet` when olai has never committed in this directory — a different fact, and not one an empty list can express;
-- `4 uncommitted` when something is waiting;
-- `Not a git folder` / `Commits off` when there is nothing to record at all. Those two are settings rather than problems, so they are dim and inert, draw no dot, and leave the health dot green.
+- `Not a git folder` and `Commits off` are settings rather than problems, so they are dim and inert, draw no dot, and leave the health dot green.
+- The last three ride whichever words the readout is wearing, on the tip, on the `aria-label` and in the panel. The phone banner carries them too: `3 uncommitted · Auto-commit paused — tap to see`.
+- A refusal is remembered by the server and published to every reader, so a reload does not lose the reason. It clears the moment there is nothing unshared, including when you resolved it in a terminal.
+- A git failure never fails a write: the bytes are on disk, and the write comes back saying why it did not reach the history.
+- A repository mid-merge, mid-rebase, mid-cherry-pick or on a detached `HEAD` says so and refuses to commit: **A merge is in progress. Finish it first**, and the three like it.
 
-It carries one more thing beside that count: `· 2 unpushed`, when this repository holds commits the branch's upstream does not. "Not recorded" and "not shared" are two different facts about the same work, and an audit trail that lives on one machine is one disk failure from not existing. A successful auto-push takes that count to none.
+## What the panel lists
 
-**A push git REFUSED says so, and turns the row red.** `✓ committed · 13 unpushed` with the reason nowhere was a real screenshot, an hour into a push that had been failing every time: the refusal lived in one browser tab's memory, and that tab had been reloaded. It is a fact about the directory now, remembered by the server and published to every reader — so the readout's dot turns red, its words read `Committed · 13 unpushed · Push refused`, and it hands over git's own words on its tip, on its `aria-label` and in the panel. It clears itself the moment there is nothing unshared, including when you resolved it in a terminal.
-Saying no is not only for a push the remote turned down: a fetch the remote refused, and a take-in a conflict stopped, wear the same red dot and the same words.
-
-Opening it shows what is waiting the way olai would say it rather than as a diff. Nothing about your working tree is stored to make any of it work: it is `git status`, one `git log` and what a commit already holds, read against what is on disk — so an outline you edited in vim is in the list too, and committing in a terminal takes it out. The one thing olai does keep is the copy each commit holds of the files you are editing: a commit cannot change, so that is read once and not once per keystroke, and typing no longer gets slower the longer you defer a commit.
-
-If the repository is mid-merge, mid-rebase or on a detached HEAD, the commit button says so and does nothing — an agent that committed into a conflict could swallow the resolution.
-
-A git failure never fails a write — the bytes are on disk and you have already seen them — but it is never silent either: the readout says `Git error`, the dot goes red, and hands you git's own words, and a write that did not reach the history comes back saying why, where the agent and the panel both read it.
-
-## What is waiting: the whole repository
-
-Everything git thinks has moved is in the panel, not only the outlines olai writes. Edit a `README.md` by hand and it is waiting; so is a source file, a document, an untracked file `.gitignore` does not cover, and an outline that lives outside the directory olai is serving. The panel says which part of the repository that is (`Whole repository · olai shows docs/`), because a file two directories above your outlines is otherwise a surprise.
-
-The two kinds of row are the two things olai can honestly say about a file:
+Opening the readout shows what is waiting the way olai would say it, rather than as a diff. Everything git thinks has moved is there, not only the outlines olai writes: a `README.md` you edited by hand, a source file, an untracked file `.gitignore` does not cover, an outline outside the directory olai serves.
 
 ```
 ┌─ Changes ─────────────────────────────────┐
@@ -55,101 +53,93 @@ The two kinds of row are the two things olai can honestly say about a file:
 └───────────────────────────────────────────┘
 ```
 
-An outline olai serves gets its NODES and what changed about each — never a text diff, because a `.olai` diff is one enormous line per node with everything on it changing at once. Every other file gets its path and what git says happened to it: `modified`, `added`, `deleted`, `renamed`, `untracked`. Those are git's words rather than yours, so a `mv` you have not staged is a `deleted` and an `untracked` — `renamed` appears once both halves are staged.
+- The scope line says which part of the repository this is: `Whole repository · olai shows docs/`.
+- An outline olai serves gets its nodes and what changed about each, never a text diff.
+- Every other file gets its path and git's own word for what happened: `modified`, `added`, `deleted`, `renamed`, `untracked`. A `mv` you have not staged is a `deleted` and an `untracked`; `renamed` appears once both halves are staged.
+- A `renamed` row names both halves (`old/name.md → name.olai`) and is one row with one tick, because a rename is one thing that happened. Rename an outline and its nodes read as having moved.
+- Nothing about your working tree is stored. This is `git status`, one `git log` and what a commit already holds, read against disk — so an outline you edited in vim is in the list, and committing in a terminal takes it out.
 
-A `renamed` row names BOTH halves (`old/name.md → name.olai`) and is one row with one tick: a rename is one thing that happened, and committing the arriving side on its own would land it in two pieces — an add here, a deletion still staged and waiting to be swept into whatever you commit next. That goes for an outline too: rename one and its nodes read as having MOVED, because the committed side olai compares against is HEAD's copy of the file it came from.
+## Commit some of it
 
-## Committing some of it
+1. Open the readout. Every row starts ticked, so the ordinary sweep is one press.
+2. Untick a file to leave it waiting for a commit and a message of its own. The suggested message and the button rewrite themselves as you go.
+3. Type your own message if the suggested one cannot say why you made the change.
+4. Press **Commit**, which names what it is about to record: `Commit 3 changes · 1 file`.
 
-Every row has a tick and they all start ticked, so the ordinary sweep is still one click. Untick a file and it stays waiting, for a commit and a message of its own; the suggested message and the button rewrite themselves as you go, so what you are about to record is what the panel says you are.
+- olai commits exactly the paths you ticked, naming each one, so anything you staged by hand is left as you had it. A commit git refuses puts the index back bit-identical, and one stopped mid-flight either landed or left no staging behind.
+- Your typed message and the files you excluded stay prepared in this tab when you close the panel or the plugins rebuild it. A successful commit clears that preparation; a refused one keeps it.
+- An agent's `git_commit` is the better door for its own work, because it knows where a train of thought ended and its message can say so. It takes an optional `paths`, the repository-root-relative names the pending list publishes, and refuses a path nothing is waiting on by name.
 
-Your typed message and excluded files stay prepared in this tab when you close the panel or plugins rebuild it. A successful commit resets that preparation for the remaining work; a refused commit keeps it. A reply from an earlier submission does not clear a newer preparation.
+## Let the server commit
 
-**A selection is never git's index.** olai commits exactly the paths you ticked, naming each one, so anything you staged by hand is exactly as you left it afterwards — and a commit git REFUSES (a signature it cannot make, a hook, an identity nobody set) puts the index back bit-identical rather than leaving its own staging behind for your next commit to sweep up. The same is true of a commit that is STOPPED rather than refused: quit olai, or switch the Git row off, while one is in flight and you get the whole answer either way — the commit had not landed and its staging is gone, or it had landed and your index agrees with it. What you never get is olai's half-done staging left in your repository. Nothing here ever runs a bare `git add`, and nothing is staged for a path that has already left the working tree — that is what a `git mv` you staged yourself looks like, and it is recorded rather than refused.
+Set `commit: auto` and what is waiting records itself once writes stop arriving for fifteen seconds, so a burst of typing or a train of agent work is one commit. It presses the same verb the button does, with the same suggested message and the same sweep of the repository.
 
-The agent has the same thing: its `commit` tool takes an optional `paths`, the repository-root-relative names the pending list publishes. A path nothing is waiting on is refused by name rather than quietly skipped.
+- Everything waiting counts, whoever wrote it: an agent writing over MCP restarts the window, and a `.md` you edited in vim joins the same commit.
+- The panel says **Auto-commit will commit all of this once you stop editing** while the window really is about to do it.
+- With `push: auto` beside it the flurry is committed, taken in and pushed, and there is nothing left to press. With it off, the commits accumulate and the readout counts them as unpushed.
 
-## Committing on its own
+### When the loop stops
 
-`commit: auto`, off by default. On, what is waiting records itself when writes stop arriving for **fifteen seconds** — so a burst of typing, or a train of agent ops, is ONE commit rather than one per write. It presses the same verb the Commit button does, with the same message the panel would have suggested and the same full sweep of the repository; there is no second committer and no second kind of commit in the log.
+A commit or a push git refused pauses the loop, and the readout says `Auto-commit paused` with git's own words on the tip and in full in the panel. Nothing goes round again: the window is not re-armed, and a second flurry sits waiting where you can see it.
 
-The span is the point rather than a setting. It has to outlast the pauses inside one piece of work — reading a line back, moving between rows, waiting on an agent's next op — or the promise breaks and one thought arrives as three commits; and it has to be short enough that what lands is still something you remember doing.
+- What stops it is a conflict, a fetch or push the remote refused, or an integration that could not run. The panel names the files and quotes git. Resolve it in a terminal, with `git pull --rebase`, then press **Resume**.
+- An uncommitted edit in a path the upstream changed is a wait rather than a stop: commit what is yours first, and the next push goes.
+- **Resume** sits under the Git commit row and is drawn only while the loop is stopped. Nothing else clears a pause: not a reload, not a second tab, not switching the row off and on. Press it in any tab and every reader's readout is armed again.
+- Restarting the server does clear it, because nothing about a refusal is written down. Where `push: auto` is on and the branch has commits to send, a boot makes one push, and whatever git says is on the readout before anybody looks.
+- A repository that cannot take a commit at all is a pause rather than a stop. Nothing is attempted while it lasts, and what is waiting is recorded once you have finished; there is nothing to resume.
 
-**Everything waiting counts, whoever wrote it.** The window watches what is PENDING, which is derived from git for the whole repository, so an agent writing over MCP restarts it, a `.md` you edited in vim joins the same commit, and what goes in is the same sweep the button makes. That is the whole of "all my changes end up in git".
+### A lock file in the way
 
-**It is the directory’s policy, shared by every browser.** Set `commit` and `push` on the `git` node in `_olai/Settings.olai`; edits re-apply the git row through Cordis. Use the inline commit and push controls beside git on the plugins panel; the controls write that same node and show whether each value came from the file or the schema default ([running.md](running.md#the-git-policy)).
+git refuses every write while an `index.lock` exists, and a killed process, a full disk or a machine that went down mid-write leaves one behind. The panel says what is in the way and how long ago it was left, and offers **Remove lock file & retry**. Press it and the file goes, the refusal and the pause go with it, and the commit you were refused is made with the message and the ticks the panel is holding.
 
-It used to be this browser's, and everything wrong with that followed from the frame. A directory recorded only while somebody had a tab open; two browsers could each have the toggle on and race one work tree (one browser's tabs contended for a Web Lock, which said nothing about the other's); and `commit: auto` was a *different* feature with the same name — one commit per write, made inside the write gate, never pushed. There is one window now, on the server, and one of it per served directory: one olai holds a directory, so there is nothing to elect.
+> olai removes the file only once it is more than ten seconds old. Inside that window the button answers *A git process may still be writing; try again in a moment.* Check that no git command is running before you press.
 
-With Auto-push on beside it, the flurry is committed and then taken in and pushed — the push itself fetches, rebases, and sends, so a moved upstream is absorbed rather than refused ([Pushing](#pushing)) — and there is nothing left to press. With Auto-commit alone, the commits accumulate and the readout's `· N unpushed` says how many.
+- Nothing is removed on olai's own initiative, and there is no verb for it on the agent face.
+- The file removed is the one in the git directory of the repository olai serves. A linked worktree's lock lives under `.git/worktrees/<name>`.
+- Where the file cannot be removed at all, the errno is drawn beside the button rather than a report that it was removed.
+- A lock does not stop the survey: `git status` answers with one in place, so what is waiting is still listed. Only the write verbs refuse.
 
-### When it stops
+## Push
 
-A commit or a push that git REFUSED **pauses the loop**, and the readout says so — `· Auto-commit paused`, with git's own words on the tip, on its `aria-label`, and in full in the panel. On a phone the banner says it too, and keeps the count beside it (`3 uncommitted · Auto-commit paused`), because a halted loop and a later edit is exactly when how much is sitting here is worth knowing. Nothing goes round again: the window is not re-armed, and a second flurry sits waiting where you can see it.
+One verb, the current branch to the upstream it already tracks. No remote to pick, no refspec, never a force. The panel offers **Push** when there is something to send, beside `2 commits not on origin/master`, and the same count rides the readout.
 
-What stops the loop is a CONFLICT — the upstream took in a change to a line you have also changed — or a fetch or push the remote refused, or an integration that could not run. The readout names the files and hands over git's own words: "the upstream's changes conflict with the ones here, so nothing moved (`Merge conflict in house.olai`) — resolve it in a terminal — `git pull --rebase`, then Resume. git said: …". Resolving is a conversation in a terminal, which is what git's words are for. An uncommitted edit in a path the upstream changed is the other thing and is a **wait rather than a stop**: `changes here overlap changes the upstream took in, so nothing moved — commit what is yours first, then push again`. The next commit sweeps it in and the push goes.
+- A push takes the upstream in first: it fetches, rebases what is unpushed onto the moved branch, and sends, so a push from here is never a non-fast-forward.
+- The take-in runs in a linked worktree olai makes under the git directory, and your tree changes only as the whole move succeeds.
+- When git refuses, you get git's own words, verbatim, because resolving it is a conversation in a terminal. What it refuses is a conflict, an authentication failure, an integration that could not run, or a branch with no upstream.
+- A commit whose push fails is still a commit: nothing is rolled back and nothing is retried.
+- `push: auto` follows every commit olai makes here, whichever door made it: the button, `git_commit`, and the quiet window's own.
+- An agent's `git_push` takes nothing at all.
+- There is no pull and no branch control. This is an audit-trail recorder rather than a git client.
 
-**The stop belongs to the directory, and `Resume` is the one way out of it.** The button is under the Git commit row and is drawn only while the loop is actually stopped. Nothing clears the pause on olai's own initiative, because a loop that un-paused itself is the blind retry wearing a different hat — and nothing else clears it either: a reload does not, a second tab does not, and turning the row off and on again does not. Press Resume in any tab and every reader's readout goes back to `armed` at once.
+## The modes
 
-**Restarting the server does clear it, and that is the one deliberate exception.** Nothing about a refusal is written down, so a fresh process starts with no stop and no words. A restart is something an operator did, which a reload was not. What that would cost on its own is the count going quiet again: `olai.service` restarts on its own, and a branch that has been refusing for hours would come back up reading `Committed · 13 unpushed` with the reason nowhere. So the words are **re-earned rather than remembered** — where Auto-push is on and the branch has commits an upstream does not, a boot makes one push, the same bare one every other door makes — which takes a clean divergence in and pushes it, and stops on a conflict exactly as a live push would — and whatever git says is on the readout before anybody looks. Where Auto-push is off, or the branch has nothing to send, or it has no upstream at all, a boot attempts nothing: a branch nobody has ever pushed is not a branch that is behind, and a startup that said so would stop the loop of every such directory over something that is not wrong.
+Set `commit` and `push` on the `git` node in `_olai/Settings.olai` ([settings.md](settings.md)). The plugins panel draws both in the Git row's detail: press the chevron beside **Git**. A ● marks a value that came from the file, ↺ removes it, and **Saved in** opens the node holding it.
 
-That is a change worth saying out loud, because the old behaviour looked like a fix. The pause used to live in the tab that made the attempt: reloading the page started the loop again with nobody pressing anything, a second tab knew nothing about the stop, and on a headless serve there was no loop to stop at all. A retry dressed as a fresh start is the thing this design refuses.
+| Written | What happens |
+| --- | --- |
+| `commit: manual` | the default: writes wait, and committing is deliberate |
+| `commit: auto` | what is waiting records itself fifteen seconds after writes stop |
+| `commit: off` | nothing is recorded, and the readout says so rather than vanishing |
+| `push: off` | the default: what is committed stays here until you press **Push** |
+| `push: auto` | every commit olai makes is pushed |
 
-A repository that cannot take a commit *at all* — mid-merge, mid-rebase, a detached HEAD — is the other thing and is a **pause rather than a stop**: nothing is attempted while it lasts, the readout says which state it is in exactly as it always has, and what is waiting is recorded once you have finished. There is nothing to Resume for that one. Never attempting is also the point: an automatic commit landing in the middle of a conflict is how a resolution gets swallowed.
-
-#### A lock file in the way
-
-git refuses every write in a repository while `index.lock` exists, and it removes that file on the way out of every exit it controls — not out of a killed process, a full disk, or a machine that went down mid-write. What is left behind refuses olai's commits for ever, with git's own words and nothing to press: the panel showed `fatal: Unable to create '…/index.lock': File exists. Another git process seems to be running in this repository, or the lock file may be stale`, the Commit button failed again, and under Auto-commit the loop stopped on it. The only cure was a terminal.
-
-The panel now says what is in the way and how long ago it was left, and offers the one gesture that clears it — **Remove lock file & retry**. Press it and the file goes, the refusal and the pause go with it, and the commit you were refused is made with the message and the ticks the panel is holding: one press recovers.
-
-**olai removes it only when it is old.** A lock younger than ten seconds may belong to a git that is still writing it — olai's own commits hold it for milliseconds, but an `add` running a slow filter or a commit inside a hook is well inside that window — and removing somebody else's lock mid-write is how two writers corrupt one index. Before that window the button is answered with *a git process may still be writing; try again in a moment*, and nothing is touched. Past it, nothing on your machine could still be holding it for a reason and the decision is yours, which is why the sentence asks you to check that no git command is running before you press.
-
-Nothing is ever removed on olai's own initiative, and there is no verb for it on the agent face — the check is the person's to make, and that is the whole of why this is a button rather than a policy. The file removed is the one in the git directory of the repository olai serves — a linked worktree's lock lives under `.git/worktrees/<name>` rather than in the main repository — and never a path read out of git's own sentence.
-
-It never says *done* on a guess, either. Where the file cannot be removed at all — a git directory olai has no permission to write — the errno is drawn beside the button rather than a report that the lock is gone. And where the file turns out to be younger than the window, the age on the sentence is updated to the one olai just read, so the panel cannot be showing two ages for one file.
-
-A lock does not stop the SURVEY: `git status` answers with one in place, so what is waiting is still listed and there is something to commit once the file is gone. Only the write verbs refuse.
-
-## Pushing
-
-One verb, and it is the only reason left to open a terminal for this: the current branch, to the upstream it already tracks. No remote to pick, no refspec, never a force. The panel offers it when there is something to send (`2 commits not on origin/master · Push`), and the same count is on the readout.
-
-The server can follow a commit with that same verb: *the `git` node’s `push` property in `_olai/Settings.olai`*, Auto-push, off by default. It follows **every** commit olai makes in this directory, whichever door made it — the Commit button, an agent's `git_commit` tool, and the quiet window's own — because those are one verb and the policy is one fact about the directory. One network round trip per commit, which is affordable exactly because the window makes a burst of writes one commit.
-
-That is the second half of the row moving to the server, and it closes a real hole: Auto-push used to fire inside one tab's own commit callback, so a commit an agent made was never pushed, a commit a headless `commit: auto` made was never pushed, and the unpushed count grew with nothing anywhere saying why.
-
-A commit whose push fails is still a commit: git's words are remembered and drawn on the readout and in the panel, nothing is rolled back, and nothing is retried — the loop stops instead ([When it stops](#when-it-stops)).
-
-There is no pull UI and no branch UI, and that is deliberate — this is an audit-trail recorder rather than a git client. What a push DOES, once — exactly once, every time — is take in the upstream first: it fetches and rebases what is unpushed onto the moved branch — olai's own fetch and rebase, not a `git pull` you were told to run — and sends, so the upstream's commits land under yours and a push from here is never a non-fast-forward. The take-in runs in a linked worktree olai makes under the git directory, and your tree changes only as the whole move succeeds — nothing is ever lost to a conflict, which stops instead ([When it stops](#when-it-stops)). When git refuses — a conflict, an authentication failure, an integration that could not run, a branch with no upstream — you get git's own words, verbatim, because resolving it is a conversation in a terminal and those words are how it starts. A repository that is mid-rebase says so instead, naming the rebase.
-
-The agent has this one too, as a `push` tool that takes nothing at all.
-
-## Modes
-
-- `commit: manual`, the default: writes wait, and committing is deliberate, as above.
-- `commit: auto` IS [Auto-commit](#committing-on-its-own) — the same quiet window, authored in the settings file. What is waiting records itself once writes stop arriving for fifteen seconds, and it sweeps the whole repository.
-  It used to be a second, differently-shaped feature with the same name: one commit per write, made inside the write gate, never pushed. **That is retired.** A train of thought arrived as a dozen commits, which is the thing manual mode was introduced to end, and there is no per-write commit left in olai.
-- `commit: off` is for a directory whose history is somebody else's job. The readout says which of those two it is rather than vanishing, and nothing is ever `git init`ed on your behalf.
-
-**Changing the policy is live.** `commit` and `push` declare `configUpdates: "live"`, so the row keeps its fiber, cells, remembered pause and any open Commit panel; each decision reads the new value. The policy is seeded from the file before the first survey, and a settings reader that is off (or absent) leaves the last policy standing. `push: off → auto` sends the commits already recorded here once.
-
-The git row’s `Config` schema declares `commit: manual` and `push: off`. `olai.yml` supplies build enablement only. The panel draws both choices in the Git row’s detail (press the chevron beside Git). A ● marks values from the file, including explicit values equal to a default; ↺ removes that property. `Saved in` in that detail opens the underlying outline node.
+Changing either is live: the row keeps its open panel and its remembered pause, and the next decision reads the new value. `push` moved from `off` to `auto` sends the commits already recorded here, once. Nothing is ever `git init`ed on your behalf.
 
 ## The audit view
 
-Every commit message starts with `olai`, so `git log --grep '^olai'` is the audit view and `--invert-grep` gives you back your own history. Each commit carries an `X-Olai-Writer` trailer saying which of you — the chat agent, an MCP client, the browser (`web`: the keyboard editor and the row's `•••` menu, which write through the same door), `filer` for conversations olai filed into the Inbox (including new-chat node creation), or `auto` for one the quiet window made with nobody pressing anything, or `sleep` for a node agent's own pass over its memory ([chat](chat.md)) — wrote it. A line typed in a terminal has no word of its own: `olai surface` speaks to the same `/mcp` an agent does, so its writes wear that door's trailer — which this serve composes as `mcp`. Node sessions use their session credential and keep the `chat-agent` writer. So the trailer separates the browser from everything on `/mcp`, and does not separate a person at a terminal from an agent. A commit that swept up files beside the outlines names them in its body, with what happened to each, so the log says what the commit did rather than only what it was about.
+Every commit message starts with `olai`, so `git log --grep '^olai'` is the audit view and `--invert-grep` gives you back your own history. A commit that swept up files beside the outlines names them in its body, with what happened to each.
 
-Signing is not skipped. A hook is your project's rule about the commits people type, so olai passes `--no-verify`; a signature is your statement about your own history, and an olai commit is a commit in it — where you have a key it is signed like every other one, and where you do not, the refusal comes back with gpg's own words rather than an unsigned commit you did not ask for.
+Each commit carries an `X-Olai-Writer` trailer naming the door that wrote it.
 
-The Commit panel and ledger name `filer` writes as olai filing conversations
-into the Inbox, with singular and plural labels. Each filed conversation is an
-independent Ops write; the normal commit cadence can collect the initial burst
-into one commit or several. `auto` remains a commit-only writer and never edits
-a file.
+| Trailer | Who |
+| --- | --- |
+| `chat-agent` | an agent in olai's own panel |
+| `mcp` | anything on `/mcp`, including a line you typed with `olai surface` |
+| `web` | the browser: the keyboard editor and the row's `•••` menu |
+| `filer` | olai filing conversations into the Inbox |
+| `auto` | the quiet window, with nobody pressing anything |
+| `sleep` | a node agent's own pass over its memory ([node-agents.md](node-agents.md)) |
 
-Commit preparation leases the repository identity published by the git surface.
-Restarting git or vault for the same served root preserves the message and path
-selection; a different root clears both before the controls appear. Withdrawal
-releases the active lease without retaining a vault service object. A reply
-from an earlier repository cannot clear preparation in the new one.
+- A hook is your project's rule about the commits people type, so olai passes `--no-verify`. A signature is your statement about your own history: where you have a key the commit is signed, and where you do not, the refusal comes back with gpg's own words.
+- The two places "not undo" matters are the emptied trash and a deleted file. History holds them exactly as far as it had already recorded them, and `git show HEAD:_olai/Trash.olai` reads a trashed row back.
+- Nothing in olai reads a commit onto disk for you.

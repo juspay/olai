@@ -1,224 +1,161 @@
 # Layout
 
-`layout` is a browser-only row selected by the default web bundle. It consumes
-`ui-renderer.slots` and contributes the application at `root`. Without the
-renderer it waits; disabling layout removes that contribution and disposes
-its Solid subtree. Its selection has no server capability dependencies.
+`layout` draws the frame: the header across the top, the sidebar's column on
+the left, the pages in the middle, the panel on the right, and the bar of
+thumbs along the foot of a phone. It owns the geometry and reserves the seats;
+what sits in each seat belongs to another plugin.
 
-Both `ui-renderer` and `layout` must be enabled to draw
-the current application; include `sidebar` for its directory column and rail. Headless profiles select neither. If either is
-disabled through the panel, use the authorized non-UI plugin-management
-interface or restart with the desired selection to restore the UI.
+## The header
 
-The frame and header implementations live in this plugin; `web/App.tsx` and
-`web/AppHeader.tsx` are removed. The two providers the frame composes are
-navigation's — `RouterProvider` in `Frame.tsx` and `PaneProvider` in
-`pane/Panes.tsx`, both imported from `olai-plugin-navigation` — and it composes
-no outline or document provider of its own. What it takes from `@olai/web` is
-leaf rendering and connection utilities, never a feature implementation.
+| On a desktop, left to right | Owner |
+| --- | --- |
+| the wordmark, which says `olai` and this deployment's own name once the server has given it | layout |
+| the `lead` seat, which holds the search box | [search.md](search.md) |
+| the health dot | layout |
+| the `header` tools, which is the Preferences gear | [preferences.md](preferences.md) |
+| who is looking | [identity.md](identity.md) |
 
-The root entry's integration owns visual-viewport and breakpoint listeners,
-layout preference subscriptions, and the Solid effect publishing panel/sidebar
-CSS widths. Removing the entry detaches those listeners and restores the prior
-inline CSS declarations. A fresh activation re-reads preferences from storage,
-including changes made by another tab while layout was absent. These observers
-are no longer started by the permanent browser entry point.
-
-Those readings are what `layout.shell` carries: the breakpoint, whether each
-panel is open and how wide (`panelOpen`, `setPanelOpen` and `togglePanel` for
-the seat's column), which snap the mobile sheet is on, and the panel's own drag
-handle. Consumers use the parts they need — outlines and documents
-read the breakpoint, git chooses between its health-popover row and a banner, the sidebar and
-file rail open the column, and the palette's `Reset sidebar width` puts the
-widths back to their defaults — and each declares the key on a
-COMPONENT of its own rather than on its row, because content runs under another
-layout entirely (`olai-plugin-test-layout`). With no shell mounted those
-readings answer what they always answered — a phone-width viewport, a shut
-panel, an open sidebar — and the presses do nothing.
-
-`layout.deployment` carries what this deployment calls itself and when it
-started, which is one answer to one `app.get` asked and re-asked by the
-`deployment` component. Chat's notification title names it.
-
-Viewport width is a reactive input to column fitting. Resizing an open desktop
-layout recomputes both columns while preserving stored preferred widths, so the
-main content keeps its minimum available space when the window narrows.
-
-### The seat's column
-
-`app.panel` is the one seat the frame reserves on the right of the page. While
-a plugin is in it, the reader has it open (`olai.chat.open`, the shell's
-`panelOpen`) and the viewport is a desktop, the body grid gains a third column
-of `--width-panel` beside the sidebar's and the page's, sticky under the header
-and exactly one viewport tall, with the shell's drag handle on its left edge
-(`--width-panel` is dragged and stored like the sidebar's). The occupant draws
-inside it; chat's dock is the occupant ([chat.md](chat.md#the-dock)). On a phone,
-or with the seat empty, the grid has no third column whatever the preference
-says, and both widths are still fitted to the viewport so the page keeps its
-minimum.
-
-### The thumb bar
-
-`layout.thumbs` is the phone's foot: a bar pinned to the bottom of the viewport
-while the viewport is not a desktop and somebody has contributed a thumb. A
-thumb is `{ order, body }`, drawn left to right by `order`, and its face is
-the contract's `Thumb` (`olai-plugin-layout/thumb`): an icon over a word, a
-finger's height, lit in the accent while it is the page (`aria-current`), a
-link where it navigates and a button where it opens something in place, with
-room for one badge at the icon's shoulder. Journal contributes Today (10) and
-Agenda (20), chat the Chats door (30), capture the `+` (40). The frame publishes
-the bar's height as `--height-bottom-chrome` (`layout/css.ts`: the
-`--height-thumbs` token on a thumbed phone, `0px` otherwise), which every
-page's clearance (`olai-plugin-layout/clearance`) adds under its last row and
-its pinned composer, so nothing sits under the bar. A desktop draws no bar
-whatever was contributed: the sidebar and the palette are those doors there.
-
-The root declares `layout.sidebar`. The frame reads that seat through the
-renderer contract and imports no sidebar implementation. The sidebar row owns
-its two extension locations; chat's panel entry owns delivery marks and engine
-installation entries. Remaining outline and navigation compatibility locations
-still belong to the frame until those providers are extracted.
-
-`layout.tools` accepts controls with explicit desktop and mobile ordering. The
-preferences row contributes there, so the frame and header no longer import its
-implementation. Tools may opt into the mobile header when there is no sidebar.
-
-Both preferences and the inspector now contribute through `layout.tools`;
-layout imports neither implementation. Entries supply their header/drawer order
-and decide whether to appear on mobile pages without a sidebar. An entry's
-`desktop` asks for a seat in the same words the entry's body is drawn with
-(`ToolWhere`): the bar (`header`, the default — preferences, the gear alone)
-or the foot of the health popover (`health` — the inspector's plugins door).
-A `health` door stands beside the dot, not inside the popover: only its row is
-portalled into the popover's foot while the popover is drawn
-(`contracts/BarDoor.tsx`'s `HealthSeat`). Picking that row shuts the popover
-and opens the door's panel, anchored to the dot, so the panel never needs the
-popover; Escape shuts the panel and hands the caret back to the dot. A door
-whose open state outlives the shell (the plugins panel's, held in the
-inspector's activation) is drawn again by that standing door when the shell
-under it is rebuilt.
-
-A phone draws the Preferences and Plugins doors as rows at the foot of the
-sidebar drawer. On a phone page with no drawer (the error page, the waiting
-page) the Preferences gear stays in the bar.
+A phone keeps the search box and who is looking, and puts a burger before the
+wordmark, named **Show sidebar** or **Hide sidebar**. It draws no health dot:
+the connection and git's news appear as banners under the bar, and only when
+there is news.
 
 ## The health dot
 
-The desktop header is the wordmark, the `lead` seat (search), one health dot,
-the `header` tools (the Preferences gear) and the `app.viewer` seat (the
-signed-in face). Layout owns the location and the drawing of the dot
-(`Health.tsx`); every readout still belongs to the plugin that registers it:
+One dot, always drawn, whose colour is the worst tone among the connection and
+every readout a plugin has registered: green, amber or red. Its name is
+`Status: all good`, or `Status: ` and each piece of news joined by ` · `, in
+each readout's own words, alarms first. Clicking it opens a popover of rows.
 
-- The connection's row is layout's own: `Connected`, `Connecting…`,
-  `Reconnecting…`, `Partly connected` or `The server restarted`.
-- `Partly connected` names the PLUGIN ROWS whose subscriptions stopped, not
-  the raw stream ids (`client/connection/status.ts` groups a readout's
-  `<row>/<member>` ids by row) — a row is what a person can act on. A config
-  edit on a row that is not `configUpdates: "live"` restarts it; the roster's
-  new generation makes the tab refresh its connection and restart that row's
-  browser half, so the dashboard re-subscribes. If one stops anyway, the health
-  dot turns amber and names the row; the console has the stream ids.
-- `app.header` `cluster` seats are drawn as rows of the dot's popover beside
-  the connection's row — git's Commit row, kolu, odu, mail, spaces — WORST
-  FIRST: `alarm` rows, then `notice`, then `healthy`, then `quiet` (a seat with
-  no `status` stands with the quiet), and within one tone the connection first,
-  then mount order (`health.ts`'s `worstFirst`). The order is live — a row
-  whose tone changes moves, in the DOM, so a Tab walks the rows in the order
-  they are seen. Layout orders from each registration's own `status`; no
-  plugin chooses its place and Layout names none. The uptime line is last,
-  quiet, and casts no vote: `Running for 2h`, with `Running since <instant>` on
-  its tip. The `health` tools are the popover's foot (the `Plugins` row).
-- A seat may declare `status: () => BarStatus` — `tone` (`healthy`, `quiet`,
-  `notice`, `alarm`), `label` (the row's own words) and `detail`. It is a
-  reactive accessor over state the contributor's activation owns (git reads
-  its two cells in a root its activation disposes after the registration is
-  withdrawn; kolu, odu, mail and spaces read the root they already had). The
-  types are a static contract (`olai-plugin-layout/slots`); no live value
-  crosses by import.
-- Severity is stated ONCE. Each readout's state table carries one `tone`, and
-  its row and its `status` read the same value. The row paints its dot from
-  `TONE` (`@olai/web/client/readout.ts`, re-exported from
-  `olai-plugin-layout/slots`) — the one table from tone to dot and text
-  colour, which the health dot paints from too; `quiet` paints no dot but
-  keeps its box so the words stay aligned. A row's dot carries its tone as
-  `data-health`. So a dot that is not green always has a row of exactly its
-  colour in the popover.
-- The dot wears the worst tone among the connection and every standing
-  status (`health.ts`; `quiet` never colours it): green, amber or red. The
-  connection is `notice` while it reconnects or is partly connected, `alarm`
-  once the server has been replaced, and `quiet` while it first connects. Its
-  accessible name is `Status: all good`, or `Status: ` and each piece of news
-  joined by ` · `, alarms first, in the readout's own label; the tip adds each
-  readout's sentence. `data-health` and `data-connection` carry
-  the state for tests.
-- Withdrawal is the registration's: a plugin switched off takes its row and
-  its vote in the same step, an open popover redraws without it, and a plugin
-  switched back on registers afresh.
-- The popover is `createPopover` (anchor, dismissal, one tab cycle, focus
-  back to the dot on Escape). A row's own panel (the Commit panel, kolu's
-  feed) opens above it and is the topmost layer.
+| The connection says | Meaning |
+| --- | --- |
+| `Connected` | the page is reading |
+| `Connecting…` | the first connection is still being made |
+| `Reconnecting…` | the wire dropped and is being retried |
+| `Partly connected` | the wire is up and some plugin rows' subscriptions have stopped. The row names them |
+| `The server restarted` | `Reload the page to keep working.` |
 
-A phone has no dot: search and who is looking stay in the bar, and the
-connection and git news appear as banners under it only when there is news.
+A plugin's readout is a row of the same popover: git's Commit row,
+[kolu.md](kolu.md), [odu.md](odu.md), [mail.md](mail.md),
+[xyne-spaces.md](xyne-spaces.md). Rows stand worst first (alarms, then
+notices, then healthy, then quiet), with the connection first within a tone and
+mount order after it. The order is live, so a row whose tone changes moves, and
+a `Tab` walks the rows in the order you see them.
 
-## When the page breaks
+The last line is quiet and casts no vote: `Running for 2h`, with `Running since
+<instant>` on its tip and in its spoken name. Under it is the popover's foot,
+where the **Plugins** door stands ([plugin-inspector.md](plugin-inspector.md)).
+Choosing it shuts the popover and opens the panel anchored to the dot;
+`Escape` shuts the panel and hands the caret back to the dot.
 
-The shell is drawn inside a fault boundary. A thrown render shows
-`Something went wrong on this page` and `Your files are safe. Reload to try
-again.`, with `Reload` and `Go home`. The technical text sits inside a closed
-`Details` disclosure, verbatim, for a bug report (`Fault.tsx`).
+A plugin switched off takes its row and its vote away in the same step, and an
+open popover redraws without it. So a dot that is not green always has a row of
+exactly its colour under it.
 
-Pane geometry, resizing and responsive preferences live in the layout package.
-The frame consumes navigation state and renders registered overlays and content
-status presentations. It creates no outline history, drag registry, document
-state or directory subscription. Alternate layouts can use navigation's public
-page outlet with the same content registrations.
+## The columns
 
-Deployment name and uptime readings are fresh for each layout activation.
-Withdrawal cancels publication from an outstanding name request; a returning
-layout asks again instead of inheriting the previous activation's signals.
+The body is a grid of up to three columns under the header. The sidebar's is on
+the left, the main column holds the strip seat and the panes, and the panel's,
+labelled **Panel**, is on the right.
 
-`layout.strip` is the seat above the panes in the main column, and it is single
-occupancy: one row may fill it (the `tabs` row does). The frame draws it only on
-a desktop, inside an element with `data-testid="main-strip"`, and it sticks
-directly below the app header while a lone page scrolls. Main-column sticky
-headings, tooltip floors and heading jumps clear both bands; the static
-`--height-chrome` token sums the header and the currently occupied strip.
-Each split pane scrollport overrides that token to `0px`: its sticky section
-and node headings pin to the pane top without knowing the workspace shape.
-Menus portal to the document overlay socket and retain the root viewport
-reserve. The layout wrapper owns the opaque strip ground. While the seat is
-filled on a desktop the root entry publishes `--height-strip` on `:root` as
-`var(--height-tabs)` (2.625rem, from the appearance tokens), and `0px`
-otherwise; the pane sheet subtracts it (`PANES_SPLIT`, `PANES_LONE` in
-`./sheet`), so a split still fills the viewport under the bar. The shell's grid
-keeps the header-only heights, because the sidebar column beside the main one
-is not under the strip. Removing the entry restores the prior inline value, as
-it does for the widths.
+| Handle | Puts back |
+| --- | --- |
+| **Resize sidebar** | the sidebar's width |
+| **Resize agent panel** | the panel's width |
+| **Resize panes** | the boundary between two split panes |
 
-A pane's header shows the page's name: navigation's `Routing.name(route)` (a
-document's stem, such as `garden`), or `Routing.label(route)` where the page
-has no such name (`Home`, `Trash`, a node's id, a path). Both are read through
-the routing this row holds from `navigation.state` (`src/routing.ts`). The
-pane's close button is named `Close <name>`, and a collapsed pane's rail is
-named `Expand <name>`.
+Both stored widths are fitted to the viewport as you resize the window, so the
+page keeps its minimum space. `Reset sidebar width` in the palette puts the
+sidebar back to its default, for a keyboard that cannot drag a handle.
 
-## Retained pages and sidebar
+The panel column is drawn while a plugin is in the seat, you have it open, and
+the viewport is a desktop. It is sticky under the header and exactly one
+viewport tall, so a conversation scrolls inside it while the page scrolls under
+it. On a phone, or with the seat empty, there is no third column whatever the
+stored width says.
 
-The frame renders one host per live navigation lane and one subtree per stable
-pane object. A tab switch changes visibility. Splitting, reordering, closing a
-neighbour, collapsing to a rail and crossing the desktop breakpoint preserve
-the surviving page elements. A lone lane scrolls the window; split columns
-scroll independently. Navigation owns window scroll restoration. A split
-column hidden behind another tab restores what its reader was reading, not
-just its pixel offset: the browser does not anchor a lane it is not laying
-out, so the frame remembers the in-flow element at the top of the column and
-puts it back where it was, absorbing a pinned head that resized meanwhile.
+The strip seat sits above the panes, sticks directly below the header while a
+lone page scrolls, and is drawn on a desktop only. The tab strip fills it
+([tabs.md](tabs.md)).
 
-After its first ready state the content-status gate keeps those hosts mounted
-through reading and failure states, but hides them and withdraws their shown
-status until content is ready again. Layout leases this visibility through
-`navigation.drawContent`; releasing layout releases the lease. Collapsing the desktop sidebar hides its
-body, preserving the calendar month and its subscriptions. The phone footer
-resolves its contributed JSX once per owner, so there is one closet controls
-tree. Layout geometry belongs to the layout activation and leaves with it.
+A pane's header shows the page's name — a document's stem, such as `garden`, or
+the page's label where it has no such name. Its close button is named `Close
+garden` and a collapsed pane's rail is named `Expand garden`.
+
+## The thumb bar
+
+On a phone, while any plugin has contributed a thumb, a bar named **Quick
+access** is pinned to the foot of the viewport. A thumb is an icon over a word,
+a finger's height, lit in the accent while it is the page you are on, with room
+for one badge at the icon's shoulder.
+
+| Thumb | Contributed by |
+| --- | --- |
+| Today, Agenda | [journal.md](journal.md) |
+| Chats | [chat.md](chat.md) |
+| Capture | [capture.md](capture.md) |
+
+Every page leaves room under its last row and its pinned composer for the bar,
+so nothing sits under it. A desktop draws no bar whatever was contributed: the
+sidebar and the palette are those doors there.
+
+## When a page breaks
+
+The frame is drawn inside a fault boundary. A page that throws while rendering
+shows **Something went wrong on this page**, with `Your files are safe. Reload
+to try again.`, a **Reload** button and a **Go home** link. The technical text
+sits verbatim inside a closed **Details** disclosure, for a bug report.
+
+## What other plugins contribute
+
+| Location | Takes |
+| --- | --- |
+| `layout.sidebar` | one occupant: the column and its rail ([sidebar.md](sidebar.md)) |
+| `layout.strip` | one occupant: the strip above the panes, on a desktop |
+| `app.panel` | one occupant: the panel column's contents |
+| `layout.tools` | a control, with its own desktop and mobile order. Its `desktop` seat is `header` (the bar) or `health` (the popover's foot) |
+| `layout.thumbs` | a thumb: `{ order, body }`, drawn left to right by `order` |
+| `layout.overlays` | something drawn over the page, such as the palette |
+| `layout.content-status` | a page-level message, and whether its content is ready |
+| `app.header` | a seat in the bar (`place: "lead"`) or a readout row of the health popover (`place: "cluster"`), which may declare a `status` of `tone`, `label` and `detail` |
+| `app.banner` | a banner under the header |
+| `app.viewer` | one occupant: who is looking |
+| `app.mount` | a provider wrapped around the frame |
+
+A tool may ask for the mobile header where a page has no sidebar. On a phone
+with a drawer, the Preferences and Plugins doors are rows at the foot of the
+drawer instead; on a phone page with no drawer, such as the error page, the
+gear stays in the bar.
+
+`layout.shell` carries what the frame knows: the breakpoint, whether each panel
+is open and how wide, which snap the mobile sheet is on, and the panel's drag
+handle. Name it on a component of your own. With no shell mounted its readings
+answer a phone-width viewport, a shut panel and an open sidebar, and its
+presses do nothing. `layout.deployment` carries this deployment's name and when
+it started.
+
+## When it is switched off
+
+Both `ui-renderer` and `layout` have to be on for a page to be drawn at all
+([ui-renderer.md](ui-renderer.md)). Switching `layout` off removes the frame
+and disposes its subtree, and leaves its seats' occupants waiting. Restore it
+from `Settings.olai` or by restarting with the selection you want, since the
+**Plugins** panel is itself drawn in this frame ([settings.md](settings.md)).
+
+A fresh activation re-reads the stored widths and preferences, changes another
+tab made meanwhile included, and asks the server again for the deployment's
+name rather than inheriting the last answer.
+
+## What a tab keeps across a switch
+
+The frame draws one host per live page and one subtree per pane, so switching
+tabs changes visibility rather than remounting. Splitting, reordering, closing
+a neighbour, collapsing a pane to a rail and crossing the desktop breakpoint
+all leave the surviving pages standing.
+
+A lone page scrolls the window and split columns scroll independently. A column
+hidden behind another tab restores what you were reading rather than a pixel
+offset: the frame remembers the element at the top of the column and puts it
+back, absorbing a pinned head that changed size meanwhile. Collapsing the
+desktop sidebar hides its body and keeps the calendar's month and its
+subscriptions alive.
