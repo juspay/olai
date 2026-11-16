@@ -368,7 +368,9 @@ test("a kept body that is not prose is in no document list", () => {
   // offers and what a declared `doc` property may point at. The README beside
   // the half is a document like any other, which is what makes this a list
   // and not a folder being hidden.
-  expect(markdownIn(set).map((one) => one.path))
+  // `String(…)` because a document's path is BRANDED: the list is compared
+  // against the plain strings a reader would write, not against a cast.
+  expect(markdownIn(set).map((one) => String(one.path)))
     .toEqual(["brief.md", "plugins/swatch/README.md"])
   expect(markdownPaths(set).has("plugins/swatch/server.ts")).toBe(false)
   // ...and it is out of the walk a search runs over the BODIED files, where a
