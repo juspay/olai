@@ -16,7 +16,7 @@ Each tab shows a glyph for its kind of page,[^glyphs] a title and a close button
 
 ## Open a page in a new tab
 
-Right-click a link, or a door in the sidebar, for **Open** and **Open in new tab**.[^newtab] Only some things carry that menu.[^menu] Clicking a pinned layout opens it in a new tab in front ([pins.md](pins.md)).[^pins]
+Right-click any link olai can open, a door in the sidebar or a link in a document, for **Open** and **Open in new tab**.[^newtab] Not everything carries it.[^menu] Clicking a pinned layout on the shelf opens it in a new tab in front ([pins.md](pins.md)).[^pins]
 
 ## Keys
 
@@ -31,11 +31,11 @@ Right-click a link, or a door in the sidebar, for **Open** and **Open in new tab
 
 ## What a tab keeps
 
-A tab mounts its pages when first shown and keeps them until it closes.[^mount] Back and Forward move within the tab in front.[^history] The set of tabs is stored per browser.[^stored] A phone has no strip.[^phone]
+A tab mounts its pages when first shown and keeps them until it closes.[^mount] Back and Forward move within the tab in front.[^history] The set of tabs is stored per browser.[^stored][^opening] A phone has no strip.[^phone]
 
 [^workspace]: A workspace is one page, or a whole split of panes, with its own filter, its own pane focus and its own Back and Forward. The header, the sidebar, the agent panel, the palette, the appearance and the fold state of outline branches are shared by every tab. A door in the sidebar changes the tab in front rather than opening another. On a desktop the strip is drawn above the panes.
 
-[^glyphs]: Each glyph says what kind of page the tab holds: the front page, a file, a row, the Trash, a plugin's page over a row's reading, a page a plugin draws itself, or a split of panes. The seven are drawn in the closed block at the foot of this page.
+[^glyphs]: Each glyph says what kind of page the tab holds: the front page, a file, a row, the Trash, a plugin's page over a row's reading, a page a plugin draws itself, or a split of panes. They are drawn in the closed block at the foot of this page.
 
 [^close]: The close button's tip is `Close tab` and its name is `Close <title>`. It is drawn on the tab in front, under the pointer, and on any screen with no pointer to reveal it with.
 
@@ -71,7 +71,7 @@ A tab mounts its pages when first shown and keeps them until it closes.[^mount] 
 
 [^stored]: The tabs, their order, their addresses and titles, and which is in front are kept under the `olai.tabs` preference. It is written when a tab opens, closes, moves or swaps place with the one in front, not on every change to the page in front. Another window does not pick those changes up live: the last writer wins.
 
-    Opening olai at an address shows it in the tab that was in front, so a link or a reload shows what you asked. A stored tab keeps an address, not a parsed page, so a plugin switched on or off is honoured.
+[^opening]: Opening olai at an address shows it in the tab that was in front, so a link or a reload shows what you asked. A stored tab keeps an address, not a parsed page, so a plugin switched on or off since it was stored is honoured when the tab comes back.
 
 [^phone]: Below the desktop breakpoint the tab in front becomes the window's only page and the others are disposed, though the stored set is kept, so visiting on a phone does not erase the tabs of a desk. **Open in new tab** shows the page at once, since there is no strip to find it in, and Back returns to the page before it. The keys do nothing.
 

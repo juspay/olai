@@ -38,7 +38,7 @@ A heading named after a plugin holds that plugin's promoted settings.[^promoted]
 
 [^open]: Opening the panel: the ⚙ **Preferences** in the desktop header opens it, and on a phone it is a row at the foot of the directory drawer.
 
-[^line]: The line under a row: a row carries one only where its label does not already say what it does, or where there is news, such as a browser that blocks notifications and the **Allow notifications** button.
+[^line]: The line under a row: a row carries a short line only where its label does not already say what it does, or where there is news, such as a browser that blocks notifications and the **Allow notifications** button.
 
 [^order]: The order of the groups: the browser's own are drawn first and the shared ones after, so a shared row can never sit under the browser-only line.
 

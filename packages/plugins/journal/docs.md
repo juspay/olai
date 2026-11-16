@@ -18,7 +18,7 @@ The Agenda entry wears a badge of one number,[^badge] and the **Today** row unde
 
 ## The one reminder
 
-Dates and repeats are readings: nothing on disk is a reminder, and nothing fires at a chosen time of day. Once per local day, in each browser, the first reading of owed work raises a notification,[^notify] with a chime when **Sound** is on.[^chime] The switch is **Reminders**, in the preferences panel.[^switch] It rides the [alerts](alerts.md) plugin's channel.[^channel]
+Dates and repeats are readings: nothing on disk is a reminder, nothing is scheduled, and nothing fires at a chosen time of day. Once per local day, in each browser, the first reading of owed work raises a notification,[^notify] with a chime when **Sound** is on.[^chime] The switch is **Reminders**, in the preferences panel.[^switch] It rides the [alerts](alerts.md) plugin's channel.[^channel]
 
 ## Switching it off
 
@@ -46,7 +46,9 @@ Another plugin, including one [your directory defines](../dynamic-plugins.md), r
 
 [^five]: Five owed rows fit. Whatever is left is one muted line, `N more on the agenda`, which opens the agenda page. The list and the badge come from the same reading, so the count tells the whole truth even when the list is shorter. A chevron folds the list away, remembered per browser under `olai.sidebar.agenda-rows` and unfolded by default. Folding never stops the reading, and the list is not drawn while the agenda page is in front.
 
-[^notify]: The notification is raised by the first non-empty reading of what is owed. Its title is this deployment's name and its body is the Agenda entry's own phrase, such as `Agenda: 2 overdue, 3 due today`. Pressing it opens the agenda page in the focused pane. Reminders never badge the app or mark the tab. Two tabs can race on their first reading and chime twice; the shared notification tag `olai:due:<day>` replaces the duplicate banner instead of stacking it.
+[^notify]: The one thing olai says unprompted is that the day has work on it. The notification is raised by the first non-empty reading of what is owed. Its title is this deployment's name and its body is the Agenda entry's own phrase, such as `Agenda: 2 overdue, 3 due today`. Pressing it opens the agenda page in the focused pane.
+
+    Reminders never badge the app or mark the tab. Two tabs can race on their first reading and chime twice; the shared notification tag `olai:due:<day>` replaces the duplicate banner instead of stacking it.
 
 [^chime]: A chime goes with the notification only when the **Sound** preference is on and an earlier pointer or keyboard gesture in this page has unlocked audio. Before that the sound is skipped for the day and never replayed.
 

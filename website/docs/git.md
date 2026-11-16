@@ -8,12 +8,12 @@ The Commit readout says what is waiting: `Committed · 12m ago`, `3 uncommitted`
 
 ## Commit some of it
 
-The readout lists what is waiting the way olai would say it, not as a diff.[^lists][^nodes][^stored]
+Opening the readout shows what is waiting the way olai would say it, not as a diff.[^lists][^nodes][^stored]
 
-1. Every row starts ticked, so the ordinary sweep is one press.
+1. Open the readout. Every row starts ticked, so the ordinary sweep is one press.
 2. Untick a file to leave it waiting for a commit and a message of its own.[^suggested]
 3. Type your own message if the suggested one cannot say why you made the change.[^prepared]
-4. Press **Commit**, which names what it will record: `Commit 3 changes · 1 file`.[^exact][^agent]
+4. Press **Commit**, naming what it will record: `Commit 3 changes · 1 file`.[^exact][^agent]
 
 ## Let the server commit
 
@@ -29,11 +29,11 @@ Set `commit` and `push` on the `git` node in `_olai/Settings.olai` ([settings.md
 
 ## Push
 
-One verb, the current branch to the upstream it already tracks.[^verb] The panel offers **Push** beside `2 commits not on origin/master`, and the same count rides the readout.[^rebase][^refuses][^client]
+One verb: the current branch to the upstream it tracks.[^verb] The panel offers **Push** beside `2 commits not on origin/master`, and the same count rides the readout.[^rebase][^refuses][^client]
 
 ## The audit view
 
-Every commit message starts with `olai`, so `git log --grep '^olai'` is the audit view and `--invert-grep` gives you back your own history.[^body] Each commit carries an `X-Olai-Writer` trailer.[^trailer][^hook][^undo]
+Every commit message starts with `olai`, so `git log --grep '^olai'` is the audit view and `--invert-grep` gives back your own history.[^body] Each commit carries an `X-Olai-Writer` trailer.[^trailer][^hook][^undo]
 
 [^plugin]: Git is one of the plugins and is on by default. A serve that does not run it has no Commit readout and records nothing ([plugins/git.md](plugins/git.md)).
 
@@ -55,7 +55,7 @@ Every commit message starts with `olai`, so `git log --grep '^olai'` is the audi
 
 [^stored]: Nothing about your working tree is stored. This is `git status`, one `git log` and what a commit already holds, read against disk — so an outline you edited in vim is in the list, and committing in a terminal takes it out.
 
-[^suggested]: The suggested message and the button rewrite themselves as you untick.
+[^suggested]: The suggested message and the button rewrite themselves as you go.
 
 [^prepared]: Your typed message and the files you excluded stay prepared in this tab when you close the panel or the plugins rebuild it. A successful commit clears that preparation; a refused one keeps it.
 

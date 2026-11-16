@@ -1,6 +1,6 @@
 # Architecture overview
 
-olai serves one directory of files, to a browser and to agents. This page follows a change from a keystroke to disk, and names what owns each step.
+olai serves one directory of files, to a browser and to agents. This page follows a change from a keystroke to disk and back, and names what owns each step.[^pages]
 
 ## One process, one entry point
 
@@ -44,6 +44,8 @@ An agent enters at step 3 instead, over `/mcp`.
 | What a writer is told when a write is refused | [../validation.md](../validation.md) |
 | Conversations, agents and what they may touch | [../chat.md](../chat.md) |
 | Commits, pushes and the audit trail | [../git.md](../git.md) |
+
+[^pages]: Two pages sit beside this one: [packages.md](packages.md) says what each package is for, and [cordis.md](cordis.md) holds the rules a change must keep.
 
 [^surface]: `olai surface <verb>` opens nothing: it dials a running server over that route, which is why a terminal verb and an MCP tool fall out of one declaration.
 

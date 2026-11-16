@@ -20,7 +20,7 @@ A message sent during a turn waits behind it and runs in the order you sent it.[
 
 ## What a turn looks like
 
-Shell output streams under its tool row, with the exit code at the end.[^terminal] A background command is carried by the strip above the transcript.[^background] The picker offers the adapter's aliases while the agent line names the model the CLI reports.[^models] A switch your account cannot make is refused.[^refused] The agent line also names the account.[^identity] Automatic memory is off.[^memory] **Earlier chats** draws what each stored conversation holds.[^earlier]
+Shell output streams under its tool row, with the exit code at the end.[^terminal] A background command is carried by the strip above the transcript.[^background] The picker offers the adapter's aliases while the agent line names the model the CLI reports.[^models] A switch can be refused.[^refused] The agent line also names the account.[^identity] Automatic memory is off.[^memory] **Earlier chats** draws what each stored conversation holds.[^earlier]
 
 ## When Claude Code does not appear
 

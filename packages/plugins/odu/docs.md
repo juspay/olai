@@ -22,7 +22,7 @@ The chip reads `ci · <what> · <count>`, such as `ci · e2e 2:10 · 8/10 ok`.[^
 
 ## Wake a conversation when a run moves
 
-A conversation's strip carries `wake on CI runs` and a picker over your outlines. Scope a conversation to one outline file and olai rings it about the runs that file's un-done rows name.[^claim] Two wakes reach it: first-red[^red] and settle.[^settle] A message names the failed recipes and the command that reads their logs.[^messages] A run no scoped file claims rings nobody.[^silent] `Clear` beside the picker stops everything.[^faults]
+A conversation's strip carries `wake on CI runs` and a picker over your outlines. Scope a conversation to one outline file and olai rings it about the runs that file's un-done rows name.[^claim] Two wakes reach it: first-red[^red] and settle.[^settle] A settle naming failed recipes carries the command that reads their logs.[^messages] A run no scoped file claims rings nobody.[^silent] `Clear` beside the picker stops everything.[^faults]
 
 ## What an agent gets
 

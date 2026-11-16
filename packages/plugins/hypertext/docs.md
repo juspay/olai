@@ -19,7 +19,7 @@ A link to another file in your directory opens that file's page in olai, the way
 
 No tool writes a saved page.[^tools]
 
-[^policy]: What a saved page may load, and the policy it is answered with, is [documents and kinds](../documents-and-kinds.md).
+[^policy]: olai claims `.html` files and serves each out of your directory. What a saved page may load, and the policy it is answered with, is [documents and kinds](../documents-and-kinds.md).
 
 [^tall]: The frame's height is never shorter than a heading and never longer than two screens.
 

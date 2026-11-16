@@ -14,15 +14,15 @@ Press a bullet and travel: the row and everything under it come with you, and a 
 
 ## Move a row somewhere else entirely
 
-1. Press `Cmd` + `Shift` + `M`, or choose **Move to…** from the row's menu, the door a phone has.
-2. Type: the box searches every node, and each row says where it sits.[^search]
+1. Press `Cmd` + `Shift` + `M` in the row, or choose **Move to…** from the row's menu, the door a phone has.
+2. Type: the box searches every node in the directory, and each row says where that node sits.[^search]
 3. Press `Enter`. The row and everything under it go last under the node you chose.[^elsewhere]
 
 Some destinations are refused.[^refused]
 
 ## Put a node on a day, and make it come back
 
-Press the date beside a dated row's title and the picker opens under the row.[^datedoor] It writes a day, a time, or neither.[^datewrite] A dated node can say how often it repeats, and completing it makes the next occurrence.[^repeat]
+Press the date beside a dated row's title and the picker opens under the row.[^datedoor][^datewrite] A dated node can say how often it repeats, and completing it makes the next occurrence.[^repeat]
 
 ## Put a row away
 
@@ -52,7 +52,7 @@ The last entry in a row's menu, **Move to Trash**, puts that row and everything 
 
 [^elsewhere]: The node you chose may be in another outline, and then the row goes there, keeping every id. A mirror still draws it, a `see` still opens it, an `after` still waits on it, and a link in a note still lands on it. `Cmd` + `Z` puts the row back under the parent and beside the neighbour it left. `Tab`, `Shift` + `Tab`, `Alt` + `Shift` + `↑` / `↓` and a drag each move a row one step instead.
 
-[^refused]: Three destinations are refused. Somewhere this row already draws, because a branch cannot go under its own child, under itself, or under anything a mirror inside it shows. The Trash, out of which **Put back** is the way. The parent it already has, since a destination puts the row last, which would reorder rather than move. The reason appears as you walk onto a row, and pressing `Enter` there writes nothing.
+[^refused]: A destination can be refused. Somewhere this row already draws, because a branch cannot go under its own child, under itself, or under anything a mirror inside it shows. The Trash, out of which **Put back** is the way. The parent it already has, since a destination puts the row last, which would reorder rather than move. The reason appears as you walk onto a row, before you press `Enter`, and pressing `Enter` there writes nothing.
 
 [^datedoor]: A row with no date has no pill, so its door is **Set date…** in the row's menu, which reads **Change date…** on a row that has one. Typing `!` and a day in words sends the same edit ([editing.md](editing.md)).
 
@@ -60,7 +60,7 @@ The last entry in a row's menu, **Move to Trash**, puts that row and everything 
 
     A time your zone skips is written as the moment it becomes, and the sentence under the boxes quotes that value before you press. A half-typed time is not read as "no time": the button stays dead and the panel says the time is not finished.
 
-[^repeat]: Repeating is read off the dated row's pill, in the file's own words, such as `↻ every week on monday`. The menu's door is **Set repeat…**, or **Change repeat…** on a row that already repeats, and it is offered only on a dated row. The whole grammar, and what completing a repeating row does, are in the closed block at the foot of this page.
+[^repeat]: The pill beside the date opens the picker, reading the rule in the file's own words, such as `↻ every week on monday`. The menu's door is **Set repeat…**, or **Change repeat…** on a row that already repeats, and it is offered only on a dated row. The whole grammar, and what completing a repeating row does, are in the closed block at the foot of this page.
 
 [^question]: A question names how much goes first: *Move “Fit the cabinets” and the 3 rows under it to Trash? You can put them back from Trash in the sidebar.*
 

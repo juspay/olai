@@ -20,7 +20,7 @@ The arrows walk from row to row. `Ctrl` + `Space` or `Cmd` + `↑` / `↓` folds
 | `Alt` + `Enter` | **Cancelled**, or takes that back |
 | `Cmd` + `Shift` + `Enter` | Walks the mark on: **To do**, **Doing**, none |
 
-The same marks are under **Mark** in the row's menu.[^markmenu] Cancelling a row settles the work waiting on it.[^cancel] A mark that is refused says why under the row.[^refused]
+The same marks are under **Mark** in the row's menu.[^markmenu] Cancelling a row settles the work waiting on it.[^cancel] Some marks are refused.[^refused]
 
 ## Type a date, a tag or a mirror
 
@@ -36,7 +36,7 @@ While the caret is in a title, `!` offers a day in words, `#` or `@` a tag this 
 
 [^keys]: The rest of the writing keys are in the table at the foot of this page. `Shift` + `Enter` writes the note under a row, `Enter` at the start of a row inserts a blank row above, and `Escape` discards what you were typing. Inside a note, `Enter` is a new line, `Shift` + `Enter` finishes the note, and `Escape` discards what you typed.
 
-[^draft]: A draft is a row you have opened and not titled yet. Several blank drafts can stand on the page at once; click a parked one and the caret is back in it. The arrows stop on every blank, while the shape keys step past a parked one to the nearest written row. `Tab` into a folded branch opens the branch.
+[^draft]: Several blank drafts can stand on the page at once; click a parked one and the caret is back in it. The arrows stop on every blank, while the shape keys step past a parked one to the nearest written row. `Tab` into a folded branch opens the branch.
 
 [^split]: Splitting cuts the line at the caret. What is before the caret stays where you were, and what is after it becomes the next row, with the caret at its head. Everything that described the row you were in stays with it: its children, its note, its mark, its date and what it waits on. The row that comes off is a bullet with no mark.
 
@@ -50,9 +50,9 @@ While the caret is in a title, `!` offers a day in words, `#` or `@` a tag this 
 
 [^cancel]: Cancelling settles work: anything waiting on the row stops waiting, the row stops being owed, and a rollup counts it out, so `3/5` becomes `3/4`. It does not cascade, since rows under a cancelled one keep their own marks, and the finished mark above it stays. Marking a row **To do** or **Doing** under a branch somebody ticked off re-opens that branch and every mark in the chain, and the line under the row names what it re-opened.
 
-[^refused]: Three marks are refused. Walking the mark off something done or cancelled asks you to press `Cmd` + `Enter` or `Alt` + `Enter` first, to take that mark off, and then walk on. Starting a row that comes after unfinished work asks you to finish what the sentence names, or start something ready. `Cmd` + `Enter` on a branch holding unfinished work asks you to finish those rows, or call them off with `Alt` + `Enter`.
+[^refused]: Walking the mark off something done or cancelled asks you to press `Cmd` + `Enter` or `Alt` + `Enter` first, to take that mark off, and then walk on. Starting a row that comes after unfinished work asks you to finish what the sentence names, or start something ready. `Cmd` + `Enter` on a branch holding unfinished work asks you to finish those rows, or call them off with `Alt` + `Enter`.
 
-[^trigger]: Each trigger has its own list. The days read `tomorrow`, `next fri`, `aug 20`, `in 3 weeks` or `2026-09-01`, the list says which day every phrase means before you take it, and taking one writes the node's `date`. Tags come most-used first. `((` searches every node in the directory.
+[^trigger]: Each trigger has its own list. The days read `tomorrow`, `next fri`, `aug 20`, `in 3 weeks` or `2026-09-01`, the list says which day every phrase means before you take it, and taking one writes the node's `date`. Tags come most-used first. `((` offers a node to search for, placed here as a mirror.
 
 [^tag]: A tag is written into the line and commits with it, with nothing added after it, so `#alice` and `@alice` stay two tags. `#` and `@` need a word boundary in front of them, which leaves `srid@srid.ca` an address. Backspacing over a trigger closes the list, and a trigger that matches nothing shows nothing.
 
@@ -60,7 +60,7 @@ While the caret is in a title, `!` offers a day in words, `#` or `@` a tag this 
 
 [^undo]: An undo is a fresh write, judged against the outline as it is now, so one that does not fit says so in the words the write gate uses rather than guessing. It is your own edits, this session, in this tab; opening another outline starts again. While you are still typing, `Cmd` + `Z` is the text box's own, and the outline's undo begins once the line is committed.
 
-[^delete]: Nothing deletes a row outright. What an undo reaches on a row you have just made is the un-create, and the row goes to the Trash keeping its id ([organising.md](organising.md)).
+[^delete]: What an undo reaches on a row you have just made is the un-create, and the row goes to the Trash keeping its id ([organising.md](organising.md)).
 
 <details>
 <summary>Every key, and what a split or a join does with the row</summary>

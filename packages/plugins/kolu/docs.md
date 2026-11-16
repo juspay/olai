@@ -18,21 +18,21 @@ Press the row and a pane opens beneath it, on the terminal itself; press it agai
 
 ## See what wants attention
 
-One row of the header's health-dot popover is this link's readout, which has four faces.[^readout] Press the `kolu` readout and a panel opens: what recently wanted attention, as a log.[^feed] The server keeps one watch for every browser.[^ring] Three settings pace it.[^watch]
+One row of the header's health-dot popover is this link's readout, which has four faces.[^readout] Press the `kolu` readout and a panel opens: what recently wanted attention, as a log.[^feed] One watch serves every browser.[^ring] Three settings pace it.[^watch]
 
 ## Wake a conversation on the fleet
 
 A conversation's strip carries `wake on terminal activity`, a picker over your outlines, and `Clear`.[^picker] Scope a conversation to one outline file and olai rings it when a terminal that file claims[^undone] stops and waits for a person.[^claim]
 
-Three outcomes follow from the claim, and none of them is configured:
+Three outcomes follow from the claim, none of them configured:
 
 | The claiming step | What arrives |
 | --- | --- |
-| `doing` | a wake, which starts a turn or queues behind what you typed |
+| `doing` | a wake: it starts a turn if the agent is idle and queues behind what you typed if it is not |
 | `todo` | a digest, saying nothing under the lane is being worked |
 | nothing claims it | silence |
 
-A scope that hears nothing for a whole `heartbeat` window gets one message saying the watch is running.[^beat]
+A scope that hears nothing for a whole `heartbeat` window gets one message: the watch is running.[^beat]
 
 ## Switching it off
 
@@ -46,15 +46,15 @@ Set `on: no` on the `kolu` node in `_olai/Settings.olai`, or use its switch in t
 
 [^dock]: The Dock row is the same component kolu draws. The pip, the status words, the annotation line, the recency, the repository stripe and the pull-request badge mean here exactly what they mean in kolu. The raw id stays on screen beside the row: the line on top is olai's record of which terminal this row names, and the row beneath is kolu's reading of it.
 
-[^pane]: The live pane is a window rather than a photograph: it attaches to the terminal and follows the tail, and it says so twice, with a solid border and a `● live` tag. It wears the terminal's own theme and font, taken from the theme that terminal was created with.
+[^pane]: The live pane is a window rather than a photograph: it attaches to the terminal and follows the tail, and it says so twice, with a solid border and a `● live` tag. It wears the terminal's own theme and font, taken from the theme that terminal was created with. Twelve lanes on a page are twelve rows and no attached terminals until somebody presses one.
 
 [^size]: A keyboard in the pane would be a second hand on a terminal an agent is working in. Attaching is a write on a shared pty, and every kolu client sees the same size, so opening a pane sets the terminal's grid and another client attaching later moves it for both of you.
 
     The pane then takes the new size from padi's next frame rather than asserting its own back. Closing drops the attach and disposes the emulator with it, so closing forty panes leaves nothing running.
 
-[^readout]: The readout has four faces rather than two because starting kolu and reconciling two builds are different fixes. The quiet reading starts once a check-in is older than twice the `heartbeat` setting. A skew turns the health dot red; no padi at all leaves it alone. Twelve lanes on a page are twelve rows and no attached terminals until somebody presses one.
+[^readout]: The readout has four faces rather than two because starting kolu and reconciling two builds are different fixes. The quiet reading starts once a check-in is older than twice the `heartbeat` setting. A skew turns the health dot red; no padi at all leaves it alone.
 
-[^feed]: The feed names terminals that have been sitting in a state only a person can carry: `awaiting` your answer and `waiting` on input, each reported once it has been held past the moment it is worth saying so.
+[^feed]: olai watches the fleet it already holds. The feed names terminals that have been sitting in a state only a person can carry: `awaiting` your answer and `waiting` on input, each reported once it has been held past the moment it is worth saying so.
 
     Every row is a frozen draw of the moment the event fired: which pip it wore, which label it had, and how long it had already been held. A terminal that found its answer ten minutes ago still shows the ask it was.
 
@@ -131,6 +131,8 @@ The wrench works before a settings file exists: the first edit creates the `kolu
 
 <details>
 <summary>What a wake, a digest and a heartbeat say</summary>
+
+A `doing` claim means somebody is on that lane and it has stopped. A `todo` claim means the lane is open and nobody is on it. When nothing claims the terminal there is silence, and olai does not report what it decided not to ring about.
 
 The two meanings differ in their words alone. There is one delivery path, and a digest reaches the agent exactly as a wake does. What the meaning decides is the sentence and the key it coalesces under. One key per meaning means a burst under one meaning collapses to its newest body, and both arrive whole when a turn ends. A digest's head says the terminal went quiet and that nothing under it is being worked, closing `A note, not a call.`
 

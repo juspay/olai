@@ -1,0 +1,88 @@
+---
+/**
+ * The frame of every docs page and of the overview: the page map on the left,
+ * where the page sits and its title, then the page, then Previous and Next in
+ * the index's order.
+ */
+import { hrefOf } from "../markdown.ts"
+import { siteMap } from "../sitemap.ts"
+import Base from "./Base.astro"
+import "../styles/docs.css"
+
+interface Props {
+  /** The page's id: its path under `website/docs/` without `.md`. */
+  id: string
+}
+
+const { id } = Astro.props
+const map = await siteMap()
+const place = map.places.get(id)
+if (place === undefined) throw new Error(`docs/${id}.md is not on the page map`)
+const { link, trail, previous, next } = place
+const here = (other: string) => (other === id ? "page" : undefined)
+const holds = (links: { id: string }[]) => links.some((other) => other.id === id)
+---
+
+<Base title={`${link.title} · olai docs`} description={link.description}>
+  <div class="wrap docs">
+    {/* A closed <details> on a phone; on a wide screen, docs.css shows its
+        contents whatever its state. Each group is a fold of its own, open
+        only around the page you are on. */}
+    <details class="docs-nav">
+      <summary>{trail[0] ?? "All docs pages"}</summary>
+      <nav aria-label="All docs pages">
+        <a class="overview" href={hrefOf("index")} aria-current={here("index")}>Overview</a>
+        {
+          map.groups.map((group) => (
+            <details class="group" open={holds(group.links) || group.groups.some((inner) => holds(inner.links))}>
+              <summary>
+                {group.title}
+                <span>{group.links.length + group.groups.reduce((sum, inner) => sum + inner.links.length, 0)}</span>
+              </summary>
+              {group.links.map((other) => (
+                <a href={other.href} aria-current={here(other.id)}>{other.title}</a>
+              ))}
+              {group.groups.map((inner) => (
+                <details class="subgroup" open={holds(inner.links)}>
+                  <summary>{inner.title}</summary>
+                  {inner.links.map((other) => (
+                    <a href={other.href} aria-current={here(other.id)}>{other.title}</a>
+                  ))}
+                </details>
+              ))}
+            </details>
+          ))
+        }
+      </nav>
+    </details>
+
+    <main class="docs-main">
+      <header class="page-head">
+        {trail.length > 0 && <p class="trail">{trail.join(" › ")}</p>}
+        <h1>{link.title}</h1>
+        <slot name="head" />
+      </header>
+
+      <slot />
+
+      {
+        (previous !== undefined || next !== undefined) && (
+          <nav class="pager" aria-label="Previous and next page">
+            {previous !== undefined && (
+              <a class="previous" href={previous.href}>
+                <span>Previous</span>
+                {previous.title}
+              </a>
+            )}
+            {next !== undefined && (
+              <a class="next" href={next.href}>
+                <span>Next</span>
+                {next.title}
+              </a>
+            )}
+          </nav>
+        )
+      }
+    </main>
+  </div>
+</Base>

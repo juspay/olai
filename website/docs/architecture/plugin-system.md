@@ -29,6 +29,8 @@ The runtime mounts one by waiting for its needs, stamping its identity, and undo
 
 ## Built, default and running
 
+Three lists say which plugins exist, which run by default, and which are running now.
+
 ```
   built      what the binary carries   = every row in packages/bundle/olai.yml
   default    what absent policy runs   = the rows without their own `disabled`
@@ -62,7 +64,7 @@ A disabled plugin is **absent**: not parked, not half-wired, not degraded, and a
 | [cordis.md](cordis.md) | ownership, lifetimes and removal |
 | [settings.md](../settings.md) | which rows a serve selects, and the file that selects them |
 
-[^reach]: The tools olai does not own are kolu, odu, Xyne Spaces, Gmail and the ACP coding agents. A plugin is the unit for reaching them, and for most of what olai draws itself.
+[^reach]: The outside tools are kolu, odu, Xyne Spaces, Gmail and the ACP coding agents. A plugin is the unit for reaching one, and for most of what olai draws itself.
 
 [^why]: Without that rule, reaching an outside tool means editing general packages, and olai's judgement about that tool ends up in files that belong neither to the tool nor to olai.
 
@@ -76,7 +78,7 @@ A disabled plugin is **absent**: not parked, not half-wired, not degraded, and a
 
 [^wire]: The browser and the server talk over one websocket, and core owns the root set of messages. Core's own members are the roster, the switch that moves a row, a row's configuration, who is looking, and what this deployment is called, all on three-segment tags. A plugin's members take four. The tags, and what a roster change costs, are in the closed block below.
 
-[^policy]: Turning an opt-in plugin on is therefore not a special path: policy writes `disabled: false` over the row, the same line that turns another row off. A profile and the directory's settings both patch that one catalogue.
+[^policy]: Turning an opt-in plugin on is therefore not a special path: policy writes `disabled: false` over the row, the same line that turns another row off.
 
 [^switch]: A panel switch is an ordinary write: it puts `on` into the row's namespace in `_olai/Settings.olai`, waits for that revision, and appears in the git ledger, so the choice survives a restart. Core grants the switch to the browser face alone, and the write gate reserves `on` against agents.
 

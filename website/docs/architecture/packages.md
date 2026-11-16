@@ -6,8 +6,8 @@ A Bun workspace over two globs, `packages/*` and `packages/plugins/*`, sharing `
 
 | Group | What it holds |
 | --- | --- |
-| General packages | the format, the store, the server, the browser app and what they share |
-| Plugin packages | one package per plugin, each with a registry row and a page |
+| General packages | each listed below, with what it is |
+| Plugin packages | one package per plugin, with a registry row and a page of its own |
 | The stack | TypeScript on Bun, Effect 4, SolidJS and Tailwind, Nix, the tests |
 
 How the parts fit at runtime is in [overview.md](overview.md); the rules a change must keep are in [cordis.md](cordis.md).

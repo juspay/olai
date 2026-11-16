@@ -20,7 +20,7 @@ A row's standing says where its agent stands.[^standings] The sidebar's **Needs 
 
 ## Keep, close or replace a conversation
 
-Six verbs keep a conversation: **Fresh start**, **Close**, **Put to sleep**, **Sleep when idle**, **Tidy memory** and **Open the agent above**.[^verbs] The conversation line offers **Earlier chats ↑** beside them.[^earlier] At most eight agents are awake at once,[^seats] and a ninth waits for a seat.[^waiting]
+The verbs on a conversation are **Fresh start**, **Close**, **Put to sleep**, **Sleep when idle**, **Tidy memory** and **Open the agent above**.[^verbs] The conversation line offers **Earlier chats ↑** beside them.[^earlier] At most eight agents are awake at once,[^seats] and a ninth is refused until one sleeps.[^waiting]
 
 ## What the agent is told about its node
 
@@ -40,7 +40,7 @@ The first message a node agent accepts carries a preamble[^preamble] saying that
 
 [^column]: The column's bar names the docked agent, carries **Switch conversation** to pick another, and a `×` that shuts it. With nothing docked, the column offers that same list. Which conversation is docked, whether the column is open and how wide it is are remembered by this browser.
 
-[^standings]: A standing is one word on the row. **Needs you**: the agent asked you something and is waiting for the answer. **Working…**: it is working on a reply, with the time it has been at it. **Starting…**: it is starting. **Idle**: ready for your next message. **Not running**: the agent stopped. **Asleep**: saved, and opening it continues the conversation, with the age of the last line heard. **No agent**: no chat here yet.
+[^standings]: The standings a row can show: **Needs you**, the agent asked you something and is waiting for the answer. **Working…**, it is working on a reply, with the time it has been at it. **Starting…**, it is starting. **Idle**, ready for your next message. **Not running**, the agent stopped. **Asleep**, saved, and opening it continues the conversation, with the age of the last line heard. **No agent**, no chat here yet.
 
 [^needs]: The **Needs you** region lists agents waiting for an answer before agents that are not running, newest activity first. A row shows how many questions are waiting, or **Not running**. The region is absent when nothing is waiting. Pressing a row in either region opens the conversation's own page.
 

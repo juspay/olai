@@ -67,21 +67,22 @@ a[data-footnote-ref]:hover,
 a[data-footnote-ref]:focus-visible { background: var(--accent); color: var(--paper); }
 
 /* Every note again at the foot of the page, small, for a reader without
-   JavaScript and for one who wants them all at once. */
+   JavaScript and for one who wants them all at once. The renderer labels the
+   list with a screen-reader-only heading; here it is shown. */
 .footnotes {
   margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--hair);
   font-size: 0.86rem; color: var(--muted);
 }
-.footnotes::before {
-  content: "Notes"; display: block; margin-bottom: 0.4rem;
+section.footnotes > h2 {
+  margin: 0 0 0.4rem; padding: 0; border: none;
+  font-family: var(--sans); font-style: normal; line-height: 1.4;
   font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700;
 }
+section.footnotes > h2::before { content: none; }
 .footnotes ol { padding-left: 1.2rem; }
 .footnotes li + li { margin-top: 0.5rem; }
 .footnotes li:target { color: var(--ink); background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 6px; }
 .footnotes p + p { margin-top: 0.4rem; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-
 /* The popup a marker opens: under the marker on a wide screen, a sheet along
    the bottom edge on a phone. */
 #note {

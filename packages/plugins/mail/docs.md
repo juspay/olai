@@ -6,9 +6,9 @@ olai talks to Gmail through [Himalaya](https://github.com/pimalaya/himalaya), wh
 
 ## Register a Google OAuth client
 
-Google needs an OAuth client of type **Web application**, the one step outside olai, with your own account as a test user.[^console] Its redirect address is the address you reach olai at, followed by `/_olai/mail/oauth`.[^redirect]
+Google needs an OAuth client of type **Web application**, the one step outside olai, with your account as a test user.[^console] Its redirect address is where you reach olai, followed by `/_olai/mail/oauth`.[^redirect]
 
-Put the client id and the secret in the environment olai runs with.[^env]
+Put the client id and secret in olai's environment.[^env]
 
 ```
 OLAI_MAIL_OAUTH_CLIENT=1234567890-abc.apps.googleusercontent.com
@@ -18,31 +18,31 @@ OLAI_MAIL_OAUTH_SECRET=GOCSPX-…
 ## Connect an account
 
 1. Switch **mail** on in the **Plugins** panel.[^off]
-2. Press **Connect Gmail** on the row, which has moved to **Needs attention**.[^button]
+2. Press **Connect Gmail** on the row, now under **Needs attention**.[^button]
 3. Choose the mailbox in the Google tab and approve.[^grant]
-4. The row then reads `Connected as you@gmail.com`.[^connected]
+4. Google sends you back. The row then reads `Connected as you@gmail.com`.[^connected]
 
 | Row in the health popover | What it means |
 | --- | --- |
 | `Mail you@gmail.com` | Connected. Hover for details. |
-| `No mail` | No account is connected. |
-| `Mail error` | Something needs attention. |
+| `No mail` | No account is connected. Connect one from the plugins panel. |
+| `Mail error` | Something needs attention. The tip and the row say what. |
 
 ## When something goes wrong
 
-The `mail` row always says what happened in plain words. A brief outage heals itself.[^retry] Otherwise the row asks you to enable the Gmail API,[^api] to press **Reconnect**,[^grantfail] or to connect again.[^return] Three faults have no button at all.[^nobutton]
+The `mail` row always says what happened in plain words. A brief outage heals itself.[^retry] Otherwise the row asks you to enable the Gmail API,[^api] press **Reconnect**,[^grantfail] or connect again.[^return] Three faults have no button at all.[^nobutton]
 
 ## The tools an agent gets
 
-Eleven tools arrive in every conversation under **olai ✓**, listed in the closed block below. Gmail's own query syntax passes through untouched.[^query] Nothing here deletes mail permanently, and nothing sends it.[^writes] A draft is plain text with files attached.[^draft]
+The tools arrive in every conversation under **olai ✓**, listed in the closed block below. Gmail query syntax passes through untouched.[^query] Nothing here deletes mail permanently, and nothing sends it.[^writes] A draft is plain text with files attached.[^draft]
 
 ## Waking an agent when mail arrives
 
-Open the conversation you want woken and turn **Alert on new mail** on in its strip. New inbox mail then wakes that conversation with a digest.[^digest] The first check starts from now.[^resume] Checks run every two minutes.[^poll]
+Open the conversation you want woken and turn **Alert on new mail** on in its strip. New inbox mail then wakes it with a digest.[^digest] The first check starts from now.[^resume] Checks run every two minutes.[^poll]
 
-[^scope]: Gmail stays the record; your directory records what you decided. An agent can read and search threads, archive them, move them to Trash and back, label them, mark them read or unread, and write drafts with files attached.
+[^scope]: Gmail stays the record; your directory records what you decided. An agent can read and search threads, archive them, move them to Trash, label them, mark them read, and write drafts with files attached.
 
-[^himalaya]: Himalaya is the mail client olai drives. The plugin is called `mail` rather than `gmail` because Himalaya also speaks `IMAP` and `JMAP`. `OLAI_HIMALAYA` names the binary this build runs, and the packaged olai bakes it onto the wrapper.
+[^himalaya]: The plugin is called `mail` rather than `gmail` because Himalaya also speaks `IMAP` and `JMAP`. `OLAI_HIMALAYA` names the binary this build runs, and the packaged olai bakes it onto the wrapper.
 
 [^console]: Registering the client takes five steps in Google Cloud Console, written out in the closed block at the foot of this page. They enable the Gmail API, fill in the consent screen, add you as a test user, create the client, and give it its redirect address. Google offers no way around them, and hands you a client ID and a client secret at the end.
 
@@ -76,7 +76,7 @@ Open the conversation you want woken and turn **Alert on new mail** on in its st
 
 [^draft]: A draft's body is plain text only, at most 256 KiB, with at most 50 recipients. It carries at most ten files, none over 25 MB and 25 MB in all, which is Gmail's own ceiling. Which paths are attachable, how a reply picks its recipients, and what an update replaces are in the closed block at the foot of this page.
 
-[^digest]: A digest names the sender, subject, date, thread id, unread status and a short preview. A busy conversation gets one combined digest when its turn finishes, of at most 50 threads, saying how many others arrived. Each conversation starts with the switch off, and only a person can turn it on: an agent can edit a node's properties, but those edits cannot subscribe a conversation to mail.
+[^digest]: A digest names the sender, subject, date, thread id, unread status and a short preview. A busy conversation gets one combined digest when its turn finishes. A digest shows at most 50 threads and says how many others arrived. Each conversation starts with the switch off, and only a person can turn it on: an agent can edit a node's properties, but those edits cannot subscribe a conversation to mail.
 
 [^resume]: The first check starts from now and does not replay the inbox. Switching the wake off stops it; turning it back on starts from then, and restarts resume the saved position. If Gmail's history has expired, the watcher starts from now again. Use `mail_inbox` for anything missed.
 
@@ -106,7 +106,7 @@ Open the conversation you want woken and turn **Alert on new mail** on in its st
 </details>
 
 <details>
-<summary>The eleven tools, one line each</summary>
+<summary>Every tool, one line each</summary>
 
 | Tool | What it does |
 | --- | --- |

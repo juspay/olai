@@ -34,7 +34,7 @@ The picker offers the ids omp reports, such as `litellm/kimi-k3`, under its own 
 
 [^bypass]: omp's ACP modes are `default` and `plan`, and `session/set_mode "bypassPermissions"` answers `-32603 "Unsupported ACP mode"`.
 
-[^off]: Switching the row off takes away what it draws. Put `on: no` on the `omp` node in `_olai/Settings.olai`, or use the switch on the **Plugins** panel ([choosing what runs](../settings.md)).
+[^off]: Switching the row off is `on: no` on the `omp` node in `_olai/Settings.olai`, or its switch on the **Plugins** panel ([choosing what runs](../settings.md)).
 
 [^yolo]: A per-tool `tools.approval` policy in your omp settings narrows what `--approval-mode yolo` covers, and olai never widens what it answers.
 

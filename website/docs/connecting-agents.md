@@ -134,9 +134,10 @@ once.[^recipes]
     from the next morning.
 
 [^recipes]: A cron job, a script that noticed something, a shell function: the
-    same verb. There is no SDK; `jq` is the client library. Files are not in
-    this door, so a photo or a PDF has no path into the directory: capture a
-    link to it in the note.
+    same verb, and `olai surface --help` lists every verb the server offers.
+    There is no SDK; `jq` is the client library. Files are not in this door, so
+    a photo or a PDF has no path into the directory: capture a link to it in
+    the note.
 
 <details>
 <summary>Calling it from somewhere else</summary>

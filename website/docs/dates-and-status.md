@@ -1,6 +1,6 @@
 # Marks, days and repeating
 
-A row is marked or it is not. A mark says whether anything is still owed, a date puts a node on a day, and a rule brings it back.[^scope]
+A row is marked or it is not. A mark says whether anything is owed, a date puts a node on a day, and a rule brings it back.[^scope]
 
 ## The four marks
 
@@ -21,7 +21,7 @@ A node's status is the mark it stores and nothing else.[^stored]
 
 | Reading | What it asks |
 | --- | --- |
-| Blocked | a target still unsettled |
+| Blocked | is a target still work nobody has settled |
 | The rollup | how far the task children got |
 | Hiding finished work | this node stores `done` |
 | What a mirror shows | everything of its target |
@@ -29,11 +29,11 @@ A node's status is the mark it stores and nothing else.[^stored]
 
 ## The two write gates
 
-A `done` may not stand over unfinished work.[^open] `outlines_done` over an unfinished branch is refused,[^refused] and open work arriving under a `done` ancestor takes that mark off the chain.[^reopen] A third refuses `outlines_doing` while something blocks it.[^doing]
+A `done` may not stand over unfinished work.[^open] `outlines_done` over an unfinished branch is refused,[^refused] and open work arriving under a `done` ancestor takes that mark off.[^reopen] `outlines_doing` is refused while something is in the way.[^doing]
 
 ## Days
 
-The journal, the calendar and the today view are derived from dates when a page is drawn.[^derived] Three fields put a node on a day, all identically.[^placing]
+The journal, the calendar and the today view are derived from dates when a page is drawn.[^derived] Three fields place a node on a day, identically.[^placing]
 
 | Field | What it says |
 | --- | --- |
@@ -41,7 +41,7 @@ The journal, the calendar and the today view are derived from dates when a page 
 | a dated `done` | work finished at that instant |
 | a dated `cancelled` | work called off at that instant |
 
-A `.md` named for an ISO date is that day's note.[^note]
+A `.md` named for a date is that day's note.[^note]
 
 ## Repeating
 

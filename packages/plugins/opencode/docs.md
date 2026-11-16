@@ -30,9 +30,9 @@ The picker offers the ids opencode reports, under its own labels.[^models] Signi
 
 [^cwd]: There is no `--cwd` on the command line, because opencode 2 answers that flag with its usage text rather than with ACP. The child's own working directory is the served one, and that is also the directory opencode lists stored conversations for. olai filters the answer again on its own side.
 
-[^off]: Switching the row off takes away what it draws. Put `on: no` on the `opencode` node in `_olai/Settings.olai`, or use the switch on the **Plugins** panel ([choosing what runs](../settings.md)).
+[^off]: Switching the row off is `on: no` on the `opencode` node in `_olai/Settings.olai`, or its switch on the **Plugins** panel ([choosing what runs](../settings.md)).
 
-[^one]: The 1.x line is a different wire. It names a tool at the head of the call id, spells an MCP tool `<server>_<tool>`, and holds a mid-turn prompt instead of steering.
+[^one]: The 1.x line is a different wire. It names a tool at the head of the call id, spells an MCP tool `<server>_<tool>`, and holds a mid-turn prompt instead of steering. Against it nothing on this page matches: every call is unnamed and every permission question reaches you.
 
 [^codemode]: A **Code Mode** script reads like `return await tools.olai.outlines_done({ id: "n1" })`. Its completion reports what it actually ran, with `metadata.error: true` when anything threw or was refused. The script's return value comes back as a text block, and that is where olai reads a tool's answer. There is no structured output on this wire. `tools` also carries opencode's own builtins, under `tools.opencode.*`.
 
@@ -40,7 +40,7 @@ The picker offers the ids opencode reports, under its own labels.[^models] Signi
 
 [^naming]: The name is a field on the frame. `tool_call`, `tool_call_update` and a permission request's `toolCall` all carry `name` beside `title`, and the three agree. The `toolCallId` is an opaque `chatcmpl-tool-<hex>`, and the `title` is display text that moves over a call's life, so neither names a row.
 
-[^four]: All four conditions must hold, and the closed block at the foot of this page lists them. In short: the request is about an `execute`, its code parses under olai's closed grammar, every server it names is one olai handed this conversation, and the request offers an allow-flavoured option.
+[^four]: The code inside is the only thing that tells one `execute` from another. All four conditions must hold, and the closed block at the foot of this page lists them. In short: the request is about an `execute`, its code parses under olai's closed grammar, every server it names is one olai handed this conversation, and the request offers an allow-flavoured option.
 
 [^once]: opencode asks once per inner call and sends the same frame each time, so answering one request answers all of them, and nothing says which one you answered. Options arrive as `once`, `always` and `reject`, and olai reads each option's own kind rather than its position.
 

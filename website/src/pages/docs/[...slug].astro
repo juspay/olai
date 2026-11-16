@@ -1,161 +1,50 @@
 ---
 import { getCollection, render, type CollectionEntry } from "astro:content"
 
-import Base from "../../layouts/Base.astro"
-import { hrefOf } from "../../markdown.ts"
-import { siteMap } from "../../sitemap.ts"
-import "../../styles/docs.css"
+import Docs from "../../layouts/Docs.astro"
+import { hrefOf, type Reading } from "../../markdown.ts"
 
+// Every page but the index, which the overview draws as cards.
 export async function getStaticPaths() {
-  const pages = await getCollection("docs")
+  const pages = await getCollection("docs", (page) => page.id !== "index")
   return pages.map((page) => ({
-    params: { slug: hrefOf(page.id).slice("/docs/".length, -1) || undefined },
+    params: { slug: hrefOf(page.id).slice("/docs/".length, -1) },
     props: { page },
   }))
 }
 
 const { page } = Astro.props as { page: CollectionEntry<"docs"> }
-const { Content, headings } = await render(page)
-const map = await siteMap()
-const place = map.places.get(page.id)
-if (place === undefined) throw new Error(`docs/${page.id}.md is not on the page map`)
-const { trail, previous, next } = place
-const { title, description } = place.link
-const here = (id: string) => (id === page.id ? "page" : undefined)
-const within = (group: { links: { id: string }[]; groups: { links: { id: string }[] }[] }) =>
-  group.links.some((link) => link.id === page.id) || group.groups.some((inner) => inner.links.some((link) => link.id === page.id))
-// The main flow is what a reader sees without opening anything: the page
-// without its `<details>` blocks and footnote definitions. Its length is the
-// reading time, and its `##` headings are "On this page".
-const body = page.body ?? ""
-const main = body
-  .replace(/<details>[\s\S]*?<\/details>/g, "")
-  .replace(/^\[\^[^\]]+\]:.*(?:\n(?: {4}.*|\s*$))*/gm, "")
-const mainHeadings = new Set([...main.matchAll(/^## (.+)$/gm)].map((match) => match[1]?.replace(/`/g, "").trim()))
-// The overview draws cards, not its own headings, so it has no list of them.
-const sections =
-  page.id === "index" ? [] : headings.filter((heading) => heading.depth === 2 && mainHeadings.has(heading.text.trim()))
-const minutes = Math.max(1, Math.round(main.split(/\s+/).length / 220))
-const notes = (body.match(/^\[\^[^\]]+\]:/gm) ?? []).length
+const { Content, headings, remarkPluginFrontmatter } = await render(page)
+// The main flow, as the docs pass measured it: how long it is, and which of
+// the page's `##` headings it holds.
+const reading: Reading = remarkPluginFrontmatter.reading
+const h2 = headings.filter((heading) => heading.depth === 2)
+const sections = reading.sections.flatMap((at) => h2[at] ?? [])
+// About 220 words a minute: enough to tell a glance from a sit-down.
+const minutes = Math.max(1, Math.round(reading.words / 220))
 ---
 
-<Base title={`${title} · olai docs`} description={description}>
-  <div class="wrap docs">
-    {/* A closed <details> on a phone; on a wide screen, docs.css shows the
-        contents of both of these whatever their state. */}
-    <details class="docs-nav">
-      <summary>{trail[0] ?? "All docs pages"}</summary>
-      <nav aria-label="All docs pages">
-        <a class="overview" href={hrefOf("index")} aria-current={here("index")}>Overview</a>
-        {
-          map.groups.map((group) => (
-            <details class="group" open={within(group)}>
-              <summary>
-                {group.title}
-                <span>{group.links.length + group.groups.reduce((sum, inner) => sum + inner.links.length, 0)}</span>
-              </summary>
-              {group.links.map((link) => (
-                <a href={link.href} aria-current={here(link.id)}>{link.title}</a>
-              ))}
-              {group.groups.map((inner) => (
-                <details class="subgroup" open={inner.links.some((link) => link.id === page.id)}>
-                  <summary>{inner.title}</summary>
-                  {inner.links.map((link) => (
-                    <a href={link.href} aria-current={here(link.id)}>{link.title}</a>
-                  ))}
-                </details>
-              ))}
-            </details>
-          ))
-        }
-      </nav>
-    </details>
+<Docs id={page.id}>
+  <p class="meta" slot="head">
+    {minutes} min read{reading.notes > 0 && ` · ${reading.notes} notes, one tap away`}
+  </p>
 
-    <main class="docs-main">
-      <header class="page-head">
-        {trail.length > 0 && <p class="trail">{trail.join(" › ")}</p>}
-        <h1>{title}</h1>
-        {page.id === "index" && <p class="summary" set:html={map.intro} />}
-        {
-          page.id !== "index" && (
-            <p class="meta">
-              {minutes} min read{notes > 0 && ` · ${notes} notes, one tap away`}
-            </p>
-          )
-        }
-      </header>
+  {
+    sections.length > 1 && (
+      <details class="contents">
+        <summary>On this page</summary>
+        <ol>
+          {sections.map((heading) => (
+            <li>
+              <a href={`#${heading.slug}`}>{heading.text}</a>
+            </li>
+          ))}
+        </ol>
+      </details>
+    )
+  }
 
-      {
-        sections.length > 1 && (
-          <details class="contents">
-            <summary>On this page</summary>
-            <ol>
-              {sections.map((heading) => (
-                <li>
-                  <a href={`#${heading.slug}`}>{heading.text}</a>
-                </li>
-              ))}
-            </ol>
-          </details>
-        )
-      }
-
-      {
-        page.id === "index" ? (
-          <div class="cards">
-            {map.groups.map((group) => (
-              <section class="card" id={group.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}>
-                <h2>{group.title}</h2>
-                <p set:html={group.intro} />
-                <ul>
-                  {group.links.map((link) => (
-                    <li>
-                      <a href={link.href}>{link.title}</a>
-                    </li>
-                  ))}
-                </ul>
-                {group.groups.map((inner) => (
-                  <details>
-                    <summary>
-                      {inner.title} <span>{inner.links.length}</span>
-                    </summary>
-                    <ul>
-                      {inner.links.map((link) => (
-                        <li>
-                          <a href={link.href}>{link.title}</a>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                ))}
-              </section>
-            ))}
-          </div>
-        ) : (
-          <article class="prose">
-            <Content />
-          </article>
-        )
-      }
-
-      {
-        (previous !== undefined || next !== undefined) && (
-          <nav class="pager" aria-label="Previous and next page">
-            {previous !== undefined && (
-              <a class="previous" href={previous.href}>
-                <span>Previous</span>
-                {previous.title}
-              </a>
-            )}
-            {next !== undefined && (
-              <a class="next" href={next.href}>
-                <span>Next</span>
-                {next.title}
-              </a>
-            )}
-          </nav>
-        )
-      }
-    </main>
-  </div>
-</Base>
+  <article class="prose">
+    <Content />
+  </article>
+</Docs>

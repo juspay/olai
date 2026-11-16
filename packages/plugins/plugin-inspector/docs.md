@@ -8,7 +8,7 @@ The door is the health dot in the header: its popover carries a **Plugins** row 
 
 ## One line per plugin
 
-A line is the plugin's name, a few words when something is wrong, and a switch called `Enable <name>` — `Enable Claude Code`.[^quiet] A chevron opens the row's detail,[^chevron] and seven words can appear on the line.[^words]
+A line is the plugin's name, a few words when something is wrong, and a switch called `Enable <name>` — `Enable Claude Code`.[^quiet] A chevron before the name opens the row's detail,[^chevron] and a word can stand beside it.[^words]
 
 Rows are grouped, each heading counting what is in it — `5 on · 2 off`.[^groups]
 
@@ -30,7 +30,7 @@ A setting a plugin marks as a preference is drawn in the preferences panel inste
 
 ## When the inspector is off
 
-The **Plugins** door, the panel and its switches go. The serve goes on running, starting and stopping plugins exactly as it does, and `_olai/Settings.olai` still says what runs.
+The **Plugins** door, the panel and its switches go.[^serve]
 
 [^door]: On a desktop, picking the **Plugins** row shuts the popover and opens the panel under the dot, and `Escape` hands the caret back to the dot. On a phone the same row is in the drawer.
 
@@ -42,7 +42,7 @@ The **Plugins** door, the panel and its switches go. The serve goes on running, 
 
 [^chevron]: A row with nothing to reveal has no chevron, and keeps its space so the names line up.
 
-[^words]: The words are `Failed`, `Can't start`, `Starting…`, `Needs approval`, `Failed in this tab`, `Starting in this tab` and `Needs setup`. Each is drawn on the line, with the sentence it stands for in the row's detail. The seven, and what each detail says, are in the closed block at the foot of this page.
+[^words]: The words are `Failed`, `Can't start`, `Starting…`, `Needs approval`, `Failed in this tab`, `Starting in this tab` and `Needs setup`. Each is drawn on the line, with the sentence it stands for in the row's detail. They, and what each detail says, are in the closed block at the foot of this page.
 
 [^groups]: A heading reads `5 on` where none is off. Groups other than **Needs attention** start shut, and a group you open stays open while the panel redraws. Pressing a switch opens the group the row is in, so a row that leaves **Needs attention** after a fix stays in view. Quiet groups sort after the rest, and a group whose rows are all off by the build's own default is not listed until one of them is switched on.
 
@@ -70,8 +70,10 @@ The **Plugins** door, the panel and its switches go. The serve goes on running, 
 
     While the plugin is off, or the preferences plugin is, the controls are drawn here as usual, so the setting is always reachable from one panel or the other. Where every one of a row's settings is a promoted preference, arriving from elsewhere lands you in the preferences panel instead.
 
+[^serve]: The serve goes on running, starting and stopping plugins exactly as it does, and `_olai/Settings.olai` still says what runs.
+
 <details>
-<summary>The seven words on a line, and what the detail says</summary>
+<summary>The words on a line, and what the detail says</summary>
 
 | Words on the line | What the detail says |
 | --- | --- |

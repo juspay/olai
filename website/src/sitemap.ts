@@ -12,7 +12,7 @@
 import { getCollection } from "astro:content"
 import { markdownToHtml } from "satteri"
 
-import { hrefOf, idFrom, titleIn } from "./markdown.ts"
+import { hrefOf, idFrom, siteHref, titleIn } from "./markdown.ts"
 
 export interface Link {
   readonly id: string
@@ -25,6 +25,8 @@ export interface Link {
 
 export interface Group {
   readonly title: string
+  /** The group's anchor on the overview, spelled as a heading's id is. */
+  readonly slug: string
   /** The line under the group's heading on the index, as inline HTML. */
   intro: string
   readonly links: Link[]
@@ -53,10 +55,7 @@ const inline = (node: Node & { url?: string }): string => {
   const inner = ((node.children ?? []) as Node[]).map(inline).join("")
   if (node.type === "emphasis") return `<em>${inner}</em>`
   if (node.type === "strong") return `<strong>${inner}</strong>`
-  if (node.type === "link" && node.url !== undefined) {
-    const href = /^[a-z][a-z0-9+.-]*:/i.test(node.url) ? node.url : hrefOf(idFrom("index", node.url))
-    return `<a href="${escape(href)}">${inner}</a>`
-  }
+  if (node.type === "link" && node.url !== undefined) return `<a href="${escape(siteHref("index", node.url))}">${inner}</a>`
   return inner
 }
 
@@ -128,7 +127,10 @@ export const siteMap = async (): Promise<SiteMap> => {
     const top = groups.at(-1)
     const current = top?.groups.at(-1) ?? top
     if (block.kind === "heading") {
-      const group = { title: block.text, intro: "", links: [], groups: [] }
+      // The heading's own id, as the renderer spells one (GitHub's rule):
+      // lower case, punctuation dropped, spaces as hyphens.
+      const slug = block.text.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").replace(/\s/g, "-")
+      const group = { title: block.text, slug, intro: "", links: [], groups: [] }
       if (block.depth === 2) groups.push(group)
       else if (block.depth === 3 && top !== undefined) top.groups.push(group)
       continue

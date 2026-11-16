@@ -4,7 +4,7 @@ One validator checks the loaded set, on load and after every write, and nothing 
 
 ## When the set is checked
 
-The validator runs in two stages.
+The validator runs in two stages, and the staging is part of the contract.[^stages]
 
 1. Per line: JSON, the record shape, the id's spelling, ISO dates, the mark exclusion, and the repeat rule with the date it repeats from.
 2. Per set: uniqueness, references, cycles, documents, and the property values a key's declaration fences.
@@ -22,7 +22,7 @@ A finding costs only the files it is about,[^cost][^two] and a guess is withheld
 
 ## Error codes
 
-Every error names a `file:line`, and the closed block below holds all nineteen codes.[^codes]
+Every error names a `file:line`, and the closed block below holds every code.[^codes]
 
 ## Writing
 
@@ -31,6 +31,8 @@ The server is the only writer.[^merges] A write re-validates the whole edited se
 ## File claims and convention names
 
 Each outline row owns its suffix, its own parser and its canonical writer; the Olai row claims `.olai`.[^claims] Four stems under `_olai/` are conventions: `Trash`, `Inbox`, `Pins` and `Properties`.[^stems]
+
+[^stages]: Per line is over everything a single record answers on its own. Per set is over everything that needs to know what else exists.
 
 [^cost]: A file is decoded whole or not at all, and every finding costs the files it is about and nothing else. A file a finding names is published with its content withheld: it keeps its place in the sidebar, its own page shows its rows where its tree would be, and it refuses writes. Every other file in the directory is live, drawn and writable.
 

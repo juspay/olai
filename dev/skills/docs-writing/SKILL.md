@@ -113,7 +113,7 @@ The lint thresholds apply to every page as they are. The other differences are r
 
 | Rule | Tutorial and how-to | Explanation | Reference |
 | --- | --- | --- | --- |
-| 5, 6, 7, 8, 10, 13, 14, 16, 18 [lint] | as written | as written | as written |
+| 4, 5, 6, 7, 8, 10, 13, 14, 16, 18 [lint] | as written | as written | as written |
 | 2: cut rationale and implementation | cut. Link to the explanation page. | keeps the "why" | no fact is cut. The argument for a design moves to an explanation page, and the entry links to it. |
 | 3: order | tutorial: one path to a visible result. How-to: the task's steps. | the decision and its cost | one entry per command, tool, property, key or file kind |
 
@@ -121,7 +121,7 @@ A reference fact is a command, a flag, a key, an MCP tool, a property, a setting
 
 ### The reference entry
 
-Rule 7 gives a reference page its shape: one `###` entry per command, tool, group of keys or kind. Each `##` group opens with an index table whose first column links to the entries. Every entry uses the same order, omitting parts that do not apply:
+Rule 7 gives a reference page its shape: one `###` entry per command, tool, group of keys or kind. Each `##` group opens with an index table naming the entries, and under the reading budget that table is the main flow: the entries themselves sit in `<details>` blocks, where a heading keeps its anchor. Every entry uses the same order, omitting parts that do not apply:
 
 1. Heading: the thing itself, in code font where the reader types it.
 2. One sentence: what it is.

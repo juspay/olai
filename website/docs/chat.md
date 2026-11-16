@@ -35,7 +35,7 @@ Each agent's own page carries the rest of what it supports. What a conversation 
 
 ## Sign in
 
-An agent with no credential cannot run a turn, so olai shows the agent's ways in. Type `/login` to ask first.[^methods]
+An agent with no credential can neither open a conversation nor run a turn, so olai shows the agent's ways in. Type `/login` to ask first.[^methods]
 
 - A command olai runs for you.[^command]
 - A page the agent opens.[^card]
@@ -66,7 +66,7 @@ Press **Send** at any time.[^send] Press **Cancel** to stop the turn,[^cancel] o
 
 ## Long conversations and restarts
 
-A conversation opens at its newest sixty rows, and **Earlier messages** fetches the page before them.[^scroll] A restart reopens up to eight conversations that were live.[^restart]
+A conversation holds the newest sixty rows.[^scroll] A restart reopens up to eight conversations that were live.[^restart]
 
 [^plugin]: Each agent is a plugin. Switching that plugin off in the **Plugins** panel takes its choices away without touching the other agents ([choosing what runs](settings.md)). Starting a conversation on a row, and the **New chat** row in the palette, are on [node agents](node-agents.md).
 
@@ -92,9 +92,9 @@ A conversation opens at its newest sixty rows, and **Earlier messages** fetches 
 
 [^model]: Press the model name for **Change model**, type in its filter box to narrow the list, walk it with the arrow keys, and press `Enter` to take the row under the cursor. The box matches the agent's own identifier as well as its display name. A model your account cannot use says so, and any other row can still be taken. More on settings and `/model` is in the closed block at the foot of this page.
 
-[^context]: `22k/1M` is how many tokens the conversation holds and how many fit. It is the agent's own number, sent several times a turn, so it moves while a turn runs. It is a fraction because a conversation moves between windows when its model does.
+[^context]: `22k/1M` is how many tokens the conversation holds and how many fit. It is the agent's own number, sent several times a turn, so it moves while a turn runs. It is a fraction rather than a percentage because the window is not a constant: a conversation moves between windows when its model does.
 
-    An agent that reports nothing leaves it silent, unlike a conversation that has spent nothing and says `0/200k`. That happens before a fresh conversation's first turn, and on opening a stored one, until the next turn.
+    An agent that reports nothing leaves it silent, unlike a conversation that has spent nothing and says `0/200k`. You meet that before a fresh conversation's first turn, and on opening a stored one, which replays its messages without a usage report. The next turn fills it in.
 
 [^send]: The box never locks, and **Send** says the same thing the whole time. While a turn runs, **Cancel** sits beside it, and on an agent that takes an interruption, **Interrupt** sits between them. Sending belongs to the conversation on screen when you press. A tab that has moved to another node cannot send, interrupt, cancel or retry here, and refused text with its attachments and chips returns to the conversation it came from.
 
@@ -104,11 +104,13 @@ A conversation opens at its newest sixty rows, and **Earlier messages** fetches 
 
 [^plan]: An agent that sends a plan draws **Execution plan** under the agent line, with pending, active and completed steps. Each update replaces the whole plan, an empty one removes it, and starting another conversation clears it. A tool call backed by a terminal shows its output as it arrives, then the exit code or signal, and stays readable after the agent releases the terminal. Pictures of both are in the closed block at the foot of this page.
 
-[^status]: A line under the transcript says what is happening (*working…*, *starting…*, or that the turn has stopped on a question) and goes the instant the panel is idle. *Queued* comes off by itself when the turns in front end.
+[^status]: A line under the transcript says what is happening (*working…*, *starting…*, or that the turn has stopped on a question) and goes the instant the panel is idle. *Queued* means the agent is holding it until the turns in front of it end; the mark comes off by itself.
 
-    *Not sent* means the turn or interruption was refused, the agent was not there, or you cancelled while it was on its way. **Send again** sends it for the first time. After *no answer* no button is offered, since a second send could be a second copy.
+    *Not sent* means the turn or interruption was refused, the agent was not there, or you cancelled while it was on its way. **Send again** sends it for the first time, as an ordinary message. After *no answer* no button is offered, since a second send could be a second copy.
 
-[^scroll]: Pressing **Earlier messages** fetches the page immediately before what is on screen, so scrolling back walks the conversation a page at a time, and the door goes once the start is reached. New text follows while you are at the bottom, and scrolling up keeps your place. A reconnect never takes a row away, and a short drop in the connection is invisible.
+[^scroll]: A conversation opens at its newest line, and **Earlier messages** sits above the rows only where there are more. Pressing it fetches the page immediately before what is on screen, so scrolling back walks the conversation a page at a time, and the door goes once the start is reached.
+
+    New text follows while you are at the bottom, and scrolling up keeps your place. A reconnect never takes a row away, and a short drop in the connection is invisible.
 
 [^restart]: A restart reopens them, most recently touched first, before any browser asks. A reopened chat is closed 48 hours after it was last used, however many restarts that spans, and one already past that at boot is dropped. A switched-off agent's entry waits, so switching it back on brings the conversation back.
 

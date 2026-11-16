@@ -8,7 +8,7 @@ One engine plugin, each a separate row: [claude](claude.md), [codex](codex.md), 
 
 ## Where its faces hang
 
-Chat draws in ten places, from a row's fold to the agent panel and the sidebar's **Needs you** and **Chats** sections.[^faces] The panel opens and closes with `Cmd` + `J`, which is `Cmd` on a Mac and `Ctrl` elsewhere.[^panel] Every reference it draws is a real link,[^links] and a standing is never told by movement alone.[^standing] Chat contributes no tools, only a charter.[^charter]
+Chat draws from a row's fold to the agent panel and the sidebar's **Needs you** and **Chats** sections.[^faces] The panel opens and closes with `Cmd` + `J`, which is `Cmd` on a Mac and `Ctrl` elsewhere.[^panel] Every reference the panel draws is a real link,[^links] and a standing is never told by movement alone.[^standing] Chat contributes no tools of its own, only a charter.[^charter]
 
 ## Make a row a node agent
 
@@ -28,13 +28,13 @@ Nothing is tidied until you say so. One standing line under the conversation rea
 
 Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in the plugins panel ([settings](../settings.md)); the choice survives a restart.[^off] To stop using one agent, reach for that engine's own row instead.
 
-[^workflow]: [Talking to an agent](../chat.md) is the workflow a reader follows; this page is the plugin's own account.
+[^workflow]: [Talking to an agent](../chat.md) is the workflow; this page is the plugin's own account.
 
 [^none]: With no engine available the agent menu says `No agent is set up` and offers **Open plugins**, and a Chats section with nothing in it reads `No chats yet. Start an agent on any row, or press + beside Chats.`
 
 [^engine]: Switching an engine off, or emptying its own executable path, makes only that engine unavailable: the other enabled engines are still discovered, and conversations carry on.
 
-[^faces]: The ten places are a row's fold, a node's page, a row's aside, a row's menu, the breadcrumbs, the sidebar, the palette, the agent panel and a phone's thumb bar. The closed block below says what chat draws in each.
+[^faces]: The places are a row's fold, a node's page, a row's aside, a row's menu, the breadcrumbs, the sidebar, the palette, the agent panel and a phone's thumb bar. The closed block below says what chat draws in each.
 
 [^panel]: Which conversation is docked is remembered per browser; whether the column is open, and how wide, belongs to the frame. A serve with no desktop shell draws no panel, no toggle and no shortcut.
 

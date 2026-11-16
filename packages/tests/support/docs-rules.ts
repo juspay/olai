@@ -291,7 +291,8 @@ const lengthFindings = (tree: MarkdownNode): ReadonlyArray<Finding> => {
   }
   for (const { node, main } of flow(tree)) {
     const count = words(read(node))
-    page += count
+    // A heading is a signpost, and is counted nowhere (the header says why).
+    if (node.type !== "heading") page += count
     if (!main || node.type === "table") continue
     if (node.type === "heading") {
       close()

@@ -62,7 +62,7 @@ export const surface = defineSurface({
 export const faces = { browser: { ci: "resource", service: "resource" } }
 ```
 
-An engine has no such file. What an engine contributes to a tab already travels on the chat cell, so it composes no surface and puts its `name` in `src/index.ts`. See step 7.
+An engine has no such file. What an engine contributes to a tab already travels on the chat cell, so it composes no surface and puts its `name` in `src/index.ts`. See step 6.
 
 ## 3. The server half: `src/server.ts`
 

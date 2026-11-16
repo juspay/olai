@@ -10,7 +10,7 @@ With it off you have an outliner whose writes wait for nobody: no Commit readout
 
 ## Settings
 
-`commit` and `push` on the `git` node say how much happens without you; every value is in the closed block at the foot of this page.[^live]
+The settings are `commit` and `push`, properties on the `git` node; every value is in the closed block at the foot of this page.[^live]
 
 ## The tools an agent gets
 

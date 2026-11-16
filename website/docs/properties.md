@@ -16,7 +16,7 @@ Declarations live in the `Properties` convention directly under `_olai/`, defaul
 {"id":"prop-agent","ord":"a3","title":"agent","custom":{"type":"ref","under":"agents-roster"}}
 ```
 
-Properties are one namespace across the whole directory, and a key is folded for case.[^case] A declaration takes `type`, and a `ref` or a path type may take `under` or `base`.[^words]
+Properties are one namespace across the whole directory, and a key is folded for case.[^case] A declaration is a node carrying properties, and three of its words are typed by a built-in table: `type`, `under` and `base`.[^words]
 
 ## The property types
 

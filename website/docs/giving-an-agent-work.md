@@ -8,11 +8,11 @@ olai hands an agent no filesystem, only tools naming a node, a whole document or
 
 ## Hand it a row, a file or a quote
 
-- Drag a row onto a conversation to arm it as a chip.[^chip]
+- Drag a row onto an open conversation's panel to arm it as a chip.[^chip]
 - Drag a transcript row by its grip to quote its words.[^quote]
-- Drag a file from the sidebar to insert its served path.
+- Drag a file from the sidebar onto a conversation to insert its served path.
 
-Dropping prepares the message and does not send it; with a finger, hold first, then carry.[^touch]
+Dropping prepares the message and does not send it; with a finger, hold first.[^touch]
 
 ## Name a file or a node with `@`
 
@@ -20,13 +20,13 @@ Type `@` and the directory comes up, filtered as you type: files,[^files] then n
 
 ## Read what the agent did
 
-A tool call is one folded line.[^fold] A file the agent rewrote shows its diff where it happened.[^diff] An outline gets no diff: it says what changed about the node, in the Commit panel's words.[^outline] Ids in the panel are clickable.[^ids]
+A tool call is one folded line.[^fold] A file the agent rewrote shows its diff where it happened.[^diff] An outline gets no text diff: it says what changed about the node, in the Commit panel's words.[^outline] Ids in the panel are clickable.[^ids]
 
 ## Attach a file
 
-Paste a file into the box, drag one onto the panel, or press **Attach a file**.[^camera] Pictures and documents stop at 50 MB, videos at 200 MB.[^kinds] The composer says **attaching…**.[^progress] The bytes go to a temporary directory of that conversation's own.[^temp]
+Paste a file into the box, drag one onto the panel, or press **Attach a file**.[^camera] Pictures, documents and videos each have a cap.[^kinds] The composer says **attaching…**.[^progress] The bytes go to a temporary directory of that conversation's own.[^temp]
 
-[^tools]: The tools an agent is handed come in three families. The outline tools name one node or a subtree, the document tools read or replace one whole text, and `trash_empty` empties the Trash. Nothing smaller than a node, a document or the Trash can be named. Every tool is listed in the closed block at the foot of this page.
+[^tools]: The tools an agent is handed are a closed list. The outline tools name one node or a subtree, the document tools read or replace one whole text, and `trash_empty` empties the Trash. Nothing smaller than a node, a document or the Trash can be named. Every tool is listed in the closed block at the foot of this page.
 
 [^validator]: A write by an agent meets the same validator your own edits do. A refused write comes back as the validator's own rows, pinned to the lines they are about. A write that lands but is worth a second look comes back with advice rather than a refusal.
 
@@ -42,7 +42,7 @@ Paste a file into the box, drag one onto the panel, or press **Attach a file**.[
 
 [^touch]: With a finger, hold the row, transcript line or file first, then carry it; moving before the hold scrolls the page. `Escape` cancels a carry.
 
-[^files]: The file half of the `@` list is every outline, document and saved page this directory serves, archives included. A served path reads `@notes/cabinets.md`, and `@notes/` works too, since a folder is the start of a path. A row reads the file's name with its folder beside it. Four rows are kept for each half.
+[^files]: The file half of the `@` list is every outline, document and saved page this directory serves, archives included. A served path reads `@notes/cabinets.md`, and `@notes/` works too, since a folder is the start of a path. A row reads the file's name with its folder beside it. The list holds eight rows in all, four kept for each half.
 
 [^nodes]: The node half of the `@` list is the search you already know, asked of the server, so `@cab` selects what `cab` selects anywhere else, and operators such as `@is:blocked`, `@#home` and `@date:today` work ([search](search.md)). Spaces keep narrowing, so `@odu watcher scope` can name one row. Fewer than three characters offers no nodes. What is in the Trash is not offered; `@is:trashed` asks for it.
 
@@ -60,7 +60,7 @@ Paste a file into the box, drag one onto the panel, or press **Attach a file**.[
 
 [^camera]: On a phone, **Take a photo** and **Record a video** open the camera itself, and each capture joins the strip above the box until one send carries them all.
 
-[^kinds]: The agent is handed the file's path and nothing more, so a video is not transcoded or thumbnailed on the way through. An SVG is taken neither as a picture nor as a document. A transport stream is taken as `.m2ts` only, since a `.ts` is TypeScript. Every extension olai takes is in the closed block at the foot of this page.
+[^kinds]: Pictures and documents stop at 50 MB, videos at 200 MB. The agent is handed the file's path and nothing more, so a video is not transcoded or thumbnailed on the way through. An SVG is taken neither as a picture nor as a document. A transport stream is taken as `.m2ts` only, since a `.ts` is TypeScript. Every extension olai takes is in the closed block at the foot of this page.
 
 [^progress]: The composer's **attaching…** carries the share of bytes the server has acknowledged. A picture shows itself in the strip; anything else shows its name and size. Several files in one drop attach in the order you dropped them, and anything olai will not take is named where it was dropped while the rest of the drop still attaches.
 

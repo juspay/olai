@@ -32,6 +32,35 @@ export const idFrom = (from: string, target: string): string =>
 /** A page's address on the site. */
 export const hrefOf = (id: string): string => (id === "index" ? "/docs/" : `/docs/${id}/`)
 
+/** Where a link written on page `from` goes on the site: a relative `.md`
+ *  link goes to that page's address, and anything else stays as written. */
+export const siteHref = (from: string, url: string): string => {
+  const [target = "", fragment] = url.split("#")
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url) || /^[#/]/.test(url) || !target.endsWith(".md")) return url
+  return hrefOf(idFrom(from, target)) + (fragment ? `#${fragment}` : "")
+}
+
+/** What a reader meets before opening anything, as the page's own pass
+ *  measures it. The lint's reading budget keeps it short. */
+export interface Reading {
+  /** Words of the main flow: the page minus footnotes and `<details>`. */
+  words: number
+  /** Which of the page's `##` headings, counted in order, are in it. */
+  sections: number[]
+  /** How many footnotes the page has. */
+  notes: number
+}
+
+type Node = { type: string; value?: string; children?: unknown[] }
+
+/** Words as the docs lint counts them: running text, a code span as one
+ *  word, and no code block, raw HTML or picture. */
+const wordsIn = (node: Node): number => {
+  const text = (n: Node): string =>
+    n.type === "inlineCode" ? " Code " : n.type === "code" || n.type === "html" || n.type === "image" ? "" : (n.value ?? ((n.children ?? []) as Node[]).map(text).join(""))
+  return text(node).split(/\s+/u).filter((word) => /[\p{L}\p{N}]/u.test(word)).length
+}
+
 /** A page's title: the words of its first line, `# Title`. */
 export const titleIn = (id: string, source: string): string => {
   const first = source.split("\n", 1)[0] ?? ""
@@ -40,35 +69,65 @@ export const titleIn = (id: string, source: string): string => {
 }
 
 /**
- * The docs pass, for one page. Pages outside `docs/` (none today) are left
- * alone, and so is any link but a relative one to a page: a web address, an
- * anchor, a site path. A relative link to anything else stays as written, and
- * the build's link check fails on it, since the site publishes pages only.
+ * The docs pass, for one page: it rewrites links (see {@link siteHref}),
+ * lifts the title out, and measures the main flow into the page's
+ * frontmatter as `reading`. Pages outside `docs/` (none today) are left alone.
+ * A relative link to anything but a page stays as written, and the build's
+ * link check fails on it, since the site publishes pages only.
  */
 export const docsPage = (ctx: PluginFactoryContext) => {
   if (ctx.fileURL === undefined) return null
   const file = fileURLToPath(ctx.fileURL)
   if (!file.startsWith(DOCS)) return null
   const page = idOf(file)
+  const reading: Reading = { words: 0, sections: [], notes: 0 }
+  // Astro seeds `data.astro` with the page's frontmatter, and hands back what
+  // a plugin adds to it as `remarkPluginFrontmatter`; satteri types the bag
+  // as open data.
+  const astro = ctx.data.astro as { frontmatter: Record<string, unknown> }
+  astro.frontmatter.reading = reading
   // The title line, which `titleIn` reads and the layout draws. `titleIn`
   // refuses a page whose first line is not `# Title`, so the first heading of
   // depth 1 is that line. satteri tracks no positions for a plugin to check.
   let titled = false
+  // How many `<details>` are open at the top level, in document order.
+  let folded = 0
+  let h2 = 0
+  const measure = (node: Node, parent: { type: string } | null | undefined): void => {
+    if (folded === 0 && parent?.type === "root") reading.words += wordsIn(node)
+  }
   return defineMdastPlugin({
     name: "olai-docs-page",
+    html(node, edit) {
+      if (edit.parent(node)?.type !== "root") return
+      folded += (node.value.match(/<details\b/gu) ?? []).length - (node.value.match(/<\/details>/gu) ?? []).length
+    },
     heading(node, edit) {
-      if (titled || node.depth !== 1) return
-      titled = true
-      edit.removeNode(node)
+      if (!titled && node.depth === 1) {
+        titled = true
+        edit.removeNode(node)
+        return
+      }
+      if (node.depth !== 2 || edit.parent(node)?.type !== "root") return
+      if (folded === 0) reading.sections.push(h2)
+      h2 += 1
+    },
+    paragraph: (node, edit) => measure(node, edit.parent(node)),
+    list: (node, edit) => measure(node, edit.parent(node)),
+    table: (node, edit) => measure(node, edit.parent(node)),
+    blockquote: (node, edit) => measure(node, edit.parent(node)),
+    footnoteDefinition() {
+      reading.notes += 1
     },
     link(node, edit) {
-      const [target = "", fragment] = node.url.split("#")
-      if (/^[a-z][a-z0-9+.-]*:/i.test(node.url) || /^[#/]/.test(node.url) || !target.endsWith(".md")) return
-      const id = idFrom(page, target)
-      edit.setField(node, "url", hrefOf(id) + (fragment ? `#${fragment}` : ""))
+      const href = siteHref(page, node.url)
+      if (href === node.url) return
+      edit.setField(node, "url", href)
+      const target = node.url.split("#")[0] ?? ""
       const [words] = node.children
       if (node.children.length !== 1 || words?.type !== "text") return
       if (words.value !== target && words.value !== path.posix.basename(target)) return
+      const id = idFrom(page, target)
       const title = titleIn(id, fs.readFileSync(path.join(DOCS, `${id}.md`), "utf8"))
       edit.setField(node, "children", [{ type: "text", value: title }])
     },

@@ -51,7 +51,7 @@ The top level of a record is closed, and `custom` is the one exception: any key 
 
 [^omit]: Field order is the table's order, on every write. An absent field is omitted, never written as `null` or `[]`. Required means the record is refused without it. Each field has its own entry in the closed block at the foot of this page.
 
-[^closed]: A key this format has no meaning for is a `bad-record` naming it, so a typo'd `titel` is caught rather than kept. `custom` is an exception in one direction only: the field is declared, what goes inside it is not. A key that holds something is written; nothing gives a key a meaning, so a URL is a string that looks like a URL.
+[^closed]: A key this format has no meaning for is a `bad-record` naming it, so a typo'd `titel` is caught rather than kept. `custom` is an exception in one direction only: the field is declared, what goes inside it is not. Nothing gives a key a meaning, so a URL is a string that looks like a URL.
 
 [^reads]: Nothing in olai reads a key inside `custom`. The journal reads `date`, the checkbox reads the marks, and the blocking graph reads `after`. A custom key is read by the person who wrote it, by `prop:` in a query ([search.md](search.md)), and by the run of chips drawn under a node's title ([editing.md](editing.md)).
 

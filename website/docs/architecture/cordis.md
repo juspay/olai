@@ -19,7 +19,7 @@ Importing a module from another plugin gives you its code, not that plugin's cur
 Taking a listener out of a registry does not stop a dispatcher that already copied the old list.[^gate] The bridge owns this order rather than leaving it to Effect:[^order]
 
 1. Close every gate of the departing activation synchronously.
-2. Begin cutting the calls already running, before services are revoked.
+2. Begin cutting the calls already running, before waiting for services to be revoked.
 3. Revoke its services and wait for dependent cleanup, while its resources still exist.
 4. Wait for running calls to finish before closing the resource scope, including when revocation fails.
 
@@ -33,7 +33,7 @@ A shorter implementation is better only if the same things own the same resource
 
 [^paper]: The [Cordis paper](https://arxiv.org/abs/2608.25512) splits composition into two questions: what a part needs to start, and what must be undone when it stops. Cordis resolves the dependencies; `@olai/effect-cordis` glues it to Effect, which owns scoped startup, interruption, dispatch and teardown ordering.
 
-    Registering a cleanup function does not prove it reverses the change, and no runtime can tell whether two pieces of application code are safe to interleave. Chat's outline references drop their value when outlines stops, while its conversations keep running.
+    Registering a cleanup function does not prove it reverses the change, and no runtime can tell whether two pieces of application code are safe to interleave. Chat's outline references stop and drop their value when outlines stops, while its conversations keep running.
 
 [^owners]: The consumer holds, never the provider. A factory removes duplicated code; it never looks a service up for its caller. The hold belongs to an activation: register it on the declaring component's scope with `Effect.acquireRelease`, and clear it by identity, so a stopped activation cannot take a replacement's value away.
 

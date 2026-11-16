@@ -8,7 +8,7 @@ Every reference points one way on disk; the reverse is derived.[^reverse] Three 
 
 | Written as | What it says |
 | --- | --- |
-| `see` | the free cross-reference: these belong together |
+| `see` | the free cross-reference: somebody thought the two belonged together |
 | `@<id>` in a title, note or body | a mention, if a record claims that id[^sigil] |
 | a `[…](…)` link | the address it names: node or file[^address] |
 
@@ -22,7 +22,7 @@ A pin is an ordinary node, in an ordinary outline, whose title is an address; th
 
 ## The kinds olai only shows
 
-Every served file is claimed by a live row in the vault-owned `vault.file-kinds` registry; unclaimed files are outside the set.[^registry] Outlines and `.md` files are written; hypertext, `.csv` files, pictures and `.pdf` files are only drawn.[^shown]
+Every served file is claimed by a live row in the vault-owned `vault.file-kinds` registry; unclaimed files are outside the set.[^registry] Four kinds are drawn, never written: hypertext, a `.csv`, a picture and a `.pdf`.[^shown]
 
 ## Hypertext
 
@@ -30,7 +30,7 @@ A `.html` file is hypertext: the sidebar lists it under its folder with its own 
 
 [^reverse]: One index answers the reverse reading, so the node page's backlinks, the document page's referrers and `outlines_read`'s `referencedBy` draw one list. A source referring twice is one referrer with two ways, out of `see`, `mention` and `link`. A reference to a placement is a reference to the node, and no record refers to itself.
 
-[^notref]: Three things are not a reference. A `mirror`: a placement says *draw it here too*, and where else a node is drawn is `outlines_read`'s `mirrors`. An `after` or a `blocks`: those are the ordering graph ([dates-and-status.md](dates-and-status.md)). A record in an `_olai/Trash.olai`: it is drawn on the Trash page and nowhere else.
+[^notref]: What is not a reference. A `mirror`: a placement says *draw it here too*, and where else a node is drawn is `outlines_read`'s `mirrors`. An `after` or a `blocks`: those are the ordering graph ([dates-and-status.md](dates-and-status.md)). A record in an `_olai/Trash.olai`: what is put away is drawn on the Trash page and nowhere else.
 
 [^sigil]: `@` is a tag sigil, so `@herbs` is a tag whether or not anything is called `herbs`. Whether a record claims that id is asked when the reference is read, so a node minted today turns every `@its-id` already written into one. A `#herbs` is never a reference.
 
@@ -64,7 +64,7 @@ A `.html` file is hypertext: the sidebar lists it under its folder with its own 
 
 [^named]: A bare address stores no name, so the shelf draws that node's title as it stands, and a file's pin is called by its own filename. A markdown link is a named pin, renamed by editing that row's text. A label keeps the words somebody chose, so a `#home` in it stays four characters.
 
-[^clicking]: Clicking a pin's label opens the address; clicking a bare address opens the editor. olai writes a name only when somebody typed one, and asks only about a page carrying a `?q=`. A title naming a place is drawn as that place in any outline, with the pin mark, the name and the query, in either spelling. The editor opens it exactly as stored.
+[^clicking]: Clicking a pin's label opens the address; clicking a bare address opens the editor. olai writes a name only when somebody typed one, and asks only about a page carrying a `?q=`. A title naming a place is drawn as that place in any outline, with the pin mark, the file's name and the query, in either spelling. The editor opens it exactly as stored.
 
 [^promise]: A pin promises the address somebody kept, and a node's name read live. It does not promise the target is still there.
 
@@ -133,7 +133,7 @@ A shelf spelling a node's own page as `/#<id>` is rewritten to `/zoom/#<id>` the
 </details>
 
 <details>
-<summary>Every kind olai claims, and the three it only draws</summary>
+<summary>Every kind olai claims, and the ones it only draws</summary>
 
 | Kind | Suffixes | Its page |
 | --- | --- | --- |

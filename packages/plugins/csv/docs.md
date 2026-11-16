@@ -20,7 +20,7 @@ A `.csv` is read only as far as the bounds below, so a huge export costs one pag
 
 No tool writes a `.csv`.[^tools]
 
-[^kind]: A `.csv` page is a look at somebody's export, not a grid you can type in. The format's own account of the kind is [documents and kinds](../documents-and-kinds.md).
+[^kind]: olai claims `.csv` files. A `.csv` page is a look at somebody's export, not a grid you can type in. The format's own account of the kind is [documents and kinds](../documents-and-kinds.md).
 
 [^scroll]: Reaching the table: press `Tab` to reach the region and the arrow keys to scroll it.
 

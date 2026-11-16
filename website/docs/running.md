@@ -35,15 +35,15 @@ One dot in the header covers everything that reports on the server.[^covers]
 | Colour | Means |
 | --- | --- |
 | green | all is well |
-| amber | writes waiting to be committed, a quiet watcher, a re-dialling connection |
-| red | a restart under the tab, a version skew, a fault |
+| amber | something wants attention: writes waiting to be committed, a watcher gone quiet, a connection re-dialling |
+| red | something is broken: the server restarted under the tab, a version skew, a fault |
 
 Click the dot for a popover with one row per readout.[^popover]
 
 ## When the connection drops
 
 The page freezes under a card and thaws by itself when the connection
-returns.[^cards] Two cards want a **Reload**.[^reload]
+returns.[^cards] Other cards ask you to press **Reload**.[^reload]
 
 ## Logging
 
@@ -66,10 +66,9 @@ Both follow the file live.[^live]
     a laptop and on a server and the two are distinct everywhere you meet them.
     The name is the machine's hostname, and `OLAI_HOSTNAME` overrides it.
 
-[^new]: New to olai? [start.md](start.md) serves a directory, writes a line
-    into it and lets git record it. Stopping the server, and what one directory
-    does with a second olai over it, are in the closed blocks at the foot of
-    this page.
+[^new]: New to olai? Start at [start.md](start.md). Stopping the server, and
+    what one directory does with a second olai over it, are in the closed
+    blocks at the foot of this page.
 
 [^read]: The directory is read recursively: every `.olai` outline and every
     `.md` document. olai does not descend into dot-directories or
@@ -107,9 +106,8 @@ Both follow the file live.[^live]
     dot: it shows a banner under the bar when there is news, and the
     Preferences and Plugins doors are rows at the foot of the sidebar drawer.
 
-[^cards]: The card says `Connection lost` / `Reconnecting…` while olai
-    re-dials, and the page thaws on its own. The first connect says
-    `Connecting…`.
+[^cards]: The card says `Connection lost` / `Reconnecting…`; wait, and the page
+    thaws on its own. The first connect says `Connecting…`.
 
 [^reload]: `The server restarted` / `Reload the page to keep working.` is
     recovered by a reload and nothing else. `Something went wrong on this page`

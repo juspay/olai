@@ -69,7 +69,7 @@ approve source nobody has read. Look again, read what it says, and approve that.
 <details>
 <summary>What olai tells you, and what it keeps quiet</summary>
 
-Three moments reach you wherever you are: as a system notification, as the sidebar's mark, and on the page.
+A plugin is a thing you ask for and walk away from, so three moments reach you wherever you are: as a system notification, as the sidebar's mark, and on the page.
 
 | Moment | What has happened |
 | --- | --- |

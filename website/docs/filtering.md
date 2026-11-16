@@ -52,7 +52,7 @@ Every page but a document filters, by the same grammar, address, count and refus
 
 [^history]: Typing in the filter box replaces the history entry rather than pushing one, so Back leaves the filter rather than un-typing it. Zooming into a row is a navigation and starts unfiltered; Back returns to the narrowed page.
 
-[^pin]: Pinning a page asks what to call the pin first: type a name and `Enter`, or press `Enter` alone for the bare pin, drawn as the page's own name with the query beside it.
+[^pin]: Choosing **Pin this page…** asks what to call the pin first: type a name and `Enter`, or press `Enter` alone for the bare pin, drawn as the page's own name with the query beside it.
 
     A saved search is a row in `Pins.olai` holding a link such as `[What is late](/agenda?q=is%3Atodo)`, so renaming it is editing that row, from the shelf's `✎` or in the file ([documents-and-kinds.md](documents-and-kinds.md)).
 

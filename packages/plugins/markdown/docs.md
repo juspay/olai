@@ -9,13 +9,13 @@ Top to bottom:
 | Part | What it is |
 | --- | --- |
 | the heading | the file's path, in a monospaced face |
-| **Edit** and **Delete…** | drawn together, for a file this serve holds |
+| **Edit** and **Delete…** | drawn together, and only for a file this serve holds |
 | the properties | one chip per frontmatter key, the value linking where it points |
 | **Contents** | the document's headings, open by default[^contents] |
 | the body | the document rendered |
 | **Referenced by `N` things** | who points here, under the body[^referrers] |
 
-A page says `Loading…` while its first reading is on its way.[^missing]
+A page says `Loading…` while its first reading arrives.[^missing]
 
 ## Edit a document
 
@@ -34,7 +34,7 @@ A heading link and a line of the contents both point at `/notes/plan.md#slug`.[^
 
 ## What is still there without it
 
-Switching `markdown` off takes away document pages and the document read and write procedures.[^off] Equally, switching off outlines or the files sidebar leaves a document page and its editor mounted and able to save.
+Switching `markdown` off takes away document pages and the document read and write procedures.[^off] Equally, switching off outlines or the files sidebar leaves a document page and its editor mounted and able to save.[^reverse]
 
 [^what]: What a document is, and how it is written, is [../documents-and-kinds.md](../documents-and-kinds.md).
 
@@ -61,6 +61,8 @@ Switching `markdown` off takes away document pages and the document read and wri
 [^pictures]: The first picture is fetched at once, the rest as you scroll near them. The same renderer draws outline notes and chat replies, so that holds per rendered block rather than per page.
 
 [^off]: Outline editing, the sidebar and open outline pages are untouched, and outline notes and chat messages keep rendering markdown text, which a static renderer draws rather than this row. Switching it back on reads the current files with fresh editor state, and an address navigation kept can draw its page again.
+
+[^reverse]: A document page and its editor stand without those rows because the vault supplies file access and navigation supplies the address.
 
 <details>
 <summary>What other plugins contribute</summary>

@@ -1,6 +1,6 @@
 # PDF files
 
-olai gives a `.pdf` file a page that hands the file to your browser's own viewer, in a tall frame the document scrolls inside.[^viewer]
+olai claims `.pdf` files and gives each one a page that hands the file to your browser's own viewer, in a tall frame the document scrolls inside.[^viewer]
 
 A browser that will not draw a PDF says `This browser can't show a PDF here.` and offers an `Open <file>` link to the file itself, which you can open in whatever does draw one.
 

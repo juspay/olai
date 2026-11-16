@@ -16,7 +16,7 @@ A mid-turn message queues, and says so: the adapter accepts it, announces *Queue
 
 ## What a turn looks like
 
-A conversation's open answers with a startup banner for editors, which olai draws once.[^banner] Shell output streams under its tool row with its exit status, and edits draw as diffs with `path:line` locations. An error inside a turn is silent.[^silent] The stored list answers in pages of fifty.[^stored] Memory is opt-in packages, and olai installs none.[^memory]
+A conversation's open answers with a startup banner for editors, drawn once.[^banner] Shell output streams under its tool row with its exit status, and edits draw fully, as diffs with `path:line` locations. An error inside a turn is silent.[^silent] The stored list answers in pages of fifty.[^stored] Memory is opt-in packages, and olai installs none.[^memory]
 
 ## Signing in, and when pi does not appear
 

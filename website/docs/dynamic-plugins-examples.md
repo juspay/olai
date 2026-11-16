@@ -12,7 +12,7 @@ The swatch dresses a `hex` property: a server half that teaches the kind, and a 
 
 Both are written out below, file by file, from the first `vault-plugins_inspect` to the press on **Turn on**.
 
-[^how]: How a plugin is written, approved and checked is [dynamic-plugins.md](dynamic-plugins.md). This page is the two paths end to end, in the words an agent is handed.
+[^how]: How a plugin is written, approved and checked is [dynamic-plugins.md](dynamic-plugins.md). This page is the two paths end to end.
 
 [^agenda]: The morning agenda needs no browser half, because it draws nothing: two files, a `README.md` and a `server.ts`. Nothing of it ships in olai, so a morning agenda somebody reads is written into their own directory by their own agent, or pasted from here.
 

@@ -1,6 +1,6 @@
 # Alerts
 
-Alerts is how olai reaches you when you are looking at something else: a notification, a short chime, and a count or a mark.[^raises]
+Alerts is how olai reaches you when you are looking at something else: a browser notification, a short chime, and a count or a mark.[^raises]
 
 ## The switches
 

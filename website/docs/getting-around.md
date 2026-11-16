@@ -42,7 +42,7 @@ On a desktop a strip of tabs sits above the page, and `Cmd` + `Shift` + `O` open
 
 [^panes]: `Alt` + `←` and `Alt` + `→` move focus only when you are not typing: they stay the text field's word jump while the caret is in a row, so press `Escape` first. An `Alt` + click on a link to a heading inside a document, or on a line of a document's contents, opens that document at the heading. `Cmd` + click, middle-click and `Shift` + click stay the browser's own, opening a new browser tab or window.
 
-[^pins]: Four doors pin a page, each one click back. **Pin to sidebar** in a row's menu pins that node's page, and the entry reads **Unpin from sidebar** once it is there. **Pin this page** in the palette pins the focused pane's page in one press, **Pin this page…** asks what to call a narrowed one first, and **Unpin this page** takes the focused page off. An empty shelf draws nothing at all.
+[^pins]: The doors that pin a page are each one click back. **Pin to sidebar** in a row's menu pins that node's page, and the entry reads **Unpin from sidebar** once it is there. **Pin this page** in the palette pins the focused pane's page in one press, **Pin this page…** asks what to call a narrowed one first, and **Unpin this page** takes the focused page off. An empty shelf draws nothing at all.
 
 [^shelf]: A pinned page is how a saved search is spelled here, and its query is drawn beside its name. A pinned node says its name now, because no copy of the title is stored beside the pin. The shelf is a `Pins.olai` in the served directory; olai mints `_olai/Pins.olai` the first time you pin something and never moves a shelf you already have. Open it like any outline and edit it ([documents-and-kinds.md](documents-and-kinds.md)).
 
@@ -60,7 +60,7 @@ On a desktop a strip of tabs sits above the page, and `Cmd` + `Shift` + `O` open
 
 [^capture]: A capture moves nothing: the page you were reading, your scroll and the address stay where they were, the line becomes a node, and the box empties for the next one. The palette says afterwards which line landed, and `Cmd` + `Z` takes a capture back. The **Capture to the Inbox** row in the palette is the same gesture: it types the `+` and leaves the caret after it.
 
-[^inboxfile]: The line lands at the top level of the `Inbox.olai` the directory already keeps, wherever that is, and a new `_olai/Inbox.olai` when it has none. Minting the file is part of the same operation as the line, so a capture that is refused leaves no file behind. The **Inbox** door opens whichever file that is.
+[^inboxfile]: The line lands at the top level of the `Inbox.olai` the directory already keeps, wherever that is, and a new `_olai/Inbox.olai` when it has none. Minting the file is part of the same operation as the line, so a capture that is refused leaves no file behind. The **Inbox** door in the sidebar opens whichever file that is.
 
 [^terminal]: `olai surface capture` sends a line from outside the browser: a shell, a Raycast script pointed at Mail.app, a cron job that noticed something ([connecting-agents.md](connecting-agents.md)). It writes to the same inbox, and the **Inbox** door lights up for it. What it carries that a palette capture cannot is in the closed block at the foot of this page.
 

@@ -44,7 +44,7 @@ On a phone, while any plugin has contributed a thumb, a bar named **Quick access
 
 The frame is drawn inside a fault boundary. A page that throws while rendering shows **Something went wrong on this page**, with `Your files are safe. Reload to try again.`[^fault]
 
-[^seats]: The frame owns the geometry and reserves the seats; what sits in each seat belongs to another plugin. What other plugins may contribute, and what the frame tells them, are in the closed block at the foot of this page.
+[^seats]: The header runs across the top, the sidebar's column down the left and the thumb bar along the foot of a phone. The frame owns the geometry and reserves the seats; what sits in each seat belongs to another plugin. What other plugins may contribute, and what the frame tells them, are in the closed block at the foot of this page.
 
 [^phone]: The burger sits before the wordmark, named **Show sidebar** or **Hide sidebar**. A phone draws no health dot: the connection and git's news appear as banners under the bar, and only when there is news.
 
@@ -89,7 +89,7 @@ The frame is drawn inside a fault boundary. A page that throws while rendering s
 | `app.viewer` | one occupant: who is looking |
 | `app.mount` | a provider wrapped around the frame |
 
-`layout.shell` carries what the frame knows: the breakpoint, whether each panel is open and how wide, which snap the mobile sheet is on, and the panel's drag handle. Name it on a component of your own. With no shell mounted its readings answer a phone-width viewport, a shut panel and an open sidebar, and its presses do nothing. `layout.deployment` carries this deployment's name and when it started, which the server gives the wordmark.
+`layout.shell` carries what the frame knows: the breakpoint, whether each panel is open and how wide, which snap the mobile sheet is on, and the panel's drag handle. Name it on a component of your own. With no shell mounted its readings answer a phone-width viewport, a shut panel and an open sidebar, and its presses do nothing. `layout.deployment` carries this deployment's name and when it started; the wordmark says that name once the server has given it.
 
 </details>
 

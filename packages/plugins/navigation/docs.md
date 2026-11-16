@@ -31,7 +31,7 @@ The pane a link is drawn in is the pane it acts on.[^pane] Back and Forward walk
 
 ## When a page cannot be opened
 
-A pane says `Loading…` while the directory is read, and `Finding…` while a reveal looks for the row's file.[^answering] Seven refusals name what went wrong, and each offers **Go home**.[^refusals]
+A pane says `Loading…` while the directory is read, and `Finding…` while a reveal looks for the row's file.[^answering] The closed block below lists the refusals.
 
 ## The palette
 
@@ -55,11 +55,9 @@ A plugin hands navigation a page, a palette row, a prefix, a preview or a chord.
 
     History is per document, so after a reload every entry written before it is dead, and each browser tab's history starts empty. Bringing a workspace forward is not a history step.
 
-[^answering]: A pane keeps the page it is drawing until the next one answers. Links, Back and search stay usable meanwhile, so you can leave a request that failed or is being held.
+[^answering]: A pane keeps the page it is drawing until the next one answers, with **Loading…** as the cue. Links, Back and search stay usable meanwhile, so you can leave a request that failed or is being held.
 
     Keystrokes are never buffered across pages: an edit aimed at a row of the page you have left is declined until the new reading arrives, and olai does not infer what you meant for the new one. Undo stays available throughout, since its inverse edits name their own subjects.
-
-[^refusals]: A refusal is either `Page not found`, for an address the directory cannot answer, or `This page can't be opened`, for a page whose plugin has left. Each carries a second line naming what was asked for. The closed block below lists all seven with their sentences.
 
 [^prefix]: A prefix is a character that takes the rest of the line, such as capture's `+`. Switch that plugin off and its character is ordinary query text again. Where two plugins ask for one character, the first keeps it and the clash is reported.
 

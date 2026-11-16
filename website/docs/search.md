@@ -231,6 +231,8 @@ When everything found is on screen the boxes say nothing at all, and **Files** w
 <details>
 <summary>Documents and the other files</summary>
 
+A search reaches both kinds of thing the directory holds, ranked together on one scale, so a document whose title holds your word outranks a node that only mentions it in a note.
+
 | A record is matched on | A document is matched on |
 | --- | --- |
 | `title`, what it calls itself | `title`: its first non-empty line without the heading marks, or its filename |

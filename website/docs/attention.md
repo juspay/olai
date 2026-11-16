@@ -14,17 +14,17 @@ Three rows under **Notifications** in preferences decide it, and all three start
 
 ## What you have not read yet
 
-An agent that answers while you are away leaves a mark where you will meet it.[^mark] Two places carry it, the conversation's row in **Chats** and the tab.[^places] What clears it is looking.[^clears] Two limits come with that.[^limits] Your reading is not reported anywhere.[^private]
+An agent that answers while you are not looking at its conversation leaves a mark.[^mark] Two places carry it, the conversation's row in **Chats** and the tab.[^places] What clears it is looking.[^clears] Two limits come with that.[^limits] Your reading is not reported anywhere.[^private]
 
 ## What this conversation wakes on
 
-A plugin can put a message into a conversation, and you decide which.[^wakes] Under the tools strip, one row per plugin says what a wake would be about and what you chose; the three are listed below.[^picker]
+A plugin can put a message into a conversation, and you decide which conversation it may put one into.[^wakes] Under the tools strip, one row per plugin says what a wake would be about and what you chose.[^picker]
 
 ## Reading what a machine said
 
 A plugin's message sits in the left column, drawn as prose.[^machine] It is one line until you ask for the rest.[^open] A sentence arriving mid-turn waits for the turn to end.[^queued]
 
-[^form]: A question stops the turn, and the turn does not carry on by itself. The question arrives as a form in the conversation, and each one keeps its own draft answer, so switching between agents or folding the conversation leaves an unfinished answer where it was.
+[^form]: A question stops the turn, and the turn does not carry on. The question arrives as a form in the conversation, and each one keeps its own draft answer, so switching between agents or folding the conversation leaves an unfinished answer where it was.
 
 [^front]: With the conversation in front of you, the form appearing is the whole of it. The box says the agent is waiting on you. That counts another tab of the same olai: the tab you are reading says so to the others, so a tab behind it stays quiet about a form you are looking at. A different olai, on another address, is not caught by that and goes on telling you.
 
@@ -32,7 +32,7 @@ A plugin's message sits in the left column, drawn as prose.[^machine] It is one 
 
 [^notification]: The system notification names the conversation and the question. Clicking it brings olai forward and opens the first agent in **Needs you** order on its own page, at the question. With nothing waiting it opens no page.
 
-[^icon]: The mark on the app's icon carries the count of agents waiting. A plain tab marks its name and its icon instead, since only an installed olai can badge an icon.
+[^icon]: The mark on the app's icon carries the count. A plain tab marks its name and its icon instead, since only an installed olai can badge an icon.
 
 [^clear]: Looking at the conversation acknowledges it and clears the mark. Dismissing the banner does not answer the question, and the mark stays until somebody looks.
 
