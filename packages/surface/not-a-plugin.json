@@ -9,6 +9,8 @@
     "src/attach.ts": 1
   },
   "files": {
+    "src/index.ts": 1,
+    "src/plugins.ts": 1,
     "src/projection.ts": 3
   },
   "image": {

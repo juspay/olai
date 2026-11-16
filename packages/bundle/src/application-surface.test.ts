@@ -418,16 +418,17 @@ test("the roster cell is read-only and the switch is the procedure beside it", (
  * merge and so nothing left to get wrong — which is why this case asserts the
  * SEPARATION rather than the merge it replaced.
  */
-test("the definitions row's plugin verbs are its own, and core's are core's", () => {
-  expect(DEFINITIONS).toContain("surface/vault-plugins/plugins/inspect")
-  expect(DEFINITIONS).toContain("surface/vault-plugins/plugins/run")
-  expect(DEFINITIONS).toContain("surface/vault-plugins/plugins/stop")
-  expect(DEFINITIONS).toContain("surface/vault-plugins/plugins/approve")
+test("the vault-plugins row's plugin verbs are its own, and core's are core's", () => {
+  // EIGHT now: the agent's five — how to write one, what may be named, write a
+  // file, what became of it, stop it — and the person's three, which are the
+  // only ones that turn code on or ask an agent for anything.
+  const VERBS = ["guide", "inspect", "write", "run", "stop", "approve", "mint", "ask"]
+  for (const verb of VERBS) expect([verb, DEFINITIONS.has(`surface/vault-plugins/plugins/${verb}`)]).toEqual([verb, true])
   // The row mints neither of core's, and core mints none of the row's — which
   // is what one hand-merged group made impossible to state.
   expect(DEFINITIONS.has("surface/plugins/set")).toBe(false)
   expect(DEFINITIONS.has("surface/plugins/get")).toBe(false)
-  for (const verb of ["inspect", "run", "stop", "approve"]) {
+  for (const verb of VERBS) {
     expect([verb, CORE.has(`surface/plugins/${verb}`)]).toEqual([verb, false])
   }
 })

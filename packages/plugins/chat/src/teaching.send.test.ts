@@ -38,7 +38,7 @@ import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat, type Panel } from "./chat.ts"
 import { type LocalHarness, localHarness } from "./local.testlib.ts"
 import { forLocalState as sessionsIn } from "./sessions.ts"
-import { REMINDING, teachingFor } from "./teaching.ts"
+import { lines, REMINDING, teachingFor } from "./teaching.ts"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "teaching-agent.ts")
 
@@ -339,6 +339,66 @@ describe("an agent-associated session is taught, once", () => {
       await settle()
       expect(notices(seat)).toEqual([])
       expect(overheardIn("sess-1")?.["taught"]).toBeUndefined()
+    })
+  }, 20_000)
+})
+
+describe("... and told, once, what the row that opened it wants it to know", () => {
+  /** The sentences a plugin builder hands over, on the one seam they may ride
+   *  ({@link ./teaching.ts}'s `lines`, which is what this row's provision
+   *  behind core's `conversations` key spells them with before a send). */
+  const PREAMBLE = lines([
+    "You are building the plugin in plugins/timer.",
+    "Write server.ts first, then browser.tsx.",
+  ])
+
+  test("the preamble rides the first message, UNDER the contract and in the same notice", async () => {
+    await withChat(async (seat) => {
+      await run(seat.chat.send("make a start", [], [], false, PREAMBLE))
+      await settle()
+
+      const [said] = heard(seat)
+      expect(said).toContain("make a start")
+      // The law the conversation IS, then the job it was opened for — and the
+      // person's own words above both, which is what the seam is for.
+      expect(said).toContain(LAW)
+      expect(said).toContain(PREAMBLE[0] as string)
+      expect(said?.indexOf(LAW)).toBeLessThan(said?.indexOf(PREAMBLE[0] as string) ?? -1)
+
+      // ONE notice, carrying both — because they are one telling, written down
+      // under one mark.
+      expect(notices(seat)).toEqual([[...teachingFor(SPACES), ...PREAMBLE].join("\n")])
+      expect(overheardIn("sess-1")?.["taught"]).toBe(true)
+    })
+  }, 20_000)
+
+  test("and NEVER twice — a caller that passes it again says nothing again", async () => {
+    // The rule this door inherits rather than re-implements: the preamble goes
+    // where the contract goes, so the mark that stops a session being taught
+    // twice stops this too. A reopened conversation is a taught conversation,
+    // and a caller holding the lines cannot talk its way past that.
+    await withChat(async (seat) => {
+      await run(seat.chat.send("make a start", [], [], false, PREAMBLE))
+      await settle()
+      await run(seat.chat.send("carry on", [], [], false, PREAMBLE))
+      await settle()
+
+      expect(notices(seat)).toHaveLength(1)
+      const [, second] = heard(seat)
+      expect(second).toContain("carry on")
+      expect(second).not.toContain("[olai]")
+    })
+  }, 20_000)
+
+  test("a conversation no node claims hears neither the contract nor the preamble", async () => {
+    // The preamble is a node agent's briefing: nothing is taught for a
+    // conversation the set does not declare, so nothing rides with it either.
+    claimed = []
+    await withChat(async (seat) => {
+      await run(seat.chat.send("make a start", [], [], false, PREAMBLE))
+      await settle()
+      expect(notices(seat)).toEqual([])
+      expect(heard(seat)[0]).not.toContain("[olai]")
     })
   }, 20_000)
 })

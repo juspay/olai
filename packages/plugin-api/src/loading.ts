@@ -7,7 +7,11 @@ import { Effect, Exit, Scope } from "effect"
 export interface Catalog {
   readonly names: () => ReadonlyArray<string>
   readonly rows: (reports: ReadonlyMap<string, RowReport>) => ReadonlyArray<unknown>
-  readonly set: (name: string, enabled: boolean) => Effect.Effect<boolean>
+  /** A catalog's switch WRITES — a vault plugin's `on` is a property in the
+   *  settings file, like a built row's — so it refuses the way the write door
+   *  refuses, and the press carries the sentence back rather than reporting a
+   *  flip that never landed. */
+  readonly set: (name: string, enabled: boolean) => Effect.Effect<boolean, OpFailure>
   readonly configure: (name: string, key: string, value: string | null) => Effect.Effect<boolean, OpFailure>
 }
 export interface OwnedLoader {

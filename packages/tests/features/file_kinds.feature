@@ -91,8 +91,8 @@ Feature: File kinds follow their claiming rows
   Scenario: Navigation withdrawal removes the tree and rail while the PDF glyph component survives
     Given the vault defines a non-UI host management controller
     And I open the address "/reports/q3.pdf"
-    And I open the plugins panel
     And I approve the plugin "management-controller"
+    And I open the plugins panel
     And I close the plugins panel
     And I mark the page
     When the non-UI controller sets plugin "navigation" off

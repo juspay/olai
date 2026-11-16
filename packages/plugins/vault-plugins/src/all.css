@@ -1,0 +1,19 @@
+/* THIS ROW'S SHEET, and it is here for ONE reason: Tailwind emits only the
+ * utilities it can SEE.
+ *
+ * `@olai/web`'s own stylesheet points at the app's tree, and every face this
+ * row draws — the sidebar's section, the plugin's page, its code block, its
+ * phone foot — lives out here under `packages/plugins/vault-plugins/`. With no
+ * `@source` pointing at this directory those classes are simply not in the
+ * built sheet, and nothing errors: what ships is a page with no box, no ink
+ * and no spacing. The chain that reaches this file is generated from the same
+ * `olai.yml` rows the server mounts (`@olai/bundle`'s `all.css` carries the
+ * argument).
+ *
+ * NO RULES OF ITS OWN, and that is deliberate. The two faces this row borrows
+ * are the inspector's knob (`olai-plugin-plugin-inspector/control`, whose
+ * `.plugins-knob*` rules are in that row's own sheet) and the markdown
+ * pipeline the README is rendered through — both already in the chain, both
+ * owned by the package that draws them. A copy of either here would be a
+ * lookalike that drifts the first time one is restyled. */
+@source "./";

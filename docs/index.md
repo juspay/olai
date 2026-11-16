@@ -34,8 +34,8 @@ New here? [start.md](start.md) gets you running on your own notes in about five 
 | [documents-and-kinds.md](documents-and-kinds.md) | Documents, references, pins, and the file kinds olai only shows. |
 | [validation.md](validation.md) | What a write is refused for, and what each error says. |
 | [live-properties.md](live-properties.md) | Properties whose value updates on its own, and the two shapes a live face takes. |
-| [dynamic-plugins.md](dynamic-plugins.md) | Writing a plugin into the served directory: the shape, the imports allowed, and approval. |
-| [dynamic-plugins-examples.md](dynamic-plugins-examples.md) | Two worked examples, start to finish: a morning agenda, and a face. |
+| [dynamic-plugins.md](dynamic-plugins.md) | Asking for a plugin of your own: the folder under `plugins/`, turning it on, and writing one. |
+| [dynamic-plugins-examples.md](dynamic-plugins-examples.md) | Two worked plugins, start to finish: a morning agenda, and a face. |
 
 ## Plugins
 
@@ -65,7 +65,7 @@ The five agents the chat panel can run. What a conversation is, for all of them,
 | [plugins/identity.md](plugins/identity.md) | Who is looking: trusted header names and the `captured-by` chip. |
 | [plugins/git.md](plugins/git.md) | The commit ledger and its `commit` / `push` policy. |
 | [plugins/search.md](plugins/search.md) | The query matcher, and what still works when it is switched off. |
-| [plugins/vault-plugins.md](plugins/vault-plugins.md) | Discovery, approval, and activation of plugins defined in the served directory. |
+| [plugins/vault-plugins.md](plugins/vault-plugins.md) | The plugin folders a directory holds: reading them, approving them, and their pages. |
 
 ### Integrations
 

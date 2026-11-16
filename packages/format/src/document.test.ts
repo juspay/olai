@@ -17,7 +17,9 @@ import { linksIn } from "./documents.ts"
 import { derive, tagsIn } from "./derive.ts"
 import { matching, matchingDocuments, parseFilter, rankedTogether } from "./filter.ts"
 import { recordsOf, setOf } from "./fixtures.testlib.ts"
-import { bodiedIn, markdownIn, type OutlineSet } from "./set.ts"
+import { bodyOf } from "./document.ts"
+import { markdownPaths } from "./rules.ts"
+import { bodiedIn, markdownAt, markdownIn, type OutlineSet } from "./set.ts"
 import { reading } from "./validate.ts"
 
 /** The day every query below is asked on — a constant, so nothing here is a
@@ -304,4 +306,80 @@ test("a referrer written in an archive is left out", () => {
     [["brief.md", "# Brief\n"]],
   )
   expect(referringTo(set, "brief.md")).toEqual([])
+})
+
+// ── a body the set keeps and nothing reads ─────────────────────────────
+//
+// The claim table's sixth row is code (`./kinds.ts`'s `opaque`), and these
+// hold the two halves of what that means apart: the bytes are HERE, and every
+// reading of them is not. The source is the fixture's own shape — an import
+// line, a `#`-word in a comment, a hex colour, a relative link and a `---`
+// block — because each one is a field of the face this used to fill in.
+const HALF = [
+  "---",
+  "owner: nobody",
+  "---",
+  `import { definePlugin, Kinds } from "@olai/plugin-api"`,
+  "",
+  "// see #todo, and the swatch draws #ff8800",
+  "// the brief is [here](../../brief.md)",
+  "",
+  "# register",
+  "",
+  `export default definePlugin({ name: "swatch" })`,
+  "",
+].join("\n")
+
+const FOLDER = (): OutlineSet =>
+  setOf({ "house.olai": `{"id":"n","ord":"a0","title":"the house"}\n` }, [
+    ["plugins/swatch/server.ts", HALF],
+    ["plugins/swatch/README.md", "# Swatch\n\nA colour swatch. #home\n"],
+    ["brief.md", "# Brief\n"],
+  ])
+
+test("a kept body that is not prose has an empty face and the filename for a title", () => {
+  const half = bodiedIn(FOLDER()).find((one) => one.path === "plugins/swatch/server.ts")
+  // The FILENAME, which is what the sidebar, the Commit panel and the plugin's
+  // own page already call it — never the first line, which here is a `---`
+  // and one line later an import.
+  expect(half?.title).toBe("server")
+  // Not `#todo`, not `#ff8800`: a vault's tags are what somebody wrote in
+  // prose, and this is a comment in TypeScript.
+  expect(half?.tags.map(String)).toEqual([])
+  expect(half?.links.map(printAddress)).toEqual([])
+  // A `---` block at the top of a TypeScript file is not a record about it.
+  expect(half?.props).toEqual({})
+  expect(half?.holds === "text" && half.kept && half.headings.map(String)).toEqual([])
+})
+
+test("a kept body that is not prose still carries its body", () => {
+  const set = FOLDER()
+  const half = bodiedIn(set).find((one) => one.path === "plugins/swatch/server.ts")
+  // The whole point of `kept`: the write gate, the Commit panel and the page
+  // that draws the source all read this, and none of them is a document list.
+  expect(bodyOf(half!)).toBe(HALF)
+  expect(half?.holds === "text" && half.kept && half.bytes).toBe(new TextEncoder().encode(HALF).length)
+  expect(markdownAt(set, "plugins/swatch/server.ts")?.body).toBe(HALF)
+})
+
+test("a kept body that is not prose is in no document list", () => {
+  const set = FOLDER()
+  // `markdownIn` is what `markdown_index` answers with, what a near miss
+  // offers and what a declared `doc` property may point at. The README beside
+  // the half is a document like any other, which is what makes this a list
+  // and not a folder being hidden.
+  // `String(…)` because a document's path is BRANDED: the list is compared
+  // against the plain strings a reader would write, not against a cast.
+  expect(markdownIn(set).map((one) => String(one.path)))
+    .toEqual(["brief.md", "plugins/swatch/README.md"])
+  expect(markdownPaths(set).has("plugins/swatch/server.ts")).toBe(false)
+  // ...and it is out of the walk a search runs over the BODIED files, where a
+  // `.html` answers by its path. Its own path holds the word somebody typed.
+  expect(selected(set, "swatch")).toEqual(["plugins/swatch/README.md"])
+  expect(selected(set, "definePlugin")).toEqual([])
+  expect(selected(set, "#ff8800")).toEqual([])
+  expect(selected(set, "prop:owner")).toEqual([])
+  // The prose beside it reads exactly as it always did, so what is asserted
+  // above is the claim's flag and not a folder nothing looks in.
+  expect(selected(set, "#home")).toEqual(["plugins/swatch/README.md"])
 })

@@ -49,8 +49,10 @@ Feature: A promoted setting is not a control here
     # them, which is one press instead of two.
     Given the vault defines a row opener
     And I open the outline "house.olai"
-    And I open the plugins panel
+    # Approving walks to the plugin's page and back, so the panel is opened on
+    # the other side of it.
     And I approve the plugin "row-opener"
+    And I open the plugins panel
     When the controller opens the plugin row "git"
     Then the preferences are open
     And the preference "plugin-git-commit" is drawn under the heading "Git"

@@ -343,6 +343,8 @@
   .plugoff .plugswitch { background: var(--rule); }
   .plugoff .plugswitch::after { right: auto; left: 2px; }
   .plugoff .plugname { color: var(--muted); }
+  .tree { margin-top: 0; }
+  .tree i { font-style: normal; color: var(--muted); }
 
   #agent {
     background: #0D1120; color: #D7E7F6;
@@ -653,20 +655,43 @@
 <details class="pluggroup"><summary><span class="plugchev">▶</span><span>Notes</span><span>19 on</span></summary></details>
 <details class="pluggroup"><summary><span class="plugchev">▶</span><span>Connections</span><span>6 on · 1 off</span></summary></details>
 <details class="pluggroup"><summary><span class="plugchev">▶</span><span>Interface</span><span>10 on</span></summary></details>
+<details class="pluggroup" open><summary><span class="plugchev">▶</span><span>Your plugins</span><span>2 on</span></summary>
+<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">Hex swatch</span><span class="plugswitch" aria-label="Enable hex-swatch"></span></div>
+<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">Morning agenda</span><span class="plugswitch" aria-label="Enable morning-agenda"></span></div>
+</details>
 <details class="pluggroup"><summary><span class="plugchev">▶</span><span>Server</span><span>laptop</span></summary></details>
       </div>
     </div>
-    <div>
-        <p>An agent can write a plugin into your own directory. You read the
-        source on the panel and approve it before it runs. The worked example is
+    <div class="cols">
+      <div>
+        <p><strong>Ask for one.</strong> Press ⌘K, say in one sentence what it
+        should do, and an agent writes it while you watch. When it is ready you
+        read what it does and press <b>Turn on</b>, and it starts drawing in the
+        page you are on. No reload, no install, no build. The worked example is
         a morning agenda: each morning it reads the day and puts it into the
         conversation.
         <a href="https://github.com/juspay/olai/blob/master/docs/dynamic-plugins-examples.md#the-morning-agenda">Read the morning agenda</a>.</p>
-        <p>Your settings travel with your notes. A top-level row in
+        <p>What you are left with is a folder in your own directory: a README
+        anybody can read, and the code. Git records every line of it. Copy it
+        elsewhere and it arrives switched off, waiting for that directory’s own
+        yes.</p>
+        <p>Your settings travel with your notes, and a plugin you asked for
+        keeps its own there with everything else. A top-level row in
         <code>_olai/Settings.olai</code> names each plugin; its properties choose
         how it behaves and whether it runs. The panel writes the same file.
         See the
         <a href="https://github.com/juspay/olai/blob/master/docs/settings.md">settings docs</a>.</p>
+      </div>
+      <pre class="tree" aria-label="A plugin in your directory: a folder holding a README, the server half and the browser half">my-notes/
+├── plugins/
+│   └── hex-swatch/
+│       ├── README.md     <i>what it does, for people</i>
+│       ├── server.ts     <i>what runs on the server</i>
+│       └── browser.tsx   <i>what draws in the page</i>
+├── _olai/
+│   └── Settings.olai     <i>hex-swatch: on, approved</i>
+├── colours.olai
+└── kitchen.olai</pre>
     </div>
     <div class="tablewrap">
       <table class="plug">
@@ -707,7 +732,7 @@
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/pins.md">pins</a></td><td>The pinned shelf.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/capture.md">capture</a></td><td>The inbox, and + in the palette.</td><td>on</td></tr>
           <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/trash.md">trash</a></td><td>What you threw away.</td><td>on</td></tr>
-          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/vault-plugins.md">vault-plugins</a></td><td>Plugins an agent wrote into this vault.</td><td>on</td></tr>
+          <tr><td><a href="https://github.com/juspay/olai/blob/master/docs/plugins/vault-plugins.md">vault-plugins</a></td><td>The plugins you asked for, in this directory’s own folder.</td><td>on</td></tr>
         </tbody>
       </table>
     </div>

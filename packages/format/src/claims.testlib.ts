@@ -8,4 +8,12 @@ export const TEST_CLAIMS = claims([
   { kind: "csv", exts: [".csv"], holds: "text", kept: false, fetched: false, noun: "table", article: "a" },
   { kind: "image", exts: [".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".bmp", ".ico", ".svg"], holds: "bytes", kept: false, fetched: true, picture: true, inert: [".svg"], noun: "image", article: "an" },
   { kind: "pdf", exts: [".pdf"], holds: "bytes", kept: false, fetched: true, noun: "PDF", article: "a" },
+  // THE ONE SCOPED CLAIM in the tree, here so every reader benched against
+  // this table is benched against a claim that is NOT just a suffix: `.ts`
+  // under `plugins/` is a plugin's half, and `.ts` anywhere else in a vault is
+  // somebody's checkout and nothing olai holds (`./kinds.ts`'s `Claim.under`).
+  // It is also the one claim whose kept text is NOT prose (`Claim.opaque`), so
+  // a reader that reads a body nothing has read is caught here rather than in
+  // a vault with a plugin in it.
+  { kind: "vault-plugins", exts: [".ts", ".tsx"], holds: "text", kept: true, fetched: false, noun: "plugin half", article: "a", under: "plugins/", elsewhere: true, opaque: true },
 ])

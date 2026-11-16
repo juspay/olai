@@ -44,7 +44,7 @@
   },
   "markdown": {
     "src/dates.ts": 1,
-    "src/document.ts": 7,
+    "src/document.ts": 8,
     "src/filter.ts": 2,
     "src/incremental.ts": 2,
     "src/index.ts": 3,

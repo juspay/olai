@@ -139,6 +139,7 @@ Each served file is claimed by a live row in the vault-owned `vault.file-kinds` 
 | CSV | `.csv` | [a table](#a-csv) |
 | Image | nine picture suffixes, `.svg` among them | [the picture](#a-picture) |
 | PDF | `.pdf` | [the browser's viewer](#a-pdf) |
+| Vault plugins | `.ts` and `.tsx`, under `plugins/` alone | the plugin's own page ([dynamic-plugins.md](dynamic-plugins.md)) |
 
 A plugin may claim more, as hledger does for its journal suffixes ([plugins/hledger.md](plugins/hledger.md)). A picture is the one kind with a list of suffixes: `.png` and `.webp` are two encodings of one thing.
 

@@ -95,8 +95,8 @@ that is found and fails.
 ## What the suite covers
 
 One row per group of feature files. The count is Gherkin entries, where an
-outline counts once: 2,332 entries in 296 feature files, which Cucumber runs as
-about 2,485 cases. `tabs/switch_benchmark.feature` carries `@skip` and stays
+outline counts once: 2,379 entries in 302 feature files, which Cucumber runs as
+about 2,533 cases. `tabs/switch_benchmark.feature` carries `@skip` and stays
 out of the default run.
 
 | Workflow | Entries | What it proves |
@@ -131,7 +131,8 @@ out of the default run.
 | Tool servers | 37 | Which servers a conversation names, one that fails to start, and an agent outside olai reaching it over `/mcp`. |
 | The agent's browser | 16 | The agent attaching to the Chromium olai launched, the address bar, and what a tool call does to the page. |
 | Terminals and CI runs | 34 | A property that opens a live terminal, its target changing, kolu switched off with a screen open, and a lane's run. |
-| Plugins, settings and doors | 85 | Rows switched off and on, settings files and their policy, a plugin the directory defines, transports, and failures. |
+| Plugins, settings and doors | 74 | Rows switched off and on, settings files and their policy, transports, and failures. |
+| A plugin the directory defines | 58 | Asking for one and watching it built, its page in every state, turning it on, trust and delete, its knobs, the sidebar section and what rings. |
 | Preferences, theme and identity | 68 | The three headings, theme and font, promoted plugin settings, forced colours, and who the proxy says you are. |
 | The shell, on desk and phone | 60 | The header, the health dot, the thumb bar, chords, reduced motion, and an entry point that fails to load. |
 | Staying live | 23 | Going offline and reconnecting, writes from outside, a half-open socket, and drafts that survive an outage. |

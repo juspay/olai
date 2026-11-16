@@ -101,7 +101,7 @@ A conversation verb that names a conversation you are not looking at is refused 
 
 ## What waits on this row
 
-Every plugin that can reach a conversation names one of five doors this row stands behind.
+Every plugin that can reach a conversation names one of seven doors this row stands behind.
 
 | Door | What it is | Who names it |
 | --- | --- | --- |
@@ -110,6 +110,22 @@ Every plugin that can reach a conversation names one of five doors this row stan
 | `session-start` | What to ask this host when a conversation opens. | kolu, odu |
 | `chat.seating` | The durable nodes, engines and sessions over one vault reading. | [xyne-spaces](xyne-spaces.md) |
 | `watching` | What a plugin that mirrors a conversation is told. | xyne-spaces |
+| `conversations` | Starting one, speaking into it, and which agents can be started. | [vault-plugins](vault-plugins.md) |
+| `chat.dock` | Putting one beside the page, and whether this viewport has a seat. | vault-plugins |
+
+`conversations` is core's own key rather than this row's, and chat is the
+provider standing behind it while it is up. A consumer names core's broker and
+is handed the door, or nothing, per call, so a plugin that can live without
+chat is not held waiting by it.
+
+It carries three verbs. `open` mints the node, binds it and sends a first
+message. `say` speaks into one that is already there. `engines` says what this
+machine can start. There is no reading verb: a plugin may start a conversation
+and talk to it, never hold a copy of what it said.
+
+`chat.dock` is offered by chat's panel component rather than by the row, so a
+serve with no desktop shell leaves a consumer waiting on the key instead of
+handing it a door that does nothing.
 
 A serve with no chat row leaves all of them waiting, and the plugins panel says so per row, naming the account. That is a legitimate state the runtime resolves the moment the door arrives.
 

@@ -1,10 +1,12 @@
 # Two plugins to write into your directory
 
-Two definitions you can paste, approve and watch run: one that does something on a clock, and one that draws something on a row. How a definition is written, approved and checked is [dynamic-plugins.md](dynamic-plugins.md); this page is the two paths end to end.
+Two plugins you can paste, turn on and watch run: one that does something on a clock, and one that draws something on a row. How a plugin is written, approved and checked is [dynamic-plugins.md](dynamic-plugins.md); this page is the two paths end to end.
+
+<!-- guide:start -->
 
 ## The morning agenda
 
-A plugin that reads the journal's agenda each morning and puts it into a node agent's own conversation — a service somebody else offers, a clock and a sentence.
+A plugin that reads the journal's agenda each morning and puts it into a node agent's own conversation: a service somebody else offers, a clock and a sentence.
 
 ### 1. Ask what you may name
 
@@ -21,21 +23,39 @@ Call `vault-plugins_inspect`. It lists service records by half: a server-owned k
 
 `journal.agenda` is the journal row's own key ([plugins/journal.md](plugins/journal.md)). Naming it in `needs` is all a consumer does: the plugin waits while the journal is switched off, saying so on its row, activates when the journal returns, and unloads if it leaves.
 
-### 2. Write the definition node
+### 2. Make the folder
 
-Add a row titled whatever you like with the property `plugin: morning-agenda`, and one child titled `server.ts`. There is no browser half: this plugin draws nothing.
+Two files, because this plugin draws nothing and a plugin with no face needs no browser half:
 
-### 3. Paste the half into the child's note
+```
+plugins/morning-agenda/
+  README.md
+  server.ts
+```
 
-A plugin your directory defines cannot import `@olai/format`, so it spells the fields it reads and the provider's own types satisfy them structurally. The string key names a dependency; it does not check a shape.
+`README.md` is what a person reads on the plugin's page:
+
+```md
+# Morning agenda
+
+Puts what is overdue and what is on today into your agent's conversation, once each morning.
+```
+
+### 3. Write `server.ts`
+
+Write each file with `vault-plugins_write`, which answers whether that half compiles in the same reply. A plugin your directory defines cannot import `@olai/format`, so it spells the fields it reads and the provider's own types satisfy them structurally. The string key names a dependency; it does not check a shape.
+
+`server.ts`:
 
 ```ts
 import { Clock, definePlugin, Deliveries, serviceTag, Vault } from "@olai/plugin-api"
 import { Effect, Schedule } from "effect"
 
-// WHEN, and HOW OFTEN THIS LOOKS. The source is the configuration — a plugin a
-// vault defines has no settings file — so changing either is an edit, and an
-// edit is a fresh approval.
+// WHEN, and HOW OFTEN THIS LOOKS. Kept in the source rather than in a `Config`,
+// which is a choice and not an oversight: a knob is a thing the owner can move
+// without reading code again, and the hour somebody wants their morning at is
+// exactly that. Left here, changing either is an EDIT — and an edit is a fresh
+// approval.
 //
 // THE HOUR IS THE SERVER'S OWN, which is the machine olai is serving from and
 // not the machine you are reading on: `Clock` answers an instant and `Date`
@@ -135,9 +155,9 @@ export default definePlugin({
 })
 ```
 
-### 4. Approve it, and read what happens
+### 4. Turn it on, and read what happens
 
-Open the plugins panel, read the half under **Needs attention**, and press **Approve this version**. The row moves to **Your plugins** and says `running`.
+Call `vault-plugins_run` when the folder is whole: that is what tells the person it is ready. They open its page at `/plugins/morning-agenda`, read it, and press **Turn on**.
 
 - From seven o'clock, by the serving machine's own clock, every node agent with a live session is handed one message naming what is overdue and what is on today ([node-agents.md](node-agents.md)).
 - A morning that reached nobody has not passed: `said` is set only after a delivery went out, so a serve with no conversation open at seven still says it when one is opened.
@@ -147,13 +167,22 @@ Open the plugins panel, read the half under **Needs attention**, and press **App
 
 ## A swatch beside a colour
 
-A dressing for a `hex` property. Where the first example does something, this one draws something, which is the other half of what a definition can be.
+A dressing for a `hex` property. Where the first example does something, this one draws something, which is the other half of what a plugin can be.
 
-### 1. Write the definition node
+### 1. Make the folder
 
-Add a row with the property `plugin: swatch` and two children, titled `server.ts` and `browser.tsx`. Both halves declare the same `name`, and it has to be the word the `plugin` property carries: a half signed with another word would be a fiber bound under a name no row draws.
+```
+plugins/swatch/
+  README.md
+  server.ts
+  browser.tsx
+```
 
-### 2. Paste the server half, which teaches the kind
+Both halves declare the same `name`, and it has to be the folder's own word: a half signed with another word is a fiber bound under a name nothing draws.
+
+### 2. Write the server half, which teaches the kind
+
+`server.ts`:
 
 ```ts
 import { definePlugin, Kinds } from "@olai/plugin-api"
@@ -169,7 +198,9 @@ export default definePlugin({
 })
 ```
 
-### 3. Paste the browser half, which draws the chip
+### 3. Write the browser half, which draws the chip
+
+`browser.tsx`:
 
 ```tsx
 import { definePlugin, Slots } from "@olai/plugin-api"
@@ -193,10 +224,11 @@ A face is handed a context, not a value. `outline.row.chip` takes a chip context
 
 > A face that reads `props.value` gets `undefined` and fails in the quietest way available: it compiles, it mounts, the row says `running`, and the chip is invisible. `vault-plugins_inspect` names the slots and the keys each one takes.
 
-### 4. Approve it, and put a colour on a row
+### 4. Turn it on, and put a colour on a row
 
-Approve both halves on the panel. The browser half's chunk loads without a reload, so the faces appear while you watch.
+Read the files on the plugin's page and press **Turn on**. The browser half's chunk loads without a reload, so the faces appear while you watch.
 
 - The kind's word is `swatch-hex`: a plugin contributes the bare word and the registry composes it with the plugin's own name, exactly as for a built plugin.
 - That composed word is claimed by the registration, so a property `swatch-hex: "#ff8800"` is held to the pattern and wears the swatch with no `_olai/Properties.olai` in your directory at all.
 - What you cannot do is declare it. A `type` in `_olai/Properties.olai` is judged against what the binary was built with, so `{"title":"colour","custom":{"type":"swatch-hex"}}` is refused. Use the claimed word as the key.
+<!-- guide:end -->

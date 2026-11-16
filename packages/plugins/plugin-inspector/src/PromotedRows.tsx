@@ -26,7 +26,7 @@ import { For, Show } from "solid-js"
 import { NO_ROSTER } from "@olai/surface"
 import type { BrowserManagement } from "@olai/surface/management"
 import { Row } from "@olai/ui-primitives/SettingRow.tsx"
-import { Control } from "./Control.tsx"
+import { Control } from "./contracts/Control.tsx"
 import { configurationFrozen, labelOf, promotedValues, rowValues } from "./rows.ts"
 
 export function PromotedRows(props: {

@@ -39,7 +39,7 @@ import { Context, Effect, Queue, Scope, Stream } from "effect"
 import { moduleFibers } from "./module.ts"
 import { hostActivations, interrupt, lastStartThrew, provideExclusive } from "./lifecycle.ts"
 import type { Plugin } from "./plugin.ts"
-import type { Provision, ServiceKey } from "./service.ts"
+import type { ConsumerLifetime, Provision, ServiceKey } from "./service.ts"
 
 /** Where a host hangs on its own Cordis root — a SYMBOL, which Cordis's reflect
  *  proxy passes straight through to the underlying object rather than routing
@@ -170,14 +170,36 @@ export const closeHost = (host: Host): Effect.Effect<void> => Effect.promise(() 
  * plugin and so cannot `yield*` a tag. The git row offers `Ledger`; ops.commit
  * calls through it and refuses when this answers `undefined`.
  *
- * The provision is called with `"core"`, which is not a plugin word: a
- * keyed door that stamped registrations from it would be a bug in that door,
+ * The provision is called with `"core"` by default, which is not a plugin word:
+ * a keyed door that stamped registrations from it would be a bug in that door,
  * and the ledger does not stamp.
+ *
+ * ## Why a lifetime may be passed through, and why it is OPTIONAL
+ *
+ * A broker is a provision over a provision: core stands behind a narrow key so
+ * that a row naming it does not go `waiting` when the optional provider is
+ * absent, and answers the real door per call. The facade hands the broker's own
+ * provision the CONSUMING activation's lifetime ({@link ConsumerLifetime}); if
+ * the broker then read the inner door without it, every per-consumer gate the
+ * inner provider built — "a row that has unloaded cannot have words land under
+ * its name" — would be read as "nobody said, so everybody is still here". The
+ * broker forwards what it was given, and the stamp and the gate reach the
+ * provider together.
+ *
+ * It stays optional because the OTHER caller of this door is a composition root
+ * reading a service from outside any activation. There is no lifetime to speak
+ * of there, and a provider's own default (always current) is the honest answer:
+ * core does not unload.
  */
-export const offered = <Shape>(host: Host, key: ServiceKey<Shape>, caller = "core"): Shape | undefined => {
+export const offered = <Shape>(
+  host: Host,
+  key: ServiceKey<Shape>,
+  caller = "core",
+  lifetime?: ConsumerLifetime,
+): Shape | undefined => {
   const value = ctxOf(host).reflect.get(key.cordis)
   if (typeof value !== "function") return undefined
-  return (value as Provision<Shape>)(caller)
+  return (value as Provision<Shape>)(caller, lifetime)
 }
 
 export const provide = <Shape>(

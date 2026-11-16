@@ -430,6 +430,129 @@ export interface Deliveries extends DeliveryDoor {}
 export const Deliveries = serviceTag<Deliveries>("deliveries")
 
 /**
+ * STARTING A CONVERSATION, AND SAYING SOMETHING INTO ONE — the door a row
+ * stands behind when it can run a chat, and the second of the two things core
+ * knows about conversations.
+ *
+ * {@link Deliveries} is speaking into one that already exists, which is a
+ * doorbell's whole need. This is the other half: a row that offers a person a
+ * BUTTON which brings a conversation into being — *New plugin*, today — and
+ * then hands it its first message with whatever the row needs the agent to
+ * know before it starts.
+ *
+ * ## `teach` RIDES THE PROVIDER'S OWN SEAM, and that is the point of it being
+ * here rather than a message the caller composes
+ *
+ * Whatever olai says to an agent beside a person's words is said in one lane,
+ * marked, and delivered once per conversation. A caller that composed a first
+ * message by hand would be a second channel with none of that — re-taught on
+ * every turn, unmarked, and put in the person's mouth on replay. So the lines
+ * are an input and the provider's teaching seam is what carries them.
+ *
+ * ## WRITE-ONLY, like the delivery door beside it
+ *
+ * There is no read of a transcript on this type and no arm where one could be
+ * added without saying so. A row may create a conversation and may speak into
+ * one; it can never learn what is in one. {@link Conversations.say} lands the
+ * way a delivery does — an idle agent takes it as a turn, a running one takes
+ * it at the boundary — and which arm it took is deliberately not reported back
+ * either: a caller that could tell them apart would be reading the state of a
+ * conversation through the one door that promises it cannot.
+ *
+ * ## WHY THIS IS CORE'S KEY, and was briefly chat's own
+ *
+ * It was `chat.conversations`, offered by chat with `Offers.own`, and a
+ * consumer named it on a component of its own. That is the right shape for a
+ * provider which is optional to HAVE and the wrong one for a provider which is
+ * optional to EXIST — the `HostServices` paragraph above says why, and a serve
+ * proved it: a row's report FOLDS its components, so the component waiting for
+ * a chat that was switched off made the whole `vault-plugins` row read
+ * `waiting`, out of the roster, chunk never loaded, and a plugin's page that
+ * has nothing to do with chat gone with it. So the key is core's, it is in
+ * `OFFERABLE` for chat to stand behind, and the optionality is brokered one
+ * door down ({@link ConversationsWatch}) where absence is a value rather than
+ * a wait.
+ */
+export interface Conversations {
+  /** Mint a conversation, start it on `engine`, and send `say` as its first
+   *  message with `teach` riding the provider's teaching seam. The node comes
+   *  back even when the start refuses, because a conversation that exists and
+   *  has not begun is something a person can open later.
+   *
+   *  THAT PROMISE HOLDS WHEN THE PROVIDER GOES AWAY MID-CALL, which is the one
+   *  case worth stating because it is the one a reader would assume otherwise.
+   *  A caller reaches this door through {@link ConversationsWatch} and does not
+   *  name {@link Conversations}, so chat being switched off does not unload the
+   *  caller: the three acts stop where they got to, a node already written to
+   *  the vault STAYS written, and the call answers that node with the refusal
+   *  beside it rather than failing whole. A half-minted folder somebody can
+   *  open is recoverable; a folder that exists under a name the next attempt is
+   *  refused over is not. */
+  readonly open: (input: {
+    readonly parent: string | null
+    readonly title: string
+    readonly engine: string
+    readonly say: string
+    readonly teach: ReadonlyArray<string>
+  }) => Effect.Effect<{ readonly node: string; readonly refusal: string | null }, Refusal>
+  /** Say something into the conversation seated on `node`. `false` is one of
+   *  FOUR ordinary absences: the asking activation has left, there is no such
+   *  node, no conversation on it, or a roster that moved between a draw and a
+   *  press. The first of them is the gate the broker's forwarded lifetime
+   *  closes ({@link ConversationsWatch}), and it is why this is an answer
+   *  rather than a failure: none of the four is anything going wrong. */
+  readonly say: (input: { readonly node: string; readonly text: string }) => Effect.Effect<boolean>
+  /** The engines this machine can actually start, best first — the MACHINE's
+   *  answer rather than the vault's, because a caller that has to choose one
+   *  needs the list the panel's own picker draws from. An empty list is a serve
+   *  with nothing to talk to, on which {@link Conversations.open} refuses in
+   *  the provider's own words. */
+  readonly engines: () => ReadonlyArray<{ readonly id: string; readonly name: string }>
+}
+export const Conversations = serviceTag<Conversations>("conversations")
+
+/**
+ * ...AND CORE'S NARROW BROKER OVER IT, which is the whole reason a row can
+ * offer a person a *New plugin* button on a serve with no chat at all.
+ *
+ * {@link ConfigurationWatch}'s arrangement, one door over, for the reason that
+ * one gives and the `HostServices` paragraph above states as a rule: a row that
+ * named {@link Conversations} directly would go `waiting` with chat switched
+ * off — and a row's report folds its components, so a COMPONENT naming it does
+ * the same to the whole row. For a plugin whose conversations are an optional
+ * half of one feature that is the wrong answer twice over: the row leaves the
+ * roster, the tab stops loading its chunk, and a page that had nothing to do
+ * with chat goes with it.
+ *
+ * `undefined` is the absence, and every consumer draws its own arm for it —
+ * here, a folder that is minted with nobody building it and a page that says
+ * so. Read PER CALL, because the roster moves under a standing reader.
+ *
+ * ## WHAT RIDES THROUGH, and why a broker that dropped it would be worse than
+ * no broker
+ *
+ * A broker is a provision over a provision, and both halves of what the facade
+ * stamps an activation with have to survive the hop: the consumer's WORD, so a
+ * message lands under the row that asked for it and no row can sign another's
+ * name to one; and the consumer's LIFETIME, so a row that has since unloaded
+ * cannot have words land under its name at all. The door behind this one gates
+ * `say` on that lifetime because a delivered body may be HELD for the length
+ * of a turn — or until somebody opens a conversation nobody is in, which can
+ * be days. Core forwards the lifetime it was handed; a `current()` read
+ * without one would hand every consumer a door whose gate always answers
+ * "still here", which is precisely the fence the provider thinks it has.
+ *
+ * The door is the consuming ACTIVATION's, not the plugin's: a row that unloads
+ * and comes back asks again and is handed a door gated on the new activation.
+ */
+export interface ConversationsWatch {
+  /** The door while a provider stands behind it, gated on the asking
+   *  activation, and `undefined` while none does. */
+  readonly current: () => Conversations | undefined
+}
+export const ConversationsWatch = serviceTag<ConversationsWatch>("conversations-watch")
+
+/**
  * WHAT THE PLUGINS TEACH THE VAULT'S VOCABULARY — a table the format takes as
  * data and never imports.
  *
@@ -1243,6 +1366,7 @@ export interface Offers extends OwnServices {
   /** Stand behind one door, for as long as the calling plugin is loaded. */
   readonly offer: {
     (key: typeof ConfigurationSource, door: Provision<ConfigurationSource>): Effect.Effect<void, never, Scope.Scope>
+    (key: typeof Conversations, door: Provision<Conversations>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof VaultSettings, door: Provision<VaultSettings>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Ops, door: Provision<Ops>): Effect.Effect<void, never, Scope.Scope>
     (key: typeof Vault, door: Provision<Vault>): Effect.Effect<void, never, Scope.Scope>
@@ -1425,6 +1549,7 @@ export const Ops = serviceTag<Ops>("ops")
 
 export const OFFERABLE = [
   ConfigurationSource,
+  Conversations,
   VaultSettings,
   VaultViews,
   Ops,
@@ -1814,6 +1939,24 @@ export const openPlugins = (
         source === undefined ? Stream.succeed(undefined) : source.changes),
     }))
 
+    // ...AND THE CONVERSATION BROKER, for the same reason one door over: a row
+    // that can ask an agent to build something must still stand up on a serve
+    // with no chat, and both a `needs` and a component would take it out of the
+    // roster when there is none ({@link ConversationsWatch}).
+    //
+    // THE CONSUMER'S LIFETIME RIDES THROUGH, and it is the whole difference
+    // between a broker and a hole in a fence. The door behind this one gates
+    // `say` on the asking activation still being here, because a body it
+    // delivers may be HELD for the length of a turn; a broker that read it
+    // with no lifetime would hand every consumer a door whose gate is "nobody
+    // said, so everybody is still here", and words would land under the name
+    // of a row switched off minutes ago. The facade hands this provision the
+    // consuming activation's lifetime; it goes straight on to the provider,
+    // with the same word.
+    yield* provide(host, ConversationsWatch, (plugin, lifetime) => ({
+      current: () => readOffered(host, Conversations, plugin, lifetime),
+    }))
+
     // ...AND ONE LOCAL-STATE DOOR PER PLUGIN NAME, not per activation. The write chain
     // that orders a plugin's saves lives on the door, and this provision runs
     // once per ACTIVATION — so a plugin that unloads and comes back used to get a
@@ -1920,6 +2063,7 @@ export const SERVICES = [
   BundleModules,
   Served,
   ConfigurationWatch,
+  ConversationsWatch,
   VaultViews,
   VaultSettings,
   Env,

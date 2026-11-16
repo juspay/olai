@@ -265,8 +265,17 @@ export const BuiltPlugin = Schema.Struct({
    * — the whole of what a dynamic plugin adds to this member.
    *
    * ABSENT on every compiled-in row, and its presence IS the distinction: a row
-   * with a source is one somebody wrote into the directory this serve is about,
-   * and the four things that are true only of such a row all hang off it.
+   * with a source is one somebody wrote into the directory this serve is about
+   * — a FOLDER, `plugins/<word>/`, with a README for a person and one or two
+   * halves for the machine — and everything that is true only of such a row
+   * hangs off it.
+   *
+   * IT IS WHAT THE PLUGIN'S OWN PAGE IS DRAWN FROM, whole, which is why there
+   * is so much of it. The page is reached by address, so it must be drawable
+   * from the roster a tab already holds rather than from a second fetch per
+   * plugin — and everything on it (the title, the sentence, the README, the
+   * code, what it uses, which conversation is building it) is a fact about one
+   * row that moves when that row moves.
    *
    * `server` and `browser` are the SOURCE ITSELF, and they travel because
    * approving a plugin is reading it. That is the one gesture in this product
@@ -293,18 +302,121 @@ export const BuiltPlugin = Schema.Struct({
    * because every plugin's mount hangs off it.
    */
   source: Schema.optionalKey(Schema.Struct({
-    /** The node the definition hangs off, and the outline it is in — what the
-     *  panel links to, so a person can go and read it where it lives. */
-    node: Schema.String,
-    file: Schema.String,
-    /** The content hash of both halves — what an approval names. */
+    /** The folder the plugin IS, with its trailing slash — `plugins/hex-swatch/`.
+     *  What the page shows over the code and what the Commit panel's rows sit
+     *  under. */
+    folder: Schema.String,
+    /** What a person calls it: the README's first heading, or the folder word
+     *  where there is no README. Prose, renameable, never an identity — the
+     *  word is `name`, one field up. */
+    title: Schema.String,
+    /** One sentence, from the README's first paragraph. Empty where the README
+     *  has nothing under its heading, and the page says nothing rather than
+     *  inventing a line. */
+    description: Schema.String,
+    /** The README verbatim, for the page's *What it does* — rendered as the
+     *  markdown it is. Absent for a folder that has none. */
+    readme: Schema.optionalKey(Schema.String),
+    /** The content hash of both halves — what an approval names. README edits
+     *  do not move it, which is why a person can fix a typo in the prose
+     *  without being asked about code again. */
     version: Schema.String,
     /** Whether {@link version} is the version a person approved. */
     approved: Schema.Boolean,
+    /**
+     * ...AND WHETHER THERE IS AN APPROVAL AT ALL, for some version — which is
+     * the fact that tells *nobody has read this yet* from *you approved this
+     * and then it changed*.
+     *
+     * The switch cannot tell them apart and used to be asked to: a folder
+     * copied in with `on: yes` and no approval read as *paused · changed since
+     * you turned it on*, and an approved plugin somebody then switched off and
+     * edited read as *nobody has read it yet*. Both sentences were about a
+     * different plugin than the one on screen.
+     */
+    decided: Schema.optionalKey(Schema.Boolean),
+    /** ...and whether that approval is the STANDING one — `always`, every later
+     *  version included. The menu that sets it draws the way back out of it in
+     *  its place, so the page has to know which of the two it is looking at. */
+    trusting: Schema.optionalKey(Schema.Boolean),
+    /**
+     * WHETHER AN AGENT IS STILL WRITING THIS FOLDER — the answer, not the
+     * evidence.
+     *
+     * A ROSTER CANNOT SEE AN AGENT'S KEYSTROKES, and the files landing are not
+     * a done signal: the guide has the builder write the README, then
+     * `server.ts`, then `browser.tsx`, so a page that called a folder finished
+     * when its server half landed rang *Ready for you* at a plugin whose face
+     * was still being written — and a person who pressed **Turn on** was
+     * paused by the very next write. What ends it is the agent saying so:
+     * `vault-plugins_run` at the version on disk, answered with no fault,
+     * which the authoring guide already requires as a build's last act. The
+     * serve writes that version on the plugin's settings node, so a build that
+     * finished before a reboot is still finished after one.
+     *
+     * ...AND IT IS THE SERVE'S SENTENCE, for `approved`'s reason three fields
+     * up: this used to ride as the raw version the builder last ran, and every
+     * reader of it compared two hashes for itself. The protocol it encodes —
+     * which call means *done*, which file order a build follows, whether a
+     * faulted run counts — is the AGENT CONTRACT's and revs with the guide and
+     * the preamble, both of which the serve ships. A page is a bad place to
+     * keep half of a contract it cannot read the other half of.
+     *
+     * Absent on a plugin nobody is building, which includes every plugin
+     * somebody has already approved once: an agent editing a folder a person
+     * said yes to is not a build in progress, it is a change to something
+     * that was running.
+     */
+    building: Schema.optionalKey(Schema.Boolean),
+    /** Whether the person's `on` switch is up, independent of whether this
+     *  version is approved: a plugin can be on and PAUSED by an edit, which is
+     *  two facts and not one. */
+    on: Schema.Boolean,
     /** The two halves, verbatim. `browser` is absent for a plugin with no
      *  face. */
     server: Schema.String,
     browser: Schema.optionalKey(Schema.String),
+    /**
+     * ...AND THE HALVES AS THE APPROVED VERSION HAD THEM, present only when
+     * they DIFFER from the two above — which is exactly the paused row, and
+     * exactly when the page draws a diff.
+     *
+     * Absent otherwise, rather than a copy: a row whose code nobody has touched
+     * would be carrying its own source twice, on every roster, for a diff
+     * nothing draws.
+     */
+    approvedServer: Schema.optionalKey(Schema.String),
+    approvedBrowser: Schema.optionalKey(Schema.String),
+    /**
+     * WHAT THE CODE REACHES FOR, said in plain words with the technical name
+     * beside it — read statically off each half's imports and its service and
+     * slot literals (`olai-plugin-vault-plugins`' `uses.ts`).
+     *
+     * A SUMMARY OF THE IMPORTS and not a permission list, which is what the
+     * page says beneath it: the code runs with this server's authority and this
+     * is a reading of what it was written to use, not a fence around what it
+     * can.
+     */
+    uses: Schema.optionalKey(Schema.Array(Schema.Struct({
+      /** The plain sentence — "Adds a property kind to this vault: hex". */
+      said: Schema.String,
+      /** ...and the technical name beside it — `Kinds`, `outline.row.chip`. */
+      named: Schema.String,
+    }))),
+    /** The node of the conversation building this plugin, where one is bound to
+     *  it — what the page docks and what *Ask for a change* reopens. */
+    builder: Schema.optionalKey(Schema.String),
+    /**
+     * ...AND WHETHER THERE IS ANYBODY BEHIND IT RIGHT NOW — the serve holding a
+     * conversations door, which is chat being up on THIS serve.
+     *
+     * A bound conversation is a fact about the vault and survives chat being
+     * switched off; being able to speak into it is a fact about the serve and
+     * does not. A page that read only the first offered *Ask the agent to fix
+     * it*, sent the words into a door that was not there, and said nothing —
+     * which is the shape of every button that lies.
+     */
+    asking: Schema.optionalKey(Schema.Boolean),
     /** Where the built browser half is served — only while it is running. */
     chunk: Schema.optionalKey(Schema.String),
   })),
@@ -324,21 +436,53 @@ export type BuiltPlugin = typeof BuiltPlugin.Type
 export const PLUGIN_CHUNK_PREFIX = "/_olai/plugins/"
 
 /**
- * THE TWO HALVES OF A VAULT-DEFINED PLUGIN, by the titles their child nodes
- * wear — the file each would have been.
+ * A PLUGIN THE VAULT DEFINES IS A FOLDER, and these are its three names.
  *
- * Here for `PLUGIN_CHUNK_PREFIX`'s reason exactly: two ends spell them and
- * neither may invent one. The SERVE reads them to find the halves
- * (`@olai/server`'s `dynamic/source.ts`), the PANEL draws them as the headings
- * over the source a person is being asked to approve, and `plugins.inspect`
- * tells an agent what to title the children it writes. Three readers, one word
- * each, and they were two constants a package apart under a paragraph arguing
- * that a label and a lookup key are different things — which is true of what
- * they are FOR and false of when they change: rename the node title and every
- * one of the three moves on the same afternoon.
+ * Here for `PLUGIN_CHUNK_PREFIX`'s reason exactly: several ends spell them and
+ * none may invent one. The SERVE reads the folder to find the halves
+ * (`olai-plugin-vault-plugins`' `source.ts`), the PAGE draws the file names
+ * over the code it shows, the agent's `vault-plugins_write` takes one of them
+ * as its argument, and the file claim that puts `.ts` in the set at all is
+ * scoped to {@link PLUGIN_FOLDER}.
+ *
+ * `README.md` is MARKDOWN'S file, not this row's: it is a document a person
+ * reads, it is claimed by the markdown row like any other, and the only thing
+ * this package says about it is where it sits. The two halves are this row's,
+ * because nothing else in a vault would want `.ts` in its revision.
  */
-export const PLUGIN_SERVER_NODE = "server.ts"
-export const PLUGIN_BROWSER_NODE = "browser.tsx"
+export const PLUGIN_FOLDER = "plugins/"
+export const PLUGIN_README_FILE = "README.md"
+export const PLUGIN_SERVER_FILE = "server.ts"
+export const PLUGIN_BROWSER_FILE = "browser.tsx"
+
+/**
+ * ...AND THE THREE OF THEM IN THE ORDER A FOLDER IS READ IN: prose, server,
+ * face.
+ *
+ * One list, because four ends were spelling the same membership out of the
+ * three names above and each of them had to be found again when a fourth file
+ * arrives: the agent's write door checking its argument, the page's address
+ * deciding which half a path may open at, the serve's reading deciding which
+ * files in a folder are the plugin's, and **Delete…** naming what to remove.
+ * The ORDER is the delete's, which is the one reader that has an opinion about
+ * it — a ledger should read the way the page lists the files.
+ */
+export const PLUGIN_FILES = [PLUGIN_README_FILE, PLUGIN_SERVER_FILE, PLUGIN_BROWSER_FILE] as const
+
+/**
+ * THE WORD — a plugin's folder name, and the same shape a bundle row's `id`
+ * has.
+ *
+ * Beside the layout above rather than in the serve's folder reader, for the
+ * reason the palette's `slugOf` is in this package's door: BOTH ENDS SPELL IT.
+ * The serve refuses a folder that is not a word; the palette refuses the name
+ * as it is typed, the page's address refuses a word it will not route, and the
+ * sidebar refuses to link a row it cannot address. Three browser modules were
+ * reaching into a module that reads a `Reading` and hashes with Bun for one
+ * regex — a grammar that revs with the settings-file layout, borrowed across a
+ * boundary that revs with a vault revision.
+ */
+export const WORD = /^[a-z][a-z0-9-]*$/
 
 /**
  * THE WORDS A ROW CAN BE IN, and each is a different morning.

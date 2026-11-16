@@ -18,7 +18,8 @@
     "./testlib": "./src/testlib.ts",
     "./slots": "./src/slots.ts",
     "./carry": "./src/carry.ts",
-    "./attention": "./src/attention.ts"
+    "./attention": "./src/attention.ts",
+    "./dock": "./src/dock.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -68,7 +69,8 @@
       "./testids",
       "./browser-engines",
       "./carry",
-      "./attention"
+      "./attention",
+      "./dock"
     ]
   }
 }

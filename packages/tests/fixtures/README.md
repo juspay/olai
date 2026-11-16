@@ -377,10 +377,13 @@ OCCURRENCE — a dated row with no mark — which is on the day and is nobody's 
 work. That third row is the assertion, not the padding: it must not appear on an
 overdue line.
 
-`morning-agenda.olai` is the definition — one node carrying `plugin:
-morning-agenda` and one child, `server.ts`, holding the whole source in its
-note. There is no `browser.tsx`, because a plugin that draws nothing is a whole
-plugin.
+`plugins/morning-agenda/` is the plugin: a `README.md` saying in a heading and a
+sentence what it is, and `server.ts` beside it. There is no `browser.tsx`,
+because a plugin that draws nothing is a whole plugin. There is **no consent
+anywhere in the corpus** — no `_olai/Settings.olai` with a `morning-agenda` node
+on it — so the folder arrives off and unapproved, exactly as one copied in from
+another vault does, and a scenario that wants it running presses **Turn on** on
+its page.
 
 The source is `docs/dynamic-plugins.md`'s worked example with **two lines
 changed, both of them the clock**: it looks from midnight rather than seven and
@@ -388,9 +391,49 @@ beats every second rather than every five minutes, because a scenario cannot sit
 out either.
 
 That sentence is checked rather than promised. `../morning_agenda.test.ts` reads
-the note, substitutes the two lines back, and asks the page whether it carries
-the result — so **this file is not edited by hand**: change the page and
-regenerate it, or the suite says which line wandered. Everything else — the key
+`plugins/morning-agenda/server.ts`, substitutes the two lines back, and asks the
+page whether it carries the result — so **this file is not edited by hand**:
+change the page and regenerate it, or the suite says which line wandered.
+Everything else — the key
 it names (`journal.agenda`), the shape both ends spell, the delivery, the
 once-a-day guard — is the source a person would paste.
 `packages/plugins/vault-plugins/e2e/features/the_morning_agenda.feature` is what it is for.
+
+## `plugins/` — the folder a plugin the vault defines IS
+
+Two of them, and they are the two kinds:
+
+- `plugins/swatch/` is all three files. Its `server.ts` teaches the vault the
+  kind `hex` and its `browser.tsx` hangs a chip on any value wearing the
+  composed word `swatch-hex` — which `colours.olai`'s `amber` row carries. The
+  chip draws `data-swatch`, an attribute the FIXTURE's own source writes, because
+  a plugin a vault defines is by definition not in this build's testid table.
+- `plugins/greeting/` is two, and it draws nothing. It is here for its **knobs**:
+  a `Config` with one of each control the settings reader draws — a short
+  choice (`tone`), a switch (`bright`), a bounded integer (`size`) and a long
+  choice (`shape`) — so the controls under *Settings* on the plugin's own page
+  and in its row on the plugins panel have something real to write, and an
+  out-of-range number has something real to refuse.
+
+`toolbox.ts` sits at the root and is the point of the claim's scope: `.ts` is
+claimed **only under `plugins/`**, so this file is not served at all — no
+address names it, the Reference tree does not list it, and nothing compiles it.
+A vault is somebody's directory and is full of files that are none of olai's
+business.
+
+**Nothing here carries consent.** There is no `_olai/Settings.olai`, so both
+plugins arrive off and unapproved and every scenario that wants one running says
+yes to it on its page — which is the gesture under test rather than a fixture's
+say-so.
+
+## `plugin-services/` — one vault plugin standing on another
+
+`plugins/swatch/` and `plugins/palette/`, where swatch's `server.ts` names
+`serviceTag("palette.colours")` in its `needs` and palette's offers it with
+`Offers.own`. Neither is in any build. The scenarios are about what happens to
+the consumer when the provider is approved, switched off, switched on and
+replaced — and the regex palette's `server.ts` carries is what a step edits to
+replace it, so the consumer's kind starts admitting a different set of colours.
+
+Consent is absent here too, so each plugin is turned on at its page in the order
+a scenario means to prove something about.

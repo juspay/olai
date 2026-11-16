@@ -232,18 +232,29 @@ When("the notification is pressed", async function (this: OlaiWorld) {
     "the notification worker to be controlling this page",
     POLL_TIMEOUT,
   );
-  // Press the last banner this document actually raised. The daily tag names
-  // the due arm; all chat banners retain the ask arm and the same handshake.
+  // Press the last banner this document actually raised, as the banner's own
+  // TAG says. The tag is the only thing a worker has when a press lands —
+  // there is no reading of the app in it — so these three prefixes are the
+  // step's whole routing: the daily tag names the due arm, a plugin's tag
+  // names the plugin arm AND the plugin it is about (the one arm that carries
+  // a field, `alerts/contract`'s `NotifyClick`), and every chat banner retains
+  // the ask arm and the same handshake.
   const raised = await banners(this, 1);
-  const kind = raised.at(-1)!.tag.startsWith("olai:due:") ? "due" : "ask";
-  await this.page.evaluate(({ type, kind }) => {
+  const tag = raised.at(-1)!.tag;
+  const PLUGIN = "olai:plugin:";
+  const data = tag.startsWith("olai:due:")
+    ? { kind: "due" }
+    : tag.startsWith(PLUGIN)
+    ? { kind: "plugin", name: tag.slice(PLUGIN.length) }
+    : { kind: "ask" };
+  await this.page.evaluate(({ type, data }) => {
     navigator.serviceWorker.dispatchEvent(
       new MessageEvent("message", {
-        data: { type, data: { kind }, id: crypto.randomUUID() },
+        data: { type, data, id: crypto.randomUUID() },
         source: navigator.serviceWorker.controller,
       }),
     );
-  }, { type: PRESS_TYPE, kind });
+  }, { type: PRESS_TYPE, data });
 });
 
 Then("the panel is open at the question", async function (this: OlaiWorld) {

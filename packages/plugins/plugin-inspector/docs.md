@@ -8,6 +8,8 @@ On a desktop the door is the health dot in the header: its popover carries a **P
 
 The panel's header reads **Plugins** and links `Settings.olai`, labelled **Open in Settings.olai**.
 
+Above every group is **New plugin**, the one thing in the panel that is not about what this serve already runs. It shuts the panel and opens the palette at the two levels that ask an agent for a plugin of your own ([../dynamic-plugins.md](../dynamic-plugins.md)). It is drawn while `vault-plugins` offers the verb and there is a palette to open, and absent otherwise.
+
 ## One line per plugin
 
 A line is the plugin's name, a few words when something is wrong, and a switch called `Enable <name>` — `Enable Claude Code`. A plugin that is on and well, or off because you left it off, says nothing beyond its switch.
@@ -69,11 +71,11 @@ A setting a plugin marks as a preference is drawn in the preferences panel inste
 
 ## A plugin this directory defines
 
-Its detail carries the whole source: the name, the file and the version, marked ` (not approved)` until you say otherwise, and under it **Approve this version** and **Approve always**.
+Its row carries a link to that plugin's own page at `/plugins/<word>`, which is where its files, its diff and **Turn on** are. The detail here holds the source and the same two verbs for somebody working down a whole serve's rows: **Approve this version** and **Approve always**, marked ` (not approved)` until you say otherwise.
 
-If the definition is edited while you are reading it, both verbs disarm and the block says `This changed while you were reading it. Above is what it says now.` **I have read it** arms them again on what is now on screen.
+If the folder is edited while you are reading it, both verbs disarm and the block says `This changed while you were reading it. Above is what it says now.` **I have read it** arms them again on what is now on screen. Both doors send back the version they drew, so neither can approve source that moved.
 
-> Approving a definition belongs to the `vault-plugins` plugin ([vault-plugins.md](vault-plugins.md)). With its browser half absent, an approval is refused and nothing is approved; the rest of this panel keeps working.
+> Approving a plugin belongs to the `vault-plugins` plugin ([vault-plugins.md](vault-plugins.md)). With its browser half absent, an approval is refused and nothing is approved; the rest of this panel keeps working.
 
 ## The Server section
 

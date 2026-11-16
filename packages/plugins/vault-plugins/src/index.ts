@@ -3,6 +3,40 @@ import type { Effect } from "effect"
 export const name = "vault-plugins"
 export const chunks = serviceTag<{ readonly chunk: (path: string) => string | null }>("vault-plugins.chunks")
 
+/**
+ * A TITLE, AS A FOLDER NAME — the one rule that turns what a person typed into
+ * the word a plugin is known by.
+ *
+ * It is here, in the package's own door, because BOTH ends spell it: the
+ * palette draws `Kept in your vault as plugins/<word>/` under the name box
+ * while somebody is still editing it, and the serve takes the same title and
+ * creates the folder. Two slug rules that agreed until they did not would show
+ * a person one folder and make another.
+ *
+ * Lowercase, letters and digits kept, everything else a hyphen, no run of
+ * hyphens and none at either end — which is `WORD`'s grammar (`./source.ts`)
+ * reached by construction rather than checked afterwards. It can still answer
+ * something `WORD` refuses — a title of nothing but punctuation slugs to the
+ * empty string — so the caller checks; what it cannot do is surprise the caller
+ * with a shape neither of them expected.
+ *
+ * THE ENDS ARE TRIMMED BY INDEX AND NOT BY A SECOND PATTERN. `/^-+|-+$/` reads
+ * perfectly and is quadratic on the one input this function is actually given:
+ * a sentence a person typed, where a long run of punctuation becomes a long
+ * run of hyphens and the `-+$` arm then backtracks over it from every position
+ * (CodeQL's `js/polynomial-redos`, and it is right — this runs on each
+ * keystroke in the palette's name box). Two walks from the ends are linear and
+ * say the same thing.
+ */
+export const slugOf = (title: string): string => {
+  const hyphenated = title.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-")
+  let from = 0
+  let to = hyphenated.length
+  while (from < to && hyphenated[from] === "-") from += 1
+  while (to > from && hyphenated[to - 1] === "-") to -= 1
+  return hyphenated.slice(from, to)
+}
+
 /** One definition, at one version, as the panel asks about it. */
 export interface ApprovalRequest {
   readonly name: string
@@ -34,3 +68,34 @@ export interface Approvals {
   readonly approve: (request: ApprovalRequest) => Effect.Effect<unknown, { readonly message: string }>
 }
 export const approvals = serviceTag<Approvals>("vault-plugins.approval")
+
+/**
+ * ASKING FOR ONE, AS A VERB ANOTHER ROW MAY SPEND — the second and last thing
+ * this row offers across the wall, and the reason the plugins panel has a
+ * **New plugin** door on it.
+ *
+ * WHY THE PANEL NEEDS ONE AT ALL. A person who wants a plugin looks where
+ * plugins are: the health dot, then **Plugins**. That panel is the inspector's
+ * — it lists what this serve is running, built rows and vault folders alike —
+ * and until now it was the one place in the app that showed you every plugin
+ * you have and no way to ask for another. The sidebar's section is the other
+ * door and is not enough on its own: a reader who has collapsed the column, or
+ * is on a phone with the drawer shut, is in the panel.
+ *
+ * WHY A SERVICE RATHER THAN AN IMPORT. The verb is a press on a palette this
+ * row holds for its own faces (`./browser/doors.ts`), and the inspector may
+ * not hold another row's live state — that is the whole argument {@link
+ * Approvals} makes one paragraph up. So the gesture crosses as a declared key
+ * on a component of its own at each end: this row offers it only while a
+ * palette is there to open, the inspector declares it on a component of its
+ * own, and the panel draws the door only while something is holding it. With
+ * `vault-plugins` off, with navigation off, or with the renderer gone, the
+ * door is simply absent and the panel is otherwise unchanged.
+ */
+export interface NewPlugin {
+  /** Open the palette at *New plugin*. Nothing comes back: what a person is
+   *  owed is the box, and where they go from there is the palette's own two
+   *  levels. */
+  readonly open: () => void
+}
+export const newPlugin = serviceTag<NewPlugin>("vault-plugins.new-plugin")

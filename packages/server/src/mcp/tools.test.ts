@@ -358,13 +358,17 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       // verb a row owns is together, and a row that is not standing leaves a
       // gap you can see.
       //
-      // THE THREE A PLUGIN'S AUTHOR HAS joined this list rather than arriving
+      // THE FIVE A PLUGIN'S AUTHOR HAS joined this list rather than arriving
       // beside it: they were hand-written `BespokeTool`s inside
       // `olai-plugin-mcp`, spread into the face by a second call, and they are
       // `olai-plugin-vault-plugins`' own `tools.ts` now — one row's verbs, on
-      // that row's sibling entry, like every other row's. None of them names a
-      // byte either: what they read and write is this SERVE's roster, not the
-      // disk.
+      // that row's sibling entry, like every other row's.
+      //
+      // `write` NAMES NO BYTE EITHER, which is worth saying of the one verb
+      // here that writes a file: it takes a plugin's word, which of the three
+      // files a folder holds, and that file's whole text, and it goes through
+      // the same validate → stage → rename → commit gate `markdown_write`
+      // does. No offset, no range, and no path of the caller's choosing.
       "capture_add",
       "files_create",
       "files_delete",
@@ -401,9 +405,11 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "search_nodes",
       "trash_empty",
       "trash_restore",
+      "vault-plugins_guide",
       "vault-plugins_inspect",
       "vault-plugins_run",
       "vault-plugins_stop",
+      "vault-plugins_write",
     ])
 
     expect(tools.find(tool => tool.name === "file-access_bodies_get")).toBeUndefined()

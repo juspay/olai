@@ -20,8 +20,9 @@ import { Cause, Effect, Queue, Stream } from "effect"
 import { name, type ConfigurationPanel } from "./index.ts"
 import { createInspectorState, type InspectorState } from "./state.ts"
 import { Plugins } from "./Plugins.tsx"
-import { approvals as sourceApprovals } from "olai-plugin-vault-plugins/contract"
+import { approvals as sourceApprovals, newPlugin as sourceNewPlugin } from "olai-plugin-vault-plugins/contract"
 import { holdApprovals } from "./approvals.ts"
+import { holdAsking } from "./asking.ts"
 import { holdRowFaces, rowFaces } from "./faces.ts"
 import { heldHeadings } from "./promoted.ts"
 import { holdPreferencesPanel } from "./preferences-door.ts"
@@ -47,6 +48,16 @@ export const components = {
   approval: definePlugin({ name: "approval", needs: [sourceApprovals], apply: Effect.gen(function*() {
     const value = yield* sourceApprovals
     yield* Effect.acquireRelease(Effect.sync(() => holdApprovals(value)), stop => Effect.sync(stop))
+  }) }),
+  /** ASKING FOR A NEW ONE, DECLARED — the panel's **New plugin** door, on a
+   *  component of its own for the reason every holder in this file is: a serve
+   *  with no `vault-plugins` row, or no palette for it to open, draws a panel
+   *  with no door and nothing else different (`./asking.ts`). Separate from
+   *  `approval` because the two keys come from different components over there
+   *  and one of them being absent must not take the other's control away. */
+  "new-plugin": definePlugin({ name: "new-plugin", needs: [sourceNewPlugin], apply: Effect.gen(function*() {
+    const value = yield* sourceNewPlugin
+    yield* Effect.acquireRelease(Effect.sync(() => holdAsking(value)), stop => Effect.sync(stop))
   }) }),
   tools: definePlugin({ name: "tools", needs: [inspectorState, browserManagement, rendererSlots, Faces], apply: Effect.gen(function*() {
     const state = yield* inspectorState

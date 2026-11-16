@@ -84,13 +84,17 @@ export { App, appName } from "./app.ts"
 export {
   BuiltPlugin,
   NO_ROSTER,
-  PLUGIN_BROWSER_NODE,
+  PLUGIN_BROWSER_FILE,
   PLUGIN_CHUNK_PREFIX,
-  PLUGIN_SERVER_NODE,
+  PLUGIN_FILES,
+  PLUGIN_FOLDER,
+  PLUGIN_README_FILE,
+  PLUGIN_SERVER_FILE,
   type PluginState,
   pluginState,
   PluginRoster,
   watchable,
+  WORD,
 } from "./plugins.ts"
 
 /** Where the hashed browser bundle lives, and what the bundler names a split

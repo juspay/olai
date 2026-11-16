@@ -69,6 +69,7 @@ import { newChat, chatLocations, type LocationQuery, type NewChatInput } from ".
  */
 
 import { deliveryProvision } from "./server/deliveries.ts"
+import { conversationsProvision } from "./server/conversations.ts"
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
@@ -95,6 +96,7 @@ import {
 } from "@olai/plugin-api/services"
 import {
   Agents as AgentsDoor,
+  Conversations,
   Deliveries,
   detached,
   SessionStart,
@@ -590,6 +592,52 @@ export default definePlugin({
         Effect.mapError(ops.prop({ node, key: nodeAgents.sleepKey(), value }), asFailure),
     }
 
+    /**
+     * WHAT EVERY GESTURE THAT MOVED A BINDING DOES AFTERWARDS — bump the
+     * revision every tab's roster is drawn off, and let the filer re-file what
+     * the vault now claims.
+     *
+     * One `const` because it is one sentence said in five places, and because
+     * the SECOND caller of it is not a person: the mint below is reached both
+     * by a press on the surface and by a row that named core's `conversations`
+     * key (`@olai/plugin-api`'s {@link Conversations}, which this row stands
+     * behind), and a machine-opened conversation that did not
+     * republish would be a node agent nobody's sidebar had heard of.
+     */
+    const published = Effect.gen(function*() {
+      mine?.cells.sessionsRevision.set(++sessionsRevision)
+      if (filer !== null) yield* filer.full
+    })
+
+    /**
+     * THE THREE ACTS, ONCE — the mint a person's *New chat* runs and the mint
+     * another row's `open` runs, which are the same mint.
+     *
+     * It was written inside the surface procedure, which was right while the
+     * only caller was a keystroke. A second caller arriving (core's
+     * {@link Conversations}) would have had to say the same four thunks again,
+     * and the two copies would have been where "the Inbox moved under us" and
+     * "that parent can no longer hold a chat" quietly got two answers. The
+     * permit, the committed reading the seat is written against and the refusal
+     * sentences are all `./server/new-chat.ts`'s; what is here is this row's
+     * four doors into the vault.
+     */
+    const mintConversation = (open: Chat.Chat, input: NewChatInput) => {
+      const gate = ops.gate as WriteGate
+      return creationPermit.withPermit(newChat({
+        current: vault.inbox.current,
+        read: gate.read,
+        write: request => gate.run(request, "filer"),
+        start: (node, agent, committed) => Effect.gen(function*() {
+          // Ops has committed the new node, but revision delivery may still
+          // be queued. Seat against that committed reading, not the earlier
+          // roster used to paint the sidebar.
+          nodeAgents.seen(committed.derived)
+          return yield* startAgentSession(open, binding, { node, agent })
+        }),
+      }, input))
+    }
+
     /** WHICH PLUGINS RING AT ALL — core's registry, read afresh at every use.
      *
      *  The declarations are `Wakes`' and every ringing plugin writes its own; what
@@ -670,22 +718,7 @@ export default definePlugin({
           .pipe(Effect.tap(() => Effect.sync(republishAgents))),
       locations: ({ input }: { input: LocationQuery }) => Effect.map(ops.reading, reading => chatLocations(reading as Reading, input, vault.inbox.current())),
       newChat: ({ input }: { input: NewChatInput }) =>
-        withChat(open => {
-          const gate = ops.gate as WriteGate
-          return creationPermit.withPermit(newChat({ current: vault.inbox.current, read: gate.read,
-            write: request => gate.run(request, "filer"),
-            start: (node, agent, committed) => Effect.gen(function*() {
-              // Ops has committed the new node, but revision delivery may still
-              // be queued. Seat against that committed reading, not the earlier
-              // roster used to paint the sidebar.
-              nodeAgents.seen(committed.derived)
-              return yield* startAgentSession(open, binding, { node, agent })
-            }),
-          }, input))
-        }).pipe(Effect.tap(() => Effect.gen(function*() {
-          mine?.cells.sessionsRevision.set(++sessionsRevision)
-          if (filer !== null) yield* filer.full
-        }))),
+        withChat(open => mintConversation(open, input)).pipe(Effect.tap(() => published)),
       // THE TWO GESTURES THAT ARE TWO ACTS, and the only ones here that are —
       // {@link ./server/binding.ts} argues both orders and the refusal.
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
@@ -804,6 +837,73 @@ export default definePlugin({
       earlier: ({ input }: { input: { conv: PanelAddress; before: number; limit: number } }) =>
         withChat(() => streams.page(input.conv, input.before, input.limit)),
     }
+
+    // ── the fifth door, and the one a row that is not chat reaches a chat by ──
+
+    /**
+     * `conversations` — STARTING A CONVERSATION, SPEAKING INTO IT, AND WHAT
+     * CAN BE STARTED, for a row that is not chat.
+     *
+     * CORE'S KEY, like the four above, and it was briefly chat's own: offered
+     * under this plugin's word, it made every consumer's component sit
+     * `waiting` on a serve with chat switched off, and a row's report folds
+     * its components — so a page with nothing to do with chat went down with
+     * it. `@olai/plugin-api`'s {@link Conversations} argues that at length,
+     * and {@link ConversationsWatch} is the broker core puts over it so that
+     * absence reaches a consumer as a value rather than as a wait. What is
+     * here is one row standing behind the key while it is up.
+     *
+     * HERE, below the verbs, because what it stands on is what they stand on:
+     * the same mint, the same `withChat` refusal, the same roster reading and
+     * the same scheduler door a doorbell delivers through. The provision
+     * itself is `./server/conversations.ts`, which owns the per-consumer
+     * policy — the asking plugin's name on every message, and that activation
+     * still being here before a word lands under it.
+     *
+     * `chat` IS READ WHEN ASKED and never captured: the scheduler is built on
+     * a forked fiber long after this line, so every thunk below asks the `let`
+     * rather than holding what it was at offer time. A consumer that resolves
+     * this key before the serve is up gets a door that refuses in words and
+     * starts working when the chat does, which is the same bargain the surface
+     * procedures make.
+     */
+    yield* offers.offer(Conversations, conversationsProvision({
+      mint: (input) => withChat(open => mintConversation(open, input)).pipe(Effect.tap(() => published)),
+      // THE FIRST MESSAGE, through `inConversation` exactly as a keystroke's
+      // send is: the conversation it was opened for is named, so a session
+      // that moved under this call lands the words nowhere rather than in
+      // somebody else's chat. No attachments and no armed nodes — a row that
+      // wants a node looked at says so in its words.
+      //
+      // THE SCOPE IS `undefined` AND NOT `null`, which is the difference
+      // between *I am not claiming one* and *I claim the panel has none*. A
+      // browser's send carries the upload scope its composer is holding and is
+      // refused when the panel has moved to another; a server-side first
+      // message has no composer and no uploads, so naming `null` asserted
+      // something about a panel it knows nothing about — and every mint came
+      // back saying the conversation had changed while the words landed
+      // nowhere.
+      send: (to, text, preamble) =>
+        withChat(open => open.inConversation(to, undefined, panel => panel.send(text, [], [], false, preamble))),
+      seat: (node) => {
+        const row = nodeAgents.nodeAt(node)
+        return row === null || row.session === null ? null : { agent: row.engine, session: row.session }
+      },
+      deliver: (who, to, text, current) =>
+        chat === null
+          ? Effect.succeed(false)
+          // THE SAME VERB A DOORBELL SPENDS, with the caller's own name on it
+          // and its activation riding the body: a delivery held for a turn
+          // boundary that arrives after the consumer left is dropped rather
+          // than said in its name (`./server/deliveries.ts` keeps the same
+          // gate for the same reason).
+          : Effect.as(chat.doorFor(who).deliver({ ...to, current }, () => text), true),
+      // THE MACHINE'S HALF OF THE ROSTER, folded to what is startable and read
+      // when asked — an engine row switched off at the panel leaves this list
+      // between two calls, which is exactly what a caller about to open a
+      // conversation needs to know (`./agents/roster.ts`'s `here`).
+      engines: () => here(detect.read(mounted())).map(row => ({ id: row.id, name: row.name })),
+    }))
 
     // ── the sibling ──────────────────────────────────────────────────────
 

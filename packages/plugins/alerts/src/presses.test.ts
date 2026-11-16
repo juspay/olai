@@ -78,3 +78,23 @@ for (const order of [["ask", "due"], ["due", "ask"]] as const) {
     stops.forEach(stop => stop()); stage.channel.dispose()
   })
 }
+
+/**
+ * THE THIRD KIND IS ROUTED LIKE THE OTHER TWO, and carries its word all the
+ * way. The hold is per KIND, so a plugin press that waits for its claimant must
+ * come out of the wait still naming the plugin it was raised for — a held press
+ * that lost its name would open a page nobody asked about, which is the one
+ * thing this arm's field exists to stop.
+ */
+test("a plugin press waits for its own claimant and arrives still named", () => {
+  const stage = setup({ kind: "plugin", name: "hex-swatch" })
+  const seen: NotifyClick[] = []
+  stage.channel.onPress("ask", value => seen.push(value))
+  expect(seen).toEqual([])
+  stage.channel.onPress("plugin", value => seen.push(value))
+  expect(seen).toEqual([{ kind: "plugin", name: "hex-swatch" }])
+  stage.emit({ kind: "plugin", name: "colours" })
+  expect(seen.at(-1)).toEqual({ kind: "plugin", name: "colours" })
+  expect(stage.subscriptions()).toBe(1)
+  stage.channel.dispose()
+})

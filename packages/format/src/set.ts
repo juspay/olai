@@ -33,6 +33,7 @@ import {
   bodiedDocument,
   Document,
   isBodied,
+  isKeptText,
   isMarkdown,
   isOutline,
   type Markdown,
@@ -490,9 +491,9 @@ export const outlineNames = (set: OutlineSet): ReadonlySet<string> => {
 }
 
 /**
- * ONE MARKDOWN DOCUMENT, by the path a caller named — or `undefined` for a
- * path this directory does not serve AS ONE, whether because nothing is there
- * or because what is there is an outline or a saved page.
+ * ONE FILE WHOSE TEXT THIS SET KEEPS, by the path a caller named — or
+ * `undefined` for a path this directory does not serve AS ONE, whether because
+ * nothing is there or because what is there is an outline or a saved page.
  *
  * {@link documentAt} narrowed by the question three callers actually ask —
  * `markdown_read`, `markdown_write`'s refusal and the editor's undo — and it
@@ -500,15 +501,28 @@ export const outlineNames = (set: OutlineSet): ReadonlySet<string> => {
  * `.filter` of the whole collection followed by a `.find`, which allocates a
  * copy of every served document to look one up. One walk, no copy, and one
  * place that says which arm counts.
+ *
+ * IT IS NOT {@link markdownIn} NARROWED, and since the claim table grew a row
+ * whose text is code that is a difference rather than a wording: this asks
+ * {@link isKeptText} — has the revision got the bytes — and the list below
+ * asks whether they are PROSE. The asymmetry is the honest one, because the
+ * two are asked by different kinds of caller. Every asker here was handed a
+ * path and wants the file at it: a gate about to overwrite bytes nobody has
+ * seen, a read of a path an agent typed, an undo putting back what it took.
+ * A plugin's half is exactly that file — written through the ordinary gate,
+ * read back, committed — and a lookup that answered `undefined` for one would
+ * refuse the write gate's own `vault-plugins_write` and hand back an undo with
+ * no text in it. What a half is NOT is a document any of the LISTS below are
+ * about, which is the question they ask and this one does not.
  */
 export const markdownAt = (set: OutlineSet, path: string): Markdown | undefined => {
   const document = documentAt(set, path)
-  return document !== undefined && isMarkdown(document) ? document : undefined
+  return document !== undefined && isKeptText(document) ? document : undefined
 }
 
 /**
- * The MARKDOWN documents of the set, in path order — a `.md` and never a
- * `.html`.
+ * The PROSE documents of the set, in path order — a `.md`, never a `.html`
+ * and never a plugin's half.
  *
  * The other narrowing anybody asks for, and it is a different question from
  * "which files have a body": a `.html`, a `.csv`, a picture and a `.pdf` are
@@ -517,6 +531,14 @@ export const markdownAt = (set: OutlineSet, path: string): Markdown | undefined 
  * may point at, the planner refusing a `markdown_write` and both document
  * reads all mean this list. Four callers asked it with four `.filter`s before
  * it had a name.
+ *
+ * AND A KEPT BODY IS NOT ENOUGH, which is the half the claim table used to
+ * leave unsaid ({@link ./kinds.ts}'s `opaque`): a plugin's half rides the same
+ * revision as a `.md` and is no more a document than a `.html` is. Everything
+ * downstream of this list is a list a PERSON or an AGENT reaches — what
+ * `markdown_index` answers, what a near miss offers as the file you meant,
+ * what a declared `doc` property may name — and `plugins/swatch/server.ts`
+ * titled with its first import line was in all of them.
  */
 export const markdownIn = (set: OutlineSet): ReadonlyArray<Markdown> =>
   set.documents.filter(isMarkdown)
@@ -529,6 +551,8 @@ export const markdownIn = (set: OutlineSet): ReadonlyArray<Markdown> =>
  * meaning: a `.md`, a `.html`, a `.csv`, a picture and a `.pdf` are the files
  * a reader opens as a rendered page, they are published as one collection read
  * a key at a time (`@olai/server`), and the browser knows them as a key set.
+ * A plugin's half is one of these too, for that same storage reason and for no
+ * other: its body is published, and its page draws the source.
  * {@link markdownIn} above is the narrower question — what a declared `doc` property may point
  * at, what an op may write — and the two are not the same list, which is
  * exactly why both have a name.

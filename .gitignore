@@ -54,3 +54,8 @@ node_modules
 /packages/bundle/src/policy.generated.ts
 
 /packages/bundle/src/knobs.generated.ts
+
+# The guide region a failing `guide.test.ts` writes out beside the shipped
+# guide, so the difference can be read and copied. It is a scratch file: the
+# two that matter are `docs/dynamic-plugins.md` and the `guide.md` beside it.
+guide.next.md

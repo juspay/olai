@@ -24,6 +24,11 @@ export const TESTID = {
   pluginsApprove: "plugins-approve",
   pluginsApproveAlways: "plugins-approve-always",
   pluginsMoved: "plugins-moved",
+  /** The way from a vault plugin's row to the page that is that plugin. */
+  pluginsPage: "plugins-page",
+  /** ...and the way to a plugin this vault does not have yet: the panel's own
+   *  **New plugin** door, drawn only where something offers the verb. */
+  pluginsNew: "plugins-new",
 } as const
 
 export type TestId = (typeof TESTID)[keyof typeof TESTID]

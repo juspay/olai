@@ -3,7 +3,8 @@ import { expect, test } from "bun:test"
 import { Effect } from "effect"
 import { readingOfVault } from "@olai/format/testlib/scope"
 import { mountBundle, provide, setRow, settled, offered } from "@olai/bundle/bundle"
-import { openPlugins, openLoading, Ops, Vault, vaultEvents, serviceTag } from "@olai/plugin-api/services"
+import { FileKinds, openPlugins, openLoading, Ops, Vault, vaultEvents, serviceTag } from "@olai/plugin-api/services"
+import { openViews } from "olai-plugin-vault/testlib"
 import { bind } from "./runtime.ts"
 import { runtimeFor } from "./capabilities.testlib.ts"
 
@@ -20,14 +21,20 @@ test("withdrawing vault source policy removes its children, catalog, chunks and 
   const onChange = {run: () => {}}
   const plugins = yield* openPlugins({vars:{},now:()=>"",changed:()=>onChange.run()})
   const loading = yield* openLoading(plugins.host,["vault-plugins"],()=>onChange.run(),{services:plugins.serviceKeys,browserServices:plugins.browserKeys})
-  const read = readingOfVault(new Map([["plugin.olai", [
-    JSON.stringify({id:"p",ord:"a0",title:"A plugin",custom:{plugin:"swatch",approved:"always"}}),
-    JSON.stringify({id:"s",ord:"a0",parent:"p",title:"server.ts",desc:source}),
-  ].join("\n")]]))
+  // A PLUGIN IS A FOLDER, and its consent is a node in the settings file —
+  // the same two files this row reads on a real serve.
+  const read = readingOfVault(new Map([
+    ["plugins/swatch/server.ts", source],
+    ["_olai/Settings.olai", JSON.stringify({id:"c",ord:"a0",title:"swatch",custom:{approved:"always",on:"yes"}})],
+  ]))
   const events = vaultEvents("/test")
-  yield* events.published({rev:1,value:read,changed:["plugin.olai"],removed:[]})
+  yield* events.published({rev:1,value:read,changed:["plugins/swatch/server.ts"],removed:[]})
   yield* provide(plugins.host,Vault,events.door)
   yield* provide(plugins.host,Ops,()=>({gate:{read:Effect.succeed(read)}} as never))
+  // The row claims `.ts` under `plugins/` the moment it mounts, so it needs
+  // the registry that holds claims; withdrawing the row takes the claim with
+  // it, which is the same withdrawal this test is about.
+  yield* provide(plugins.host,FileKinds,openViews().fileKinds.provision)
   yield* mountBundle(plugins.host,selectFixtureRows(["vault-plugins"]))
   yield* settled(plugins.host,["swatch"])
   expect(offered(plugins.host,value)).toEqual({value:1})

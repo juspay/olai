@@ -20,6 +20,12 @@ than a row of the `olai` group. Which files are claimed at all is
 [vault.md](vault.md); a claimed file whose browser row is off gets the plain
 file glyph and the claim's noun.
 
+A claim may say its files are read somewhere else, and one does. The two code
+files of a plugin the directory defines are in neither walk, because that
+plugin's own page draws them ([vault-plugins.md](vault-plugins.md)). They are
+in the set all the same, in the ledger and in the commit panel, and the address
+of one opens that page at that file.
+
 Every row says where its file is, not only what it is called: the row draws the
 basename, and the whole path is both the tip and the end of the row's
 accessible name. A folder's fold button keeps its own name, `Expand <folder>`

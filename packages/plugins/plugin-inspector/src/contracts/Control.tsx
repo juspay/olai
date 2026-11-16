@@ -1,12 +1,18 @@
 /** Local drafts belong to this mounted control; accepted writes belong to the
- * serve. A replacement reading never creates a second configuration store. */
+ * serve. A replacement reading never creates a second configuration store.
+ *
+ * It sits under `src/contracts/` because two packages draw it now — the
+ * plugins panel's rows and the page a plugin the vault defines has of its own
+ * — and a component another package may mount must reach nothing this
+ * activation holds (`./control.ts`). Everything it draws from arrives as a
+ * prop; everything it keeps is one draft, which dies with the mount. */
 import { createEffect, createSignal, For, onCleanup, Show, Switch, Match } from "solid-js"
 import type { BrowserManagement } from "@olai/surface/management"
 import { run } from "@olai/web/client/run.ts"
 import { takingOfflineFocus } from "@olai/web/client/connection/focus.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
-import { TESTID } from "./testids.ts"
-import { configurationAuthored, controlOf, labelOf, knobLabel, knobUnit, knobWidth, knobAuthored, type PolicyReading } from "./rows.ts"
+import { TESTID } from "../testids.ts"
+import { configurationAuthored, controlOf, labelOf, knobLabel, knobUnit, knobWidth, knobAuthored, type PolicyReading } from "./knobs.ts"
 
 export function Control(props: {
   readonly name: string

@@ -16,6 +16,7 @@ Top to bottom:
 | Agenda, with what is owed folded under it while anything is overdue or due today, then Today with the month under it | [journal.md](journal.md) |
 | Inbox | [capture.md](capture.md) |
 | **Needs you** and **Chats** | [chat.md](chat.md) |
+| **Plugins** | [vault-plugins.md](vault-plugins.md) |
 | **Pinned** | [pins.md](pins.md) |
 | **Outlines**, **Reference** and the `olai` group of `_olai/` files | [files.md](files.md) |
 | **Trash**, pinned under the scrolling list | [trash.md](trash.md) |
@@ -47,9 +48,15 @@ sentence case and drawn as small, spaced capitals, so a test or a screen reader
 reads `Outlines`, not `OUTLINES`.
 
 Some headings carry an action: the `+` beside **Chats** opens the palette at
-New chat, and the `+` beside **Outlines** opens the new-file menu. The plugin
-that owns the heading draws the action too, so the two leave together when its
-row switches off.
+New chat, the `+` beside **Plugins** opens it at New plugin, and the `+` beside
+**Outlines** opens the new-file menu. The plugin that owns the heading draws
+the action too, so the two leave together when its row switches off.
+
+A section decides for itself what an empty one looks like. **Chats** and
+**Pinned** draw nothing at all until there is something in them. **Plugins**
+stands whatever the directory holds, with one row reading **Ask for your first
+plugin…**, because a directory with no plugins is where somebody is looking for
+the way to make one ([vault-plugins.md](vault-plugins.md)).
 
 ## What other plugins contribute
 

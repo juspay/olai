@@ -1,13 +1,42 @@
 # vault-plugins
 
-Runs plugins your directory defines: it finds the definitions, compiles both halves, serves the browser half, and mounts the version a person approved. [../dynamic-plugins.md](../dynamic-plugins.md) is how you write and approve one.
+Runs the plugins your directory defines: it reads each folder under `plugins/`, compiles both halves, serves the browser half, and mounts the version a person turned on. [../dynamic-plugins.md](../dynamic-plugins.md) is how you ask for one, write one and turn one on.
+
+## What it owns
+
+| Thing | What it is |
+| --- | --- |
+| the folders | `plugins/<word>/`, holding `README.md`, `server.ts` and an optional `browser.tsx` |
+| the file claim | `.ts` and `.tsx`, under `plugins/` and nowhere else, read on the plugin's page rather than in **Reference** |
+| the pages | `/plugins/<word>`, and the sidebar's **Plugins** section beside them |
+| the palette | **New plugin**, its two levels, and the `+` on that heading |
+| the tools | `vault-plugins_guide`, `_inspect`, `_write`, `_run` and `_stop` |
+
+The folder's name is the plugin's word. The `README.md` is markdown's own file: this row reads its first heading for the title and its first paragraph for the line a person sees under it.
+
+A version is a content hash of the two code files and not of the `README.md`, so prose edits cost nobody a decision. An edit to either half pauses the plugin, unmounts it, and leaves its page showing a diff against the version that was approved.
+
+## Where consent is kept
+
+`on`, `approved`, `builder` and `checked`, with the plugin's own knobs beside them, are properties on a root node titled with the word in `_olai/Settings.olai`, exactly where a built row keeps its settings. A folder copied in from another directory therefore arrives off and unapproved, and the switch, a stop and a finished build all survive a restart.
+
+Those four keys are reserved. A `Config` declaring one faults the plugin, and `plugins.configure` refuses to write one.
+
+## What it offers other plugins
+
+| Key | What it is | Who names it |
+| --- | --- | --- |
+| `vault-plugins.approval` | approving one version, or every later one | [plugin-inspector](plugin-inspector.md) |
+| `vault-plugins.new-plugin` | opening the palette at **New plugin** | plugin-inspector |
+
+Each is offered by a component of its own, so a serve with no palette offers the second and not the first. The panel holds each separately and draws nothing where one is absent.
 
 ## What turns it off
 
 The row needs the vault and runs in the `web` and `surface` profiles. Set `on: no` on the `vault-plugins` node in `_olai/Settings.olai`, or use its switch, **Vault plugins** under **Notes** on the plugins panel ([../settings.md](../settings.md)).
 
-With it off, every plugin the directory defines stops, the approval procedures and the `vault-plugins_*` tools withdraw, and a browser half stops being served. The rows this build compiled in keep running. Switching it on reads and validates the current definitions again.
+With it off, every plugin the directory defines stops, the approval procedures and the `vault-plugins_*` tools withdraw, the pages and the sidebar section go, and the scoped claim on `.ts` and `.tsx` goes with them. The rows this build compiled in keep running. Switching it on reads and validates the current folders again.
 
 The row accepts no settings of its own.
 
-A definition runs with this server's own authority, so approving one is a person's. An agent cannot write the `approved` property on any node, on this row's account, even while the row is off.
+A plugin runs with this server's own authority, so turning one on is a person's. An agent cannot write the `approved` property on any node, on this row's account, even while the row is off.

@@ -19,7 +19,7 @@
  *
  * A ROW AT REST IS ONE LINE: the name a person reads, a few words of state
  * only when it is stuck, and the switch. Everything else — the schema-derived
- * knobs, environment readouts, the link to its node, the plugin's own face,
+ * knobs, environment readouts, where the row is saved, the plugin's own face,
  * the full sentence about what is wrong and a session-only note — is the row's
  * DETAIL, a label/value list behind its disclosure. A row filed under Needs
  * attention starts expanded, because its detail is what to do. An enable switch
@@ -27,6 +27,15 @@
  * root-owned reconcile before releasing the press. The infrastructure rows
  * needed to read and write that file retain a session-only switch, and say so
  * in their detail rather than in a legend at the foot.
+ *
+ * *WHERE THE ROW IS SAVED* IS TWO DIFFERENT PLACES, which is the one thing a
+ * plugin the VAULT defines changes about this list. A built row is saved where
+ * its settings are, a node in the settings file. A vault row is a FOLDER, so
+ * its detail names the folder and links to the plugin's own page — and then
+ * links to its settings node as well, because its switch and its knobs are
+ * written down beside every other row's. Its switch is therefore as durable as
+ * theirs: a plugin somebody turned on is on again after a restart, and the
+ * session-only ring belongs to the infrastructure rows alone.
  *
  * The Server section closes the list, shut by default: the address, log
  * policy, allowed origins, whether an access token is set and the state folder,
@@ -96,6 +105,7 @@
  */
 import { CONFIGURATION_FILE, type EnvironmentReading } from "@olai/plugin-api/configuration"
 import { approveDefinition } from "./approval.ts"
+import { asking } from "./asking.ts"
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
 import { createEffect, createMemo, createSelector, createSignal, For, onCleanup, Show } from "solid-js"
@@ -103,8 +113,8 @@ import { createEffect, createMemo, createSelector, createSignal, For, onCleanup,
 import {
   type BuiltPlugin,
   NO_ROSTER,
-  PLUGIN_BROWSER_NODE,
-  PLUGIN_SERVER_NODE,
+  PLUGIN_BROWSER_FILE,
+  PLUGIN_SERVER_FILE,
   type PluginRoster,
   pluginState,
 } from "@olai/surface"
@@ -117,7 +127,7 @@ import type { BrowserManagement } from "@olai/surface/management"
 import type { InspectorState } from "./state.ts"
 import type { PluginsRowFace } from "./slots.ts"
 import { Switch } from "./Switch.tsx"
-import { Control } from "./Control.tsx"
+import { Control } from "./contracts/Control.tsx"
 
 import type { RowSettings } from "./rows.ts"
 import {
@@ -134,7 +144,10 @@ import {
   groupCount,
   labelOf,
   pluginConfirm,
+  pluginFolder,
   pluginGroups,
+  pluginPage,
+  pluginPageLabel,
   pluginRows,
   pluginSwitch,
   promotedLinkLabel,
@@ -302,6 +315,26 @@ export function Panel(props: {
         </Show>
       </header>
       <div class="plugins-body">
+        {/* ASK FOR ONE — the panel's own door onto *New plugin*, drawn only
+            while something offers the verb (`./asking.ts`). It is FIRST in
+            the body and above the groups because of what this panel is for a
+            person who has not got a plugin yet: they came looking for plugins,
+            this is where they landed, and a list of what is already running
+            answers a question they did not ask. The press shuts the panel the
+            way the file link above it does — a palette opening behind a
+            popover is a box nobody can see. */}
+        <Show when={asking()}>
+          {(ask) => (
+            <button
+              type="button"
+              class="plugins-new"
+              data-testid={TESTID.pluginsNew}
+              onClick={() => { props.state.door.setOpen(false); ask().open() }}
+            >
+              <span aria-hidden="true">+</span> New plugin
+            </button>
+          )}
+        </Show>
         <Show when={plugins().configurationAvailable === false && plugins().built.length > 0}>
           <p class="plugins-notice">{rosterFile().split("/").pop()} can't be read, so switches here reset when olai restarts.</p>
         </Show>
@@ -557,14 +590,44 @@ function PluginRow(props: {
           </Show>
           <Show when={environment().length > 0}><Environment values={environment()} /></Show>
           {/* The name a person types in the settings file, where the row's
-              label is not already it — and the link to its node there. */}
+              label is not already it. */}
           <Show when={shown() !== plugin().name}>
             <dt>Short name</dt>
             <dd><code>{plugin().name}</code></dd>
           </Show>
-          <Show when={plugin().configurationNode && props.panel.state.file()}>
-            <dt>Saved in</dt>
-            <dd><NodeLink node={plugin().configurationNode} state={props.panel.state} /></dd>
+          {/* WHERE THE ROW IS SAVED, which is a different place for the two
+              kinds of row and says so by linking somewhere different.
+
+              A row the BUILD has is saved where its settings are: a node in the
+              settings file, which the link opens.
+
+              A row the VAULT defines is a FOLDER, and the folder is the thing
+              somebody would go and look at — so the path is the words and the
+              link is to the plugin's own page, which is where this app draws
+              that folder. There is no directory page to send them to and
+              inventing one here would be a link to nothing; the page is the
+              folder, read. Its own settings node still gets a link of its own
+              below, because a vault plugin's switch and knobs are written
+              beside every other row's now. */}
+          <Show when={pluginFolder(plugin())} fallback={
+            <Show when={plugin().configurationNode && props.panel.state.file()}>
+              <dt>Saved in</dt>
+              <dd><NodeLink node={plugin().configurationNode} state={props.panel.state} /></dd>
+            </Show>
+          }>
+            {(folder) => (<>
+              <dt>Saved in</dt>
+              <dd>
+                <a class="plugins-link" href={pluginPage(plugin())} data-testid={TESTID.pluginsPage}
+                  aria-label={`${pluginPageLabel} — ${folder()}`} onClick={() => props.panel.state.door.setOpen(false)}>
+                  <code>{folder()}</code> ↗
+                </a>
+              </dd>
+              <Show when={plugin().configurationNode && props.panel.state.file()}>
+                <dt>Settings</dt>
+                <dd><NodeLink node={plugin().configurationNode} state={props.panel.state} /></dd>
+              </Show>
+            </>)}
           </Show>
         </dl>
         <Show when={session()}>
@@ -615,6 +678,17 @@ function Controls(props: {
  * row that is `pending`, which is exactly the row whose whole point is being
  * read.
  *
+ * ## The code is TWO FILES IN A FOLDER now, and it is drawn as two files
+ *
+ * The halves used to be two notes under an outline node, so the only honest
+ * caption for each was the note's own name. They are `server.ts` and
+ * `browser.tsx` in `plugins/<word>/` now, which means the caption can be the
+ * path a person would type — and the comment that separates them in the block
+ * below is spelled out of `@olai/surface`'s own three names rather than this
+ * file's idea of what a plugin's files are called. The README is NOT here: it
+ * is prose for a person and it does not move the version, so reading it is the
+ * page's job and approving it would be approving a sentence.
+ *
  * ## The two verbs, and why the second one exists
  *
  * *`approved: <content hash>` for one version, `approved: always` for every
@@ -624,9 +698,17 @@ function Controls(props: {
  * stops being read after the third time — which is the failure mode a
  * per-version prompt has, rather than a safety property it keeps.
  *
- * Both write a property on the plugin's own node through the ordinary write
- * door, so the decision travels with the vault and is in the ledger like the
- * source it is about.
+ * Both write a property in the settings file, on the plugin's own node there,
+ * through the ordinary write door — the same place every other row's answers
+ * are kept. So the decision travels with the vault and is in the ledger like
+ * the code it is about, and a folder copied in from somebody else's vault
+ * arrives with nobody's consent attached to it, because the consent was never
+ * in the folder.
+ *
+ * SAYING YES ALSO TURNS IT ON. There is one gesture here and it is *use this*;
+ * a person who has just read a plugin's code and approved it has not asked to
+ * be shown a second switch. The switch on the row is what turns it off again,
+ * and that answer is written down with the approval, so both survive a restart.
  */
 function Defined(props: {
   readonly plugin: BuiltPlugin
@@ -673,14 +755,18 @@ function Defined(props: {
             data-version={said().version}
           >
             <summary class="cursor-pointer text-muted">
-              {props.plugin.name} — {said().file}, version {said().version}
+              {said().title} — {said().folder}, version {said().version}
               {said().approved ? "" : " (not approved)"}
             </summary>
+            {/* THE PLUGIN'S OWN SENTENCE, where its README gave one. It is the
+                only prose here that is not code, and it is the folder's own
+                claim about itself rather than anything this panel composed. */}
+            <Show when={said().description}>{(says) => <p class="mt-1 text-muted">{says()}</p>}</Show>
             <pre class="mt-2 max-h-64 overflow-auto wrap-anywhere whitespace-pre-wrap">
-              {`// ${PLUGIN_SERVER_NODE}\n${said().server}${
+              {`// ${said().folder}${PLUGIN_SERVER_FILE}\n${said().server}${
                 said().browser === undefined
                   ? ""
-                  : `\n\n// ${PLUGIN_BROWSER_NODE}\n${said().browser}`
+                  : `\n\n// ${said().folder}${PLUGIN_BROWSER_FILE}\n${said().browser}`
               }`}
             </pre>
             <Show when={pending()}>

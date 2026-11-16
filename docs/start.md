@@ -56,6 +56,7 @@ Your line is a commit over plain text files you own, one record per line.
 | a fixed port, a different interface, or the logs | [running.md](running.md) |
 | olai up after a reboot, or behind a proxy | [deploying.md](deploying.md) |
 | choose which plugins run | [settings.md](settings.md) |
+| ask an agent for a plugin of your own | [dynamic-plugins.md](dynamic-plugins.md) |
 | talk to an agent about these notes | [chat.md](chat.md) |
 | point an agent in a terminal at this server | [connecting-agents.md](connecting-agents.md) |
 | the file format underneath | [format.md](format.md) |

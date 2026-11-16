@@ -1,8 +1,8 @@
 Feature: The morning agenda — a plugin the vault defines, standing on a plugin the build shipped
 
   `a_plugin_the_vault_defines.feature` proves the last inch of the mechanism: a
-  chunk this serve compiled out of a note reaching a tab, and a face inside it
-  drawing. This feature is about the OTHER thing a definition can be — one that
+  chunk this serve compiled out of a folder reaching a tab, and a face inside it
+  drawing. This feature is about the OTHER thing a plugin can be — one that
   does something rather than draws something, and one whose whole reason to
   exist is a door another row stands behind.
 
@@ -15,14 +15,19 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
   off, saying which key it is waiting on, and comes back when the journal does.
 
   THE CONSUMER IS `docs/dynamic-plugins.md`'s worked example — not a copy of it
-  written to look like one: the fixture's source is that page's block with two
-  lines swapped, both of them the clock (it looks from midnight rather than
-  seven, and beats every second rather than every five minutes, because a
-  scenario cannot sit out either). That is not a promise made in prose. It is
-  `morning_agenda.test.ts`, which substitutes the two lines back and asks the
-  page whether it carries the result — so an improvement to the doc that never
-  reaches this corpus is red, rather than quietly making the scenario evidence
-  for source nobody is being shown.
+  written to look like one: `plugins/morning-agenda/server.ts` is that page's
+  block with two lines swapped, both of them the clock (it looks from midnight
+  rather than seven, and beats every second rather than every five minutes,
+  because a scenario cannot sit out either). That is not a promise made in
+  prose. It is `morning_agenda.test.ts`, which substitutes the two lines back
+  and asks the page whether it carries the result — so an improvement to the doc
+  that never reaches this corpus is red, rather than quietly making the scenario
+  evidence for source nobody is being shown.
+
+  THE FOLDER IS TWO FILES, because a plugin that draws nothing needs no browser
+  half, and the corpus carries no consent at all — so it arrives off and
+  unapproved and a person turns it on at its page, which is the only place that
+  press exists.
 
   WHY A NODE AGENT AND NO PICKER. A conversation seated on a node is in every
   plugin's delivery scope by derivation, from its own subtree
@@ -38,20 +43,22 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
     # checked-in fixture can carry today's date.
     Given a task is due today
     And I open the outline "work.olai"
-    And I open the plugins panel
-    # A DEFINITION IS A ROW AND NOT A FIBER until somebody decides — and the
-    # source is on the panel because approving is reading.
-    Then the plugin "morning-agenda" is off without prose
+    # A FOLDER IS A ROW AND NOT A FIBER until somebody decides — and the source
+    # is on its own page because approving is reading.
+    When I go to the plugin "morning-agenda"
+    Then the plugin page is "review"
     # ...and only ONE half, because a plugin that draws nothing is a whole
     # plugin: `browser.tsx` is optional and this one has none.
-    And the plugins panel shows only the server half of "morning-agenda"
+    And the plugin page's code tabs are "README.md, server.ts"
+    And the plugin page says it uses "Uses what the `journal` plugin offers"
 
-    When I approve the plugin "morning-agenda"
+    When I press the plugin page verb
     # RUNNING, not waiting: the journal is a row in this build and is behind the
-    # key this definition named. Nothing in core knows the two are connected.
-    Then the plugins panel says nothing more about "morning-agenda"
+    # key this plugin named. Nothing in core knows the two are connected.
+    Then the plugin page is "on"
+    And the plugin page draws no banner
 
-    When I close the plugins panel
+    When I click sidebar file "work.olai"
     And I open the node menu of "gardener"
     And I choose "Start an agent" from the node menu
     # Assert the session opened the panel; the Given step would open it itself.
@@ -95,14 +102,14 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
     And there should be no page errors
 
   @scratch:morning-agenda
-  Scenario: The key is the journal's, so the row waits when the journal is switched off
+  Scenario: The key is the journal's, so the plugin waits when the journal is switched off
     Given I open the outline "work.olai"
-    And I open the plugins panel
     When I approve the plugin "morning-agenda"
+    And I open the plugins panel
     Then the plugins panel says nothing more about "morning-agenda"
-    # DISCOVERY IS LIVE, which is what makes `vault-plugins_inspect` an answer rather
-    # than a description: the key is on the catalog because a row is behind it
-    # right now.
+    # DISCOVERY IS LIVE, which is what makes `vault-plugins_inspect` an answer
+    # rather than a description: the key is on the catalog because a row is
+    # behind it right now.
     And the agent service catalog includes "journal.agenda"
 
     When I switch the plugin "journal" off
@@ -111,8 +118,14 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
     # a key sends them to the row that offers it.
     Then the plugins panel says "morning-agenda" is "journal.agenda"
     And the agent service catalog excludes "journal.agenda"
+    When I close the plugins panel
+    And I go to the plugin "morning-agenda"
+    # ...and the plugin's own page says the same thing in its own words, naming
+    # the key it is short of rather than saying something went wrong.
+    Then the plugin page says "journal.agenda"
 
-    When I switch the plugin "journal" on
+    When I open the plugins panel
+    And I switch the plugin "journal" on
     Then the plugins panel says nothing more about "morning-agenda"
     And the agent service catalog includes "journal.agenda"
     And there should be no page errors

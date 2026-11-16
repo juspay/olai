@@ -22,6 +22,12 @@ const independent = new Set([
   "packages/plugins/chat/src/attachments.test.ts",
   "packages/tests/agent/scripted-acp.ts",
   "packages/plugins/chat/e2e/steps/chat_steps.ts",
+  // The documentation lint walks `docs/`, which is a directory of files in
+  // THIS repository rather than a reading of what a serve claims: the suffix
+  // there picks the pages to measure and the links to follow, and says nothing
+  // about the markdown row.
+  "packages/tests/support/docs.ts",
+  "packages/tests/docs_lint.test.ts",
 ])
 
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -41,6 +47,15 @@ test("the suffix sweep reads the repository and the actual registrations", async
       const spelled = new RegExp(`["']${escape(ext)}["']`)
       const owners = sources.filter(source => spelled.test(source.code))
       expect(owners.some(source => source.file === `${row}src/claim.ts`)).toBe(true)
+      // A SCOPED CLAIM OWNS ITS SUFFIX NOWHERE ELSE, so it cannot ask for the
+      // suffix to be spelled nowhere else either. `.ts` is the one suffix in
+      // this table that already means something to everybody: it names a
+      // TypeScript file, which this repository is made of, and the plugin row
+      // claims it ONLY under `plugins/` (`@olai/format`'s `Claim.under`) for
+      // exactly that reason. What the exclusivity below is about is a suffix
+      // whose every appearance is a decision about olai's file kinds — which
+      // an unscoped claim's is and a scoped one's is not.
+      if (claim.under !== undefined) continue
       expect(owners.filter(source => !source.file.startsWith(row) && !independent.has(source.file)).map(source => source.file)).toEqual([])
     }
   }

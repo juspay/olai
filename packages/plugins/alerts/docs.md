@@ -29,6 +29,12 @@ Turning **Alerts** off dims **Sound** and journal's **Reminders**, and clears th
 | --- | --- |
 | an agent's question | the question it is about |
 | something due | today's agenda |
+| a plugin ready for you, or one that would not start | that plugin's own page |
+
+The plugin alert is the only one that names what it is about, because two
+plugins can finish in the same minute and nothing at press time could tell
+them apart. One that arrives without a name is dropped rather than opened on
+the wrong plugin.
 
 ## What alerts cannot do
 

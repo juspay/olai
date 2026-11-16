@@ -77,13 +77,21 @@ a person, then the sections the build names, then **Your plugins**, then
 Each row is one line: the plugin's name, a short status only when it is stuck,
 and a switch named after the row, as in `Enable Git`. Click the name to expand
 the row: a sentence about its state, whatever the plugin shows there, its
-knobs, its environment readings, its source if the directory defines it, and
-`Saved in`, a link to its node in the settings file.
+knobs, its environment readings, and `Saved in`, a link to its node in the
+settings file.
+
+A plugin the directory defines carries a link to its own page instead of its
+source, and that page is where you read it and turn it on.
+
+At the top of the panel, above every group, is **New plugin**. It shuts the
+panel and opens the palette at the levels that ask an agent for a plugin of
+your own. The whole of that is [dynamic-plugins.md](dynamic-plugins.md): what
+you type, what lands in `plugins/`, and what you read first.
 
 | Status | What it means |
 | --- | --- |
 | `Failed` | it was asked for and its start failed; the row quotes what the plugin said |
-| `Needs approval` | the directory defines it and nobody has approved the source yet |
+| `Needs approval` | the directory defines it and nobody has turned it on yet |
 | `Starting…`, `Starting in this tab` | still coming up |
 | `Can't start` | it is waiting on a service nobody provides, named on the row |
 | `Failed in this tab` | the browser half did not load; the detail offers **Try again** or **Reload** |
@@ -179,22 +187,22 @@ undone as it goes, so what is left is absence rather than a disabled copy.
 
 ## Plugins the directory itself defines
 
-A plugin can arrive from the served directory, written by an agent while olai
-is running. The whole of it is [dynamic-plugins.md](dynamic-plugins.md); what
-belongs here is what the panel does with one.
+A plugin can arrive from the served directory, asked for by you and written by
+an agent while olai is running. It is a folder under `plugins/`, and the whole
+of it is [dynamic-plugins.md](dynamic-plugins.md); what belongs here is what
+the panel does with one.
 
 - It sits under **Your plugins**, below the built-in rows, with the same
   switch, the same states and the same containment when its code throws.
-- Nothing mounts until you approve it with the source in front of you. The
-  panel draws both halves under the row and offers this version, or every later
-  one.
-- An approval names a source version, so an edit to the source puts the row
-  back to waiting for you. A person approves it, and an agent cannot approve
-  its own.
-- The approval is a property on the plugin's own node, so it travels with the
-  directory and is in the ledger like the source.
-- A definition claiming a built-in plugin's name is a fault, named on the row,
-  rather than an override.
+- Nothing mounts until you turn it on with the source in front of you, which
+  happens on the plugin's own page. Its row here links to that page.
+- An approval names a version, a hash of the two code files, so an edit to
+  either one pauses the plugin. You approve it, and an agent cannot approve the
+  plugin it has just written.
+- `on` and `approved` are properties on the plugin's node in this same file, so
+  the switch survives a restart and a folder copied in arrives off.
+- A folder named after a built-in plugin is a fault, named on the row and the
+  page, rather than an override.
 
 ## Environment variables
 

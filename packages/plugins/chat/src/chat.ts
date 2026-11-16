@@ -409,6 +409,27 @@ export interface Panel {
      *  agent that takes an interruption: the message is the plain prompt it
      *  would have been. */
     steer?: boolean,
+    /**
+     * WHAT ANOTHER ROW WANTS THIS CONVERSATION TOLD, as `[olai] ` lines its
+     * caller has already spelled (`./teaching.ts`'s `lines`).
+     *
+     * A plugin that opens a conversation to do a job — a plugin builder, and
+     * whatever asks next — has a preamble: what the job is, where the thing
+     * being built lives, which files are its. Those sentences belong UNDER the
+     * first message beside the contract a node agent is taught, for the reason
+     * the contract is there at all: they are olai's words about the
+     * conversation rather than the person's, and a reader must be able to tell
+     * which is which.
+     *
+     * SPENT ONLY WHERE THE CONTRACT IS, which is what makes "once" free. These
+     * lines join {@link ./teaching.ts}'s on the message that TEACHES, under the
+     * same `Overheard.taught` mark and the same notice — so a second send, a
+     * reopened conversation or a caller that passes them again says nothing
+     * twice. A conversation no node claims is taught nothing and hears no
+     * preamble either; a row that wants one has opened a node agent's
+     * conversation through core's `conversations` key.
+     */
+    preamble?: ReadonlyArray<string>,
   ) => Effect.Effect<void, OpFailure>
   /** One chunk of a picture into the conversation's own tmp directory,
    *  answering with where the whole file is and what it is called there. See
@@ -1328,7 +1349,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * message this is. Two reads of that row would be two answers to one
      * question, and the second could be taken after a write that moved it.
      */
-    const teaching = (): Teaching | null => {
+    const teaching = (preamble: ReadonlyArray<string> = []): Teaching | null => {
       const to = conversationOf()
       const overheard = options.overheard
       if (to === null || overheard === undefined || overheard === null) return null
@@ -1341,8 +1362,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // message that already carries the whole contract.
       const every = options.remindEvery ?? 0
       const reminds = !teaches && every > 0 && ((row?.taken ?? 0) + 1) % every === 0
+      // ...AND THE CALLER'S OWN LINES RIDE WITH THE CONTRACT, under it: the
+      // standing law first, because it is what the conversation IS, and the
+      // job it was opened for after. They go where the contract goes, so the
+      // mark that stops the contract being said twice stops these too
+      // ({@link Panel.send}'s `preamble` argues the whole arrangement), and a
+      // message that merely REMINDS carries none of them — the reminder is one
+      // line of law, not a second briefing.
       const lines = teaches
-        ? teachingFor(node, row?.assigned === true ? "assigned" : "opened")
+        ? [...teachingFor(node, row?.assigned === true ? "assigned" : "opened"), ...preamble]
         : reminds ? REMINDING : []
       // ...AND WHICH CHANNEL THIS ENGINE'S STANDING PROMPT RIDES, which is the
       // engine's own answer and not an assumption of this file's
@@ -2223,6 +2251,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       attachments: ReadonlyArray<string>,
       context: ReadonlyArray<NodeContext>,
       steer = false,
+      preamble: ReadonlyArray<string> = [],
     ): Effect.Effect<void, OpFailure> =>
       Effect.gen(function*() {
         const said = text.trim()
@@ -2269,7 +2298,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // only thing on this path that earned its place outside — each claim
           // is a `realpath`, and a conversation being opened has no business
           // queueing behind somebody else's filesystem.
-          const teach = teaching()
+          const teach = teaching(preamble)
           const prompt = Attachments.promptWith(
             Context.promptWith(annotated(said, teach?.lines ?? []), context),
             attachments,

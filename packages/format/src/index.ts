@@ -154,6 +154,8 @@ export {
   Face,
   faceOf,
   isBodied,
+  isKeptText,
+  isOpaque,
   isOutline,
   Markdown,
   Outline,

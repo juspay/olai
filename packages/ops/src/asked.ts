@@ -40,7 +40,7 @@
  * been retired by that node; what was really being paid twice was the broken
  * map, and that is held.
  */
-import { isMarkdown } from "@olai/format"
+import { isKeptText } from "@olai/format"
 import type { Claims } from "@olai/format"
 import {
   brokenBy,
@@ -83,10 +83,18 @@ export interface Asked {
    *  of — or `undefined` for a path this directory does not serve. */
   readonly at: (path: string) => Document | undefined
   /**
-   * The same lookup NARROWED to a markdown document, which is a different
-   * question and has its own answer on the floor (`@olai/format`'s
+   * The same lookup NARROWED to a file whose TEXT THE SET KEEPS, which is a
+   * different question and has its own answer on the floor (`@olai/format`'s
    * `markdownAt`): a `.html` is a file this directory serves and holds no text
    * of, so a verb that writes a document may not be handed one.
+   *
+   * IT IS THE STORAGE QUESTION, so a plugin's half is one of these: its body
+   * rides the revision and `vault-plugins_write` lands through the same `doc`
+   * plan every `.md` write lands through. What a half is not is a file any
+   * LIST here is about — `markdown_index`'s answer and the near miss a typo is
+   * offered are `markdownIn`, which is prose (`@olai/format`'s `opaque`) —
+   * and the split is deliberate: a gate judges the path it was handed, a
+   * listing offers a reader the files they write in.
    *
    * A second door rather than a `kind` test at the caller, for the reason the
    * floor gives for having the function at all: which arm counts is a rule of
@@ -159,11 +167,13 @@ export const carried = (
       return base.broken
     },
     at: (path) => written.get(path) ?? base.at(path),
-    // THE LAYER FIRST here too, and narrowed after it: a document this batch
-    // has written is the document the next op writes over.
+    // THE LAYER FIRST here too, and narrowed after it by the same question the
+    // set is asked ({@link markdownAt}, which is about the bytes): a file this
+    // batch has written is the file the next op writes over, and a batch that
+    // wrote both halves of a plugin must find them again.
     markdown: (path) => {
       const found = written.get(path)
-      if (found !== undefined) return isMarkdown(found) ? found : undefined
+      if (found !== undefined) return isKeptText(found) ? found : undefined
       return markdownAt(set, path)
     },
   }

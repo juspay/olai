@@ -102,7 +102,8 @@ export const reportOf = (
 }
 
 /**
- * The paths a `doc` may point at: the set's `.md` files, as a membership test.
+ * The paths a `doc` may point at: the set's PROSE documents, as a membership
+ * test.
  *
  * Shared so that the ledger one validation leaves the
  * next can carry it ({@link ./incremental.ts}): building this is a walk of
@@ -112,12 +113,15 @@ export const reportOf = (
  * A PATH DECIDES IT, which is what makes that carry exact. `markdownIn` filters
  * on `Document.kind`, and a document's kind is `./kinds.ts`'s answer about its
  * NAME — a `.md` that would not open still keeps its place in the set as an
- * empty document of its own kind ({@link ./set.ts}'s `assemble`). So a path is
- * in this set exactly when the set holds that path and the registry calls it a
- * document, and a delta naming files is enough to keep the set current without
- * re-walking the directory. `./incremental.test.ts` holds the carried set
- * against this walk on every revision it replays rather than taking the
- * paragraph's word for it.
+ * empty document of its own kind ({@link ./set.ts}'s `assemble`). The second
+ * half of the question is the claiming row's and not the path's at all — is
+ * this kind's text PROSE (`./kinds.ts`'s `opaque`) — and it is constant per
+ * kind, so the pair is still decided by a name: a path is in this set exactly
+ * when the set holds that path and the registry calls it a document somebody
+ * writes words in. A delta naming files is therefore enough to keep the set
+ * current without re-walking the directory. `./incremental.test.ts` holds the
+ * carried set against this walk on every revision it replays rather than
+ * taking the paragraph's word for it.
  */
 export const markdownPaths = (set: OutlineSet): ReadonlySet<string> =>
   new Set(markdownIn(set).map((document) => document.path))

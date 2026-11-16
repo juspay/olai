@@ -335,12 +335,22 @@ test("the plugin switch and the approval are a person's, and the three author ve
     expect(gates.browser.tags.has("surface/vault-plugins/plugins/approve")).toBe(true)
     expect(gates.agent.tags.has("surface/vault-plugins/plugins/approve")).toBe(false)
 
-    // PHASE 12's THREE, and they are the agent as AUTHOR rather than as reader:
-    // what may I name, what became of what I wrote, stop the one I wrote. Every
-    // one of them is about a plugin the VAULT defines; none of them can define
-    // one (a definition is two notes, written with the ordinary write door).
-    for (const verb of ["inspect", "run", "stop"]) {
+    // ...AND SO ARE THE TWO VERBS BESIDE IT. Minting a plugin is a person
+    // asking for one, and asking the builder for a change is a person pressing
+    // a button on its page — an agent that could do either could give itself a
+    // new row and then talk to itself about it.
+    for (const verb of ["mint", "ask"]) {
+      expect(gates.browser.tags.has(`surface/vault-plugins/plugins/${verb}`)).toBe(true)
+      expect(gates.agent.tags.has(`surface/vault-plugins/plugins/${verb}`)).toBe(false)
+    }
+
+    // THE AGENT'S FIVE, and they are the agent as AUTHOR rather than as reader:
+    // how do I write one, what may I name, write this file, what became of what
+    // I wrote, stop the one I wrote. Every one of them is about a plugin the
+    // VAULT defines, and none of them can turn one on.
+    for (const verb of ["guide", "inspect", "write", "run", "stop"]) {
       expect(gates.agent.tags.has(`surface/vault-plugins/plugins/${verb}`)).toBe(true)
+      expect(gates.browser.tags.has(`surface/vault-plugins/plugins/${verb}`)).toBe(false)
     }
   })
 })

@@ -1,7 +1,7 @@
 /**
  * THE DOC'S WORKED EXAMPLES, COMPILED — every half in
- * `docs/dynamic-plugins.md` read out of the file and put through the same call
- * the serve makes.
+ * `docs/dynamic-plugins-examples.md` read out of the file and put through the
+ * same call the serve makes.
  *
  * ## Why the doc is the fixture rather than a copy of it
  *
@@ -16,7 +16,7 @@
  * A test that held its own copy of the example would have compiled that copy
  * happily while the doc went on saying something else. So the fenced blocks are
  * READ, from the file a person reads, and put through `buildHalf` — the same
- * call `./runtime.ts` makes on a note in somebody's vault.
+ * call `./runtime.ts` makes on a file in somebody's vault.
  *
  * ## What this does and does not prove
  *
@@ -33,9 +33,10 @@ import { readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-/** The page, from the tree rather than from a copy — four directories up, which
- *  is `packages/server/src/dynamic` to the root. */
-const DOC = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "docs", "dynamic-plugins.md")
+/** The page the worked examples are on, from the tree rather than from a copy.
+ *  The authoring guide is `docs/dynamic-plugins.md` and the two examples are
+ *  the page beside it, which is where every half a reader may paste lives. */
+const DOC = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "docs", "dynamic-plugins-examples.md")
 
 /**
  * EVERY HALF ON THE PAGE, by the label the page puts over it.
@@ -58,7 +59,7 @@ const halvesIn = (page: string, label: string): ReadonlyArray<string> => {
     new RegExp("`" + label + "`:\\n+```[a-z]*\\n([\\s\\S]*?)```", "g"),
   )].flatMap((hit) => (hit[1] === undefined ? [] : [hit[1]]))
   if (found.length === 0) {
-    throw new Error(`docs/dynamic-plugins.md has no fenced block under \`${label}\`:`)
+    throw new Error(`docs/dynamic-plugins-examples.md has no fenced block under \`${label}\`:`)
   }
   return found
 }
@@ -81,7 +82,7 @@ const halfNaming = (label: string, marker: string): string => {
   const found = halvesIn(page, label).filter((one) => one.includes(marker))
   if (found.length !== 1) {
     throw new Error(
-      `docs/dynamic-plugins.md has ${found.length} \`${label}\` blocks mentioning `
+      `docs/dynamic-plugins-examples.md has ${found.length} \`${label}\` blocks mentioning `
         + `${JSON.stringify(marker)}; this claim is about the one that does.`,
     )
   }
