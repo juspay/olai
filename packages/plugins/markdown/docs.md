@@ -1,75 +1,103 @@
 # Markdown
 
-Markdown claims Markdown text files and supplies their document page, editor and glyph. HTML, CSV, image and PDF views belong to their own rows. It owns document body subscriptions, headings, document drafts, conflict handling, frontmatter display and its own undo history. Its server readings and writes run without browser code or outline UI.
+`markdown` claims `.md` files, which olai calls documents, and draws the page
+you read one on, with its frontmatter, its contents, its body and what points
+at it. It is also the editor you type a document in. What a document is, and
+how it is written, is [../documents-and-kinds.md](../documents-and-kinds.md).
 
-The browser provider owns a document reader and a fresh edit-history scope. Its content integration registers with `navigation.pages`, and its creation control registers with `files.types`, where it is the `New document` item in the Outlines heading's `+` menu. A Markdown page reads frontmatter, referrers and missing-file transitions through its own `documentPage` stream and bodies through its own collection; it needs no outline page, outline filtering, selection or drag context. Disabling outlines leaves an existing Markdown editor mounted and able to save. File metadata comes from the vault, so disabling the Files sidebar also leaves open content intact. Frontmatter remains readable independently; when outlines is present, it contributes the existing rich property drawer through the document-owned properties location.
+## The page of a document
 
-While a page's first reading is on its way it says `Loading…`. An address that names no such file says `Page not found`, with a detail such as `There is no document named notes/plan.md.` The source editor's accessible name is `Edit <file>`.
+Top to bottom:
 
-A rendered document is set to be read. Paragraphs, list items and quotes are wrapped with `text-wrap: pretty`, so a block does not end on a single orphaned word; headings below the two ruled levels (`h3` and down) are wrapped with `text-wrap: balance`, so a two-line heading breaks near its middle instead of running out of room. `h1`, `h2` and table headers are deliberately left alone — balancing text inside an element that draws a rule or a tint under its full width leaves a short line over a long box. A pasted URL, hash or key still breaks anywhere rather than widening the column past the screen. Browsers that do not implement these values wrap the way they always did; nothing moves, nothing is missing, and no script is loaded to make up the difference.
+| Part | What it is |
+| --- | --- |
+| the heading | the file's path, in a monospaced face |
+| **Edit** and **Delete…** | drawn together, and only for a file this serve is holding |
+| the properties | one chip per frontmatter key, with the value linking where it points |
+| **Contents** | the document's headings, open by default and drawn only when it has more than one |
+| the body | the document rendered |
+| **Referenced by `N` things** | who points here, under the body |
 
-The pictures in a document are fetched in the order a reader meets them: the first at once, the rest when the reader scrolls near them ([format.md](../format.md#documents)). The same renderer draws outline notes and chat replies, so the rule holds per rendered block rather than per page.
+The referrers section is shut until you open it, and splits what it found
+across three rows: **Sees this**, **Mentions this** and **Links to this**. A
+row linking this document from its title or note opens that row's page; a
+document whose prose links here opens that file.
 
-Heading fragments remain in each pane's navigation route and scroll history.
-A heading link and a contents entry both encode `/document.md#slug` directly
-(the authored slug; element ids on the page stay namespaced), and there is no
-second destination attribute. A plain click records the heading in the address
-and the router's landing scrolls to it — once the document's faces are in
-(`document.fonts.ready`), because a landing measured in a fallback's metrics is
-somewhere else when the real face swaps in; Alt opens that same destination on
-the right, including from a preview card. A note in an outline keeps its local
-`#fragment` links (footnotes): the renderer scrolls to them in place and the
-address is not touched. Metadata subscriptions depend only
-on the document path, so changing headings retains the document owner.
+While a page's first reading is on its way it says `Loading…`. An address
+naming no such file says `Page not found`, with the detail `There is no
+document named notes/plan.md.`
 
-`markdown.browser-state` carries what this row owns in a tab — its sibling
-client, the open documents and their drafts, and its own edit history — rather
-than announcing readiness over values kept in module variables. Where a minted
-document is OPENED travels beside it on `markdown.editing`, which the journal's
-day page names on a component of its own: with no document row mounted the
-journal's calendar, agenda and day pages are whole and the *+ day note* button
-is simply not drawn.
+## Edit a document
 
-An integration contributes document-property navigation to outlines. Journal consumes Markdown's body location for daily notes and its creation handoff capability for opening newly created notes. Those integrations retract when Markdown leaves. Outline notes and chat messages continue rendering Markdown text through `@olai/markdown-ui`, which is a static renderer independent of this plugin.
+Clicking **Edit** replaces the body with a plain-text box named `Edit <file>`,
+holding the file as it is on disk, frontmatter included.
 
-Drafts retain their original conflict baseline across unrelated shell changes. Removing Markdown withdraws its content and integrations and clears retained drafts and creation handoffs. Re-enabling starts a fresh activation; it does not resurrect unsaved text from the departed one.
+| Control | Key | What happens |
+| --- | --- | --- |
+| **Save** | `Cmd` + `Enter` | writes the file and leaves the editor |
+| **Cancel** | `Escape` | abandons the text and leaves the editor |
 
-Markdown supplies document pages, body editing, heading navigation and document
-metadata. Its document read/write procedures and metadata stream belong to this
-plugin; enabling the outline renderer is not required to use them.
+`Cmd` is the modifier on a Mac and `Ctrl` elsewhere. Making a document is the
+**New document** item in the sidebar's `+` menu ([files.md](files.md)); a
+document you have just made opens with its editor already open.
 
-The vault supplies file access and navigation supplies the active address.
-Markdown owns its reading subscriptions and undo history. The default property
-drawer keeps frontmatter editable without outlines; optional property renderers
-can enhance it through contributed locations.
+> If the file changes under you, the editor says `This file changed while you
+> were editing. Your text is safe here, and Save won't overwrite the change.`
+> **Save** is refused, and an **Overwrite anyway** button appears beside it
+> once you have read the refusal.
 
-Disabling Markdown removes document pages and procedures while leaving outline
-editing available. Re-enabling it reads the current files with fresh editor state.
-Existing browser history remains available for the returning content provider.
+Your unsaved text belongs to the pane and the file. It survives switching tabs,
+resizing and layout changes, and a file that goes missing and comes back during
+the same visit. Closing the pane or navigating away abandons it, and switching
+the row off and on again does not bring it back.
 
-Its body collection contains only its own claimed Markdown files. The four
-read-only body rows obtain their metadata through the vault’s file surface and `vault.files`; this row’s live state is used only by Markdown.
+## Headings and links
 
-Rendered prose is cached by claims, source, writing file, and directory
-membership snapshot. The snapshot supplies both membership lookup and cache
-identity, so callers cannot pair a changing predicate with a stale revision. Code spans,
-code fences and frontmatter cannot introduce missing-link warnings; queries
-and fragments are excluded from membership checks. An authored link title —
-`[x](y "…")` — is still rendered as the document's own tooltip, because it is
-content the author wrote rather than chrome this app chose. The app's own
-sentence about a dead link is not a tooltip: it rides the link's spoken name,
-after the words the link keeps, so it reaches a keyboard and a screen reader
-and not only a pointer, and it comes off again the moment the target is
+A heading link and a line of the contents both point at `/notes/plan.md#slug`.
+A plain click records the heading in the address and scrolls to it, once the
+page's faces have loaded, so the landing is measured in the type you will
+actually read.
+
+`Alt` and a click open the same destination in a pane on the right, a preview
+card included. A link to a fragment of the text you are already in, such as a
+footnote inside an outline's note, scrolls in place and leaves the address
+alone.
+
+A link to a file the directory does not serve keeps its words and gains a
+sentence about being dead on its spoken name, so a keyboard and a screen reader
+meet it and not only a pointer. The sentence comes off the moment the file is
 served.
 
-## Draft and rendering lifetime
+A title the author wrote, `[x](y "…")`, is still rendered as the document's own
+tooltip. Code spans, code fences and frontmatter never raise the warning, and a
+query or a fragment on an address is not part of the check.
 
-A live pane keeps its document page across tab switches and layout changes.
-Drafts belong to the Markdown activation and are keyed by pane id and file.
-The declared navigation integration retains only files still addressed by live
-panes, so closing a pane or navigating away abandons that visit's draft. A
-missing file restored during the same visit can resume it. Plugin presentation
-changes do not use Route-object caches to carry editor state.
+The pictures in a document are fetched in the order you meet them: the first at
+once, the rest as you scroll near them. The same renderer draws outline notes
+and chat replies, so that holds per rendered block rather than per page.
 
-Landing marks use the pane's own element. Changes to the vault's path membership
-update internal-link metadata without rebuilding unrelated Markdown HTML.
+## What other plugins contribute
+
+| Location | Takes |
+| --- | --- |
+| `markdown.body` | one occupant, which draws a document's body somewhere else. The journal's day note uses it |
+| `markdown.properties` | one occupant, which replaces the plain frontmatter chips with a richer drawer. Outlines contributes it |
+
+`markdown.editing` carries where a newly minted document is opened, named by
+[journal.md](journal.md) on a component of its own, so with this row off the
+calendar, the agenda and the day page are whole and simply draw no day-note
+button. `markdown.browser-state` carries the open documents, their drafts and
+this row's own undo history.
+
+## What is still there without it
+
+Switching `markdown` off takes away document pages and the document read and
+write procedures. Outline editing, the sidebar and open outline pages are
+untouched, and outline notes and chat messages keep rendering markdown text,
+which a static renderer draws rather than this row. Switching it back on reads
+the current files with fresh editor state, and an address navigation kept can
+draw its page again.
+
+The reverse holds too: the vault supplies file access and navigation supplies
+the address, so switching off outlines or the files sidebar leaves a document
+page and its editor mounted and able to save.

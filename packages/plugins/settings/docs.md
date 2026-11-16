@@ -1,42 +1,40 @@
-# Settings
+# settings
 
-The settings row needs the vault and offers its current configuration reading.
-It selects `_olai/Settings.olai` by case-folded basename, shallowest path first,
-then path order. Each top-level node names a bundle row or the serve itself (`olai`); child nodes name
-sections of that row's schema. An absent or malformed value uses the schema's
-default. A malformed file defaults every row and remains named in the reading.
+Reads `_olai/Settings.olai` and hands every row the policy it finds there: which rows run, and the settings each one accepts. Without it, nothing you write in that file is read. [../settings.md](../settings.md) is how you use it.
 
-The row publishes data only. The composition root owns loader patches and
-settling. Stopping the reader withdraws its service; patches already applied
-stand. Reopening the vault publishes a fresh reading and reapplies its policy.
+## Which file it reads
 
-**A config edit restarts the row it configures, unless that row declares
-`configUpdates: "live"`.** The loader stops the row's fiber and mounts a fresh
-one; the serve logs `config change restarts row "<name>"` with the changed keys,
-then the new mount. The roster's per-row `generation` moves with each mount, and
-a tab refreshes its connection and restarts that row's browser half, so its
-subscriptions follow the new sibling instead of going quiet. Only the rows that
-moved restart.
+The first file whose name folds to `settings` and whose kind holds nodes, shallowest path first and then in path order. On a directory olai set up, that is `_olai/Settings.olai`.
 
-The service contract is `ConfigurationSource`; roster values travel as
-`configurationValues`, with `setBy` naming the vault or the default. Those
-generic names keep the implementation independent of the row that offers it.
+Each top-level node names a row, or `olai` for the serve itself. An `on` property of `yes` or `no` on that node says whether the row runs; the row's other settings are properties beside it, and a child node names a section of the row's schema.
 
-A leaf may also carry `preference` — the `preference` annotation a declaration
-sets (`@olai/plugin-api/configuration`) — which says the leaf is drawn in the
-preferences panel rather than the plugins panel. The roster carries that flag on
-every built row's reading, and the serve supplies each row's schema defaults
-beside this reader, so a promoted heading and its controls are known even when
-this row is switched off; only the values then come from the defaults.
+```jsonl
+{"id":"identity","ord":"a0","title":"identity","custom":{"on":"no"}}
+```
 
-The panel switch writes `on` through the ordinary write door, then waits for this
-reader and the root’s patches to settle. It creates the file and namespace when
-needed, preserving other properties. The vault and reader switches remain
-session-only so either can be restored from the panel; their owners are derived
-from the offers table. Their switches wear dashed rings. Without this reader,
-every enable switch wears that ring, and the panel says above its groups that switches reset when olai restarts. A broken file
-is named and must be repaired before a durable press can write.
+A value that is absent, or that the row's schema will not take, falls back to the schema's default. A file that cannot be read at all leaves every row on its defaults and stays named in the reading.
 
-The follower ignores file `on` values on the vault and configuration reader
-owners, warning once per row and file. Their session switches remain usable
-without editing policy on disk, including after the reader reconnects.
+## What it says when a value will not do
+
+One line per malformed shape, logged once.
+
+| Line | What happened |
+| --- | --- |
+| `<file>: malformed settings file; every row uses its defaults` | the file itself would not read |
+| `<file>: <row>.<key>: "<value>" uses its default — <why>` | one setting is not one the row's schema takes |
+| `<file>: <row>.on: "<value>" uses its default — expected yes or no` | the `on` property is neither `yes` nor `no` |
+| `<file>: <row>.on is ignored; this reader’s switch is session-only so the file cannot disable its own reader.` | the node is the vault, this row, or the row claiming the settings file's own suffix |
+
+## What an edit does
+
+Changing a row's settings restarts that row, unless the row follows its settings live, as `git` does. olai logs `plugins: config change restarts row "<id>"` with the keys that moved, never their values, and then the fresh mount. An open tab reconnects and restarts that row's browser half, so what it draws follows the new settings. Rows you did not touch keep running.
+
+A setting a row marks as a preference is drawn in the **Preferences** panel under that row's name instead of on the plugins panel. Those headings and controls are known even while this row is off; only the values are then the schema's defaults.
+
+## What turns it off
+
+Its switch, **Settings** under **Notes** on the plugins panel, is session-only, as the vault's is: this row reads a file inside the directory the vault opens. The panel says **This switch resets when olai restarts**.
+
+With it off, the file is not read. Settings already applied stand, and every switch on the panel becomes session-only, which the panel says above its groups. You get the same thing when the file will not read, and a press that wants to write a durable choice is refused with `Repair <file> before changing which tools run.` until you repair it. Editing a setting is refused with `Settings can be edited when the configuration reader is running`.
+
+Switching the vault back on publishes a fresh reading and applies it again.

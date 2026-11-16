@@ -280,22 +280,37 @@ const lengthFindings = (tree: MarkdownNode): ReadonlyArray<Finding> => {
   return found
 }
 
-/** Rule 10: a paragraph that opens in bold is a heading in disguise, and the
- *  sidebar cannot see it. A list item opening with a bold term is allowed, so
- *  only paragraphs the page itself holds are read. */
-const runInFindings = (tree: MarkdownNode): ReadonlyArray<Finding> =>
-  [...walk(tree)].flatMap((node) => {
-    if (node.type !== "paragraph") return []
-    const first = children(node)[0]
-    if (first?.type !== "strong" || children(node).length < 2) return []
-    return [
-      {
-        rule: 10,
-        line: lineOf(node),
-        said: `paragraph opens with a bold run-in: “${opening(read(first))}”`,
-      },
-    ]
-  })
+/**
+ * Rule 10: a paragraph that opens in bold is a heading in disguise, and
+ * nothing can link to it.
+ *
+ * Only the paragraphs the page itself holds are read. A LIST ITEM MAY OPEN
+ * WITH A BOLD TERM — `- **Doing** — the mark a row carries while you are on
+ * it` is a definition list, which is the shape the standard asks for rather
+ * than the one it bans. A table cell is left alone for the same reason.
+ */
+const runInFindings = (tree: MarkdownNode): ReadonlyArray<Finding> => {
+  const found: Finding[] = []
+  const look = (node: MarkdownNode): void => {
+    for (const child of children(node)) {
+      if (child.type === "listItem" || child.type === "tableCell") continue
+      if (child.type === "paragraph") {
+        const first = children(child)[0]
+        if (first?.type === "strong" && children(child).length > 1) {
+          found.push({
+            rule: 10,
+            line: lineOf(child),
+            said: `paragraph opens with a bold run-in: “${opening(read(first))}”`,
+          })
+        }
+        continue
+      }
+      look(child)
+    }
+  }
+  look(tree)
+  return found
+}
 
 /** Rule 16's second half, and rule 18. Emphasis is not shouted, and a page does
  *  not remember. */

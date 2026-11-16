@@ -84,7 +84,7 @@ A commit or a push git refused pauses the loop, and the readout says `Auto-commi
 
 - What stops it is a conflict, a fetch or push the remote refused, or an integration that could not run. The panel names the files and quotes git. Resolve it in a terminal, with `git pull --rebase`, then press **Resume**.
 - An uncommitted edit in a path the upstream changed is a wait rather than a stop: commit what is yours first, and the next push goes.
-- The **Resume** button sits under the Git commit row and is drawn only while the loop is stopped. Nothing else clears a pause: not a reload, not a second tab, not switching the row off and on. Press it in any tab and every reader's readout is armed again.
+- **Resume** sits under the Git commit row and is drawn only while the loop is stopped. Nothing else clears a pause: not a reload, not a second tab, not switching the row off and on. Press it in any tab and every reader's readout is armed again.
 - Restarting the server does clear it, because nothing about a refusal is written down. Where `push: auto` is on and the branch has commits to send, a boot makes one push, and whatever git says is on the readout before anybody looks.
 - A repository that cannot take a commit at all is a pause rather than a stop. Nothing is attempted while it lasts, and what is waiting is recorded once you have finished; there is nothing to resume.
 

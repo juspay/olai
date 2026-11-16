@@ -1,31 +1,40 @@
 # Capture
 
-Capture owns the Inbox path and quick-capture palette action. Its server scope registers that path in the vault-owned `inbox` registry and releases the entry on withdrawal. Readers can observe absence immediately without depending on capture. Its sidebar
-integration reads the inbox count while displayed; its palette integration can
-run without the sidebar. A successful capture keeps the palette open for the
-next line and reports where the accepted write landed. The domain write gate
-retains authority over placement and persistence.
+Capture puts one line into the directory's inbox without leaving the page you are on. The inbox is `_olai/Inbox.olai`, and capture gives it an **Inbox** row in the sidebar with a count of what is waiting in it.
 
-On a phone, capture's `thumb` component contributes the `+` door to the frame's thumb bar ([layout.md](layout.md#the-thumb-bar)): one tap opens the palette with the `+ ` prefix already in the box (`paletteControl.showAt([], "+ ")`), so a line to the Inbox is a tap and a sentence. It is the same write as the palette's own capture row, and the palette's remark answers it.
+## Write a line into the inbox
 
-Capture owns the `+` prefix and its palette command, including the prompt,
-result message and continuation for the next line. The command reads
-`Capture to the Inbox`; a bare `+` hints `Type a line after + to add it to the
-Inbox`; a successful capture says `Captured “line” to <file>`. Removing the plugin withdraws
-both; the navigation plugin retains no built-in capture grammar.
+1. Open the palette. The row for this reads **Capture to the Inbox**, hinted `+ a line`.
+2. Type `+`, a space, and the line.
+3. Press `Enter`.
 
-Chat uses this registry to file unclaimed conversation heads under a top-level
-`Chats` node, matched by reserved id `chats`, with one ordinary Ops write per
-conversation. Chat's **New chat** palette row offers **Inbox › Chats** as its
-Default place exactly while this registry has an entry, and creates a child
-here only when that place is chosen. Capture's `+` text prefix remains quick
-capture; New chat is chat's own palette row. Disabling capture removes the
-registry entry, stopping filing and withdrawing the Default place without
-making chat wait for an unavailable service; other places still work. Existing
-node agents remain usable.
+The palette stays open for the next line, so several captures are one visit. What you see:
 
-Inbox is found by its convention stem directly under `_olai/`, among
-node-holding claims. When the configured outline row is off, the Inbox sidebar
-entry names it using the vault's live `outlineRow` (`Inbox needs
-outline-olai, which is turned off.`); the Inbox file itself is
-an ordinary address and reports its unclaimed suffix.
+| What you typed | What the palette says |
+| --- | --- |
+| `+` and nothing else | `Type a line after + to add it to the Inbox` |
+| a line that landed | `Captured “line” to <file>`, naming the file it went to |
+| a line that was refused | the refusal, in its place |
+
+On a phone the thumb bar carries a **Capture** `+`: one tap opens the palette with `+ ` already typed.
+
+## Where a captured line lands
+
+A capture is added at the top level of `_olai/Inbox.olai`, marked **To do**, and where the directory has no inbox the write mints one. Deciding where the line really belongs is what you do afterwards, in the app.
+
+Undo takes the row straight back out. An inbox the capture minted is left standing, so you delete it yourself if you want it gone.
+
+## The Inbox row
+
+The row opens `_olai/Inbox.olai`. Its chip counts the rows in the inbox marked **To do** or **Doing**, at any depth, and is not drawn when that count is zero. A ⚠ beside the word means `Couldn't open this file`.
+
+## What else the inbox holds
+
+Chat files a conversation that belongs to no node under a top-level `Chats` row of the inbox, and offers **Inbox › Chats** as the default place on its **New chat** row. Switching capture off withdraws that place and stops the filing; the other places still work, and conversations already on a node are untouched.
+
+## When something is off
+
+| What is off | What you get |
+| --- | --- |
+| the `outline-olai` plugin | `Inbox needs outline-olai, which is turned off.` where the row was |
+| capture | no **Inbox** row, no `+` prefix and no palette row; the inbox file stays as it is |

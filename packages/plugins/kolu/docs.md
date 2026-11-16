@@ -1,137 +1,133 @@
 # Kolu integration
 
-[Kolu](https://kolu.dev) runs terminals for coding agents. If a machine is running one, olai on that machine can see its fleet — so a node that records where some work happened also shows you how that work is *going*, and lets you look at the screen without leaving the page. Nothing to configure: olai looks for the daemon this host answers on, and where there is none it says so and carries on.
+[Kolu](https://kolu.dev) runs terminals for coding agents. Where this machine runs one, a row that names a terminal shows how that work is going, opens the terminal live, and can wake a conversation when a terminal stops and waits for a person. There is nothing to configure.
 
-**This is the first shipped slice of a larger feature.** The roadmap's Orchestrator family is phased — a read-only view first, then events landing on the board, then actions, gates and judgment ([the roadmap](https://github.com/juspay/oss.olai/tree/main/projects/olai/roadmap), `feat-orch`). What is here today is the read-only half: olai watches, and every verb is still kolu's. The rest is not built, and this page describes only what is.
+## What it talks to
 
-## The connection
+One olai per directory, one padi per machine, one connection between them. The server holds that connection and every tab is a subscriber to it, so twelve tabs watching one terminal cost one dial.
 
-One olai per directory, one padi per machine, one connection between them. The BROWSER never dials padi — the server holds the one connection the fleet rides, and every tab is a subscriber to it. Twelve tabs watching one terminal are twelve attaches over that ONE connection: an attach is a write that carries the size the viewer wants, so panes cannot share one, and what the wall saves is the dial rather than the attach. Whose size wins is [below](#the-live-pane).
+| Environment variable | What it says |
+| --- | --- |
+| `PADI_SOCKET` | The padi daemon socket. Unset, olai uses the rendezvous path kolu derives from its state root. |
 
-Which padi it dials is `$PADI_SOCKET` where that is set, and otherwise the rendezvous path kolu derives from its state root — so the two of them find each other with nothing written down. Both are on this machine, which makes the machine the thing worth naming: olai already titles itself after its host (`olai [machine]` — [running.md](../running.md)), so the fleet on the page is that host's kolu, and two boxes are two tabs you can tell apart. There is no cross-machine fleet, and this page is not a step towards one.
+Both processes are on this machine, so the fleet on the page is this host's kolu. There is no cross-machine fleet. A machine with no kolu is the ordinary case, not a fault: olai says so in words and carries on.
 
-A row of the header's health-dot popover is the readout for the link, and it has three states rather than two (a skew turns the dot red, a quiet watcher amber, no padi at all leaves it alone):
+## What the header readout says
 
-- `● kolu` in the done green — a padi answered and the fleet is live. Its tip says when the watcher last checked in; when that is more than twice its cadence ago the row reads `kolu · No check-in for 47m` and the dot turns amber, because the mirror is still connected and only the watch has gone quiet;
-- `● No kolu`, dim — nothing is answering, and the tip names **where olai looked** (`kolu isn't running at …`), because *looked where?* is the first thing anybody asks;
-- `● kolu: update needed` in the alarm colour — a padi answered but this build cannot speak to it, and the tip names **both** versions.
+One row of the header's health-dot popover is this link's readout.
 
-The third is why the readout is not a boolean. *Start kolu* and *these two builds disagree* have opposite fixes, and a skew reported as absent would send a reader to start a kolu that is already running.
+| Row | What it means |
+| --- | --- |
+| `kolu` | A padi answered and the fleet is live. The tip says when the watcher last checked in. |
+| `kolu · No check-in for 47m` | The mirror is connected and the watch has gone quiet. The health dot turns amber. |
+| `No kolu` | Nothing is answering. The tip names where olai looked. |
+| `kolu: update needed` | A padi answered that this build cannot speak to. The tip names both versions. |
 
-## The `kolu-terminal` property is a door
+The quiet reading starts once a check-in is older than twice the `heartbeat` setting below. A skew turns the health dot red; no padi at all leaves it alone. Starting kolu and reconciling two builds are different fixes, which is why the readout has four faces rather than two.
 
-This is one of olai's **live properties** — a property whose value is a name the board decided on, and whose face goes and finds out what that name currently is. It was the first, and [live-properties.md](../live-properties.md) is the seam itself — what turns one on, and its second tenant ([odu](odu.md): a checkout that has a CI run going in it). Nothing below is special to kolu except the clothes, and the clothes are the one thing worth reading twice: a terminal OWNS ITS ROW, because a terminal somebody wrote down is worth a row whether or not anything is happening in it.
+## Name a terminal on a row
 
-**Give a node a `kolu-terminal` property whose value is a kolu terminal's id** — the whole uuid, or the eight-character prefix a board usually writes — and that is the whole of it. Nothing to declare, no file to edit, and olai never writes your vault:
+Give a row a `kolu-terminal` property whose value is a kolu terminal's id, either the whole `uuid` or the eight-character prefix a board usually writes:
 
 ```jsonl
 {"id":"step","ord":"a0","title":"implement","custom":{"kolu-terminal":"303dc985"}}
 ```
 
-`kolu-terminal` is a **kind** this plugin contributes ([format.md](../format.md)), and an enabled kolu claims the key of the same name. The name carries `kolu-` on purpose: a column *you* call `terminal` is yours, and turning a plugin on can never take it over.
+`kolu-terminal` is a kind this plugin contributes, and an enabled kolu claims the key of the same name, so nothing needs declaring and olai never writes to your files. The name carries `kolu-` on purpose: a column you call `terminal` stays yours.
 
-**Want the short key?** One row in `_olai/Properties.olai` says which of *your* columns is this kind, and a vault row always wins:
+To keep terminal ids under a column of your own name, say which column is this kind with one row in `_olai/Properties.olai`, and your declaration wins:
 
 ```jsonl
 {"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"kolu-terminal"}}
 ```
 
-Your key, the plugin's kind, your file. A column called `pty` works the same way. And a row can take the door AWAY — declare `kolu-terminal` as `text` and it goes dark, because you said what that column means.
+A column called `pty` works the same way, and declaring `kolu-terminal` as `text` takes the face away, because you have said what that column means. What decides is always the declaration, never the key's spelling. This is one of olai's [live properties](../live-properties.md): the value is a name, and the face goes and finds out what that name stands for now.
 
-What decides is always the DECLARATION — the vault's row, or the plugin's claim where the vault said nothing — and never the key's spelling. It used to be the spelling; that was name-matching, and it could not tell two path-shaped keys apart when somebody needed it to.
-
-With a value in place, the property draws **kolu's own Dock row**:
-
-```
-┌─ terminal  1a2b3c4d ─────────────────────────┐
-│  ●   terminal-door                     4m    │
-│      #405  implementing the fold             │
-└──────────────────────────────────────────────┘
-```
-
-The pip and its glyph, the status words, the annotation line, the recency, the repo stripe, the PR badge, the recede on a sleeping terminal, the wash when an agent is blocked on you — all of it is the component kolu's own Dock draws, drawing this same fleet. **olai invents no visual language for it.** It used to: there was a face vocabulary here, a fold, a tone table and a stylesheet family, all restating in olai's words a state machine that is kolu's. That is deleted. One fleet with two visual vocabularies is two surfaces free to come to disagree about it, and the states mean here exactly what they mean in the Dock — which is the whole point of putting them here.
-
-**The raw id stays on screen beside the row**, and the two lines are not saying the same thing. The line on top is olai's record — this node names *that* terminal — and the row beneath is kolu's reading of it. A block that drew only the row would hide the id an agent wrote, which is the value you would need to correct it.
+With a value in place the property draws kolu's own Dock row, the same component kolu draws. The pip, the status words, the annotation line, the recency, the repository stripe and the pull-request badge mean here exactly what they mean in kolu. The raw id stays on screen beside the row: the line on top is olai's record of which terminal this row names, and the row beneath is kolu's reading of it.
 
 ## The live pane
 
-Press the row and a pane opens beneath it, on the terminal itself. Press it again and the pane closes.
+Press the row and a pane opens beneath it, on the terminal itself. Press it again to close.
 
-It is a **window, not a photograph**: it attaches to the terminal and follows the tail, so what is in the box is what is in the terminal, now. It says so twice — a solid border and a `● live` tag — because the pane that reads a still frame is a different promise and a reader should never have to remember which one they are looking at.
+It is a window rather than a photograph: it attaches to the terminal and follows the tail, and it says so twice, with a solid border and a `● live` tag. It wears the terminal's own theme and font, taken from the theme that terminal was created with.
 
-It wears **the terminal's own theme and font**, taken from the theme that terminal was created with, so a pane in olai and the same terminal in kolu are the same colours and the same type rather than two impressions of it.
+The pane is read-only. You watch here and you type in kolu, because a keyboard here would be a second hand on a terminal an agent is working in.
 
-**It is read-only, by design.** You monitor here and you type in kolu. That is the standing rule this whole integration is built on — watching something must not perturb it — and a keyboard in this pane would be a second hand on a terminal an agent is working in.
+Attaching is a write on a shared pty, and every kolu client sees the same size, so opening a pane sets the terminal's grid and another client attaching later moves it for both of you. The pane then takes the new size from padi's next frame rather than asserting its own back.
 
-Attaching is a write on a shared pty, and kolu's semantic is that every client sees the same size — so opening a pane sets the terminal's grid, and another client attaching later moves it for both of you. When that happens the pane takes the new size from padi's next frame rather than asserting its own back, because two viewers each answering the other's resize is a war whose symptom on both screens is a garbled terminal.
+Closing drops the attach and disposes the emulator with it. Twelve lanes on a page are twelve rows and no attached terminals until somebody presses one, and closing forty panes leaves nothing running.
 
-Closing drops the attach, and the emulator with it — the terminal is disposed, the box watching it for resizes is disconnected, and a re-attach the pane had pending is cancelled. Twelve lanes on a page are twelve rows and **zero** attached terminals until somebody presses one; closing forty panes leaves nothing running either, including a pane closed while its emulator was still being fetched.
+## Recent activity
 
-## The events feed
+Press the `kolu` readout and a panel opens: what recently wanted attention, as a log. olai watches the fleet it already holds and says when a terminal has been sitting in a state only a person can carry. Those states are `awaiting` your answer and `waiting` on input, each reported once it has been held past the moment it is worth saying so.
 
-Press the `● kolu` readout and a panel opens: **what recently wanted attention**, as a log. olai watches the fleet it already holds and says when a terminal has been sitting in a state only a person can carry — `awaiting` your answer, or `waiting` on input — past the moment it is worth saying so. While a pressed Terminal waits on a machine's other half somewhere, the watch itself stays the same economy as the fleet drawer it sits on: the one daemon, the one subscriber, the map the server already held.
+Every row is a frozen draw of the moment the event fired: which pip it wore, which label it had, and how long it had already been held. A terminal that found its answer ten minutes ago still shows the ask it was.
 
-Every row is a **frozen draw of the moment the event fired** — which pip it wore, which label it had, how long it had already held. The row is a fact about the past, not a current affairs teller: a terminal that found its answer ten minutes ago still shows the ask it was, and the headline age runs off the same clock as the pips.
+A re-telling carries its own count, read off the event as padi counted it, such as `still waiting for input for 38m — reminder 2 of 3`, and `… of 3, the last` on the one after which that terminal goes quiet until its state moves. The count survives an olai restart, because the daemon keeps it.
 
-A re-telling carries its own **count**, read off the event as padi counted it — never off olai's own tally: `still waiting for input for 38m — reminder 2 of 3` when the nag is capped, `… of 3, the last` on the one after which that terminal goes quiet until its state moves. The daemon is the one that knows which reminder a terminal is on, and the count survives an olai restart exactly as the hold itself does.
+The watch is the server's: one watcher, one ring of the last two hundred or so events, and every browser reads it. The ring is attention only, with no heartbeats on it. Liveness lives on the header readout instead.
 
-The watch is the SERVER's — one watcher, one ring of the last roughly two hundred events, and every browser is a reader of it. The ring itself is **attention only** — heartbeats are nowhere on it; a feed of migrated rows would be the same distraction the usernames they fold back to would be.
+The feed draws the whole fleet for every reader of the page, and it has no silence control. The wake filter below decides which terminals wake one conversation and says nothing about this panel.
 
-The liveness lives on the header's padi readout instead, which is where the feed's own bar already was: `Checked in 2m ago` in its tip while it is healthy (the fold's first register, `fresh`), and — crossed past **2 × the vault's `heartbeat` knob** — its amber face (its `notice` tone): the row's dot amber, and its words naming it as `No check-in for 47m` until the next beat. The header's health dot turns amber with it and names `kolu · No check-in for 47m`, so it is heard with the popover shut. That double-cadence is the pill's own margin: the fold counts the beat's stamp against `everyMs` right beside the pulse's record, so a tab answering on its own clock need never guess the vault's cadence. **The beat itself is stamped when the watchdog answers**: the subscription's leading frame — even an empty one, which is its way of saying "alive and nothing matching" — and every batch after it. The consequence, deliberate: ten days into a quiet capped fleet the ring has heard everything it will ever hear, and the pill WILL cross into amber two windows after the last answer — the register's truthful face under a finite nag, not a fault finding a voice. A padi link flapping under olai fires nothing new: the fence re-leads the standing set on every reconnect, and olai's ring drops a re-telling at its own door, keyed by the daemon's episode stamp — a `since` bridged rather than re-dated. (A [knob edit](#the-watchs-pacing-lives-in-_olaiKoluolai) re-asks the question and honestly re-reports what stands; the edit is yours, the flap is not.)
+## Pacing the watch
 
-**The watch's pacing lives in `_olai/Settings.olai`**, edited through the drawer's wrench:
+The watch's knobs live on a `watch` child of the top-level `kolu` node in `_olai/Settings.olai`, in the grammar a `kolu watch` hand already types:
 
-```
+```jsonl
 {"id":"kolu","ord":"a0","title":"kolu"}
 {"id":"watch","parent":"kolu","ord":"a0","title":"watch","custom":{"held-for":"60s","nag":"10m/4","heartbeat":"30m"}}
 ```
 
-The file is normal outline records. **Which file decides is a question about the name alone, the way the shelf's and the inbox's are**: the shallowest outline basenamed `settings.olai` (case folded, `_olai/Settings.olai` the chosen form) — a file that holds no `watch` node still decides, so a root `Settings.olai` of notes shadows one parked deeper, knobs defaulting until it moves. The `watch` child of the top-level `kolu` node carries the knobs — `held-for` (the pause that holds a terminal's state out of the feed), `nag` (how often an unanswered one is said again) and `heartbeat` — in the grammar a `kolu watch` hand already types, because both faces read padi's own parser: the units are `ms`, `s`, `m`, `h` and `d`, and an absent value defaults. One difference from the CLI: a **bare number is refused** — the `kolu` flags take bare milliseconds because flags already mean that, but a file is not a flag: a truncated `nag: 10` must be said, not defaulted into a ten-millisecond spin. A malformed one defaults **and appears under its panel control with the file’s text and validation message**, as well as on the server’s console at warning level, so a typing mistake is never silent — the settings reader owns that warning, once per malformed shape. A broken file uses defaults for every row, including this live subscriber. `held-for` may be `0` — the report the INSTANT a state lands, which padi's watch flags also allow — but the other two never are, because a nag every 0 ms is the spin padi itself refuses.
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `held-for` | `60s` | How long a terminal waits in one state before it is reported. Zero is a legal instant report. |
+| `nag` | `10m` | Time between reminders, optionally capped with `/count`. |
+| `heartbeat` | `30m` | How long a quiet watch still counts as healthy, and the floor under the doorbell's silence. |
 
-**The nag is the knob that learned to stop.** Spell it `10m` and it repeats every ten minutes while the hold stands; spell it `10m/4` — the count after the slash, and the ONLY place a count can be spelled — and it says its piece four times past the first report, then goes quiet about that terminal until its state moves. The stopping is in the daemon's keeping, not olai's: the count re-arms only on the state actually changing, so a restart of the server does not restart a cap — and the pill (above) is how you notice a whole afternoon of quiet. A knob edit is padi's own *re-ask*: change `held-for` and the standing set is re-reported at once as a fresh leading frame, and the cap counts anew — the doorbell says the wake again as a fresh first report, and the reminder line returns, numbered from 1, on the nag after. The row declares `configUpdates: "live"`: the composition root still applies `on`, but leaves watch edits to the row’s declared vault subscription without re-applying it or dropping its fleet connection. Edits land live either way: the watch reads its knobs on every vault revision, so the file a person is *editing* is the file a person is **already being watched by**.
+Units are `ms`, `s`, `m`, `h` and `d`, and an absent value takes its default. The file is yours rather than installed: without it the watch runs the three defaults above.
 
-The file is yours, not installed: without it the watch runs its defaults (one minute, ten minutes, half an hour).
+A count after the slash is the only count that can be spelled. `10m` repeats every ten minutes while the hold stands. `10m/4` says its piece four times past the first report, then goes quiet about that terminal until its state moves, and the daemon keeps that cap, so restarting the server does not restart it.
 
-**There is no mute list any more, and the feed has no silence control at all now.** The former `Kolu.olai` used to carry a `mutes` node whose children named terminals the watch was to keep quiet about, and the drawer's foot named them back. Both went with the second doorbell, and what went with them was the only way there ever was to quiet THIS surface: the watch says everything it sees — every held terminal in the fleet, for every reader of the page — and the `kolu/watch` section in `_olai/Settings.olai` decides the pacing.
+The feed's wrench opens kolu's controls in the plugins panel, with the watch's fields in the row's detail, descriptions in tips and a mark beside values set in the file. `Enter` or leaving the field writes a valid duration such as `90s`, and `Escape` reverts the draft. A bare number is refused before writing, with its message beside the input. The reset control removes the property.
 
-**What arrived is a control over a different surface**, which is why the two are a trade rather than a swap. The wake filter file a conversation is scoped to (below) decides which terminals wake THAT CONVERSATION; it says nothing about the events drawer, which goes on drawing the whole fleet. A mute was one machine-wide *never, for everybody* over a log a person chooses to open; a filter file is one person's answer, per conversation, over a message that arrives unasked. The second is the one worth having and the second is what the doorbell needed — but a reader who wanted the drawer itself quieter has nothing to reach for, and that is the cost, named here rather than left to be discovered.
+The live watch follows the accepted revision. A knob edit makes padi re-report the standing set at once as a fresh first report, so the cap counts again.
 
-**The drawer’s wrench opens Kolu’s controls on the plugins panel.** The watch’s fields are in the Kolu row’s detail, opened for you, with descriptions in tooltips and a ● for values set in the file. Enter or blur writes a valid duration such as `90s`; Escape reverts the draft. A bare number is refused before writing, with its message beside the input. ↺ removes the property. The live watch follows the accepted revision without losing its activation.
+The wrench works before a settings file exists: the first edit creates the `kolu` node and its `watch` child. A broken file opens frozen controls with the repair reason in their tips. **Saved in** opens the node for editing the outline by hand. With the plugin inspector switched off the wrench goes and the feed keeps working.
 
-The wrench works before a settings file exists: the first edit creates the `kolu` node and its `watch` child. A broken file opens frozen controls with the repair reason in their tooltips. `Saved in` in the row’s detail opens its node for editing the outline itself. The wrench consumes the inspector’s declared service through an optional component; disabling the inspector removes the wrench while the feed continues, and re-enabling restores it.
+## Wake a conversation on the fleet
 
-## The second doorbell — a conversation woken by the fleet
+A conversation's strip carries `wake on terminal activity`, a picker over your outlines, and `Clear`. Scope a conversation to one outline file and olai rings it when a terminal that file claims stops and waits for a person. The picker offers outlines alone, because the claim lives on a row: it leaves out documents, the Trash, put-away files and olai's own `_olai` files.
 
-A chat conversation can be **scoped to one `.olai` file**, and then olai rings it when a terminal that file claims stops and waits for a person. The control is on the chat panel's strip: `wake on terminal activity · terminals from <a file> ▾`, with a picker over the outlines you keep and a clear beside it. **Outlines and nothing else**, because the claim kolu reads lives on a NODE: a document has none, so a conversation pointed at one would watch an empty set for ever while the heartbeat below went on saying the watch was running. The picker used to offer every served file, documents included; it asks each file's kind now, and leaves out the Trash, the leftover archives and olai's own `_olai/` files as well — see [the panel's own page](../chat.md#what-this-conversation-wakes-on) for that ruling. **Nothing is scoped by default** — a fresh conversation, or one you cleared, has the doorbell off until somebody picks a file, and there is no serve-wide setting that turns it on for you.
+Which terminals a scoped conversation hears about is exactly the `kolu-terminal` values on that file's un-done rows, with mirrors resolving to their targets. That makes a day board the natural filter, and a lane you finish stops ringing without anybody switching anything off. A second conversation may filter by a different file.
 
-**The file is the FILTER, and the subject is the fleet.** Which terminals a scoped conversation hears about is exactly this: the `kolu-terminal` values on that file's **un-done** nodes, with mirrors resolving to their targets. That makes the day board (`lanes.olai`) the natural filter — it already holds precisely the live lanes — and it means a lane you finish stops ringing without anybody switching anything off. A second conversation may filter by a different file and become its own seat.
+Un-done means unsettled: a `done` step and a `cancelled` step both end the wait, and either silences the node and everything under it. The value is read by the declared kind rather than by a key's spelling. A value that is a prefix of two live terminals claims neither.
 
-**Un-done means UN-SETTLED**: a `done` step and a `cancelled` step both end the wait, and either one silences the node and everything under it. Nothing else does. The value is read by the **declared kind** and never by a key's spelling, so a board whose column is `pty` is heard and a column you have been calling `terminal` since before kolu is not. A value that is a prefix of two live terminals claims neither.
+A row nobody marked is judged by what is under it. A plain row with nothing beneath it claims nothing; a row with a live step under it is a live lane and rings.
 
-**A row nobody marked is judged by what is under it.** A plain bullet with nothing beneath it is a line somebody wrote rather than work somebody owes, and it claims nothing — but a bullet with a live step under it is a live lane, and it rings. That distinction is the whole of a bug this used to have (`doorbell-missing-claim`, 2026-09-01): a lane whose node had been **filed before its dispatch** — the terminal and the steps grafted onto a row that was already on the board, and the row itself never marked — was dropped from the set entirely. It drew no wake, no nag, and no place in the heartbeat's count for 26 minutes with its agent sitting `waiting`, while four lanes beside it on the same board rang. Nothing about that board said the lane was different. If you keep a board this way, you do not have to remember to mark the lane itself; its steps are enough — but it does need STEPS: a bullet given only its `kolu-terminal`, with nothing under it yet, still claims nothing, and the trace says `unmarked-leaf` when you ask it why.
+### Wake, digest or silence
 
-**Two meanings, derived, never configured:**
+Three outcomes follow from the claim, and none of them is configured:
 
-- the terminal is claimed and the claiming step is **`doing`** — somebody is on that lane right now and it has stopped, so a report or a block is owed: **a wake**, which starts a turn if the agent is idle and queues behind whatever you typed if it is not;
-- the terminal is claimed and the claiming step is **`todo`** — the lane is open but nobody is on it, so it is lawfully parked: **a digest**, whose head says the terminal went quiet and that nothing under it is being worked, and closes *A note, not a call*;
-- the terminal is **unclaimed** — silence, and silence means no message at all. olai does not report what it decided not to ring about.
+- the claiming step is `doing`, so somebody is on that lane and it has stopped: a wake, which starts a turn if the agent is idle and queues behind what you typed if it is not;
+- the claiming step is `todo`, so the lane is open and nobody is on it: a digest, whose head says the terminal went quiet and that nothing under it is being worked, closing `A note, not a call.`;
+- nothing claims the terminal: silence, and olai does not report what it decided not to ring about.
 
-**The two meanings differ in their WORDS, and in nothing else.** There is one delivery path and there is no quieter arm on it: a digest reaches the agent exactly as a wake does — a turn of its own where the agent is idle, held to the turn boundary where a turn is running, held until somebody opens the conversation where nobody is in it. What the meaning decides is the sentence olai writes, and the key that sentence is coalesced under: one key per meaning, so a burst under one meaning collapses to its newest body and can never overwrite the other meaning's — and where both are waiting when a turn ends, they arrive together, each whole. This page used to promise a digest that did not wake the agent; no quieter arm was ever built and there is nowhere in the mechanics to put one. What a person who wants a parked lane to stay quiet changes is the filter file — by finishing that lane, or by pointing the conversation at a board it is not on.
+The two meanings differ in their words alone. There is one delivery path, and a digest reaches the agent exactly as a wake does. What the meaning decides is the sentence and the key it coalesces under. One key per meaning means a burst under one meaning collapses to its newest body, and both arrive whole when a turn ends.
 
-**The message is olai's, and it says so.** It arrives as a message in the conversation with a face of its own — never in your composer, which is yours the whole time and is never typed into, focused or cleared. It opens by naming itself, because a conversation resumed from the agent's own store rebuilds its rows out of message chunks, and a sentence that did not say who was speaking would replay as words in your mouth.
+### What a wake says
 
-**A re-told wake says which telling it is — and which terminal.** When a nag rides the event, the body carries one more line after its attribution, spelling the account *and naming the row it is about* (the body lists the whole standing set, so an unspoken subject would paste one event's count onto every claimed terminal): *This is reminder 2 of 3 for `11111111`.* — and on the last one: *This is reminder 3 of 3 for `11111111`, the last — this doorbell goes quiet about that terminal until its state changes.* The first saying carries no count, because the cap the count counts against is padi's own repetition of it; the words are spelled off the event's accounting exactly as the events drawer spells them, so a count can never disagree with itself between the two places you read it.
+The message arrives in the conversation with a face of its own, never in your composer, and it opens by naming itself as olai's. The panel draws one sentence, such as `The fdo-residuals author is idle on <row>: it has finished, or it needs you.`
 
-**One line drawn, the rest a press away.** What the panel shows is a plain sentence — *kolu — the fdo-residuals author is idle: it has finished, or it needs you.* — and the account behind it carries the terminal, who it is, the state it is held at, the step that claims it and the file the whole set was read off. The fold is the discipline a tool row already keeps, and the split is between READERS rather than between messages: the agent is handed the whole body as the message text, because it needs the ids to act; you get the sentence, and the ids when you ask for them. The account names the claiming node's id in backticks, so it is **pressable** — a wake links back to the board row it was derived from, which is the row you would edit to stop it.
+The account behind that line carries the terminal, who it is, the state it is held at, the step that claims it and the file the set was read off. The claiming row's id is in backticks and is clickable, so a wake links back to the row you would edit to stop it. The agent is handed the whole body, because it needs the ids to act.
 
-**Events that pile up while a turn runs arrive as one message.** Each body is a fresh derivation of what is standing — every claimed terminal held *right now* under that meaning — so the one that lands names everything the ones before it would have, and nothing is lost by combining them. The strip counts what is waiting (`3 fleet events waiting`) so it is never holding words out of sight.
+When a reminder rides the event, the body carries one more line naming the account and the terminal it is about, such as *This is reminder 2 of 3 for `11111111`.* On the last one it says that this doorbell goes quiet about that terminal until its state changes. The strip counts what is waiting, such as `3 fleet events waiting`.
 
-**A floor under the silence.** The doorbell's last message is not about the fleet at all. If a scoped conversation hears nothing for a whole `heartbeat` window — the same knob in `_olai/Settings.olai` that paces the pill, and there is no second dial for this — olai puts one message in it saying the watch is running, with the readings that make that claim checkable:
+## The floor under the silence
+
+If a scoped conversation hears nothing for a whole `heartbeat` window, olai puts one message in it saying the watch is running, with the readings that make the claim checkable:
 
 ```
 The kolu watcher is alive: 30 minutes with nothing to say about the 4 terminals lanes.olai claims.
-
-… (the attribution line, and what a heartbeat is) …
 
 — the filter file: lanes.olai.
 — terminals it claims right now: 4.
@@ -139,86 +135,56 @@ The kolu watcher is alive: 30 minutes with nothing to say about the 4 terminals 
 — watching since 2026-08-30 19:03 UTC, 19 hours 29 minutes so far.
 ```
 
-**Four facts rather than "still here",** because *still here* is exactly what a wedged watcher would go on saying: a timer that still fires proves the interval is armed and nothing else. These four are things you can disagree with. A count of 0 all afternoon on a board with four live lanes is a conversation scoped to the wrong file. A last event older than the uptime is a watcher seeing a fleet that never moves. A *watching since* that resets every window is a server somebody keeps restarting. Every one of them is read at the moment the message goes in, so a heartbeat that waited through a turn reports the board as it is when you read it.
+Four facts rather than *still here*, because a timer that still fires proves the interval is armed and nothing else. A count of zero all afternoon on a board with four live lanes is a conversation scoped to the wrong file. Every reading is taken at the moment the message goes in.
 
-**It is a floor and not a metronome.** Any wake or digest delivered to that conversation resets the window, so a busy day produces no heartbeat at all and a quiet one produces exactly one per window. It rides the same delivery path as everything else — a turn of its own where the agent is idle, held to the boundary where a turn is running — which is the whole point: a proof of life that only landed when the agent happened to be running would prove nothing about the hours it was not.
+It is a floor and not a metronome: any wake or digest resets the window, so a busy day produces no heartbeat and a quiet one produces one per window. It rides the same delivery path as everything else. A heartbeat only ever means that the watch is running and had nothing to say.
 
-**A heartbeat is never a fault report.** It only ever means *the watch is running and had nothing to say*. A scope olai cannot watch is not beaten for at all — that case says so in words of its own, and there are two of them: the file you pointed at was renamed, moved or deleted, or it is not an outline and holds nothing that could ever claim a terminal (which can only be a pick made before the picker started filtering). Each is one message, once, and the strip goes on showing which. So the two can never be confused for each other, and clearing the file on the strip stops the heartbeats with everything else.
+> A scope olai cannot watch is not beaten for at all. The strip says which of two faults it is, once: `This file is gone. Choose another.` when the file was renamed, moved or deleted, and `This file can't be watched. Choose another.` when it is not an outline. `Clear` stops everything.
 
-**And under a capped, quiet fleet the floor goes quiet too — deliberately.** Beats are stamped per batch the subscription answers, and a fleet whose nag caps are spent answers nothing more: no batches, no beats, no walks of this loop. "The watcher is proving it is running" every half hour would then be the *still here* lie this message exists to refuse — the register to watch after the count is spent is the pill going amber (above), which is the same face a dead subscription wears, and telling the two apart is the trace's chapter below.
+## Why a terminal is not in the set
 
-### What the doorbell says it did
-
-A doorbell's failure mode is a call that does not happen, and that is byte-for-byte identical to its ordinary quiet operation. So the doorbell keeps an account of itself: one line per moment, on the debug channel, off until you ask for it.
+Set `log-level: debug` on the `olai` node in `_olai/Settings.olai` and the doorbell keeps an account of itself, one line per moment, each `kolu doorbell <moment> key=value …`, so one moment is one `grep`:
 
 ```
-# Set log-level: debug on the olai node in _olai/Settings.olai
-```
-
-Every line is `kolu doorbell <moment> key=value …`, so one moment is one `grep`:
-```
-kolu doorbell event kind=nag at=2026-09-01T21:52:52.107Z terminal=11e565c0 state=waiting
-kolu doorbell derived file=orchestrator/lanes.olai claims=9 ringing=11e565c0@task-notification-spill,4b5a3fb6@odu-doorbell unmatched=none excluded=7cf67c42@no-file-delete-op:settled fleet=11
-kolu doorbell scopes terminal=11e565c0 scoped=1 files=orchestrator/lanes.olai
+kolu doorbell derived file=orchestrator/lanes.olai claims=9 ringing=11e565c0@task-notification-spill unmatched=none excluded=7cf67c42@no-file-delete-op:settled fleet=11
 kolu doorbell classified terminal=11e565c0 file=orchestrator/lanes.olai agent=olai session=s-1 meaning=wake why=none
-kolu doorbell delivering file=orchestrator/lanes.olai meaning=wake agent=olai session=s-1 coalesce=kolu:wake
-kolu doorbell said file=orchestrator/lanes.olai meaning=wake standing=2 terminals=11e565c0,4b5a3fb6
-kolu doorbell delivered file=orchestrator/lanes.olai meaning=wake agent=olai session=s-1 said=true
 ```
 
-The moments are `event` (a watcher `transition`, `nag` or beat reached the doorbell), `derived` (one file's ringing set — **named**, not counted, because the fact worth reading is usually an *absence* and an absence is only legible against a list), `scopes`, `classified` (including `meaning=none`, which is the silence), `delivering` / `said` / `delivered` / `dropped`, and the beat's own `beat`, `beating`, `beat-passed`, `beat-said` and `beat-dropped`. Every `dropped` carries a `why` — and it is one word rather than two, because a set that has nobody standing is the same fact whether the ring asked before handing the delivery over or the closure asked at the moment the words would have gone in.
+The moments are `event`, `derived`, `scopes`, `classified`, `delivering`, `said`, `delivered` and `dropped`, with the beat's own `beat`, `beating`, `beat-passed`, `beat-said` and `beat-dropped`. The `derived` line names three populations as `value@node:why`: what rings, what was `unmatched`, and what the walk excluded.
 
-### Why a terminal is not in the set
+| `why=` | What it means |
+| --- | --- |
+| `settled` | The claiming row is `done` or `cancelled`, so the wait ended for it and for everything under it. |
+| `not-live` | The row is open, and every step under it has settled. |
+| `unmarked-leaf` | The row carries a terminal, has no mark and has nothing under it. |
+| `unmatched` | A live claim names it and the join refused: an ambiguous prefix, a shut terminal, or a second row copying a property the first row won. |
+| `unclaimed` | Nothing this walk reached names it, which is usually the doorbell working. |
 
-The `derived` line names three populations, not one: what **rings**, what was `unmatched` (a live claim whose value named no single fleet id — an ambiguous prefix, a terminal that has shut, or a second row copying a property the first row already won), and what was `excluded` by the walk, each as `value@node:why`. A `classified` line whose `meaning=none` carries the same answer for the terminal the event was about:
+`unmarked-leaf` is the one to know about, because it is a silence you can hit by accident: a lane filed as a plain row with only its `kolu-terminal`, before its steps land, claims nothing. The fix is on the board: give it a step, or mark the row.
 
-| `why=` | what it means |
-|---|---|
-| `settled` | the claiming row is `done` or `cancelled` — the wait ended, for it and for everything under it |
-| `not-live` | the row is open, and every step under it has settled |
-| `unmarked-leaf` | the row carries a terminal, has no mark and has nothing under it — a bullet somebody wrote |
-| `unmatched` | a live claim names it, and the join refused (see above) |
-| `unclaimed` | nothing this walk reached names it — usually a terminal nobody scoped this file for, which is the doorbell working |
+`unclaimed` is narrow on purpose. The walk stops at a `done` or `cancelled` row without descending, so a claim under a settled ancestor reads as `unclaimed` while the ancestor sits in the `excluded` list saying so. The debug channel is where this lives, because a doorbell narrating every event at the default level would dress the one line that matters as the ones you have learnt to skip.
 
-**`unmarked-leaf` is the one to know about**, because it is a real silence you can hit by accident: a lane filed as a bullet and given only its `kolu-terminal`, before its steps land, claims nothing. A bullet with a live step under it *does* ring — that is the `doorbell-missing-claim` fix — but a bullet on its own is a line somebody wrote rather than work somebody owes, and olai will not wake you about it. If a lane is quiet and this is the reason, the fix is on the board: give it a step, or mark the row.
+## What an agent gets
 
-**`unclaimed` is narrow on purpose.** The walk stops at a `done` or `cancelled` row without descending, so a claim *underneath* a settled ancestor is never looked at and reads as `unclaimed` rather than by its own gate — the settled ancestor is in the `excluded` list saying so. That matters most on a day board, where the file holds a mirror and the lane's steps live in another file, so the descent is the only way in.
-
-**Silence to the conversation is unchanged.** olai still never rings anybody about a terminal it decided not to ring about — that was ruled and is not reopened. What changed is that the decision is no longer invisible to *you*. The `derived` line above is the one that would have ended `doorbell-missing-claim` in a glance: the terminal was simply not in `ringing`.
-
-**Debug and not info, on purpose.** A doorbell narrating every event at the default level would be a running commentary on a machine where nothing is wrong, and the one line that mattered would arrive dressed as the ones you have learned to skip. The owner's channel keeps what you must read without asking: a malformed knob, and a walk that threw.
-
-## When there is nothing to see
-
-A machine not running kolu is the ordinary case, not a fault. There is no row, and in its place a **sentence** — never a grey row, which would claim the terminal is sitting there doing nothing, and that is a different and wrong fact:
-
-- `This terminal was closed.`
-- `3 terminals match. Type more of the id.` (a prefix too short to be one terminal)
-- `kolu isn't running. Looked at …/padi-a1b2c3/padi.sock.`
-- `kolu isn't running at …/padi-a1b2c3/padi.sock (from $PADI_SOCKET).` (somebody SAID where it would be, and it is not there — a different fact from having looked in the default place)
-- `kolu isn't set up.` (no socket at all: a run drawn outside the fleet, or a server in the first instant of its life. "Looked at ." is not a sentence)
-- `kolu and olai versions don't match (padi 99.0, olai 12.0). Update one of them.`
-
-None of those are things kolu's row has a face for, because from kolu's side they do not happen. They are olai's to say, and they are words rather than a shape for the same reason the header readout has three states: *we cannot see* must never be drawn as *we looked and it is quiet*.
-
-## The chat panel's kolu
-
-The older half of the integration, and a separate one: where this host runs kolu, the [chat](../chat.md#kolu) panel's agent is handed `kolu mcp`, so the agent can drive terminals rather than only look at them. It is probed rather than assumed — a `kolu` on a PATH is not always the one this host is running — and a server that would not attach says so on screen with the reason, under the roster line:
+Where this host runs kolu, every new conversation's agent is handed `kolu mcp`, so it can drive terminals rather than only watch them. It is probed rather than assumed, because a `kolu` on a `PATH` is not always the one this host is running, and the tool roster carries the result:
 
 ```
 olai ✓  kolu ✓  · plus the agent's own
 ```
 
-The two halves share a host and a daemon and nothing else: one is a standing subscription to a fleet, the other a spawn-time probe for a tool server. [chat.md](../chat.md#kolu) has that one in full.
+A server that will not attach says so on screen with its reason, under the roster line. With `PADI_SOCKET` set and no `kolu` executable on the server's `PATH`, the sentence says exactly that. The probe runs per conversation, so a kolu installed after the server started is picked up by the next one.
 
-The plugin's `Config` schema declares the `watch` section and each field's default, validation and description. The shared settings reader uses that validation and owns malformed-value warnings. Kolu follows its `watch` child on the same vault revision. The former `Kolu.olai` file is no longer read for configuration.
+## When there is nothing to see
 
-The file picker in the conversation strip belongs to this plugin. It hangs in chat's `conversation.wake` slot, reads the served files through its declared `vault.files` service, and shows its own gone or unwatchable state. Chat stores the pick and draws the waiting count; it does not interpret the file.
+Absence is said in words rather than drawn as a quiet board, because *we cannot see* must never look like *we looked and it is quiet*:
 
-## Retained viewers
+- `This terminal was closed.`
+- `3 terminals match. Type more of the id.`
+- `kolu isn't running. Looked at …/padi-a1b2c3/padi.sock.`
+- `kolu isn't running at …/padi-a1b2c3/padi.sock (from $PADI_SOCKET).`
+- `kolu isn't set up.`
+- `kolu and olai versions don't match (padi 99.0, olai 12.0). Update one of them.`
 
-An open terminal viewer keeps its host through a temporary padi connection
-loss and updates its theme in place. Hidden lanes do not fit terminals to zero
-size. Changing the terminal property ends that viewer's target lifetime and
-requires opening the new target; removing the property or its pane disposes
-the attachment, observers and deferred setup.
+## Switching it off
+
+Set `on: no` on the `kolu` node in `_olai/Settings.olai`, or use its switch in the plugins panel ([settings](../settings.md)); the choice survives a restart. The Dock rows, the live panes, the feed, the readout row, the wake control and `kolu mcp` leave with the row and return when it does.

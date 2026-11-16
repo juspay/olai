@@ -1,52 +1,64 @@
-# Pi, as a chat agent
+# pi, as a chat agent
 
-The engine that is **both halves at once**: an adapter olai ships pinned, and an agent your machine has to have. Put [`pi`](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) on this server's PATH and chat offers it as **Pi**; the ACP bridge that drives it comes with olai.
+pi takes both halves: an adapter olai ships pinned, and a `pi` your machine has. Put `pi` on this server's agent search path and the panel offers it as **Pi**. For what a conversation is, read [talking to an agent](../chat.md).
 
-This page is one engine's own account of itself. What a conversation IS — how you choose an agent, what a turn looks like, which conversation you come back to, what the servers strip says — is the same for every engine and is [chat.md](../chat.md).
+## What olai runs
 
-## How olai finds it
+| Variable | What it does |
+| --- | --- |
+| `OLAI_ACP_PI` | the command line olai runs as the adapter. The wrapper sets it to the pinned build unless you set it first |
+| `OLAI_AGENT_PATH` | the directories olai looks in for `pi`. Set, it replaces the search path rather than adding to it |
+| `PI_ACP_PI_COMMAND` | olai sets it on the spawn to the `pi` its own probe found |
+| `PI_ACP_MCP_EXTENSION` | the pinned wrapper sets it to the bridge that gives pi olai's tools |
 
-Two probes, with different absence reasons: an unset or empty `OLAI_ACP_PI` means the adapter is unavailable; otherwise a missing `pi` means the CLI is not on this server's agent search path. Its enabled plugins row moves to **Needs you** with the reason and installation link where supplied. It is not offered in the agent menu while either is missing.
+| Pinned | Version |
+| --- | --- |
+| `pi-acp` | 0.0.33 |
+| the `pi` these readings were taken against | 0.84.2 |
 
-- **the adapter** is `svkozak/pi-acp`, pinned and baked into the packaged binary's wrapper beside the Claude Code one. `OLAI_ACP_PI` names it, and that variable is this row's whole door. A floating `npx -y pi-acp` is never run: the npm world would hand back a different build every day, and the wire facts this engine is written against are one revision's.
-- **the agent** is a runnable `pi` on the **agent search path**. The one the probe found is handed to the adapter as its own `PI_ACP_PI_COMMAND`, so the `pi` the row runs is the `pi` the probe found — without that, the adapter's own lookup would resolve the word against a third path, its child's, which is olai's and not your shell's. `OLAI_AGENT_PATH` is where to say where to look.
+The adapter and its bridge come with olai; `pi` is yours to install. Handing the found `pi` to the adapter is what keeps the row on the one your search path names: left to itself, the adapter would resolve the word against its own parent's path, which is olai's rather than your shell's.
 
-Turn this row off with `on: no` on the `pi` node in `_olai/Settings.olai`, or its durable switch on the plugins panel. The row stops probing and its browser contribution is withdrawn.
+An adapter you point `OLAI_ACP_PI` at answers for the wiring it carries, which need not include the bridge olai ships.
 
-After installing `pi` on the configured search path, switch this plugin off and
-on to probe again without restarting olai. Ordinary readers reuse the answer.
-Changing the service's environment itself still requires restarting it.
+To switch the row off, put `on: no` on the `pi` node in `_olai/Settings.olai`, or use its switch on the **Plugins** panel ([choosing what runs](../settings.md)). The row stops probing and withdraws what it draws.
 
-## What is only true of this wire
+## How olai's tools reach pi
 
-Every reading was captured live against **pi-acp 0.0.33** driving **pi 0.84.2**. Each is safe to lose in one direction only — what is not recognised is asked about.
+pi's harness has no MCP client of its own, so the adapter loads a bridge extension into each conversation's `pi` with that conversation's servers in its environment, and pi's own extension interface registers them as ordinary tools. They answer by the names the other agents use, `olai_*` and `kolu_*`.
 
-- **the tool's name is the head of the call id** (`bash:0`, `edit:1`), exactly as on the opencode wire and for the same reason: nothing on a frame says it, and the id is minted once and never moves.
-- **there is no bypass mode and no interruption.** `session/set_mode "bypassPermissions"` is refused (the modes are the thinking levels), and `_session/steering` does not exist. The `/steering` in pi's own slash menu is about pi's message delivery, not the ACP extension of the same name — one collision of vocabularies, and the reason the gesture is not drawn.
-- **a mid-turn message QUEUES, visibly.** The adapter accepts it, announces *Queued message (position n).* and answers the request when its turn comes. That is a characteristic rather than a gap.
-- **the session's open DOUBLES its banner.** `session/new` answers with a startup block for editors — pi's version, an update nag, the context and skills it loaded — and then emits the same text as an ordinary message so that clients drawing no such block still show it. The panel drops the double, matched on the exact text the open's own answer carried. It matters because a first turn whose only content would have been the banner is a **silent** turn, and the panel names silent turns.
-- **olai's tools reach pi through the pin's own bridge.** pi's harness has no MCP client of its own, and its adapter wraps the harness's remote-control drive rather than its config — so the servers a session is handed would have gone nowhere without something loading them INTO the agent. The pinned adapter does that: it spawns each conversation's pi with a bridge extension loaded and the session's servers in its environment, and pi's own extension API registers them as ordinary tools. The `olai_*` / `kolu_*` names the other agents use are the names its rows answer by.
-- **so no permission question comes back over ACP.** A tool's spelling of *ours* is pi's own; pi's settings govern what it may do, the way the other agents' govern theirs. The servers strip's rows stand at **handed** and there is no per-server tick to move them.
-- **the stored list is one page.** `session/list` answers in pages of fifty, newest first; olai sends no limit and follows no cursor, so a directory with more than fifty stored pi conversations draws the newest page and loses the rest.
-- **bash output streams under its tool row**, using the adapter's terminal metadata, and remains readable with its exit status. Edits draw fully, as diffs with `path:line` locations.
-- **no harness memory built in.** pi's memory is opt-in packages pi loads from its own config, and olai installs none — the node's subtree is the only memory.
+No permission question comes back over ACP. What pi may do is pi's own settings, the way the other agents' settings govern theirs, so the servers strip lists every server olai handed over and no tick arrives to mark one connected.
 
-## The adapter, and its patch
+## Talking while it works
 
-`default.nix` beside this plugin builds the pinned adapter from a committed
-lockfile — through `@olai/plugin-kit`'s `npm-adapter.nix` over the shared
-`acp/` shim. One patch and one bundled extension ride that pin, and both live
-in this plugin's own directory
-([`acp/`](https://github.com/juspay/olai/tree/master/packages/plugins/pi/acp)):
-the patch makes the adapter spawn each session's pi with the bridge loaded
-and the session's MCP servers passed along, and the extension is what turns
-them into pi's own tools. A version bump makes the patch FAIL rather than
-silently drop the behaviour.
+A mid-turn message queues, and says so: the adapter accepts it, announces *Queued message (position n).* and answers your request when its turn comes.
 
-An adapter olai did not build — the `OLAI_ACP_PI` override lane — answers for the wiring it actually carries, which is the conversation every engine has with its adapter.
+- There is no interruption to offer. `_session/steering` does not exist on this wire, and the `/steering` in pi's own slash menu is about pi's message delivery rather than the ACP extension of the same name.
+- There is no bypass mode either. `session/set_mode "bypassPermissions"` is refused, because the modes pi offers are its thinking levels.
 
-## Where to get it
+## What a turn looks like
 
-The agent: <https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent>, then make sure `pi` is on the PATH the olai **server** has. The adapter comes with olai.
+A conversation's open answers with a startup banner for editors. It carries pi's version, an update notice, and the context and skills it loaded.
 
-Its declared MCP prefix is `<server>_`, although the bridge labels the call `<server>: <tool>`. The leg uses the programmatic name for display and reads `rawOutput.details` (or `structuredContent`). The bridge forwards MCP structured content through pi 0.84.2’s `AgentToolResult<T>.details`; the shipped pi-acp forwards that result as raw output. Approval still belongs to pi’s settings.
+pi then sends the same text again as an ordinary message, so that a client drawing no such block still shows it. olai drops the double, matched on the exact text the open itself carried.
+
+- Shell output streams under its tool row and stays readable with its exit status. Edits draw fully, as diffs with `path:line` locations.
+- An error inside a turn is silent: a provider pi cannot reach ends the turn with no prose, no tool row and no usage, so what you get is olai naming a silent turn.
+- Its stored list answers in pages of fifty. olai sends no limit and follows no cursor, so a directory with more than fifty stored pi conversations draws the newest page and loses the rest.
+- pi's memory is opt-in packages it loads from its own config, and olai installs none. The node's subtree is the conversation's only memory.
+
+## Signing in
+
+pi is configured in a terminal, and olai draws no sign-in for it: the one method the adapter advertises is its own `pi-acp --terminal-login`. A pi that is not signed in is refused when a conversation opens, with `-32000 "Authentication required"`, which the panel draws as a refused conversation you can reopen.
+
+## When pi does not appear
+
+The row needs both halves, so it names the one that is missing.
+
+| What is missing | What the row says |
+| --- | --- |
+| `OLAI_ACP_PI` is unset or empty | *OLAI_ACP_PI is unset or empty — start olai with the wrapper that carries the pinned pi adapter* |
+| no runnable `pi` on the search path | *put `pi` on this server's `PATH` — the adapter for it comes with olai*, with a link to the agent |
+
+Either way the row is enabled but unavailable: it is not offered anywhere a chat starts, and the **Plugins** panel files it under **Needs you** with that reason. Install `pi` where the olai server can see it, then switch the plugin off and on to probe again without restarting olai. Changing the service's environment needs the service restarted.
+
+The agent is at <https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent>.

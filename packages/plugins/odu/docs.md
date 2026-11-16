@@ -1,74 +1,94 @@
 # CI on the board
 
-[odu](https://github.com/juspay/odu) runs a repository's checks. A lane row names the run it is on by odu's run id, the way it names its terminal by `kolu-terminal`. olai is a client of odu's per-user service at `ODU_WEB_ORIGIN` (default `http://127.0.0.1:18440`), keyed by those ids. Where a run ran is the service's fact, not the board's.
+[odu](https://github.com/juspay/odu) runs a repository's checks. Name an odu run on a row and the row wears a live chip of that run, opens a matrix of its nodes, and can wake a conversation when the run moves. olai reads; every verb is odu's.
 
-**The board face is read-only; the verbs live in the conversation.** The chip and the matrix launch nothing, cancel nothing, rerun nothing and write nothing to the board. Verbs exist — odu's own, handed to chat conversations as odu's own MCP face — and a run can ring a conversation you scoped to it.
+## What has to be running
 
-This is one of olai's **live properties** — a property whose value is a name the board decided on, and whose face goes and finds out what that name currently is ([live-properties.md](../live-properties.md)).
+olai is a client of odu's per-user service and never starts it. Start it yourself with `odu web --background`. olai dials the origin `ODU_WEB_ORIGIN` names, by default `http://127.0.0.1:18440`, and keys everything on odu's run ids: where a run ran is the service's fact, not the board's.
 
-## The chip
+A packaged olai carries odu's own binary and puts it first on the server's `PATH`, which is how an agent's `odu mcp` finds one.
 
-Give a lane an `odu-run` property (or your own column, declared). Each value gets its own chip:
+| Environment variable | What it says |
+| --- | --- |
+| `ODU_WEB_ORIGIN` | The odu service origin this olai dials. Unset means `http://127.0.0.1:18440`. |
+| `OLAI_ODU_BIN` | The directory placed first on `PATH` for odu. The packaged build sets it. |
 
-```
-agent  claude-opus    brief  briefs/live-properties.md    run  m1kb0e11-2c8d    ci · e2e 2:10 · 8/10 ok
-```
+## Name a run on a row
 
-Live it ticks; settled it wears the verdict word in odu's own three (`passed`, `failed`, `incomplete`). `owner lost` is a state, drawn as itself. A value the service does not know reads `unknown run` in words, and the doorbell is silent about it.
-
-Hover it for the run id and the checkout the service reports.
-
-## The run matrix
-
-Press the chip and the matrix opens on the frame, one row per node, with the attempt number beside a rerun node. Nothing in the matrix is a button.
-
-## The header
-
-The header's health-dot popover carries the same three-state readout kolu has (a refused service turns the dot red; no odu leaves it alone): **odu** while the service is speaking, **No odu** naming the origin and the fix (`odu web --background`), and **odu: update needed** carrying odu's own sentence about why it refused this build. Olai never starts the service. Absence is ordinary, said in words, never drawn as a quiet board.
-
-Olai reads one of odu's rows — the runs — and says so when it dials, so a service whose other rows moved a major is still an ordinary connected service. Only a disagreement about the runs themselves, or about odu's own host contract, takes the readout red.
-
-A run that finished while olai was not running still draws its verdict: the catalog remembers it.
-
-## What turns it on
-
-The lane carries an `odu-run` — and on an enabled odu that is the whole of it:
+Give a row an `odu-run` property whose value is a run id exactly as a receipt spelled it: a lowercase alphanumeric pair joined by one hyphen. Each value gets its own chip.
 
 ```jsonl
 {"id":"lane","ord":"a0","title":"the seam","custom":{"odu-run":"m1kb0e11-2c8d"}}
 ```
 
-`odu-run` is a **kind** this plugin contributes. The value is a run id exactly as a receipt spelled it: a lowercase alphanumeric pair joined by one hyphen. Want the short key? One row in `_olai/Properties.olai` says which of *your* columns is this kind. Declaring `odu-run` as `text` takes the chip away.
+`odu-run` is a kind this plugin contributes, so it needs no declaration. To keep run ids under a column of your own name, say which column is this kind with one row in `_olai/Properties.olai`:
 
-The orchestrator replaces the row's `odu-run` with each new run's id after an accepted `run_start` or a relaunched `run_retry`.
+```jsonl
+{"id":"prop-run","ord":"a0","title":"run","custom":{"type":"odu-run"}}
+```
 
-## What it costs
+Your vault's declaration always wins, so declaring `odu-run` as `text` takes the chip away. The chip is one of olai's [live properties](../live-properties.md): the value is a name, and the face goes and finds out what that name stands for now.
 
-One websocket to the service. The board subscription is filtered to the boarded ids (`runs.get` per id, not the whole catalog). A boarded run holds one `streams.nodes` subscription until its frame says `done`, including a run first seen already settled, so the matrix has cells. Nothing polls a filesystem.
+An orchestrator agent replaces the row's `odu-run` with each new run's id after an accepted `run_start` or a relaunched `run_retry`.
 
-## The CI doorbell
+## What the chip says
 
-A chat conversation can be **scoped to one outline file**, and then olai rings it when a run that file's un-done rows name does something somebody should hear about. The claimed set is the `odu-run` values on those rows, mirrors followed, subtrees descended, first writer wins. The join is run id to run id. There is no fallback. `done` and `cancelled` both end the claim.
+The chip reads `ci · <what> · <count>`, such as `ci · e2e 2:10 · 8/10 ok`. The count is how many nodes came out green over how many there are, and it is dropped while the run has no nodes. A running node under an hour reads `m:ss` and past it `2h 34m`.
 
-Two wakes:
+| What the chip wears | When |
+| --- | --- |
+| a node's name and how long it has been going | a node is running |
+| `provisioning` | the run is still claiming a machine |
+| `passed`, `failed` or `incomplete` | the run has settled, in odu's own three words |
+| `owner lost` | odu reports the run's owner lost |
+| `unknown run` | the service does not know that id |
 
-- **First-red.** Once per subscription, on the first frame carrying a red node. A live run first seen already red rings. A settled run first seen red does not.
-- **Settle.** Once per settlement observed by this subscription, when the run leaves the live states (`provisioning` / `running`). A run that never passes through `running` still rings. A run first seen already settled rings nothing — a settle is a past event, and with a catalog behind the board an olai restart would otherwise ring every finished run on every lane. What a restart misses as a wake is on the chip.
+A run that finished while olai was not running still draws its verdict, because the service remembers it. Hover the chip for the run id and the checkout the service reports. Press it and the run matrix opens on the frame, one row per node, with the attempt number beside a rerun node. Nothing in the matrix is a button: the chip and the matrix launch nothing, cancel nothing and write nothing to your files.
 
-Failed recipes in a settle name their `logKey` and the command that reads it (`odu logs --run <id> <node>`). Coalescing keys on kind and run id.
+## What the header readout means
 
-A boarded id the service does not know sends nothing to chat.
+One row of the header's health-dot popover is this link's readout. A refused build turns the health dot red; no odu at all leaves it alone.
 
-**Silence is no message at all.** A run no scoped file claims rings nobody, and olai does not report what it decided not to ring about. A run the board dropped mid-flight rings nothing either — not even the settle.
+| Row | What it means |
+| --- | --- |
+| `odu` | The service is speaking. The tip reads `Connected to <origin>`. |
+| `No odu` | Nothing answered. The tip names the origin and `odu web --background`. |
+| `odu: update needed` | A service answered and refused this build, in odu's own sentence. |
 
-**What arrives obeys the fleet doorbell's own discipline**, because a person may receive either: the message names itself and its stamp; the panel draws one line and the whole account is a press away; the claiming row's id is in the **head** and is **pressable**; events that pile up while a turn runs are held to the boundary and arrive whole, coalesced **per kind per run**. The *claim* is re-read when the words go in (a lane finished while its wake queued is a wake nobody owes).
+With no origin to name at all the tip reads `odu isn't set up`. olai reads one of odu's rows, the runs, and says so when it dials. A service whose other rows moved a major version is still an ordinary connected service.
 
-**There is no heartbeat, by construction.** odu's watch is not a beat over absences — a boarded id with no catalog row is ordinary unknown, not evidence of life — so there is no timer saying *still here*. What underwrites the quiet: the two **fault messages** (`gone` / `unwatchable` — the file was renamed, moved or deleted; or it is served but holds no rows a claim can be read from — said once each, in this doorbell's own words, through [the seam core owns](../chat.md#what-this-conversation-wakes-on)), and the picker's `clear`, which stops everything.
+## Wake a conversation when a run moves
 
-A service upgrade that drops the websocket clears the chips for the redial gap rather than lingering as a last reading. A reconnect is a new first sight.
+A conversation's strip carries `wake on CI runs` and a picker over your outlines. Scope a conversation to one outline file and olai rings it about the runs that file's un-done rows name. The claimed set is the `odu-run` values on those rows, mirrors followed, subtrees descended, first writer wins. The join is run id to run id, with no fallback, and `done` or `cancelled` ends the claim.
 
-## The chat panel's odu
+Two wakes reach the conversation:
 
-Every new conversation is handed `odu mcp` — odu's own agent face. The agent then holds `run_start`, `run_retry`, `run_cancel`, `run_wait`, `venue_hold`/`venue_release` and odu's own tools. A run is addressed globally by `runId`. `odu mcp` bootstraps the service on first contact, so a conversation holding odu's tools has already brought it up.
+- First-red, once per subscription, on the first frame carrying a red node. A live run first seen already red rings; a settled run first seen red does not.
+- Settle, once per settlement this subscription observes, when the run leaves `provisioning` or `running`. A run that never passes through `running` still rings. A run first seen already settled rings nothing, so a restart does not ring every finished run again. What a restart misses as a wake is on the chip.
 
-The file picker in the conversation strip belongs to this plugin. It hangs in chat's `conversation.wake` slot, reads the served files through its declared `vault.files` service, and shows its own gone or unwatchable state. Chat stores the pick and draws the waiting count; it does not interpret the file.
+A settle naming failed recipes carries each one's `logKey` and the command that reads it, `odu logs --run <id> <node>`. Messages coalesce per kind per run, so a burst that piles up while a turn runs arrives whole. The claiming row's id is in the message's head and is clickable, so a wake links back to the row it came from.
+
+A run no scoped file claims rings nobody, and olai does not report what it decided not to ring about. A boarded id the service does not know sends nothing either, and a run the board drops mid-flight rings nothing, not even the settle.
+
+There is no heartbeat here. Two fault sentences carry the silence instead, said once each on the strip: `This file is gone. Choose another.` when the file was renamed, moved or deleted, and `This file can't be watched. Choose another.` when it holds no rows a claim can be read from. `Clear` beside the picker stops everything.
+
+## What an agent gets
+
+Every new conversation on a host with odu is handed `odu mcp`, odu's own agent face, which bootstraps the service on first contact. A run is addressed globally by `runId`.
+
+| Tool | What it takes |
+| --- | --- |
+| `run_start` | `checkout` |
+| `run_retry` | `runId` |
+| `run_cancel` | `runId` |
+| `run_wait` | `runId` |
+| `venue_hold` | `checkout` |
+| `venue_release` | `checkout` |
+
+odu's own further tools come with them. olai probes for `odu` on the server's `PATH` at each conversation, so an odu installed after the server started is picked up by the next one. A probe that finds nothing says so under the conversation's tool roster, naming the command and the build's promise to carry one.
+
+## Switching it off
+
+This plugin reads no settings of its own. Set `on: no` on the `odu` node in `_olai/Settings.olai`, or use its switch in the plugins panel ([settings](../settings.md)); the choice survives a restart. The chips, the matrix, the readout row, the wake control and `odu mcp` leave with the row and return when it does.
+
+While it is on it costs one websocket to the service. The subscription is filtered to the boarded ids rather than the whole catalog, and a boarded run holds one node subscription until its frame says it is done. Nothing polls a filesystem.

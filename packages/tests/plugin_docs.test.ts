@@ -72,6 +72,8 @@ import { expect, test } from "bun:test";
 
 import { BUNDLE_NAMES as PLUGIN_NAMES, ROWS } from "@olai/bundle";
 
+import { ROOT } from "./support/sweep.ts";
+
 import {
   at,
   authored,
@@ -79,6 +81,7 @@ import {
   isLocal,
   landing,
   linksIn,
+  pages,
   served,
   VAULT,
 } from "./support/docs.ts";
@@ -175,13 +178,25 @@ test("every page the index links is a page that is there", () => {
 });
 
 
-test("every environment door declared by a row is named in running.md", async () => {
-  const doc = fs.readFileSync(path.join(ROOT, "docs/running.md"), "utf8")
+/**
+ * EVERY ENVIRONMENT DOOR A ROW DECLARES IS NAMED ON SOME PAGE a reader can
+ * find. The claim was `docs/running.md` alone, back when that page carried
+ * every knob in the bundle. A door is now documented where its subject is —
+ * an engine's adapter variable on the engine's own page, the server's on
+ * `docs/settings.md` — which is the writing standard's "one fact, one home"
+ * (`dev/skills/docs-writing/SKILL.md`). What must not happen is a door
+ * documented nowhere, and that is what this sweeps for.
+ */
+test("every environment door declared by a row is named on some page", async () => {
+  const written = pages()
+    .map((page) => fs.readFileSync(at(page), "utf8"))
+    .join("\n")
   for (const row of ROWS) {
     if (row.browserOnly) continue
-    const module = await import(createRequire(path.join(ROOT, "packages/bundle/package.json")).resolve(row.name))
+    // The specifier is a registry row's own module name, not a literal.
+    const module = await import(createRequire(at("packages/bundle/package.json")).resolve(row.name))
     for (const door of module.default.environment ?? []) {
-      expect(doc, `${row.id}: ${door.key}`).toContain(door.key)
+      expect(written, `${row.id}: ${door.key}`).toContain(door.key)
     }
   }
 })

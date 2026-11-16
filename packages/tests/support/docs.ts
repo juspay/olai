@@ -42,14 +42,12 @@ export const served = (name: string): string => path.join(VAULT, `plugins`, `${n
  */
 export const pages = (): ReadonlyArray<string> => {
   const walk = (dir: string): ReadonlyArray<string> =>
-    fs
-      .readdirSync(at(dir), { withFileTypes: true })
-      .flatMap((entry) => {
-        const here = path.join(dir, entry.name)
-        if (entry.isDirectory()) return walk(here)
-        return entry.name.endsWith(".md") ? [here] : []
-      })
-  return walk(VAULT).sort()
+    fs.readdirSync(at(dir), { withFileTypes: true }).flatMap((entry) => {
+      const here = path.join(dir, entry.name)
+      if (entry.isDirectory()) return walk(here)
+      return entry.name.endsWith(".md") ? [here] : []
+    })
+  return [...walk(VAULT)].sort()
 }
 
 /** Every link target on a page, as written in `[label](target)` — fragment

@@ -94,8 +94,8 @@ The five agents the chat panel can run. What a conversation is, for all of them,
 | [plugins/pins.md](plugins/pins.md) | The pinned shelf in the sidebar: ordering and the pin commands. |
 | [plugins/capture.md](plugins/capture.md) | Quick capture into the inbox, and its command palette prefix. |
 | [plugins/trash.md](plugins/trash.md) | Browsing trashed rows, restoring them, and emptying Trash. |
-| [plugins/alerts.md](plugins/alerts.md) | Notification permission, sound and badges owned by a tab-only channel row. |
-| [plugins/preferences.md](plugins/preferences.md) | The preferences panel and the slot other plugins add controls to. |
+| [plugins/alerts.md](plugins/alerts.md) | Asking for notification permission, the sound, and the mark on the tab. |
+| [plugins/preferences.md](plugins/preferences.md) | The preferences panel: what it holds, and how far each choice reaches. |
 | [plugins/theme.md](plugins/theme.md) | Palette, typeface and page size, stored per browser and set under Appearance. |
 | [plugins/plugin-inspector.md](plugins/plugin-inspector.md) | Plugin switches, activation reports, and retry. |
 | [plugins/link-preview.md](plugins/link-preview.md) | Live read-only previews of internal links. |

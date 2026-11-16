@@ -126,7 +126,7 @@ is the same write as any other: the same validation, the same all-or-none
 rename, the same git policy. A refused capture leaves nothing behind, not even
 the inbox it would have minted.
 
-It arrives dated, on the vault's own clock with its offset, so it is on the
+It arrives dated, on the server's own clock with its offset, so it is on the
 day's journal page as well as in the inbox. The date and the capture's `todo`
 mark compose into work you owe ([dates-and-status.md](dates-and-status.md)):
 the row ticks that day's **Agenda** count when it lands, and shows as overdue

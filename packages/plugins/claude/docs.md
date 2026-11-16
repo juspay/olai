@@ -1,60 +1,76 @@
 # Claude Code, as a chat agent
 
-The ACP engine olai **ships**. Every documented way of starting olai — `nix run`, the packaged binary, `just serve` — bakes a pinned [Claude Code](https://claude.com/claude-code) ACP adapter into the wrapper, so a fresh install has a working chat agent with nothing to install and nothing to configure.
+Claude Code comes with olai. Every documented way of starting olai bakes a pinned adapter into the wrapper, so a fresh install has a working agent with nothing to install. For what a conversation is, read [talking to an agent](../chat.md).
 
-This page is one engine's own account of itself. What a conversation IS — how you choose an agent, what a turn looks like, which conversation you come back to, what the servers strip says — is the same for every engine and is [chat.md](../chat.md).
+## What olai runs
 
-## How olai finds it
+| Variable | What it does |
+| --- | --- |
+| `KOLU_ACP_AGENT` | the command line olai runs as the adapter. The wrapper sets it to the pinned build unless you set it first |
+| `ANTHROPIC_API_KEY` | the provider credential Claude Code reads |
+| `CLAUDE_CODE_DISABLE_AUTO_MEMORY` | olai sets it to `1` on every spawn, whatever you export |
+| `IS_SANDBOX` | the adapter offers its bypass mode under root only when this is set |
+| `NO_BROWSER`, `SSH_CONNECTION`, `SSH_CLIENT`, `SSH_TTY`, `CLAUDE_CODE_REMOTE` | removed from the adapter's environment on every spawn |
 
-The packaged adapter is a wrapper inside the nix store. `KOLU_ACP_AGENT` supplies an explicit command; otherwise the row uses its packaged/search-path discovery.
+| Pinned adapter | Version |
+| --- | --- |
+| `@agentclientprotocol/claude-agent-acp` | 0.81.2 |
 
-- **unset** → the pinned adapter, wherever one has been baked in. This is the ordinary case.
-- **set to a command** → that is the agent, pinned default ignored. Point it at your own build, or at a different ACP agent entirely: the override has always meant *read this the way you read Claude Code*, and it still does.
-- **empty or unset without a packaged command** → search for a matching executable on `OLAI_AGENT_PATH` (or `PATH`). No matching executable leaves this engine unavailable. Enablement remains the vault’s decision.
+Set `KOLU_ACP_AGENT` to a command line of your own to run another build, or another ACP agent entirely: olai then reads that agent the way it reads Claude Code.
 
-Turn this row off with `on: no` on the `claude` node in `_olai/Settings.olai`, or its durable switch on the plugins panel. The row stops probing and its browser contribution is withdrawn.
+To switch the row off, put `on: no` on the `claude` node in `_olai/Settings.olai`, or use its switch on the **Plugins** panel ([choosing what runs](../settings.md)). The row stops probing and withdraws what it draws.
 
-## What is only true of this wire
+## What it asks you about
 
-Each of these is a bet on the pinned adapter, and every one of them is safe to lose in one direction only — an agent that says none of it matches nothing, and what happens then is that **a person is asked**. Nothing is ever approved by failing to recognise something.
+olai asks for the adapter's `bypassPermissions` mode on every conversation it opens or resumes. A refusal adds a notice and the conversation opens anyway, with olai's own rule as the backstop. The adapter omits that mode under root unless `IS_SANDBOX` is set, and olai changes neither your host's permissions nor that environment.
 
-- **it names its tools in a `_meta` corner**, and stamps a subagent's calls with the id of the `Agent`/`Task` call that spawned them. That stamp is what draws a fan-out in lanes rather than flat, and what puts a subagent's permission question in that subagent's name.
-- **it announces a call before it has the arguments**, on the SDK's first token of the tool use: that frame carries an empty input and a title derived from nothing, so a shell command comes through as the bare word *Terminal*. Olai draws that placeholder while the arguments stream and lets the frame that refines them NAME the row — the command, never the model's sentence about it — after which the ordinary once-only rule applies and nothing renames it.
-- **its shell commands are a terminal pane, because olai asks.** Told `_meta.terminal_output` at `initialize`, the adapter reports Bash and PowerShell as a terminal: a handle on the announcement, the bytes as they arrive, the exit code at the end, and a `{ type: "terminal" }` block on the result. Told nothing, it fences the whole output into a markdown `console` block and sends it as text — backticks on screen and no exit code anywhere, which is what this row looked like before olai asked. The handle is the ADAPTER's: olai draws what the metadata says and never creates or releases it.
-- **a BACKGROUND command answers the same way, about the launch rather than the task.** `Bash(run_in_background)` returns the moment the command is running, so those same corners carry the *Command running in background with ID …* notice and `exit_code: 0` — and olai's patch keeps that `_meta` on the frame it turns into the call's arming, because it is honestly what the tool said. Olai draws no terminal for such a frame ([chat.md](../chat.md#when-the-agent-leaves-something-running)): the launch's exit is not the task's, and the task's own ending comes from the harness.
-- **`mcp__<server>__<tool>`** is what it calls the tools an MCP server contributes. That spelling is the whole of the auto-allow rule: a call to one of the servers olai handed this session is allowed without asking, and everything else is a person's.
-- **it prefers bypass mode** (`bypassPermissions`) on every new or loaded session. Unlike Codex, Claude does not require selection to succeed: a refusal adds a notice and opening continues with the adapter's existing mode and Olai's `allowedWithoutAsking` backstop. The pinned adapter omits bypass mode under root unless `IS_SANDBOX` is set. Olai does not change that environment or host permissions; unrecognized permission requests still go to the person.
-- **it takes a message INTO a running turn** — the interrupt gesture the composer offers — and it advertises that it holds a prompt sent while it is busy. Both are read off the handshake rather than assumed.
-- **it forwards its wrapped CLI's own `init`**, which carries two facts the protocol has no place for: the model a turn is actually running on, and what the CLI says about its connection to each MCP server of this conversation. That second one is why a server's row can move from *handed* to a tick.
-- **its model picker offers ALIASES** (`sonnet`, `opus[1m]`) where the CLI reports concrete ids (`claude-sonnet-5`). Bridging those two vocabularies is this engine's own arithmetic, so the agent line can say "Sonnet" beside a turn running `claude-sonnet-5` — and never claim a context window the model never stated.
-- **its picker lists what the CLI knows, not what the account may use — and every refusal of a switch arrives as `Internal error`.** Fable shows up as a row for any account, and the CLI refuses `set_model` per account entitlement (*"… isn't available for your account yet"*), per organization restriction, for a 1M-context Opus or Sonnet the account does not have, or because a `PreModelSwitch` hook blocked it. The adapter answers every one of those with JSON-RPC `-32603 "Internal error"` and the CLI's sentence in `data.details` (the SDK's `errorToResult`). Olai shows that sentence, not the code word, and writes the code and `data` to its log as one WARN ([chat.md](../chat.md#who-and-which-model-the-agent-line-names)).
-- **its `session/list` says how many messages a conversation holds**, and — for a conversation a `/clear` left behind — which conversation replaced it.
-- **it pushes its identity over ACP, so the agent line can say which account is signed in.** It re-reads at `initialize`, after a completed `authenticate` or logout, at each `createSession` (a refused one included), and at the start of every prompt — an async CLI probe, so a `/login` done in another terminal shows up on the next message. A probe that cannot read its own identity pushes nothing, which the panel draws as no chip; a known logged-out state is `kind: "none"` ([chat.md](../chat.md#signing-in)).
-- **it offers its sign-in methods ONLY to a client that says it can run them**, and it decides which ones from ONE environment variable set. Advertised `auth.terminal` (or `_meta["terminal-auth"]`) makes it list `claude-ai-login` and `console-login` as `terminal` methods carrying `_meta["terminal-auth"] = {command, args, label}` — a command line for the CLIENT to run, which is what the panel does ([chat.md](../chat.md#signing-in)). Without that advertisement it lists none of them, and with any of `NO_BROWSER`, `SSH_CONNECTION`, `SSH_CLIENT`, `SSH_TTY` or `CLAUDE_CODE_REMOTE` set — its own test for "the person is somewhere else" — it offers only the full-screen `claude /login` TUI instead, which a browser client has no terminal for.
-- **those five variables are therefore taken off its spawn.** Olai runs on the far side of a browser and is always the remote session this adapter is checking for; the person is not. `../server.ts` names them (`Adapter.unset`) and the spawn removes them, so the adapter is told nothing about where it is running and the paste-a-code methods are what it offers. Setting one of them in olai's own environment (an SSH session that started the server, a container that exports `CLAUDE_CODE_REMOTE`) changes nothing: the removal is unconditional.
-- **its own memory is on, and olai switches it off.** The adapter persists an automatic memory under the project directory; olai's nodes keep their own, and a second memory the panel cannot see would drift from it, so every spawn is handed `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` (`Adapter.env`). The variable wins over `autoMemoryEnabled` in the adapter's `settings.json`, and it also wins over whatever the operator exported: setting it to `0` in olai's environment changes nothing, exactly like the five variables above. `CLAUDE.md` is not memory — instructions a person wrote — and still loads.
+- Claude Code calls the tools an MCP server contributes `mcp__<server>__<tool>`. A call to one of the servers olai handed the conversation is allowed without asking.
+- Everything else is yours to answer, including a request olai cannot name. Nothing is approved by failing to recognize it.
+- A subagent's call is stamped with the `Agent` or `Task` call that spawned it, so a fan-out draws in lanes and a subagent's question is asked in that subagent's name.
 
-## The adapter, and its patches
+## Talking while it works
 
-The exact dependency in `acp/shim/package.json` is the adapter's version pin;
-`default.nix` derives its version from it. npm generates the committed
-lockfile with the resolved dependency graph and integrity hashes.
-`@olai/plugin-kit`'s `npm-adapter.nix` builds from that shim, so nothing is
-fetched at build time and no `npx` runs at start. Dated patch README entries
-record measurements of particular versions; they remain historical evidence
-rather than being generated from the current pin.
-Two patches ride that pin and both live in this plugin's own directory
-([`acp/patches/`](https://github.com/juspay/olai/tree/master/packages/plugins/claude/acp/patches)):
+The adapter says it holds a prompt sent while it is busy, so a message you send during a turn waits behind it and runs in the order you sent it. It also says whether it takes a steer, and the composer draws the interrupt gesture only when it does.
 
-- **background tasks are visible** — the adapter drops the frames that say a call armed a background task, so the strip above the transcript could not draw one;
-- **`session/list` carries its `_meta`** — the count and the superseded-by pointer the **Earlier chats** list draws.
+> A steer pre-empts the generation in flight and lands between the turn's own steps, which means the running cycle is torn down. A turn whose work cannot survive that loses it: interrupting a `/compact` ends it with *Compacting failed: API Error: Request was aborted*.
 
-A version bump makes the patches FAIL rather than silently drop the behaviour, which is the auditable direction.
+- olai asks for `idleBehavior: "promptRequired"`, so a steer that arrives after the turn is over is handed back and sent as an ordinary prompt instead of starting a turn nobody asked for.
+- A steer unanswered for 30 seconds gives you your words back, in a row that keeps them.
 
-## Where to get it
+## Shell commands and background work
 
-It comes with olai: every documented way of starting it bakes the pinned adapter in, so there is nothing to install for this row.
+olai asks for terminal output at `initialize`, so the adapter reports Bash and PowerShell as a terminal: the bytes stream under the tool row as they arrive and the exit code lands at the end. Told nothing, the adapter fences the whole output into one markdown block with no exit code anywhere. The handle is the adapter's; olai draws what it reports.
 
-Chat distinguishes an unavailable adapter from a serve with no enabled agent. An empty `KOLU_ACP_AGENT` leaves Claude Code enabled but unavailable: it is not offered anywhere a chat starts, and its plugins row moves to **Needs you** with the explanation. It affects this engine only; turn the chat row off to remove the conversation. Switching an engine off and on re-probes it; changing the service's environment requires restarting it.
+- A call is announced before its arguments arrive, so a shell command appears as the bare word **Terminal** while they stream. The frame that carries them names the row after the command, and nothing renames it again.
+- `Bash(run_in_background)` answers the moment the command is running, so the row carries the adapter's *Command running in background with ID …* notice and `exit_code: 0`. Both are about the launch rather than the work.
+- olai draws no terminal for that frame. The strip above the transcript carries the task until the harness says how it ended: `completed`, `failed`, `killed` or `stopped`.
 
-Its declared MCP prefix is `mcp__<server>__`; for display only, the leg parses JSON from a raw-output string or the first text block in a content array. The pinned adapter forwards the SDK’s `tool_result.content` unchanged; real sessions commonly use the string form, which the executable test fixture also emits. Prose refusals have no structured reply.
+## Which model a turn runs on
+
+The picker offers the adapter's aliases, such as `sonnet` and `opus[1m]`, while the running model is the concrete id the CLI reports, such as `claude-sonnet-5`. olai bridges the two vocabularies. So the agent line says **Sonnet** beside a turn running `claude-sonnet-5`, and claims no context window the model never stated.
+
+The picker lists what the CLI knows rather than what your account may use, so a switch can be refused. The CLI refuses one per account entitlement (*"… isn't available for your account yet"*), per organization restriction, for a 1M-context Opus or Sonnet the account does not have, or because a `PreModelSwitch` hook blocked it.
+
+Every one of those arrives as `-32603 "Internal error"` with the CLI's own sentence in `data.details`. olai shows you that sentence rather than the code word, and writes the code and its data to the log as one warning line.
+
+## Who is signed in
+
+Claude Code pushes its identity over ACP, so the agent line can name the account. It re-reads at `initialize`, after an `authenticate` or a logout, at each conversation open including a refused one, and at the start of every prompt. A `claude /login` you ran in another terminal therefore shows up on your next message.
+
+- A probe that cannot read its own identity pushes nothing, which the panel draws as no chip. A known logged-out state is `kind: "none"`.
+- olai says it can run terminal methods, so the adapter offers `claude-ai-login` and `console-login` as commands for olai to run, which is what the panel does.
+- Those five variables are taken off the spawn because the adapter reads any of them as a sign that the person is somewhere else, and then offers only its full-screen `claude /login`, which a browser has no terminal for. Setting one in olai's own environment changes nothing: the removal is unconditional.
+
+## What it remembers
+
+Its automatic memory is off. Every spawn carries `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, which wins over `autoMemoryEnabled` in the adapter's `settings.json` and over anything you export, so the node's subtree is the conversation's only memory. A `CLAUDE.md` is instructions you wrote rather than memory, and still loads.
+
+## Earlier chats
+
+Its stored list says how many messages each conversation holds, and for one that a `/clear` left behind it names the conversation that replaced it. The **Earlier chats** list draws both.
+
+## When Claude Code does not appear
+
+An empty or unset `KOLU_ACP_AGENT` leaves the row enabled but unavailable. It is not offered anywhere a chat starts, and its row moves to **Needs you** saying *not found — olai was started without the wrapper that carries the pinned adapter*. Only this agent is affected; switch the chat row off to remove the conversation.
+
+Switching an agent off and on probes it again. Changing the service's environment needs the service restarted.
