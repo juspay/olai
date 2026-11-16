@@ -155,3 +155,4 @@ Feature: What a plugin tells you, and what it waits to tell you
     When I press the plugin page verb
     Then the plugin page says "There was no agent to take it" came of asking
     And there should be no page errors
+
