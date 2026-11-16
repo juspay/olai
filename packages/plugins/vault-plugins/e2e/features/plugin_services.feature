@@ -40,24 +40,34 @@ Feature: One plugin the vault defines, standing on another
     And the row "amber" wears a swatch for "#0088ff"
     And the vault accepts the colour "#ff8800"
 
-    When I switch the plugin "palette" off
+    # The panel is opened again because approving walked to a page and back.
+    When I open the plugins panel
+    And I switch the plugin "palette" off
     Then the plugins panel says "swatch" is "palette.colours"
-    And no row wears a swatch
     And the agent service catalog excludes "palette.colours"
+    When I close the plugins panel
+    Then no row wears a swatch
 
-    When I switch the plugin "palette" on
+    When I open the plugins panel
+    And I switch the plugin "palette" on
+    And I close the plugins panel
     Then the row "amber" wears a swatch for "#ff8800"
 
     When the palette provider is replaced
     # AN EDIT TO THE PROVIDER IS A FRESH DECISION ABOUT THE PROVIDER, and it
     # takes its consumer down with it: the key is withdrawn, the consumer is
     # unloaded, and the chip goes.
+    When I open the plugins panel
     Then the plugin "palette" is off without prose
     And the plugins panel says "swatch" is "palette.colours"
-    And no row wears a swatch
     And the agent service catalog excludes "palette.colours"
+    When I close the plugins panel
+    Then no row wears a swatch
 
-    When I read the plugin "palette" again
+    # The page is opened fresh for the decision, so there is nothing to re-arm
+    # here: the disarm belongs to a page that was ALREADY open when the folder
+    # moved (`the_plugin_page.feature` is where that is asserted).
+    When I close the plugins panel
     And I approve the plugin "palette"
     Then the row "amber" wears a swatch for "#ff8800"
     And the agent service catalog includes "palette.colours"

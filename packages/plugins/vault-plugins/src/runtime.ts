@@ -181,6 +181,11 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
   /** WHAT CAME OF THE LAST ATTEMPT AT EACH WORD — see {@link Started}. */
   const started = new Map<string, Started>()
   const optionsKeys = new Map<string, string>()
+  /** THE LAST FACE EACH WORD SERVED, kept after it stops. A tab imports a
+   *  chunk named by the roster it is holding, and a row that leaves — switched
+   *  off, edited, or its folder deleted — would otherwise 404 that import.
+   *  One entry per plugin, replaced when it starts again. */
+  const retired = new Map<string, { readonly path: string; readonly chunk: string }>()
   const warnings: string[] = []
   const warned = new Set<string>()
   const warn = (line: string) => { if (!warned.has(line)) { warned.add(line); warnings.push(line) } }
@@ -257,6 +262,13 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
             }
           }
         }
+        // WHAT IT WAS SERVING STAYS SERVABLE for the moment after it leaves.
+        // A tab holds a roster until the next one reaches it, and the import
+        // it already started names this path: letting the file's deletion
+        // 404 that fetch turns an ordinary withdrawal into an error in
+        // somebody's console. One path per plugin, replaced the next time it
+        // starts, so the memory is the roster's own size.
+        if (one.up && one.path !== null && one.chunk !== null) retired.set(name, { path: one.path, chunk: one.chunk })
         started.delete(name)
         optionsKeys.delete(name)
         if (!one.up) continue
@@ -325,6 +337,10 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
     again: Effect.suspend(() => follow(seen)),
     chunk: (path) => {
       for (const one of started.values()) if (one.up && one.path === path) return one.chunk
+      // ...and a face that has just left is still served for whoever is
+      // already fetching it (the `retired` note above). The version is in the
+      // path, so this can only answer with the bytes that path named.
+      for (const one of retired.values()) if (one.path === path) return one.chunk
       return null
     },
 

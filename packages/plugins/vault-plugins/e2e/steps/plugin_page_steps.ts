@@ -210,9 +210,16 @@ When("I approve the plugin {string}", async function (this: OlaiWorld, word: str
     which === "turn-on" || which === "turn-on-version",
     `"${word}" offers "${which}" rather than a verb that turns it on`,
   )
+  // WAITED FOR AS A MOVE, not as a shape. A plugin approved once and then
+  // edited still carries `approved` and `on: yes` from the decision BEFORE the
+  // edit, so a step that waited for those keys to be present would return
+  // without pressing anything and leave the row paused — which is how a
+  // scenario about re-approving a replaced half passed while the page still
+  // said *Review*.
+  const before = consentOf(this, word)?.["approved"]
   await this.waitUntil(async () => {
     const consent = consentOf(this, word)
-    if (consent !== undefined && consent["approved"] !== undefined && consent["on"] === "yes") return true
+    if (consent !== undefined && consent["approved"] !== undefined && consent["approved"] !== before && consent["on"] === "yes") return true
     if (await read.isVisible().catch(() => false)) {
       await this.press(read)
       return false
