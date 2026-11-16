@@ -7,7 +7,7 @@
 import { readingOfVault } from "@olai/format/testlib/scope"
 import { describe, expect, test } from "bun:test"
 
-import { ALWAYS, definedIn, isApproved, toldBy, versionOf } from "./source.ts"
+import { ALWAYS, definedIn, isApproved, refusalFor, toldBy, versionOf } from "./source.ts"
 
 /** One vault, as its files. A plugin is three of them in a folder; the settings
  *  file is an outline, a record per line, which is what the settings reader and
@@ -141,6 +141,68 @@ describe("consent is in the settings file, and does not travel with the folder",
       NOTHING_BUILT,
     )
     expect(one?.builder).toBe("chat-7")
+  })
+
+  test("...and so does the version its builder finished", () => {
+    const [one] = definedIn(
+      vault({ ...folder, ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"builder":"chat-7","checked":"abc123"}}`) }),
+      NOTHING_BUILT,
+    )
+    expect(one?.checked).toBe("abc123")
+  })
+})
+
+/**
+ * EVERY VERB THAT WRITES `approved` ASKS THE SAME DOOR, which is the point of
+ * reading it here rather than in each handler: *Always trust changes* used to
+ * take no version at all, so on a **Ready for you** page it approved this
+ * version and every later one with the stale-source refusal skipped.
+ */
+describe("what may be decided about a plugin's code", () => {
+  const one = (custom: string, server: string = SERVER) =>
+    definedIn(
+      vault({
+        "plugins/swatch/server.ts": server,
+        ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":${custom}}`),
+      }),
+      NOTHING_BUILT,
+    )[0]!
+
+  const AT = versionOf(SERVER, null)
+
+  test("approving and trusting the version the page drew are both allowed", () => {
+    expect(refusalFor(one("{}"), "approve", AT)).toBeNull()
+    expect(refusalFor(one("{}"), "trust", AT)).toBeNull()
+  })
+
+  test("trusting source that has moved since the page drew it is refused", () => {
+    const refusal = refusalFor(one("{}"), "trust", "a-version-nobody-is-looking-at")
+    expect(refusal?.kind).toBe("moved")
+    expect(refusal?.reason).toContain("has been edited since this page drew it")
+  })
+
+  test("trusting a plugin that cannot start is refused, as approving one is", () => {
+    // A FOLDER WITH NO `server.ts` is the fault a reading can produce on its
+    // own, and the only one this pure test can stand up.
+    const broken = definedIn(vault({ "plugins/swatch/README.md": "# S\n" }), NOTHING_BUILT)[0]!
+    const refusal = refusalFor(broken, "trust", broken.version)
+    expect(refusal?.kind).toBe("usage")
+    expect(refusal?.reason).toContain("cannot run as it stands")
+  })
+
+  test("stopping trust on a plugin that trusts nothing is refused", () => {
+    const refusal = refusalFor(one(`{"approved":"${AT}"}`), "untrust", AT)
+    expect(refusal?.kind).toBe("usage")
+    expect(refusal?.reason).toContain("is not trusting changes")
+  })
+
+  test("...and is allowed on one that is, even where the plugin cannot start", () => {
+    expect(refusalFor(one(`{"approved":"${ALWAYS}"}`), "untrust", AT)).toBeNull()
+    const broken = definedIn(
+      vault({ "plugins/swatch/README.md": "# S\n", ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"approved":"${ALWAYS}"}}`) }),
+      NOTHING_BUILT,
+    )[0]!
+    expect(refusalFor(broken, "untrust", broken.version)).toBeNull()
   })
 })
 

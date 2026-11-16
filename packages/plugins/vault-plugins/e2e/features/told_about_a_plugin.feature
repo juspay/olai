@@ -12,10 +12,12 @@ Feature: What a plugin tells you, and what it waits to tell you
   arrived rang *Ready for you* at a plugin whose face was still being written,
   and a person who pressed **Turn on** was paused by the very next write.
 
-  THE DONE SIGNAL IS THE AGENT SAYING SO — `vault-plugins_run` at the version on
-  disk, which the guide already requires as the last act of a build. It is this
-  process's memory and nothing else, so the page keeps a way past it for the
-  serve that was restarted mid-build and the conversation nobody finished.
+  THE DONE SIGNAL IS THE AGENT SAYING SO — `vault-plugins_run`, answered with no
+  fault, at the version on disk; the guide already requires that call as the
+  last act of a build. It is WRITTEN DOWN on the plugin's settings node, beside
+  the conversation that is building it, because a laptop that reboots mid-week
+  is an ordinary day and a signal kept in a process is gone by Monday. The page
+  keeps a way past it anyway, for the conversation nobody ever finished.
 
   AND A VERSION NOBODY HAS APPROVED IS STILL COMPILED. Approving is the one
   gesture in this product where a person is trusting code; being the only way
@@ -154,5 +156,87 @@ Feature: What a plugin tells you, and what it waits to tell you
     And the plugin page's verb is "ask-fix"
     When I press the plugin page verb
     Then the plugin page says "There was no agent to take it" came of asking
+    And there should be no page errors
+
+  @alerts
+  Scenario: A run that found a fault is the middle of a build, not the end
+    # The preamble tells an agent to fix what `run` reported and call again, so
+    # every build with a mistake in it makes this call two or three times. A
+    # page that counted any of them rang *couldn't start* at a folder somebody
+    # was still writing — and the agent's next save put the row back to *being
+    # built*, so the sidebar flickered between two states that were both wrong.
+    Given I open the app
+    And the notification worker is ready
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"timer-consent","ord":"a0","title":"timer","custom":{"builder":"timer-chat"}}
+      """
+    And I rewrite "plugins/timer/server.ts" as:
+      """
+      import { definePlugin } from "@olai/plugin-api"
+      export default definePlugin({ name: "timer", needs: [], apply: (
+      """
+    And I go to the plugin "timer"
+    Then the plugin page is "building"
+    And the plugin "timer" has written "server.ts"
+    When the terminal agent runs the plugin "timer"
+    Then the plugin run says it cannot start
+    And the Plugins row "timer" is "building"
+    And no notification has been raised
+
+    # ...AND THE RUN AFTER THE FIX IS THE END OF IT, which is the same call
+    # with the fault gone.
+    When I rewrite "plugins/timer/server.ts" as:
+      """
+      import { definePlugin } from "@olai/plugin-api"
+      import { Effect } from "effect"
+
+      export default definePlugin({ name: "timer", needs: [], apply: Effect.void })
+      """
+    # ...and reading it here is this scenario's wait for the serve: the fault
+    # was the page's state a moment ago, so the screen turning readable is the
+    # fix having landed. The row and the alert are still the agent's to move.
+    And I read the unfinished plugin "timer" anyway
+    Then the plugin page is "review"
+    When the terminal agent runs the plugin "timer"
+    Then the Plugins row "timer" is "review"
+    # The word, because this folder has no README to carry a title.
+    And the notification is titled "timer is ready for you"
+    And there should be no page errors
+
+  Scenario: A build that finished before a reboot is still finished after one
+    # The done signal used to be a map in the serve's memory, on the argument
+    # that a half-built folder is a mid-build edge. A restart is not an edge:
+    # every plugin with a builder and no approval came back reading *being
+    # built*, so the sidebar pulsed at a finished folder and the alert that was
+    # going to say *ready for you* could never ring again. It is a word on the
+    # plugin's settings node now, and this is the only way to prove that: by
+    # killing the server.
+    Given I open the app
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"timer-consent","ord":"a0","title":"timer","custom":{"builder":"timer-chat"}}
+      """
+    And I rewrite "plugins/timer/server.ts" as:
+      """
+      import { definePlugin } from "@olai/plugin-api"
+      import { Effect } from "effect"
+
+      export default definePlugin({ name: "timer", needs: [], apply: Effect.void })
+      """
+    And I go to the plugin "timer"
+    Then the plugin page is "building"
+    And the plugin "timer" has written "server.ts"
+    When the terminal agent runs the plugin "timer"
+    Then the plugin page is "review"
+
+    When the server stops
+    And the server starts again on the same port
+    And I go to the plugin "timer"
+    # NOBODY SAYS IT AGAIN: the serve read the word off the file it was written
+    # to, so the page a person comes back to is the one they left.
+    Then the plugin page is "review"
+    And the Plugins row "timer" is "review"
+    And the plugin page's verb is "turn-on"
     And there should be no page errors
 

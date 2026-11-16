@@ -71,10 +71,24 @@ export const surface = defineSurface({
        * standing approval away pins the plugin at the version it is running,
        * because the person HAS read that one; what they are saying is that
        * they want to read the next.
+       *
+       * ## IT CARRIES THE VERSION, for {@link approve}'s reason exactly
+       *
+       * Both directions write `approved`, so both are a person saying yes to
+       * code, so both send back the version the page drew and are refused if
+       * the reading has moved on. Without it, *Always trust changes* on a
+       * **Ready for you** page was an approval of this version and every later
+       * one — the one decision this product is careful about — made with the
+       * stale-source refusal skipped, out of a menu. Starting is refused for a
+       * plugin that cannot start, like an approval; stopping is refused for a
+       * plugin that is not trusting anything, because there is nothing to take
+       * away. `./source.ts`'s `refusalFor` is where all three are read.
        */
       trust: {
         input: Schema.Struct({
           name: Schema.String,
+          /** The version this person READ, as {@link approve} takes it. */
+          version: Schema.String,
           /** Whether every later version may run unread. */
           trusting: Schema.Boolean,
         }),

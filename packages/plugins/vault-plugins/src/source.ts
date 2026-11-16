@@ -79,6 +79,22 @@ export const ON_KEY = "on"
  *  plugin rather than about that conversation. */
 export const BUILDER_KEY = "builder"
 
+/**
+ * THE VERSION THE BUILDER SAID IT HAD FINISHED — `vault-plugins_run`, answered
+ * without a fault, written down beside the binding above.
+ *
+ * ON THE NODE AND NOT IN A MAP, which this branch got wrong once: it was this
+ * process's memory, on the argument that a half-built folder is a mid-build
+ * edge. It is not. A laptop that sleeps through a build, a serve restarted to
+ * pick up a change, `just dev` reloading — any of them come back with the
+ * folder finished on disk and the done signal gone, so every plugin with a
+ * builder and no approval reads *Being built* for ever: the sidebar pulses at
+ * nothing, the alert that was going to say *Ready for you* can never ring
+ * again, and the page's *I'll read it now* fixes one visit of one tab. A
+ * reboot is an ordinary day. The file is the only thing that survives one.
+ */
+export const CHECKED_KEY = "checked"
+
 /** What `approved` carries when a person approved this plugin and every later
  *  version of it, rather than one. */
 export const ALWAYS = "always"
@@ -138,6 +154,9 @@ export interface Defined {
   readonly switchSaid: string | null
   /** The conversation building this plugin, where one is bound. */
   readonly builder: string | null
+  /** The version that builder last finished and said was good, where it has
+   *  said so at all ({@link CHECKED_KEY}). */
+  readonly checked: string | null
   /** What the code reaches for, read off its own imports. */
   readonly uses: ReadonlyArray<Uses>
   /** This plugin's node in the settings file and the file's nodes, for the
@@ -161,6 +180,65 @@ export interface Defined {
 /** Whether a version of this definition is the one a person said yes to. */
 export const isApproved = (one: Defined): boolean =>
   one.approved === ALWAYS || (one.approved !== null && one.approved === one.version)
+
+/**
+ * WHY A DECISION ABOUT THIS PLUGIN'S CODE CANNOT BE WRITTEN, or `null` for one
+ * that can.
+ *
+ * ## One gate, because there is one question
+ *
+ * Every verb that moves `approved` is a person saying *this code may run*, and
+ * each of them has to ask the same two things first: is the source still what
+ * the page drew, and will it even start. **Turn on** asked them; *Always trust
+ * changes* did not — it took no version at all, looked the plugin up, and
+ * wrote `always` over whatever was on disk by the time the press arrived. On a
+ * *Ready for you* page that was an approval of this version and every later
+ * one, made out of a menu, with the stale-source refusal the whole design
+ * rests on skipped. The menu is not the place to enforce this; a door is, and
+ * this is the door's reading.
+ *
+ * ## The three verbs differ only in their last line
+ *
+ * `approve` and `trust` both write code a person is saying yes to, so both
+ * refuse source that moved and source that cannot start. `untrust` writes an
+ * approval too — `always` becomes this version — so it refuses moved source
+ * for the same reason, and refuses a plugin that is not trusting anything,
+ * because there is nothing to take away. It does NOT ask about faults: giving
+ * up a standing approval is how a person reins in code that is misbehaving,
+ * and a broken plugin is exactly when that is wanted.
+ *
+ * The caller turns `kind` into its own failure: a version that moved is a
+ * statement about the reading (`NotFoundFailure`), the other two are about the
+ * request (`UsageFailure`).
+ */
+export type Decides = "approve" | "trust" | "untrust"
+
+export interface Refusal {
+  readonly kind: "moved" | "usage"
+  readonly reason: string
+}
+
+export const refusalFor = (one: Defined, decides: Decides, version: string): Refusal | null => {
+  if (one.version !== version) {
+    return {
+      kind: "moved",
+      reason: `"${one.name}" has been edited since this page drew it, so approving `
+        + `it now would approve source nobody has read. Look again, read what `
+        + `it says, and approve that.`,
+    }
+  }
+  if (decides === "untrust") {
+    return one.approved === ALWAYS ? null : {
+      kind: "usage",
+      reason: `"${one.name}" is not trusting changes, so there is nothing to stop: `
+        + `its approval names one version.`,
+    }
+  }
+  if (one.fault !== null) {
+    return { kind: "usage", reason: `"${one.name}" cannot run as it stands: ${one.fault}` }
+  }
+  return null
+}
 
 /**
  * EVERY PLUGIN THIS VAULT DEFINES, in folder order.
@@ -248,6 +326,7 @@ const defined = (
     on: said(ON_KEY) === "yes",
     switchSaid: said(ON_KEY),
     builder: said(BUILDER_KEY),
+    checked: said(CHECKED_KEY),
     uses: usesOf(server ?? "", browser),
     consent: { file: consent.file, node, nodes: consent.nodes },
     fault: faultOf(name, server, taken),

@@ -130,6 +130,14 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
    * WHICH VERSION THIS READER HAS BEEN SHOWN — plainly, because this component
    * is keyed by the word above: a different plugin is a different mount, so
    * there is nothing to carry across and nothing to unwind.
+   *
+   * IT IS WHAT EVERY DECISION BELOW SENDS, and not the roster's current
+   * version, because that is the sentence the door is enforcing: *approve what
+   * you read*. The primary verb is disarmed while the two differ, so for that
+   * one they are equal by the time it can be pressed; the menu's *Always trust
+   * changes* has no such guard, and sending the roster's version there would
+   * approve this version and every later one off a screen that was drawn
+   * against code the agent has since replaced.
    */
   const [shown, setShown] = createSignal(props.plugin.source.version)
   /** The conversation, and a seat to put it in. Read for the *ask* verbs,
@@ -153,8 +161,10 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
   }
   const acts: Acts = {
     busy,
-    approve: () => call(client().procedures.plugins.approve({ name: props.plugin.name, version: source().version, forever: false })),
-    trust: (trusting) => call(client().procedures.plugins.trust({ name: props.plugin.name, trusting })),
+    approve: () => call(client().procedures.plugins.approve({ name: props.plugin.name, version: shown(), forever: false })),
+    // THE SAME VERSION FOR THE SAME REASON: this verb writes `approved` too,
+    // so the serve refuses it over source this reader has not seen.
+    trust: (trusting) => call(client().procedures.plugins.trust({ name: props.plugin.name, version: shown(), trusting })),
     setOn: (on) => call(props.management.set(props.plugin.name, on)),
     remove: () => call(client().procedures.plugins.remove({ name: props.plugin.name }), () => setRemoving(false)),
     confirmRemove: () => setRemoving(true),

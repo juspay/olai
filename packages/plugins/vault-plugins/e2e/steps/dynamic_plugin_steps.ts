@@ -358,7 +358,7 @@ Then("the plugin layout names the folder, the settings file and the reserved wor
   )
   assert.strictEqual(layout.settings.file, "_olai/Settings.olai")
   assert.strictEqual(layout.settings.schema, "Config")
-  assert.deepStrictEqual([...layout.settings.reserved].sort(), ["approved", "builder", "on"])
+  assert.deepStrictEqual([...layout.settings.reserved].sort(), ["approved", "builder", "checked", "on"])
 })
 
 /** The agent's own feedback loop: ask olai to look at the folder now and say
@@ -377,6 +377,20 @@ Then("the plugin run reports {string} as {string} from {string}", function (this
   assert.ok(
     readings.some((one) => one.key === key && one.value === value && one.setBy === setBy),
     JSON.stringify(readings),
+  )
+})
+
+/**
+ * ...AND THE RUN THAT FOUND SOMETHING WRONG, which is the half of this loop
+ * the done signal has to tell apart: the preamble sends an agent back to fix
+ * and run again, so a faulted run is the middle of a build and never the end
+ * of one.
+ */
+Then("the plugin run says it cannot start", function (this: OlaiWorld) {
+  const answer = this.toolAnswer?.["structuredContent"] as { fault?: string }
+  assert.ok(
+    typeof answer.fault === "string" && answer.fault.trim() !== "",
+    `the run answered no fault: ${JSON.stringify(answer)}`,
   )
 })
 

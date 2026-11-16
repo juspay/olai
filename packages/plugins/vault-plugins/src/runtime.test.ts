@@ -803,10 +803,29 @@ test("deleting a plugin removes its files and its consent", () => bench((dynamic
  * THE BUILDER'S DONE SIGNAL rides the roster, because three faces read it: the
  * page stays on *being built* without it, the sidebar's mark stays working,
  * and the alert does not ring.
+ *
+ * IT IS A PROPERTY ON THE PLUGIN'S NODE, so these are two tests and not one:
+ * the call writes the word, and a roster read out of a vault that already
+ * carries it says so without anybody having called anything. The second is the
+ * restart — a serve that comes up to a folder somebody finished yesterday.
  */
-test("the version the builder last ran is on the row", () => bench((dynamic, now) => Effect.gen(function*() {
+test("the builder's finished version is written to the plugin's node", () => bench((dynamic, now, _host, written) => Effect.gen(function*() {
   yield* dynamic.follow(vault({ props: { builder: "chat-1" } }))
   expect((yield* now())[0]?.source?.checked).toBeUndefined()
-  dynamic.checked("swatch", versionOf(SERVER, null))
+  expect(yield* dynamic.checked("swatch", versionOf(SERVER, null))).toBe(true)
+  expect(written).toEqual([{ op: "prop", id: "c", key: "checked", value: versionOf(SERVER, null) }])
+})))
+
+test("...and a serve that restarts reads it back off the file", () => bench((dynamic, now) => Effect.gen(function*() {
+  yield* dynamic.follow(vault({ props: { builder: "chat-1", checked: versionOf(SERVER, null) } }))
   expect((yield* now())[0]?.source?.checked).toBe(versionOf(SERVER, null))
+})))
+
+/** ...and saying it twice at one version moves nothing: the gate refuses a
+ *  property write that would change nothing, so the second call must not even
+ *  ask. */
+test("...and a second run at the same version writes nothing", () => bench((dynamic, _now, _host, written) => Effect.gen(function*() {
+  yield* dynamic.follow(vault({ props: { builder: "chat-1", checked: versionOf(SERVER, null) } }))
+  expect(yield* dynamic.checked("swatch", versionOf(SERVER, null))).toBe(true)
+  expect(written).toEqual([])
 })))

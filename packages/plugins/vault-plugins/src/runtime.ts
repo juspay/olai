@@ -53,7 +53,7 @@ import * as effect from "effect"
 import { Effect } from "effect"
 import { CONFIGURATION_FILE, decodePolicy, policyEdit, type PolicyRow } from "@olai/plugin-api/configuration"
 
-import { ALWAYS, APPROVED_KEY, BUILDER_KEY, type Defined, definedIn, isApproved, ON_KEY } from "./source.ts"
+import { ALWAYS, APPROVED_KEY, BUILDER_KEY, CHECKED_KEY, type Defined, definedIn, isApproved, ON_KEY } from "./source.ts"
 
 /**
  * THE HOST'S OWN MODULES, put where a module built at runtime can reach them.
@@ -167,11 +167,17 @@ export interface DynamicRuntime {
    * THE BUILDER SAYS IT IS DONE — `vault-plugins_run` at this version, which
    * the guide already requires as the last act of a build.
    *
-   * Remembered rather than written: it is a fact about one conversation in one
-   * process, not a decision anybody made, and the page's own escape covers the
-   * serve that was restarted mid-build (`@olai/surface`'s `source.checked`).
+   * WRITTEN AND NOT REMEMBERED (`./source.ts`'s `CHECKED_KEY` argues the
+   * reboot). It is the only word on that node an agent's own call puts there,
+   * and it is still not an agent's to write by hand: `configure` refuses it
+   * with the other three, so the signal exists exactly where a build finished
+   * cleanly and nowhere else.
+   *
+   * ONLY A CLEAN RUN COUNTS, which is the caller's half of the contract: the
+   * preamble tells an agent to fix and run again, so the faulted runs in
+   * between are the middle of a build, not the end of one.
    */
-  readonly checked: (name: string, version: string) => void
+  readonly checked: (name: string, version: string) => Effect.Effect<boolean, OpFailure>
   /** Bind a conversation to a plugin, so its page can dock the one that is
    *  building it. */
   readonly bind: (name: string, conversation: string) => Effect.Effect<boolean, OpFailure>
@@ -265,12 +271,6 @@ export const openDynamic = (
    */
   const approvedSource = new Map<string, { readonly server: string; readonly browser: string | null }>()
   /**
-   * THE VERSION EACH BUILDER LAST CALLED `vault-plugins_run` ON — the done
-   * signal the page waits for while a folder is being written
-   * ({@link DynamicRuntime.checked}).
-   */
-  const checked = new Map<string, string>()
-  /**
    * WHETHER A VERSION NOBODY HAS APPROVED WOULD EVEN COMPILE — kept per word,
    * at the version it was asked about, exactly as {@link Started} is.
    *
@@ -328,10 +328,6 @@ export const openDynamic = (
       }
       for (const name of [...checkedBuilds.keys()]) {
         if (!defined.some((one) => one.name === name)) checkedBuilds.delete(name)
-      }
-      // A word whose folder is gone takes its builder's done signal with it.
-      for (const name of [...checked.keys()]) {
-        if (!defined.some((one) => one.name === name)) checked.delete(name)
       }
       // WANTED IS APPROVED **AND** ON, and the two are different facts: a
       // plugin a person approved and then switched off is approved and not
@@ -424,6 +420,7 @@ export const openDynamic = (
       [APPROVED_KEY]: one.approved,
       [ON_KEY]: one.switchSaid,
       [BUILDER_KEY]: one.builder,
+      [CHECKED_KEY]: one.checked,
     }
     const moving = Object.entries(props).filter(([key, value]) => (said[key] ?? null) !== value)
     if (moving.length === 0) return null
@@ -440,7 +437,7 @@ export const openDynamic = (
 
   return {
     rows: (report) =>
-      seen.map((one) => rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name), checkedBuilds.get(one.name), checked.get(one.name), asking())),
+      seen.map((one) => rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name), checkedBuilds.get(one.name), asking())),
     names: () => seen.map((one) => one.name),
     follow: (reading) => follow(reading === null ? [] : definedIn(reading, built)),
     chunk: (path) => {
@@ -494,7 +491,13 @@ export const openDynamic = (
       if (node !== undefined) yield* write({ op: "trash", id: node.node.id })
       return true
     }),
-    checked: (name, version) => { checked.set(name, version) },
+    checked: (name, version) => Effect.gen(function*() {
+      const one = seen.find((one) => one.name === name)
+      if (one === undefined) return false
+      const request = consent(one, { [CHECKED_KEY]: version })
+      if (request !== null) yield* write(request)
+      return true
+    }),
     bind: (name, conversation) => Effect.gen(function*() {
       const one = seen.find((one) => one.name === name)
       if (one === undefined) return false
@@ -524,15 +527,17 @@ export const openDynamic = (
 }
 
 /**
- * THE THREE WORDS NOTHING MAY DECLARE AS A KNOB — the plugin's approval, its
- * switch and the conversation building it.
+ * THE FOUR WORDS NOTHING MAY DECLARE AS A KNOB — the plugin's approval, its
+ * switch, the conversation building it and that conversation's done signal.
  *
  * They sit on the same node a plugin's knobs do, which is the whole of why
  * they have to be refused by name: a `Config` field called `on` would be a
- * plugin whose settings quietly decide whether it runs, and one called
- * `approved` would be a plugin that can say yes to itself.
+ * plugin whose settings quietly decide whether it runs, one called `approved`
+ * would be a plugin that can say yes to itself, and one called `checked` would
+ * be a plugin that declares itself finished — ringing *Ready for you* at a
+ * folder its author is halfway through.
  */
-export const RESERVED: ReadonlyArray<string> = [APPROVED_KEY, ON_KEY, BUILDER_KEY]
+export const RESERVED: ReadonlyArray<string> = [APPROVED_KEY, ON_KEY, BUILDER_KEY, CHECKED_KEY]
 
 /**
  * WHAT THE ROWS THIS RUNTIME DRAWS SAY, as one string — the comparison that
@@ -714,8 +719,6 @@ const rowOf = (
   /** What the transform made of a version nobody has approved, where there is
    *  one to report ({@link checkedBuilds}). */
   pending: { readonly version: string; readonly why: string | null } | undefined,
-  /** The version this plugin's builder last said it was done with. */
-  checked: string | undefined,
   /** Whether this serve can speak into a conversation at all. */
   asking: boolean,
 ): BuiltPlugin => {
@@ -735,7 +738,7 @@ const rowOf = (
     // read from one that was read and has since changed.
     ...(one.approved === null ? {} : { decided: true }),
     ...(one.approved === ALWAYS ? { trusting: true } : {}),
-    ...(checked === undefined ? {} : { checked }),
+    ...(one.checked === null ? {} : { checked: one.checked }),
     on: one.on,
     server: one.server,
     ...(one.browser === null ? {} : { browser: one.browser }),

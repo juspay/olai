@@ -29,7 +29,7 @@ import { openDynamic, RESERVED } from "./runtime.ts"
 import { pluginChunks } from "./route.ts"
 import { claim } from "./claim.ts"
 import { GUIDE } from "./guide.ts"
-import { APPROVED_KEY, isApproved, ON_KEY, versionOf, WORD } from "./source.ts"
+import { APPROVED_KEY, type Decides, isApproved, ON_KEY, refusalFor, versionOf, WORD } from "./source.ts"
 export { name } from "./index.ts"
 
 /** The three files a folder takes, by the argument `vault-plugins_write` is
@@ -123,31 +123,36 @@ export default definePlugin({
       }))
     })
 
+    /**
+     * ...AND THE SAME PLUGIN, WITH THE DECISION ABOUT ITS CODE ALREADY
+     * JUDGED — every verb that moves `approved` through this door.
+     *
+     * The reading is `./source.ts`'s ({@link refusalFor}) so that one place
+     * says what may be written and three verbs obey it. A door that let each
+     * of them ask on its own is how *Always trust changes* came to be an
+     * approval with no version in it, written out of a menu over source
+     * nobody had read.
+     */
+    const decided = (word: string, decides: Decides, version: string) => Effect.gen(function*() {
+      const one = yield* lookingAt(word)
+      const refusal = refusalFor(one, decides, version)
+      if (refusal === null) return one
+      return yield* Effect.fail(refusal.kind === "moved"
+        ? new NotFoundFailure({ reason: refusal.reason, named: word })
+        : new UsageFailure({ reason: refusal.reason }))
+    })
+
     const deps: ImplementSurfaceDeps<typeof surface.spec> = { procedures: { plugins: {
       approve: ({ input }) =>
         Effect.gen(function*() {
-          const one = yield* lookingAt(input.name)
-          if (one.version !== input.version) {
-            return yield* Effect.fail(new NotFoundFailure({
-              reason:
-                `"${input.name}" has been edited since this page drew it, so approving `
-                + `it now would approve source nobody has read. Look again, read what `
-                + `it says, and approve that.`,
-              named: input.name,
-            }))
-          }
-          if (one.fault !== null) {
-            return yield* Effect.fail(new UsageFailure({
-              reason: `"${input.name}" cannot run as it stands: ${one.fault}`,
-            }))
-          }
+          yield* decided(input.name, "approve", input.version)
           yield* dynamic.approve(input.name, input.forever)
           return {}
         }),
 
       trust: ({ input }) =>
         Effect.gen(function*() {
-          yield* lookingAt(input.name)
+          yield* decided(input.name, input.trusting ? "trust" : "untrust", input.version)
           yield* dynamic.trust(input.name, input.trusting)
           return {}
         }),
@@ -270,16 +275,22 @@ export default definePlugin({
         Effect.gen(function*() {
           const one = yield* lookingAt(input.name)
           const row = dynamic.rows(yield* loading.reports).find((one) => one.name === input.name)
-          // THE CALL IS THE DONE SIGNAL, and remembering it here is what keeps
-          // *Ready for you* from ringing at a folder whose face is still being
-          // written: the guide requires this call as the last act of a build,
-          // so an agent that has made it has said the folder is finished at
-          // this version (`./runtime.ts`'s `checked`).
-          dynamic.checked(one.name, one.version)
-          // ...and the roster is republished for it: nothing on disk moved, so
-          // the follow above found nothing, and the page, the sidebar's mark
-          // and the alert all read this fact off the roster.
-          yield* Effect.sync(loading.changed)
+          // A CLEAN RUN IS THE DONE SIGNAL, and that is two conditions, not
+          // one: the guide requires this call as the last act of a build, AND
+          // the preamble tells an agent that answered a fault to fix it and
+          // call again. So the faulted runs in between are the middle of the
+          // build — counting them rang *couldn't start* at a folder the agent
+          // was still writing, and the next file it saved put the row back to
+          // *Being built*, which is a notification that was never true and a
+          // sidebar that flickered between two wrong states.
+          //
+          // WRITTEN, not remembered: it goes on the plugin's settings node, so
+          // a build that finished before a reboot is still finished after one
+          // (`./source.ts`'s `CHECKED_KEY`). The write publishes a revision,
+          // and the page, the sidebar's mark and the alert all read the fact
+          // off the roster that revision rebuilds.
+          const fault = one.fault ?? row?.fault ?? null
+          if (fault === null) yield* settling(dynamic.checked(one.name, one.version))
           return {
             name: one.name,
             version: one.version,
