@@ -10,11 +10,21 @@ Nobody is asked about halves, slots, service keys or a word grammar. The whole o
 
 1. **⌘K → New plugin**, and say in one sentence what it should do. The same two-level palette shape **New chat** already has, so there is nothing new to learn.
 2. **Name it.** olai suggests a name from the sentence; the folder it is kept in is that name slugged, and the level says so — *Kept in your vault as `plugins/hex-swatch/`*.
-3. **Watch.** The press lands on the plugin's own page at `/plugins/<word>`, with the conversation that is building it docked beside. The page fills in as the three files land. It is an ordinary chat, under **Chats** in the sidebar: close the panel, come back tomorrow, and an alert says when the builder wants you.
+3. **Watch.** The press lands on the plugin's own page at `/plugins/<word>`, with the conversation that is building it docked beside — on a desktop, and only while there is something to watch or decide; a plugin that has been on for months does not take over the column. Where there is no seat for one (a handset, a serve with no shell) the page links to the conversation's own page instead. The page lists the three files as they land. It is an ordinary chat, under **Chats** in the sidebar: close the panel, come back tomorrow, and an alert says when the builder wants you.
 4. **Turn on.** One button, on the page, with what the plugin does, what it uses and its source under it. That press is the approval *and* the switch, and the faces appear with no reload.
 5. It is in the **Plugins** section of the sidebar from then on, beside Chats and Outlines. A vault with no plugins has no such section.
 
-Three verbs are a person's and no agent has any of them: **Turn on** (which approves exactly the version on the screen and sets the switch), **Always trust changes** (under `•••`, for a plugin somebody is iterating on), and the switch itself.
+Four verbs are a person's and no agent has any of them: **Turn on** (which approves exactly the version on the screen and sets the switch), **Always trust changes** (under `•••`, for a plugin somebody is iterating on, with **Stop trusting changes** in its place while it is in force), **Delete…** (under `•••`, which is the only thing in the app that reaches a plugin's files) and the switch itself.
+
+### What you are told, and when
+
+A plugin is a thing you ask for and walk away from, so the three moments where it is waiting on a PERSON travel to wherever that person is — an OS banner, the sidebar's mark, and the page:
+
+- **Ready for you.** The builder said it is finished: it called `vault-plugins_run` at the version on disk, which the authoring guide requires as a build's last act. *Not* a file landing — the guide has the builder write `browser.tsx` last, so a page that called a folder finished when its server half arrived rang at a plugin whose face was still being written, and a person who pressed **Turn on** was paused by the very next write. The done signal is this serve's memory, so a serve restarted mid-build has none: the page keeps **I'll read it now** for exactly that, and for the conversation nobody finished.
+- **Paused.** A plugin that was running stopped because its code changed. It is the one a person most needs told, because nothing else on screen says so unless they happen to be looking.
+- **Couldn't start.** Either an `apply` that threw, or — before anybody has approved anything — a half that will not compile.
+
+Nothing else rings. A plugin going on is not news, because the person pressed the button; a plugin being built is not news, because they asked for it a minute ago and the conversation is open beside them. The first roster a tab receives is a seed and never an event: arriving at a vault where something was already waiting is not something happening.
 
 <!-- guide:start -->
 ## The folder
@@ -374,6 +384,8 @@ Run it from a package that depends on `@olai/plugin-build` (`packages/server` do
 **The trap in the last one.** A half writes the bare `@olai/plugin-api` in both files and olai binds each to a different door: a server half to `./services`, a browser half to the root. So typechecking a *server* half exactly as written reports `has no exported member 'Kinds'` — and that error is the **check** being wrong, not your source. Point the import at `@olai/plugin-api/services` for the duration of the typecheck, and put it back.
 
 `vault-plugins_run` is the last check and the only one that is the real thing: it answers the state, the version and the fault sentence off the same plugin a person is looking at. A `pending` there is not a failure — it is the one person who can turn it on not having been asked yet.
+
+**It is also how you say you are finished.** Until a build's conversation calls it, the plugin's page says *being built* and lists the files that have landed, and nothing wakes anybody: the files arriving cannot mean *done*, because this guide has you write the face last. Call it when the folder is whole, at the version on disk, and the person is told the plugin is ready for them. Call it again after every fix — each call is about the version it was made at.
 <!-- guide:end -->
 
 ## Approval
@@ -383,13 +395,16 @@ Nothing mounts until a person approves it, on the plugin's page, with the source
 The page says what the plugin does **in words before code**: the README's own title and sentence, then **What it uses** — the kinds it teaches, the slots it draws into, the services it names — read off the code's own imports rather than off anything the author wrote in prose. The source is one scroll further, with a tab per file, for whoever wants it. Under the primary button is one plain line: *Runs on your server with everything olai can reach.*
 
 - **Turn on** writes `approved: <version>` and `on: yes`, in one write, on the plugin's node in `_olai/Settings.olai`. They were one gesture when the switch was a set in the server's memory and the approval was the only durable thing about a plugin; they are both durable now, and both land together so a press cannot leave half of itself behind.
-- **Always trust changes** (under `•••`) writes `approved: always`.
+- **Always trust changes** (under `•••`) writes `approved: always` **and nothing else**. It is a decision about reading — every later version may run without being read again — so it does not touch the switch: choosing it on a plugin somebody had switched off used to turn the plugin back on, which is a second decision made silently out of a menu item whose words never mentioned it. While it is in force the menu draws **Stop trusting changes** in its place, which writes the version that is running: the person has read this one, they are only saying they want to read the next.
+- **Delete…** (under `•••`, confirmed) removes the folder's files and the plugin's settings node. It is the page's verb because the halves are deliberately not in the sidebar's file tree, so nothing else in the app reaches them — a plugin made in one sentence would otherwise need a terminal to be rid of. Deleting the folder by hand is different and stays different: that leaves the decision where it was made, so putting the folder back finds it again.
 
-Both are ordinary property writes: they go through the same gate a keystroke does, land in the same settings file every other row's switch does, and are in the ledger.
+Both approvals are ordinary property writes: they go through the same gate a keystroke does, land in the same settings file every other row's switch does, and are in the ledger.
 
 The plugins panel draws the same block in a vault plugin's row detail, for somebody already working down a whole serve's rows, and links to the page from there. Neither door can approve a stale version: both send back the version they drew, and the refusal below is the same one.
 
 **An approval names a VERSION**, which is a hash of both halves. An edit to either half therefore puts the plugin back to pending **and unmounts it** — which is what stops *approve once* from meaning *approve whatever this becomes*. The page then shows **what changed**: a diff against the version that was approved, not the whole file again, because you already read that one. `always` is the escape for a plugin somebody is iterating on with an agent, where re-approving every edit is a gesture that stops being read after the third time.
+
+**A version nobody has approved is still compiled.** Only an approved, switched-on plugin is ever evaluated — that is the boundary and it has not moved — but `buildHalf` is a transform over text, so whether a half *would* build is knowable without importing anything. It is asked of every pending version, remembered per version, and a failure is the plugin's fault sentence: a half with a syntax error or a module olai does not bind reads *Couldn't start*, with **Ask the agent to fix it**, rather than *Ready for you*. Approving in order to discover that the code is not code is the worst possible ordering of those two acts.
 
 **The README is not in the version.** Fixing a typo in the prose is not a fresh decision about code, and a plugin that paused itself every time its description improved would teach people to press Turn on without looking.
 
@@ -414,9 +429,9 @@ Five tools, on the agent face:
 
 (On the wire those are `plugins.guide`, `plugins.inspect`, `plugins.write`, `plugins.run` and `plugins.stop`; the tool names are the agent-facing words, the way `commit` is `git.commit`.)
 
-Retracting a plugin is deleting its folder: the row goes on the next revision and the fiber unwinds every registration it made. Its settings node is left where it is, which is the honest behaviour — a folder that comes back comes back to the decision somebody already made about it, and a node nobody wants is one row to delete.
+Retracting a plugin **from outside the app** is deleting its folder: the row goes on the next revision and the fiber unwinds every registration it made. Its settings node is left where it is, which is the honest behaviour — a folder that comes back comes back to the decision somebody already made about it, and a node nobody wants is one row to delete. Inside the app, **Delete…** on the plugin's page is the whole gesture and takes the node with it, because pressing it is a person ending the plugin rather than a file going missing.
 
-**The browser's own three** — `plugins.approve`, `plugins.mint` (what ⌘K → New plugin presses) and `plugins.ask` (what *Ask for a change* and *Ask Claude to fix it* press) — are on the browser face and nowhere else. `@olai/server`'s `faces.test.ts` pins the agent face as an exact set, so those absences are asserted rather than trusted to nobody having typed them.
+**The browser's own five** — `plugins.approve`, `plugins.trust` (*Always trust changes*, and the way back out of it), `plugins.remove` (*Delete…*), `plugins.mint` (what ⌘K → New plugin presses) and `plugins.ask` (what *Ask for a change* and *Ask the agent to fix it* press) — are on the browser face and nowhere else. `@olai/server`'s `faces.test.ts` pins the agent face as an exact set, so those absences are asserted rather than trusted to nobody having typed them.
 
 ## What happens when it mounts
 
