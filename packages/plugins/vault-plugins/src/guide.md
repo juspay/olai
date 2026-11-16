@@ -38,7 +38,7 @@ Three things follow, and all three are the point:
 
 - **A folder copied in from another vault arrives off and unapproved.** The code travels; the consent does not. A plugin with no settings node is off, whatever it says about itself.
 - **Enablement survives a restart.** So does a stop: `on: no` is in a file, not in a set in the server's memory.
-- **`approved`, `on` and `builder` are reserved.** A `Config` schema declaring any of them faults the row, and `plugins.configure` refuses to write one, with the same sentence either way: *`on` is reserved for the plugin's approval, its switch and the conversation building it.*
+- **`approved`, `on`, `builder` and `checked` are reserved.** A `Config` schema declaring any of them faults the row, and `plugins.configure` refuses to write one, with the same sentence either way: *`on` is reserved for the plugin's approval, its switch and the conversation building it.* `checked` is that conversation's done signal — the version its last clean `vault-plugins_run` answered about — written by olai when the call comes in and never by hand: a plugin that could declare itself finished would ring *Ready for you* at a folder its author is halfway through.
 
 ### Only a person can turn it on
 
@@ -358,4 +358,4 @@ Run it from a package that depends on `@olai/plugin-build` (`packages/server` do
 
 `vault-plugins_run` is the last check and the only one that is the real thing: it answers the state, the version and the fault sentence off the same plugin a person is looking at. A `pending` there is not a failure — it is the one person who can turn it on not having been asked yet.
 
-**It is also how you say you are finished.** Until a build's conversation calls it, the plugin's page says *being built* and lists the files that have landed, and nothing wakes anybody: the files arriving cannot mean *done*, because this guide has you write the face last. Call it when the folder is whole, at the version on disk, and the person is told the plugin is ready for them. Call it again after every fix — each call is about the version it was made at.
+**It is also how you say you are finished.** Until a build's conversation calls it, the plugin's page says *being built* and lists the files that have landed, and nothing wakes anybody: the files arriving cannot mean *done*, because this guide has you write the face last. Call it when the folder is whole, at the version on disk, and the person is told the plugin is ready for them. Call it again after every fix — each call is about the version it was made at, and **only a call that comes back with no fault is a finished build**: the ones in between are the middle of your work, so a mistake you fixed never woke anybody. Olai writes that version down on the plugin's own settings node, so a build that finished before a reboot is still finished after one.
