@@ -212,14 +212,19 @@ When("I approve the plugin {string}", async function (this: OlaiWorld, word: str
   )
   // WAITED FOR AS A MOVE, not as a shape. A plugin approved once and then
   // edited still carries `approved` and `on: yes` from the decision BEFORE the
-  // edit, so a step that waited for those keys to be present would return
-  // without pressing anything and leave the row paused — which is how a
-  // scenario about re-approving a replaced half passed while the page still
-  // said *Review*.
-  const before = consentOf(this, word)?.["approved"]
+  // edit, and one switched off still carries its `approved` — so a step that
+  // waited for those keys to be PRESENT would return without pressing
+  // anything, leaving the row paused or off while the page said *Review*.
+  //
+  // Either half moving is the press landing: the version this reader was shown
+  // becomes the approved one, or the switch goes back up, and both end with
+  // the plugin on at code somebody said yes to.
+  const before = consentOf(this, word)
+  const moved = (consent: Record<string, unknown> | undefined): boolean =>
+    consent !== undefined && consent["approved"] !== undefined && consent["on"] === "yes"
+      && (consent["approved"] !== before?.["approved"] || before?.["on"] !== "yes")
   await this.waitUntil(async () => {
-    const consent = consentOf(this, word)
-    if (consent !== undefined && consent["approved"] !== undefined && consent["approved"] !== before && consent["on"] === "yes") return true
+    if (moved(consentOf(this, word))) return true
     if (await read.isVisible().catch(() => false)) {
       await this.press(read)
       return false
