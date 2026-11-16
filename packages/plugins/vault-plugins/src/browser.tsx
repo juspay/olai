@@ -1,6 +1,6 @@
 /**
  * THE BROWSER HALF OF `vault-plugins` — the whole person-facing surface of a
- * plugin somebody asked for, as SEVEN components that start and stop
+ * plugin somebody asked for, as SIX components that start and stop
  * independently.
  *
  * ## Why so many components, and why that is the design rather than the cost
@@ -25,7 +25,7 @@
  * | `palette` | palette control, navigation, management, renderer | no *New plugin* row and no `+` on the heading; everything already in the vault still works |
  * | `dock` | chat's panel door | the page does not dock the builder and offers no verb that would |
  * | `engines` | chat's engine roster | *New plugin* offers no engine and mints a folder anyway, saying so |
- * | `alerts` | the alerts channel, management, navigation | nothing pings; the sidebar's mark and the page still say everything |
+ * | `notices` | the alerts channel, management, navigation | nothing pings; the sidebar's mark and the page still say everything |
  *
  * ## The holds, and who owns which
  *

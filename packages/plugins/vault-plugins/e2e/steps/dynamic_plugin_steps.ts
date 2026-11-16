@@ -452,3 +452,25 @@ Then("the outline {string} is refused for {string}", async function (this: OlaiW
     `${file}'s refusal to name ${JSON.stringify(words)}`,
   )
 })
+
+/**
+ * ...AND THE FOLDER ITSELF, GONE — what **Delete** on the page leaves behind,
+ * which is nothing.
+ *
+ * Read off the disk rather than off the roster, because the roster saying a
+ * word is absent and the files being absent are two claims and the second is
+ * the one a person checks in Finder. The settings node is asserted beside it
+ * by the step above: deleting from the page ends the plugin, unlike a folder
+ * taken away by hand, which leaves the decision where it was made.
+ */
+Then("the vault holds no files for the plugin {string}", async function (this: OlaiWorld, word: string) {
+  const folder = path.join(this.scratch(), "plugins", word)
+  await this.waitUntil(
+    // THE FILES, not the directory entry: the vault is a set of FILES, every
+    // write verb names one, and nothing in olai creates or removes a folder as
+    // such. What a delete leaves is an empty directory, which is what any
+    // other way of deleting every file in one leaves too.
+    () => Promise.resolve(!fs.existsSync(folder) || fs.readdirSync(folder).length === 0),
+    `the files of "${word}" to be gone from the vault`,
+  )
+})

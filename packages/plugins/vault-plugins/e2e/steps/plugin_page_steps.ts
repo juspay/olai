@@ -58,8 +58,14 @@ import {
   PAGE_MOVED_READ,
   PAGE_README,
   PAGE_STATE,
+  PAGE_ASK_OPEN,
+  PAGE_ASK_SAID,
+  PAGE_DELETE,
+  PAGE_DELETE_CONFIRM,
+  PAGE_READ_ANYWAY,
   PAGE_TRUST_ALWAYS,
   PAGE_TRUST_SAID,
+  PAGE_TRUST_STOP,
   PAGE_USES,
   PAGE_VERB,
   pageFor,
@@ -580,4 +586,120 @@ Then("the plugin page is the one I marked", async function (this: OlaiWorld) {
     (element as HTMLElement & { __olaiPageMark?: number }).__olaiPageMark !== undefined
   )
   assert.ok(marked, "the plugin page was drawn again, so whatever was open on it is gone")
+})
+
+
+// ── the second-rank verbs, which are the ones a person reaches for later ──
+
+/**
+ * STOP TRUSTING CHANGES — the way back out of a standing approval, which the
+ * menu never used to offer.
+ *
+ * It is the same row in the same menu as *Always trust changes*: the entry
+ * says which way the decision is pointing and the press is the other way, so a
+ * scenario asserting the state of that decision reads the ROW rather than the
+ * settings file.
+ */
+When("I stop trusting changes to the plugin {string}", async function (this: OlaiWorld, word: string) {
+  await shownPage(this, word)
+  await openedMore(this)
+  const row = this.page.locator(PAGE_TRUST_STOP).first()
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.press(row)
+  await this.waitUntil(
+    () => Promise.resolve(consentOf(this, word)?.["approved"] !== "always"),
+    `"${word}" to stop being trusted for every later version`,
+  )
+})
+
+/** Which of the two trust rows the menu is offering — the sign that a standing
+ *  approval is in force, drawn where the decision was made. */
+Then("the plugin {string} offers to {string} trusting changes", async function (this: OlaiWorld, word: string, way: string) {
+  await shownPage(this, word)
+  await openedMore(this)
+  const row = this.page.locator(way === "stop" ? PAGE_TRUST_STOP : PAGE_TRUST_ALWAYS).first()
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.page.keyboard.press("Escape")
+})
+
+/**
+ * DELETE, CONFIRMED — the one gesture that gets rid of a plugin, and the only
+ * one in the app that reaches the halves at all: they are deliberately not in
+ * the sidebar's file tree, so without this a plugin made in one sentence needs
+ * a terminal to be rid of.
+ */
+When("I delete the plugin {string} from its page", async function (this: OlaiWorld, word: string) {
+  await shownPage(this, word)
+  await openedMore(this)
+  const row = this.page.locator(PAGE_DELETE).first()
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.press(row)
+  const confirm = this.page.locator(PAGE_DELETE_CONFIRM).first()
+  await confirm.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.press(confirm)
+})
+
+/** *I'll read it now* — the reader's way past a build whose agent never said
+ *  it had finished (a serve restarted mid-build, a conversation abandoned). */
+When("I read the unfinished plugin {string} anyway", async function (this: OlaiWorld, word: string) {
+  await shownPage(this, word)
+  const button = this.page.locator(`${PAGE} ${PAGE_READ_ANYWAY}`).first()
+  await button.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.press(button)
+})
+
+/** What came of a press that spoke to the builder. The press used to answer
+ *  nothing at all where there was no dock to open, which on a handset is
+ *  always. */
+Then("the plugin page says {string} came of asking", async function (this: OlaiWorld, said: string) {
+  const line = this.page.locator(`${PAGE} ${PAGE_ASK_SAID}`).first()
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.waitUntil(
+    async () => (await line.innerText()).includes(said),
+    `the page to say ${JSON.stringify(said)} came of asking`,
+  )
+})
+
+/** The conversation at its OWN address, which is what a viewport with no seat
+ *  for one offers instead of a door it cannot open. */
+Then("the plugin page offers the conversation's own page", async function (this: OlaiWorld) {
+  const link = this.page.locator(`${PAGE} ${PAGE_ASK_OPEN}`).first()
+  await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  assert.ok(
+    ((await link.getAttribute("href")) ?? "").length > 1,
+    "the page offers to open the conversation and names no address",
+  )
+})
+
+/**
+ * WHICH OF THE FOLDER'S FILES HAVE LANDED, as the *being built* screen lists
+ * them.
+ *
+ * It is what the page can honestly say about a build in flight — a roster sees
+ * files, not keystrokes — and it is also the wait a scenario needs before it
+ * speaks for the agent: a test writing the halves straight to disk and calling
+ * `vault-plugins_run` in the next breath can beat its own write to the serve,
+ * which an agent writing through `vault-plugins_write` never does.
+ */
+Then("the plugin {string} has written {string}", async function (this: OlaiWorld, word: string, file: string) {
+  await shownPage(this, word)
+  const row = this.page.locator(`${PAGE} [data-file="${file}"]`).first()
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.waitUntil(
+    async () => (await row.getAttribute("data-written")) === "yes",
+    `"${word}" to have written ${file}`,
+  )
+})
+
+/** No primary verb at all — the state a folder being written is in on a
+ *  viewport with no seat for its conversation: there is nothing to press here
+ *  that would do anything, so nothing is drawn rather than a button that
+ *  writes a switch nobody is waiting on. */
+Then("the plugin page offers no verb", async function (this: OlaiWorld) {
+  await this.page.locator(`${PAGE} ${PAGE_STATE}`).first().waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  assert.equal(
+    await this.page.locator(`${PAGE} ${PAGE_VERB}:visible`).count(),
+    0,
+    "the page offers a verb where there is nothing for one to do",
+  )
 })

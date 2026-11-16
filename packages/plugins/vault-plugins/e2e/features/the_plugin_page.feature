@@ -46,8 +46,14 @@ Feature: A plugin's own page
         apply: Effect.die(new Error("the hours ran out")),
       })
       """
-    # THE FOLDER IS WHOLE, so it is no longer being built — it is a thing a
-    # person may decide about, even though deciding will not go well.
+    # ...AND THE AGENT SAYS IT IS DONE, which is what ends *being built*: the
+    # files landing cannot mean it, because the guide has the builder write the
+    # face last and a page that called the folder finished at `server.ts` rang
+    # *Ready for you* at a plugin still being written.
+    Then the plugin "hours" has written "server.ts"
+    When the terminal agent runs the plugin "hours"
+    # THE FOLDER IS WHOLE AND ITS AUTHOR IS FINISHED, so it is a thing a person
+    # may decide about, even though deciding will not go well.
     Then the plugin page is "review"
     And the plugin page's verb is "turn-on"
 
@@ -202,4 +208,68 @@ Feature: A plugin's own page
     When I press the plugin page verb
     Then the plugin page is "on"
     And file "_olai/Settings.olai" has namespace "swatch" setting "on" as "yes"
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: A plugin can be got rid of, from the one page its files are reachable from
+    # THE HALVES ARE NOT IN THE SIDEBAR'S FILE TREE, by design — so nothing
+    # else in the app can delete them, and without this verb a plugin somebody
+    # made in one sentence needs a terminal to be rid of.
+    Given I open the app
+    When I approve the plugin "greeting"
+    Then file "_olai/Settings.olai" has namespace "greeting" setting "on" as "yes"
+
+    When I delete the plugin "greeting" from its page
+    Then the vault holds no files for the plugin "greeting"
+    # ...AND THE DECISION GOES WITH IT, which is the one difference from a
+    # folder taken away by hand: that leaves the node where it was made, and
+    # this is a person ending the plugin.
+    And the vault has recorded nothing about the plugin "greeting"
+    And the Plugins section lists "swatch"
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: Always trusting changes says so afterwards, offers the way back, and moves no switch
+    # The menu item is about READING — every later version may run without
+    # being read again — and it used to be spelled as an approval with
+    # `forever`, so choosing it on a plugin somebody had switched off turned it
+    # back on: a second decision, made silently, out of a menu that never
+    # mentioned it.
+    Given I open the app
+    When I approve the plugin "greeting"
+    And I go to the plugin "greeting"
+    Then the plugin page is "on"
+    When I switch the plugin "greeting" off on its page
+    Then the plugin page is "off"
+
+    When I always trust changes to the plugin "greeting"
+    Then file "_olai/Settings.olai" has namespace "greeting" setting "approved" as "always"
+    And file "_olai/Settings.olai" has namespace "greeting" setting "on" as "no"
+    And the plugin page is "off"
+    # ...and the menu says which way the decision is pointing, with the press
+    # the other way, rather than leaving no sign and no way out.
+    And the plugin "greeting" offers to "stop" trusting changes
+
+    When I stop trusting changes to the plugin "greeting"
+    Then the plugin "greeting" offers to "start" trusting changes
+    And there should be no page errors
+
+  @phone @scratch:plugins
+  Scenario: On a handset the conversation is reached at its own address
+    # There is no column beside the page on a phone, so there is nothing to
+    # dock. The sentence this used to draw — "no agent is available to ask
+    # right now" — was false: the agent is there, it is the seat that is not.
+    Given I open the app
+    When I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"greeting-consent","ord":"a0","title":"greeting","custom":{"builder":"greeting-chat"}}
+      """
+    And I go to the plugin "greeting"
+    Then the plugin page offers the conversation's own page
+    # ...and no primary verb at all while the folder is still being written: a
+    # handset has no seat to open the conversation in, and the only thing that
+    # actually stops a build is the agent's own Stop inside it.
+    And the plugin page offers no verb
+    When I read the unfinished plugin "greeting" anyway
+    Then the plugin page's verb is in the foot
     And there should be no page errors
