@@ -3,7 +3,7 @@
  *
  * ## The failure this exists to make impossible
  *
- * `docs/dynamic-plugins-examples.md`'s first worked example is a morning agenda; the corpus at
+ * `website/docs/dynamic-plugins-examples.md`'s first worked example is a morning agenda; the corpus at
  * `fixtures/morning-agenda/` holds the same source as the note of a node, and
  * `packages/plugins/vault-plugins/e2e/features/the_morning_agenda.feature` runs it. Three places then said, in
  * prose, that the two are one file apart from two clock constants — the
@@ -26,7 +26,7 @@
  *
  * `@olai/tests` is the package above all the others (`support/sweep.ts`), which
  * is where a claim about two files in two other packages belongs — the same
- * argument `plugin_docs.test.ts` makes for its own sweep over `docs/`.
+ * argument `plugin_docs.test.ts` makes for its own sweep over `website/docs/`.
  *
  * And it needs no markdown parser. `worked.test.ts` extracts fenced blocks
  * because it must hand one to a compiler; this only has to know that the page
@@ -50,7 +50,7 @@ import { expect, test } from "bun:test";
 
 import { ROOT } from "./support/sweep.ts";
 
-const DOC = path.join(ROOT, "docs", "dynamic-plugins-examples.md");
+const DOC = path.join(ROOT, "website", "docs", "dynamic-plugins-examples.md");
 const FIXTURE = path.join(ROOT, "packages", "tests", "fixtures", "morning-agenda", "plugins", "morning-agenda", "server.ts");
 
 /**
@@ -83,7 +83,7 @@ test("the fixture's morning agenda is the doc's, with the two clock lines swappe
   // reader gets "false is not true" about two hundred-line strings.
   const wandered = source.split("\n").find((line) => !page.includes(line));
   throw new Error(
-    `fixtures/morning-agenda/ has drifted from docs/dynamic-plugins-examples.md.\n`
+    `fixtures/morning-agenda/ has drifted from website/docs/dynamic-plugins-examples.md.\n`
       + `The first line of the fixture's server half the page does not carry:\n`
       + `  ${wandered ?? "(every line is on the page, so the drift is in their order)"}\n`
       + `Regenerate the fixture from the page, or change the page.`,

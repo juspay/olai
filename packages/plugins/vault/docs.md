@@ -1,38 +1,50 @@
-# vault
+# vault: opening the directory olai serves
 
-Opens the directory olai serves: it claims the directory, watches the files, gates every write and publishes a revision when anything changes. Every row that reads or writes a file stands on it.
+The `vault` plugin opens the directory olai serves. Every other plugin that reads or writes a file needs it.[^does]
 
 ## What turns it off
 
-The row runs in every profile. Its switch, **Vault** under **Notes** on the plugins panel, is session-only: the settings file lives inside the directory this row opens, so the panel says **This switch resets when olai restarts** rather than writing the choice down. The settings row and the row claiming the settings file's suffix are session-only for the same reason ([../settings.md](../settings.md)).
+This plugin runs in every profile. Its switch, **Vault** under **Notes** in the plugins panel, lasts only until olai restarts, and the panel says **This switch resets when olai restarts**.[^why]
 
-The panel asks before switching it off, saying that turning it off clears the served files and stops plugins that need the vault. Writes olai has already accepted finish before the watcher and the claim are released. Switching it on opens a fresh store over the same directory.
+The panel asks before switching it off.[^close]
 
-With it off, olai serves no files, every row that needs them stops, and the tools that reach the directory refuse with the reason. The listener, the websocket and `/mcp` stay up, so you can switch it back on from the panel.
+With it off, olai serves no files, every plugin that needs them stops, and the tools that reach into the directory refuse and say why.[^transports]
 
 ## Settings
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `format` | `outline-olai` | The file-kind row used when olai mints a new outline |
+| `format` | `outline-olai` | The plugin whose file kind olai uses when it creates a new outline |
 
-Files already on disk are decoded by whichever row claims their kind, whatever `format` says. A file no row claims is not served.
+A file already on disk is read by whichever plugin claims its kind, whatever `format` says.[^claims]
 
 ## What it refuses
 
 | What happens | What you get |
 | --- | --- |
-| another olai already holds the directory | the row fails and the panel says so; the transports keep running, so you can free the directory and switch it on again |
-| the path is not a directory | the same: a failed row, and a serve you can retry from |
-| `format` names a row that is not running | the directory stays readable and creating a new outline is refused before anything is written |
+| another olai already has this directory open | this plugin fails and the panel says so; the connections keep running, so you can free the directory and switch it on again |
+| the path is not a directory | the same: a failed plugin, and a serve you can try again from |
+| `format` names a plugin that is not running | the directory stays readable, and creating a new outline is refused before anything is written |
 
 ## What is missing without git or search
 
-Two optional readings come from other rows, and the answer when neither is mounted is the vault's own.
+Two of the vault's answers come from other plugins: what records your writes, and what a search finds.[^optional]
 
-| Row | Without it |
+| Plugin | Without it |
 | --- | --- |
 | `git` ([git.md](git.md)) | writes land on disk and nobody records them: `nobody is recording writes here, so there is nobody to record a write` |
-| `search` ([search.md](search.md)) | every query answers with no hits and the reason, naming the row |
+| `search` ([search.md](search.md)) | every query answers with no hits and the reason, naming the plugin |
 
-See [../settings.md](../settings.md) for choosing what runs, and [../architecture/plugin-system.md](../architecture/plugin-system.md) for how a row's lifetime works.
+See [../settings.md](../settings.md) for choosing what runs, and [../architecture/plugin-system.md](../architecture/plugin-system.md) for how a plugin starts and stops.
+
+[^does]: What this plugin does with the directory: it claims the directory so that no second olai opens it, watches the files for changes, checks every write before it happens, and publishes a new revision whenever anything changes.
+
+[^why]: Why the switch lasts only for the session: the settings file lives inside the directory this plugin opens. The settings plugin, and the plugin that reads the settings file's kind, last only for the session for the same reason ([../settings.md](../settings.md)).
+
+[^close]: Switching the vault off and on again: the question the panel asks says that switching it off clears the files olai is serving and stops the plugins that need them. Writes olai has already accepted finish before it stops watching the files and lets go of the directory, and switching it on opens the same directory afresh.
+
+[^claims]: A file no plugin claims is not served at all.
+
+[^transports]: The listener, the websocket and `/mcp` stay up with the vault off, so you can switch it back on from the panel.
+
+[^optional]: When neither `git` nor `search` is running, the vault answers both of these itself.

@@ -1,64 +1,71 @@
 # pi, as a chat agent
 
-pi takes both halves: an adapter olai ships pinned, and a `pi` your machine has. Put `pi` on this server's agent search path and the panel offers it as **Pi**. For what a conversation is, read [talking to an agent](../chat.md).
+pi needs two parts: the `pi` program you install, and a helper program called an adapter, which comes with olai. Put `pi` on the server's search path.[^pinned]
 
 ## What olai runs
 
-| Variable | What it does |
-| --- | --- |
-| `OLAI_ACP_PI` | the command line olai runs as the adapter. The wrapper sets it to the pinned build unless you set it first |
-| `OLAI_AGENT_PATH` | the directories olai looks in for `pi`. Set, it replaces the search path rather than adding to it |
-| `PI_ACP_PI_COMMAND` | olai sets it on the spawn to the `pi` its own probe found |
-| `PI_ACP_MCP_EXTENSION` | the pinned wrapper sets it to the bridge that gives pi olai's tools |
-
-| Pinned | Version |
-| --- | --- |
-| `pi-acp` | 0.0.33 |
-| the `pi` these readings were taken against | 0.84.2 |
-
-The adapter and its bridge come with olai; `pi` is yours to install. Handing the found `pi` to the adapter is what keeps the row on the one your search path names: left to itself, the adapter would resolve the word against its own parent's path, which is olai's rather than your shell's.
-
-An adapter you point `OLAI_ACP_PI` at answers for the wiring it carries, which need not include the bridge olai ships.
-
-To switch the row off, put `on: no` on the `pi` node in `_olai/Settings.olai`, or use its switch on the **Plugins** panel ([choosing what runs](../settings.md)). The row stops probing and withdraws what it draws.
+olai offers pi as **Pi**. It starts pi through the adapter, and tells the adapter which `pi` to run.[^handed] Its switch is on the **Plugins** panel.[^off] For what a conversation is, read [talking to an agent](../chat.md).
 
 ## How olai's tools reach pi
 
-pi's harness has no MCP client of its own, so the adapter loads a bridge extension into each conversation's `pi` with that conversation's servers in its environment, and pi's own extension interface registers them as ordinary tools. They answer by the names the other agents use, `olai_*` and `kolu_*`.
+pi cannot reach MCP servers on its own, so the adapter loads a small extension into each conversation's `pi`, and pi then offers olai's tools like its own.[^bridge] No permission question comes back to you: pi decides them by its own settings.[^permissions]
 
-No permission question comes back over ACP. What pi may do is pi's own settings, the way the other agents' settings govern theirs, so the servers strip lists every server olai handed over and no tick arrives to mark one connected.
+## Sending a message while it works
 
-## Talking while it works
+A message you send while pi is working waits its turn: pi answers *Queued message (position n).* and replies when the running reply ends. There is no way to interrupt pi mid-reply,[^steering] and no mode that turns its permission questions off.[^bypass]
 
-A mid-turn message queues, and says so: the adapter accepts it, announces *Queued message (position n).* and answers your request when its turn comes.
+## What you see while it answers
 
-- There is no interruption to offer. `_session/steering` does not exist on this wire, and the `/steering` in pi's own slash menu is about pi's message delivery rather than the ACP extension of the same name.
-- There is no bypass mode either. `session/set_mode "bypassPermissions"` is refused, because the modes pi offers are its thinking levels.
+Opening a conversation shows pi's own startup banner, once.[^banner] Shell output arrives under the line for that command with its exit status, and an edit is shown in full, as a diff with `path:line` locations. An error during a reply can leave nothing on screen.[^silent] Saved conversations are listed fifty at a time.[^stored] Memory between conversations is off unless you add a package yourself.[^memory]
 
-## What a turn looks like
+## Signing in, and when pi does not appear
 
-A conversation's open answers with a startup banner for editors. It carries pi's version, an update notice, and the context and skills it loaded.
+You sign in and configure pi in a terminal; olai draws no sign-in.[^login] If either part is missing, the **Plugins** panel says which, and what to do about it.[^missing]
 
-pi then sends the same text again as an ordinary message, so that a client drawing no such block still shows it. olai drops the double, matched on the exact text the open itself carried.
+[^pinned]: The adapter and the extension that gives pi olai's tools both come with olai, at fixed versions. The `pi` program is yours to install, from <https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent>.
 
-- Shell output streams under its tool row and stays readable with its exit status. Edits draw fully, as diffs with `path:line` locations.
-- An error inside a turn is silent: a provider pi cannot reach ends the turn with no prose, no tool row and no usage, so what you get is olai naming a silent turn.
-- Its stored list answers in pages of fifty. olai sends no limit and follows no cursor, so a directory with more than fifty stored pi conversations draws the newest page and loses the rest.
-- pi's memory is opt-in packages it loads from its own config, and olai installs none. The node's subtree is the conversation's only memory.
+    | What | Version |
+    | --- | --- |
+    | `pi-acp` | 0.0.33 |
+    | the `pi` these readings were taken against | 0.84.2 |
 
-## Signing in
+[^handed]: olai sets `PI_ACP_PI_COMMAND` when it starts the adapter, to the `pi` olai itself found. Left alone, the adapter would look the word `pi` up on its own parent's search path, which is olai's rather than your shell's. If you point `OLAI_ACP_PI` at an adapter of your own, that adapter decides how pi is wired up, and it need not include the extension olai ships.
 
-pi is configured in a terminal, and olai draws no sign-in for it: the one method the adapter advertises is its own `pi-acp --terminal-login`. A pi that is not signed in is refused when a conversation opens, with `-32000 "Authentication required"`, which the panel draws as a refused conversation you can reopen.
+[^off]: A plugin switched off stops looking for pi and takes away everything it draws. Switch it off either by putting `on: no` on the `pi` node in `_olai/Settings.olai`, or with its switch on the **Plugins** panel, the list of olai's parts ([choosing what runs](../settings.md)).
 
-## When pi does not appear
+[^bridge]: The extension carries that conversation's MCP servers in its environment, and pi's own extension interface registers them as ordinary pi tools. They answer to the same names the other agents use, `olai_*` and `kolu_*`.
 
-The row needs both halves, so it names the one that is missing.
+[^permissions]: Which actions need permission is pi's own setting, just as each other agent's permissions are its own. The strip of servers lists every server olai handed over, and no tick appears beside a server to say it is connected.
 
-| What is missing | What the row says |
+[^steering]: pi offers no way to interrupt a reply in progress. The `_session/steering` method does not exist here, and the `/steering` entry in pi's own slash menu is about how pi delivers messages, not about interrupting.
+
+[^bypass]: Asking for `session/set_mode "bypassPermissions"` is refused, because the modes pi offers are its thinking levels rather than permission settings.
+
+[^banner]: The startup banner carries pi's version, any update notice, and the context and skills it loaded. pi then sends the same text again as an ordinary message. A program that draws no banner would show it that way, and olai drops the second copy, matching it on the exact text the banner carried.
+
+[^silent]: Some errors leave nothing to show: when pi cannot reach the model provider, the reply ends with no text, no tool lines and no usage figures, so all you see is olai saying the reply was silent.
+
+[^stored]: pi lists saved conversations fifty at a time. olai sends no limit and does not ask for the next page, so a directory with more than fifty saved pi conversations shows the newest fifty and leaves out the rest.
+
+[^memory]: pi's memory across conversations comes from packages it loads from its own configuration, and olai installs none. The rows under the node the chat hangs from are the conversation's only memory.
+
+[^login]: The one sign-in method the adapter offers is its own `pi-acp --terminal-login`, which you run in a terminal. A `pi` that is not signed in refuses to open a conversation, with `-32000 "Authentication required"`, which the panel shows as a refused conversation you can open again.
+
+[^missing]: An agent that cannot be started is not offered anywhere a chat begins, and the **Plugins** panel files it under **Needs you**, with the reason. Install `pi` where the server can see it, then switch the plugin off and on to look again; an environment change needs a restart.
+
+    | What is missing | What the panel says |
+    | --- | --- |
+    | `OLAI_ACP_PI` is unset or empty | *OLAI_ACP_PI is unset or empty — start olai with the wrapper that carries the pinned pi adapter* |
+    | no `pi` on the search path that will run | *put `pi` on this server's `PATH` — the adapter for it comes with olai*, with a link to pi |
+
+<details>
+<summary>Every variable olai reads or sets</summary>
+
+| Variable | What it does |
 | --- | --- |
-| `OLAI_ACP_PI` is unset or empty | *OLAI_ACP_PI is unset or empty — start olai with the wrapper that carries the pinned pi adapter* |
-| no runnable `pi` on the search path | *put `pi` on this server's `PATH` — the adapter for it comes with olai*, with a link to the agent |
+| `OLAI_ACP_PI` | the command line olai runs as the adapter. The wrapper sets it to the build olai ships unless you set it first |
+| `OLAI_AGENT_PATH` | the directories olai looks in for `pi`. If you set it, it replaces the search path rather than adding to it |
+| `PI_ACP_PI_COMMAND` | olai sets it when it starts the adapter, to the `pi` olai itself found |
+| `PI_ACP_MCP_EXTENSION` | the wrapper sets it to the extension that gives pi olai's tools |
 
-Either way the row is enabled but unavailable: it is not offered anywhere a chat starts, and the **Plugins** panel files it under **Needs you** with that reason. Install `pi` where the olai server can see it, then switch the plugin off and on to probe again without restarting olai. Changing the service's environment needs the service restarted.
-
-The agent is at <https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent>.
+</details>

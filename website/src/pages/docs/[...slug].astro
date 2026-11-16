@@ -1,0 +1,47 @@
+---
+import { getCollection, render, type CollectionEntry } from "astro:content"
+
+import Docs from "../../layouts/Docs.astro"
+import { hrefOf, type Reading } from "../../markdown.ts"
+
+// Every page but the index, which the overview draws as cards.
+export async function getStaticPaths() {
+  const pages = await getCollection("docs", (page) => page.id !== "index")
+  return pages.map((page) => ({
+    params: { slug: hrefOf(page.id).slice("/docs/".length, -1) },
+    props: { page },
+  }))
+}
+
+const { page } = Astro.props as { page: CollectionEntry<"docs"> }
+const { Content, headings, remarkPluginFrontmatter } = await render(page)
+// What the main flow holds, as the docs pass saw it. Its length needs no
+// measuring here: the docs lint holds every page to about a minute.
+const reading: Reading = remarkPluginFrontmatter.reading
+const h2 = headings.filter((heading) => heading.depth === 2)
+const sections = reading.sections.flatMap((at) => h2[at] ?? [])
+---
+
+<Docs id={page.id}>
+  <p class="meta" slot="head">
+    1 min read{reading.notes > 0 && ` · ${reading.notes} notes, one tap away`}
+  </p>
+  {
+    sections.length > 1 && (
+      <details class="contents">
+        <summary>On this page</summary>
+        <ol>
+          {sections.map((heading) => (
+            <li>
+              <a href={`#${heading.slug}`}>{heading.text}</a>
+            </li>
+          ))}
+        </ol>
+      </details>
+    )
+  }
+
+  <article class="prose">
+    <Content />
+  </article>
+</Docs>

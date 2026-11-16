@@ -1,7 +1,7 @@
 /**
  * @olai/format — the outline format, and the only place it is enforced.
  *
- * The package is the bottom of the layering (docs/architecture/overview.md): it knows
+ * The package is the bottom of the layering (website/docs/architecture/overview.md): it knows
  * about records, files and rules, and nothing about disks, servers or
  * browsers. Everything above it — the store's codec, the server, the web
  * client — reads the format through this one surface.
@@ -245,7 +245,7 @@ export {
   DocumentPath,
   /** The address a TITLE carries, and the two halves of the one link it may be
    *  written as — the shape a NAMED pin takes, read by the shelf reading down
-   *  here and by the browser drawing the same title (docs/format.md's Pins).
+   *  here and by the browser drawing the same title (website/docs/format.md's Pins).
    *  One spelling, because two readers cut it. */
   addressWritten,
   linkedTitle,

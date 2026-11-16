@@ -1,1 +1,0 @@
-../../packages/plugins/mcp/docs.md

@@ -2,7 +2,7 @@
  * A document, being written: the page's edit mode.
  *
  * WHAT IS EDITED IS THE SOURCE. Everywhere in this app what you type is the
- * source and the rendering comes back the moment you leave (docs/editing.md),
+ * source and the rendering comes back the moment you leave (website/docs/editing.md),
  * and a document is the biggest instance of that trade rather than an
  * exception to it: a textarea holding the file verbatim is honest about what a
  * `.md` is, and a structured editor over it is a different product (the

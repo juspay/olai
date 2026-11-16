@@ -11,7 +11,7 @@
  *
  * So the roster is a QUERY and this module is that query, answered where the
  * set is: `prop:<the declared key>`, in the search grammar's own words
- * (docs/search.md), read off the derivation instead of typed into a box. Which
+ * (website/docs/search.md), read off the derivation instead of typed into a box. Which
  * is also why there is nothing to store and nothing to keep in step — put the
  * property on a node and the row is there on the frame the store publishes;
  * take it off and the row is gone.
@@ -73,7 +73,7 @@
  * write in, and which ancestor a refusal names. A vault that happens to call a
  * column `agent-session` and means something else by it was, until that phase, a
  * vault whose column olai read as a binding. So it is a CONTRIBUTED KIND like
- * every other one ({@link ./typing.ts}, docs/live-properties.md): the plugin
+ * every other one ({@link ./typing.ts}, website/docs/live-properties.md): the plugin
  * teaches the word, the registry composes it under that plugin's own name, and a
  * vault row moves it to whatever column a person likes.
  * `olai-plugin-chat`'s `kinds.ts` argues the whole of it and holds both

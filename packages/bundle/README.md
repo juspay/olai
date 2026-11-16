@@ -88,7 +88,7 @@ The shapes both lists are written to are still declared HERE — `BundleRow` and
 
 The fence is in two halves, and only the second is this package's.
 
-[`@olai/effect-cordis`](../effect-cordis/README.md)'s `./fence` door makes the GENERIC claims — import boundaries, door graphs, a row's word in code, live state behind a door, and the agreement between the rows the registry names, the packages on disk and the rows the roots compose — over a declaration [`src/fence.testlib.ts`](src/fence.testlib.ts) supplies: the rows from [`olai.yml`](olai.yml)'s generated table, the two entry roots, the collision records in each package's `not-a-plugin.json`, and the allowances somebody argued. `docs/architecture/cordis.md` § [The static fence](../../docs/architecture/cordis.md#the-static-fence) is the whole of it.
+[`@olai/effect-cordis`](../effect-cordis/README.md)'s `./fence` door makes the GENERIC claims — import boundaries, door graphs, a row's word in code, live state behind a door, and the agreement between the rows the registry names, the packages on disk and the rows the roots compose — over a declaration [`src/fence.testlib.ts`](src/fence.testlib.ts) supplies: the rows from [`olai.yml`](olai.yml)'s generated table, the two entry roots, the collision records in each package's `not-a-plugin.json`, and the allowances somebody argued. `website/docs/architecture/cordis.md` § [The static fence](../../website/docs/architecture/cordis.md#the-static-fence) is the whole of it.
 
 [`src/fence.test.ts`](src/fence.test.ts) holds what only this build can say: no package outside this one imports or declares a plugin (an **equality** per package, never a filtered list asserted empty — a rotted pattern reports nothing and passes); no plugin imports another outside a static contract door, and every plugin DOES import the interface; each plugin's own browser chunk and server door carry what they may and nothing else; the tenants' product tiers stay in their own directories; every plugin composes under its own name and no two share one; and each generated table matches the manifest exports it was written from.
 
@@ -127,7 +127,7 @@ equal to the roster, so the same directory serves both lists.
 
 - [`@olai/plugin-api`](../plugin-api/README.md) — the interface every plugin here is written against, and the Effect services its server half installs itself into.
 - [`@olai/effect-cordis`](../effect-cordis/README.md) — the plugin runtime, translated. This package opens its `./loader` door to mount the rows and its root door to read what became of them; nothing here names `cordis`.
-- [docs/architecture/plugin-system.md](../../docs/architecture/plugin-system.md) — the same subject as a tour.
+- [website/docs/architecture/plugin-system.md](../../website/docs/architecture/plugin-system.md) — the same subject as a tour.
 
 Rows may export `/assets` for build-time head, CSS, module-preload and public-file contributions. Generation writes a separate `assets.generated.ts` graph consumed only through `@olai/bundle/assets` by the build. Runtime bundle doors do not load filesystem/build code. The row list remains the sole source of which static owners are shipped.
 

@@ -1,1 +1,0 @@
-../../packages/plugins/hledger/docs.md

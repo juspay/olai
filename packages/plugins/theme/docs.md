@@ -1,26 +1,18 @@
-# Theme
+# Theme: colours, typeface and text size
 
-Theme decides what olai looks like: the palette, the typeface and the size of everything. Its three rows, **Theme**, **Font** and **Size**, are the **Appearance** group at the top of the preferences panel. The choices are this browser's, carried to its other tabs and never sent to the server.
+The theme plugin decides what olai looks like: the colour palette, the typeface, and the size of everything on the page.[^rows]
 
-## Theme
+## Pick a colour palette
 
-Four palettes, drawn as swatches in the colours they set: `chalk` and `reef` are light, `basalt` and `abyss` are dark. A swatch carries no words, so its name is its accessible name and the tip a pointer gets. The palette in force is named once beside the row's label.
+The **Theme** row offers four palettes, drawn as swatches in the colours they set: `chalk` and `reef` are light, `basalt` and `abyss` are dark.[^swatch] Before them stands **Follow the system**, where a browser that has picked nothing starts.[^system] `Tab` reaches the swatches, and `Space` or `Enter` picks one.[^open] A palette also colours the mark in the browser tab, the app icon and a phone's status bar.[^paints]
 
-Ahead of the swatches stands **Follow the system**, which is where a browser that has picked nothing starts: the system's own light or dark setting chooses between `chalk` and `basalt`, and the label reads `System · Chalk`. Pick a swatch and that pick wins over the system until you press **Follow the system** again, and the label reads the bare name, `Chalk`.
+## Pick a typeface
 
-Tab reaches the swatches and `Space` or `Enter` picks one. The panel stays open, because a palette is judged on the page it paints.
+The **Font** row is a drop-down list of the typefaces olai ships, in three groups: **olai**, **Generic** and **Typefaces**. The default, `olai`, sets titles and documents in Literata, the interface in Inter, and code in iA Writer Mono.[^select]
 
-The palette paints more than the page: the colour a phone draws its status bar in, the mark in the browser tab, and the icon. When an agent is waiting on you, the tab's name takes a `●` in front of it and the icon is marked to match.
+## Pick a text size
 
-## Font
-
-A select of olai's typeface catalogue, in three groups — **olai**, **Generic** and **Typefaces**. The default, `olai`, sets titles and documents in Literata, the interface in Inter and code in iA Writer Mono.
-
-The closed select is drawn in the face in force. The options are not: a browser asked to draw twenty names in twenty faces would fetch every one of them to open the list.
-
-## Size
-
-One number sets the whole page, furniture and type together.
+The **Size** row is one number, and it sets the size of the whole page, the controls and the text together.[^layout]
 
 | Choice | What it is |
 | --- | --- |
@@ -28,27 +20,44 @@ One number sets the whole page, furniture and type together.
 | **Large** | one notch up, and olai's default |
 | **Larger** | two notches up |
 
-The line between the phone layout and the desktop one does not move with it, so asking for larger type gives you larger type rather than a laptop drawn as a phone.
+## What is kept, and what is forgotten
 
-## What is restored, and what is forgotten
+olai puts your palette, typeface and size back before the page is first drawn, so the page does not flash in one palette and settle in another.[^forgotten]
 
-Your palette, face and size are put back before the page is first drawn, so nothing flashes in one palette and settles in another. A stored choice naming a palette, face or size olai does not offer is forgotten: the face and the size go back to their defaults, and the palette goes back to following the system. Where a browser allows no storage at all, a pick still works and lasts until the page is closed.
+## When your system decides the colours instead
 
-## When the screen is not olai's to paint
+Three system settings reach olai without passing through these rows, and olai follows all three as you change them, with nothing to reload: high contrast,[^contrast] more contrast[^more] and less movement.[^motion]
 
-Three system settings arrive without passing through these rows, and olai follows all three live, with nothing to reload.
+[^rows]: The three rows, **Theme**, **Font** and **Size**, are the **Appearance** group at the top of the preferences panel. The choices belong to this browser, are carried to its other tabs, and are never sent to the server.
 
-Asked for high contrast, a browser throws olai's palette away and repaints from the reader's own, deleting every shadow on the way. The keyboard's focus ring survives, because it is an outline rather than a shadow.
+[^swatch]: A swatch carries no words, so the palette's name is the name a screen reader reads out and the tooltip a pointer gets. The palette in use is named once beside the row's label.
 
-Anything that said its state in a colour alone says it again in the system's colours: a switch's two positions, the segment of a strip in force, the selected tab of a ledger. So do the round marks for an agent's standing, a live turn and a transaction. The **Theme** swatches are the single exception, on purpose: a palette preview with its colours taken has nothing left to say.
+[^system]: Your system's own light or dark setting chooses between `chalk` and `basalt`, and the label reads `System · Chalk`. Pick a swatch and your pick wins over the system until you press **Follow the system** again, after which the label reads the bare name, `Chalk`.
 
-Asked for more contrast, the overflow bar, which is deliberately quiet, draws its thumb at the full ink of whichever palette is in force.
+[^open]: The panel stays open while you pick, because you judge a palette by the page it colours.
 
-Asked for less movement, olai stops moving: switches and chevrons land in their new state rather than travelling to it, and live cues hold still. A reveal puts the row on screen rather than gliding to it. Colours still fade, and nothing a cue was saying is lost with its movement.
+[^paints]: The palette also sets the colour a phone draws its status bar in, the mark in the browser tab, and the icon. When an agent is waiting for you, a `●` goes in front of the tab's name, and the icon is marked to match.
 
-## When something is off
+[^select]: The closed drop-down is drawn in the typeface in use. The options are not: a browser asked to draw twenty names in twenty typefaces would have to fetch all twenty to open the list.
+
+[^layout]: The point at which olai switches between the phone layout and the desktop one does not move with the size, so asking for larger type gives you larger type rather than a laptop drawn as a phone.
+
+[^forgotten]: A stored choice naming a palette, typeface or size olai does not offer is forgotten: the typeface and the size go back to their defaults, and the palette goes back to following the system. Where a browser allows no storage at all, a pick still works and lasts until the page is closed.
+
+[^contrast]: When you ask your system for high contrast, the browser throws olai's palette away and repaints from your own colours, deleting every shadow as it goes. The keyboard's focus ring survives, because it is an outline rather than a shadow.
+
+[^more]: When you ask for more contrast, the scrollbar, which is normally faint, draws its thumb, the part you drag, in the full ink colour of whichever palette is in use.
+
+[^motion]: When you ask for less movement, olai stops moving: switches and chevrons appear in their new state rather than travelling to it, and marks that pulse to show something is live hold still. Showing a row puts it on screen rather than gliding to it. Colours still fade, and nothing those marks were telling you is lost along with the movement.
+
+<details>
+<summary>What a system colour repaints, and what happens when a plugin is off</summary>
+
+Anything that said its state in a colour alone says it again in the system's colours: a switch's two positions, the chosen segment of a row of buttons, the selected tab of an hledger journal page. So do the round marks that show an agent's state, a turn in progress and a transaction. The **Theme** swatches are the single exception, on purpose: a palette preview with its colours taken away has nothing left to say.
 
 | What is off | What you get |
 | --- | --- |
 | theme | no **Appearance** rows and no tab mark; the rest of the preferences panel stands |
-| preferences, the sidebar or the layout | the palette, face and size keep working and keep following storage |
+| preferences, the sidebar or the layout | the palette, typeface and size keep working and keep following what is stored |
+
+</details>

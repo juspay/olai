@@ -564,7 +564,7 @@ export const nameInto = (
  * as a tag there, because the client walks into `em` and `strong`. So "the bias
  * is toward showing more" is NOT a safe thing to say, and the docs said a
  * narrower thing than the truth twice before `./backlinks.test.ts` pinned every
- * row of it (docs/format.md's References carries the table).
+ * row of it (website/docs/format.md's References carries the table).
  */
 export const writtenTags = (node: Node): ReadonlyArray<Tag> => {
   if (isMirror(node)) return NO_TAGS
@@ -1412,7 +1412,7 @@ const waitingOn = (
  * an obstacle that can never be cleared — and, once a second settling mark
  * exists, reads work somebody called off as an obstacle nobody can clear at
  * all, since the way to clear it is the very mark being ignored
- * (docs/format.md).
+ * (website/docs/format.md).
  *
  * ONE predicate, read at BOTH ENDS of the arrow, which is the racket
  * reference's own shape (`olai/query.rkt`'s `live?`): "a node this can be said

@@ -14,7 +14,7 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
   `needs` and gets the reactive half for free: it waits while the journal is
   off, saying which key it is waiting on, and comes back when the journal does.
 
-  THE CONSUMER IS `docs/dynamic-plugins.md`'s worked example — not a copy of it
+  THE CONSUMER IS `website/docs/dynamic-plugins.md`'s worked example — not a copy of it
   written to look like one: `plugins/morning-agenda/server.ts` is that page's
   block with two lines swapped, both of them the clock (it looks from midnight
   rather than seven, and beats every second rather than every five minutes,

@@ -39,7 +39,7 @@
  * The filter box narrows this page like any other, and the one thing that had
  * to be said out loud for it to work is that the archive is IN SCOPE here: a
  * query normally leaves what was put away alone unless it says `is:trashed`
- * (docs/search.md), and a matcher applying that rule to the page that IS the
+ * (website/docs/search.md), and a matcher applying that rule to the page that IS the
  * archive would take away every row and give the reader nothing to read it by.
  * So the scope is the page (`../filter/narrowing.ts`), and a word typed here
  * searches what is in front of somebody. Read-only is a fact about this page's

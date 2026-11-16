@@ -1422,7 +1422,7 @@ export const make = (options: Options): Committing => {
   /**
    * HOW MANY CALLERS ARE HOLDING THE WINDOW OPEN — a count and not a flag, so
    * two holders cannot release each other's hold, and per LEDGER rather than
-   * per directory, which is the half `docs/architecture/cordis.md` states: a
+   * per directory, which is the half `website/docs/architecture/cordis.md` states: a
    * git row reloaded mid-hold takes this number with it, and the ledger that
    * replaces it starts at zero.
    */

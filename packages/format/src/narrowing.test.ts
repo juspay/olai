@@ -11,7 +11,7 @@
  * query, the page narrowed by what `narrowedIn` selected must be the same page,
  * row for row, as the page narrowed by what `matching` selected over the whole
  * set — and the counts a bar prints off it must be the same numbers. That is
- * the rule docs/search.md already states for every second producer of one
+ * the rule website/docs/search.md already states for every second producer of one
  * answer, read for the one change where the first producer is being deleted.
  *
  * **And the decisions that are this reading's own**: which records of a page a

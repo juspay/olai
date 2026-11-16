@@ -302,7 +302,7 @@ export const parseAddress = (claims: Claims, text: string): Address | null => {
  * server (`./shelf.ts`, finding the node a pin addresses) — and the third one
  * put a fourth spelling of it on the other side of a wire. What is NOT here,
  * and stays the browser's, is what the halves MEAN: which page a pathname
- * opens, and that the query is a filter (docs/format.md's Pins).
+ * opens, and that the query is a filter (website/docs/format.md's Pins).
  */
 export const splitAddress = (address: string): Split => {
   const hash = address.indexOf("#")
@@ -347,7 +347,7 @@ export const addressWritten = (title: string): string =>
  * reading takes the target of it (`./shelf.ts`, resolving what a pin's node is
  * called), and the BROWSER takes both halves — the target to read as a page,
  * and the label as the name somebody chose (`@olai/web`'s `address/address.ts`,
- * docs/format.md's Pins). Neither of them is the other's caller, and both are
+ * website/docs/format.md's Pins). Neither of them is the other's caller, and both are
  * about one sentence of that convention.
  *
  * DELIBERATELY NARROW: exactly one link and nothing around it. A title with

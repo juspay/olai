@@ -58,7 +58,7 @@ export const SLEPT_TYPE = "chat-agent-slept"
  * WHAT IT MEANS IS A PERSON'S ANSWER RATHER THAN A MACHINE'S: absent or `off` is
  * "leave this one alone", `on` is "tidy it when it has been quiet". Nothing else
  * about the pass changes — the words are `./sleep.ts`, the loop is
- * `./server/sleep.ts`, and `docs/chat.md` says it in a person's terms.
+ * `./server/sleep.ts`, and `website/docs/chat.md` says it in a person's terms.
  */
 export const SLEEPING_KIND = "agent-sleep"
 

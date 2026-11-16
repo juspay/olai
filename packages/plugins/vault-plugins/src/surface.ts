@@ -253,7 +253,7 @@ export const surface = defineSurface({
        * An agent working in somebody's vault has no olai checkout to read, so
        * the page that tells a person how a plugin is written has to be
        * reachable as an ANSWER rather than as a file. This is that page, same
-       * words, kept in lockstep with `docs/dynamic-plugins.md` by a test rather
+       * words, kept in lockstep with `website/docs/dynamic-plugins.md` by a test rather
        * than by habit (`./guide.test.ts`).
        */
       guide: {

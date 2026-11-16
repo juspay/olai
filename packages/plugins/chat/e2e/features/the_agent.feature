@@ -1751,7 +1751,7 @@ Feature: Talking to a node agent
   Scenario: A shelf open over a question says so, because the form is not in it
     When I open the "claude" agent on node "kitchen"
     And the node agent's fold is ready
-    # `docs/chat.md`'s promise, and the one place this feature could have broken
+    # `website/docs/chat.md`'s promise, and the one place this feature could have broken
     # it: with the conversation in front of you, a form ARRIVING IS THE WHOLE OF
     # IT — it lands where you are already looking, the composer says so, and
     # nothing rings, because a notification about something on your screen is
@@ -2202,7 +2202,7 @@ Feature: Talking to a node agent
     # user-role `<task-notification>` carrying the subagent's whole report,
     # stamped `origin.kind: "task-notification"` in the session stream. The
     # panel drew that payload RAW in the column — literal `#` markers, no
-    # fold, no attribution. docs/chat.md forbids it twice: the report lives
+    # fold, no attribution. website/docs/chat.md forbids it twice: the report lives
     # in the spawn's fold, and a background agent's ending is one row at
     # the bottom in the harness's own words.
     When I ask the agent "subagent notify"

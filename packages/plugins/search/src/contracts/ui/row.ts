@@ -26,7 +26,7 @@ export interface HitRow {
    * so a markdown title in the palette or the header box is the same HTML a
    * tree row draws. Both kinds carry it now: a node's is its outline, a
    * document hit's is its own path, because a document face's title is prose
-   * the format tags the same way (its tags are read off it, docs/format.md),
+   * the format tags the same way (its tags are read off it, website/docs/format.md),
    * so a `#tag` there wears a pill — and its hue — like anywhere else.
    */
   readonly from?: string

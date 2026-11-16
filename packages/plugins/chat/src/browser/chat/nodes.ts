@@ -8,7 +8,7 @@
  * a PATH. A node is the opposite case: the matcher exists, it is the one every
  * other door already asks, and a prefix rule written here would mean `@cab` in
  * this box and `cab` in the filter bar two lines up selecting different rows of
- * the same directory. That is the drift docs/search.md was written to forbid,
+ * the same directory. That is the drift website/docs/search.md was written to forbid,
  * and it is worse in a completion than anywhere else: the list is where
  * somebody LEARNS what a query means, so a list with private rules teaches the
  * wrong thing about every other box in the app.
@@ -61,7 +61,7 @@
  *
  * Zero lines here, which is the point: the matcher reads the query's own
  * `speaksOfTrash` before it walks, so #226's ruling ("what is put away is
- * drawn on the Trash and nowhere else", docs/search.md's one-page rule) arrives
+ * drawn on the Trash and nowhere else", website/docs/search.md's one-page rule) arrives
  * inherited — now over the wire rather than over the local set, which changes
  * nothing about it. A door that respelled it is a door that can drift from it.
  *

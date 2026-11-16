@@ -73,7 +73,7 @@ import { granting, read, tracked, unresolved } from "./support/sweep.ts";
  * `fileKind` does not claim the suffix. That is the cutover itself, and it has
  * to be written out to be tested.
  *
- * The second is `docs/format.md`, and it is the only one that is about the
+ * The second is `website/docs/format.md`, and it is the only one that is about the
  * user: it carries the migration recipe — the `git mv` line a person runs
  * once on a vault they already have — plus the sentence that says why they have
  * to. That is the entire user-facing story of a cutover with no auto-migration
@@ -93,16 +93,16 @@ import { granting, read, tracked, unresolved } from "./support/sweep.ts";
  *
  * A trailing `/` is what makes an entry a DIRECTORY, matched by prefix;
  * everything else is one exact path. The first draft prefix-matched all of
- * them, which quietly granted `docs/format.mdx` and `docs/format.md.bak` too —
+ * them, which quietly granted `website/docs/format.mdx` and `website/docs/format.md.bak` too —
  * same review, and the reason the rule is `./support/sweep.ts`' `granting`
  * rather than four lines each sweep writes for itself.
  */
 const MAY_SPELL_IT: ReadonlyArray<string> = [
-  "docs/format.md",
+  "website/docs/format.md",
   "packages/format/src/kinds.test.ts",
 ];
 
-/** Every line of `docs/format.md` allowed to say it: the recipe, and the
+/** Every line of `website/docs/format.md` allowed to say it: the recipe, and the
  *  sentence that sends a person to it. */
 const FORMAT_MD_LINES: ReadonlyArray<string> = [
   "olai reads the suffixes its file kinds claim, and a `.jsonl` is not one of them: it sits in a served directory as an unclaimed file, like a `.txt`. Rename them once, from the directory:",
@@ -165,7 +165,7 @@ test("no file in the repository is still named with it", () => {
   expect(TRACKED.filter((file) => /\.jsonl/i.test(file))).toEqual([]);
 });
 
-// `docs/format.md` is exempted for two lines, and this is what stops the grant
+// `website/docs/format.md` is exempted for two lines, and this is what stops the grant
 // from covering the rest of the file. Held as the LINES rather than as "the
 // recipe is present": that weaker form let a second current-tense sentence in
 // beside the recipe with the fence still green, which is how a dual-read
@@ -174,8 +174,8 @@ test("no file in the repository is still named with it", () => {
 // It is also the liveness check, for free — a repository that had dropped the
 // recipe is one where a person with a pre-rename vault has nothing to run, and
 // the sweep, having granted the file, would be the last thing to notice.
-test("docs/format.md says it only on the lines the grant was written for", () => {
-  const said = read("docs/format.md")
+test("website/docs/format.md says it only on the lines the grant was written for", () => {
+  const said = read("website/docs/format.md")
     .split("\n")
     .filter((line) => /\.jsonl/i.test(line))
     .map((line) => line.trim());

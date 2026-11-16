@@ -1,0 +1,48 @@
+---
+/**
+ * The docs overview: the index's own opening, then one card per group with
+ * the pages in it. `website/docs/index.md` is the map this is drawn from.
+ */
+import Docs from "../../layouts/Docs.astro"
+import { siteMap } from "../../sitemap.ts"
+
+const map = await siteMap()
+---
+
+<Docs id="index">
+  <p class="summary" slot="head" set:html={map.intro} />
+
+  <div class="cards">
+    {
+      map.groups.map((group) => (
+        <section class="card" id={group.slug}>
+          <h2>{group.title}</h2>
+          <p set:html={group.intro} />
+          <ul>
+            {group.links.map((link) => (
+              <li>
+                <a href={link.href}>{link.title}</a>
+              </li>
+            ))}
+          </ul>
+          {group.groups.map((inner) => (
+            <details>
+              <summary>
+                {inner.title} <span>{inner.links.length}</span>
+              </summary>
+              <ul>
+                {inner.links.map((link) => (
+                  <li>
+                    <a href={link.href}>{link.title}</a>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ))}
+        </section>
+      ))
+    }
+  </div>
+
+  {map.closing.map((html) => <p class="closing" set:html={html} />)}
+</Docs>

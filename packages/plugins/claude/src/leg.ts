@@ -404,7 +404,7 @@ export const backgroundTaskIn = (meta: Meta): Background | null => {
  *     it and cannot have it leak into the main agent's voice either. Drawing a
  *     subagent's narration is a feature with a switch to throw, not a `_meta`
  *     to read, and it is not this one. The REPORT it hands back at the end
- *     is the exception `docs/chat.md` names, and it rides
+ *     is the exception `website/docs/chat.md` names, and it rides
  *     {@link backgroundTaskIn}'s `report` — the task's own stamp — not a
  *     second field.
  */

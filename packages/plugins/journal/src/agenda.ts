@@ -27,7 +27,7 @@
  *
  * `at` is `unknown` because the consumer this exists for is a plugin the VAULT
  * defines, which may import `@olai/plugin-api`, `effect` and `solid-js` and
- * nothing else (`docs/dynamic-plugins.md`). Such a plugin cannot name a
+ * nothing else (`website/docs/dynamic-plugins.md`). Such a plugin cannot name a
  * `Reading`; what it can do is pass one through, which is exactly what it gets
  * from the revision door. It is narrowed once, here, at the journal's own edge.
  *

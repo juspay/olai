@@ -460,7 +460,7 @@ export const Edit = Schema.Union([
     id: Id,
     /**
      * `null` clears it. Anything else is the value VERBATIM — a date is text
-     * in this format (docs/format.md), so a day picked in a browser crosses
+     * in this format (website/docs/format.md), so a day picked in a browser crosses
      * as the ten characters that were picked and reaches the validator as
      * they were typed. Nothing on the way parses one, and the validator is
      * the gate at the far end, exactly as it is for an agent's `outlines_date`.
@@ -483,7 +483,7 @@ export const Edit = Schema.Union([
     verb: Schema.Literal("repeat"),
     id: Id,
     /** `null` stops the recurrence. Anything else is the rule's own TEXT,
-     *  verbatim: the grammar is spelled in the file (docs/format.md), so a rule
+     *  verbatim: the grammar is spelled in the file (website/docs/format.md), so a rule
      *  chosen in a browser crosses as the words that were chosen and meets the
      *  format's per-line check at the far end, exactly as an agent's
      *  `outlines_repeat` does. Nothing on the way parses it. */
@@ -849,7 +849,7 @@ export const Edit = Schema.Union([
      * It is a field on this VERB and not a field on a record: what lands is
      * still one ordinary node whose title is `[name](address)`, which is the
      * spelling `Pins.olai` has always had for a named pin and the one an agent
-     * writes by hand (docs/format.md's Pins). So the format grew nothing, and
+     * writes by hand (website/docs/format.md's Pins). So the format grew nothing, and
      * the consistency rule is paid the way pinning itself paid it — an agent
      * names a pin with the `outlines_add` it already has, and renaming one on
      * either face is `outlines_title` on that row.

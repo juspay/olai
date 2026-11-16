@@ -1317,7 +1317,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // A TASK-NOTIFICATION is not a person speaking. The harness injects
           // the subagent's report as a user-role turn (`origin.kind:
           // "task-notification"`); drawing it as a bubble puts the report in
-          // the column, unrendered, which is the contract `docs/chat.md`
+          // the column, unrendered, which is the contract `website/docs/chat.md`
           // forbids. The report belongs in the spawning row's fold. Looked at
           // LIVE as well as on replay: the injected turn is not one olai sent,
           // so the "we already drew what we typed" skip does not apply.
@@ -2166,7 +2166,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  answers zero rows when it is followed (captured over three stored
      *  conversations). The posture is agreed, not parked: the list answers
      *  which-conversation-recently rather than indexing an agent's database,
-     *  and `docs/chat.md` says the size `pi`'s adapter pages at. */
+     *  and `website/docs/chat.md` says the size `pi`'s adapter pages at. */
     const storedFor = (at: Live): Effect.Effect<ReadonlyArray<Stored>, AgentGone> =>
       at.canList
         ? Effect.map(
@@ -2551,7 +2551,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * — the wire says which model, never who decided it — and between a panel
      * that loses the choice made IN it every single restart and one that can
      * lose a choice made elsewhere while it was not running, the second is the
-     * better failure. Said in `docs/chat.md` rather than only here.
+     * better failure. Said in `website/docs/chat.md` rather than only here.
      *
      * A REFUSAL IS A ROW, not a boot failure: the conversation is open and
      * usable on the agent's own model, which is exactly what it was before this

@@ -54,7 +54,7 @@ test("a served file is one of the registry's kinds, or none of the set's busines
 // the rename, and what was ruled is that olai simply stops seeing them: no dual
 // read, no migration on open, no warning — a `.jsonl` left in a served
 // directory is an unclaimed file exactly the way `plan.json` above is, and a
-// person renames their vault once by hand (docs/format.md carries the line).
+// person renames their vault once by hand (website/docs/format.md carries the line).
 // It is asserted rather than left to follow from the table because the tempting
 // kindness — "claim it too, just for a while" — is a one-line edit there, and
 // this is where the argument against it is written down.

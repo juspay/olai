@@ -47,7 +47,7 @@
  *
  * A plugin also carries a USER PAGE, and it is deliberately NOT a field here:
  * the page is `packages/plugins/<name>/docs.md`, served under
- * `docs/` through a symlink at `docs/plugins/<name>.md`, and its address is the
+ * `website/docs/` through a symlink at `website/docs/plugins/<name>.md`, and its address is the
  * plugin's NAME — the one word in {@link ./contract.ts}'s {@link PluginWire},
  * which is also the word the loader binds the fiber under, so the docs slug,
  * the wire prefix and the fiber's own key cannot drift apart

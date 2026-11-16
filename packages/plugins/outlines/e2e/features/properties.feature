@@ -2,7 +2,7 @@
 @scratch:good
 Feature: Properties on a node, from the web
   A property is a named fact on a node — `pr`, `agent`, `isbn` — kept in the
-  record's one open field, `custom` (docs/format.md). An agent writes one with
+  record's one open field, `custom` (website/docs/format.md). An agent writes one with
   `outlines_prop`; this is the person's door onto the same op.
 
   They are read ON THE ROW, under its title, as a wrapping run of chips: the key

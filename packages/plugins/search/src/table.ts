@@ -21,7 +21,7 @@
  * over-includes costs a comparison per extra candidate and cannot change what
  * search finds; an index that decides would be a second reading of a grammar
  * with five doors on it, and the day it disagreed with `filter.ts` is the day
- * `is:done` means two things (docs/search.md). So:
+ * `is:done` means two things (website/docs/search.md). So:
  *
  *   - the TEXT held here is the matcher's own fold, run together — `hayOf` and
  *     `documentHayOf`, exported by `@olai/format` for exactly this;

@@ -5,7 +5,7 @@
  * and `#tags` are decided when it is drawn (`../markdown/title.ts`), never on
  * disk. This module adds one more reading to that list — a title that names a
  * PLACE IN THIS APP — and it is the reading the pinned shelf is built out of
- * (`../pins/`, docs/format.md's Pins).
+ * (`../pins/`, website/docs/format.md's Pins).
  *
  * IT LIVES HERE RATHER THAN IN `../pins/` because the shelf turned out to be
  * one consumer of it and not the axis. The axis is *what an address in a title
@@ -97,7 +97,7 @@ export interface Faced {
    * Whether those words are somebody's OWN, which is the only kind a face may
    * make a link of: pressing a written name opens its address, and a bare
    * address is left as it was so a click there opens the editor on the address
-   * itself (docs/format.md's Pins).
+   * itself (website/docs/format.md's Pins).
    *
    * It rides HERE rather than being asked again at the call site because it is
    * the same reading — a label was written, or it was not — and two readings of
@@ -113,7 +113,7 @@ export interface Faced {
  *
  * A name somebody WROTE into the title wins, because it is authored rather than
  * derived and nothing can disagree with it later; otherwise the address answers
- * for itself ({@link nameOf}). That precedence is docs/format.md's Pins, and it
+ * for itself ({@link nameOf}). That precedence is website/docs/format.md's Pins, and it
  * used to live inside the face until the two callers started learning the set's
  * half from opposite sides of the wire — at which point it was about to be two
  * `??` chains that had to stay in step, which is the shape this module exists
@@ -205,7 +205,7 @@ export const nameOf = (
       // A NODE is the one address that does not name itself: what it is called
       // is a fact about the set, so what is drawn is what somebody answered —
       // and its own address when nothing did, which is the honest dead row
-      // (docs/format.md's Pins).
+      // (website/docs/format.md's Pins).
       if (address.kind === "node") return shows ?? routes.href(route)
       // A ROW is at once the node and a heading: where the set was asked, it
       // is the node — an in-tree title or a pin names the live id — and

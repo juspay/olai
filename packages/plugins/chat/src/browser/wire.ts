@@ -32,7 +32,7 @@
  * it does not pretend to keep a stale subscription alive — a `use()` binds to
  * the client it was called on, and every open subscription is failed by the
  * supersession fence and re-opened by its own retry a second later, which is
- * the reconnection contract `docs/architecture/plugin-system.md` writes down.
+ * the reconnection contract `website/docs/architecture/plugin-system.md` writes down.
  *
  * ## THE SHAPE IS STRUCTURAL, and that is the point
  *

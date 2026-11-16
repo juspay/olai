@@ -43,7 +43,7 @@ test("the instruction keeps the verbatim rule and the two prohibitions", () => {
   expect(SLEEP).toContain("Move only")
   // ... and olai's own bookkeeping is not the agent's to write — named by its
   // ROLE and never by a key: a vault may keep either under a column of its own
-  // name (`docs/format.md`), so a literal here would name nothing in exactly the
+  // name (`website/docs/format.md`), so a literal here would name nothing in exactly the
   // vaults that renamed them, while the ticket refuses the real key whatever it
   // is called.
   expect(SLEEP).toContain("do not write the property olai seats a conversation on")

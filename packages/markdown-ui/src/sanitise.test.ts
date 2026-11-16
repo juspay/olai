@@ -65,7 +65,7 @@ test("no other tag's allowlist moved", () => {
  * A captured mail keeps a `message://<Message-Id>` pointer instead of a copy of
  * the mail, and the default's href protocols do not include the scheme — so
  * before this the link was stripped and the note said nothing about where it
- * came from (docs/running.md).
+ * came from (website/docs/running.md).
  *
  * Held against the DEFAULT's own list, so the claim is "upstream's, plus this
  * one" rather than a copy of six schemes that stops being upstream's the day

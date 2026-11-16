@@ -34,7 +34,7 @@
  *   - **the environment is an ALLOWLIST, not inherited.** A child inherits the
  *     server's whole environment otherwise, which for olai means
  *     `OLAI_MAIL_OAUTH_SECRET`, `OLAI_SPACES_TOKEN` and every provider key the
- *     engines read (`docs/running.md` lists them) — credentials this process
+ *     engines read (`website/docs/running.md` lists them) — credentials this process
  *     holds for other purposes entirely, handed to a program that needs none of
  *     them. What Himalaya does need is a PATH, a HOME, a TMPDIR, a timezone,
  *     the locale, and the CA bundle variables a NixOS host sets for rustls;

@@ -3,7 +3,7 @@
 This package builds the browser assets and starts the selected plugin graph.
 It does not own Olai's frame, navigation, editors, directory, preferences, or
 plugin inspector. Those implementations, their state, and their child locations
-belong to the plugins documented in [the plugin catalogue](../../docs/index.md).
+belong to the plugins documented in [the plugin catalogue](../../website/docs/index.md).
 The browser host creates no fallback application when an owner is absent.
 
 `src/client/main.tsx` supplies the mount element and starts browser composition.
@@ -80,4 +80,4 @@ by the browser entry point.
 Use `just ci` for the integrated checks. Browser acceptance covers independent
 content selections, alternate layout and non-notebook fixtures, plugin
 withdrawal/restoration, and failed module recovery; see
-[the plugin system](../../docs/architecture/plugin-system.md) and [the browser suite](../tests/README.md).
+[the plugin system](../../website/docs/architecture/plugin-system.md) and [the browser suite](../tests/README.md).

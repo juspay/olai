@@ -48,7 +48,7 @@
  *     advertised at `initialize` anywhere; established against 0.0.33 on the
  *     wire, the way every capability claim in this tree is. Nothing on this
  *     wire will steer a running turn: see `steering: null` below, and
- *     `docs/chat.md` for the statement a person gets.
+ *     `website/docs/chat.md` for the statement a person gets.
  *   - **an error inside a turn is silent.** A provider pi cannot reach maps to
  *     `stopReason: "end_turn"` with not one frame — no prose, no tool, and no
  *     usage either (pi-acp never sends `usage_update`). Olai's silence arm is
@@ -72,7 +72,7 @@
  *     limit and follows no cursor — a directory with more than fifty stored
  *     pi conversations draws the newest page and loses the rest. That is the
  *     AGREED posture, not a follow-up parked in code: the picker's promise is
- *     how-one-reaches-recent-conversations, and `docs/chat.md` answers the
+ *     how-one-reaches-recent-conversations, and `website/docs/chat.md` answers the
  *     size-of-the-page question the way the other pi characteristics live
  *     there.
  *   - **`session/load` replays — by the adapter's own map, not pi's store.**

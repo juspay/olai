@@ -47,7 +47,7 @@ Feature: Outline and Markdown capabilities have independent lifetimes
   # subscription is failed by the supersession fence and re-opens itself about a
   # second later — so the page must go on hearing about a file that changes
   # underneath it, and must go on being able to WRITE. The contract is written
-  # down in `docs/architecture/plugin-system.md`.
+  # down in `website/docs/architecture/plugin-system.md`.
   #
   # `no member of this page has gone silent` cannot prove this on its own: a
   # re-subscribing member reads `pending`, and pending does not degrade the

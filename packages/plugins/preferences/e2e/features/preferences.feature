@@ -6,7 +6,7 @@ Feature: One place to set how this browser reads
   control does, and news (an Allow button, a blocked browser) only while it
   applies. One line at the foot says, once, that all of it is saved in this
   browser only — olai's preferences are client-local
-  (`docs/architecture/overview.md`): nothing here is a cell, nothing crosses a
+  (`website/docs/architecture/overview.md`): nothing here is a cell, nothing crosses a
   wire, and nothing is committed.
 
   THE PANEL KNOWS NO ROW AND NO HEADING. Each plugin contributes its rows to

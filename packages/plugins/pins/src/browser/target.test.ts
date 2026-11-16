@@ -3,7 +3,7 @@
  * the relation between them, which is NOT equality.
  *
  * A pin's title is read twice now, once on each side of the wire, and each side
- * reads the half that is its own (docs/format.md's Pins, the last paragraph):
+ * reads the half that is its own (website/docs/format.md's Pins, the last paragraph):
  * the SERVER reads the node an address names — a statement about the directory,
  * so `@olai/format`'s (`pinTargetIn`) — and the BROWSER reads which page it
  * opens and what a `?q=` on it means, at view time, through the bijection that

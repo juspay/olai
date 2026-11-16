@@ -202,6 +202,8 @@ export interface MarkdownNode {
   readonly value?: string | undefined
   readonly url?: string | undefined
   readonly depth?: number | undefined
+  /** A footnote reference's or definition's label, as `[^label]` spells it. */
+  readonly identifier?: string | undefined
   readonly children?: ReadonlyArray<MarkdownNode> | undefined
   readonly position?: { readonly start: { readonly line: number } } | undefined
 }

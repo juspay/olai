@@ -15,7 +15,7 @@
  *   - `date` and NO mark is an OCCURRENCE: a birthday, an appointment, a note
  *     pinned to a day. It can never be overdue, because a day passing is not a
  *     failure of a bullet. That is the crown rule of the format read once more
- *     (docs/format.md's Status): an unmarked node is not an unfinished one.
+ *     (website/docs/format.md's Status): an unmarked node is not an unfinished one.
  *     It stays on its day page and in the calendar dots; it is not owed, so
  *     it is not on this page (`agenda-only-todo`).
  *   - `date` with `todo` or `doing` is DUE WORK — the only thing this page
@@ -467,7 +467,7 @@ export const owedMore = (reading: OwedReading): number =>
  * The agenda is a page like the others, so the filter over it is
  * {@link keepingDated} applied to each of the three rather than a rule of its
  * own: one definition of what a filtered day-group list is, wherever one is
- * drawn (docs/search.md's "which pages filter").
+ * drawn (website/docs/search.md's "which pages filter").
  *
  * A DAY THAT HAS NOTHING LEFT LEAVES THE LINE, which is this module's own
  * standing rule read once more: a day is listed exactly when there is something

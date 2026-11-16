@@ -1,38 +1,28 @@
 # Link previews
 
-Rest the pointer on a link inside olai for about 400 ms, or focus it with the keyboard, and a card opens showing what a click would open. Move onto the card to keep it; leave it for about 200 ms, or press `Escape`, to close it.
-
-Only one card is open at a time, and `Escape` closes it without disturbing the page or the caret under it.
+Rest the pointer on a link inside olai, or move the keyboard focus to it, and a card opens showing what a click would open.[^timing]
 
 ## Which links open a card
 
-A card opens for the links a click would take you to inside olai, read the same way a click reads them. So nothing opens for a link to a place on the page you are on, a download, or a link aimed at another window.
-
-Nothing opens either for:
-
-- touch, and for keyboard focus on a device whose pointer is a finger. A mouse on a device that has both still opens cards.
-- a link inside an editor you are typing in.
-- a link that arrives under a pointer that has not moved, because the page around it changed. Move onto it and the card opens.
+A card opens for a link a click would follow to somewhere inside olai, and olai works out where the link points the same way a click does.[^nothing] Some links, and some pointers, never open a card.[^pointer]
 
 ## What a card shows
 
-| The link | The card |
+| The link points at | The card shows |
 | --- | --- |
-| a row | where it lives, its title, its mark and date, `2/5 done` where it has children with marks, its note, and up to three children with `+N more` |
+| a row, which is one line of an outline | the outline and the rows it sits under, its title, its mark such as **Doing**, its date, `2/5 done` where the rows under it carry marks, its note, and up to three of those rows with `+N more` |
 | a whole outline | its first three top-level rows |
-| a document | its opening blocks |
+| a document, which is a `.md` file | its opening blocks |
 | a heading in a document | that section |
-| a conversation | its last two turns |
-| a node with a conversation on it | the conversation, not the row |
-| nothing | `Nothing at <address>`, and a line saying the target is missing or cannot be resolved |
+| a conversation with an agent | its last two turns |
+| a row that has a conversation on it | the conversation, not the row |
+| nothing | `Nothing at <address>`, and a line saying the target is missing or cannot be found |
 
-A card says `Reading…` while it is still fetching, and draws a refusal in its own words.
+A card says `Reading…` while it is still fetching, and says in its own words when it cannot show the target.
 
 ## What you can do in a card
 
-A card is for reading: nothing in it can be edited. Titles and notes are drawn whole rather than cut short, and the card grows to fit. Where it would outgrow the window its body scrolls, so every paragraph stays reachable and the foot of the card stays visible.
-
-Links inside a card open normally, and do not raise a card of their own:
+A card is for reading; nothing in it can be edited.[^size] A link inside a card opens the normal way, and opens no card of its own:[^heading]
 
 | What you do | Where it opens |
 | --- | --- |
@@ -40,8 +30,18 @@ Links inside a card open normally, and do not raise a card of their own:
 | `Alt` + click | on the right |
 | `Alt` + `Shift` + click | in a new pane |
 
-A document card's link to one of that document's own headings opens the document at that heading on the right.
-
 ## When something is off
 
-Switching link previews off takes the cards, their listeners and their timers away; links keep working. Each kind of card is offered by the plugin that owns that content, so switching one of those off withdraws its card and leaves the rest.
+Switching link previews off takes the cards away, and the links themselves keep working.[^kinds]
+
+[^timing]: The card's timing: the pointer rests on the link for about 400 ms before a card opens. Move the pointer onto the card to keep it open; move away for about 200 ms, or press `Escape`, to close it. Only one card is open at a time, and `Escape` closes it without disturbing the page or the caret under it.
+
+[^nothing]: No card opens for a link to a place on the page you are already on, for a download, or for a link that opens another window. None opens for a link inside an editor you are typing in.
+
+[^pointer]: No card opens for a tap, and none opens for keyboard focus on a device whose pointer is a finger, though a mouse on a device that has both still opens cards. None opens for a link that moves under a pointer that has not itself moved, because the page around it changed: move the pointer onto the link and the card opens.
+
+[^size]: A card's size: titles and notes are drawn in full rather than cut short, and the card grows to fit them. Where a card would outgrow the window its body scrolls, so every paragraph stays reachable and the foot of the card stays visible.
+
+[^heading]: In a card for a document, a link to one of that document's own headings opens the document at that heading, on the right.
+
+[^kinds]: Each kind of card comes from the plugin that owns that kind of content, so switching one of those plugins off removes its kind of card and leaves the rest. The listeners and timers behind the cards go when link previews go.

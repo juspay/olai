@@ -26,7 +26,7 @@
  * demands the suffix, because an agent naming a file is naming a file and has
  * no box around it. So the suffix is the door's half of the answer, and it is
  * put on here, before the ask. Agents are not the audience of this fix and the
- * MCP contract is untouched (docs/editing.md says so out loud).
+ * MCP contract is untouched (website/docs/editing.md says so out loud).
  *
  * ## A suffix is one the registry claims, and nothing else is a suffix at all
  *

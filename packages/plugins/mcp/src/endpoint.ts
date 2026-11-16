@@ -210,7 +210,7 @@ export const SERVER_INFO = { name: "olai", version: "0.1.0" } as const
  *
  * WHO READS IT: Codex and Claude Code honour `instructions`. opencode fetches
  * it and drops it (anomalyco/opencode#7373), so an agent there is exactly as
- * untaught as before — a known gap, recorded in `docs/plugins/mcp.md`, and not
+ * untaught as before — a known gap, recorded in `website/docs/plugins/mcp.md`, and not
  * one this row can close from its side of the wire. pi is unverified.
  */
 const INSTRUCTIONS =

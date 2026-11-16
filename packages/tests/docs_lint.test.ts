@@ -1,6 +1,6 @@
 /**
- * EVERY PAGE UNDER `docs/` IS HELD TO THE WRITING STANDARD — one test per page,
- * no exemption list.
+ * EVERY DOCS PAGE IS HELD TO THE WRITING STANDARD — one test per page, no
+ * exemption list. The pages are `website/docs/`, which olai.page publishes.
  *
  * `dev/skills/docs-writing/SKILL.md` is the standard. Its reader rules are
  * review's job; its shape rules are measurements, and measurements rot unless
@@ -13,11 +13,13 @@
  * SERVED address is the test's name, so `bun test -t 'docs/chat.md'` is the
  * command for the page in front of you.
  *
- * THE LINKS are checked here too, over the whole served set: a relative target
- * that is not there, and a `#fragment` that names no heading on the page it
- * lands on. `../plugin_docs.test.ts` already owns the claim that every plugin
- * HAS a page and that the index opens it; what is owned here is that a link on
- * any page goes somewhere, which is the thing a rewrite breaks.
+ * THE LINKS are checked here too, over the whole set: a relative target that
+ * is not there or is not a page, and a `#fragment` that names no heading on
+ * the page it lands on. The site's build refuses the same links, and checks
+ * the built pages' links once more; this is the same answer in a second, from
+ * `bun test`. `../plugin_docs.test.ts` already owns the claim that every
+ * plugin HAS a page and that the index opens it; what is owned here is that a
+ * link on any page goes somewhere, which is the thing a rewrite breaks.
  */
 
 import * as fs from "node:fs"
@@ -25,7 +27,7 @@ import * as fs from "node:fs"
 import { expect, test } from "bun:test"
 
 import { anchorsIn, findingsIn } from "./support/docs-rules.ts"
-import { at, isLocal, landing, linksIn, pages, picturesIn } from "./support/docs.ts"
+import { at, INDEX, isLocal, landing, linksIn, pages, picturesIn } from "./support/docs.ts"
 
 const PAGES = pages()
 
@@ -37,7 +39,7 @@ test("the served set is actually being read", () => {
 
 for (const page of PAGES) {
   test(`${page} is written to the standard`, () => {
-    const findings = findingsIn(fs.readFileSync(at(page), "utf8"))
+    const findings = findingsIn(fs.readFileSync(at(page), "utf8"), page !== INDEX)
     expect(findings.map((finding) => `${page}:${finding.line} rule ${finding.rule}: ${finding.said}`))
       .toEqual([])
   })
@@ -52,12 +54,14 @@ test("every link on every page is a door, and every anchor opens", () => {
         const [address, fragment] = target.startsWith("#")
           ? [page, target.slice(1)]
           : [landing(page, target), target.split("#")[1]]
-        if (address === null) return [`${page}: ${target} leaves docs/, so it is not a door`]
+        if (address === null) return [`${page}: ${target} leaves website/docs/, so it is not a door`]
         if (!fs.existsSync(at(address))) {
           return [`${page}: ${target} → ${address}, which is not there`]
         }
+        if (!address.endsWith(".md")) {
+          return [`${page}: ${target} is not a page; the site publishes pages, so draw a picture with ![]()`]
+        }
         if (fragment === undefined || fragment === "") return []
-        if (!address.endsWith(".md")) return []
         return anchorsIn(fs.readFileSync(at(address), "utf8")).has(fragment)
           ? []
           : [`${page}: ${target} names no heading on ${address}`]
@@ -72,7 +76,7 @@ test("every picture a page draws is in the served set", () => {
       .filter(isLocal)
       .flatMap((target) => {
         const landed = landing(page, target)
-        if (landed === null) return [`${page}: ${target} leaves docs/, so it cannot be drawn`]
+        if (landed === null) return [`${page}: ${target} leaves website/docs/, so it cannot be drawn`]
         return fs.existsSync(at(landed)) ? [] : [`${page}: ${target} → ${landed}, not there`]
       }),
   )

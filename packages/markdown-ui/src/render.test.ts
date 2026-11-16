@@ -379,7 +379,7 @@ test("a script is not markdown", () => {
  * been text either way. Nothing in olai composes one any more — the capture verb
  * grew a link field for the mail case and lost it again (a capture is a title
  * and a note now) — so this is the renderer's promise to whoever types one into
- * a note, which is exactly who the mail recipe in docs/running.md is.
+ * a note, which is exactly who the mail recipe in website/docs/running.md is.
  */
 test("a captured mail's message: link survives, in a note and in a title", () => {
   const href = "message://%3Cabc123@mail.example%3E"

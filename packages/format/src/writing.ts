@@ -859,7 +859,7 @@ export const CreateRequest = Schema.Struct({
  * unrepresentable; a document handed over whole is stored verbatim, and there
  * is nothing between the caller's text and the file for anyone to get wrong.
  * Nothing about the text is validated — markdown is interpreted at view time,
- * and a `.md` cannot make a set invalid (docs/format.md's Documents).
+ * and a `.md` cannot make a set invalid (website/docs/format.md's Documents).
  *
  * `was` is the conflict story, and it is {@link TitleRequest}'s `was` at file
  * size: the same file can be edited in vim mid-session, so a caller that read
@@ -999,7 +999,7 @@ export const SeeRequest = Schema.Struct({
  * that subtraction is the format's own: a mirror is exactly
  * `{id, parent?, ord, mirror}`, because any field describing the node itself has
  * an authoritative copy at the target and a second one here could only disagree
- * with it (docs/format.md's Two record shapes). So there is no `title` to give,
+ * with it (website/docs/format.md's Two record shapes). So there is no `title` to give,
  * no `mark`, no `desc` — the schema cannot spell them, which is one fewer thing
  * the planner has to refuse.
  *
@@ -1049,7 +1049,7 @@ export const UnmirrorRequest = Schema.Struct({
  * other kind of edge: incremental, so an agent that has just learned about one
  * dependency does not re-state the others, and at least one target must be
  * named. What differs is what the edges MEAN — `after` is the ordering graph, so
- * an add that would close a loop is refused (docs/format.md's Status) where a
+ * an add that would close a loop is refused (website/docs/format.md's Status) where a
  * `see` cycle is fine.
  */
 export const AfterRequest = Schema.Struct({

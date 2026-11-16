@@ -21,7 +21,7 @@
  *
  * ## One holder per holding component, and that is a rule rather than a habit
  *
- * Two components holding into one holder is the defect `docs/architecture/
+ * Two components holding into one holder is the defect `website/docs/architecture/
  * cordis.md` names under navigation's holders: the second hold wins, the first
  * release is a no-op by identity, and the component still mounted reads nothing
  * though every finalizer ran correctly. So each of these has exactly ONE

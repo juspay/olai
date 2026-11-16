@@ -2,7 +2,7 @@
 
 Source somebody wrote, as a module olai can mount.
 
-This package exists for one thing: a plugin that arrives from the **served directory** rather than from the build (phase 12 — [docs/dynamic-plugins.md](../../docs/dynamic-plugins.md)). Its source is a note on a node in somebody's vault; what has to come out the other end is a module the serve can `import()` and a chunk a tab can fetch, holding **this** binary's Effect and **this** app's Solid.
+This package exists for one thing: a plugin that arrives from the **served directory** rather than from the build (phase 12 — [website/docs/dynamic-plugins.md](../../website/docs/dynamic-plugins.md)). Its source is a note on a node in somebody's vault; what has to come out the other end is a module the serve can `import()` and a chunk a tab can fetch, holding **this** binary's Effect and **this** app's Solid.
 
 It knows nothing about vaults, rows, nodes, approval or the wire. Text in, text out, or a sentence saying why not — which is what makes the whole of it testable with two string constants and no serve. The vault half is `@olai/server`'s `src/dynamic/`, and the mounting is the bridge's.
 

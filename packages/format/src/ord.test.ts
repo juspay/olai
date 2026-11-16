@@ -46,7 +46,7 @@ describe("ordBetween", () => {
   })
 
   test("existing files' spellings are neighbours it can work with", () => {
-    // The `ord`s docs/format.md prints in its example.
+    // The `ord`s website/docs/format.md prints in its example.
     between("a0", "a1")
     between("a1", null)
     between(null, "a0")

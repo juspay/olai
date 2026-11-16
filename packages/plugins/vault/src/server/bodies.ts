@@ -40,7 +40,7 @@
  * eviction costs: sixteen newer opens anywhere silenced a page somebody was
  * still reading, and a closed tab went on being re-read until sixteen newer
  * opens pushed it out. That is history rather than a trade-off worth restating,
- * and `docs/format.md` keeps the long version.
+ * and `website/docs/format.md` keeps the long version.
  *
  * TWO READERS OF ONE FILE ARE TWO HOLDS, and the first to leave takes its own
  * and nobody else's. The idempotence that needs is not written anywhere: a hold

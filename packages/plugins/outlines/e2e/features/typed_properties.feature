@@ -5,7 +5,7 @@ Feature: A property key that declares its type
   vault has DECLARED what that key holds. Declarations are an outline like any
   other, `_olai/Properties.olai`: one node per key, the title IS the key, the
   type in that node's own props, and an enum's variants are its children
-  (docs/format.md).
+  (website/docs/format.md).
 
   Then the write gate refuses a value that does not fit, in the same words
   wherever the write came from — and this is the person's door onto that: the
@@ -15,7 +15,7 @@ Feature: A property key that declares its type
 
   And the reading side: a key declared `int` or `date` compares, so `..` becomes
   honest and `prop:records=190..200` is a question the header box can answer
-  (docs/search.md). A range on a key nobody declared is refused with the reason,
+  (website/docs/search.md). A range on a key nobody declared is refused with the reason,
   because comparing text as if it were a number is the lie types exist to
   prevent.
 

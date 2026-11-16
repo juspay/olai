@@ -36,7 +36,7 @@ import { createMatchedRows } from "../pruning.ts"
  * THE TRASH IS NOT ASKED FOR ANY MORE, and its absence is worth a paragraph
  * because it was this reading's one word to the matcher about the QUESTION.
  * Archived nodes are out of every reading unless a query says `is:trashed`
- * (docs/search.md), because the doors that rule is written for are searching the
+ * (website/docs/search.md), because the doors that rule is written for are searching the
  * DIRECTORY — where this one tests the rows in front of somebody, and the TRASH
  * is the page that draws what was put away. This file used to answer that for
  * the matcher, off the page it holds; the matcher reads it off the page ITSELF

@@ -510,7 +510,7 @@ describe("done and doing", () => {
 
   // A plan re-emits every record of the file it touches, and the format is
   // validated AS TEXT because a writer must reproduce what it read
-  // (docs/format.md). So a neighbour's day-only `done` — and every `true` still
+  // (website/docs/format.md). So a neighbour's day-only `done` — and every `true` still
   // out there — comes back exactly as written: the op stamps the node it was
   // asked about and nothing else.
   test("the dates on the other records come back as they were written", () => {
@@ -520,7 +520,7 @@ describe("done and doing", () => {
 
   // Resolved 2026-08-11 by the human, and it is a decision about the JOURNAL
   // rather than about symmetry between three ops: a date on a mark puts the
-  // node on that day (docs/format.md's Days), so a stamped `todo` would file
+  // node on that day (website/docs/format.md's Days), so a stamped `todo` would file
   // every capture onto the day it was written down and `/today` would stop
   // being about what happened. Finishing is the event a day page is about;
   // starting and filing are not.
@@ -1266,7 +1266,7 @@ describe("starting what is blocked", () => {
     const node = record(fileOf(result, "house.olai"), "install")
     expect(node.after).toEqual(["order"])
     // Still doing, and now drawn blocked — both facts at once, which is what
-    // docs/format.md means by blockedness being a SECOND fact about a node.
+    // website/docs/format.md means by blockedness being a SECOND fact about a node.
     expect(node.doing).toBe(true)
     // The edge the write just added IS what the gate would have refused, had
     // this been a start — so the two verbs are looking at one graph.
@@ -1438,7 +1438,7 @@ describe("done over open work: the claim is refused", () => {
     // OWN stored mark at every level, so a `todo` under a cancelled parent is
     // still unfinished work and still names itself in the refusal. Cancelling
     // a parent is not a cascade — a mark is a stored fact, never computed from
-    // what hangs below (docs/format.md's Status).
+    // what hangs below (website/docs/format.md's Status).
     const deep = trip(
       `{"id":"c1","parent":"p","ord":"a0","title":"the tent","cancelled":true}`,
       `{"id":"g1","parent":"c1","ord":"a0","title":"find the poles","todo":true}`,

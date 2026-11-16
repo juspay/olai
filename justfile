@@ -19,6 +19,11 @@ nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop ' + jus
 # .direnv stay out.
 nix_files := "$(git ls-files '*.nix')"
 
+# The directories with a bun.lock, and so a bun.nix: the workspace at the
+# root, and the website, which is its own package so the app's install never
+# fetches Astro.
+bun_roots := ". website"
+
 # Where `just build-client` writes the browser bundle, and the one place the
 # server is told to look (OLAI_DIST_DIR). Generated, gitignored; the nix build
 # writes its own copy inside its sandbox.
@@ -43,7 +48,7 @@ default:
 [parallel]
 [metadata("ci")]
 [doc("Run all checks in the CI pipeline")]
-check: typecheck test e2e kolu-deps plugin-deps plugin-checks cordis-deps fmt-check nix bun-nix-fresh hm-module runtime plugin-fold
+check: typecheck test e2e kolu-deps plugin-deps plugin-checks cordis-deps fmt-check nix bun-nix-fresh hm-module runtime plugin-fold website
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # Each plugin's `npmTrees` leg is its own — the pi engine's MCP bridge tests
@@ -269,14 +274,15 @@ build-client: install
 # directory's outlines are watched by the running server itself and reach the
 # open page with no reload at all.
 #
-# Defaults to docs/, which is a served set of DOCUMENTS since the orchestrator's
-# vault moved to https://github.com/juspay/oss.olai — `just serve` with no
-# arguments shows this project's engineering docs, and a directory of outlines
-# (that vault, a checkout of your own) is the argument to pass. `just nix` is
-# the other path: the packaged binary, built from tracked files only. Use this
-# one while working; that one is what CI proves.
+# Defaults to website/docs/, the pages olai.page publishes under /docs/: a
+# served set of DOCUMENTS since the orchestrator's vault moved to
+# https://github.com/juspay/oss.olai. `just serve` with no arguments shows
+# this project's docs, and a directory of outlines (that vault, a checkout of
+# your own) is the argument to pass. `just nix` is the other path: the
+# packaged binary, built from tracked files only. Use this one while working;
+# that one is what CI proves.
 [doc("Serve a directory with client and server file watching")]
-serve dir="docs" *args: build-client
+serve dir="website/docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
     # EVERY PLUGIN KNOB arrives from the fold's `plugin-env` below — the dev
@@ -306,7 +312,7 @@ serve dir="docs" *args: build-client
 # default) asks the OS every boot — a `bun --watch` restart may land on a
 # new port.
 [doc("Serve a directory with server file watching")]
-run dir="docs" *args: build-client
+run dir="website/docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
     # Every plugin knob — the ACP rows included — arrives from the fold's
@@ -424,6 +430,21 @@ hm-module:
 [doc("Check the launch command without a supervisor")]
 runtime:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).runtime --no-link --accept-flake-config
+
+# olai.page, built the way it is published: Astro over website/ (the docs are
+# website/docs/), then every internal link and #anchor in the built pages
+# checked offline. `nix build .#website` is the whole of it, and the Pages
+# workflow publishes that same output (.github/workflows/pages.yml).
+[doc("Build the website and check its links")]
+website:
+    nix build .#website --no-link --print-out-paths --accept-flake-config
+
+# The website while you write it: Astro's dev server, reloading on every save
+# of a page or a component, on http://127.0.0.1:4321. Its own `bun install`,
+# because website/ is its own package (see `bun_roots`).
+[doc("Preview the website with live reload")]
+website-dev:
+    cd website && {{ nix_shell }} sh -c 'bun install --frozen-lockfile && bun run dev'
 
 # What a keystroke costs — on a generated vault, and for the newest of them in
 # a real git repository. FOURTEEN of them, and each is a
@@ -865,31 +886,35 @@ fmt-check:
 # One spelling of "derive bun.nix from bun.lock", so the freshness check below
 # and the regeneration cannot drift apart.
 [private]
-_gen-bun-nix out:
-    {{ nix_shell }} sh -c 'nix run .#bun2nix --accept-flake-config -- -l bun.lock -o "{{ out }}" && nixpkgs-fmt "{{ out }}"'
+_gen-bun-nix dir out:
+    {{ nix_shell }} sh -c 'nix run .#bun2nix --accept-flake-config -- -l "{{ dir }}/bun.lock" -o "{{ out }}" && nixpkgs-fmt "{{ out }}"'
 
-# Regenerate bun.nix from bun.lock. Run after any `bun install` / `bun add`.
+# Regenerate every bun.nix from its bun.lock. Run after any `bun install` /
+# `bun add`, at the root or in website/.
 [doc("Regenerate bun.nix from bun.lock")]
-regenerate-bun-nix: (_gen-bun-nix "bun.nix")
+regenerate-bun-nix:
+    for dir in {{ bun_roots }}; do just _gen-bun-nix "$dir" "$dir/bun.nix"; done
 
 # bun.nix drives the nix build's dependency fetch and is generated from
 # bun.lock, so a lockfile change without a regen makes `nix build` install a
 # different tree than `bun install` does — silently. It generates into a
 # tmpdir rather than in place because `check` runs its legs in parallel, and a
 # leg that rewrote a tracked file would race the ones reading it.
-[doc("Check that bun.nix matches bun.lock")]
+[doc("Check that every bun.nix matches its bun.lock")]
 bun-nix-fresh:
     #!/usr/bin/env bash
     set -euo pipefail
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
-    just _gen-bun-nix "$tmp/bun.nix"
-    diff -u bun.nix "$tmp/bun.nix" || {
-      echo
-      echo "bun.nix is stale relative to bun.lock."
-      echo "Run: just regenerate-bun-nix && git add bun.nix"
-      exit 1
-    }
+    for dir in {{ bun_roots }}; do
+      just _gen-bun-nix "$dir" "$tmp/bun.nix"
+      diff -u "$dir/bun.nix" "$tmp/bun.nix" || {
+        echo
+        echo "$dir/bun.nix is stale relative to $dir/bun.lock."
+        echo "Run: just regenerate-bun-nix && git add $dir/bun.nix"
+        exit 1
+      }
+    done
 
 # Update the kolu / nixpkgs pins. npins rewrites npins/default.nix in its
 # own formatter's style, so normalize it here — same rule as bun.nix, and

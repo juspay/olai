@@ -1,0 +1,146 @@
+---
+/**
+ * Every page's frame: the head, the header and the footer.
+ */
+import {
+  DEFAULT_DARK_PALETTE,
+  DEFAULT_THEME,
+  PALETTE_TOKENS,
+  PALETTES,
+  type Palette,
+} from "../../../packages/appearance/src/palettes.ts"
+import { hrefOf } from "../markdown.ts"
+import "../styles/site.css"
+
+interface Props {
+  title: string
+  description: string
+}
+
+const { title, description } = Astro.props
+const here = Astro.url.pathname
+const canonical = new URL(here, Astro.site).href
+const github = "https://github.com/juspay/olai"
+const ogImage = new URL("/og.png", Astro.site).href
+const ogAlt = "olai — a git-native outliner. A palm leaf in ink on sea-glass paper."
+// The header link the reader is under: the longest one this address starts
+// with, so Start is lit on its own page and Docs on every other docs page.
+const nav = [
+  { href: hrefOf("start"), label: "Start" },
+  { href: hrefOf("index"), label: "Docs" },
+]
+const lit = nav
+  .filter((link) => here.startsWith(link.href))
+  .sort((a, b) => b.href.length - a.href.length)[0]
+// The app's own palettes (its table is the one place a colour is written):
+// the default for an unpicked page, chalk, and basalt under a dark OS, exactly
+// as olai does. A page picks another with `data-theme`, as the home page's
+// chips do.
+const tokens = (palette: Palette) =>
+  `color-scheme:${palette.scheme};` + PALETTE_TOKENS.map((token) => `--${token}:${palette.colors[token]};`).join("")
+const palettes = [
+  ...PALETTES.map((p) => `${p.name === DEFAULT_THEME ? ":root," : ""}[data-theme="${p.name}"]{${tokens(p)}}`),
+  `@media (prefers-color-scheme: dark){:root:not([data-theme]){${tokens(DEFAULT_DARK_PALETTE)}}}`,
+].join("\n")
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:site_name" content="olai" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="2400" />
+    <meta property="og:image:height" content="1260" />
+    <meta property="og:image:alt" content={ogAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={ogAlt} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,400;1,9..144,600&display=swap"
+      rel="stylesheet"
+    />
+    <style is:inline set:html={palettes} />
+  </head>
+  <body>
+    <header class="site">
+      <div class="wrap">
+        <a class="wordmark" href="/">olai</a>
+        <nav class="site" aria-label="Site">
+          {nav.map((link) => <a href={link.href} aria-current={link === lit ? "page" : undefined}>{link.label}</a>)}
+          <a href={github}>GitHub</a>
+        </nav>
+      </div>
+    </header>
+    <slot />
+    <footer class="site">
+      <div class="wrap">
+        <a class="wordmark" href="/">olai</a>
+        <span><a href={github}>github.com/juspay/olai</a></span>
+        <span><a href={hrefOf("index")}>docs</a></span>
+        <span><a href={hrefOf("running")}>how to run it</a></span>
+        <span><a href="https://github.com/juspay/oss.olai/tree/main/projects/olai/roadmap">roadmap</a></span>
+        <span><a href="https://github.com/cordiverse/cordis">cordis</a></span>
+        <span><a href="https://arxiv.org/abs/2608.25512">the paper</a></span>
+        <span><a href="https://kolu.dev">kolu.dev</a></span>
+      </div>
+    </footer>
+
+  {/* One popup for every footnote on the page. Without JavaScript a marker is
+      a plain link to its note in the list at the foot of the page. */}
+  <div id="note" popover tabindex="-1" role="note" aria-label="Note"></div>
+  <script is:inline>
+    (() => {
+      const pop = document.getElementById("note")
+      if (!pop || typeof pop.showPopover !== "function") return
+      let from = null
+      const place = () => {
+        if (!from) return
+        const at = from.getBoundingClientRect()
+        const width = pop.offsetWidth
+        pop.style.left = `${Math.max(12, Math.min(at.left - 16, innerWidth - width - 12))}px`
+        const below = at.bottom + 8
+        pop.style.top = below + pop.offsetHeight > innerHeight - 12 ? `${Math.max(12, at.top - pop.offsetHeight - 8)}px` : `${below}px`
+      }
+      document.addEventListener("click", (event) => {
+        const ref = event.target instanceof Element && event.target.closest("a[data-footnote-ref]")
+        if (!ref) return
+        const note = document.getElementById(decodeURIComponent(ref.hash.slice(1)))
+        if (!note) return
+        event.preventDefault()
+        const copy = note.cloneNode(true)
+        copy.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"))
+        copy.querySelectorAll("[data-footnote-backref]").forEach((node) => node.remove())
+        if (pop.matches(":popover-open")) pop.hidePopover()
+        pop.replaceChildren(...copy.childNodes)
+        from = ref
+        pop.showPopover()
+        place()
+        pop.focus({ preventScroll: true })
+      })
+      pop.addEventListener("toggle", (event) => {
+        if (event.newState !== "closed" || !from) return
+        const back = from
+        from = null
+        back.focus({ preventScroll: true })
+      })
+      addEventListener("scroll", place, { passive: true })
+      addEventListener("resize", place)
+    })()
+  </script>
+  </body>
+</html>

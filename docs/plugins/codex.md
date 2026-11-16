@@ -1,1 +1,0 @@
-../../packages/plugins/codex/docs.md

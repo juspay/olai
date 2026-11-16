@@ -487,7 +487,7 @@ Feature: Documents
     And there should be no page errors
 
   # The section is the browser's own `<details>` answer, so it survives a
-  # rebuild the way the node page's does — the promise `docs/format.md` made
+  # rebuild the way the node page's does — the promise `website/docs/format.md` made
   # for both pages, and the half that was only ever tested on one.
   @scratch:good
   Scenario: A plugin rebuild keeps the document's referrers open

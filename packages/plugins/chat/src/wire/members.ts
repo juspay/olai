@@ -280,7 +280,7 @@ export const Armed = Schema.Struct({
    * The agent's REPORT, once the outing has handed one back.
    *
    * A subagent's own prose never enters this conversation's column — the
-   * ruling in `docs/chat.md`. The one place those words appear is the fold
+   * ruling in `website/docs/chat.md`. The one place those words appear is the fold
    * of the call that armed the task. An async completion arrives as a
    * harness-injected user turn (`origin.kind: "task-notification"`) carrying
    * the whole report as XML; that turn is not a person speaking, and this

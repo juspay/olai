@@ -23,7 +23,7 @@
  * (`@olai/format`'s `filter.ts`: a tag is indexed case-folded) and a colour
  * that told them apart would mark a sameness the product does not have. The
  * SIGIL stays in the string — `#alice` and `@alice` are different tags
- * (docs/format.md says they name two namespaces), so they hash as two: colour
+ * (website/docs/format.md says they name two namespaces), so they hash as two: colour
  * separates members of a namespace, the sigil character itself separates the
  * namespaces. Sharing a hash space was the alternative; it would have drawn
  * two different tags in one hue, claiming a sameness nothing else claims.

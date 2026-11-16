@@ -839,7 +839,7 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
  * cannot tell which of them is missing. The ENVIRONMENT is named explicitly
  * because it is the trap this bug was reported from — olai's own environment is
  * what a spawned agent inherits, and a systemd user unit's is not a login
- * shell's ({@link ../../../docs/running.md}).
+ * shell's ({@link ../../../website/docs/running.md}).
  */
 const silence = (agent: string): string =>
   `${agent} ended the turn without saying anything. That is what an agent that ` +

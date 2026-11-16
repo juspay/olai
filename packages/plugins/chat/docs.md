@@ -1,136 +1,162 @@
-# The conversation
+# Talking to an agent from a row
 
-This plugin puts an agent conversation on any row, on a node's own page, and in the agent panel, with **Needs you** and **Chats** in the sidebar. It is on by default. [Talking to an agent](../chat.md) is the workflow; this page is the plugin's own account.
+This plugin lets you talk to an agent from any row, which is one line of an outline. An agent is a coding assistant such as Claude Code or Codex.
 
-## What it needs
+Chat is on by default.[^workflow]
 
-One engine plugin, each of which is a separate row: [claude](claude.md), [codex](codex.md), [opencode](opencode.md), [pi](pi.md) and [omp](omp.md). With none of them available the agent menu says `No agent is set up` and offers **Open plugins**, and a Chats section with nothing in it reads `No chats yet. Start an agent on any row, or press + beside Chats.`
+## What chat needs to work
 
-| Environment variable | What it says |
-| --- | --- |
-| `OLAI_AGENT_PATH` | The directories holding agent executables. Unset, olai searches `PATH`. |
+One engine plugin, the plugin that runs one agent program: [claude](claude.md), [codex](codex.md), [opencode](opencode.md), [pi](pi.md) or [omp](omp.md).[^none] `OLAI_AGENT_PATH` lists the directories that hold those programs; unset, olai searches `PATH`.[^engine]
 
-Switching an engine off, or emptying its own executable path, makes only that engine unavailable: the other enabled engines are still discovered, and conversations carry on.
+## Where conversations appear
 
-## Where its faces hang
+Chat draws the conversation inside a row, on a node's page, in the agent panel, and in the sidebar's **Needs you** and **Chats** sections.[^faces] The panel opens and closes with `Cmd` + `J`.[^panel] Every row a conversation names is a link.[^links] Chat adds no tools an agent can call, only instructions.[^charter]
 
-Chat contributes no tools of its own. What it adds to the agent face is one paragraph: its charter, which the [mcp](mcp.md) row composes into `initialize`'s instructions while this row is standing. The charter says that a person reads the answer in the panel beside the outline. It says that a backticked id in prose is clickable, that one in a code fence is a quotation, and that a link to an app address is followed in place.
+## Give a row its own agent
 
-| Place | What chat draws there |
-| --- | --- |
-| a row's fold | The conversation, the agent line and the composer. |
-| a node's page | The agent line under the title, and the conversation and composer after the subtree. |
-| a row's aside | A bound row's standing, or the start pill while an agent is available. |
-| a row's menu | **Start an agent** on a plain row; **Fresh start**, **Close the agent** and the sleep verbs on a row with one. |
-| the breadcrumbs | A bound ancestor's agent mark, on a trail, a day's row and a search result. |
-| the sidebar | The **Needs you** and **Chats** sections, with a `+` beside the Chats heading for **New chat**. |
-| the palette | Every agent, and the **New chat** row while an engine can start. |
-| the agent panel | The docked conversation, on a desktop. |
-| a phone's thumb bar | The **Chats** door, badged with how many conversations need somebody. |
-
-The agent panel opens and closes with `Cmd` + `J`, which is `Cmd` on a Mac and `Ctrl` elsewhere. Which conversation is docked is remembered per browser; whether the column is open, and how wide, belongs to the frame. A serve with no desktop shell draws no panel, no toggle and no shortcut.
-
-Every reference the panel draws is a real link. An authored reference chip, a write's result and a backticked id that names a node select that row in whichever outline draws it. A sidebar row, a **Needs you** row and an agent row in the palette open the conversation's own page instead, because opening a chat means reading it.
-
-A standing is never told by movement alone. The dot for an agent that is working or starting wears a ring as well as a pulse, so a system set to reduce motion stills the animation without taking the fact away. On a screen that forces its own colours, every standing mark is drawn from your palette rather than olai's ([theme](theme.md)). The words beside them are unchanged either way.
-
-## The properties a node agent carries
-
-A node becomes a node agent by carrying a property whose kind is `chat-agent-session`. The subtree under that node is that agent's memory, and its writes reach your files.
+A row with its own agent is called a node agent. You make one by giving the row a property, a key and a value, whose kind is `chat-agent-session`. The rows under it are that agent's memory.[^declare]
 
 | Kind | What a value means |
 | --- | --- |
 | `chat-agent-session` | The engine, and after a colon the conversation: `claude`, or `claude:0f3c8d21-…`. |
-| `chat-agent-slept` | The instant olai last tidied that node agent's memory. Written by the pass alone. |
-| `chat-agent-sleep` | `on` means olai may tidy that memory on its own clock. Absent or `off` means it may not. |
+| `chat-agent-slept` | When olai last shortened that memory. Only olai's own pass writes it. |
+| `chat-agent-sleep` | `on` lets olai shorten that memory on a schedule; absent or `off` does not. |
 
-A kind claims the key equal to its own word, so none of the three needs a declaration. To keep bindings under a column of your own name, say which column is this kind with one row in `_olai/Properties.olai`:
+## Let olai shorten an agent's memory
+
+olai can shorten a node agent's memory, and does nothing until you ask. The line under the conversation reads **Sleep**, with a switch, when the next pass is due, and **Tidy memory**, which runs one now.[^sleepline]
+
+## Switching chat off
+
+Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in the plugins panel ([settings](../settings.md)). The choice survives a restart.[^off]
+
+[^workflow]: [Talking to an agent](../chat.md) explains how to work with an agent. This page describes the plugin itself: what it needs, what it draws, and what it stores.
+
+[^none]: With no engine available the agent menu says `No agent is set up` and offers **Open plugins**, and a Chats section with nothing in it reads `No chats yet. Start an agent on any row, or press + beside Chats.`
+
+[^engine]: Switching one engine plugin off, or emptying the path to its own program, makes only that engine unavailable. The other engines that are switched on are still found, and conversations carry on.
+
+[^faces]: Chat draws in nine places. They are inside a row, on a node's page, beside a row, in a row's menu, in the breadcrumbs, in the sidebar, in the palette, in the agent panel, and in a phone's bar of buttons along the bottom. The closed block below says what it draws in each.
+
+[^panel]: `Cmd` is the key on a Mac and `Ctrl` elsewhere. Each browser remembers which conversation sits in the panel. Whether the column is open, and how wide it is, belongs to the frame around the page. A serve with no desktop interface draws no panel, no toggle and no shortcut.
+
+[^links]: Every row a conversation names is a link you can click. A reference an author wrote, the result of a write, and an id in backticks all select that row in whichever outline is showing it. A sidebar row, a **Needs you** row and an agent in the palette open the conversation's own page instead, so that you can read the whole chat.
+
+[^charter]: The paragraph chat adds to every conversation tells the agent three things. A person reads the answer in the panel beside the outline. An id in backticks is clickable, while one in a code fence is a quotation. A link to an address inside olai is opened in place. The [mcp](mcp.md) plugin puts this paragraph into the instructions an agent receives when it starts.
+
+[^declare]: What a node agent writes under its row goes into your files. Each kind claims the property key spelled the same way as itself, so you need not declare any of the three. olai never adds the property for you, and it never treats an undeclared column as one of these kinds. An agent may write none of the three: an agent that gave itself the property would be deciding on its own that olai may wake it.
+
+    The closed block below shows how to use column names of your own.
+
+[^sleepline]: The switch reads **On** or **Off**. The row menu's **Sleep when idle** and **Stop sleeping when idle** write the same property, and the palette offers the same choice for the conversation on screen. Asking for a pass while `sleep` is off is refused with `sleep is off in this directory's settings`. The closed blocks below list everything that line can say, and the settings behind it.
+
+[^off]: To stop using one agent, switch that engine's own plugin off instead. Turn chat off when a deployment asks for it, or when this serve should not be a chat for a while.
+
+    Switching it off removes the conversations, the sidebar sections, the palette rows, the agent panel and everything in the closed block below, including any **New chat** step you had open. Outline and document editors already on screen keep working, and switching chat back on restores what it draws.
+
+<details>
+<summary>What chat draws, place by place</summary>
+
+| Place | What chat draws there |
+| --- | --- |
+| inside a row | The conversation, the line naming the agent, and the box you type in. |
+| a node's page | The agent line under the title, and the conversation and the box after the rows. |
+| beside a row | What the row's agent is doing, or a button to start an agent while one is available. |
+| a row's menu | **Start an agent** on a plain row; **Fresh start**, **Close the agent** and the sleep entries on a row that has one. |
+| the breadcrumbs | A mark on an ancestor row that has an agent, on a trail, a day's row and a search result. |
+| the sidebar | The **Needs you** and **Chats** sections, with a `+` beside the Chats heading for **New chat**. |
+| the palette | Every agent, and the **New chat** row while an engine can start. |
+| the agent panel | The conversation you put there, on a desktop. |
+| a phone's bottom bar | The **Chats** button, with a count of how many conversations need an answer. |
+
+An agent that is working or starting shows a dot that pulses, with a ring around it, so a computer set to reduce motion still shows what the agent is doing. On a screen that forces its own colours, these marks are drawn in your colours rather than olai's ([theme](theme.md)). The words beside them say the same thing either way.
+
+</details>
+
+<details>
+<summary>Keep the properties under column names of your own</summary>
+
+Say which column holds which kind with one row in `_olai/Properties.olai`:
 
 ```json
 {"title":"agent-session","custom":{"type":"chat-agent-session"}}
 ```
 
-olai never writes that row for you, and it never reads an undeclared column as a binding. A plugin may only declare a key carrying its own name, so enabling a plugin cannot take over a column you have been using for something else. The same holds for `last-consolidated` as `chat-agent-slept` and for `agent-sleep` as `chat-agent-sleep`.
+A plugin may only declare a key carrying its own name, so switching a plugin on cannot take over a column you have been using for something else. You can name a column `last-consolidated` for `chat-agent-slept` and `agent-sleep` for `chat-agent-sleep` the same way.
 
-A seated session may write none of the three: an agent that opted itself in would be authorizing its own wake-up.
+</details>
 
-## What the sleep line says
-
-Nothing is tidied until you say so. Under a node agent's conversation, one standing line reads **Sleep**, then the **On** or **Off** switch, then what is due, then **Tidy memory** for a pass you want now. The row menu's **Sleep when idle** and **Stop sleeping when idle** write the same property, and the palette offers the same row for the conversation on screen.
+<details>
+<summary>What the Sleep line says</summary>
 
 | What it says | What is true |
 | --- | --- |
 | `off in Settings` | `sleep` is off for this directory, so there is no switch to offer. |
 | `last 3h ago` alone | Nobody has asked for this one. |
 | `no conversation yet` | The node has no conversation to hand a turn to. |
-| `nothing new to tidy` | Nothing has moved since the last pass. |
-| `too little to tidy · 2 of 5 rows` | Some rows moved, fewer than `sleep-floor`. |
+| `nothing new to tidy` | Nothing has changed since the last pass. |
+| `too little to tidy · 2 of 5 rows` | Some rows changed, fewer than `sleep-floor`. |
 | `when this chat is quiet` | A turn, a question or an unanswered form is in the way. |
 | `next in 4h if left alone`, or `due now` | The quiet window is running, or has closed. |
-| `tidying now` | This node's pass is in flight. |
-| `last pass failed · not before 14:05` | A pass failed, and its backoff ends then. |
+| `tidying now` | This node's pass is running. |
+| `last pass failed · not before 14:05` | A pass failed, and olai waits until then to try again. |
 
-Asking for a pass with `sleep: off` is refused with `sleep is off in this directory's settings`.
+</details>
 
-## Settings
+<details>
+<summary>Settings</summary>
 
-All of these go on the `chat` node in `_olai/Settings.olai`, and each has a field in the plugins panel ([settings](../settings.md)). A span is a whole number and a unit out of `ms`, `s`, `m`, `h` and `d`, at most `2147483647ms`; an unreadable one warns and falls back to the default.
+All of these go on the `chat` node in `_olai/Settings.olai`, and each has a field in the plugins panel ([settings](../settings.md)). A duration is a whole number and a unit out of `ms`, `s`, `m`, `h` and `d`, at most `2147483647ms`. A duration olai cannot read warns and falls back to the default.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
-| `on` | `yes` | Whether this row runs at all. |
+| `on` | `yes` | Whether this plugin runs at all. |
 | `idle-ms` | `172800000` | How long an idle chat keeps its agent running, in milliseconds. |
-| `sleep` | `on` | Whether olai may tidy a chat's memory on its own clock. Each chat still has to ask. |
-| `sleep-after` | `6h` | How long a node agent is left alone before olai tidies its memory. |
-| `sleep-floor` | `5` | How many rows must have moved since the last pass before olai tidies. |
-| `sleep-latest` | `7d` | How long a moved row may wait untidied before olai tidies anyway. |
-| `sleep-tick` | `15m` | How often olai looks for a node agent whose memory it could tidy. |
+| `sleep` | `on` | Whether olai may shorten a chat's memory on a schedule. Each chat still has to ask. |
+| `sleep-after` | `6h` | How long a node agent is left alone before olai shortens its memory. |
+| `sleep-floor` | `5` | How many rows must have changed since the last pass before olai shortens. |
+| `sleep-latest` | `7d` | How long a changed row may wait before olai shortens anyway. |
+| `sleep-tick` | `15m` | How often olai looks for a node agent whose memory it could shorten. |
 | `sleep-question` | `20m` | How long a tidying turn may sit on a question before olai stops it. |
 | `sleep-limit` | `1h` | How long one tidying turn may run before olai stops it. |
 | `remind-every` | `20` | Every how many messages a node agent is reminded where to write. Zero never reminds. |
 
-## What it refuses
+</details>
 
-Eight node agents are awake at once. Opening a ninth is refused in its own conversation with `All 8 agents are awake — put one to sleep in Chats.`, and that refusal alone offers no retry button, because the thing to press is **Put to sleep** on another chat. The attempt waits where it stands and is retried the moment a seat frees; a tab that leaves takes its wait with it.
+<details>
+<summary>What chat refuses to do</summary>
 
-A conversation the engine cannot load is a different refusal. Its body names the machine, keeps the engine's own sentence as a muted line, and carries one press to start a session. It does not heal on its own, and it never queues for a seat.
+Eight node agents are awake at once. Opening a ninth is refused in its own conversation with `All 8 agents are awake — put one to sleep in Chats.`, and that refusal offers no retry button, because the thing to press is **Put to sleep** on another chat. The attempt waits where it is and is retried the moment a place frees up. A browser tab that closes takes its waiting attempt with it.
 
-Chat keeps at most 32 wake choices, rejects any an agent tries to write, and revokes queued deliveries when a choice is cleared or replaced. It stores the pick and draws the waiting count without interpreting it: [kolu](kolu.md) and [odu](odu.md) draw their file pickers in that place, and [mail](mail.md) draws its switch.
+A conversation the engine cannot load is a different refusal. It names the machine, shows the engine's own sentence in a muted line, and offers one button to start a session. It does not heal on its own, and it never waits for a place.
 
-A conversation verb that names a conversation you are not looking at is refused rather than acting on another one, which is how a read, a send or a retry cannot attach to the wrong chat.
+Chat keeps at most 32 choices an agent is waiting on, rejects any an agent tries to write itself, and cancels queued messages when a choice is cleared or replaced. It stores the choice you made and draws how many are waiting, without reading what they mean: [kolu](kolu.md) and [odu](odu.md) draw their file pickers there, and [mail](mail.md) draws its switch there.
 
-## What waits on this row
+An action naming a conversation you are not looking at is refused rather than applied to another one, so a read, a send or a retry cannot land on the wrong chat.
 
-Every plugin that can reach a conversation names one of seven doors this row stands behind.
+</details>
 
-| Door | What it is | Who names it |
+<details>
+<summary>What other plugins get from chat</summary>
+
+Every plugin that can reach a conversation uses one of seven services chat provides.
+
+| Service | What it offers | Which plugins use it |
 | --- | --- | --- |
-| `agents` | Which engines this build can seat. | claude, codex, opencode, pi, omp |
-| `deliveries` | Where a doorbell may ring. | kolu, odu, mail |
-| `session-start` | What to ask this host when a conversation opens. | kolu, odu |
-| `chat.seating` | The durable nodes, engines and sessions over one vault reading. | [xyne-spaces](xyne-spaces.md) |
+| `agents` | Which engines this build can run. | claude, codex, opencode, pi, omp |
+| `deliveries` | A way to send a message into a conversation. | kolu, odu, mail |
+| `session-start` | What to ask this machine when a conversation opens. | kolu, odu |
+| `chat.seating` | Which rows have agents, with the engine and session of each, from one reading of the directory. | [xyne-spaces](xyne-spaces.md) |
 | `watching` | What a plugin that mirrors a conversation is told. | xyne-spaces |
-| `conversations` | Starting one, speaking into it, and which agents can be started. | [vault-plugins](vault-plugins.md) |
-| `chat.dock` | Putting one beside the page, and whether this viewport has a seat. | vault-plugins |
+| `conversations` | Starting a conversation, speaking into it, and which agents can be started. | [vault-plugins](vault-plugins.md) |
+| `chat.dock` | Putting a conversation beside the page, and whether this window has room for one. | vault-plugins |
 
-`conversations` is core's own key rather than this row's, and chat is the
-provider standing behind it while it is up. A consumer names core's broker and
-is handed the door, or nothing, per call, so a plugin that can live without
-chat is not held waiting by it.
+The name `conversations` belongs to olai's core rather than to chat, and chat is what stands behind it while it is running. A plugin asks core for it on each call and gets either the service or nothing, so a plugin that can work without chat is never held up by it.
 
-It carries three verbs. `open` mints the node, binds it and sends a first
-message. `say` speaks into one that is already there. `engines` says what this
-machine can start. There is no reading verb: a plugin may start a conversation
-and talk to it, never hold a copy of what it said.
+It offers three calls. `open` creates the row, gives it an agent and sends a first message. `say` speaks into a conversation that already exists. `engines` says what this machine can start. There is no call that reads a conversation: a plugin may start one and talk to it, never hold a copy of what was said.
 
-`chat.dock` is offered by chat's panel component rather than by the row, so a
-serve with no desktop shell leaves a consumer waiting on the key instead of
-handing it a door that does nothing.
+Chat's panel component offers `chat.dock`, rather than the plugin itself, so a serve with no desktop interface leaves a plugin waiting for it instead of handing over something that does nothing.
 
-A serve with no chat row leaves all of them waiting, and the plugins panel says so per row, naming the account. That is a legitimate state the runtime resolves the moment the door arrives.
+A serve with no chat plugin leaves all seven unavailable, and the plugins panel says so on each plugin's row, naming what it is waiting for. The runtime resolves that the moment chat is back.
 
-## Switching it off
-
-Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in the plugins panel; the choice survives a restart. That removes the conversations, the sidebar sections, the palette rows, the agent panel and every face in the table above, with any **New chat** level it had open. Outline and document editors already on screen keep working. Switching the row back on restores its services and its faces.
-
-Turning the row off is a deployment's word, or a decision that this serve should stop being a chat for a while. To stop using one agent, reach for that engine's own row instead.
+</details>

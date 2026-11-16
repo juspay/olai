@@ -62,8 +62,8 @@ test("an empty list grants nothing, and grants are read together", () => {
 // without its trailing slash; a file exactly as written.
 test("an entry that names nothing on disk is reported, and a live one is not", () => {
   expect(unresolved(["justfile", "packages/tests/"])).toEqual([]);
-  expect(unresolved(["docs/roadmap.olai", "docs/", "docs/nowhere/"]))
-    .toEqual(["docs/roadmap.olai", "docs/nowhere/"]);
+  expect(unresolved(["website/docs/roadmap.olai", "website/docs/", "website/docs/nowhere/"]))
+    .toEqual(["website/docs/roadmap.olai", "website/docs/nowhere/"]);
 });
 
 // The walk itself: the listing is real, it leaves the caller out of it, and the

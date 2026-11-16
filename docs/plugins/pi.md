@@ -1,1 +1,0 @@
-../../packages/plugins/pi/docs.md

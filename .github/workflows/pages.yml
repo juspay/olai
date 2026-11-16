@@ -1,5 +1,10 @@
-# Deploys website/ to GitHub Pages (olai.kolu.dev). The site is static files,
-# no build step: the artifact IS the directory.
+# Deploys olai.page from `nix build .#website` (website/default.nix): the
+# Astro build of website/, with the docs at website/docs/ and each plugin's
+# page beside its code. The same build is the `website` leg of `just check`.
+#
+# No `paths:` filter: website/default.nix alone says what the site is built
+# from, and a second list here would fall behind it silently. A push that
+# changed none of it rebuilds nothing and republishes the same files.
 name: pages
 
 on:
@@ -7,7 +12,6 @@ on:
     # `website` is here so the PR branch deploys for preview before merge;
     # harmless to keep, since the branch is deleted on merge.
     branches: [master, website]
-    paths: ["website/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -20,16 +24,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+        with:
+          nix_conf: |
+            extra-substituters = https://cache.kolu.dev/kolu-r2
+            extra-trusted-public-keys = kolu-r2-1:7KmFrK05rVrnxkyZi9hJGnJJmRCpg87u6MUQIk7nokQ=
+            accept-flake-config = true
+
+      - name: Build the website
+        run: nix build .#website
+
+      - name: Stage it
+        # result/ is a read-only store path; Pages wants a plain directory.
+        run: |
+          cp -rL result _site
+          chmod -R u+w _site
+          touch _site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
   deploy:
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: website
       - id: deployment
         uses: actions/deploy-pages@v4

@@ -1,1 +1,0 @@
-../../packages/plugins/xyne-spaces/docs.md

@@ -1,1 +1,0 @@
-../../packages/plugins/omp/docs.md

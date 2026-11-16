@@ -29,7 +29,7 @@
  *     `message://<Message-Id>` link — Mail.app's own address for one message —
  *     was STRIPPED, silently, leaving the text of a note with the pointer gone
  *     out of it. That is the whole of what quick capture holds for a captured
- *     mail (docs/running.md): the message stays in Mail and olai keeps the link
+ *     mail (website/docs/running.md): the message stays in Mail and olai keeps the link
  *     to it, so a scheme this app cannot spell is a feature that does not work.
  *     One protocol on one attribute: `src` is untouched (nothing may LOAD a
  *     `message:`, and a `message:` in an `<img>` is not a picture), and so are
@@ -90,7 +90,7 @@ const admittingClass = (tag: string, value: string): Definition[] =>
 
 /** The scheme a captured mail's pointer is written in — Mail.app's own address
  *  for one message, which is what quick capture holds instead of a copy of the
- *  mail (docs/running.md). Named here because this is the file that decides
+ *  mail (website/docs/running.md). Named here because this is the file that decides
  *  whether it survives the sanitiser. */
 export const MESSAGE_PROTOCOL = "message"
 

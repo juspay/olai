@@ -42,7 +42,7 @@
  * browser fetches: behind any other proxy, the unused names are emptied
  * (`picture-header: ""` on the identity node) or stripped at the proxy, the same as
  * the login already must be. Said beside the config in
- * [`docs/running.md`](../../../docs/running.md).
+ * [`website/docs/running.md`](../../../website/docs/running.md).
  *
  * It is NOT a cell. Cells are one value for the process; this value is one
  * value for the REQUEST (or, on the live wire, for the CONNECTION: the

@@ -268,7 +268,7 @@ test("a link into a section of a document is this app's", () => {
  * handed to the OS. That is what makes a captured mail's `message://` link open
  * Mail.app rather than being swallowed by a router that thought every anchor on
  * the page was its own — written into the note by whoever captured it
- * (docs/running.md's mail recipe), not composed by olai.
+ * (website/docs/running.md's mail recipe), not composed by olai.
  *
  * It is already true, and the test is what makes it STAY true: nothing about
  * "this link is not ours" is expressed as a scheme list anywhere — it falls out
@@ -316,7 +316,7 @@ test("a fragment and a filter are read as themselves", () => {
 
 // `decodeURIComponent` throws on a malformed escape, and this parser is read
 // in two places where a person types: the address bar, and a title in
-// `Pins.olai` (docs/format.md's Pins). A throw there is a blank app, not a bad
+// `Pins.olai` (website/docs/format.md's Pins). A throw there is a blank app, not a bad
 // address — so every half of an address is total, the way the fragment always
 // was.
 test("a malformed escape names the front page rather than throwing", () => {

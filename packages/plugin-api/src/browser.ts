@@ -332,7 +332,7 @@ export const Slots = serviceTag<Slots>("ui-renderer.legacy-slots")
  * `needs` list is for. Reading a slot somebody else fills is a real dependency on
  * a real table, and a plugin that has it should have said so in the one list this
  * runtime holds it `waiting` against — the same list a reader of the plugins
- * panel, the fence and `docs/plugins/<name>.md` read to find out what a plugin
+ * panel, the fence and `website/docs/plugins/<name>.md` read to find out what a plugin
  * touches. Folded into `Slots`, every plugin that hangs one chip would silently
  * carry the right to walk every slot in the app.
  *

@@ -1103,7 +1103,7 @@ export interface Ledger {
    * and a ledger REPLACED while a hold is out starts unheld, because the hold
    * was state on the ledger that left — so a git restart mid-hold may produce
    * one `auto` commit beside the caller's own. Both are argued in
-   * `docs/architecture/cordis.md`.
+   * `website/docs/architecture/cordis.md`.
    *
    * A person's Commit button is never blocked by one: this closes the TIMER,
    * not the door. Holding is a statement about writes nobody asked about.

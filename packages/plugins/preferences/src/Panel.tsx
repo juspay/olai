@@ -1,7 +1,7 @@
 /**
  * What this browser is set to, in one place — a calm settings pane.
  *
- * Nearly everything on it is CLIENT-LOCAL (`docs/architecture/overview.md`): a
+ * Nearly everything on it is CLIENT-LOCAL (`website/docs/architecture/overview.md`): a
  * pick is stored in this browser, carried to its other tabs by the `storage`
  * event, and never sent. One quiet line at the foot says so, once.
  *

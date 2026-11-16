@@ -2,7 +2,7 @@
  * THE GUIDE AN AGENT IS HANDED IS THE PAGE A PERSON READS — asserted, because
  * a promise would be the thing that failed.
  *
- * `./guide.md` ships inside the binary and `docs/dynamic-plugins.md` is in the
+ * `./guide.md` ships inside the binary and `website/docs/dynamic-plugins.md` is in the
  * tree; an agent in somebody's vault only ever sees the first one. If the two
  * come apart, the symptom is not a red build — it is an agent writing a plugin
  * against advice this build stopped giving, which nobody finds out about until
@@ -24,7 +24,7 @@ import { GUIDE, GUIDE_END, GUIDE_START } from "./guide.ts"
  *  to write one, then the two worked ones. */
 const DOCS = ["dynamic-plugins.md", "dynamic-plugins-examples.md"] as const
 const at = (page: string): string =>
-  join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "docs", page)
+  join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "website", "docs", page)
 
 /** One page's marked region, or a failure naming the page and the marker it is
  *  missing: a page that grew a start and lost an end would otherwise ship a
@@ -33,8 +33,8 @@ const regionOf = (page: string): string => {
   const source = readFileSync(at(page), "utf8")
   const from = source.indexOf(GUIDE_START)
   const to = source.indexOf(GUIDE_END)
-  expect(from, `docs/${page} is missing ${GUIDE_START}`).toBeGreaterThanOrEqual(0)
-  expect(to, `docs/${page} is missing ${GUIDE_END}`).toBeGreaterThan(from)
+  expect(from, `website/docs/${page} is missing ${GUIDE_START}`).toBeGreaterThanOrEqual(0)
+  expect(to, `website/docs/${page} is missing ${GUIDE_END}`).toBeGreaterThan(from)
   return source.slice(from + GUIDE_START.length, to).trim()
 }
 
@@ -49,7 +49,7 @@ test("the shipped authoring guide is the two docs' own guide regions", () => {
   writeFileSync(join(dirname(fileURLToPath(import.meta.url)), "guide.next.md"), `${region}\n`)
   throw new Error(
     "`guide.md` is what every agent reads and it no longer matches the guide regions of "
-      + "docs/dynamic-plugins.md and docs/dynamic-plugins-examples.md.\nThe regions as the pages "
+      + "website/docs/dynamic-plugins.md and website/docs/dynamic-plugins-examples.md.\nThe regions as the pages "
       + "now have them have been written beside it as `guide.next.md`: read the difference, then "
       + "replace `guide.md` with it and delete that file.",
   )

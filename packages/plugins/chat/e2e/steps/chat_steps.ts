@@ -4207,7 +4207,7 @@ Then(
 Then(
   "the agent's work says a question is waiting",
   async function (this: OlaiWorld) {
-    // THE PROMISE THIS KEEPS is `docs/chat.md`'s: with the conversation in front
+    // THE PROMISE THIS KEEPS is `website/docs/chat.md`'s: with the conversation in front
     // of you, a form arriving is the whole of it — it lands where you are
     // already looking and nothing rings, because a notification about something
     // on your screen is nagging. A shelf is the one surface that takes a

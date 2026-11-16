@@ -578,7 +578,7 @@ export const TESTID = {
   /** ... and the notice at its head saying the turn is blocked on a QUESTION,
    *  which is the one thing in this box that is not about the agent. A form is
    *  never drawn in here — it stays in the conversation, where a decision
-   *  belongs — so this is what keeps `docs/chat.md`'s promise that a form
+   *  belongs — so this is what keeps `website/docs/chat.md`'s promise that a form
    *  arrives where a reader is already looking: pressing it closes the shelf
    *  and raises the same ask the attention banner does. Absent whenever nothing
    *  is waiting. */

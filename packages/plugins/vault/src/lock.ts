@@ -42,7 +42,7 @@
  *     runtime directory and refuse on an ancestor or a descendant — and it is
  *     deliberately not done here: it is a second mechanism, with its own way of
  *     being wrong, and the exclusion this file promises is worth having without
- *     it. `docs/running.md` says so where a person reads.
+ *     it. `website/docs/running.md` says so where a person reads.
  *
  * WHERE THE LOCK IS: `$XDG_RUNTIME_DIR/olai/<digest>.lock`, the per-user
  * runtime directory — owner-only. The machine clears it at logout; a graceful

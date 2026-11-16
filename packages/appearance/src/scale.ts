@@ -45,7 +45,7 @@
  * ## Where this deviates from the reference, and why
  *
  * Compared against GitHub's own markdown stylesheet (`github-markdown-css`,
- * rendered side by side over this repository's own `docs/`):
+ * rendered side by side over this repository's own `website/docs/`):
  *
  *   - **The document scale follows it closely, and did not always.** It was
  *     denser — 4px between blocks, headings a step smaller and undecorated —
