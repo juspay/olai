@@ -462,7 +462,7 @@ test("a node ticket can list and call the three plugin verbs", async () => {
         file: "_olai/Settings.olai",
         schema: "Config",
         properties: "a node titled after the plugin's word in _olai/Settings.olai; its properties are the Config leaves and child nodes hold schema sections",
-        reserved: ["approved", "on", "builder"],
+        reserved: ["approved", "on", "builder", "checked"],
       },
     })
 
