@@ -289,14 +289,29 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
    * and *I want it running* — and a press that landed one of them would leave
    * a plugin approved and off, or on and unapproved, with nothing to say which
    * half failed.
+   *
+   * ...AND ONLY THE WORDS THAT WOULD MOVE, which is not tidiness: the gate
+   * refuses a property write that would change nothing, and a batch is ALL OR
+   * NOTHING — so **Turn on this version** on a plugin whose switch was already
+   * up asked for `approved` beside an `on: yes` that was already `yes`, and
+   * the whole batch came back refused with the approval unwritten. The row
+   * stayed paused, the press looked like it had done nothing, and the sentence
+   * a person would have had to read to find out was about the OTHER key.
    */
-  const consent = (one: Defined, props: Readonly<Record<string, string | null>>): WriteRequest => {
+  const consent = (one: Defined, props: Readonly<Record<string, string | null>>): WriteRequest | null => {
+    const said: Readonly<Record<string, string | null>> = {
+      [APPROVED_KEY]: one.approved,
+      [ON_KEY]: one.on ? "yes" : null,
+      [BUILDER_KEY]: one.builder,
+    }
+    const moving = Object.entries(props).filter(([key, value]) => (said[key] ?? null) !== value)
+    if (moving.length === 0) return null
     const node = one.consent.node
     if (node !== undefined) {
-      const ops = Object.entries(props).map(([key, value]) => ({ op: "prop" as const, id: node.node.id, key, value }))
+      const ops = moving.map(([key, value]) => ({ op: "prop" as const, id: node.node.id, key, value }))
       return ops.length === 1 ? ops[0]! : { op: "apply", ops }
     }
-    const written = Object.fromEntries(Object.entries(props).filter(([, value]) => value !== null)) as Record<string, string>
+    const written = Object.fromEntries(moving.filter(([, value]) => value !== null)) as Record<string, string>
     return one.consent.file === undefined
       ? { op: "create", file: CONFIGURATION_FILE, seed: { title: one.name, props: written } }
       : { op: "add", file: one.consent.file, title: one.name, props: written }
@@ -321,19 +336,22 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
       // watches them, and the row moves because the file moved. A `follow` on
       // this side would be a second clock, answering off a reading the store
       // has not published yet.
-      if (one.on !== enabled) yield* write(consent(one, { [ON_KEY]: enabled ? "yes" : "no" }))
+      const request = consent(one, { [ON_KEY]: enabled ? "yes" : "no" })
+      if (request !== null) yield* write(request)
       return true
     }),
     approve: (name, forever) => Effect.gen(function*() {
       const one = seen.find((one) => one.name === name)
       if (one === undefined) return false
-      yield* write(consent(one, { [APPROVED_KEY]: forever ? "always" : one.version, [ON_KEY]: "yes" }))
+      const request = consent(one, { [APPROVED_KEY]: forever ? "always" : one.version, [ON_KEY]: "yes" })
+      if (request !== null) yield* write(request)
       return true
     }),
     bind: (name, conversation) => Effect.gen(function*() {
       const one = seen.find((one) => one.name === name)
       if (one === undefined) return false
-      yield* write(consent(one, { [BUILDER_KEY]: conversation }))
+      const request = consent(one, { [BUILDER_KEY]: conversation })
+      if (request !== null) yield* write(request)
       return true
     }),
     configure: (name, key, value) => Effect.gen(function*() {

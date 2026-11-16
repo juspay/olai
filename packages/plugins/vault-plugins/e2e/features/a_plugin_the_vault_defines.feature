@@ -66,7 +66,7 @@ Feature: A plugin the vault defines
     # to a content hash would be asking them to approve something they cannot
     # see.
     And the plugin page's folder is "plugins/swatch/"
-    And the plugin page's code tabs are "server.ts, browser.tsx"
+    And the plugin page's code tabs are "README.md, server.ts, browser.tsx"
     And the plugin page's code names "kinds.register"
     And the plugin page says what running it costs
     And the plugin page's verb is "turn-on"
@@ -83,7 +83,7 @@ Feature: A plugin the vault defines
     # say yes to what they can see.
     Given I open the app
     When I go to the plugin "greeting"
-    Then the plugin page's code tabs are "server.ts"
+    Then the plugin page's code tabs are "README.md, server.ts"
     And the plugin page's README says "Says hello on the server's own log"
     And there should be no page errors
 
@@ -305,7 +305,7 @@ Feature: A plugin the vault defines
       """
     Then the Plugins section lists "greeting, swatch"
     When I go to the plugin "swatch"
-    Then the plugin page's code tabs are "server.ts, browser.tsx"
+    Then the plugin page's code tabs are "README.md, server.ts, browser.tsx"
     And there should be no page errors
 
   @scratch:plugins
@@ -407,7 +407,11 @@ Feature: A plugin the vault defines
     And the folder "plugins/swatch" is deleted
     Then there is no plugin called "swatch"
     And the Plugins section does not list "swatch"
-    And file "_olai/Settings.olai" has namespace "swatch" setting "approved" as "<absent>"
+    # ...AND THE DECISION IS STILL WRITTEN DOWN, which is what the title of
+    # this scenario claims and what the comment above says: olai does not edit
+    # somebody's settings behind their back, and a folder that comes back comes
+    # back to the decision they already made about it.
+    And file "_olai/Settings.olai" has namespace "swatch" setting "on" as "yes"
     When I open the plugins panel
     Then the plugins panel does not list "swatch"
     When I close the plugins panel
@@ -460,11 +464,14 @@ Feature: A plugin the vault defines
     # that git records line by line, and that a pull request can review. The
     # commit panel listing the halves BY PATH is that claim, said where a person
     # meets it.
+    # THE CORPUS IS ALREADY COMMITTED, so the plugin this scenario is about is
+    # one that ARRIVES — copied in from another vault, which is the gesture the
+    # folder shape exists for and the one that leaves three files waiting.
     Given I open the outline "colours.olai"
-    When I open the commit panel
-    Then the panel lists "plugins/swatch/README.md" as "untracked"
-    And the panel lists "plugins/swatch/server.ts" as "untracked"
-    And the panel lists "plugins/swatch/browser.tsx" as "untracked"
+    When a plugin folder "borrowed" is copied in
+    And I open the commit panel
+    Then the panel lists "plugins/borrowed/README.md" as "untracked"
+    And the panel lists "plugins/borrowed/server.ts" as "untracked"
 
     When I press the commit pill
     And I approve the plugin "swatch"

@@ -69,9 +69,13 @@ Then("the Plugins row {string} says {string}", async function (this: OlaiWorld, 
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
   await this.waitUntil(async () => {
     const text = await row.innerText()
-    const title = (await row.getAttribute("title")) ?? ""
+    // THE ROW'S DESCRIPTION, which is where this app puts a sentence about a
+    // control rather than in a `title=`: that attribute is a tooltip a touch
+    // screen never shows and a screen reader never reads, and the client
+    // sweeps it out of its faces.
+    const described = (await row.getAttribute("aria-description")) ?? ""
     const label = (await row.getAttribute("aria-label")) ?? ""
-    return text.includes(said) || title.includes(said) || label.includes(said)
+    return text.includes(said) || described.includes(said) || label.includes(said)
   }, `the ${word} row to say ${JSON.stringify(said)}`)
 })
 

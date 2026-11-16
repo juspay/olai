@@ -49,7 +49,7 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
     Then the plugin page is "review"
     # ...and only ONE half, because a plugin that draws nothing is a whole
     # plugin: `browser.tsx` is optional and this one has none.
-    And the plugin page's code tabs are "server.ts"
+    And the plugin page's code tabs are "README.md, server.ts"
     And the plugin page says it uses "Uses what the `journal` plugin offers"
 
     When I press the plugin page verb

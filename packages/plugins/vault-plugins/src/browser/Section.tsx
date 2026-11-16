@@ -136,6 +136,12 @@ export function Section(props: { readonly management: BrowserManagement }) {
  * and one set of bindings rather than a second subtree swapped in by a
  * condition that never changes for a given folder.
  */
+/** ONE ROW. `aria-description` carries the README's own first sentence — what
+ *  this word does, for a person reading a name they chose months ago — and on
+ *  a folder whose name is not a word it carries the fault instead, which is
+ *  the one thing a reader can act on there. It is a description and not a
+ *  `title=`: that attribute is a tooltip a touch screen never shows and a
+ *  screen reader never reads, and this client sweeps it out of its faces. */
 function Row(props: { readonly plugin: Defined; readonly current: boolean }) {
   const stage = () => stageOf(props.plugin)
   const mark = () => markOf(stage())
@@ -143,7 +149,9 @@ function Row(props: { readonly plugin: Defined; readonly current: boolean }) {
   return (
     <a
       href={addressable() ? pluginPage.href({ word: props.plugin.name }) : undefined}
-      aria-description={addressable() ? undefined : faultSaid(props.plugin)}
+      aria-description={addressable()
+        ? (props.plugin.source.description === "" ? undefined : props.plugin.source.description)
+        : faultSaid(props.plugin)}
       class={`${ENTRY_SHAPE} ${ROW_GAP} w-full text-left`}
       classList={{ "opacity-60": mark() === "quiet" }}
       data-testid={TESTID.sectionRow}

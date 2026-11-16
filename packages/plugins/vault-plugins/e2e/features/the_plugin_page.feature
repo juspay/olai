@@ -139,7 +139,10 @@ Feature: A plugin's own page
     Then the plugin page is "on"
 
     When I open the plugin page's "browser.tsx" tab
+    # TWO MARKS, because the claim is two: the page's own element survived (so
+    # nothing re-keyed it) and the DOCUMENT survived (so nothing navigated).
     And I mark the plugin page
+    And I mark the page
     And I rewrite "plugins/greeting/server.ts" as:
       """
       import { definePlugin } from "@olai/plugin-api"

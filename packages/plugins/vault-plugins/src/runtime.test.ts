@@ -691,3 +691,31 @@ test("configure edits the settings node and refuses its reserved keys before wri
   yield* Effect.orDie(dynamic.configure("swatch", "tone", null))
   expect(written[1]).toEqual({ op: "prop", id: "c", key: "tone", value: null })
 })))
+
+/**
+ * RE-APPROVING A PLUGIN THAT IS ALREADY ON WRITES THE APPROVAL.
+ *
+ * The press that failed: a plugin somebody turned on, then edited, is PAUSED
+ * with its switch still up — so **Turn on this version** asked for `approved`
+ * beside an `on: yes` the node already said. The gate refuses a property write
+ * that would change nothing and a batch is all or nothing, so the approval
+ * went nowhere and the page sat on the diff as though the button were dead.
+ */
+test("turning on a paused plugin writes the approval and asks for nothing else", () => bench((dynamic, _now, _host, written) => Effect.gen(function*() {
+  const approved = versionOf(SERVER, null)
+  yield* dynamic.follow(vault({ approved }))
+  yield* dynamic.follow(vault({ approved, server: `${SERVER}\n// edited` }))
+  yield* dynamic.approve("swatch", false)
+  expect(written).toEqual([{
+    op: "prop",
+    id: "c",
+    key: "approved",
+    value: versionOf(`${SERVER}\n// edited`, null),
+  }])
+})))
+
+test("a switch already where it is asked to be writes nothing at all", () => bench((dynamic, _now, _host, written) => Effect.gen(function*() {
+  yield* dynamic.follow(vault({ approved: ALWAYS }))
+  expect(yield* dynamic.set("swatch", true)).toBe(true)
+  expect(written).toEqual([])
+})))
