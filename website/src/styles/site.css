@@ -1,6 +1,5 @@
-/* The whole site's type, colour and chrome. The four palettes are olai's own
-   (packages/appearance/src/palettes.ts): an unpicked page follows the OS,
-   chalk by day and basalt by night. */
+/* The whole site's type and chrome. Its colours are olai's own palettes,
+   written into each page's head by layouts/Base.astro from the app's table. */
 
 :root {
   --display: "Fraunces", "Iowan Old Style", Palatino, "Palatino Linotype", serif;
@@ -9,14 +8,6 @@
   --well: color-mix(in srgb, var(--rule) 28%, var(--paper));
   --hair: color-mix(in srgb, var(--rule) 70%, transparent);
   --header: 3.6rem;
-}
-:root,
-[data-theme="chalk"] { --paper:#FBFBF9; --desk:#F3F3EF; --panel:#FFFFFF; --pill:#E9E9E3; --ink:#1B1B18; --muted:#5D5F57; --rule:#DBDBD4; --accent:#B23A43; --done:#1F7A4D; --doing:#8A5800; --alarm:#C0313F; }
-[data-theme="reef"] { --paper:#E8F6F2; --desk:#DAEFE9; --panel:#F3FBF8; --pill:#CAE7DF; --ink:#10302B; --muted:#3A665F; --rule:#B3D9D0; --accent:#B43C45; --done:#1E7656; --doing:#875600; --alarm:#C13349; }
-[data-theme="basalt"] { --paper:#161718; --desk:#1D1E21; --panel:#242629; --pill:#2E3034; --ink:#E8E8E4; --muted:#A0A19C; --rule:#34363B; --accent:#EE8F93; --done:#62C58D; --doing:#E4BA52; --alarm:#F27E8B; }
-[data-theme="abyss"] { --paper:#06201A; --desk:#0B2923; --panel:#10342D; --pill:#174139; --ink:#CFE9E2; --muted:#84B0A6; --rule:#1E4840; --accent:#4ED4E6; --done:#52B37F; --doing:#CDA62A; --alarm:#EB7B90; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) { --paper:#161718; --desk:#1D1E21; --panel:#242629; --pill:#2E3034; --ink:#E8E8E4; --muted:#A0A19C; --rule:#34363B; --accent:#EE8F93; --done:#62C58D; --doing:#E4BA52; --alarm:#F27E8B; }
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }

@@ -22,12 +22,13 @@ const independent = new Set([
   "packages/plugins/chat/src/attachments.test.ts",
   "packages/tests/agent/scripted-acp.ts",
   "packages/plugins/chat/e2e/steps/chat_steps.ts",
-  // The documentation lint walks `docs/`, which is a directory of files in
-  // THIS repository rather than a reading of what a serve claims: the suffix
-  // there picks the pages to measure and the links to follow, and says nothing
-  // about the markdown row.
+  // The documentation lint and the website's build walk `website/docs/`, a
+  // directory of files in THIS repository rather than a reading of what a
+  // serve claims: the suffix there picks the pages to measure, publish and
+  // link, and says nothing about the markdown row.
   "packages/tests/support/docs.ts",
   "packages/tests/docs_lint.test.ts",
+  "website/src/markdown.ts",
 ])
 
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")

@@ -19,6 +19,11 @@ nix_shell := if env('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop ' + jus
 # .direnv stay out.
 nix_files := "$(git ls-files '*.nix')"
 
+# The directories with a bun.lock, and so a bun.nix: the workspace at the
+# root, and the website, which is its own package so the app's install never
+# fetches Astro.
+bun_roots := ". website"
+
 # Where `just build-client` writes the browser bundle, and the one place the
 # server is told to look (OLAI_DIST_DIR). Generated, gitignored; the nix build
 # writes its own copy inside its sandbox.
@@ -436,7 +441,7 @@ website:
 
 # The website while you write it: Astro's dev server, reloading on every save
 # of a page or a component, on http://127.0.0.1:4321. Its own `bun install`,
-# because website/ is its own package (see `_gen-bun-nix`).
+# because website/ is its own package (see `bun_roots`).
 [doc("Preview the website with live reload")]
 website-dev:
     cd website && {{ nix_shell }} sh -c 'bun install --frozen-lockfile && bun run dev'
@@ -879,40 +884,37 @@ fmt-check:
     {{ nix_shell }} nixpkgs-fmt --check {{ nix_files }}
 
 # One spelling of "derive bun.nix from bun.lock", so the freshness check below
-# and the regeneration cannot drift apart. Two lockfiles carry one: the
-# workspace's at the root, and the website's, which is its own package
-# (`website/`) so the app's install never fetches Astro.
+# and the regeneration cannot drift apart.
 [private]
 _gen-bun-nix dir out:
     {{ nix_shell }} sh -c 'nix run .#bun2nix --accept-flake-config -- -l "{{ dir }}/bun.lock" -o "{{ out }}" && nixpkgs-fmt "{{ out }}"'
 
-# Regenerate both bun.nix files from their bun.lock. Run after any
-# `bun install` / `bun add`, at the root or in website/.
+# Regenerate every bun.nix from its bun.lock. Run after any `bun install` /
+# `bun add`, at the root or in website/.
 [doc("Regenerate bun.nix from bun.lock")]
-regenerate-bun-nix: (_gen-bun-nix "." "bun.nix") (_gen-bun-nix "website" "website/bun.nix")
+regenerate-bun-nix:
+    for dir in {{ bun_roots }}; do just _gen-bun-nix "$dir" "$dir/bun.nix"; done
 
 # bun.nix drives the nix build's dependency fetch and is generated from
 # bun.lock, so a lockfile change without a regen makes `nix build` install a
 # different tree than `bun install` does — silently. It generates into a
 # tmpdir rather than in place because `check` runs its legs in parallel, and a
 # leg that rewrote a tracked file would race the ones reading it.
-[doc("Check that both bun.nix files match their bun.lock")]
+[doc("Check that every bun.nix matches its bun.lock")]
 bun-nix-fresh:
     #!/usr/bin/env bash
     set -euo pipefail
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
-    stale=0
-    for dir in . website; do
+    for dir in {{ bun_roots }}; do
       just _gen-bun-nix "$dir" "$tmp/bun.nix"
-      diff -u "$dir/bun.nix" "$tmp/bun.nix" || stale=1
+      diff -u "$dir/bun.nix" "$tmp/bun.nix" || {
+        echo
+        echo "$dir/bun.nix is stale relative to $dir/bun.lock."
+        echo "Run: just regenerate-bun-nix && git add $dir/bun.nix"
+        exit 1
+      }
     done
-    if [ "$stale" = 1 ]; then
-      echo
-      echo "A bun.nix is stale relative to its bun.lock."
-      echo "Run: just regenerate-bun-nix && git add bun.nix website/bun.nix"
-      exit 1
-    fi
 
 # Update the kolu / nixpkgs pins. npins rewrites npins/default.nix in its
 # own formatter's style, so normalize it here — same rule as bun.nix, and

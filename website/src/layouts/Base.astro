@@ -2,20 +2,46 @@
 /**
  * Every page's frame: the head, the header and the footer.
  */
+import {
+  DEFAULT_DARK_PALETTE,
+  DEFAULT_THEME,
+  PALETTE_TOKENS,
+  PALETTES,
+  type Palette,
+} from "../../../packages/appearance/src/palettes.ts"
+import { hrefOf } from "../markdown.ts"
 import "../styles/site.css"
 
 interface Props {
   title: string
   description: string
-  /** Which header link is the page the reader is on. */
-  current?: "start" | "docs"
 }
 
-const { title, description, current } = Astro.props
-const canonical = new URL(Astro.url.pathname, Astro.site).href
+const { title, description } = Astro.props
+const here = Astro.url.pathname
+const canonical = new URL(here, Astro.site).href
 const github = "https://github.com/juspay/olai"
 const ogImage = new URL("/og.png", Astro.site).href
 const ogAlt = "olai — a git-native outliner. A palm leaf in ink on sea-glass paper."
+// The header link the reader is under: the longest one this address starts
+// with, so Start is lit on its own page and Docs on every other docs page.
+const nav = [
+  { href: hrefOf("start"), label: "Start" },
+  { href: hrefOf("index"), label: "Docs" },
+]
+const lit = nav
+  .filter((link) => here.startsWith(link.href))
+  .sort((a, b) => b.href.length - a.href.length)[0]
+// The app's own palettes (its table is the one place a colour is written):
+// the default for an unpicked page, chalk, and basalt under a dark OS, exactly
+// as olai does. A page picks another with `data-theme`, as the home page's
+// chips do.
+const tokens = (palette: Palette) =>
+  `color-scheme:${palette.scheme};` + PALETTE_TOKENS.map((token) => `--${token}:${palette.colors[token]};`).join("")
+const palettes = [
+  ...PALETTES.map((p) => `${p.name === DEFAULT_THEME ? ":root," : ""}[data-theme="${p.name}"]{${tokens(p)}}`),
+  `@media (prefers-color-scheme: dark){:root:not([data-theme]){${tokens(DEFAULT_DARK_PALETTE)}}}`,
+].join("\n")
 ---
 
 <!doctype html>
@@ -48,14 +74,14 @@ const ogAlt = "olai — a git-native outliner. A palm leaf in ink on sea-glass p
       href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,400;1,9..144,600&display=swap"
       rel="stylesheet"
     />
+    <style is:inline set:html={palettes} />
   </head>
   <body>
     <header class="site">
       <div class="wrap">
         <a class="wordmark" href="/">olai</a>
         <nav class="site" aria-label="Site">
-          <a href="/docs/start/" aria-current={current === "start" ? "page" : undefined}>Start</a>
-          <a href="/docs/" aria-current={current === "docs" ? "page" : undefined}>Docs</a>
+          {nav.map((link) => <a href={link.href} aria-current={link === lit ? "page" : undefined}>{link.label}</a>)}
           <a href={github}>GitHub</a>
         </nav>
       </div>
@@ -65,8 +91,8 @@ const ogAlt = "olai — a git-native outliner. A palm leaf in ink on sea-glass p
       <div class="wrap">
         <a class="wordmark" href="/">olai</a>
         <span><a href={github}>github.com/juspay/olai</a></span>
-        <span><a href="/docs/">docs</a></span>
-        <span><a href="/docs/running/">how to run it</a></span>
+        <span><a href={hrefOf("index")}>docs</a></span>
+        <span><a href={hrefOf("running")}>how to run it</a></span>
         <span><a href="https://github.com/juspay/oss.olai/tree/main/projects/olai/roadmap">roadmap</a></span>
         <span><a href="https://github.com/cordiverse/cordis">cordis</a></span>
         <span><a href="https://arxiv.org/abs/2608.25512">the paper</a></span>

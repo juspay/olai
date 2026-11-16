@@ -25,6 +25,10 @@ export const DOCS = fileURLToPath(new URL("../docs/", import.meta.url))
 export const idOf = (file: string): string =>
   path.relative(DOCS, file).replace(/\.md$/, "").split(path.sep).join("/")
 
+/** The id of the page a relative `.md` link on page `from` names. */
+export const idFrom = (from: string, target: string): string =>
+  path.posix.normalize(path.posix.join(path.posix.dirname(from), target.replace(/\.md$/, "")))
+
 /** A page's address on the site. */
 export const hrefOf = (id: string): string => (id === "index" ? "/docs/" : `/docs/${id}/`)
 
@@ -37,14 +41,18 @@ export const titleIn = (id: string, source: string): string => {
 
 /**
  * The docs pass, for one page. Pages outside `docs/` (none today) are left
- * alone. A relative link to anything but a page fails the build: the site
- * publishes pages and the pictures they draw, nothing else.
+ * alone, and so is any link but a relative one to a page: a web address, an
+ * anchor, a site path. A relative link to anything else stays as written, and
+ * the build's link check fails on it, since the site publishes pages only.
  */
 export const docsPage = (ctx: PluginFactoryContext) => {
   if (ctx.fileURL === undefined) return null
   const file = fileURLToPath(ctx.fileURL)
   if (!file.startsWith(DOCS)) return null
-  const dir = path.posix.dirname(idOf(file))
+  const page = idOf(file)
+  // The title line, which `titleIn` reads and the layout draws. `titleIn`
+  // refuses a page whose first line is not `# Title`, so the first heading of
+  // depth 1 is that line. satteri tracks no positions for a plugin to check.
   let titled = false
   return defineMdastPlugin({
     name: "olai-docs-page",
@@ -54,13 +62,9 @@ export const docsPage = (ctx: PluginFactoryContext) => {
       edit.removeNode(node)
     },
     link(node, edit) {
-      // A web address, an anchor on this page or a site path names no file.
-      if (/^[a-z][a-z0-9+.-]*:/i.test(node.url) || /^[#/]/.test(node.url)) return
       const [target = "", fragment] = node.url.split("#")
-      if (!target.endsWith(".md")) {
-        throw new Error(`${idOf(file)}.md links ${node.url}, which is not a page`)
-      }
-      const id = path.posix.normalize(path.posix.join(dir, target.slice(0, -".md".length)))
+      if (/^[a-z][a-z0-9+.-]*:/i.test(node.url) || /^[#/]/.test(node.url) || !target.endsWith(".md")) return
+      const id = idFrom(page, target)
       edit.setField(node, "url", hrefOf(id) + (fragment ? `#${fragment}` : ""))
       const [words] = node.children
       if (node.children.length !== 1 || words?.type !== "text") return

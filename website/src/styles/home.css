@@ -218,12 +218,13 @@ table.cmp td:first-child { color: var(--muted); white-space: nowrap; padding-rig
 table.cmp td:last-child { font-weight: 500; }
 
 table.plug { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
-table.plug th, table.plug td { border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); padding: 0.45rem 1rem 0.45rem 0; text-align: left; vertical-align: baseline; }
-table.plug thead th { border-top: none; font-size: 0.72rem; color: var(--muted); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-table.plug td:first-child { font-family: var(--mono); font-size: 0.78rem; white-space: nowrap; padding-right: 1.2rem; }
+table.plug td { border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); padding: 0.45rem 1rem 0.45rem 0; text-align: left; vertical-align: baseline; }
+table.plug tr:first-child td { border-top: none; }
+table.plug td:first-child { font-family: var(--mono); font-size: 0.78rem; white-space: nowrap; padding-right: 1.2rem; width: 1%; }
 table.plug td:first-child a { color: var(--ink); text-decoration: none; }
 table.plug td:first-child a:hover { color: var(--accent); }
-table.plug td:last-child { color: var(--muted); white-space: nowrap; font-family: var(--mono); font-size: 0.72rem; }
+table.plug td:last-child { color: var(--muted); }
+.allplugins h3 { font-size: 0.72rem; color: var(--muted); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 1.4rem 0 0.4rem; }
 
 .plugmock { width: 100%; max-width: 480px; margin: 0 auto 2rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); font-size: 14px; overflow: hidden; }
 .plughead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 14px 18px 10px; }

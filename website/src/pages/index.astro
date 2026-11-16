@@ -3,8 +3,15 @@
  * The pitch: why to try olai, and pictures of what a person sees. How to do
  * a thing belongs on a docs page; each section here ends with a link to it.
  */
+import { DEFAULT_THEME, PALETTES } from "../../../packages/appearance/src/palettes.ts"
 import Base from "../layouts/Base.astro"
+import { siteMap } from "../sitemap.ts"
 import "../styles/home.css"
+
+// Every plugin olai ships, as the docs index lists them (a test holds the
+// index to the registry), so this list cannot fall behind the build.
+const plugins = (await siteMap()).groups.find((group) => group.title === "Plugins")
+if (plugins === undefined) throw new Error('docs/index.md has no "## Plugins" group')
 ---
 
 <Base
@@ -196,10 +203,9 @@ import "../styles/home.css"
     <h2>How it looks</h2>
     <p class="lead">Four palettes — two by day, two by night — and an unpicked page follows your OS. Press a chip; this page follows.</p>
     <div class="chips" role="list">
-      <span class="chip on" data-theme="chalk" role="listitem">chalk</span>
-      <span class="chip" data-theme="reef" role="listitem">reef</span>
-      <span class="chip" data-theme="basalt" role="listitem">basalt</span>
-      <span class="chip" data-theme="abyss" role="listitem">abyss</span>
+      {PALETTES.map((palette) => (
+        <span class:list={["chip", { on: palette.name === DEFAULT_THEME }]} data-theme={palette.name} role="listitem">{palette.name}</span>
+      ))}
     </div>
     <div class="cols">
       <div class="panel" data-theme="basalt">
@@ -332,48 +338,19 @@ import "../styles/home.css"
 └── kitchen.olai</pre>
     </div>
     <details class="tablewrap allplugins">
-      <summary>Which plugin does what, and whether it starts on</summary>
-      <table class="plug">
-        <thead>
-          <tr><th>Plugin</th><th></th><th>Default</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><a href="/docs/plugins/chat/">chat</a></td><td>The conversation: panel, transcript, agents.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/vault/">vault</a></td><td>The directory. Switching it off clears served files.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/git/">git</a></td><td>The Commit readout and the commit panel.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/search/">search</a></td><td>The box in the header, and the index behind it.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/identity/">identity</a></td><td>Who is looking, as a chip in the bar.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/journal/">journal</a></td><td>Calendar, today, the agenda.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/claude/">claude</a></td><td>Claude Code, the agent olai ships.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/codex/">codex</a></td><td>Codex, also shipped.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/opencode/">opencode</a></td><td>opencode, if it is on this machine.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/pi/">pi</a></td><td>pi, if it is on this machine.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/omp/">omp</a></td><td>Oh My Pi, if it is on this machine.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/kolu/">kolu</a></td><td>Live terminals from a running Kolu.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/odu/">odu</a></td><td>CI on the board, from a running odu.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/browsing/">browsing</a></td><td>A browser your agents can drive, in a pane.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/mail/">mail</a></td><td>Gmail, read and filed from a conversation.</td><td>off</td></tr>
-          <tr><td><a href="/docs/plugins/xyne-spaces/">xyne-spaces</a></td><td>Mirror the conversation into team chat.</td><td>off</td></tr>
-          <tr><td><a href="/docs/plugins/ws/">ws</a></td><td>The browser socket. Leave it on if you want a tab.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/mcp/">mcp</a></td><td>The door agents dial.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/web-app/">web-app</a></td><td>The browser build. Leave it on if you want a tab.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/ui-renderer/">ui-renderer</a></td><td>The tab’s Solid root.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/layout/">layout</a></td><td>The frame, the header, the seats.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/sidebar/">sidebar</a></td><td>The directory column and the rail.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/tabs/">tabs</a></td><td>Several pages open at once, each with its own history.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/preferences/">preferences</a></td><td>How it looks, from this browser.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/theme/">theme</a></td><td>Palette, typeface, size.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/plugin-inspector/">plugin-inspector</a></td><td>The panel itself.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/navigation/">navigation</a></td><td>Addresses, history, the palette.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/outlines/">outlines</a></td><td>The outline editor.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/markdown/">markdown</a></td><td>Documents: reading them, and writing them.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/files/">files</a></td><td>Outlines in front, everything else under Reference.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/pins/">pins</a></td><td>The pinned shelf.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/capture/">capture</a></td><td>The inbox, and + in the palette.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/trash/">trash</a></td><td>What you threw away.</td><td>on</td></tr>
-          <tr><td><a href="/docs/plugins/vault-plugins/">vault-plugins</a></td><td>The plugins you asked for, in this directory’s own folder.</td><td>on</td></tr>
-        </tbody>
-      </table>
+      <summary>Every plugin olai ships, and what each one does</summary>
+      {plugins.groups.map((group) => (
+        <>
+          <h3>{group.title}</h3>
+          <table class="plug">
+            <tbody>
+              {group.links.map((link) => (
+                <tr><td><a href={link.href}>{link.id.slice("plugins/".length)}</a></td><td set:html={link.summary} /></tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ))}
     </details>
   </div>
 </section>

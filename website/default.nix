@@ -2,13 +2,15 @@
 # link and #anchor in the built pages checked.
 #
 # `$out` is the directory GitHub Pages publishes. The flake exposes it as the
-# package `website` and as the check `website`, which `just website` builds.
+# package `website`, which `just website` builds.
 #
-# The source is `website/` plus each plugin's `docs.md`: the pages under
-# `website/docs/plugins/` are symlinks onto those, so both ends must be in the
-# store for a symlink to resolve. The plugin pages are named one directory at
-# a time rather than found by a filter over `packages/plugins`, which would
-# walk every plugin's `node_modules` in a checkout that has run `bun install`.
+# The source is `website/`, each plugin's `docs.md` and the app's palette
+# table. The pages under `website/docs/plugins/` are symlinks onto those
+# `docs.md` files, so both ends must be in the store for a symlink to resolve.
+# The plugin pages are named one directory at a time rather than found by a
+# filter over `packages/plugins`, which would walk every plugin's
+# `node_modules` in a checkout that has run `bun install`. The site's colours
+# are read from `packages/appearance/src/palettes.ts`, which imports nothing.
 { pkgs, b2n }:
 let
   inherit (pkgs) lib;
@@ -32,6 +34,7 @@ pkgs.stdenv.mkDerivation {
       ./src
       ./public
       ./docs
+      ../packages/appearance/src/palettes.ts
     ] ++ pluginPages);
   };
 

@@ -9,19 +9,18 @@
  * sidebar is a page nobody notices going stale.
  */
 
-import { getCollection, type CollectionEntry } from "astro:content"
+import { getCollection } from "astro:content"
 import { markdownToHtml } from "satteri"
 
-import { hrefOf, titleIn } from "./markdown.ts"
-
-export type Page = CollectionEntry<"docs">
+import { hrefOf, idFrom, titleIn } from "./markdown.ts"
 
 export interface Link {
   readonly id: string
   readonly href: string
   readonly title: string
-  /** What the page covers, as inline HTML. */
+  /** What the page covers, as inline HTML, and as plain words. */
   readonly summary: string
+  readonly description: string
 }
 
 export interface Group {
@@ -30,25 +29,36 @@ export interface Group {
   readonly groups: Group[]
 }
 
+/** One page's place in the map: the groups it sits in, and its neighbours in
+ *  the index's order. The index itself sits in no group. */
+export interface Place {
+  readonly link: Link
+  readonly trail: string[]
+  previous?: Link
+  next?: Link
+}
+
+type Node = { type: string; value?: string; children?: unknown[] }
+
 const escape = (text: string): string =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 
 /** A table cell's words as inline HTML: code stays code, and a link keeps only
  *  its words. */
-const inline = (node: { type: string; value?: string; children?: unknown[] }): string => {
+const inline = (node: Node): string => {
   if (node.type === "text") return escape(node.value ?? "")
   if (node.type === "inlineCode") return `<code>${escape(node.value ?? "")}</code>`
-  const inner = ((node.children ?? []) as Parameters<typeof inline>[0][]).map(inline).join("")
+  const inner = ((node.children ?? []) as Node[]).map(inline).join("")
   if (node.type === "emphasis") return `<em>${inner}</em>`
   if (node.type === "strong") return `<strong>${inner}</strong>`
   return inner
 }
 
-/** A heading's words as plain text. */
-const words = (node: { type: string; value?: string; children?: unknown[] }): string =>
-  node.value ?? ((node.children ?? []) as Parameters<typeof words>[0][]).map(words).join("")
+/** A node's words as plain text. */
+const words = (node: Node): string =>
+  node.value ?? ((node.children ?? []) as Node[]).map(words).join("")
 
-type Row = { target: string; summary: string }
+type Row = { target: string; summary: string; description: string }
 type Block = { kind: "heading"; depth: number; text: string } | { kind: "table"; rows: Row[] }
 
 /** The index's headings and table rows, in order. Read inside the visitor:
@@ -67,7 +77,7 @@ const blocksOf = (source: string): Block[] => {
             const [first, second] = row.children
             const link = first?.children.find((child) => child.type === "link")
             if (link?.type !== "link" || second === undefined) return []
-            return [{ target: link.url, summary: second.children.map(inline).join("") }]
+            return [{ target: link.url, summary: inline(second), description: words(second) }]
           })
           blocks.push({ kind: "table", rows })
         },
@@ -79,20 +89,26 @@ const blocksOf = (source: string): Block[] => {
 
 export interface SiteMap {
   readonly groups: Group[]
-  /** Every page but the index, in the order the index lists them. */
-  readonly order: Link[]
-  readonly byId: ReadonlyMap<string, { link: Link; trail: string[] }>
+  /** Every page, the index included. */
+  readonly places: ReadonlyMap<string, Place>
 }
 
 export const siteMap = async (): Promise<SiteMap> => {
   const pages = new Map((await getCollection("docs")).map((page) => [page.id, page]))
   const index = pages.get("index")
   if (index === undefined) throw new Error("docs/index.md is missing")
+  const source = index.body ?? ""
 
   const groups: Group[] = []
-  const order: Link[] = []
-  const byId = new Map<string, { link: Link; trail: string[] }>()
-  for (const block of blocksOf(index.body ?? "")) {
+  const places = new Map<string, Place>()
+  const overview = titleIn("index", source)
+  places.set("index", {
+    link: { id: "index", href: hrefOf("index"), title: overview, summary: "", description: overview },
+    trail: [],
+  })
+  // The index leads into the first page it lists, and that page back to it.
+  let last = places.get("index")
+  for (const block of blocksOf(source)) {
     const top = groups.at(-1)
     if (block.kind === "heading") {
       const group = { title: block.text, links: [], groups: [] }
@@ -102,23 +118,24 @@ export const siteMap = async (): Promise<SiteMap> => {
     }
     if (top === undefined) continue
     const inner = top.groups.at(-1)
-    const home = inner ?? top
     for (const row of block.rows) {
-      const id = row.target.replace(/\.md$/, "")
+      const id = idFrom("index", row.target)
       const page = pages.get(id)
       if (page === undefined) throw new Error(`docs/index.md links ${row.target}, which is not a page`)
-      if (byId.has(id)) throw new Error(`docs/index.md lists ${row.target} twice`)
+      if (places.has(id)) throw new Error(`docs/index.md lists ${row.target} twice`)
       const title = titleIn(id, page.body ?? "")
-      const link = { id, href: hrefOf(id), title, summary: row.summary }
-      home.links.push(link)
-      order.push(link)
-      byId.set(id, { link, trail: inner === undefined ? [top.title] : [top.title, inner.title] })
+      const link = { id, href: hrefOf(id), title, summary: row.summary, description: row.description }
+      ;(inner ?? top).links.push(link)
+      const place: Place = { link, trail: inner === undefined ? [top.title] : [top.title, inner.title], previous: last?.link }
+      if (last !== undefined) last.next = link
+      places.set(id, place)
+      last = place
     }
   }
 
-  const unlisted = [...pages.keys()].filter((id) => id !== "index" && !byId.has(id))
+  const unlisted = [...pages.keys()].filter((id) => !places.has(id))
   if (unlisted.length > 0) {
     throw new Error(`docs/index.md does not list: ${unlisted.map((id) => `${id}.md`).join(", ")}`)
   }
-  return { groups, order, byId }
+  return { groups, places }
 }
