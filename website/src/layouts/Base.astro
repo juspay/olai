@@ -99,5 +99,48 @@ const palettes = [
         <span><a href="https://kolu.dev">kolu.dev</a></span>
       </div>
     </footer>
+
+  {/* One popup for every footnote on the page. Without JavaScript a marker is
+      a plain link to its note in the list at the foot of the page. */}
+  <div id="note" popover tabindex="-1" role="note" aria-label="Note"></div>
+  <script is:inline>
+    (() => {
+      const pop = document.getElementById("note")
+      if (!pop || typeof pop.showPopover !== "function") return
+      let from = null
+      const place = () => {
+        if (!from) return
+        const at = from.getBoundingClientRect()
+        const width = pop.offsetWidth
+        pop.style.left = `${Math.max(12, Math.min(at.left - 16, innerWidth - width - 12))}px`
+        const below = at.bottom + 8
+        pop.style.top = below + pop.offsetHeight > innerHeight - 12 ? `${Math.max(12, at.top - pop.offsetHeight - 8)}px` : `${below}px`
+      }
+      document.addEventListener("click", (event) => {
+        const ref = event.target instanceof Element && event.target.closest("a[data-footnote-ref]")
+        if (!ref) return
+        const note = document.getElementById(decodeURIComponent(ref.hash.slice(1)))
+        if (!note) return
+        event.preventDefault()
+        const copy = note.cloneNode(true)
+        copy.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"))
+        copy.querySelectorAll("[data-footnote-backref]").forEach((node) => node.remove())
+        if (pop.matches(":popover-open")) pop.hidePopover()
+        pop.replaceChildren(...copy.childNodes)
+        from = ref
+        pop.showPopover()
+        place()
+        pop.focus({ preventScroll: true })
+      })
+      pop.addEventListener("toggle", (event) => {
+        if (event.newState !== "closed" || !from) return
+        const back = from
+        from = null
+        back.focus({ preventScroll: true })
+      })
+      addEventListener("scroll", place, { passive: true })
+      addEventListener("resize", place)
+    })()
+  </script>
   </body>
 </html>

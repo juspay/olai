@@ -1,6 +1,25 @@
 # Two plugins to write into your directory
 
-Two plugins you can paste, turn on and watch run: one that does something on a clock, and one that draws something on a row. How a plugin is written, approved and checked is [dynamic-plugins.md](dynamic-plugins.md); this page is the two paths end to end.
+Two plugins you can paste into your directory, turn on and watch run: one that does something on a clock, and one that draws something on a row.[^how]
+
+## A plugin on a clock
+
+The morning agenda reads the journal's agenda each morning and hands it to every node agent with a live session: a service somebody else offers, a clock and a sentence.[^agenda]
+
+## A plugin that draws
+
+The swatch dresses a `hex` property: a server half that teaches the kind, and a browser half that draws the chip on the row.[^swatch]
+
+Both are written out below, file by file, from the first `vault-plugins_inspect` to the press on **Turn on**.
+
+[^how]: How a plugin is written, approved and checked is [dynamic-plugins.md](dynamic-plugins.md). This page is the two paths end to end, in the words an agent is handed.
+
+[^agenda]: The morning agenda needs no browser half, because it draws nothing: two files, a `README.md` and a `server.ts`. Nothing of it ships in olai, so a morning agenda somebody reads is written into their own directory by their own agent, or pasted from here.
+
+[^swatch]: The swatch is three files, and both halves declare the same `name`, which has to be the folder's own word. The kind's word on a row is `swatch-hex`: the plugin contributes the bare word and the registry composes it with the plugin's own name.
+
+<details>
+<summary>The two plugins, file by file</summary>
 
 <!-- guide:start -->
 
@@ -232,3 +251,5 @@ Read the files on the plugin's page and press **Turn on**. The browser half's ch
 - That composed word is claimed by the registration, so a property `swatch-hex: "#ff8800"` is held to the pattern and wears the swatch with no `_olai/Properties.olai` in your directory at all.
 - What you cannot do is declare it. A `type` in `_olai/Properties.olai` is judged against what the binary was built with, so `{"title":"colour","custom":{"type":"swatch-hex"}}` is refused. Use the claimed word as the key.
 <!-- guide:end -->
+
+</details>

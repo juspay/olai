@@ -1,15 +1,11 @@
 # Point an agent at a running olai
 
-An agent outside olai (a coding agent in a terminal, a script, a cron job)
-talks to a running server over MCP at `/mcp`. It gets the same verbs the agent
-panel's agents have. The panel's own agents are [chat.md](chat.md).
+An agent outside olai talks to a running server over MCP at `/mcp`.[^outside]
+It gets the same verbs the agent panel's agents have.[^panel]
 
 ## There is one writer
 
-`olai web` owns the directory and every write goes through it. The write
-surfaces are a page and `/mcp`. There is no stdio face and no second process:
-`olai surface` opens no directory, it speaks MCP to a running server and sends
-the same verbs an agent sends.
+`olai web` owns the directory and every write goes through it.[^writer]
 
 ## Configure an MCP client
 
@@ -24,15 +20,8 @@ the same verbs an agent sends.
 }
 ```
 
-`7714` is the deployment port: the home-manager module binds it, so an agent
-configured this way talks to the user service ([deploying.md](deploying.md)).
-A server started with `--port 0` announces its bound address on the `serving`
-line, and a restart may land on a new port
-([running.md](running.md#flags)).
-
-A request from `127.0.0.1` needs no credential. The chat panel still sends the
-bearer it was handed, which is accepted and ignored. A request from anywhere
-else is refused without that token.
+`7714` is the deployment port.[^port] A request from `127.0.0.1` needs no
+credential.[^token]
 
 > Unattended agent runs need the server up. Whatever the agent is doing, it is
 > a client of one running olai, and there is nothing to fall back on.
@@ -45,29 +34,13 @@ olai surface --url http://127.0.0.1:7714 search nodes --text 'is:todo prop:pr'
 olai surface list --url http://127.0.0.1:7714   # every row, verb and readable member
 ```
 
-Every verb an agent has is a verb here, behind the plugin that owns it:
-`olai surface outlines read` is the agent's `outlines_read`, and
-`olai surface markdown write` is `markdown_write`. A plugin that is switched
-off has no subcommand at all.
-
-`olai surface --help` is the documentation. It lists the plugins, grouped as
-**Capture**, **Outlines and documents**, **Search**, **Files**, **The vault
-itself** and **This face**. `olai surface <plugin> --help` lists that plugin's
-verbs with an example each, and `olai surface <plugin> <verb> --help` gives one
-verb's flags.
+Every verb an agent has is a verb here, behind the plugin that owns
+it.[^verbs] `olai surface --help` is the documentation.[^help]
 
 | Flag | What it does |
 | --- | --- |
-| `--url <server>` | the olai to call: the address a browser opens. Required on every call, with no default and no remembered directory |
+| `--url <server>` | the olai to call: the address a browser opens. Required on every call, with no default |
 | `--json` | print a write's whole record instead of its one line |
-
-`--url` is on `list` too, although `list` dials nothing and answers off the
-projection itself. The flag is uniform, so a script looping over the verbs does
-not break on the one that would have refused it.
-
-`watch` and `--follow` are not offered. The door answers one request with one
-answer and pushes nothing, so there is no subscription to have. A page in a
-browser is what watches a directory change.
 
 ### What you get back
 
@@ -82,7 +55,91 @@ other answer is JSON on stdout already. A refusal goes to stderr, also as JSON.
 | `3` | nothing is serving at `--url` |
 | `130` | `Ctrl` + `C` |
 
-### Calling it from somewhere else
+## Capture a line from a terminal
+
+```sh
+olai surface capture add "look into the new cabinets" \
+  --text "the joinery place off Main" \
+  --url http://127.0.0.1:7714
+```
+
+```
+captured into /home/srid/vault — http://127.0.0.1:7714/_olai/Inbox.olai#a1b2c3
+```
+
+One line goes into the directory's inbox,[^capture] dated on the server's own
+clock.[^dated]
+
+## Client recipes
+
+None of these is something olai ships; each is a few lines you write
+once.[^recipes]
+
+[^outside]: An agent outside olai is a coding agent in a terminal, a script or
+    a cron job.
+
+[^panel]: The agents inside the panel, and how you talk to them, are
+    [chat.md](chat.md).
+
+[^writer]: The write surfaces are a page and `/mcp`. There is no stdio face and
+    no second process: `olai surface` opens no directory, it speaks MCP to a
+    running server and sends the same verbs an agent sends.
+
+[^port]: The home-manager module binds `7714`, so an agent configured this way
+    talks to the user service ([deploying.md](deploying.md)). A server started
+    with `--port 0` announces its bound address on the `serving` line, and a
+    restart may land on a new port ([running.md](running.md#flags)).
+
+[^token]: The chat panel still sends the bearer it was handed, which is
+    accepted and ignored. A request from anywhere but `127.0.0.1` is refused
+    without that token. Calling the server from somewhere else is the closed
+    block at the foot of this page.
+
+[^verbs]: `olai surface outlines read` is the agent's `outlines_read`, and
+    `olai surface markdown write` is `markdown_write`. A plugin that is
+    switched off has no subcommand at all.
+
+    `watch` and `--follow` are not offered. The door answers one request with
+    one answer and pushes nothing, so there is no subscription to have. A page
+    in a browser is what watches a directory change.
+
+[^help]: `olai surface --help` lists the plugins, grouped as **Capture**,
+    **Outlines and documents**, **Search**, **Files**, **The vault itself** and
+    **This face**. `olai surface <plugin> --help` lists that plugin's verbs
+    with an example each, and `olai surface <plugin> <verb> --help` gives one
+    verb's flags.
+
+    `--url` has no remembered directory behind it, and it is on `list` too,
+    although `list` dials nothing and answers off the projection itself. The
+    flag is uniform, so a script looping over the verbs does not break on the
+    one that would have refused it.
+
+[^capture]: `title` is the row, required, and the one argument that is
+    positional. `--text` becomes the note. There is no way to say where it
+    goes: a capture lands at the top level of the inbox, which is what an inbox
+    is for, and you file it in the app afterwards.
+
+    It lands in the Inbox convention directly under `_olai/`, minted as
+    `_olai/Inbox.olai` when there is none, the same convention the palette's
+    **Capture to the Inbox** follows ([getting-around.md](getting-around.md)).
+
+[^dated]: A capture is the same write as any other: the same validation, the
+    same all-or-none rename, the same git policy. A refused capture leaves
+    nothing behind, not even the inbox it would have minted.
+
+    The server's clock carries its offset, so the row is on the day's journal
+    page as well as in the inbox. The date and the capture's `todo` mark
+    compose into work you owe ([dates-and-status.md](dates-and-status.md)): the
+    row ticks that day's **Agenda** count when it lands, and shows as overdue
+    from the next morning.
+
+[^recipes]: A cron job, a script that noticed something, a shell function: the
+    same verb. There is no SDK; `jq` is the client library. Files are not in
+    this door, so a photo or a PDF has no path into the directory: capture a
+    link to it in the note.
+
+<details>
+<summary>Calling it from somewhere else</summary>
 
 Locally the server admits loopback with no credential. Off loopback, set
 `$OLAI_TOKEN` to the server's bearer, which the client sends. It does not
@@ -100,43 +157,10 @@ has none. So `prop:captured-by=srid@github` finds what you captured through the
 tailnet. A caller cannot send it: a capture takes a title and a note, so there
 is nowhere to put one.
 
-## Capture a line from a terminal
+</details>
 
-`olai surface capture add` puts one line into the directory's inbox:
-
-```sh
-olai surface capture add "look into the new cabinets" \
-  --text "the joinery place off Main" \
-  --url http://127.0.0.1:7714
-```
-
-```
-captured into /home/srid/vault — http://127.0.0.1:7714/_olai/Inbox.olai#a1b2c3
-```
-
-`title` is the row, required, and the one argument that is positional. `--text`
-becomes the note. There is no way to say where it goes: a capture lands at the
-top level of the inbox, which is what an inbox is for, and you file it in the
-app afterwards.
-
-It lands in the Inbox convention directly under `_olai/`, minted as
-`_olai/Inbox.olai` when there is none — the same convention the palette's
-**Capture to the Inbox** follows ([getting-around.md](getting-around.md)). It
-is the same write as any other: the same validation, the same all-or-none
-rename, the same git policy. A refused capture leaves nothing behind, not even
-the inbox it would have minted.
-
-It arrives dated, on the server's own clock with its offset, so it is on the
-day's journal page as well as in the inbox. The date and the capture's `todo`
-mark compose into work you owe ([dates-and-status.md](dates-and-status.md)):
-the row ticks that day's **Agenda** count when it lands, and shows as overdue
-from the next morning.
-
-## Client recipes
-
-None of these is something olai ships; each is a few lines you write once.
-
-### Capture the selected message in Mail.app
+<details>
+<summary>Capture the selected message in Mail.app</summary>
 
 There is no mail service to deploy. AppleScript asks Mail for the selected
 message, and olai keeps what you would look for later: the subject, the sender
@@ -182,18 +206,14 @@ olai surface --url http://127.0.0.1:7714 search nodes --text '"<abc@mail>"'
 > not always resolve. The subject and the sender in the note are what keep the
 > message findable when the link does not open.
 
-### A phone
+</details>
+
+<details>
+<summary>A phone</summary>
 
 A phone cannot run this binary. Capture through the web page instead: the
 palette's **Capture to the Inbox**, which is the same write
 ([getting-around.md](getting-around.md)). An MCP client on the phone is the
 other way in.
 
-### Anything else
-
-A cron job, a script that noticed something, a shell function: the same verb.
-`olai surface --help` lists every verb the server offers. There is no SDK;
-`jq` is the client library.
-
-Files are not in this door. A photo or a PDF has no path into the directory, so
-capture a link to it in the note.
+</details>

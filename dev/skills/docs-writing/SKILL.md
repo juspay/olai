@@ -25,13 +25,38 @@ Edit the page so it stays true. Do not append a paragraph describing your change
 2. **Write for someone using olai, not someone who built it.** Keep what the reader can see, do, or must know to predict what happens, including limits and failure messages. Cut history, why a design was chosen (unless the reader has to choose something), how it is implemented, which pull request changed it, and descriptions of looks the screen already shows. Cut roadmap too: say what is true now.
 3. **Order by the reader's questions:** what is it → how do I start → how do I use it → what can go wrong → reference detail. The first screen answers the first two.
 
+## The reading budget
+
+A reader gives a page a few seconds to a minute. The **main flow** is what they see without opening anything: everything except footnotes and `<details>` blocks. It says the one thing and shows the shape of the answer. Every other fact moves out of it, and nothing is deleted.
+
+4. **The main flow fits a minute. [lint]**
+   - **4a.** The opening paragraph is ≤ 30 words: what this is and what you do with it, in a line or two.
+   - **4b.** ≤ 250 words before anything is opened, table cells included (headings and code are not counted).
+   - **4c.** ≤ 5 `##` sections in the main flow.
+   - **4d.** Each footnote is ≤ 100 words, because the site shows it as a popup.
+
+   After the opening comes a short, scannable body: a small table, a few bullets, one picture or one example. Nothing more by default.
+
+   **Where the rest goes.** A footnote, `[^name]` after the phrase it expands, is the main home for detail: a limit, an edge case, a failure message, a flag, the exact behaviour. The site opens it as a popup on click, tap or `Enter`, and lists every note at the bottom of the page for a reader without JavaScript. A footnote is read out of context, so it opens by naming what it is about, and it holds one fact or a few that belong together, never a nested footnote. Definitions go at the end of the page, in the order they are first cited. Only what a footnote cannot hold, a long table or a code listing, goes in a collapsed block, with a blank line inside each tag:
+
+   ```html
+   <details>
+   <summary>Every operator, and what it matches</summary>
+
+   | Operator | Matches |
+   | --- | --- |
+
+   </details>
+   ```
+
+   A subject big enough to need several of those is a page of its own, linked from this one and listed on the index under the same group.
+
 ## Shape
 
-4. **Opening paragraph ≤ 50 words:** what this is and what you do with it. No history.
 5. **Paragraphs and list items ≤ 80 words. [lint]**
 6. **Table cells ≤ 40 words. [lint]** A cell that needs more becomes an entry under its own heading.
-7. **≤ 300 words of running text under one heading. [lint]** Tables and code do not count.
-8. **A page ≤ 2,500 words of running text. [lint]** A page that cannot fit is split. No page is exempt.
+7. **≤ 300 words of running text under one heading of the main flow. [lint]** Tables and code do not count.
+8. **A page ≤ 2,500 words of running text, footnotes and `<details>` included. [lint]** A page that cannot fit is split. No page is exempt.
 9. **Three or more parallel things with attributes go in a table or a list**, never inside one sentence. A sequence the reader performs is a numbered list.
 10. **No paragraph opens with a bold run-in. [lint]** Use a heading, a list or a table. A list item may open with a bold term, not a bold sentence.
 11. **Headings say what the reader finds or does** ("Serve a directory", "When an agent does not appear"), in words the reader would search for. The test: someone who reads only the index can say where each answer is.

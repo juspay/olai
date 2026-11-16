@@ -1,72 +1,62 @@
 # The outline format
 
-One outline is one `.olai` file: one JSON object per line, one line per node. This page is the record itself — the two shapes a line may take, the fields each one carries, and the open map of properties beside them.
-
-Every `.olai` file under the served directory is an independent tree, so a `parent` names a node in the same file. Cross-file relations are mirrors and edges, written as a bare id.
+One outline is one `.olai` file: one JSON object per line, one line per node — the two record shapes, their fields, and the properties beside them.
 
 ```jsonl
 {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","date":"2026-08-10","after":["demo"]}
 ```
 
-Ids are unique across the whole served directory, so a subtree moves between outlines whole and keeps its ids. `outlines_move` takes a `parent` or a `file` in another outline, and `outlines_trash` puts a subtree on its way to `_olai/Trash.olai`.
-
-Every mirror, edge, `node`-typed property and pin aimed at what moved goes on resolving, and so does the day a dated node sits on. The exception is a `ref`-typed property, which asserts ancestry as well as existence: moving a variant out of its declared root is refused `bad-prop`, with nothing written ([properties.md](properties.md)).
-
-## Files from an older directory
-
-olai reads the suffixes its file kinds claim, and a `.jsonl` is not one of them: it sits in a served directory as an unclaimed file, like a `.txt`. Rename them once, from the directory:
-
-```sh
-git ls-files '*.jsonl' | while read -r f; do git mv "$f" "${f%.jsonl}.olai"; done
-```
-
-(`mv` instead of `git mv` outside a repository.)
-
-A top-level `doc` field is not part of a record: it is a `bad-record` like any unknown key. Attach material with a markdown link in the note instead. To keep the field's values as ordinary custom properties, run from the directory:
-
-```bash
-git ls-files -z '*.olai' | while IFS= read -r -d '' file; do
-  grep -q '"doc"[[:space:]]*:' "$file" || continue
-  jq -c 'if .doc then .custom = ((.custom // {}) + {doc: .doc}) | del(.doc) else . end' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
-done
-```
-
-An undeclared custom `doc` property is an ordinary property: the value reading draws a door when it resolves to a served path. The `doc` property type declared in `_olai/Properties.olai` is a fence on the value ([properties.md](properties.md)).
+Every `.olai` file under the served directory is an independent tree, so a `parent` names a node in the same file.[^set] Cross-file relations are mirrors and edges, written as a bare id.[^move]
 
 ## Two record shapes
 
-A line is a regular node or a mirror, and carrying `mirror` is what decides which. They are two shapes rather than one shape with optional fields: a mirror is a second placement of a node that already exists, so every field describing the node itself has its authoritative copy at the target.
-
-There are no include records; the served directory is the only composition mechanism.
-
-### A regular node
-
-The node itself. It must carry `id`, `ord` and `title`, and it may carry any of the other fields below except `mirror`.
-
-### A mirror
-
-A second placement of a node that exists elsewhere. It is exactly `{"id", "parent"?, "ord", "mirror"}`; any other field on it is a `bad-record`. A mirror stores no mark, no properties and no prose of its own, and children hang off the node it points at rather than off it.
+Carrying `mirror` decides which: a regular node is the node itself, a mirror is a second placement of one that exists elsewhere.[^shapes] A mirror carries exactly `{"id", "parent"?, "ord", "mirror"}`.[^mirror]
 
 ## Fields
 
-Writes re-serialize the whole record in the order below. An absent field is omitted, never written as `null` or `[]`. Required means the record is refused without it.
+Writes re-serialize the whole record in this order.[^omit]
 
 | Field | Required | What it holds |
 | --- | --- | --- |
-| [`id`](#id) | both shapes | Stable identity, unique across the loaded set |
-| [`parent`](#parent) | no | The id of a node in the same file |
+| [`id`](#id) | both shapes | Stable identity |
+| [`parent`](#parent) | no | The parent, in the same file |
 | [`ord`](#ord) | both shapes | Sibling order |
 | [`title`](#title) | regular nodes | The row's text |
-| [`mirror`](#mirror) | mirrors | The id this record places a second time |
-| [`done`, `cancelled`, `doing`, `todo`](#done-cancelled-doing-todo) | no | The four marks, at most one of them |
-| [`started`](#started) | no | When the current round of work started |
-| [`worked`](#worked) | no | Work already banked, in whole seconds |
-| [`date`](#date) | no | What the node is scheduled for |
-| [`repeat`](#repeat) | no | How the node comes back |
+| [`mirror`](#mirror) | mirrors | The id it places again |
+| [`done`, `cancelled`, `doing`, `todo`](#done-cancelled-doing-todo) | no | The four marks, at most one |
+| [`started`](#started) | no | The current round's start |
+| [`worked`](#worked) | no | Work banked, in whole seconds |
+| [`date`](#date) | no | What it is scheduled for |
+| [`repeat`](#repeat) | no | How it comes back |
 | [`desc`](#desc) | no | The note |
 | [`after`, `blocks`, `see`](#after-blocks-see) | no | Arrays of target ids |
 | [`created`, `changed`](#created-changed) | no | The two stamps |
 | [`custom`](#custom) | no | The open map of properties |
+
+## Properties
+
+The top level of a record is closed, and `custom` is the one exception: any key may sit in there, holding text or a list of text.[^closed] Nothing in olai reads one.[^reads] A directory may declare that a key's values have a shape ([properties.md](properties.md)), which fences a value and still gives the key no meaning.
+
+```jsonl
+{"id":"lane","ord":"a1","title":"the chat header goes stale","doing":true,"custom":{"agent":"claude-opus","pr":"https://github.com/juspay/olai/pull/176"}}
+```
+
+[^set]: Ids are unique across the whole served directory, so a subtree moves between outlines whole and keeps its ids. `outlines_move` takes a `parent` or a `file` in another outline, and `outlines_trash` puts a subtree on its way to `_olai/Trash.olai`.
+
+[^move]: Every mirror, edge, `node`-typed property and pin aimed at what moved goes on resolving, and so does the day a dated node sits on. The exception is a `ref`-typed property, which asserts ancestry as well as existence: moving a variant out of its declared root is refused `bad-prop`, with nothing written ([properties.md](properties.md)).
+
+[^shapes]: The record is two shapes rather than one shape with optional fields: a mirror is a second placement of a node that already exists, so every field describing the node itself has its authoritative copy at the target. A regular node must carry `id`, `ord` and `title`, and may carry any of the other fields except `mirror`. There are no include records; the served directory is the only composition mechanism.
+
+[^mirror]: A mirror record is exactly those four keys, and any other field on it is a `bad-record`. It stores no mark, no properties and no prose of its own, and children hang off the node it points at rather than off it.
+
+[^omit]: Field order is the table's order, on every write. An absent field is omitted, never written as `null` or `[]`. Required means the record is refused without it. Each field has its own entry in the closed block at the foot of this page.
+
+[^closed]: A key this format has no meaning for is a `bad-record` naming it, so a typo'd `titel` is caught rather than kept. `custom` is an exception in one direction only: the field is declared, what goes inside it is not. A key that holds something is written; nothing gives a key a meaning, so a URL is a string that looks like a URL.
+
+[^reads]: Nothing in olai reads a key inside `custom`. The journal reads `date`, the checkbox reads the marks, and the blocking graph reads `after`. A custom key is read by the person who wrote it, by `prop:` in a query ([search.md](search.md)), and by the run of chips drawn under a node's title ([editing.md](editing.md)).
+
+<details>
+<summary>Every field, and what it holds</summary>
 
 ### `id`
 
@@ -124,25 +114,35 @@ ISO datetimes the ops layer stamps: `created` when a node is captured, `changed`
 
 ### `custom`
 
-The one open field: a map of named facts olai gives no meaning to, with one named exception, `agent`. See [Properties](#properties) below.
+The one open field: a map of named facts olai gives no meaning to, with one named exception, `agent`.
 
 ### `mirror`
 
 The id this record places a second time. The target may live in any file of the set, and may itself be a mirror: the chain is followed to the regular node at its end. A mirror inside the subtree it shows is `mirror-cycle`.
 
-## Properties
+</details>
 
-The top level of a record is closed: a key this format has no meaning for is a `bad-record` naming it, so a typo'd `titel` is caught rather than kept. `custom` is the one exception, and it is an exception in one direction only — the field is declared, what goes inside it is not.
+<details>
+<summary>Writing a property, what the chips read, and what a file holds</summary>
 
-```jsonl
-{"id":"lane","ord":"a1","title":"the chat header goes stale","doing":true,"custom":{"agent":"claude-opus","pr":"https://github.com/juspay/olai/pull/176"}}
-```
+The run of chips under a node's title asks one question of a value: does this string name a file, a node, a day or a URL olai can open, so that the chip can be a link. Every read that situates a node hands the map back as it stands, a search hit as much as `outlines_read`.
 
-Any key may sit in there, holding text or a list of text. Nothing gives a key a meaning: a URL is a string that looks like a URL. What a directory may do is declare that one key's values have a shape ([properties.md](properties.md)), which fences a value and still gives the key no meaning.
+### Writing a property
 
-Nothing in olai reads a key inside `custom`. The journal reads `date`, the checkbox reads the marks, and the blocking graph reads `after`. A custom key is read by the person who wrote it, by `prop:` in a query ([search.md](search.md)), and by the run of chips drawn under a node's title ([editing.md](editing.md)).
+`outlines_prop` takes `{id, key, value}`, and `null` or `""` removes the key. A write may also carry `was`, the value it expects to replace, with `null` for *the key should not exist yet*. Given, the write is conditional on the key still saying exactly that, and is refused with what it says now. That is what the chips send, since the box opens on the value as read. Left off, the write is unconditional.
 
-That run asks one question of a value: does this string name a file, a node, a day or a URL olai can open, so that the chip can be a link. Every read that situates a node hands the map back as it stands, a search hit as much as `outlines_read`.
+A key that folds to one of this format's own field names, or to the word `status`, is turned away toward the verb that writes that fact. The two namespaces are two places, so `{"done":true,"custom":{"done":"yesterday"}}` is a legal record and an unreadable one.
+
+Three verbs write a property and they reach one planner: `outlines_prop`, `outlines_add`'s `props` on a node being captured, and `outlines_update`'s `props` merged key by key onto a node that exists. The shadowed-key refusal is the same sentence whichever one met it.
+
+### What a file holds
+
+Keys are written alphabetically, and a key holding nothing is not written at all — the two rules the fields above follow, one level in. A map with no keys left is no `custom` field rather than `{}`. A read answers the same map a write would produce, so a key holding nothing is absent from a search hit and from `outlines_read` exactly as it is absent from the line on disk.
+
+</details>
+
+<details>
+<summary>The <code>chat-agent-session</code> property</summary>
 
 ### `chat-agent-session`
 
@@ -157,14 +157,28 @@ chat-agent-session: claude:0f3c…    ...and one that is talking through that co
 
 The engine is required and the session is optional, so the value's presence is what makes the node a node agent and its second half is the pointer. Only the first colon splits: an engine id is one of olai's own slugs and holds none, while a session id is somebody else's opaque string and may hold several. A directory may keep the type on a column of its own name ([plugins/chat.md](plugins/chat.md)).
 
-### Writing a property
+</details>
 
-`outlines_prop` takes `{id, key, value}`, and `null` or `""` removes the key. A write may also carry `was`, the value it expects to replace, with `null` for *the key should not exist yet*. Given, the write is conditional on the key still saying exactly that, and is refused with what it says now. That is what the chips send, since the box opens on the value as read. Left off, the write is unconditional.
+<details>
+<summary>Files from an older directory</summary>
 
-A key that folds to one of this format's own field names, or to the word `status`, is turned away toward the verb that writes that fact. The two namespaces are two places, so `{"done":true,"custom":{"done":"yesterday"}}` is a legal record and an unreadable one.
+olai reads the suffixes its file kinds claim, and a `.jsonl` is not one of them: it sits in a served directory as an unclaimed file, like a `.txt`. Rename them once, from the directory:
 
-Three verbs write a property and they reach one planner: `outlines_prop`, `outlines_add`'s `props` on a node being captured, and `outlines_update`'s `props` merged key by key onto a node that exists. The shadowed-key refusal is the same sentence whichever one met it.
+```sh
+git ls-files '*.jsonl' | while read -r f; do git mv "$f" "${f%.jsonl}.olai"; done
+```
 
-### What a file holds
+(`mv` instead of `git mv` outside a repository.)
 
-Keys are written alphabetically, and a key holding nothing is not written at all — the two rules the fields above follow, one level in. A map with no keys left is no `custom` field rather than `{}`. A read answers the same map a write would produce, so a key holding nothing is absent from a search hit and from `outlines_read` exactly as it is absent from the line on disk.
+A top-level `doc` field is not part of a record: it is a `bad-record` like any unknown key. Attach material with a markdown link in the note instead. To keep the field's values as ordinary custom properties, run from the directory:
+
+```bash
+git ls-files -z '*.olai' | while IFS= read -r -d '' file; do
+  grep -q '"doc"[[:space:]]*:' "$file" || continue
+  jq -c 'if .doc then .custom = ((.custom // {}) + {doc: .doc}) | del(.doc) else . end' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+done
+```
+
+An undeclared custom `doc` property is an ordinary property: the value reading draws a door when it resolves to a served path. The `doc` property type declared in `_olai/Properties.olai` is a fence on the value ([properties.md](properties.md)).
+
+</details>

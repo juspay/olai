@@ -4,7 +4,9 @@ olai serves a directory of outlines and Markdown files as a web app that you and
 
 New here? [Start](start.md) gets you running on your own notes in about five minutes.
 
-## Using olai
+## Get started
+
+Run olai on a directory of your own, and keep it running.
 
 | Page | What it covers |
 | --- | --- |
@@ -12,38 +14,35 @@ New here? [Start](start.md) gets you running on your own notes in about five min
 | [Serve a directory](running.md) | Serving a directory: `olai web`, its flags, one olai per directory, the health dot and the log. |
 | [Keep olai running](deploying.md) | Keeping it running: the home-manager module, the same launch without it, a reverse proxy and who is looking. |
 | [Choose what runs](settings.md) | Choosing what runs: `_olai/Settings.olai`, the Plugins panel, environment variables, and what being off means. |
-| [Point an agent at a running olai](connecting-agents.md) | Pointing an agent outside olai at a running one: `/mcp`, `olai surface`, and capture from a terminal. |
+
+## Write and organise
+
+Type rows, move them, give them days and marks, and find them again.
+
+| Page | What it covers |
+| --- | --- |
 | [Typing an outline](editing.md) | Typing an outline: the keys, the marks, splitting and joining rows, notes, and undo. |
 | [Moving work about](organising.md) | Moving work about: dragging, picking several rows, days, repeating, Trash, and deleting a file. |
+| [Marks, days and repeating](dates-and-status.md) | Marks, days and repeating rows. |
 | [Finding your way](getting-around.md) | Finding your way: the sidebar, pins, tabs, the palette and quick capture. |
 | [Search](search.md) | The query language: every operator, what it matches, and what a result row shows. |
 | [Filtering a page](filtering.md) | Narrowing the page in front of you, and sending the narrowed page to someone. |
-| [Git](git.md) | Committing and pushing: the Commit readout, the commit panel, the modes, and the audit view. |
+
+## Work with agents
+
+Talk to a coding agent beside your notes, and hand it work.
+
+| Page | What it covers |
+| --- | --- |
 | [Talking to an agent](chat.md) | Talking to an agent inside olai: which agent, signing in, the controls and the context. |
 | [Giving an agent work](giving-an-agent-work.md) | Handing it a file, a row or a picture, and reading what it changed. |
 | [Node agents](node-agents.md) | Binding a conversation to a row, and living with the agent that stands behind it. |
 | [What olai tells you about](attention.md) | What olai tells you about: what is waiting on you, and what you have not read. |
+| [Point an agent at a running olai](connecting-agents.md) | Pointing an agent outside olai at a running one: `/mcp`, `olai surface`, and capture from a terminal. |
 
-## The files underneath
+### Each agent
 
-| Page | What it covers |
-| --- | --- |
-| [The outline format](format.md) | The outline format: the two record shapes, their fields, and properties. |
-| [Typed properties](properties.md) | Typed properties: what a declaration says, and how a value resolves. |
-| [Marks, days and repeating](dates-and-status.md) | Marks, days and repeating rows. |
-| [Documents, references and the kinds olai shows](documents-and-kinds.md) | Documents, references, pins, and the file kinds olai only shows. |
-| [Validation, errors and writing](validation.md) | What a write is refused for, and what each error says. |
-| [Live properties](live-properties.md) | Properties whose value updates on its own, and the two shapes a live face takes. |
-| [Plugins the directory defines](dynamic-plugins.md) | Asking for a plugin of your own: the folder under `plugins/`, turning it on, and writing one. |
-| [Two plugins to write into your directory](dynamic-plugins-examples.md) | Two worked plugins, start to finish: a morning agenda, and a face. |
-
-## Plugins
-
-olai is a bundle of plugins running on [Cordis](https://github.com/cordiverse/cordis) ([arXiv:2608.25512](https://arxiv.org/abs/2608.25512)). Each plugin documents itself in its own package, and every plugin has a page listed here.
-
-### Agents
-
-The five agents the chat panel can run. What a conversation is, for all of them, is in [Talking to an agent](chat.md).
+The five agents the chat panel can run.
 
 | Page | What it covers |
 | --- | --- |
@@ -52,6 +51,28 @@ The five agents the chat panel can run. What a conversation is, for all of them,
 | [opencode, as a chat agent](plugins/opencode.md) | opencode: the `PATH` probe, the Code Mode script every MCP tool arrives inside, child-session lanes, and which versions work. |
 | [pi, as a chat agent](plugins/pi.md) | pi: `OLAI_ACP_PI`, the queued mid-turn message, and the bridge that gives pi olai's tools. |
 | [Oh My Pi, as a chat agent](plugins/omp.md) | Oh My Pi: the `PATH` probe, the approval mode, the call dispatched through omp's own `write`, and the mid-turn send. |
+
+## Your files and git
+
+What olai keeps on disk, what it refuses to write, and how git records it.
+
+| Page | What it covers |
+| --- | --- |
+| [The outline format](format.md) | The outline format: the two record shapes, their fields, and properties. |
+| [Typed properties](properties.md) | Typed properties: what a declaration says, and how a value resolves. |
+| [Documents, references and the kinds olai shows](documents-and-kinds.md) | Documents, references, pins, and the file kinds olai only shows. |
+| [Validation, errors and writing](validation.md) | What a write is refused for, and what each error says. |
+| [Live properties](live-properties.md) | Properties whose value updates on its own, and the two shapes a live face takes. |
+| [Git](git.md) | Committing and pushing: the Commit readout, the commit panel, the modes, and the audit view. |
+
+## Plugins
+
+Ask for a plugin of your own, and look up the ones olai ships. olai is a bundle of plugins running on [Cordis](https://github.com/cordiverse/cordis) ([arXiv:2608.25512](https://arxiv.org/abs/2608.25512)), and every plugin has a page here.
+
+| Page | What it covers |
+| --- | --- |
+| [Plugins the directory defines](dynamic-plugins.md) | Asking for a plugin of your own: the folder under `plugins/`, turning it on, and writing one. |
+| [Two plugins to write into your directory](dynamic-plugins-examples.md) | Two worked plugins, start to finish: a morning agenda, and a face. |
 
 ### Server and transport
 
@@ -122,7 +143,9 @@ Off by default. Each one exists to prove something about the host.
 | [Test palette fixture](plugins/test-palette.md) | A fixture contributing palette levels through the public adapter location. |
 | [Test page fixture](plugins/test-page.md) | A fixture registering a self-drawn plugin page in the route slot. |
 
-## For people working on olai
+## Build olai
+
+How olai is put together, for people working on it. The writing standard these pages are held to is `dev/skills/docs-writing/SKILL.md`, and `packages/tests/docs_lint.test.ts` enforces its shape rules per page.
 
 | Page | What it covers |
 | --- | --- |
@@ -135,6 +158,6 @@ Off by default. Each one exists to prove something about the host.
 | [Who owns each extension location](architecture/slot-ownership.md) | Which capability owns each extension location, and the registration lifecycle. |
 | [The browser tests](architecture/browser-tests.md) | What the browser suite covers, how to run it, and the gaps that remain. |
 
-The writing standard these pages are held to is `dev/skills/docs-writing/SKILL.md`, and `packages/tests/docs_lint.test.ts` enforces its shape rules per page. This index is also the site's page map: a page it does not list fails the site build.
+This index is also the site's page map: its `##` groups and `###` subgroups are the sidebar, and a page it does not list fails the site build.
 
 Roadmap, decisions and root-cause analyses live in the orchestrator's own vault, [juspay/oss.olai](https://github.com/juspay/oss.olai), under [olai/roadmap](https://github.com/juspay/oss.olai/tree/main/projects/olai/roadmap), [olai/brainstorming](https://github.com/juspay/oss.olai/tree/main/projects/olai/brainstorming) and [olai/RCA](https://github.com/juspay/oss.olai/tree/main/projects/olai/RCA).

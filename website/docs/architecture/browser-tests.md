@@ -1,8 +1,6 @@
 # The browser tests
 
-olai's browser suite drives a real server and a real Chromium through Cucumber
-features. This page says what it covers today, how to run it, what a failure
-leaves behind, and which workflows no scenario drives yet.
+olai's browser suite drives a real server and a real Chromium through Cucumber features, covering 2,379 entries in 302 feature files.
 
 ## Run the suite
 
@@ -11,18 +9,7 @@ just e2e                # every feature, against the nix-built binary
 just e2e-fast-remote    # the same leaf on the remote Linux fleet
 ```
 
-`just e2e` builds `.#olai` and runs the features against that binary, which is
-what a user runs. It is the leg `just check` runs. The suite sizes itself to
-the machine: cores minus one, capped at four, and from twenty cores up one
-worker per four cores, at most eight.
-
-`just e2e-fast-remote` selects the `e2e` leaf through this tree's pinned Odu on
-`x86_64-linux`. Odu borrows up to nine free execution slots and tells Cucumber
-how many it got, and Cucumber's own sharder splits the scenario list into that
-many slices. The watch stops after ten minutes, which stops watching rather
-than the remote work; `nix run .#odu -- ci cancel --run <id>` stops the run.
-
-To drive one feature or one scenario yourself:
+`just e2e` builds `.#olai` and runs the features against that binary, which is what a user runs.[^e2e] `just e2e-fast-remote` selects the `e2e` leaf through this tree's pinned Odu on `x86_64-linux`.[^remote] To drive one feature or one scenario yourself:[^vars]
 
 ```bash
 export OLAI_BIN="$(nix build .#olai --no-link --print-out-paths)/bin/olai"
@@ -33,6 +20,39 @@ bun run test                                     # everything
 bun run test ../plugins/outlines/e2e/features/see_the_outline.feature     # one feature
 bun run test ../plugins/outlines/e2e/features/see_the_outline.feature:45  # one scenario
 ```
+
+## What a failure leaves behind
+
+A failed scenario keeps a note, the server's log and a full-page screenshot in one directory per attempt.[^evidence] The note carries the scenario, the step that failed, the address the page was on, and every error the page's console recorded.[^note]
+
+## The fixtures
+
+A scenario is served one of the corpora under `packages/tests/fixtures/`, picked by a `@corpus:<name>` tag.[^corpora] Those directories are read-only, and a scenario that writes asks for `@scratch:<name>` instead.[^scratch] No scenario talks to a real agent: each engine ships a scripted substitute.[^fakes]
+
+## What the suite covers
+
+Cucumber runs the 2,379 entries as about 2,533 cases.[^count] What each workflow proves, the overlaps with the unit suites, what a run costs and the gaps that stand are in the closed blocks at the foot of this page.
+
+[^e2e]: `just e2e` is the leg `just check` runs. The suite sizes itself to the machine: cores minus one, capped at four, and from twenty cores up one worker per four cores, at most eight.
+
+[^remote]: On the remote fleet, Odu borrows up to nine free execution slots and tells Cucumber how many it got, and Cucumber's own sharder splits the scenario list into that many slices. The watch stops after ten minutes, which stops watching rather than the remote work. `nix run .#odu -- ci cancel --run <id>` stops the run.
+
+[^vars]: The variables a run reads are in the closed block at the foot of this page: `OLAI_BIN`, `OLAI_URL`, `HEADLESS`, `CUCUMBER_PARALLEL`, `CUCUMBER_TAGS`, `CUCUMBER_RETRY`, `OLAI_TEST_SLOW` and `OLAI_TEST_VERBOSE`.
+
+[^evidence]: Evidence lands in `$XDG_STATE_HOME/olai/e2e-evidence/<attempt>`, which `OLAI_E2E_EVIDENCE` overrides. Each file is named for the worker, a counter, the feature, the scenario and the case, with the suffix `.txt`, `.server.log` or `.png`. The directory sits outside the run's own tree, so a second attempt on one commit keeps the first attempt's evidence.
+
+[^note]: The note's lines also go to the run's output, each prefixed `olai-e2e-evidence:`, and `just e2e` prints the notes and lists the kept files when the run ends.
+
+[^corpora]: The corpora are `good`, `broken`, `tangled`, `empty`, `typed`, `chat`, `journal`, `agenda`, `morning-agenda`, `lanes`, `legacy-pins`, `mail`, `odu-run`, `plugins`, `plugin-services`, `browser-services` and `browser-services-failed`.
+
+[^scratch]: A scenario tagged `@scratch:<name>` is served a temp copy of that corpus, with `@share-scratch` sharing one copy per worker and restoring the fixture between scenarios.
+
+[^fakes]: Each scripted substitute sits under `packages/plugins/<name>/e2e/fake/`, reached through the generated roster, on the engine-agnostic ACP core at `packages/tests/agent/`. The step `the harness keeps distinct sessions on disk` turns on the scripted agent's store, so ids are unique, only sessions that were prompted can be listed, and replay survives a restart. Under `@browsing-live` the row runs the real Playwright Chromium and the real Playwright MCP instead of the scripted one. `bin/broken-git/git` is a `git` that is found and fails.
+
+[^count]: The count is Gherkin entries, where an outline counts once. `tabs/switch_benchmark.feature` carries `@skip` and stays out of the default run.
+
+<details>
+<summary>The variables a run reads</summary>
 
 | Variable | What it does |
 | --- | --- |
@@ -45,35 +65,10 @@ bun run test ../plugins/outlines/e2e/features/see_the_outline.feature:45  # one 
 | `OLAI_TEST_SLOW` | The factor Chromium slows the renderer by, to reproduce a race a loaded machine loses. |
 | `OLAI_TEST_VERBOSE` | Streams the server's own output into the test output. |
 
-## What a failure leaves behind
+</details>
 
-A failed scenario keeps a note, the server's log and a full-page screenshot in
-one directory per attempt: `$XDG_STATE_HOME/olai/e2e-evidence/<attempt>`, which
-`OLAI_E2E_EVIDENCE` overrides. Each file is named for the worker, a counter,
-the feature, the scenario and the case, with the suffix `.txt`, `.server.log`
-or `.png`.
-
-The note carries the scenario, the step that failed, the address the page was
-on, and every error the page's console recorded. Those lines also go to the
-run's output, each prefixed `olai-e2e-evidence:`, and `just e2e` prints the
-notes and lists the kept files when the run ends. The directory sits outside
-the run's own tree, so a second attempt on one commit keeps the first
-attempt's evidence.
-
-## The fixtures
-
-A scenario is served one of the corpora under `packages/tests/fixtures/`,
-picked by a `@corpus:<name>` tag. Those directories are read-only: a scenario
-that writes asks for `@scratch:<name>` and is served a temp copy, with
-`@share-scratch` sharing one copy per worker and restoring the fixture between
-scenarios. The corpora are `good`, `broken`, `tangled`, `empty`, `typed`,
-`chat`, `journal`, `agenda`, `morning-agenda`, `lanes`, `legacy-pins`, `mail`,
-`odu-run`, `plugins`, `plugin-services`, `browser-services` and
-`browser-services-failed`.
-
-No scenario talks to a real agent. Each engine ships a scripted substitute
-under `packages/plugins/<name>/e2e/fake/`, reached through the generated
-roster, on the engine-agnostic ACP core at `packages/tests/agent/`.
+<details>
+<summary>Each agent's scripted substitute</summary>
 
 | Fake | Stands in for |
 | --- | --- |
@@ -85,19 +80,12 @@ roster, on the engine-agnostic ACP core at `packages/tests/agent/`.
 | `kolu` | kolu's padi socket, placed on the server's `PATH` |
 | `browsing` | the Playwright MCP a conversation's browser attaches to |
 
-Two fixtures stand beside them. The step `the harness keeps distinct sessions
-on disk` turns on the scripted agent's store, so ids are unique, only sessions
-that were prompted can be listed, and replay survives a restart. Under
-`@browsing-live` the row runs the real Playwright Chromium and the real
-Playwright MCP instead of the scripted one. `bin/broken-git/git` is a `git`
-that is found and fails.
+</details>
 
-## What the suite covers
+<details>
+<summary>What each workflow proves</summary>
 
-One row per group of feature files. The count is Gherkin entries, where an
-outline counts once: 2,379 entries in 302 feature files, which Cucumber runs as
-about 2,533 cases. `tabs/switch_benchmark.feature` carries `@skip` and stays
-out of the default run.
+One row per group of feature files.
 
 | Workflow | Entries | What it proves |
 | --- | --- | --- |
@@ -138,11 +126,12 @@ out of the default run.
 | Staying live | 23 | Going offline and reconnecting, writes from outside, a half-open socket, and drafts that survive an outage. |
 | Link previews | 35 | The hover card for a node, a document and a conversation link, and the kinds that offer none. |
 
-## Where the browser repeats a unit test
+</details>
 
-A scenario has to earn the browser: grammar, semantics and pure logic belong in
-the unit suites. These overlaps are kept on purpose, because the browser path
-is where the behaviour has broken.
+<details>
+<summary>Where the browser repeats a unit test</summary>
+
+A scenario has to earn the browser: grammar, semantics and pure logic belong in the unit suites. These overlaps are kept on purpose, because the browser path is where the behaviour has broken.
 
 | The unit tests pin | The browser adds |
 | --- | --- |
@@ -158,55 +147,46 @@ is where the behaviour has broken.
 | The tab store, its list verbs and persistence | The strip's gestures through a real layout shell, real `localStorage` across a reload, and the address winning over the stored front tab. |
 | Deriving the selected files for a commit | The prepared state surviving a plugin rebuild, and the commit holding exactly the reviewed files. |
 
-Similar wording is not a reason to delete a scenario. Removing a drag's source
-against removing its destination, pin lists of one size against reordered ones,
-phone against desktop entry points, and a reload against a server restart each
-drive different data, handlers or lifetimes.
+Similar wording is not a reason to delete a scenario. Removing a drag's source against removing its destination, pin lists of one size against reordered ones, phone against desktop entry points, and a reload against a server restart each drive different data, handlers or lifetimes.
 
-## What a run costs
+</details>
 
-Timings come from reports of past runs, so they bound the cost loosely rather
-than benchmarking it.
+<details>
+<summary>What a run costs</summary>
 
-- A remote run's logical duration is the slowest slice's, and each slice
-  dispatches its own `install` prerequisite in parallel, reported as a node
-  such as `e2e[2-of-3]::install`.
+Timings come from reports of past runs, so they bound the cost loosely rather than benchmarking it.
+
+- A remote run's logical duration is the slowest slice's, and each slice dispatches its own `install` prerequisite in parallel, reported as a node such as `e2e[2-of-3]::install`.
 - The attachment workflow that uploads and hashes 50 MiB takes 4.11 seconds.
 - Navigating nine nodes with every scope taken takes 16.71 seconds.
 - The three idle-timer cases take 9.20 to 10.01 seconds each.
-- A reconnect scenario spends about ten seconds waiting for the production
-  connection state to read `reconnecting`, which is a wait doing real work.
+- A reconnect scenario spends about ten seconds waiting for the production connection state to read `reconnecting`, which is a wait doing real work.
 
-## What no scenario drives
+</details>
 
-A passing suite is necessary, and it does not show that an untested workflow
-works. These are the gaps that stand.
+<details>
+<summary>What no scenario drives</summary>
 
-- A second browser window: live sync between two of them, and an unread
-  conversation acknowledged in one.
-- `Shift` with the secondary button on a tab, falling through to the browser's
-  own menu.
+A passing suite is necessary, and it does not show that an untested workflow works. These are the gaps that stand.
+
+- A second browser window: live sync between two of them, and an unread conversation acknowledged in one.
+- `Shift` with the secondary button on a tab, falling through to the browser's own menu.
 - `ArrowLeft` and `ArrowRight` inside a focused tab strip.
 - A stored tab set naming a route whose plugin has left.
 - The drop bar drawn while a tab is dragged.
 - A question another plugin raises while a palette level is open.
-- The **Page not found** view of a departed self-drawn route, and a self-drawn
-  page's own loading state.
+- The **Page not found** view of a departed self-drawn route, and a self-drawn page's own loading state.
 - The operating system's own IME candidate picker.
 - An unreadable `.html` page becoming readable again.
 - `Escape` inside an open submenu of the row menu, and typeahead in it.
-- Two machines sharing one directory invalidating each other's session
-  references.
-- A conversation whose node agent is evicted between a line being heard and the
-  tab acknowledging it.
+- Two machines sharing one directory invalidating each other's session references.
+- A conversation whose node agent is evicted between a line being heard and the tab acknowledging it.
 - Live model output: every scenario drives a scripted agent.
-- A live `claude auth login` or Codex device-code sign-in, and the sign-in
-  card's colours and phone layout.
+- A live `claude auth login` or Codex device-code sign-in, and the sign-in card's colours and phone layout.
 - A live `omp` process, whose fake is the whole wire.
 - The memory-tidying pass against a real engine.
-- A host that refuses Chromium's sandbox, and a Chromium that crashes under a
-  running browsing row.
-- The browsing row switched off while a conversation's own browser is attached,
-  and composition, drag-and-drop or file upload inside a browsed page.
-- macOS beyond the build check: the aarch64-darwin Chromium path runs only
-  there.
+- A host that refuses Chromium's sandbox, and a Chromium that crashes under a running browsing row.
+- The browsing row switched off while a conversation's own browser is attached, and composition, drag-and-drop or file upload inside a browsed page.
+- macOS beyond the build check: the aarch64-darwin Chromium path runs only there.
+
+</details>

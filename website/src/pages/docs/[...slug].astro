@@ -20,12 +20,23 @@ const map = await siteMap()
 const place = map.places.get(page.id)
 if (place === undefined) throw new Error(`docs/${page.id}.md is not on the page map`)
 const { trail, previous, next } = place
-const { title, summary, description } = place.link
-const sections = headings.filter((heading) => heading.depth === 2)
-// About 220 words a minute, counted over the source: enough to tell a glance
-// from a sit-down.
-const minutes = Math.max(1, Math.round((page.body ?? "").split(/\s+/).length / 220))
+const { title, description } = place.link
 const here = (id: string) => (id === page.id ? "page" : undefined)
+const within = (group: { links: { id: string }[]; groups: { links: { id: string }[] }[] }) =>
+  group.links.some((link) => link.id === page.id) || group.groups.some((inner) => inner.links.some((link) => link.id === page.id))
+// The main flow is what a reader sees without opening anything: the page
+// without its `<details>` blocks and footnote definitions. Its length is the
+// reading time, and its `##` headings are "On this page".
+const body = page.body ?? ""
+const main = body
+  .replace(/<details>[\s\S]*?<\/details>/g, "")
+  .replace(/^\[\^[^\]]+\]:.*(?:\n(?: {4}.*|\s*$))*/gm, "")
+const mainHeadings = new Set([...main.matchAll(/^## (.+)$/gm)].map((match) => match[1]?.replace(/`/g, "").trim()))
+// The overview draws cards, not its own headings, so it has no list of them.
+const sections =
+  page.id === "index" ? [] : headings.filter((heading) => heading.depth === 2 && mainHeadings.has(heading.text.trim()))
+const minutes = Math.max(1, Math.round(main.split(/\s+/).length / 220))
+const notes = (body.match(/^\[\^[^\]]+\]:/gm) ?? []).length
 ---
 
 <Base title={`${title} · olai docs`} description={description}>
@@ -33,25 +44,28 @@ const here = (id: string) => (id === page.id ? "page" : undefined)
     {/* A closed <details> on a phone; on a wide screen, docs.css shows the
         contents of both of these whatever their state. */}
     <details class="docs-nav">
-      <summary>All docs pages</summary>
+      <summary>{trail[0] ?? "All docs pages"}</summary>
       <nav aria-label="All docs pages">
         <a class="overview" href={hrefOf("index")} aria-current={here("index")}>Overview</a>
         {
           map.groups.map((group) => (
-            <section>
-              <h2>{group.title}</h2>
+            <details class="group" open={within(group)}>
+              <summary>
+                {group.title}
+                <span>{group.links.length + group.groups.reduce((sum, inner) => sum + inner.links.length, 0)}</span>
+              </summary>
               {group.links.map((link) => (
                 <a href={link.href} aria-current={here(link.id)}>{link.title}</a>
               ))}
               {group.groups.map((inner) => (
-                <details open={inner.links.some((link) => link.id === page.id)}>
+                <details class="subgroup" open={inner.links.some((link) => link.id === page.id)}>
                   <summary>{inner.title}</summary>
                   {inner.links.map((link) => (
                     <a href={link.href} aria-current={here(link.id)}>{link.title}</a>
                   ))}
                 </details>
               ))}
-            </section>
+            </details>
           ))
         }
       </nav>
@@ -61,8 +75,14 @@ const here = (id: string) => (id === page.id ? "page" : undefined)
       <header class="page-head">
         {trail.length > 0 && <p class="trail">{trail.join(" › ")}</p>}
         <h1>{title}</h1>
-        {summary !== "" && <p class="summary" set:html={summary} />}
-        <p class="meta">{minutes} min read{sections.length > 0 && ` · ${sections.length} sections`}</p>
+        {page.id === "index" && <p class="summary" set:html={map.intro} />}
+        {
+          page.id !== "index" && (
+            <p class="meta">
+              {minutes} min read{notes > 0 && ` · ${notes} notes, one tap away`}
+            </p>
+          )
+        }
       </header>
 
       {
@@ -80,9 +100,43 @@ const here = (id: string) => (id === page.id ? "page" : undefined)
         )
       }
 
-      <article class="prose">
-        <Content />
-      </article>
+      {
+        page.id === "index" ? (
+          <div class="cards">
+            {map.groups.map((group) => (
+              <section class="card" id={group.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}>
+                <h2>{group.title}</h2>
+                <p set:html={group.intro} />
+                <ul>
+                  {group.links.map((link) => (
+                    <li>
+                      <a href={link.href}>{link.title}</a>
+                    </li>
+                  ))}
+                </ul>
+                {group.groups.map((inner) => (
+                  <details>
+                    <summary>
+                      {inner.title} <span>{inner.links.length}</span>
+                    </summary>
+                    <ul>
+                      {inner.links.map((link) => (
+                        <li>
+                          <a href={link.href}>{link.title}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ))}
+              </section>
+            ))}
+          </div>
+        ) : (
+          <article class="prose">
+            <Content />
+          </article>
+        )
+      }
 
       {
         (previous !== undefined || next !== undefined) && (

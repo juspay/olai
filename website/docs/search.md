@@ -1,41 +1,76 @@
 # Search
 
-One query language, several doors: the header's search box, the palette, the pickers under a row, and an agent's `search_nodes`. This page is the grammar — what a word matches, every operator, and what a query is refused for. Narrowing the page in front of you is [filtering.md](filtering.md).
+One query language, several doors: the header's search box, the palette, the pickers under a row, and an agent's `search_nodes`.[^scope]
 
 ## Words, phrases and joiners
 
-A word is a case-folded substring, looked for in four fields: a node's title, its id, the tags written in it, and its note. Every word you type has to be found somewhere in the same node. olai finds the words you type, never what they mean.
+A word is a case-folded substring, looked for in four fields of a node.[^fields] Every word must be in the same node, and olai finds the words you type, never what they mean.[^joiners]
 
 | Written | Selects |
 | --- | --- |
 | `cabinets` | the word anywhere in one of the four fields |
 | `kitchen remodel` | both words, in one node, in either order |
-| `"kitchen remodel"` | that line, as one substring |
-| `"is:done"` | the text `is:done`, never the operator |
+| `"kitchen remodel"` | that line, as one substring[^quotes] |
 | `kitchen OR bathroom` | either side |
-| `-cabinets` | takes those rows back out |
+| `-cabinets` | takes those rows back out[^dash] |
 
-- A tag is indexed twice, bare and as written, so `alice` finds `@alice` and `@alice` finds only the one with that sigil.
-- A phrase is a substring of the field's own text, so it does not cross the line break a note keeps. An id and a tag hold no space, so a phrase with one is never found in either.
-- The dash goes outside the quotes. Inside them it is a character, which is how `"-force"` is searched for.
-- A quote opens a region wherever it sits, and that region has to be closed. Quoting is also how a value with a space is written: `prop:stage="in review"`.
-- The space between two tokens is "and", and `OR` binds tighter than it: `#home kitchen OR bathroom` is `#home` and one of the other two.
-- A chain `a OR b OR c` is one group, either side may be an operator (`is:todo OR is:doing`), and there are no parentheses.
-- `OR` is the one token that is not case-folded. Lower-case `or` is a word to find, and `"OR"` finds the word in capitals.
-- A group is not negated as a group. `-a -b` is neither of them; `-a OR -b` is not both of them.
-- One leading dash negates. A second is a character, so `--is:done` looks for that text and finds it where somebody typed it.
+## The operators you reach for
 
-## The operators
-
-| Operator | Asks |
+| Written | Asks |
 | --- | --- |
-| [`is:`](#is) | what the node is |
-| [`has:`](#has) | which fields the record carries |
-| [`date:`](#date) | the day the journal reads it on |
-| [`created:` and `changed:`](#created-and-changed) | the two stamps olai writes |
-| [`prop:`](#prop) | the node's own properties |
+| `is:todo` | what the node is |
+| `has:date` | which fields the record carries |
+| `date:today` | the day the journal reads it on |
+| `changed:last-week` | the two stamps olai writes |
+| `prop:stage="in review"` | the node's own properties |
 
-A colon after anything else is a colon in a word: `TODO:` and `http://…` are ordinary text.
+A colon after anything else is a colon in a word: `TODO:` and `http://…` are ordinary text. Every value is in the block below.
+
+## What a hit carries
+
+Title hits outrank id, tag and note.[^rank] A hit names the address, the ancestors and the record's own fields; documents rank on the same scale.
+
+## Where you search
+
+| Door | What it is |
+| --- | --- |
+| the header's search box | desktop and up: type, arrow up and down, `Enter` to open, `Escape` to clear |
+| the magnifier | the same place on a phone, opening the palette |
+| the palette | `Cmd` + `K`, which is `Ctrl` elsewhere[^palette] |
+| a panel under a row | the `((` widget, the edge panel's box, and the move-to picker[^panels] |
+| the chat composer's `@` list | names one node to put in a message ([chat.md](chat.md)) |
+| `search_nodes` | the same answer for an agent, over MCP[^agent] |
+
+Both listing boxes draw at most eight hits.[^eight]
+
+## What a query is refused for
+
+A refusal names the rule you broke, says which values the operator takes, and quotes what you typed, case and all.[^refusal] The query selects nothing.
+
+[^scope]: Narrowing the page in front of you, rather than searching the directory, is [filtering.md](filtering.md).
+
+[^fields]: The four fields are a node's title, its id, the tags written in it, and its note. A tag is indexed twice, bare and as written, so `alice` finds `@alice` and `@alice` finds only the one with that sigil.
+
+[^joiners]: The space between two tokens is "and", and `OR` binds tighter than it: `#home kitchen OR bathroom` is `#home` and one of the other two. A chain `a OR b OR c` is one group, either side may be an operator (`is:todo OR is:doing`), and there are no parentheses. `OR` is the one token that is not case-folded. Lower-case `or` is a word to find, and `"OR"` finds the word in capitals.
+
+[^quotes]: A quoted phrase is a substring of the field's own text, so it does not cross the line break a note keeps. An id and a tag hold no space, so a phrase with one is never found in either. A quote opens a region wherever it sits, and that region has to be closed. Quoting is also how a value with a space is written: `prop:stage="in review"`. `"is:done"` selects the text `is:done`, never the operator.
+
+[^dash]: One leading dash negates. A second is a character, so `--is:done` looks for that text and finds it where somebody typed it. The dash goes outside the quotes; inside them it is a character, which is how `"-force"` is searched for. A group is not negated as a group: `-a -b` is neither of them, and `-a OR -b` is not both of them.
+
+[^rank]: A field that starts with the word beats one that buries it, and a settled node loses ties, since `done` and `cancelled` are not what is on your plate. Mirrors are never hits: a placement is a second view of a node, not a node. The closed blocks below hold every field a hit carries and what a document is matched on.
+
+[^palette]: The palette lists the shell's commands first, then the hits. A query carrying a `+` prefix is a line being captured rather than a lookup, and nothing is asked of the server for it ([getting-around.md](getting-around.md)).
+
+[^panels]: The three panels under a row cap at eight hits and carry no kind selector. The move-to picker draws a refusal beside a destination the row cannot go to ([organising.md](organising.md)).
+
+[^agent]: A serve that does not run the search plugin answers every door here with no hits ([plugins/search.md](plugins/search.md)).
+
+[^eight]: Both listing boxes draw at most eight hits, and say `8 of 90 matches` under them whenever more matched than fit. There is no results page and no larger limit: narrow it with the box or the selector.
+
+[^refusal]: A refusal quotes what you typed, case and all: `IS:DONE` works, and a refusal for `is:OPEN` says `is:OPEN`. Every refusal is in a closed block below.
+
+<details>
+<summary>Every operator, and the values it takes</summary>
 
 ### `is:`
 
@@ -66,7 +101,7 @@ Which fields the record carries. It takes one of `desc`, `date`, `created`, `cha
 
 ### `date:`
 
-The day the journal reads a node on: what it is scheduled for, when it was finished, and when it was called off. A dated `doing` or `todo` is on no day here, exactly as on the day page ([dates-and-status.md](dates-and-status.md)). It takes every value in [the day values](#the-day-values).
+The day the journal reads a node on: what it is scheduled for, when it was finished, and when it was called off. A dated `doing` or `todo` is on no day here, exactly as on the day page ([dates-and-status.md](dates-and-status.md)). It takes every value in the day values below.
 
 ### `created:` and `changed:`
 
@@ -100,7 +135,7 @@ prop:merge=auto is:todo             equality on a ref, exactly as before
 - A `date` compares as text at each bound's own width, and takes every value `date:` takes. A bare day is that day's span.
 - A range on any other key is refused, naming what the key is. The rule is "reads as a range": `prop:worktree=../sibling` and `prop:version=1.0..2.0` are the equalities they look like.
 
-## The day values
+### The day values
 
 `date:`, `created:` and `changed:` share one value grammar, so learning one is learning all three.
 
@@ -126,9 +161,10 @@ prop:merge=auto is:todo             equality on a ref, exactly as before
 - What day it is comes from the server's clock at every door, so `date:today` is the day it is where the files are, whatever zone you are reading in.
 - Nothing re-asks on a timer. A page left untouched for two hours goes on showing the hour it last asked about; a page left open past midnight re-reads its query against the new day when the question is asked again.
 
-## What a query is refused for
+</details>
 
-A refusal names the rule you broke, says which values the operator takes, and quotes what you typed, case and all: `IS:DONE` works, and a refusal for `is:OPEN` says `is:OPEN`. The query selects nothing.
+<details>
+<summary>Every refusal, and the one door whose refusals differ</summary>
 
 | Written | Refused because |
 | --- | --- |
@@ -148,9 +184,10 @@ A refusal names the rule you broke, says which values the operator takes, and qu
 
 The refusal reaches every door, with one gap. The filter box parses in the browser and draws its own refusal instantly, but it holds no directory to read a declaration out of, so an untyped range comes back there with no rows and no sentence.
 
-## What a hit carries
+</details>
 
-Title hits outrank id, tag and note. A field that starts with the word beats one that buries it, and a settled node loses ties, since `done` and `cancelled` are not what is on your plate.
+<details>
+<summary>Every field a hit carries, and what an agent asks for</summary>
 
 | Field | Holds |
 | --- | --- |
@@ -164,27 +201,17 @@ Title hits outrank id, tag and note. A field that starts with the word beats one
 
 - `matched` is absent for a query that named no words, and `matchedProps` for one that named no property. Neither names a negated clause: a node found by `-prop:agent` was not found on `agent`.
 - Property values travel whole, never cut at a length and never reduced to their keys, so a board is one query rather than one call per row.
-- Mirrors are never hits: a placement is a second view of a node, not a node.
 
 An agent's `search_nodes` adds what only an agent asks for. `limit` is the size of the answer. `withDesc: true` brings each node's note with it, and is off by default. A scope is `file` for one outline, or `under` for a node and everything beneath it.
 
 A `kind` narrows what an answer may hold: `node` for records, `document` for markdown and the files olai only shows, `outline` for outline files, or `file` for both kinds of file. With no kind named, every arm is ranked and capped together.
 
-## Where you search
+</details>
 
-| Door | What it is |
-| --- | --- |
-| the header's search box | desktop and up: type, arrow up and down, `Enter` to open, `Escape` to clear |
-| the magnifier | the same place on a phone, opening the palette |
-| the palette | `Cmd` + `K`, which is `Ctrl` elsewhere: the shell's commands, then the hits |
-| a panel under a row | the `((` widget, the edge panel's box, and the move-to picker |
-| the chat composer's `@` list | names one node to put in a message ([chat.md](chat.md)) |
-| `search_nodes` | the same answer for an agent, over MCP |
+<details>
+<summary>Inside each door: the selector, the counts, and following the directory</summary>
 
-- A palette query carrying a `+` prefix is a line being captured rather than a lookup, and nothing is asked of the server for it ([getting-around.md](getting-around.md)).
-- The three panels under a row cap at eight hits and carry no kind selector. The move-to picker draws a refusal beside a destination the row cannot go to ([organising.md](organising.md)).
-- An open palette or header search follows the directory without another keystroke: matches that leave stop being drawn, new ones arrive, and the counts move with them.
-- A serve that does not run the search plugin answers these doors with no hits ([plugins/search.md](plugins/search.md)).
+An open palette or header search follows the directory without another keystroke: matches that leave stop being drawn, new ones arrive, and the counts move with them.
 
 ### All, Rows and Files
 
@@ -195,13 +222,14 @@ The palette and the header box carry a selector under the box: **All**, **Rows**
 
 ### How much was left out
 
-Both listing boxes draw at most eight hits, and say `8 of 90 matches` under them whenever more matched than fit. When everything found is on screen they say nothing at all. **Files** with `is:done` says `0 matches`. There is no results page and no larger limit: narrow it with the box or the selector.
+When everything found is on screen the boxes say nothing at all, and **Files** with `is:done` says `0 matches`.
 
 `Enter` takes a row of the list in front of you. A search settles for a fifth of a second before it asks, and `Enter` inside that gap does nothing rather than opening what the query before last found; a click is never held back. In chat, a query containing spaces needs an arrow selection first, or `Enter` sends the message as you typed it.
 
-## Documents and the other files
+</details>
 
-A search reaches both kinds of thing the directory holds, ranked together on one scale, so a document whose title holds your word outranks a node that only mentions it in a note.
+<details>
+<summary>Documents and the other files</summary>
 
 | A record is matched on | A document is matched on |
 | --- | --- |
@@ -220,3 +248,5 @@ A search reaches both kinds of thing the directory holds, ranked together on one
 - A body hit on a markdown document carries its line. Opening it from the palette or the header sets `?q=<query>#L<line>`, scrolls to the rendered block holding that source line and lights the query's words there; the address is shareable, and Back returns to the page you searched from.
 - A blank line or an opening fence marker lands on the block before it, and a line past the end of the file opens at the top without an error.
 - Neither listing box makes a file: **New document** and **New outline** are in the sidebar ([getting-around.md](getting-around.md)).
+
+</details>

@@ -27,7 +27,7 @@ import * as fs from "node:fs"
 import { expect, test } from "bun:test"
 
 import { anchorsIn, findingsIn } from "./support/docs-rules.ts"
-import { at, isLocal, landing, linksIn, pages, picturesIn } from "./support/docs.ts"
+import { at, INDEX, isLocal, landing, linksIn, pages, picturesIn } from "./support/docs.ts"
 
 const PAGES = pages()
 
@@ -39,7 +39,7 @@ test("the served set is actually being read", () => {
 
 for (const page of PAGES) {
   test(`${page} is written to the standard`, () => {
-    const findings = findingsIn(fs.readFileSync(at(page), "utf8"))
+    const findings = findingsIn(fs.readFileSync(at(page), "utf8"), page !== INDEX)
     expect(findings.map((finding) => `${page}:${finding.line} rule ${finding.rule}: ${finding.said}`))
       .toEqual([])
   })

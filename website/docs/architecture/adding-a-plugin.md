@@ -1,8 +1,26 @@
 # Adding a plugin
 
-The steps to add one plugin to olai. Two artefacts live outside `packages/` (a symlink and a line in the docs index), and no general package changes at all. The words each file uses are in [plugin-vocabulary.md](plugin-vocabulary.md).
+The steps to add one plugin to olai. Everything except the name, and a surface where you compose one, is optional.[^outside]
 
-Everything below except the name, and a surface where you compose one, is optional. A plugin that contributes one cell is a whole plugin: odu is.
+A plugin that contributes one cell is a whole plugin: odu is. The words each file uses are in [plugin-vocabulary.md](plugin-vocabulary.md).
+
+| Step | Where it lands |
+| --- | --- |
+| 1. The package | `packages/plugins/<name>/package.json` |
+| 2. The wire | `src/wire.ts` |
+| 3. The server half | `src/server.ts` |
+| 4. The browser half | `src/browser.tsx`, only if it draws |
+| 5. The page | `packages/plugins/<name>/docs.md`, plus a symlink and an index row |
+| 6. The registry row | `packages/bundle/olai.yml` |
+| 7. If it is an engine | `src/leg.ts`, `src/install.ts`, no surface |
+| 8. If it ships a binary, a pin or a generated file | `default.nix` |
+| 9. If it is an engine | `e2e/fake/` |
+| 10. Run the fence | `bun test packages/bundle` |
+
+[^outside]: What lands outside `packages/`: two artefacts, a symlink and a line in the docs index. No general package changes at all.
+
+<details>
+<summary>1–4: the package, the wire, and the two halves</summary>
 
 ## 1. The package: `packages/plugins/<name>/package.json`
 
@@ -44,7 +62,7 @@ export const surface = defineSurface({
 export const faces = { browser: { ci: "resource", service: "resource" } }
 ```
 
-An engine has no such file. What an engine contributes to a tab already travels on the chat cell, so it composes no surface and puts its `name` in `src/index.ts`. See step 6.
+An engine has no such file. What an engine contributes to a tab already travels on the chat cell, so it composes no surface and puts its `name` in `src/index.ts`. See step 7.
 
 ## 3. The server half: `src/server.ts`
 
@@ -67,6 +85,11 @@ Only if the plugin draws. Same shape: `name` and `surface` re-exported from `./w
 - The slots you may hang a face in, and what each takes, are in [slot-ownership.md](slot-ownership.md).
 
 > An `onCleanup` registered after an `await` inside `onMount` runs with a null owner, which Solid's production build compiles to nothing. Anything you load before you can build registers its cleanup before the load, over an empty slot, and guards the continuation against an owner that has gone.
+
+</details>
+
+<details>
+<summary>5–6: the page, and the row in the registry</summary>
 
 ## 5. The page: `packages/plugins/<name>/docs.md`
 
@@ -95,6 +118,11 @@ One row, because the rest is generated.
 | `quiet` | `true` lets its group start collapsed while every row in it is running with nothing to say |
 
 Add one line to `packages/bundle/package.json`'s `dependencies`, without which the generated `import()` does not resolve. The generator writes the rest from the row: the browser's row table with a dynamic import per plugin, the stylesheet chain, the merged testid table, the asset and write-reservation tables, and the roster of engine fakes. All of them are produced by `just install` and by the Nix build in its own sandbox, so a packaged build cannot ship a stale copy.
+
+</details>
+
+<details>
+<summary>7–9: an engine, a Nix half, and a scripted fake</summary>
 
 ## 7. If it is an engine
 
@@ -131,10 +159,15 @@ A shipped ACP adapter is the plugin's own `acp/` directory, with its patches and
 
 An engine's scripted browser-test fake lives at `packages/plugins/<name>/e2e/fake/`: an `index.ts` descriptor, typed by `@olai/tests`' `./harness/fake.ts`, plus the executables the harness spawns. `packages/tests/agent/` keeps only the engine-agnostic core, and the harness reaches the fakes through the generated `@olai/bundle/e2e-fakes` roster rather than by name.
 
-## 10. Run the fence
+</details>
+
+<details>
+<summary>10: run the fence</summary>
 
 ```
 bun test packages/bundle
 ```
 
 It tells you what you got wrong, and it is specific: a door you reached past, a word a general package spells, a knob your manifest and your module disagree about. [plugin-system.md](plugin-system.md) lists which file holds which rule.
+
+</details>

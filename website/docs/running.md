@@ -1,9 +1,7 @@
 # Serve a directory
 
-`olai web <directory>` opens one directory of outlines and serves it to a
-browser. This page is its flags, what the health dot in the header tells you,
-and what the server writes to its log. New to olai? Start at
-[start.md](start.md).
+`olai web <directory>` serves one directory of outlines to a browser.[^name]
+This page is its flags, its health dot and its log.[^new]
 
 ## Run it
 
@@ -11,20 +9,8 @@ and what the server writes to its log. New to olai? Start at
 nix run github:juspay/olai -- web ~/notes
 ```
 
-In a clone of the repository, `just` lists the developer recipes:
-
-```sh
-just run            # this repo's docs, on an OS-assigned port
-just serve docs     # the same, plus a client-bundler watch for the edit loop
-```
-
-The directory is read recursively: every `.olai` outline and every `.md`
-document. olai does not descend into dot-directories or `node_modules`, so
-nothing inside `.git` is served. The directory must already exist; `olai web`
-refuses a path that does not.
-
-The page follows the disk. Save a file, `git pull`, or drop in a new outline,
-and the page updates in place. Nothing is installed in the browser.
+The directory is read recursively,[^read] and the page follows the
+disk.[^disk] A clone of the repository has developer recipes too.[^just]
 
 ## Flags
 
@@ -33,27 +19,116 @@ and the page updates in place. Nothing is installed in the browser.
 | `<directory>` | required | the directory of outlines, read recursively |
 | `--port` | `0`, which asks the OS for a port | the `TCP` port to listen on |
 | `--host` | `127.0.0.1` | the interface to bind |
-| `--profile` | `web` | which bundle of plugins to mount |
+| `--profile` | `web` | which bundle of plugins to mount[^profile] |
 
-`--profile web` mounts the browser, the websocket and the MCP endpoint.
-`--profile surface` opens the directory and MCP without browser assets or a
-websocket. `--profile test-minimal` opens the directory and its settings reader
-with no listener.
-
-Which plugins run is not a flag. It is the directory's own policy, in
-`_olai/Settings.olai` ([settings.md](settings.md)), and so are the git policy
-and the log level.
+A fixed port is a deployment's word.[^port]
 
 > `--host` is loopback by default because the surface is unauthenticated:
-> anyone who can reach the port can read every outline under the directory, and
-> change one. To reach it from elsewhere, put a proxy in front
+> anyone who can reach the port can read every outline under the directory,
+> and change one. Put a proxy in front to reach it from elsewhere
 > ([deploying.md](deploying.md)).
 
-A fixed port is a deployment's word: the home-manager module passes `7714`.
-With `--port 0`, a restart may land on a new port, so read the address off the
-`serving` line each time.
+## The health dot
 
-## One olai per directory
+One dot in the header covers everything that reports on the server.[^covers]
+
+| Colour | Means |
+| --- | --- |
+| green | all is well |
+| amber | writes waiting to be committed, a quiet watcher, a re-dialling connection |
+| red | a restart under the tab, a version skew, a fault |
+
+Click the dot for a popover with one row per readout.[^popover]
+
+## When the connection drops
+
+The page freezes under a card and thaws by itself when the connection
+returns.[^cards] Two cards want a **Reload**.[^reload]
+
+## Logging
+
+The server says what it is doing on stdout, one line per event.[^lines] Set the
+level and the format on the top-level `olai` node of `_olai/Settings.olai`:
+
+```jsonl
+{"id":"olai","ord":"a0","title":"olai","custom":{"log-level":"debug","log-format":"logfmt"}}
+```
+
+| Key | Values | Default |
+| --- | --- | --- |
+| `log-level` | `debug`, `info`, `warn`, `error` | `info` |
+| `log-format` | `auto`, `logfmt`, `pretty` | `auto`, pretty on a terminal and logfmt elsewhere |
+
+Both follow the file live.[^live]
+
+[^name]: The page names itself after the machine: `olai [machine]` in the tab
+    title, in the header's wordmark and in an installed app's name. Run olai on
+    a laptop and on a server and the two are distinct everywhere you meet them.
+    The name is the machine's hostname, and `OLAI_HOSTNAME` overrides it.
+
+[^new]: New to olai? [start.md](start.md) serves a directory, writes a line
+    into it and lets git record it. Stopping the server, and what one directory
+    does with a second olai over it, are in the closed blocks at the foot of
+    this page.
+
+[^read]: The directory is read recursively: every `.olai` outline and every
+    `.md` document. olai does not descend into dot-directories or
+    `node_modules`, so nothing inside `.git` is served. The directory must
+    already exist; `olai web` refuses a path that does not.
+
+[^disk]: The page follows the disk. Save a file, `git pull`, or drop in a new
+    outline, and the page updates in place. Nothing is installed in the
+    browser.
+
+[^just]: In a clone of the repository, `just` lists the developer recipes.
+    `just run` serves this repository's docs on an OS-assigned port, and
+    `just serve docs` does the same plus a client-bundler watch for the edit
+    loop.
+
+[^profile]: `--profile web` mounts the browser, the websocket and the MCP
+    endpoint. `--profile surface` opens the directory and MCP without browser
+    assets or a websocket. `--profile test-minimal` opens the directory and its
+    settings reader with no listener. Which plugins run is not a flag: it is
+    the directory's own policy, in `_olai/Settings.olai`
+    ([settings.md](settings.md)), and so are the git policy and the log level.
+
+[^port]: The home-manager module passes `7714`. With `--port 0`, a restart may
+    land on a new port, so read the address off the `serving` line each time.
+
+[^covers]: The health dot covers the connection, git's Commit row, and each
+    running integration's readout. A readout with nothing wrong and nothing
+    running, such as `Not a git folder` or `No kolu`, is quiet and never
+    colours the dot. Its accessible name and tooltip say what is wrong in the
+    readout's own words: `Status: all good`, or `Status: <news> · <news>`.
+
+[^popover]: Click the dot, or Tab to it and press `Enter`. Rows stand worst
+    first, red through quiet, with the uptime line and the **Plugins** row
+    last. A plugin that is switched off has no row. A phone's header has no
+    dot: it shows a banner under the bar when there is news, and the
+    Preferences and Plugins doors are rows at the foot of the sidebar drawer.
+
+[^cards]: The card says `Connection lost` / `Reconnecting…` while olai
+    re-dials, and the page thaws on its own. The first connect says
+    `Connecting…`.
+
+[^reload]: `The server restarted` / `Reload the page to keep working.` is
+    recovered by a reload and nothing else. `Something went wrong on this page`
+    / `Your files are safe. Reload to try again.` offers **Reload** or **Go
+    home**, with the technical text inside the closed `Details` disclosure.
+
+[^lines]: The log names the address it bound, the agents it detected, and
+    anything that went wrong. Chat's lifecycle is there too: a conversation
+    opening, a prompt sent, a turn that ended or failed, and the agent process
+    coming and going. What a line looks like is in the closed block at the foot
+    of this page.
+
+[^live]: Both keys follow the file live, with no restart. Before the directory
+    is open, the process uses the defaults. The **Server** section at the foot
+    of the plugins panel edits both with the same controls as any plugin
+    setting ([settings.md](settings.md)).
+
+<details>
+<summary>One olai per directory</summary>
 
 A directory has one active server over it. A second process keeps its plugins
 panel, but its vault row refuses the directory:
@@ -67,9 +142,10 @@ That is the pid of the server that already holds it, so `ps 48219` says which
 one. A symlinked spelling of the same directory is the same directory: the
 claim is on where the files are. A refusal naming no pid means the same thing.
 
-The claim is an advisory lock held outside your notes, in `$XDG_RUNTIME_DIR/olai/`
-or `/tmp/olai-$UID/`, and the kernel releases it when the process ends. There
-is nothing to clean up after a crash and no file left inside the directory.
+The claim is an advisory lock held outside your notes, in
+`$XDG_RUNTIME_DIR/olai/` or `/tmp/olai-$UID/`, and the kernel releases it when
+the process ends. There is nothing to clean up after a crash and no file left
+inside the directory.
 
 Two things the lock does not cover:
 
@@ -84,32 +160,10 @@ its MCP endpoint, with the vault row **failed** and the lock holder's sentence
 on it. Vault-backed tools leave the catalog. Once the other server stops,
 switch that row off and on to retry.
 
-## What it calls itself
+</details>
 
-The page names itself after the machine: `olai [machine]` in the tab title, in
-the header's wordmark and in an installed app's name. Run olai on a laptop and
-on a server and the two are distinct everywhere you meet them. The name is the
-machine's hostname, and `OLAI_HOSTNAME` overrides it.
-
-## The health dot
-
-One dot in the header covers everything that reports on the server: the
-connection, git's Commit row, and each running integration's readout.
-
-| Colour | Means |
-| --- | --- |
-| green | all is well |
-| amber | something wants attention: writes waiting to be committed, a watcher gone quiet, a connection re-dialling |
-| red | something is broken: the server restarted under the tab, a version skew, a fault |
-
-A readout with nothing wrong and nothing running, such as `Not a git folder` or
-`No kolu`, is quiet and never colours the dot. Its accessible name and tooltip
-say what is wrong in the readout's own words: `Status: all good`, or
-`Status: <news> · <news>`.
-
-Click the dot, or Tab to it and press `Enter`, for a popover with one row per
-readout. Rows stand worst first, red through quiet, with the uptime line and
-the **Plugins** row last. A plugin that is switched off has no row.
+<details>
+<summary>Every row of the health popover</summary>
 
 - the connection: `Connected`, `Connecting…`, `Reconnecting…`,
   `Partly connected` (some updates are not arriving), or
@@ -122,28 +176,10 @@ the **Plugins** row last. A plugin that is switched off has no row.
   ([settings.md](settings.md)). `Escape` shuts the panel and puts the caret
   back on the dot.
 
-A phone's header has no dot. It shows a banner under the bar when there is
-news, and the Preferences and Plugins doors are rows at the foot of the sidebar
-drawer.
+</details>
 
-## When the connection drops
-
-The page freezes under a card saying `Connection lost` / `Reconnecting…`, and
-thaws by itself when the connection returns. The first connect says
-`Connecting…`.
-
-| Card | What to do |
-| --- | --- |
-| `Connection lost` / `Reconnecting…` | wait; it thaws on its own |
-| `The server restarted` / `Reload the page to keep working.` | press **Reload**: only a reload recovers that one |
-| `Something went wrong on this page` / `Your files are safe. Reload to try again.` | press **Reload** or **Go home**; the technical text is inside the closed `Details` disclosure |
-
-## Logging
-
-The server says what it is doing on stdout, one line per event: the address it
-bound, the agents it detected, and anything that went wrong. Chat's lifecycle
-is there too: a conversation opening, a prompt sent, a turn that ended or
-failed, and the agent process coming and going.
+<details>
+<summary>What a log line carries, at each level and format</summary>
 
 Terminal output is compact: inline fields, short session identifiers, and a
 root path on directory changes, warnings and errors. Errors keep their full
@@ -151,23 +187,10 @@ causes on indented lines. Piped logfmt keeps the full root and session
 annotations. At `debug` you also get command paths, arguments, successful tool
 probes and the agent's stderr feed.
 
-Set the policy on the top-level `olai` node of `_olai/Settings.olai`:
+</details>
 
-```jsonl
-{"id":"olai","ord":"a0","title":"olai","custom":{"log-level":"debug","log-format":"logfmt"}}
-```
-
-| Key | Values | Default |
-| --- | --- | --- |
-| `log-level` | `debug`, `info`, `warn`, `error` | `info` |
-| `log-format` | `auto`, `logfmt`, `pretty` | `auto`, which picks pretty on a terminal and logfmt elsewhere |
-
-Both follow the file live, with no restart. Before the directory is open, the
-process uses the defaults. The **Server** section at the foot of the plugins
-panel edits both with the same controls as any plugin setting
-([settings.md](settings.md)).
-
-### Stopping it
+<details>
+<summary>Stopping it, and the signals it refuses</summary>
 
 `Ctrl` + `C` writes `olai web: received SIGINT` to stderr and exits 130, which
 the shipped user service counts as success. That line is what lets a journal
@@ -191,3 +214,5 @@ A server stops with the process that spawned it only when that spawner asked
 for it, by setting `OLAI_DIE_WITH_PARENT` to its own pid before the spawn. So a
 wrapper can start olai and exit: `olai web … &` from a script that returns,
 `setsid`, a double fork.
+
+</details>

@@ -1,36 +1,39 @@
 # The words a plugin manifest uses
 
-A plugin's two halves declare themselves with the words below. Each entry says what the word means, what it carries, and what an absent one costs. The types under `packages/plugin-api/src/` are the contract; [plugin-system.md](plugin-system.md) is why the shape is this one.
-
-## The index
+A plugin's two halves declare themselves with the words below.[^contract] Each entry says what a word means, what it carries, and what an absent one costs.
 
 | Word | What it is |
 | --- | --- |
-| [`name`](#name) | the plugin's one word, and five other things |
-| [row](#row) | the plugin's line in the registry |
-| [fiber](#fiber) | one mounted plugin, in one of four states |
-| [service and `needs`](#service-and-needs) | a named capability, and the list that declares it |
-| [`surface` and member](#surface-and-member) | the plugin's section of the wire, and one item on it |
-| [`faces`](#faces) | which caller may reach which members |
-| [`writes`, `resources`, `tools`, `charter`](#writes-resources-tools-and-charter) | the rest of a surface registration |
-| [door](#door) | a package subpath another package may import |
-| [`probe`](#probe) | is this tool installed on this host? |
-| [kind](#kind) | a word the plugin adds to the property vocabulary |
-| [claim](#claim) | the property key a kind declares for itself |
-| [dressing](#dressing) | the chip, pane or block a live value wears |
-| [row actions](#row-actions) | what the plugin hangs on a row's menu |
-| [chrome](#chrome) | the plugin's seat in the header bar |
-| [mount](#mount) | the plugin's own component in the page |
-| [mark](#mark) | the plugin's logo, beside what it delivered |
-| [doorbell](#doorbell) | posting a message into a conversation |
-| [`wake`](#wake) | the plugin's wording for the doorbell's control |
-| [watching](#watching) | being told what happened in a conversation |
-| [local state](#local-state) | one record and one directory per plugin |
-| [offer](#offer) | a service of the plugin's own |
-| [engine](#engine) | an ACP coding agent the chat panel can seat |
-| [slot](#slot) | a named place in the page a face hangs in |
-| [`environment` and `config`](#environment-and-config) | the variables and settings a row declares |
-| [roster and licence](#roster-and-licence) | what runs, and what may draw |
+| [`name`](#name) | the plugin's one word |
+| [row](#row) | its line in the registry |
+| [fiber](#fiber) | one mounted plugin |
+| [service, `needs`](#service-and-needs) | a capability, and the list naming it |
+| [`surface`, member](#surface-and-member) | the plugin's section of the wire |
+| [`faces`](#faces) | who may call what |
+| [`writes`, `resources`, `tools`, `charter`](#writes-resources-tools-and-charter) | the rest of a registration |
+| [door](#door) | an importable subpath |
+| [`probe`](#probe) | is this tool installed here? |
+| [kind](#kind) | a property vocabulary word |
+| [claim](#claim) | the key a kind takes |
+| [dressing](#dressing) | the face a value wears |
+| [row actions](#row-actions) | the row menu's verbs |
+| [chrome](#chrome) | a seat in the header |
+| [mount](#mount) | the plugin's own component |
+| [mark](#mark) | the plugin's logo |
+| [doorbell](#doorbell) | posting into a conversation |
+| [`wake`](#wake) | the doorbell control's wording |
+| [watching](#watching) | being told what happened |
+| [local state](#local-state) | a record and a directory |
+| [offer](#offer) | a service of its own |
+| [engine](#engine) | an agent chat can seat |
+| [slot](#slot) | where a face hangs |
+| [`environment`, `config`](#environment-and-config) | variables and settings |
+| [roster, licence](#roster-and-licence) | what runs, what may draw |
+
+[^contract]: Where the contract lives: the types under `packages/plugin-api/src/` are it, and [plugin-system.md](plugin-system.md) is why the shape is this one.
+
+<details>
+<summary>A plugin, its row, and the services it names</summary>
 
 ### `name`
 
@@ -75,6 +78,11 @@ A service is a named capability reached through an Effect tag a plugin yields. `
 | `Bundle` | this plugin's rank in the registry's order |
 
 The browser half names browser services instead: `Slots`, `Faces`, `Wired`, `Clocks`, `Bar`, `Links`, `Edits`, `Landings` and `Offers`.
+
+</details>
+
+<details>
+<summary>The wire: <code>surface</code>, <code>faces</code>, doors and the probe</summary>
 
 ### `surface` and member
 
@@ -129,6 +137,11 @@ interface Probed {
 - A plugin may have no probe. The absent case is a machine that lacks the tool, which already works.
 - Chat schedules the asking with bounded concurrency, since each probe may start a subprocess.
 
+</details>
+
+<details>
+<summary>Kinds, claims and dressings</summary>
+
 ### kind
 
 A word the plugin adds to the directory's property vocabulary, contributed bare and stored prefixed with the plugin's name.
@@ -164,6 +177,11 @@ The face drawn for a live property value in an outline row. It draws beside the 
 | **block** | always owns a row: a terminal somebody wrote down is worth a row when nothing is happening |
 | **chip** | only while there is something to say. A row with no `odu-run` looks unchanged |
 | **pane** | opens below the row when a chip is clicked |
+
+</details>
+
+<details>
+<summary>What a plugin draws: row actions, chrome, mount, mark</summary>
 
 ### row actions
 
@@ -202,6 +220,11 @@ The plugin's logo: a small glyph beside a message it delivered into a conversati
 - It takes no arguments, because a mark is a glyph at the size of its line.
 - It returns shapes only: a `<g>` of paths in a `0 0 16 16` box, in `currentColor`. The app owns the surrounding `<svg>`, so one column of marks stays even.
 - A plugin with no mark is drawn with a generic glyph and named in full, never with another plugin's shape.
+
+</details>
+
+<details>
+<summary>Posting into a conversation: the doorbell, <code>wake</code>, watching</summary>
 
 ### doorbell
 
@@ -242,6 +265,11 @@ The strip around those words is core's: the picker, the separator and the numera
 ### watching
 
 A push service: core tells the plugin what happened in a conversation — a delivery that landed, an agent reply that settled, a turn that started or ended. Human messages are not among the events, and there is no transcript to read. The handler is contained, so a mirror that fails on one event does not take a turn down with it.
+
+</details>
+
+<details>
+<summary>State, offers, engines, slots and settings</summary>
 
 ### local state
 
@@ -291,7 +319,10 @@ A leaf of a `config` schema may be annotated `preference`, and it then draws in 
 
 The roster is which plugins this build has and which this serve is running, published as core's `plugins` cell. A licence is permission for one dressing to draw, answered per value the server sends, and both licences are below.
 
-## The doors a plugin package exposes
+</details>
+
+<details>
+<summary>The doors a plugin package exposes</summary>
 
 Three different programs load a plugin's code, so a package exposes three code doors plus one row of data.
 
@@ -308,7 +339,10 @@ Four more subpaths are routing rather than code graphs. `./all.css` chains the p
 
 `@olai/plugin-api` is not one of those doors. It is the interface a plugin is written against: browser faces and slots at its root, server service tags at `./services`. It names no plugin, which is what lets a plugin import it.
 
-## How a live property gets its UI
+</details>
+
+<details>
+<summary>How a live property gets its UI</summary>
 
 A directory's property declarations deliberately never travel to the browser, so the browser cannot read `_olai/Properties.olai` and decide anything. A value is nonetheless drawn by a plugin the browser was never told about, in three steps.
 
@@ -333,3 +367,5 @@ The roster arrives on a frame, so there is a moment when the browser does not kn
 | --- | --- | --- |
 | drawing a dressing | on | a dressing drawn early and removed is a flicker |
 | mounting a plugin | off | a subscription to a sibling this server did not compose fails for the life of the page, naming a plugin the operator turned off |
+
+</details>

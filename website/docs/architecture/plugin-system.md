@@ -1,33 +1,14 @@
 # The plugin system
 
-olai reaches tools it does not own (kolu, odu, Xyne Spaces, Gmail and the ACP coding agents) and most of its own features through plugins. A plugin is a package the bundle mounts while the server runs. This page is why that is the unit, and what the runtime does with one.
-
-| Page | What it answers |
-| --- | --- |
-| [plugin-vocabulary.md](plugin-vocabulary.md) | every word a manifest uses |
-| [adding-a-plugin.md](adding-a-plugin.md) | the steps to add one |
-| [slot-ownership.md](slot-ownership.md) | which capability owns each extension location |
-| [cordis.md](cordis.md) | ownership, lifetimes and removal |
+olai reaches tools it does not own, and most of its own features, through plugins. A plugin is a package the bundle mounts while the server runs.[^reach]
 
 ## Why a plugin is the unit
 
-A general package may know a plugin's **name**. It may know nothing else about it: not a member, not a property key, not a constructor. Without that rule, reaching an outside tool means editing general packages, and olai's judgement about that tool ends up in files that belong neither to the tool nor to olai.
-
-Three packages carry the arrangement.
-
-| Package | Role |
-| --- | --- |
-| `@olai/plugin-api` | the interface a plugin is written against. It names no plugin, so a plugin may import it |
-| `@olai/bundle` | the registry: which plugins this build has. It imports every plugin |
-| `packages/plugins/` | the plugins themselves |
-
-Interface and registry are separate packages because the registry imports every plugin, and a plugin importing the registry would be a cycle.
+A general package may know a plugin's **name**. It may know nothing else about it: not a member, not a property key, not a constructor.[^why] Three packages carry the arrangement.[^packages]
 
 ## The shape of a plugin
 
-Both halves of a plugin, server and browser, have the same form: a `definePlugin` call with a name, the services it needs, and one Effect that installs everything.
-
-The browser half registers components into slots:
+Both halves of a plugin, server and browser, have the same form: a `definePlugin` call with a name, the services it needs, and one Effect that installs everything.[^shape]
 
 ```tsx
 // packages/plugins/odu/src/browser.tsx  (abridged)
@@ -44,7 +25,67 @@ export default definePlugin({
 })
 ```
 
-The server half registers wire members, vocabulary and hooks:
+The runtime mounts one by waiting for its needs, stamping its identity, and undoing every registration when it leaves.[^runtime] Each running plugin adds its own sibling set of wire members under its name.[^wire]
+
+## Built, default and running
+
+```
+  built      what the binary carries   = every row in packages/bundle/olai.yml
+  default    what absent policy runs   = the rows without their own `disabled`
+  running    what THIS serve mounted   = the fibers the runtime reports running
+```
+
+The build-time default lives in the row itself, as `disabled: true`, the same field a person's settings patch writes.[^policy] `plugins.set({ name, enabled })` moves a plugin between running and off while the server runs.[^switch]
+
+## What a disabled plugin is
+
+A disabled plugin is **absent**: not parked, not half-wired, not degraded, and absent at every moment rather than only at boot.[^absent]
+
+```
+  kolu.on = no   ⇒   kolu's row is patched `disabled` and never applies
+
+                      no sibling surface        no probe run
+                      no wire tag               no header readout
+                      no handler                no tab half mounted
+                      no expose row             no dressing licensed
+                      no surface/kolu/ at all   its kinds validate as plain text
+                      no claimed key            (so no built-in declaration)
+```
+
+## Where the rest lives
+
+| Page | What it answers |
+| --- | --- |
+| [plugin-vocabulary.md](plugin-vocabulary.md) | every word a manifest uses |
+| [adding-a-plugin.md](adding-a-plugin.md) | the steps to add one |
+| [slot-ownership.md](slot-ownership.md) | which capability owns each extension location |
+| [cordis.md](cordis.md) | ownership, lifetimes and removal |
+| [settings.md](../settings.md) | which rows a serve selects, and the file that selects them |
+
+[^reach]: The tools olai does not own are kolu, odu, Xyne Spaces, Gmail and the ACP coding agents. A plugin is the unit for reaching them, and for most of what olai draws itself.
+
+[^why]: Without that rule, reaching an outside tool means editing general packages, and olai's judgement about that tool ends up in files that belong neither to the tool nor to olai.
+
+[^packages]: `@olai/plugin-api` is the interface a plugin is written against: it names no plugin, so a plugin may import it. `@olai/bundle` is the registry, which plugins this build has, and it imports every plugin. `packages/plugins/` holds the plugins themselves. Interface and registry are separate packages because the registry imports every plugin, and a plugin importing the registry would be a cycle.
+
+[^shape]: The browser half registers components into slots, and the server half registers wire members, vocabulary and hooks. The server half's sample, and what the shape buys, are in the closed block below.
+
+    `Surfaces.register` also takes `writes`, `faces`, `resources`, `tools` and `charter`: which tags carry the caller's attribution, which members each caller may reach, which are addressable, the agent verbs this plugin brings, and its paragraph to an agent. All of them belong to the plugin, so switching it off removes its verbs too.
+
+[^runtime]: Plugin authors write Effect. Cordis, the component engine underneath, is named by one package, `packages/effect-cordis`, which `packages/bundle/src/fence.test.ts` holds as an equality. The three mechanisms that do the work, and the hooks a server half can install, are in the closed block below.
+
+[^wire]: The browser and the server talk over one websocket, and core owns the root set of messages. Core's own members are the roster, the switch that moves a row, a row's configuration, who is looking, and what this deployment is called, all on three-segment tags. A plugin's members take four. The tags, and what a roster change costs, are in the closed block below.
+
+[^policy]: Turning an opt-in plugin on is therefore not a special path: policy writes `disabled: false` over the row, the same line that turns another row off. A profile and the directory's settings both patch that one catalogue.
+
+[^switch]: A panel switch is an ordinary write: it puts `on` into the row's namespace in `_olai/Settings.olai`, waits for that revision, and appears in the git ledger, so the choice survives a restart. Core grants the switch to the browser face alone, and the write gate reserves `on` against agents.
+
+    When the settings reader is absent, switches are session-only and the panel foot says so once. A broken settings file refuses durable writes with a repair sentence.
+
+[^absent]: Nothing degrades: the outline it would have owned is an ordinary outline, the properties it would have dressed draw as the text they are, and the connection indicator stays green. It costs no extra mechanism, because every registration has its own undo, so a disposed fiber drops its sibling, kinds, wake and listeners in reverse, at any moment.
+
+<details>
+<summary>The server half, and what the shape buys</summary>
 
 ```ts
 // packages/plugins/odu/src/server.ts  (abridged)
@@ -68,13 +109,10 @@ export default definePlugin({
 | The browser half registers rather than declares | a plugin the roster never names registers nothing, so no walk over it needs a permission check beside it |
 | A plugin imports `@olai/plugin-api` | the interface names no plugin, so the arrow points one way |
 
-`Surfaces.register` also takes `writes`, `faces`, `resources`, `tools` and `charter`: which tags carry the caller's attribution, which members each caller may reach, which are addressable, the agent verbs this plugin brings, and its paragraph to an agent. All of them belong to the plugin, so switching it off removes its verbs too.
+</details>
 
-## How the runtime mounts one
-
-Plugin authors write Effect. Cordis, the component engine underneath, is named by one package, `packages/effect-cordis`, which `packages/bundle/src/fence.test.ts` holds as an equality.
-
-Three mechanisms do the work.
+<details>
+<summary>How the runtime mounts one, its hooks, and work that starts outside Effect</summary>
 
 | Mechanism | What it means |
 | --- | --- |
@@ -104,9 +142,10 @@ An appliance such as kolu's client or odu's sweep is not written in Effect. When
 
 `ring.held` exists so that a caller needing the handle does not reach for `Effect.runFork`, which makes a fiber with no owner and none of the operator's settings.
 
-## What crosses the wire
+</details>
 
-The browser and the server talk over one websocket. Core owns the root set of messages, and each running plugin adds its own sibling set under its name.
+<details>
+<summary>What crosses the wire, and what a roster change costs</summary>
 
 ```
   surface/plugins/get           ← core.  3 segments.  the roster
@@ -118,13 +157,8 @@ The browser and the server talk over one websocket. Core owns the root set of me
             └──────── the plugin's name, and nothing computed it
 ```
 
-| Fact | Detail |
-| --- | --- |
-| Core's own members | the roster, the switch that moves a row, a row's configuration, who is looking, and what this deployment is called. All on three-segment tags |
-| Tags cannot collide | three segments against four, and the framework forbids `/` inside a name. The composition counts them anyway, since the merge underneath is last-writer-wins |
-| The framework owns the mechanics | olai spells no wire mechanic by hand, which `packages/bundle/src/mechanics.test.ts` keeps true |
-
-### When the roster changes
+- Tags cannot collide: three segments against four, and the framework forbids `/` inside a name. The composition counts them anyway, since the merge underneath is last-writer-wins.
+- The framework owns the mechanics. olai spells no wire mechanic by hand, which `packages/bundle/src/mechanics.test.ts` keeps true.
 
 | Event | What happens |
 | --- | --- |
@@ -139,17 +173,10 @@ What a browser client may assume across that reconnect:
 - A snapshot must not scale with what a person has written. A frame larger than the keepalive budget queues the pong behind it and the socket dies, so chat's transcript ships the newest `TRANSCRIPT_WINDOW` rows and answers older pages through `conversation.earlier`.
 - A call on a departed plugin is refused, never hangs and never silently succeeds. A fresh `wired.client()` for a departed plugin answers `null`.
 
-## Built, default and running
+</details>
 
-Three lists say which plugins exist, which run by default, and which are running now.
-
-```
-  built      what the binary carries   = every row in packages/bundle/olai.yml
-  default    what absent policy runs   = the rows without their own `disabled`
-  running    what THIS serve mounted   = the fibers the runtime reports running
-```
-
-The build-time default lives in the row itself, as `disabled: true`, which is the same field a person's settings patch writes. Turning an opt-in plugin on is therefore not a special path: policy writes `disabled: false` over the row, the same line that turns another row off. Which rows a serve selects, and the file that selects them, are on [settings.md](../settings.md).
+<details>
+<summary>What the three lists rule on, and what a switch costs</summary>
 
 | Rule | Detail |
 | --- | --- |
@@ -160,8 +187,6 @@ The build-time default lives in the row itself, as `disabled: true`, which is th
 
 ### The switch on a plugins panel row
 
-`plugins.set({ name, enabled })` moves a plugin between running and off while the server runs.
-
 | Claim | Detail |
 | --- | --- |
 | It writes the loader's own field | the server half flips that row's `disabled` and re-settles the bundle, so a row switched off and a row the settings file disabled are the same absence |
@@ -170,10 +195,6 @@ The build-time default lives in the row itself, as `disabled: true`, which is th
 | The roster describes a bundle that stopped moving | one flip fans out into several registry changes. The `plugins` cell is published once the settle is done, so a tab never redials onto a wire that is still coming apart |
 | Local state is keyed by name | a plugin that comes back reads the record it left |
 | The property vocabulary follows the fibers | a row that leaves takes its words out of the vocabulary, a row that arrives adds them, and the directory is re-judged |
-
-A panel switch is an ordinary write: it puts `on` into the row's namespace in `_olai/Settings.olai`, waits for that revision, and appears in the git ledger, so the choice survives a restart. Core grants the switch to the browser face alone, and the write gate reserves `on` against agents.
-
-> When the settings reader is absent, switches are session-only and the panel foot says so once. A broken settings file refuses durable writes with a repair sentence.
 
 ### Which list answers which question
 
@@ -185,30 +206,16 @@ A panel switch is an ordinary write: it puts `on` into the row's namespace in `_
 
 So `{"type":"kolu-terminal"}` is a clean row on a machine running only the vault and odu, while `{"type":"banana"}` is a broken file either way. The built list is read off every row's module, disabled rows included.
 
-## What a disabled plugin is
+</details>
 
-A disabled plugin is **absent**: not parked, not half-wired, not degraded, and absent at every moment rather than only at boot.
-
-```
-  kolu.on = no   ⇒   kolu's row is patched `disabled` and never applies
-
-                      no sibling surface        no probe run
-                      no wire tag               no header readout
-                      no handler                no tab half mounted
-                      no expose row             no dressing licensed
-                      no surface/kolu/ at all   its kinds validate as plain text
-                      no claimed key            (so no built-in declaration)
-```
+<details>
+<summary>What else absence costs, and where the rules are enforced</summary>
 
 | Consequence | Detail |
 | --- | --- |
-| Nothing degrades | the outline it would have owned is an ordinary outline, and the properties it would have dressed draw as the text they are. The connection indicator stays green |
-| It costs no extra mechanism | every registration has its own undo, so a disposed fiber drops its sibling, kinds, wake and listeners in reverse, at any moment |
 | A failing `apply` is the same absence | the fiber lands in `failed` having installed nothing, and every other plugin stays running. A missing kolu socket cannot be a server that will not start |
 | The degenerate case runs the same code | a runtime with no plugins mounts no sibling, leaving core's own surface byte for byte what it was |
 | Minimal profiles use the same path | the `surface` profile selects the directory rows, the formats and `mcp`; `test-minimal` selects no transport at all. Both use the same host and composition as `web` |
-
-## Where the rules are enforced
 
 Every claim on this page is a test, and a broken one names its file.
 
@@ -229,3 +236,5 @@ Every claim on this page is a test, and a broken one names its file.
 | `packages/tests/plugin_docs.test.ts` | every plugin's docs page exists, is served, and is linked |
 
 `just cordis-graph` draws the other half of this page: every row's two halves, their components, needs, offers and contributions, read off the sources and served as a graph you can click through.
+
+</details>

@@ -1,58 +1,79 @@
 # Filtering a page
 
-Above every page that draws rows there is a filter box. It takes rows away from what is in front of you, where the header's search box takes you to a node anywhere in the directory. The query language is the same one: [search.md](search.md).
+Above every page that draws rows sits a filter box. It takes rows away from what you are reading, in the query language of [search.md](search.md).[^box]
 
 ## Narrow what you are reading
 
-1. Click the box, which says **Filter** while it is empty. A hint opens under it listing the forms a query takes: `words`, `"a phrase"`, `a OR b`, `#tag`, `is:done`, `has:desc`, `date:last-week`, `changed:today`, `-not`.
-2. Click one of those forms, or walk the list with the arrow keys and press `Enter`. It goes into the box with the part you would replace already selected, so `#tag` arrives with `tag` selected and typing writes over it.
+1. Click the box, which says **Filter** while it is empty. A hint lists the forms a query takes.[^hint]
+2. Click one of those forms, or walk the list with the arrow keys and press `Enter`.[^pick]
 3. Type your query. The page narrows as you type; nothing is submitted.
-4. Press `Escape` to put the hint away and keep the caret in the box. With text in the box, `Escape` empties it.
+4. Press `Escape` to put the hint away and keep the caret in the box.[^escape]
 
-Clicking a `#tag` or an `@mention` on a row filters by it, scoped to the page you are on. A matching row is drawn with the chain of ancestors that leads to it and with its own subtree, which is what makes a bare title like "order" mean something.
-
-On an outline, beside the box, is the **Finished** box: ticked shows finished work on this page, clear hides it. Hiding happens first, so `is:done` on a page that hides finished work draws nothing — and the bar says how many matches are being held back.
+Clicking a `#tag` or an `@mention` on a row filters by it, scoped to the page you are on.[^scope] On an outline, the **Finished** box beside the filter decides whether finished work is drawn.[^finished]
 
 ## What the bar says
 
 | It reads | It means |
 | --- | --- |
-| `8 of 57` | 8 of the rows the page holds are matches and are drawn |
-| `No matches of 57` | the page holds 57 rows and your query emptied it |
+| `8 of 57` | 8 of the page's rows match and are drawn |
+| `No matches of 57` | your query emptied a page of 57 rows |
 | `8 of 57 — 2 more matches hidden as done` | 10 matches on a page of 57 rows |
-| `Filtering…` | an answer to what you have typed is on its way |
+| `Filtering…` | an answer is on its way[^pending] |
 
-- The second number is every row the page holds, whether or not a preference of yours is taking some off the screen. It does not move when you hide finished work, and the matches held back are counted inside it.
-- A part that is zero is not said.
-- While `Filtering…` is up the rows in front of you hold still, and a page you have just typed into for the first time is drawn whole until its first answer lands. A call that failed says so on its own line instead.
+The second number is every row the page holds.[^second]
 
 ## Send the narrowed page to somebody
 
-The filter is in the address as `?q=…`, so a narrowed page is a link you can send.
-
-- Typing replaces the history entry rather than pushing one, so Back leaves the filter rather than un-typing it.
-- Zooming into a row is a navigation and starts unfiltered; Back returns to the narrowed page.
-- To keep one, press `Cmd` + `K` (`Ctrl` elsewhere) and pick **Pin this page…**. It asks what to call it first: type a name and `Enter`, or press `Enter` alone for the bare pin, drawn as the page's own name with the query beside it.
-- A saved search is a row in `Pins.olai` holding a link such as `[What is late](/agenda?q=is%3Atodo)`, so renaming it is editing that row, from the shelf's `✎` or in the file ([documents-and-kinds.md](documents-and-kinds.md)).
+The filter is in the address as `?q=…`, so a narrowed page is a link you can send.[^history] To keep one, press `Cmd` + `K` (`Ctrl` elsewhere) and pick **Pin this page…**.[^pin]
 
 ## Why a row is on screen
 
-A filtered page can be entirely correct and still leave you guessing, because a title that talks about `#deferral` and one that wears it read alike. So each row says where the query landed.
-
-- A match lights its needle where it sits in the title, inside a `#tag`'s pill rather than instead of it. Case is the matcher's own: `cabinets` lights `Cabinets`, and a bare `home` lights the name inside `#home`.
-- A query that names no words at all, such as `is:done` or `date:today`, lights nothing.
-- A row drawn only as an ancestor, or as part of a match's subtree, is dim: it is context, and it looks like context.
-- A row found behind its note draws one clamped line of that note under the title, opening at the hit's own line with the word lit in it. Click that line to open the note.
+Each row says where the query landed.[^guess] A match lights its needle in the title,[^light] a row drawn only as context is dim,[^dim] and a row found behind its note shows one line of it.[^note]
 
 ## While a filter is on
 
-- Folds are suspended, because honouring a collapse would hide the match you typed for. Nothing is written: clearing the filter brings every collapse back.
-- The page keeps following the files. Every revision re-asks the query, so a row retitled into it appears as a match, a row retitled out of it goes, and both numbers move together.
-- A wire that cannot carry the question freezes the whole app under a card reading **Connection lost** and **Reconnecting…**. The rows the server last answered stay behind it. The card lifts by itself when the wire comes back, and the filter is re-asked against the directory as it then stands.
+Every page but a document filters, by the same grammar, address, count and refusals.[^which] Folds are suspended,[^folds] and the page keeps following the files.[^follow]
 
-## Which pages filter
+[^box]: The filter box takes rows away from the page in front of you, where the header's search box takes you to a node anywhere in the directory.
 
-Every page but a document. The grammar, the address, the count and the refusals are the same on each; what differs is what the page is made of.
+[^hint]: The hint under the filter box lists the forms a query takes: `words`, `"a phrase"`, `a OR b`, `#tag`, `is:done`, `has:desc`, `date:last-week`, `changed:today`, `-not`.
+
+[^pick]: A form taken from the filter box's hint goes into the box with the part you would replace already selected, so `#tag` arrives with `tag` selected and typing writes over it.
+
+[^escape]: `Escape` in the filter box puts the hint away and keeps the caret in the box. With text in the box, `Escape` empties it.
+
+[^scope]: A row matching the filter is drawn with the chain of ancestors that leads to it and with its own subtree, which is what makes a bare title like "order" mean something.
+
+[^finished]: The **Finished** box sits beside the filter box on an outline: ticked shows finished work on this page, clear hides it. Hiding happens first, so `is:done` on a page that hides finished work draws nothing, and the bar says how many matches are being held back.
+
+[^pending]: While `Filtering…` is up the rows in front of you hold still, and a page you have just typed into for the first time is drawn whole until its first answer lands. A call that failed says so on its own line instead.
+
+[^second]: The bar's second number is every row the page holds, whether or not a preference of yours is taking some off the screen. It does not move when you hide finished work, and the matches held back are counted inside it. A part that is zero is not said.
+
+[^history]: Typing in the filter box replaces the history entry rather than pushing one, so Back leaves the filter rather than un-typing it. Zooming into a row is a navigation and starts unfiltered; Back returns to the narrowed page.
+
+[^pin]: Pinning a page asks what to call the pin first: type a name and `Enter`, or press `Enter` alone for the bare pin, drawn as the page's own name with the query beside it.
+
+    A saved search is a row in `Pins.olai` holding a link such as `[What is late](/agenda?q=is%3Atodo)`, so renaming it is editing that row, from the shelf's `✎` or in the file ([documents-and-kinds.md](documents-and-kinds.md)).
+
+[^guess]: A filtered page can be entirely correct and still leave you guessing, because a title that talks about `#deferral` and one that wears it read alike.
+
+[^light]: A match lights its needle where it sits in the title, inside a `#tag`'s pill rather than instead of it. Case is the matcher's own: `cabinets` lights `Cabinets`, and a bare `home` lights the name inside `#home`. A query that names no words at all, such as `is:done` or `date:today`, lights nothing.
+
+[^dim]: A row drawn only as an ancestor, or as part of a match's subtree, is dim: it is context, and it looks like context.
+
+[^note]: A row found behind its note draws one clamped line of that note under the title, opening at the hit's own line with the word lit in it. Click that line to open the note.
+
+[^which]: Every page but a document carries a filter box; what differs between them is what the page is made of, which the closed block at the foot of this page lays out.
+
+[^folds]: Folds are suspended while a filter is on, because honouring a collapse would hide the match you typed for. Nothing is written: clearing the filter brings every collapse back.
+
+[^follow]: A filtered page keeps following the files. Every revision re-asks the query, so a row retitled into it appears as a match, a row retitled out of it goes, and both numbers move together.
+
+    A wire that cannot carry the question freezes the whole app under a card reading **Connection lost** and **Reconnecting…**. The rows the server last answered stay behind it. The card lifts by itself when the wire comes back, and the filter is re-asked against the directory as it then stands.
+
+<details>
+<summary>What a filter takes away, page by page</summary>
 
 | Page | What a filter takes away | What stays |
 | --- | --- | --- |
@@ -67,3 +88,5 @@ Every page but a document. The grammar, the address, the count and the refusals 
 - The trash searches within what it shows, so a word typed there finds what was put away without `is:trashed`. Archived rows are drawn on the trash and nowhere else ([organising.md](organising.md)).
 - A page's own empty sentence is not the filter's. **Nothing due today**, **Nothing is on 2026-08-12.** and **Trash is empty** are claims about the page; `No matches of 57` is the claim about your query. A filtered page says one or the other, never both.
 - The mark beside **Agenda** in the sidebar counts the unnarrowed reading: what is late is a fact about the directory rather than about the page you are on.
+
+</details>

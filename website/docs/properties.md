@@ -1,12 +1,10 @@
 # Typed properties
 
-A key with no declaration is text, and that is nearly every key. A directory may declare that one key's values have a shape, and the write gate then refuses a value that does not fit. Typing constrains the value; it grants no meaning.
-
-A `date`-typed property still does not put its node on a day page, because a property is not a mark. What a property is, and how one is written, is [format.md](format.md).
+A key with no declaration is text. A directory may declare that one key's values have a shape: the write gate then refuses a value that does not fit.[^meaning]
 
 ## Declaring a key
 
-Declarations live in the `Properties` convention directly under `_olai/`, with any node-holding suffix, default `_olai/Properties.olai`. One node per key, the title is the key, the type is written in that node's own properties, and an enum's variants are its children:
+Declarations live in the `Properties` convention directly under `_olai/`, default `_olai/Properties.olai`.[^convention] One node per key: the title is the key, the type is written in that node's own properties, and an enum's variants are its children.
 
 ```jsonl
 {"id":"prop-merge","ord":"a0","title":"merge","custom":{"type":"ref"}}
@@ -18,9 +16,78 @@ Declarations live in the `Properties` convention directly under `_olai/`, with a
 {"id":"prop-agent","ord":"a3","title":"agent","custom":{"type":"ref","under":"agents-roster"}}
 ```
 
-Editing the vocabulary is editing an outline: adding a variant is adding a child row, the file opens in olai like any other, and nothing restarts. Only the top level of that file declares a key; what hangs under a declaration is that declaration's own business. Properties are one namespace across the whole directory, so `merge` on a lane and `merge` anywhere else are one key.
+Properties are one namespace across the whole directory, and a key is folded for case.[^case] A declaration takes `type`, and a `ref` or a path type may take `under` or `base`.[^words]
 
-A key is folded for case. `pr` and `PR` are one key, to the fence, to `prop:` in a query ([search.md](search.md)) and to the shadowed-key refusal, so declaring both is declaring one key twice.
+## The property types
+
+Seven types this format owns, and an eighth arm for the types a plugin contributes.[^clause]
+
+| Type | A value is |
+| --- | --- |
+| [`text`](#text) | `text` (anything) |
+| [`date`](#date) | `date` (an ISO day or instant) |
+| [`int`](#int) | `int` (a digit run) |
+| [`path`](#path) | `path` (no whitespace; optional `base`) |
+| [`doc`](#doc) | `doc` (a served `.md`; optional `base`) |
+| [`ref`](#ref) | `ref` (a child's id; `under` names the parent) |
+| [`node`](#node) | `node` (any node id) |
+| [a contributed type](#a-type-a-plugin-contributes) | whatever the plugin says it is |
+
+## What a declared value names
+
+One declaration answers both questions, so the write gate's "is this allowed" and the chip's "what does it name" cannot disagree.[^names] An undeclared key is guessed at instead.[^guess]
+
+## What a write is refused for
+
+A live write is refused with the allowed values named and the closest one offered:[^refused]
+
+```
+outlines_prop {"id":"lane","key":"merge","value":"AUTO: grok review folded + CI green"}
+→ `merge` is `auto` | `human` — got "AUTO: grok review folded + CI green"
+
+outlines_prop {"id":"lane","key":"agent","value":"clade"}
+→ `agent` names a node under `agents-roster` — those are `claude`, `grok`, `pi` —
+  got "clade" — did you mean `claude`?
+
+outlines_add {file: "_olai/Properties.olai", title: "took", props: {type: "took"}}
+→ `type` is `took`, which is not a property type — write `text` (anything),
+  `date` (an ISO day or instant), `int` (a digit run), `path` (no whitespace;
+  optional `base`), `doc` (a served `.md`; optional `base`), `ref` (a child's
+  id; `under` names the parent), `node` (any node id), `terminal` (a padi
+  terminal id, or a prefix of one), `odu-run` (an odu run id,
+  `<base36>-<base36>`).
+
+outlines_add {file: "_olai/Properties.olai", title: "brainstorm", props: {type: "doc"}}
+→ `brainstorm` cannot be declared `doc` while 3 existing values do not fit:
+  `lanes.olai` `first` (`a`) holds "not a path"; … The same fence `outlines_prop`
+  already is — fix those values first (one `apply` can write them all), then
+  declare.
+```
+
+## What typing does not do
+
+No required keys, no schema per kind of node, and no defaults. A node may carry any subset of keys. This is one rule about values.
+
+[^meaning]: Typing constrains the value and grants no meaning. A key with no declaration is text, and that is nearly every key. A `date`-typed property still does not put its node on a day page, because a property is not a mark. What a property is, and how one is written, is [format.md](format.md).
+
+[^convention]: The `Properties` convention takes any node-holding suffix. Editing the vocabulary is editing an outline: adding a variant is adding a child row, the file opens in olai like any other, and nothing restarts. Only the top level of that file declares a key, and what hangs under a declaration is that declaration's own business.
+
+[^case]: A key is folded for case, to the fence, to `prop:` in a query ([search.md](search.md)) and to the shadowed-key refusal. So `pr` and `PR` are one key, declaring both is declaring one key twice, and `merge` on a lane and `merge` anywhere else are one key.
+
+[^words]: `type`, `under` and `base` are typed by a built-in table in code, applied to the records of `_olai/Properties.olai` and nowhere else. A directory may not declare a key called `type`, `under` or `base`. The three words, and what each takes, are in the first closed block at the foot of this page.
+
+[^clause]: The second column is the clause a refusal names the type with. Each type has an entry in the closed block at the foot of this page, the eighth arm included: `terminal` and `run` are not among the seven, and this format may not learn either word.
+
+[^names]: What a declared value names is what its chip opens, one answer per type, in the closed block below. Three of those answer where the gate would refuse, and that is deliberate.
+
+    A `date` written `2026-08-25 10:06` is refused as a spelling and still names the day it plainly names, and a `ref` holding an id from the wrong roster still names that node. `doc` is held to the gate exactly, because it is the one type that promised its value names something served.
+
+[^guess]: An undeclared key is guessed at, in this order: a whole `http` or `https` URL, a date, an exact node id, a path this directory serves beside the writing file, and GitHub's `owner/repo#123`. Anything else is text. The whole value has to be the name of the thing, so a value with a URL inside it is not a URL and a value that reads like a title is not a node.
+
+[^refused]: A refusal names the key, the values that are allowed and the closest one to what you wrote. Two further refusals, a declaration whose existing values do not fit and a write that would strand a value somebody else wrote, are in the closed block at the foot of this page.
+
+<details>
+<summary><code>type</code>, <code>under</code> and <code>base</code></summary>
 
 ### `type`, `under` and `base`
 
@@ -34,20 +101,10 @@ A declaration is a node carrying properties, and these three words are typed by 
 
 `under` names a node and never a mirror: a placement has no children of its own, so a declaration pointed at one is refused where it is written.
 
-## The property types
+</details>
 
-Seven types this format owns, and an eighth arm for the types a plugin contributes. The second column is the clause a refusal names the type with.
-
-| Type | A value is |
-| --- | --- |
-| [`text`](#text) | `text` (anything) |
-| [`date`](#date) | `date` (an ISO day or instant) |
-| [`int`](#int) | `int` (a digit run) |
-| [`path`](#path) | `path` (no whitespace; optional `base`) |
-| [`doc`](#doc) | `doc` (a served `.md`; optional `base`) |
-| [`ref`](#ref) | `ref` (a child's id; `under` names the parent) |
-| [`node`](#node) | `node` (any node id) |
-| [a contributed type](#a-type-a-plugin-contributes) | whatever the plugin says it is |
+<details>
+<summary>Every type, and what a value may be</summary>
 
 ### `text`
 
@@ -108,7 +165,7 @@ An enabled plugin declares its own key for you, so a row carrying `kolu-terminal
 
 A value under a type whose plugin this serve is not running reads exactly as an undeclared key does, so a URL written under a retired type is still a link. Neither face is licensed by a key's name, and there is no fallback to it: a shape cannot tell a document from a checkout, which is why declaring `path` buys neither face.
 
-## `base`
+### `base`
 
 A `doc` or a `path` declaration may say `base`, and it is `root` or `file`:
 
@@ -123,9 +180,10 @@ A `doc` or a `path` declaration may say `base`, and it is `root` or `file`:
 
 `base` on any other type is refused where it is written, as `bad-prop`: a type that names no path has nothing to resolve, a contributed one included.
 
-## What a declared value names
+</details>
 
-One declaration answers both questions, so the write gate's "is this allowed" and the chip's "what does it name" cannot disagree.
+<details>
+<summary>What each type's chip opens</summary>
 
 | Type | The chip opens |
 | --- | --- |
@@ -135,40 +193,14 @@ One declaration answers both questions, so the write gate's "is this allowed" an
 | `date` | its day |
 | `int` | nothing |
 | a contributed type | nothing of olai's own; the plugin's face draws it |
-| `text` | whatever an undeclared key resolves to, below |
-
-Three of those answer where the gate would refuse, and that is deliberate. A `date` written `2026-08-25 10:06` is refused as a spelling and still names the day it plainly names, and a `ref` holding an id from the wrong roster still names that node. `doc` is the one arm held to the gate exactly, because it is the one type that promised its value names something served.
-
-An undeclared key is guessed at, in this order: a whole `http` or `https` URL, a date, an exact node id, a path this directory serves beside the writing file, and GitHub's `owner/repo#123`. Anything else is text. The whole value has to be the name of the thing, so a value with a URL inside it is not a URL and a value that reads like a title is not a node.
+| `text` | whatever an undeclared key resolves to, as a guessed key does |
 
 The vocabulary itself stays on the server. What a browser is handed is the answers, one per value a page draws that names something, never the declarations that produced them.
 
-## What a write is refused for
+</details>
 
-A live write is refused with the allowed values named and the closest one offered:
-
-```
-outlines_prop {"id":"lane","key":"merge","value":"AUTO: grok review folded + CI green"}
-→ `merge` is `auto` | `human` — got "AUTO: grok review folded + CI green"
-
-outlines_prop {"id":"lane","key":"agent","value":"clade"}
-→ `agent` names a node under `agents-roster` — those are `claude`, `grok`, `pi` —
-  got "clade" — did you mean `claude`?
-
-outlines_add {file: "_olai/Properties.olai", title: "took", props: {type: "took"}}
-→ `type` is `took`, which is not a property type — write `text` (anything),
-  `date` (an ISO day or instant), `int` (a digit run), `path` (no whitespace;
-  optional `base`), `doc` (a served `.md`; optional `base`), `ref` (a child's
-  id; `under` names the parent), `node` (any node id), `terminal` (a padi
-  terminal id, or a prefix of one), `odu-run` (an odu run id,
-  `<base36>-<base36>`).
-
-outlines_add {file: "_olai/Properties.olai", title: "brainstorm", props: {type: "doc"}}
-→ `brainstorm` cannot be declared `doc` while 3 existing values do not fit:
-  `lanes.olai` `first` (`a`) holds "not a path"; … The same fence `outlines_prop`
-  already is — fix those values first (one `apply` can write them all), then
-  declare.
-```
+<details>
+<summary>A declaration that does not fit, and a write that would strand a value</summary>
 
 ### A declaration with values that do not fit
 
@@ -190,6 +222,4 @@ Every door that writes a property is covered, because the check sits at the plan
 
 A `ref` or a `node` value is a reference, and the removals read it. `trash_empty` and `outlines_unmirror` refuse to delete a record a live one still names through a declared key, naming the record and the key. Delete a roster node while other records still name it and the validator says so, with a did-you-mean, exactly as it treats an `after` target that went away.
 
-## What typing does not do
-
-No required keys, no schema per kind of node, and no defaults. A node may carry any subset of keys. This is one rule about values.
+</details>

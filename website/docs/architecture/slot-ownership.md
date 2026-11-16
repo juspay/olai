@@ -1,10 +1,63 @@
 # Who owns each extension location
 
-A location, also called a slot, is a named place in the page where a plugin hangs a face, such as `app.banner`. This page says which capability owns which locations, what each contribution is, and what happens when an owner comes and goes.
+A location, also called a slot, is a named place in the page where a plugin hangs a face, such as `app.banner`.[^api]
 
-The plugin API defines the reference type and the register and withdraw verbs. It carries no catalogue of locations and no application face types: each capability owns its own static descriptors and its own types, exported from its `/slots` or `/contract` door.
+## Who owns what
 
-## The owners
+Each capability owns its own locations, and the renderer owns `root`, the one permanent location.[^owners] Every owner and the locations it owns are in the closed block at the foot of this page, along with what each contribution is.
+
+## How a location is keyed
+
+A location's key decides how many faces it holds and who may hold one. You never supply the key, except for a kind word, which is composed with the plugin's name.[^list]
+
+| Keyed by | Holds | Example |
+| --- | --- | --- |
+| `plugin` | one face per plugin, under the name the runtime stamped | `app.header`, `delivery.mark` |
+| `kind` | one face per property kind, by its bare word | `outline.row.chip`, `outline.row.pane` |
+| `app` | one face in all, and a second claimant is refused by name | `app.panel`, `search.box.below` |
+| `nothing` | a list, in which a plugin may hang several faces | `outline.row.action`, `sidebar.entry` |
+
+## Register and withdraw a contribution
+
+A contribution registers with `contribute(location, value, { children, activate })`, and the registration belongs to the caller.[^activate] `Slots.register(name, …)` is the name-only facade over the same registry.[^facade] Declaring a location in TypeScript creates nothing at runtime.[^declare] Conflicting registrations fail.[^checks]
+
+## What survives an owner leaving
+
+A plugin's departure clears its own state and leaves unrelated work standing.
+
+- Changing an unrelated provider preserves an outline's editor, selection and pending confirmation.
+- Outlines drops its retained drafts when it departs, and starts fresh when it returns.[^outlines]
+- Undo history belongs to each content provider.[^undo]
+- File deletion confirmation follows the files owner.
+- Each appliance acquires its shared subscriptions inside its own activation.[^appliance]
+- A header readout and the health dot cannot disagree.[^dot]
+
+[^api]: The plugin API defines the reference type and the register and withdraw verbs. It carries no catalogue of locations and no application face types: each capability owns its own static descriptors and its own types, exported from its `/slots` or `/contract` door.
+
+[^owners]: Owners are capabilities: outlines, navigation, layout, the sidebar, chat, markdown, files, preferences, search, the plugins panel and the renderer. Files also owns the `files.state` service rather than a location.
+
+[^list]: A list, the location keyed by nothing, refuses nothing, because there is no key to collide on. Where a collision in a list matters, such as two plugins claiming one chord, it is refused by whichever capability reads the list.
+
+[^activate]: `activate` acquires location-dependent resources in a separate scope, whose children exist only while that entry is active.
+
+[^facade]: The name-only facade declares neither owner nor cardinality, since a name-only registration carries neither. Such a registration may arrive before its owner: it waits, then acquires its integration under the owner's key rules. Withdrawal drains that integration before releasing it. An owner that returns is new, so the registration acquires a fresh scope rather than reusing the old one.
+
+[^declare]: Declaring a location in TypeScript is separate from creating one at runtime. A consumer that wants types imports the owner's `/slots` door, and those descriptors become child declarations of the entry that consumes them. Declaring a static contract activates nothing and allocates nothing.
+
+[^checks]: A conflict picks no winner silently. Reservations, key policies, duplicate ownership, cycles and failed acquisition are all checked while entries wait, as well as when they activate.
+
+    Inspection reports what a bundle could contribute and reads only static data: the descriptors exported by the bundle's capability modules, which are immutable and independent of the live table. An owner missing from the supplied catalogue contributes no locations, and no global list is kept between calls.
+
+[^outlines]: When outlines departs it clears its retained drafts and stops its queued editor work from issuing writes. When it returns, it starts fresh.
+
+[^undo]: Undo history belongs to each content provider, and the undo notice follows the focused history. Navigating to a named file clears the old history at once, without waiting for streamed metadata.
+
+[^appliance]: An appliance provides its shared subscriptions to its own subtree: one fleet for kolu, one run collection for odu, one link cell for Xyne Spaces, one account cell for mail. None of them wraps unrelated content in `app.mount`, whose renderer belongs to layout.
+
+[^dot]: The header readout and the health dot read the same activation-owned value, so they cannot disagree, and both leave with the registration.
+
+<details>
+<summary>Every owner, and the locations it owns</summary>
 
 | Owner | Locations |
 | --- | --- |
@@ -23,20 +76,10 @@ The plugin API defines the reference type and the register and withdraw verbs. I
 | Plugins panel | `plugins.row` |
 | Renderer | `root`, the one permanent location |
 
-## How a location is keyed
+</details>
 
-A location's key decides how many faces it holds and who may hold one. The contributor never supplies the key except for a kind word, which is composed with the plugin's name.
-
-| Keyed by | Holds | Example |
-| --- | --- | --- |
-| `plugin` | one face per plugin, under the name the runtime stamped | `app.header`, `delivery.mark` |
-| `kind` | one face per property kind, by its bare word | `outline.row.chip`, `outline.row.pane` |
-| `app` | one face in all, and a second claimant is refused by name | `app.panel`, `search.box.below` |
-| `nothing` | a list, in which a plugin may hang several faces | `outline.row.action`, `sidebar.entry` |
-
-A list refuses nothing, because there is no key to collide on. Where a collision in a list matters, such as two plugins claiming one chord, it is refused by whichever capability reads the list.
-
-## What each location takes
+<details>
+<summary>What each location takes</summary>
 
 ### `preferences.sections`
 
@@ -112,33 +155,4 @@ A contribution is `{ priority, matches, Preview }`, mounted once per route, and 
 - A provider may take a route-specific lease at construction, and the card owns it. Navigation, anchor removal, dismissal and withdrawal all release that lease.
 - A plugin's withdrawal removes its face, and a returning provider is matched through the live roster of locations.
 
-## Registering and withdrawing
-
-Declaring a location in TypeScript is separate from creating one at runtime. A consumer that wants types imports the owner's `/slots` door, and those descriptors become child declarations of the entry that consumes them. Declaring a static contract activates nothing and allocates nothing.
-
-A contribution registers with `contribute(location, value, { children, activate })`. The registration belongs to the caller, and `activate` acquires location-dependent resources in a separate scope whose children exist only while that entry is active.
-
-`Slots.register(name, …)` is the name-only facade over the same registry.
-
-| Behaviour | Detail |
-| --- | --- |
-| It declares neither owner nor cardinality | a name-only registration carries neither |
-| It may arrive before its owner | it waits, then acquires its integration under the owner's key rules |
-| Withdrawal drains first | removing the registration drains that integration before releasing it |
-| An owner that returns is new | the registration acquires a fresh scope rather than reusing the old one |
-| Conflicting registrations fail | no winner is chosen silently |
-
-Reservations, key policies, duplicate ownership, cycles and failed acquisition are all checked while entries wait, as well as when they activate.
-
-Inspection reports what a bundle could contribute and reads only static data: the descriptors exported by the bundle's capability modules, which are immutable and independent of the live table. An owner missing from the supplied catalogue contributes no locations, and no global list is kept between calls.
-
-## What survives an owner leaving
-
-A plugin's departure clears its own state and leaves unrelated work standing.
-
-- Changing an unrelated provider preserves an outline's editor, selection and pending confirmation.
-- When outlines departs it clears its retained drafts and stops its queued editor work from issuing writes. When it returns, it starts fresh.
-- Undo history belongs to each content provider, and the undo notice follows the focused history. Navigating to a named file clears the old history at once, without waiting for streamed metadata.
-- File deletion confirmation follows the files owner.
-- Each appliance acquires its shared subscriptions inside its own activation and provides them to its own subtree: one fleet for kolu, one run collection for odu, one link cell for Xyne Spaces, one account cell for mail. None of them wraps unrelated content in `app.mount`, whose renderer belongs to layout.
-- A header readout and the health dot cannot disagree: both read the same activation-owned value, and both leave with the registration.
+</details>

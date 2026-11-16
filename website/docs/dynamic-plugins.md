@@ -1,19 +1,17 @@
 # Plugins the directory defines
 
-Every page under [Plugins](index.md#plugins) is a plugin olai was built with. You can also ask for one of your own. An agent writes it into the directory olai serves, and olai compiles and mounts it while it is running, once you have read it and turned it on.
+Ask for a plugin of your own. An agent writes it into the directory olai serves, and olai compiles and mounts it while it runs, once you approve it.[^built]
 
-## Ask for a plugin
+## Ask for one
 
 1. Press `Cmd` + `K` (`Ctrl` elsewhere) and choose **New plugin**. Say in one sentence what it should do.
-2. Name it. olai suggests a name from your sentence, and the level under the box says where it is kept: `Kept in your vault as plugins/hex-swatch/`. A name another plugin has, or one that is not a word, is refused while you type.
-3. Watch. The press lands on the plugin's own page at `/plugins/hex-swatch`, with the conversation building it in the agent panel beside. The page lists the files as they arrive.
+2. Name it.[^name]
+3. Watch it arrive on its own page at `/plugins/hex-swatch`.[^watch]
 4. Read it and press **Turn on**. The faces appear with no reload.
-
-On a phone, and on a serve with no agent panel, the page links to the conversation's own page instead. The conversation is an ordinary one under **Chats**: close the panel, come back tomorrow, and an alert tells you when it wants you.
 
 ## Find your way to one
 
-Three doors open the same two levels, and all three are there before you have any plugin at all.
+Three doors open the same two levels, and all three are there before you have any plugin at all.[^sidebar]
 
 | Door | Where |
 | --- | --- |
@@ -21,11 +19,36 @@ Three doors open the same two levels, and all three are there before you have an
 | The `+` on the **Plugins** heading | the sidebar |
 | **New plugin** at the top of the panel | the health dot, then **Plugins** |
 
-The **Plugins** section of the sidebar lists one row per plugin once you have one, and a single row reading **Ask for your first plugin…** while you have none. A row carries a mark only when it wants something from you: `Review` for a version nobody has read, `Problem` for one that will not start, and a moving dot while an agent is still writing the folder. A plugin that is switched off is drawn dim.
+## Read it, then turn it on
 
-## Turn one on
+The plugin's page says what it is in words before code, and shows you the source.[^page] An approval names a version.[^version]
 
-The plugin's page says what it is in words before code: the title and first line of its `README.md`, then **What it uses**, read off the code's own imports. The files are under that, one tab each, beside the folder they are in. The knobs it declares sit under **Settings**, and **Ask for a change** opens the conversation that built it.
+> The code runs with the server's own authority. There is no sandbox, and your approval is the boundary. That is why the verb is on the browser face alone.
+
+## Where your answer is kept
+
+`on`, `approved`, the conversation building it and the plugin's own knobs are properties on a root node titled with the plugin's word in `_olai/Settings.olai`, the file every built plugin keeps its settings in.[^reserved][^travels]
+
+Two worked plugins, start to finish, are in [dynamic-plugins-examples.md](dynamic-plugins-examples.md).
+
+[^built]: Every page under [Plugins](index.md#plugins) is a plugin olai was built with. The ones here are yours, written into the directory by an agent.
+
+[^name]: Naming a new plugin: olai suggests one from your sentence, and the level under the box says where it is kept, `Kept in your vault as plugins/hex-swatch/`. A name another plugin has, or one that is not a word, is refused while you type.
+
+[^watch]: The press lands on the plugin's own page, the conversation building it in the agent panel beside, and the page lists the files as they arrive. On a phone, and on a serve with no agent panel, the page links to the conversation's own page instead. The conversation is an ordinary one under **Chats**: close the panel, come back tomorrow, and an alert tells you when it wants you.
+
+[^sidebar]: The **Plugins** section of the sidebar lists one row per plugin once you have one, and a single row reading **Ask for your first plugin…** while you have none. A row carries a mark only when it wants something from you: `Review` for a version nobody has read, `Problem` for one that will not start, and a moving dot while an agent is still writing the folder. A plugin that is switched off is drawn dim.
+
+[^page]: The plugin's page opens with the title and first line of its `README.md`, then **What it uses**, read off the code's own imports. The files are under that, one tab each, beside the folder they are in. The knobs it declares sit under **Settings**, and **Ask for a change** opens the conversation that built it.
+
+[^version]: A version is a hash of the two code files. An edit to either one pauses the plugin, unmounts it, and shows you a diff against what you approved. Editing the `README.md` changes nothing, because prose is not code. All three approvals carry the version the page drew, so one made over source that moved is refused rather than applied.
+
+[^reserved]: `on`, `approved`, `builder` and `checked` are reserved. A `Config` declaring one faults the plugin, and `plugins.configure` refuses to write one. `checked` is the version the building conversation last finished at, written by olai when that call comes in. A plugin that could write it would be a plugin that declares itself finished.
+
+[^travels]: A folder copied in from another directory arrives off and unapproved, because the code travels and your answer does not. The switch survives a restart, and so does a stop: `on: no` is a line in a file.
+
+<details>
+<summary>The verbs on the plugin's page, and an approval that is refused</summary>
 
 | Verb | What it writes |
 | --- | --- |
@@ -34,20 +57,19 @@ The plugin's page says what it is in words before code: the title and first line
 | **Stop trusting changes**, in its place | the version that is running |
 | **Delete…**, under `•••` | removes the folder's files and the plugin's settings node |
 
-All three approvals carry the version the page drew, so one made over source that moved is refused rather than applied:
+The refusal:
 
 ```
 "hex-swatch" has been edited since this page drew it, so approving it now would
 approve source nobody has read. Look again, read what it says, and approve that.
 ```
 
-An approval names a version, which is a hash of the two code files. An edit to either one pauses the plugin, unmounts it, and shows you a diff against what you approved. Editing the `README.md` changes nothing, because prose is not code.
+</details>
 
-> The code runs with the server's own authority. There is no sandbox, and your approval is the boundary. That is why the page shows you the source, why the verb is on the browser face alone, and why an agent cannot approve the plugin it has just written.
+<details>
+<summary>What olai tells you, and what it keeps quiet</summary>
 
-## What olai tells you
-
-A plugin is a thing you ask for and walk away from, so three moments reach you wherever you are: as a system notification, as the sidebar's mark, and on the page.
+Three moments reach you wherever you are: as a system notification, as the sidebar's mark, and on the page.
 
 | Moment | What has happened |
 | --- | --- |
@@ -57,9 +79,10 @@ A plugin is a thing you ask for and walk away from, so three moments reach you w
 
 Nothing else rings. A plugin going on is not news, because you pressed the button, and one being built is not news, because you asked for it a minute ago.
 
-## Where your answer is kept
+</details>
 
-`on`, `approved`, the conversation that is building it and the plugin's own knobs are properties on a root node titled with the plugin's word in `_olai/Settings.olai`, the same file every built plugin keeps its settings in.
+<details>
+<summary>The settings node, and what a plugin is not</summary>
 
 ```
 hex-swatch            on: yes
@@ -69,10 +92,14 @@ hex-swatch            on: yes
                       size: large
 ```
 
-- A folder copied in from another directory arrives off and unapproved. The code travels and your answer does not.
-- The switch survives a restart, and so does a stop: `on: no` is a line in a file.
-- `on`, `approved`, `builder` and `checked` are reserved. A `Config` declaring one faults the plugin, and `plugins.configure` refuses to write one.
-- `checked` is the version the building conversation last finished at, written by olai when that call comes in. A plugin that could write it would be a plugin that declares itself finished.
+- Not a lock. olai refuses a session's write of `approved` at its own door, which is what stops an agent approving the plugin it has just written. `approved` is an ordinary property, and one that appears on disk is an ordinary revision.
+- Not a report of what a face did. A face that throws while it is drawn is contained by the tab's fault boundary, the console says which plugin it was, and the plugin goes on saying `running`, because on the server it is.
+- Not a package. There is no command to add one, no pin and no build outside the tree: a plugin is a folder in a directory olai is already serving.
+
+</details>
+
+<details>
+<summary>The guide an agent follows to write a plugin</summary>
 
 <!-- guide:start -->
 ## The folder
@@ -219,10 +246,4 @@ A server half stays `waiting` while its `apply` initializes, and the services it
 - Cancellation is cooperative: synchronous JavaScript cannot be preempted, and uninterruptible acquisitions and finalizers finish themselves. There is no per-plugin initialization timeout.
 <!-- guide:end -->
 
-## What this is not
-
-- Not a lock. olai refuses a session's write of `approved` at its own door, which is what stops an agent approving the plugin it has just written. `approved` is an ordinary property, and one that appears on disk is an ordinary revision.
-- Not a report of what a face did. A face that throws while it is drawn is contained by the tab's fault boundary, the console says which plugin it was, and the plugin goes on saying `running`, because on the server it is.
-- Not a package. There is no command to add one, no pin and no build outside the tree: a plugin is a folder in a directory olai is already serving.
-
-Two worked plugins, start to finish, are in [dynamic-plugins-examples.md](dynamic-plugins-examples.md).
+</details>

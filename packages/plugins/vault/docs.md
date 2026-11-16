@@ -1,14 +1,14 @@
 # vault
 
-Opens the directory olai serves: it claims the directory, watches the files, gates every write and publishes a revision when anything changes. Every row that reads or writes a file stands on it.
+Opens the directory olai serves, and every row that reads or writes a file stands on it.[^does]
 
 ## What turns it off
 
-The row runs in every profile. Its switch, **Vault** under **Notes** on the plugins panel, is session-only: the settings file lives inside the directory this row opens, so the panel says **This switch resets when olai restarts** rather than writing the choice down. The settings row and the row claiming the settings file's suffix are session-only for the same reason ([../settings.md](../settings.md)).
+The row runs in every profile. Its switch, **Vault** under **Notes** on the plugins panel, is session-only, so the panel says **This switch resets when olai restarts** rather than writing the choice down.[^why]
 
-The panel asks before switching it off, saying that turning it off clears the served files and stops plugins that need the vault. Writes olai has already accepted finish before the watcher and the claim are released. Switching it on opens a fresh store over the same directory.
+The panel asks before switching it off, saying that turning it off clears the served files and stops plugins that need the vault.[^close]
 
-With it off, olai serves no files, every row that needs them stops, and the tools that reach the directory refuse with the reason. The listener, the websocket and `/mcp` stay up, so you can switch it back on from the panel.
+With it off, olai serves no files, every row that needs them stops, and the tools that reach the directory refuse with the reason.[^transports]
 
 ## Settings
 
@@ -16,7 +16,7 @@ With it off, olai serves no files, every row that needs them stops, and the tool
 | --- | --- | --- |
 | `format` | `outline-olai` | The file-kind row used when olai mints a new outline |
 
-Files already on disk are decoded by whichever row claims their kind, whatever `format` says. A file no row claims is not served.
+Files already on disk are decoded by whichever row claims their kind, whatever `format` says.[^claims]
 
 ## What it refuses
 
@@ -28,7 +28,7 @@ Files already on disk are decoded by whichever row claims their kind, whatever `
 
 ## What is missing without git or search
 
-Two optional readings come from other rows, and the answer when neither is mounted is the vault's own.
+Two optional readings come from other rows.[^optional]
 
 | Row | Without it |
 | --- | --- |
@@ -36,3 +36,15 @@ Two optional readings come from other rows, and the answer when neither is mount
 | `search` ([search.md](search.md)) | every query answers with no hits and the reason, naming the row |
 
 See [../settings.md](../settings.md) for choosing what runs, and [../architecture/plugin-system.md](../architecture/plugin-system.md) for how a row's lifetime works.
+
+[^does]: What the row does with the directory: it claims the directory, watches the files, gates every write and publishes a revision when anything changes.
+
+[^why]: Why the switch is session-only: the settings file lives inside the directory this row opens. The settings row and the row claiming the settings file's suffix are session-only for the same reason ([../settings.md](../settings.md)).
+
+[^close]: Switching the vault off and on: writes olai has already accepted finish before the watcher and the claim are released, and switching it on opens a fresh store over the same directory.
+
+[^claims]: A file no row claims is not served.
+
+[^transports]: The listener, the websocket and `/mcp` stay up with the vault off, so you can switch it back on from the panel.
+
+[^optional]: The two optional readings, git's and search's: the answer when neither row is mounted is the vault's own.

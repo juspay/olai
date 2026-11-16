@@ -1,18 +1,29 @@
 # Packages
 
-Every package in the repository, what it is for, and the tools they are built from. For how the parts fit at runtime, read [overview.md](overview.md); for the rules a change must keep, [cordis.md](cordis.md).
+Every package in the repository, what each is for, and the tools they are built from.
 
-## The workspace
+A Bun workspace over two globs, `packages/*` and `packages/plugins/*`, sharing `tsconfig.base.json`.[^container] The direction is downward.[^downward] Layering is declared in workspace dependencies and machine-checked by `bun install`.[^linker] The `@kolu/*` tier is held by the import fence instead.[^fence] A plugin is written against `@olai/plugin-api`.[^doors]
 
-A Bun workspace over two globs, `packages/*` and `packages/plugins/*`, sharing `tsconfig.base.json`. `packages/plugins/` is a container and holds no package of its own.
+| Group | What it holds |
+| --- | --- |
+| General packages | the format, the store, the server, the browser app and what they share |
+| Plugin packages | one package per plugin, each with a registry row and a page |
+| The stack | TypeScript on Bun, Effect 4, SolidJS and Tailwind, Nix, the tests |
 
-- The direction is downward. `server` and `web` sit on top. The leaves, which name no `@olai/*` sibling at all, are `format`, `store`, `child`, `log`, `state`, `sigterm`, `fonts`, `ui-primitives`, `plugin-kit` and `effect-cordis`.
-- Layering is declared in workspace dependencies and machine-checked by `bun install`. The isolated linker (`bunfig.toml`) gives each member only the siblings its manifest names, so an undeclared one does not resolve.
-- A plugin is written against `@olai/plugin-api`. It may reach another plugin only through a door that plugin's manifest declares.
-- `@olai/bundle` names every plugin, and is the one package a plugin may not import.
-- The `@kolu/*` tier hydrates as raw TypeScript from the Nix store, where `bun install` cannot check it. The import fence does, as a test (`packages/bundle/src/fence.test.ts`), and version agreement with each pin stays in `scripts/check-hydrated-deps.sh`. See [cordis.md](cordis.md) for what the fence claims.
+How the parts fit at runtime is in [overview.md](overview.md); the rules a change must keep are in [cordis.md](cordis.md).
 
-## General packages
+[^container]: The two globs: `packages/plugins/` is a container and holds no package of its own.
+
+[^downward]: What sits where: `server` and `web` sit on top. The leaves, which name no `@olai/*` sibling at all, are `format`, `store`, `child`, `log`, `state`, `sigterm`, `fonts`, `ui-primitives`, `plugin-kit` and `effect-cordis`.
+
+[^linker]: How layering is checked: the isolated linker (`bunfig.toml`) gives each member only the siblings its manifest names, so an undeclared one does not resolve.
+
+[^fence]: The `@kolu/*` tier hydrates as raw TypeScript from the Nix store, where `bun install` cannot check it. The import fence does, as a test (`packages/bundle/src/fence.test.ts`), and version agreement with each pin stays in `scripts/check-hydrated-deps.sh`. See [cordis.md](cordis.md) for what the fence claims.
+
+[^doors]: What a plugin may import: another plugin only through a door that plugin's manifest declares. `@olai/bundle` names every plugin, and is the one package a plugin may not import.
+
+<details>
+<summary>Every general package, and what it is</summary>
 
 | Package | What it is |
 | --- | --- |
@@ -39,7 +50,10 @@ A Bun workspace over two globs, `packages/*` and `packages/plugins/*`, sharing `
 | `ui-primitives` | Stateless controls, touch-target rules and the held-service helper. Owns no subscription and no application state. |
 | `web` | Mounts the renderer, follows the live plugin roster, builds the browser bundle, and holds the shared client primitives. |
 
-## Plugin packages
+</details>
+
+<details>
+<summary>Every plugin package, and what it is</summary>
 
 Each is a package under `packages/plugins/`, an entry in `packages/bundle/olai.yml`, and a page of its own under `../plugins/`. `mail` and `xyne-spaces` are off until the served directory's settings turn them on, and the four test fixtures are off outside the test profile.
 
@@ -93,7 +107,10 @@ Each is a package under `packages/plugins/`, an entry in `packages/bundle/olai.y
 | `test-page` | A fixture registering a self-drawn page in the route slot. |
 | `test-palette` | A fixture contributing palette levels through the public adapter location. |
 
-## The stack
+</details>
+
+<details>
+<summary>The stack: Bun, Effect, the browser, Nix and the tests</summary>
 
 ### Runtime
 
@@ -125,3 +142,5 @@ A flake, npins and a justfile. The pins are `kolu`, `nixpkgs`, `oss-olai`, `cord
 ### Tests
 
 Unit tests and benchmarks are `bun test`, beside the code they cover. The browser suite is Cucumber and Playwright, and it is not one directory. A plugin keeps the features it promises, and the steps that drive its own surface, under `packages/plugins/<name>/e2e/`, while `packages/tests` keeps the harness and the features no single plugin owns. One profile globs both, so it stays one process. See [browser-tests.md](browser-tests.md).
+
+</details>

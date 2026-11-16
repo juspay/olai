@@ -18,10 +18,14 @@
  * and counting it would make a page of good signposts look like a long one.
  *
  * THE PARSER IS THE APP'S OWN (`@olai/markdown-ui`'s `mdastOf`). These pages are
- * read in a browser that renders them through that pipeline — `just serve` with
- * no argument serves `docs/` — so a second parser here could disagree with the
- * screen about what a paragraph or a table cell is, and the lint would be
- * policing a document nobody reads.
+ * also read in olai itself — `just serve` with no argument serves
+ * `website/docs/` — so a second parser here could disagree with the screen
+ * about what a paragraph, a table cell or a footnote is.
+ *
+ * THE READING BUDGET (rules 4a–4d) is about what a reader sees before opening
+ * anything: the MAIN FLOW, which is the page minus its footnote definitions and
+ * minus any `<details>` block. The detail is still on the page, one click or
+ * tap away, and the page-length rule still counts it.
  */
 
 import { claim, slugOf } from "@olai/format"
@@ -47,10 +51,20 @@ const LIMIT = {
   cell: 40,
   /** Rule 7: running text under one heading, before the reader needs a new one. */
   section: 300,
-  /** Rule 8: a whole page. A page that cannot fit is two pages. */
+  /** Rule 8: a whole page, footnotes and `<details>` included. A page that
+   *  cannot fit is two pages. */
   page: 2500,
   /** Rule 13: one sentence. */
   sentence: 40,
+  /** Rule 4a: the opening paragraph, the line or two that says the one thing. */
+  opening: 30,
+  /** Rule 4b: everything a reader sees without opening anything — about a
+   *  minute of reading. */
+  main: 250,
+  /** Rule 4c: the `##` sections of the main flow. */
+  sections: 5,
+  /** Rule 4d: one footnote, which the site shows as a popup. */
+  note: 100,
 } as const
 
 /**
@@ -238,10 +252,28 @@ const cellFindings = (tree: MarkdownNode): ReadonlyArray<Finding> =>
     ]
   })
 
-/** Rules 7 and 8: how much running text sits under one heading, and on the
- *  whole page. Tables and code are left out of the section count for the reason
- *  the skill gives — they are looked at, not read — and table cells are counted
- *  into the page, because a page made of tables is still a page to get through. */
+/**
+ * The page's top-level blocks, each marked as MAIN FLOW or not. A footnote
+ * definition is not, and neither is anything between a `<details>` line and
+ * its `</details>`, the two places a page keeps what a reader opens on
+ * purpose.
+ */
+const flow = (tree: MarkdownNode): ReadonlyArray<{ node: MarkdownNode; main: boolean }> => {
+  let open = 0
+  return children(tree).map((node) => {
+    const html = node.type === "html" ? (node.value ?? "") : ""
+    open += (html.match(/<details\b/gu) ?? []).length
+    const inside = open > 0
+    open -= (html.match(/<\/details>/gu) ?? []).length
+    return { node, main: !inside && node.type !== "footnoteDefinition" }
+  })
+}
+
+/** Rules 7 and 8: how much running text sits under one heading of the main
+ *  flow, and on the whole page, asides included. Tables and code are left out
+ *  of the section count for the reason the skill gives — they are looked at,
+ *  not read — and table cells are counted into the page, because a page made
+ *  of tables is still a page to get through. */
 const lengthFindings = (tree: MarkdownNode): ReadonlyArray<Finding> => {
   const found: Finding[] = []
   let heading = "the opening"
@@ -257,7 +289,10 @@ const lengthFindings = (tree: MarkdownNode): ReadonlyArray<Finding> => {
       })
     }
   }
-  for (const node of children(tree)) {
+  for (const { node, main } of flow(tree)) {
+    const count = words(read(node))
+    page += count
+    if (!main || node.type === "table") continue
     if (node.type === "heading") {
       close()
       heading = opening(read(node))
@@ -265,17 +300,62 @@ const lengthFindings = (tree: MarkdownNode): ReadonlyArray<Finding> => {
       section = 0
       continue
     }
-    if (node.type === "table") {
-      page += words(read(node))
-      continue
-    }
-    const count = words(read(node))
     section += count
-    page += count
   }
   close()
   if (page > LIMIT.page) {
     found.push({ rule: 8, line: 1, said: `${page} words on one page (limit ${LIMIT.page})` })
+  }
+  return found
+}
+
+/**
+ * Rules 4a–4d, the reading budget: the opening says the one thing, the main
+ * flow is about a minute, it has few sections, and each footnote fits the
+ * popup the site shows it in. Table cells count into the main flow, because a
+ * reader reads them; headings and code do not, as everywhere else.
+ */
+const budgetFindings = (tree: MarkdownNode): ReadonlyArray<Finding> => {
+  const found: Finding[] = []
+  const blocks = flow(tree)
+  const main = blocks.filter((block) => block.main).map((block) => block.node)
+  const first = main.find((node) => node.type !== "heading")
+  if (first?.type === "paragraph" && words(read(first)) > LIMIT.opening) {
+    found.push({
+      rule: 4,
+      line: lineOf(first),
+      said: `the opening is ${words(read(first))} words (limit ${LIMIT.opening}): say the one thing, and footnote the rest`,
+    })
+  }
+  const seen = main.filter((node) => node.type !== "heading").reduce((sum, node) => sum + words(read(node)), 0)
+  if (seen > LIMIT.main) {
+    found.push({
+      rule: 4,
+      line: 1,
+      said: `${seen} words before any footnote or <details> is opened (limit ${LIMIT.main})`,
+    })
+  }
+  const sections = main.filter((node) => node.type === "heading" && node.depth === 2).length
+  if (sections > LIMIT.sections) {
+    found.push({ rule: 4, line: 1, said: `${sections} ## sections in the main flow (limit ${LIMIT.sections})` })
+  }
+  // A definition nothing cites is dropped by the renderer, so its facts would
+  // be on the page's source and nowhere a reader can reach.
+  const identifier = (node: MarkdownNode): string => node.identifier ?? ""
+  const cited = new Set([...walk(tree)].filter((node) => node.type === "footnoteReference").map(identifier))
+  for (const { node } of blocks) {
+    if (node.type !== "footnoteDefinition") continue
+    const count = words(read(node))
+    if (count > LIMIT.note) {
+      found.push({
+        rule: 4,
+        line: lineOf(node),
+        said: `footnote of ${count} words (limit ${LIMIT.note}): split it, or move a long table or listing into <details>`,
+      })
+    }
+    if (!cited.has(identifier(node))) {
+      found.push({ rule: 4, line: lineOf(node), said: `footnote [^${identifier(node)}] is never cited, so no reader can reach it` })
+    }
   }
   return found
 }
@@ -341,12 +421,14 @@ const voiceFindings = (tree: MarkdownNode): ReadonlyArray<Finding> =>
 
 /**
  * Every shape rule, over one page's source. The page is parsed once and read
- * six ways, so a page with several faults reports all of them rather than one
- * per run.
+ * several ways, so a page with several faults reports all of them rather than
+ * one per run. `budgeted` is false for the docs index alone: it is the site's
+ * page map, drawn as cards, and nobody reads it top to bottom.
  */
-export const findingsIn = (source: string): ReadonlyArray<Finding> => {
+export const findingsIn = (source: string, budgeted = true): ReadonlyArray<Finding> => {
   const tree = mdastOf(source)
   return [
+    ...(budgeted ? budgetFindings(tree) : []),
     ...lengthFindings(tree),
     ...blockFindings(tree),
     ...cellFindings(tree),

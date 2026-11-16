@@ -1,6 +1,8 @@
 # web-app
 
-Serves the compiled browser app over the shared listener: the shell, its hashed assets, the web manifest and the notification service worker. It is the only row that serves the build.
+Serves the compiled browser app over the shared listener: the shell, its hashed assets, the web manifest and the notification service worker.
+
+It is the only row that serves the build.
 
 ## What turns it off
 

@@ -1,42 +1,71 @@
 # Validation, errors and writing
 
-One validator checks the loaded set, on load and after every write, and nothing is checked anywhere else. This page is what it looks for, what each finding says, what a refused write answers with, and the bytes a writer puts on disk.
+One validator checks the loaded set, on load and after every write, and nothing is checked anywhere else.
 
 ## When the set is checked
 
-The validator runs in two stages, and the staging is part of the contract.
+The validator runs in two stages.
 
-1. Per line, over everything a single record answers on its own: JSON, the record shape, the id's spelling, ISO dates, the mark exclusion, and the repeat rule with the date it repeats from.
-2. Per set, over everything that needs to know what else exists: uniqueness, references, cycles, documents, and the property values a key's declaration fences.
+1. Per line: JSON, the record shape, the id's spelling, ISO dates, the mark exclusion, and the repeat rule with the date it repeats from.
+2. Per set: uniqueness, references, cycles, documents, and the property values a key's declaration fences.
 
-### What a finding costs
-
-A file is decoded whole or not at all, and every finding costs the files it is about and nothing else. A file a finding names is published with its content withheld: it keeps its place in the sidebar, its own page shows its rows where its tree would be, and it refuses writes.
-
-Every other file in the directory is live, drawn and writable. A finding that names two files takes both, because "which file is broken" has no single answer for a duplicate id or a cross-file placement.
-
-The rules run over the whole set always, and only the answer is degraded. Withholding a file cannot invent a finding against a healthy neighbour: a `mirror` or a `see` from a live file into a withheld one resolves to the dangling face a reader already sees for an id nothing declares. The next load starts from the whole directory again and reaches the same verdict.
-
-### What is withheld, and what is refused
-
-A guess is withheld. "`kitchen` is not a known id" is a guess when the line declaring `kitchen` is the one that failed to parse. So an unresolved `mirror`, `after`, `blocks` or `see` target is withheld while any outline is unreadable, and a withheld finding breaks nothing. A report containing any per-line error says so, and a second round is expected after you fix the first.
-
-That absorption is about loading, and a write is refused instead: the write gate refuses any write whose own changed files will not decode. The refusal carries the validator's own rows, which are the code, the `file:line` and the message, so a rule has one wording however it was reached.
+A finding costs only the files it is about,[^cost][^two] and a guess is withheld while any file is unreadable.[^withheld] A write that would not decode is refused.[^refused]
 
 ## The rules
 
-- Ids have a valid shape and are unique across the whole set. The duplicate is reported on the second record, pointing at the first, which stays the one every reference resolves to.
-- References resolve: `parent` in the same file, to a regular node, with no cycles, and `mirror` targets, and `after`, `blocks` and `see` targets in any file. An unknown target gets a did-you-mean.
-- `after` is acyclic, counting normalized `blocks`, and a mirror placement may not create a containment cycle.
-- The marks and `date` are valid ISO, and the four marks are mutually exclusive. Dates are validated as text, because a writer must reproduce what it read.
-- A `repeat` is a rule the grammar holds, and the node carries a `date` for it to repeat from.
-- Every property value fits what its key declares, and every declaration in `_olai/Properties.olai` says a type the built-in table knows ([properties.md](properties.md)).
-
-There is no rule about a mark and the children under it. The write-time gates on `outlines_done` are the ops layer's policy and never a reason a set fails to load ([dates-and-status.md](dates-and-status.md)). A merge can write a mark in one branch and a task under it in another, so this format has to read that set, and the next write is what fixes it.
+- Ids have a valid shape and are unique across the whole set.[^ids]
+- References resolve, in the same file for a `parent` and anywhere for an edge.[^targets]
+- `after` is acyclic, and a mirror may not create a containment cycle.
+- The marks and `date` are valid ISO, and the four marks are mutually exclusive.[^marks]
+- A `repeat` is a rule the grammar holds, with a `date` under it to repeat from.
+- Every property value fits what its key declares.[^declared]
 
 ## Error codes
 
-Every error names its location as the `file:line` of the record it is about, which is the record's first line. A `line` of `0` means the site is the path itself.
+Every error names a `file:line`, and the closed block below holds all nineteen codes.[^codes]
+
+## Writing
+
+The server is the only writer.[^merges] A write re-validates the whole edited set, writes temporary files beside the originals, renames them atomically, and commits.[^bytes] Validation comes first, so a refused write costs nothing on disk.[^races]
+
+## File claims and convention names
+
+Each outline row owns its suffix, its own parser and its canonical writer; the Olai row claims `.olai`.[^claims] Four stems under `_olai/` are conventions: `Trash`, `Inbox`, `Pins` and `Properties`.[^stems]
+
+[^cost]: A file is decoded whole or not at all, and every finding costs the files it is about and nothing else. A file a finding names is published with its content withheld: it keeps its place in the sidebar, its own page shows its rows where its tree would be, and it refuses writes. Every other file in the directory is live, drawn and writable.
+
+[^two]: A finding that names two files takes both, because "which file is broken" has no single answer for a duplicate id or a cross-file placement. The rules run over the whole set always, and only the answer is degraded.
+
+    Withholding a file cannot invent a finding against a healthy neighbour: a `mirror` or a `see` from a live file into a withheld one resolves to the dangling face a reader already sees for an id nothing declares. The next load starts from the whole directory again and reaches the same verdict.
+
+[^withheld]: A guess is withheld. "`kitchen` is not a known id" is a guess when the line declaring `kitchen` is the one that failed to parse. So an unresolved `mirror`, `after`, `blocks` or `see` target is withheld while any outline is unreadable, and a withheld finding breaks nothing. A report containing any per-line error says so, and a second round is expected after you fix the first.
+
+[^refused]: That absorption is about loading, and a write is refused instead: the write gate refuses any write whose own changed files will not decode. The refusal carries the validator's own rows, which are the code, the `file:line` and the message, so a rule has one wording however it was reached.
+
+[^ids]: A duplicate id is reported on the second record, pointing at the first, which stays the one every reference resolves to. An id outside the mention alphabet is `bad-id`.
+
+[^targets]: A `parent` resolves in the same file, to a regular node, with no cycles. A `mirror` target, and an `after`, `blocks` or `see` target, resolves in any file. An unknown target gets a did-you-mean, and `after` is read with `blocks` normalized into it.
+
+[^marks]: Dates are validated as text, because a writer must reproduce what it read. There is no rule about a mark and the children under it: the write-time gates on `outlines_done` are the ops layer's policy and never a reason a set fails to load ([dates-and-status.md](dates-and-status.md)).
+
+    A merge can write a mark in one branch and a task under it in another, so this format has to read that set, and the next write is what fixes it.
+
+[^declared]: Every property value fits what its key declares, and every declaration in `_olai/Properties.olai` says a type the built-in table knows ([properties.md](properties.md)).
+
+[^codes]: An error's location is the `file:line` of the record it is about, which is the record's first line. A `line` of `0` means the site is the path itself. Each code has an entry below with the message it carries, and what a refusal hands back as data is in a closed block of its own.
+
+[^merges]: Git merges are the only edits that bypass the server, and validation on load catches those. Each node is one line with a stable id, so plain line-based git merges are safe ([git.md](git.md)).
+
+[^bytes]: Validation runs over the set the write would produce, and the rename is all files or none. Writers emit canonical field order, literal `UTF-8` with no escaping beyond JSON's structural escapes, no blank lines, and exactly one trailing newline. Readers tolerate blank lines. The five rules a writer keeps are in the closed block at the foot of this page.
+
+[^races]: A write that keeps losing races is refused after five attempts. When other writers move the directory, the refusal names the files and the revision span observed, so you can tell what is being rewritten. A refusal that instead blames the set of file kinds is a bug in olai's own revalidation; restarting the server clears it.
+
+[^claims]: The directory's `format` setting names the row new outlines use, and that row's first registered suffix is what a mint writes ([settings.md](settings.md)). Existing files are selected by live claims rather than by that setting. An absent configured row refuses a mint, and an unclaimed address is a `notFound` answer rather than a decoding failure.
+
+[^stems]: The four stems are case-insensitive and sit directly under `_olai/`, matched only among files whose claims hold nodes, so they work with any outline row's suffix. What each one holds, how a missing one is minted, and how relative links resolve are in the closed block at the foot of this page.
+
+<details>
+<summary>Every error code, and what it says</summary>
 
 | Code | Stage | What it means |
 | --- | --- | --- |
@@ -209,7 +238,10 @@ The directory itself would not be read: a permission on a folder, a mount that w
 EACCES: permission denied, scandir '/home/alice/notes' — the outline below is the last one that loaded, and it will catch up on its own once the directory can be read again.
 ```
 
-## What a refusal carries
+</details>
+
+<details>
+<summary>What a refusal carries</summary>
 
 Errors carry a kind, one of `usage`, `validation`, `not-found` or `busy`, surfaced as MCP tool errors and HTTP codes with structured detail: a `validation` refusal carries the validator's own verdict as data rather than prose. A load does not refuse at all, so the same rows reach a reader on the files they broke, one entry per broken file.
 
@@ -226,15 +258,10 @@ A site that names a second file without blaming it says so, and there are two sh
 
 The summary cannot carry a row, so no surface drawing it floods a page with somebody else's errors. A broken outline's own pane draws the rows.
 
-## Writing
+</details>
 
-The server is the only writer. Git merges are the only edits that bypass it, and validation on load catches those. A write goes: re-validate the whole edited set, write same-directory temporary files, rename them atomically (all files or none), and commit. Validation comes first, over the set the write would produce, so a refused write costs nothing on disk.
-
-A write that keeps losing races is refused after five attempts. When other writers move the directory, the refusal names the files and the revision span observed, so you can tell what is being rewritten. A refusal that instead blames the set of file kinds is a bug in olai's own revalidation; restarting the server clears it.
-
-Writers emit canonical field order, literal `UTF-8` with no escaping beyond JSON's structural escapes, no blank lines, and exactly one trailing newline. Readers tolerate blank lines.
-
-### The rules a writer keeps
+<details>
+<summary>The rules a writer keeps</summary>
 
 - There is one writer, and callers do not assemble bytes. A writer is handed the records of a whole file and hands back the whole file, so every separator has exactly one owner.
 - Absent has one spelling. An optional field holding `undefined`, `null`, `[]` or `""` is not written, so `{"after":[]}` cannot reach a file. Two files that mean the same thing must not differ byte for byte, because a conflict over `after: []` against no `after` is a conflict about nothing.
@@ -242,11 +269,10 @@ Writers emit canonical field order, literal `UTF-8` with no escaping beyond JSON
 - A record is one line by construction: a note's embedded newlines are escaped by JSON itself, which is why the format is JSON lines rather than indented JSON.
 - Sibling order is an insert, not a renumbering. `ord` is a fractional index over base62, so a node placed between two neighbours mints a key that sorts between them and touches neither. Nothing sorts between `x` and `x0`, and the writer renumbers that row rather than guessing.
 
-Each node is one line with a stable id, so plain line-based git merges are safe ([git.md](git.md)).
+</details>
 
-## File claims and convention names
-
-Each outline row owns its suffix and its own parser and canonical writer; the Olai row claims `.olai`. The directory's `format` setting names the row new outlines use, and that row's first registered suffix is what a mint writes ([settings.md](settings.md)). Existing files are selected by live claims rather than by that setting. An absent configured row refuses a mint, and an unclaimed address is a `notFound` answer rather than a decoding failure.
+<details>
+<summary>The four convention stems, and how addresses resolve</summary>
 
 ### The four convention stems
 
@@ -266,3 +292,5 @@ A missing convention is minted with the configured outline row's first suffix, i
 Path schemas validate relative address structure rather than current membership. An outline address keeps the `kind: "document"` discriminator, and `outlineAt` admits it only when the current claim holds nodes. A format's `parse(file, contents, claims)` receives the caller's snapshot and never consults the registry itself. Only `_olai/` participates in Inbox, Pins, Trash and Properties resolution, so move convention files directly into it. Each outline format states its own serialization and merge guarantees; the guarantees above belong to `outline-olai`.
 
 Relative links in titles, notes and document bodies resolve beside the file that contains them. A missing served target is a derived reading and never a validation error, so the file stays readable and writable. Node and document reads name dead links and suggest matching basenames relative to the writer, and a write's answer nudges about dead links it has just introduced. Creating the target clears the reading on the next revision, without rewriting the referring text.
+
+</details>

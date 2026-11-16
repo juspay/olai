@@ -1,19 +1,93 @@
 # Marks, days and repeating
 
-A row is marked or it is not. This page is the four marks a record may carry, what every reading derives from them, which fields put a node on a day, and the grammar that brings a node back.
+A row is marked or it is not. A mark says whether anything is still owed, a date puts a node on a day, and a rule brings it back.[^scope]
 
 ## The four marks
 
-A node carries at most one mark, and a record carrying two is refused `several-marks`. There is no value for unmarked and in particular no `open`: a node carrying no mark has no status at all, and is not a task. A mark is storable on any node, leaf or parent.
+A node carries at most one mark.[^scope]
 
 | Mark | Its box | Settles | Written by |
 | --- | --- | --- | --- |
-| [`done`](#done) | checked, the row struck through | yes | `outlines_done` |
-| [`cancelled`](#cancelled) | crossed, the row struck through | yes | `outlines_cancelled` |
-| [`doing`](#doing) | half-filled | no | `outlines_doing` |
-| [`todo`](#todo) | empty | no | `outlines_todo` |
+| `done` | checked, the row struck through | yes | `outlines_done` |
+| `cancelled` | crossed, the row struck through | yes | `outlines_cancelled` |
+| `doing` | half-filled | no | `outlines_doing` |
+| `todo` | empty | no | `outlines_todo` |
 
-A mark that settles ends the wait: nobody is owed anything by a node carrying one. That is the question every derived reading asks, rather than asking which mark — what a day still owes, what a date badge burns for, what an `after` arrow blocks, what a branch holds up.
+A settling mark ends the wait.[^settles] A node with no mark is a bullet, not a task.[^bullet]
+
+## What the marks decide
+
+A node's status is the mark it stores and nothing else.[^stored]
+
+| Reading | What it asks |
+| --- | --- |
+| Blocked | a target still unsettled |
+| The rollup | how far the task children got |
+| Hiding finished work | this node stores `done` |
+| What a mirror shows | everything of its target |
+| Overdue | a dated task past its day |
+
+## The two write gates
+
+A `done` may not stand over unfinished work.[^open] `outlines_done` over an unfinished branch is refused,[^refused] and open work arriving under a `done` ancestor takes that mark off the chain.[^reopen] A third refuses `outlines_doing` while something blocks it.[^doing]
+
+## Days
+
+The journal, the calendar and the today view are derived from dates when a page is drawn.[^derived] Three fields put a node on a day, all identically.[^placing]
+
+| Field | What it says |
+| --- | --- |
+| `date` | what the node is scheduled for |
+| a dated `done` | work finished at that instant |
+| a dated `cancelled` | work called off at that instant |
+
+A `.md` named for an ISO date is that day's note.[^note]
+
+## Repeating
+
+A dated node may say how it comes back, and completing it makes the next occurrence.[^completing] The grammar is closed: four shapes and no fifth.[^closed]
+
+| Rule | The next occurrence |
+| --- | --- |
+| `every day` | the day after |
+| `every week on <weekday>` | the next `monday` … `sunday`, strictly after |
+| `every month` | the same day next month, clamped to one that exists[^clamp] |
+| `every year` | twelve months on, clamped the same way |
+
+```jsonl
+{"id":"bins","ord":"a0","title":"put the bins out","todo":true,"date":"2026-08-17","repeat":"every week on monday"}
+```
+
+[^scope]: A mark is storable on any node, leaf or parent, and a record carrying two marks is refused `several-marks`. There is no value for unmarked and in particular no `open`.
+
+[^settles]: A settling mark ends the wait: nobody is owed anything by a node carrying one. That is the question every derived reading asks, rather than asking which mark — what a day still owes, what a date badge burns for, what an `after` arrow blocks, what a branch holds up.
+
+[^bullet]: A node carrying no mark has no status at all and is not a task: nothing to finish, nothing outstanding, and nothing that makes anything else a task. A checkbox is drawn for a mark and not for a node, so an unmarked row gets no box at all, only the blank that keeps the titles in a column. The absence of a box is an answer.
+
+[^stored]: A node with children is marked exactly like one without: `read this book` can be ticked with three notes hanging off it. Nothing recomputes a parent's mark from what hangs below it, and an unmarked node is not an unfinished one.
+
+[^open]: Open work under a `done` means a node storing `done` with a `todo` or a `doing` anywhere in the branch below it, which hides work from the view whose job is showing what is left. That pair is the whole of it.
+
+[^refused]: `outlines_done` over an unfinished branch is refused, naming what is in the way by title, id and the mark each carries. A bullet never stands in the way, and neither does a cancelled row. The way past the gate is to settle what is not happening, which `outlines_cancelled` is how to say.
+
+[^reopen]: Open work arriving under a `done` ancestor takes the ancestor's mark off, and the answer says so. Every `done` in the chain comes off, each stamped like any other write, and the commit subject names them. What else counts as work arriving, and what the gates exempt, are in the third closed block below.
+
+[^doing]: `outlines_doing` is refused while something is in the way, naming the blockers by title and id with the mark each carries. Starting is an instruction about what to pick up next, and `a after b` is the set's own statement that `b` comes first.
+
+[^derived]: Dates are read over the whole served directory. There is no journal file, no stored year to month hierarchy, and no outline whose filename means anything: a day is a question asked of every node in every outline.
+
+[^placing]: A dated `doing` or `todo` places nothing, and neither does `started` or `created`. The values stay legal and stay on disk; a node's own row still shows the mark it carries. The rest of what a day holds is in the fourth closed block below.
+
+[^note]: A `.md` whose basename is exactly an ISO date, such as `2026-08-12.md` wherever in the tree it sits, is that day's note, and the day page draws it above the query's answer. `2026-08-10-recap.md` is a document about a day and deliberately not one, and two files claiming one date are both shown, in path order. Nothing validates the convention and no field records it.
+
+[^completing]: The rule rides the occurrence that is next, so exactly one occurrence of a recurrence is pending. Completing one stamps it and captures the next as a fresh node, placed immediately after the one that was finished, among the same siblings. Eleven finished occurrences are eleven records on eleven days. What the fresh node carries is in the last closed block below.
+
+[^closed]: Intervals (`every 2 weeks`), end dates, counts, several weekdays and days of the month are all absent. A rule needs a `date`, which is what it repeats from.
+
+[^clamp]: The 31st of January repeats on the 28th of February, and the 29th of February on the 28th.
+
+<details>
+<summary>The four marks, one by one</summary>
 
 ### `done`
 
@@ -33,19 +107,10 @@ Work in hand, written `true`. `outlines_doing` stamps `started` one field over, 
 
 Work nobody has started, written `true`. Someone has to put it there: a bullet stays a bullet unless it is marked. A dated `todo` places the node on no day.
 
-## What the marks decide
+</details>
 
-A node's status is the mark it stores and nothing else. A node with children is marked exactly like one without: `read this book` can be ticked with three notes hanging off it. Nothing recomputes a parent's mark from what hangs below it.
-
-| Reading | What it asks |
-| --- | --- |
-| [Blocked](#blocked) | is a target still work nobody has settled |
-| [The rollup](#the-rollup) | how far the task children have got |
-| [Hiding finished work](#hiding-finished-work) | does this node store `done` |
-| [What a mirror shows](#what-a-mirror-shows) | everything, of the node it points at |
-| [Overdue](#overdue) | is this dated node `todo` or `doing`, and is the day past |
-
-An unmarked node is not an unfinished one. It is a bullet: nothing to finish, nothing outstanding, and nothing that makes anything else a task. A checkbox is drawn for a mark and not for a node, so an unmarked row gets no box at all, only the blank that keeps the titles in a column. The absence of a box is an answer.
+<details>
+<summary>What each reading asks, and where it is drawn</summary>
 
 ### Blocked
 
@@ -73,19 +138,16 @@ A `date` says when, and the mark says whether it is work. A node carrying a `dat
 
 Only the second can be late: a node is overdue when it carries `todo` or `doing` and its day is before today. Either settling mark extinguishes it. The agenda is that collection, dated `todo` and `doing` only; an occurrence stays on its day page and in the calendar dots.
 
-## The two write gates
+</details>
 
-A `done` may not come to stand over unfinished work. That is a node storing `done` with a `todo` or a `doing` anywhere in the branch below it, which hides work from the view whose job is showing what is left. Open work here means that pair and nothing else.
-
-### `outlines_done` over an unfinished branch
-
-Refused, naming what is in the way by title, id and the mark each carries. A bullet never stands in the way, and neither does a cancelled row. The way past the gate is to settle what is not happening, which `outlines_cancelled` is how to say.
+<details>
+<summary>The gates in full: what counts as work arriving, and what is exempt</summary>
 
 ### Open work arriving under a `done` ancestor
 
-The ancestor's mark comes off, and the answer says so. A capture carrying a `todo`, an `outlines_todo` or `outlines_doing`, and a move that lands a task under it are all somebody saying the branch is not finished. So are a merge handing its rows to a finished sibling and a subtree coming back out of the trash.
+A capture carrying a `todo`, an `outlines_todo` or `outlines_doing`, and a move that lands a task under it are all somebody saying the branch is not finished. So are a merge handing its rows to a finished sibling and a subtree coming back out of the trash.
 
-Every `done` in the chain comes off, each stamped like any other write, and the commit subject names them. An `outlines_done` or an `outlines_cancelled` is not one of them: the node it lands on settles, so no work arrived.
+An `outlines_done` or an `outlines_cancelled` is not one of them: the node it lands on settles, so no work arrived.
 
 Marks the write did not make are never touched. A `done` outside the arriving node's own parent chain stays as it was, and so does a `doing` or a `todo` anywhere.
 
@@ -95,25 +157,16 @@ Trashed work is exempt at both doors, since a subtree in an `_olai/Trash.olai` i
 
 A placement is not containment at either door. A mirror of an open task under a branch neither stops that branch being marked done nor takes a mark off anything, and `outlines_mirror` is not gated at all.
 
-### `outlines_doing` while something is in the way
+### What is not gated, and what the answer carries
 
-Refused, naming the blockers by title and id with the mark each carries. Starting is an instruction about what to pick up next, and `a after b` is the set's own statement that `b` comes first. `outlines_done` is not gated on the order: finishing out of order is sometimes what happened. `outlines_todo` is not gated at all, and neither is `outlines_cancelled`.
+`outlines_done` is not gated on the order: finishing out of order is sometimes what happened. `outlines_todo` is not gated at all, and neither is `outlines_cancelled`.
 
 When a mark lands, the ops layer may say what the rollup noticed, such as the last open task under a parent going done, and name every mark the second gate took off. It travels in a field of its own on the answer to a write that happened. None of it is a load invariant: a set that arrives from a git merge loads, draws, and is fixed by the first write anybody makes to it ([validation.md](validation.md)).
 
-## Days
+</details>
 
-The journal, the calendar and the today view are derived from dates when a page is drawn, over the whole served directory. There is no journal file, no stored year to month hierarchy, and no outline whose filename means anything: a day is a question asked of every node in every outline.
-
-Three fields put a node on a day, and all three place identically.
-
-| Field | What it says |
-| --- | --- |
-| `date` | what the node is scheduled for |
-| a dated `done` | work someone finished at that instant |
-| a dated `cancelled` | work someone called off at that instant |
-
-A dated `doing` or `todo` places nothing, and neither does `started` or `created`. The values stay legal and stay on disk; a node's own row still shows the mark it carries.
+<details>
+<summary>What a day holds, what a mark records, and the day's note</summary>
 
 - A node with two dates is on two days, once each. Scheduled for the 10th and finished on the 11th is a true statement about both days.
 - Two dates on one day are one row. The row names which of its dates it is there for (`date`, `done` or `cancelled`, printed in front of the time), and `date` wins that naming.
@@ -127,36 +180,16 @@ olai stamps the two settling marks, each with the instant it was made, local and
 
 ### A day's own document
 
-A `.md` whose basename is exactly an ISO date, such as `2026-08-12.md` wherever in the tree it sits, is that day's note, and the day page draws it above the query's answer. `2026-08-10-recap.md` is a document about a day and deliberately not one, and two files claiming one date are both shown, in path order. Nothing validates the convention and no field records it.
-
 The day page's **+ day note** mints into that day's note, where the newest existing daily note says the directory keeps them. Clicking a calendar day never writes.
 
-## Repeating
+</details>
 
-A dated node may say how it comes back, and completing it makes the next occurrence.
-
-```jsonl
-{"id":"bins","ord":"a0","title":"put the bins out","todo":true,"date":"2026-08-17","repeat":"every week on monday"}
-```
-
-The grammar is closed: four shapes and no fifth.
-
-| Rule | The next occurrence |
-| --- | --- |
-| `every day` | the day after |
-| `every week on <weekday>` | the next `monday` … `sunday`, strictly after |
-| `every month` | the same day of the next month, clamped to one that exists |
-| `every year` | twelve months on, clamped the same way |
-
-The 31st of January repeats on the 28th of February, and the 29th of February on the 28th. Intervals (`every 2 weeks`), end dates, counts, several weekdays and days of the month are all absent.
+<details>
+<summary>Spelling a rule, and what completing one does</summary>
 
 Reading is forgiving about spelling and strict about grammar: case is folded, runs of whitespace collapse, `mon` is `monday`, and `every monday` is `every week on monday`. A write stores the canonical spelling, whichever was typed; what is already on disk is left as it was found until somebody writes that field.
 
-A rule needs a `date`, which is what it repeats from. A rule the grammar cannot read, and a rule with no `date` under it, are both `bad-repeat`, per line. `outlines_repeat` with a rule the grammar does not have, and `outlines_date` clearing the day out from under one, are refused by the write gate in the validator's own words.
-
-### What completing one does
-
-The rule rides the occurrence that is next, so exactly one occurrence of a recurrence is pending. Completing one stamps it and captures the next as a fresh node, placed immediately after the one that was finished, among the same siblings. Eleven finished occurrences are eleven records on eleven days.
+A rule the grammar cannot read, and a rule with no `date` under it, are both `bad-repeat`, per line. `outlines_repeat` with a rule the grammar does not have, and `outlines_date` clearing the day out from under one, are refused by the write gate in the validator's own words.
 
 | The new node carries | It does not carry |
 | --- | --- |
@@ -169,3 +202,5 @@ The rhythm is the file's and never the clock's: the next occurrence is one perio
 Un-doing a completion does not un-spawn, and re-doing makes no second occurrence: the rule travelled, so the node that was completed has none left to spawn from. What is left is a recurrence with one live head and a node beside it that does not repeat. Stop either with `outlines_repeat` and `null` on whichever one was meant.
 
 The next occurrence is a dated node like any other, so the agenda, the calendar and the day pages read it as they read the one before it. The rule itself is drawn as a badge beside the date, on the row and on the node's own page. No occurrence is expanded and no future dates are materialised: a set with a hundred repeating chores holds a hundred records.
+
+</details>

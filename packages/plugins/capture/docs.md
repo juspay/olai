@@ -1,6 +1,6 @@
 # Capture
 
-Capture puts one line into the directory's inbox without leaving the page you are on. The inbox is `_olai/Inbox.olai`, and capture gives it an **Inbox** row in the sidebar with a count of what is waiting in it.
+Capture puts one line into the directory's inbox without leaving the page you are on.[^inbox]
 
 ## Write a line into the inbox
 
@@ -20,17 +20,11 @@ On a phone the thumb bar carries a **Capture** `+`: one tap opens the palette wi
 
 ## Where a captured line lands
 
-A capture is added at the top level of `_olai/Inbox.olai`, marked **To do**, and where the directory has no inbox the write mints one. Deciding where the line really belongs is what you do afterwards, in the app.
-
-Undo takes the row straight back out. An inbox the capture minted is left standing, so you delete it yourself if you want it gone.
+A capture is added at the top level of `_olai/Inbox.olai`, marked **To do**, and where the directory has no inbox the write mints one.[^undo] Deciding where the line really belongs is what you do afterwards, in the app.
 
 ## The Inbox row
 
-The row opens `_olai/Inbox.olai`. Its chip counts the rows in the inbox marked **To do** or **Doing**, at any depth, and is not drawn when that count is zero. A ⚠ beside the word means `Couldn't open this file`.
-
-## What else the inbox holds
-
-Chat files a conversation that belongs to no node under a top-level `Chats` row of the inbox, and offers **Inbox › Chats** as the default place on its **New chat** row. Switching capture off withdraws that place and stops the filing; the other places still work, and conversations already on a node are untouched.
+The row opens `_olai/Inbox.olai` and carries a chip counting what is waiting.[^chip] Chat files some conversations in the inbox too.[^chats]
 
 ## When something is off
 
@@ -38,3 +32,11 @@ Chat files a conversation that belongs to no node under a top-level `Chats` row 
 | --- | --- |
 | the `outline-olai` plugin | `Inbox needs outline-olai, which is turned off.` where the row was |
 | capture | no **Inbox** row, no `+` prefix and no palette row; the inbox file stays as it is |
+
+[^inbox]: The inbox is `_olai/Inbox.olai`, and capture gives it an **Inbox** row in the sidebar with a count of what is waiting in it.
+
+[^undo]: Undoing a capture takes the row straight back out. An inbox the capture minted is left standing, so you delete it yourself if you want it gone.
+
+[^chip]: The chip counts the rows in the inbox marked **To do** or **Doing**, at any depth, and is not drawn when that count is zero. A ⚠ beside the word means `Couldn't open this file`.
+
+[^chats]: Conversations in the inbox: chat files a conversation that belongs to no node under a top-level `Chats` row of the inbox, and offers **Inbox › Chats** as the default place on its **New chat** row. Switching capture off withdraws that place and stops the filing; the other places still work, and conversations already on a node are untouched.

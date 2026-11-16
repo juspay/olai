@@ -21,24 +21,34 @@
 .contents[open] > summary::after { content: " ▴"; }
 
 .docs-nav nav { font-size: 0.9rem; padding: 0.8rem 0.2rem 0.4rem; }
-.docs-nav section { margin-top: 1.1rem; }
-.docs-nav h2 {
-  font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--muted); font-weight: 700; margin-bottom: 0.3rem;
-}
 .docs-nav a {
   display: block; color: var(--ink); text-decoration: none;
-  padding: 0.18rem 0.6rem; margin-left: -0.6rem; border-radius: 6px;
-  line-height: 1.35;
+  padding: 0.2rem 0.6rem; border-radius: 6px; line-height: 1.35;
 }
 .docs-nav a:hover { background: var(--desk); }
 .docs-nav a[aria-current] { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent); font-weight: 700; }
-.docs-nav a.overview { font-weight: 700; }
-.docs-nav details summary {
-  cursor: pointer; color: var(--muted); padding: 0.18rem 0;
-  font-size: 0.86rem;
+.docs-nav a.overview { font-weight: 700; margin-bottom: 0.4rem; }
+/* A group is a fold: its name and how many pages it holds, open only around
+   the page you are on. */
+.docs-nav details > summary { cursor: pointer; list-style: none; border-radius: 6px; }
+.docs-nav details > summary::-webkit-details-marker { display: none; }
+.docs-nav details > summary::before {
+  content: "›"; display: inline-block; width: 1rem; color: var(--muted);
+  transition: transform 120ms ease;
 }
-.docs-nav details a { margin-left: 0.4rem; }
+.docs-nav details[open] > summary::before { transform: rotate(90deg); }
+.docs-nav .group > summary {
+  display: flex; align-items: baseline; padding: 0.35rem 0.6rem 0.35rem 0.2rem;
+  font-weight: 700; color: var(--ink);
+}
+.docs-nav .group > summary:hover { background: var(--desk); }
+.docs-nav .group > summary span { margin-left: auto; font-size: 0.74rem; font-weight: 400; color: var(--muted); }
+.docs-nav .group > a { margin-left: 1.2rem; }
+.docs-nav .group { padding-bottom: 0.15rem; }
+.docs-nav .group[open] { padding-bottom: 0.6rem; }
+.docs-nav .subgroup { margin-left: 1.2rem; }
+.docs-nav .subgroup > summary { padding: 0.2rem 0.6rem 0.2rem 0; color: var(--muted); font-size: 0.86rem; }
+.docs-nav .subgroup > a { margin-left: 1rem; }
 
 .contents { margin: 1.2rem 0 0.4rem; }
 .contents ol { list-style: none; padding: 0.7rem 0.2rem 0.2rem; font-size: 0.88rem; }
@@ -61,10 +71,12 @@
    an eye down. */
 .prose { max-width: 44rem; margin-top: 1.6rem; overflow-wrap: break-word; }
 .prose > * + * { margin-top: 1rem; }
+/* The opening says the one thing, so it reads as the page's lede. */
+.prose > p:first-child { font-size: 1.16rem; line-height: 1.5; }
 .prose h2 {
-  font-family: var(--display); font-weight: 600; font-size: 1.65rem;
+  font-family: var(--display); font-weight: 600; font-size: 1.5rem;
   letter-spacing: -0.015em; line-height: 1.2;
-  margin-top: 2.8rem; padding-top: 1.2rem; border-top: 1px solid var(--hair);
+  margin-top: 2.2rem; padding-top: 1rem; border-top: 1px solid var(--hair);
 }
 .prose h3 { font-size: 1.12rem; font-weight: 700; margin-top: 2rem; }
 .prose h4 { font-size: 1rem; font-weight: 700; margin-top: 1.5rem; }
@@ -94,6 +106,32 @@
 .prose td:first-child { font-weight: 700; }
 .prose td:first-child:has(> code:only-child), .prose td:first-child:has(> a:only-child) { white-space: nowrap; }
 .prose tbody tr:hover { background: color-mix(in srgb, var(--desk) 70%, transparent); }
+
+/* A long table or a listing, closed until the reader asks for it. */
+.prose details {
+  border-radius: 12px; box-shadow: 0 0 0 1px var(--rule); padding: 0 1rem;
+}
+.prose details > summary {
+  cursor: pointer; padding: 0.7rem 0; font-weight: 700; font-size: 0.95rem;
+}
+.prose details > summary::marker { color: var(--accent); }
+.prose details[open] { padding-bottom: 1rem; }
+.prose details > * + * { margin-top: 0.9rem; }
+.prose details + details { margin-top: 0.6rem; }
+
+/* The overview: one card per group. */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 1rem; margin-top: 1.6rem; }
+.card { border-radius: 14px; box-shadow: 0 0 0 1px var(--rule); padding: 1rem 1.15rem 1.1rem; }
+.card h2 { font-family: var(--display); font-weight: 600; font-size: 1.3rem; }
+.card > p { color: var(--muted); font-size: 0.9rem; margin-top: 0.3rem; }
+.card ul { list-style: none; margin-top: 0.7rem; font-size: 0.95rem; }
+.card li + li { margin-top: 0.25rem; }
+.card a { text-decoration: none; color: var(--ink); }
+.card a:hover { color: var(--accent); }
+.card details { margin-top: 0.5rem; font-size: 0.9rem; }
+.card details > summary { cursor: pointer; color: var(--muted); }
+.card details > summary span { font-size: 0.78rem; }
+.card details ul { margin: 0.3rem 0 0 1rem; }
 
 /* Previous and next, in the index's order. */
 .pager { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 3.5rem; max-width: 44rem; }

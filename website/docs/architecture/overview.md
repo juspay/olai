@@ -1,62 +1,10 @@
 # Architecture overview
 
-olai serves one directory of files, to a browser and to agents. This page follows a change from a keystroke to disk and back, and names what owns each step. [packages.md](packages.md) says what each package is for, and [cordis.md](cordis.md) holds the rules a change must keep.
-
-## Words this page uses
-
-| Word | Means |
-| --- | --- |
-| the set | the files under the served directory that olai treats as content |
-| a door | a named interface a package exposes or calls through, such as `olai-plugin-git`'s `./state` subpath or the `Search` service |
-| a face | one presentation of a thing that exists once, such as the browser and MCP over one surface |
-| the wire | the websocket protocol between the server and the browser |
-| a leaf | a package with no `@olai/*` dependency |
-| a tenant | a plugin holding olai's whole judgement about one outside system, whose `./appliance` door is the only part that dials it |
+olai serves one directory of files, to a browser and to agents. This page follows a change from a keystroke to disk, and names what owns each step.
 
 ## One process, one entry point
 
-`olai web <dir>` is the only command that opens a directory. It serves the browser over a websocket, on loopback by default, and `/mcp` on that same listener serves agents speaking HTTP. `olai surface <verb>` opens nothing: it dials a running server over that route, which is why a terminal verb and an MCP tool fall out of one declaration.
-
-- One process writes the files, and one function judges every write.
-- olai is a host plus plugins. The host loads modules, composes their declarations, serves transports and publishes management; it needs no directory of its own.
-- Each capability declares its wire surface beside its provider, registers through `Surfaces`, and is acquired in the browser through `Wired`. See [plugin-system.md](plugin-system.md).
-- `TransportSurface.register` takes scoped HTTP route layers and upgrade handlers. `packages/server/src/listener.ts` owns the one port and rebuilds dispatch from those registrations, with no transport-specific branch.
-- Editing a file outside olai, or running `git pull`, updates the open page without a reload.
-
-## Which plugins run, and what the vault provides
-
-`--profile` picks the catalogue a serve mounts, and defaults to `web`.
-
-| Profile | What mounts |
-| --- | --- |
-| `web` | every plugin in `packages/bundle/olai.yml` that is not marked off there |
-| `surface` | only the plugins naming it: MCP, the vault, settings, the file kinds and the content plugins. No websocket and no browser app |
-| `test-minimal` | only the plugins naming it: the vault, settings, outline files and the test fixtures. No transport at all |
-
-A profile patches that one catalogue and inserts no second list. The served directory's own settings then patch the result, which is where an operator turns a plugin on or off ([../settings.md](../settings.md)).
-
-- The `vault` plugin owns the store and offers `Vault`, `Directory` and `Ops`. Everything that reads or writes files declares one of them, so a serve without the vault leaves those consumers waiting rather than reading nothing.
-- Teardown withdraws the offers, drains dependants, closes the gate to new calls, waits for accepted writes, then releases the store and the lock. A failed vault leaves the transports up.
-- The host itself needs no directory. `test-counter` runs on the same host with no `Vault`, `Directory` or `Ops` at all.
-
-## What counts as content
-
-A plugin claims suffixes with the vault's `vault.file-kinds` registry, which is minted in vault setup before the store opens. Anything unclaimed, such as a `README` or a source file, is not in the set.
-
-| Claimed by | Suffixes | How it travels |
-| --- | --- | --- |
-| outline-olai | `.olai` | parsed records, inside the snapshot |
-| markdown | `.md` | text, inside the snapshot |
-| csv | `.csv` | path only, body read on demand |
-| hledger | `.journal`, `.hledger`, `.ledger` | path only, body read on demand |
-| hypertext | `.html` | path only, fetched from `/media/` as a sealed preview |
-| image | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.bmp`, `.ico`, `.svg` | path only, fetched from `/media/` |
-| pdf | `.pdf` | path only, fetched from `/media/` |
-
-Only the first two ride the snapshot, because the rest are large and nothing in the set reads their bytes. Viewers key their media address to the file revision, so a restored file gets a new revision and reloads.
-
-- A plugin registers one claim, checked for suffix collisions before it is published: a refused registration installs nothing, and cleanup withdraws only the departing owner's claim.
-- Switching a plugin off removes its files from the set and their access through `/media/`. A published reading keeps the claims it was validated against, so an older snapshot does not change under a withdrawal.
+`olai web <dir>` is the only command that opens a directory: it serves the browser over a websocket, on loopback by default, and `/mcp` on that same listener serves agents speaking HTTP.[^surface] One process writes the files, and one function judges every write.[^host]
 
 ## How a change travels
 
@@ -83,9 +31,85 @@ files on disk ── load + validate ──▶ snapshot ── surface collectio
 
 An agent enters at step 3 instead, over `/mcp`.
 
-## The store
+## Where the rest lives
 
-`packages/store` turns files into a revision-tagged snapshot. It is generic: the caller supplies the codec, so it carries no olai types.
+| Topic | Page |
+| --- | --- |
+| What each package is for, and the stack | [packages.md](packages.md) |
+| Declared dependencies, ownership and cleanup | [cordis.md](cordis.md) |
+| Manifests, capabilities and the plugin runtime | [plugin-system.md](plugin-system.md) |
+| Which capability owns each extension location | [slot-ownership.md](slot-ownership.md) |
+| What the browser suite covers | [browser-tests.md](browser-tests.md) |
+| The file format and its rules | [../format.md](../format.md) |
+| What a writer is told when a write is refused | [../validation.md](../validation.md) |
+| Conversations, agents and what they may touch | [../chat.md](../chat.md) |
+| Commits, pushes and the audit trail | [../git.md](../git.md) |
+
+[^surface]: `olai surface <verb>` opens nothing: it dials a running server over that route, which is why a terminal verb and an MCP tool fall out of one declaration.
+
+[^host]: olai is a host plus plugins. The host loads modules, composes their declarations, serves transports and publishes management; it needs no directory of its own.
+
+    Each capability declares its wire surface beside its provider, registers through `Surfaces`, and is acquired in the browser through `Wired` ([plugin-system.md](plugin-system.md)). `TransportSurface.register` takes scoped HTTP route layers and upgrade handlers. `packages/server/src/listener.ts` owns the one port and rebuilds dispatch from those registrations, with no transport-specific branch.
+
+<details>
+<summary>Words this page uses</summary>
+
+| Word | Means |
+| --- | --- |
+| the set | the files under the served directory that olai treats as content |
+| a door | a named interface a package exposes or calls through, such as `olai-plugin-git`'s `./state` subpath or the `Search` service |
+| a face | one presentation of a thing that exists once, such as the browser and MCP over one surface |
+| the wire | the websocket protocol between the server and the browser |
+| a leaf | a package with no `@olai/*` dependency |
+| a tenant | a plugin holding olai's whole judgement about one outside system, whose `./appliance` door is the only part that dials it |
+
+</details>
+
+<details>
+<summary>Which plugins run, and what the vault provides</summary>
+
+`--profile` picks the catalogue a serve mounts, and defaults to `web`.
+
+| Profile | What mounts |
+| --- | --- |
+| `web` | every plugin in `packages/bundle/olai.yml` that is not marked off there |
+| `surface` | only the plugins naming it: MCP, the vault, settings, the file kinds and the content plugins. No websocket and no browser app |
+| `test-minimal` | only the plugins naming it: the vault, settings, outline files and the test fixtures. No transport at all |
+
+A profile patches that one catalogue and inserts no second list. The served directory's own settings then patch the result, which is where an operator turns a plugin on or off ([../settings.md](../settings.md)).
+
+- The `vault` plugin owns the store and offers `Vault`, `Directory` and `Ops`. Everything that reads or writes files declares one of them, so a serve without the vault leaves those consumers waiting rather than reading nothing.
+- Teardown withdraws the offers, drains dependants, closes the gate to new calls, waits for accepted writes, then releases the store and the lock. A failed vault leaves the transports up.
+- The host itself needs no directory. `test-counter` runs on the same host with no `Vault`, `Directory` or `Ops` at all.
+
+</details>
+
+<details>
+<summary>What counts as content</summary>
+
+A plugin claims suffixes with the vault's `vault.file-kinds` registry, which is minted in vault setup before the store opens. Anything unclaimed, such as a `README` or a source file, is not in the set.
+
+| Claimed by | Suffixes | How it travels |
+| --- | --- | --- |
+| outline-olai | `.olai` | parsed records, inside the snapshot |
+| markdown | `.md` | text, inside the snapshot |
+| csv | `.csv` | path only, body read on demand |
+| hledger | `.journal`, `.hledger`, `.ledger` | path only, body read on demand |
+| hypertext | `.html` | path only, fetched from `/media/` as a sealed preview |
+| image | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.bmp`, `.ico`, `.svg` | path only, fetched from `/media/` |
+| pdf | `.pdf` | path only, fetched from `/media/` |
+
+Only the first two ride the snapshot, because the rest are large and nothing in the set reads their bytes. Viewers key their media address to the file revision, so a restored file gets a new revision and reloads.
+
+- A plugin registers one claim, checked for suffix collisions before it is published: a refused registration installs nothing, and cleanup withdraws only the departing owner's claim.
+- Switching a plugin off removes its files from the set and their access through `/media/`. A published reading keeps the claims it was validated against, so an older snapshot does not change under a withdrawal.
+
+</details>
+
+<details>
+<summary>The store, the write gate and ops</summary>
+
+`packages/store` turns files into a revision-tagged snapshot. It is generic: the caller supplies the codec, so it carries no olai types. Editing a file outside olai, or running `git pull`, updates the open page without a reload.
 
 - Errors travel on a second channel, so a broken file does not blank the screen. A published snapshot names which paths moved, so consumers publish per file without diffing two snapshots.
 - It stays current by probe: re-list the tree, re-stat everything, diff against a table of mtime and size stamps. A watcher only triggers the probe and its payloads are dropped unread. A settle delay turns a `git pull` into one probe, and a slow backstop catches lost events.
@@ -95,9 +119,9 @@ An agent enters at step 3 instead, over `/mcp`.
 
 > Two olai processes cannot serve one directory. `packages/plugins/vault/src/lock.ts` takes `flock` at `$XDG_RUNTIME_DIR/olai/<digest>.lock`, keyed on the directory's realpath, so a second olai refuses to boot and names the holding process. A share mounted on two hosts is beyond what `flock` can exclude.
 
-## The write gate
+### The write gate
 
-The **write gate** is the one function every edit goes through: `commit({baseRev, changes})` in `store/src/store.ts`. It takes the probe's permit, so a write and a `git pull` cannot interleave.
+The write gate is the one function every edit goes through: `commit({baseRev, changes})` in `store/src/store.ts`. It takes the probe's permit, so a write and a `git pull` cannot interleave.
 
 1. Probe, then check `baseRev`. A stale one returns a typed `StaleWrite{currentRev}`, and the caller re-derives.
 2. Decode the write's own changed files. A write may not produce a file olai cannot read back, so this runs before anything else and before any bytes move.
@@ -109,7 +133,7 @@ The **write gate** is the one function every edit goes through: `commit({baseRev
 - Validation is incremental. The store hands the codec its last published value and every path that moved, and `format/src/patch.ts` swaps changed entries into the indexes, leaving the rest standing. It may decline, which costs a rebuild and never an answer.
 - Nothing rides the gate. Committing to git is a separate quiet window over the whole repository, and the store never learns what git is.
 
-## Ops, the only writer
+### Ops, the only writer
 
 `packages/ops` sits between `format` and `store`. It is the only thing that writes, and the only reader an agent gets.
 
@@ -119,7 +143,10 @@ The **write gate** is the one function every edit goes through: `commit({baseRev
 - Ops owns the codec joining `format` to `store`, and the grammar a tool is built in. The tool list is not here: each plugin owns its verbs in `packages/plugins/<name>/src/tools.ts`, so a plugin switched off withdraws them.
 - Documents go through the same gate and come back through the same snapshot. A write carries the whole new text and may carry `was`, what the caller read, refused on mismatch with the draft kept.
 
-## The wire
+</details>
+
+<details>
+<summary>The wire</summary>
 
 Outlines, documents and heads are three collections of kolu's surface framework, keyed by root-relative path.
 
@@ -131,7 +158,10 @@ Outlines, documents and heads are three collections of kolu's surface framework,
 - Every subscription sends a full snapshot then deltas, and a reconnect is a fresh snapshot. There is no resume protocol and no optimistic drawing.
 - No raw wire code exists outside the surface API, with five exceptions: everything an MCP client speaks, `/media/*`, `GET /olai/who`, the agent socket, and `POST /olai/resync`, which only asks the store to look at the disk.
 
-## The browser
+</details>
+
+<details>
+<summary>The browser, and split panes</summary>
 
 `packages/web` owns the tab's boot, its build and the shared primitives, and draws no feature of its own.
 
@@ -151,7 +181,7 @@ web/src/build.ts          assembles the bundle
 - Client-local state is folds, done-visibility, the calendar month and layout widths. A preference belongs to the browser rather than the tab, through `createPreference`.
 - The three surfaces in the top layer are the palette, the shortcuts sheet and the offline freeze. All three are modal dialogs entered through `web/src/client/layer.ts`, so none of them spells a stacking order.
 
-## Split panes
+### Split panes
 
 A pane is a route: the same page, the same filter, the same chrome as a lone page.
 
@@ -162,7 +192,10 @@ A pane is a route: the same page, the same filter, the same chrome as a lone pag
 - Closing the second-to-last pane returns to a plain page. Below a minimum width a pane collapses to a labelled rail, and collapse and close are different verbs. On a narrow screen the list is a tab strip over one column.
 - Each column's title and close control stay above its own content scroller, so resizing or reaching a pane's end never scrolls the window.
 
-## Errors
+</details>
+
+<details>
+<summary>Errors, and what a refusal says</summary>
 
 Error kinds are tagged error schemas: they travel the wire, decode as themselves, and surface as MCP tool errors and HTTP codes. The four kinds are `usage`, `validation`, `not-found` and `busy`.
 
@@ -173,17 +206,4 @@ Error kinds are tagged error schemas: they travel the wire, decode as themselves
 - A guess is withheld. While any outline is unreadable, an unresolved `mirror`, `after`, `blocks` or `see` target is not reported, because the line declaring the target may be the line that failed to parse.
 - Not every failure is one of the four kinds. A git command that refuses is not a validation failure, so it travels as two ordinary values: `why` on the write's reply, and the `git` cell the header draws. Never ignore an error silently.
 
-See [../validation.md](../validation.md) for what a writer is told.
-
-## Where the rest lives
-
-| Topic | Page |
-| --- | --- |
-| What each package is for, and the stack | [packages.md](packages.md) |
-| Declared dependencies, ownership and cleanup | [cordis.md](cordis.md) |
-| Manifests, capabilities and the plugin runtime | [plugin-system.md](plugin-system.md) |
-| Which capability owns each extension location | [slot-ownership.md](slot-ownership.md) |
-| What the browser suite covers | [browser-tests.md](browser-tests.md) |
-| The file format and its rules | [../format.md](../format.md) |
-| Conversations, agents and what they may touch | [../chat.md](../chat.md) |
-| Commits, pushes and the audit trail | [../git.md](../git.md) |
+</details>

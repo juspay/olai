@@ -53,3 +53,52 @@ nav.site a[aria-current] { text-decoration: underline; text-decoration-color: va
 footer.site { padding: 3rem 0 4rem; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--hair); margin-top: 4rem; }
 footer.site .wrap { display: flex; gap: 1.2rem 1.5rem; flex-wrap: wrap; align-items: baseline; }
 footer.site .wordmark { font-size: 1.2rem; margin-right: 0.5rem; }
+
+/* Footnotes, on any page. A marker is a small numbered chip, big enough to
+   tap, that opens its note as a popup (layouts/Base.astro). */
+sup:has(> a[data-footnote-ref]) { line-height: 0; }
+a[data-footnote-ref] {
+  display: inline-block; min-width: 1.25rem; padding: 0.15rem 0.3rem; margin-left: 0.1rem;
+  border-radius: 999px; text-align: center; text-decoration: none;
+  font-size: 0.68rem; font-weight: 700; line-height: 1.1; vertical-align: 0.15em;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+a[data-footnote-ref]:hover,
+a[data-footnote-ref]:focus-visible { background: var(--accent); color: var(--paper); }
+
+/* Every note again at the foot of the page, small, for a reader without
+   JavaScript and for one who wants them all at once. */
+.footnotes {
+  margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--hair);
+  font-size: 0.86rem; color: var(--muted);
+}
+.footnotes::before {
+  content: "Notes"; display: block; margin-bottom: 0.4rem;
+  font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700;
+}
+.footnotes ol { padding-left: 1.2rem; }
+.footnotes li + li { margin-top: 0.5rem; }
+.footnotes li:target { color: var(--ink); background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 6px; }
+.footnotes p + p { margin-top: 0.4rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* The popup a marker opens: under the marker on a wide screen, a sheet along
+   the bottom edge on a phone. */
+#note {
+  position: fixed; inset: auto; margin: 0;
+  width: min(24rem, calc(100vw - 1.5rem)); max-height: min(55vh, 24rem); overflow: auto;
+  padding: 0.9rem 1.1rem; border: 1px solid var(--rule); border-radius: 12px;
+  background: var(--panel); color: var(--ink); font-size: 0.92rem; line-height: 1.5;
+  box-shadow: 0 18px 40px -16px color-mix(in srgb, var(--ink) 45%, transparent);
+}
+#note:focus { outline: none; }
+#note:focus-visible { outline: 2px solid var(--accent); }
+#note p + p, #note p + ul, #note ul + p { margin-top: 0.5rem; }
+#note ul { padding-left: 1.2rem; }
+#note code { font-size: 0.86em; background: var(--desk); border-radius: 4px; padding: 0 0.2em; }
+@media (max-width: 40rem) {
+  #note {
+    left: 0 !important; right: 0; bottom: 0; top: auto !important;
+    width: 100%; max-height: 60vh; border-radius: 16px 16px 0 0; padding: 1.1rem 1.25rem 1.6rem;
+  }
+}
