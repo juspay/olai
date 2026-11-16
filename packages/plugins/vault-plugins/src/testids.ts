@@ -32,7 +32,23 @@ export const TESTID = {
   /** The `•••` beside it, and the rows inside it. */
   pageMore: "plugin-page-more",
   pageTrustAlways: "plugin-page-trust-always",
+  /** ...and the way back out of it, drawn in its place while it is in force. */
+  pageTrustStop: "plugin-page-trust-stop",
+  /** *Delete…*, and the two buttons of the confirmation it opens. The verb is
+   *  the page's because the halves are reachable from nowhere else. */
+  pageDelete: "plugin-page-delete",
+  pageDeleteConfirm: "plugin-page-delete-confirm",
+  pageDeleteKeep: "plugin-page-delete-keep",
   pageAskChange: "plugin-page-ask-change",
+  /** The link to the conversation's own page, drawn where this viewport has
+   *  no seat to dock it in — a phone, or a serve with no shell. */
+  pageAskOpen: "plugin-page-ask-open",
+  /** What came of a press that spoke to the builder: it went, or there was
+   *  nobody there. */
+  pageAskSaid: "plugin-page-ask-said",
+  /** *I'll read it now* — the way past a build whose agent never said it had
+   *  finished. */
+  pageReadAnyway: "plugin-page-read-anyway",
   /** The running plugin's own switch. */
   pageSwitch: "plugin-page-switch",
   /** The phone's foot, where the primary verb sits below `md`. */

@@ -95,7 +95,32 @@ const walk = (from: ReadonlyArray<string>, to: ReadonlyArray<string>): ReadonlyA
   return lines
 }
 
-/** How many lines moved — the banner's own count, so *One line changed in
- *  browser.tsx* is read off the same walk the block below it draws. */
-export const changedCount = (lines: ReadonlyArray<Line>): number =>
-  lines.reduce((total, line) => (line.kind === "same" ? total : total + 1), 0)
+/**
+ * HOW MANY LINES MOVED — the banner's own count, read off the same walk the
+ * block below it draws, so *One line changed in browser.tsx* is a sentence
+ * about the diff a person is looking at.
+ *
+ * A REPLACED LINE IS ONE LINE, which is the whole of why this is not a count
+ * of non-`same` rows. The walk draws a replacement as a removal followed by an
+ * addition — that is how every diff a programmer has read puts them, and it is
+ * two ROWS for one changed line. Counting rows said "2 lines changed" of an
+ * edit to a single line, and a banner that inflates what it is asking somebody
+ * to re-read is a banner they stop believing.
+ *
+ * So each RUN of changed rows counts as the longer of its two sides: three
+ * lines replaced by one is three, one replaced by three is three, and a line
+ * edited is one. Runs are summed, so changes in two places are two.
+ */
+export const changedCount = (lines: ReadonlyArray<Line>): number => {
+  let total = 0
+  let dels = 0
+  let adds = 0
+  const settle = () => { total += Math.max(dels, adds); dels = 0; adds = 0 }
+  for (const line of lines) {
+    if (line.kind === "same") settle()
+    else if (line.kind === "del") dels += 1
+    else adds += 1
+  }
+  settle()
+  return total
+}

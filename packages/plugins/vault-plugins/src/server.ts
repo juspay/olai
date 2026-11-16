@@ -3,7 +3,7 @@
  * loaded. Withdrawing this scope closes its plugins and HTTP integration,
  * while writes already accepted by the vault remain durable. */
 import { slotCatalog } from "@olai/plugin-api/slots"
-import { definePlugin, FileKinds, HostLoading, Ops, Offers, Surfaces, Vault, BundleModules } from "@olai/plugin-api/services"
+import { ConversationsWatch, definePlugin, FileKinds, HostLoading, Ops, Offers, Surfaces, Vault, BundleModules } from "@olai/plugin-api/services"
 import { TransportSurface } from "@olai/plugin-api/transport"
 import type { Ops as Gate } from "@olai/ops"
 import { buildHalf, WRITABLE_MODULES } from "@olai/plugin-build"
@@ -29,7 +29,6 @@ import { openDynamic, RESERVED } from "./runtime.ts"
 import { pluginChunks } from "./route.ts"
 import { claim } from "./claim.ts"
 import { GUIDE } from "./guide.ts"
-import { ConversationsWatch } from "./builder.ts"
 import { APPROVED_KEY, isApproved, ON_KEY, versionOf, WORD } from "./source.ts"
 export { name } from "./index.ts"
 
@@ -84,8 +83,15 @@ export default definePlugin({
     const gate = (yield* Ops).gate as Gate
     // THE CONVERSATION DOOR, READ PER CALL rather than held: the broker is
     // core's and is always there, and what stands behind it comes and goes
-    // with the chat row (`./builder.ts` argues why this is a broker and not
-    // a component).
+    // with the chat row.
+    //
+    // A BROKER AND NOT A COMPONENT, which this branch learned the hard way: a
+    // row's report FOLDS its components, so a component waiting for a chat
+    // somebody switched off made this whole row read `waiting` — out of the
+    // roster, the tab's chunk never loaded, and the plugin's page, the
+    // sidebar's section and the palette's row gone with it. A page about a
+    // folder has nothing to do with chat and must not leave when chat does
+    // (`@olai/plugin-api`'s `ConversationsWatch` states the rule).
     const builders = yield* ConversationsWatch
     // THE CLAIM FIRST, because nothing below can see a plugin until `.ts` under
     // `plugins/` is a kind of file this serve holds. It leaves with this row:
@@ -95,7 +101,7 @@ export default definePlugin({
     const dynamic = openDynamic(yield* loading.acquire, loading.reserved, request => Effect.gen(function*() {
       yield* gate.run(request, "web")
       yield* followed(yield* gate.read)
-    }))
+    }), () => builders.current() !== undefined)
     const settling = <T, E>(run: Effect.Effect<T, E>) => Effect.ensuring(run, Effect.sync(loading.changed))
     const followed = (read: Reading | null) => Effect.asVoid(settling(dynamic.follow(read)))
     yield* Effect.addFinalizer(() => Effect.asVoid(dynamic.follow(null)))
@@ -136,6 +142,20 @@ export default definePlugin({
             }))
           }
           yield* dynamic.approve(input.name, input.forever)
+          return {}
+        }),
+
+      trust: ({ input }) =>
+        Effect.gen(function*() {
+          yield* lookingAt(input.name)
+          yield* dynamic.trust(input.name, input.trusting)
+          return {}
+        }),
+
+      remove: ({ input }) =>
+        Effect.gen(function*() {
+          yield* lookingAt(input.name)
+          yield* settling(dynamic.remove(input.name))
           return {}
         }),
 
@@ -183,11 +203,20 @@ export default definePlugin({
               refusal: "No agent is set up on this machine, so nobody is building it. The folder is "
                 + "there and you can write the files yourself." }
           }
-          // THE REFUSAL IS NARROWED HERE, once, and this is the edge the
-          // structural spelling is for: core's door answers `{ _tag }` because
-          // `@olai/plugin-api` may not import the format, and this row does —
-          // so a failure chat produced is one of the gate's own, with the
-          // sentence a person reads already on it.
+          // ...AND EVERY WAY THE BUILDER CAN FAIL TO START IS A REFUSAL BESIDE
+          // THE ADDRESS, never a failed call. The folder is already on disk by
+          // the time chat is asked for anything, so a call that failed whole —
+          // no Inbox with capture off, a settings write the gate refused —
+          // left the person looking at an error, with the folder made, and the
+          // same name refused as taken when they tried again. The two absent
+          // arms above answer that way for *there is no chat at all*; this
+          // answers the same way for *chat would not take it*, because what a
+          // person can do about either is identical: go to the page, read what
+          // happened, write the files or ask again.
+          //
+          // The sentence is the gate's own: core's door answers `{ _tag }`
+          // because `@olai/plugin-api` may not import the format, and this row
+          // does — so a failure chat produced already carries the prose.
           const started = yield* Effect.catch(
             chat.open({
               parent: null,
@@ -196,10 +225,20 @@ export default definePlugin({
               say: sentence === "" ? `Build a plugin called ${title}.` : sentence,
               teach: preambleFor(word, title),
             }),
-            (refusal) => Effect.fail(refusal as UsageFailure),
+            (refusal) => Effect.succeed({ node: null, refusal: (refusal as UsageFailure).message }),
           )
-          yield* dynamic.bind(word, started.node)
-          return { name: word, address, builder: started.node, refusal: started.refusal }
+          if (started.node === null) return { name: word, address, builder: null, refusal: started.refusal }
+          // The binding is a settings write and can be refused on its own. The
+          // conversation exists either way and the page can still reach it.
+          const bound = yield* Effect.result(dynamic.bind(word, started.node))
+          return {
+            name: word,
+            address,
+            builder: started.node,
+            refusal: bound._tag === "Failure"
+              ? `The conversation was started, but olai could not write it down: ${bound.failure.message}`
+              : started.refusal,
+          }
         }),
 
       ask: ({ input }) =>
@@ -209,14 +248,20 @@ export default definePlugin({
           if (chat === undefined || one.builder === null) return { builder: null }
           const row = dynamic.rows(yield* loading.reports).find(row => row.name === input.name)
           const fault = one.fault ?? row?.fault ?? null
+          // WHAT THE PLUGIN IS ACTUALLY DOING, where the caller said nothing.
+          // It used to read "is running" whatever state the row was in, so an
+          // agent asked for a change to a plugin that was waiting for a key,
+          // switched off or sitting unapproved was told something false in the
+          // first sentence it read.
           const said = input.said.trim() !== ""
             ? input.said
-            : fault === null
-              ? `The plugin \`${one.name}\` is running. I have not said what I want changed yet.`
+            : fault !== null
               // THE FAULT VERBATIM, because the serve already knows it and an
               // agent told "it broke" has to go and find out what.
-              : `The plugin \`${one.name}\` will not start. olai says: ${fault}\n\n`
+              ? `The plugin \`${one.name}\` will not start. olai says: ${fault}\n\n`
                 + `Its files are in \`${one.folder}\`. Please fix it and call \`vault-plugins_run\` again.`
+              : `The plugin \`${one.name}\` is ${row?.state ?? "off"} (its files are in `
+                + `\`${one.folder}\`). I have not said what I want changed yet.`
           const went = yield* chat.say({ node: one.builder, text: said })
           return { builder: went ? one.builder : null }
         }),
@@ -225,6 +270,16 @@ export default definePlugin({
         Effect.gen(function*() {
           const one = yield* lookingAt(input.name)
           const row = dynamic.rows(yield* loading.reports).find((one) => one.name === input.name)
+          // THE CALL IS THE DONE SIGNAL, and remembering it here is what keeps
+          // *Ready for you* from ringing at a folder whose face is still being
+          // written: the guide requires this call as the last act of a build,
+          // so an agent that has made it has said the folder is finished at
+          // this version (`./runtime.ts`'s `checked`).
+          dynamic.checked(one.name, one.version)
+          // ...and the roster is republished for it: nothing on disk moved, so
+          // the follow above found nothing, and the page, the sidebar's mark
+          // and the alert all read this fact off the roster.
+          yield* Effect.sync(loading.changed)
           return {
             name: one.name,
             version: one.version,

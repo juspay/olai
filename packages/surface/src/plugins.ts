@@ -323,6 +323,41 @@ export const BuiltPlugin = Schema.Struct({
     version: Schema.String,
     /** Whether {@link version} is the version a person approved. */
     approved: Schema.Boolean,
+    /**
+     * ...AND WHETHER THERE IS AN APPROVAL AT ALL, for some version — which is
+     * the fact that tells *nobody has read this yet* from *you approved this
+     * and then it changed*.
+     *
+     * The switch cannot tell them apart and used to be asked to: a folder
+     * copied in with `on: yes` and no approval read as *paused · changed since
+     * you turned it on*, and an approved plugin somebody then switched off and
+     * edited read as *nobody has read it yet*. Both sentences were about a
+     * different plugin than the one on screen.
+     */
+    decided: Schema.optionalKey(Schema.Boolean),
+    /** ...and whether that approval is the STANDING one — `always`, every later
+     *  version included. The menu that sets it draws the way back out of it in
+     *  its place, so the page has to know which of the two it is looking at. */
+    trusting: Schema.optionalKey(Schema.Boolean),
+    /**
+     * THE VERSION THE BUILDER LAST SAID IT WAS DONE WITH — the agent's own
+     * `vault-plugins_run`, which the authoring guide already requires as the
+     * last step of a build.
+     *
+     * A ROSTER CANNOT SEE AN AGENT'S KEYSTROKES, and the files landing are not
+     * a done signal: the guide has the builder write the README, then
+     * `server.ts`, then `browser.tsx`, so a page that called a folder finished
+     * when its server half landed rang *Ready for you* at a plugin whose face
+     * was still being written — and a person who pressed **Turn on** was paused
+     * by the very next write. The agent saying so is the one signal that means
+     * what the page would be claiming.
+     *
+     * It is THIS PROCESS'S MEMORY, like the approved-source copy beside it: a
+     * serve restarted mid-build comes back with no record of the call, so the
+     * page keeps saying *being built* and offers the reader its own way past it
+     * (*I'll read it now*). Absent on a plugin nobody is building.
+     */
+    checked: Schema.optionalKey(Schema.String),
     /** Whether the person's `on` switch is up, independent of whether this
      *  version is approved: a plugin can be on and PAUSED by an edit, which is
      *  two facts and not one. */
@@ -361,6 +396,17 @@ export const BuiltPlugin = Schema.Struct({
     /** The node of the conversation building this plugin, where one is bound to
      *  it — what the page docks and what *Ask for a change* reopens. */
     builder: Schema.optionalKey(Schema.String),
+    /**
+     * ...AND WHETHER THERE IS ANYBODY BEHIND IT RIGHT NOW — the serve holding a
+     * conversations door, which is chat being up on THIS serve.
+     *
+     * A bound conversation is a fact about the vault and survives chat being
+     * switched off; being able to speak into it is a fact about the serve and
+     * does not. A page that read only the first offered *Ask the agent to fix
+     * it*, sent the words into a door that was not there, and said nothing —
+     * which is the shape of every button that lies.
+     */
+    asking: Schema.optionalKey(Schema.Boolean),
     /** Where the built browser half is served — only while it is running. */
     chunk: Schema.optionalKey(Schema.String),
   })),

@@ -57,16 +57,31 @@ import { definedPlugins, faultSaid, stageOf, wakes, type Defined, type Stage } f
 /** The dedup key, and the only thing a press is routed by. */
 export const tagOf = (name: string): string => `olai:plugin:${name}`
 
-/** What the banner says. Two lines on every platform that draws one: which
- *  plugin, and what it is waiting for. */
-export const noticeOf = (plugin: Defined, stage: "review" | "broken"): Notice => ({
+/**
+ * What the banner says. Two lines on every platform that draws one: which
+ * plugin, and what it is waiting for.
+ *
+ * THE SECOND LINE IS ABOUT HOW IT GOT THERE, and that is why *ready* has two
+ * of them. "An agent finished building it" is true of a plugin somebody asked
+ * for in the palette and false of a folder they copied in from another vault
+ * or wrote by hand — which is the same screen reached without any agent at
+ * all. The bound conversation is what tells them apart, and it is the same
+ * fact the page uses to decide whether there is anybody to ask.
+ */
+export const noticeOf = (plugin: Defined, stage: "review" | "paused" | "broken"): Notice => ({
   tag: tagOf(plugin.name),
   title: stage === "review"
     ? `${plugin.source.title} is ready for you`
-    : `${plugin.source.title} couldn't start`,
+    : stage === "paused"
+      ? `${plugin.source.title} is paused`
+      : `${plugin.source.title} couldn't start`,
   body: stage === "review"
-    ? "An agent finished building it. Read what it does and turn it on."
-    : faultSaid(plugin) ?? "It could not start, and gave no message.",
+    ? plugin.source.builder === undefined
+      ? "It is in your vault and nobody has read it yet. Read what it does and turn it on."
+      : "An agent finished building it. Read what it does and turn it on."
+    : stage === "paused"
+      ? "Its code changed since you turned it on, so it stopped. Read what changed and turn it on again."
+      : faultSaid(plugin) ?? "It could not start, and gave no message.",
   data: { kind: "plugin", name: plugin.name },
 })
 
@@ -86,7 +101,14 @@ export const createPluginAlerts = (
   const before = new Map<string, Stage>()
   let seeded = false
   createEffect(() => {
-    const rows = definedPlugins(roster())
+    const now = roster()
+    // A ROSTER THAT HAS NOT ARRIVED IS NOT AN EMPTY ONE. The wire's reading is
+    // `undefined` until the first snapshot lands, and seeding off that marked
+    // the memory as seeded over a table with nothing in it — so the FIRST real
+    // roster read as *every waiting plugin just arrived* and rang for each of
+    // them, which is exactly the ping this whole module exists not to send.
+    if (now === undefined) return
+    const rows = definedPlugins(now)
     const names = new Set<string>()
     for (const plugin of rows) {
       names.add(plugin.name)

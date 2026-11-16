@@ -29,11 +29,24 @@
  *     conversation, and no server half on disk yet.
  *
  * **A roster cannot see an agent's keystrokes**, and this does not pretend to.
- * What it can see is which of the three files have landed, so *Being built*
- * ends when `server.ts` does. A folder whose halves are both written is
- * `pending` and is drawn as *Ready for you* even if the conversation is still
- * talking — which is the honest reading: the thing on disk is complete and a
- * person may decide about it.
+ * What it CAN see is the agent saying it is done: `vault-plugins_run` at the
+ * version on disk, which the authoring guide already requires as the last act
+ * of a build (`@olai/surface`'s `source.checked`). *Being built* ends there
+ * and not at a file landing — the guide has the builder write the README,
+ * then `server.ts`, then `browser.tsx`, so a page that called the folder
+ * finished when its server half arrived rang *Ready for you* at a plugin whose
+ * face was still being written, and a person who pressed **Turn on** was
+ * paused by the very next write.
+ *
+ * THE READER CAN GO PAST IT ANYWAY, which is the other half of the same
+ * honesty: the done signal is this process's memory, so a serve restarted
+ * mid-build has none, and an agent that gave up never sends one. {@link
+ * stageOf} takes that decision as an argument — the page's *I'll read it now*
+ * — rather than guessing at a timeout.
+ *
+ * ...AND IT ONLY APPLIES BEFORE THE FIRST APPROVAL. Once somebody has said yes
+ * to a version, an agent editing the folder again is not a build in progress:
+ * it is the plugin they approved, changed, which is *Paused* with a diff.
  */
 
 import { type BuiltPlugin, pluginState } from "@olai/surface"
@@ -71,11 +84,17 @@ export const pluginNamed = (
  * whether the folder is whole comes before whether it is approved, because an
  * unfinished folder is not something to decide about.
  */
-export const stageOf = (plugin: Defined): Stage => {
+export const stageOf = (plugin: Defined, read = false): Stage => {
   const source = plugin.source
   const state = pluginState(plugin)
-  if (state === "failed") return building(plugin) ? "building" : "broken"
-  if (state === "pending") return building(plugin) ? "building" : source.on ? "paused" : "review"
+  const waiting = !read && building(plugin)
+  if (state === "failed") return waiting ? "building" : "broken"
+  // PAUSED IS AN APPROVAL THAT MOVED, and the switch cannot tell that from a
+  // plugin nobody has read: a folder copied in with `on: yes` and no approval
+  // read as *changed since you turned it on*, and an approved plugin somebody
+  // switched off and then edited read as *nobody has read it yet*. `decided`
+  // is the fact both of those sentences are actually about.
+  if (state === "pending") return waiting ? "building" : source.decided === true ? "paused" : "review"
   if (state === "running") return "on"
   // `waiting` is a plugin that started and is short of a service it named. It
   // is drawn with the faults because that is what it is from here — nothing of
@@ -84,11 +103,22 @@ export const stageOf = (plugin: Defined): Stage => {
   return "off"
 }
 
-/** A folder an agent is still writing: a conversation is bound to it and the
- *  required half has not landed. `server.ts` is the whole test, because it is
- *  the one file a plugin cannot be without (`../source.ts`'s `faultOf`). */
-const building = (plugin: Defined): boolean =>
-  plugin.source.builder !== undefined && plugin.source.server.trim() === ""
+/**
+ * A FOLDER AN AGENT IS STILL WRITING — a conversation bound to it, nobody
+ * having approved anything yet, and the builder not having said it is done.
+ *
+ * The done signal is `vault-plugins_run` at the version on disk, which the
+ * guide requires as the build's last act; the file test that preceded it
+ * ("`server.ts` has landed") called a folder finished one file early, every
+ * time, for every plugin that draws anything.
+ *
+ * `decided` ends it for good: after the first approval an agent's edits are
+ * changes to a plugin somebody runs, not a build in flight.
+ */
+export const building = (plugin: Defined): boolean =>
+  plugin.source.builder !== undefined
+  && plugin.source.decided !== true
+  && (plugin.source.server.trim() === "" || plugin.source.checked !== plugin.source.version)
 
 /** How each stage looks and reads: the dot's paint, the word beside it, and
  *  whether the word is an alarm. One table, so the sidebar's mark and the
@@ -115,7 +145,7 @@ export const metaOf = (plugin: Defined, stage: Stage): string => {
   if (stage === "review") return `${halves(source)} · nobody has read it yet`
   if (stage === "paused") return "changed since you turned it on"
   if (stage === "building") return "the files are still landing"
-  if (stage === "off") return source.approved ? "approved, switched off" : "switched off"
+  if (stage === "off") return source.approved || source.decided === true ? "approved, switched off" : "switched off"
   return ""
 }
 
@@ -176,13 +206,18 @@ export const MARK_WORD: { readonly review: string; readonly problem: string } = 
 }
 
 /**
- * THE STATES THAT ARE WORTH WAKING SOMEBODY FOR — the two the alert claims,
+ * THE STATES THAT ARE WORTH WAKING SOMEBODY FOR — the three the alert claims,
  * and nothing else.
  *
  * A plugin going ON is not news: the person pressed the button. A plugin being
  * BUILT is not news either, they asked for it a minute ago and the conversation
- * is open beside them. What is news is the two moments where the thing is
- * waiting on a person who has walked away: it is ready to be read, or it could
- * not start.
+ * is open beside them. What is news is every moment where the thing is waiting
+ * on a person who has walked away: it is ready to be read, it STOPPED because
+ * its code changed, or it could not start.
+ *
+ * *Paused* is on this list because it is the one a person most needs told: a
+ * plugin that was working is not working now, and nothing on screen says so
+ * unless they happen to be looking at the sidebar.
  */
-export const wakes = (stage: Stage): stage is "review" | "broken" => stage === "review" || stage === "broken"
+export const wakes = (stage: Stage): stage is "review" | "paused" | "broken" =>
+  stage === "review" || stage === "paused" || stage === "broken"

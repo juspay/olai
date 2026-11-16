@@ -60,7 +60,7 @@ import {
   PLUGIN_README_FILE,
   PLUGIN_SERVER_FILE,
 } from "@olai/surface"
-import { isMarkdown } from "@olai/format"
+import { isKeptText } from "@olai/format"
 
 import { usesOf, type Uses } from "./uses.ts"
 
@@ -124,6 +124,18 @@ export interface Defined {
   /** Whether the person's switch is up. A folder with no settings node is OFF:
    *  consent does not travel with a copied folder. */
   readonly on: boolean
+  /**
+   * ...AND WHAT THE `on` PROPERTY ACTUALLY SAYS, verbatim — `"yes"`, `"no"`,
+   * or `null` for a plugin whose node does not carry the word at all.
+   *
+   * The boolean above folds the last two together, which is right for every
+   * reader that asks *is it on* and wrong for the one that asks *would this
+   * write change anything*: the gate refuses a property write that moves
+   * nothing, so a stop on a plugin already switched off, spelled against the
+   * folded reading, asked to write `no` over `no` and came back refused —
+   * telling a person their press had failed when there was nothing left to do.
+   */
+  readonly switchSaid: string | null
   /** The conversation building this plugin, where one is bound. */
   readonly builder: string | null
   /** What the code reaches for, read off its own imports. */
@@ -138,6 +150,12 @@ export interface Defined {
   }
   /** Why this definition cannot be built, in a whole sentence, or `null`. */
   readonly fault: string | null
+  /** WHICH OF THE FOLDER'S FILES THE SET ACTUALLY HOLDS, by name. The three
+   *  texts above fold absence into emptiness, which is right for reading and
+   *  wrong for the one verb that has to name files that are there: removing a
+   *  plugin deletes what exists, and a delete of a path the set does not hold
+   *  is a refusal rather than a no-op. */
+  readonly holds: ReadonlyArray<string>
 }
 
 /** Whether a version of this definition is the one a person said yes to. */
@@ -177,9 +195,13 @@ export const definedIn = (
     const word = rest.slice(0, cut)
     const name = rest.slice(cut + 1)
     if (name !== PLUGIN_README_FILE && name !== PLUGIN_SERVER_FILE && name !== PLUGIN_BROWSER_FILE) continue
-    // Only a kept-text document carries its body in the revision; an unkept
-    // claim would hand back a face with nothing in it.
-    if (!isMarkdown(document)) continue
+    // THE STORAGE QUESTION and never the prose one: only a kept-text document
+    // carries its body in the revision, and an unkept claim would hand back a
+    // face with nothing in it. The two halves are kept text that is NOT prose
+    // (`./claim.ts`'s `opaque`), so `isMarkdown` — which now means a body this
+    // app reads as writing — is false for exactly the files this reader exists
+    // to read, and `README.md` beside them is the one that is both.
+    if (!isKeptText(document)) continue
     const held = folders.get(word) ?? new Map<string, string>()
     held.set(name, document.body)
     folders.set(word, held)
@@ -224,10 +246,12 @@ const defined = (
     version: versionOf(server ?? "", browser),
     approved: said(APPROVED_KEY),
     on: said(ON_KEY) === "yes",
+    switchSaid: said(ON_KEY),
     builder: said(BUILDER_KEY),
     uses: usesOf(server ?? "", browser),
     consent: { file: consent.file, node, nodes: consent.nodes },
     fault: faultOf(name, server, taken),
+    holds: [...files.keys()],
   }
 }
 

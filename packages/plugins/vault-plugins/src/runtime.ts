@@ -48,12 +48,12 @@ import { UsageFailure, type OpFailure, type WriteRequest, type Reading } from "@
 import * as plugins from "@olai/plugin-api/services"
 import { type OwnedLoader, type Mounted, type Plugin, type RowReport } from "@olai/plugin-api/services"
 import type { BuiltPlugin } from "@olai/surface"
-import { PLUGIN_CHUNK_PREFIX, type PluginState } from "@olai/surface"
+import { PLUGIN_BROWSER_FILE, PLUGIN_CHUNK_PREFIX, PLUGIN_README_FILE, PLUGIN_SERVER_FILE, type PluginState } from "@olai/surface"
 import * as effect from "effect"
 import { Effect } from "effect"
 import { CONFIGURATION_FILE, decodePolicy, policyEdit, type PolicyRow } from "@olai/plugin-api/configuration"
 
-import { APPROVED_KEY, BUILDER_KEY, type Defined, definedIn, isApproved, ON_KEY } from "./source.ts"
+import { ALWAYS, APPROVED_KEY, BUILDER_KEY, type Defined, definedIn, isApproved, ON_KEY } from "./source.ts"
 
 /**
  * THE HOST'S OWN MODULES, put where a module built at runtime can reach them.
@@ -106,9 +106,6 @@ export interface DynamicRuntime {
    *  moved, so a caller can re-compose exactly when there is something to
    *  re-compose. */
   readonly follow: (reading: Reading | null) => Effect.Effect<boolean>
-  /** ...and the same act against the reading this runtime last saw — what an
-   *  approval and a switch need, since neither moves a file. */
-  readonly again: Effect.Effect<boolean>
   /** The text of a built browser half, by the path the roster published it
    *  under. `null` for anything else, which is a stale tab asking for a version
    *  that has been replaced. */
@@ -127,6 +124,54 @@ export interface DynamicRuntime {
   /** Say yes to a version, and turn it on — one write, because a press cannot
    *  land half of itself. `forever` writes `always`. */
   readonly approve: (name: string, forever: boolean) => Effect.Effect<boolean, OpFailure>
+  /**
+   * ...AND THE STANDING DECISION ON ITS OWN, which is a different gesture from
+   * the one above and used to be the same one.
+   *
+   * *Always trust changes* is about CODE — every later version of this plugin
+   * may run without being read again — and says nothing about whether the
+   * plugin is running now. Spelled as {@link approve}`(name, true)` it also
+   * wrote `on: yes`, so choosing it from the menu of a plugin somebody had
+   * switched OFF turned it back on: a second decision, made silently, out of a
+   * menu item whose words are about reading.
+   *
+   * `trusting: false` is the way back out, and the honest spelling of it is
+   * this version rather than none: taking the standing approval away from a
+   * plugin that is running must not stop it, because the person has read this
+   * version — they are only saying they want to read the next one.
+   */
+  readonly trust: (name: string, trusting: boolean) => Effect.Effect<boolean, OpFailure>
+  /**
+   * REMOVE A PLUGIN — the folder's files and the decision about them.
+   *
+   * The halves are deliberately not in the sidebar's file tree, so no delete
+   * verb anywhere else in the app reaches them: a person who asked for a
+   * plugin in one sentence could not get rid of it in anything less than a
+   * terminal. This is that gesture, and it is the page's because the page is
+   * the only place the folder is a thing you can see.
+   *
+   * THE CONSENT GOES WITH IT, which is the one difference from deleting the
+   * folder by hand. A folder somebody removed in Finder leaves its node where
+   * it was — the decision is left where it was made, and putting the folder
+   * back finds it again — but a person pressing **Delete** here is ending the
+   * plugin, and a settings file that collected the consent of every plugin
+   * anybody ever deleted would be a file nobody could read.
+   *
+   * FILES FIRST, NODE LAST, and they are separate writes because `delete` is
+   * not a batchable op: a refusal halfway leaves code with its decision rather
+   * than a decision with no code, which is the safer of the two halves to be
+   * left holding.
+   */
+  readonly remove: (name: string) => Effect.Effect<boolean, OpFailure>
+  /**
+   * THE BUILDER SAYS IT IS DONE — `vault-plugins_run` at this version, which
+   * the guide already requires as the last act of a build.
+   *
+   * Remembered rather than written: it is a fact about one conversation in one
+   * process, not a decision anybody made, and the page's own escape covers the
+   * serve that was restarted mid-build (`@olai/surface`'s `source.checked`).
+   */
+  readonly checked: (name: string, version: string) => void
   /** Bind a conversation to a plugin, so its page can dock the one that is
    *  building it. */
   readonly bind: (name: string, conversation: string) => Effect.Effect<boolean, OpFailure>
@@ -177,7 +222,17 @@ type Started =
  * `built` is every word this build already has, so a definition cannot take one
  * (`./source.ts` argues why that is a fault and not an override).
  */
-export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, write: (request: WriteRequest) => Effect.Effect<void, OpFailure> = () => Effect.fail(new UsageFailure({ reason: "The directory’s write door is unavailable." }))): DynamicRuntime => {
+export const openDynamic = (
+  host: OwnedLoader,
+  built: ReadonlyArray<string>,
+  write: (request: WriteRequest) => Effect.Effect<void, OpFailure> = () => Effect.fail(new UsageFailure({ reason: "The directory’s write door is unavailable." })),
+  /** WHETHER THERE IS A CONVERSATION DOOR ON THIS SERVE right now — read per
+   *  roster, because the chat row comes and goes and the page offers or
+   *  withholds its *ask* verbs on the answer (`@olai/surface`'s
+   *  `source.asking`). A runtime composed without one is a serve where nothing
+   *  can be asked, which is the honest default. */
+  asking: () => boolean = () => false,
+): DynamicRuntime => {
   /** WHAT CAME OF THE LAST ATTEMPT AT EACH WORD — see {@link Started}. */
   const started = new Map<string, Started>()
   const optionsKeys = new Map<string, string>()
@@ -209,6 +264,36 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
    * diff, and asks for the same decision either way.
    */
   const approvedSource = new Map<string, { readonly server: string; readonly browser: string | null }>()
+  /**
+   * THE VERSION EACH BUILDER LAST CALLED `vault-plugins_run` ON — the done
+   * signal the page waits for while a folder is being written
+   * ({@link DynamicRuntime.checked}).
+   */
+  const checked = new Map<string, string>()
+  /**
+   * WHETHER A VERSION NOBODY HAS APPROVED WOULD EVEN COMPILE — kept per word,
+   * at the version it was asked about, exactly as {@link Started} is.
+   *
+   * ## Compiling is not running, and the page used to be unable to say so
+   *
+   * Only an approved, switched-on plugin is mounted, so a half with a syntax
+   * error or a forbidden import sat at `pending` — *Ready for you* — and the
+   * only way to find out it was broken was to approve it. That is the worst
+   * possible ordering of those two acts: the one gesture in this product where
+   * a person is trusting code was also the way to discover the code is not
+   * code. The mockup's *Mend* screen is exactly this state, and it is reachable
+   * only if the fault is known before the decision.
+   *
+   * `buildHalf` is a TRANSFORM — esbuild over text, no evaluation of any kind —
+   * which is what makes this safe to do to source nobody has said yes to. The
+   * module is still never imported until {@link start}, and {@link start} is
+   * still only reached through an approval.
+   *
+   * Keyed by version so it is paid once per edit rather than once per revision:
+   * a keystroke anywhere in the vault republishes, and a vault with ten
+   * unapproved plugins would otherwise re-run ten esbuild passes for it.
+   */
+  const checkedBuilds = new Map<string, { readonly version: string; readonly why: string | null }>()
 
   const follow = (defined: ReadonlyArray<Defined>): Effect.Effect<boolean> =>
     Effect.gen(function*() {
@@ -230,6 +315,23 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
       }
       for (const name of [...approvedSource.keys()]) {
         if (!defined.some((one) => one.name === name)) approvedSource.delete(name)
+      }
+      // ...AND THE COMPILE OF WHAT NOBODY HAS APPROVED, for the same reason
+      // one line up and at the other end of the decision: a person cannot be
+      // asked to say yes to code before being told the code will not build
+      // ({@link checkedBuilds}). Transform only; nothing here is imported.
+      for (const one of defined) {
+        if (one.fault !== null || isApproved(one) || one.server.trim() === "") { checkedBuilds.delete(one.name); continue }
+        if (checkedBuilds.get(one.name)?.version === one.version) continue
+        checkedBuilds.set(one.name, { version: one.version, why: yield* compiles(one) })
+        moved = true
+      }
+      for (const name of [...checkedBuilds.keys()]) {
+        if (!defined.some((one) => one.name === name)) checkedBuilds.delete(name)
+      }
+      // A word whose folder is gone takes its builder's done signal with it.
+      for (const name of [...checked.keys()]) {
+        if (!defined.some((one) => one.name === name)) checked.delete(name)
       }
       // WANTED IS APPROVED **AND** ON, and the two are different facts: a
       // plugin a person approved and then switched off is approved and not
@@ -309,11 +411,18 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
    * the whole batch came back refused with the approval unwritten. The row
    * stayed paused, the press looked like it had done nothing, and the sentence
    * a person would have had to read to find out was about the OTHER key.
+   *
+   * ...COMPARED AGAINST WHAT THE NODE SAYS, verbatim, which is the second half
+   * of the same lesson. `on` folded to a boolean cannot tell `no` from a word
+   * that is not there, so switching OFF a plugin that was already off asked to
+   * write `no` over `no` and was refused in the same way — and that is the one
+   * press somebody repeats, because an agent kept writing and they pressed
+   * Stop again ({@link ../source.ts}'s `switchSaid`).
    */
   const consent = (one: Defined, props: Readonly<Record<string, string | null>>): WriteRequest | null => {
     const said: Readonly<Record<string, string | null>> = {
       [APPROVED_KEY]: one.approved,
-      [ON_KEY]: one.on ? "yes" : null,
+      [ON_KEY]: one.switchSaid,
       [BUILDER_KEY]: one.builder,
     }
     const moving = Object.entries(props).filter(([key, value]) => (said[key] ?? null) !== value)
@@ -331,10 +440,9 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
 
   return {
     rows: (report) =>
-      seen.map((one) => rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name))),
+      seen.map((one) => rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name), checkedBuilds.get(one.name), checked.get(one.name), asking())),
     names: () => seen.map((one) => one.name),
     follow: (reading) => follow(reading === null ? [] : definedIn(reading, built)),
-    again: Effect.suspend(() => follow(seen)),
     chunk: (path) => {
       for (const one of started.values()) if (one.up && one.path === path) return one.chunk
       // ...and a face that has just left is still served for whoever is
@@ -363,6 +471,30 @@ export const openDynamic = (host: OwnedLoader, built: ReadonlyArray<string>, wri
       if (request !== null) yield* write(request)
       return true
     }),
+    trust: (name, trusting) => Effect.gen(function*() {
+      const one = seen.find((one) => one.name === name)
+      if (one === undefined) return false
+      // THE SWITCH IS NOT TOUCHED, which is the whole of what separates this
+      // from `approve` one line up: a standing decision about CODE says
+      // nothing about whether the plugin is wanted running right now.
+      const request = consent(one, { [APPROVED_KEY]: trusting ? ALWAYS : one.version })
+      if (request !== null) yield* write(request)
+      return true
+    }),
+    remove: (name) => Effect.gen(function*() {
+      const one = seen.find((one) => one.name === name)
+      if (one === undefined) return false
+      // THE FOLDER'S OWN ORDER rather than the set's, so the writes a ledger
+      // records read the way the page lists the files: prose, server, face.
+      for (const file of [PLUGIN_README_FILE, PLUGIN_SERVER_FILE, PLUGIN_BROWSER_FILE]) {
+        if (!one.holds.includes(file)) continue
+        yield* write({ op: "delete", file: `${one.folder}${file}` })
+      }
+      const node = one.consent.node
+      if (node !== undefined) yield* write({ op: "trash", id: node.node.id })
+      return true
+    }),
+    checked: (name, version) => { checked.set(name, version) },
     bind: (name, conversation) => Effect.gen(function*() {
       const one = seen.find((one) => one.name === name)
       if (one === undefined) return false
@@ -438,6 +570,25 @@ const optionsKey = (one: Defined): string => {
       : {},
   })))
 }
+
+/**
+ * WOULD THIS SOURCE BUILD — asked of a version nobody has approved, answered
+ * with the builder's own sentence or `null`.
+ *
+ * `buildHalf` is the same transform {@link start} runs and `vault-plugins_write`
+ * answers with; what is NOT here is {@link loaded}, which is the import. A
+ * plugin nobody has said yes to is never evaluated, and this is the line that
+ * says so in code: a syntax error, a forbidden import and a half that names a
+ * module olai does not bind are all decided by esbuild over text.
+ */
+const compiles = (one: Defined): Effect.Effect<string | null> =>
+  Effect.gen(function*() {
+    const server = yield* Effect.promise(() => buildHalf("server", one.server))
+    if (!server.ok) return server.why
+    if (one.browser === null) return null
+    const browser = yield* Effect.promise(() => buildHalf("browser", one.browser ?? ""))
+    return browser.ok ? null : browser.why
+  })
 
 /** Metadata fingerprint: field boundaries must survive text containing line breaks. */
 export const wordsOf = (defined: ReadonlyArray<Defined>): string =>
@@ -560,6 +711,13 @@ const rowOf = (
   started: Started | undefined,
   report: RowReport | undefined,
   approvedSource: { readonly server: string; readonly browser: string | null } | undefined,
+  /** What the transform made of a version nobody has approved, where there is
+   *  one to report ({@link checkedBuilds}). */
+  pending: { readonly version: string; readonly why: string | null } | undefined,
+  /** The version this plugin's builder last said it was done with. */
+  checked: string | undefined,
+  /** Whether this serve can speak into a conversation at all. */
+  asking: boolean,
 ): BuiltPlugin => {
   const up = started?.up === true ? started : null
   // THE APPROVED HALVES ONLY WHERE THEY DIFFER, which is exactly the paused
@@ -573,6 +731,11 @@ const rowOf = (
     ...(one.readme === null ? {} : { readme: one.readme }),
     version: one.version,
     approved: isApproved(one),
+    // AN APPROVAL EXISTS, for some version — what tells a plugin nobody has
+    // read from one that was read and has since changed.
+    ...(one.approved === null ? {} : { decided: true }),
+    ...(one.approved === ALWAYS ? { trusting: true } : {}),
+    ...(checked === undefined ? {} : { checked }),
     on: one.on,
     server: one.server,
     ...(one.browser === null ? {} : { browser: one.browser }),
@@ -580,6 +743,7 @@ const rowOf = (
     ...(was === undefined || was.browser === one.browser || was.browser === null ? {} : { approvedBrowser: was.browser }),
     ...(one.uses.length === 0 ? {} : { uses: one.uses }),
     ...(one.builder === null ? {} : { builder: one.builder }),
+    ...(asking ? { asking: true } : {}),
     ...(up?.path == null ? {} : { chunk: up.path }),
   }
   const at = (state: PluginState, more: Partial<BuiltPlugin> = {}): BuiltPlugin => ({
@@ -597,7 +761,14 @@ const rowOf = (
         : { configurationNode: { file: one.consent.file, id: one.consent.node.node.id } }),
     }),
   })
-  const said = one.fault ?? (started?.up === false ? started.why : undefined)
+  // THE FOLDER'S OWN FAULT FIRST, then what a mount made of it, then what the
+  // transform made of a version nobody has approved — three sources for one
+  // sentence, in the order of how early the trouble was known. The third is
+  // what puts a broken unapproved plugin on the *could not start* screen
+  // instead of asking somebody to approve it to find out ({@link checkedBuilds}).
+  const said = one.fault
+    ?? (started?.up === false ? started.why : undefined)
+    ?? (pending?.version === one.version ? pending.why ?? undefined : undefined)
   if (said !== undefined) return at("failed", { fault: said })
   if (!isApproved(one)) return at("pending")
   if (!one.on) return at("switched")

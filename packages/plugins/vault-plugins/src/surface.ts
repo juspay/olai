@@ -57,6 +57,52 @@ export const surface = defineSurface({
         error: OpFailure,
       },
       /**
+       * ALWAYS TRUST CHANGES — and the way back out of it.
+       *
+       * A SECOND VERB rather than {@link approve}'s `forever`, because the two
+       * gestures differ in what else they do. **Turn on** is a decision about
+       * code AND a decision to run it, which is why it writes both words. The
+       * menu item that says *Always trust changes* is about reading only: it
+       * was spelled as an approval with `forever`, so choosing it on a plugin
+       * somebody had switched off turned it back on — a second decision, made
+       * silently, out of a menu whose words never mentioned it.
+       *
+       * `trusting: false` is the reverse the menu never offered. Taking the
+       * standing approval away pins the plugin at the version it is running,
+       * because the person HAS read that one; what they are saying is that
+       * they want to read the next.
+       */
+      trust: {
+        input: Schema.Struct({
+          name: Schema.String,
+          /** Whether every later version may run unread. */
+          trusting: Schema.Boolean,
+        }),
+        output: Schema.Struct({}),
+        error: OpFailure,
+      },
+      /**
+       * REMOVE A PLUGIN — the folder's files and the decision about them.
+       *
+       * The halves are deliberately not in the sidebar's file tree, so nothing
+       * else in the app can delete them: a person who made a plugin in one
+       * sentence would otherwise need a terminal to be rid of it. The page is
+       * where the folder is a thing you can see, so the verb is the page's.
+       *
+       * IT TAKES THE CONSENT WITH IT, unlike a folder deleted by hand, which
+       * leaves its node where the decision was made. Pressing **Delete** is
+       * ending the plugin, and a settings file collecting the approvals of
+       * every plugin anybody ever deleted is a file nobody can read.
+       *
+       * THE BROWSER'S ALONE, for {@link approve}'s reason in reverse: an agent
+       * that could delete a plugin could delete the one a person is reading.
+       */
+      remove: {
+        input: Schema.Struct({ name: Schema.String }),
+        output: Schema.Struct({}),
+        error: OpFailure,
+      },
+      /**
        * MINT A PLUGIN FROM ONE SENTENCE — what ⌘K → **New plugin** presses, and
        * the only verb here that creates anything.
        *
@@ -332,6 +378,8 @@ export const surface = defineSurface({
 export const faces = {
   browser: {
     "plugins.approve": "tool",
+    "plugins.trust": "tool",
+    "plugins.remove": "tool",
     "plugins.mint": "tool",
     "plugins.ask": "tool",
   },

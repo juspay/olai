@@ -719,3 +719,94 @@ test("a switch already where it is asked to be writes nothing at all", () => ben
   expect(yield* dynamic.set("swatch", true)).toBe(true)
   expect(written).toEqual([])
 })))
+
+/**
+ * ...AND SWITCHING OFF A PLUGIN THAT IS ALREADY OFF, which is the same lesson
+ * at the other end of the word.
+ *
+ * `on` folded to a boolean cannot tell `no` from a node that never carried the
+ * word, so a stop spelled against the folded reading asked to write `no` over
+ * `no` and was refused by the gate — on the one press somebody repeats,
+ * because the agent kept writing and they pressed Stop again.
+ */
+test("stopping a plugin that is already stopped writes nothing and refuses nothing", () => bench((dynamic, _now, _host, written) => Effect.gen(function*() {
+  yield* dynamic.follow(vault({ approved: ALWAYS, on: false }))
+  expect(yield* dynamic.set("swatch", false)).toBe(true)
+  expect(written).toEqual([])
+})))
+
+describe("the standing decision is about code and nothing else", () => {
+  test("always trusting changes does not turn a plugin on", () => bench((dynamic, _now, _host, written) => Effect.gen(function*() {
+    yield* dynamic.follow(vault({ approved: versionOf(SERVER, null), on: false }))
+    expect(yield* dynamic.trust("swatch", true)).toBe(true)
+    // ONE WRITE, and it is about the approval. Spelled as an approval with
+    // `forever` this also wrote `on: yes` — a plugin somebody had switched off
+    // came back on out of a menu item whose words are about reading.
+    expect(written).toEqual([{ op: "prop", id: "c", key: "approved", value: ALWAYS }])
+  })))
+
+  test("...and taking it back pins the version that is running", () => bench((dynamic, _now, _host, written) => Effect.gen(function*() {
+    yield* dynamic.follow(vault({ approved: ALWAYS }))
+    expect(yield* dynamic.trust("swatch", false)).toBe(true)
+    expect(written).toEqual([{ op: "prop", id: "c", key: "approved", value: versionOf(SERVER, null) }])
+  })))
+})
+
+/**
+ * A VERSION NOBODY HAS APPROVED IS COMPILED, AND NEVER EVALUATED.
+ *
+ * The page's whole safety is that approving comes before running, and the cost
+ * of that used to be that a person had to approve a plugin to discover it was
+ * broken: a half with a syntax error sat at `pending` — *Ready for you* — with
+ * the most consequential press in the product as the only way to learn
+ * otherwise. `buildHalf` is a transform over text, so the fault is knowable
+ * without importing anything, and the row carries it as the fault it is.
+ */
+test("a pending half that will not compile says so before anybody approves it", () => bench((dynamic, now) => Effect.gen(function*() {
+  yield* dynamic.follow(vault({ server: `${SERVER}\nthis is not typescript(` }))
+  const rows = yield* now()
+  expect(rows[0]?.state).toBe("failed")
+  expect(rows[0]?.fault ?? "").not.toBe("")
+  expect(rows[0]?.source?.approved).toBe(false)
+})))
+
+test("...and one that compiles is still only pending", () => bench((dynamic, now) => Effect.gen(function*() {
+  yield* dynamic.follow(vault({}))
+  const rows = yield* now()
+  expect(rows[0]?.state).toBe("pending")
+  expect(rows[0]?.fault).toBeUndefined()
+})))
+
+/**
+ * REMOVING A PLUGIN takes the folder's files and the decision about them.
+ *
+ * Deleting the folder by hand leaves the node where it was — the decision is
+ * left where it was made — but the page's own **Delete** is a person ending
+ * the plugin, and a settings file collecting the approvals of everything
+ * anybody ever deleted is a file nobody can read.
+ */
+test("deleting a plugin removes its files and its consent", () => bench((dynamic, _now, _host, written) => Effect.gen(function*() {
+  yield* dynamic.follow(vault({ approved: ALWAYS, browser: BROWSER, readme: "# Swatch\n\nA chip.\n" }))
+  expect(yield* dynamic.remove("swatch")).toBe(true)
+  // Files in the order the folder holds them, then the node: `delete` is not
+  // a batchable op, so a refusal halfway leaves code with its decision rather
+  // than a decision with no code.
+  expect(written).toEqual([
+    { op: "delete", file: "plugins/swatch/README.md" },
+    { op: "delete", file: "plugins/swatch/server.ts" },
+    { op: "delete", file: "plugins/swatch/browser.tsx" },
+    { op: "trash", id: "c" },
+  ])
+})))
+
+/**
+ * THE BUILDER'S DONE SIGNAL rides the roster, because three faces read it: the
+ * page stays on *being built* without it, the sidebar's mark stays working,
+ * and the alert does not ring.
+ */
+test("the version the builder last ran is on the row", () => bench((dynamic, now) => Effect.gen(function*() {
+  yield* dynamic.follow(vault({ props: { builder: "chat-1" } }))
+  expect((yield* now())[0]?.source?.checked).toBeUndefined()
+  dynamic.checked("swatch", versionOf(SERVER, null))
+  expect((yield* now())[0]?.source?.checked).toBe(versionOf(SERVER, null))
+})))

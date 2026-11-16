@@ -50,12 +50,22 @@ export interface Acts {
   /** A call is in flight: every verb is frozen rather than hidden, so nothing
    *  moves under a finger. */
   readonly busy: () => boolean
-  /** Approve the version on screen — and, with `forever`, every later one. */
-  readonly approve: (forever: boolean) => void
+  /** Approve the version on screen. */
+  readonly approve: () => void
+  /** ...and the standing decision, on its own: every later version may run
+   *  unread, or may not. It does NOT touch the switch, which is what it used
+   *  to do — choosing *Always trust changes* on a plugin somebody had switched
+   *  off turned it back on. */
+  readonly trust: (trusting: boolean) => void
+  /** Whether that standing decision is in force, so the menu draws the way out
+   *  of it rather than the way into it a second time. */
+  readonly trusting: () => boolean
   /** The ordinary switch on a plugin that is already approved. */
   readonly setOn: (on: boolean) => void
-  /** Don't start this one when it lands. */
-  readonly stop: () => void
+  /** Ask for the confirmation, and — once it is on screen — go through with
+   *  it. Deleting a plugin takes its folder and its decision. */
+  readonly confirmRemove: () => void
+  readonly remove: () => void
   /** Hand the fault to the conversation that wrote the code, verbatim. */
   readonly askFix: () => void
   /** ...or open that conversation to ask it for something new. */
@@ -122,24 +132,29 @@ export function Verbs(props: {
 function Primary(props: { readonly plugin: Defined; readonly stage: Stage; readonly acts: Acts }) {
   return (
     <>
-      <Show when={props.stage === "building"}>
-        {/* A TIP RATHER THAN A `title=`: the attribute is a tooltip a touch
-            screen never shows and a screen reader never reads, and this client
-            sweeps it out of its faces (`@olai/web`'s `claims.test.ts`). The
-            sentence matters here — Stop is about the PLUGIN, and the agent
-            writing it has a Stop of its own. */}
-        <Tip text="It won't start when it's finished. The conversation keeps its own Stop.">
-          <button type="button" class={QUIET} data-testid={TESTID.pageVerb} data-verb="stop" disabled={props.acts.busy()}
-            onClick={() => props.acts.stop()}>Stop</button>
+      {/*
+        A FOLDER BEING WRITTEN HAS NO DECISION TO OFFER, and the button that
+        used to be here pretended otherwise. *Stop* wrote `on: no` on a plugin
+        nobody had approved — which stops nothing, because an unapproved plugin
+        was never going to start — and the agent went on writing files. The
+        thing that actually stops a build is the agent's own Stop, in the
+        conversation, so this is a way to that conversation and nothing else.
+        With no seat to open one in, the page draws no verb here at all: the
+        *Ask* section below links to the conversation's own page.
+      */}
+      <Show when={props.stage === "building" && props.acts.canOpen()}>
+        <Tip text="The agent's own Stop is in the conversation. Nothing starts here until you turn it on.">
+          <button type="button" class={QUIET} data-testid={TESTID.pageVerb} data-verb="open-builder" disabled={props.acts.busy()}
+            onClick={() => props.acts.askChange()}>Open the conversation</button>
         </Tip>
       </Show>
       <Show when={props.stage === "review"}>
         <button type="button" class={PRIMARY} data-testid={TESTID.pageVerb} data-verb="turn-on" disabled={props.acts.busy()}
-          onClick={() => props.acts.approve(false)}>Turn on</button>
+          onClick={() => props.acts.approve()}>Turn on</button>
       </Show>
       <Show when={props.stage === "paused"}>
         <button type="button" class={PRIMARY} data-testid={TESTID.pageVerb} data-verb="turn-on-version" disabled={props.acts.busy()}
-          onClick={() => props.acts.approve(false)}>Turn on this version</button>
+          onClick={() => props.acts.approve()}>Turn on this version</button>
       </Show>
       <Show when={props.stage === "off"}>
         <button type="button" class={PRIMARY} data-testid={TESTID.pageVerb} data-verb="turn-on" disabled={props.acts.busy()}
@@ -167,22 +182,47 @@ function Primary(props: { readonly plugin: Defined; readonly stage: Stage; reado
   )
 }
 
-/** What the dots offer: approving every later version, and asking the builder
- *  for something. Both are verbs that make sense only sometimes, and the menu
- *  is not drawn at all when neither does. */
+/**
+ * WHAT THE DOTS OFFER — the standing decision about code, the conversation,
+ * and the end of the plugin. Each is drawn only where it means something, and
+ * the menu is not drawn at all when none of them do.
+ *
+ * THE TRUST ROW IS A PAIR, not a one-way door. Choosing *Always trust changes*
+ * used to leave no sign afterwards that it was in force and no way to take it
+ * back: the next edit simply ran, and a person who had changed their mind had
+ * to edit the settings file. So the row says which way it is pointing and the
+ * press is the other way.
+ *
+ * DELETE IS LAST AND ASKS AGAIN, because the halves are reachable from nowhere
+ * else in the app: this is the only gesture that gets rid of a plugin, and it
+ * is also the only one nobody can undo.
+ */
 const moreVerbs = (stage: Stage, acts: Acts): ReadonlyArray<MoreVerb> => [
-  ...(stage === "building" ? [] : [{
-    id: "trust-always",
-    label: "Always trust changes",
-    testid: TESTID.pageTrustAlways,
-    run: () => acts.approve(true),
-  }]),
+  ...(stage === "building" ? [] : acts.trusting()
+    ? [{
+      id: "trust-stop",
+      label: "Stop trusting changes",
+      testid: TESTID.pageTrustStop,
+      run: () => acts.trust(false),
+    }]
+    : [{
+      id: "trust-always",
+      label: "Always trust changes",
+      testid: TESTID.pageTrustAlways,
+      run: () => acts.trust(true),
+    }]),
   ...(acts.canOpen() ? [{
     id: "ask-change",
     label: "Ask for a change…",
     testid: TESTID.pageAskChange,
     run: () => acts.askChange(),
   }] : []),
+  {
+    id: "delete",
+    label: "Delete…",
+    testid: TESTID.pageDelete,
+    run: () => acts.confirmRemove(),
+  },
 ]
 
 function More(props: { readonly plugin: Defined; readonly stage: Stage; readonly acts: Acts }) {

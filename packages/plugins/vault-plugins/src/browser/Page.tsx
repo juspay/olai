@@ -52,11 +52,13 @@ import { run } from "@olai/web/client/run.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import type { DockDoor } from "olai-plugin-chat/dock"
 import { Control } from "olai-plugin-plugin-inspector/control"
-import { createComputed, createMemo, createSignal, For, Show, untrack } from "solid-js"
+import { atNode } from "olai-plugin-navigation/routes"
+import { Key } from "@solid-primitives/keyed"
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { client } from "../client.ts"
-import { dock } from "./doors.ts"
+import { dock, router } from "./doors.ts"
 import { changedCount, diffLines } from "./diff.ts"
 import { Code } from "./page/Code.tsx"
 import { Verbs, type Acts } from "./page/Verbs.tsx"
@@ -77,8 +79,19 @@ export function PluginPage(props: {
   const plugin = createMemo(() => pluginNamed(roster(), props.word))
   return (
     <main class={`mx-auto w-full max-w-3xl px-4 py-6 ${CLEARANCE}`}>
+      {/* KEYED BY THE WORD, because walking from one plugin to another is a
+          different page and not a prop moving. One mounted component carried
+          the last plugin's state onto the next one — which version this reader
+          had been shown, which half's tab was open — and both of those had to
+          be unwound by hand inside the children. A key is the one place that
+          belongs: a different word is a different page, so it is a different
+          component. */}
       <Show when={plugin()} fallback={<Missing word={props.word} />}>
-        {(found) => <Known plugin={found()} file={props.file} management={props.management} />}
+        {(found) => (
+          <Key each={[props.word]} by={(word) => word}>
+            {() => <Known plugin={found()} file={props.file} management={props.management} />}
+          </Key>
+        )}
       </Show>
     </main>
   )
@@ -107,54 +120,69 @@ function Missing(props: { readonly word: string }) {
 
 function Known(props: { readonly plugin: Defined; readonly file?: string; readonly management: BrowserManagement }) {
   const source = () => props.plugin.source
-  const stage = () => stageOf(props.plugin)
+  const [read, setRead] = createSignal(false)
+  const stage = () => stageOf(props.plugin, read())
   const [busy, setBusy] = createSignal(false)
   const [refused, setRefused] = createSignal<string>()
+  const [said, setSaid] = createSignal<string>()
+  const [removing, setRemoving] = createSignal(false)
   /**
-   * WHICH VERSION THIS READER HAS BEEN SHOWN — kept with the WORD it belongs
-   * to, because one mounted page draws every plugin somebody walks through:
-   * navigating from one plugin to another changes a prop rather than remounting,
-   * and a remembered version carried across that would disarm the next page's
-   * verb for a reason that is not about it.
+   * WHICH VERSION THIS READER HAS BEEN SHOWN — plainly, because this component
+   * is keyed by the word above: a different plugin is a different mount, so
+   * there is nothing to carry across and nothing to unwind.
    */
-  const [shown, setShown] = createSignal<{ readonly name: string; readonly version: string }>()
-  const seen = () => {
-    const was = shown()
-    return was?.name === props.plugin.name ? was.version : undefined
-  }
-  createComputed(() => {
-    if (seen() === undefined) setShown({ name: props.plugin.name, version: untrack(() => source().version) })
-  })
+  const [shown, setShown] = createSignal(props.plugin.source.version)
+  /** The conversation, and a seat to put it in. Read for the *ask* verbs,
+   *  which are offered whenever both are there. */
   const docked = () => {
     const builder = source().builder
     const door = dock()
     if (builder === undefined || door === undefined || !door.desktop()) return undefined
     return { door, builder }
   }
-  const call = (effect: Parameters<typeof run>[0], after?: () => void) => {
+  /** ...and whether this visit is one where a conversation should be OPENED
+   *  for the reader. Arriving at a plugin that has been on for months must not
+   *  take over the column beside it; arriving at one that is being built, or
+   *  waiting to be read, or paused, or broken is arriving at a decision, and
+   *  the conversation is half of what makes it. */
+  const watching = () => ["building", "review", "paused", "broken"].includes(stage())
+  const call = <T,>(effect: Parameters<typeof run<T>>[0], after?: (answer: T) => void) => {
     setBusy(true)
     setRefused(undefined)
-    run(effect, (failure) => { setBusy(false); setRefused(failure.message) }, () => { setBusy(false); after?.() })
+    run<T>(effect, (failure) => { setBusy(false); setRefused(failure.message) }, (answer) => { setBusy(false); after?.(answer) })
   }
   const acts: Acts = {
     busy,
-    approve: (forever) => call(client().procedures.plugins.approve({ name: props.plugin.name, version: source().version, forever })),
+    approve: () => call(client().procedures.plugins.approve({ name: props.plugin.name, version: source().version, forever: false })),
+    trust: (trusting) => call(client().procedures.plugins.trust({ name: props.plugin.name, trusting })),
     setOn: (on) => call(props.management.set(props.plugin.name, on)),
-    stop: () => call(client().procedures.plugins.stop({ name: props.plugin.name })),
+    remove: () => call(client().procedures.plugins.remove({ name: props.plugin.name }), () => setRemoving(false)),
+    confirmRemove: () => setRemoving(true),
     // THE FAULT GOES OVER VERBATIM and this page composes none of it: an empty
     // `said` is the serve writing the sentence it already has, which is the
     // whole reason one press is worth more here than a person retyping
     // "it broke" into the conversation.
-    askFix: () => call(client().procedures.plugins.ask({ name: props.plugin.name, said: "" }), () => docked()?.door.open(docked()!.builder)),
+    //
+    // ...AND WHAT CAME OF IT IS DRAWN, which is the half the press was missing
+    // where there is no dock to open: on a phone the words went into the
+    // conversation and nothing on screen moved, so the only way to find out
+    // whether anything had happened was to go and look.
+    askFix: () => call(client().procedures.plugins.ask({ name: props.plugin.name, said: "" }), (answer) => {
+      const open = docked()
+      if (answer.builder === null) { setSaid("There was no agent to take it. The conversation that built it is in Chats."); return }
+      setSaid("Sent to the conversation that built it.")
+      if (open !== undefined) open.door.open(open.builder)
+    }),
     askChange: () => { const open = docked(); if (open !== undefined) open.door.open(open.builder) },
-    canAsk: () => source().builder !== undefined,
+    canAsk: () => source().builder !== undefined && source().asking === true,
     canOpen: () => docked() !== undefined,
-    moved: () => seen() !== undefined && seen() !== source().version,
-    reread: () => setShown({ name: props.plugin.name, version: source().version }),
+    trusting: () => source().trusting === true,
+    moved: () => shown() !== source().version,
+    reread: () => setShown(source().version),
   }
   return (
     <section data-testid={TESTID.page} data-plugin={props.plugin.name} data-stage={stage()}>
-      <Show when={docked()}>{(open) => <Docking door={open().door} builder={open().builder} />}</Show>
+      <Show when={watching() && docked()}>{(open) => <Docking door={open().door} builder={open().builder} />}</Show>
       <header class="flex items-start gap-3">
         <div class="mt-1 flex size-9 shrink-0 items-center justify-center rounded-control bg-pill text-muted" aria-hidden="true">
           <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -183,7 +211,27 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
       </header>
 
       <Show when={refused()}>
-        {(said) => <p class="mt-3 rounded-control bg-alarm/10 px-3 py-2 text-label text-alarm" data-testid={TESTID.pageRefused}>{said()}</p>}
+        {(why) => <p class="mt-3 rounded-control bg-alarm/10 px-3 py-2 text-label text-alarm" data-testid={TESTID.pageRefused}>{why()}</p>}
+      </Show>
+      <Show when={said()}>
+        {(line) => <p class="mt-3 rounded-control bg-pill px-3 py-2 text-label text-muted" data-testid={TESTID.pageAskSaid}>{line()}</p>}
+      </Show>
+
+      {/* DELETING IS A SECOND PRESS, in the page rather than in a dialog: the
+          thing being ended is on screen behind it, which is the whole reason
+          to confirm at all. The sentence names what goes — the folder and the
+          decision about it — and what does not. */}
+      <Show when={removing()}>
+        <Banner tone="red" testid={TESTID.pageDelete + "-asking"}>
+          <b>Delete {source().title}?</b> Its folder <code class="font-mono">{source().folder}</code> and the
+          decision you made about it both go. The conversation that built it stays in Chats.
+          <span class="ml-2 inline-flex gap-2">
+            <button type="button" class="cursor-pointer rounded-control border-0 bg-alarm px-2 py-1 text-paper"
+              data-testid={TESTID.pageDeleteConfirm} disabled={busy()} onClick={() => acts.remove()}>Delete</button>
+            <button type="button" class="cursor-pointer rounded-control border border-line bg-transparent px-2 py-1"
+              data-testid={TESTID.pageDeleteKeep} disabled={busy()} onClick={() => setRemoving(false)}>Keep it</button>
+          </span>
+        </Banner>
       </Show>
 
       <Show when={stage() === "paused"}>
@@ -210,6 +258,17 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
       <Show when={stage() === "building"}>
         <Block heading="The code" note={source().folder}>
           <Landing source={source()} />
+          {/* THE READER'S WAY PAST IT. *Being built* ends when the agent says
+              so, and an agent that stopped saying anything — a serve restarted
+              mid-build, a conversation somebody closed — would otherwise leave
+              this screen up for ever. The files are listed above it, so what
+              this offers is reading what is actually there. */}
+          <button
+            type="button"
+            class="mt-3 cursor-pointer rounded-control border border-line bg-transparent px-2 py-1 text-label text-muted hover:text-ink"
+            data-testid={TESTID.pageReadAnyway}
+            onClick={() => setRead(true)}
+          >I'll read it now</button>
         </Block>
       </Show>
 
@@ -217,16 +276,22 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
         <Show when={(props.plugin.configurationValues ?? []).length > 0}>
           <Block heading="Settings" note="Saved in Settings.olai, for everyone using this directory">
             <div class="flex flex-wrap gap-4">
-              <For each={props.plugin.configurationValues ?? []}>
+              {/* KEYED BY THE LEAF'S OWN KEY, which is what keeps a knob a
+                  person is typing in from being rebuilt under the caret: the
+                  roster hands over a fresh array of fresh objects on every
+                  snapshot, and a plain `<For>` over those replaces every row
+                  whenever anything anywhere in the vault moves. The plugins
+                  panel keys the same controls for the same reason. */}
+              <Key each={props.plugin.configurationValues ?? []} by="key">
                 {(value) => (
-                  <div data-testid={TESTID.pageKnob} data-key={value.key}>
+                  <div data-testid={TESTID.pageKnob} data-key={value().key}>
                     {/* The plugins panel's own control, over the leaves this
                         plugin declared. Not a copy of it: one knob, one
                         validation, one write door. */}
-                    <Control name={props.plugin.name} value={value} configure={props.management.configure} />
+                    <Control name={props.plugin.name} value={value()} configure={props.management.configure} />
                   </div>
                 )}
-              </For>
+              </Key>
             </div>
           </Block>
         </Show>
@@ -267,7 +332,12 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
         class={`sticky bottom-0 ${LAYER.row} -mx-4 mt-8 flex flex-col gap-1 border-t border-line/60 bg-panel px-4 pt-3 ${CLEARANCE} md:hidden`}
         data-testid={TESTID.pageFoot}
       >
-        <Verbs plugin={props.plugin} stage={stage()} acts={acts} />
+        {/* THE `•••` IS HERE TOO, and leaving it out was not a simplification:
+            *Always trust changes* and *Delete…* live in it, and on a handset
+            there is no other copy of this page — so a plugin made on a phone
+            could not be deleted on one. It sits beside the decision rather
+            than inside it, which is why the primary still fills the row. */}
+        <Verbs plugin={props.plugin} stage={stage()} acts={acts} menu />
         <p class="m-0 text-caption text-muted" data-testid={TESTID.pageTrustSaid}>{TRUST_SAID}</p>
       </div>
     </section>
@@ -286,7 +356,12 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
  * closed the panel is not fought with.
  */
 function Docking(props: { readonly door: DockDoor; readonly builder: string }) {
-  createComputed<string | undefined>((before) => {
+  // AN EFFECT AND NOT A COMPUTED: opening the dock WRITES chat's own state, and
+  // a computed runs inside the render pass that is reading it. A write into
+  // another row's signals while this page is being built is the shape Solid
+  // warns about and this tree keeps out of its faces; what this wants is "after
+  // the page exists, put the conversation beside it", which is an effect.
+  createEffect<string | undefined>((before) => {
     if (before === props.builder) return before
     props.door.open(props.builder)
     return props.builder
@@ -297,16 +372,45 @@ function Docking(props: { readonly door: DockDoor; readonly builder: string }) {
 /** *Ask for a change* — the one row that reopens the conversation that wrote
  *  the code, and the honest sentence where there is none to reopen. */
 function Ask(props: { readonly acts: Acts; readonly builder: string | undefined }) {
+  /** The conversation's own address, for the viewport with no seat to dock it
+   *  in. `undefined` is a tab whose router nobody is holding — navigation off,
+   *  where a link would be a dead one. */
+  const elsewhere = () => {
+    const builder = props.builder
+    const lane = router()
+    return builder === undefined || lane === undefined ? undefined : lane.routes.href(atNode(builder))
+  }
   return (
     <section class="mt-6" data-testid={TESTID.pageAsk}>
       <Show
         when={props.acts.canOpen()}
         fallback={
-          <p class="m-0 text-label text-muted">
-            {props.builder === undefined
-              ? "No conversation is bound to this plugin, so there is nobody to ask. Edit the folder yourself, or ask for a new plugin."
-              : "No agent is available to ask right now. The conversation that built it is in Chats."}
-          </p>
+          <Show
+            when={elsewhere()}
+            fallback={
+              <p class="m-0 text-label text-muted">
+                {props.builder === undefined
+                  ? "No conversation is bound to this plugin, so there is nobody to ask. Edit the folder yourself, or ask for a new plugin."
+                  : "The conversation that built it is in Chats."}
+              </p>
+            }
+          >
+            {/* NO SEAT BESIDE THE PAGE — a handset, or a serve with no shell —
+                so the conversation is reached at its OWN address rather than
+                refused. The sentence this used to draw ("no agent is available
+                to ask right now") was false on a phone: the agent is there, it
+                is the column that is not. */}
+            {(href) => (
+              <a
+                class="flex w-full items-baseline gap-2 rounded-control border border-line/60 px-3 py-2 text-body no-underline hover:bg-ink/5"
+                data-testid={TESTID.pageAskOpen}
+                href={href()}
+              >
+                <span>Open the conversation that built it</span>
+                <span class="text-label text-muted">it is a chat like any other</span>
+              </a>
+            )}
+          </Show>
         }
       >
         <button
