@@ -70,7 +70,6 @@ import { newChat, chatLocations, type LocationQuery, type NewChatInput } from ".
 
 import { deliveryProvision } from "./server/deliveries.ts"
 import { conversationsProvision } from "./server/conversations.ts"
-import { Conversations } from "./conversations.ts"
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
@@ -97,6 +96,7 @@ import {
 } from "@olai/plugin-api/services"
 import {
   Agents as AgentsDoor,
+  Conversations,
   Deliveries,
   detached,
   SessionStart,
@@ -599,8 +599,9 @@ export default definePlugin({
      *
      * One `const` because it is one sentence said in five places, and because
      * the SECOND caller of it is not a person: the mint below is reached both
-     * by a press on the surface and by a row that declared
-     * `chat.conversations`, and a machine-opened conversation that did not
+     * by a press on the surface and by a row that named core's `conversations`
+     * key (`@olai/plugin-api`'s {@link Conversations}, which this row stands
+     * behind), and a machine-opened conversation that did not
      * republish would be a node agent nobody's sidebar had heard of.
      */
     const published = Effect.gen(function*() {
@@ -613,8 +614,8 @@ export default definePlugin({
      * another row's `open` runs, which are the same mint.
      *
      * It was written inside the surface procedure, which was right while the
-     * only caller was a keystroke. A second caller arriving ({@link
-     * ../conversations.ts}) would have had to say the same four thunks again,
+     * only caller was a keystroke. A second caller arriving (core's
+     * {@link Conversations}) would have had to say the same four thunks again,
      * and the two copies would have been where "the Inbox moved under us" and
      * "that parent can no longer hold a chat" quietly got two answers. The
      * permit, the committed reading the seat is written against and the refusal
@@ -837,16 +838,20 @@ export default definePlugin({
         withChat(() => streams.page(input.conv, input.before, input.limit)),
     }
 
-    // ── the fifth door, and the only one a row names by this plugin's word ──
+    // ── the fifth door, and the one a row that is not chat reaches a chat by ──
 
     /**
-     * `chat.conversations` — STARTING A CONVERSATION, SPEAKING INTO IT, AND
-     * WHAT CAN BE STARTED, for a row that is not chat.
+     * `conversations` — STARTING A CONVERSATION, SPEAKING INTO IT, AND WHAT
+     * CAN BE STARTED, for a row that is not chat.
      *
-     * The four doors above are CORE keys this row stands behind; this one is
-     * chat's own, composed by the runtime out of this fiber's name and the
-     * word below ({@link ../conversations.ts} is the half a consumer imports,
-     * and argues why it is a key rather than an import).
+     * CORE'S KEY, like the four above, and it was briefly chat's own: offered
+     * under this plugin's word, it made every consumer's component sit
+     * `waiting` on a serve with chat switched off, and a row's report folds
+     * its components — so a page with nothing to do with chat went down with
+     * it. `@olai/plugin-api`'s {@link Conversations} argues that at length,
+     * and {@link ConversationsWatch} is the broker core puts over it so that
+     * absence reaches a consumer as a value rather than as a wait. What is
+     * here is one row standing behind the key while it is up.
      *
      * HERE, below the verbs, because what it stands on is what they stand on:
      * the same mint, the same `withChat` refusal, the same roster reading and

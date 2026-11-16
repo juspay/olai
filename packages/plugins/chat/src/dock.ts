@@ -5,13 +5,14 @@
  * ## The two facts another row needs, and not one more
  *
  * A plugin with a conversation of its own — one it started through
- * `chat.conversations` ({@link ./conversations.ts}) — wants a door on its page
- * that says *talk to it*. That gesture is two questions: put THIS node in the
- * seat beside the page, and is there a seat at all. Everything else about the
- * dock is chat's and the shell's: the width, the handle, the preference this
- * browser remembers it under, whether the column is open, the picker it draws
- * when nothing is docked. A consumer that could reach those would be a second
- * author of the column's behaviour.
+ * core's `conversations` key (`@olai/plugin-api`'s `Conversations`, which this
+ * row stands behind) — wants a door on its page that says *talk to it*. That
+ * gesture is two questions: put THIS node in the seat beside the page, and is
+ * there a seat at all. Everything else about the dock is chat's and the
+ * shell's: the width, the handle, the preference this browser remembers it
+ * under, whether the column is open, the picker it draws when nothing is
+ * docked. A consumer that could reach those would be a second author of the
+ * column's behaviour.
  *
  * So the door is {@link DockDoor.open} and {@link DockDoor.desktop}, and the
  * narrowness is the point: the live `Dock` this is a reading of

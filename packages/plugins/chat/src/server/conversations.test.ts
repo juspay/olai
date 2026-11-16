@@ -1,5 +1,5 @@
 /**
- * `chat.conversations`, PLAYED WITH A MADE-UP CONSUMER.
+ * CORE'S `conversations` KEY, PLAYED WITH A MADE-UP CONSUMER.
  *
  * What is asserted here is the POLICY the provision owns, which is everything
  * that is decided per asking plugin: whose name a message carries, what a
@@ -8,6 +8,11 @@
  * teaching seam as lines rather than as themselves. The mint, the panel and
  * the scheduler are the owner's, faked here — each of them has its own suite
  * where it is the subject (`./new-chat.test.ts`, `../teaching.send.test.ts`).
+ *
+ * THE CONSUMER HERE IS MADE UP, and a made-up consumer cannot say anything
+ * about whether the real one's lifetime ever arrives — it did not, for a
+ * while. `./conversations-broker.test.ts` asks that question on a host, through
+ * core's broker, and this file stays the policy's bench.
  */
 import { expect, test } from "bun:test"
 import { Effect } from "effect"

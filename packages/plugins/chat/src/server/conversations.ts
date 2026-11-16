@@ -1,6 +1,11 @@
 /**
- * `chat.conversations`, STOOD UP — the door another row is handed, over the
- * four things this row already does.
+ * CORE'S `conversations` KEY, STOOD UP — the door another row is handed, over
+ * the four things this row already does.
+ *
+ * The key is `@olai/plugin-api`'s {@link Conversations} and the owner of the
+ * concept is core, which argues there why conversations are brokered rather
+ * than named: a row that named this key directly would go `waiting` on a serve
+ * with chat switched off. Chat is one provider standing behind it.
  *
  * ## Why this is a module and not fifteen lines in `../server.ts`
  *
@@ -28,11 +33,20 @@
  * unloaded must not have words land under its name, and the gate is the same
  * one `Deliveries` uses for the same reason.
  *
+ * IT ARRIVES BY TWO HOPS AND NEITHER MAY DROP IT. The facade stamps a
+ * consuming activation's word and lifetime onto the provision it resolves; the
+ * only consumer of THIS door reaches it through core's broker
+ * (`@olai/plugin-api`'s `ConversationsWatch`), which is itself a provision and
+ * passes both on. The default below — a missing lifetime reading as *still
+ * here* — is for the direct host read, which is core calling from outside any
+ * activation and has nothing to unload.
+ *
  * ## What is NOT here, and is the point of the door
  *
  * No reading. There is no verb on this module that answers what a conversation
  * said, and that is a deliberate absence rather than a gap waiting to be
- * filled ({@link ../conversations.ts}'s header argues it).
+ * filled (`@olai/plugin-api`'s {@link Conversations} argues it, where the key
+ * is declared).
  *
  * ## The mint is the row's, borrowed whole
  *
@@ -46,9 +60,8 @@
 import { Effect } from "effect"
 
 import type { OpFailure } from "@olai/format"
-import type { Provision } from "@olai/plugin-api/services"
+import type { Conversations, Provision } from "@olai/plugin-api/services"
 
-import type { Conversations } from "../conversations.ts"
 import type { Conversing } from "../sessions.ts"
 import type { NewChatInput } from "./new-chat.ts"
 import { lines } from "../teaching.ts"

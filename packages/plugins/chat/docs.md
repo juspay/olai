@@ -67,7 +67,7 @@ Every plugin that could reach a conversation names one of the six doors this row
 | `deliveries` | where a doorbell may ring | [kolu](kolu.md), [odu](odu.md), [mail](mail.md) |
 | `session-start` | what to ask this host when a conversation opens | kolu, odu |
 | `chat.seating` | the durable nodes, engines and sessions over one vault reading | xyne-spaces |
-| `chat.conversations` | starting a conversation, speaking into it, and which engines can be started | [vault-plugins](vault-plugins.md) |
+| `conversations` (core's key, `@olai/plugin-api`) | starting a conversation, speaking into it, and which engines can be started | [vault-plugins](vault-plugins.md), through core's `conversations-watch` broker |
 | `watching` | what a plugin that mirrors a conversation is told | [xyne-spaces](xyne-spaces.md) |
 
 In the browser, the row publishes its roster as `chat.state`. The static door
@@ -81,16 +81,28 @@ component names it to put a dot on a tab whose page is a conversation that needs
 you, and a quieter one on a tab whose page holds something nobody has read. The
 door holds no live value.
 
-**Starting one, and speaking into it.** `chat.conversations`
-(`olai-plugin-chat/conversations`) is how a row that is not chat gets a
-conversation of its own: `open` runs the same three acts *New chat* runs — a
+**Starting one, and speaking into it.** `conversations` is CORE's key —
+declared in `@olai/plugin-api` as `Conversations`, not chat's own — and this
+row is the provider that stands behind it while it is up. That ownership is the
+point: a row that named a `chat.`-prefixed key would go `waiting` with chat
+switched off, and a row's report folds its components, so a plugin page with
+nothing to do with chat would go down with it. A consumer therefore names core's
+`conversations-watch` broker instead and is handed the door, or `undefined`,
+per call — with its own activation's lifetime riding through, so a row that has
+unloaded cannot have words land under its name.
+
+`open` runs the same three acts *New chat* runs — a
 node, a binding, a session — and sends a first message with the caller's own
 sentences riding under it on the `[olai] ` seam a node agent's contract already
-rides, said exactly once per conversation and never again on a reopened one.
+rides, said exactly once per conversation and never again on a reopened one. It
+answers the NODE whatever happens next, including when chat is switched off
+under the call: what was minted stays minted, and the caller is told what did
+not happen rather than being left with a folder it cannot mint again.
 `say` speaks into a conversation that is already there, write-only and under
 the asking plugin's own name; it lands the way a doorbell's delivery does (an
 idle agent takes it as a turn, a working one at the turn boundary) and answers
-`false` where the node no longer has one. `engines` is what this machine can
+`false` where the asking row has unloaded or the node no longer has a
+conversation. `engines` is what this machine can
 actually start, best first — empty on a serve with no installed engine, where
 `open` refuses in chat's own words. **There is no reading verb**, deliberately:
 a row may start a conversation and talk to it, never hold a copy of what it

@@ -102,11 +102,12 @@ export type Arrival = "opened" | "assigned"
  *  seam has one shape however many things ride it.
  *
  *  EXPORTED, for the one rider that is nobody here's: a row that opened a
- *  conversation through `chat.conversations` ({@link ./conversations.ts}) hands
- *  over SENTENCES, and they go under the first message beside the contract this
- *  file writes. A second spelling of the prefix, in the module that took that
- *  row's words, would be an agent told two different things about which lines
- *  are olai's — so the preamble comes through here or it does not ride at all. */
+ *  conversation through core's `conversations` key (`@olai/plugin-api`'s
+ *  `Conversations`) hands over SENTENCES, and they go under the first message
+ *  beside the contract this file writes. A second spelling of the prefix, in
+ *  the module that took that row's words, would be an agent told two different
+ *  things about which lines are olai's — so the preamble comes through here or
+ *  it does not ride at all. */
 export const lines = (sentences: ReadonlyArray<string>): ReadonlyArray<string> =>
   sentences.map((sentence) => `[olai] ${sentence}`)
 

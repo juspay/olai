@@ -345,8 +345,8 @@ describe("an agent-associated session is taught, once", () => {
 
 describe("... and told, once, what the row that opened it wants it to know", () => {
   /** The sentences a plugin builder hands over, on the one seam they may ride
-   *  ({@link ./teaching.ts}'s `lines`, which is what `chat.conversations`
-   *  spells them with before they reach a send). */
+   *  ({@link ./teaching.ts}'s `lines`, which is what this row's provision
+   *  behind core's `conversations` key spells them with before a send). */
   const PREAMBLE = lines([
     "You are building the plugin in plugins/timer.",
     "Write server.ts first, then browser.tsx.",

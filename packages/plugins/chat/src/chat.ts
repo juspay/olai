@@ -427,7 +427,7 @@ export interface Panel {
      * reopened conversation or a caller that passes them again says nothing
      * twice. A conversation no node claims is taught nothing and hears no
      * preamble either; a row that wants one has opened a node agent's
-     * conversation ({@link ./conversations.ts}).
+     * conversation through core's `conversations` key.
      */
     preamble?: ReadonlyArray<string>,
   ) => Effect.Effect<void, OpFailure>
