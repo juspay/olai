@@ -43,6 +43,7 @@ import {
   FILE_DIR_TOGGLE,
   HYDRATION_TIMEOUT,
   nodeSelector,
+  OUTLINE_FAILURE,
   PANE,
   PLUGINS_PANEL,
   POLL_TIMEOUT,
@@ -432,4 +433,22 @@ Then("the browser has reported the palette initialization failure", async functi
   await this.waitUntil(async () => this.errors.some(expected), "the expected palette initialization diagnostic")
   // Consume only this deliberately induced diagnostic; unrelated errors remain.
   this.errors = this.errors.filter((error) => !expected(error))
+})
+
+/**
+ * A FILE THE VAULT WILL NOT HOLD, and the words it gives for it.
+ *
+ * A kind a plugin registers is checked against what is ALREADY in the vault,
+ * not only against the next write — so a plugin that narrows what it admits
+ * puts every file carrying the old value out of the set, and the person is
+ * told which value and which rule. That is the strongest statement available
+ * that an edited half is in force: it reaches text nobody has touched.
+ */
+Then("the outline {string} is refused for {string}", async function (this: OlaiWorld, file: string, words: string) {
+  const failure = this.page.locator(`${OUTLINE_FAILURE}${attr("data-file", file)}`).first()
+  await failure.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  await this.waitUntil(
+    async () => (await failure.innerText()).includes(words),
+    `${file}'s refusal to name ${JSON.stringify(words)}`,
+  )
 })

@@ -28,7 +28,7 @@ import { Then, When } from "@olai/tests/harness/runner.ts"
 import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 
-import { SECTION, SECTION_MARK, SECTION_NEW, SECTION_ROW, sectionRowFor } from "./faces.ts"
+import { PAGE, SECTION, SECTION_MARK, SECTION_NEW, SECTION_ROW, sectionRowFor } from "./faces.ts"
 
 Then("the sidebar has a Plugins section", async function (this: OlaiWorld) {
   await this.showSidebar()
@@ -47,6 +47,22 @@ Then("the sidebar has no Plugins section", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.page.locator(SECTION).count()) === 0,
     "the Plugins section to leave the sidebar",
+  )
+})
+
+/**
+ * ...AND NEITHER IS THE PAGE, for an address that spells one.
+ *
+ * The grammar at `/plugins/<word>` belongs to this row's BROWSER half, so with
+ * the row off there is nothing to parse it and nothing to mount. What a pane
+ * draws for an address nobody claims is navigation's own business — the same
+ * answer it gives any unclaimed path — so this asserts the absence of THIS
+ * page rather than the presence of some other one.
+ */
+Then("no plugin page is drawn", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(PAGE).count()) === 0,
+    "the plugin page to be absent",
   )
 })
 

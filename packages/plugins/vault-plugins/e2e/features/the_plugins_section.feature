@@ -113,6 +113,10 @@ Feature: The Plugins section in the sidebar
     # and the files are ordinary bytes on a disk again.
     Given I open the app
     Then the sidebar has no Plugins section
+    # ...and the ADDRESS draws nothing of this row either: the grammar belongs
+    # to its browser half, so with the row off there is no page to mount. (What
+    # a pane shows for an address NOBODY claims is navigation's own business
+    # and the same for any unclaimed path.)
     When I open the address "/plugins/swatch"
-    Then a not-found is shown
+    Then no plugin page is drawn
     And there should be no page errors

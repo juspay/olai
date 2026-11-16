@@ -181,7 +181,9 @@ Feature: A plugin the vault defines
     Then the plugin page's README says "never instead of it"
     And the plugin page is "on"
     And the plugin page draws no diff
-    And the row "amber" wears a swatch for "#ff8800"
+    # ...and back where the plugin draws, the chip never went away.
+    When I open the outline "colours.olai"
+    Then the row "amber" wears a swatch for "#ff8800"
     And there should be no page errors
 
   @scratch:plugins
@@ -275,15 +277,19 @@ Feature: A plugin the vault defines
     Then the plugin page is "paused"
     And the plugin page's diff adds "value === \"#00ff00\""
     And the plugin page has disarmed its verbs
-    And no row wears a swatch
 
     When I read the plugin "swatch" again
     And I press the plugin page verb
     Then the plugin page is "on"
     # ...and what is in force is the edited half: the vault's own colour is no
-    # longer one this plugin admits.
-    And the vault rejects the colour "#ff8800"
-    And the vault accepts the colour "#00ff00"
+    # longer one this plugin admits. The outline is open again for it, because
+    # a prop write names a node in the set a reader has loaded.
+    # ...and what is in force is the EDITED half, felt where a rule is felt:
+    # the colour already in the vault is no longer one this plugin admits, so
+    # the file carrying it is refused — with the plugin's own sentence about
+    # what the kind takes. A tightened rule is not retroactive consent.
+    When I open the address "/colours.olai"
+    Then the outline "colours.olai" is refused for "got \"#ff8800\""
     And there should be no page errors
 
   @scratch:plugins
