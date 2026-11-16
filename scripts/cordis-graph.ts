@@ -358,7 +358,7 @@ export const graph = (): Graph => {
     }
   })
   // What nobody offered, owned or provided: the `<row>.<word>` convention
-  // (plugin-system.md §12) names the row; a key declared in a host package
+  // (plugin-vocabulary.md's offer) names the row; a key declared in a host package
   // with no provider found is the host's.
   const ids = new Set(rows.map((row) => row.id))
   for (const key of declared.byName.values()) {

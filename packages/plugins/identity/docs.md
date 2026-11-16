@@ -1,41 +1,51 @@
-# Who is looking
+# identity
 
-Identity is a plugin. Everything about who the person in front of a request is — the trusted header names, the picture ladder that decides what they wear, and the chip in the top right of the bar — arrives with one row in the build's plugin list. A serve that does not name that row is a serve on which **every request is nobody**.
+Says who the person behind a request is, from the login a reverse proxy puts on it. It draws the chip in the top right of the bar and records `captured-by` on a capture. [../deploying.md](../deploying.md) is the proxy side.
 
-What identity *does* has its own page: [running.md](../running.md#who-is-looking) is the deployment — which headers, which proxy, what to strip. This page is about the row.
+## What turns it off
 
-## What turns it on
+The row is on by default. Set `on: no` on the `identity` node in `_olai/Settings.olai`, or use its switch, **Identity** under **Notes** on the plugins panel ([../settings.md](../settings.md)).
 
-The `identity` row is on by default. Set `on: no` on its top-level node in `_olai/Settings.olai`, or use its switch on the plugins panel. The switch writes the same property and restart reads it again.
+With it off, every request is nobody: there is no chip in the bar at all, no capture carries `captured-by`, and nothing anywhere is attributed to anybody. That is also what a loopback serve with no proxy in front is.
 
-```jsonl
-{"id":"identity","ord":"a0","title":"identity","custom":{"on":"no"}}
-```
+Both directions take effect at once, with no restart. An open tab redials when the row mounts and comes back as whoever the proxy says you are.
 
-**Either way, nothing pretends.** There is no chip in the bar — not an anonymous one, an absent one — and no request anywhere is attributed to anybody. That is the same state a loopback `olai web` behind no proxy has always been in, which is why the absence needs no mode of its own: nothing is invented when nobody says who is looking, whether that is because the proxy sent nothing or because there is no reading mounted to read it.
+## The chip in the bar
 
-**Nothing needs a restart.** For one release it did, and only in one place: the headers a socket may carry were fixed when the port bound, so a serve that came up *without* this row and then switched it on at the panel answered `GET /olai/who` and attributed `/mcp` writes immediately, while the chip in an open tab stayed anonymous until the process was restarted. That seam is closed ([juspay/kolu#2229](https://github.com/juspay/kolu/pull/2229)): the allowlist is asked of this row at each upgrade, so the tab redials when the row mounts and comes back as whoever the proxy says you are. Off and on are both immediate now, on every door.
+| What it says | When |
+| --- | --- |
+| **Checking who you are…** | the answer has not arrived yet |
+| the person's name with their login beside it, or the login alone when the proxy sent no name | a login arrived |
+| **Not signed in** | nobody is named on this request |
+| **Couldn't check who you are** | the reading failed |
 
-**Header names must be valid HTTP names.** A name containing a space cannot be used by a request. An invalid configured family is refused by the identity reading, with its reason; it cannot grant identity to a connection. The proxy must strip client-supplied copies of every trusted header, including default names that remain configured.
+## Settings
 
-## The config
+Properties on the `identity` node.
 
-The row's `Config` schema declares header names and avatar template with defaults and descriptions. These are properties on the `identity` node in `_olai/Settings.olai`. Blank `login-header` uses the default; blank `email-header` follows that login header. Blank `name-header` or `picture-header` disables the corresponding claim; blank `avatar-template` disables that picture source. A file edit re-applies the row. Header environment adapters are removed. See [running.md](../running.md#who-is-looking) for proxy examples and the trust boundary.
-
-## On the wire
-
-Nothing, and the absence is the design. Who is looking is one value per **connection**, and the connection is core's: the login arrives on the upgrade, so the answer is minted where the socket is accepted and read back through core's own `who.get` — one procedure on the browser face, answered per connection. `GET /olai/who` stays beside it for a share sheet and a script, which have no websocket. A sibling surface here would be a second door onto a value this row never holds.
-
-What the row stands behind is the `Identity` door (`@olai/plugin-api`): the header names to trust, and the reading over them. Core reads it in three places — the upgrade, the HTTP door, and the `/mcp` route that attributes a capture — and knows a login, a name and a picture URL, already settled. It does not know a header name, a template, or that a picture is resolved down a ladder at all.
-
-## Where it hangs in the tab
-
-| seat | who declares it, and what they keep | what identity brings |
+| Key | Default | What it does |
 | --- | --- | --- |
-| `app.viewer` | `layout` — the last seat in the bar — top right, and the one seat a phone keeps | the chip, its four faces (checking, **Not signed in**, the person, a failed check), and every word in them; on a desktop a square the size and shape of the ⚙ beside it, a phone keeping its 44px target |
+| `login-header` | `Tailscale-User-Login` | The header trusted for the login. Blank uses the default |
+| `email-header` | blank | The header trusted for the email claim. Blank follows the login header |
+| `name-header` | `Tailscale-User-Name` | The header trusted for the display name. Blank leaves the login as the name |
+| `picture-header` | `Tailscale-User-Profile-Pic` | The header trusted for a picture. Blank disables that source |
+| `avatar-template` | blank | A picture address containing `{login}`, such as `https://github.com/{login}.png`. Blank disables that source |
 
-There is one seat and one occupant: two chips answering "who am I" in one bar is not an answer, so a second row claiming it is refused by name at the moment it registers.
+Editing any of them re-applies the row; the next request is read with the new names.
 
-The browser half offers `identity.viewer`: one scoped resource over `who.get`, the name formatter and the user icon. Its header chip and chat's transcript speaker share that reading. Chat's speaker component names the key in `needs`; with identity off it reads **waiting for identity.viewer** in the plugins panel while the conversation keeps its anonymous silhouette. Re-enabling identity creates a fresh resource and restores the person's name and picture without reloading the page.
+## Which picture a person wears
 
-The resource follows the connection epoch and closes with the identity provider. The server half declares its browser service words through `Offers.browser`, so `plugins.inspect` lists the key with `half: "browser"` and `availability: "declared"`. That advertises a contract, not a claim about any particular tab's state.
+Four rungs, asked in order, each only when the one above it had nothing:
+
+1. the picture header the proxy sent;
+2. your `avatar-template`, with the login in place of `{login}`;
+3. the gravatar of the email claim, and only when that claim really is an address;
+4. nothing, which the chip draws as its own silhouette.
+
+A rung that is not an `https:` address is not a picture, and the ladder goes on to the next rung rather than drawing a broken one.
+
+## What it refuses
+
+A trusted header name must be a valid HTTP header name, so a name with a space in it is refused along with the rest of the configured family, with its reason, and that family grants identity to no connection.
+
+> Your proxy must strip client-supplied copies of every trusted header, including the default names that stay configured. Anything that reaches olai with one is whoever it says it is.

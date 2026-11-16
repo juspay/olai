@@ -1,9 +1,26 @@
-# Image
+# Images
 
-Image claims supported picture suffixes and draws an image preview and file glyph. The vault serves the bytes through its claim-gated media route; a revision change points the image at fresh bytes.
+olai claims picture files and draws one as its own page, at the size the file
+says, never wider than the column. The suffixes are `.png`, `.jpg`, `.jpeg`,
+`.gif`, `.webp`, `.avif`, `.bmp`, `.ico` and `.svg`, written in lower case.
 
-The row owns the picture suffix list. Its page and glyph activate independently. Turning the row off removes its files from the tree and media route; turning it on restores them from the current directory. Missing and restored files update an open page without reloading the app.
+## Pictures inside a document
 
-The picture on that page is fetched eagerly and asked for ahead of the page's other fetches, because it is the only thing on the page: whatever a browser ends up measuring as the largest paint here, this is it. That is the opposite of a picture inside a document, where everything after the first one waits for the reader to scroll near it ([format.md](../format.md#documents)). Decoding is handed off the main thread in both places, so a screenshot saved at four thousand pixels does not stall the frame the rest of the page draws in.
+A document's `![](art/shot.png)` draws the file beside it, and an `.svg` is
+never drawn that way: see [documents and kinds](../documents-and-kinds.md) for
+what a document may point at.
 
-Page metadata is read from `vault.files.bodyPage`; disabling Markdown does not withdraw this page.
+A document's reference matches a picture's suffix whatever its case, so
+`![](art/SHOT.PNG)` draws. The file itself is claimed only in lower case, so
+`SHOT.PNG` has no page of its own and the sidebar does not list it.
+
+A picture replaced on disk is fetched again rather than drawn out of the
+browser's cache, and a picture that goes missing or comes back updates an open
+page without a reload.
+
+## What an agent can do with it
+
+No tool writes a picture. `files_delete` refuses one, saying `olai only shows
+files of this kind and never writes one`. You can attach a picture to a
+conversation, up to 50 MB, except an `.svg`
+([giving an agent work](../giving-an-agent-work.md)).

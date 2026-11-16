@@ -74,21 +74,22 @@ import { BUNDLE_NAMES as PLUGIN_NAMES, ROWS } from "@olai/bundle";
 
 import { ROOT } from "./support/sweep.ts";
 
-/** Where a plugin's page is AUTHORED, and where it is SERVED. The two are one
- *  file; these are its two names. Both are computed from the plugin's name,
- *  which IS the page's address (`@olai/plugin-api`'s `OlaiPlugin.name`), so
- *  nothing here spells a tenant. */
-const authored = (name: string): string =>
-  path.join("packages", "plugins", name, "docs.md");
-const served = (name: string): string => path.join("docs", "plugins", `${name}.md`);
+import {
+  at,
+  authored,
+  INDEX,
+  isLocal,
+  landing,
+  linksIn,
+  pages,
+  served,
+  VAULT,
+} from "./support/docs.ts";
 
-const at = (file: string): string => path.join(ROOT, file);
-
-/** The docs vault's own root — what `just serve` serves with no argument, and
- *  therefore the boundary a served link may not leave. */
-const VAULT = "docs";
-
-const INDEX = "docs/index.md";
+/** Where a plugin's page is AUTHORED, and where it is SERVED, what the served
+ *  set's root is, and how a link on a page is read: ./support/docs.ts, shared
+ *  with the writing lint so that the two sweeps cannot drift about what a page
+ *  is or where a link lands. */
 
 /** A guard on the sweep itself: an empty registry would pass every equality
  *  below while asserting nothing. A floor, not a count. */
@@ -128,27 +129,6 @@ test("the served set holds a page per plugin and no orphan", () => {
   expect(fs.readdirSync(at(path.join(VAULT, "plugins"))).sort())
     .toEqual(PLUGIN_NAMES.map((name) => path.basename(served(name))).sort());
 });
-
-/** Every markdown link on a page, as the whole target of `[label](target)` —
- *  fragment included. */
-const linksIn = (file: string): ReadonlyArray<string> =>
-  [...fs.readFileSync(at(file), "utf8").matchAll(/\[[^\]\n]*\]\(([^)\s]+)\)/g)]
-    .flatMap((hit) => (hit[1] === undefined ? [] : [hit[1]]));
-
-/** A link that names a file in the served set — not a URL, and not a bare
- *  anchor into the page it is written on. */
-const isLocal = (target: string): boolean =>
-  !/^[a-z][a-z0-9+.-]*:/i.test(target) && !target.startsWith("#") && !target.startsWith("//");
-
-/** Where a link lands, read from the page's SERVED address, as a root-relative
- *  path — `null` for one that climbs out of the vault, which is not a door at
- *  all: an unserved path draws as text. */
-const landing = (from: string, target: string): string | null => {
-  const address = target.split("#")[0];
-  if (address === undefined || address === "") return null;
-  const landed = path.normalize(path.join(path.dirname(from), address));
-  return landed === VAULT || landed.startsWith(`${VAULT}${path.sep}`) ? landed : null;
-};
 
 test("every link on a plugin's page is a door at the address it is served from", () => {
   const broken = PLUGIN_NAMES.flatMap((name) => {
@@ -198,13 +178,25 @@ test("every page the index links is a page that is there", () => {
 });
 
 
-test("every environment door declared by a row is named in running.md", async () => {
-  const doc = fs.readFileSync(path.join(ROOT, "docs/running.md"), "utf8")
+/**
+ * EVERY ENVIRONMENT DOOR A ROW DECLARES IS NAMED ON SOME PAGE a reader can
+ * find. The claim was `docs/running.md` alone, back when that page carried
+ * every knob in the bundle. A door is now documented where its subject is —
+ * an engine's adapter variable on the engine's own page, the server's on
+ * `docs/settings.md` — which is the writing standard's "one fact, one home"
+ * (`dev/skills/docs-writing/SKILL.md`). What must not happen is a door
+ * documented nowhere, and that is what this sweeps for.
+ */
+test("every environment door declared by a row is named on some page", async () => {
+  const written = pages()
+    .map((page) => fs.readFileSync(at(page), "utf8"))
+    .join("\n")
   for (const row of ROWS) {
     if (row.browserOnly) continue
-    const module = await import(createRequire(path.join(ROOT, "packages/bundle/package.json")).resolve(row.name))
+    // The specifier is a registry row's own module name, not a literal.
+    const module = await import(createRequire(at("packages/bundle/package.json")).resolve(row.name))
     for (const door of module.default.environment ?? []) {
-      expect(doc, `${row.id}: ${door.key}`).toContain(door.key)
+      expect(written, `${row.id}: ${door.key}`).toContain(door.key)
     }
   }
 })

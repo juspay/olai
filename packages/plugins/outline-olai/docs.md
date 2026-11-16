@@ -1,7 +1,24 @@
-# Outline Olai
+# Outline files
 
-The `outline-olai` row claims the `.olai` outline format and owns its pure JSONL parser and canonical writer. It draws nothing: Outlines contributes one glyph and tree page for every claim holding nodes.
+olai keeps outlines in `.olai` files, and this row is what reads and writes
+them. Everything made of rows stands on it: outline pages, the inbox, pins,
+Trash and `/agenda`. The file format itself is
+[the format reference](../format.md).
 
-A format receives the file path, contents and the caller's Claims snapshot. It never reads the live registry. The vault's codec, write gate and outline-diff procedure choose the format and pass the same snapshot used for their decision.
+## Turning it off
 
-Its switch is session-only while it owns the settings file's suffix. Turning it off withdraws all its files and the settings reading; previously applied settings for other rows remain in force. A durable `on: no` for this reader is ignored with a warning. Turning it back on reprobes the files without a browser reload.
+olai's own settings live in an outline, `_olai/Settings.olai`, so the settings
+file cannot switch off the row that reads it. The **Outline files** switch in
+the **Plugins** panel is session-only, says **Resets when olai restarts**, and
+an `on` written for this row in the settings file is ignored with a warning in
+the log.
+
+While the row is off:
+
+- outlines leave the sidebar, and `files_create` refuses with `the outline-olai
+  row is off, so no outline can be created`;
+- Trash, the inbox, pins and `/agenda` are unavailable;
+- olai stops reading its settings file until the row comes back. Settings
+  already applied to other rows stay in force.
+
+Turning the row on reads your outlines back without a browser reload.

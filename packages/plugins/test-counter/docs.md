@@ -1,11 +1,15 @@
-# Non-notebook fixture
+# Test counter fixture
 
-This maintained fixture is disabled in normal profiles. Its server owns an
-in-memory counter and two Surface procedures, requiring only the host's
-surface-registration capability. Its browser half consumes `ui-renderer.slots`,
-supplies a tiny shell at `root` and consumes its own wire. Neither entry imports a vault,
-directory, outline, Markdown, navigation or application-layout implementation.
+A test fixture, not a feature. It proves that olai's host runs a plugin with no
+directory at all. Its server keeps one number in memory behind two procedures,
+`counter.read` and `counter.increment`; its browser half draws that number and
+an **Increment counter** button in a shell of its own.
 
-Server activation owns the value; reactivation starts at zero. Browser root
-withdrawal aborts pending requests and prevents departed UI from publishing.
-The same server procedures are exposed to browser and headless agent faces.
+Neither half imports a vault, a directory, an outline, Markdown, navigation or
+the application layout. The same two procedures answer a browser and a headless
+agent. The count starts at zero whenever the server activates, and taking the
+browser half away cancels the requests it had in flight.
+
+The row is **Test counter**, under **Test fixtures** in the **Plugins** panel.
+It is off by default (`disabled: true` in `packages/bundle/olai.yml`) and comes
+on only for the `test-minimal` profile and the scenarios that name it.

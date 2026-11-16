@@ -1,45 +1,42 @@
-# Vault plugins
+# vault-plugins
 
-Vault plugins is the row behind a plugin the vault itself defines. It claims
-`.ts` and `.tsx` **scoped to `plugins/`**, reads each folder under it as one
-plugin — `README.md`, `server.ts` and an optional `browser.tsx` — compiles the
-halves, and mounts the ones a person has approved and switched on. It owns the
-approval and mint procedures, the plugin pages' wire, the agent's five authoring
-tools, and the HTTP route the browser chunk is served from. The generic host
-supplies the module loader and the service registries.
+Runs the plugins your directory defines: it reads each folder under `plugins/`, compiles both halves, serves the browser half, and mounts the version a person turned on. [../dynamic-plugins.md](../dynamic-plugins.md) is how you ask for one, write one and turn one on.
 
-The folder's name is the plugin's word. The README is markdown's file, not this
-row's: this row says only where it sits and reads its first heading and first
-paragraph for the title and the sentence a person is shown.
+## What it owns
 
-Consent is not in the folder. `on`, `approved` (a version hash or `always`),
-`builder`, `checked` (the version the building conversation last finished at)
-and the plugin's own schema leaves live on a root node titled with the word in
-`_olai/Settings.olai`, exactly where a built row keeps its settings — so a
-folder copied in from another vault arrives off and unapproved, and the switch,
-a `stop` and a finished build all survive a restart. Those four keys are
-reserved: a `Config` declaring one faults the plugin, and `plugins.configure`
-refuses to write one.
+| Thing | What it is |
+| --- | --- |
+| the folders | `plugins/<word>/`, holding `README.md`, `server.ts` and an optional `browser.tsx` |
+| the file claim | `.ts` and `.tsx`, under `plugins/` and nowhere else, read on the plugin's page rather than in **Reference** |
+| the pages | `/plugins/<word>`, and the sidebar's **Plugins** section beside them |
+| the palette | **New plugin**, its two levels, and the `+` on that heading |
+| the tools | `vault-plugins_guide`, `_inspect`, `_write`, `_run` and `_stop` |
 
-A version is a content hash of the two halves and not of the README, so prose
-edits cost nobody a decision; an edit to either half puts the plugin back to
-pending, unmounts it, and leaves its page showing a diff against the approved
-version.
+The folder's name is the plugin's word. The `README.md` is markdown's own file: this row reads its first heading for the title and its first paragraph for the line a person sees under it.
 
-The browser half hangs its faces in five other plugins' houses — the sidebar's
-**Plugins** section (drawn whenever that component is up, with a `+` and, on a
-vault with nothing in it, one row inviting a first plugin), the `/plugins/<word>`
-page, the palette's **New plugin** levels, chat's agent panel and the alerts
-channel — one component per house, so each waits and withdraws alone. It offers
-two verbs back across the wall, both consumed by the plugins panel:
-`vault-plugins.approval` (saying yes to a version) and
-`vault-plugins.new-plugin` (opening the palette at **New plugin**). The panel
-holds each on a component of its own and draws nothing where one is absent.
+A version is a content hash of the two code files and not of the `README.md`, so prose edits cost nobody a decision. An edit to either half pauses the plugin, unmounts it, and leaves its page showing a diff against the version that was approved.
 
-Disabling this plugin withdraws its procedures, pages, file claim and chunk
-routes and stops the vault-defined activations it owns. Built-in bundle rows
-continue to work. Re-enabling it reads the folders again and revalidates them.
+## Where consent is kept
 
-See [plugins the vault defines](../dynamic-plugins.md) for the folder shape,
-where consent lives, allowed module imports, the approval workflow and the two
-worked examples.
+`on`, `approved`, `builder` and `checked`, with the plugin's own knobs beside them, are properties on a root node titled with the word in `_olai/Settings.olai`, exactly where a built row keeps its settings. A folder copied in from another directory therefore arrives off and unapproved, and the switch, a stop and a finished build all survive a restart.
+
+Those four keys are reserved. A `Config` declaring one faults the plugin, and `plugins.configure` refuses to write one.
+
+## What it offers other plugins
+
+| Key | What it is | Who names it |
+| --- | --- | --- |
+| `vault-plugins.approval` | approving one version, or every later one | [plugin-inspector](plugin-inspector.md) |
+| `vault-plugins.new-plugin` | opening the palette at **New plugin** | plugin-inspector |
+
+Each is offered by a component of its own, so a serve with no palette offers the second and not the first. The panel holds each separately and draws nothing where one is absent.
+
+## What turns it off
+
+The row needs the vault and runs in the `web` and `surface` profiles. Set `on: no` on the `vault-plugins` node in `_olai/Settings.olai`, or use its switch, **Vault plugins** under **Notes** on the plugins panel ([../settings.md](../settings.md)).
+
+With it off, every plugin the directory defines stops, the approval procedures and the `vault-plugins_*` tools withdraw, the pages and the sidebar section go, and the scoped claim on `.ts` and `.tsx` goes with them. The rows this build compiled in keep running. Switching it on reads and validates the current folders again.
+
+The row accepts no settings of its own.
+
+A plugin runs with this server's own authority, so turning one on is a person's. An agent cannot write the `approved` property on any node, on this row's account, even while the row is off.

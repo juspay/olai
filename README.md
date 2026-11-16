@@ -8,8 +8,8 @@ An outliner that lives in files you own. Git records it. A browser edits it. An 
 
 **[olai.page](https://olai.page)** — what it is, how to run it, and why.
 
-Docs: [docs/index.md](docs/index.md) · Running: [docs/running.md](docs/running.md)
+Start here: [docs/start.md](docs/start.md) · All the docs: [docs/index.md](docs/index.md)
 
 ## Status
 
-Olai is being actively developed and iterating rapidly. THERE WILL BE COMPATIBILITY-BREAKING CHANGES.
+olai is being developed quickly, and releases will break compatibility. Keep your notes in git.

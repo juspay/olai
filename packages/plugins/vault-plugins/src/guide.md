@@ -1,6 +1,6 @@
 ## The folder
 
-A plugin the vault defines is a **folder** under `plugins/`, and the folder's name is the plugin's word:
+A plugin the directory defines is a folder under `plugins/`, and the folder's name is the plugin's word:
 
 ```
 plugins/hex-swatch/
@@ -9,40 +9,13 @@ plugins/hex-swatch/
   browser.tsx   optional
 ```
 
-- **The word** is the folder's name — the row's id, the key its wire members are composed under, the word the page and the sidebar draw. It takes the same shape a built row's id does (`[a-z][a-z0-9-]*`) and it may not be a word this serve already has; a folder named anything else is drawn with a sentence saying so rather than compiled.
-- **`README.md`** is `# Title`, a blank line, one sentence, and then as much prose as the plugin deserves. The heading is what a person is told the plugin is called and the first paragraph is the line under it, on the page and in the sidebar's tip. It is an ordinary document — **markdown's own claim**, openable, editable and searchable like any other `.md` — and the only thing this row says about it is where it sits.
-- **`server.ts`** is required. A plugin with no face — one that teaches the vault a property kind, or rings a doorbell at seven — is a whole plugin.
-- **`browser.tsx`** is optional, and is the half that draws.
-- Anything else in the folder is ordinary vault content and is passed over.
+- The word takes the same shape a built plugin's name does, `[a-z][a-z0-9-]*`, and may not be a word this serve already has. A folder named anything else is drawn with a sentence saying so rather than compiled.
+- `README.md` is a `# Title`, a blank line, one sentence, then as much prose as the plugin deserves. The heading is what the plugin is called on screen and the first paragraph is the line under it.
+- `server.ts` is required. A plugin that teaches the directory a property kind, or rings a doorbell at seven, is a whole plugin.
+- `browser.tsx` is optional, and is the half that draws.
+- Anything else in the folder is ordinary content and is passed over.
 
-**The two halves are ordinary files, and the claim that makes them so is SCOPED.** A `.ts` names a file a directory is likely to be full of for reasons that have nothing to do with olai — a checkout somebody keeps beside their notes — so the `vault-plugins` row claims `.ts` and `.tsx` **only under `plugins/`** (`@olai/format`'s `Claim.under`), and no other TypeScript in the vault is swept into the set. Inside that folder the halves are kept text like a document's body: the store reads them, the revision holds them, the write gate writes them, the ledger records them and the Commit panel lists them by path.
-
-**...but they are not PROSE, and the claim says that too** (`Claim.opaque`). Keeping a body and being a document are two facts, and a claim that only said the first had every markdown reader treating a plugin's code as writing: a half was titled with its first `import` line, a `#ff8800` in it became a tag of the vault, and two "documents" per plugin showed up in search, in `markdown_index`, in document pickers and as targets a declared `doc` property could name. An opaque claim keeps the bytes and skips the prose walk, so a half has no title but its filename, no tags, no links and no frontmatter — and is in no list of documents anywhere.
-
-**They are not in the sidebar's Reference tree**, and that is the claim's `elsewhere` flag rather than secrecy. They are in the set, they are in the ledger, and the plugin's own page is where they are read — with the file names over them and a diff when they change. Two front doors onto one file is how a sidebar fills up with the app's own plumbing. **A half's own path is an address onto that page**: `/plugins/hex-swatch/server.ts` opens the plugin at that file, so a path a person copied out of the Commit panel lands somewhere, with the README over it and the one button that decides whether it runs.
-
-**What that buys is not tidiness.** It is that a plugin is a thing you can show somebody: a folder, with a README at the top of it, that travels by being copied, that git records line by line, and that a pull request can review.
-
-### Consent lives in Settings, not in the folder
-
-`on`, `approved`, the `builder` binding and the plugin's own knobs are properties on a root node titled `<word>` in `_olai/Settings.olai` — the same file, the same shape and the same reader every row olai ships already keeps its settings in.
-
-```
-hex-swatch            on: yes
-                      approved: 3fa9c1d2b7e45610
-                      builder: n-7f3a
-                      size: large
-```
-
-Three things follow, and all three are the point:
-
-- **A folder copied in from another vault arrives off and unapproved.** The code travels; the consent does not. A plugin with no settings node is off, whatever it says about itself.
-- **Enablement survives a restart.** So does a stop: `on: no` is in a file, not in a set in the server's memory.
-- **`approved`, `on`, `builder` and `checked` are reserved.** A `Config` schema declaring any of them faults the row, and `plugins.configure` refuses to write one, with the same sentence either way: *`on` is reserved for the plugin's approval, its switch, the conversation building it and that conversation's done signal.* `checked` is that conversation's done signal — the version its last clean `vault-plugins_run` answered about — written by olai when the call comes in and never by hand: a plugin that could declare itself finished would ring *Ready for you* at a folder its author is halfway through.
-
-### Only a person can turn it on
-
-An agent can write every byte of a plugin and ask what became of it. It cannot approve one. The code runs with the server's own authority — there is no sandbox and this page is not pretending there is one — so the boundary is an owner, at a page, having read what the folder holds. `vault-plugins_run` on a plugin nobody has approved answers `pending`, which is that boundary said back to the author. The right thing to do with a `pending` is to say so and stop.
+The two code files are claimed by olai only under `plugins/`, so a checkout somebody keeps beside their notes is untouched. They are kept text: the revision holds them, the ledger records them, and the commit panel lists them by path. They are not rows in the sidebar's **Reference** tree, because the plugin's page is where they are read. The path of one is an address onto that page: `/plugins/hex-swatch/server.ts` opens the plugin at that file.
 
 ## What a half may import
 
@@ -54,7 +27,7 @@ import { Effect } from "effect"
 import { createSignal } from "solid-js"
 ```
 
-olai resolves all three itself, against the modules **inside the running binary** — so a face an agent wrote draws with the same Solid the app does and can read a context a shipped plugin provided. A vault has no `node_modules` and never will, so anything else is refused with a sentence naming it, at the moment the half is compiled rather than at the moment it dies:
+olai resolves all three itself, against the modules inside the running binary, so a face an agent wrote draws with the same Solid the app does. The directory has no `node_modules`, so anything else is refused when the plugin is read rather than when it dies:
 
 ```
 olai resolves @olai/plugin-api, effect and solid-js for a plugin it mounts from
@@ -62,81 +35,119 @@ a vault, and nothing else — so "left-pad" names nothing this serve can hand
 over. A vault has no node_modules.
 ```
 
-Subpaths are refused too (`effect/Schema`, `solid-js/web`), and so is a computed `import()`: what a person approved is the source they read, so every module a plugin uses has to be visible in it. A relative import of a fourth file in the folder is refused for the same reason — a plugin is two halves, and what is approved is both of them whole.
+Subpaths are also refused (`effect/Schema`, `solid-js/web`), and so is a computed `import()`: what a person approved is the source they read, so every module a plugin uses is visible in it. A relative import is refused with its own sentence, since a plugin is two halves and nothing else.
 
-The server half's `@olai/plugin-api` is the runtime door (`Kinds`, `Vault`, `Surfaces`, `Deliveries`, `Offers`, …); the browser half's is the app door (`Slots`, `Clocks`, `Wired`, `Offers`, …). One name in the source, and each half gets the door it is written against.
+The server half's `@olai/plugin-api` is the runtime door (`Kinds`, `Vault`, `Surfaces`, `Deliveries`), and the browser half's is the app door (`Slots`, `Clocks`, `Wired`). One name in the source, and each half gets the door it is written against.
 
-Both halves declare the same `name`, and it has to be the folder's own word. A half that signed another word would be a fiber bound under a name no row draws.
+## Give it knobs
 
-## Knobs
-
-A server half may expose a `Config` schema exactly as a built row does. Give every field a decoding default and a description annotation, pass it as `config` to `definePlugin`, and `apply` receives the decoded object. This one is the whole of `plugins/greeting/server.ts`:
+A server half may expose a `Config` schema just as a built plugin does. Give every field a decoding default and a description annotation, then pass it as `config` to `definePlugin`; `apply` receives the decoded object.
 
 ```ts
 import { definePlugin } from "@olai/plugin-api"
 import { Effect, Schema } from "effect"
-
 const Config = Schema.Struct({
   tone: Schema.String.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed("blue")),
     Schema.annotate({ description: "the colour to draw" })),
 })
-
 export default definePlugin({
-  name: "greeting", needs: [], config: Config,
-  apply: (config) => Effect.logInfo(`greeting tone: ${config.tone}`),
+  name: "hex-swatch", needs: [], config: Config,
+  apply: (config) => Effect.logInfo(`tone: ${config.tone}`),
 })
 ```
 
-The values are properties on the plugin's node in `_olai/Settings.olai`, and child nodes under it supply schema sections — the same layout, read by the same reader, as a built row's. A plugin's schema-derived controls are drawn **on its own page**, under **Settings**, and in its row's detail on the plugins panel: descriptions are tooltips, a ● marks an authored value and ↺ removes the property. A knob edit re-applies the row without touching its approval, because the version is a hash of code and a setting is not code. An invalid leaf uses its default, warns once, and shows the file text and the schema message under its control; an invalid schema fails only this plugin.
+- The leaves are properties on the plugin's node in `_olai/Settings.olai`, beside `on` and `approved`.
+- The controls appear under **Settings** on the plugin's page and in its row on the plugins panel. A ● marks an authored value and ↺ removes the property.
+- A knob edit re-applies the plugin and asks nobody for a fresh approval, because a setting is not source.
+- An invalid leaf uses its default, warns once, and shows the file text and the schema message under its control.
 
-`vault-plugins_inspect` answers this layout — the folder's three names, the settings file, and the three reserved words — so an agent writing a plugin does not have to read it out of prose.
+## What an agent can do
 
-## Faces and slots
+| Tool | Answers |
+| --- | --- |
+| `vault-plugins_guide` | this guide, shipped inside the binary |
+| `vault-plugins_inspect` | what a plugin may name: the three modules, the service keys, the slots and their keys, the folder layout, and the words already taken |
+| `vault-plugins_write` | writes one file of one plugin, and says whether that half compiles |
+| `vault-plugins_run` | what became of one plugin now: its state, its version, and the fault sentence where there is one |
+| `vault-plugins_stop` | switches one off for good, by writing `on: no` |
 
-A browser half hangs a face in a named slot:
+- Read `vault-plugins_inspect` before writing code. Service records are marked by half, and `availability` tells a server provision from a browser declaration.
+- Its `taken` list is every word this serve has, the built plugins and every folder under `plugins/` alike, because a new plugin may take neither.
+- `vault-plugins_write` creates the folder if it is not there. It is the whole vocabulary needed to write a plugin: no paths, no claim rules, no guessing which file is which.
+- A plugin nobody has approved answers `pending` from `vault-plugins_run`. That is the boundary said back to its author, and the right thing to do with it is to say so and stop.
+- `vault-plugins_stop` reaches these plugins only. Naming a built one is answered as no such plugin.
 
-```tsx
-yield* slots.register("outline.row.chip", "hex", Swatch)
+## Check a half before you ask
+
+Every edit changes the version, and every version costs a person a decision, so be sure before you ask.
+
+Write it with `vault-plugins_write`, which answers that half's compile result in the same reply. That makes the loop one call rather than a write and a guess. Or compile it by hand with the call the serve itself makes:
+
+```ts
+import { buildHalf } from "@olai/plugin-build"
+console.log(await buildHalf("browser", source))   // { ok: true, text } | { ok: false, why }
 ```
 
-**A face is handed a context, not a value.** `outline.row.chip` takes a `ChipContext` — `entry` (the property's `key`, its `value`, its `values`), `opened`, `onToggle`, `chrome` — so what you draw is `context.entry.value`. A face that reads `props.value` gets `undefined` and fails in the worst way available: it compiles, it mounts, the page says **On**, and the chip is invisible. `vault-plugins_inspect` names every slot and what keys each; the shapes are `@olai/plugin-api`'s `plugin.ts`.
+Run that from a package that depends on `@olai/plugin-build`; `packages/server` does. It catches every way a half can fail to become a module: a module olai does not bind, a relative import, a computed `import()`, a syntax error. Then typecheck the two files with `bun x tsc --noEmit`.
 
-A registration is held by the activation that made it, so nothing has to be taken back by hand: the switch, `vault-plugins_stop`, an edit that puts the plugin back to pending, and the row leaving all unwind every face, kind and offer the plugin acquired.
+> The typecheck has one trap. A half writes the bare `@olai/plugin-api` and olai binds each half to a different door, so typechecking a server half as written reports `has no exported member 'Kinds'`. Point that import at `@olai/plugin-api/services` for the duration of the check, and put it back.
 
-## Sharing a plugin-owned service
+## Say when you are finished
 
-A server half can provide a service without changing core's catalog. Name `Offers` in `needs`, then yield `offers.own("fleet", consumer => ({ ... }))`. Olai stamps the key with the offering fiber's name: a plugin named `fleet-source` offers `fleet-source.fleet`. The callback receives the **consumer's** runtime name, so it can return a per-consumer view. Neither name is a caller-supplied argument. Both segments must start with a lowercase letter and contain only lowercase letters, digits or hyphens; dots are reserved for the separator.
+`vault-plugins_run` is the last check and the only one that is the real thing: it answers off the same plugin a person is looking at. It is also how you say the build is over.
 
-A consumer defines `const Fleet = serviceTag<FleetShape>("fleet-source.fleet")` using `serviceTag` from `@olai/plugin-api`, includes `Fleet` in `needs`, and reads it with `yield* Fleet`. Minting a tag names a dependency; it does not grant permission to provide that key or access the runtime host. Providers and consumers must agree on the shape; the string key does not validate arbitrary dynamic code's types at runtime.
+Until that call comes in, the plugin's page says it is being built and nothing wakes anybody. A file landing cannot mean finished, because this guide has you write `browser.tsx` last. Call it when the folder is whole, at the version on disk, and the person is told the plugin is ready for them.
 
-The consumer waits until the provider finishes initialization. Removing or replacing the provider unloads the consumer, awaits its cleanup while the old resource is still alive, and reactivates it with the new provision when ready. Failed initialization publishes no usable service. Duplicate offers fail the offering activation and unwind its registrations.
+Call it again after every fix. Each call is about the version it was made at, and only a call with no fault in its answer ends the build. A mistake you found and fixed wakes nobody. olai writes that version onto the plugin's settings node, so a build that finished before a restart is still finished after one.
 
-`vault-plugins_inspect` includes currently offered plugin-owned keys beside the core catalog. A stopped or removed provider's keys disappear; consumers can still name a missing key and wait for it. This is discovery of keys, not a schema registry. `Offers.offer` accepts only the core-defined `OFFERABLE` keys. Any row may stand behind one, one at a time; Cordis refuses a second provider and names both rows and the contested key. Once the first leaves, a differently named provider can take its place without a core edit. Other host services remain closed: `own("vault", ...)` means `your-plugin.vault` and cannot replace core's `vault`.
+## Share a service with another plugin
 
-**A door worth naming answers in its OWN shape**, rather than in whatever type it happens to build the answer out of. `journal.agenda`'s row is four fields the journal promises; the page model behind it is free to move, and a plugin in somebody's vault does not find out about it on a Tuesday morning. The same argument runs the other way: a plugin a vault defines cannot import `@olai/format`, so it writes down the fields it reads and the provider's own types satisfy them structurally.
+A server half can provide a service without changing core's catalogue. Name `Offers` in `needs`, then yield `offers.own("fleet", consumer => ({ ... }))`. olai stamps the key with the offering plugin's name, so a plugin named `fleet-source` offers `fleet-source.fleet`. The callback receives the consumer's own name, so it can return a view per consumer.
 
-**Two shipped ones to read, and they are the two cases.** The Spaces mirror uses this mechanism between two rows this build compiles together: chat offers `chat.seating`, whose `in(derived)` returns the node seating for that snapshot, including nodes without a session. The mirror declares that key in `needs`; switching chat off removes the mirror's registrations and switching it on restores them. The mirror declares no dependency on the chat package to do it: a key is a name, so a consumer that names one takes on nothing of the provider's build.
+- Both segments start with a lower-case letter and hold only lower-case letters, digits or hyphens. Dots are the separator.
+- A consumer writes `const Fleet = serviceTag<FleetShape>("fleet-source.fleet")`, puts `Fleet` in `needs`, and reads it with `yield* Fleet`. Minting a tag names a dependency and grants nothing.
+- Provider and consumer agree on the shape themselves. The string key checks none at runtime.
+- The consumer waits until the provider has finished initializing. Replacing a provider unloads the consumer, awaits its cleanup while the old resource is still alive, and starts it again on the new one.
+- A duplicate offer fails the offering plugin and unwinds its registrations. Cordis refuses a second provider for a contested key and names both.
+- `vault-plugins_inspect` lists the keys offered now beside the core catalogue. A stopped provider's keys disappear, and a consumer may name a missing key and wait for it.
 
-`journal.agenda` ([the journal](plugins/journal.md#the-agenda-as-a-service)) is the other case, and the one a key like this exists for: its consumer is a plugin somebody wrote into a vault, which nothing rebuilds when the provider changes. Three things follow, and all three are visible in the door. The journal takes the reading IN, so the answer is about one snapshot and the caller says which. The ask is opaque, because the consumer cannot name a `Reading` and does not have to — it passes on what the revision door gave it. And the answer is the door's OWN shape rather than the type the journal happens to build it out of, so the page model behind it stays free to move.
+### A service a browser half offers
 
-### Browser-owned services
+Browser halves import `Offers` the same way and publish with `yield* (yield* Offers).own("palette", consumer => ({ ... }))`. A browser consumer declares `serviceTag<Shape>("provider.palette")` in `needs` and yields it in `apply`.
 
-Browser halves import `Offers` from `@olai/plugin-api` and publish with `yield* (yield* Offers).own("palette", consumer => ({ ... }))`. A browser consumer declares `serviceTag<Shape>("provider.palette")` in `needs` and yields that tag in `apply`, just like a server consumer. Each local segment must start with a lowercase letter and contain only lowercase letters, digits or hyphens; the provider name comes from the owning plugin's binding.
+- Browser `Offers` has only `own`, so a plugin cannot replace `Slots`, `Wired` or the shell's furniture. These keys live in the tab, apart from server keys of the same name.
+- A provider publishes only after it has initialized. A missing one keeps the consumer waiting with no faces, and withdrawal releases those faces before the provider's resources.
+- To make a browser key discoverable, the server half names `Offers` in `needs` and calls `yield* (yield* Offers).browser(["palette"])`. Those declarations leave when the server provider unloads.
 
-Browser `Offers` has only `own`: plugins cannot replace `Slots`, `Wired`, or the shell furniture. Keys live in the tab host, independently of identically named server keys. Providers publish only after successful initialization. A missing provider keeps the consumer waiting with no faces; withdrawal releases those faces before the provider resources, and reactivation receives a fresh service. The plugin's page and the plugins panel both show browser waiting and failed states beside the server's state, including the missing service key and the component's name. Shapes remain a contract between the two authors.
+## What happens when it mounts
 
-To make a browser key discoverable, the server half names `Offers` in `needs` and calls `yield* (yield* Offers).browser(["palette"])`. These local words use the same namespace grammar and fiber stamp as `own`, and their declarations leave when the server provider unloads. This call does not provide a server service or execute browser code on the server.
+The server half is compiled, evaluated and mounted as a fiber on the same registry the built plugins are on. The kind vocabulary gains its words, a sibling surface reaches the wire, the roster moves, and every open tab redials.
 
-`vault-plugins_inspect` returns service records with `key`, `half` (`server` or `browser`) and `availability`: `core` for core server vocabulary, `provided` for server-owned keys, and `declared` for browser contracts. A browser declaration can be discovered without a connected tab; the page reports whether this tab actually activated the provider. In a built plugin, keep the local word list in the shared definition and use it in both `Offers.browser` and `Offers.own`.
+Then the served directory is read again, which is what puts a face on values that were already there. Without it the plugin would mount, its kind would be in force, and its chip would not draw until the next keystroke anywhere in your files.
 
-Identity offers `identity.viewer`, including the resource over `who.get`, `saying` and `UserIcon`. Chat exports a `components` record containing its speaker's plugin. Each browser component gets a separate dependency lifecycle, a name stamped as `parent/component`, and is removed with its parent row. The activation name is separate from the owning plugin: components share the row's service namespace, sibling client and slot ownership, while each registration still closes with its component. A service factory receives the consuming plugin's owner name, including when that consumer is a component. A waiting speaker leaves chat's anonymous face available. Components have no host access and cannot offer a different row's keys.
+The browser half is compiled to a chunk and served at `/_olai/plugins/<word>-<version>.js`. The tab loads it as it loads a built plugin's chunk and the faces appear without a reload. The version is in the path, so a re-approved edit is a different address and no cache can hand back the code approved before the edit.
 
-## A worked example: the morning agenda
+The serve keeps the last chunk each word served, so a tab still fetching one while the plugin stops gets the bytes that path named rather than a 404.
 
-A plugin that reads the journal's agenda each morning and puts it into the node agent's own conversation — which is the shape most of these are: a service somebody else offers, a clock, and a sentence.
+A half that will not compile, a module that exports no plugin, a half that calls itself a different word, and an `apply` that throws each land the plugin on `failed`. The sentence that explains it is on the page and on the row, no sibling is touched, and **Ask the agent to fix it** hands that sentence to the conversation verbatim.
 
-**Ask first what may be named.** `vault-plugins_inspect` lists service records by half. A server-owned key appears while its provider is running; a browser key is advertised by its server declaration:
+## Starting and stopping
+
+A server half stays `waiting` while its `apply` initializes, and the services it offers reach consumers only after that succeeds. If it fails, its registrations and resources are unwound and the page shows its fault.
+
+- The switch and `vault-plugins_stop` can stop a half that is still initializing. Stopping interrupts its work, waits for background work and cleanup, and leaves it switched off.
+- Losing a required service also interrupts initialization, leaves the plugin `waiting` and names the missing key. When that service returns, initialization runs again.
+- Shutting the host down closes every plugin, and a dependent's cleanup finishes before the provider releases what it was using.
+- Cancellation is cooperative: synchronous JavaScript cannot be preempted, and uninterruptible acquisitions and finalizers finish themselves. There is no per-plugin initialization timeout.
+
+## The morning agenda
+
+A plugin that reads the journal's agenda each morning and puts it into a node agent's own conversation: a service somebody else offers, a clock and a sentence.
+
+### 1. Ask what you may name
+
+Call `vault-plugins_inspect`. It lists service records by half: a server-owned key appears while its provider is running, and a browser key is advertised by its server declaration.
 
 ```
 "services": [
@@ -147,15 +158,29 @@ A plugin that reads the journal's agenda each morning and puts it into the node 
 ]
 ```
 
-`journal.agenda` is the journal row's own — offered with `Offers.own`, so the key is stamped from that fiber's name and no other row can take it. Naming it in `needs` is all a consumer does: the plugin waits while the journal is switched off, saying so on its page, activates when it returns, and unloads if it leaves. Nothing in core knows these two are connected.
+`journal.agenda` is the journal row's own key ([plugins/journal.md](plugins/journal.md)). Naming it in `needs` is all a consumer does: the plugin waits while the journal is switched off, saying so on its row, activates when the journal returns, and unloads if it leaves.
 
-The folder is two files, because this plugin draws nothing and a plugin with no face needs no browser half:
+### 2. Make the folder
+
+Two files, because this plugin draws nothing and a plugin with no face needs no browser half:
 
 ```
 plugins/morning-agenda/
   README.md
   server.ts
 ```
+
+`README.md` is what a person reads on the plugin's page:
+
+```md
+# Morning agenda
+
+Puts what is overdue and what is on today into your agent's conversation, once each morning.
+```
+
+### 3. Write `server.ts`
+
+Write each file with `vault-plugins_write`, which answers whether that half compiles in the same reply. A plugin your directory defines cannot import `@olai/format`, so it spells the fields it reads and the provider's own types satisfy them structurally. The string key names a dependency; it does not check a shape.
 
 `server.ts`:
 
@@ -267,35 +292,32 @@ export default definePlugin({
 })
 ```
 
-**The beat is forked onto the plugin's own scope**, so stopping the plugin — the switch, `vault-plugins_stop`, an edit that puts it back to pending — interrupts it with everything else the plugin acquired. There is no timer to clear.
+### 4. Turn it on, and read what happens
 
-**A morning that reaches nobody is not a morning that has passed.** `said` is set after a delivery went out, so a serve with no conversation open at seven o'clock still says it when one is opened. And `deliveries.deliver` takes a thunk rather than a string: the words are composed at the moment they enter the conversation, which for a message that may wait through a running turn is the only time they are true.
+Call `vault-plugins_run` when the folder is whole: that is what tells the person it is ready. They open its page at `/plugins/morning-agenda`, read it, and press **Turn on**.
 
-**This ships as nothing.** The source above is not in the binary and is not meant to be: a morning agenda somebody actually reads is written into their own vault by their own agent, or pasted from here, and turned on by them. It is vault content.
+- From seven o'clock, by the serving machine's own clock, every node agent with a live session is handed one message naming what is overdue and what is on today ([node-agents.md](node-agents.md)).
+- A morning that reached nobody has not passed: `said` is set only after a delivery went out, so a serve with no conversation open at seven still says it when one is opened.
+- `deliveries.deliver` takes a thunk rather than a string, so the words are composed at the moment they enter the conversation, which for a message that may wait through a running turn is the only time they are true.
+- The beat is forked onto the plugin's own scope, so stopping the row interrupts it with everything else the plugin acquired. There is no timer to clear.
+- Nothing of this ships in olai: a morning agenda somebody reads is written into their own directory by their own agent, or pasted from here.
 
-## A second example: a face
+## A swatch beside a colour
 
-A dressing for a `hex` property — a swatch beside the value. Where the first example does something, this one draws something, which is the other half of what a plugin can be. Its folder has all three files:
+A dressing for a `hex` property. Where the first example does something, this one draws something, which is the other half of what a plugin can be.
+
+### 1. Make the folder
 
 ```
-plugins/hex-swatch/
+plugins/swatch/
   README.md
   server.ts
   browser.tsx
 ```
 
-`README.md`:
+Both halves declare the same `name`, and it has to be the folder's own word: a half signed with another word is a fiber bound under a name nothing draws.
 
-```md
-# Hex swatch
-
-A colour swatch beside any hex colour.
-
-Draws a small colour swatch beside any property whose kind is `hex`, so a
-palette written as text reads as a palette. Declare a property as
-`hex-swatch-hex` and give it a value like `#ff8800`; anything that is not six
-hex digits is refused when you type it.
-```
+### 2. Write the server half, which teaches the kind
 
 `server.ts`:
 
@@ -304,7 +326,7 @@ import { definePlugin, Kinds } from "@olai/plugin-api"
 import { Effect } from "effect"
 
 export default definePlugin({
-  name: "hex-swatch",
+  name: "swatch",
   needs: [Kinds],
   apply: Effect.gen(function*() {
     const kinds = yield* Kinds
@@ -312,6 +334,8 @@ export default definePlugin({
   }),
 })
 ```
+
+### 3. Write the browser half, which draws the chip
 
 `browser.tsx`:
 
@@ -324,7 +348,7 @@ const Swatch = (context: { readonly entry: { readonly value: string } }) => (
 )
 
 export default definePlugin({
-  name: "hex-swatch",
+  name: "swatch",
   needs: [Slots],
   apply: Effect.gen(function*() {
     const slots = yield* Slots
@@ -333,29 +357,14 @@ export default definePlugin({
 })
 ```
 
-**The kind word is `hex-swatch-hex`, and it is CLAIMED rather than declared.** A plugin contributes the bare word and the registry composes it with the plugin's own name, exactly as for a built plugin — and that composed word is claimed by the registration, so `shade: "#ff8800"` is held to it with no `_olai/Properties.olai` in the vault at all. That is the whole of what an author has to do.
+A face is handed a context, not a value. `outline.row.chip` takes a chip context: `entry`, holding the property's `key`, `value` and `values`, plus `opened`, `onToggle` and `chrome`. What you draw is `context.entry.value`.
 
-What you cannot do is *declare* it. A `type` in `_olai/Properties.olai` is judged against what the BINARY was built with, and that list is read off the bundle's rows — a vault's own plugin is in no row and teaches its word by calling `Kinds.register` at mount, so `{"title":"colour","custom":{"type":"hex-swatch-hex"}}` is refused. The asymmetry is real and currently one-way: a compiled-in plugin's kind can be pointed at a key of the vault's own choosing, a vault plugin's cannot. Use the claimed word as the key.
+> A face that reads `props.value` gets `undefined` and fails in the quietest way available: it compiles, it mounts, the row says `running`, and the chip is invisible. `vault-plugins_inspect` names the slots and the keys each one takes.
 
-## Checking a half before you ask
+### 4. Turn it on, and put a colour on a row
 
-Every edit changes the version, and every version costs a person a decision. So be sure before you ask. Three checks, and one trap.
+Read the files on the plugin's page and press **Turn on**. The browser half's chunk loads without a reload, so the faces appear while you watch.
 
-**Write it through the door that answers.** `vault-plugins_write` puts one file of one plugin through the vault's ordinary write gate — same planner, same validation, same ledger commit as a keystroke — and answers in the same reply whether that half **compiles** and, when it does not, why. That makes the loop one call rather than a write and a guess, and it is the check to reach for first.
-
-**Or compile it by hand** — the same call the serve makes, so the answer is the answer:
-
-```ts
-import { buildHalf } from "@olai/plugin-build"
-console.log(await buildHalf("browser", source))   // { ok: true, text } | { ok: false, why }
-```
-
-Run it from a package that depends on `@olai/plugin-build` (`packages/server` does). This catches every way a half can fail to become a module: a module olai does not bind, a relative import, a computed `import()`, a syntax error.
-
-**Typecheck it** — the two halves are real `.ts` and `.tsx` files in the vault, so point a `tsc` at them, or drop copies into some package's `src/` and `bun x tsc --noEmit`.
-
-**The trap in the last one.** A half writes the bare `@olai/plugin-api` in both files and olai binds each to a different door: a server half to `./services`, a browser half to the root. So typechecking a *server* half exactly as written reports `has no exported member 'Kinds'` — and that error is the **check** being wrong, not your source. Point the import at `@olai/plugin-api/services` for the duration of the typecheck, and put it back.
-
-`vault-plugins_run` is the last check and the only one that is the real thing: it answers the state, the version and the fault sentence off the same plugin a person is looking at. A `pending` there is not a failure — it is the one person who can turn it on not having been asked yet.
-
-**It is also how you say you are finished.** Until a build's conversation calls it, the plugin's page says *being built* and lists the files that have landed, and nothing wakes anybody: the files arriving cannot mean *done*, because this guide has you write the face last. Call it when the folder is whole, at the version on disk, and the person is told the plugin is ready for them. Call it again after every fix — each call is about the version it was made at, and **only a call that comes back with no fault is a finished build**: the ones in between are the middle of your work, so a mistake you fixed never woke anybody. Olai writes that version down on the plugin's own settings node, so a build that finished before a reboot is still finished after one.
+- The kind's word is `swatch-hex`: a plugin contributes the bare word and the registry composes it with the plugin's own name, exactly as for a built plugin.
+- That composed word is claimed by the registration, so a property `swatch-hex: "#ff8800"` is held to the pattern and wears the swatch with no `_olai/Properties.olai` in your directory at all.
+- What you cannot do is declare it. A `type` in `_olai/Properties.olai` is judged against what the binary was built with, so `{"title":"colour","custom":{"type":"swatch-hex"}}` is refused. Use the claimed word as the key.

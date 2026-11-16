@@ -9,7 +9,7 @@
 # plugins build nothing and find their tools on the PATH) — and is accepted.
 #
 # Each plugin's `default.nix` is `{ pkgs, pins, kit, b2n ? null }: { ... }`,
-# returning the contract attrset of docs/architecture/plugin-system.md §10:
+# returning the contract attrset of docs/architecture/adding-a-plugin.md:
 # hydrate / externals / koluSeeds / koluPins / generated / npmTrees / knobs /
 # packages / checks. `pins` is this tree's npins, handed in so a plugin names a
 # pin by attribute instead of reaching ../../../npins. `kit` is

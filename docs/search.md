@@ -1,94 +1,91 @@
 # Search
 
-One query language, five doors. An agent asks `search_nodes` over MCP; a person types into the **search box in the header**, or into the `⌘K` palette — and on a phone, where the bar has no room for a box, taps the magnifier, which opens that same palette. The fourth is different in kind and the same in meaning: the **filter over the page**, which takes rows away from whatever is in front of you instead of listing hits somewhere else — an outline, a zoomed node, a day, the agenda, the trash. The fifth is smaller and is the same grammar again: the chat composer's `@` list, where a word after the sigil NAMES one node to put in a message ([chat.md](chat.md)) — including multi-word titles and expressions. After a space, its rows start unselected: Enter sends the message until an arrow key selects a row, while Tab or a click completes directly. This keeps note-matching prose from being replaced accidentally.
+One query language, several doors: the header's search box, the palette, the pickers under a row, and an agent's `search_nodes`. This page is the grammar — what a word matches, every operator, and what a query is refused for. Narrowing the page in front of you is [filtering.md](filtering.md).
 
-**All five ask the server**, and that is newer than it sounds: the filter and the `@` list used to run the matcher in the browser, over the copy of the whole directory a tab held. The browser is giving that copy up — it may hold at most the page in front of you ([brainstorming/vault-in-browser.md](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md), the human's ruling of 2026-08-19) — so which nodes a query selects is a question now, at every door. Three of them go through ONE DOOR that core defines and a row stands behind — `@olai/ops`' `Search`, offered by `olai-plugin-search`, which ranks and caps ([plugins/search.md](plugins/search.md)); a serve that does not mount that row answers all three with no hits and the reason, in words; the filter asks the other half of the same matcher (`Query.narrowing`) and gets the whole membership of ONE PAGE, ids and why, because a page prunes itself by it and counts itself against it. That one is subscribed to rather than called, and asked of a page rather than of the directory, which is `filter-ask-carries-revision` ([brainstorming/filter-rides-the-page.md](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md)): a filter is a standing view, so it was being re-asked once per published revision, and every ask walked the whole vault for an answer the page only ever tested its own rows against. All five are gated by one function, `@olai/format`'s `parseFilter` / `matching` — so what an agent finds and what a person finds cannot drift, and `is:done` means one thing everywhere — and by one ORDER where an order is wanted (`ranked`: a settled node loses ties).
+## Words, phrases and joiners
 
-**The three doors that search the DIRECTORY no longer read the whole of it.** Asking the server was one thing; walking every record and every body in the vault once per settled keystroke was another, and that is what the server did until `search-index` ([brainstorming/search-index.md](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/search-index.md)). There is a maintained table now — the search row's ([plugins/search.md](plugins/search.md)) — that holds the same folded text, is brought up to date from what a write actually touched, and answers with the small set of records and documents a query MIGHT select; the matcher then runs over that shortlist exactly as it ran over the corpus. **This changes nothing about what a query finds** — the table can only ever hand back more than the answer, so the matcher's own verdict is the answer, and a differential test compares the two paths over a soak of random writes. What it changes is what searching costs: a word in a handful of records is answered fifteen to seventy times faster on a vault-sized directory, and three cases go on paying exactly what search always paid — a needle shorter than three characters (which is your first two keystrokes), a query of operators alone with no word to look up, and a word so common that working out which nine tenths of the vault holds it would cost more than reading all of it. The FILTER over a page is not in this at all: it was taken off the corpus a step earlier and asks only about the rows one page draws.
+A word is a case-folded substring, looked for in four fields: a node's title, its id, the tags written in it, and its note. Every word you type has to be found somewhere in the same node. olai finds the words you type, never what they mean.
 
-**...and a SCOPED query narrows the walk it makes, which it did not until `perf-filter-scope`.** `file:` and `under:` (below) used to be a filter applied *inside* the whole-vault walk: a query about one outline read every record in the directory and threw all but one file's away, and an `under:` read every record and walked its ancestry as well — so narrowing a search cost strictly more than not narrowing it. Both scopes name a corner the server already holds an index of, and both are now a reading of one: `file:` is the file's own records, `under:` is the named node's subtree, descended. **This changes nothing about what a scoped query finds either** — same records, same order — and the way that is known is a differential harness that asks every case both ways over generated corpora, over this repository's own `docs/` vault, and again after each of a series of writes, with a `null` result the only thing it accepts. On a 20,000-record vault the same query scoped to one file is answered ~9× faster and scoped to a subtree ~100–1,600× faster; a query with no scope on it is the walk it always was. It composes with the table above rather than replacing it: an index says which records might match, a scope says which corner was asked about, and neither ever reads the whole set.
+| Written | Selects |
+| --- | --- |
+| `cabinets` | the word anywhere in one of the four fields |
+| `kitchen remodel` | both words, in one node, in either order |
+| `"kitchen remodel"` | that line, as one substring |
+| `"is:done"` | the text `is:done`, never the operator |
+| `kitchen OR bathroom` | either side |
+| `-cabinets` | takes those rows back out |
 
-What the browser still reads for itself is the GRAMMAR over its own box: whether there is a query at all, what it refused, and which words to light in a matched row. A parse reads the query string and nothing about the directory, so it costs nothing and it arrives with the keystroke — which is why a typo is answered at once rather than a round trip later.
+- A tag is indexed twice, bare and as written, so `alice` finds `@alice` and `@alice` finds only the one with that sigil.
+- A phrase is a substring of the field's own text, so it does not cross the line break a note keeps. An id and a tag hold no space, so a phrase with one is never found in either.
+- The dash goes outside the quotes. Inside them it is a character, which is how `"-force"` is searched for.
+- A quote opens a region wherever it sits, and that region has to be closed. Quoting is also how a value with a space is written: `prop:stage="in review"`.
+- The space between two tokens is "and", and `OR` binds tighter than it: `#home kitchen OR bathroom` is `#home` and one of the other two.
+- A chain `a OR b OR c` is one group, either side may be an operator (`is:todo OR is:doing`), and there are no parentheses.
+- `OR` is the one token that is not case-folded. Lower-case `or` is a word to find, and `"OR"` finds the word in capitals.
+- A group is not negated as a group. `-a -b` is neither of them; `-a OR -b` is not both of them.
+- One leading dash negates. A second is a character, so `--is:done` looks for that text and finds it where somebody typed it.
 
-One matcher was never quite the whole of it, because the question and the answer were SPELLED twice — once as the wire spec a browser compiles against (`@olai/surface`), once as the reader the ops layer answers with — and neither package may import the other. They are now one declaration on the floor both stand on (`@olai/format`'s `searching.ts`, over the situated node every read of the set answers with — `reading.ts`'s `Found`), so a field reaches every door or none. It used to reach the agent's and be dropped on the way to the person's, silently — which is why `file`, `under`, `matched` and `refusals` are declared once here rather than four times across two packages.
+## The operators
 
-## What matches
+| Operator | Asks |
+| --- | --- |
+| [`is:`](#is) | what the node is |
+| [`has:`](#has) | which fields the record carries |
+| [`date:`](#date) | the day the journal reads it on |
+| [`created:` and `changed:`](#created-and-changed) | the two stamps olai writes |
+| [`prop:`](#prop) | the node's own properties |
 
-**Words** are case-folded substrings over four fields — title, id, inline tags, note — and every word the query names has to be found somewhere in the same node, unless an `OR` joins it to an alternative (below), where one of the two is enough. A tag is indexed twice, bare and as written, so `alice` finds `@alice` and `@alice` finds only the one with that sigil.
+A colon after anything else is a colon in a word: `TODO:` and `http://…` are ordinary text.
 
-**A quoted phrase is one substring where two words are two.** `"kitchen remodel"` is that line, looked for in the same four fields and weighted the same way; `kitchen remodel` is two substrings that may sit anywhere in the node, in either order. So quoting is how the ORDER of the words gets into a query, and it is the whole of what it does — the tokenizer stops ending a token at a space, and the matcher goes on doing exactly what it did. It negates like any other token — `-"kitchen remodel"` takes those rows back out — and two things follow rather than being ruled: a phrase is a substring of the field's own text, so it does not cross the line break a note keeps; and an id or a tag can hold no space, so a phrase with one is never found in either. (The dash goes outside the quotes. Inside them it is a character, which is how `"-force"` is searched for.)
+### `is:`
 
-**A quoted token is text, and never an operator.** `"is:done"` finds the note where somebody wrote that down, and it is the only way to ask for the spelling of something this grammar has claimed. What the FRONT decides is only that — whether the token is text; a quote opens a region wherever it sits, and that region still has to be closed. Which is how a value with a space in it is written (`prop:stage="in review"`) and why a lone `"` is refused wherever it sits, `36"` included (see the refusals, below).
+What the node is. It takes one of eight values, and nothing else.
 
-**`OR` joins the tokens on either side of it, and binds TIGHTER than the space between them.** That space is the AND this grammar has always had, so `#home kitchen OR bathroom` is `#home` and one of the other two. Read the other way round it is `(#home and kitchen)` or every bathroom in the directory — a query that quietly WIDENED, which is worse than one that finds nothing, because rows arriving with none of what you asked for look exactly like a search working. A chain is one group (`a OR b OR c`), either kind of token can be an alternative (`is:todo OR is:doing` is work, unfinished), and there are no parentheses: one binding level under the conjunction is a grammar a reader can hold.
+| Value | Selects |
+| --- | --- |
+| `is:done` `is:cancelled` `is:doing` `is:todo` | the mark the node stores |
+| `is:marked` | any of the four |
+| `is:blocked` | a node waiting on something unsettled |
+| `is:mirrored` | a node some placement draws somewhere else |
+| `is:trashed` | what was put away |
 
-**`OR` is in capitals, and it is the one token in the grammar that is not case-folded** — because `or` is a word people write. Lower-case `or` is a word to find, `"OR"` is that word in capitals for a note that shouts it, and the two halves of this pair are each other's escape hatch. **A group is not negated as a group**, and nothing is missing — because the dash is a token's and there are now two binding levels, which is exactly enough for both of De Morgan's readings: `-a -b` is **neither** (`NOT (a OR b)`), and `-a OR -b` is **not both** (`NOT (a AND b)`). So the grammar is closed under both laws without a parenthesis in it, and the only thing a group-level `-` would add is a second way to write one of them.
+- The mark is the stored one, never a derived one: a parent whose children are all ticked is not `is:done` unless somebody ticked it ([dates-and-status.md](dates-and-status.md)).
+- `is:marked -is:done -is:cancelled` is work that is unsettled, whichever marks the format grows.
+- `is:blocked` reads the derivation the page draws, so it crosses files. A `done` target clears the way, and so does a `cancelled` one.
+- `is:mirrored` asks whether the node is drawn elsewhere, not whether this record is a placement. A copy filed in a trash counts; a placement that dangles or closes a loop mirrors nothing.
+- Archived nodes are out of every reading unless the query says `is:trashed`. The two doors that already show them, the trash and a zoom onto an archived node, filter their own rows without it.
 
-**Operators** narrow by what a node IS, and compose with the words around them:
+### `has:`
 
-| written | selects |
-|---|---|
-| `is:done` `is:cancelled` `is:doing` `is:todo` | the mark the node STORES — never a derived one, so a parent whose children are all ticked is not `is:done` unless somebody ticked it |
-| `is:marked` | any of the four; `is:marked -is:done -is:cancelled` is "work, unsettled" — which is what that value being "any of them" rather than a list of names is FOR: the day the fourth mark landed the phrase stayed sayable |
-| `is:blocked` | what is WAITING: something the node must come after is a task nobody has SETTLED. A `done` target clears the way, and so does a `cancelled` one. DERIVED — see below |
-| `is:mirrored` | the node is drawn somewhere else as well — some placement shows it. DERIVED, and the other one — see below |
-| `is:trashed` | what was put away — see below |
-| `has:desc` `has:see` `has:after` | a field the record carries (an empty edge list is no edge) |
-| `has:date` `has:created` `has:changed` | on any day at all — each is its own operator unbounded, so the two cannot disagree |
-| `has:repeat` | what COMES BACK: the node carries a repeat rule — see below |
-| `date:2026-08-10` `date:2026-08` `date:2026` | a day, a month, a year |
-| `date:today` `date:yesterday` `date:tomorrow` | the day the query is asked on, and the two beside it |
-| `date:this-week` `date:last-month` `date:next-year` | `this-` / `last-` / `next-`, with `week`, `month` or `year` |
-| `date:a..b` `date:..b` `date:a..` | an inclusive span, either end optional |
-| `changed:1h` `created:30m` `changed:2d` `created:1w` | a DURATION — within the last hour, half hour, two days, week. `m` minutes, `h` hours, `d` days, `w` weeks, and no month or year units — see below |
-| `created:..1h` `changed:2h..30m` `created:yesterday..3h` | a duration at a range's END is the moment `now` minus it: older than an hour, a window, a day word at one end and a clock face at the other |
-| `created:2026-08` `changed:today` `created:last-week..` | the two STAMPS — when olai captured the node, and when it last wrote to it. Every value `date:` takes, and not the same question — see below |
-| `prop:pr` | carries that custom property at all — `has:` asked of a map with no fixed list of keys |
-| `prop:agent=claude-opus` | carries it holding that value; a list matches on any member |
-| `prop:records=190..200` `prop:dispatched=2026-08-20..` | an inclusive SPAN, on a key the vault declares `int` or `date` — every value `date:` takes, either end optional. A range on any other key is refused — see below |
-| `-anything` | takes that word or operator back out — ONE leading dash. A second one is a character, not a second negation: `--force` is a word people write, so `--is:done` looks for that text and finds it wherever somebody typed it |
+Which fields the record carries. It takes one of `desc`, `date`, `created`, `changed`, `see`, `after` or `repeat`. An empty edge list is no edge.
 
-`date:` reads the three dates a journal reads — what the node is scheduled for, when it was finished, and when it was CALLED OFF. A dated `doing` or `todo` is on no day here, exactly as on the day page ([format.md](format.md)).
+- `has:date`, `has:created` and `has:changed` are the three day operators asked with no bounds, so a pair of them cannot disagree.
+- `has:repeat` asks after the rule, not the day it repeats from. Every repeating node is dated, so `has:date -has:repeat` is everything dated once.
+- Only the occurrence that is next carries the rule, so `has:repeat` is the live head of a recurrence and never the finished records behind it.
+- `has:created -has:changed` is a node nothing has been written to since it was captured.
 
-**`has:repeat` asks after the RULE, not the day it repeats from.** A repeating node is a dated one carrying a `repeat` — the format refuses a rule with no date to repeat from ([format.md](format.md)) — so what this selects sits *inside* what `has:date` selects, and the two compose into the question worth asking: `has:date -has:repeat` is everything dated once. Only the occurrence that is NEXT carries the rule: completing one hands it to the occurrence it spawns, so `has:repeat` is the live head of every recurrence and never the eleven finished records behind it.
+### `date:`
 
-**The two STAMPS are not the journal's dates, and the difference is who wrote them.** `date:` reads what somebody *said about* a node — the day it is scheduled for, the day the work was finished. `created:` and `changed:` read what olai *did to* it: `created` goes on when the node is captured, `changed` is re-put every time anything is written to it afterwards, and there is no verb for either ([format.md](format.md)). So one node can answer three different days — `order` is scheduled for the 10th, was captured on the 1st and was last written today — and the three operators are three questions rather than three spellings of one. What they are for is the questions a journal cannot ask: `changed:today` is what you touched today, `created:last-week` is what arrived, `-changed:last-month` is what has gone quiet.
+The day the journal reads a node on: what it is scheduled for, when it was finished, and when it was called off. A dated `doing` or `todo` is on no day here, exactly as on the day page ([dates-and-status.md](dates-and-status.md)). It takes every value in [the day values](#the-day-values).
 
-**They take every value `date:` takes**, absolute or relative, with or without a range, weeks Monday-first, counted from the same clock the door already has — because they are the same value grammar read before anything knows which operator asked. Learning one is learning all three. What is compared is TEXT, and each bound decides how much of it: a day bound reads the ten characters in front of the `T`, so `created:2026-08-13` is the day the instant falls on, exactly as a dated `done` or `cancelled` is; a duration bound reads the clock face as well, which is what lets `changed:30m` reach a stamp's seconds.
+### `created:` and `changed:`
 
-**A node with no stamp is not found, however wide the span — and nothing invents a past for it.** The stamps arrived after the format did, so a node written before them carries neither; it offers no day, so no bound can hold of it, and `created:2000..` does not reach it. This is deliberate: a ledger does not make up a past it did not see, and `git log` is the archaeologist's tool for the nodes that predate the stamps.
+The two stamps olai writes. `created` goes on when the node is captured; `changed` is re-put every time anything is written to it afterwards ([format.md](format.md)).
 
-**What finds those nodes is the negation, and that is the grammar's existing law rather than an exception for these two.** The dash negates the CLAUSE, and a clause with nothing to read cannot hold — so `-has:created` answers with every unstamped node, exactly as `-has:date` has always answered with the undated and `-prop:agent` with the nodes carrying no such key. `-created:2000..` says the same thing with a span, and the two agree because the `has:` row IS that span with the bounds left off. Worth saying out loud, because "not created in 2026" and "not known to have been created in 2026" are the same rows and are not the same sentence: the second one is what the grammar means.
+- One node answers three different days: scheduled for the 10th, captured on the 1st, last written today.
+- `changed:today` is what you touched today, `created:last-week` is what arrived, and `-changed:last-month` is what has gone quiet.
+- A node with no stamp is not found, however wide the span: `created:2000..` does not reach it, and nothing invents a past for it.
+- `-has:created` answers with every unstamped node, the way `-has:date` answers with the undated.
 
-`has:created` and `has:changed` are those operators unbounded, for the reason `has:date` is, and the pair buys the one question the format itself calls a real answer: **`has:created -has:changed` is a node nothing has been written to since it was captured.** A `changed` missing beside a `created` is not a gap in the record — it is the record saying so.
+### `prop:`
 
-**The relative words are twelve, and they are a spelling of a value rather than a second operator.** Three for a day — `today`, `yesterday`, `tomorrow`, because that is the shape English already has — and `this-`, `last-`, `next-` in front of `week`, `month` and `year`. Each resolves to the span it names and is then the same two string comparisons a written date is, which is why they compose with a range wherever one takes a date: `date:last-week..` is everything since Monday week, `date:..today` everything up to tonight, `date:last-month..yesterday` the span between. A month and a year resolve to exactly what their written forms do, so `date:this-month` and `date:2026-08` are one answer in August.
+The node's own properties — the custom map, and nothing else ([properties.md](properties.md)). A field is not a property: `prop:done` finds nothing, because a mark is asked about with `is:done`.
 
-**A duration is the value the day words could not spell.** The stamps carry seconds and `today` bottoms out at midnight, so "what did I touch in the last hour" had nowhere to be written until `<n><unit>` — a number and one of four letters: **`m` minutes, `h` hours, `d` days, `w` weeks**. `changed:1h`, `created:30m`, `changed:2d`, `created:1w`. The count is a number like any other, so `changed:90m` is an hour and a half.
-
-**A bare duration is "within the last N", which is the range it opens.** `created:1h` *is* `created:1h..` — sugar, and the only value in this grammar whose bare form is not simply the span it names. It is what fingers assume and what every system with this value kind means by it. The other reading is one character away: a duration at a range's END is the point `now` minus it, so `created:..1h` is *older* than an hour, `changed:2h..30m` is a window (the older bound first, because it is the low end), and the ends mix with everything else the grammar has — `created:yesterday..3h` is a day at one end and a clock face at the other. Inequalities stay spelled as ranges: there is no `>=`, no `now-`, no `ago()`.
-
-**There are no month or year units, and that is a ruling rather than an omission.** `m` is the letter both *minutes* and *months* want; every system that took both had to give one away. Minutes win here, because month and year recency is already sayable in words (`last-month..`, `2026`) while minutes were sayable in nothing at all. So `created:1mo` and `created:1y` are **refused**, and the refusal says which four units there are. One consequence worth knowing before you meet it: every operator value in this grammar is case-folded, so `created:1M` is *one minute*, not one month.
-
-**`1d` is a rolling day; `today` is since midnight.** The two families answer different questions and both are worth having: at eleven in the morning, `created:1d` reaches back to eleven yesterday and `created:today` reaches back to midnight. Likewise `changed:1w` is the last seven days where `changed:this-week` starts on Monday. Neither is the other's shorthand.
-
-**Day-granular fields compare at their own precision.** A `date:` a node carries may be a bare day (`2026-08-13`) or a settling instant (`2026-08-13T10:40:00-04:00`), and a bare day sorts *before* every moment on that day — which is what ten characters say: the start of it. So `date:1h` effectively selects the work finished inside the hour and not the day's plans, and `date:..1h` puts those plans on the older side. This is stated rather than engineered away: one comparison, at whatever precision each value was written with. (`date:1h` is a range open above, so a day still to come is inside it — exactly as it is inside `date:today..`.)
-
-**A duration is anchored at ASK TIME, and drifts the way `today` already drifts.** It counts from the same clock the relative words do, re-resolved every time the question is asked — which for the filter over a page means on every published revision, since the answer is a subscription re-read on that pulse ([filter-rides-the-page](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md)). So `created:1h` moves when the vault moves, exactly as `created:today` does.
-
-**There is no re-ask timer, and that is deliberate for v1.** Nothing re-runs a standing query because a minute passed, so a page left untouched for two hours goes on showing the hour it was last asked about. The alternative is a clock ticking against every open filter, which is a thing to want evidence for before building.
-
-Comparison is over text, so a duration is a **wall-clock** subtraction: an hour before `10:30:00-04:00` is `09:30:00-04:00`, the same offset carried through. Where the stamps and the clock share an offset — one person, one machine, which is the directory olai serves — that is exactly right. Where they do not, a duration is off by the difference: the hour a zone puts its clocks back, and a stamp written under some other offset. The alternative is a time-zone database in the floor of `@olai/format`, and the day-width comparison this generalises has always made the same trade.
-
-**A week runs Monday to Sunday**, and that is not a second opinion: it is the same count the calendar in the sidebar lays its columns out by. Both read `@olai/format`'s `calendar.ts`, which is the one place in olai a date is counted rather than compared — there is one week convention here, and a query that started its week on Sunday would be selecting days the calendar draws in another row.
-
-**What day it is comes from the SERVER's clock, at every door** — the same clock a `done` mark is stamped with. That used to be two clocks: the filter matched in the browser, so it counted from the tab's own local day while the doors that asked the server counted from the server's, and the two could name different days for `date:today` across a time-zone boundary. Since the filter became a question ([vault-in-browser](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md)) there is one clock and nothing to disagree about. The resolution is still a pure function of the word and a day handed in, which is what lets a test pin the boundaries rather than pass until next Monday.
-
-**So `date:today` means the day it is where the files are**, on a tab in another time zone as much as on the machine serving them. The asker's day is deliberately NOT on the request, and that decision outlived the change that removed the disagreement: a day on the wire is a clock the wire has to be trusted about, `search_nodes` would grow a field an agent has to fill in to get today, and the server's answer would start depending on whichever browser last asked. A page left open past midnight re-reads its query against the new day, because the question is asked again rather than remembered.
-
-### Typed keys compare
-
-A key the vault DECLARES `int` or `date` in `_olai/Properties.olai` ([format.md](format.md#typed-properties)) gains **spans**, in the syntax `created:` already has — because the declaration is what makes `..` honest:
+| Written | Selects |
+| --- | --- |
+| `prop:pr` | a node carrying that key at all |
+| `prop:agent=claude-opus` | a node carrying it with that value |
+| `prop:records=190..200` | a span, on a key declared `int` or `date` |
 
 ```
 prop:records=190..200               a count in a range
@@ -97,250 +94,129 @@ prop:dispatched=last-week..today    the day words, unchanged
 prop:merge=auto is:todo             equality on a ref, exactly as before
 ```
 
-**An `int` compares as a NUMBER**, which is the whole of what declaring it bought: `prop:records=9..200` does not answer `1000`, and a string comparison says it does. A bare number is that number however it is written; a leading zero is refused at the query exactly as it is refused at the write, because there is one spelling of a number.
-
-**A `date` compares as ISO TEXT**, at each bound's own width, and it takes every value `date:` takes — days, months, years, the twelve relative words, durations, and any of them at either end of a range. A bare day is that day's span, so a stored instant on it is inside.
-
-**A range on any other key is REFUSED, with the reason.** Comparing strings as if they were dates is the lie types exist to prevent, so `prop:stage=a..b` is turned away naming what `stage` is — undeclared, or declared something that does not compare — and pointing at the declaration that would make the question answerable. The rule is "reads as a range", not "contains two dots": `prop:worktree=../sibling` and `prop:version=1.0..2.0` are the equalities they always were, because refusing those would break queries that work today to teach a lesson about a query nobody wrote.
-
-**A ref's value is the variant's ID.** `prop:merge=auto`, never `prop:merge=automatic` — the id is what the file holds and what a chip draws, for the reason a pin's is: names rename, ids don't. **The key is folded** here as everywhere: `prop:PR` asks about the key a vault declared as `pr`, and the fence reads it the same way.
-
-**One door does not draw the untyped-range refusal**, and it is named here rather than hidden: the box that filters a page in place parses in the browser, which holds no vault to read a declaration out of, so it cannot know that `stage` is untyped. The server answers the query either way — a span on a typed key works there — but a range on an untyped key comes back with no rows and no sentence, which is the answer that box already gave before spans existed. The three doors that ask the server for a SEARCH (the header box, the palette, an agent's `search_nodes`) draw the refusal in full.
-
-`prop:` reads a node's `custom` map ([format.md](format.md)) and nothing else. A field is not a property however much the word looks like one: `prop:done` finds nothing, because a mark is a field and `is:done` is how it is asked about — one way to ask each question. The key and the value are folded like every other token, since a property is something somebody typed into a map that gives no key a spelling. `prop:stage=` is refused rather than selecting nothing: a key holding nothing is a key the file does not carry, so an empty value could only ever be a query that quietly found none.
-
-**`is:blocked` is a DERIVED value rather than a field test**, and what it reads is the derivation the app already draws — the one that dims a row and writes its `blocked by` line ([editing.md](editing.md)). So a query cannot find a node the page does not show as waiting, or miss one it does, and what blockedness IS stays where it is defined rather than being said again here. Two things follow that a reader should not have to look up. It crosses files, because the derivation is of the whole directory. And it is a question about the ORDERING GRAPH where `has:after` is a question about the field — so the two come apart in both directions: `order after demo` with `demo` finished — or CALLED OFF, which ends the wait exactly as finishing does ([format.md](format.md#status)) — carries the edge and waits on nothing, while a node held up by a `blocks` somebody wrote on the other record is waiting with no `after` of its own to find.
-
-**`is:mirrored` is the second derived value, and it asks the only direction a mirror has a subject in.** A placement is never a hit — a mirror is a second *view* of a node, so answering with one would be the same node twice, once at a place no write lands — which left the record's `mirror` field unaskable from either end. The question with an answer is not "is this record a placement" but **"is this NODE drawn somewhere else"**, which is what putting something on a curated list does to it, and what `outlines_read` already reports as `mirrors`. It reads that same index, chains and all: a mirror of a mirror of a node is a place that node is drawn, and the record in the middle collects nothing. A placement that dangles or closes a loop shows no node and mirrors none.
-
-A copy filed in an `_olai/Trash.olai` still counts, and that is the index's rule inherited rather than a second one: it is still where the node is drawn on the trash page, and putting one copy away has not unmirrored the node. (`is:mirrored` is a question about the node, so it does not by itself reach an archived node — that is still `is:trashed`'s to open.)
-
-**A known operator with an unknown value is refused**, in the grammar's own words, and the query selects nothing: `is:open` says which values `is:` takes rather than quietly searching for that text and finding none. A colon after anything else (`TODO:`, `http://…`) is an ordinary word — colons occur in prose.
-
-A relative word the vocabulary does not hold joins that contract rather than excepting itself: `date:tomorrowish` is refused, and the refusal says the words the way they are built — the three day words, then the prefixes over the units — the same rule that makes `date:soon` say which values `date:` takes. A range is held to both of its ends, written or relative. **The three day operators share one refusal, named by whichever you typed:** `created:soon` is taught the same values `date:soon` is, because they take the same values.
-
-A duration the units do not hold is refused the same way, and it is the refusal a reader is most likely to meet: `created:1mo` and `created:1y` are the two the ruling costs, `created:1h30m` is two durations where the grammar takes one, and `created:1x` names no unit. Each is answered with the four letters and what they mean — never searched for as text. A count no calendar can be walked through is refused on the terms `date:2026-13` is: `created:999999w` is nineteen thousand years, lands on no day this format can spell, and an empty answer with no reason would be the silent error the refusals exist for.
-
-A date that no calendar could hold is refused on the same terms: `date:2026-13`, `date:2026-08-32`. Month 13 is the reader's mistake exactly as `date:soon` is, and the worse of the two to swallow — it *sorts* between December and January, so an empty answer reads as a window rather than as nonsense. The line is what is impossible in **any** month: `date:2026-02-30` is accepted and finds nothing, because telling that from `2026-01-30` needs a calendar, and nothing here parses a date into one.
-
-**A query the grammar cannot READ is refused in the same voice**, and each way of writing one names the rule it broke. `"pick the` is a quote nothing closes, and it is not closed at the end of the line on the reader's behalf: `"pick the` and `"pick the"` are two different queries, and picking one is the quiet answer to a question nobody asked. `kitchen OR` is a joiner missing one of the two things it joins — and since the filter narrows as you type, both of those are what the bar says for the keystrokes in the middle of typing a phrase or a group, exactly as a half-typed `is:` is. `""` — or a phrase of nothing but spaces — joins them from the other end: an empty needle is inside every node ever written, so it is the loud twin of the query that silently finds none, and it is refused for the reason `prop:stage=` is. **The quote rule costs one term, and it is named rather than excepted:** a lone `"` is a quote nothing closes wherever it sits, so `36"` is refused instead of being searched for as an inch mark. The alternative is a second rule about the same character — it opens a phrase unless nothing closes it, in which case it was a character all along — which decides what a token means by reading the end of the line, and the word is reachable without the mark.
-
-**A refusal quotes what you typed**, case and all: the words are matched folded, so `IS:DONE` works, but a refusal for `is:OPEN` says `is:OPEN`.
-
-The refusal reaches **every door**. The filter parses for itself and draws its own — instantly, and it never sends a query the grammar has already turned down; the other three ask the server, so the answer carries `refusals` and the palette and the header box draw them beside their rows. A door that answered `is:open` with an empty list and no reason would be the one place a typo looks exactly like an empty directory.
-
-**Archived nodes are out of every reading unless the query says `is:trashed`.** What was put away should stay put away until somebody asks, and `is:trashed` is how you ask — at every door, from any page, whatever the page itself is drawing. The one exception is the door whose SCOPE is already showing what was put away: the filter over the **trash** — and over a zoom onto an archived node, which is where such a hit lands — where the default would take away every row and leave nothing to read the absence by ("which pages filter", below). That used to be three pages rather than two: a day and the agenda drew archived rows until the [one-page rule](#the-one-page-rule) took them off.
-
-Title hits outrank id, tag and note; a field that starts with the word beats one that buries it; a SETTLED node loses ties — `done` or `cancelled`, since the reason to look for one is usually that you finished it or called it off, and neither is the thing on your plate. Hits carry `file:line`, the ancestor titles, those ancestors' `pathIds` in the same order, the parent node's id (`parent`, absent at a root — `path` is titles, and a write takes the id), the mark if the node has one, the node's own `see` / `after` edges, and its `custom` properties — plus `matched`, which field carried the words, absent for a query that named none. Mirrors are never hits — a placement is a second view of a node, not a node.
-
-**Why a hit is there is TWO facts, because both can be true.** `matched` names which of the four word-fields carried the words. `matchedProps` names the custom keys a `prop:` clause selected the node on, in the node's own spelling — absent for a query that named no property, and never naming a negated one, since a node found by `-prop:agent` was not found *on* `agent`. `cabinets prop:agent=claude-opus` sets both, and that is exactly why they are two fields rather than a fifth value of one: `matched`'s four values are a closed list of places a word is looked for, weighted against each other for tie-breaking, where a property key is an open namespace somebody invented — and `matched` being absent already means "the query named no words", which a fifth value would quietly stop meaning.
-
-**A hit carries the properties, so a board is one query.** `prop:agent=claude-opus` answers with each lane's `pr` beside it; `prop:source=inbox` answers with whatever else those nodes were tagged with. Selecting by a property and then reading each hit back to see the fact you selected on was one call plus one per row, which is the shape a query already knew the answer to. The same map reaches a child in `outlines_read`'s list and a row of `outlines_subtree`, for the reason `see` and `after` do: one situated node, one set of fields, wherever it is answered.
-
-**The values travel whole** — not cut at a length, not reduced to their keys. A cut value is one no reader can tell from a short one, and the first thing it would cut is the half of a URL that makes it a link; keys alone would hand back the question instead of the answer, and would make `custom` a list on a hit and a map on a read, under one name. The dial on an answer's size is `limit` on the request, and that one is exact — a hit already carries `title` and `path`, which are unbounded prose somebody typed, and a property is a named fact smaller than either.
-
-**The NOTE is the one field you ask for, and it is the sentence above read the other way.** `withDesc: true` on `search_nodes` and every node hit carries `desc`, whole — so "every bug with what was written under it" is one call rather than one call and a `outlines_read` per row, exactly as `custom` made a board one query. It is off by default because a note is *not* a named fact smaller than a title: it is unbounded prose, and a roadmap keeps whole forensics under a bug. Two things follow. A query that will not read a note does not pay for twelve of them — and the doors in the browser are exactly such queries: the ⌘K palette, the edge panel and the composer's `@` list ask this same request on every settled keystroke and none of them draws a note, so always-on would put every note in the vault on that wire per keypress. And what it carries when you do ask travels whole, for the reason the property values do and one sharper: `outlines_desc` and `outlines_update`'s `was` take the note as a single text, so a shortened one is a note an edit gets written against. Absent for a node that has none, asked for or not. Documents are unaffected — a `.md`'s prose is the file, and `markdown_read` is how a file is read.
-
-**`outlines_subtree` has the same flag, the other way round.** A targeted walk usually wants the note, so `withDesc` is on by default there. `withDesc: false` is the lean read for a table of contents — ids, titles, marks, props, structure only; per-node `truncated` is unchanged. Depth bounds how many *levels* come back, not how much prose each row carries, and notes dominate the cost of a walk. Ask without notes when the question is structural. Mirrors are never walked — a placement is a second view of a node — but every row carries `placed`, the list of placements under it, named and never expanded. The KEY rides both dials; `shows` is fully situated unless `fields` named the projection. A file's top-level placements sit on the answer as the same key.
-
-**The reads also shape rows — `fields`, and this is the difference from a search saying *which* nodes.** A `search_nodes` SELECTS, so its every hit is one situated node with one set of fields, and a lean search is a narrower query. A READ is different: `outlines_read`'s child list and every row of a `outlines_subtree` answer the question the caller named with `fields` — the same vocabulary the writes carry (`title`, `parent`, `status`, `took`, the four marks, `started`, `date`, `repeat`, `desc`, the stamps, `see`, `after`, the whole `custom` map or one `custom.<key>`), with the id riding regardless and an absent field absent for the row that lacks it, exactly as on the full rows of today. The walk's own keys — `children`, `truncated`, and `placed` — ride the dial as structure, exactly as the row's id does, so a projection cannot drop the naming. What each child row carries, and what each `placed` entry's `shows` carries, still obeys `fields`; `truncated` is a flag. `took` is the membership rule's one exception, standing beside `status` (ruled 2026-08-29): how long the work took, in whole seconds, derived at read time — the derivation is the format's `tookOf`, spelled once there — and absent when there is no span to tell. Admitted because how long each step took is the recurring ask the dial was born for, and fetching the record's instants per row to do the subtraction out loud is ceremony. The shape is the answer's claim: whatever was not named is not there, place and ancestry included, which is the case the request was filed from — a big lane's walk was 51KB of notes and situating the caller never read, and the reply was split-and-sed, which the refusal below exists to end. An unknown name is REFUSED with the legal ones in the sentence, since a silently dropped field would look exactly like a row lacking it. `fields` and `withDesc` are the same dial spelled twice — read the note as a field — so naming both is refused too, and asking without `fields`, on either read, is byte-for-byte the full projection it has always answered. `search_nodes` stays a selection: the projection of a HIT is the situated node, and shaping is not how hits get smaller.
-
-`search_nodes` also takes a SCOPE: `file` is one outline, `under` is a node and everything beneath it. Those are the two scopes a page can be, so an agent can ask exactly the question a person asks by filtering one. And a KIND — `node` or `document` — for a caller that can only use one of the two things an answer holds; see below.
-
-## …and documents
-
-**A document's prose is text the way a node's note is.** A search reaches both kinds of thing the directory holds: the records, and the `.md` files beside them. Until the [first-class documents](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/first-class-documents.md) work, a body was invisible to every search this app had, because nothing walked it — which is the same hole that kept a document off the graph and out of the backlinks.
-
-**A document is looked for in four places, and they line up with a record's one for one:**
-
-| a record | a document |
-|---|---|
-| `title` — what it calls itself | `title` — its first non-empty line, heading marks off, or its filename when the body has none |
-| `id` — what somebody types when they know exactly which one | `path` — the same, for a file. Folded twice, whole and by its name alone, so `cabinets` finds `notes/cabinets.md` without the folder in front of it demoting the hit |
-| `tag` — the `#topic` and `@person` in its prose | the same, read by the same walk |
-| `desc` — its note | `body` — the prose itself |
-
-The weights are the SAME numbers, which is what puts both kinds in one ranked list rather than two blocks that only look interleaved: a document whose title holds the word outranks a node that only mentions it in a note.
-
-### Properties
-
-**`prop:` selects documents, out of their frontmatter.** A `.md` writes named facts about itself in the `---` block at the top of the file ([format.md](format.md#documents)), and those are the same open namespace a node's custom properties are — one map, no key given a meaning by olai, text or a list of text. So `prop:pr`, `prop:agent=claude-opus` and `prop:stage="in review"` are asked of both kinds and answer in one ranked list, folded on both halves exactly as they are for a record, and a list value matches on any member. The row says which key was the reason, and carries the rest of the map beside it, the way a node's row does. The document's own page draws that same run under its path heading; `markdown_index` reports the map, omitted when the file wrote none.
-
-**The frontmatter is not the document's prose.** A word only the block holds is found by `prop:` and not by typing it: otherwise every file in a vault that uses frontmatter would be a hit for `title`, and a row would say a word was found in a document's body when what held it was a property.
-
-**An operator over a field a document still does not have selects no document.** There is nowhere on a `.md` to write a mark or a day, and it carries neither stamp — a document is a file, and when a file was written is the filesystem's answer rather than something this format records. So the honest answer to "which documents are done", and to `created:last-week`, is none of them. A frontmatter `date:` does not change that: it is a property named `date`, found by `prop:date`, and reading it as the journal's day would put a document in a search that the day page, the agenda and the calendar do not draw it in. A NEGATED clause is satisfied, by the same sentence read the other way: `-is:done` asks for what is not finished, and a document is not.
-
-**A scoped query selects no documents at all.** `file` is one outline and `under` is one node's subtree, and a document is in neither — both are questions about where a RECORD sits in a tree.
-
-**A saved page is found by its name, and so is every other file olai only shows.** The set keeps a `.html`'s path and not its bytes, and the same is true of a `.csv`, a picture and a `.pdf` ([format.md](format.md)) — so a word inside one finds nothing. Each has a NAME, though, and a door that left them out would be the one place in this app where a file in your vault is not a thing you can find.
-
-**Every hit carries an ADDRESS** — `#a1b2c3` for a record, `notes/plan.md` for a document — which is what a hit is FOR once an answer holds two kinds of thing: somewhere to go. It is also what tells the two apart, so nothing says which kind twice. A door that can only use a record — the edge panel writing a `see`, the move picker, the composer's `@` list — asks for `kind: node` on the REQUEST rather than filtering the answer, because the cap is applied before the answer is sent and a door that filtered afterwards would run short exactly when a query matched enough documents to fill it.
-
-## Filtering the page in place
-
-Above every page that draws nodes there is a filter box. It is not the header's search box, and the difference is the question: the header takes you TO a node anywhere in the directory, this narrows what is already in front of you.
-
-The empty box says **Filter**. Focus it while it is empty and a short hint opens under it listing the forms the grammar takes — `words`, `"a phrase"`, `a OR b`, `#tag`, `is:done`, `has:desc`, `date:last-week`, `changed:today`, `-not`. Click one, or walk the list with ↑/↓ and press Enter, to put it in the box with the part you would replace already selected (`#tag` goes in with `tag` selected), so typing writes over the example. Escape puts the hint away and leaves the caret in the box; typing hides it. With text in the box, Escape empties the box as before.
-
-On an outline, beside the box, is the **finished** box: ticked shows finished work on this page, clear hides it (see the Done pick below).
-
-- **Matches keep their ancestors.** A matching row is drawn with the chain that leads to it and with its own subtree; everything else goes. The context is what makes a bare title like "order" mean something.
-- **Clicking a `#tag` or `@mention` filters by it**, ancestors kept, scoped to the page you are on.
-- **The filter is in the address** — `?q=…` — so a narrowed page is a link you can send and the back button works. Typing REPLACES the history entry rather than pushing one, so Back leaves the filter rather than un-typing it. Zooming is a navigation and starts unfiltered; Back returns to the narrowed page.
-- **The rows are an ANSWER, so they arrive.** Typing settles for a fifth of a second and then asks; while the page is a question behind, the rows in front of you hold still and the bar says `filtering…` where the count goes. It never blanks the page to wait, and it never draws the answer to the query before last as though it were about what you just typed — those are the two ways a narrowing box can lie, and the line under it is what makes the third way honest. A page you have just typed a filter into for the first time is drawn whole until its first answer lands, rather than empty. And the wait word is a promise, so it is only ever said while an answer is on the way: a call that failed says so on its own line instead.
-- **A filtered page keeps following the files.** The filter is a standing view rather than a list you opened once, so every revision re-asks it: a row retitled INTO your query appears as a match, a row retitled out of it goes, and the two numbers move together. The keystroke is what waits a fifth of a second — a write never does, because the tree has already redrawn by then and a count that lagged behind it would be two numbers from two different moments. What that costs is one whole-vault match per PUBLISHED REVISION — measured at nine for one bulk gesture over a 90,000-node vault (`packages/tests/wire.ts`'s `filter` session) — and there is deliberately no second coalescing window in the browser on top of it. Writes off the DISK are already collapsed into one probe behind `@olai/store`'s own settle before a revision is published at all; writes you make HERE go out one at a time and are answered one at a time, so their frames come back a round trip apart. Neither is close enough together for a window in the browser to help.
-- **A dead wire takes the APP, not the box.** The filter is a question now, and so is every other door on the page, so a connection that cannot carry one freezes the whole app under a card that says `Connection lost` / `Reconnecting…` ([vault-in-browser](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md) §5b's ruling). Nothing underneath answers a press or a keystroke; the rows the server last answered are still behind it, because a freeze is not a blank page. When the wire comes back the card lifts by itself — no reload — and the filter is re-asked against the set as it now stands, so the page you get back is about the files rather than about the moment the socket died.
-- **Folds are suspended while a filter is on.** A collapse is a claim about the tree you were reading, and honouring it inside a filtered one would hide the match you typed for. Nothing is written: clearing the filter brings every collapse back.
-- **Hiding finished work happens first.** The Done pick — the `Show finished` preference, or the page's own word in the `finished` box beside its filter — is a standing part of how that page reads; the filter is a question asked of it. So `is:done` under a page that hides finished work draws nothing — and the bar says how many matches are being held back, rather than leaving it a mystery.
-- **A narrowed page can be KEPT, and NAMED** — `⌘K` → **Pin this page…** puts it on the sidebar's shelf with its query, so a saved search is a pin rather than a fourth kind of thing ([editing.md](editing.md#pinning-a-page-to-the-sidebar), [format.md](format.md#pins)). Because a query is the one part of an address nothing in the directory can name, it asks what to call this one first: type a name and Enter, or Enter alone for the bare pin, which is drawn as the page's own name with the query beside it. A saved search is therefore a row in `Pins.olai` reading `[What is late](/agenda?q=is%3Atodo)`, and renaming it is editing that row — from the shelf's own `✎`, or in the file.
-- The bar reports **"3 of 41"**: how many drawn rows are matches, of how many rows the page HOLDS — every row it could draw, whether or not a preference of yours is taking some of them off the screen. So the second number does not move when you hide finished work, and the matches held back are counted inside it: **"3 of 41 — 2 more matches hidden as done"** is 5 matches on a page of 41 rows, and adds up. Found nothing? The denominator stays, because "no matches of 41" and an empty directory are two different pieces of news. A part that is zero is not said.
-
-### Every row says why it is drawn
-
-A filtered page can be entirely correct and still leave you guessing. Every row on it belongs there — but for one of two quite different reasons, and until you can tell which, a title that merely *talks about* `#deferral` and one that *wears it* read exactly alike. The format cannot separate those two: a `#word` in a title **is** a tag, deliberately. So the page does not try to; it shows you where the query landed and lets you decide.
-
-- **A match shows its needle.** The words the query found the row by are highlighted where they sit in the title — a word, a quoted phrase, or the `#tag` you pressed, lit inside the pill rather than instead of it. Case is the matcher's own: `CABINETS` lights `Cabinets`, and a bare `home` lights the name inside `#home` without the sigil, because that is exactly what the query asked for. A query that names no words at all (`is:done`, `date:today`) lights nothing — a mark is not text in a title, and lighting something would be the row inventing a reason.
-- **A kept ancestor is dim.** A row drawn only as the ancestry that leads to a match — or as part of a match's own subtree — is drawn one step back, the same dim a row that cannot be started yet already wears. It is context, and it now looks like context.
-- **A note-only match draws its reason.** A row found behind its ¶ has a title with nothing you typed in it, so one clamped line of the note is drawn under the title, opening at the hit's own line and with the word lit in it. Pressing that line opens the note.
-
-The note is **excerpted, never auto-expanded**. Notes here run to paragraphs; the filter re-evaluates as you type, so opening them all would reflow the page violently while you type — and it would trample whatever you had open, which would then need saving and putting back. A clamped window is the same idea with a bounded cost.
-
-None of this is stored, and none of it is a second matcher: the highlight comes from the same case fold `matching` searched with, so the page cannot light up a stretch of text the query never looked at — and a letter whose lower case is written with two characters (`İ`) lights whole, because there is no half a character to light.
-
-A needle inside a title's **`code` span or link text** lights like any other, and that is worth saying because it did not used to. Those are the one part of a title this app deliberately does not re-read for `#tags` — a `#` in a URL fragment is not a tag — and the highlight, riding the same walk, used to stop at the same door: the row was selected on the strength of a word in its code span and drew nothing lit. The two rules are separate now. The tag rule is unchanged (no pills inside code or a link, however deeply nested); the highlight goes everywhere the text goes, and never into an attribute, so a link keeps its href.
-
-A phrase spanning two rendered pieces of a title — across a `**bold**`, across a code-span or link boundary — lights **both** pieces, on the filtered page and on a node hit in the ⌘K palette or the header box. The query is looked for once over the title as the reader sees it (the concatenation of the rendered text nodes) and each piece is a window onto that search, the same way a phrase across a `#tag` already is. Matching is unchanged: a quoted phrase still has to be a substring of the **source** to select the row. A title that only *displays* the phrase (because markdown syntax sat between the words) lights when the row is already in front of you; it is not how the row got there. A fenced block forced down to inline code in a title is not promised: the unwrapped fence's visible text is not the title's words, and making it so is a renderer change this work does not make.
-
-### Which pages filter, and what it means on each
-
-**Every page but a document.** The filter shipped on the two tree pages and stopped there for a release; a day, the agenda and the trash drew the same rows out of the same set and ignored the box. They do not any more, and the promise is that there is nothing new to learn — same grammar, same address, same count, same refusal. What differs is only what each page is made of.
-
-| page | what a filter takes away | what stays |
-|---|---|---|
-| `/<file>.olai`, `/zoom/#<id>` | every row that did not match | the matches, their subtrees, and the ancestors that lead to one |
-| `/d/<date>`, `/today` | every row that did not match, and an outline heading left with none | the matches — and their ancestry, which was never a row |
-| `/agenda` | the same, per day of the spine; a day left with nothing leaves the line, and the silences either side of it close up into one longer wait | the matches, under the days that still hold one — and no line at all when none do |
-| `/trash` | the same as a tree, per archive; an archive left with nothing goes | the matches, their subtrees, and the scaffold that says where the pile came from |
-| `/<file>.md` | — no filter box; a body search hit may carry `?q=<query>` and `#L<line>` to open and highlight its matching source block | — |
-
-**A day and the agenda keep no context, and that is not a shortcut.** Their rows are flat and every one already arrives with the crumb that says what it is about, which is what those pages are FOR. So "matches keep their ancestors" is true of every row before a query touches it, and what is left after one is exactly what matched.
-
-**A day's note leaves while a filter is on.** It is a document — prose, which is exactly why a document is the one page with no `?q=` on its address — so it can never be a match, and a day answering a query with somebody's prose plus no rows would be answering something nobody asked. Clearing the box brings the day back whole.
-
-**The trash searches WITHIN what it shows.** Archived nodes are out of every other reading unless the query says `is:trashed` (below) — because those doors are searching the directory. This one is not: it tests the rows in front of you, and the trash IS the archive, so a word typed there finds what was put away. Read-only is a fact about the page's one verb, Put back; it was never a claim that a pile cannot be looked through.
-
-<a id="the-one-page-rule"></a>
-
-**And it is the only page that shows them.** *(Ruled 2026-08-17, reversing what shipped a day earlier.)* **What is archived is drawn on the Trash and nowhere else** — not on a day, not on the agenda, not in the calendar's dots, not on any page but the one that is the archive. A day used to collect every dated node wherever it was filed, and the agenda read those same dates forward, so work put away after somebody scheduled it went on being owed; what that meant in front of a reader is that putting something away did not take it off the page they had put it away from. Archiving is somebody saying they are done looking at a thing, and the Trash is where it is looked at again.
-
-**Reachability is untouched, and that is the other half of the rule.** `is:trashed` still selects archived nodes at every door — the agent's `search_nodes`, the ⌘K palette, the header box, and the filter on whatever page you are standing on — and `is:trashed date:2026-08-11` still answers with the archived work of that day. What the ruling took away is the DEFAULT presence, never the way to ask. Clicking such a hit reveals the archived node (`/#<id>`) at its row in the Trash, and the filter searches that page the way it searches the pile it came out of.
-
-**What the rule is about is a page's own reading of the set.** Two things still name an archived node on a live page, and both are a reference somebody TYPED rather than a page collecting rows: a **mirror** placed before (or after) the node was put away goes on resolving to it — the archive is one set with the outlines beside it, which is why nothing that pointed at a subtree breaks when it is archived ([the ops layer's own rule](../packages/ops/README.md)) — and a `see` / `after` pill draws its target's title wherever the edge was declared. Whether archiving should retire those too is a ruling about the SET, not about a view, and it is filed with the other one ([brainstorming/editing-web.md](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/editing-web.md)'s Open) rather than decided by the page that would draw it. Blockedness already answers half of it: an archived target holds nothing up.
-
-So on a day and the agenda there is nothing archived for a query to find or for `-is:trashed` to take out, and the page a filter runs on is asked about the archive only when it is drawing some: the trash, a zoom onto an archived node, or a page holding a placement that resolves into the archive. The cost of asking is that a page drawing archived rows has the whole archive in front of the matcher, which is the same whole-set scan every other node already gets.
-
-**A page's own empty sentence is not the filter's.** "Nothing is on 2026-08-10.", "Nothing due", "Trash is empty" are claims about the day, the agenda and the archive; "no matches" is a claim about your query, and the bar is where it is made. A filtered page says one or the other, never both.
-
-**What is owed does not move.** The mark beside Agenda in the sidebar counts the unnarrowed reading: a filter is a question about the open page, and what is late is a fact about the directory.
-
-The design, and the alternatives that lost, is [brainstorming/filter-in-place.md](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-in-place.md).
-
-## What a result row looks like
-
-Two lines, and a third for a node that has properties. The title first, on its own full-width line, cut with an ellipsis if it is long. The second line starts with the file path for every result, with no glyph: the extension names the kind. A nested node follows it with ancestors **from the file down** (`Home.olai · Kitchen · Cabinets`); a top-level node shows the file alone. Separate spans keep the file and nearest ancestor visible while the middle truncates. The nearest ancestor has a width cap so a long title cannot starve the file. Tags in crumbs keep their pills. An ancestor that is a node agent wears that agent's mark beside its crumb — the same door as its conversation — drawn from the `outline.crumb.aside` slot; a crumb nothing is bound to looks as it always did. The palette, header, pickers, `((` widget and chat `@` list share this drawing.
-
-**Then the node's properties**, as `key value` pairs — the key in the mono face, the value in the reading face, which is how the drawer under a node's note draws one ([editing.md](editing.md)). A property should look like a property wherever it is drawn. What is not borrowed from the drawer is its two-column grid: that costs a line per property, and a panel showing eight rows cannot spend one. So the pairs run inline on one line that ellipsizes like the other two, and a node with six properties is exactly as tall as a node with one. A node carrying none draws no third line at all — the drawer's own rule on a row, for the drawer's own reason.
-
-**The property you searched by leads, and is drawn in the reading ink rather than the muted one.** That is the row's answer to "why is this here": `prop:agent=claude-opus` puts `agent` at the front of every row, where an ellipsis cannot reach it, and leaves the `pr` beside it readable — which is the whole point of a hit carrying the map. Which key that is comes from the answer (`matchedProps`, below), never from the browser re-reading your query: `-prop:agent` selects the nodes *without* it, and a row that pointed at `agent` there would be drawing a lie the matcher never told.
-
-They are two lines rather than one because a place is somebody's prose. Side by side, the title and the place fight over one row's width: the title loses, wraps to a word per line, and the row ends up five lines tall — and when even that is not enough, the panel scrolls sideways, which a popover must never do.
-
-## Where searching happens on each face
-
-- **Header box** — desktop and up. It sits first in the right-hand cluster and is the one control there that may shrink to nothing, so the health dot and the doors beside it never give way to it. Type, arrow up and down, Enter to open, Escape to clear. Documents match here too (below).
-- **Phone** — a magnifier in the same place, opening the `⌘K` palette, which is a full-width modal built for exactly this. The bar at 390pt has no room for a box and a phone has no chord to press.
-- **`⌘K` palette** — the shell's commands, then the hits, which are the directory's nodes and its documents ranked together (below), and the two things it WRITES: the zoomed node's own verbs, and quick capture on a `+` prefix ([editing.md](editing.md)). Neither is a search — a query carrying a prefix such as `+` is a line being typed rather than a lookup, and nothing is asked of the server for it.
-- **A panel under a row** — where searching is how you answer a question the row asked. Three of them, each drawing the same rows over the same procedure: the `((` widget in a title (place a mirror of what you find), the edge panel's box (`see` / `after` — what this node points at), and the move-to picker's (⌘⇧M — which node this row goes under, [editing.md](editing.md)). The last one is the one that draws a REFUSAL beside its hits: a destination is not merely a node, so most of the set is somewhere a given row cannot go, and it says which as you walk the list.
-- **`search_nodes`** — the same answer for an agent, over MCP, plus the two things only an agent asks for: the `file` / `under` scopes above, and `withDesc`, which brings the notes with the selection.
-
-**The two doors that LIST say how much they left out.** Both draw at most eight hits, and eight rows over a directory that matched twenty of something reads as the whole answer. So under the rows each of them draws one line — `8 of 20 matches` — whenever more matched than fit, and **nothing at all** when everything found is on screen: that silence is the same ruling the filtered page's count line makes about a part that is zero, since a number a reader has to take in before they can ignore it is worse than no number. What is counted is the answer's own uncapped total, carried on the wire beside the capped hits for exactly this sentence — what the QUERY found, never what the door had room for. It is a readout beside the rows rather than something announced, because it changes under a hand that is still typing.
-
-**When Enter takes a search result, it takes a row of the list you are looking at.** In chat, a query containing spaces needs an arrow selection first; without one, Enter sends the literal message. The search is the server's, so it settles for a fifth of a second before it asks, and the rows in front of you hold still until the next ones land — which is the right thing to draw and the wrong thing to act on. Enter inside that gap does nothing rather than opening the row the query before last found; the rows catch up a moment later, and the same key opens the one you meant. Nothing dims while it waits — a whole list going grey and back on every keystroke is worse than the gap it would be warning about. A CLICK is never held back: your hand is on the row you can see, and that is the row it takes however far the box has moved on. And it is the ROW that is behind, never the box: the palette's own command rows are matched in your tab, so Enter runs one at once however far behind the hits under them are.
-
-The panels under a row are deliberately not part of that. They cap at eight as well, but each of them is a PICKER — which node this row goes under, what it points at, which one to mirror — and the question there is whether what you are spelling is in the list, not how much of the directory answers to it.
-
-## Documents, by name
-
-**A filter selects nodes, never documents** — it narrows rows of a page, and the one page made of prose is the one page with no filter on it. The two doors below are where the other half of the directory is found.
-
-**The two doors that list hits also list DOCUMENTS** — every `.md` the directory serves, and every file it only shows: a saved `.html`, a `.csv`, a picture, a `.pdf`. Type into the `⌘K` palette or the header box and a file whose name you are spelling is a row, with its file path on the line underneath; Enter opens its page. It sits with the node hits rather than in a block of its own: one search answers with both kinds, ranked together, so a document is a hit like any other and typing a word that is in a document's PROSE finds it here exactly as it does in a node's note. (It WAS a separate block, matched in your own tab off the served list, while a search could not see a document at all.)
-
-**They are matched on four things, and they line up with a record's one for one**: what the file is CALLED, its PATH, its tags, and its PROSE. `pal` finds `notes/palette.md` because that is what the file is called; `notes/` finds everything under that folder; a word that is in a `.md` and in no title anywhere finds it too. The kinds olai only SHOWS are the exception, and by construction — the directory keeps their names and not their bodies, so each is found by what it is called and by nothing inside it. Finding a note by what it MEANS is still the parked item above, and this is deliberately not half of it: this is the same case-folded substring the rest of the grammar is.
-
-**And they are ranked WITH the node hits, on one scale**, rather than as a block above or below them: a document whose title holds your word outranks a node that only mentions it in a note, and a body match is the weakest hit either kind has. That is one order over one answer, which is what makes "eight of twenty" a number about the query rather than about a block. (The chat composer's `@` is the other arrangement, deliberately: two blocks under one cursor, files first, because a path's three buckets are not a score and a node's rank is — [chat.md](chat.md) argues it there.) An empty ⌘K lists no documents at all: it is a list of commands until you type, and a bare `@` in a message is the door that exists for browsing the directory.
-
-**There is no way to MAKE a document from the palette**, and none to make an outline either. New document and New outline live in the sidebar, under the Outlines heading's `+` ([editing.md](editing.md)); the palette has never carried a create row for either, and giving one to documents alone would be the old imbalance the other way up.
-
-## Not yet: finding a note you cannot name
-
-Searching by MEANING — "the first page load is too heavy" finding a note that never uses those words — is parked rather than shipped. The implementation that was written for it needed a model server (Ollama) running on the reader's machine, and olai requires no dependency outside Nix itself. It returns when it can be nix-native.
-
-Open palette and header searches follow vault changes without another keystroke. Removed matches leave the shortlist, new matches arrive, and counts update with the same answer. Search is still performed on the server; closing or clearing the query ends its subscription.
-
-A body match on a markdown document carries an optional 1-based **file line**
-through the search answer, including to `search_nodes`. Opening it from the
-palette or header sets `?q=<query>#L<line>` and scrolls to the rendered block
-containing that source line (including the individual item in a long list), highlighting the query's words there. The address
-is shareable; Back returns to the page searched from. Blank lines and opening
-fence markers land on the preceding block. A line past the end opens at the top
-without an error. Title, path, tag and operator matches have no line and open
-at the top as before. Files whose bodies are not kept never carry a line.
-
-The markdown page owns its landing and highlight. It reads only address data;
-it acquires no search service. Leaving the page cancels its pending animation
-frame and removes its drawing. The hit's line is pure data produced after the
-cap inside the existing search reading.
-
-An outline's **own name and path** now match too: `Home` finds `Home.olai`,
-ranked on the same scale as document names and node titles. Its second line is
-its file path and Enter opens the outline. The whole-file address grammar
-already names outlines, so outline hits retain `{ kind: "document", path }`
-as their address; the `OutlineHit` schema restricts that path to an outline.
-No new route or live registration is introduced.
-
-The outline arm reads only name and path. It reads no body, tags, properties,
-marks or dates. Operators select no outlines and their negations pass through;
-scoped searches select none. Files under `_olai/` never appear as outline hits.
-At every search door, including `search_nodes`, `kind: node` selects records,
-`kind: document` retains its existing non-outline-file meaning, `kind: outline`
-selects outline files, and `kind: file` selects documents and outlines together.
-All arms are ranked and capped together when kind is absent. File kinds remain
-the static core table; the existing search reading owns the answer.
-
-The palette and header have an **All / Rows / Files** selector under the box
-(Rows asks for `kind: node`).
-Files includes outlines, markdown, saved HTML, CSV, images and PDFs. The pick
-sets the request's `kind` before ranking is capped; it never filters an already
-capped answer. Tab cycles the segments while the caret is in either listing
-box. The node-only edge/move pickers, mirror completion and chat list have no
-selector.
-
-The pick lasts for this browser session, is shared by both listing boxes, and
-survives a wire reconnect. Page load or a search-plugin rebuild resets it to All.
-It is not a vault preference. When All is selected, the answer's optional
-`totals: { node, file }` supplies both category counts. After picking one kind,
-only its count is known. Count elements stay mounted between queries, with
-unknown numbers hidden, preserving the panel's DOM and pointer position. Refusals and the count line remain visible, including
-`0 matches` for Files with `is:done`. A capped list still says `8 of 20 matches`;
-narrow it with the box or selector. There is no results page or larger limit.
-
-Search's `kind` component owns one activation-local signal and offers it as
-`search.kind`. The `selector` integration declares that service and contributes
-its face into `search.box.below`, a location owned by the search header
-contribution. Both listing boxes read the optional face through their declared
-renderer faces. With the face absent, they ask with no kind and draw no control;
-neither box requires `search.kind` to become ready. Revocation withdraws the
-face before closing its signal. Every acquisition is scoped, and replacing a
-query or kind closes the preceding subscription before opening its replacement.
-A stale answer cannot authorize Enter for a new kind.
-Document landing highlights read the declared renderer clock for relative-date queries; the content activation releases that clock hold with its faces.
+- A list value matches on any member, and a ref's value is the variant's id: `prop:merge=auto`, never `prop:merge=automatic`.
+- The key is folded like every other token, so `prop:PR` asks about a key declared as `pr`.
+- An `int` compares as a number, so `prop:records=9..200` does not answer `1000`. A leading zero is refused at the query as it is at the write.
+- A `date` compares as text at each bound's own width, and takes every value `date:` takes. A bare day is that day's span.
+- A range on any other key is refused, naming what the key is. The rule is "reads as a range": `prop:worktree=../sibling` and `prop:version=1.0..2.0` are the equalities they look like.
+
+## The day values
+
+`date:`, `created:` and `changed:` share one value grammar, so learning one is learning all three.
+
+| Written | Means |
+| --- | --- |
+| `2026-08-10` `2026-08` `2026` | a day, a month, a year |
+| `today` `yesterday` `tomorrow` | the day the query is asked on, and the two beside it |
+| `this-week` `last-month` `next-year` | `this-`, `last-` or `next-` over `week`, `month` or `year` |
+| `2026-08-01..2026-08-14` `..2026-08-10` `last-week..` | an inclusive span, either end optional |
+| `1h` `30m` `2d` `1w` | within the last hour, half hour, two days, week |
+| `..1h` | older than an hour |
+| `2h..30m` | a window, the older bound first |
+| `yesterday..3h` | a day word at one end, a clock face at the other |
+
+- The duration units are four letters: `m` minutes, `h` hours, `d` days, `w` weeks. The count is an ordinary number, so `changed:90m` is an hour and a half.
+- A bare duration is the range it opens: `created:1h` is `created:1h..`.
+- There are no month or year units. `created:1mo` and `created:1y` are refused, and values are folded, so `created:1M` is one minute.
+- `1d` is a rolling day where `today` is since midnight, and `changed:1w` is the last seven days where `changed:this-week` starts on Monday.
+- A week runs Monday to Sunday, the count the sidebar's calendar lays its columns out by.
+- Comparison is over text at each bound's width. A day bound reads the ten characters in front of the `T`; a duration bound reads the clock face too, which is what lets `changed:30m` reach a stamp's seconds.
+- A bare day sorts before every moment on that day, so `date:1h` selects work finished inside the hour rather than the day's plans.
+- A duration subtracts wall-clock time, carrying the stamp's own offset, so it is off by the difference where a stamp was written under another one.
+- What day it is comes from the server's clock at every door, so `date:today` is the day it is where the files are, whatever zone you are reading in.
+- Nothing re-asks on a timer. A page left untouched for two hours goes on showing the hour it last asked about; a page left open past midnight re-reads its query against the new day when the question is asked again.
+
+## What a query is refused for
+
+A refusal names the rule you broke, says which values the operator takes, and quotes what you typed, case and all: `IS:DONE` works, and a refusal for `is:OPEN` says `is:OPEN`. The query selects nothing.
+
+| Written | Refused because |
+| --- | --- |
+| `is:open` | a known operator with a value it does not take |
+| `date:soon` `date:tomorrowish` | a relative word the vocabulary does not hold |
+| `created:1mo` `created:1h30m` `created:1x` | not one duration in the four units |
+| `created:999999w` | a count that lands on no day this format can spell |
+| `date:2026-13` `date:2026-08-32` | a date no calendar could hold |
+| `"pick the` `36"` | a quote nothing closes, wherever it sits |
+| `kitchen OR` | a joiner missing one of the two things it joins |
+| `""` | an empty needle, which is inside every node ever written |
+| `prop:stage=` | a key holding nothing |
+| `prop:stage=a..b` | a range on a key nothing declares `int` or `date` |
+| `date: 2026-08` | no value: a space after the colon splits it into two words |
+
+`date:2026-02-30` is accepted and finds nothing, because telling it from `2026-01-30` needs a calendar and nothing here parses a date into one.
+
+The refusal reaches every door, with one gap. The filter box parses in the browser and draws its own refusal instantly, but it holds no directory to read a declaration out of, so an untyped range comes back there with no rows and no sentence.
+
+## What a hit carries
+
+Title hits outrank id, tag and note. A field that starts with the word beats one that buries it, and a settled node loses ties, since `done` and `cancelled` are not what is on your plate.
+
+| Field | Holds |
+| --- | --- |
+| the address | `#a1b2c3` for a record, `notes/plan.md` for a file |
+| `file:line` | where the record is written |
+| `path`, `pathIds` | the ancestor titles, and their ids in the same order |
+| `parent` | the parent node's id, absent at a root |
+| the mark, `see`, `after`, `custom` | what the record carries, whole |
+| `matched` | which of the four word fields carried the words |
+| `matchedProps` | the keys a `prop:` clause selected on, in the node's own spelling |
+
+- `matched` is absent for a query that named no words, and `matchedProps` for one that named no property. Neither names a negated clause: a node found by `-prop:agent` was not found on `agent`.
+- Property values travel whole, never cut at a length and never reduced to their keys, so a board is one query rather than one call per row.
+- Mirrors are never hits: a placement is a second view of a node, not a node.
+
+An agent's `search_nodes` adds what only an agent asks for. `limit` is the size of the answer. `withDesc: true` brings each node's note with it, and is off by default. A scope is `file` for one outline, or `under` for a node and everything beneath it.
+
+A `kind` narrows what an answer may hold: `node` for records, `document` for markdown and the files olai only shows, `outline` for outline files, or `file` for both kinds of file. With no kind named, every arm is ranked and capped together.
+
+## Where you search
+
+| Door | What it is |
+| --- | --- |
+| the header's search box | desktop and up: type, arrow up and down, `Enter` to open, `Escape` to clear |
+| the magnifier | the same place on a phone, opening the palette |
+| the palette | `Cmd` + `K`, which is `Ctrl` elsewhere: the shell's commands, then the hits |
+| a panel under a row | the `((` widget, the edge panel's box, and the move-to picker |
+| the chat composer's `@` list | names one node to put in a message ([chat.md](chat.md)) |
+| `search_nodes` | the same answer for an agent, over MCP |
+
+- A palette query carrying a `+` prefix is a line being captured rather than a lookup, and nothing is asked of the server for it ([getting-around.md](getting-around.md)).
+- The three panels under a row cap at eight hits and carry no kind selector. The move-to picker draws a refusal beside a destination the row cannot go to ([organising.md](organising.md)).
+- An open palette or header search follows the directory without another keystroke: matches that leave stop being drawn, new ones arrive, and the counts move with them.
+- A serve that does not run the search plugin answers these doors with no hits ([plugins/search.md](plugins/search.md)).
+
+### All, Rows and Files
+
+The palette and the header box carry a selector under the box: **All**, **Rows** for records, and **Files** for outlines, markdown documents, saved HTML, CSV files, images and PDFs. `Tab` cycles the segments while the caret is in either box.
+
+- The pick sets the request's kind before the answer is capped; it never filters an answer that was already cut short.
+- It lasts for this browser session, is shared by both boxes, and survives a reconnect. A page load puts it back to **All**.
+
+### How much was left out
+
+Both listing boxes draw at most eight hits, and say `8 of 90 matches` under them whenever more matched than fit. When everything found is on screen they say nothing at all. **Files** with `is:done` says `0 matches`. There is no results page and no larger limit: narrow it with the box or the selector.
+
+`Enter` takes a row of the list in front of you. A search settles for a fifth of a second before it asks, and `Enter` inside that gap does nothing rather than opening what the query before last found; a click is never held back. In chat, a query containing spaces needs an arrow selection first, or `Enter` sends the message as you typed it.
+
+## Documents and the other files
+
+A search reaches both kinds of thing the directory holds, ranked together on one scale, so a document whose title holds your word outranks a node that only mentions it in a note.
+
+| A record is matched on | A document is matched on |
+| --- | --- |
+| `title`, what it calls itself | `title`: its first non-empty line without the heading marks, or its filename |
+| `id`, for when you know which one | `path`, folded whole and by its name alone, so `cabinets` finds `notes/cabinets.md` |
+| the `#topic` and `@person` in its prose | the same, read by the same walk |
+| `desc`, its note | `body`, the prose itself |
+
+- `prop:` selects documents out of the frontmatter at the top of the file, the same open namespace a node's properties are ([documents-and-kinds.md](documents-and-kinds.md)).
+- The frontmatter is not the document's prose: a word only that block holds is found by `prop:` and not by typing it.
+- An operator over a field a document does not have selects no document, so no document is `is:done` or `created:last-week`. A negated clause is satisfied: a document is not finished.
+- A frontmatter `date:` is a property named `date`, found by `prop:date`.
+- A scoped `file` or `under` query selects no documents at all: both ask where a record sits in a tree.
+- A saved page, a CSV file, an image and a PDF are kept by name and not by their bytes, so each is found by what it is called and by nothing inside it.
+- An outline's own name and path match too: `Home` finds `Home.olai`, and `Enter` opens the outline. Operators select no outlines, and files under `_olai/` never appear as outline hits.
+- A body hit on a markdown document carries its line. Opening it from the palette or the header sets `?q=<query>#L<line>`, scrolls to the rendered block holding that source line and lights the query's words there; the address is shareable, and Back returns to the page you searched from.
+- A blank line or an opening fence marker lands on the block before it, and a line past the end of the file opens at the top without an error.
+- Neither listing box makes a file: **New document** and **New outline** are in the sidebar ([getting-around.md](getting-around.md)).

@@ -1,68 +1,77 @@
 # Sidebar
 
-`sidebar` is a browser-only row in the default bundle. It contributes the
-expanded directory column and collapsed rail to `layout.sidebar`. Disabling it
-removes both without replacing the open content pane or its active editor.
-The `sidebar` row must be enabled to show these navigation controls; its `on` property lives in `_olai/Settings.olai`.
+`sidebar` draws the left column of the app, labelled **Sidebar**, and the
+narrow rail it collapses to. It holds no files and no readings of its own:
+every row, heading and shelf in it is contributed by another plugin, and this
+row decides only where each one stands.
 
-The entry owns `sidebar.entry` and `sidebar.section`. Contributions to these
-locations wait while the sidebar or layout is absent and reactivate when their
-owner returns. Their plugins' independent work remains mounted.
-
-The column and rail implementations live here, and nothing else does: what this
-package reaches for outside itself is a layer token and the slot runtime, both
-`@olai/web`'s. The readings, the file creation controls and the preference rows
-drawn inside the column belong to the plugins that contribute them.
-
-The container declares `sidebar.regions` and `sidebar.rail`. Files, pins and
-capture occupy these locations independently. Sidebar itself creates no
-notebook reading and imports no file tree or content editor.
+Using the column day to day is [../getting-around.md](../getting-around.md).
 
 ## What the column shows
 
-Top to bottom: the `top` entries (Agenda — with the journal's short list of what
-is owed folded under it while anything is overdue or due today — then Today with
-the month folded under it), Inbox (capture), the plugin sections (chat's
-Needs you and Chats, then vault-plugins' Plugins), the pinned shelf, the file
-list (files: Outlines, Reference and the `_olai/` group), and, pinned under the
-scrolling list, the `foot` entries (Trash). On a phone the foot sits above the
-drawer's own foot with preferences and plugins; on a desktop it shares a line
-with the collapse button.
+Top to bottom:
 
-**Plugins** is a section like Chats and Needs you, contributed by the row that
-owns the plugins a vault defines: one entry per folder under `plugins/`, named
-by its README's heading, wearing what it needs from a person (`Review`,
-`Problem`) and a `+` on the heading that opens the palette at **New plugin**.
-It is drawn whenever that row is, including on a directory with no plugins at
-all — unlike the pinned shelf and the `_olai/` group, which have nothing to
-say when they are empty. A vault with no plugins is where somebody is looking
-for the way to make one, so the empty section draws one quiet row that opens
-the same palette level the `+` does.
+| Region | Contributed by |
+| --- | --- |
+| Agenda, with what is owed folded under it while anything is overdue or due today, then Today with the month under it | [journal.md](journal.md) |
+| Inbox | [capture.md](capture.md) |
+| **Needs you** and **Chats** | [chat.md](chat.md) |
+| **Plugins** | [vault-plugins.md](vault-plugins.md) |
+| **Pinned** | [pins.md](pins.md) |
+| **Outlines**, **Reference** and the `olai` group of `_olai/` files | [files.md](files.md) |
+| **Trash**, pinned under the scrolling list | [trash.md](trash.md) |
 
-Sidebar itself knows none of that: it draws a placement.
+On a phone the column is a drawer, and the foot sits above the drawer's own
+foot, which carries the Preferences and Plugins rows. On a desktop the foot
+shares a line with **Collapse sidebar**.
 
-A `sidebar.entry` names where it stands with a placement word, never a pixel or
-another plugin: `top`, `bottom` (after the plugin sections), or `foot` (pinned
-under the list). The same entry's `rail` icon follows it; a `foot` entry's icon
-sits at the rail's bottom. Sidebar draws a placement, not a contributor: the
-Trash is at the foot because the trash row asked for `foot`.
+## The rail
 
-A rail icon says what it opens in a tip this app draws, and is NAMED for a
-reader who never hovers — the two carry different words on purpose (`Outlines`
-on the tip, `Open outlines` as the name). Neither is the browser's `title`
-attribute: the browser places its own tooltip, which ran a long one off the
-edge of the window, and shows it to a pointer and nobody else. The button
-itself (`@olai/ui-primitives`' `RailButton`) draws no tip, because that package
-declares only `solid-js` while the tip lives in `@olai/web`, which declares
-that package; so whichever row draws the icon wraps it in the tip, the same way
-every other control in the app does.
+Collapsing the column leaves a rail of icons, also named **Sidebar**, with
+**Expand sidebar** at the top and the same entries' icons under it in the same
+order. A `foot` entry's icon sinks to the rail's bottom.
 
-Every heading in the column (Pinned, Needs you, Chats, Plugins, Outlines) wears
-one treatment: the words are written in Sentence case and styled as small,
-spaced capitals (`olai-plugin-layout/entry`'s `REGION_LABEL`), so an accessible
-name or a test reads `Outlines`, not `OUTLINES`. A heading that carries an
-action (the `+` beside Chats, which opens the palette at New chat, the `+`
-beside Plugins, which opens it at New plugin, and the `+` beside Outlines,
-which opens the New outline / New document menu) is drawn by the plugin that owns both the heading and the action,
-using the shared `REGION_HEAD` and `HEAD_ACTION` paint. When that plugin's row
-switches off, the heading and its `+` leave together.
+An icon says what it opens twice, because the two readings differ on purpose:
+the tip a pointer or a keyboard gets (`Outlines`) and the name everything else
+reads (`Open outlines`). Neither is the browser's own `title`, which it places
+itself and shows to a pointer alone.
+
+Opening and closing the column is `Cmd` + `\` (`Ctrl` + `\` away from a Mac),
+the palette's `Toggle sidebar`, and the burger on a phone, named **Show
+sidebar** and **Hide sidebar**. `Reset sidebar width` in the palette puts a
+dragged column back to its default.
+
+## Headings
+
+Every heading in the column wears one treatment: the words are written in
+sentence case and drawn as small, spaced capitals, so a test or a screen reader
+reads `Outlines`, not `OUTLINES`.
+
+Some headings carry an action: the `+` beside **Chats** opens the palette at
+New chat, the `+` beside **Plugins** opens it at New plugin, and the `+` beside
+**Outlines** opens the new-file menu. The plugin that owns the heading draws
+the action too, so the two leave together when its row switches off.
+
+A section decides for itself what an empty one looks like. **Chats** and
+**Pinned** draw nothing at all until there is something in them. **Plugins**
+stands whatever the directory holds, with one row reading **Ask for your first
+plugin…**, because a directory with no plugins is where somebody is looking for
+the way to make one ([vault-plugins.md](vault-plugins.md)).
+
+## What other plugins contribute
+
+| Location | Takes |
+| --- | --- |
+| `sidebar.entry` | a row placed `top` (the column's first doors), `bottom` (after the plugin sections) or `foot` (pinned under the list), with an optional rail icon |
+| `sidebar.section` | a heading in the plugin's own words, and what sits under it |
+| `sidebar.regions` | a region of the column: `primary`, `shelf` or `files` |
+| `sidebar.rail` | an icon on the collapsed rail |
+
+A contributor names a placement, never a pixel and never another plugin: the
+Trash is at the foot because the trash row asked for `foot`. Contributions wait
+while the sidebar or the layout row is absent and come back when their owner
+returns; the contributing plugin's own work stays mounted meanwhile.
+
+Switching `sidebar` off removes the column and the rail, and leaves the open
+page and its editor exactly as they are. The seat it fills is `layout.sidebar`
+([layout.md](layout.md)).

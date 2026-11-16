@@ -1,71 +1,76 @@
 # Spaces integration
 
-[Xyne Spaces](https://github.com/xynehq/xyne) is the org's team chat. If this olai has been pointed at a Spaces app, the orchestrator's conversation **mirrors into a bound channel** — doorbell digests, trimmed orchestrator replies, and a live "working…" signal while a turn runs. Nothing comes back the other way.
+[Xyne Spaces](https://github.com/xynehq/xyne) is a team chat. Bind one olai conversation to one Spaces channel and olai mirrors that conversation into the channel: doorbell digests, the agent's replies trimmed, and a working signal while a turn runs. Nothing comes back the other way.
 
-**This is watch-only.** Mentions, DMs, slash commands and buttons are later phases. Humans talking in the channel are not answered, and human messages in olai never mirror. This page describes only what is here.
+## What it needs
 
-## The connection
+Two facts, kept in two places because one of them is a secret.
 
-Two facts, and they live in different places because one is a secret:
+| Environment variable | What it says |
+| --- | --- |
+| `OLAI_SPACES_URL` | The Spaces server to reach. |
+| `OLAI_SPACES_TOKEN` | The credential for Spaces: the installed app's JWT. A secret, so the plugins panel shows whether it is set and never its value. |
 
-- **`$OLAI_SPACES_URL`** and **`$OLAI_SPACES_TOKEN`** in the environment — the Spaces origin and the installed app's JWT. The human reuses the existing "kolu" Spaces app, so the bot's name in-channel is kolu. That is accepted. The token is a secret; the URL names the resource to reach. Neither is a plugin config field or written to the vault.
-- **`xyne-channel` on a node agent** — the conversation→channel bind. The node is the identity (`agent-session`); the session is cattle. There is no `_olai/XyneSpaces.olai`.
+Neither is a setting and neither is written to your files. The app you install in Spaces supplies both, and the bot posts under that app's name.
 
-**Off by default.** Set `on: yes` on the `xyne-spaces` node in `_olai/Settings.olai`, or use its durable panel switch. The build keeps this integration opt-in because not every machine has a Spaces credential.
+This plugin is off by default, because not every machine has a Spaces credential. Set `on: yes` on the `xyne-spaces` node in `_olai/Settings.olai`, or use its switch in the plugins panel ([settings](../settings.md)); the choice survives a restart.
 
-No env and no `xyne-channel` → the plugin is honestly **absent**, not broken. A node agent with `xyne-channel` and no env is a **fault**, not absent: the user named a channel and this process cannot post. The readout is loud — it turns the header's health dot red — and names the missing env; the first bound conversation is told once.
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `reply-limit` | `500` | The maximum reply characters mirrored to a channel. A whole number of 1 or more. |
 
-A row of the header's health-dot popover is a readout with three states rather than two (a fault turns the dot red; absent leaves it alone):
+The mirror needs the chat plugin as well, for the reading of which nodes are seated with which conversation. With [chat](chat.md) switched off, the `xyne-spaces` row waits, naming `chat.seating`; switching chat on starts the mirror again.
 
-- `● xyne` — both env vars are set and the last post (if any) was accepted;
-- `● No xyne`, dim — nothing is configured (no env, no bind), and the tip names **where olai looked** (`OLAI_SPACES_URL` / `OLAI_SPACES_TOKEN`);
-- `● xyne error` in the alarm colour — a post was refused, or a channel is bound and the env is missing, and the tip names **which**.
+## Bind a conversation to a channel
 
-The third is why the readout is not a boolean. *Nothing was ever configured* and *a channel is bound but the process has no app* have opposite loudness, and a fault reported as absent would hide the bind the user already wrote.
+The bind is a property on the node agent, beside the property that holds its session:
 
-The mirror declares `chat.seating` in `needs`, alongside its delivery and conversation subscriptions. Chat owns the seating reading and respects the vault’s property declarations. Turning chat off leaves the mirror waiting with `chat.seating` named; turning it on restores the mirror automatically. No plugin package imports another plugin.
-
-## The binding
-
-The bind is a property on the **node agent**, next to `agent-session`:
-
-```
+```jsonl
 {"id":"orch","ord":"a0","title":"orchestrator","custom":{"agent-session":"claude:<session-id>","xyne-channel":"<spaces-channel-id>"}}
 ```
 
-`xyne-channel` is required on that node; without it nothing posts. The session is the current `agent-session` pointer — *fresh session* re-points it and the mirror follows, because the node is the identity. A conversation no node claims (Unassigned) does not post. Trim is 500 Unicode code points; there is no second file of knobs.
+`xyne-channel` is required on that node, and olai never writes it. Without it nothing posts, and a connected readout that posts nothing is the honest answer. The node is the identity, so a fresh session re-points the session property and the mirror follows it. A conversation that no node agent claims does not post.
 
-olai never writes this property. Turning the plugin on without it is a connected readout that posts nothing.
+## What the readout says
+
+One row of the header's health-dot popover is this link's readout. A fault turns the health dot red; being unconfigured leaves it alone.
+
+| Row | What it means |
+| --- | --- |
+| `xyne` | Both variables are set and the last post, if any, was accepted. The tip reads `Posting to <url>`. |
+| `No xyne` | Nothing is configured. The tip names where olai looked and the two variables. |
+| `xyne error` | A post was refused, or a channel is bound and the environment is missing. The tip says which. |
+
+Nothing configured and a bind whose process has no Spaces app are different facts, which is why the readout has three states rather than two. The second is a fault: you named a channel and this process cannot post, so the dot goes red, the readout names the missing variable, and the first bound conversation is told once.
 
 ## What mirrors
 
-**Doorbell digests**, at digest level (~5–8 messages per PR, never the firehose):
+Doorbell digests go over, at digest level of roughly five to eight messages per pull request rather than the firehose:
 
-- lane dispatched
-- review verdict (MUST / SHOULD / NIT counts)
-- CI result — posted once, then **edited in place** on first-red → final, never posted twice
-- merged, with the timings line
-- anything stuck / needing a human
+- a lane dispatched;
+- a review verdict, with its counts;
+- a CI result, posted once and then edited in place from first-red to final, never posted twice;
+- a merge, with its timings line;
+- anything stuck or needing a person.
 
-A kolu heartbeat ("the watcher is alive") is not a digest and does not post. Human messages never mirror.
+A kolu heartbeat is not a digest and does not post. Messages you type in olai never mirror, and nothing a person says in the Spaces channel reaches olai.
 
-**One thread per bound conversation.** The thread key is the olai `(agent, session)` pair that already rides the watching event — not a title parsed out of the digest. The conversation's first digest opens the Spaces thread; later digests reply into it. Lane threads and the outbound queue are persisted through the `LocalState` service — core owns `~/.local/state/olai/xyne-spaces/<hash>.json`, the plugin parses the snapshot, and successive writes land in the order they were made. A restart opens the same thread and still has the queued digests. Olai never writes `xyne-channel`.
+The agent's replies and doorbell bodies all mirror, each cut to the first `reply-limit` Unicode code points with an ellipsis, and an open code fence that the cut would have left is closed. While the agent runs a turn, the channel carries an ephemeral working signal rather than a stored message; it ends when the turn does.
 
-**Orchestrator replies and doorbell bodies, trimmed**: each is capped at the first ~500 Unicode code points with an ellipsis, and an open code fence the cut would have left is closed. Working-notes still produce the ephemeral signal below rather than a stored wall of fragments.
+Each bound conversation gets one thread. The first digest opens it and later digests reply into it. Threads and the outbound queue are kept under `$XDG_STATE_HOME/olai/xyne-spaces/`, one file per served directory, so a restart opens the same thread and still holds the queued digests.
 
-**`agentProgress`** while the orchestrator runs a turn — the ephemeral "working…" signal in the lane thread, not a stored message. It ends when the turn does.
+## When a post is refused
 
-## Failure honesty
+A refused post, and a bind whose process has no Spaces app, are said once into the olai conversation rather than once per message. The recovery sentence is a separate message, so it cannot replace the fault line.
 
-A refused post, and a bind whose process has no Spaces app, are said **once** into the olai conversation (the doorbell fault pattern), not once per message. Digests queue (capped at 32) and post in order on recovery; the queue retries on its own, not only when the next digest arrives. A missing channel (a typo in `xyne-channel`) keeps retrying with the fault said. A dead Spaces thread is forgotten and the digest re-opens one. A 4xx that will never accept (a validation error) is dropped so it cannot wedge the rest. Overflow of the cap drops the oldest and **says so**, with the count. The readout stays on `xyne error` (and the dot red) until a post is accepted again. The recovery sentence is a separate delivery from the fault, so it cannot replace a fault line that has not been handed over yet.
+Digests queue, capped at 32, and post in order when Spaces accepts again; the queue retries on its own rather than waiting for the next digest. A channel id that names nothing keeps retrying with the fault said. A thread that has gone is forgotten and the next digest opens a new one. A refusal that will never be accepted, such as a validation error, is dropped so it cannot wedge the rest.
 
-## What it is not
+Overflowing the cap drops the oldest and says so with the count. The readout stays on `xyne error`, and the health dot red, until a post is accepted.
 
-- **At-least-once on a crash.** Local state is ordered, not atomic with the send: a kill between a post landing and its persist leaves the snapshot naming a digest already sent, and the next serve posts it again.
-- **No inbound.** A message in the Spaces channel, an @mention, a DM, a slash command or a button click does not reach this olai. That is phase 2.
-- **No live test in CI.** The suite pins request shapes against a fake Spaces. Deploying against the real instance is the human's, before merge.
-- **No picker.** The prototypes showed a channel picker on the chat strip; this slice ships the `xyne-channel` property on the node agent.
+> A kill between a post landing and its record being saved leaves the saved snapshot naming a digest already sent, and the next serve posts it again. Delivery is at least once, not exactly once.
 
-The seating service supplies node, file, title, engine and session; roster-only details such as memory counts are outside the mirror’s contract. Channel policy tests supply those answers directly, while chat’s own tests cover how vault declarations become seats.
+## What this does not do
 
-The `Config` schema declares `reply-limit`, the maximum reply characters mirrored to a channel, with its default and description. Channel bindings remain properties on agent nodes.
+- No inbound. A message, mention, direct message, slash command or button press in the Spaces channel does not reach olai.
+- No channel picker. The bind is the `xyne-channel` property on the node agent.
+- No second file of knobs. Channels are properties, limits are the setting above, and credentials are the environment.

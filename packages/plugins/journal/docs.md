@@ -1,209 +1,66 @@
 # The journal
 
-The day page, calendar and agenda are one plugin. It is enabled by default, so ordinary olai looks and behaves as before: dates written on nodes light the calendar, `/today` and `/d/YYYY-MM-DD` collect one day, and `/agenda` shows overdue, due-today and upcoming work.
+Dates on rows light a calendar, gather into day pages, and queue on an agenda. This plugin owns those three screens, the sidebar's Agenda and Today doors, and the one notification olai raises without being asked. It is on by default.
 
-The difference is ownership. Those screens and their wire readings now arrive with the `journal` row in the plugin bundle. A serve that does not name that row has no calendar, Agenda entry, owed badge, *Go to today* palette item or journal routes:
+## The three pages
 
-Set `on: no` on the `journal` node in `_olai/Settings.olai`, or use its durable switch on the plugins panel. The file choice survives restart.
+| Address | What it draws |
+| --- | --- |
+| `/today` | Your current local day. |
+| `/d/YYYY-MM-DD` | One named day, such as `/d/2026-08-12`. |
+| `/agenda` | Overdue work, today's, and what is coming, counted from your local day. |
 
-Turning the plugin off does not change the files. `date`, `repeat`, stamped marks and daily-note filenames remain ordinary parts of the [file format](../format.md). Re-enabling journal reads the same values again.
+The palette ([getting around](../getting-around.md)) carries **Go to today** and **Go to Agenda**. Those addresses are this plugin's exclusive claims: another plugin cannot overlap them, and a page claiming one that is taken is dropped with a diagnostic naming both.
 
-## Reminders
+Rows on a day page and on the agenda are the outlines plugin's dated rows, so each carries the same `•••` menu as a row in an outline ([organising](../organising.md)). The journal supplies the dates; the verbs stay the outlines plugin's. Each entry also carries how many records hang under its node, counted with the reading, for that menu's **Move to Trash** question.
 
-**Olai is pull with one push.** Dates, repeats and the agenda are readings:
-nothing on disk is a reminder, nothing schedules one, and nothing fires at a
-chosen time of day. The one thing olai says unprompted about due work is that
-the day has work on it. Once per local day, in each browser, its first non-empty
-reading of what is owed raises a notification. The title is the deployment's
-name and the body uses the Agenda entry's own phrase, such as **Agenda: 2
-overdue, 3 due today** (or **1 due today** alone). Pressing it opens `/agenda` in the focused pane.
+A day with nothing on it says `Nothing is on today.`, or `Nothing is on 2026-08-10.` for another day, and offers to mint that day's note. The button reads **Creating…** and refuses repeat presses while the request is in flight. The browser sends only the date; the server derives the path from the vault's daily-note convention and answers with the file it created. Navigating away before the answer arrives still creates the note, without replacing the view you moved to.
 
-The notification is the reminder. A chime accompanies it only if the `Sound`
-preference is on and an earlier pointer or keyboard gesture in this page has unlocked
-audio. Before that, the sound is skipped for the day and never replayed at a
-later gesture. Reminders never badge the app or mark the tab: the Agenda entry
-and rail dot already carry the durable reading of due work; the badge counts
-chat's questions alone.
+An agenda with nothing owed says `Nothing due` and `Rows with a date show up here.`
 
-**Reminders** is a browser switch, default on, under Notifications in the
-Preferences panel, beneath **Alerts** and **Sound**. Turning it off leaves the Agenda entry working. Turning Alerts
-off silences reminders too and freezes the Reminders row with an explanation.
-Neither switch spends an unannounced day: turning it back on can remind once.
-The choice is kept under `olai.reminders`, not in the vault's configuration.
+## What the sidebar shows
 
-The rule reads the renderer's existing local-day clock and the journal's
-existing `owed` stream: `overdue + today > 0`, with a known day and a first
-frame, and with both preferences on. It has no timer and reads neither focus
-nor visibility. Boot with overdue work, local midnight in an open tab, waking
-after midnight, and a mid-day count leaving zero all reach the same rule.
-Completing a repeat creates a fresh dated task, so it needs no separate trigger.
+The Agenda entry sits among the sidebar's first doors, with a badge of one number. The tip and its accessible name say that number in words, such as `Agenda — 1 due today` or `Agenda — 2 overdue, 3 due today`.
 
-Before asking for the notification and then the chime, the circuit records
-the day under `olai.reminders.said` in local storage and follows that record
-across tabs. A later frame, reconnect, reload, later-opened tab or journal
-reactivation that day says nothing again. Two tabs can still race on their
-first reading and chime twice; the shared OS tag `olai:due:<day>` replaces
-duplicate banners instead of stacking them. There is no cross-tab election.
+Directly under it is the **Today** row: the word and the date, such as `Sep 28`, linking to today's page, with a chevron that unfolds the month calendar in place. Whether the month is open is remembered per browser under `olai.sidebar.calendar`, followed across tabs, and it starts shut. When the sidebar is collapsed, the journal puts compact Today and Agenda doors on the rail; on a phone it puts the same two in the thumb bar ([layout](layout.md)).
 
-This uses the [alerts row's channel](alerts.md), with the same running-app
-limit as chat: foreground or background, the app has to be running, and a
-fully closed olai hears nothing. There are no per-node alarms, times added to
-dates, snooze, repeat-specific alerts or push server. Each would be a separate
-decision, not an unfinished part of reminders.
+While anything is overdue or due today, the Agenda entry grows a short list of the owed rows beneath it: late work first, oldest day first, then today's. A late row is a filled alarm dot, its title, and how long ago its day was, such as `Yesterday` or `5 days ago`. A today row is a muted ring and its title. Each row links to the node where it lives.
 
-### Ownership and absence
+Five rows fit. Whatever is left is one muted line, `N more on the agenda`, which opens the agenda page. The list and the badge come from the same reading, so the count tells the whole truth even when the list is shorter. A chevron folds the list away, remembered per browser under `olai.sidebar.agenda-rows` and unfolded by default. Folding never stops the reading, and the list is not drawn while the agenda page is in front.
 
-The journal's `reminders` component names `alerts.channel`, `navigation.state`
-and `layout.deployment`; the journal row itself does not depend on alerts.
-It owns the preference and daily-record followers, the effect and owed
-subscription, and the `due` claim on `channel.onPress`. It shares the row's
-existing clock and wire holders. Startup waits for those row resources and
-for navigation to publish the agenda route before claiming `due`: the alerts
-row holds the newest unclaimed press until then, including a cold-start press.
-There is one framework click listener, owned by alerts, so chat's `ask` claim
-cannot consume the journal's click.
+## The one reminder
 
-On withdrawal the effect and subscription stop, followers leave, and the
-`due` claim is released; the day stays in storage. A press arriving afterwards
-is held by alerts until the component returns, or dropped when that channel
-activation ends. Without a clock there is no day to ask about. With alerts
-absent, reminders wait while calendar, day and agenda keep working. With the
-journal off, its reading and Reminders row leave together.
+Dates and repeats are readings: nothing on disk is a reminder, nothing is scheduled, and nothing fires at a chosen time of day. The one thing olai says unprompted is that the day has work on it.
 
-The separate `reminder-controls` component names `alerts.channel` and
-`rendererSlots` and contributes the row to `preferences.sections`, using the
-reminders activation's preference state. Its contribution is withdrawn with
-its owner; there is no Reminders row while alerts is absent. Turning the
-Alerts *preference* off instead leaves the row visible and frozen.
+Once per local day, in each browser, the first non-empty reading of what is owed raises a notification. Its title is this deployment's name and its body is the Agenda entry's own phrase, such as `Agenda: 2 overdue, 3 due today`. Pressing it opens the agenda page in the focused pane. Reminders never badge the app or mark the tab.
 
-## Pages and navigation
+A chime goes with the notification only when the **Sound** preference is on and an earlier pointer or keyboard gesture in this page has unlocked audio. Before that the sound is skipped for the day and never replayed.
 
-The plugin owns three address forms:
+The switch is **Reminders**, a browser choice, default on, under Notifications in the Preferences panel, beneath **Alerts** and **Sound**. Turning it off leaves the Agenda entry working. Turning Alerts off silences reminders too and freezes the Reminders row with an explanation. Neither switch spends an unannounced day, so turning one back on can remind once. The choice is kept under `olai.reminders`, and the day already said under `olai.reminders.said`, both in this browser rather than in your files.
 
-- `/today` — the reader's current local day;
-- `/d/YYYY-MM-DD` — one named day;
-- `/agenda` — overdue, today and upcoming work, counted from the reader's local day.
+> Two tabs can race on their first reading and chime twice. The shared notification tag `olai:due:<day>` replaces the duplicate banner instead of stacking it.
 
-Those forms are exclusive route claims. A mounted plugin cannot silently take
-`/trash` or overlap another plugin's exact path/prefix; the shell keeps the
-first claim and drops a later conflicting page with a diagnostic naming both. Journal's
-typed route definitions also mint the sidebar, calendar and palette destinations,
-so those affordances cannot drift from the parser that owns their URLs.
+Reminders ride the [alerts](alerts.md) plugin's channel, with the same limit as chat's: the app has to be running, in the foreground or the background, and a fully closed olai hears nothing. With alerts absent, reminders wait while the calendar, day and agenda keep working. There are no per-node alarms, no times added to dates, no snooze, no repeat-specific alerts and no push server.
 
-Rows on a day's page and the agenda are the outlines plugin's dated row, reached through its `outlines.dated-row` location, so they carry that row's `•••` menu ([editing.md](../editing.md)): the journal supplies the dates, and the verbs, their panels and their writes stay the outlines plugin's. Each entry also carries how many records hang under its node (`under`), counted on the server with the reading, for the menu's **Move to Trash** question.
+## What it needs, and what it offers
 
-The Agenda entry and its owed badge open the sidebar. Directly under it is the `Today` row: `Today` and the date (`Sep 28`), a link to today's page, with a chevron that unfolds the month calendar in place below the row and folds it away again. Whether the month is open is remembered per browser (`olai.sidebar.calendar`, followed across tabs by the journal's activation) and is shut by default. Unfolded, the month is drawn on the sidebar's own dark ground and keeps its paging, day links and marks. When the full sidebar is collapsed, the journal contributes its compact Today and Agenda doors to the rail; on a phone it contributes the same two doors to the frame's thumb bar (`browser/thumbs.tsx`, [layout.md](layout.md#the-thumb-bar)) — Today lit while today's page is open, Agenda carrying the owed mark the entry carries, as `data-owed` and a count while something is late or on today. The command palette gets *Go to today* and *Go to agenda* from the same row.
+| Kind | This plugin's answer |
+| --- | --- |
+| Environment variables | None. |
+| MCP tools | None. An agent reads and searches the same dated rows through olai's core vault tools. |
+| Settings | `on` alone, on the `journal` node in `_olai/Settings.olai`. |
 
-While anything is overdue or due today, the Agenda entry grows a short list of
-the owed rows directly under it: late work first, oldest day first, then
-today's — so a reader working in an outline sees *what* slipped without opening
-`/agenda`. A late row is a filled alarm dot, its title, and how long ago its day
-was (`Yesterday`, `5 days ago`); a today row is a muted ring and its title,
-with nothing after it. The whole row is a link to the node where it lives,
-exactly as a row on `/agenda` is, and a faint line down the left of the list
-is alarm ink while anything in it is late and muted when it is only today's.
+Set `on: no` on that node, or use the switch in the plugins panel ([settings](../settings.md)); the choice survives a restart. A serve without this row has no calendar, no Agenda entry, no owed badge, no **Go to today** palette row and none of the three pages. Your files do not change: `date`, `repeat`, stamped marks and daily-note filenames stay ordinary parts of the [file format](../format.md), and switching the row back on reads the same values again.
 
-Five rows fit. What is left is one muted line, `N more on the agenda`, which
-opens the page. The list comes from the same reading as the badge, so the two
-cannot disagree, and the count always tells the whole truth even when the list
-is shorter. A chevron beside the door folds the list away — absent when there is
-nothing to fold, and remembered per browser (`olai.sidebar.agenda-rows`,
-followed across tabs) with the list unfolded by default. Folding hides the list
-and never stops the reading: the badge stays live while it is shut. The list is
-not drawn while `/agenda` is the page in front, because the page is the fuller
-answer to the same question; the badge keeps its count.
-
-The Agenda entry's badge shows one number; the app's own tip and the entry's
-accessible name both say it in words, such as `Agenda — 1 due today` or `Agenda — 2 overdue, 3 due
-today`. An agenda with nothing owed says `Nothing due` and `Rows with a date
-show up here.` An empty day says `Nothing is on today.` (or `Nothing is on
-2026-08-10.` for another day).
-
-An empty day may mint its daily note. The browser sends only the date through `journal`'s `note.mint` procedure; the server derives the path from the vault's existing daily-note convention and returns the file it created. That write never travels through core's general `edit.apply` vocabulary.
-
-The button shows **Creating…** and disables repeat presses while that request is pending. A refusal re-enables it. If the reader navigates or changes panes before the answer arrives, the note is still created, but the response does not replace their newer view or leave an automatic editing request for a later visit.
-
-## On the wire
-
-Journal is a sibling surface, exposed only to the browser:
-
-```
-surface/journal/dated/get       days lit in one month
-surface/journal/owed/get        overdue and due-today counts, and the first owed rows
-surface/journal/day/get         one day's rows and notes
-surface/journal/agenda/get      the agenda's three stretches
-surface/journal/note/mint       create one daily note
-```
-
-The MCP face does not expose these screen-shaped readings. An agent reads and searches the same dated nodes through the core vault resources and tools.
-
-Day and agenda pages use core's one standing page cache, so repeated asks share
-the answer and use the same composed property-kind vocabulary as validation.
-The small calendar and owed readings remain in the plugin and read its retained
-vault revision directly; no second ops standing cache or vocabulary service is
-created for them.
+The browser's four readings are the lit days of a month, the owed counts with the first owed rows, one day's page, and the agenda's three stretches. They are served to the browser alone, and the agent face does not carry them.
 
 ## The agenda as a service
 
-The wire above is drawn for the browser. Another **plugin** reaches the same two
-readings through `journal.agenda`, a service this row offers with `Offers.own`,
-so the key is stamped from the journal's own fiber name and no other row can
-take it:
+Another plugin, including one [your directory defines](../dynamic-plugins.md), can read the same two answers through `journal.agenda`, a service this row offers under its own name. It has one verb, `read`, taking two things:
 
-```ts
-const Agenda = serviceTag<{
-  readonly read: (
-    ask: { readonly at: unknown; readonly date: string },
-  ) => Effect.Effect<Answer, { readonly reason: string }>
-}>("journal.agenda")
-```
+- `date`, the day the answer is about. It is the caller's day, because what counts as late is late where the asker is standing.
+- `at`, the vault reading the answer is about, passed on unchanged from your own `Vault.revision` or `Ops.reading`.
 
-One verb. `date` is the day the answer is about — the CALLER's day, because
-the dates in the files are what a person wrote down and what counts as late is
-late where the asker is standing. `at` is the vault reading the answer is to be
-about, passed on unchanged from the reader's own `Vault.revision` or `Ops.reading`.
+The answer carries `dated`, everything on that day grouped by outline, and `agenda`, the same three stretches the agenda page draws. Both are located rows, and a row is four fields: `id`, `title`, `date`, and `status`, which is `null` for a row carrying no mark.
 
-The answer carries `dated`, everything on that day grouped by outline, and
-`agenda`, the same three stretches the Agenda page draws — both as located rows,
-and a row is four fields: `id`, `title`, `date`, and `status` (`null` for a row
-carrying no mark, which is an occurrence and is nobody's late work).
-
-**Those four are the door's own shape, not the page's.** The reading is built out
-of `@olai/format`'s `DayGroup` and `Agenda` and then projected down to them,
-which costs three lines and buys the thing a boundary is for. Those types are the
-journal's *page* model and have moved for drawing reasons — `overdue` became days
-rather than groups when the Agenda page became a spine — and every reader of them
-in this repository is rebuilt in the same commit. The readers of this door are
-not: they are notes in somebody's vault, spelling the shape by hand, carrying no
-version. Widening `DayGroup` is now invisible to them; moving a field is a type
-error in the journal, where a person decides whether the door moves with it.
-
-**The reading comes in, and that is the contract.** A door that read the vault
-for itself would answer about a revision of its own choosing, and a caller
-composing a sentence from it could not say which. Handing the reading over makes
-the answer about one snapshot; a value that is not a reading, and a date that is
-not a day, are refused with a sentence rather than guessed at.
-
-**The ask is opaque and the answer is not.** The consumer this was built for is a
-[plugin the vault defines](../dynamic-plugins.md), which may import
-`@olai/plugin-api`, `effect` and `solid-js` and nothing else — so it cannot name
-a `Reading`, and does not have to. What it can do is pass one through. The
-answer is spelled with the format's own types because the journal produces it;
-a consumer that cannot name `DayGroup` writes the fields it reads and the two
-agree structurally.
-
-**Switching the journal off takes the key with it.** It leaves
-`plugins.inspect`'s catalog, every consumer's row reads `waiting` naming
-`journal.agenda`, and switching the journal back on reactivates them. Nothing in
-core knows which rows are connected by this key.
-
-The worked example in [plugins the vault defines](../dynamic-plugins.md) is a
-morning agenda written against it.
-
-## Sidebar lifetime
-
-The journal activation owns one shared owed reading, consumed by the sidebar
-and reminders. Reminder availability is a boolean dependency, so unrelated
-route-table changes do not restart its circuit. The calendar owns its paged
-month and dated subscription inside the retained sidebar; collapsing the
-sidebar and expanding it again keeps that month.
+A date that is not a day is refused with `` `<value>` is not a day (YYYY-MM-DD), so there is no agenda to read for it ``. A value that is not a vault reading is refused with a sentence telling you to pass on what the vault's revision door gave you, unchanged. Switching the journal off takes the key with it: every consumer's row reads `waiting`, naming `journal.agenda`, and switching the journal back on starts them again. There is a worked example in [two plugins, start to finish](../dynamic-plugins-examples.md).

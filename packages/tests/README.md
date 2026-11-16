@@ -57,25 +57,27 @@ The suite shares names with `@olai/web` rather than retyping them — a constant
 
 Prefer a shared scratch corpus per **feature** over a private server per scenario. `@share-scratch` at the top of a feature is that opt-in: one copy and one server per worker, and After restores the fixture under the still-running server so overlapping writers can share too. `@own-scratch` on a scenario inside it keeps a private copy, for the things restore cannot make true (a server restart, conversation state, git). A restore that does not put the tree back fails naming the scenario and the files.
 
-This suite is 225 features and 1699 Gherkin `Scenario`/`Scenario Outline` entries, which cucumber runs as 1753 scenarios: 40 of the entries are outlines, and their examples expand to 94. It is 93 step files. **The census is now a census of ROWS as well**, because the features left this package with the rows that promise them — 209 of the 225 and 84 of the 93, with 16 features and 9 step files left here as the app's own:
+This suite is 296 features and 2332 Gherkin `Scenario`/`Scenario Outline` entries, which cucumber runs as about 2489 scenarios: 61 of the entries are outlines, and their examples expand to 218. It is 131 step files. **The census is now a census of ROWS as well**, because the features left this package with the rows that promise them — 278 of the 296 and 120 of the 131, with 18 features and 11 step files left here as the app's own:
 
 | row | features | entries | | row | features | entries |
 |---|---:|---:|---|---|---:|---:|
-| `outlines` | 59 | 529 | | `settings` | 4 | 18 |
-| `chat` | 50 | 439 | | `codex` | 2 | 15 |
-| `markdown` | 11 | 95 | | `plugin-inspector` | 2 | 13 |
-| *the app itself* | 16 | 71 | | `capture` | 3 | 11 |
-| `journal` | 6 | 66 | | `theme` | 3 | 11 |
-| `navigation` | 10 | 61 | | `vault-plugins` | 3 | 11 |
-| `files` | 8 | 56 | | `odu` | 1 | 10 |
-| `hypertext` | 1 | 50 | | `sidebar` | 2 | 10 |
-| `pins` | 6 | 44 | | `layout` | 4 | 10 |
-| `search` | 8 | 36 | | `identity` | 2 | 9 |
-| `vault` | 5 | 31 | | `test-layout` | 1 | 1 |
-| `git` | 8 | 30 | | | | |
-| `kolu` | 3 | 23 | | | | |
-| `preferences` | 3 | 20 | | | | |
-| `trash` | 3 | 18 | | | | |
+| `chat` | 61 | 591 | | `vault` | 5 | 31 |
+| `outlines` | 63 | 558 | | `codex` | 4 | 26 |
+| `navigation` | 15 | 145 | | `layout` | 6 | 24 |
+| `markdown` | 12 | 109 | | `kolu` | 3 | 23 |
+| `journal` | 9 | 93 | | `trash` | 3 | 21 |
+| `tabs` | 13 | 77 | | `claude` | 3 | 19 |
+| *the app itself* | 18 | 77 | | `settings` | 4 | 18 |
+| `files` | 8 | 64 | | `theme` | 4 | 18 |
+| `hypertext` | 1 | 50 | | `browsing` | 2 | 16 |
+| `pins` | 8 | 50 | | `capture` | 3 | 11 |
+| `preferences` | 5 | 41 | | `odu` | 1 | 11 |
+| `git` | 9 | 40 | | `vault-plugins` | 3 | 11 |
+| `mail` | 3 | 40 | | `sidebar` | 2 | 10 |
+| `hledger` | 7 | 38 | | `identity` | 2 | 9 |
+| `search` | 8 | 36 | | `omp` | 1 | 3 |
+| `link-preview` | 2 | 35 | | `csv`, `image`, `opencode`, `test-layout` | 1 each | 1 each |
+| `plugin-inspector` | 4 | 33 | | | | |
 
 Two rows carry two thirds of it, and that is the app rather than a mistake in the split: the outline tree and the conversation are what olai IS. What the table is for is the other direction — a row with three features and one step file is a row whose whole browser promise fits on a page, and that is now visible from its own directory.
 

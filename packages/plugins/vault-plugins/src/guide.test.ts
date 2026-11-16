@@ -20,14 +20,26 @@ import { fileURLToPath } from "node:url"
 
 import { GUIDE, GUIDE_END, GUIDE_START } from "./guide.ts"
 
-const DOC = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "docs", "dynamic-plugins.md")
-test("the shipped authoring guide is the doc's own guide region", () => {
-  const page = readFileSync(DOC, "utf8")
-  const from = page.indexOf(GUIDE_START)
-  const to = page.indexOf(GUIDE_END)
-  expect(from, `docs/dynamic-plugins.md is missing ${GUIDE_START}`).toBeGreaterThanOrEqual(0)
-  expect(to, `docs/dynamic-plugins.md is missing ${GUIDE_END}`).toBeGreaterThan(from)
-  const region = page.slice(from + GUIDE_START.length, to).trim()
+/** The two pages the guide is cut from, in the order an agent reads them: how
+ *  to write one, then the two worked ones. */
+const DOCS = ["dynamic-plugins.md", "dynamic-plugins-examples.md"] as const
+const at = (page: string): string =>
+  join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "docs", page)
+
+/** One page's marked region, or a failure naming the page and the marker it is
+ *  missing: a page that grew a start and lost an end would otherwise ship a
+ *  whole page as advice. */
+const regionOf = (page: string): string => {
+  const source = readFileSync(at(page), "utf8")
+  const from = source.indexOf(GUIDE_START)
+  const to = source.indexOf(GUIDE_END)
+  expect(from, `docs/${page} is missing ${GUIDE_START}`).toBeGreaterThanOrEqual(0)
+  expect(to, `docs/${page} is missing ${GUIDE_END}`).toBeGreaterThan(from)
+  return source.slice(from + GUIDE_START.length, to).trim()
+}
+
+test("the shipped authoring guide is the two docs' own guide regions", () => {
+  const region = DOCS.map(regionOf).join("\n\n")
   if (GUIDE === region) return
   // THE FAILURE CARRIES THE FIX, because the two files are a copy apart and
   // the person who moved one is the person who has to move the other. There
@@ -36,9 +48,10 @@ test("the shipped authoring guide is the doc's own guide region", () => {
   // directory be spelled at all.
   writeFileSync(join(dirname(fileURLToPath(import.meta.url)), "guide.next.md"), `${region}\n`)
   throw new Error(
-    "`guide.md` is what every agent reads and it no longer matches the guide region of "
-      + "docs/dynamic-plugins.md.\nThe region as the page now has it has been written beside it as "
-      + "`guide.next.md`: read the difference, then replace `guide.md` with it and delete that file.",
+    "`guide.md` is what every agent reads and it no longer matches the guide regions of "
+      + "docs/dynamic-plugins.md and docs/dynamic-plugins-examples.md.\nThe regions as the pages "
+      + "now have them have been written beside it as `guide.next.md`: read the difference, then "
+      + "replace `guide.md` with it and delete that file.",
   )
 })
 

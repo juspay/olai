@@ -1,249 +1,100 @@
 # Plugin inspector
 
-The plugin inspector provides enable switches, configuration controls and reports in the plugins panel.
-It is a browser-only bundle row. Disabling it removes its doors (the **Plugins**
-row at the foot of the desktop health popover and the phone drawer's row); the
-host keeps managing plugins and its non-UI operations remain available. On a
-desktop the door stands beside the health dot: picking its row shuts the
-popover and opens the panel, which hangs from the dot and hands the caret back
-to it on Escape.
+The plugin inspector draws the **Plugins** panel: every plugin this serve has, one line each, with a switch, a word about anything that is wrong, and the settings that plugin reads.
 
-At the top of the panel, above every group, is **New plugin** — the one thing
-in here that is not about what this serve is already running. A person looking
-for plugins lands in this panel, and until it had this row the panel showed
-them everything they had and no way to ask for one more. Pressing it shuts the
-panel and opens the palette at *New plugin*. The verb is `vault-plugins`',
-declared as `vault-plugins.new-plugin` and held on a component of its own
-(`asking.ts`), so the inspector reaches one function rather than that row's
-live state; with `vault-plugins` switched off, or with no palette for it to
-open, there is no row and nothing else about the panel changes.
+## Opening the panel
+
+On a desktop the door is the health dot in the header: its popover carries a **Plugins** row at the foot. Picking it shuts the popover and opens the panel under the dot, and `Escape` hands the caret back to the dot. On a phone the same row is in the drawer.
+
+The panel's header reads **Plugins** and links `Settings.olai`, labelled **Open in Settings.olai**.
+
+Above every group is **New plugin**, the one thing in the panel that is not about what this serve already runs. It shuts the panel and opens the palette at the two levels that ask an agent for a plugin of your own ([../dynamic-plugins.md](../dynamic-plugins.md)). It is drawn while `vault-plugins` offers the verb and there is a palette to open, and absent otherwise.
 
 ## One line per plugin
 
-The panel is one column. Each plugin is one line: the label `olai.yml` gives it
-(`Claude Code`, `Kolu`), a few words of state only when something is wrong
-(`Failed`, `Can't start`, `Starting…`, `Needs approval`, `Needs setup`,
-`Failed in this tab`, `Starting in this tab`), and its switch, labelled
-`Enable <label>` with the name the row shows (`Enable Claude Code`). A plugin
-that is on and fine, or off because somebody left it off, says nothing beyond
-its switch. The row's condition is read once, as one tagged value
-(`rowCondition` in `rows.ts`); the few words, the detail's sentence and their
-colour (alarm for a fault, in-progress for a wait) are tables over that tag,
-so nothing classifies a row by its words.
+A line is the plugin's name, a few words when something is wrong, and a switch called `Enable <name>` — `Enable Claude Code`. A plugin that is on and well, or off because you left it off, says nothing beyond its switch.
 
-Everything else is the row's detail, behind a chevron before the label: the full
-sentence about what is wrong, the face its own plugin hangs, **Try again** or
-**Reload** for a browser half that failed, its
-settings, the environment it reads, `Short name` (the settings namespace, where
-the label differs), `Saved in` — a link to the row's settings node, and for a
-plugin the vault defines a link to its own page at `/plugins/<word>` with the
-folder as its words, its settings node named separately beneath — and, for a
-session-only
-switch, `This switch resets when olai restarts.` (the switch itself wears a
-dashed ring, says `Resets when olai restarts` on hover, and carries those words
-in its own name, so a screen reader hears them too). A row with nothing to reveal
-has no chevron; its label keeps the chevron's space so the names line up.
+A chevron before the name opens the row's detail. A row with nothing to reveal has no chevron, and keeps its space so the names line up.
 
-**A plugin the vault defines carries its source and its approval here too, and
-a link to its own page.** The page is the better place for the decision — the
-README, what it uses, the three files, the diff against an approved version and
-one **Turn on** button — and the panel's detail is where somebody already
-working down a whole serve's rows can read the same source and say yes without
-leaving the list. Neither of them can approve a stale version: both send back
-the version they drew, and a serve whose reading has moved refuses rather than
-approving what is there now.
+| Words on the line | What the detail says |
+| --- | --- |
+| `Failed` | `Failed to start. It said: “…”. Switch it off and on to try again.`, or `It gave no message.` where there was none |
+| `Can't start` | `Can't start: another plugin it needs isn't running (…).` |
+| `Starting…` | `Starting…` |
+| `Needs approval` | the plugin's source, for you to read and approve |
+| `Failed in this tab` | `In this tab: failed to start.` and the message, with **Try again** |
+| `Starting in this tab` | `In this tab: still starting (needs …).`, or `Not started in this tab yet.` |
+| `Needs setup` | the plugin's own sentence and its own button: mail asking you to connect an account, an agent whose command line tool is not installed |
+
+Where a browser half cannot be restarted on the spot, the detail reads `Reload the page to fix this. Save any unfinished edits first.` and offers **Reload** instead of **Try again**.
 
 ## Groups
 
-Bundle rows pick a `section` and a `label` in `olai.yml`: the sections are
-**Agents**, **Notes**, **Connections** and **Interface**. Plugins the vault
-defines sit in **Your plugins**; they have no YAML section because they are not
-in the YAML. Every group starts shut, its heading counting the rows
-(`5 on · 2 off`). Quiet groups sort after the others.
+Rows are grouped, each heading counting what is in it — `5 on · 2 off`, or `5 on` where none is off.
 
-Failed, pending and waiting rows, rows whose browser half failed or waits, and
-rows whose own plugin says it needs a person are listed first under **Needs
-attention**. That group starts open, tinted, with each row's detail open,
-because the detail is what to do. A group whose rows are all off by the build's
-default and none running (the test fixtures) is not listed; it appears as soon
-as one of its rows is switched on.
+| Group | What is in it |
+| --- | --- |
+| **Needs attention** | everything failed, waiting, blocked or asking for you. First, open, with every row's detail open |
+| **Agents**, **Notes**, **Connections**, **Interface**, **Test fixtures** | the plugins the build ships, by the section each is given |
+| **Your plugins** | the plugins this directory defines |
 
-A press on a heading or a chevron opens it, and that state lives on inspector
-state, the same place the door's open bit lives, so a roster redraw or the
-rebuild a switch causes cannot shut it. Pressing a switch opens the group its
-row sits in, so a row that leaves Needs attention after a fix stays in view.
+Groups other than **Needs attention** start shut, and a group you open stays open while the panel redraws. Pressing a switch opens the group the row is in, so a row that leaves **Needs attention** after a fix stays in view. Quiet groups sort after the rest, and a group whose rows are all off by the build's own default is not listed until one of them is switched on.
 
-Carrying and a row's `switchHint` are a confirm on Off, not a caption on On. The
-question opens under the row and names the plugins that stop with it by their
-labels, with **Keep on** and **Turn off**. A press on another row dismisses it.
+## Switching one off
 
-## Row faces
+A switch writes to `_olai/Settings.olai` and waits for the serve to settle. Where other plugins stop with this one, a question opens under the row naming them (`Turning it off also stops Claude Code, Codex.`), with **Keep on** and **Turn off**. Pressing another row dismisses it.
 
-A row's own plugin may hang a face in `plugins.row`, which this panel owns and
-draws. The face is drawn in the row's detail, below the row's own sentence and
-above its settings, and it owns both halves of that drawing, its words and its
-verbs; the mail row uses it to offer connecting an account. The same face
-answers `needs()`: a row whose plugin says so is filed under **Needs attention**
-with the failed and waiting ones and reads `Needs setup`, so a plugin that is
-running, faultless and still waiting on a person is not left among the healthy
-rows. A row whose plugin hung no face is drawn without one. The table is held by
-the integration that draws the panel, so a face lives exactly as long as the
-surface it is drawn on.
+A switch that cannot be written to the file wears a dashed ring, says `Resets when olai restarts` to a pointer, and carries `This switch resets when olai restarts.` in its detail. Where `Settings.olai` cannot be read at all, every switch is that kind and the panel says so above the groups: `Settings.olai can't be read, so switches here reset when olai restarts.` Settings that are broken are named, and must be repaired before another lasting press can write.
 
-Enabled engines whose adapter or CLI is missing also use this face. Their
-toggles stay on, but their rows move to **Needs attention** with the same reason
-as the disabled chat-picker entry and a live installation link. Chat owns the
-probe and offers its live reading through a declared browser service; each
-engine's component owns its own row contribution. Installing the CLI and
-switching that engine off and on refreshes just its reading. With chat disabled
-the component pends and draws no stale diagnosis.
+## A plugin's settings
 
-## Ownership
+Each setting is a control in the row's detail, labelled by its key in sentence case (`Watch held for`), with the schema's description as its tip. Four choices or fewer are buttons, more are a select, yes-or-no is a switch, and text and numbers are a compact box carrying their bounds, unit and expected shape. A row that is off keeps its settings editable.
 
-Its provider owns panel visibility and which groups and rows are open. A
-separate integration consumes
-`browser-management` and `ui-renderer.slots`, contributing through
-`layout.tools` with `desktop: "health"` and the door's `open` reading, so a
-rebuilt shell reopens the health popover and the panel with it. Removing the
-shell withdraws the rendered integration without resetting the provider's
-reading history. Removing the inspector closes its state; re-enabling creates a
-fresh activation.
+- `Enter`, or moving out of the box, saves. `Escape` puts the accepted value back and leaves the panel open.
+- A value the file sets wears a ● with the tip `set in Settings.olai`, and a ↺ beside it, labelled **Use default**, which deletes the property. A default wears no mark.
+- Text in the file that the schema refuses is drawn in an alarmed box, with the complaint and `· using <value>` under it. The reset can take the malformed property out.
+- A value olai refuses is refused before the file changes, and the reason is drawn under the control.
+- A setting with no control of its own reads `This setting can't be changed here.`
+- A box's return key says **Done**, a number box asks for the numeric keyboard, and the boxes turn autocorrect, autocapitalization and spell-checking off.
+- With no reader, a broken file or a reconnect in progress, the controls freeze with the serve's refusal in their tips. Your draft and your caret stay where they are.
 
-TWO MORE COMPONENTS, each an independent fiber under this row:
+A setting a plugin marks as a preference is drawn in the preferences panel instead, under a heading named after the plugin, and the row shows **Set in Preferences** where the controls were. That link shuts this panel and opens that one. While the plugin is off, or the preferences plugin is, the controls are drawn here as usual, so the setting is always reachable from one panel or the other ([preferences.md](preferences.md)).
 
-- **`preferences`** contributes the promoted rows to `preferences.sections`. It
-  names no plugin: it reads the roster (`browser-management`) for the plugins
-  that are running and marked something as a preference, and holds ONE HEADING
-  PER PLUGIN IN A SCOPE OF ITS OWN (`src/promoted.ts`) — a registration is a
-  claim on a key, so the scope is what gives it back: a plugin switched off in
-  another tab has its heading released with no reload, and switching it back on
-  claims the key again rather than dying on one it still held. One finalizer on
-  this component closes whatever is left. The heading's words are a reader (the
-  build's label, off the roster) and the rows are the same `Control.tsx` the
-  panel's own rows wear. The Solid subscription to the roster is acquired under
-  this component's own owner and released with it.
-- **`preferences-door`** holds the optional `preferences.open` service for as
-  long as that panel is up. When it is absent the component is `waiting`,
-  nothing is held, and `tools` draws the promoted controls itself.
+## What else a row's detail holds
 
-Neither puts a live value across a package boundary through an import: the
-roster arrives through `browser-management`, and the panel's door arrives
-through the `preferencesPanel` tag and this package's own `heldService` holder.
-Disabling the inspector withdraws both without resetting the settings reader or
-the inspector's state.
+| Part | What it is |
+| --- | --- |
+| the plugin's own face | what that plugin asks of you, in its own words and with its own buttons |
+| the environment it reads | each reading labelled by its description, showing its value or **Not set**, and naming its variable. A secret shows only **Set** or **Not set** |
+| **Short name** | the name you type in the settings file, drawn where the line reads by a different one |
+| **Saved in** | a link to this plugin's node in `Settings.olai` |
 
-AND THE VERB THE PANEL OFFERS lands where the settings are: a consumer's
-`configuration.open(name)` for a row whose every leaf is promoted opens the
-preferences panel instead of revealing a link to it. Asking for a setting should
-reach it, not a door to it.
+## A plugin this directory defines
 
-The host adapter provides roster readings, reports, switching, configuration
-writes and retry without handing over a notebook client or importing this
-plugin. Cell subscriptions are acquired under the consuming component's Solid
-owner. The inspector reads build-supplied label, section, quiet, opt-in and
-switch-hint facts through that capability rather than importing the bundle that
-loads it.
+Its row carries a link to that plugin's own page at `/plugins/<word>`, which is where its files, its diff and **Turn on** are. The detail here holds the source and the same two verbs for somebody working down a whole serve's rows: **Approve this version** and **Approve always**, marked ` (not approved)` until you say otherwise.
 
-Approval belongs to `vault-plugins`. This panel reaches one verb of it through
-a declared service and draws the same block the plugin's page does: the source,
-**Approve this version**, **Approve always**, and the refusal when the reading
-moved under the reader. A plugin nobody has approved reads `Needs approval`
-under **Needs attention**, and its detail also links to the page where the same
-decision is made with the README and what it uses beside it. With that row's
-browser provider absent, neither the block nor the link is offered and the
-inspector remains usable; no host approval binding or hard dependency keeps the
-vault-plugins provider alive.
+If the folder is edited while you are reading it, both verbs disarm and the block says `This changed while you were reading it. Above is what it says now.` **I have read it** arms them again on what is now on screen. Both doors send back the version they drew, so neither can approve source that moved.
 
-## Layout
+> Approving a plugin belongs to the `vault-plugins` plugin ([vault-plugins.md](vault-plugins.md)). With its browser half absent, an approval is refused and nothing is approved; the rest of this panel keeps working.
 
-On a desktop the panel is a centred box, at most 30rem wide; on a phone it is a
-sheet from the bottom of the screen with 44px rows. The header names the panel
-and links to `_olai/Settings.olai`.
+## The Server section
 
-## Settings
+Last in the panel, starting shut, with the machine's name in its heading.
 
-Every schema leaf is a control in its row's detail, labelled by its key in
-sentence case (`Watch held for`); the schema description is its tooltip. Four
-or fewer choices use segmented buttons, longer choices a select; booleans use
-switches and text/numbers use compact inputs. Numeric bounds, units and format
-hints stay available. Off rows keep their settings editable.
+| Field | What it says |
+| --- | --- |
+| **Address** | the host and port this serve answers on |
+| **Machine name** | the name of the machine it runs on |
+| **Log format**, **Log level** | the serve's own settings, with the same controls as a plugin's |
+| **Allowed origins** | the origins a browser may call from, or **None** |
+| **Access token** | **Set** or **Not set**. The token itself is never drawn |
+| **State folder** | `$XDG_STATE_HOME/olai` |
+| **Saved in** | a link to the serve's node in `Settings.olai` |
 
-**A PROMOTED LEAF IS NOT DRAWN HERE.** A config schema leaf a plugin marks as a
-preference (`preference` on the schema annotation, read by
-`@olai/plugin-api/configuration`) is drawn in the preferences panel instead,
-under a heading named after the plugin, and this row shows one **Set in
-Preferences** link where those controls were — the link shuts this panel and
-opens that one through `preferences.open`. Nothing is imported to know this: the
-flag travels on the roster's `configurationValues`, and the link appears only
-while the plugin runs and the panel that draws the row is up. While the plugin
-is OFF, or the preferences row is disabled, the controls are drawn here exactly
-as they were, so the setting stays editable from whichever panel can move it.
-The inspector's own `configuration.open(name)` still lands on the link, which is
-the row's first control when every leaf is promoted.
+## Arriving from somewhere else
 
-A file-authored value has a ● with the tooltip `set in Settings.olai` and a ↺
-reset beside it. Default values have no marker. Invalid file text appears in an
-alarmed input with the schema message and effective default beneath it; its
-reset can remove the malformed property. Enter or blur saves; Escape restores
-the accepted reading without closing the panel. Drafts survive unrelated roster
-updates and a caret comes back with them: the rows are KEYED, so a change
-elsewhere rebuilds only what changed; a control the roster froze keeps its draft
-in the mounted control and refuses the write that the blur would otherwise make
-(`onBlur` reads `takingOfflineFocus`, the same flag the outlines' editors read,
-so a blur the APP caused is not a save); and the shell hands the keyboard back
-when the reconnect dialog closes (`@olai/web/client/connection/focus.ts`), which
-the browser alone cannot do once the control was disabled under the caret.
+Another plugin can send you to one row: [kolu.md](kolu.md)'s watch wrench does. The row's group and detail open and the caret lands in its first control. Where every one of that row's settings is a promoted preference, you land in the preferences panel instead, which is where those controls are.
 
-A knob's box says **Done** on its return key, which is what Enter does there,
-and a number knob asks for the numeric keyboard; a text knob asks for no
-special one. A setting is a name rather than prose, so the boxes turn off
-autocorrect, autocapitalisation and spell-checking.
+## When the inspector is off
 
-`plugins.configure` is a browser procedure. It validates the leaf before an
-ordinary file write, creates a missing namespace or section child, and waits
-for the revision and follower. **Use default** deletes the property. An invalid
-value is refused before the file changes. No reader or a broken file freezes controls with
-the server’s refusal in their tooltips; a knob never falls back to session state.
-
-Operator environment readings are read-only: each is labelled by its
-description, shows its value or **Not set**, and names its variable. Secrets
-show only **Set** or **Not set**. Wrapper-supplied build defaults are hidden.
-When the node exists, `Saved in` links to it. An optional Links integration
-supplies that link and withdraws it when navigation stops. Inspector state
-survives the renderer’s replacement.
-
-## Server
-
-The **Server** section closes the panel and starts shut; its heading shows the
-machine name. It lists Address (host and port), Machine name, the process's
-`olai` settings (Log format and Log level, with the same controls as a plugin's),
-Allowed origins, Access token (**Set** or **Not set**; the value is never
-published) and State folder.
-
-## Opening a row from elsewhere
-
-The inspector offers a scoped `configuration` service with an `open(name)`
-verb. It opens the row's group and detail and moves focus into its first
-control. Kolu consumes this through an optional component for its watch wrench;
-losing that provider removes the wrench without stopping the feed. No live
-inspector state crosses the package boundary through an import.
-
-## Switching
-
-A switch writes `on` through the directory’s ordinary write door and waits for
-reconciliation. The vault provider and configuration reader stay session-only,
-marked by a dashed ring with the tooltip `Resets when olai restarts` and the
-note in their detail, so either can be restored from the panel. When the reader
-is absent, every switch is session-only and the panel says so above the groups.
-Broken configuration is named and must be repaired before another durable
-press can write.
-
-**A plugin the vault defines has a durable switch too**, like every built row:
-its `on` is a property on its own node in `_olai/Settings.olai`, so a plugin
-somebody turned off is still off after a restart. It used to be a word in the
-server's memory, which meant a press that looked exactly like this one quietly
-came undone at the next boot.
-
-The follower ignores file `on` values on the vault and configuration reader
-owners, warning once per row and file. Their session switches remain usable
-without editing policy on disk, including after the reader reconnects.
+The **Plugins** door, the panel and its switches go. The serve goes on running, starting and stopping plugins exactly as it does, and `_olai/Settings.olai` still says what runs.

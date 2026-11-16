@@ -1,156 +1,122 @@
 # Navigation
 
-Navigation owns browser addresses, history, open panes and focus. Its state
-provider starts without a layout; replacing the layout preserves that state.
-The provider owns scroll restoration and keyboard/IME observers and releases
-them when navigation is disabled.
+`navigation` owns the address in the browser's bar, the history behind Back and
+Forward, the panes a page is drawn in, and the command palette. Every link in
+olai is an ordinary anchor, and this row answers the press on it.
 
-The roster-dependent half of the URL grammar is on `Router.routes`, which
-`navigation.state` carries: printing a plugin's URL, parsing one, finding the
-mounted tenant behind one, and the three narrowing readings that ask a tenant
-whether its page takes a filter. All four read the claim table this row's
-`renderer` component settles out of `app.route`, so a row that spells an
-address names this service and a route whose tenant has left still spells the
-front page. The PURE grammar — the constructors, the address reading,
-`hrefOfPlain` for a route no tenant owns — stays a static contract with no
-roster in it.
+## The addresses you see
 
-Two more of this row's verbs cross the same way. `navigation.palette` is what
-a sibling may do to the ⌘K box — open it, open it at a level (`showAt`), ask a
-question in it, put one down, shut it, and the two readings behind them — which search's header control and
-the pins rename both spend. `navigation.gestures` is the arbiter that eats the
-synthetic click a touch browser makes after a long press, which the outline's
-row menu asks for. Neither is on the row's own `needs`: history and focus
-activate without a renderer, so what waits for one is the `renderer` component
-and not this row.
+| Address | The page |
+| --- | --- |
+| `/` | the front page: whichever outline is found first |
+| `/notes/plan.olai` | a file |
+| `/notes/plan.olai#<id>` | that outline, with the row revealed |
+| `/README.md#install` | a document, at that heading |
+| `/#<id>` | a row, revealed wherever it is |
+| `/zoom/#<id>` | the row's own page |
+| `/trash` | the Trash |
+| `/s/…` | a saved layout of panes |
+| `?q=…` | the page you are on, narrowed |
 
-Content handlers register in `navigation.content`. A route remains in browser
-history when its provider disappears and can be handled again when it returns.
-Navigation's own handler draws self-drawn plugin pages ([Plugin
-pages](#plugin-pages)).
-The public `page(index)` outlet lets another layout draw the same content
-without importing the navigation implementation.
+A plugin's page spells its own words — the journal's `/agenda` is one. A `/s/`
+address naming one literal file is still that file; encoded pane segments,
+several segments, or an explicit tree describe a workspace.
 
-The command palette contributes to `layout.overlays`. Feature integrations
-register contextual actions and prefix handlers in `navigation.palette-adapters`;
-outline editing, pins and capture own the writes behind those actions. Sidebar
-and layout geometry do not own navigation state.
+`/#<id>` means reveal: the row is selected where it is already visible in the
+pane, and otherwise its file opens at that row. Everything that points into a
+place reveals — breadcrumbs, `see` and blocker references, backlinks, search
+hits, property chips and transcript references. The bullet, **Zoom in** and a
+conversation's rows open `/zoom/#<id>` instead, which is the row's own page.
 
-Palette prefixes are scoped contributions. A provider supplies its character,
-labels, execution, result and continuation; navigation parses only active
-contributions. Disabling capture removes its command and makes `+` ordinary
-query text. Duplicate prefixes are reported and resolved in contribution order.
-The keyboard-settling observer belongs to navigation, so keyboard workflows and
-their observable completion work with alternative layouts too.
+When a plugin leaves, its page unmounts and the open addresses are read again
+against the claims that remain. The address stays in the bar and in history, so
+the page comes back when the plugin does, and a link it cannot read spells the
+front page rather than nothing.
 
-## Plugin pages
+## What a click does
 
-A plugin owns a page by registering `app.route` from its browser half. The
-entry carries one grammar — `claims` (exact words and prefixes, checked against
-every other mounted claim), `parse`, `href`, `breadcrumb` and `narrowable` — and
-one of two kinds of face, each with its own typed definer in `./routes`:
+| Gesture | Where the page opens |
+| --- | --- |
+| a click, or `Enter` | in place |
+| `Alt` and a click | in a pane on the right |
+| `Alt` + `Shift` and a click | in a new pane inserted beside this one |
+| `Ctrl`, `Cmd`, `Shift` or a middle-click | the browser's own, untouched |
 
-| Kind | Definers | Face | Hosted by |
-| --- | --- | --- | --- |
-| node page | `defineAppRoute` / `defineAppPage` | `{ page: Shown, drawn: Drawn, today }`, from a `request` into `@olai/format`'s `PageRequest` and a `stream` answering a `PageReading` | outlines, whose `navigation.content` handler claims only node-page routes |
-| self-drawn page | `defineSelfDrawnRoute` / `defineSelfDrawnPage` | `{ value, filter, narrow }`: the route's own value, its `?q=`, and the verb that replaces the pane's address with the same page narrowed (so the page may draw its own filter box) | navigation, through the content handler its `renderer` component contributes beside the claim table it settles |
+The pane a link is drawn in is the pane it acts on; chrome outside every pane
+acts on the focused pane. A link to a fragment of the page you are on stays
+with the content that drew it, and so do `download` links and links aimed at
+another window. The same reading answers a hover preview
+([link-preview.md](link-preview.md)) and the tab strip's link menu
+([tabs.md](tabs.md)), so all three agree about where a link goes.
 
-Each definer is the one place its kind's value type is erased; consumers never
-cast. The kind rides on the route's `source`, so a host can tell which routes
-are its own even after the tenant has left. Both kinds get the same
-treatment from everything that keys off `Route`: tabs (the glyph is `◷` for a
-node page, `◇` for a self-drawn one), pane labels and breadcrumbs, link
-intents, the palette and lanes. A self-drawn page names its own services (a
-clock, a wire) as any component of its plugin does; navigation hands it nothing
-else. Its host reports the pane as never pending: the page owns its own loading
-state and draws it.
+## When a page cannot be opened
 
-When a tenant leaves, its page unmounts and the open addresses are read again
-against the claims that remain — usually the front page, since a plugin's path
-names no file. The address stays in the bar and in history, so the page comes
-back when the tenant does. A pane still holding a departed tenant's route draws
-`Page not found` with `Go home`, whichever kind it was.
+| The pane says | Why |
+| --- | --- |
+| `Loading…` | the directory is still being read |
+| `Finding…` | a reveal is still looking for the row's file |
+| `Page not found` — `There is no node at this address.` | the row does not exist |
+| `Page not found` — `There is no document named notes/plan.md.` | the directory holds nothing by that name |
+| `Page not found` — `There is nothing named notes/plan.` | the name carries no suffix olai knows |
+| `Page not found` — `olai can't open .xyz files.` | no row claims that suffix |
+| `This page can't be opened` — `The plugin that opens documents is turned off.` | the file is served and its page's row is off |
+| `This page can't be opened` — `The plugin that shows it is turned off.` | the plugin whose page this address is has left |
+| `This page can't be opened` — `The outline could not say where this node lives.` | the reveal could not be answered |
 
-## Links
+Every one of them but `Loading…` offers **Go home**.
 
-Content publishes real anchors (`<a href={routes.href(route)}>`) and nothing
-else; navigation owns every press on them. One delegated click listener,
-acquired by the navigation activation under `Effect.acquireRelease`, answers
-each `a[href]` the router can read. `intentOf` (`@olai/surface`'s `press.ts`) is
-the one reading of the gesture: plain click or Enter goes in place, Alt opens to
-the right, Alt-Shift inserts a new pane. Ctrl, Meta, Shift, middle-click and a
-press something else already prevented return `null` and stay the browser's.
-The pane a link is drawn in (`data-pane-id`) is the pane it acts on; chrome
-outside every pane acts on the focused pane.
+## Back and Forward
 
-`targetOf(router, anchor)` is the one reading of the destination, shared by the
-listener, link previews, the tabs link menu and the `.html` frame bridge. It
-reads the authored `href` before the browser expands it: a raw `#fragment` stays
-with the content that drew it (Markdown scrolls a note's footnote in place
-without touching the address), and so do `download` links and links aimed at
-another browsing context. Everything else resolves through `routes.destinationIn`,
-which answers either a pane route or a whole saved layout (`AddressTarget`); a
-`Route` itself is always one pane's place. `follow(target, intent)` performs
-the press, so a frame that forwards an intent is answered without synthesizing
-modifier keys. A shelf layout carrying `data-link-intent="new-tab"` asks the
-tab-opening capability tabs leases to navigation for its activation; without
-tabs it opens in place.
+Back and Forward walk the window's history. A row that keeps several workspaces
+open, such as the tab strip ([tabs.md](tabs.md)), names a lane for the one in
+front, and Back and Forward then walk that lane's entries alone. A traversal
+that meets another lane's entry keeps going in the same direction without
+drawing anything, and returns to where it started when this lane has nothing
+beyond it. Nothing on screen changes while it travels.
 
-`/#id` means one thing: REVEAL. If the node's row is visible in the pane, it is
-selected there with no history entry; otherwise the node's current file opens
-at that row. `/zoom/#id` is the node's own page, which the bullet, Zoom in,
-and chat's conversation rows (Chats, Needs you, the Agents palette, and the
-notification's reveal) use — opening a conversation is opening that page.
-Everything that points INTO a place keeps revealing: breadcrumbs, `see` and
-blocker refs, backlinks, search hits, property chips, transcript references and
-"Show in outline ›". A same-document heading link carries `/document.md#slug`,
-so a plain click records the heading in the address and the landing scrolls the
-owning pane.
-Stored tabs and stamped history written before `/zoom/` existed are read as
-zoom at their persistence boundaries; current links use the current grammar.
+History is per document, so after a reload every entry written before it is
+dead, and each browser tab's history starts empty. Bringing a workspace forward
+is not a history step.
 
-A followed node link keeps the pane's page until the node lands, then pushes
-the row's address; a `/#id` already in a pane (the address bar, a split)
-resolves in place of its own entry (`src/reveal.ts`). Either way it is one step
-of history. Each pane reads the node's home once per route and provider through the optional
-`nodes` component, which declares `outlines.references`; the reading belongs to
-the pane's effect, so moving the pane or withdrawing the provider disposes it,
-and a returning provider is asked again. The pane lands when the claim table
-names the home file, however late that is. Nothing here retries: outlines
-re-asks a call its wire dropped when the next connection is established. While
-a reveal is unresolved the pane says “Finding…”; a node that does not exist
-says “Page not found”, and an outline that cannot be asked says the page can't
-be opened — never the zoom page.
+## The palette
 
-## Palette levels
+`Cmd` + `K` opens **Command palette**; `Cmd` is the modifier on a Mac and
+`Ctrl` elsewhere. The empty box says what it takes: `Jump`, `toggle`, and each
+contributed prefix in that plugin's own words. Typing filters the rows this tab
+already holds, and the nodes and documents a query finds arrive under them, so
+a late answer never pushes a row out from under the cursor.
 
-A palette row can open a LEVEL instead of acting at once. The row is an
-ordinary `PaletteItem` contributed through `navigation.palette-adapters`; its
-action is `{ kind: "level", level }`. Pressing it, or Enter on it, replaces the
-list with the level, puts a crumb for it before the input, and empties the box.
-Backspace on an empty box goes back one level. Pressing a crumb closes that
-level and every level after it, which is the way back on a phone. Escape closes
-the palette; reopening starts at the root.
+| Row | Hint |
+| --- | --- |
+| **Go home** | `Open the first outline` |
+| **Go to Trash** | `Deleted items` |
+| **Toggle sidebar** | `Cmd` + `\` |
+| **Keyboard shortcuts** | `All keys` |
+| **Reset sidebar width** | `Back to default` |
+| **Close pane** | `Cmd` + `Shift` + `W` |
 
-The pure rules are `palette/levels.ts`. The owner of the open levels is
-`palette/level-owner.ts`, and the drawing of an open level is
-`palette/LevelView.tsx`; `palette/Palette.tsx` composes them with the root list
-and the box. There are two kinds of level:
+Other plugins add rows of their own, and prefixes: a character that takes the
+rest of the line, such as capture's `+`. Switch that plugin off and its
+character is ordinary query text again. Where two plugins ask for one
+character, the first keeps it and the clash is reported.
 
-- A **group** (`kind: "group"`) lists `children`, which are ordinary palette
-  rows: they route, run, write, or open a further level, with no depth limit. A
-  static list is filtered by the typed text. A function
-  `(scope) => Accessor<rows>` does its own matching against `scope.typed()`.
-  Rows may carry a `section` heading and a second-line `place`; the level may
-  show a non-interactive `hint`.
-- A **value** level (`kind: "value"`) makes the box a free-text field with its
-  own `placeholder` and `initial` text. Its `options` are not filtered by typing.
-  Exactly one is chosen (the first, or `chosen`), and the arrows move it. Enter,
-  a press on an option, or the footer's submit button calls
-  `submit(text, option, signal)`. An optional `validate` returns a sentence
-  that is drawn in the palette's refusal line, and the level stays up. `submit`
-  answers like a `run` row (`keepOpen`, `said`). While it is in flight the
-  level shows that it is busy and refuses another submit.
+### Levels
+
+A palette row can open a level instead of acting at once. The list is replaced
+by the level, a crumb for it goes before the box, and the box empties.
+`Backspace` in an empty box goes back one level, clicking a crumb closes that
+level and every level after it, and `Escape` closes the palette; reopening
+starts at the root. Inside a level the box belongs to the level, so a prefix
+character typed there is a character.
+
+| Kind | What it draws |
+| --- | --- |
+| a group | a list of ordinary rows, which route, run, write or open a further level, with no depth limit. A static list is filtered by what you type; a list a function answers does its own matching |
+| a value | a free-text box with its own placeholder and starting text, and options the arrows move between. `Enter`, a click on an option or the submit button sends it |
+
+A value level's `validate` returns a sentence, which is drawn in the palette's
+refusal line with the level still up. While a submit is in flight the level
+says it is busy and refuses a second one.
 
 ```ts
 yield* slots.contribute(paletteAdapters, { items: () => [{
@@ -167,266 +133,90 @@ yield* slots.contribute(paletteAdapters, { items: () => [{
 }] })
 ```
 
-At the root nothing changes. A group row is found by its own label like any
-command, its children are not searched from the root, and prefixes, questions
-and `taking` gating behave as before. Inside a level the box belongs to the
-level: a typed prefix character such as `+` is text. A palette question (`ask`) still stands over
-an open level. A value level differs from a question in that it is
-contributed as a row, has options, and can be nested and opened at a path;
-`Asking` remains the way a run row asks one more thing on the spot.
+A group row is found at the root by its own label, like any command; its
+children are not searched from the root. `showAt(path, text?)` opens the
+palette already drilled into a path of row ids, and puts `text` in the deepest
+level when the whole path resolves; where the path stops resolving, the palette
+opens at the deepest level that does.
 
-`navigation.palette`'s `showAt(path, text?)` opens the palette already drilled
-into a path of row ids, never labels, and puts `text` in the deepest level when
-the whole path resolves. Each id is looked up in the rows the level below lists
-at that moment, so `showAt` resolves through levels whose rows are listed
-synchronously. A level whose rows a function answers later (a server search)
-can be the last step of a path, but not a step in the middle of one. If the
-path stops resolving (the contributing plugin is off), the palette opens at the
-deepest level that does.
+When the plugin behind an open level goes, that level and everything after it
+stop being drawn. The palette stands at the deepest level still there and says
+which one it dropped. A draft you typed, the option you chose and a submit in
+flight survive the overlay being redrawn by an unrelated plugin.
 
-Ownership:
+> Closing or popping a level mid-submit stops the palette listening; it does
+> not undo what the submit already did elsewhere. A contributor whose submit
+> goes on to navigate or open something must check `signal.aborted` first.
 
-- The open path (`Step`s: row id, crumb, typed text, chosen option, busy flag,
-  an `AbortController`, the level the step opened, and the adapter its path
-  came from) is `level-owner.ts`'s memory, owned by navigation's activation
-  and reset with it (`resetLevelMemory`, beside the palette's own memory). A draft typed in a level, its chosen option and a submit in
-  flight therefore survive the overlay being redrawn when an unrelated plugin
-  changes. A redraw rebuilds only each step's rows from the level it kept; it
-  does not look the row up again, so a level reached through rows that arrive
-  later is still there.
-- Each step's rows are computed in a Solid root (`Live`) made by
-  `createLevelOwner`, which the palette overlay (the `palette` component)
-  calls once per drawing. The roots are created when the level is opened or
-  the overlay is redrawn, and disposed when the level is popped, the palette
-  closes, the level stops standing, or the overlay goes, through the owner's
-  single `onCleanup`. The owner reaches the box only through a `LevelHost` of
-  callbacks; it holds no root-list or box state. A level function's
-  memos, subscriptions and `onCleanup` live in that root.
-- A step's controller is its lifetime. Popping, closing, withdrawal or
-  navigation's own withdrawal aborts it, and the palette drops any answer from
-  that submit: it does not close, speak, or move the palette the person is now
-  looking at. The `signal` passed to `submit` and to a level function is that
-  controller's, so the contributor can stop work no one is waiting for.
-- **Popping or closing mid-submit does not undo what the submit already did
-  elsewhere.** The palette only stops listening. A contributor whose submit
-  goes on to act on its answer (navigate, open a panel, say something
-  somewhere else) must check `signal.aborted` first and do nothing if it is
-  set.
-- The open path is checked against live contributions. The root of the path
-  stands while its adapter is still contributed, still `available()`, and still
-  offers that row id as a level. A deeper level stands while its adapter is
-  contributed; its parent's rows may change under it without anything being
-  withdrawn. When a level stops standing, it and everything after it stop being
-  drawn immediately and are then disposed. The palette stands at the deepest
-  level still there and says “… is no longer available”. The adapter coming
-  back, becoming available again, or offering the row again does not reopen
-  the level. A redraw applies the same check to the remembered steps.
+### How the panel behaves
 
-`palette_levels.feature` drives all of this through the maintained
-`test-palette` fixture ([test-palette.md](test-palette.md)), on desktop and
-phone.
+The palette and the keyboard shortcuts sheet it opens are native dialogs. The
+page behind is inert (no click, no caret, no tab stop), so the keyboard cannot
+leave the panel. `Escape` is a close request the browser offers the topmost
+panel, so a question standing in the box answers it first and the dialog closes
+only once nothing is standing. A press outside puts it away the same way.
+Neither can be opened while the offline freeze is up.
 
-Touch ghost-click suppression belongs to the navigation activation. Disabling
-navigation removes its capture listener and clears an armed gesture; retained
-gesture callbacks cannot rearm the departed owner.
+The caret goes back to whatever held it when the palette opened, unless the
+row you chose moved you, in which case the page keeps what it revealed.
 
-The palette shortcut belongs to navigation's activation, not to the overlay
-component. A shortcut received before layout renders is retained as palette
-state and opens the focused input when its overlay arrives. Closing through
-the shortcut, Escape or a command uses the same renderer cleanup for its
-query. Removing navigation releases the shortcut listener; changing layout
-does not create a gap in keyboard handling.
+## Chords a plugin registers
 
-### The palette is a modal the browser owns
+`app.keys` takes a chord, dispatched after olai's own table and by the same
+rule: `Cmd` on Apple and `Ctrl` elsewhere, no `Alt`, and `Shift` matched
+exactly. With `Shift` held, `.` and `,` match by the key they sit on.
 
-The palette (`palette/Palette.tsx`) and the keyboard-shortcuts sheet it opens
-(`palette/Shortcuts.tsx`) are native `<dialog>` elements opened with
-`showModal()`. Everything an overlay used to rebuild by hand is the platform's
-as a result, and none of it is spelled in this plugin any more:
+A chord whose key and `Shift` olai's own table already answers is refused with
+a console warning naming both, and between two plugins the first keeps it.
+Registered chords are listed in the shortcuts sheet under `Added by plugins`,
+in their own words. They are answered only while the palette's component is
+drawn, so with the layout row off a registered chord does nothing.
 
-- the page behind is **inert** — no press, no caret, no tab stop, nothing for
-  a screen reader to wander into — and the keyboard cannot leave the panel, so
-  there is no focus trap;
-- the dim is `::backdrop` rather than a full-screen button, so there is no
-  scrim element and no `palette-scrim` test id;
-- neither carries `role="dialog"` or `aria-modal`; a native modal already is
-  one, and each is named with `aria-label` instead;
-- neither spells a `z-index`. `showModal()` puts them in the TOP LAYER, above
-  every stacking context at once. They enter it through one door
-  (`web/src/client/layer.ts`'s `enterTopLayer`), which is what keeps the
-  surfaces claiming the whole app a list rather than a habit. Neither can be
-  opened while the offline freeze is up — a chord is swallowed and the page is
-  inert — so the freeze is always the last one in;
-- **Escape** is a close request the browser offers the topmost modal, so the
-  dismissal stack orders itself. A question standing in the box answers the
-  key first (the palette refuses the request and drops the question); with
-  nothing standing, the dialog closes and its `close` event is the one place
-  the open signal is written;
-- the caret goes back to whatever held it when the palette opened, and the
-  palette does that itself. The platform's hand-back is decided at
-  `showModal()` and cannot be declined afterwards, so the invoker is taken off
-  the keyboard BEFORE the layer is entered and `handBack` returns it on close
-  — unless the reader MOVED, in which case the page keeps whatever it has
-  revealed. Moving is read both ways: a `route` row says so, and a `run` whose
-  own work navigated is caught by comparing where the reader is now against
-  where they were when the panel opened. The shortcuts sheet opens only once
-  this hand-back has happened, so the control it records is one that is still
-  in the page;
-- a press outside puts it away, as a close REQUEST rather than a close:
-  `closedby="any"` says so where the browser has it, and
-  `web/src/client/dismiss.ts`'s `lightDismiss` carries the rest by measuring
-  the pointer's position against the panel's own rectangle and dispatching a
-  cancelable `cancel` — Safari has no `closedby` at all, and a question
-  standing in the box must answer a backdrop press the same way on every
-  engine.
+## What a page is called
 
-Scroll containment for every modal in the app (`dialog:modal` and
-`dialog::backdrop`) is one rule in `appearance/src/chrome.css`; nothing locks
-`html` or `body` overflow.
+`Routing.label(route)` is a page's short name: `Home`, `Trash`, a row's id, a
+file's path, or a plugin page's breadcrumb.
 
-File pages contribute to `navigation.pages`, keyed by row id or `holds`.
-Navigation reads the current vault Claims cell and chooses the exact kind
-before the `holds` fallback. Outlines contributes once for every node-holding
-format. Ordinary computed routes continue through `navigation.content`.
+`Routing.name(route)` is what a whole document goes by: the stem for a kind the
+directory keeps, `garden` for `garden.olai`, and the filename with its suffix
+for anything else, `q3.pdf`. It answers nothing for a page that is not a file.
+The tab strip and a pane header both read `name` and fall back to `label`.
 
-An unclaimed file address says that the directory holds nothing by that name
-and that no row claims its suffix. A held file with no page contribution names
-the claiming row whose browser page is unavailable. Addresses do not remember
-a departed suffix-to-row mapping. Trash and Agenda can name the configured
-outline row when it is off; Inbox and Pins explain that state in their sidebar
-entries while their files remain ordinary addresses.
+## What other plugins contribute
 
-Saved layouts use the shared `destinationIn` reader and `layoutHref` writer. A literal single file such as `/s/notes.olai` remains a file; encoded pane segments, multiple segments, or an explicit tree describe a workspace. Shared title recognition, shelf rows, hover previews and tab menus all use that reader. `Router.open(workspace)` replaces the workspace in one history push and records its landings. The pure `savedLayout(workspace)` transformation retains ordered pages and discards saved geometry and focus. Ordinary link intent also applies to layout anchors: Alt opens the pages to the right, Alt+Shift inserts panes, and browser modifiers remain native.
+| Location | Takes |
+| --- | --- |
+| `app.route` | a plugin's own page: its `claims`, `parse`, `href`, `breadcrumb` and `narrowable`, plus a face. A node page hands over a reading of rows, which outlines hosts; a self-drawn page draws itself, and navigation hosts it |
+| `navigation.pages` | the page for a file kind, keyed by the claiming row's id or by what it holds |
+| `navigation.content` | a handler for a computed route |
+| `navigation.palette-adapters` | contextual palette rows and prefixes |
+| `navigation.link-previews` | a preview of where a link goes |
+| `app.keys` | a chord |
+| `app.palette` | a row that opens an address |
 
-## Lanes: history for one tab at a time
+A route's kind rides on it, so tabs, pane labels, breadcrumbs, link intents and
+the palette treat both kinds alike, and a host can tell its own routes apart
+after the plugin has left. A pane still holding a departed plugin's route draws
+`Page not found` with **Go home**, whichever kind it was.
 
-The browser keeps one history stack per window. A row that keeps several
-workspaces open (the `tabs` row) names a **lane** for the one in front with
-`Router.switchLane(lane, to?)`, and from then on Back and Forward
-walk only that lane's entries. Every entry the router writes carries its key,
-the lane in force and its position in the stack (a push is one further, a
-replace keeps the position). A traversal that reaches another lane's entry
-keeps travelling in the same direction without drawing anything, and when none
-of this lane's entries lies beyond it, it returns to the entry it started from.
-The decision is the pure `seek` in `src/lanes.ts`.
+`navigation.state` carries the roster-dependent half of the grammar: printing a
+plugin's address, reading one, finding the plugin behind one, and whether a
+page takes a filter. `navigation.palette` is what a sibling may do to the box —
+open it, open it at a level, ask a question in it, shut it.
+`navigation.gestures` eats the synthetic click a touch browser makes after a
+long press. The runtime these sit on is
+[../architecture/plugin-system.md](../architecture/plugin-system.md).
 
-While a traversal travels, nothing on screen changes — no workspace, no landing,
-no scroll — including when it bounces home. It counts the entries it has moved
-past, so it can always return. An entry it cannot place — one the browser made
-mid-travel, or one written by a build before positions, still in the stack after
-an upgrade — is dead, and the traversal goes home from it rather than on past
-it, because nothing says whether anything of the lane lies beyond. So a
-traversal only ever moves toward a live entry it knows of or back to where it
-started, and always finishes. A
-`switchLane` asked for mid-travel updates the lane and the page at once, and
-writes the entry once the browser is back on it.
+The palette's levels are driven end to end against the maintained fixture in
+[test-palette.md](test-palette.md), on a desktop and on a phone.
 
-`switchLane` is not a history event. It brings an existing live lane forward
-with that lane's current workspace; `to.workspace` seeds only a lane that has
-not been shown. The current entry takes that lane's address and reuses `to.key`
-when supplied for scroll restoration. The first named lane adopts the window
-lane and its mounted pages. `forgetLane` marks its history entries dead and
-disposes a background lane immediately. A forgotten front lane remains live
-until `switchLane` installs its replacement; calls in between still update its
-readings and page. `switchLane(null)` adopts the front lane as the window's,
-disposes all others, and restores ordinary window history.
+## While a page is still answering
 
-Navigation owns each lane's reactive root, workspace, landings and reports.
-`lanes()` returns stable lane objects. Each provides page navigation verbs scoped to its own workspace.
-Only the declared navigation service exposes the lane roster, entry key and
-switch/forget controls; page routers cannot alter other lanes. A background verb changes only that lane; only the
-front lane writes window history. Every lane reparses routes when the roster
-changes. The service's own readings still describe the lane in front.
+A pane keeps the page it is drawing until the next one answers, with
+**Loading…** as the cue. Links, Back and search stay usable, so you can leave a
+request that failed or is being held.
 
-Each lane exposes stable `panes()` objects with `id`, reactive `index()`,
-`route()` and `width()`, plus `focusIndex()` and `split()` slices. Navigation
-keeps ids through navigation, reorder and neighbour removal. Address reparses
-reserve address matches first, using position to break duplicate-address ties
-and then to reuse remaining owners for changed addresses at equal counts.
-Unchanged addresses reuse their Route objects. Pane ids are runtime identities,
-not URL or storage fields. Reports and page memories use those ids.
-
-`navigation.page()` honours an enclosing `RouterProvider`; without one it uses
-the front lane. `usePane()` supplies the id, reactive index and mounted element.
-`useShown()` reports whether the page is currently drawn (including narrow-pane
-and folded-chat visibility). A lane is shown only while it is in front and
-at least one registered layout declares content ready. Each registration has its
-own release token; with no registrations the front lane is shown. Outside a lane,
-the service router reports shown even while page content is loading. Outside a visibility provider, `useShown()`
-falls back to the enclosing router and then to true if there is no router.
-Page listeners, overlays, focus and scrolling must honour that reading.
-
-History is per document. The router only knows the entries this document wrote,
-so after a reload every entry before it is dead while a lane is in force, and
-each tab's history starts empty. With no lane in force nothing reads the table
-and the router behaves as it always did.
-
-## Chords plugins register
-
-The palette's key handler dispatches the chords other rows register in
-`app.keys`, after the core table in `@olai/web`'s `client/keys.ts` and with the
-same rule: ⌘ on Apple and Ctrl elsewhere, no Alt, Shift matched exactly. With
-Shift held, `.` and `,` match by the key they are on. A chord whose key and
-Shift the core table already answers is refused with a console warning naming
-both, and between two plugins the first keeps it. Registered chords are listed
-in the shortcuts sheet under "Added by plugins", in their `said` words. They are
-answered only while the palette's component is active: it names `layout.shell`
-and the renderer, so with the layout row off a registered chord does nothing.
-
-`Routing.label(route)` is a page's short name: `Home` for the front page,
-`Trash`, a node's id, a file's path, or a plugin page's breadcrumb.
-`Routing.name(route)` is what a whole document goes by: the files sidebar's
-name for it, through `@olai/format`'s `nameOf` over the vault's claims — the
-stem for a kind the vault keeps (`garden` for `garden.olai`), the filename with
-its suffix for any other file (`q3.pdf`) — and nothing for a page that is not a
-file or before the claims are read. The tab strip and the pane header both read
-`name`, and fall back to `label` where it answers nothing. So a pane on
-`garden.olai` is headed `garden`, its close button is named `Close garden`, and
-a collapsed pane's rail is named `Expand garden`.
-
-The palette's `Reset sidebar width` puts the sidebar back to its default width,
-for keyboard users who cannot drag its handle.
-
-### Retained pages and input
-
-Outlines captures the answered address only when a subscription value arrives;
-changing the request or releasing a filter hold cannot relabel an old answer.
-`createReading` derives `Reading.pending` beside that held answer. Outlines
-reports it and any request failure through the declared `navigation.state`
-service's pane-owned `PageInfo`. Reports withdraw with their panes.
-
-There is no dispatcher shared by palette writes, editor DOM handlers and bulk
-selection. Each boundary reads that same fact:
-
-- Contextual palette adapters declare availability. The palette omits their
-  items and refuses pending confirmations at write dispatch. Search, shell
-  commands, capture and navigation remain available.
-- A pending page withdraws its Finished control. Bulk
-  selection ignores page commands; the palette skips unavailable adapters'
-  shortcuts.
-- Undo remains available: its inverse edits already name their subjects, and
-  its owner clears the stack when the file changes, including pending saves.
-  It does not infer an edit target from the retained page.
-- Page content and its portalled outline controls carry the static
-  `PAGE_SUBJECT` marker with their owning pane index, including in portals.
-  Navigation's activation-owned capture listener only
-  blocks gestures on those retained controls. It permits links and editor
-  escape/zoom gestures; it never cancels unbound browser keys or input outside
-  the retained controls. The listener is removed before navigation is disposed.
-
-The retained page and palette reuse **Loading…** as the cue. The page cue takes
-no layout space, preserving scroll restoration, and the input marker uses
-`display: contents` so the editable page still fills its flex parent. A stream error is
-shown explicitly instead. Failure does not make an old answer current:
-`pending` remains true until another request is answered, but links, Back and
-search remain usable, so the reader can leave a failed or indefinitely held
-request. The connection's `degraded` state remains reachable.
-
-No keystrokes are buffered or replayed across page subjects. During ordinary
-navigation, edits aimed at a still-focused old row are declined until the new
-reading arrives. `palette_startup.feature` measures that interval without a
-held frame, and tests explicit frame holds for reconnect, normal navigation,
-link/Back recovery, an already-open palette/confirmation, and a failed request.
-Browser setup that opens an outline waits for both its drawn file and a
-non-busy reading. The home route can already draw that file, so matching the
-filename alone would let the next action hit the retained page.
+Keystrokes are never buffered across pages: an edit aimed at a row of the page
+you have left is declined until the new reading arrives, and olai does not
+infer what you meant for the new one. Undo stays available throughout, since
+its inverse edits name their own subjects.

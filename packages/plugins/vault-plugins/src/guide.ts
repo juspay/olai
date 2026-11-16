@@ -14,13 +14,20 @@
  *
  * ## ONE SOURCE OF TRUTH, and the enforcement rather than the promise
  *
- * The page a person reads is `docs/dynamic-plugins.md`. The bytes an agent is
- * handed are `./guide.md`, beside this file, because a `docs/` directory is not
- * in the binary and a plugin package may not reach across the tree to read one.
- * They are the same text, and `./guide.test.ts` is why: it cuts the doc's
- * region between `<!-- guide:start -->` and `<!-- guide:end -->` and asserts it
- * is byte for byte what is shipped here, with the one command that fixes a
- * difference in its failure message.
+ * The pages a person reads are `docs/dynamic-plugins.md` and, beside it,
+ * `docs/dynamic-plugins-examples.md`. The bytes an agent is handed are
+ * `./guide.md`, beside this file, because a `docs/` directory is not in the
+ * binary and a plugin package may not reach across the tree to read one. They
+ * are the same text, and `./guide.test.ts` is why: it cuts each page's region
+ * between `<!-- guide:start -->` and `<!-- guide:end -->`, joins the two in
+ * page order, and asserts the result is byte for byte what is shipped here,
+ * with the one command that fixes a difference in its failure message.
+ *
+ * TWO REGIONS RATHER THAN ONE because the docs are two pages: how to write a
+ * plugin, and two worked ones. An agent needs both — a guide with no worked
+ * example is advice nobody can follow — and one contiguous slice of one page
+ * would mean putting the examples back into a page the writing standard
+ * already split for length.
  *
  * Two authoring guides drift, and the one that drifts is always the one nobody
  * reads — which here would be the one every agent reads. So the drift is a red

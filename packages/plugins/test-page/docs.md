@@ -1,20 +1,21 @@
-# Self-drawn page fixture
+# Test page fixture
 
-A maintained acceptance fixture, shipped disabled and selected only explicitly
-by tests. It registers one `app.route` page of the **self-drawn** kind
-(`defineSelfDrawnRoute` / `defineSelfDrawnPage`,
-[navigation.md](navigation.md#plugin-pages)) and one palette row, **Go to
-fixture alpha**, that goes to it. It names no document-format page type, no
-page reading and no outlines code: the point is that a plugin page needs none
-of them.
+A test fixture, not a feature anyone turns on. It proves that a plugin page
+needs no document format, no file reading and no outlines code: it registers
+one self-drawn route and one palette row, **Go to fixture alpha**, that opens
+it.
 
-`/fixture/<word>` is the page for one lowercase word (`alpha`, `beta`,
-`gamma`); anything else under `/fixture/` is claimed and refused. The page
-shows its word and links to the other two with real anchors, so navigation's
-link listener answers plain click, Alt and Alt-Shift on them like any link. Its
-breadcrumb, and so its tab title and pane label, is `Fixture <word>`. It is
-narrowable: its own filter box writes the address's `?q=` through the `narrow`
-it is handed, and the page shows the `filter` it is given back.
+`/fixture/<word>` draws one lower-case word, `alpha`, `beta` or `gamma`.
+Anything else under `/fixture/` is claimed and refused. The page shows its
+word and links to the other two with real anchors, so navigation answers a
+plain click, `Alt` + click and `Alt` + `Shift` + click on them as it does any
+link. Its breadcrumb, and so its tab title and pane label, is `Fixture <word>`.
 
-`self_drawn_pages.feature` ([navigation.md](navigation.md#plugin-pages)) drives
-it. This is not a feature anyone turns on.
+The page is narrowable: its own filter box writes what you type into the
+address as `?q=`, and the page draws the filter it is handed back.
+`self_drawn_pages.feature` drives it, and [navigation](navigation.md) owns the
+page kind it uses.
+
+The row is **Test page**, under **Test fixtures** in the **Plugins** panel. It
+is off by default (`disabled: true` in `packages/bundle/olai.yml`) and comes on
+only for the `test-minimal` profile and the scenarios that name it.

@@ -1,90 +1,60 @@
 # Live properties
 
-Most of what a board records is inert: a title, a date, a URL, a path. Some of it is not. A property whose value is a **name somebody decided on** — a terminal's id, a CI run's id — names a thing that is still going on somewhere, and a value like that can be given a face that **updates on its own**.
+Most of what a row records is inert: a title, a date, a path. A property whose value names something still going on, such as a terminal's id or a CI run's id, can wear a face that updates on its own. The file goes on storing the name; the face finds out what that name is doing.
 
-The board goes on storing the name. The display goes and finds out what that name currently is.
-
-This page is the seam itself, and it is generic: what a live property is, what turns one on, and the two shapes a face can take. What each face DRAWS is its plugin's, and each plugin's own page has it in full.
+This page is the seam: what a live property is, what switches one on, and the two shapes a face takes. What each face draws is on its plugin's own page.
 
 ## What is live today
 
-| the kind, and the key it claims | what it wears | whose page |
+| The kind | What it wears | Whose page |
 | --- | --- | --- |
-| `kolu-terminal` | kolu's own Dock row, and the live read-only pane it opens | [plugins/kolu.md](plugins/kolu.md) |
+| `kolu-terminal` | kolu's Dock row, and the read-only pane it opens | [plugins/kolu.md](plugins/kolu.md) |
 | `odu-run` | a CI chip for the named run, and the run matrix it opens | [plugins/odu.md](plugins/odu.md) |
 
-They are the same mechanism wearing different clothes, and a third kind of living thing later is a third set of clothes rather than a third mechanism.
+They are one mechanism wearing different clothes, so a third kind of living thing is a third set of clothes rather than a third mechanism.
 
-## What turns one on is ENABLING THE PLUGIN — and a vault can always say otherwise
+## Switching one on
 
-Turn an integration on and its faces work. There is no file to edit first, and
-**olai never writes your vault** to make it so.
+Turn the plugin on and its faces work. There is no file to edit first, and olai never writes to your directory to make it so ([settings.md](settings.md)).
 
-The rows above name **kinds**, not keys. Each plugin claims one key by
-convention — the kind's own word, which carries the plugin's name:
+Each plugin claims one key by convention, the kind's own word, which carries the plugin's name. So a row carrying `kolu-terminal 303dc985` gets the terminal door with nothing declared anywhere. That is the whole of the default.
 
-| plugin | kind, and the key it claims | wears |
-| --- | --- | --- |
-| kolu | `kolu-terminal` | the terminal door |
-| odu | `odu-run` | the CI chip |
+The names carry the plugin's own name on purpose. A column you call `terminal` is yours, and switching a plugin on can never take it over, which is why the claim is `kolu-terminal` rather than `terminal`.
 
-So a lane row carrying `kolu-terminal 303dc985` gets the door with nothing
-declared anywhere. That is the default, and it is the whole of the default.
+## Pointing a kind at your own key
 
-**The names carry the plugin's own name on purpose.** A column *you* call
-`terminal` is yours, and enabling a plugin can never take it over — which is why
-the built-in claim is `kolu-terminal` and not `terminal`.
-
-### ...and one row moves it to whatever key you like
-
-`_olai/Properties.olai` says which of *your* columns is which kind, and it always
-wins:
+`_olai/Properties.olai` says which of your own columns is which kind, and it always wins ([properties.md](properties.md)):
 
 ```jsonl
 {"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"kolu-terminal"}}
 {"id":"prop-run","ord":"aC","title":"run","custom":{"type":"odu-run"}}
 ```
 
-That is the short-key version: your key, the plugin's kind, your file. A column
-called `pty` gets the terminal door the same way. And a row can take a face
-AWAY — declare `kolu-terminal` as `text` and the door goes dark, because you
-said what that column means and a default does not argue.
+Your key, the plugin's kind, your file. A column called `pty` gets the terminal door the same way.
 
-Two layers, one rule: **the vault wins, and the claim applies where the vault
-said nothing.**
+A declaration can also take a face away: declare `kolu-terminal` as `text` and the door goes dark, because you have said what that column means and a default does not argue. Two layers, one rule: the file wins, and a plugin's claim applies where the file said nothing.
 
-**It used to be enough to name the key, and that was not enough.** Name-matching
-cannot tell two path-shaped columns apart: `brief` and a checkout column are both
-declared `path`, they sit on the very same rows, and only one of them names a
-checkout to dial a socket in. Declaring `path` therefore buys neither face, and
-there is deliberately **no fallback to the key's name** — a fallback would be the
-same defect kept alive under a second name. What replaced it is the two layers
-above, and neither of them reads a key's spelling.
-## Two shapes, and the difference is whether the thing is worth a row when nothing is happening
+## Blocks and chips
 
-**A block OWNS ITS ROW.** A `terminal` somebody wrote down is worth a row whether or not anything is going on in it — there is always something to say, including *this terminal is no longer in the fleet*.
+The difference is whether the thing is worth a row when nothing is happening.
 
-**A chip sits BESIDE THE VALUE** and appears only while there is something to say. An `odu-run` is a run id on a lane row; once the vault names it and the service cell is connected, the chip is there — a miss reads `unknown run`. A row with no `odu-run` looks unchanged.
+| Shape | Where it sits | When it appears |
+| --- | --- | --- |
+| a block | owns its row | always: there is something to say, including that the terminal has left the fleet |
+| a chip | beside the value | while there is something to say; a miss reads `unknown run` |
 
-The chip's press opens a **pane** beneath the property run — one at a time per node, mounted only while it is open, so a page of twelve lanes with one live run has one clock ticking on it.
+A row with no live property looks unchanged. Pressing a chip opens a pane beneath the property run — one at a time per node, mounted only while it is open, so a page of twelve lanes with one live run has one clock ticking on it.
 
-## What a live face is allowed to be
+## What a live face may do
 
-**Reading, never a hand on the thing.** A live pane is read-only and a run matrix has no buttons in it: watching something must not perturb it. A readout that quietly grew a verb would be the one thing these integrations must not do. The one exception is the [browser pane](plugins/browsing.md): that browser is the person's own, with the agents as guests in it, so the pane is a hand on it by design rather than a readout that grew one.
+- Read, never touch. A live pane is read-only and a run matrix has no buttons in it: watching something must not perturb it. The one exception is the [browser pane](plugins/browsing.md), which is a hand on your own browser by design.
+- No tab dials anything. The server holds the one connection or takes the one reading, and every browser subscribes to it, so twelve tabs on a lanes outline are twelve readers of one sweep.
+- "We cannot see" is never drawn as "we looked and it is quiet". An absence is a state with its own words, because the two have opposite fixes; each plugin's page lists the sentences it says.
 
-**No tab dials anything.** The SERVER holds the one connection or takes the one reading, and every browser is a subscriber to it. Twelve tabs on a lanes outline are twelve readers of **one** sweep.
+## When the plugin is off
 
-**We cannot see is never drawn as we looked and it is quiet.** An absence is a state with its own words, not a greyed-out row claiming the thing is sitting there idle — the two have opposite fixes, and each plugin's page lists the sentences it says.
+A serve can run without a plugin: leave it out of the file's row selection at startup, or press its switch on the plugins panel while it runs ([settings.md](settings.md)). A kind whose plugin is not running validates as plain text. The value is still a name, the file is still fine, and it wears no face — which is the state a directory that declared nothing is already in.
 
-## When a plugin is off
+It happens while you watch. Switch a plugin off and its words leave the running serve with it, the values under them read as plain text on the next reading, and switching it back on brings both the words and the faces back. The switch writes `on` to the policy file; your stored values never change.
 
-Live properties come from plugins, and a serve can be run without one — the file’s row selection at startup, or the switch on its row in the plugins panel while it runs ([running.md](running.md#the-switch-and-how-long-it-lasts)). A kind whose plugin is not running validates as **plain text**: the value is still a name, the file is still fine, nothing breaks, and it wears no face. That is exactly the state a vault that declared nothing is already in.
-
-**And it happens while you watch.** The vocabulary follows the fibers rather than the boot: switch a plugin off and its words leave the running serve with it, the values under them go back to being plain text on the next reading, and switching it back on brings both the words and the faces back. The switch writes `on` to the policy file. Existing content values remain unchanged; their interpretation follows the running vocabulary.
-
-A DECLARATION is judged differently from a VALUE, and the difference is worth knowing before you go looking for a bug: `{"type":"kolu-terminal"}` is a clean row on a serve running only odu, because a file's verdict may not depend on the machine’s current enablement policy. Only the FACE is missing.
-
-Terminal blocks compare their resolved reading by value, and a live terminal's
-theme updates only when its theme name changes. Reattaching a stream does not
-reapply the palette. An open terminal remains attached while its lane is hidden;
-its measurements and visible interactions resume when the lane is shown.
+A declaration is judged differently from a value, which is worth knowing before you go hunting for a bug. `{"type":"kolu-terminal"}` is a clean row on a serve running only odu, because a file's verdict may not depend on which plugins this machine is running. Only the face is missing.
