@@ -1,51 +1,121 @@
-Feature: The Plugins section in the sidebar
-  A plugin somebody asked for is in the **Plugins** section from then on, beside
-  Chats and Outlines. A vault with no plugins has no such section.
+Feature: Finding your way to a new plugin
+  A plugin somebody asked for is in the **Plugins** section of the sidebar from
+  then on, beside Chats and Outlines — and the section is there BEFORE the
+  first one, because a vault with no plugins is exactly the vault where
+  somebody is trying to make their first.
 
-  THE ABSENCE IS THE FIRST CLAIM and not an edge case. Most vaults define no
-  plugins and never will; a section standing there empty would be the app
-  advertising a feature at somebody who did not ask for one, in the one piece of
-  furniture that is on screen all day. So it arrives with the first folder and
-  leaves with the last, and both halves are asserted here.
+  THE EMPTY VAULT IS THE FIRST CLAIM and it is not an edge case. The section
+  used to arrive with the first folder, on the argument that the column is the
+  most expensive surface in the app; a person who deployed the branch answered
+  that argument in one sentence — *how do I create a plugin? I see nothing in
+  the sidebar* — because the only other door was a palette row you have to
+  already know the name of. So the heading stands, with its `+`, and an empty
+  vault gets one quiet row under it that opens the same two levels ⌘K does.
 
-  THE MARK IS THE THREE STATES SOMEBODY HAS TO DO SOMETHING ABOUT: a working dot
-  while an agent is still writing the folder, `Review` while a version is
-  waiting to be read, `Problem` when it would not start. A plugin that is simply
-  on wears nothing, and one that is switched off says so with its ink — because
-  a row that always wears a badge is a row whose badge nobody reads. The working
-  dot is asserted where it actually happens, in `asking_for_a_plugin.feature`,
-  since a folder is only ever half-written while an agent is writing it.
+  THE PANEL IS THE OTHER DOOR, and it is asserted here with the sidebar's
+  because the two have to agree. A person looking for plugins presses the
+  health dot and picks **Plugins**: that panel lists everything this serve is
+  running and used to offer no way to ask for one more. It now has a **New
+  plugin** row, drawn only while something offers the verb
+  (`vault-plugins.new-plugin`), so a serve without this row has a panel with
+  no door rather than a button with nowhere to go.
+
+  THE MARK IS THE THREE STATES SOMEBODY HAS TO DO SOMETHING ABOUT: a working
+  dot while an agent is still writing the folder, `Review` while a version is
+  waiting to be read, `Problem` when it would not start. A plugin that is
+  simply on wears nothing, and one that is switched off says so with its ink —
+  because a row that always wears a badge is a row whose badge nobody reads.
+  The working dot is asserted where it actually happens, in
+  `asking_for_a_plugin.feature`, since a folder is only ever half-written while
+  an agent is writing it.
 
   AND IT WITHDRAWS WITH THE ROWS IT IS MADE OF. The section is this row's face
   hung in the sidebar's own furniture, so switching off either one takes it
   away — which is the honest behaviour of a composed shell and the thing a
-  hard-coded section would quietly get wrong.
+  hard-coded section would quietly get wrong. (There is no scenario for a
+  sidebar with no PALETTE, where the `+` goes and the row becomes a sentence:
+  `layout` declares navigation, so a serve that draws a sidebar at all has a
+  palette. That arm is the startup window and a guard against a future
+  composition, and it is argued in `Section.tsx` rather than asserted here.)
 
   @scratch:good
-  Scenario: It arrives with the first plugin and leaves with the last
+  Scenario: The heading is there before there is anything to put under it
     Given I open the app
-    Then the sidebar has no Plugins section
-
-    When a plugin folder "borrowed" is copied in
     Then the sidebar has a Plugins section
     And the Plugins section is headed "Plugins"
-    And the Plugins section lists "borrowed"
-    # A ROW IS AN ANCHOR at the plugin's own address, which is what makes the
-    # page linkable, the keyboard useful and the middle-click ordinary.
-    And the Plugins row "borrowed" is a link to its page
-    And the Plugins row "borrowed" says "A plugin somebody copied in from another vault."
-    # ...and the `+` is ⌘K → New plugin by another door, for the person who is
-    # already looking at the list.
+    And the Plugins section lists ""
+    # THE WORDS ARE THE FEATURE: somebody who has never heard of a plugin has
+    # to be able to read this row and know what pressing it does.
+    And the Plugins section invites a first plugin saying "Ask for your first plugin…"
     And the Plugins section offers a new plugin
-    # ...and it opens the same two levels ⌘K does, because a second way of
-    # asking for a plugin would be a second thing to learn.
+
+    When I press the Plugins section's first plugin row
+    Then the command palette is open
+    And the palette path is "new-plugin"
+    When I press "Escape"
+
+    # ...and the `+` beside the heading is the same gesture for a person who
+    # already knows what it makes. A second way of asking would be a second
+    # thing to learn, so both open the same two levels.
     When I press the Plugins section's plus
     Then the command palette is open
     And the palette path is "new-plugin"
     When I press "Escape"
 
+    When a plugin folder "borrowed" is copied in
+    Then the Plugins section lists "borrowed"
+    # The invitation leaves as soon as there is something real under the
+    # heading: it is an empty state, not a permanent button.
+    And the Plugins section invites no first plugin
+    # A ROW IS AN ANCHOR at the plugin's own address, which is what makes the
+    # page linkable, the keyboard useful and the middle-click ordinary.
+    And the Plugins row "borrowed" is a link to its page
+    And the Plugins row "borrowed" says "A plugin somebody copied in from another vault."
+
     When the folder "plugins/borrowed" is deleted
-    Then the sidebar has no Plugins section
+    # ...and it comes back with the last plugin, rather than leaving a heading
+    # over nothing.
+    Then the Plugins section lists ""
+    And the Plugins section invites a first plugin saying "Ask for your first plugin…"
+    And there should be no page errors
+
+  @phone @scratch:good
+  Scenario: A handset reaches New plugin from the drawer
+    # The thumb bar's `+` is Inbox capture, so without this row a phone's only
+    # way to a plugin is a keyboard shortcut a phone does not have. The drawer
+    # puts itself away on a press inside it, which is what lets the palette
+    # come up over a screen this narrow.
+    Given I open the app
+    Then the sidebar has a Plugins section
+    When I press the Plugins section's first plugin row
+    Then the command palette is open
+    And the palette path is "new-plugin"
+    And there should be no page errors
+
+  @scratch:good
+  Scenario: The plugins panel is a door onto New plugin too
+    # Where a person looks for plugins when the column is collapsed, or when
+    # they are looking for what this serve is running: the health dot, then
+    # Plugins.
+    Given I open the app
+    When I open the plugins panel
+    Then the plugins panel offers a new plugin
+
+    When I press the plugins panel's new plugin door
+    # The panel goes first: a palette opening behind a popover is a box nobody
+    # can see.
+    Then the plugins panel is shut
+    And the command palette is open
+    And the palette path is "new-plugin"
+    And there should be no page errors
+
+  @scratch:plugins
+  Scenario: ...and it is there on a vault that already has some
+    # Asking for another is not an empty-state gesture, so the door does not
+    # leave with the first plugin the way the sidebar's row does.
+    Given I open the outline "colours.olai"
+    When I open the plugins panel
+    Then the plugins panel offers a new plugin
     And there should be no page errors
 
   @scratch:plugins
@@ -119,4 +189,10 @@ Feature: The Plugins section in the sidebar
     # and the same for any unclaimed path.)
     When I open the address "/plugins/swatch"
     Then no plugin page is drawn
+    # ...and the PANEL's door goes with it, which is the half a held service
+    # gets right and an import would not: the inspector still lists what this
+    # serve runs, with nothing offering `vault-plugins.new-plugin` there is
+    # simply no row to press, and nothing else about the panel changes.
+    When I open the plugins panel
+    Then the plugins panel offers no new plugin
     And there should be no page errors

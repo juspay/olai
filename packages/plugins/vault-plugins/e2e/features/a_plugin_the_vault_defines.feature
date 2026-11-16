@@ -357,7 +357,7 @@ Feature: A plugin the vault defines
     # A plugin that carried its own yes would be a plugin that approved itself by
     # being copied, and copying is exactly how a plugin is meant to travel.
     Given I open the app
-    Then the sidebar has no Plugins section
+    Then the Plugins section lists ""
 
     When a plugin folder "borrowed" is copied in
     Then the sidebar has a Plugins section

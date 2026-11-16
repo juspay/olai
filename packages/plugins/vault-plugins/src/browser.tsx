@@ -1,6 +1,6 @@
 /**
  * THE BROWSER HALF OF `vault-plugins` — the whole person-facing surface of a
- * plugin somebody asked for, as SIX components that start and stop
+ * plugin somebody asked for, as SEVEN components that start and stop
  * independently.
  *
  * ## Why so many components, and why that is the design rather than the cost
@@ -19,10 +19,11 @@
  *
  * | component | declares | what its absence costs |
  * | --- | --- | --- |
- * | (the row) | `Wired`, `Offers` | nothing works; this is the client and the one verb the plugins panel consumes |
+ * | (the row) | `Wired`, `Offers` | nothing works; this is the client and the verb the plugins panel approves with |
  * | `section` | management, `Slots` | no Plugins heading in the sidebar; the page and the palette are untouched |
  * | `page` | management, `Slots` | no `/plugins/<word>` page; the sidebar's rows still draw, and still link |
- * | `palette` | palette control, navigation, management, renderer | no *New plugin* row and no `+` on the heading; everything already in the vault still works |
+ * | `palette` | palette control, navigation, management, renderer | no *New plugin* row, no `+` on the heading, and the empty vault's row is a sentence; everything already in the vault still works |
+ * | `new-plugin` | palette control, `Offers` | no **New plugin** door on the plugins panel; the palette's own row is untouched |
  * | `dock` | chat's panel door | the page does not dock the builder and offers no verb that would |
  * | `engines` | chat's engine roster | *New plugin* offers no engine and mints a folder anyway, saying so |
  * | `notices` | the alerts channel, management, navigation | nothing pings; the sidebar's mark and the page still say everything |
@@ -55,11 +56,11 @@ import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { Effect } from "effect"
 import { createRoot } from "solid-js"
 
-import { type Approvals, name } from "./index.ts"
+import { type Approvals, name, type NewPlugin } from "./index.ts"
 import { client, holdClient, type Client } from "./client.ts"
 import { createPluginAlerts } from "./browser/alerts.ts"
 import { holdDock, holdEngines, holdPalette, holdRouter } from "./browser/doors.ts"
-import { newPluginRow } from "./browser/new-plugin.ts"
+import { NEW_PLUGIN_ROW, newPluginRow } from "./browser/new-plugin.ts"
 import { PluginPage } from "./browser/Page.tsx"
 import { pluginPage } from "./browser/route.ts"
 import { Section } from "./browser/Section.tsx"
@@ -134,6 +135,22 @@ export const components = {
         go: (word) => lane.go(pluginPage.to({ word })),
       })],
     })
+  }) }),
+
+  /** ...AND THAT SAME GESTURE, OFFERED — `vault-plugins.new-plugin`, the one
+   *  verb the plugins panel spends to put a **New plugin** door on itself
+   *  (`./index.ts`'s `NewPlugin` argues why a service and not an import).
+   *
+   *  A COMPONENT OF ITS OWN rather than a second thing the `palette` component
+   *  does, because the two have different consumers and must be able to fail
+   *  apart: this one is `waiting` on a serve with no palette, and a panel
+   *  reading an absent provider draws no door — which is the honest answer,
+   *  since there would be nothing for the press to open. It declares the
+   *  control directly instead of reading the holder its sibling fills, so what
+   *  is offered is alive for exactly as long as the key it was taken from. */
+  "new-plugin": definePlugin({ name: "new-plugin", needs: [paletteControl, Offers], apply: Effect.gen(function*() {
+    const control = yield* paletteControl
+    yield* (yield* Offers).own("new-plugin", (): NewPlugin => ({ open: () => control.showAt([NEW_PLUGIN_ROW]) }))
   }) }),
 
   /** THE BUILDER, BESIDE THE PAGE — the agent panel's own door, held for the

@@ -449,7 +449,7 @@ The browser e2e lifecycle scenarios exercise the work after the switch: journal 
 
 A plugin can also arrive from the **served directory**, asked for by you and usually written by an agent while olai is running. It is a folder — `plugins/<word>/`, holding `README.md`, `server.ts` and an optional `browser.tsx` — and the whole of it is [dynamic-plugins.md](dynamic-plugins.md). What belongs here is what it changes about this page.
 
-**You ask for it in the palette.** ⌘K → **New plugin**, one sentence about what it should do, a name; the press lands on the plugin's own page at `/plugins/<word>` with the conversation building it docked beside, and the **Plugins** section appears in the sidebar. A vault with no plugins has no such section.
+**You ask for it in the palette.** ⌘K → **New plugin**, one sentence about what it should do, a name; the press lands on the plugin's own page at `/plugins/<word>` with the conversation building it docked beside, and the plugin joins the **Plugins** section of the sidebar. That section, the `+` on its heading and the **New plugin** row at the top of this panel are all there before the first plugin is: three doors onto the same two palette levels, so the feature can be found by somebody who has not read this page.
 
 **It is a row like any other, once it is up.** Same panel, same seven states, same switch, same containment when its `apply` throws, same `waiting` if it names a door nobody is behind. It sits under the built rows, because those are the ones that are the same on every machine.
 

@@ -17,6 +17,16 @@
 .plugins-head-file a:hover { color: var(--color-ink); }
 .plugins-body { overflow: auto; overscroll-behavior: contain; padding: 0 10px 12px; }
 
+/* The panel's own door onto *New plugin* — a row, not a button-looking button:
+   it stands where the first group's heading would and must read as one more
+   thing in this list rather than as a call to action shouting over it. */
+.plugins-new {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 8px;
+  border: 0; background: none; color: var(--color-muted); font: inherit; text-align: left;
+  cursor: pointer; border-radius: var(--radius-control);
+}
+.plugins-new:hover { background: color-mix(in srgb, var(--color-pill) 60%, transparent); color: var(--color-ink); }
+
 .plugins-notice { margin: 4px 8px 8px; font-size: var(--text-label); line-height: 1.45; color: var(--color-muted); }
 .plugins-alarm { color: var(--color-alarm); }
 .plugins-doing { color: var(--color-doing); }

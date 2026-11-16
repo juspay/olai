@@ -105,6 +105,7 @@
  */
 import { CONFIGURATION_FILE, type EnvironmentReading } from "@olai/plugin-api/configuration"
 import { approveDefinition } from "./approval.ts"
+import { asking } from "./asking.ts"
 import { TESTID } from "olai-plugin-plugin-inspector/testids"
 import { pluginPref } from "olai-plugin-plugin-inspector/testids"
 import { createEffect, createMemo, createSelector, createSignal, For, onCleanup, Show } from "solid-js"
@@ -314,6 +315,26 @@ export function Panel(props: {
         </Show>
       </header>
       <div class="plugins-body">
+        {/* ASK FOR ONE — the panel's own door onto *New plugin*, drawn only
+            while something offers the verb (`./asking.ts`). It is FIRST in
+            the body and above the groups because of what this panel is for a
+            person who has not got a plugin yet: they came looking for plugins,
+            this is where they landed, and a list of what is already running
+            answers a question they did not ask. The press shuts the panel the
+            way the file link above it does — a palette opening behind a
+            popover is a box nobody can see. */}
+        <Show when={asking()}>
+          {(ask) => (
+            <button
+              type="button"
+              class="plugins-new"
+              data-testid={TESTID.pluginsNew}
+              onClick={() => { props.state.door.setOpen(false); ask().open() }}
+            >
+              <span aria-hidden="true">+</span> New plugin
+            </button>
+          )}
+        </Show>
         <Show when={plugins().configurationAvailable === false && plugins().built.length > 0}>
           <p class="plugins-notice">{rosterFile().split("/").pop()} can't be read, so switches here reset when olai restarts.</p>
         </Show>

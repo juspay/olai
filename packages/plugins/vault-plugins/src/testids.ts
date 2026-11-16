@@ -12,12 +12,16 @@
  */
 
 export const TESTID = {
-  /** The sidebar's Plugins region, and one row of it. Absent from the DOM
-   *  entirely while the vault defines no plugin — which is a thing a scenario
-   *  asserts, so the id has to exist even when the node does not. */
+  /** The sidebar's Plugins region, and one row of it. The region is in the DOM
+   *  whenever this row's `section` component is up, including on a vault that
+   *  defines no plugin — which is where the feature is found. */
   section: "plugins-section",
   sectionNew: "plugins-section-new",
   sectionRow: "plugins-section-row",
+  /** ...and the one row an empty vault draws instead: the press that opens
+   *  the palette at *New plugin*, or the same words as a sentence where there
+   *  is no palette to open. */
+  sectionEmpty: "plugins-section-empty",
   /** The state mark a row wears: `Review`, `Problem`, the working dot. */
   sectionMark: "plugins-section-mark",
 

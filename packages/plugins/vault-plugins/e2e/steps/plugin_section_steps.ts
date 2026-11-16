@@ -28,7 +28,7 @@ import { Then, When } from "@olai/tests/harness/runner.ts"
 import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 
-import { PAGE, SECTION, SECTION_MARK, SECTION_NEW, SECTION_ROW, sectionRowFor } from "./faces.ts"
+import { PAGE, PANEL_NEW, SECTION, SECTION_EMPTY, SECTION_MARK, SECTION_NEW, SECTION_ROW, sectionRowFor } from "./faces.ts"
 
 Then("the sidebar has a Plugins section", async function (this: OlaiWorld) {
   await this.showSidebar()
@@ -154,6 +154,67 @@ Then("the Plugins section offers a new plugin", async function (this: OlaiWorld)
 When("I press the Plugins section's plus", async function (this: OlaiWorld) {
   await this.showSidebar()
   await this.press(this.page.locator(`${SECTION} ${SECTION_NEW}`))
+})
+
+/**
+ * THE ONE ROW AN EMPTY VAULT GETS, asserted by its WORDS — the test id says
+ * which element, the string in the scenario says what a person reads, and the
+ * whole point of this row is what it says. A row drawn with the right id and
+ * the wrong sentence is the failure that matters here.
+ *
+ * It is a BUTTON, and that is the second half of the claim: where there is a
+ * palette to open, this is a press and not a line of prose.
+ */
+Then("the Plugins section invites a first plugin saying {string}", async function (this: OlaiWorld, said: string) {
+  await this.showSidebar()
+  const row = this.page.locator(`${SECTION} ${SECTION_EMPTY}`)
+  await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  assert.equal((await row.innerText()).trim(), said)
+  assert.equal(await row.evaluate((one) => one.tagName.toLowerCase()), "button")
+})
+
+/** ...and it is gone the moment there is a real row to draw, which is what
+ *  keeps the column honest once somebody has a plugin. */
+Then("the Plugins section invites no first plugin", async function (this: OlaiWorld) {
+  await this.showSidebar()
+  await this.waitUntil(
+    async () => (await this.page.locator(`${SECTION} ${SECTION_EMPTY}`).count()) === 0,
+    "the first-plugin row to leave the Plugins section",
+  )
+})
+
+When("I press the Plugins section's first plugin row", async function (this: OlaiWorld) {
+  await this.showSidebar()
+  await this.press(this.page.locator(`${SECTION} ${SECTION_EMPTY}`))
+})
+
+/**
+ * THE SECOND DOOR — the plugins panel's own.
+ *
+ * The panel is the inspector's and the verb is this row's
+ * (`../../src/index.ts`'s `NewPlugin`), so the id below is the inspector's
+ * while the scenario lives here: what is being proved is that the two doors
+ * open the same thing, and that the one in the panel is absent on a serve
+ * where nothing offers the verb.
+ */
+Then("the plugins panel offers a new plugin", async function (this: OlaiWorld) {
+  await this.pluginsPanel().locator(PANEL_NEW).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+})
+
+Then("the plugins panel offers no new plugin", async function (this: OlaiWorld) {
+  // Waited for rather than counted once: the panel is drawn before the row
+  // that would hang a door in it has had its answer, so an immediate count
+  // would pass for the wrong reason as well as the right one.
+  await this.waitUntil(
+    async () => (await this.pluginsPanel().locator(PANEL_NEW).count()) === 0,
+    "the plugins panel to offer no new plugin",
+  )
+  await this.page.waitForTimeout(POLL_TIMEOUT / 15)
+  assert.equal(await this.pluginsPanel().locator(PANEL_NEW).count(), 0)
+})
+
+When("I press the plugins panel's new plugin door", async function (this: OlaiWorld) {
+  await this.press(this.pluginsPanel().locator(PANEL_NEW))
 })
 
 /** A row is an ANCHOR, which is what makes the page linkable and the sidebar

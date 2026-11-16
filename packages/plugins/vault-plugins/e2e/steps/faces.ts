@@ -34,11 +34,19 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 import type { Locator } from "@olai/tests/harness/playwright.ts"
 
 import { TESTID } from "../../src/testids.ts"
+import { TESTID as PANEL_TESTID } from "olai-plugin-plugin-inspector/testids"
 
 // ── the sidebar's section ──────────────────────────────────────────────
 
 export const SECTION = selector(TESTID.section)
 export const SECTION_NEW = selector(TESTID.sectionNew)
+/** The one row an empty vault draws — a press where there is a palette to
+ *  open, the same words as a sentence where there is not. */
+export const SECTION_EMPTY = selector(TESTID.sectionEmpty)
+/** ...and the SECOND door onto the same gesture, which is the plugins panel's
+ *  own: drawn by the inspector, offered by this row
+ *  (`../../src/index.ts`'s `NewPlugin`), so the id is the inspector's. */
+export const PANEL_NEW = selector(PANEL_TESTID.pluginsNew)
 export const SECTION_ROW = selector(TESTID.sectionRow)
 export const SECTION_MARK = selector(TESTID.sectionMark)
 

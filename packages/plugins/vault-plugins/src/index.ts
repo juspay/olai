@@ -68,3 +68,34 @@ export interface Approvals {
   readonly approve: (request: ApprovalRequest) => Effect.Effect<unknown, { readonly message: string }>
 }
 export const approvals = serviceTag<Approvals>("vault-plugins.approval")
+
+/**
+ * ASKING FOR ONE, AS A VERB ANOTHER ROW MAY SPEND — the second and last thing
+ * this row offers across the wall, and the reason the plugins panel has a
+ * **New plugin** door on it.
+ *
+ * WHY THE PANEL NEEDS ONE AT ALL. A person who wants a plugin looks where
+ * plugins are: the health dot, then **Plugins**. That panel is the inspector's
+ * — it lists what this serve is running, built rows and vault folders alike —
+ * and until now it was the one place in the app that showed you every plugin
+ * you have and no way to ask for another. The sidebar's section is the other
+ * door and is not enough on its own: a reader who has collapsed the column, or
+ * is on a phone with the drawer shut, is in the panel.
+ *
+ * WHY A SERVICE RATHER THAN AN IMPORT. The verb is a press on a palette this
+ * row holds for its own faces (`./browser/doors.ts`), and the inspector may
+ * not hold another row's live state — that is the whole argument {@link
+ * Approvals} makes one paragraph up. So the gesture crosses as a declared key
+ * on a component of its own at each end: this row offers it only while a
+ * palette is there to open, the inspector declares it on a component of its
+ * own, and the panel draws the door only while something is holding it. With
+ * `vault-plugins` off, with navigation off, or with the renderer gone, the
+ * door is simply absent and the panel is otherwise unchanged.
+ */
+export interface NewPlugin {
+  /** Open the palette at *New plugin*. Nothing comes back: what a person is
+   *  owed is the box, and where they go from there is the palette's own two
+   *  levels. */
+  readonly open: () => void
+}
+export const newPlugin = serviceTag<NewPlugin>("vault-plugins.new-plugin")

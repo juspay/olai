@@ -33,8 +33,12 @@ with the collapse button.
 owns the plugins a vault defines: one entry per folder under `plugins/`, named
 by its README's heading, wearing what it needs from a person (`Review`,
 `Problem`) and a `+` on the heading that opens the palette at **New plugin**.
-It is drawn only while the vault holds one, so a directory with no plugins has
-no such heading — the same rule the pinned shelf and the `_olai/` group keep.
+It is drawn whenever that row is, including on a directory with no plugins at
+all — unlike the pinned shelf and the `_olai/` group, which have nothing to
+say when they are empty. A vault with no plugins is where somebody is looking
+for the way to make one, so the empty section draws one quiet row that opens
+the same palette level the `+` does.
+
 Sidebar itself knows none of that: it draws a placement.
 
 A `sidebar.entry` names where it stands with a placement word, never a pixel or
