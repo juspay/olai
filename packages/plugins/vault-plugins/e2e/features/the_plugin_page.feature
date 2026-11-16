@@ -255,6 +255,17 @@ Feature: A plugin's own page
     And there should be no page errors
 
   @phone @scratch:plugins
+  Scenario: A handset has the whole menu, so a plugin made on one can be deleted on one
+    # The `•••` was drawn beside the head's verb only, and the head is hidden
+    # below `md` — so *Always trust changes* and *Delete…* were unreachable on
+    # the one device where this page is most of what a person sees.
+    Given I open the app
+    When I approve the plugin "greeting"
+    And I delete the plugin "greeting" from its page
+    Then the vault holds no files for the plugin "greeting"
+    And there should be no page errors
+
+  @phone @scratch:plugins
   Scenario: On a handset the conversation is reached at its own address
     # There is no column beside the page on a phone, so there is nothing to
     # dock. The sentence this used to draw — "no agent is available to ask

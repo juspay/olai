@@ -155,9 +155,14 @@ export const verbOf = (world: OlaiWorld): Locator =>
 /** The `•••`, opened — idempotent, so a step that needs a row inside it may
  *  say so without caring whether another step opened it first. */
 export const openedMore = async (world: OlaiWorld): Promise<void> => {
-  const trust = world.page.locator(PAGE_TRUST_ALWAYS)
-  if ((await trust.count()) > 0 && await trust.first().isVisible()) return
-  const more = world.page.locator(`${PAGE} ${PAGE_MORE}`).first()
+  const open = world.page.locator(`${PAGE} ${PAGE_DELETE}`)
+  if ((await open.count()) > 0 && await open.first().isVisible()) return
+  // THE VISIBLE COPY, because the page mounts two: the head's, hidden below
+  // `md`, and the foot's, hidden above it. A rotation moves nothing, and a
+  // step that took the first in the DOM pressed the hidden one on a handset —
+  // where this menu is the ONLY way to reach *Always trust changes* and
+  // *Delete…* at all.
+  const more = world.page.locator(`${PAGE} ${PAGE_MORE}:visible`).first()
   await more.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
   await world.press(more)
 }
