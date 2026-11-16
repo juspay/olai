@@ -233,7 +233,15 @@ When("I approve the plugin {string}", async function (this: OlaiWorld, word: str
   // A press that lands while the roster is arriving can find its own button
   // detached — the page redraws under it — and that is not a failure: the
   // loop looks again, and the FILE is what says whether anything happened.
-  const tap = async (what: Locator): Promise<void> => { await this.press(what).catch(() => {}) }
+  //
+  // EACH ATTEMPT IS BOUNDED, which is the difference between a loop and a
+  // single press wearing a loop's clothes. `world.press` waits up to the whole
+  // poll budget for its target to be visible and reachable, so one attempt at
+  // a button the page had just replaced could spend every millisecond this
+  // wait had — on a loaded machine the step then reported *the approval never
+  // landed* when what had happened was that it was never pressed twice. A
+  // short click, failing fast, lets the loop be a loop.
+  const tap = async (what: Locator): Promise<void> => { await what.click({ timeout: 2_000 }).catch(() => {}) }
   await this.waitUntil(async () => {
     if (moved(consentOf(this, word))) return true
     if (await read.isVisible().catch(() => false)) {
@@ -243,7 +251,7 @@ When("I approve the plugin {string}", async function (this: OlaiWorld, word: str
     const armed = verbOf(this)
     if (await armed.isEnabled().catch(() => false)) await tap(armed)
     return false
-  }, `the approval of "${word}" to reach ${SETTINGS_FILE}`)
+  }, `the approval of "${word}" to reach ${SETTINGS_FILE}`, HYDRATION_TIMEOUT)
   if (this.place() !== was) {
     await this.page.goBack()
     await this.waitUntil(() => Promise.resolve(this.place() === was), `to be back at ${was}`)
