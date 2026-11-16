@@ -80,3 +80,20 @@ test("the doc's own worked example reads as the page draws it", () => {
     "Draws on anything wearing `hex`",
   ])
 })
+
+test("a key whose shape is spelled out over a dozen lines is still a key it names", () => {
+  // THE SHIPPED EXAMPLE'S OWN SHAPE: a consumer of a plugin-owned door cannot
+  // import the format, so it writes the fields it reads by hand — and the
+  // `serviceTag<…>` that follows them runs well past one line.
+  const half = [
+    `interface Row { readonly title: string }`,
+    `const Agenda = serviceTag<{`,
+    `  readonly read: (`,
+    `    ask: { readonly at: unknown; readonly date: string },`,
+    `  ) => Effect.Effect<Row, { readonly reason: string }>`,
+    `}>("journal.agenda")`,
+  ].join("\n")
+  expect(usesOf(half)).toEqual([
+    { said: "Uses what the `journal` plugin offers", named: "journal.agenda" },
+  ])
+})

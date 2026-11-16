@@ -102,9 +102,14 @@ const readHalf = (source: string): ReadonlyArray<Uses> => {
   }
   // THE PLUGIN-OWNED KEYS it names — a door another row stands behind, which is
   // the one reach that is not in core's vocabulary at all.
-  const tags = /serviceTag\s*<[^>]*>\s*\(\s*["']([a-z][a-z0-9-]*\.[a-z][a-z0-9-]*)["']\s*\)|serviceTag\s*\(\s*["']([a-z][a-z0-9-]*\.[a-z][a-z0-9-]*)["']\s*\)/g
+  // THE TYPE ARGUMENT MAY BE A PARAGRAPH. A consumer of a plugin-owned key
+  // spells the provider's shape by hand — it cannot import the format — so
+  // `serviceTag<{ … }>("journal.agenda")` routinely runs to a dozen lines, and
+  // a pattern that stopped at the first `>` found nothing at all on the one
+  // example this product ships.
+  const tags = /serviceTag\s*(?:<[\s\S]*?>\s*)?\(\s*["']([a-z][a-z0-9-]*\.[a-z][a-z0-9-]*)["']/g
   for (let match: RegExpExecArray | null; (match = tags.exec(source)) !== null;) {
-    const key = match[1] ?? match[2]!
+    const key = match[1]!
     lines.push({ said: `Uses what the \`${key.split(".")[0]}\` plugin offers`, named: key })
   }
   // ...AND THE SLOTS it hangs a face in, with the kind word where it names one.
