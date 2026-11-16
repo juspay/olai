@@ -8,6 +8,16 @@ desktop the door stands beside the health dot: picking its row shuts the
 popover and opens the panel, which hangs from the dot and hands the caret back
 to it on Escape.
 
+At the top of the panel, above every group, is **New plugin** — the one thing
+in here that is not about what this serve is already running. A person looking
+for plugins lands in this panel, and until it had this row the panel showed
+them everything they had and no way to ask for one more. Pressing it shuts the
+panel and opens the palette at *New plugin*. The verb is `vault-plugins`',
+declared as `vault-plugins.new-plugin` and held on a component of its own
+(`asking.ts`), so the inspector reaches one function rather than that row's
+live state; with `vault-plugins` switched off, or with no palette for it to
+open, there is no row and nothing else about the panel changes.
+
 ## One line per plugin
 
 The panel is one column. Each plugin is one line: the label `olai.yml` gives it
