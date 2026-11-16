@@ -40,25 +40,14 @@ export const siteHref = (from: string, url: string): string => {
   return hrefOf(idFrom(from, target)) + (fragment ? `#${fragment}` : "")
 }
 
-/** What a reader meets before opening anything, as the page's own pass
- *  measures it. The lint's reading budget keeps it short. */
+/** What a reader meets before opening anything, as the page's own pass sees
+ *  it. How long it is, the docs lint already holds to a minute. */
 export interface Reading {
-  /** Words of the main flow: the page minus footnotes and `<details>`. */
-  words: number
-  /** Which of the page's `##` headings, counted in order, are in it. */
+  /** Which of the page's `##` headings, counted in order, are in the main
+   *  flow: the page minus its footnotes and `<details>` blocks. */
   sections: number[]
   /** How many footnotes the page has. */
   notes: number
-}
-
-type Node = { type: string; value?: string; children?: unknown[] }
-
-/** Words as the docs lint counts them: running text, a code span as one
- *  word, and no code block, raw HTML or picture. */
-const wordsIn = (node: Node): number => {
-  const text = (n: Node): string =>
-    n.type === "inlineCode" ? " Code " : n.type === "code" || n.type === "html" || n.type === "image" ? "" : (n.value ?? ((n.children ?? []) as Node[]).map(text).join(""))
-  return text(node).split(/\s+/u).filter((word) => /[\p{L}\p{N}]/u.test(word)).length
 }
 
 /** A page's title: the words of its first line, `# Title`. */
@@ -70,17 +59,17 @@ export const titleIn = (id: string, source: string): string => {
 
 /**
  * The docs pass, for one page: it rewrites links (see {@link siteHref}),
- * lifts the title out, and measures the main flow into the page's
- * frontmatter as `reading`. Pages outside `docs/` (none today) are left alone.
- * A relative link to anything but a page stays as written, and the build's
- * link check fails on it, since the site publishes pages only.
+ * lifts the title out, and records what the main flow holds into the page's
+ * frontmatter as `reading`. Pages outside `docs/` (none today) are left
+ * alone. A relative link to anything but a page stays as written, and the
+ * build's link check fails on it, since the site publishes pages only.
  */
 export const docsPage = (ctx: PluginFactoryContext) => {
   if (ctx.fileURL === undefined) return null
   const file = fileURLToPath(ctx.fileURL)
   if (!file.startsWith(DOCS)) return null
   const page = idOf(file)
-  const reading: Reading = { words: 0, sections: [], notes: 0 }
+  const reading: Reading = { sections: [], notes: 0 }
   // Astro seeds `data.astro` with the page's frontmatter, and hands back what
   // a plugin adds to it as `remarkPluginFrontmatter`; satteri types the bag
   // as open data.
@@ -93,9 +82,6 @@ export const docsPage = (ctx: PluginFactoryContext) => {
   // How many `<details>` are open at the top level, in document order.
   let folded = 0
   let h2 = 0
-  const measure = (node: Node, parent: { type: string } | null | undefined): void => {
-    if (folded === 0 && parent?.type === "root") reading.words += wordsIn(node)
-  }
   return defineMdastPlugin({
     name: "olai-docs-page",
     html(node, edit) {
@@ -112,10 +98,6 @@ export const docsPage = (ctx: PluginFactoryContext) => {
       if (folded === 0) reading.sections.push(h2)
       h2 += 1
     },
-    paragraph: (node, edit) => measure(node, edit.parent(node)),
-    list: (node, edit) => measure(node, edit.parent(node)),
-    table: (node, edit) => measure(node, edit.parent(node)),
-    blockquote: (node, edit) => measure(node, edit.parent(node)),
     footnoteDefinition() {
       reading.notes += 1
     },

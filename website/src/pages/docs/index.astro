@@ -43,4 +43,6 @@ const map = await siteMap()
       ))
     }
   </div>
+
+  {map.closing.map((html) => <p class="closing" set:html={html} />)}
 </Docs>

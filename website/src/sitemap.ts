@@ -103,6 +103,8 @@ export interface SiteMap {
   /** The index's own opening, before its first group. */
   readonly intro: string
   readonly groups: Group[]
+  /** The index's closing paragraphs, after its last group's table. */
+  readonly closing: string[]
   /** Every page, the index included. */
   readonly places: ReadonlyMap<string, Place>
 }
@@ -121,12 +123,16 @@ export const siteMap = async (): Promise<SiteMap> => {
     trail: [],
   })
   const opening: string[] = []
+  const closing: string[] = []
   // The index leads into the first page it lists, and that page back to it.
   let last = places.get("index")
   for (const block of blocksOf(source)) {
     const top = groups.at(-1)
     const current = top?.groups.at(-1) ?? top
     if (block.kind === "heading") {
+      // Prose between one group's table and the next heading has no place on
+      // the overview, and would be lost from the site without a word.
+      if (closing.length > 0) throw new Error(`docs/index.md has prose after ${current?.title}'s table that the overview cannot place: move it under a heading, or to the end`)
       // The heading's own id, as the renderer spells one (GitHub's rule):
       // lower case, punctuation dropped, spaces as hyphens.
       const slug = block.text.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").replace(/\s/g, "-")
@@ -138,6 +144,7 @@ export const siteMap = async (): Promise<SiteMap> => {
     if (block.kind === "paragraph") {
       if (current === undefined) opening.push(block.html)
       else if (current.intro === "" && current.links.length === 0) current.intro = block.html
+      else closing.push(block.html)
       continue
     }
     if (top === undefined) continue
@@ -161,5 +168,5 @@ export const siteMap = async (): Promise<SiteMap> => {
   if (unlisted.length > 0) {
     throw new Error(`docs/index.md does not list: ${unlisted.map((id) => `${id}.md`).join(", ")}`)
   }
-  return { intro: opening.join(" "), groups, places }
+  return { intro: opening.join(" "), groups, closing, places }
 }

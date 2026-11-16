@@ -15,20 +15,17 @@ export async function getStaticPaths() {
 
 const { page } = Astro.props as { page: CollectionEntry<"docs"> }
 const { Content, headings, remarkPluginFrontmatter } = await render(page)
-// The main flow, as the docs pass measured it: how long it is, and which of
-// the page's `##` headings it holds.
+// What the main flow holds, as the docs pass saw it. Its length needs no
+// measuring here: the docs lint holds every page to about a minute.
 const reading: Reading = remarkPluginFrontmatter.reading
 const h2 = headings.filter((heading) => heading.depth === 2)
 const sections = reading.sections.flatMap((at) => h2[at] ?? [])
-// About 220 words a minute: enough to tell a glance from a sit-down.
-const minutes = Math.max(1, Math.round(reading.words / 220))
 ---
 
 <Docs id={page.id}>
   <p class="meta" slot="head">
-    {minutes} min read{reading.notes > 0 && ` · ${reading.notes} notes, one tap away`}
+    1 min read{reading.notes > 0 && ` · ${reading.notes} notes, one tap away`}
   </p>
-
   {
     sections.length > 1 && (
       <details class="contents">

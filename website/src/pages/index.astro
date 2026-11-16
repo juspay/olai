@@ -3,6 +3,8 @@
  * The pitch: why to try olai, and pictures of what a person sees. How to do
  * a thing belongs on a docs page; each section here ends with a link to it.
  */
+import { markdownToHtml } from "satteri"
+
 import { DEFAULT_THEME, PALETTES } from "../../../packages/appearance/src/palettes.ts"
 import Base from "../layouts/Base.astro"
 import { siteMap } from "../sitemap.ts"
@@ -12,6 +14,22 @@ import "../styles/home.css"
 // index to the registry), so this list cannot fall behind the build.
 const plugins = (await siteMap()).groups.find((group) => group.title === "Plugins")
 if (plugins === undefined) throw new Error('docs/index.md has no "## Plugins" group')
+
+// The plugin pitch, with its side facts as footnotes, written the way a docs
+// page writes them so the same renderer draws markers and notes alike. The
+// notes go to the foot of the page.
+const { html } = markdownToHtml(
+  `**Ask for one.** Press ⌘K, say in one sentence what it should do, and an agent writes it while you watch.[^agenda] Read what it does, press **Turn on**, and it starts drawing in the page you are on. No reload, no install, no build.[^folder] Your settings travel with your notes.[^settings]
+
+[^agenda]: The worked example is a morning agenda: each morning it reads the day and puts it into the conversation. [Read the morning agenda](/docs/dynamic-plugins-examples/#the-morning-agenda).
+
+[^folder]: What you are left with is a folder in your own directory: a README anybody can read, and the code. Git records every line of it. Copy it elsewhere and it arrives switched off, waiting for that directory’s own yes.
+
+[^settings]: A plugin you asked for keeps its settings there with everything else. A top-level row in \`_olai/Settings.olai\` names each plugin; its properties choose how it behaves and whether it runs. The panel writes the same file. See the [settings docs](/docs/settings/).
+`,
+  { features: { gfm: true } },
+)
+const [pitch = "", notes = ""] = html.split(/(?=<section data-footnotes)/)
 ---
 
 <Base
@@ -308,11 +326,7 @@ if (plugins === undefined) throw new Error('docs/index.md has no "## Plugins" gr
     </div>
     <div class="cols">
       <div>
-        <p><strong>Ask for one.</strong> Press ⌘K, say in one sentence what it
-        should do, and an agent writes it while you watch.<sup><a href="#fn-agenda" id="fnref-agenda" data-footnote-ref>1</a></sup>
-        Read what it does, press <b>Turn on</b>, and it starts drawing in the
-        page you are on. No reload, no install, no build.<sup><a href="#fn-folder" id="fnref-folder" data-footnote-ref>2</a></sup>
-        Your settings travel with your notes.<sup><a href="#fn-settings" id="fnref-settings" data-footnote-ref>3</a></sup></p>
+        <Fragment set:html={pitch} />
       </div>
       <pre class="tree" aria-label="A plugin in your directory: a folder holding a README, the server half and the browser half">my-notes/
 ├── plugins/
@@ -378,26 +392,7 @@ if (plugins === undefined) throw new Error('docs/index.md has no "## Plugins" gr
   </div>
 </section>
 
-<section class="footnotes wrap">
-  <h2 id="footnote-label">Footnotes</h2>
-  <ol>
-    <li id="fn-agenda"><p>The worked example is a morning agenda: each morning
-    it reads the day and puts it into the conversation.
-    <a href="/docs/dynamic-plugins-examples/#the-morning-agenda">Read the morning agenda</a>.
-    <a href="#fnref-agenda" data-footnote-backref aria-label="Back to the text">↩</a></p></li>
-    <li id="fn-folder"><p>What you are left with is a folder in your own
-    directory: a README anybody can read, and the code. Git records every line
-    of it. Copy it elsewhere and it arrives switched off, waiting for that
-    directory’s own yes.
-    <a href="#fnref-folder" data-footnote-backref aria-label="Back to the text">↩</a></p></li>
-    <li id="fn-settings"><p>A plugin you asked for keeps its settings there
-    with everything else. A top-level row in <code>_olai/Settings.olai</code>
-    names each plugin; its properties choose how it behaves and whether it
-    runs. The panel writes the same file. See the
-    <a href="/docs/settings/">settings docs</a>.
-    <a href="#fnref-settings" data-footnote-backref aria-label="Back to the text">↩</a></p></li>
-  </ol>
-</section>
+<div class="wrap"><Fragment set:html={notes} /></div>
 
 </main>
 

@@ -132,6 +132,8 @@
 .card details > summary { cursor: pointer; color: var(--muted); }
 .card details > summary span { font-size: 0.78rem; }
 .card details ul { margin: 0.3rem 0 0 1rem; }
+.closing { max-width: 44rem; margin-top: 1.2rem; font-size: 0.86rem; color: var(--muted); }
+.cards + .closing { margin-top: 2rem; }
 
 /* Previous and next, in the index's order. */
 .pager { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 3.5rem; max-width: 44rem; }
