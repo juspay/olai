@@ -104,7 +104,7 @@ export const components = {
     const management = yield* browserManagement
     yield* (yield* Slots).register(
       "app.route",
-      defineSelfDrawnPage(pluginPage, (props) => <PluginPage word={props.value.word} management={management} />),
+      defineSelfDrawnPage(pluginPage, (props) => <PluginPage word={props.value.word} file={props.value.file} management={management} />),
     )
   }) }),
 

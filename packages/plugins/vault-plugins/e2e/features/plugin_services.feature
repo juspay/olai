@@ -22,6 +22,7 @@ Feature: One plugin the vault defines, standing on another
   Scenario: A plugin-owned service connects two approved folders
     Given I open the outline "colours.olai"
     When I approve the plugin "swatch"
+    And I open the plugins panel
     # WAITING, NOT FAILED — nothing has gone wrong. The sentence names the KEY,
     # because "waiting for something it needs" sends a person to the source and
     # a key sends them to the row that offers it.

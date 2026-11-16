@@ -62,7 +62,15 @@ import { Code } from "./page/Code.tsx"
 import { Verbs, type Acts } from "./page/Verbs.tsx"
 import { faultSaid, LOOK, metaOf, pluginNamed, stageOf, TRUST_SAID, type Defined } from "./state.ts"
 
-export function PluginPage(props: { readonly word: string; readonly management: BrowserManagement }) {
+export function PluginPage(props: {
+  readonly word: string
+  /** Which of the folder's files the ADDRESS named, where it named one — a
+   *  half's own path is this page's address (`./route.ts`), and landing on it
+   *  should land on that file rather than on whichever the page opens by
+   *  default. */
+  readonly file?: string
+  readonly management: BrowserManagement
+}) {
   // The roster subscription is this page's, taken once under the owner the
   // pane mounted it in and released when the pane leaves it.
   const roster = props.management.roster()
@@ -70,7 +78,7 @@ export function PluginPage(props: { readonly word: string; readonly management: 
   return (
     <main class={`mx-auto w-full max-w-3xl px-4 py-6 ${CLEARANCE}`}>
       <Show when={plugin()} fallback={<Missing word={props.word} />}>
-        {(found) => <Known plugin={found()} management={props.management} />}
+        {(found) => <Known plugin={found()} file={props.file} management={props.management} />}
       </Show>
     </main>
   )
@@ -97,7 +105,7 @@ function Missing(props: { readonly word: string }) {
   )
 }
 
-function Known(props: { readonly plugin: Defined; readonly management: BrowserManagement }) {
+function Known(props: { readonly plugin: Defined; readonly file?: string; readonly management: BrowserManagement }) {
   const source = () => props.plugin.source
   const stage = () => stageOf(props.plugin)
   const [busy, setBusy] = createSignal(false)
@@ -249,7 +257,7 @@ function Known(props: { readonly plugin: Defined; readonly management: BrowserMa
           heading={stage() === "paused" ? "What changed" : "The code"}
           note={stage() === "paused" ? "since the version you turned on" : "Read it, or don't. It is all here."}
         >
-          <Code source={source()} diffing={stage() === "paused"} />
+          <Code source={source()} at={props.file} diffing={stage() === "paused"} />
         </Block>
       </Show>
 

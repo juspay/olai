@@ -187,14 +187,14 @@ Then("the plugin page says what running it costs", async function (this: OlaiWor
 When("I approve the plugin {string}", async function (this: OlaiWorld, word: string) {
   const was = this.place()
   await shownPage(this, word)
-  // A PAGE THAT MOVED UNDER THE READER HAS NO ARMED VERB, which is the whole
-  // safety of this screen: a scenario that rewrote a half while the page was
-  // open is in exactly the state a person would be in, and what a person does
-  // next is read it again. So this step does that first where the page asks
-  // for it, and the scenarios about the DISARMING itself assert it directly
-  // rather than through this one.
-  const read = this.page.locator(PAGE_MOVED_READ)
-  if (await read.isVisible().catch(() => false)) await this.press(read)
+  // A PAGE THAT MOVED UNDER THE READER HAS NO ARMED VERB, and a press that
+  // crossed a revision is REFUSED — which is the whole safety of this screen
+  // and is exactly the position a scenario that rewrote a half a moment ago
+  // puts itself in. What a person does then is read it again and press again,
+  // so that is what this does, until the settings file carries the decision.
+  // The scenarios ABOUT the disarming assert it directly rather than through
+  // this step.
+  const read = this.page.locator(PAGE_MOVED_READ).first()
   const verb = verbOf(this)
   await verb.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
   const which = await verb.getAttribute("data-verb")
@@ -202,10 +202,16 @@ When("I approve the plugin {string}", async function (this: OlaiWorld, word: str
     which === "turn-on" || which === "turn-on-version",
     `"${word}" offers "${which}" rather than a verb that turns it on`,
   )
-  await this.press(verb)
-  await this.waitUntil(() => {
+  await this.waitUntil(async () => {
     const consent = consentOf(this, word)
-    return Promise.resolve(consent !== undefined && consent["approved"] !== undefined && consent["on"] === "yes")
+    if (consent !== undefined && consent["approved"] !== undefined && consent["on"] === "yes") return true
+    if (await read.isVisible().catch(() => false)) {
+      await this.press(read)
+      return false
+    }
+    const armed = verbOf(this)
+    if (await armed.isEnabled().catch(() => false)) await this.press(armed)
+    return false
   }, `the approval of "${word}" to reach ${SETTINGS_FILE}`)
   if (this.place() !== was) {
     await this.page.goBack()

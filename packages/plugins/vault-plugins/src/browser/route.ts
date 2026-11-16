@@ -36,30 +36,63 @@
 
 import { defineSelfDrawnRoute } from "olai-plugin-navigation/routes"
 
+import { PLUGIN_BROWSER_FILE, PLUGIN_README_FILE, PLUGIN_SERVER_FILE } from "@olai/surface"
 import { WORD } from "../source.ts"
+
+/** The three names a folder holds, as a path may spell them. Keyed rather than
+ *  listed because this is a membership question asked once per address. */
+const FILES: Readonly<Record<string, true>> = {
+  [PLUGIN_README_FILE]: true,
+  [PLUGIN_SERVER_FILE]: true,
+  [PLUGIN_BROWSER_FILE]: true,
+}
 
 /** The prefix this page claims. Trailing slash, so `/plugins` itself is not
  *  ours: a list of plugins is the panel's and the sidebar's job, and claiming
  *  the bare word would take an address away from a page that might want it. */
 export const PLUGIN_PATH = "/plugins/"
 
-/** One plugin's page: the folder's word, and nothing else. */
+/**
+ * One plugin's page: the folder's word, and — where the address named one of
+ * the folder's files — which of them to open at.
+ *
+ * ## A HALF'S PATH IS THIS PAGE'S ADDRESS, and that is the whole of why the
+ * value has a second field
+ *
+ * `plugins/hex-swatch/server.ts` is a real file in the set: the Commit panel
+ * lists it, the ledger records it, a link can name it. What it has no page of
+ * its own is deliberate (the claim's `elsewhere`, and the sidebar rule it
+ * carries) — so an address that named one used to fall through every grammar
+ * and leave the pane drawing whatever it had been drawing, which is the one
+ * answer worse than a refusal.
+ *
+ * It opens the PLUGIN's page with that file showing. That is where a half is
+ * read on purpose: with the README over it, what it uses beside it, and the
+ * one button that decides whether it runs.
+ */
 export interface PluginPage {
   readonly word: string
+  readonly file?: string
 }
 
 export const pluginPage = defineSelfDrawnRoute<PluginPage>({
   claims: [{ kind: "prefix", path: PLUGIN_PATH }],
   parse: (pathname) => {
-    let word: string
-    try { word = decodeURIComponent(pathname.slice(PLUGIN_PATH.length)) } catch { return null }
-    return WORD.test(word) ? { word } : null
+    let rest: string
+    try { rest = decodeURIComponent(pathname.slice(PLUGIN_PATH.length)) } catch { return null }
+    const cut = rest.indexOf("/")
+    const word = cut === -1 ? rest : rest.slice(0, cut)
+    if (!WORD.test(word)) return null
+    if (cut === -1) return { word }
+    const file = rest.slice(cut + 1)
+    return FILES[file] === true ? { word, file } : null
   },
-  href: ({ word }) => `${PLUGIN_PATH}${encodeURIComponent(word)}`,
+  href: ({ word, file }) =>
+    `${PLUGIN_PATH}${encodeURIComponent(word)}${file === undefined ? "" : `/${encodeURIComponent(file)}`}`,
   // The crumb is the WORD and not the title, and that is a limit worth being
   // plain about: a breadcrumb is drawn from the address alone, and the title
   // is the README's — a fact about the folder, which this grammar has never
   // read. The page itself heads with the title.
-  breadcrumb: ({ word }) => `Plugins › ${word}`,
+  breadcrumb: ({ word, file }) => `Plugins › ${word}${file === undefined ? "" : ` › ${file}`}`,
   narrowable: false,
 })

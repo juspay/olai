@@ -63,6 +63,10 @@ const firstOf = (choices: ReadonlyArray<Choice>): string =>
 
 export function Code(props: {
   readonly source: Source
+  /** The file the ADDRESS named, where it named one: a half's own path opens
+   *  this page at that half (`../route.ts`). A person's own press still wins —
+   *  the tabs set the signal below, and this is only where the page starts. */
+  readonly at?: string
   /** Draw the chosen file as a diff against the approved version — the paused
    *  plugin, and nothing else. */
   readonly diffing?: boolean
@@ -70,7 +74,10 @@ export function Code(props: {
   const choices = createMemo(() => choicesOf(props.source, props.diffing === true))
   const [picked, pick] = createSignal<string>()
   const shown = createMemo(() =>
-    choices().find((one) => one.file === picked()) ?? choices().find((one) => one.file === firstOf(choices())) ?? choices()[0])
+    choices().find((one) => one.file === picked())
+      ?? choices().find((one) => one.file === props.at)
+      ?? choices().find((one) => one.file === firstOf(choices()))
+      ?? choices()[0])
   return (
     <div class="overflow-hidden rounded-control border border-line/60" data-testid={TESTID.pageCode} data-file={shown()?.file}>
       <div class="flex items-center gap-1 border-b border-line/60 bg-desk px-2 py-1" role="tablist" aria-label="Which file to read">

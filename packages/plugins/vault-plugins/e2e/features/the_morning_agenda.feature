@@ -105,6 +105,7 @@ Feature: The morning agenda — a plugin the vault defines, standing on a plugin
   Scenario: The key is the journal's, so the plugin waits when the journal is switched off
     Given I open the outline "work.olai"
     When I approve the plugin "morning-agenda"
+    And I open the plugins panel
     Then the plugins panel says nothing more about "morning-agenda"
     # DISCOVERY IS LIVE, which is what makes `vault-plugins_inspect` an answer
     # rather than a description: the key is on the catalog because a row is

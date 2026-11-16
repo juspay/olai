@@ -209,7 +209,8 @@ Feature: A plugin the vault defines
     When I approve the plugin "swatch"
     Then the row "amber" wears a swatch for "#ff8800"
 
-    When I switch the plugin "swatch" off on its page
+    When I open the plugins panel
+    And I switch the plugin "swatch" off on its page
     # OFF, BUT STILL APPROVED — two facts, kept apart, because somebody who
     # read this code once should not have to read it again to turn it back on.
     Then the plugin page is "off"
@@ -229,7 +230,8 @@ Feature: A plugin the vault defines
     When I approve the plugin "swatch"
     Then the row "amber" wears a swatch for "#ff8800"
 
-    When I switch the plugin "swatch" off
+    When I open the plugins panel
+    And I switch the plugin "swatch" off
     Then file "_olai/Settings.olai" has namespace "swatch" setting "on" as "no"
     And no row wears a swatch
     When I close the plugins panel

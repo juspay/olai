@@ -174,8 +174,13 @@ Feature: A plugin's own page
     # none of olai's business: no row, no address, nothing compiled.
     And Reference does not list the file "toolbox.ts"
 
+    # ...AND A HALF'S OWN PATH IS AN ADDRESS THAT OPENS THE PLUGIN'S PAGE at
+    # that half. A file with no page of its own used to leave the pane drawing
+    # whatever it had been drawing, which is the one answer worse than a
+    # refusal — and the plugin's page is where a half is read on purpose.
     When I open the address "/plugins/swatch/server.ts"
-    Then the open file is "plugins/swatch/server.ts"
+    Then the plugin page is about "swatch"
+    And the plugin page's code is "server.ts"
 
     When I open the address "/toolbox.ts"
     Then a not-found is shown
