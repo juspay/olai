@@ -195,6 +195,14 @@ When("I approve the plugin {string}", async function (this: OlaiWorld, word: str
   // The scenarios ABOUT the disarming assert it directly rather than through
   // this step.
   const read = this.page.locator(PAGE_MOVED_READ).first()
+  // Read it again FIRST where the page asks: a disarmed page has no verb at
+  // all, so a wait for one would spend the step's whole budget on a screen
+  // that is waiting for this press.
+  await this.waitUntil(
+    async () => await read.isVisible().catch(() => false) || await verbOf(this).isVisible().catch(() => false),
+    `"${word}"'s page to offer a verb or ask to be read again`,
+  )
+  if (await read.isVisible().catch(() => false)) await this.press(read)
   const verb = verbOf(this)
   await verb.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
   const which = await verb.getAttribute("data-verb")
@@ -250,6 +258,13 @@ When("I switch the plugin {string} off on its page", async function (this: OlaiW
 })
 
 Then("the plugin page's verb is {string}", async function (this: OlaiWorld, which: string) {
+  // A PAGE THAT MOVED UNDER THE READER HAS NO VERB AT ALL until somebody says
+  // they have read it again: that is the screen's whole safety, and it is the
+  // state a scenario that has just rewritten a half puts itself in. Reading
+  // again is what a person does there; the scenarios ABOUT the disarming
+  // assert it directly rather than through this step.
+  const read = this.page.locator(`${PAGE} ${PAGE_MOVED_READ}`).first()
+  if (await read.isVisible().catch(() => false)) await this.press(read)
   const verb = verbOf(this)
   await verb.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
   await this.waitUntil(

@@ -183,7 +183,8 @@ Feature: A plugin's own page
     And the plugin page's code is "server.ts"
 
     When I open the address "/toolbox.ts"
-    Then a not-found is shown
+    Then the empty page says "Page not found"
+    And the empty page explains "olai can't open .ts files."
     And there should be no page errors
 
   @phone @scratch:plugins

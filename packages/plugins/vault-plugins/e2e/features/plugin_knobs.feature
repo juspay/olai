@@ -103,10 +103,18 @@ Feature: A plugin the vault defines reads its own schema knobs
     # them would be a plugin whose settings control its own consent — so the
     # door refuses the write before anything reaches the file, with the same
     # sentence either way.
-    Given the next browser configuration request names reserved key "<key>"
+    # CONSENT IS IN THE FILE BEFORE THE SERVE READS IT, rather than pressed:
+    # approving is itself a write through the door this scenario is stubbing,
+    # so a press would spend the stub on consent instead of on the knob — and
+    # a plugin that comes up already running leaves the knobs unfrozen, which
+    # is what this scenario needs to reach them.
+    Given I rewrite "_olai/Settings.olai" as:
+      """
+      {"id":"greeting-consent","ord":"a0","title":"greeting","custom":{"approved":"always","on":"yes"}}
+      """
+    And the next browser configuration request names reserved key "<key>"
     And I open the app
-    When I approve the plugin "greeting"
-    And I open the plugins panel
+    When I open the plugins panel
     And I expand the plugin "greeting"
     And I remember the settings file "_olai/Settings.olai"
     And I pick "red" for "greeting" setting "tone"
