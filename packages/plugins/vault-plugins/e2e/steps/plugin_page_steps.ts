@@ -683,7 +683,7 @@ Then("the plugin page offers the conversation's own page", async function (this:
  */
 Then("the plugin {string} has written {string}", async function (this: OlaiWorld, word: string, file: string) {
   await shownPage(this, word)
-  const row = this.page.locator(`${PAGE} [data-file="${file}"]`).first()
+  const row = this.page.locator(`${PAGE} ${attr("data-file", file)}`).first()
   await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
   await this.waitUntil(
     async () => (await row.getAttribute("data-written")) === "yes",
