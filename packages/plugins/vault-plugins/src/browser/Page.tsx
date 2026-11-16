@@ -337,7 +337,7 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
             there is no other copy of this page — so a plugin made on a phone
             could not be deleted on one. It sits beside the decision rather
             than inside it, which is why the primary still fills the row. */}
-        <Verbs plugin={props.plugin} stage={stage()} acts={acts} menu />
+        <Verbs plugin={props.plugin} stage={stage()} acts={acts} menu foot />
         <p class="m-0 text-caption text-muted" data-testid={TESTID.pageTrustSaid}>{TRUST_SAID}</p>
       </div>
     </section>
