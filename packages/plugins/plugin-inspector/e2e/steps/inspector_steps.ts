@@ -5,8 +5,28 @@ import * as path from "node:path";
 
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
-// An explicitly approved fixture exercises the same host capability another
-// plugin can consume. It has no UI and does not expose the notebook client.
+/**
+ * A FIXTURE PLUGIN, WRITTEN AS A FOLDER — the only shape there is: a plugin
+ * the vault defines is `plugins/<word>/` with a README over its two halves,
+ * and consent for it lives on its node in `_olai/Settings.olai`, which the
+ * scenario presses for rather than writing.
+ *
+ * An explicitly approved fixture exercises the same host capability another
+ * plugin can consume. It has no UI and does not expose the notebook client.
+ */
+const definesPlugin = (
+  world: OlaiWorld,
+  word: string,
+  told: { readonly title: string; readonly line: string },
+  halves: { readonly server: string; readonly browser?: string },
+): void => {
+  const folder = path.join(world.scratch(), "plugins", word);
+  fs.mkdirSync(folder, { recursive: true });
+  fs.writeFileSync(path.join(folder, "README.md"), `# ${told.title}\n\n${told.line}\n`);
+  fs.writeFileSync(path.join(folder, "server.ts"), `${halves.server}\n`);
+  if (halves.browser !== undefined) fs.writeFileSync(path.join(folder, "browser.tsx"), `${halves.browser}\n`);
+};
+
 Given("the vault defines a non-UI host management controller", function (this: OlaiWorld) {
   const server = `import { definePlugin } from "@olai/plugin-api"
 import { Effect } from "effect"
@@ -20,12 +40,10 @@ export default definePlugin({ name: "management-controller", needs: [management]
     globalThis.testManagePlugin = (name, enabled) => Effect.runPromise(control.set(name, enabled))
   }), () => Effect.sync(() => { delete globalThis.testManagePlugin }))
 }) })`;
-  const rows = [
-    { id: "management-controller", ord: "a0", title: "Host management controller", custom: { plugin: "management-controller" } },
-    { id: "management-controller-server", parent: "management-controller", ord: "a0", title: "server.ts", desc: server },
-    { id: "management-controller-browser", parent: "management-controller", ord: "a1", title: "browser.tsx", desc: browser },
-  ];
-  fs.writeFileSync(path.join(this.scratch(), "management-controller.olai"), rows.map((row) => JSON.stringify(row)).join("\n") + "\n");
+  definesPlugin(this, "management-controller", {
+    title: "Host management controller",
+    line: "Hands a scenario the browser's own management door.",
+  }, { server, browser });
 });
 
 When("the non-UI controller sets plugin {string} {word}", async function (this: OlaiWorld, name: string, state: string) {
@@ -62,12 +80,10 @@ export default definePlugin({ name: "row-opener", needs: [configuration], apply:
     globalThis.testOpenRow = (name) => panel.open(name)
   }), () => Effect.sync(() => { delete globalThis.testOpenRow }))
 }) })`;
-  const rows = [
-    { id: "row-opener", ord: "a0", title: "Row opener", custom: { plugin: "row-opener" } },
-    { id: "row-opener-server", parent: "row-opener", ord: "a0", title: "server.ts", desc: server },
-    { id: "row-opener-browser", parent: "row-opener", ord: "a1", title: "browser.tsx", desc: browser },
-  ];
-  fs.writeFileSync(path.join(this.scratch(), "row-opener.olai"), rows.map((row) => JSON.stringify(row)).join("\n") + "\n");
+  definesPlugin(this, "row-opener", {
+    title: "Row opener",
+    line: "Holds the inspector's configuration door and nothing else.",
+  }, { server, browser });
 });
 
 When("the controller opens the plugin row {string}", async function (this: OlaiWorld, name: string) {

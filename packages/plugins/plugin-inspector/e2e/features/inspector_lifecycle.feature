@@ -3,8 +3,10 @@ Feature: The inspector is a consumer of independent host management
   Background:
     Given the vault defines a non-UI host management controller
     And I open the outline "house.olai"
-    And I open the plugins panel
+    # The panel is opened AFTER the approval: approving walks to the plugin's
+    # own page and back, which is a navigation and takes the panel with it.
     And I approve the plugin "management-controller"
+    And I open the plugins panel
     And I mark the page
 
   Scenario: The inspector can remove itself and authorized non-UI control can restore it

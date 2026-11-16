@@ -3,9 +3,7 @@ Feature: Page actions wait for their reading while navigation stays available
   Scenario: A shortcut without layout is preserved until the palette can render
     Given the vault defines a non-UI host management controller
     And I open the node "mint"
-    When I open the plugins panel
-    And I approve the plugin "management-controller"
-    And I close the plugins panel
+    When I approve the plugin "management-controller"
     And the non-UI controller sets plugin "layout" off
     Then the browser mount has no rendered application
     When I press "ControlOrMeta+k" without waiting
