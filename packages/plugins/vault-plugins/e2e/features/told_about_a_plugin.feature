@@ -69,9 +69,10 @@ Feature: What a plugin tells you, and what it waits to tell you
     And there should be no page errors
 
   Scenario: A build nobody ever finished can still be read
-    # The done signal is this process's memory: a serve restarted mid-build has
-    # none, and an agent that stopped talking never sends one. The files are on
-    # the screen, so what the page offers is reading what is actually there.
+    # The done signal is written down, so a reboot does not lose it — but an
+    # agent that stopped talking never sent one at all, and no file will ever
+    # arrive to say so. The files are on the screen, so what the page offers is
+    # reading what is actually there.
     Given I open the app
     When I rewrite "_olai/Settings.olai" as:
       """

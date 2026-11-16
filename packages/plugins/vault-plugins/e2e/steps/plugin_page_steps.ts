@@ -640,7 +640,7 @@ When("I delete the plugin {string} from its page", async function (this: OlaiWor
 })
 
 /** *I'll read it now* — the reader's way past a build whose agent never said
- *  it had finished (a serve restarted mid-build, a conversation abandoned). */
+ *  it had finished (a conversation abandoned halfway). */
 When("I read the unfinished plugin {string} anyway", async function (this: OlaiWorld, word: string) {
   await shownPage(this, word)
   const button = this.page.locator(`${PAGE} ${PAGE_READ_ANYWAY}`).first()

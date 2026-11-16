@@ -38,11 +38,11 @@ import { DOT } from "@olai/web/client/readout.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { CHIP_ALARM, CHIP_QUIET } from "olai-plugin-layout/chip"
 import { ENTRY_SHAPE, HEAD_ACTION, REGION, REGION_HEAD, REGION_LABEL, ROW_GAP } from "olai-plugin-layout/entry"
+import { WORD } from "@olai/surface"
 import type { BrowserManagement } from "@olai/surface/management"
 import { createMemo, createSelector, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { WORD } from "../source.ts"
 import { palette, router } from "./doors.ts"
 import { NEW_PLUGIN_ROW } from "./new-plugin.ts"
 import { pluginPage } from "./route.ts"
@@ -135,13 +135,14 @@ export function Section(props: { readonly management: BrowserManagement }) {
  * pressable, which is exactly the behaviour wanted, and it keeps one element
  * and one set of bindings rather than a second subtree swapped in by a
  * condition that never changes for a given folder.
+ *
+ * `aria-description` carries the README's own first sentence — what this word
+ * does, for a person reading a name they chose months ago — and on a folder
+ * whose name is not a word it carries the fault instead, which is the one
+ * thing a reader can act on there. It is a description and not a `title=`:
+ * that attribute is a tooltip a touch screen never shows and a screen reader
+ * never reads, and this client sweeps it out of its faces.
  */
-/** ONE ROW. `aria-description` carries the README's own first sentence — what
- *  this word does, for a person reading a name they chose months ago — and on
- *  a folder whose name is not a word it carries the fault instead, which is
- *  the one thing a reader can act on there. It is a description and not a
- *  `title=`: that attribute is a tooltip a touch screen never shows and a
- *  screen reader never reads, and this client sweeps it out of its faces. */
 function Row(props: { readonly plugin: Defined; readonly current: boolean }) {
   const stage = () => stageOf(props.plugin)
   const mark = () => markOf(stage())

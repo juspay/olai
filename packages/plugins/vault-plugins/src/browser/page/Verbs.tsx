@@ -97,12 +97,7 @@ export function Verbs(props: {
   readonly plugin: Defined
   readonly stage: Stage
   readonly acts: Acts
-  /** Whether to draw the `•••`. BOTH copies do: the menu holds *Always trust
-   *  changes* and *Delete…*, and a handset has no other copy of this page — so
-   *  leaving it out of the foot made a plugin made on a phone impossible to
-   *  get rid of on one. */
-  readonly menu?: boolean
-  /** ...and whether this is the FOOT, where the decision is the width of the
+  /** Whether this is the FOOT, where the decision is the width of the
    *  screen: a button at its own size is a small target in a wide empty bar,
    *  which is the one place a thumb is aiming. The `•••` beside it keeps its
    *  own size, and a switch keeps its shape. */
@@ -128,9 +123,13 @@ export function Verbs(props: {
           keeps its size: it is a control with a shape, not a label. */}
       <div class={`flex items-center gap-2 ${props.foot === true ? "[&>button:first-of-type:not([role=switch])]:flex-1" : ""}`}>
         <Primary plugin={props.plugin} stage={props.stage} acts={props.acts} />
-        <Show when={props.menu === true}>
-          <More plugin={props.plugin} stage={props.stage} acts={props.acts} />
-        </Show>
+        {/* BOTH COPIES DRAW THE `•••`, and it was a prop until the day the
+            foot got one too: the menu holds *Always trust changes* and
+            *Delete…*, and a handset has no other copy of this page, so
+            leaving it out of the foot made a plugin made on a phone
+            impossible to get rid of on one. `More` draws nothing where the
+            stage offers nothing, so there is no state to ask about here. */}
+        <More plugin={props.plugin} stage={props.stage} acts={props.acts} />
       </div>
     </Show>
   )

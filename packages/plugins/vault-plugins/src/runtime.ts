@@ -48,12 +48,12 @@ import { UsageFailure, type OpFailure, type WriteRequest, type Reading } from "@
 import * as plugins from "@olai/plugin-api/services"
 import { type OwnedLoader, type Mounted, type Plugin, type RowReport } from "@olai/plugin-api/services"
 import type { BuiltPlugin } from "@olai/surface"
-import { PLUGIN_BROWSER_FILE, PLUGIN_CHUNK_PREFIX, PLUGIN_README_FILE, PLUGIN_SERVER_FILE, type PluginState } from "@olai/surface"
+import { PLUGIN_CHUNK_PREFIX, PLUGIN_FILES, type PluginState } from "@olai/surface"
 import * as effect from "effect"
 import { Effect } from "effect"
 import { CONFIGURATION_FILE, decodePolicy, policyEdit, type PolicyRow } from "@olai/plugin-api/configuration"
 
-import { ALWAYS, APPROVED_KEY, BUILDER_KEY, CHECKED_KEY, type Defined, definedIn, isApproved, ON_KEY } from "./source.ts"
+import { ALWAYS, APPROVED_KEY, BUILDER_KEY, CHECKED_KEY, type Defined, definedIn, isApproved, isBuilding, isOn, ON_KEY } from "./source.ts"
 
 /**
  * THE HOST'S OWN MODULES, put where a module built at runtime can reach them.
@@ -102,10 +102,10 @@ export interface DynamicRuntime {
   /** Every word this vault defines right now — what the composition root adds to
    *  the bundle's own list when it re-reads the report above. */
   readonly names: () => ReadonlyArray<string>
-  /** Bring the mounted set into line with a revision. Answers whether anything
-   *  moved, so a caller can re-compose exactly when there is something to
-   *  re-compose. */
-  readonly follow: (reading: Reading | null) => Effect.Effect<boolean>
+  /** Bring the mounted set into line with a revision ({@link follow}). It
+   *  answers nothing: the caller republishes either way, because a revision
+   *  that moved no plugin still moved the file it landed in. */
+  readonly follow: (reading: Reading | null) => Effect.Effect<void>
   /** The text of a built browser half, by the path the roster published it
    *  under. `null` for anything else, which is a stale tab asking for a version
    *  that has been replaced. */
@@ -217,10 +217,20 @@ interface Live {
  * anywhere in the vault, for as long as somebody's `browser.tsx` had a syntax
  * error in it. With it, a failure is remembered exactly as a mount is: tried at
  * this version, and not tried again until the version moves.
+ *
+ * ## ...AND THE KNOBS IT WAS MADE AGAINST, for the same reason again
+ *
+ * `options` is the fingerprint of the plugin's settings at the moment of the
+ * attempt — the second half of *what this attempt was made from*, since a
+ * failed `apply` may have failed on a value somebody has since corrected. It
+ * lived in a second map keyed by the same word, set beside every `started.set`
+ * and deleted beside every `started.delete`: the exact shape the paragraph
+ * above says was a bug waiting, written again one declaration below the
+ * warning about it.
  */
 type Started =
-  | ({ readonly up: true; readonly version: string; readonly policy: PolicyRow; readonly declaration: Plugin["config"]; readonly updates: Plugin["configUpdates"] } & Live)
-  | { readonly up: false; readonly version: string; readonly why: string }
+  | ({ readonly up: true; readonly version: string; readonly options: string; readonly policy: PolicyRow; readonly declaration: Plugin["config"]; readonly updates: Plugin["configUpdates"] } & Live)
+  | { readonly up: false; readonly version: string; readonly options: string; readonly why: string }
 
 /**
  * OPEN THE DYNAMIC HALF over a host.
@@ -241,7 +251,6 @@ export const openDynamic = (
 ): DynamicRuntime => {
   /** WHAT CAME OF THE LAST ATTEMPT AT EACH WORD — see {@link Started}. */
   const started = new Map<string, Started>()
-  const optionsKeys = new Map<string, string>()
   /** THE LAST FACE EACH WORD SERVED, kept after it stops. A tab imports a
    *  chunk named by the roster it is holding, and a row that leaves — switched
    *  off, edited, or its folder deleted — would otherwise 404 that import.
@@ -295,16 +304,27 @@ export const openDynamic = (
    */
   const checkedBuilds = new Map<string, { readonly version: string; readonly why: string | null }>()
 
-  const follow = (defined: ReadonlyArray<Defined>): Effect.Effect<boolean> =>
+  /**
+   * BRING THE MOUNTED SET INTO LINE WITH A READING.
+   *
+   * IT ANSWERS NOTHING, and used to answer *whether anything moved* off a
+   * string built out of every field `rowOf` reads. Nobody wanted the answer:
+   * the one caller republishes the roster either way, because a revision that
+   * moved no plugin still moved the file it landed in. What the fingerprint
+   * did instead was rot — `checked` joined the row and never joined the
+   * string, so had anybody ever gated on it, a build saying it was finished
+   * would have reached no open tab. A comparison nothing reads is a comparison
+   * nothing keeps honest.
+   */
+  const follow = (defined: ReadonlyArray<Defined>): Effect.Effect<void> =>
     Effect.gen(function*() {
-      // WHAT THE ROWS SAID BEFORE, so that a definition ARRIVING is a movement
-      // even though no fiber moved. This answer gates the re-compose, and a
-      // re-compose is what republishes the roster — so without it the first
-      // thing that happens in this whole phase, an agent writing a definition
-      // nobody has approved, reached the panel of an open tab never.
-      const said = wordsOf(seen)
       seen = defined
-      let moved = wordsOf(defined) !== said
+      /** The words this reading holds — what the per-word memories below are
+       *  pruned against, read once rather than scanned per entry. */
+      const held = new Set(defined.map((one) => one.name))
+      const forget = (memory: Map<string, unknown>) => {
+        for (const name of [...memory.keys()]) if (!held.has(name)) memory.delete(name)
+      }
       // THE COPY FOR THE DIFF, taken while the version on disk is the version
       // that was approved — which is the only moment the bytes behind the hash
       // are in hand. A word this reading no longer holds takes its copy with
@@ -313,9 +333,7 @@ export const openDynamic = (
       for (const one of defined) {
         if (isApproved(one)) approvedSource.set(one.name, { server: one.server, browser: one.browser })
       }
-      for (const name of [...approvedSource.keys()]) {
-        if (!defined.some((one) => one.name === name)) approvedSource.delete(name)
-      }
+      forget(approvedSource)
       // ...AND THE COMPILE OF WHAT NOBODY HAS APPROVED, for the same reason
       // one line up and at the other end of the decision: a person cannot be
       // asked to say yes to code before being told the code will not build
@@ -324,11 +342,8 @@ export const openDynamic = (
         if (one.fault !== null || isApproved(one) || one.server.trim() === "") { checkedBuilds.delete(one.name); continue }
         if (checkedBuilds.get(one.name)?.version === one.version) continue
         checkedBuilds.set(one.name, { version: one.version, why: yield* compiles(one) })
-        moved = true
       }
-      for (const name of [...checkedBuilds.keys()]) {
-        if (!defined.some((one) => one.name === name)) checkedBuilds.delete(name)
-      }
+      forget(checkedBuilds)
       // WANTED IS APPROVED **AND** ON, and the two are different facts: a
       // plugin a person approved and then switched off is approved and not
       // running, and a plugin somebody switched on and then edited is on and
@@ -336,7 +351,7 @@ export const openDynamic = (
       // below says which is which.
       const wanted = new Map(
         defined
-          .filter((one) => one.fault === null && isApproved(one) && one.on)
+          .filter((one) => one.fault === null && isApproved(one) && isOn(one))
           .map((one) => [one.name, one] as const),
       )
       // OUT FIRST, so a version that is being replaced has unwound every
@@ -350,12 +365,11 @@ export const openDynamic = (
       for (const [name, one] of [...started]) {
         const next = wanted.get(name)
         if (next?.version === one.version) {
-          if (!one.up && optionsKeys.get(name) === optionsKey(next)) continue
+          if (!one.up && one.options === optionsKey(next)) continue
           if (one.up) {
             const policy = policyFor(one.declaration, next, warn)
             if (one.updates === "live" || JSON.stringify(policy.config) === JSON.stringify(one.policy.config)) {
-              started.set(name, { ...one, policy })
-              optionsKeys.set(name, optionsKey(next))
+              started.set(name, { ...one, policy, options: optionsKey(next) })
               continue
             }
           }
@@ -368,21 +382,14 @@ export const openDynamic = (
         // starts, so the memory is the roster's own size.
         if (one.up && one.path !== null && one.chunk !== null) retired.set(name, { path: one.path, chunk: one.chunk })
         started.delete(name)
-        optionsKeys.delete(name)
         if (!one.up) continue
         yield* one.mounted.dispose
-        moved = true
       }
       for (const [name, one] of wanted) {
         if (started.has(name)) continue
         started.set(name, yield* start(host, one, warn))
-        optionsKeys.set(name, optionsKey(one))
-        // EITHER WAY: a word that was not up is now mounted or is now failed
-        // with a sentence, and both are rows that say something they did not.
-        moved = true
       }
       for (const line of warnings.splice(0)) yield* Effect.logWarning(line)
-      return moved
     })
 
   /**
@@ -413,12 +420,12 @@ export const openDynamic = (
    * that is not there, so switching OFF a plugin that was already off asked to
    * write `no` over `no` and was refused in the same way — and that is the one
    * press somebody repeats, because an agent kept writing and they pressed
-   * Stop again ({@link ../source.ts}'s `switchSaid`).
+   * Stop again ({@link ../source.ts}'s verbatim `on`).
    */
   const consent = (one: Defined, props: Readonly<Record<string, string | null>>): WriteRequest | null => {
     const said: Readonly<Record<string, string | null>> = {
       [APPROVED_KEY]: one.approved,
-      [ON_KEY]: one.switchSaid,
+      [ON_KEY]: one.on,
       [BUILDER_KEY]: one.builder,
       [CHECKED_KEY]: one.checked,
     }
@@ -483,7 +490,7 @@ export const openDynamic = (
       if (one === undefined) return false
       // THE FOLDER'S OWN ORDER rather than the set's, so the writes a ledger
       // records read the way the page lists the files: prose, server, face.
-      for (const file of [PLUGIN_README_FILE, PLUGIN_SERVER_FILE, PLUGIN_BROWSER_FILE]) {
+      for (const file of PLUGIN_FILES) {
         if (!one.holds.includes(file)) continue
         yield* write({ op: "delete", file: `${one.folder}${file}` })
       }
@@ -510,7 +517,7 @@ export const openDynamic = (
       if (one === undefined) return false
       if (key.split(".").some(part => RESERVED.includes(part))) {
         return yield* Effect.fail(new UsageFailure({
-          reason: `${key} is reserved for the plugin's approval, its switch and the conversation building it`,
+          reason: `${key} ${RESERVED_SAID}`,
         }))
       }
       const mounted = started.get(name)
@@ -538,6 +545,14 @@ export const openDynamic = (
  * folder its author is halfway through.
  */
 export const RESERVED: ReadonlyArray<string> = [APPROVED_KEY, ON_KEY, BUILDER_KEY, CHECKED_KEY]
+
+/** ...AND THE SENTENCE A PERSON OR AN AGENT IS GIVEN FOR ONE, once. A schema
+ *  that declares a reserved word faults the row and `plugins.configure` refuses
+ *  to write one; both used to spell this out, and both still named three words
+ *  the morning the fourth arrived. */
+export const RESERVED_SAID =
+  "is reserved for the plugin's approval, its switch, the conversation building it"
+  + " and that conversation's done signal"
 
 /**
  * WHAT THE ROWS THIS RUNTIME DRAWS SAY, as one string — the comparison that
@@ -595,15 +610,6 @@ const compiles = (one: Defined): Effect.Effect<string | null> =>
     return browser.ok ? null : browser.why
   })
 
-/** Metadata fingerprint: field boundaries must survive text containing line breaks. */
-export const wordsOf = (defined: ReadonlyArray<Defined>): string =>
-  defined
-    .map((one) => [
-      one.name, one.folder, one.version, one.approved, String(one.on), one.builder,
-      one.title, one.description, one.readme, one.fault, optionsKey(one),
-    ].join("\0"))
-    .join("\n")
-
 /**
  * BUILD AND MOUNT ONE DEFINITION — and the answer is what came of it, either
  * way.
@@ -622,7 +628,7 @@ const policyFor = (schema: Plugin["config"], one: Defined, warn: (line: string) 
   if (schema === undefined) return { config: {}, values: [] }
   if (schema.ast._tag === "Objects") for (const field of schema.ast.propertySignatures) {
     if (RESERVED.includes(String(field.name))) {
-      throw new Error(`${String(field.name)} is reserved for the plugin's approval, its switch and the conversation building it`)
+      throw new Error(`${String(field.name)} ${RESERVED_SAID}`)
     }
   }
   return decodePolicy(schema, one.consent.nodes, one.consent.node,
@@ -631,7 +637,8 @@ const policyFor = (schema: Plugin["config"], one: Defined, warn: (line: string) 
 
 const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): Effect.Effect<Started> =>
   Effect.gen(function*() {
-    const faulted = (why: string): Started => ({ up: false, version: one.version, why })
+    const options = optionsKey(one)
+    const faulted = (why: string): Started => ({ up: false, version: one.version, options, why })
     const server = yield* Effect.promise(() => buildHalf("server", one.server))
     if (!server.ok) return faulted(server.why)
     const browser = one.browser === null
@@ -659,6 +666,7 @@ const start = (host: OwnedLoader, one: Defined, warn: (line: string) => void): E
     const mounted = yield* host.mount(plugin, policy.config)
     return {
       up: true,
+      options,
       policy,
       declaration: plugin.config,
       updates: plugin.configUpdates,
@@ -738,8 +746,13 @@ const rowOf = (
     // read from one that was read and has since changed.
     ...(one.approved === null ? {} : { decided: true }),
     ...(one.approved === ALWAYS ? { trusting: true } : {}),
-    ...(one.checked === null ? {} : { checked: one.checked }),
-    on: one.on,
+    // WHETHER AN AGENT IS STILL WRITING IT, decided here rather than sent as
+    // the version the builder last ran: the protocol — which call means done,
+    // which file order a build follows — is this serve's, and a page that
+    // compared two hashes for itself held half a contract it could not read
+    // (`./source.ts`'s `isBuilding`).
+    ...(isBuilding(one) ? { building: true } : {}),
+    on: isOn(one),
     server: one.server,
     ...(one.browser === null ? {} : { browser: one.browser }),
     ...(was === undefined || was.server === one.server ? {} : { approvedServer: was.server }),
@@ -754,7 +767,7 @@ const rowOf = (
     running: state === "running",
     state,
     switchPersistence: "file",
-    desiredOn: one.on,
+    desiredOn: isOn(one),
     ...more,
     source,
     ...(up === null ? {} : {
@@ -774,7 +787,7 @@ const rowOf = (
     ?? (pending?.version === one.version ? pending.why ?? undefined : undefined)
   if (said !== undefined) return at("failed", { fault: said })
   if (!isApproved(one)) return at("pending")
-  if (!one.on) return at("switched")
+  if (!isOn(one)) return at("switched")
   if (up === null || report === undefined) return at("off")
   return at(report.state, {
     ...(report.state === "failed" && report.fault !== undefined ? { fault: report.fault } : {}),

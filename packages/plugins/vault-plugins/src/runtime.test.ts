@@ -27,8 +27,8 @@ import type { BuiltPlugin } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 import { Effect, Option, Stream } from "effect"
 
-import { type DynamicRuntime, openDynamic, wordsOf } from "./runtime.ts"
-import { ALWAYS, definedIn, versionOf } from "./source.ts"
+import { type DynamicRuntime, openDynamic } from "./runtime.ts"
+import { ALWAYS, versionOf } from "./source.ts"
 
 /** A plugin that mounts and registers nothing — the smallest whole server half,
  *  and the shape `vault-plugins_guide` tells an agent to write. */
@@ -355,43 +355,39 @@ describe("a browser half is compiled and served", () => {
 })
 
 /**
- * WHAT `follow` ANSWERS is what makes the roster move, and a row that changed
- * with nothing to answer reached nobody.
+ * WHAT A REVISION DOES TO THE ROWS, which is the whole of what `follow` is for.
  *
- * The composition root re-composes — which is what republishes the `plugins`
- * cell, which is what an open tab redials on — only when this says something
- * moved. So "moved" has to mean *the rows this runtime draws are not the rows it
- * drew*, and it used to mean *a fiber moved*: the first thing that happens in
- * the whole lane, an agent writing a plugin nobody has approved, moved no fiber
- * and so reached the panel of an open tab never.
+ * It used to answer a boolean — *did anything move* — off a string built out of
+ * every field a row carries, and nobody ever read the answer: the caller
+ * republishes the roster either way, because a revision that moved no plugin
+ * still moved the file it landed in. These cases assert the rows themselves,
+ * which is what an open tab is actually handed.
  */
-describe("a revision that changes what the rows say is a movement", () => {
-  test("a plugin arriving, and being turned on, and then saying nothing new", async () => {
-    const said = await bench((dynamic) =>
+describe("a revision that changes what the rows say", () => {
+  test("a plugin arrives as a row, and an approval starts it", async () => {
+    const said = await bench((dynamic, now) =>
       Effect.gen(function*() {
         const approved = versionOf(SERVER, null)
-        const arrived = yield* dynamic.follow(vault({}))
-        const turnedOn = yield* dynamic.follow(vault({ approved }))
-        const again = yield* dynamic.follow(vault({ approved }))
-        return { arrived, turnedOn, again }
+        yield* dynamic.follow(vault({}))
+        const arrived = (yield* now())[0]?.state
+        yield* dynamic.follow(vault({ approved }))
+        return { arrived, turnedOn: (yield* now())[0]?.state }
       })
     )
-    expect(said.arrived).toBe(true)
-    expect(said.turnedOn).toBe(true)
-    // ...and a revision that touched some other file says so, so a keystroke
-    // elsewhere does not redial every tab.
-    expect(said.again).toBe(false)
+    expect(said.arrived).toBe("pending")
+    expect(said.turnedOn).toBe("running")
   })
 
   test("a README edit reaches an open page even though no fiber moved", async () => {
-    const moved = await bench((dynamic) =>
+    const said = await bench((dynamic, now) =>
       Effect.gen(function*() {
         const approved = versionOf(SERVER, null)
         yield* dynamic.follow(vault({ approved, readme: "# A\n\nOne.\n" }))
-        return yield* dynamic.follow(vault({ approved, readme: "# A\n\nTwo.\n" }))
+        yield* dynamic.follow(vault({ approved, readme: "# A\n\nTwo.\n" }))
+        return (yield* now())[0]?.source?.description
       })
     )
-    expect(moved).toBe(true)
+    expect(said).toBe("Two.")
   })
 
   /**
@@ -400,24 +396,20 @@ describe("a revision that changes what the rows say is a movement", () => {
    * The failed arm carried no version, so `follow` had nothing to compare it
    * against and ran the Solid transform again on every revision — every
    * keystroke anywhere in the vault paying for one broken `browser.tsx`, for as
-   * long as it stayed broken. The version is on both arms now, so a failure is
-   * remembered exactly as a mount is.
+   * long as it stayed broken. The version and the knobs it was tried with are
+   * both on the attempt now, so a failure is remembered exactly as a mount is.
    */
-  test("a broken plugin is compiled once, not once per revision", async () => {
+  test("a broken plugin keeps its sentence across a revision that changed nothing", async () => {
     const said = await bench((dynamic, now) =>
       Effect.gen(function*() {
         const broken = { server: `import pad from "left-pad"\n${SERVER}`, approved: ALWAYS }
-        const first = yield* dynamic.follow(vault(broken))
-        const second = yield* dynamic.follow(vault(broken))
-        return { first, second, rows: yield* now() }
+        yield* dynamic.follow(vault(broken))
+        yield* dynamic.follow(vault(broken))
+        return (yield* now())[0]
       })
     )
-    expect(said.first).toBe(true)
-    // NOTHING MOVED, which is the assertion: an unchanged broken plugin is
-    // skipped rather than rebuilt, and the row goes on saying what it said.
-    expect(said.second).toBe(false)
-    expect(said.rows[0]?.state).toBe("failed")
-    expect(said.rows[0]?.fault).toContain(`"left-pad"`)
+    expect(said?.state).toBe("failed")
+    expect(said?.fault).toContain(`"left-pad"`)
   })
 
   test("...and is tried again the moment its source moves", async () => {
@@ -427,12 +419,11 @@ describe("a revision that changes what the rows say is a movement", () => {
           vault({ server: `import pad from "left-pad"\n${SERVER}`, approved: ALWAYS }),
         )
         // Fixed, and approved for every version, so the next follow builds it.
-        const fixed = yield* dynamic.follow(vault({ approved: ALWAYS }))
-        return { fixed, rows: yield* now() }
+        yield* dynamic.follow(vault({ approved: ALWAYS }))
+        return (yield* now())[0]?.state
       })
     )
-    expect(said.fixed).toBe(true)
-    expect(said.rows[0]?.state).toBe("running")
+    expect(said).toBe("running")
   })
 })
 
@@ -666,23 +657,13 @@ for (const key of ["approved", "on", "builder"]) {
   })))
 }
 
-test("row metadata preserves field boundaries across delimiter-like text", () => {
-  const base = definedIn(vault({}), [])[0]!
-  for (const separator of ["\n", "\\0"]) {
-    const before = { ...base, approved: `pending${separator}fragment`, fault: "tail" }
-    const after = { ...base, approved: "pending", fault: `fragment${separator}tail` }
-    expect(wordsOf([before])).not.toBe(wordsOf([after]))
-    expect(wordsOf([before])).toBe(wordsOf([{ ...before }]))
-  }
-})
-
 test("configure edits the settings node and refuses its reserved keys before writing", () => bench((dynamic, _now, _host, written) => Effect.gen(function*() {
   const server = `import { definePlugin } from "@olai/plugin-api"; import { Effect, Schema } from "effect";
     export default definePlugin({ name: "swatch", needs: [], config: Schema.Struct({ tone: Schema.Literals(["blue", "red"]).pipe(Schema.withDecodingDefaultKey(Effect.succeed("blue")), Schema.annotate({ description: "the tone" })) }), apply: () => Effect.void });`
   yield* dynamic.follow(vault({ server, approved: ALWAYS }))
   expect(yield* Effect.orDie(dynamic.configure("swatch", "tone", "red"))).toBe(true)
   expect(written).toEqual([{ op: "prop", id: "c", key: "tone", value: "red" }])
-  for (const key of ["approved", "on", "builder"]) {
+  for (const key of ["approved", "on", "builder", "checked"]) {
     const refused = yield* Effect.orDie(Effect.flip(dynamic.configure("swatch", key, "anything")))
     expect(refused.message).toContain("reserved")
   }
@@ -800,9 +781,9 @@ test("deleting a plugin removes its files and its consent", () => bench((dynamic
 })))
 
 /**
- * THE BUILDER'S DONE SIGNAL rides the roster, because three faces read it: the
- * page stays on *being built* without it, the sidebar's mark stays working,
- * and the alert does not ring.
+ * THE BUILDER'S DONE SIGNAL rides the roster as `building`, because three faces
+ * read it: the page stays on *being built* without it, the sidebar's mark stays
+ * working, and the alert does not ring.
  *
  * IT IS A PROPERTY ON THE PLUGIN'S NODE, so these are two tests and not one:
  * the call writes the word, and a roster read out of a vault that already
@@ -811,14 +792,14 @@ test("deleting a plugin removes its files and its consent", () => bench((dynamic
  */
 test("the builder's finished version is written to the plugin's node", () => bench((dynamic, now, _host, written) => Effect.gen(function*() {
   yield* dynamic.follow(vault({ props: { builder: "chat-1" } }))
-  expect((yield* now())[0]?.source?.checked).toBeUndefined()
+  expect((yield* now())[0]?.source?.building).toBe(true)
   expect(yield* dynamic.checked("swatch", versionOf(SERVER, null))).toBe(true)
   expect(written).toEqual([{ op: "prop", id: "c", key: "checked", value: versionOf(SERVER, null) }])
 })))
 
 test("...and a serve that restarts reads it back off the file", () => bench((dynamic, now) => Effect.gen(function*() {
   yield* dynamic.follow(vault({ props: { builder: "chat-1", checked: versionOf(SERVER, null) } }))
-  expect((yield* now())[0]?.source?.checked).toBe(versionOf(SERVER, null))
+  expect((yield* now())[0]?.source?.building).toBeUndefined()
 })))
 
 /** ...and saying it twice at one version moves nothing: the gate refuses a

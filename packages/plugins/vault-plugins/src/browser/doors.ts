@@ -47,7 +47,10 @@ export const holdPalette = box.hold
 export const palette = box.read
 
 /** ...and the router, which the sidebar reads to wash the row whose page is in
- *  front and the alert reads to open the page a press named. */
+ *  front. The alert takes its own navigation from its component's `needs`
+ *  rather than from here: this holder is installed by the palette component,
+ *  and a ping that waited on the palette would be a notification nobody gets
+ *  on a serve with the palette off. */
 const lane = heldService<Navigation>()
 export const holdRouter = lane.hold
 export const router = lane.read

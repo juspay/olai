@@ -15,7 +15,7 @@ import { describe, expect, test } from "bun:test"
 import type { BuiltPlugin } from "@olai/surface"
 
 import { changedCount, diffLines } from "./diff.ts"
-import { building, markOf, metaOf, stageOf, wakes, type Defined } from "./state.ts"
+import { markOf, metaOf, stageOf, wakes, type Defined } from "./state.ts"
 
 const plugin = (source: Partial<BuiltPlugin["source"] & object>, row: Partial<BuiltPlugin> = {}): Defined => ({
   name: "swatch",
@@ -48,29 +48,20 @@ describe("which of the six", () => {
     expect(metaOf(plugin({ decided: true, on: true }), "paused")).toBe("changed since you turned it on")
   })
 
-  test("being built ends when the builder says so, not when a file lands", () => {
-    const landing = plugin({ builder: "chat-1", server: "" })
-    expect(stageOf(landing)).toBe("building")
-    // The server half has landed and the face has not. The old test for this
-    // was `server.ts` being non-empty, and it rang *ready for you* here.
-    const halfway = plugin({ builder: "chat-1" })
-    expect(stageOf(halfway)).toBe("building")
-    expect(building(halfway)).toBe(true)
-    const done = plugin({ builder: "chat-1", checked: "v1" })
-    expect(stageOf(done)).toBe("review")
+  // WHETHER A FOLDER IS STILL BEING WRITTEN is the serve's answer now
+  // (`source.ts`'s `isBuilding`, tested there against real folders); what is
+  // the page's, and what these cases are about, is what it DRAWS for that
+  // answer and the reader's way past it.
+  test("a folder the serve says is being built is being built", () => {
+    expect(stageOf(plugin({ building: true }))).toBe("building")
   })
 
   test("...and the reader can go past it when nothing ever says so", () => {
-    expect(stageOf(plugin({ builder: "chat-1" }), true)).toBe("review")
-  })
-
-  test("an agent editing an approved plugin is a change, not a build", () => {
-    const edited = plugin({ builder: "chat-1", decided: true, on: true, checked: "v0" })
-    expect(stageOf(edited)).toBe("paused")
+    expect(stageOf(plugin({ building: true }), true)).toBe("review")
   })
 
   test("a half that will not compile is broken before anybody approves it", () => {
-    const broken = plugin({ builder: "chat-1", checked: "v1" }, { state: "failed", fault: "Unexpected token" })
+    const broken = plugin({ builder: "chat-1" }, { state: "failed", fault: "Unexpected token" })
     expect(stageOf(broken)).toBe("broken")
     expect(markOf(stageOf(broken))).toBe("problem")
   })

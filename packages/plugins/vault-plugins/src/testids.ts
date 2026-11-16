@@ -49,8 +49,6 @@ export const TESTID = {
   /** *I'll read it now* — the way past a build whose agent never said it had
    *  finished. */
   pageReadAnyway: "plugin-page-read-anyway",
-  /** The running plugin's own switch. */
-  pageSwitch: "plugin-page-switch",
   /** The phone's foot, where the primary verb sits below `md`. */
   pageFoot: "plugin-page-foot",
   /** The standing sentence about what running a plugin costs. It is asserted

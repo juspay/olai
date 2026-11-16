@@ -39,10 +39,10 @@
  * paused by the very next write.
  *
  * THE READER CAN GO PAST IT ANYWAY, which is the other half of the same
- * honesty: the done signal is this process's memory, so a serve restarted
- * mid-build has none, and an agent that gave up never sends one. {@link
- * stageOf} takes that decision as an argument — the page's *I'll read it now*
- * — rather than guessing at a timeout.
+ * honesty: the signal is written down on the plugin's settings node, so a
+ * reboot does not lose it, but an agent that gave up mid-build never sends one
+ * at all. {@link stageOf} takes that decision as an argument — the page's
+ * *I'll read it now* — rather than guessing at a timeout.
  *
  * ...AND IT ONLY APPLIES BEFORE THE FIRST APPROVAL. Once somebody has said yes
  * to a version, an agent editing the folder again is not a build in progress:
@@ -87,7 +87,12 @@ export const pluginNamed = (
 export const stageOf = (plugin: Defined, read = false): Stage => {
   const source = plugin.source
   const state = pluginState(plugin)
-  const waiting = !read && building(plugin)
+  // THE SERVE'S ANSWER, and this tab's decision to go past it. Whether an
+  // agent is still writing the folder is the authoring protocol's question —
+  // which call means *done*, in what order a build writes files — and the
+  // serve ships both halves of that contract (`source.building`). *I'll read
+  // it now* is the only part of this that is the reader's.
+  const waiting = !read && source.building === true
   if (state === "failed") return waiting ? "building" : "broken"
   // PAUSED IS AN APPROVAL THAT MOVED, and the switch cannot tell that from a
   // plugin nobody has read: a folder copied in with `on: yes` and no approval
@@ -102,23 +107,6 @@ export const stageOf = (plugin: Defined, read = false): Stage => {
   if (state === "waiting") return "broken"
   return "off"
 }
-
-/**
- * A FOLDER AN AGENT IS STILL WRITING — a conversation bound to it, nobody
- * having approved anything yet, and the builder not having said it is done.
- *
- * The done signal is `vault-plugins_run` at the version on disk, which the
- * guide requires as the build's last act; the file test that preceded it
- * ("`server.ts` has landed") called a folder finished one file early, every
- * time, for every plugin that draws anything.
- *
- * `decided` ends it for good: after the first approval an agent's edits are
- * changes to a plugin somebody runs, not a build in flight.
- */
-export const building = (plugin: Defined): boolean =>
-  plugin.source.builder !== undefined
-  && plugin.source.decided !== true
-  && (plugin.source.server.trim() === "" || plugin.source.checked !== plugin.source.version)
 
 /** How each stage looks and reads: the dot's paint, the word beside it, and
  *  whether the word is an alarm. One table, so the sidebar's mark and the

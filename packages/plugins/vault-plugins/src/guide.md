@@ -38,7 +38,7 @@ Three things follow, and all three are the point:
 
 - **A folder copied in from another vault arrives off and unapproved.** The code travels; the consent does not. A plugin with no settings node is off, whatever it says about itself.
 - **Enablement survives a restart.** So does a stop: `on: no` is in a file, not in a set in the server's memory.
-- **`approved`, `on`, `builder` and `checked` are reserved.** A `Config` schema declaring any of them faults the row, and `plugins.configure` refuses to write one, with the same sentence either way: *`on` is reserved for the plugin's approval, its switch and the conversation building it.* `checked` is that conversation's done signal — the version its last clean `vault-plugins_run` answered about — written by olai when the call comes in and never by hand: a plugin that could declare itself finished would ring *Ready for you* at a folder its author is halfway through.
+- **`approved`, `on`, `builder` and `checked` are reserved.** A `Config` schema declaring any of them faults the row, and `plugins.configure` refuses to write one, with the same sentence either way: *`on` is reserved for the plugin's approval, its switch, the conversation building it and that conversation's done signal.* `checked` is that conversation's done signal — the version its last clean `vault-plugins_run` answered about — written by olai when the call comes in and never by hand: a plugin that could declare itself finished would ring *Ready for you* at a folder its author is halfway through.
 
 ### Only a person can turn it on
 

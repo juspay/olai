@@ -20,26 +20,19 @@ import { CONFIGURATION_FILE } from "@olai/plugin-api/configuration"
 import type { Snapshot } from "@olai/store"
 import {
   PLUGIN_BROWSER_FILE,
+  PLUGIN_FILES,
   PLUGIN_FOLDER,
   PLUGIN_README_FILE,
   PLUGIN_SERVER_FILE,
+  WORD,
 } from "@olai/surface"
 import { name, chunks, slugOf } from "./index.ts"
 import { openDynamic, RESERVED } from "./runtime.ts"
 import { pluginChunks } from "./route.ts"
 import { claim } from "./claim.ts"
 import { GUIDE } from "./guide.ts"
-import { APPROVED_KEY, type Decides, isApproved, ON_KEY, refusalFor, versionOf, WORD } from "./source.ts"
+import { APPROVED_KEY, type Decides, isApproved, ON_KEY, refusalFor, versionOf } from "./source.ts"
 export { name } from "./index.ts"
-
-/** The three files a folder takes, by the argument `vault-plugins_write` is
- *  given. Keyed so an agent's typo is answered with the list rather than with
- *  a path it never asked for. */
-const FILES: Readonly<Record<string, true>> = {
-  [PLUGIN_README_FILE]: true,
-  [PLUGIN_SERVER_FILE]: true,
-  [PLUGIN_BROWSER_FILE]: true,
-}
 
 /**
  * WHAT THE BUILDER IS TOLD BEFORE IT IS ASKED FOR ANYTHING — the preamble, in
@@ -108,11 +101,20 @@ export default definePlugin({
     yield* loading.describe({ names: dynamic.names, rows: dynamic.rows, set: (name, enabled) => settling(dynamic.set(name, enabled)), configure: dynamic.configure })
     yield* (yield* Vault).revision<Snapshot<Reading>>(snapshot => followed(snapshot.value))
     yield* (yield* Vault).unloaded(followed(null))
+    /** LEVEL WITH WHAT IS ON DISK — every verb that answers about a plugin
+     *  starts here, because the revision this runtime last followed and the
+     *  revision a press arrived after are two different things. A read that
+     *  fails is an unopened vault and follows nothing, which is the same
+     *  answer as a vault with no plugins in it. */
+    const abreast = Effect.suspend(() => Effect.andThen(
+      Effect.catch(gate.read, () => Effect.succeed(null)),
+      (read) => followed(read),
+    ))
 
     /** The plugin this verb is about, re-read first so the answer is about the
      *  revision that is on disk rather than the one this runtime last followed. */
     const lookingAt = (word: string) => Effect.gen(function*() {
-      yield* followed(yield* Effect.catch(gate.read, () => Effect.succeed(null)))
+      yield* abreast
       const one = dynamic.defined(word)
       if (one !== null) return one
       return yield* Effect.fail(new NotFoundFailure({
@@ -174,7 +176,7 @@ export default definePlugin({
                 + `digits and hyphens, starting with a letter — give it a name with a letter in it.`,
             }))
           }
-          yield* followed(yield* Effect.catch(gate.read, () => Effect.succeed(null)))
+          yield* abreast
           if (loading.reserved.includes(word) || dynamic.names().includes(word)) {
             return yield* Effect.fail(new UsageFailure({
               reason: `"${word}" is already taken — ${loading.reserved.includes(word)
@@ -192,36 +194,27 @@ export default definePlugin({
             file: `${PLUGIN_FOLDER}${word}/${PLUGIN_README_FILE}`,
             text: `# ${title}\n\n${sentence === "" ? `A plugin called ${title}.` : sentence}\n`,
           }, "web")
-          yield* followed(yield* Effect.catch(gate.read, () => Effect.succeed(null)))
-          const address = `/plugins/${word}`
+          yield* abreast
+          // ...AND THE FOLDER IS THE WHOLE ANSWER. The word goes back and
+          // nothing else does: the palette navigates through the page's own
+          // route module, which is the one author of `/plugins/<word>`, and
+          // everything a person needs to know about the build — whether an
+          // agent took it, what it is doing, what went wrong — is on the page,
+          // off the roster, which is where they are looking a moment later.
+          //
+          // NO WAY THE BUILDER CAN FAIL TO START FAILS THIS CALL, which is the
+          // guarantee this arrangement exists for and the reason for the catch
+          // below. The folder is already on disk by the time chat is asked for
+          // anything, so a call that failed whole — no Inbox with capture off,
+          // a settings write the gate refused — left the person looking at an
+          // error, with the folder made, and the same name refused as taken
+          // when they tried again.
           const chat = builders.current()
-          if (chat === undefined) {
-            return { name: word, address, builder: null,
-              refusal: "No agent is available on this serve, so nobody is building it. The folder is "
-                + "there and you can write the files yourself." }
-          }
+          if (chat === undefined) return { name: word }
           const engine = input.engine.trim() === ""
             ? chat.engines()[0]?.id ?? ""
             : input.engine.trim()
-          if (engine === "") {
-            return { name: word, address, builder: null,
-              refusal: "No agent is set up on this machine, so nobody is building it. The folder is "
-                + "there and you can write the files yourself." }
-          }
-          // ...AND EVERY WAY THE BUILDER CAN FAIL TO START IS A REFUSAL BESIDE
-          // THE ADDRESS, never a failed call. The folder is already on disk by
-          // the time chat is asked for anything, so a call that failed whole —
-          // no Inbox with capture off, a settings write the gate refused —
-          // left the person looking at an error, with the folder made, and the
-          // same name refused as taken when they tried again. The two absent
-          // arms above answer that way for *there is no chat at all*; this
-          // answers the same way for *chat would not take it*, because what a
-          // person can do about either is identical: go to the page, read what
-          // happened, write the files or ask again.
-          //
-          // The sentence is the gate's own: core's door answers `{ _tag }`
-          // because `@olai/plugin-api` may not import the format, and this row
-          // does — so a failure chat produced already carries the prose.
+          if (engine === "") return { name: word }
           const started = yield* Effect.catch(
             chat.open({
               parent: null,
@@ -230,20 +223,14 @@ export default definePlugin({
               say: sentence === "" ? `Build a plugin called ${title}.` : sentence,
               teach: preambleFor(word, title),
             }),
-            (refusal) => Effect.succeed({ node: null, refusal: (refusal as UsageFailure).message }),
+            () => Effect.succeed({ node: null }),
           )
-          if (started.node === null) return { name: word, address, builder: null, refusal: started.refusal }
+          if (started.node === null) return { name: word }
           // The binding is a settings write and can be refused on its own. The
-          // conversation exists either way and the page can still reach it.
-          const bound = yield* Effect.result(dynamic.bind(word, started.node))
-          return {
-            name: word,
-            address,
-            builder: started.node,
-            refusal: bound._tag === "Failure"
-              ? `The conversation was started, but olai could not write it down: ${bound.failure.message}`
-              : started.refusal,
-          }
+          // conversation exists either way, and the page reads the binding off
+          // the settings file rather than off this reply.
+          yield* Effect.result(dynamic.bind(word, started.node))
+          return { name: word }
         }),
 
       ask: ({ input }) =>
@@ -252,7 +239,11 @@ export default definePlugin({
           const chat = builders.current()
           if (chat === undefined || one.builder === null) return { builder: null }
           const row = dynamic.rows(yield* loading.reports).find(row => row.name === input.name)
-          const fault = one.fault ?? row?.fault ?? null
+          // THE ROW'S OWN SENTENCE, whichever of the three sources produced it:
+          // `rowOf` owns that precedence (folder, failed mount, failed pending
+          // compile) and a second spelling here would be a shorter rule that
+          // drifts the day a fourth source arrives.
+          const fault = row?.fault ?? null
           // WHAT THE PLUGIN IS ACTUALLY DOING, where the caller said nothing.
           // It used to read "is running" whatever state the row was in, so an
           // agent asked for a change to a plugin that was waiting for a key,
@@ -289,7 +280,11 @@ export default definePlugin({
           // (`./source.ts`'s `CHECKED_KEY`). The write publishes a revision,
           // and the page, the sidebar's mark and the alert all read the fact
           // off the roster that revision rebuilds.
-          const fault = one.fault ?? row?.fault ?? null
+          // THE ROW'S OWN SENTENCE, whichever of the three sources produced it:
+          // `rowOf` owns that precedence (folder, failed mount, failed pending
+          // compile) and a second spelling here would be a shorter rule that
+          // drifts the day a fourth source arrives.
+          const fault = row?.fault ?? null
           if (fault === null) yield* settling(dynamic.checked(one.name, one.version))
           return {
             name: one.name,
@@ -324,7 +319,10 @@ export default definePlugin({
                 + `and hyphens, starting with a letter — it names the folder this file goes in.`,
             }))
           }
-          if (FILES[input.file] !== true) {
+          // THE FOLDER'S OWN THREE NAMES (`@olai/surface`'s `PLUGIN_FILES`): this
+          // was a membership table of its own, which is the same list the page's
+          // address, the folder reader and **Delete…** each kept a copy of.
+          if (!PLUGIN_FILES.some((held) => held === input.file)) {
             return yield* Effect.fail(new UsageFailure({
               reason: `a plugin holds three files and "${input.file}" is none of them: `
                 + `\`${PLUGIN_README_FILE}\`, \`${PLUGIN_SERVER_FILE}\` and \`${PLUGIN_BROWSER_FILE}\`. `
@@ -344,7 +342,7 @@ export default definePlugin({
           // `markdown_write` and `markdown_create` keep, so a typo in the word
           // cannot quietly mint a second folder when the author meant an edit.
           yield* gate.run(held ? { op: "doc", file: path, text: input.text } : { op: "create-doc", file: path, text: input.text }, "mcp")
-          yield* followed(yield* Effect.catch(gate.read, () => Effect.succeed(null)))
+          yield* abreast
           const one = dynamic.defined(word)
           const version = one?.version ?? versionOf(input.file === PLUGIN_SERVER_FILE ? input.text : "", null)
           if (input.file === PLUGIN_README_FILE) return { path, version }

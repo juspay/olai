@@ -44,7 +44,7 @@
  * two halves by hand is a vault with plugins in it.
  */
 
-import { PLUGIN_FOLDER } from "@olai/surface"
+import { PLUGIN_FOLDER, WORD } from "@olai/surface"
 import { runAsync } from "@olai/web/client/run.ts"
 import { atOnce } from "@olai/web/client/settled.ts"
 import type { LevelScope, PaletteItem, PaletteOption, PaletteValue } from "olai-plugin-navigation/contract"
@@ -52,7 +52,6 @@ import { createMemo, type Accessor } from "solid-js"
 
 import { client } from "../client.ts"
 import { slugOf } from "../index.ts"
-import { WORD } from "../source.ts"
 import { engines } from "./doors.ts"
 
 /** The root row's id — the path `PaletteControl.showAt` is given, and the
@@ -113,34 +112,32 @@ const FILLER: Readonly<Record<string, true>> = {
   from: true, by: true, at: true, into: true, when: true, whenever: true, so: true, and: true, or: true,
 }
 
-/** What the folder would be called, and why it would not work — one reading,
- *  because the chip under the box and the refusal on Enter must say the same
- *  thing in the same words. */
+/** What the folder would be called, and why it would not work. */
 export interface Folder {
   readonly word: string
-  /** The line under the box. */
-  readonly said: string
   /** Why this name cannot be taken, or `null`. */
   readonly refusal: string | null
 }
 
 export const folderOf = (title: string, taken: ReadonlyArray<string>): Folder => {
   const word = slugOf(title)
-  if (title.trim() === "") return { word, said: "Give it a name.", refusal: "Give it a name." }
+  if (title.trim() === "") return { word, refusal: "Give it a name." }
   // A title of nothing but punctuation slugs to nothing, and a slug that opens
   // with a digit is not a word — both are refusals this level owes in place
-  // rather than after a round trip (`../source.ts`'s `WORD` is the grammar,
+  // rather than after a round trip (`@olai/surface`'s `WORD` is the grammar,
   // read from where it is enforced).
-  if (!WORD.test(word)) {
-    const said = "That name can't become a folder — start it with a letter."
-    return { word, said, refusal: said }
-  }
-  if (taken.includes(word)) {
-    const said = `${PLUGIN_FOLDER}${word}/ is taken — pick another name.`
-    return { word, said, refusal: said }
-  }
-  return { word, said: `Kept in your vault as ${PLUGIN_FOLDER}${word}/`, refusal: null }
+  if (!WORD.test(word)) return { word, refusal: "That name can't become a folder — start it with a letter." }
+  if (taken.includes(word)) return { word, refusal: `${PLUGIN_FOLDER}${word}/ is taken — pick another name.` }
+  return { word, refusal: null }
 }
+
+/** THE LINE UNDER THE BOX, which is the refusal wherever there is one.
+ *
+ *  One reading rather than two fields, because the chip under the box and the
+ *  refusal on Enter must say the same thing in the same words — and a shape
+ *  that carried both left that agreement to three `return`s to remember. */
+export const saidOf = (folder: Folder): string =>
+  folder.refusal ?? `Kept in your vault as ${PLUGIN_FOLDER}${folder.word}/`
 
 /** The second level: the name, the folder it becomes, and the one press that
  *  creates it. */
@@ -153,7 +150,7 @@ const nameLevel = (minting: Minting, sentence: string, engine: string): PaletteV
   // See the header — this is the only surface at a value level that does.
   options: (scope: LevelScope): Accessor<ReadonlyArray<PaletteOption>> =>
     createMemo<ReadonlyArray<PaletteOption>>((previous) => {
-      const label = folderOf(scope.typed(), minting.taken()).said
+      const label = saidOf(folderOf(scope.typed(), minting.taken()))
       return previous.length === 1 && previous[0]!.label === label ? previous : [{ id: "folder", label }]
     }, []),
   submitLabel: "Start building",

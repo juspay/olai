@@ -36,16 +36,7 @@
 
 import { defineSelfDrawnRoute } from "olai-plugin-navigation/routes"
 
-import { PLUGIN_BROWSER_FILE, PLUGIN_README_FILE, PLUGIN_SERVER_FILE } from "@olai/surface"
-import { WORD } from "../source.ts"
-
-/** The three names a folder holds, as a path may spell them. Keyed rather than
- *  listed because this is a membership question asked once per address. */
-const HALVES: Readonly<Record<string, true>> = {
-  [PLUGIN_README_FILE]: true,
-  [PLUGIN_SERVER_FILE]: true,
-  [PLUGIN_BROWSER_FILE]: true,
-}
+import { PLUGIN_FILES, WORD } from "@olai/surface"
 
 /** The prefix this page claims. Trailing slash, so `/plugins` itself is not
  *  ours: a list of plugins is the panel's and the sidebar's job, and claiming
@@ -85,7 +76,10 @@ export const pluginPage = defineSelfDrawnRoute<PluginPage>({
     if (!WORD.test(word)) return null
     if (cut === -1) return { word }
     const file = rest.slice(cut + 1)
-    return HALVES[file] === true ? { word, file } : null
+    // THE FOLDER'S OWN THREE NAMES (`@olai/surface`'s `PLUGIN_FILES`), so a
+    // fourth file is one edit and not four: an address may open at a file
+    // the folder could hold, and at nothing else.
+    return PLUGIN_FILES.some((held) => held === file) ? { word, file } : null
   },
   href: ({ word, file }) =>
     `${PLUGIN_PATH}${encodeURIComponent(word)}${file === undefined ? "" : `/${encodeURIComponent(file)}`}`,

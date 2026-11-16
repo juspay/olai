@@ -56,9 +56,11 @@ import {
 import { configurationNode, configurationNodes } from "@olai/plugin-api/configuration"
 import {
   PLUGIN_BROWSER_FILE,
+  PLUGIN_FILES,
   PLUGIN_FOLDER,
   PLUGIN_README_FILE,
   PLUGIN_SERVER_FILE,
+  WORD,
 } from "@olai/surface"
 import { isKeptText } from "@olai/format"
 
@@ -99,9 +101,6 @@ export const CHECKED_KEY = "checked"
  *  version of it, rather than one. */
 export const ALWAYS = "always"
 
-/** THE WORD — the folder's name, and the same shape a bundle row's `id` has. */
-export const WORD = /^[a-z][a-z0-9-]*$/
-
 /**
  * ONE PLUGIN THE VAULT DEFINES.
  *
@@ -137,21 +136,21 @@ export interface Defined {
   /** What the `approved` property says, verbatim — the version, {@link ALWAYS},
    *  or `null` for a plugin nobody has decided about. */
   readonly approved: string | null
-  /** Whether the person's switch is up. A folder with no settings node is OFF:
-   *  consent does not travel with a copied folder. */
-  readonly on: boolean
   /**
-   * ...AND WHAT THE `on` PROPERTY ACTUALLY SAYS, verbatim — `"yes"`, `"no"`,
-   * or `null` for a plugin whose node does not carry the word at all.
+   * ...AND WHAT THE `on` PROPERTY SAYS, verbatim — `"yes"`, `"no"`, or `null`
+   * for a plugin whose node does not carry the word at all. {@link isOn} is
+   * the question *is the switch up*.
    *
-   * The boolean above folds the last two together, which is right for every
-   * reader that asks *is it on* and wrong for the one that asks *would this
-   * write change anything*: the gate refuses a property write that moves
-   * nothing, so a stop on a plugin already switched off, spelled against the
-   * folded reading, asked to write `no` over `no` and came back refused —
-   * telling a person their press had failed when there was nothing left to do.
+   * VERBATIM AND DERIVED ONCE, exactly as `approved` is read above and
+   * {@link isApproved} asks about it. This was two fields — a boolean beside
+   * the text — and the boolean was wrong for one of its readers: the gate
+   * refuses a property write that moves nothing, so a stop on a plugin already
+   * switched off, spelled against the folded reading, asked to write `no` over
+   * `no` and came back refused, telling a person their press had failed when
+   * there was nothing left to do. A fact that has to be kept in two spellings
+   * is a fact a reader can pick wrongly.
    */
-  readonly switchSaid: string | null
+  readonly on: string | null
   /** The conversation building this plugin, where one is bound. */
   readonly builder: string | null
   /** The version that builder last finished and said was good, where it has
@@ -180,6 +179,39 @@ export interface Defined {
 /** Whether a version of this definition is the one a person said yes to. */
 export const isApproved = (one: Defined): boolean =>
   one.approved === ALWAYS || (one.approved !== null && one.approved === one.version)
+
+/** Whether the person's switch is up. A folder with no settings node is OFF:
+ *  consent does not travel with a copied folder. */
+export const isOn = (one: Defined): boolean => one.on === "yes"
+
+/**
+ * WHETHER AN AGENT IS STILL WRITING THIS FOLDER — what the page, the sidebar's
+ * mark and the alert all read, decided HERE because the protocol it encodes is
+ * the serve's.
+ *
+ * Three conditions, and each is a different thing that would otherwise be
+ * guessed at:
+ *
+ *   - A CONVERSATION IS BOUND to it. A folder somebody copied in or wrote by
+ *     hand was never being built, and saying an agent finished it would be a
+ *     sentence about how it got there that is false.
+ *   - NOBODY HAS APPROVED IT YET. This only applies before the first yes: an
+ *     agent editing a plugin a person turned on is not a build in progress, it
+ *     is a change to something that was running, which is *Paused* with a diff.
+ *   - AND THE BUILDER HAS NOT SAID IT IS DONE at the version on disk — or has
+ *     not written a server half at all, which is a folder with a README and
+ *     nothing to run.
+ *
+ * The done signal is `vault-plugins_run` with no fault in the answer, written
+ * on the node as {@link CHECKED_KEY}. It is not the files landing: the guide
+ * has the builder write `browser.tsx` last, so a folder called finished when
+ * its server half arrived rang *Ready for you* at a plugin whose face was
+ * still being written.
+ */
+export const isBuilding = (one: Defined): boolean =>
+  one.builder !== null
+  && one.approved === null
+  && (one.server.trim() === "" || one.checked !== one.version)
 
 /**
  * WHY A DECISION ABOUT THIS PLUGIN'S CODE CANNOT BE WRITTEN, or `null` for one
@@ -272,7 +304,7 @@ export const definedIn = (
     if (cut <= 0) continue
     const word = rest.slice(0, cut)
     const name = rest.slice(cut + 1)
-    if (name !== PLUGIN_README_FILE && name !== PLUGIN_SERVER_FILE && name !== PLUGIN_BROWSER_FILE) continue
+    if (!PLUGIN_FILES.some((held) => held === name)) continue
     // THE STORAGE QUESTION and never the prose one: only a kept-text document
     // carries its body in the revision, and an unkept claim would hand back a
     // face with nothing in it. The two halves are kept text that is NOT prose
@@ -323,8 +355,7 @@ const defined = (
     browser,
     version: versionOf(server ?? "", browser),
     approved: said(APPROVED_KEY),
-    on: said(ON_KEY) === "yes",
-    switchSaid: said(ON_KEY),
+    on: said(ON_KEY),
     builder: said(BUILDER_KEY),
     checked: said(CHECKED_KEY),
     uses: usesOf(server ?? "", browser),

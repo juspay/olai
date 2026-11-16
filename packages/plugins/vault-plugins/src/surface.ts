@@ -127,13 +127,21 @@ export const surface = defineSurface({
        * the builder is started LAST, because a conversation that was started
        * for a folder that was never created is a conversation about nothing.
        *
-       * THE ANSWER CARRIES THE ADDRESS rather than navigating: the caller is a
-       * palette level in a tab, and where a press lands is the tab's business.
+       * THE ANSWER IS THE WORD AND NOTHING ELSE, which is as much as the
+       * caller can use. Where a press lands is the tab's business and the page
+       * route is its own author (`./browser/route.ts` builds `/plugins/<word>`
+       * from this word); whether an agent took the build, what it is doing and
+       * what went wrong are all on the page a moment later, off the roster.
+       * This used to answer an address nobody read and a refusal sentence
+       * nothing drew — a second author for the URL, and prose composed into a
+       * reply that went in the bin.
        *
-       * A SERVE WITH NO CHAT still mints. `builder` comes back `null`, the page
-       * says no agent is available, and the folder is a folder somebody can
-       * write by hand — which is the honest answer and not a failure of this
-       * call.
+       * A SERVE WITH NO CHAT still mints, and that is the whole point of the
+       * shape: nothing about the builder can fail this call. The folder is on
+       * disk before chat is asked for anything, so a call that failed whole
+       * would leave a person looking at an error with the folder made and the
+       * name refused as taken next time. The page says no agent is available,
+       * because the page can see that for itself.
        */
       mint: {
         input: Schema.Struct({
@@ -150,12 +158,6 @@ export const surface = defineSurface({
         output: Schema.Struct({
           /** The folder word that was taken. */
           name: Schema.String,
-          /** Where to go: `/plugins/<word>`. */
-          address: Schema.String,
-          /** The conversation building it, or `null` where no agent could be
-           *  started — with {@link refusal} saying why. */
-          builder: Schema.NullOr(Schema.String),
-          refusal: Schema.NullOr(Schema.String),
         }),
         error: OpFailure,
       },

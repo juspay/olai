@@ -86,6 +86,7 @@ export {
   NO_ROSTER,
   PLUGIN_BROWSER_FILE,
   PLUGIN_CHUNK_PREFIX,
+  PLUGIN_FILES,
   PLUGIN_FOLDER,
   PLUGIN_README_FILE,
   PLUGIN_SERVER_FILE,
@@ -93,6 +94,7 @@ export {
   pluginState,
   PluginRoster,
   watchable,
+  WORD,
 } from "./plugins.ts"
 
 /** Where the hashed browser bundle lives, and what the bundler names a split

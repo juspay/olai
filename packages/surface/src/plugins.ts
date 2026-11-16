@@ -340,24 +340,34 @@ export const BuiltPlugin = Schema.Struct({
      *  its place, so the page has to know which of the two it is looking at. */
     trusting: Schema.optionalKey(Schema.Boolean),
     /**
-     * THE VERSION THE BUILDER LAST SAID IT WAS DONE WITH — the agent's own
-     * `vault-plugins_run`, which the authoring guide already requires as the
-     * last step of a build.
+     * WHETHER AN AGENT IS STILL WRITING THIS FOLDER — the answer, not the
+     * evidence.
      *
      * A ROSTER CANNOT SEE AN AGENT'S KEYSTROKES, and the files landing are not
      * a done signal: the guide has the builder write the README, then
      * `server.ts`, then `browser.tsx`, so a page that called a folder finished
      * when its server half landed rang *Ready for you* at a plugin whose face
-     * was still being written — and a person who pressed **Turn on** was paused
-     * by the very next write. The agent saying so is the one signal that means
-     * what the page would be claiming.
+     * was still being written — and a person who pressed **Turn on** was
+     * paused by the very next write. What ends it is the agent saying so:
+     * `vault-plugins_run` at the version on disk, answered with no fault,
+     * which the authoring guide already requires as a build's last act. The
+     * serve writes that version on the plugin's settings node, so a build that
+     * finished before a reboot is still finished after one.
      *
-     * It is THIS PROCESS'S MEMORY, like the approved-source copy beside it: a
-     * serve restarted mid-build comes back with no record of the call, so the
-     * page keeps saying *being built* and offers the reader its own way past it
-     * (*I'll read it now*). Absent on a plugin nobody is building.
+     * ...AND IT IS THE SERVE'S SENTENCE, for `approved`'s reason three fields
+     * up: this used to ride as the raw version the builder last ran, and every
+     * reader of it compared two hashes for itself. The protocol it encodes —
+     * which call means *done*, which file order a build follows, whether a
+     * faulted run counts — is the AGENT CONTRACT's and revs with the guide and
+     * the preamble, both of which the serve ships. A page is a bad place to
+     * keep half of a contract it cannot read the other half of.
+     *
+     * Absent on a plugin nobody is building, which includes every plugin
+     * somebody has already approved once: an agent editing a folder a person
+     * said yes to is not a build in progress, it is a change to something
+     * that was running.
      */
-    checked: Schema.optionalKey(Schema.String),
+    building: Schema.optionalKey(Schema.Boolean),
     /** Whether the person's `on` switch is up, independent of whether this
      *  version is approved: a plugin can be on and PAUSED by an edit, which is
      *  two facts and not one. */
@@ -444,6 +454,35 @@ export const PLUGIN_FOLDER = "plugins/"
 export const PLUGIN_README_FILE = "README.md"
 export const PLUGIN_SERVER_FILE = "server.ts"
 export const PLUGIN_BROWSER_FILE = "browser.tsx"
+
+/**
+ * ...AND THE THREE OF THEM IN THE ORDER A FOLDER IS READ IN: prose, server,
+ * face.
+ *
+ * One list, because four ends were spelling the same membership out of the
+ * three names above and each of them had to be found again when a fourth file
+ * arrives: the agent's write door checking its argument, the page's address
+ * deciding which half a path may open at, the serve's reading deciding which
+ * files in a folder are the plugin's, and **Delete…** naming what to remove.
+ * The ORDER is the delete's, which is the one reader that has an opinion about
+ * it — a ledger should read the way the page lists the files.
+ */
+export const PLUGIN_FILES = [PLUGIN_README_FILE, PLUGIN_SERVER_FILE, PLUGIN_BROWSER_FILE] as const
+
+/**
+ * THE WORD — a plugin's folder name, and the same shape a bundle row's `id`
+ * has.
+ *
+ * Beside the layout above rather than in the serve's folder reader, for the
+ * reason the palette's `slugOf` is in this package's door: BOTH ENDS SPELL IT.
+ * The serve refuses a folder that is not a word; the palette refuses the name
+ * as it is typed, the page's address refuses a word it will not route, and the
+ * sidebar refuses to link a row it cannot address. Three browser modules were
+ * reaching into a module that reads a `Reading` and hashes with Bun for one
+ * regex — a grammar that revs with the settings-file layout, borrowed across a
+ * boundary that revs with a vault revision.
+ */
+export const WORD = /^[a-z][a-z0-9-]*$/
 
 /**
  * THE WORDS A ROW CAN BE IN, and each is a different morning.

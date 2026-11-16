@@ -62,7 +62,7 @@ import { dock, router } from "./doors.ts"
 import { changedCount, diffLines } from "./diff.ts"
 import { Code } from "./page/Code.tsx"
 import { Verbs, type Acts } from "./page/Verbs.tsx"
-import { faultSaid, LOOK, metaOf, pluginNamed, stageOf, TRUST_SAID, type Defined } from "./state.ts"
+import { faultSaid, LOOK, metaOf, pluginNamed, stageOf, TRUST_SAID, wakes, type Defined } from "./state.ts"
 
 export function PluginPage(props: {
   readonly word: string
@@ -153,7 +153,7 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
    *  take over the column beside it; arriving at one that is being built, or
    *  waiting to be read, or paused, or broken is arriving at a decision, and
    *  the conversation is half of what makes it. */
-  const watching = () => ["building", "review", "paused", "broken"].includes(stage())
+  const watching = () => stage() === "building" || wakes(stage())
   const call = <T,>(effect: Parameters<typeof run<T>>[0], after?: (answer: T) => void) => {
     setBusy(true)
     setRefused(undefined)
@@ -216,7 +216,7 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
         {/* The head's copy of the verb. Hidden below `md`, where the foot has
             it — mounted either way, so a rotation moves nothing. */}
         <div class="hidden md:block">
-          <Verbs plugin={props.plugin} stage={stage()} acts={acts} menu />
+          <Verbs plugin={props.plugin} stage={stage()} acts={acts} />
         </div>
       </header>
 
@@ -347,7 +347,7 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
             there is no other copy of this page — so a plugin made on a phone
             could not be deleted on one. It sits beside the decision rather
             than inside it, which is why the primary still fills the row. */}
-        <Verbs plugin={props.plugin} stage={stage()} acts={acts} menu foot />
+        <Verbs plugin={props.plugin} stage={stage()} acts={acts} foot />
         <p class="m-0 text-caption text-muted" data-testid={TESTID.pageTrustSaid}>{TRUST_SAID}</p>
       </div>
     </section>
@@ -499,8 +499,6 @@ function Banner(props: { readonly tone: "amber" | "red"; readonly testid: string
   )
 }
 
-/** One section of the page: a heading, an optional aside in the heading, and
- *  whatever is under it. */
 /** One section of the page: a heading, an optional aside in the heading, and
  *  whatever is under it.
  *

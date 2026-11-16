@@ -7,7 +7,7 @@
 import { readingOfVault } from "@olai/format/testlib/scope"
 import { describe, expect, test } from "bun:test"
 
-import { ALWAYS, definedIn, isApproved, refusalFor, toldBy, versionOf } from "./source.ts"
+import { ALWAYS, definedIn, isApproved, isBuilding, isOn, refusalFor, toldBy, versionOf } from "./source.ts"
 
 /** One vault, as its files. A plugin is three of them in a folder; the settings
  *  file is an outline, a record per line, which is what the settings reader and
@@ -100,7 +100,7 @@ describe("consent is in the settings file, and does not travel with the folder",
   test("a folder nobody has decided about is off and unapproved", () => {
     const [one] = definedIn(vault(folder), NOTHING_BUILT)
     expect(one?.approved).toBeNull()
-    expect(one?.on).toBe(false)
+    expect(isOn(one!)).toBe(false)
     expect(isApproved(one!)).toBe(false)
   })
 
@@ -111,7 +111,7 @@ describe("consent is in the settings file, and does not travel with the folder",
       NOTHING_BUILT,
     )
     expect(isApproved(one!)).toBe(true)
-    expect(one?.on).toBe(true)
+    expect(isOn(one!)).toBe(true)
 
     const [edited] = definedIn(
       vault({
@@ -124,7 +124,7 @@ describe("consent is in the settings file, and does not travel with the folder",
     // ...AND THE SWITCH IS STILL UP, which is the whole of what "paused" means:
     // the person still wants it, and the code it would run is not the code they
     // read.
-    expect(edited?.on).toBe(true)
+    expect(isOn(edited!)).toBe(true)
   })
 
   test("`always` approves every later version", () => {
@@ -149,6 +149,41 @@ describe("consent is in the settings file, and does not travel with the folder",
       NOTHING_BUILT,
     )
     expect(one?.checked).toBe("abc123")
+  })
+})
+
+/**
+ * WHETHER AN AGENT IS STILL WRITING THE FOLDER — the serve's answer, because
+ * the protocol it encodes is the serve's: which call means *done*, and in what
+ * order a build writes its files.
+ */
+describe("a folder an agent is still writing", () => {
+  const SETTINGS = (custom: string) => settings(`{"id":"s","ord":"a0","title":"swatch","custom":${custom}}`)
+  const one = (custom: string, files: Readonly<Record<string, string>> = { "plugins/swatch/server.ts": SERVER }) =>
+    definedIn(vault({ ...files, ...SETTINGS(custom) }), NOTHING_BUILT)[0]!
+
+  test("a conversation is bound and nobody has said it is finished", () => {
+    expect(isBuilding(one(`{"builder":"chat-1"}`))).toBe(true)
+  })
+
+  test("...and a README with no server half is a folder with nothing to run yet", () => {
+    expect(isBuilding(one(`{"builder":"chat-1"}`, { "plugins/swatch/README.md": "# S\n" }))).toBe(true)
+  })
+
+  test("the builder saying so at the version on disk ends it", () => {
+    expect(isBuilding(one(`{"builder":"chat-1","checked":"${versionOf(SERVER, null)}"}`))).toBe(false)
+  })
+
+  test("...and saying so at a version that has since moved does not", () => {
+    expect(isBuilding(one(`{"builder":"chat-1","checked":"an-older-version"}`))).toBe(true)
+  })
+
+  test("a folder nobody built with an agent was never being built", () => {
+    expect(isBuilding(one("{}"))).toBe(false)
+  })
+
+  test("and an agent editing a plugin somebody approved is a change, not a build", () => {
+    expect(isBuilding(one(`{"builder":"chat-1","approved":"an-older-version"}`))).toBe(false)
   })
 })
 
