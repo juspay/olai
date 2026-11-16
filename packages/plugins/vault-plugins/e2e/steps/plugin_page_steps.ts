@@ -37,6 +37,7 @@ import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts"
 import { selector } from "@olai/web/testlib"
 import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
+import type { Locator } from "@olai/tests/harness/playwright.ts"
 
 import {
   addressOfPlugin,
@@ -223,14 +224,18 @@ When("I approve the plugin {string}", async function (this: OlaiWorld, word: str
   const moved = (consent: Record<string, unknown> | undefined): boolean =>
     consent !== undefined && consent["approved"] !== undefined && consent["on"] === "yes"
       && (consent["approved"] !== before?.["approved"] || before?.["on"] !== "yes")
+  // A press that lands while the roster is arriving can find its own button
+  // detached — the page redraws under it — and that is not a failure: the
+  // loop looks again, and the FILE is what says whether anything happened.
+  const tap = async (what: Locator): Promise<void> => { await this.press(what).catch(() => {}) }
   await this.waitUntil(async () => {
     if (moved(consentOf(this, word))) return true
     if (await read.isVisible().catch(() => false)) {
-      await this.press(read)
+      await tap(read)
       return false
     }
     const armed = verbOf(this)
-    if (await armed.isEnabled().catch(() => false)) await this.press(armed)
+    if (await armed.isEnabled().catch(() => false)) await tap(armed)
     return false
   }, `the approval of "${word}" to reach ${SETTINGS_FILE}`)
   if (this.place() !== was) {

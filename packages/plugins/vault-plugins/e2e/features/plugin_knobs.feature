@@ -43,7 +43,11 @@ Feature: A plugin the vault defines reads its own schema knobs
       """
     And I approve the plugin "greeting"
     And I always trust changes to the plugin "greeting"
-    And I open the plugins panel
+    # The row is waited for where it is a SENTENCE before it is read as a set
+    # of controls: approving moves the roster, and the panel is opened on the
+    # other side of that move.
+    Then the Plugins row "greeting" is "on"
+    When I open the plugins panel
     And I expand the plugin "greeting"
     Then the plugins panel shows "greeting" configured "tone" as "blue"
     And the plugin "greeting" marks "tone" as authored by "default"
@@ -73,7 +77,8 @@ Feature: A plugin the vault defines reads its own schema knobs
   Scenario: Every control the schema can ask for writes the plugin's own node
     Given I open the app
     When I approve the plugin "greeting"
-    And I open the plugins panel
+    Then the Plugins row "greeting" is "on"
+    When I open the plugins panel
     And I expand the plugin "greeting"
     Then the "greeting" setting "size" is an integer input from 1 to 10
     And the "greeting" setting "tone" is described as "the colour to greet in"
