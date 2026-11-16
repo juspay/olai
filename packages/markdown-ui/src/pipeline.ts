@@ -188,3 +188,33 @@ export const sourceTextOf = (source: string): string =>
   toString(pipeline.parse(asRead(source)))
 
 export const htmlOf = (tree: Root): string => pipeline.stringify(tree)
+
+/**
+ * A node of the markdown tree BEFORE anything turns it into HTML — paragraphs,
+ * list items, table cells, headings, as they were written.
+ *
+ * Structural rather than imported from `mdast` so that a reader outside this
+ * package can hold the shape without that type package: what `remark-parse`
+ * produces is assignable to it, and nothing here needs the full union.
+ */
+export interface MarkdownNode {
+  readonly type: string
+  readonly value?: string | undefined
+  readonly url?: string | undefined
+  readonly depth?: number | undefined
+  readonly children?: ReadonlyArray<MarkdownNode> | undefined
+  readonly position?: { readonly start: { readonly line: number } } | undefined
+}
+
+/**
+ * The markdown tree of a source, in the dialect this app renders — GFM, and
+ * the same `asRead` pass every other parse here goes through.
+ *
+ * It exists for `@olai/tests`' documentation lint, which measures the blocks,
+ * cells and sentences of every page under `docs/`. Those pages are read in a
+ * browser through THIS pipeline, so a lint with a parser of its own could
+ * disagree with the screen about what a paragraph is and police a document
+ * nobody reads.
+ */
+export const mdastOf = (source: string): MarkdownNode =>
+  pipeline.parse(asRead(source)) as MarkdownNode
