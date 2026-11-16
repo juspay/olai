@@ -5,7 +5,7 @@ description: The writing standard for every page under docs/, including the plug
 
 # Writing olai's docs
 
-Every page of the served set is held to this standard. The served set is `docs/`, which is what `just serve` serves with no argument, and it includes the plugin pages: those are authored at `packages/plugins/<name>/docs.md` and read at `docs/plugins/<name>.md`.
+Every page under `docs/` is held to this standard, the plugin pages included: those are authored at `packages/plugins/<name>/docs.md` and read at `docs/plugins/<name>.md`. The pages stay Markdown files in the repository. Most readers meet them on GitHub; `just serve` with no argument also serves `docs/` in olai itself, so a page has to read well in both renderers. There is no documentation site, and nothing here belongs on `website/`, which is the pitch.
 
 Rules marked **[lint]** are enforced by `packages/tests/docs_lint.test.ts`, one test per page, with no exemption list and no per-page override. If a rule is wrong, change it here and in `packages/tests/support/docs-rules.ts`, for every page at once.
 
@@ -77,10 +77,10 @@ Small choices a reader notices when they change from page to page. Every page ma
 
 22. **Spelling is British, with -ize (Oxford):** colour, behaviour, centre, cancelled, labelled; organization, authorize, recognize. Identifiers, code, commands, product names, quoted messages and on-screen labels stay exactly as written, and so does Nix's own *realise*. A label GitHub or Google shows stays as shown.
 23. **One verb per pointer.** You press a key, click a control (a button, a tab, a row, a link) and tap only where the text is about a touch screen. A control you can click is "clickable", never "pressable".
-24. **One way to write a shortcut:** one code span per key, modifiers as words, joined by ` + ` — `Cmd` + `Shift` + `Enter`, never `⌘⇧↩` and never a bare "Cmd-K" in text. A `<kbd>` tag is not an option: these pages are read in olai, whose sanitiser drops it. A page that names a chord says once that it is `Cmd` on a Mac and `Ctrl` elsewhere, which is what the app's own shortcut list shows.
+24. **One way to write a shortcut:** one code span per key, modifiers as words, joined by ` + ` — `Cmd` + `Shift` + `Enter`, never `⌘⇧↩` and never a bare "Cmd-K" in text. A `<kbd>` tag is not an option: olai's own sanitiser drops it, and a code span reads the same in both renderers. A page that names a chord says once that it is `Cmd` on a Mac and `Ctrl` elsewhere, which is what the app's own shortcut list shows.
 25. **olai is lower case**, also at the start of a sentence or a heading. A name the screen shows with a capital is quoted as it appears.
 26. **One cast for examples:** the directory `~/notes`, the outline `house.olai`, the document `cabinets.md`, the day `2026-08-12`, the host `olai.example.com`, the login `alice`. Loopback examples stay `http://127.0.0.1:7714`.
-27. **Links are relative and land inside `docs/`.** A page is read at its served address, so a plugin page links a sibling as `odu.md` and a top-level page as `../format.md`. A target outside the served set is not a door: it draws as text. The lint checks every link and every `#anchor`.
+27. **Links are relative and land inside `docs/`.** A page is read at its address under `docs/`, so a plugin page links a sibling as `odu.md` and a top-level page as `../format.md`. A target outside `docs/` is not a link a reader can follow in olai, where an unserved path draws as text. An address of the running app, such as `/agenda`, is written as code and never as a link. The lint checks every link and every `#anchor`.
 
 ## Variants by kind
 
@@ -151,6 +151,6 @@ Every fact of the old cell is still there, in a shape a reader can scan.
 
 ## Before you commit a page
 
-- `bun test packages/tests/docs_lint.test.ts -t '<page>'`: the lint for that page. The name is the page's served address, so `-t 'docs/chat.md'` runs one page and `-t 'plugins/'` runs the plugin pages.
+- `bun test packages/tests/docs_lint.test.ts -t '<page>'`: the lint for that page. The name is the page's address under `docs/`, so `-t 'docs/chat.md'` runs one page and `-t 'plugins/'` runs the plugin pages.
 - `bun test packages/tests/plugin_docs.test.ts`: every plugin still has a page, the index still opens it, and no link dangles.
-- Renamed a heading? The lint checks every `#anchor` in the served set, but a link from `README.md`, `website/index.html` or a package's own comments is outside it. Grep for the old anchor and update it in the same change.
+- Renamed a heading? The lint checks every `#anchor` under `docs/`, but a link from `README.md`, `website/index.html` or a package's own comments is outside it. Grep for the old anchor and update it in the same change.
