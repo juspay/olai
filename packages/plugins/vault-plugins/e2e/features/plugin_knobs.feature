@@ -103,11 +103,13 @@ Feature: A plugin the vault defines reads its own schema knobs
     And there should be no page errors
 
   Scenario Outline: The browser configure procedure refuses a reserved word
-    # `approved` is the person's approval of code, `on` is their switch, and
-    # `builder` is the conversation writing it. A `Config` that declared any of
-    # them would be a plugin whose settings control its own consent — so the
-    # door refuses the write before anything reaches the file, with the same
-    # sentence either way.
+    # `approved` is the person's approval of code, `on` is their switch,
+    # `builder` is the conversation writing it, and `checked` is that
+    # conversation's done signal. A `Config` that declared any of them would be
+    # a plugin whose settings control its own consent — or one that could
+    # declare itself finished and ring *Ready for you* at a folder its author
+    # is halfway through — so the door refuses the write before anything
+    # reaches the file, with the same sentence either way.
     # CONSENT IS IN THE FILE BEFORE THE SERVE READS IT, rather than pressed:
     # approving is itself a write through the door this scenario is stubbing,
     # so a press would spend the stub on consent instead of on the knob — and
@@ -123,7 +125,7 @@ Feature: A plugin the vault defines reads its own schema knobs
     And I expand the plugin "greeting"
     And I remember the settings file "_olai/Settings.olai"
     And I pick "red" for "greeting" setting "tone"
-    Then the "greeting" setting "tone" problem says "<key> is reserved for the plugin's approval, its switch and the conversation building it"
+    Then the "greeting" setting "tone" problem says "<key> is reserved for the plugin's approval, its switch, the conversation building it and that conversation's done signal"
     And the remembered settings file is unchanged
     And there should be no page errors
 
@@ -132,3 +134,4 @@ Feature: A plugin the vault defines reads its own schema knobs
       | approved |
       | on       |
       | builder  |
+      | checked  |
