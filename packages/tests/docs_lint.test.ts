@@ -24,9 +24,7 @@ import * as fs from "node:fs"
 
 import { expect, test } from "bun:test"
 
-import { claim, slugOf } from "@olai/format"
-
-import { findingsIn } from "./support/docs-rules.ts"
+import { anchorsIn, findingsIn } from "./support/docs-rules.ts"
 import { at, isLocal, landing, linksIn, pages, picturesIn } from "./support/docs.ts"
 
 const PAGES = pages()
@@ -45,29 +43,6 @@ for (const page of PAGES) {
   })
 }
 
-/**
- * The anchors a page offers, spelled as the app spells them: `@olai/format`'s
- * own `slugOf` and `claim`, which are what put the id on the heading a reader
- * lands at (`@olai/markdown-ui`'s `slugs.ts`). A second spelling here would
- * pass links the browser cannot open.
- */
-const anchorsOf = (page: string): ReadonlySet<string> => {
-  const seen = new Map<string, number>()
-  const taken = new Set<string>()
-  for (const line of fs.readFileSync(at(page), "utf8").split("\n")) {
-    const heading = /^#{1,6} +(.+?) *$/.exec(line)
-    if (heading?.[1] === undefined) continue
-    // The id is made from the heading's TEXT, so the markup around it goes
-    // first — the same reading `textOf` gives the rendered element.
-    const text = heading[1]
-      .replace(/`([^`]*)`/g, "$1")
-      .replace(/\*\*([^*]*)\*\*/g, "$1")
-      .replace(/\*([^*]*)\*/g, "$1")
-      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    taken.add(claim(seen, slugOf(text)))
-  }
-  return taken
-}
 
 test("every link on every page is a door, and every anchor opens", () => {
   const broken = PAGES.flatMap((page) =>
@@ -83,7 +58,7 @@ test("every link on every page is a door, and every anchor opens", () => {
         }
         if (fragment === undefined || fragment === "") return []
         if (!address.endsWith(".md")) return []
-        return anchorsOf(address).has(fragment)
+        return anchorsIn(fs.readFileSync(at(address), "utf8")).has(fragment)
           ? []
           : [`${page}: ${target} names no heading on ${address}`]
       }),

@@ -24,6 +24,7 @@
  * policing a document nobody reads.
  */
 
+import { claim, slugOf } from "@olai/format"
 import { type MarkdownNode, mdastOf } from "@olai/markdown-ui/pipeline.ts"
 
 /** One rule broken, in one place, with enough of the text to find it. */
@@ -339,14 +340,34 @@ export const findingsIn = (source: string): ReadonlyArray<Finding> => {
   ].sort((one, two) => one.line - two.line || one.rule - two.rule)
 }
 
-/** How long a page's running text is, by the same reading — what the rewrite's
- *  own ledger quotes. */
-export const wordsIn = (source: string): number => {
-  const tree = mdastOf(source)
-  let total = 0
-  for (const node of children(tree)) {
-    if (node.type === "heading") continue
-    total += words(read(node))
+/**
+ * The anchors a page offers, spelled as olai spells them: the format's own
+ * `slugOf` over the heading's TEXT, and `claim` for a second heading of the
+ * same words. That is what puts the id on the heading a reader lands at
+ * (`@olai/markdown-ui`'s `slugs.ts`), so a link check with a spelling of its
+ * own would pass addresses the app cannot open.
+ *
+ * Here rather than in the test because the heading's text is the parsed one —
+ * code spans, emphasis and links already taken off by {@link read} — which is
+ * the reading the renderer gives it too.
+ */
+export const anchorsIn = (source: string): ReadonlySet<string> => {
+  const seen = new Map<string, number>()
+  const taken = new Set<string>()
+  for (const node of walk(mdastOf(source))) {
+    if (node.type !== "heading") continue
+    taken.add(claim(seen, slugOf(plain(node).trim())))
   }
-  return total
+  return taken
+}
+
+/** A node's words as the renderer reads them, with a code span's own
+ *  characters kept — which is what a heading's id is made of. {@link read}
+ *  cannot be used for this: it stands a placeholder in for code, so a heading
+ *  that is a command would get the placeholder's slug. */
+const plain = (node: MarkdownNode): string => {
+  if (node.type === "text" || node.type === "inlineCode") return node.value ?? ""
+  return children(node)
+    .map(plain)
+    .join("")
 }
