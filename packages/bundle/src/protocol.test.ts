@@ -48,21 +48,44 @@ const packageOf = (file: string): string => {
 const byName = (left: readonly [string, unknown], right: readonly [string, unknown]): number =>
   left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0
 
+/**
+ * ONE WALK, AT MODULE SCOPE, for the same reason `fence.test.ts` builds its
+ * door there: the reading is a parse of every source file in the repository,
+ * and a whole-tree parse on a TEST's clock is a test that fails for being slow
+ * on a loaded machine rather than for being wrong. (It did: 11.7s against the
+ * 5s default, on a CI box running two shards and an e2e leg beside them.) Here
+ * it is import cost, which bun does not time out, and both claims below are
+ * comparisons of two tables.
+ *
+ * The two questions are different enough to keep apart — WHICH HALF a package
+ * names, and WHERE THE SDK RUNS — but they are one walk over one tree, so they
+ * are gathered together and asserted separately.
+ */
+const reach = (() => {
+  const halves = new Map<string, Set<string>>()
+  const running = new Set<string>()
+  for (const source of TREE.sources) {
+    if (source.grammar === "css") continue
+    const pkg = packageOf(source.file)
+    for (const spec of TREE.specifiersOf(source.file)) {
+      if (spec !== "@kolu/acp" && !spec.startsWith("@kolu/acp/")) continue
+      const held = halves.get(pkg) ?? new Set<string>()
+      held.add(spec)
+      halves.set(pkg, held)
+    }
+    for (const edge of TREE.importsOf(source.file)) {
+      if (edge.spec.startsWith("@agentclientprotocol/sdk")) running.add(pkg)
+    }
+  }
+  return {
+    halves: Object.fromEntries([...halves].sort(byName).map(([pkg, specs]) => [pkg, [...specs].sort()])),
+    running: [...running].sort(),
+  }
+})()
+
 describe("the protocol enters this tree where the table says", () => {
   test("every package, and which half of @kolu/acp it names", () => {
-    const found = new Map<string, Set<string>>()
-    for (const source of TREE.sources) {
-      if (source.grammar === "css") continue
-      for (const spec of TREE.specifiersOf(source.file)) {
-        if (spec !== "@kolu/acp" && !spec.startsWith("@kolu/acp/")) continue
-        const pkg = packageOf(source.file)
-        const held = found.get(pkg) ?? new Set<string>()
-        held.add(spec)
-        found.set(pkg, held)
-      }
-    }
-    const table = Object.fromEntries([...found].sort(byName).map(([pkg, specs]) => [pkg, [...specs].sort()]))
-    expect(table).toEqual({
+    expect(reach.halves).toEqual({
       "plugin-api": ["@kolu/acp/engine"],
       "plugins/chat": ["@kolu/acp", "@kolu/acp/engine", "@kolu/acp/wire"],
       "plugins/claude": ["@kolu/acp/engine"],
@@ -75,14 +98,6 @@ describe("the protocol enters this tree where the table says", () => {
   })
 
   test("the SDK runs in one package, and a type-only reach is not running it", () => {
-    const running = new Set<string>()
-    for (const source of TREE.sources) {
-      if (source.grammar === "css") continue
-      for (const edge of TREE.importsOf(source.file)) {
-        if (!edge.spec.startsWith("@agentclientprotocol/sdk")) continue
-        running.add(packageOf(source.file))
-      }
-    }
-    expect([...running].sort()).toEqual(["plugins/chat"])
+    expect(reach.running).toEqual(["plugins/chat"])
   })
 })
