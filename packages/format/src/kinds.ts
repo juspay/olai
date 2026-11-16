@@ -38,6 +38,34 @@ export const ClaimData = Schema.Struct({
    * fills up with the app's own plumbing.
    */
   elsewhere: Schema.optionalKey(Schema.Boolean),
+  /**
+   * ITS TEXT IS KEPT AND NOBODY READS IT AS PROSE — the second half of a fact
+   * `kept` was carrying alone, and the only claim in the tree that says it.
+   *
+   * `kept` is about STORAGE: the body travels on the revision, so a write gate
+   * can refuse to overwrite bytes nobody has seen and a page can draw the file
+   * without a second fetch. Every kept claim but one wanted a second thing
+   * along with it — that the text is MARKDOWN, with a first line for a title,
+   * `#topic`s for tags, `[…](…)`s for links and a `---` block for properties —
+   * and nothing in the table said so, so "it has a body" was read as "read it"
+   * everywhere the two happened to coincide.
+   *
+   * They stop coinciding at a plugin's halves. `server.ts` opens with an
+   * import line, writes `#rrggbb` in a sentence about a colour and `#todo` in
+   * a comment, and none of those is a title or a tag: they are TypeScript.
+   * Reading them as prose put two documents per plugin into the tag
+   * vocabulary, the search index, `markdown_index` and every document picker,
+   * each titled with its first import.
+   *
+   * ABSENT IS PROSE, which is the right default for a table whose other five
+   * rows are a vault's own writing and whose sixth is code: a claim that says
+   * nothing about this is read the way `.md` has always been read, and a row
+   * added tomorrow inherits the reading rather than a silence. What the flag
+   * takes away is the READING and never the standing: the body is still in the
+   * revision, still writable, still committed, still addressable
+   * ({@link ./document.ts}'s `isKeptText` is that half, `isMarkdown` this one).
+   */
+  opaque: Schema.optionalKey(Schema.Literal(true)),
 })
 /** A registered claim adds its server-only parser to the serializable policy. */
 export interface Claim extends Schema.Schema.Type<typeof ClaimData> {
@@ -85,9 +113,13 @@ export const claims = (list: Iterable<Claim>): Claims => {
  * Claim.under} is the answer: a claim may say WHERE it applies, and a path
  * outside that folder is unclaimed, exactly as it was before the claim existed.
  *
- * The walk CONTINUES past a suffix match whose scope the path is outside,
- * rather than answering nothing: two claims may share a suffix when one of them
- * is scoped, and the unscoped one is the answer everywhere else.
+ * A SCOPED CLAIM OWNS ITS SUFFIX OUTRIGHT, and the scope narrows which PATHS
+ * it answers for rather than which claims may hold the suffix: {@link claims}
+ * refuses a second row over `.ts` (and over any suffix that ends in one
+ * already taken), so there is no unscoped claim behind this one to fall
+ * through to. The walk therefore continues past a match the path is outside
+ * the scope of only to finish the table — a `.ts` in a checkout beside the
+ * notes leaves this loop unclaimed, which is the whole point of the scope.
  */
 const claimOf = (claims: Claims, path: string): Claim | undefined => {
   for (const [ext, owner] of claims.byExt) {

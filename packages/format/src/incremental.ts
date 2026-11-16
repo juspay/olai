@@ -435,11 +435,18 @@ const byNaming = (derived: Derived, one: string, other: string): number => {
  * empty document OF ITS OWN KIND), and {@link carriedDocuments} is what holds
  * them to it: the day they part, the carry stops matching the set and the
  * narrowing declines instead of answering.
+ *
+ * BOTH HALVES OF WHAT `kept` MEANT ARE ASKED HERE, and the second one is why
+ * this is three clauses rather than two: a claim may keep a body and say that
+ * nothing reads it as prose ({@link ./kinds.ts}'s `opaque`), and a plugin's
+ * half is exactly that. Asking only `kept` here would carry two paths per
+ * plugin that the set's own narrowing does not hold — which is not a stale
+ * fence but a DECLINED one, every write, for the life of the serve.
  */
 const markdownPath = (claims: Claims, file: string): boolean => {
   const kind = fileKind(claims, file)
   const claim = kind === null ? undefined : claims.byKind.get(kind)
-  return claim?.holds === "text" && claim.kept
+  return claim?.holds === "text" && claim.kept && claim.opaque !== true
 }
 
 /**

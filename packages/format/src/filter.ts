@@ -39,7 +39,7 @@
  * The design, with the alternatives that lost, is
  * https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-in-place.md.
  */
-import { isMarkdown } from "./document.ts"
+import { isMarkdown, isOpaque } from "./document.ts"
 import type { Outline } from "./document.ts"
 import { Schema } from "effect"
 
@@ -3293,6 +3293,19 @@ export const documentHayOf = (document: Bodied): string => {
  * document — it was FOLDING one, which is a body, and which the membership test
  * now skips. Walking the list also keeps the order for free: it arrives in the
  * set's own path order and leaves in it.
+ *
+ * ## What is not asked at all
+ *
+ * A BODY NOTHING READS is out of the walk, which is the one thing here that is
+ * not a question about the query. The caller hands over the set's bodied files
+ * ({@link ./set.ts}'s `bodiedIn`) because a `.html` and a picture answer by
+ * their path and their title — a vault's files are findable whether or not
+ * olai reads them — and a plugin's half rides that same list. It must not
+ * answer: its face is empty by construction ({@link ./document.ts}'s `opaque`
+ * arm), so it would never match on a tag, a link or a word of its code, but it
+ * would match on its PATH and its stem, and `swatch` typed into the palette
+ * would hand back `plugins/swatch/server.ts` as a document to open. The halves
+ * are read on the plugin's own page, which is a door this list is not.
  */
 export const matchingDocuments = (
   documents: ReadonlyArray<Bodied>,
@@ -3305,6 +3318,7 @@ export const matchingDocuments = (
   const only = named === undefined ? null : new Set(named)
   const out: Array<MatchedDocument> = []
   for (const document of documents) {
+    if (isOpaque(document)) continue
     if (only !== null && !only.has(document.path)) continue
     const match = documentMatchOf(document, filter)
     if (match !== null) out.push({ at: document, match })

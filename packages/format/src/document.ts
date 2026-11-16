@@ -248,6 +248,24 @@ export const Markdown = Schema.Struct({
   kind: Schema.String,
   holds: Schema.Literal("text"),
   kept: Schema.Literal(true),
+  /**
+   * PRESENT ON A BODY NOTHING READS, and absent on prose — the claim's own
+   * `opaque` ({@link ./kinds.ts}) carried onto the value, so a reader asks the
+   * document in hand rather than the table that admitted it.
+   *
+   * It is ONE SPELLING (`true` or nothing) rather than a boolean, because
+   * `false` and absent would be two ways to write "this is prose" on a value
+   * fifty consumers narrow on — and the predicates below would then have to
+   * agree about which of the two they meant.
+   *
+   * A document carrying it has the four derived fields of the face EMPTY and
+   * its `title` is the filename: not because a plugin's half points nowhere,
+   * but because nothing has read it for links, and that is the same honest
+   * sentence {@link Unkept}'s emptiness says one arm down. What it does carry
+   * is the half of this arm that is about storage — `body` and `bytes` — which
+   * is exactly what `kept` always meant.
+   */
+  opaque: Schema.optionalKey(Schema.Literal(true)),
   ...Face.fields,
   body: Schema.String,
   /**
@@ -383,6 +401,30 @@ export const bodiedDocument = (claims: Claims, file: string, text: string | null
   }
   if (claim.holds !== "text") throw new Error(`cannot retain binary content: ${file}`)
   const body = text ?? ""
+  // A BODY NOTHING READS — the claim's `opaque` ({@link ./kinds.ts}), which is
+  // the one row in the table whose text is code. It is an ARM and not four
+  // fields left empty afterwards, for the reason the unkept arm above is one:
+  // the walks are what cost, and the honest answer here is that none of them
+  // was run. A plugin's half carries the half of this arm that `kept` always
+  // meant — the bytes, so a write gate may refuse to overwrite what it has not
+  // seen and a page may draw the source — and a face whose `title` is the
+  // filename the sidebar and the Commit panel already draw it by.
+  if (claim.opaque === true) {
+    return {
+      kind: claim.kind,
+      holds: "text",
+      kept: true,
+      opaque: true,
+      path,
+      title: stemOf(claims, file),
+      links: [],
+      tags: [],
+      props: {},
+      body,
+      bytes: bytesOf(body),
+      headings: [],
+    }
+  }
   // THE PROSE, ONCE — the body with any frontmatter taken off
   // ({@link ./frontmatter.ts}). Two of the four readings below ask for it here
   // rather than themselves, and the split is not arbitrary: `firstLine` and
@@ -423,9 +465,14 @@ export const bodiedDocument = (claims: Claims, file: string, text: string | null
  * (`@olai/surface`'s `projection.ts`, which has the argument). It is a function
  * rather than a field so that the arms stay honest: an unkept file has no
  * `body` to be `null`, it has no body.
+ *
+ * IT ASKS THE STORAGE QUESTION ({@link isKeptText}) and not the prose one: a
+ * plugin's half is a body this revision carries, so a wire that answered
+ * `null` for it would be publishing a file the set holds the text of and
+ * telling every reader it holds nothing.
  */
 export const bodyOf = (document: Document): string | null =>
-  isMarkdown(document) ? document.body : null
+  isKeptText(document) ? document.body : null
 
 /** Whether a document is an outline — the narrowing every reader of the nodes
  *  goes through, named once rather than spelled as a `kind` test wherever it is
@@ -443,16 +490,55 @@ export const isOutline = (document: Document): document is Outline =>
 export const isBodied = (document: Document): document is Markdown | Unkept =>
   document.holds !== "nodes"
 
-/** ...and the NARROWER of the two body questions: a `.md`, never a `.html`.
- *  What a declared `doc` property may point at, which is a different question from "has a body"
- *  ({@link ./set.ts}'s `markdownIn` argues the difference and is one of the two
- *  askers). The other is the incremental validator's door, which holds the
- *  `.md` paths it carried against the ones the set actually holds
- *  ({@link ./incremental.ts}) — a LIST and a MEMBERSHIP TEST that came to
- *  disagree would be a carry checked against a different question from the one
- *  it answers, which is {@link isBodied}'s own reason for existing. */
-export const isMarkdown = (document: Document): document is Markdown =>
+/**
+ * ...and the SECOND of the two body questions: a file whose TEXT THIS SET
+ * KEEPS — a `.md`, a plugin's half, never a `.html` and never a picture.
+ *
+ * It is the storage question, asked of a path somebody already holds: has this
+ * revision got the bytes. Every door that is about the bytes asks it — what a
+ * write gate may overwrite and what an undo may put back ({@link ./set.ts}'s
+ * `markdownAt`), what the wire publishes as a body ({@link bodyOf}), what a
+ * folder reader reads its own source out of (`@olai/vault-plugins`).
+ *
+ * {@link isMarkdown} below is the OTHER half of what `kept` used to answer
+ * alone, and the two are deliberately not one function any more: `kept` says
+ * the body travelled and says nothing about what is in it.
+ */
+export const isKeptText = (document: Document): document is Markdown =>
   document.holds === "text" && document.kept
+
+/**
+ * ...and the NARROWEST: PROSE — a body this app reads, with a first line for a
+ * title, `#topic`s for tags, links and frontmatter.
+ *
+ * What a declared `doc` property may point at, what `markdown_index` lists,
+ * what the search grammar folds a body for and what a tag vocabulary is drawn
+ * from. A kept body is not enough to be one ({@link isKeptText}): a plugin's
+ * half is TypeScript, and reading an import line as a title put two documents
+ * per plugin into every list a person can reach. The claim says which
+ * ({@link ./kinds.ts}'s `opaque`), carried onto the value by
+ * {@link bodiedDocument}, so this is a field test and not a second reading of
+ * the table.
+ *
+ * TWO ASKERS, and they have to agree: the LIST of them ({@link ./set.ts}'s
+ * `markdownIn`, which {@link ./rules.ts}'s `markdownPaths` is the fence over)
+ * and the incremental validator's door, which holds the paths it carried
+ * against the ones the set actually holds ({@link ./incremental.ts}) — a LIST
+ * and a MEMBERSHIP TEST that came to disagree would be a carry checked against
+ * a different question from the one it answers, which is {@link isBodied}'s
+ * own reason for existing.
+ */
+export const isMarkdown = (document: Document): document is Markdown =>
+  document.holds === "text" && document.kept && document.opaque !== true
+
+/** ...and the complement of that last clause on its own, for the one reader
+ *  that needs to SKIP a body rather than narrow to one: the search's document
+ *  matcher walks every bodied file the set holds — a `.html` and a `.csv`
+ *  answer by their path and their title — and a half must be out of that walk
+ *  entirely rather than merely folding to nothing, since its path and its stem
+ *  would still match a word somebody typed ({@link ./filter.ts}). */
+export const isOpaque = (document: Document): boolean =>
+  document.holds === "text" && document.kept && document.opaque === true
 
 /** The path, BRANDED — a value this module has judged by the one thing that
  *  makes a path nameable, which is the registry claiming its suffix. Every
