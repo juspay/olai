@@ -41,7 +41,7 @@ import { WORD } from "../source.ts"
 
 /** The three names a folder holds, as a path may spell them. Keyed rather than
  *  listed because this is a membership question asked once per address. */
-const FILES: Readonly<Record<string, true>> = {
+const HALVES: Readonly<Record<string, true>> = {
   [PLUGIN_README_FILE]: true,
   [PLUGIN_SERVER_FILE]: true,
   [PLUGIN_BROWSER_FILE]: true,
@@ -85,7 +85,7 @@ export const pluginPage = defineSelfDrawnRoute<PluginPage>({
     if (!WORD.test(word)) return null
     if (cut === -1) return { word }
     const file = rest.slice(cut + 1)
-    return FILES[file] === true ? { word, file } : null
+    return HALVES[file] === true ? { word, file } : null
   },
   href: ({ word, file }) =>
     `${PLUGIN_PATH}${encodeURIComponent(word)}${file === undefined ? "" : `/${encodeURIComponent(file)}`}`,
