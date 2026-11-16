@@ -28,7 +28,7 @@ describe("the hue a tag is handed", () => {
   })
 
   test("the sigil is in the string: `#alice` and `@alice` are two tags", () => {
-    // docs/format.md: two namespaces, two tags — so the hue never claims the
+    // website/docs/format.md: two namespaces, two tags — so the hue never claims the
     // sameness the format refuses. (This is one assertion about THIS pair,
     // not a claim that no two tags share a hue: collisions are accepted at
     // real vocabulary sizes.)

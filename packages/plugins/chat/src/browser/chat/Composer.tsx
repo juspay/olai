@@ -589,7 +589,7 @@ export function Composer(props: {
    * the one gesture where a completion costs a click instead of saving one.
    *
    * AND IT COSTS THE UNDO, which is worth knowing here because two comments and
-   * a paragraph of docs/chat.md used to claim otherwise (found by review,
+   * a paragraph of website/docs/chat.md used to claim otherwise (found by review,
    * d17ec4f6, and then checked in a browser rather than argued): assigning
    * `value` is a write the box did not receive as input, so the engine's own
    * undo history for it is dropped and ⌘Z has nothing to take back. The

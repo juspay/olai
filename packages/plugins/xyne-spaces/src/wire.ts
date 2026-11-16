@@ -20,7 +20,7 @@ import { Schema } from "effect"
 
 /** The sibling key, the preferences row, the docs slug, and the word
  *  the file’s row selection takes. Spelled once, here. Hyphenated on purpose: the docs
- *  address is `docs/plugins/xyne-spaces.md`, and the name IS that address. */
+ *  address is `website/docs/plugins/xyne-spaces.md`, and the name IS that address. */
 export const name = "xyne-spaces"
 
 /** Off unless the file’s row selection names it. A Spaces app JWT is a secret this

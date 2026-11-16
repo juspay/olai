@@ -36,7 +36,7 @@ const messages = (errors: ReadonlyArray<OutlineError>): string =>
   errors.map((error) => error.message).join("\n")
 
 // The line the format is documented with, whole. If the canonical example from
-// docs/format.md ever stopped parsing, every other test here would be checking
+// website/docs/format.md ever stopped parsing, every other test here would be checking
 // a format nobody writes.
 test("the spec's own example line is a node", () => {
   const outline = outlineOf(

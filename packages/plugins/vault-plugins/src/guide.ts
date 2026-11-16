@@ -5,7 +5,7 @@
  * ## The hole this fills
  *
  * An agent building a plugin is working in a DIRECTORY, not in a checkout of
- * olai. It cannot open `docs/dynamic-plugins.md`; it has never seen this
+ * olai. It cannot open `website/docs/dynamic-plugins.md`; it has never seen this
  * repository; and what it knows about olai's plugin API is whatever was in its
  * training data, which is a memory of some other version. So the first
  * instruction every other verb here gives — *read the guide first* — named
@@ -14,9 +14,9 @@
  *
  * ## ONE SOURCE OF TRUTH, and the enforcement rather than the promise
  *
- * The pages a person reads are `docs/dynamic-plugins.md` and, beside it,
- * `docs/dynamic-plugins-examples.md`. The bytes an agent is handed are
- * `./guide.md`, beside this file, because a `docs/` directory is not in the
+ * The pages a person reads are `website/docs/dynamic-plugins.md` and, beside it,
+ * `website/docs/dynamic-plugins-examples.md`. The bytes an agent is handed are
+ * `./guide.md`, beside this file, because a `website/docs/` directory is not in the
  * binary and a plugin package may not reach across the tree to read one. They
  * are the same text, and `./guide.test.ts` is why: it cuts each page's region
  * between `<!-- guide:start -->` and `<!-- guide:end -->`, joins the two in

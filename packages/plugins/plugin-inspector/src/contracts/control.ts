@@ -21,7 +21,7 @@
  * optional frozen sentence, and it holds exactly one thing of its own: the
  * draft under this reader's caret, which belongs to the mounted control and
  * dies with it. Two mounts are two independent drafts — the factory rule in
- * `docs/architecture/cordis.md` under *Choose the owner before the helper*,
+ * `website/docs/architecture/cordis.md` under *Choose the owner before the helper*,
  * which is what makes a component shareable at all. It reads no roster,
  * acquires no service, and asks nothing about who mounted it.
  *

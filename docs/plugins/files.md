@@ -1,1 +1,0 @@
-../../packages/plugins/files/docs.md

@@ -27,7 +27,7 @@
  * and the ⌘K palette: the same `parseFilter` reads the words and the same
  * matcher selects the nodes ({@link selecting}, which is the walk `matching`
  * runs with the set's own records in place of a page's). One grammar, one
- * matcher, one answer to `is:done` — the rule docs/search.md exists to hold,
+ * matcher, one answer to `is:done` — the rule website/docs/search.md exists to hold,
  * kept structurally rather than by two implementations that agree.
  *
  * WHAT A READER HAS HIDDEN is not here either, and that is the division of
@@ -205,7 +205,7 @@ export const narrowedIn = (
  * Is the page in front of the reader drawing anything that was PUT AWAY?
  *
  * Archived nodes are out of every reading unless a query says `is:trashed`
- * (docs/search.md), because the doors that rule is written for are searching
+ * (website/docs/search.md), because the doors that rule is written for are searching
  * the DIRECTORY. This one is not: it tests the rows in front of somebody, and
  * the TRASH is the page that draws what was put away — applying the default
  * there would take every row away and leave the reader nothing to read the
@@ -228,7 +228,7 @@ export const narrowedIn = (
  * one gap that is not this function's to close: a MIRROR still resolves to a
  * node archived after it was placed (`./derive.ts`'s `follow`), so a placement
  * can draw an archived row on a live page. What that row should BE is a ruling
- * about the set rather than about a filter, and is filed as one (docs/search.md,
+ * about the set rather than about a filter, and is filed as one (website/docs/search.md,
  * https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/editing-web.md's Open).
  *
  * WHAT IT NO LONGER DECIDES is a candidate set. It used to be the browser's

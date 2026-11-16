@@ -18,7 +18,7 @@
  * addresses, and what it is called right now ({@link Pinned.shows}).
  *
  * What is NOT decided here is which page an address opens. That is ruled, and
- * the ruling is docs/format.md's own seam: *what an ADDRESS is* — `[document]
+ * the ruling is website/docs/format.md's own seam: *what an ADDRESS is* — `[document]
  * #[element]` — is this package's, because it is a statement about the
  * directory; *which page one opens, and what a `?q=` on it means*, is the
  * browser's, at view time, through the same bijection that wrote it
@@ -67,7 +67,7 @@ const Pinned = Schema.Struct({
    * (`./reading.ts`'s `NamedAnswer`), and the reader can tell them apart
    * because it has the title: an address that names no node is drawn by its own
    * spelling, and a NODE address with nothing to show is the honest dead row
-   * docs/format.md promises (`/#gone`, drawn as itself).
+   * website/docs/format.md promises (`/#gone`, drawn as itself).
    *
    * It is the whole reason this member is re-answered per revision: rename that
    * node anywhere, by anyone, and the shelf says the new name on the frame the
@@ -131,7 +131,7 @@ export const sameShelf: (a: Shelf, b: Shelf) => boolean = Schema.toEquivalence(S
  * the bare `#id` and the qualified `garden.olai#id` both do, and the second
  * normalises to the same id, which is exactly why this asks the grammar rather
  * than matching a shape. What is done here is the two things the app writes
- * around an address in a title, both of which docs/format.md's Pins spells: the
+ * around an address in a title, both of which website/docs/format.md's Pins spells: the
  * leading slash is skipped, and the `?q=` is taken out — it sits between the two
  * halves of a URL, so cutting the fragment first leaves the path to cut at the
  * `?`. Neither is interpreted; what a query MEANS is the browser's.
@@ -190,7 +190,7 @@ export const pinTargetIn = (claims: Claims, title: string): string | undefined =
  * A MIRROR IS NOT A PIN and is left out here, because a placement carries no
  * title at all — there is nothing to address with. Every other row travels,
  * including one whose title is not an address: whether a title names a PAGE is
- * the app parser's answer (docs/format.md says so out loud, so that the test is
+ * the app parser's answer (website/docs/format.md says so out loud, so that the test is
  * a parser rather than a list of prefixes), and a row this could not draw is a
  * row `Pins.olai`'s own page still draws as an ordinary heading or note.
  */

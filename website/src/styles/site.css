@@ -1,0 +1,64 @@
+/* The whole site's type, colour and chrome. The four palettes are olai's own
+   (packages/appearance/src/palettes.ts): an unpicked page follows the OS,
+   chalk by day and basalt by night. */
+
+:root {
+  --display: "Fraunces", "Iowan Old Style", Palatino, "Palatino Linotype", serif;
+  --sans: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --well: color-mix(in srgb, var(--rule) 28%, var(--paper));
+  --hair: color-mix(in srgb, var(--rule) 70%, transparent);
+  --header: 3.6rem;
+}
+:root,
+[data-theme="chalk"] { --paper:#FBFBF9; --desk:#F3F3EF; --panel:#FFFFFF; --pill:#E9E9E3; --ink:#1B1B18; --muted:#5D5F57; --rule:#DBDBD4; --accent:#B23A43; --done:#1F7A4D; --doing:#8A5800; --alarm:#C0313F; }
+[data-theme="reef"] { --paper:#E8F6F2; --desk:#DAEFE9; --panel:#F3FBF8; --pill:#CAE7DF; --ink:#10302B; --muted:#3A665F; --rule:#B3D9D0; --accent:#B43C45; --done:#1E7656; --doing:#875600; --alarm:#C13349; }
+[data-theme="basalt"] { --paper:#161718; --desk:#1D1E21; --panel:#242629; --pill:#2E3034; --ink:#E8E8E4; --muted:#A0A19C; --rule:#34363B; --accent:#EE8F93; --done:#62C58D; --doing:#E4BA52; --alarm:#F27E8B; }
+[data-theme="abyss"] { --paper:#06201A; --desk:#0B2923; --panel:#10342D; --pill:#174139; --ink:#CFE9E2; --muted:#84B0A6; --rule:#1E4840; --accent:#4ED4E6; --done:#52B37F; --doing:#CDA62A; --alarm:#EB7B90; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) { --paper:#161718; --desk:#1D1E21; --panel:#242629; --pill:#2E3034; --ink:#E8E8E4; --muted:#A0A19C; --rule:#34363B; --accent:#EE8F93; --done:#62C58D; --doing:#E4BA52; --alarm:#F27E8B; }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { background: var(--paper); scroll-padding-top: calc(var(--header) + 1rem); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: var(--sans); font-size: 18px; line-height: 1.55;
+  transition: background-color 220ms ease, color 220ms ease;
+}
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+code, pre, kbd { font-family: var(--mono); }
+:not(pre) > code { font-size: 0.88em; }
+pre {
+  background: var(--desk); border-radius: 12px;
+  padding: 1.05rem 1.3rem; overflow-x: auto;
+  font-size: 0.82rem; line-height: 1.6;
+}
+pre code { font-size: inherit; }
+.wrap { max-width: 72rem; margin: 0 auto; padding: 0 1.4rem; }
+
+/* Header and footer, the same on every page. */
+header.site {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  backdrop-filter: blur(12px) saturate(1.2);
+  border-bottom: 1px solid var(--hair);
+}
+header.site .wrap {
+  display: flex; align-items: center; gap: 1.6rem;
+  height: var(--header);
+}
+.wordmark {
+  font-family: var(--display); font-style: italic; font-weight: 600;
+  font-size: 1.45rem; color: var(--ink); text-decoration: none;
+  letter-spacing: -0.03em;
+}
+nav.site { display: flex; gap: 1.2rem; font-size: 0.92rem; margin-left: auto; }
+nav.site a { color: var(--muted); text-decoration: none; }
+nav.site a:hover, nav.site a[aria-current] { color: var(--ink); }
+nav.site a[aria-current] { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 6px; }
+
+footer.site { padding: 3rem 0 4rem; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--hair); margin-top: 4rem; }
+footer.site .wrap { display: flex; gap: 1.2rem 1.5rem; flex-wrap: wrap; align-items: baseline; }
+footer.site .wordmark { font-size: 1.2rem; margin-right: 0.5rem; }

@@ -1560,7 +1560,7 @@ test("`1w` is a rolling week where `this-week` starts on Monday", () => {
  *
  * The other half of that sentence is the honest one: the bare form is a range
  * open ABOVE, so a day still to come is inside it, exactly as it is inside
- * `date:today..`. Stated rather than special-cased (docs/search.md).
+ * `date:today..`. Stated rather than special-cased (website/docs/search.md).
  */
 const JOURNAL = {
   "journal.olai": [
@@ -1901,7 +1901,7 @@ test("a day draws none of the archive, and `is:trashed` still reaches it", () =>
   expect(selects("is:trashed")).toEqual(["gone"])
 })
 
-// ...and the CONJUNCTION, which is the sentence docs/search.md actually makes
+// ...and the CONJUNCTION, which is the sentence website/docs/search.md actually makes
 // and the one neither half above can hold on its own. `date:` reads a record's
 // own dates (`datesOf`) where a day page reads the walk that drops the archive,
 // so the two clauses compose: `is:trashed` opens the reading and `date:` finds

@@ -19,7 +19,7 @@ import { DEFAULT_IDLE } from "./scoped.ts"
  * `sleep-floor` AND `sleep-latest` ARE NOT SPANS AND ARE NOT ONLY THE HARNESS'S:
  * they are what says how much has to have MOVED before a tidy is worth a turn,
  * because consolidation is a lossy rewrite and one that runs after every edit
- * costs more than it returns (`docs/chat.md`). A person who wants their memory
+ * costs more than it returns (`website/docs/chat.md`). A person who wants their memory
  * tidied sooner lowers the floor or shortens the backstop.
  */
 const SPANS = {
@@ -107,7 +107,7 @@ export const Config = Schema.Struct({
   // HOW OFTEN A NODE AGENT IS REMINDED OF ITS WRITING RULE, in messages it
   // took — `sleep-floor`'s shape, with zero allowed because zero is the switch:
   // a person who finds the line noisy turns it off here (`./teaching.ts`'s
-  // `REMINDER`, `docs/chat.md`). DIGITS ONLY on the text arm, because with zero
+  // `REMINDER`, `website/docs/chat.md`). DIGITS ONLY on the text arm, because with zero
   // legal a blank property must not read as `Number("")`, which is zero — a
   // reminder switched off by an empty field nobody meant as "off".
   "remind-every": Schema.Union([

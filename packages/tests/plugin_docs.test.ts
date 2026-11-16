@@ -16,20 +16,20 @@
  *   - the page EXISTS for every plugin — which stops being true the moment a
  *     plugin arrives with no `docs.md` and its story goes into some general
  *     page instead, which is the second account arriving by the back way;
- *   - the page is SERVED and LINKED, at `docs/plugins/<name>.md`, because
- *     `just serve` serves `docs/` as a vault: a path outside it is not served
- *     at all and a link to one draws as text rather than as a door. A page
- *     nobody can reach is a page nobody notices is stale, which is the
- *     ruling's own premise arriving by the other back way.
+ *   - the page is PUBLISHED and LINKED, at `website/docs/plugins/<name>.md`:
+ *     olai.page publishes `website/docs/` (and `just serve` serves it as a
+ *     vault), so a path outside it is not published at all, and the site's
+ *     sidebar is read off the index, so a page the index does not list has no
+ *     way in. A page nobody can reach is a page nobody notices is stale,
+ *     which is the ruling's own premise arriving by the other back way.
  *
- * So the claims below are the counter-case's receipts. `docs/index.md` is
- * hand-written markdown with no generator and no link checker behind it, and
- * this file is what makes it an ASSEMBLY rather than a list somebody keeps up
- * by remembering to.
+ * So the claims below are the counter-case's receipts. `website/docs/index.md`
+ * is hand-written markdown, and this file is what makes it an ASSEMBLY rather
+ * than a list somebody keeps up by remembering to.
  *
  * ## The served page is a SYMLINK, and the test asserts the link, not the file
  *
- * `docs/plugins/<name>.md` points at the plugin's own `docs.md` — one file
+ * `website/docs/plugins/<name>.md` points at the plugin's own `docs.md` — one file
  * with two names, so the served page and the page beside the code are the same
  * bytes. `lstat` is what proves it: a well-meant COPY dropped in its place
  * would satisfy every other claim here while reintroducing exactly the
@@ -37,11 +37,10 @@
  *
  * ## …so a plugin's page is authored at its SERVED address
  *
- * A page written in `packages/plugins/<name>/` is READ at `docs/plugins/`, so
- * its relative links are the served set's (`../format.md`, and a sibling
- * plugin as `odu.md`). That is the real cost of the symlink, and it is checked
- * here rather than left to be discovered — which is more than any other page
- * under `docs/` gets today.
+ * A page written in `packages/plugins/<name>/` is READ at
+ * `website/docs/plugins/`, so its relative links are the served set's
+ * (`../format.md`, and a sibling plugin as `odu.md`). That is the real cost of
+ * the symlink, and it is checked here rather than left to be discovered.
  *
  * ## Why the WIRE door, and why the population is not read off the tree
  *
@@ -60,7 +59,7 @@
  *
  * And it lives here because `@olai/tests` is the only package above all the
  * others (support/sweep.ts' header, and ../plugin-api/src/fence.test.ts' closing
- * paragraph): a sweep over `docs/` from inside `@olai/plugin-api` would be a
+ * paragraph): a sweep over `website/docs/` from inside `@olai/plugin-api` would be a
  * package reading the repository it is a part of.
  */
 
@@ -180,10 +179,10 @@ test("every page the index links is a page that is there", () => {
 
 /**
  * EVERY ENVIRONMENT DOOR A ROW DECLARES IS NAMED ON SOME PAGE a reader can
- * find. The claim was `docs/running.md` alone, back when that page carried
+ * find. The claim was `running.md` alone, back when that page carried
  * every knob in the bundle. A door is now documented where its subject is —
  * an engine's adapter variable on the engine's own page, the server's on
- * `docs/settings.md` — which is the writing standard's "one fact, one home"
+ * `settings.md` — which is the writing standard's "one fact, one home"
  * (`dev/skills/docs-writing/SKILL.md`). What must not happen is a door
  * documented nowhere, and that is what this sweeps for.
  */

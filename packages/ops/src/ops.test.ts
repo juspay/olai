@@ -295,7 +295,7 @@ test("a mark lands on disk as bytes the parser reads back", () =>
 /**
  * The round-trip promise, in the language it is made in.
  *
- * `docs/format.md` and `packages/ops/README.md` both say it about BYTES — a
+ * `website/docs/format.md` and `packages/ops/README.md` both say it about BYTES — a
  * writer must reproduce what it read — and the planner's test compares
  * records, which is a different sentence about the same thing. Here the file
  * is read back as text, so a `true` that came back `"true"`, a day-only value

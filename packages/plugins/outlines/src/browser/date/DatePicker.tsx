@@ -13,7 +13,7 @@ import { createEffect } from "solid-js"
  * refused in the same words. Nothing is echoed — the badge changes when the
  * file says it changed.
  *
- * The format's `date` has two widths, a day and an instant (docs/format.md),
+ * The format's `date` has two widths, a day and an instant (website/docs/format.md),
  * and the picker offered only the first: a node an agent had scheduled for ten
  * in the morning could be moved by a person only by throwing the time away.
  * So there are two boxes, and the second is optional — empty is a bare day.
@@ -23,7 +23,7 @@ import { createEffect } from "solid-js"
  * Because they CANNOT MINT AN INSTANT. Their values are a `YYYY-MM-DD` string,
  * an `HH:MM` string or the empty string, which is exactly the vocabulary the
  * format stores: a date is text, verbatim, and a date-only value round-tripped
- * through a `Date` comes back a datetime (docs/format.md). So the day a person
+ * through a `Date` comes back a datetime (website/docs/format.md). So the day a person
  * picks is the ten characters the record will hold and the time is the face it
  * will say, with nothing parsing or formatting either on the way — and the
  * calendar, the locale and the keyboard entry are the browser's, on every

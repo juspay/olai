@@ -316,7 +316,7 @@ test("every entry arrives situated, the way a day page's does", () => {
 test("a blocked task keeps both answers, and stays on the agenda", () => {
   // Being blocked is a SECOND fact about a node and never a replacement for the
   // first: a task that is late AND waiting on something is both, drawn together
-  // (docs/format.md's Status).
+  // (website/docs/format.md's Status).
   const blocked = derive(TEST_CLAIMS,
     nodesOfFiles({
       "work.olai": [
@@ -720,7 +720,7 @@ test("nothing put away is owed: the archive is the trash's and no page else's", 
   // an archive still says `todo` and still names a day — and it is on no
   // section here, because putting something away is the reader saying they are
   // done looking at it. The one door left to it is `is:trashed`
-  // (docs/search.md), and the one page is the trash.
+  // (website/docs/search.md), and the one page is the trash.
   //
   // ONE OF EACH — slipped, due today, coming up — because the exclusion is the
   // bucketed walk's (./dates.ts) and so cannot reach one section and miss

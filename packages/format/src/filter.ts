@@ -27,7 +27,7 @@
  * BOTH ARE ANSWERED ON THE SERVER, which is newer than this file is. The
  * matcher came DOWN here when the filter ran in a browser on every keystroke
  * over rows the tab already held — a client-side predicate written to the same
- * description is exactly the drift docs/search.md was written to forbid, with
+ * description is exactly the drift website/docs/search.md was written to forbid, with
  * `is:done` meaning one thing to an agent and another to the box a person types
  * in. The browser holds no vault to grep since `vault-in-browser`, and the
  * filter stopped being a call at all with `filter-ask-carries-revision`
@@ -274,7 +274,7 @@ const isIsValue = (value: string): value is IsValue =>
  * than the grammar's: the stamps carry seconds, so a duration reaches them
  * exactly; a `date:` field carrying a bare day is compared at the width of a
  * day, so `date:1h` is effectively a question about done-instants
- * ({@link within} argues it, docs/search.md states it).
+ * ({@link within} argues it, website/docs/search.md states it).
  *
  * WHICH IS THE ARGUMENT FOR THE LIST rather than for three operators written
  * out. A reader who has learnt `date:last-week` has learnt the other two, and
@@ -324,7 +324,7 @@ const isDayReading = (field: HasField): field is DayReading =>
  *  that one answer about overlapping nodes from opposite ends — the rule is a
  *  field of the RECORD, the days are the JOURNAL's — and the field test is the
  *  honest reading of the rule. What the overlap means to somebody writing a
- *  query is docs/search.md's to say. */
+ *  query is website/docs/search.md's to say. */
 const HAS_FIELDS = ["desc", ...DAY_READINGS, "see", "after", "repeat"] as const
 type HasField = (typeof HAS_FIELDS)[number]
 
@@ -555,7 +555,7 @@ export type Filter =
     readonly namedProps: ReadonlyArray<Extract<Clause, { kind: "prop" }>>
     /** True when the query names the archive at all, in either polarity. The
      *  archive is out of every reading unless it is ASKED for
-     *  (docs/search.md), and this is the flag that says it was — so
+     *  (website/docs/search.md), and this is the flag that says it was — so
      *  `is:trashed` reaches what was put away and `-is:trashed` says out
      *  loud what is otherwise the default. */
     readonly speaksOfTrash: boolean
@@ -767,7 +767,7 @@ const NOTHING_QUOTED =
  * boundary, and the day is a fact about WHO IS ASKING — the tab's own local
  * day for the filter the browser parses itself, the server's for the three
  * doors that ask it, and no door has two. Those two CAN differ — a tab across
- * a time-zone boundary from the server has its own local day — and docs/
+ * a time-zone boundary from the server has its own local day — and website/docs/
  * search.md says why that is accepted rather than fixed by putting a clock on
  * the wire. The deferral this lifts (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-in-place.md)
  * named the price as "threading `today` through the parse", and that is
@@ -799,7 +799,7 @@ export const parseFilter = (
    * answer. The consequence is named honestly rather than hidden: that box
    * cannot DRAW the refusal for a range on an untyped key, so such a query
    * comes back with no rows, which is the answer it already gave before this
-   * parameter existed. docs/search.md says so.
+   * parameter existed. website/docs/search.md says so.
    *
    * `undefined` and `NO_TYPING` are deliberately different: an empty map is a
    * vault that was read and declares nothing, and a range there IS refused,
@@ -1374,7 +1374,7 @@ const DAY_VALUES = "a day, month or year (2026-08-10, 2026-08, 2026), " +
  * hour exactly as one showing `created:today` drifts across midnight — the
  * query is asked again on every revision, and answered against the clock as it
  * is then. That is the contract `today` already had, extended rather than
- * restated (docs/search.md).
+ * restated (website/docs/search.md).
  *
  * WHAT COMES BACK IS A MOMENT AND NOT A DAY, which is the whole of what this
  * value kind adds and the reason {@link within} compares at the width of the
@@ -1722,7 +1722,7 @@ export interface Scope {
    * Whether what was put AWAY is in this corner of the set at all.
    *
    * The default is the grammar's own rule — archived nodes are out of every
-   * reading unless the query says `is:trashed` (docs/search.md) — because the
+   * reading unless the query says `is:trashed` (website/docs/search.md) — because the
    * doors that leave it alone are asking about the DIRECTORY, where an archive
    * is a place a reader has to name before they are shown it.
    *
@@ -2198,7 +2198,7 @@ const being = (derived: Derived, at: LocatedRegular, value: IsValue): boolean =>
     case "marked":
       return storedMarker(at.node) !== undefined
     // The STORED mark, never a derived one: a parent whose children are all
-    // ticked is not `is:done` unless somebody ticked it (docs/format.md's
+    // ticked is not `is:done` unless somebody ticked it (website/docs/format.md's
     // Status, and the `not-every-node-a-task` ruling behind it). `cancelled`
     // is read exactly here and nowhere special — it is a mark like the other
     // three at this door, and what makes it different (it SETTLES) is a
@@ -2221,7 +2221,7 @@ const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean =>
   // and pointedly not the walk above it, which is where the archive comes out:
   // a day clause answers about a node wherever it was filed, and that is what
   // makes `is:trashed date:2026-08-11` a question with an answer
-  // (docs/search.md).
+  // (website/docs/search.md).
   return dayWithin(at.node, clause)
 }
 
@@ -2301,7 +2301,7 @@ const holds = (derived: Derived, at: LocatedRegular, clause: Clause): boolean =>
  * hold of a record it has nothing to read is false. Which is the honest
  * reading and is worth saying out loud, because "not created in 2026" and "not
  * known to have been created in 2026" are the same rows and are not the same
- * sentence. docs/search.md says it in those words.
+ * sentence. website/docs/search.md says it in those words.
  */
 const dayWithin = (node: RegularNode, clause: DaysClause): boolean => {
   switch (clause.of) {
@@ -2470,7 +2470,7 @@ const carries = (node: RegularNode, field: CarriedField): boolean =>
  * is the lesser one and that is exactly what "the start of the day" means. So
  * `date:1h` selects done-instants inside the hour and no bare-day plans on the
  * day it is — the fact the ruling asked to be stated rather than engineered
- * away (docs/search.md).
+ * away (website/docs/search.md).
  *
  * COMPARED AS TEXT, which for two moments is a WALL-CLOCK comparison and not an
  * absolute one: a stamp carries the offset the machine writing it was standing
@@ -2840,7 +2840,7 @@ const isSettled = (derived: Pick<Derived, "status">, id: string): boolean => {
  * every keystroke, and a browser that respelled this would be a second opinion
  * about whether a finished node outranks an open one — the ⌘K palette and the
  * chat composer ranking the same words in the same directory differently, which
- * is the exact drift docs/search.md exists to forbid.
+ * is the exact drift website/docs/search.md exists to forbid.
  *
  * OVER {@link Matched}, before anything is situated, which is the other half of
  * why this is a function rather than three lines in each caller: the ops layer

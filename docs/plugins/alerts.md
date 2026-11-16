@@ -1,1 +1,0 @@
-../../packages/plugins/alerts/docs.md

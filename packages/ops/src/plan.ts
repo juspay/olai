@@ -265,7 +265,7 @@ const planDate = (scope: Scope, request: Extract<Request, { op: "date" }>): Plan
  * (`mon`, `every monday`, `Every Week On Monday`) and writing one is not,
  * because two files meaning the same thing must not differ byte for byte — a
  * merge conflict over which way somebody spelled Monday is a conflict about
- * nothing (docs/format.md's Writing). Text the grammar cannot read passes
+ * nothing (website/docs/format.md's Writing). Text the grammar cannot read passes
  * through UNCHANGED, so the refusal quotes what the caller actually sent rather
  * than something this line invented.
  */
@@ -1327,7 +1327,7 @@ const UNMARKED = {
  *
  * `doing` and `todo` store `true` (resolved 2026-08-11, human). The symmetry
  * argument — one answer per mark, written by one op — loses to what a date on a
- * mark now MEANS: it puts the node on that day (docs/format.md's Days). A
+ * mark now MEANS: it puts the node on that day (website/docs/format.md's Days). A
  * stamped `todo` would file everything on the day it was captured, so a day
  * page would fill up with work that was written down then rather than done
  * then, and `/today` would drift into a capture log. Finishing is the event a
@@ -1581,7 +1581,7 @@ const planMark = (
   // occurrence it brings into being is born `todo`, which is open work landing
   // under whatever stands over the node that was just finished. Left out, a
   // finished branch would go on hiding the next occurrence of everything under
-  // it (docs/format.md's Status, door two).
+  // it (website/docs/format.md's Status, door two).
   return Result.succeed(arriving(
     scope,
     { file, parent: node.parent },
@@ -1664,7 +1664,7 @@ interface Recurrence {
  * spawned this?" flag for anybody to keep. What un-doing does NOT do is take
  * the spawned occurrence away — the write that made it was a write, and a
  * recurrence with one live head is exactly what the set then has
- * (docs/format.md's Days).
+ * (website/docs/format.md's Days).
  *
  * ONLY `done` SPAWNS, AND `cancelled` DELIBERATELY DOES NOT (2026-08-25). The
  * two marks settle alike everywhere a WAIT is the question, and a recurrence is
@@ -2000,7 +2000,7 @@ const capped = <T>(all: ReadonlyArray<T>, name: (one: T) => string): string =>
  * The state being made unreachable is one state: a node storing `done` with
  * unfinished tasks anywhere in the branch below it. Done-hiding drops a done
  * row WITH its subtree — deliberately, since a mark on a parent is a claim
- * about the whole branch (docs/format.md's Status) — so that state is work
+ * about the whole branch (website/docs/format.md's Status) — so that state is work
  * that has vanished from the view whose whole job is showing what is left.
  *
  * It used to be reachable two ways, and the incident of 2026-08-16 walked
@@ -2034,7 +2034,7 @@ const capped = <T>(all: ReadonlyArray<T>, name: (one: T) => string): string =>
  * set that arrives that way must still load, must still be readable, and must
  * still be fixable — which is exactly what these two gates do to it the moment
  * anybody writes. The format has nothing to say about a mark and the children
- * under it (docs/format.md's Validation), and gains nothing to say here.
+ * under it (website/docs/format.md's Validation), and gains nothing to say here.
  *
  * ARCHIVED WORK IS EXEMPT AT BOTH DOORS, as everywhere else: a subtree put
  * away in an `_olai/Trash.olai` is over, so nothing in it is open work and nothing
@@ -5187,7 +5187,7 @@ const planAfter = (
  * The record is `{id, parent?, ord, mirror}` and cannot be anything else: it is
  * built here, from a request that has no field for a title or a mark, so "a
  * mirror carries nothing but its four" is unrepresentable rather than checked
- * (docs/format.md's Two record shapes). What the op decides is only where the
+ * (website/docs/format.md's Two record shapes). What the op decides is only where the
  * placement goes — the same landing and the same `before`/`after` an `add` gets
  * — and what it may show.
  *

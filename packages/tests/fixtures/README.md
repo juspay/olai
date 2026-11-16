@@ -161,7 +161,7 @@ capture, and a row written there is drawn on no page (#226).
 
 The third child is the model in one line: `order` carries no mark, so it is a
 bullet rather than a task nobody has started, and the nudge above does **not**
-name it — an unmarked child is not an unfinished one (docs/format.md's Status
+name it — an unmarked child is not an unfinished one (website/docs/format.md's Status
 section). `install` is the one task still open under `kitchen`, and it is the
 whole of what the nudge names.
 
@@ -385,7 +385,7 @@ on it — so the folder arrives off and unapproved, exactly as one copied in fro
 another vault does, and a scenario that wants it running presses **Turn on** on
 its page.
 
-The source is `docs/dynamic-plugins.md`'s worked example with **two lines
+The source is `website/docs/dynamic-plugins.md`'s worked example with **two lines
 changed, both of them the clock**: it looks from midnight rather than seven and
 beats every second rather than every five minutes, because a scenario cannot sit
 out either.

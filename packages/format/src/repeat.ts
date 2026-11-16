@@ -153,7 +153,7 @@ const weekOf = (word: string): Repeat | undefined => {
  * anything outside this module asks about a rule's words.
  *
  * TWO CALLERS, and they are the two halves of "reading is forgiving about
- * spelling and a write stores the canonical one" (docs/format.md): the per-line
+ * spelling and a write stores the canonical one" (website/docs/format.md): the per-line
  * rule asks it to find out whether a line holds a rule at all (./parse.ts), and
  * `outlines_repeat` asks it for the text to actually store (`@olai/ops`' planner).
  * A third caller is the picker, which seeds its list from the rule a node
@@ -164,7 +164,7 @@ const weekOf = (word: string): Repeat | undefined => {
  * `2026-08-10` and `2026-08-10T09:00` are two different records. This format's
  * whole bet is that a line-based git merge is safe, and that rests on two files
  * meaning the same thing not differing byte for byte — a conflict over which
- * way somebody spelled Monday is a conflict about nothing (docs/format.md's
+ * way somebody spelled Monday is a conflict about nothing (website/docs/format.md's
  * Writing). Reading stays forgiving, and a spelling already on disk is left
  * exactly as it was found until somebody writes that field, which is the rule
  * `done: true` keeps beside the instants olai now stamps.

@@ -1,0 +1,456 @@
+---
+/**
+ * The pitch: why to try olai, and pictures of what a person sees. How to do
+ * a thing belongs on a docs page; each section here ends with a link to it.
+ */
+import Base from "../layouts/Base.astro"
+import "../styles/home.css"
+---
+
+<Base
+  title="olai — a git-native outliner"
+  description="An outliner that lives in files you own. Indent, check off, search. Markdown sits beside the outline. Git records every edit."
+>
+<main>
+
+<div class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="kicker">a git-native outliner</p>
+      <h1>olai</h1>
+      <p class="tag">An outliner that lives in files you own.</p>
+      <p class="sub">Indent, check off, search. Markdown sits beside the
+      outline. Git records every edit.</p>
+      <pre class="run" id="install" title="click to copy"><code>nix run github:juspay/olai -- web path/to/outlines</code></pre>
+      <p class="run-hint">one directory. a browser. that’s the whole install.</p>
+      <p class="next">
+        <a class="go" href="/docs/start/">Start in five minutes</a>
+        <a href="/docs/">Read the docs</a>
+      </p>
+      <nav class="chapters" aria-label="On this page">
+        <a href="#compare">why</a>
+        <a href="#agenda">due</a>
+        <a href="#find">search</a>
+        <a href="#type">typing</a>
+        <a href="#prefs">looks</a>
+        <a href="#agent">agent</a>
+        <a href="#plugins">plugins</a>
+        <a href="#commit">git</a>
+      </nav>
+    </div>
+
+    <div class="hero-stage">
+      <img class="specimen" src="/leaf.jpg" width="1024" height="1365" alt="A palm leaf drawn in ink on sea-glass paper, coral at the tips.">
+      <div class="panel kitchen" aria-label="An olai outline, as the browser draws it">
+        <div class="file">kitchen.olai</div>
+        <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
+        <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
+        <div class="row d1"><span class="box done"></span><span class="t strike">Pick the counter stone</span></div>
+        <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">5 days late</span></div>
+        <div class="pilcrow" title="a note hangs behind the pilcrow">¶</div>
+        <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
+        <div class="row d1"><span class="bullet">●</span><span class="t">Paint samples on the north wall</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section id="compare">
+  <div class="wrap">
+    <h2>Compared to Workflowy and Dynalist</h2>
+    <p class="lead">Same outlining model — indent, move, mirror, check off.
+    The difference is where the data lives.</p>
+    <div class="tablewrap">
+      <table class="cmp">
+        <thead>
+          <tr><th></th><th>Workflowy, Dynalist</th><th>olai</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Storage</td><td>A hosted database</td><td>Plain files in a directory you choose</td></tr>
+          <tr><td>Sync</td><td>Their cloud</td><td>git, or anything that moves files</td></tr>
+          <tr><td>History</td><td>In-app version history</td><td>git log</td></tr>
+          <tr><td>Search</td><td>Keyword, in their app</td><td>Filter the page you’re on, or search the whole directory</td></tr>
+          <tr><td>Source</td><td>Proprietary</td><td><a href="https://github.com/juspay/olai">Open source</a> (AGPL-3.0)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caption">Outlines are ordinary files. The
+    <a href="/docs/format/">format spec</a>
+    is there if you want it.</p>
+  </div>
+</section>
+
+<section id="agenda">
+  <div class="wrap">
+    <h2>What’s due</h2>
+    <p class="lead">Dated work from every outline, on one page. Late things
+    sit above today. A birthday isn’t a task — it stays on its day and never
+    turns red. The calendar is a
+    <a href="#plugins">plugin</a>.</p>
+    <div class="cols">
+      <div class="panel">
+        <div class="file">/agenda · 2026-08-12</div>
+
+        <div class="spine">
+          <span class="line"></span>
+
+          <div class="day gone">
+            <span class="dot"></span>
+            <p class="dayname">5 days ago · Fri, Aug 7</p>
+            <div class="row"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">5 days late</span></div>
+            <p class="trail">Kitchen renovation</p>
+          </div>
+
+          <div class="day now">
+            <span class="dot"></span>
+            <p class="dayname"><span class="lead">Today</span> · Wed, Aug 12</p>
+            <div class="row"><span class="box"></span><span class="t">Book the plumber</span></div>
+            <p class="trail">Kitchen renovation</p>
+          </div>
+
+          <div class="day near">
+            <span class="dot"></span>
+            <p class="dayname">Sat, Aug 15<span class="away">in 3 days</span></p>
+            <div class="row"><span class="box"></span><span class="t">Template the countertop</span></div>
+            <p class="trail">Kitchen renovation</p>
+          </div>
+
+          <p class="quiet short">two quiet weeks</p>
+
+          <div class="day far">
+            <span class="dot"></span>
+            <p class="dayname">Fri, Aug 28<span class="away">in 2 weeks</span></p>
+            <div class="row"><span class="box"></span><span class="t">Meet the tiler on site</span><span class="pill">14:00</span></div>
+            <p class="trail">Kitchen renovation</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p>A file named for the day — 2026-08-12.md, anywhere in
+        the directory — is that day’s note. Open the day and the note is on
+        top, with everything dated that day underneath it.</p>
+        <p>Weekly chores come back as a fresh row on the next date, so eleven
+        Mondays are eleven rows, not one row whose date kept moving.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="find">
+  <div class="wrap">
+    <h2>Stay on the page</h2>
+    <p class="lead">The box above the outline hides what doesn’t match. A tag
+    you click does the same. The address holds the query, so a narrowed page
+    is a link you can send.</p>
+    <div class="cols">
+      <div class="panel">
+        <div class="file">/house.olai?q=%23home+OR+alcove</div>
+        <div class="row"><span class="bullet">●</span><span class="t"><strong>kitchen remodel</strong> <span class="tagchip"><span class="hit">#home</span></span></span></div>
+        <div class="row d1"><span class="bullet">●</span><span class="t">order the new cabinets</span></div>
+        <div class="noteline">…measure the <span class="hit">alcove</span> before ordering.</div>
+        <div class="row d1 dimrow"><span class="bullet">●</span><span class="t">install the cabinets</span></div>
+        <div class="row d2"><span class="box"></span><span class="t">pick the hinges <span class="tagchip"><span class="hit">#home</span></span></span></div>
+        <p class="caption">Matches stay where they live. Ancestors stay so a
+        bare title still makes sense.</p>
+      </div>
+      <div>
+        <p>Done, last week, a quoted phrase — the rest of the query language
+        is in the
+        <a href="/docs/search/">search docs</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="type">
+  <div class="wrap">
+    <h2>Type like an outliner</h2>
+    <p class="lead">Click a title to edit it in place. Enter makes the next
+    line. Tab indents. The rest is the usual outliner muscle memory.</p>
+    <div class="cols">
+      <table class="keys">
+        <tr><td><kbd>Enter</kbd></td><td>commit, and open the next line</td></tr>
+        <tr><td><kbd>Enter</kbd> mid-line</td><td>split the row in two, there</td></tr>
+        <tr><td><kbd>Backspace</kbd> at the start</td><td>join this row onto the one above</td></tr>
+        <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>indent, or out again</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd></td><td>move a row among its siblings</td></tr>
+        <tr><td><kbd>⌘</kbd>+<kbd>Z</kbd></td><td>take back your last edit here</td></tr>
+      </table>
+      <table class="keys">
+        <tr><td><kbd>⌘</kbd>+<kbd>Enter</kbd></td><td>tick it off, or take that back</td></tr>
+        <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Enter</kbd></td><td>walk the mark on: to do, then doing, then none</td></tr>
+        <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>D</kbd></td><td>duplicate the row, and everything under it</td></tr>
+        <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>M</kbd></td><td>move it under a row you search for, anywhere</td></tr>
+        <tr><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>write the note under it</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>drop what you were typing</td></tr>
+      </table>
+    </div>
+    <p class="caption">Off a Mac, ⌘ is Ctrl. The full map — dragging, the
+    palette, pins, the inbox — is in the
+    <a href="/docs/editing/">editing docs</a>.</p>
+  </div>
+</section>
+
+<section id="prefs">
+  <div class="wrap">
+    <h2>How it looks</h2>
+    <p class="lead">Four palettes — two by day, two by night — and an unpicked page follows your OS. Press a chip; this page follows.</p>
+    <div class="chips" role="list">
+      <span class="chip on" data-theme="chalk" role="listitem">chalk</span>
+      <span class="chip" data-theme="reef" role="listitem">reef</span>
+      <span class="chip" data-theme="basalt" role="listitem">basalt</span>
+      <span class="chip" data-theme="abyss" role="listitem">abyss</span>
+    </div>
+    <div class="cols">
+      <div class="panel" data-theme="basalt">
+        <div class="file">kitchen.olai · basalt</div>
+        <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
+        <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
+        <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
+        <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
+      </div>
+      <div class="panel" data-theme="reef">
+        <div class="file">kitchen.olai · reef</div>
+        <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
+        <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
+        <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
+        <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="agent">
+  <div class="wrap">
+    <h2>An agent in the same notebook</h2>
+    <p class="lead">Chat opens on the row it is about, and on that row’s page. You keep the keyboard. The
+    agent ticks boxes and rewrites the markdown, and you see it happen.
+    Git records both of you.</p>
+    <div class="cols">
+      <div class="panel chat">
+        <div class="file">chat</div>
+        <div class="ctx"><span>◦</span><span>Book the plumber</span></div>
+        <div class="msg you">plumber's booked — tick it off</div>
+        <div class="op"><b>✓</b> marked done · Book the plumber</div>
+        <div class="wrote"><span>✓</span><span>Book the plumber</span><span class="said">Done</span></div>
+        <div class="in">kitchen.olai</div>
+        <div class="msg agent">Done. Marked “Book the plumber” as done.</div>
+
+        <div class="msg you">the base units are carcass-only — say so in the doc</div>
+        <div class="op"><b>✓</b> cabinets.md</div>
+        <div class="fdiff">
+          <p class="path"><span class="name">cabinets.md</span><span class="plus">+3</span><span class="minus">−2</span></p>
+          <div class="body">
+            <div class="ln"><span class="no">1</span><span class="mk">&nbsp;</span><span class="src"># Cabinet specs</span></div>
+            <div class="ln gap"><span class="no"></span><span class="src">⋯ 3 unchanged</span></div>
+            <div class="ln del"><span class="no">6</span><span class="mk">-</span><span class="src">- 600&#8239;mm base × 4</span></div>
+            <div class="ln add"><span class="no">6</span><span class="mk">+</span><span class="src">- 600&#8239;mm base × 4, carcass only</span></div>
+            <div class="ln add"><span class="no">7</span><span class="mk">+</span><span class="src">- filler strip × 2</span></div>
+            <div class="ln"><span class="no">8</span><span class="mk">&nbsp;</span><span class="src">- corner carousel × 1</span></div>
+          </div>
+          <p class="more">+4 more lines</p>
+        </div>
+        <div class="msg agent">Added the carcass note and the filler strips.</div>
+      </div>
+      <div class="panel">
+        <div class="file">kitchen.olai · live</div>
+        <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">3/4</span></span></div>
+        <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span></div>
+        <div class="row d1"><span class="box done"></span><span class="t strike">Book the plumber</span></div>
+        <p class="caption">The page updates because the file on disk
+        changed.</p>
+      </div>
+    </div>
+    <p class="caption">How to point an agent at a running olai is in the
+    <a href="/docs/chat/">chat docs</a>.</p>
+  </div>
+</section>
+
+<section id="plugins">
+  <div class="wrap">
+    <h2>Plugins</h2>
+    <p class="lead">The outline editor, the Markdown reader, the shell, chat,
+    git, search — they are plugins. They show on one panel. Switch one off
+    while olai is running; the rest keep going. The runtime is
+    <a href="https://github.com/cordiverse/cordis">Cordis</a>, a meta-framework
+    of spatiotemporal composability. The paper is on
+    <a href="https://arxiv.org/abs/2608.25512" title="A Programming Paradigm for Spatiotemporal Composability">arXiv</a>.</p>
+    <div class="plugmock" aria-label="The plugins panel: one line per plugin, grouped, each with its switch">
+      <div class="plughead"><strong>Plugins</strong><a href="/docs/settings/">Settings.olai ↗</a></div>
+      <div class="plugbody">
+<details class="pluggroup plugneeds" open><summary><span class="plugchev">▶</span><span>Needs attention</span><span>1</span></summary>
+<div class="plugrow plugopen"><span class="plugchev">▶</span><span class="plugname">Mail</span><span class="plugstate">Needs setup</span><span class="plugswitch" aria-label="Enable mail"></span></div>
+<div class="plugdetail">No Gmail account connected.<br><button type="button" tabindex="-1">Connect Gmail</button></div>
+</details>
+<details class="pluggroup" open><summary><span class="plugchev">▶</span><span>Agents</span><span>4 on · 2 off</span></summary>
+<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">Chat</span><span class="plugswitch" aria-label="Enable chat"></span></div>
+<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">Claude Code</span><span class="plugswitch" aria-label="Enable claude"></span></div>
+<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">Codex</span><span class="plugswitch" aria-label="Enable codex"></span></div>
+<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">OpenCode</span><span class="plugswitch" aria-label="Enable opencode"></span></div>
+<div class="plugrow plugoff"><span class="plugchev">▶</span><span class="plugname">Pi</span><span class="plugswitch" aria-label="Enable pi"></span></div>
+<div class="plugrow plugoff"><span class="plugchev">▶</span><span class="plugname">Oh My Pi</span><span class="plugswitch" aria-label="Enable omp"></span></div>
+</details>
+<details class="pluggroup"><summary><span class="plugchev">▶</span><span>Notes</span><span>19 on</span></summary></details>
+<details class="pluggroup"><summary><span class="plugchev">▶</span><span>Connections</span><span>6 on · 1 off</span></summary></details>
+<details class="pluggroup"><summary><span class="plugchev">▶</span><span>Interface</span><span>10 on</span></summary></details>
+<details class="pluggroup" open><summary><span class="plugchev">▶</span><span>Your plugins</span><span>2 on</span></summary>
+<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">Hex swatch</span><span class="plugswitch" aria-label="Enable hex-swatch"></span></div>
+<div class="plugrow"><span class="plugchev">▶</span><span class="plugname">Morning agenda</span><span class="plugswitch" aria-label="Enable morning-agenda"></span></div>
+</details>
+<details class="pluggroup"><summary><span class="plugchev">▶</span><span>Server</span><span>laptop</span></summary></details>
+      </div>
+    </div>
+    <div class="cols">
+      <div>
+        <p><strong>Ask for one.</strong> Press ⌘K, say in one sentence what it
+        should do, and an agent writes it while you watch. When it is ready you
+        read what it does and press <b>Turn on</b>, and it starts drawing in the
+        page you are on. No reload, no install, no build. The worked example is
+        a morning agenda: each morning it reads the day and puts it into the
+        conversation.
+        <a href="/docs/dynamic-plugins-examples/#the-morning-agenda">Read the morning agenda</a>.</p>
+        <p>What you are left with is a folder in your own directory: a README
+        anybody can read, and the code. Git records every line of it. Copy it
+        elsewhere and it arrives switched off, waiting for that directory’s own
+        yes.</p>
+        <p>Your settings travel with your notes, and a plugin you asked for
+        keeps its own there with everything else. A top-level row in
+        <code>_olai/Settings.olai</code> names each plugin; its properties choose
+        how it behaves and whether it runs. The panel writes the same file.
+        See the
+        <a href="/docs/settings/">settings docs</a>.</p>
+      </div>
+      <pre class="tree" aria-label="A plugin in your directory: a folder holding a README, the server half and the browser half">my-notes/
+├── plugins/
+│   └── hex-swatch/
+│       ├── README.md     <i>what it does, for people</i>
+│       ├── server.ts     <i>what runs on the server</i>
+│       └── browser.tsx   <i>what draws in the page</i>
+├── _olai/
+│   └── Settings.olai     <i>hex-swatch: on, approved</i>
+├── colours.olai
+└── kitchen.olai</pre>
+    </div>
+    <details class="tablewrap allplugins">
+      <summary>Which plugin does what, and whether it starts on</summary>
+      <table class="plug">
+        <thead>
+          <tr><th>Plugin</th><th></th><th>Default</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><a href="/docs/plugins/chat/">chat</a></td><td>The conversation: panel, transcript, agents.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/vault/">vault</a></td><td>The directory. Switching it off clears served files.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/git/">git</a></td><td>The Commit readout and the commit panel.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/search/">search</a></td><td>The box in the header, and the index behind it.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/identity/">identity</a></td><td>Who is looking, as a chip in the bar.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/journal/">journal</a></td><td>Calendar, today, the agenda.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/claude/">claude</a></td><td>Claude Code, the agent olai ships.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/codex/">codex</a></td><td>Codex, also shipped.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/opencode/">opencode</a></td><td>opencode, if it is on this machine.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/pi/">pi</a></td><td>pi, if it is on this machine.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/omp/">omp</a></td><td>Oh My Pi, if it is on this machine.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/kolu/">kolu</a></td><td>Live terminals from a running Kolu.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/odu/">odu</a></td><td>CI on the board, from a running odu.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/browsing/">browsing</a></td><td>A browser your agents can drive, in a pane.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/mail/">mail</a></td><td>Gmail, read and filed from a conversation.</td><td>off</td></tr>
+          <tr><td><a href="/docs/plugins/xyne-spaces/">xyne-spaces</a></td><td>Mirror the conversation into team chat.</td><td>off</td></tr>
+          <tr><td><a href="/docs/plugins/ws/">ws</a></td><td>The browser socket. Leave it on if you want a tab.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/mcp/">mcp</a></td><td>The door agents dial.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/web-app/">web-app</a></td><td>The browser build. Leave it on if you want a tab.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/ui-renderer/">ui-renderer</a></td><td>The tab’s Solid root.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/layout/">layout</a></td><td>The frame, the header, the seats.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/sidebar/">sidebar</a></td><td>The directory column and the rail.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/tabs/">tabs</a></td><td>Several pages open at once, each with its own history.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/preferences/">preferences</a></td><td>How it looks, from this browser.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/theme/">theme</a></td><td>Palette, typeface, size.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/plugin-inspector/">plugin-inspector</a></td><td>The panel itself.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/navigation/">navigation</a></td><td>Addresses, history, the palette.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/outlines/">outlines</a></td><td>The outline editor.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/markdown/">markdown</a></td><td>Documents: reading them, and writing them.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/files/">files</a></td><td>Outlines in front, everything else under Reference.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/pins/">pins</a></td><td>The pinned shelf.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/capture/">capture</a></td><td>The inbox, and + in the palette.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/trash/">trash</a></td><td>What you threw away.</td><td>on</td></tr>
+          <tr><td><a href="/docs/plugins/vault-plugins/">vault-plugins</a></td><td>The plugins you asked for, in this directory’s own folder.</td><td>on</td></tr>
+        </tbody>
+      </table>
+    </details>
+  </div>
+</section>
+
+<section id="commit">
+  <div class="wrap">
+    <h2>Every edit is a commit</h2>
+    <p class="lead">Writes go to disk immediately. Commit from the panel when
+    you’re ready — or turn on Auto-commit, and a quiet moment becomes one
+    commit.</p>
+    <div class="cols">
+      <div>
+        <pre><code>┌─ Changes ─────────────────────────────────┐
+│ olai: Outlines as a collection done       │
+│   · chat agent · 12m ago · 1a2b3c4        │
+│                                           │
+│ OUTLINES ─────────────────────────────    │
+│ ☑ roadmap.olai                            │
+│   ✓  Outlines as a collection    done     │
+│   ✎  Notes: one state, same line  note    │
+│   +  Kolu integration: auto-…    created  │
+│                                           │
+│ OTHER FILES ──────────────────────────    │
+│ ☑ README.md                    modified   │
+│ ☐ notes/scratch.md            untracked   │
+│                                           │
+│ 2 commits not on origin/master   [ Push ] │
+│         [ Commit 3 changes · 1 file ]     │
+└───────────────────────────────────────────┘</code></pre>
+      </div>
+      <div>
+        <p>Commit messages start with olai, so the trail is easy to find.
+        The rest is in the
+        <a href="/docs/git/">git docs</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script is:inline>
+  document.querySelectorAll(".hero .box:not(.done)").forEach((box) => {
+    box.style.cursor = "pointer";
+    box.title = "tick it off";
+    box.addEventListener("click", () => {
+      if (box.classList.contains("done")) return;
+      box.classList.remove("doing");
+      box.classList.add("done", "just-done");
+      const row = box.closest(".row");
+      const title = row && row.querySelector(".t");
+      if (title) title.classList.add("strike");
+    });
+  });
+
+  const install = document.getElementById("install");
+  if (install) {
+    install.addEventListener("click", async () => {
+      const text = install.textContent.replace(/\s+/g, " ").trim();
+      try {
+        await navigator.clipboard.writeText(text);
+        install.title = "copied";
+      } catch {
+        install.title = "select and copy";
+      }
+    });
+  }
+
+  document.querySelectorAll(".chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const name = chip.getAttribute("data-theme");
+      if (!name) return;
+      document.documentElement.setAttribute("data-theme", name);
+      document.querySelectorAll(".chip").forEach((other) => {
+        other.classList.toggle("on", other === chip);
+      });
+    });
+  });
+</script>
+</Base>

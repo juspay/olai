@@ -15,7 +15,7 @@ export const FAST_SLEEP = {
   question: "15s",
   limit: "2m",
   // TWO MOVED ROWS IS ENOUGH, so a scenario can hold the difference between
-  // "too little to tidy" and "due" with one extra write (`docs/chat.md`'s rule:
+  // "too little to tidy" and "due" with one extra write (`website/docs/chat.md`'s rule:
   // never slept, enough rows, or one waiting too long).
   floor: "2",
   // AND THE BACKSTOP IS THE PRODUCT'S OWN WEEK, which no scenario waits out —

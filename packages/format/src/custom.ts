@@ -38,7 +38,7 @@
  *
  * The chat panel became a plugin, and the exception dissolved into the
  * machinery that already existed for it: a node agent's binding is a
- * CONTRIBUTED KIND ({@link ./typing.ts}, docs/live-properties.md). What reads
+ * CONTRIBUTED KIND ({@link ./typing.ts}, website/docs/live-properties.md). What reads
  * it is `textDeclaredAs`, which asks the vault's DECLARATIONS which of a
  * record's keys means what — so no reading in this package spells a key inside
  * `custom` at all, and a board is free to keep its bindings in a column of its

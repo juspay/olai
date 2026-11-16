@@ -7,7 +7,7 @@
  * A grant on this row's agent face decides what a caller may CALL and says
  * nothing about what it is OFFERED: an ACP engine is handed a tool list, and a
  * member with no tool over it is a member no agent knows is there. So the first
- * instruction in `docs/dynamic-plugins.md` — *read the guide before writing
+ * instruction in `website/docs/dynamic-plugins.md` — *read the guide before writing
  * code* — named something no agent could reach, and `run`, the author's only
  * feedback loop, went with it. A node agent working on this branch found both
  * by trying (juspay/olai#506).

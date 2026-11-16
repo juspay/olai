@@ -4,7 +4,7 @@
 # Each plugin's `default.nix` (packages/plugins/<name>/default.nix) is a
 # function `{ pkgs, pins, kit, b2n ? null }: { ... }` returning a contract
 # attrset (see `packages/bundle/default.nix` and
-# docs/architecture/adding-a-plugin.md). `kit` IS this directory: the four
+# website/docs/architecture/adding-a-plugin.md). `kit` IS this directory: the four
 # mechanisms below, nothing else.
 #
 #   - `mark`      — a tenant's own logo, out of that tenant's pin, as a TS module.

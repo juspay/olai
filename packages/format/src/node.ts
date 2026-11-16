@@ -1,7 +1,7 @@
 /**
  * One line of an outline: one node, as a record.
  *
- * docs/format.md describes two record shapes, and so does this file. A regular
+ * website/docs/format.md describes two record shapes, and so does this file. A regular
  * node carries the fields that describe it; a mirror carries only a placement
  * — `{id, parent?, ord, mirror}` — because it is a second *view* of a node
  * that already exists, and any field describing the node itself has an
@@ -182,7 +182,7 @@ export const STAMPED = {
  *  renamed to avoid, one file over and one visibility down. */
 const Common = {
   id: Schema.String,
-  /** Absent at top level. The only field docs/format.md marks optional for a
+  /** Absent at top level. The only field website/docs/format.md marks optional for a
    *  regular node — which is how `ord` and `title` below are read as required. */
   parent: Schema.optionalKey(Schema.String),
   /** A fractional index over base62. Plain string comparison is the sort. */
@@ -648,7 +648,7 @@ export const inboxIn = (claims: Claims, files: Iterable<string>): string | undef
  * `outlines_subtree`, adds to it with `outlines_add`, reorders it with `outlines_move`
  * and takes something off it with `outlines_trash`. Pinning grew no op and no
  * AGENT tool, which is the whole reason the shelf is a file of nodes rather
- * than a field (docs/format.md's Pins). The browser grew one verb of its own,
+ * than a field (website/docs/format.md's Pins). The browser grew one verb of its own,
  * `pin`, and it resolves to that same `add` — what it saves a tab is the
  * READING of which file the shelf is, never an op (`@olai/surface`'s
  * `edit.ts`, where quick capture makes the identical trade).

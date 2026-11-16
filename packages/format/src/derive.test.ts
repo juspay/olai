@@ -693,7 +693,7 @@ test("a cancelled task is not unfinished work in the branch below a node", () =>
   expect(unfinishedWithin(settled, "top")).toEqual([])
 })
 
-// THE TRAP the rule is written against (docs/format.md): spelling it
+// THE TRAP the rule is written against (website/docs/format.md): spelling it
 // `status !== "done"` reads every plain bullet as an obstacle that can never
 // be cleared, because nothing can ever finish a node that is not a task.
 // Adding `todo` did not narrow it by one case — the unmarked node is still the

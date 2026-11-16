@@ -367,7 +367,7 @@ test("`is:trashed` on an outline still draws that outline's nothing", () => {
 
 // The OTHER tree, and the reason that arm survived the ruling: `/#<id>` on a
 // node somebody put away is a tree whose rows are archived, and it is exactly
-// where an `is:trashed` hit lands when a reader clicks it (docs/search.md —
+// where an `is:trashed` hit lands when a reader clicks it (website/docs/search.md —
 // what was taken away is the default presence, never the reachability). A
 // matcher applying the default there would empty a page the reader asked for
 // by name.

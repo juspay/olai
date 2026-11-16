@@ -1,7 +1,7 @@
 /**
  * What a broken outline says.
  *
- * Errors are the product (docs/format.md): every one names `file:line` of the
+ * Errors are the product (website/docs/format.md): every one names `file:line` of the
  * record that caused it, and carries structured detail rather than prose a UI
  * would have to parse back. The whole set travels the wire to the browser's
  * error view, so these are Effect Schema values, not thrown exceptions.

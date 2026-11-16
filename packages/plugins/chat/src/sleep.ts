@@ -5,7 +5,7 @@
  * A node agent's subtree is its knowledge base and nothing ever compacts it;
  * this is the offline pass every long-lived store of knowledge needs, as words.
  * WHAT IT DOES, what it may not do, why it is reversible by construction and
- * what it costs are `docs/chat.md`'s — including why the turn is the node's OWN
+ * what it costs are `website/docs/chat.md`'s — including why the turn is the node's OWN
  * conversation rather than a fresh one, which is the one thing about the words
  * that is not in the words.
  *

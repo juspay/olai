@@ -1,6 +1,6 @@
 /**
  * THE LINKS INDEX ≡ THE WALK IT REPLACED — over generated corpora and over this
- * repository's own `docs/`.
+ * repository's own `website/docs/`.
  *
  * Two claims, and they are separate:
  *
@@ -236,8 +236,8 @@ test("the index answers what the scan answered, over generated corpora", () => {
   expect(report.carried).toBeLessThan(REVISIONS)
 })
 
-test("…and over this repository's own docs/, edited", () => {
-  const vault = vaultAt("docs")
+test("…and over this repository's own website/docs/, edited", () => {
+  const vault = vaultAt("website/docs")
   const random = seeded(20260826)
   // A REAL directory, and the edits are the ones this stream can make to one:
   // its own files, renamed, removed and written back. Nothing is asserted about

@@ -291,7 +291,7 @@ rather than the row.
   the narrow direction this picks is saying nothing rather than guessing.
 - Make tool stops read as conversation turns: the count is the transcript's
   length (both directions of the SDK drain), not the chat's own turn count
-  — `docs/chat.md` says the same, in the measure the screen shows you.
+  — `website/docs/chat.md` says the same, in the measure the screen shows you.
 - Claim anything beyond ONE agent's listing for ONE directory: the id a
   stamp references is scoped there — the same id in another listing is a
   different row (and the picker's own map of the names a successor points
@@ -693,7 +693,7 @@ so it lives with the pin; `packages/plugins/chat`'s `queuedHere` and
 the measurement. Six copies of one measurement is five that go stale at the
 next bump.
 
-`docs/chat.md` is the exception and deliberately so: it says what a person
+`website/docs/chat.md` is the exception and deliberately so: it says what a person
 SEES and how to recover, and KEEPS NO MEASUREMENT — so there is nothing there
 to go stale. That is the same rule kept by having no copy rather than by
 pointing at this one, and it is the whole of what the rule needs. (It does
@@ -741,7 +741,7 @@ would be shaped around, not only on a finished task.
 the `Monitor` row under the same control — a watch that has DIED but was once
 armed. `chat.ts`'s latch reads session-permanent; whether the defect needs
 that lifetime or only a live-watch guard is what nobody has measured yet.
-`docs/chat.md` describes the symptom and recovery and points here for histories.
+`website/docs/chat.md` describes the symptom and recovery and points here for histories.
 
 The pristine column is the one that decides whose bug it is: **upstream's**,
 and older than this pin — not the bump's and not these patches'. The

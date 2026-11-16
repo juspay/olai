@@ -1,1 +1,0 @@
-../../packages/plugins/ui-renderer/docs.md

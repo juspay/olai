@@ -1,1 +1,0 @@
-../../packages/plugins/chat/docs.md

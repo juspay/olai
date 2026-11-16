@@ -40,7 +40,7 @@ test("today is the day a stamp written at that instant falls on", () => {
   for (const zone of ["America/New_York", "Asia/Kolkata"]) {
     inZone(zone, () => {
       for (const instant of [at(2026, 8, 9), at(2026, 8, 9, 23, 59), at(2026, 1, 5, 12)]) {
-        // A day is the first ten characters of a date value (docs/format.md),
+        // A day is the first ten characters of a date value (website/docs/format.md),
         // so "the stamp is on this day" is the stamp starting with it.
         expect(stampOf(instant).startsWith(isoDayOf(instant))).toBe(true)
       }

@@ -236,7 +236,7 @@ export const addressesIn = (set: OutlineSet): ReadonlyArray<Address> => {
   return found
 }
 
-/** …and the same list capped, for a vault read off disk: `docs/` claims
+/** …and the same list capped, for a vault read off disk: `website/docs/` claims
  *  thousands of ids and hundreds of headings, and asking the WALK about every
  *  one of them at every revision is the cost this whole node is about, paid
  *  by the test rather than by the app. Every DOCUMENT path is kept whichever

@@ -1,1 +1,0 @@
-../../packages/plugins/claude/docs.md

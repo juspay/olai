@@ -43,7 +43,7 @@
  *     reaches from its own controls. The two PICKERS are the standing gap on
  *     that page, and they are one gap rather than two: a heading has no `•••`,
  *     so scheduling a zoomed node and making it repeat are both done from its
- *     row (docs/editing.md).
+ *     row (website/docs/editing.md).
  */
 
 import type { Situated } from "@olai/format"

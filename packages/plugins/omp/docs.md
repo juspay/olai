@@ -35,7 +35,11 @@ A message sent while omp works replaces the turn. omp cancels the turn in flight
 - There is no interruption to offer either: `_session/steering` answers `-32603 "Unknown ACP ext method"`. To omp, a send already is one.
 - A prompt arriving during a turn omp started for itself answers `-32000 session_busy`.
 
-Two screenshots from a real conversation through this panel: [a read drawn as olai's own tool](../images/omp/omp-olai-read.png), and [a mid-turn send replacing the turn](../images/omp/omp-busy-send.png).
+Two screenshots from a real conversation through this panel:
+
+![A read drawn as olai's own tool](../images/omp/omp-olai-read.png)
+
+![A mid-turn send replacing the turn](../images/omp/omp-busy-send.png)
 
 ## What a turn looks like
 

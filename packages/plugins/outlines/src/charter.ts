@@ -22,7 +22,7 @@
  * The drawing is this row's — `Note.tsx` is what turns `desc` into what a
  * person sees, and `./browser/edit/RowEditor.tsx` is the textarea that shows
  * it verbatim when they go to change it. `@olai/format` owns that the field is
- * text and validates nothing about it (`docs/format.md`, "A note is read as
+ * text and validates nothing about it (`website/docs/format.md`, "A note is read as
  * TEXT"); the general markdown renderer owns how markdown is set; neither can
  * say what a note is FOR. A serve with no outlines row draws no notes, and
  * then this paragraph is not on the wire, which is right: nothing there is

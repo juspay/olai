@@ -8,7 +8,7 @@
  * as it did before this module existed. Nothing here gives a key a meaning
  * either. **Typing constrains the value; it grants no meaning** — a `date`-typed
  * property still does not put its node on a day page, because a property is not
- * a mark (docs/format.md's standing rule).
+ * a mark (website/docs/format.md's standing rule).
  *
  * What it buys is the sentence the whole feature is named after. A live lane
  * node used to say

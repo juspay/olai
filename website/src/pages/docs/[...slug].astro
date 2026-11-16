@@ -1,0 +1,113 @@
+---
+import { getCollection, render } from "astro:content"
+
+import Base from "../../layouts/Base.astro"
+import { titleIn } from "../../markdown.ts"
+import { siteMap, type Page } from "../../sitemap.ts"
+import "../../styles/docs.css"
+
+export async function getStaticPaths() {
+  const pages = await getCollection("docs")
+  return pages.map((page) => ({
+    params: { slug: page.id === "index" ? undefined : page.id },
+    props: { page },
+  }))
+}
+
+const { page } = Astro.props as { page: Page }
+const { Content, headings } = await render(page)
+const map = await siteMap()
+const placed = map.byId.get(page.id)
+const title = titleIn(page.id, page.body ?? "")
+const at = placed === undefined ? -1 : map.order.indexOf(placed.link)
+const previous = at > 0 ? map.order[at - 1] : undefined
+const next = at >= 0 ? map.order[at + 1] : undefined
+const sections = headings.filter((heading) => heading.depth === 2)
+// About 220 words a minute, counted over the source: enough to tell a glance
+// from a sit-down.
+const minutes = Math.max(1, Math.round((page.body ?? "").split(/\s+/).length / 220))
+const summary = placed?.link.summary
+const here = (id: string) => (id === page.id ? "page" : undefined)
+---
+
+<Base
+  title={`${title} · olai docs`}
+  description={summary === undefined ? title : summary.replace(/<[^>]+>/g, "")}
+  current={page.id === "start" ? "start" : "docs"}
+>
+  <div class="wrap docs">
+    {/* A closed <details> on a phone; on a wide screen, docs.css shows the
+        contents of both of these whatever their state. */}
+    <details class="docs-nav">
+      <summary>All docs pages</summary>
+      <nav aria-label="All docs pages">
+        <a class="overview" href="/docs/" aria-current={here("index")}>Overview</a>
+        {
+          map.groups.map((group) => (
+            <section>
+              <h2>{group.title}</h2>
+              {group.links.map((link) => (
+                <a href={link.href} aria-current={here(link.id)}>{link.title}</a>
+              ))}
+              {group.groups.map((inner) => (
+                <details open={inner.links.some((link) => link.id === page.id)}>
+                  <summary>{inner.title}</summary>
+                  {inner.links.map((link) => (
+                    <a href={link.href} aria-current={here(link.id)}>{link.title}</a>
+                  ))}
+                </details>
+              ))}
+            </section>
+          ))
+        }
+      </nav>
+    </details>
+
+    <main class="docs-main">
+      <header class="page-head">
+        {placed !== undefined && <p class="trail">{placed.trail.join(" › ")}</p>}
+        <h1>{title}</h1>
+        {summary !== undefined && <p class="summary" set:html={summary} />}
+        <p class="meta">{minutes} min read{sections.length > 0 && ` · ${sections.length} sections`}</p>
+      </header>
+
+      {
+        sections.length > 1 && (
+          <details class="contents">
+            <summary>On this page</summary>
+            <ol>
+              {sections.map((heading) => (
+                <li>
+                  <a href={`#${heading.slug}`}>{heading.text}</a>
+                </li>
+              ))}
+            </ol>
+          </details>
+        )
+      }
+
+      <article class="prose">
+        <Content />
+      </article>
+
+      {
+        (previous !== undefined || next !== undefined) && (
+          <nav class="pager" aria-label="Previous and next page">
+            {previous !== undefined && (
+              <a class="previous" href={previous.href}>
+                <span>Previous</span>
+                {previous.title}
+              </a>
+            )}
+            {next !== undefined && (
+              <a class="next" href={next.href}>
+                <span>Next</span>
+                {next.title}
+              </a>
+            )}
+          </nav>
+        )
+      }
+    </main>
+  </div>
+</Base>

@@ -4,7 +4,7 @@ olai's own judgement **about Xyne Spaces**, in the one place that is neither Spa
 
 There is no appliance-client package one floor down. Spaces is reached over HTTP with an installed-app JWT, and that dial lives here.
 
-The user page is [`docs.md`](docs.md), served at `docs/plugins/xyne-spaces.md`.
+The user page is [`docs.md`](docs.md), served at `website/docs/plugins/xyne-spaces.md`.
 
 ## The name is spelled once
 

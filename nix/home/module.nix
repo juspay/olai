@@ -57,7 +57,7 @@ in
         `"apiKey": "{env:JUSPAY_API_KEY}"`) therefore finds it only if olai
         itself was started with it, and one that does not find it fails in the
         quietest way there is: the turn comes back successful with nothing in
-        it. That is what this option is for, and docs/running.md says what the
+        it. That is what this option is for, and website/docs/running.md says what the
         panel does when it happens anyway.
 
         Keep the file outside the nix store and readable only by you — it is
@@ -79,7 +79,7 @@ in
         to take off a reader. `OLAI_AGENT_PATH` is the whole of where olai
         looks for an engine — listing one agent here means the OTHERS stop
         being found, however installed they are. That is the variable's own
-        semantics (docs/running.md); naming it as a list of packages is only
+        semantics (website/docs/running.md); naming it as a list of packages is only
         what makes the consequence visible at the place the choice is made.
 
         It is the unit's environment, so it reaches the agents olai spawns

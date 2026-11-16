@@ -412,7 +412,7 @@ export interface Ops extends Asking {
    * a plugin holding this layer's gate and nothing else: a node agent's tidying
    * pass writes a subtree and then commits it as one commit
    * (`olai-plugin-chat`'s `server/sleep.ts`). `@olai/plugin-api`'s `Ledger.hold`
-   * is the contract, and `docs/architecture/cordis.md` what a ledger replaced
+   * is the contract, and `website/docs/architecture/cordis.md` what a ledger replaced
    * mid-hold means.
    */
   readonly hold: Effect.Effect<void, never, Scope.Scope>

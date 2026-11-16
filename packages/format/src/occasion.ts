@@ -237,7 +237,7 @@ export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
  * nodes at every door, including a `date:` clause beside it, because that
  * reading asks {@link datesOf} of a record rather than asking this index for a
  * day (`./filter.ts`). The default presence is what was taken away; the
- * reachability was not (docs/search.md).
+ * reachability was not (website/docs/search.md).
  */
 export const dateInto = (
   claims: Claims,

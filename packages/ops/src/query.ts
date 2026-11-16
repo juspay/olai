@@ -223,7 +223,7 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
  * VERBATIM IS ALSO WHAT IS NOT DONE HERE, and the case that names it is the
  * edge fields: they are SETS, so a target a hand-written record names twice is
  * named once wherever the RELATION is read — the links a page draws, the
- * ordering graph blockedness comes off (docs/format.md). This answer is the
+ * ordering graph blockedness comes off (website/docs/format.md). This answer is the
  * RECORD, which is the thing `outlines_see` / `outlines_after` are about to edit and the
  * thing a reader is deciding to fix, so it is handed over as the line holds
  * it. Nothing an op writes can put a repeat there: a re-add is a no-op.

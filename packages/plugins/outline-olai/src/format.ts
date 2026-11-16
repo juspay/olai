@@ -268,7 +268,7 @@ const fieldMessage = (
  * Records back to bytes — the other half of {@link ./parse.ts}, and the only
  * place in olai that writes the format.
  *
- * docs/format.md's Writing section is four rules, and all four are held here
+ * website/docs/format.md's Writing section is four rules, and all four are held here
  * rather than by the callers: canonical field order, absent fields omitted
  * (never `null`, never `[]`), no blank lines, exactly one trailing newline.
  * A caller hands over records and gets a whole file; it never concatenates,
@@ -284,7 +284,7 @@ const fieldMessage = (
  * embedded newlines are escaped by JSON itself, which is the whole reason the
  * format is JSONL).
  *
- * Field order comes from docs/format.md's own table, and that list is also
+ * Field order comes from website/docs/format.md's own table, and that list is also
  * what may be written at all — one list, walked once, so a field can be
  * forgotten in one place rather than two. Forgetting it there is what
  * write.test.ts fences, by asking the record SCHEMA which fields exist: a
@@ -308,7 +308,7 @@ const fieldMessage = (
 
 
 /**
- * Which fields a record must carry WHATEVER it holds — docs/format.md's
+ * Which fields a record must carry WHATEVER it holds — website/docs/format.md's
  * table, split by its "required" column. That split is a rule about meaning
  * rather than about shape (see {@link serializeNode}'s asymmetry), so it is
  * spelled here; everything else is optional and omitted when it holds nothing.
@@ -325,7 +325,7 @@ const REQUIRED = {
 
 /** The canonical ORDER, which is not the required/optional split: a reader
  *  looks for `parent` between `id` and `ord`, wherever it sits in the table
- *  above. Spelled from docs/format.md's row order rather than taken from the
+ *  above. Spelled from website/docs/format.md's row order rather than taken from the
  *  schema's declaration order — the order of fields in a file is a contract,
  *  so it is written where the contract is rather than falling out of the order
  *  somebody happened to declare a struct in. Both record shapes share this one

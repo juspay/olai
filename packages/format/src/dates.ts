@@ -3,7 +3,7 @@
  *
  * A node's dates are the whole of the journal. There is no stored year →
  * month hierarchy, no `Daily.olai`, no filename anything is special about
- * (docs/format.md; rewrite decision 11): a day is a QUESTION asked of every
+ * (website/docs/format.md; rewrite decision 11): a day is a QUESTION asked of every
  * node in every LIVE outline, and this is where the two forms of it are
  * answered.
  *

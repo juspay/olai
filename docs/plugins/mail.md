@@ -1,1 +1,0 @@
-../../packages/plugins/mail/docs.md

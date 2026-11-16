@@ -23,7 +23,7 @@
  *     nothing** — `./browser/chat/refs.ts` (`askedOf`, `inFenceAt`): a span is
  *     a reference exactly when the set declares it and it is not inside a
  *     `<pre>`, because a fence is a quotation of code and an id inside one is
- *     a line somebody would paste. `docs/chat.md`, "Pointing back at a node",
+ *     a line somebody would paste. `website/docs/chat.md`, "Pointing back at a node",
  *     is the person's side of the same contract.
  *   - **A link to an app address is followed in place, beside the
  *     conversation; `https://` opens a new tab** — the transcript hands a

@@ -1,12 +1,16 @@
 /**
- * The served set of documentation pages, and the links on them.
+ * The docs pages, and the links on them.
  *
- * `just serve` with no argument serves `docs/` as a vault, so a page's links
- * are read from its SERVED address and a target outside `docs/` is not a door
- * at all — it draws as text. Two sweeps need that rule: `../plugin_docs.test.ts`
- * (every plugin has a page, and the index opens it) and `../docs_lint.test.ts`
- * (every page is held to the writing standard). It is spelled here once so the
- * two cannot drift about what a page is or where a link lands.
+ * The pages are `website/docs/`: olai.page publishes each one at
+ * `/docs/<its path>/`, and `just serve` with no argument serves the same
+ * directory as a vault. A page's links are read from its SERVED address (a
+ * plugin's page is served at `plugins/<name>.md`, whatever directory it is
+ * written in), and a target outside the directory is not a door: the site
+ * does not publish it, and olai draws it as text. Two sweeps need that rule:
+ * `../plugin_docs.test.ts` (every plugin has a page, and the index opens it)
+ * and `../docs_lint.test.ts` (every page is held to the writing standard). It
+ * is spelled here once so the two cannot drift about what a page is or where
+ * a link lands.
  */
 
 import * as fs from "node:fs"
@@ -16,12 +20,13 @@ import { type MarkdownNode, mdastOf } from "@olai/markdown-ui/pipeline.ts"
 
 import { ROOT } from "./sweep.ts"
 
-/** The docs vault's own root — what `just serve` serves with no argument, and
- *  the boundary a served link may not leave. */
-export const VAULT = "docs"
+/** The pages' own root: what the site publishes under `/docs/`, what
+ *  `just serve` serves with no argument, and the boundary a link may not
+ *  leave. */
+export const VAULT = "website/docs"
 
-/** The page every other page is reached from. */
-export const INDEX = "docs/index.md"
+/** The page every other page is reached from, and the site's page map. */
+export const INDEX = "website/docs/index.md"
 
 /** A repository-relative path, as an absolute one. */
 export const at = (file: string): string => path.join(ROOT, file)

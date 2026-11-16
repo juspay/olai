@@ -4,7 +4,7 @@
  *
  * WHAT LIVES HERE is when the pass runs, what it may touch, and what happens to
  * a turn nobody is watching; the design — the undo story, the settings, what a
- * person sees — is `docs/chat.md`.
+ * person sees — is `website/docs/chat.md`.
  *
  * ## A scope-owned fiber, beside the filer
  *
@@ -12,7 +12,7 @@
  * scheduler's deliver, a conversation's reading and the write gate — and chat's
  * server row already holds all four, so a row of its own would have had to be
  * handed chat. It is forked with `Effect.forkScoped` in the same fork as the
- * filer and dies with that scope (`docs/architecture/cordis.md` argues the
+ * filer and dies with that scope (`website/docs/architecture/cordis.md` argues the
  * shape, and the one resource here whose owner is another row's).
  *
  * ## One pass, one SCOPE
@@ -193,7 +193,7 @@ export interface Sleeping {
    *
    * PATHS AND NEVER A BARE MESSAGE: a sleep is one commit a person can
    *  `git revert`, so it may not sweep in somebody else's parked work — the
-   *  paths are the files that memory lives in (`docs/chat.md`), and nothing
+   *  paths are the files that memory lives in (`website/docs/chat.md`), and nothing
    *  else. */
   readonly commit: (
     message: string,
@@ -222,7 +222,7 @@ export interface Sleeping {
    *  never ends holds the quiet window shut for the whole vault, wedges the loop
    *  on the permit and makes every *Tidy memory* answer "busy". An hour is
    *  generous for a tidying pass and far short of "for ever" — and the git pill
-   *  does not know about it (`docs/chat.md`). */
+   *  does not know about it (`website/docs/chat.md`). */
   readonly limit: Duration.Duration
   /** How long a delivered turn may take to start ({@link START_MS}). */
   readonly start: Duration.Duration
@@ -718,7 +718,7 @@ export const makeSleeper = (
           // A COMMIT GIT ITSELF REFUSED IS A WARNING, and it is the one failure
           // here that nothing retries: the memo is already written, so the node
           // is not due again, and the log is the only place a person can find
-          // out that the pass's writes were never recorded. `docs/chat.md` says
+          // out that the pass's writes were never recorded. `website/docs/chat.md` says
           // where to look.
           yield* doors.warn(`sleep: ${agent.id} finished, but the commit was refused: ${refusal.said}`)
         } else {

@@ -28,7 +28,7 @@ import { Effect, Schema } from "effect"
  * a `documents` array on `olai-plugin-vault`'s `Manifest` — every served
  * document's full text
  * in the FIRST frame of every subscription, ~124 KB of a ~212 KB snapshot for
- * this project's own `docs/`, and O(corpus) for a directory of thousands.
+ * this project's own `website/docs/`, and O(corpus) for a directory of thousands.
  * What changed then was when a body travels — when someone opens it — and
  * nothing about the SET: it went on holding every body it had read.
  *
@@ -37,7 +37,7 @@ import { Effect, Schema } from "effect"
  * (`@olai/format`'s `kinds.ts` decides which kinds, `./server/bodies.ts`
  * does the reading), so this entry's `text` can be `null` — see
  * below. What is unchanged, and load-bearing, is that the server still holds
- * every served PATH and validates every declared `doc` property against it (`docs/format.md`).
+ * every served PATH and validates every declared `doc` property against it (`website/docs/format.md`).
  *
  * `rev` is the set's revision at the moment this entry was published, for the
  * reason `olai-plugin-outlines`'s `OutlineEntry` carries one: a body now

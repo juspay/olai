@@ -1,13 +1,13 @@
 ---
 name: docs-writing
-description: The writing standard for every page under docs/, including the plugin pages authored at packages/plugins/<name>/docs.md. Shape limits a test enforces, the review rules beside them, the reference-entry template, and two worked before/after samples. Load before writing or editing any page.
+description: The writing standard for every docs page under website/docs/, including the plugin pages authored at packages/plugins/<name>/docs.md. Shape limits a test enforces, the review rules beside them, the reference-entry template, and two worked before/after samples. Load before writing or editing any page.
 ---
 
 # Writing olai's docs
 
-Every page under `docs/` is held to this standard, the plugin pages included: those are authored at `packages/plugins/<name>/docs.md` and read at `docs/plugins/<name>.md`. The pages stay Markdown files in the repository. Most readers meet them on GitHub; `just serve` with no argument also serves `docs/` in olai itself, so a page has to read well in both renderers. There is no documentation site, and nothing here belongs on `website/`, which is the pitch.
+Every page under `website/docs/` is held to this standard, the plugin pages included: those are authored at `packages/plugins/<name>/docs.md` and read at `website/docs/plugins/<name>.md`, a symlink. The pages stay Markdown files in the repository. Most readers meet them on [olai.page](https://olai.page/docs/), which publishes `website/docs/<page>.md` at `/docs/<page>/`; some read them on GitHub, and `just serve` with no argument also serves the directory in olai itself. A page has to read well in all three. The rest of `website/` is the pitch, and none of this belongs there.
 
-Rules marked **[lint]** are enforced by `packages/tests/docs_lint.test.ts`, one test per page, with no exemption list and no per-page override. If a rule is wrong, change it here and in `packages/tests/support/docs-rules.ts`, for every page at once.
+Rules marked **[lint]** are enforced by `packages/tests/docs_lint.test.ts`, one test per page, with no exemption list and no per-page override. If a rule is wrong, change it here and in `packages/tests/support/docs-rules.ts`, for every page at once. The site's build (`just website`) holds the rules marked **[site]**.
 
 ## When you change a page
 
@@ -15,7 +15,7 @@ Edit the page so it stays true. Do not append a paragraph describing your change
 
 ## The reader
 
-1. **One page, one reader, one job.** Every page is one of four kinds, and the group it sits in on `docs/index.md` says which:
+1. **One page, one reader, one job.** Every page is one of four kinds, and the group it sits in on `website/docs/index.md` says which:
    - **Tutorial**: one path from nothing to a visible result.
    - **How-to**: the steps of one task, for a reader who knows what they want.
    - **Reference**: every fact about one surface, in a fixed order, for looking up.
@@ -64,7 +64,7 @@ Edit the page so it stays true. Do not append a paragraph describing your change
 | an MCP tool | a name an agent calls, such as `outlines_add` | "a verb", "a procedure", "an endpoint" |
 
 18. **No history words [lint]:** `used to`, `no longer`, `any more`, `previously`, `formerly`, `until now`, `as before`, `is gone`, `has since`. A renamed command or file a reader may still have in a script goes in a table of old and new names, not in a sentence.
-19. **The first line of a page is its `# Title`**, and `docs/index.md` links it with one line that says what the reader finds there. `packages/tests/plugin_docs.test.ts` holds that for the plugin pages.
+19. **The first line of a page is its `# Title`, and `website/docs/index.md` lists it [site]**: one table row whose first cell links the page and whose second says what the reader finds there. The index is the site's page map. Its `##` and `###` headings are the sidebar's groups, the row's second cell is the summary under the page's title, and a page it does not list fails the build. `packages/tests/plugin_docs.test.ts` holds the index to every plugin.
 
 ## Facts
 
@@ -77,10 +77,10 @@ Small choices a reader notices when they change from page to page. Every page ma
 
 22. **Spelling is British, with -ize (Oxford):** colour, behaviour, centre, cancelled, labelled; organization, authorize, recognize. Identifiers, code, commands, product names, quoted messages and on-screen labels stay exactly as written, and so does Nix's own *realise*. A label GitHub or Google shows stays as shown.
 23. **One verb per pointer.** You press a key, click a control (a button, a tab, a row, a link) and tap only where the text is about a touch screen. A control you can click is "clickable", never "pressable".
-24. **One way to write a shortcut:** one code span per key, modifiers as words, joined by ` + ` — `Cmd` + `Shift` + `Enter`, never `⌘⇧↩` and never a bare "Cmd-K" in text. A `<kbd>` tag is not an option: olai's own sanitiser drops it, and a code span reads the same in both renderers. A page that names a chord says once that it is `Cmd` on a Mac and `Ctrl` elsewhere, which is what the app's own shortcut list shows.
+24. **One way to write a shortcut:** one code span per key, modifiers as words, joined by ` + ` — `Cmd` + `Shift` + `Enter`, never `⌘⇧↩` and never a bare "Cmd-K" in text. A `<kbd>` tag is not an option: olai's own sanitiser drops it, and a code span reads the same everywhere. A page that names a chord says once that it is `Cmd` on a Mac and `Ctrl` elsewhere, which is what the app's own shortcut list shows.
 25. **olai is lower case**, also at the start of a sentence or a heading. A name the screen shows with a capital is quoted as it appears.
 26. **One cast for examples:** the directory `~/notes`, the outline `house.olai`, the document `cabinets.md`, the day `2026-08-12`, the host `olai.example.com`, the login `alice`. Loopback examples stay `http://127.0.0.1:7714`.
-27. **Links are relative and land inside `docs/`.** A page is read at its address under `docs/`, so a plugin page links a sibling as `odu.md` and a top-level page as `../format.md`. A target outside `docs/` is not a link a reader can follow in olai, where an unserved path draws as text. An address of the running app, such as `/agenda`, is written as code and never as a link. The lint checks every link and every `#anchor`.
+27. **Links are relative and land on a page inside `website/docs/` [lint] [site].** A page is read at its address there, so a plugin page links a sibling as `odu.md` and a top-level page as `../format.md`. The site rewrites each link to the page's address, and a link whose words are the file's name (`[chat.md](chat.md)`) shows the page's title there. A relative link to anything but a page is refused, because the site publishes pages and the pictures they draw: show a picture with `![What it shows](images/…)`, which the site draws on the page. An address of the running app, such as `/agenda`, is written as code and never as a link. The lint checks every link and every `#anchor`, and the site's build checks them again in the built pages.
 
 ## Variants by kind
 
@@ -151,6 +151,7 @@ Every fact of the old cell is still there, in a shape a reader can scan.
 
 ## Before you commit a page
 
-- `bun test packages/tests/docs_lint.test.ts -t '<page>'`: the lint for that page. The name is the page's address under `docs/`, so `-t 'docs/chat.md'` runs one page and `-t 'plugins/'` runs the plugin pages.
+- `bun test packages/tests/docs_lint.test.ts -t '<page>'`: the lint for that page. The name is the page's path under `website/docs/`, so `-t 'docs/chat.md'` runs one page and `-t 'plugins/'` runs the plugin pages.
 - `bun test packages/tests/plugin_docs.test.ts`: every plugin still has a page, the index still opens it, and no link dangles.
-- Renamed a heading? The lint checks every `#anchor` under `docs/`, but a link from `README.md`, `website/index.html` or a package's own comments is outside it. Grep for the old anchor and update it in the same change.
+- `just website-dev` shows the site as you write, and `just website` builds it the way it is published, with every link and anchor checked.
+- Renamed a heading? The lint checks every `#anchor` under `website/docs/`, and the site's build checks the site's own pages, but a link from `README.md` or a package's own comments is outside both. Grep for the old anchor and update it in the same change.

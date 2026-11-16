@@ -1,1 +1,0 @@
-../../packages/plugins/trash/docs.md

@@ -67,6 +67,8 @@
       packages = eachSystem ({ pkgs, b2n }:
         let
           olai = import ./default.nix { inherit pkgs b2n rev; };
+          # olai.page, built and link-checked (website/default.nix).
+          website = import ./website { inherit pkgs b2n; };
           bundle = olai.bundle;
           # `consumer.nix` builds the source copies rather than handing back a
           # list for an overlay to build. `bundle` is the fold the default.nix
@@ -74,7 +76,7 @@
           # (or a plugin and a root output) cannot collide.
           overlap = builtins.attrNames
             (builtins.intersectAttrs bundle.packages
-              { inherit (olai) olai olai-client olai-fonts base olai-deps; });
+              { inherit (olai) olai olai-client olai-fonts base olai-deps; inherit website; });
           clash = if overlap != [ ] then throw "flake packages: a plugin declares an output the root already names: ${builtins.concatStringsSep ", " overlap}" else null;
         in
         builtins.seq clash (bundle.packages // {
@@ -83,6 +85,7 @@
           # node_modules bytes live now, and two commits that touch no
           # manifest build the same path.
           inherit (olai) olai olai-client olai-fonts base olai-deps;
+          inherit website;
           default = olai.olai;
           # `nix run .#bun2nix -- -l bun.lock -o bun.nix` regenerates the
           # lockfile-derived nix expression (`just regenerate-bun-nix`).

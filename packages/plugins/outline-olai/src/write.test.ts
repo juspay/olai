@@ -37,7 +37,7 @@ describe("serializeNode", () => {
   /**
    * The four ways to spell "this node has no note and no edges" produce ONE
    * file. `undefined` is the schema's; `null`, `[]` and `""` are the three a
-   * writer can reach for by accident, and docs/format.md's Writing section
+   * writer can reach for by accident, and website/docs/format.md's Writing section
    * says none of them may reach a file.
    *
    * The stake is the format's own bet: two files that mean the same thing must

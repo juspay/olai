@@ -47,7 +47,7 @@ import type { Reading } from "./live-client.ts"
  * afterwards and be approved from the first revision it was a plugin — so a
  * rule that asked "is this the settings node of a plugin right now" would be a
  * rule about the order of two writes. The word is core's
- * ([docs/dynamic-plugins.md]), and a word core claims is one a session's door
+ * ([website/docs/dynamic-plugins.md]), and a word core claims is one a session's door
  * does not write.
  *
  * A PERSON'S face is untouched: `plugins.approve` runs under this runtime's own

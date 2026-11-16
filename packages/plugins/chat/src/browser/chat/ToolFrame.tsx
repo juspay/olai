@@ -447,7 +447,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
         {/* THE TASK'S REPORT, in this fold and nowhere else. An async
             completion injects the report as a user-role turn; that turn is
             not drawn. These words are the one place the subagent is allowed
-            to speak in this conversation (`docs/chat.md`), and they ride
+            to speak in this conversation (`website/docs/chat.md`), and they ride
             the task — `armed.report` — which is the vocabulary the ending
             already uses. Markdown, because they are prose, the same
             pipeline as the main agent's answer. */}

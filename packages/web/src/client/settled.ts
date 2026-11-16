@@ -131,7 +131,7 @@ export const SETTLE_MS = 200
  * The refusal is SILENT, and nothing dims while it waits: a whole list going
  * grey and back on every keystroke is a flicker, and this arrived out of a
  * campaign about flicker. The rows catch up a moment later and the same press
- * means what it says (`docs/editing.md` says that in a reader's own words).
+ * means what it says (`website/docs/editing.md` says that in a reader's own words).
  */
 export type Taking = (act: () => void) => void
 

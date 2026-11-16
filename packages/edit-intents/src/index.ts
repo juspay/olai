@@ -424,7 +424,7 @@ const mirrorRequest = (
  *
  * The row's title is the address, and a named pin's is that address inside a
  * markdown link — the spelling `Pins.olai` has always had and the one an agent
- * writes by hand (docs/format.md's Pins). It is composed HERE, beside the
+ * writes by hand (website/docs/format.md's Pins). It is composed HERE, beside the
  * placement, for the reason the placement is here: this is the one site that
  * knows the whole row it is about to add, so there is no moment at which a
  * half-named pin exists. `pinTitle` is `@olai/format`'s, the inverse of the
@@ -715,7 +715,7 @@ const markRequest = (
  * Three of the five are: **no mark → `todo` → `doing` → no mark**. Those are
  * the answers a person gives about work they have NOT settled, and the last
  * of them is an answer rather than a gap — the format's own rule, drawn as the
- * absence of a box (docs/format.md's Status). A walk that could not reach it
+ * absence of a box (website/docs/format.md's Status). A walk that could not reach it
  * would be a keyboard that can put a box on a row and never take it off.
  *
  * **NEITHER SETTLING MARK IS A STOP ON IT**, and that is the one entry here
@@ -1368,7 +1368,7 @@ const propOf = (
   //
   // Nothing is a truthful answer here where a wrong edit is not: an undo with
   // no inverse is not recorded, so ⌘Z walks past it to the write before rather
-  // than pretending to put something back. `docs/editing.md` says so, and the
+  // than pretending to put something back. `website/docs/editing.md` says so, and the
   // menu can only reach this at all for a list somebody wrote by hand.
   if (held !== undefined && typeof held !== "string") return []
   return [{
@@ -1424,7 +1424,7 @@ const propOf = (
  * An undo that took the rule back would give it TWO, and one that also deleted
  * the occurrence would be an undo reaching a node this write did not name.
  * Stopping the new one, or the old one, is `Stop repeating` on whichever row
- * the person meant (docs/format.md's Days).
+ * the person meant (website/docs/format.md's Days).
  */
 const markOf = (
   derived: Derived,

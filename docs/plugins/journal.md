@@ -1,1 +1,0 @@
-../../packages/plugins/journal/docs.md

@@ -61,7 +61,7 @@ The tests that DRIVE these behaviours through a real composed server stayed here
 | `resync.ts` — `POST /olai/resync` | `packages/plugins/vault/src/http/resync.ts` | `resync.test.ts` |
 | `manifest.ts` — what an installed olai is | `packages/plugins/web-app/src/manifest.ts` | `serve.test.ts`'s manifest and icon cases |
 | `directory.ts`, `lock.ts`, `flock.ts` — the served directory, claimed | `packages/plugins/vault/src/` | `lock.test.ts`, through two real child processes |
-| `dynamic/` — a plugin the served directory defines | `packages/plugins/vault-plugins/src/` ([dynamic-plugins.md](../../docs/dynamic-plugins.md)) | — |
+| `dynamic/` — a plugin the served directory defines | `packages/plugins/vault-plugins/src/` ([dynamic-plugins.md](../../website/docs/dynamic-plugins.md)) | — |
 | `mcp/route.ts`, `mcp/tools.ts` — the HTTP face and the tool table | `packages/plugins/mcp/src/` | `mcp/route.test.ts`, `mcp/tools.test.ts`, `mcp/face.test.ts` |
 
 ## The listener is one call now
@@ -135,7 +135,7 @@ The reader asked to read their outlines, not to own port 7714. Every other liste
 
 ## Layering
 
-Depends on `acp`, `bundle`, `edit-intents`, `format`, `log`, `ops`, `plugin-api`, `plugin-build`, `sigterm`, `state`, `store` and `surface`, strictly downward. Nothing depends on this. No production source here imports a plugin implementation; the plugin packages in `devDependencies` are test-only contracts and fixtures. [docs/architecture/overview.md](../../docs/architecture/overview.md) has the reasoning — including what `listener.ts` kept when the sequence it used to spell out went upstream to `@kolu/surface-app`.
+Depends on `acp`, `bundle`, `edit-intents`, `format`, `log`, `ops`, `plugin-api`, `plugin-build`, `sigterm`, `state`, `store` and `surface`, strictly downward. Nothing depends on this. No production source here imports a plugin implementation; the plugin packages in `devDependencies` are test-only contracts and fixtures. [website/docs/architecture/overview.md](../../website/docs/architecture/overview.md) has the reasoning — including what `listener.ts` kept when the sequence it used to spell out went upstream to `@kolu/surface-app`.
 
 ## Running
 
@@ -158,7 +158,7 @@ curl -s http://127.0.0.1:7714/mcp \
 
 Which agents this machine has, how a conversation is bound to one, and what a turn does are `olai-plugin-chat`'s and the engine rows' — one row per ACP agent olai can seat (`claude`, `codex`, `opencode`, `pi`, `omp` in `packages/bundle/olai.yml`, in the order the picker draws them). A serve that names none of them serves the outlines exactly as it does with one, and the panel says there is no agent rather than hiding.
 
-What is still this package's is the ENVIRONMENT those rows are read against, because a chat agent is a child of THIS process and its environment is this process's — not your login shell's. An agent that resolves a provider key out of the environment finds nothing unless the server was started with it. `docs/running.md` has the `environmentFile` for a user service.
+What is still this package's is the ENVIRONMENT those rows are read against, because a chat agent is a child of THIS process and its environment is this process's — not your login shell's. An agent that resolves a provider key out of the environment finds nothing unless the server was started with it. `website/docs/running.md` has the `environmentFile` for a user service.
 
 **The shipped defaults are Claude Code and Codex, on every documented launch path.** Each engine's adapter is its own plugin's Nix half — claude and pi in their rows' `packages/plugins/claude/default.nix` and `packages/plugins/pi/default.nix`, codex in its row's `packages/plugins/codex/default.nix` — each declaring its knob (`KOLU_ACP_AGENT`, `OLAI_ACP_PI`, `OLAI_ACP_CODEX`), which the fold bakes into the packaged binary's wrapper with `--set-default`. A pi bump no longer moves claude's store path, and nobody following a documented path has to install either adapter or CLI.
 

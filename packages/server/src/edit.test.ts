@@ -240,7 +240,7 @@ test("the address is carried VERBATIM — nothing on the way parses one", () => 
 test("a pin that carried a NAME lands as the link `Pins.olai` spells one with", () => {
   // The row is still one ordinary node whose title is an address — inside a
   // markdown link, which is the spelling an agent writes by hand and the one
-  // the shelf and the file's own page both draw (docs/format.md's Pins). No
+  // the shelf and the file's own page both draw (website/docs/format.md's Pins). No
   // second write, so ⌘Z takes the whole intention back.
   const set = setOf({ "house.olai": HOUSE, [PINS]: "" })
   expect(asked({ verb: "pin", at: "/agenda?q=is%3Atodo", name: "What is late" }, reading(set)))

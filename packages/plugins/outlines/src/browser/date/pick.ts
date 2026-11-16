@@ -14,7 +14,7 @@
  *
  * The format stores a date verbatim and validates it as text, because a
  * date-only `2026-08-10` put through an instant comes back a datetime
- * (docs/format.md). So nothing here parses one or does arithmetic on one: a
+ * (website/docs/format.md). So nothing here parses one or does arithmetic on one: a
  * picked `YYYY-MM-DD` travels to the wire as those ten characters, a picked
  * time is joined to it the way a mark's stamp is spelled (`T`, seconds, the
  * offset written out — `@olai/format`'s `stampOf`), and the only readings taken

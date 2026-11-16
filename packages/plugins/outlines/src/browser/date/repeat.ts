@@ -11,7 +11,7 @@
  *
  * ## The rule's OWN WORDS cross the wire
  *
- * The grammar is spelled in the file (docs/format.md), so a rule is text and
+ * The grammar is spelled in the file (website/docs/format.md), so a rule is text and
  * this layer parses none of it: what the chooser picks is what the record will
  * hold, character for character. The list it picks FROM is
  * `@olai/format`'s {@link REPEAT_RULES} — the grammar read off itself — so the

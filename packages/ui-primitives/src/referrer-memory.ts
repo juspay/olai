@@ -15,7 +15,7 @@
  * single slot: what is remembered is the open/closed answer for each
  * (pane, place) the section has been drawn for, and the memory must survive
  * the component remounting while the plugin that owns it stays mounted (a
- * rebuild of the same pane and node, the `docs/format.md` promise), and be
+ * rebuild of the same pane and node, the `website/docs/format.md` promise), and be
  * gone with the activation that created it.
  *
  * WHERE THE STATE LIVES is the caller's: a plugin's `browser.tsx` activation

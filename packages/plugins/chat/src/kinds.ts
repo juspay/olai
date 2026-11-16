@@ -44,7 +44,7 @@
  * declarations file to keep its own feature working would be the vault's
  * judgement being overruled by a release. The reading takes whatever the
  * declarations say ({@link ./server/agents.ts}'s `keys`), and
- * `docs/plugins/chat.md` carries it in words.
+ * `website/docs/plugins/chat.md` carries it in words.
  *
  * THIS REPOSITORY HAS NO BOARD OF ITS OWN — the orchestrator's vault lives
  * elsewhere — so what exercises that is the two vaults the repo DOES carry, and

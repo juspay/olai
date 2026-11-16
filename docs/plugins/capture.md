@@ -1,1 +1,0 @@
-../../packages/plugins/capture/docs.md

@@ -1,1 +1,0 @@
-../../packages/plugins/git/docs.md
