@@ -34,6 +34,12 @@ Feature: A plugin's own page
     And I name the plugin "Hours"
     And I accept the name
     Then the plugin page is "building"
+    # THE VERB WHILE IT IS BEING WRITTEN is a way INTO the conversation, not a
+    # Stop: stopping used to write `on: no` on a plugin nobody had approved —
+    # which stops nothing, since an unapproved plugin was never going to start
+    # — while the agent went on writing. What actually stops a build is the
+    # agent's own Stop, inside the conversation.
+    And the plugin page's verb is "open-builder"
 
     When I rewrite "plugins/hours/server.ts" as:
       """
