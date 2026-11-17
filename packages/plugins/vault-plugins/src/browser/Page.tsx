@@ -52,13 +52,15 @@ import { run } from "@olai/web/client/run.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import type { DockDoor } from "olai-plugin-chat/dock"
 import { Control } from "olai-plugin-plugin-inspector/control"
-import { atNode } from "olai-plugin-navigation/routes"
+import type { Route } from "olai-plugin-navigation/routes"
+import { PageSeat } from "olai-plugin-navigation/seat"
 import { Key } from "@solid-primitives/keyed"
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { client } from "../client.ts"
-import { dock, router } from "./doors.ts"
+import { dock } from "./doors.ts"
+import { pluginPage } from "./route.ts"
 import { changedCount, diffLines } from "./diff.ts"
 import { Code } from "./page/Code.tsx"
 import { Verbs, type Acts } from "./page/Verbs.tsx"
@@ -307,7 +309,7 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
         </Show>
       </Show>
 
-      <Ask acts={acts} builder={source().builder} />
+      <Ask acts={acts} place={pluginPage.to({ word: props.plugin.name })} name={source().title} />
 
       <Show when={(source().uses ?? []).length > 0}>
         <Block heading="What it uses" note={stage() === "paused" ? "unchanged" : undefined}>
@@ -379,50 +381,14 @@ function Docking(props: { readonly door: DockDoor; readonly builder: string }) {
   return null
 }
 
-/** *Ask for a change* — the one row that reopens the conversation that wrote
- *  the code, and the honest sentence where there is none to reopen. */
-function Ask(props: { readonly acts: Acts; readonly builder: string | undefined }) {
-  /** The conversation's own address, for the viewport with no seat to dock it
-   *  in. `undefined` is a tab whose router nobody is holding — navigation off,
-   *  where a link would be a dead one. */
-  const elsewhere = () => {
-    const builder = props.builder
-    const lane = router()
-    return builder === undefined || lane === undefined ? undefined : lane.routes.href(atNode(builder))
-  }
+/** *Ask for a change* — on a desktop with a conversation about this plugin, the
+ *  press that opens it beside the page. Everywhere else, the page's SEAT
+ *  (`olai-plugin-navigation/seat`): the conversation itself where there is one,
+ *  and where there is none, the box that starts one about this page. */
+function Ask(props: { readonly acts: Acts; readonly place: Route; readonly name: string }) {
   return (
     <section class="mt-6" data-testid={TESTID.pageAsk}>
-      <Show
-        when={props.acts.canOpen()}
-        fallback={
-          <Show
-            when={elsewhere()}
-            fallback={
-              <p class="m-0 text-label text-muted">
-                {props.builder === undefined
-                  ? "No conversation is bound to this plugin, so there is nobody to ask. Edit the folder yourself, or ask for a new plugin."
-                  : "The conversation that built it is in Chats."}
-              </p>
-            }
-          >
-            {/* NO SEAT BESIDE THE PAGE — a handset, or a serve with no shell —
-                so the conversation is reached at its OWN address rather than
-                refused. The sentence this used to draw ("no agent is available
-                to ask right now") was false on a phone: the agent is there, it
-                is the column that is not. */}
-            {(href) => (
-              <a
-                class="flex w-full items-baseline gap-2 rounded-control border border-line/60 px-3 py-2 text-body no-underline hover:bg-ink/5"
-                data-testid={TESTID.pageAskOpen}
-                href={href()}
-              >
-                <span>Open the conversation that built it</span>
-                <span class="text-label text-muted">it is a chat like any other</span>
-              </a>
-            )}
-          </Show>
-        }
-      >
+      <Show when={props.acts.canOpen()} fallback={<PageSeat place={props.place} name={props.name} />}>
         <button
           type="button"
           class="flex w-full cursor-pointer items-baseline gap-2 rounded-control border border-line/60 bg-transparent px-3 py-2 text-left text-body hover:bg-ink/5"
