@@ -51,6 +51,7 @@ import { defineSelfDrawnPage } from "olai-plugin-navigation/routes"
 import { alertsChannel as noticeChannel } from "olai-plugin-alerts/contract"
 import { engines as engineRoster } from "olai-plugin-chat/browser-engines"
 import { chatDock as panelDoor } from "olai-plugin-chat/dock"
+import { chatBeside as besideDoor } from "olai-plugin-chat/beside"
 import { navigation as appRouter, paletteAdapters, paletteControl } from "olai-plugin-navigation/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
 import { Effect } from "effect"
@@ -59,7 +60,7 @@ import { createRoot } from "solid-js"
 import { type Approvals, name, type NewPlugin } from "./index.ts"
 import { client, holdClient, type Client } from "./client.ts"
 import { createPluginAlerts } from "./browser/alerts.ts"
-import { holdDock, holdEngines, holdPalette, holdRouter } from "./browser/doors.ts"
+import { holdBeside, holdDock, holdEngines, holdPalette, holdRouter } from "./browser/doors.ts"
 import { NEW_PLUGIN_ROW, newPluginRow } from "./browser/new-plugin.ts"
 import { PluginPage } from "./browser/Page.tsx"
 import { pluginPage } from "./browser/route.ts"
@@ -159,6 +160,15 @@ export const components = {
   dock: definePlugin({ name: "dock", needs: [panelDoor], apply: Effect.gen(function*() {
     const door = yield* panelDoor
     yield* Effect.acquireRelease(Effect.sync(() => holdDock(door)), stop => Effect.sync(stop))
+  }) }),
+
+  /** THE CONVERSATION IN THE PANE BESIDE — chat's own door, held for the
+   *  page's *Ask for a change…* row (`olai-plugin-chat/beside`). Its absence
+   *  is a serve with chat off or no router, and the page then offers no row
+   *  rather than one that cannot open anything. */
+  beside: definePlugin({ name: "beside", needs: [besideDoor], apply: Effect.gen(function*() {
+    const door = yield* besideDoor
+    yield* Effect.acquireRelease(Effect.sync(() => holdBeside(door)), stop => Effect.sync(stop))
   }) }),
 
   /** WHICH AGENTS COULD BUILD ONE — the engine roster, held for the palette's

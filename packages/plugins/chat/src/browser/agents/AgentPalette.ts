@@ -14,8 +14,11 @@ import { LOOK } from "./roster.ts"
 import { chatVerbs } from "../verbs.tsx"
 import type { RowVerb } from "olai-plugin-outlines/slots"
 import type { Roster } from "./answered.tsx"
-import { dock } from "../dock.ts"
+import { nameOfNote } from "./called.ts"
 import { sendAbout } from "./Door.tsx"
+import { noteHere } from "./here.ts"
+import { chatRouteOf } from "./route.ts"
+import { servedDirectory } from "../vault.ts"
 import { talking } from "./roster.ts"
 
 /** The palette row that starts a chat about the page in front. */
@@ -131,9 +134,14 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
   }
   /**
    * **CHAT ABOUT THIS PAGE** — the door, from ⌘K: offered while the page in
-   * front is a note with a seat, has no chat on it, and an agent can start,
-   * and one message level away from a chat about it (`./Door.tsx` is the same
-   * door under the page).
+   * the focused pane is a NOTE with no chat on it and an agent can start, and
+   * one message level away from a chat about it (`./Door.tsx` is the same
+   * door, in the line at the top of that page).
+   *
+   * WHICH NOTE IS THE ROUTE'S ANSWER (`./here.ts`'s `noteHere`), asked of the
+   * focused pane — a palette is opened from anywhere and has no page under it
+   * to ask. What the send does is what the line does: start the chat on the
+   * note and put the conversation in the pane beside it.
    *
    * THE ROW GOES THE MOMENT THE CHAT EXISTS, including the chat this level's
    * own send starts, and that is the whole rule here: a level whose submit is
@@ -142,14 +150,13 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
    */
   const about = (): ReadonlyArray<PaletteItem> => {
     const nav = navigation()
-    const held = agentReadings()
-    if (nav === undefined || held === undefined || creation === undefined || agents.engines().length === 0) return []
-    const pane = nav.panes()[nav.focusIndex()]
-    const here = pane === undefined ? undefined : held.seatIn(pane.id)
-    if (here === undefined) return []
-    if (talking(agents.chatOf({ kind: "note", path: here.path }))) return []
-    const path = here.path
-    const name = here.name
+    if (nav === undefined || creation === undefined || agents.engines().length === 0) return []
+    const at = nav.focusIndex()
+    const pane = nav.panes()[at]
+    const path = pane === undefined ? null : noteHere(servedDirectory()?.claims(), pane.route())
+    if (path === null) return []
+    if (talking(agents.chatOf({ kind: "note", path }))) return []
+    const name = nameOfNote(servedDirectory()?.claims(), path)
     return [{
       id: ABOUT_ROW, label: "Chat about this page", place: path,
       search: `agents chat about this page ${name}`.toLowerCase(), taking: atOnce,
@@ -163,12 +170,11 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
         submit: async (text, engine) => {
           if (engine === undefined) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
           // ONE PRESS OF THE DOOR (`./Door.tsx`'s `sendAbout`): a refusal keeps
-          // the words in this box with the sentence beside them, and leaves the
-          // docked conversation alone.
+          // the words in this box with the sentence beside them, and opens
+          // nothing.
           const sent = await sendAbout({ item: { kind: "note", path }, engine: engine.id, text })
           if (sent.started === null) return { keepOpen: true, said: { tone: "alarm", text: sent.said ?? "No chat was started" } }
-          const door = dock()
-          if (sent.talking && door?.desktop()) door.open(sent.started)
+          nav.openRight(at, chatRouteOf({ kind: "note", path }))
           return {}
         },
       } },

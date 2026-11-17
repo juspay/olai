@@ -3,7 +3,8 @@ Feature: A chat opens in the pane beside what it is about
   A conversation has an address now, so it can be a PANE: the thing on the
   left, the agent talking about it on the right. *Open beside ›* is that
   gesture wherever the thing itself is drawn — a row's fold, a node's page,
-  a note's seat — and it never takes away the page it was pressed on.
+  the line at the top of a note — and it never takes away the page it was
+  pressed on.
 
   Two promises come with it. A conversation is drawn ONCE: while a pane has
   it, every other place that would draw it says *Shown beside* in one line and
@@ -128,10 +129,10 @@ Feature: A chat opens in the pane beside what it is about
     When I press the Chats row "plan-chat"
     And I press Open beside on the chat page
     Then pane 0 is showing "/notes/plan.md"
-    And the chat about "plan-chat" says it is shown beside
+    And the line says the chat is shown beside
     And the conversation is drawn once
     When I focus pane 0
-    And I press Shown beside about "plan-chat"
+    And I open the chat beside from the line
     Then pane 1 is focused
     And there should be no page errors
 

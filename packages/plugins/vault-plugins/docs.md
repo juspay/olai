@@ -32,9 +32,9 @@ A plugin from your directory runs with the same powers as olai's server, so only
 
 [^edit]: Editing either code file pauses the plugin, stops it, and leaves its page showing a diff against the version that was approved. Editing the `README.md` changes no version, so it never asks anyone to approve the plugin again.
 
-[^builder]: Asking for a new plugin starts a chat titled `[Hex Swatch](/plugins/hex-swatch)`, and any chat at a plugin's address is that plugin's builder ([../node-agents.md](../node-agents.md)). The page reads **Being built** until the agent calls `vault-plugins_run` without a fault.
+[^builder]: Asking for a new plugin starts a chat about the plugin's own `README.md`, and that chat is the plugin's builder ([../node-agents.md](../node-agents.md)). The page reads **Being built** until the agent calls `vault-plugins_run` without a fault.
 
-    That page carries **Ask for a change…** on a desktop, the chat itself in the seat at its foot on a phone, and the **Ask about …** box where no chat is about it. A `builder` property on a settings row is ordinary text, and olai reads nothing from it.
+    That page carries **Ask for a change…**, which opens the builder chat in the pane beside it, and **Ask about …** where no chat is about this plugin yet. A `builder` property on a settings row is ordinary text, and olai reads nothing from it.
 
 [^copied]: A plugin from your directory keeps these properties in the settings file, which is where a plugin built into olai keeps its settings too. So a plugin folder copied in from another directory arrives switched off and unapproved, and the switch, a stop and a finished build all survive a restart.
 

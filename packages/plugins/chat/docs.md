@@ -10,7 +10,7 @@ One engine plugin, the plugin that runs one agent program: [claude](claude.md), 
 
 ## Where conversations appear
 
-Chat draws the conversation inside a row, on a node's page, at the foot of a page, in a pane of its own, in the agent panel and in the sidebar.[^faces][^seat][^links][^drawnonce] The panel opens and closes with `Cmd` + `J`.[^panel] Chat adds no tools an agent can call, only instructions.[^charter]
+Chat draws the conversation inside a row, on a node's page, in a pane of its own, in the agent panel and in the sidebar.[^faces][^seat][^links][^drawnonce] The panel opens and closes with `Cmd` + `J`.[^panel] Chat adds no tools an agent can call, only instructions.[^charter]
 
 ## Give a row or a page its own chat
 
@@ -47,9 +47,9 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 [^charter]: The paragraph chat adds to every conversation tells the agent three things. A person reads the answer in the panel beside the outline. An id in backticks is clickable, while one in a code fence is a quotation. A link to an address inside olai is opened in place. The [mcp](mcp.md) plugin puts this paragraph into the instructions an agent receives when it starts.
 
-[^seat]: The seat is at the foot of a document, a whole outline, a file olai only shows, such as a `.csv` or a picture, and a plugin's page. Days, the Agenda, the Trash and a saved layout have no seat.
+[^seat]: A note's page carries one line at the top, under the path: the agent's mark, how its chat stands, the words **Chat about this page**, and **Open beside ›**, which opens the conversation in the pane to the right. No other page has one — not an outline, a day, the Agenda, the Trash or a file olai only shows.
 
-    Without a chat about that page the seat holds a box reading **Ask about plan…**, an agent picker and **Send**. With one it is that page's fold, which the closed block below describes.
+    Without a chat about that note, the line holds a box reading **Ask about plan…** where `Enter` sends, and an agent picker where more than one agent can start.
 
 [^declare]: What a node agent writes under its row goes into your files. Each kind claims the property key spelled the same way as itself, so you need not declare any of the three. olai never adds the property for you, and it never treats an undeclared column as one of these kinds. An agent may write none of the three: an agent that gave itself the property would be deciding on its own that olai may wake it.
 
@@ -59,7 +59,7 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 [^off]: To stop using one agent, switch that engine's own plugin off instead. Turn chat off when a deployment asks for it, or when this serve should not be a chat for a while.
 
-    Switching it off removes the conversations, the sidebar sections, the palette rows, the agent panel, the seat at the foot of a page and everything in the closed block below, including any **New chat** step you had open. Every page is then whole, outline and document editors already on screen keep working, and switching chat back on restores what it draws.
+    Switching it off removes the conversations, the sidebar sections, the palette rows, the agent panel, the line at the top of a note and everything in the closed block below, including any **New chat** step you had open. Every page is then whole, outline and document editors already on screen keep working, and switching chat back on restores what it draws.
 
 <details>
 <summary>What chat draws, place by place</summary>
@@ -83,17 +83,17 @@ An agent that is working or starting shows a dot that pulses, with a ring around
 </details>
 
 <details>
-<summary>A chat about the page in front of you</summary>
+<summary>A chat about the note in front of you</summary>
 
-Three doors offer a chat where the page has a seat, no chat yet, and an agent this machine can start. They are the box in the seat, the **This page** block at the top of the agent panel's picker, and **Chat about this page** in the palette, under **New chat**.
+Three doors offer a chat where the page in front is a note with no chat yet and an agent this machine can start. They are the box in the line at the top of that note, the **This page** block at the top of the agent panel's picker, and **Chat about this page** in the palette, under **New chat**.
 
-Sending creates a chat row under **Inbox › Chats**, titled `[plan](/notes/plan.md)`, starts the agent and delivers your message once, which is what the words under the box say: `Sending starts a chat about this page · it is filed under Inbox › Chats`. On a desktop the new chat is docked beside the page as well, and the page's seat opens on it. A second chat for one page is refused with `this page already has a chat; no conversation was created`.
+Sending writes `chat-agent-session` into the note's own front matter, starts the agent and delivers your message once. The line's box sends on `Enter`; the conversation then opens in the pane to the right of the note, once, on that press. A second chat for one note is refused with `“plan” already has a chat; no conversation was created`.
 
-A start the agent refuses keeps your words in the box you typed them in, with the reason beside them, and leaves at most one row for that page under **Inbox › Chats**. Pressing **Send** again starts on that same row, and the conversation docked in the agent panel is left as it is. A start that stops at sign-in leaves your words waiting in that chat row's box, and they go to the conversation once it opens.
+A start the agent refuses keeps your words in the box you typed them in, with the reason beside them, and writes no session into the note. Sending again starts on the same note. A start that stops at sign-in leaves your words waiting for the conversation the sign-in opens.
 
-With a chat about the page, the seat is that page's fold. Its head line carries the agent's mark and how it stands, and draws without reading the conversation, so the page wakes no agent.
+With a chat about the note, the line says how that chat stands: the agent's mark and its standing word. It reads nothing, so opening the note wakes no agent.
 
-Pressing that line opens the conversation under it, and pressing it again folds it away. It also opens when you start a chat from one of the doors, and when you open that chat from **Chats**, **Needs you** or the palette. This tab remembers a seat you left folded, so coming back finds it folded and its agent asleep.
+Pressing the line, or **Open beside ›** at its end, opens the conversation in the pane to the right. While a pane holds it, both read **Shown beside** and take you to that pane instead.
 
 | Where a chat about a page is named | What you read |
 | --- | --- |
@@ -105,7 +105,7 @@ The stored title, `[plan](/notes/plan.md)`, is never what you read. A title writ
 
 Clicking such a chat in the sidebar or the palette opens the page it is about, and a **Chats** row is marked as the current page while you are on it. A chat on a row of its own opens its own page, as every chat does.
 
-A name you type is cut at 60 characters, and one holding a `]` is dropped in favour of the bare address; the address itself is never cut. Title a chat row by hand with a page that draws no seat, such as `/agenda`, and you read it in the agent panel or on the chat row's own page.
+A name you type is cut at 60 characters, and one holding a `]` is dropped in favour of the bare address; the address itself is never cut.
 
 The agent is told one line more in its first message: ``This conversation is about `/notes/plan.md`: the person talks to you from that page, so read it before you answer.`` A chat on a row of its own is told what a node agent is told, and nothing else. The rest of the instruction is the same for both, and the rows under the chat row are the memory either way.
 

@@ -36,6 +36,7 @@
 import { heldService } from "@olai/ui-primitives/held.ts"
 import type { EnginesService } from "olai-plugin-chat/browser-engines"
 import type { DockDoor } from "olai-plugin-chat/dock"
+import type { BesideDoor } from "olai-plugin-chat/beside"
 import type { Navigation, PaletteControl } from "olai-plugin-navigation/contract"
 
 /** Held by the `palette` component, which declares both of the app shell's
@@ -61,6 +62,13 @@ export const router = lane.read
 const panel = heldService<DockDoor>()
 export const holdDock = panel.hold
 export const dock = panel.read
+
+/** Held by the `beside` component. `undefined` is a serve with chat off, or
+ *  one with no router for a pane to open in — and the page's *Ask for a
+ *  change…* row is then not drawn at all. */
+const aside = heldService<BesideDoor>()
+export const holdBeside = aside.hold
+export const beside = aside.read
 
 /** Held by the `engines` component. `undefined` is a serve that offers no
  *  agent at all, where *New plugin* still mints a folder and says so. */

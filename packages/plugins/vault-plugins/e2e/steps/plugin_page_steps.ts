@@ -42,7 +42,8 @@ import type { Locator } from "@olai/tests/harness/playwright.ts"
 import {
   addressOfPlugin,
   readmeOfPlugin,
-  CHAT_SEAT,
+  chatKeyFor,
+  CHAT_PAGE,
   consentOf,
   openedMore,
   PAGE,
@@ -478,29 +479,23 @@ When("I ask for a change to the plugin {string}", async function (this: OlaiWorl
 })
 
 /**
- * ...AND A SERVE WITH NO CHAT OFFERS NO DOOR AT ALL, rather than a button
- * that does nothing.
+ * ...AND A SERVE WITH NO AGENT OFFERS NO DOOR AT ALL, rather than a row that
+ * would open a dead end.
  *
- * Three absences, because there are three doors onto a conversation and chat
- * owns two of them: the page's own *Ask for a change*, the fault's *Ask the
- * agent to fix it*, and the SEAT the *Ask* spot holds where chat is up — the
- * box that would start one. With the chat row switched off there is nobody to
- * draw the third, which is why the page says nothing here instead of a
- * sentence about an agent that is not missing.
+ * Two absences, because there are two doors onto a conversation here: the
+ * page's own *Ask…* row, which opens the builder chat in the pane beside the
+ * page, and the fault's *Ask the agent to fix it*. With nothing this machine
+ * can start, the *Ask* spot is not drawn at all and the page says what is
+ * missing in words instead.
  */
 Then("the plugin page offers nobody to ask", async function (this: OlaiWorld) {
-  const ask = this.page.locator(`${PAGE} ${PAGE_ASK}`).first()
-  await ask.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT })
-  assert.equal(await this.page.locator(PAGE_ASK_CHANGE).count(), 0, "a plugin with no chat offered *Ask for a change*")
+  await this.page.locator(PAGE).first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  assert.equal(await this.page.locator(PAGE_ASK_CHANGE).count(), 0, "a plugin with no agent offered an *Ask…* row")
+  assert.equal(await this.page.locator(`${PAGE} ${PAGE_ASK}`).count(), 0, "a plugin with no agent drew the *Ask* spot")
   assert.equal(
     await this.page.locator(`${PAGE} ${PAGE_VERB}${attr("data-verb", "ask-fix")}`).count(),
     0,
     "a plugin with no chat offered *Ask Claude to fix it*",
-  )
-  assert.equal(
-    await this.page.locator(`${PAGE} ${PAGE_ASK} ${CHAT_SEAT}`).count(),
-    0,
-    "a serve with no chat drew a seat to start one in",
   )
 })
 
@@ -683,27 +678,22 @@ Then("the plugin page says {string} came of asking", async function (this: OlaiW
 })
 
 /**
- * THE PAGE'S OWN SEAT, in the *Ask* spot — what a viewport with no column for
- * a conversation draws instead of the door it cannot open.
+ * THE CONVERSATION BESIDE THE PAGE — what *Ask for a change…* opens, and the
+ * one place a plugin's builder chat is read now: its own page, in the pane
+ * next to the plugin's.
  *
- * The seat is chat's face (`olai-plugin-chat`'s `ChatSeat`) in a spot this
- * page placed, and it is keyed by the NOTE it is about — so this asserts both
- * halves at once: the page put its seat in the Ask section, and the seat it
- * put there is about this plugin's own README.
+ * It is the chat OF THE README NOTE, so the address names that note — which
+ * asserts both halves at once: the press opened a chat page, and the chat it
+ * opened is this plugin's own.
  */
-Then("the plugin page seats the chat about {string}", async function (this: OlaiWorld, word: string) {
-  const seat = this.page
-    .locator(`${PAGE} ${PAGE_ASK} ${CHAT_SEAT}${attr("data-note", readmeOfPlugin(word))}`)
-    .first()
-  await seat.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
-  // ...AND NOT THE BUTTON BESIDE IT. *Ask for a change…* opens the column,
-  // and there is none here: drawing both would be two doors onto one
-  // conversation, one of which does nothing.
-  assert.equal(
-    await this.page.locator(`${PAGE} ${PAGE_ASK_CHANGE}`).count(),
-    0,
-    "a viewport with no column offered *Ask for a change*",
-  )
+Then("the conversation building {string} is beside the page", async function (this: OlaiWorld, word: string) {
+  const key = chatKeyFor(word)
+  await this.page.locator(`${CHAT_PAGE}${attr("data-item", key)}`)
+    .first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  // ...AND IT IS THE CONVERSATION THE SUITE NOW ADDRESSES, the same way the
+  // docked one is (`./new_plugin_steps.ts`): a press on this page is how a
+  // person selects it.
+  this.activeAgent = key
 })
 
 /**

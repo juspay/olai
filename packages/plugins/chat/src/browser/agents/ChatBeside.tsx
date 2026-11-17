@@ -39,15 +39,32 @@ export const useBeside = (key: Accessor<string>): Accessor<number | null> => {
   return createMemo(() => besideIn(router.panes().map((pane) => pane.route()), key(), here()))
 }
 
-export function ChatBeside(props: { readonly item: AgentItem; readonly class?: string }) {
+/**
+ * THE GESTURE BEHIND THE BUTTON, for a face that draws its own: which pane
+ * has this chat, and the press that either goes there or opens it to the
+ * right. The line at the top of a note is one button whose whole width does
+ * this (`./NoteLine.tsx`), with this button at its end — two controls, one
+ * verb, and the verb is written once.
+ */
+export const useChatBeside = (item: Accessor<AgentItem>): {
+  readonly beside: Accessor<number | null>
+  readonly press: () => void
+} => {
   const router = useRouter()
   const here = useHere()
-  const beside = useBeside(() => itemKey(props.item))
-  const press = () => {
-    const at = beside()
-    if (at !== null) router.focus(at)
-    else router.openRight(here(), chatRouteOf(props.item))
+  const beside = useBeside(() => itemKey(item()))
+  return {
+    beside,
+    press: () => {
+      const at = beside()
+      if (at !== null) router.focus(at)
+      else router.openRight(here(), chatRouteOf(item()))
+    },
   }
+}
+
+export function ChatBeside(props: { readonly item: AgentItem; readonly class?: string }) {
+  const { beside, press } = useChatBeside(() => props.item)
   return (
     <button
       type="button"

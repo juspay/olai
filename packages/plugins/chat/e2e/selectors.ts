@@ -216,34 +216,37 @@ export const CHAT_RANG_FOLD = selector(TESTID.chatRangFold);
  *  without asserting a word the plugin wrote. */
 export const CHAT_RANG_BODY = selector(TESTID.chatRangBody);
 
-// ── a chat ABOUT a place: the seat, the door and the name ──────────────
+// ── a chat ABOUT a note: the line, the door and the name ──────────────
 //
-// The faces a chat that stands for a place is read through. `chatSeat` is the
-// spot a page frame placed at its foot and chat filled; `chatAbout` is the box
-// that starts a chat about that page, drawn in the seat or in the side panel
-// (`data-where`); `chatThisPage` is the panel's block over its picker. The two
-// name ids are what every list draws a chat with — the place's own name and
-// its kind's mark — so a scenario asserts what a person reads rather than the
-// raw title the row carries.
+// The faces a chat about a note is read through. `chatLine` is the one row
+// markdown's document page keeps at the top and chat fills; `chatAbout` is
+// the box that starts a chat about that note, drawn in the line or in the
+// side panel (`data-where`); `chatThisPage` is the panel's block over its
+// picker. The two name ids are what every list draws a chat with — the note's
+// own name and its kind's mark — so a scenario asserts what a person reads
+// rather than the raw key the row carries.
 
-/** The seat at the foot of a page. `data-place` is the place it is about, as
- *  `@olai/format`'s `placeKey` spells it (`file:notes/plan.md`). */
-export const CHAT_SEAT = selector(TESTID.chatSeat);
-/** The box that starts a chat about this page — `data-where` is `seat` or
+/** The line at the top of a note. `data-note` is the note it is about,
+ *  `data-chat` the chat's key where there is one. */
+export const CHAT_LINE = selector(TESTID.chatLine);
+/** The line's own press, which opens the conversation in the pane beside the
+ *  page — the whole row, doing what the verb at its end does. */
+export const CHAT_LINE_OPEN = selector(TESTID.chatLineOpen);
+/** How that chat stands, inside the line: `data-standing` is the word, and
+ *  nothing here is pressable — a page draws this without reading the
+ *  conversation, so opening a note wakes nothing. */
+export const CHAT_LINE_STANDING = selector(TESTID.chatLineStanding);
+/** The box that starts a chat about this note — `data-where` is `line` or
  *  `panel`, which is the whole difference between the door's two faces. Its
- *  FIELDS are a row page's plain composer's, because it is that same box
- *  (`agents/AskBox.tsx`): one component, one set of ids. */
+ *  FIELDS are a row page's plain composer's, because they are the same
+ *  fields: one input id, one picker id, one refusal id. The line has no Send
+ *  button at all — it is one row, and Enter sends. */
 export const CHAT_ABOUT = selector(TESTID.chatAbout);
 export const ASK_INPUT = selector(TESTID.agentPlainInput);
 export const ASK_ENGINE = selector(TESTID.agentPlainEngine);
 export const ASK_SEND = selector(TESTID.agentPlainSend);
 /** Why nothing was started — the sentence that stays beside the words. */
 export const ASK_REFUSED = selector(TESTID.agentPlainRefused);
-/** THE SEAT'S HEAD: one line saying how the note's chat stands, and the press
- *  that opens and folds the conversation under it. A page meets it folded,
- *  because opening a page never wakes its agent. `data-chat` is the chat's
- *  key; `data-folded` says whether the conversation is put away. */
-export const CHAT_SEAT_LINE = selector(TESTID.chatSeatLine);
 /** **This page**, over the side panel's picker. */
 export const CHAT_THIS_PAGE = selector(TESTID.chatThisPage);
 /** What a chat is CALLED wherever it is listed, and — for a note's chat — the
@@ -264,8 +267,8 @@ export const CHAT_PAGE_STANDING = selector(TESTID.chatPageStanding);
 /** *Open <name> beside ›*, and what it reads once a pane has the item. */
 export const CHAT_OPEN_BESIDE = selector(TESTID.chatOpenBeside);
 /** ...and the opposite verb, wherever the ITEM is drawn: *Open beside ›* puts
- *  the conversation in the pane on the right, and reads *Shown beside* — the
- *  one line a fold, a node's page and a note's seat draw in place of a
+ *  the conversation in the pane on the right, and reads *Shown beside* — what
+ *  a fold, a node's page and the line at the top of a note say in place of a
  *  conversation that is already in a pane — once one has it. */
 export const CHAT_BESIDE = selector(TESTID.chatBeside);
 /** A note's switch for where its chat opens; `data-beside` is the answer. */

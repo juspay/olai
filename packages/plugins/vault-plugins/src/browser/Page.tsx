@@ -53,14 +53,13 @@ import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { type AgentItem, itemKey } from "@olai/format"
 import type { DockDoor } from "olai-plugin-chat/dock"
 import { Control } from "olai-plugin-plugin-inspector/control"
-import { atFile, type Route } from "olai-plugin-navigation/routes"
-import { PageSeat } from "olai-plugin-navigation/seat"
+import { useHere } from "olai-plugin-navigation/routing"
 import { Key } from "@solid-primitives/keyed"
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { client } from "../client.ts"
-import { dock } from "./doors.ts"
+import { beside, dock, engines } from "./doors.ts"
 import { pluginReadme } from "../index.ts"
 import { changedCount, diffLines } from "./diff.ts"
 import { Code } from "./page/Code.tsx"
@@ -313,7 +312,7 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
         </Show>
       </Show>
 
-      <Ask acts={acts} place={atFile(pluginReadme(props.plugin.name))} name={source().title} />
+      <Ask item={readme()} name={source().title} chat={source().chat === true} />
 
       <Show when={(source().uses ?? []).length > 0}>
         <Block heading="What it uses" note={stage() === "paused" ? "unchanged" : undefined}>
@@ -386,26 +385,45 @@ function Docking(props: { readonly door: DockDoor; readonly item: AgentItem }) {
   return null
 }
 
-/** *Ask for a change* — on a desktop with a conversation about this plugin, the
- *  press that opens it beside the page. Everywhere else, the page's SEAT
- *  (`olai-plugin-navigation/seat`), placed on the plugin's README note: the
- *  conversation itself where there is one, and where there is none, the box
- *  that starts one about that note. */
-function Ask(props: { readonly acts: Acts; readonly place: Route; readonly name: string }) {
+/**
+ * *ASK FOR A CHANGE…* — the way into the conversation that builds this
+ * plugin, in the pane beside the page.
+ *
+ * THE CHAT IS THE README NOTE'S (`../index.ts`'s `pluginReadme`), so this is
+ * the same conversation that note's own page offers, reached from the page a
+ * person is actually on. Where the plugin has no chat yet the words say so —
+ * *Ask about <Title>…* — and the press still goes to that chat's page, which
+ * is where a chat about it is started.
+ *
+ * THE DOOR IS CHAT'S (`olai-plugin-chat/beside`): which pane a conversation
+ * goes in, and what happens when one already has it, are chat's to decide.
+ * With chat off — or no router — nothing is held and this row draws nothing,
+ * which is the honest absence rather than a verb that cannot work.
+ */
+function Ask(props: { readonly item: AgentItem; readonly name: string; readonly chat: boolean }) {
+  const here = useHere()
+  /** A DOOR THAT CAN WORK, and no other: with a chat there is one to open,
+   *  and with none there has to be an engine this machine can start — a serve
+   *  with no agent at all says what is missing in words elsewhere on this
+   *  page rather than drawing a row that would open a dead end. */
+  const offered = () => beside() === undefined ? undefined
+    : props.chat || (engines()?.installed() ?? []).length > 0 ? beside() : undefined
   return (
-    <section class="mt-6" data-testid={TESTID.pageAsk}>
-      <Show when={props.acts.canOpen()} fallback={<PageSeat place={props.place} name={props.name} />}>
+    <Show when={offered()}>{(door) =>
+      <section class="mt-6" data-testid={TESTID.pageAsk}>
         <button
           type="button"
           class="flex w-full cursor-pointer items-baseline gap-2 rounded-control border border-line/60 bg-transparent px-3 py-2 text-left text-body hover:bg-ink/5"
           data-testid={TESTID.pageAskChange}
-          onClick={() => props.acts.askChange()}
+          onClick={() => door().open({ item: props.item, from: here() })}
         >
-          <span>Ask for a change…</span>
-          <span class="text-label text-muted">opens the conversation that built it</span>
+          <span>{props.chat ? "Ask for a change…" : `Ask about ${props.name}…`}</span>
+          <span class="text-label text-muted">
+            {props.chat ? "opens the conversation that built it beside this page" : "opens a chat about this plugin beside this page"}
+          </span>
         </button>
-      </Show>
-    </section>
+      </section>
+    }</Show>
   )
 }
 

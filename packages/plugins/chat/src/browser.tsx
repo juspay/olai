@@ -1,5 +1,9 @@
-import { linkPreviews, pageSeats } from "olai-plugin-navigation/contract"
-import { ChatSeat } from "./browser/agents/Seat.tsx"
+import { linkPreviews } from "olai-plugin-navigation/contract"
+import { noteLine } from "olai-plugin-markdown/contract"
+import { NoteLine } from "./browser/agents/NoteLine.tsx"
+import { BESIDE, type BesideDoor } from "./beside.ts"
+import { besideIn } from "./browser/agents/beside.ts"
+import { chatRouteOf } from "./browser/agents/route.ts"
 import { ChatLinkPreview, previewNode } from "./browser/LinkPreview.tsx"
 import { Landings } from "@olai/plugin-api"
 import { holdLandings } from "./browser/landings.ts"
@@ -162,12 +166,13 @@ export default definePlugin({
       Preview: props => <ChatLinkPreview route={props.route} roster={state.agents} />,
     })
     yield* (yield* rendererSlots).contribute(paletteAdapters, palette.value)
-    // THE SEAT AT THE FOOT OF A PAGE, filled for this activation's life: the
-    // conversation about that page, or the box that starts one. Chat off, and
-    // the seat is empty and the page whole (`olai-plugin-navigation/seat`).
-    yield* (yield* rendererSlots).contribute(pageSeats, {
-      Seat: props => <AgentsProvider value={state.agents}><ChatSeat {...props} /></AgentsProvider>,
-    })
+    // THE LINE AT THE TOP OF A NOTE, filled for this activation's life: how
+    // the note's chat stands and the way into it beside the page, or the box
+    // that starts one. Chat off, and the line is gone and the page whole
+    // (`olai-plugin-markdown/contract`'s `noteLine`, which markdown's own
+    // document page places).
+    yield* (yield* rendererSlots).contribute(noteLine,
+      props => <AgentsProvider value={state.agents}><NoteLine path={props.path} name={props.name} /></AgentsProvider>)
     // The aside reads the activation roster once per row; only opening a fold
     // acquires a conversation. Unbound rows offer a start gesture.
     yield* slots.register("outline.row.placement", SESSION_KIND, { inRows: false })
@@ -274,11 +279,26 @@ export const components = {
     const named = yield* appDeployment
     yield* Effect.acquireRelease(Effect.sync(() => holdDeployment(named)), stop => Effect.sync(stop))
   }) }),
-  navigation: definePlugin({ name: "navigation", needs: [navigationService, paletteControl], apply: Effect.gen(function*() {
+  /** THE ROUTER'S DOORS INTO THIS ROW, and the one this row offers back over
+   *  it: `chat.beside` (`./beside.ts`), which puts a conversation in the pane
+   *  beside the page a press came from. Offered HERE because it is a router
+   *  call, so a consumer that declares it waits for exactly what the gesture
+   *  waits for. */
+  navigation: definePlugin({ name: "navigation", needs: [navigationService, paletteControl, Offers], apply: Effect.gen(function*() {
     const control = yield* paletteControl
     yield* Effect.acquireRelease(Effect.sync(() => holdPalette(control)), stop => Effect.sync(stop))
     const router = yield* navigationService
     yield* Effect.acquireRelease(Effect.sync(() => holdNavigation(router)), stop => Effect.sync(stop))
+    yield* (yield* Offers).own(BESIDE, () => ({
+      open: ({ item, from }) => {
+        // THE DRAWN-ONCE RULE, as every face in this row reads it
+        // (`./browser/agents/beside.ts`): a pane that already has this
+        // conversation is focused rather than a second one opened.
+        const at = besideIn(router.panes().map((pane) => pane.route()), itemKey(item), from)
+        if (at !== null) router.focus(at)
+        else router.openRight(from, chatRouteOf(item))
+      },
+    } satisfies BesideDoor))
   }) }),
   /** The matcher, DECLARED — a component of its own so the panel, the
    *  transcript and the roster keep working with no matcher mounted

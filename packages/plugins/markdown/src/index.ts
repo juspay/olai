@@ -79,3 +79,24 @@ import type { Custom, PageReading } from "@olai/format"
 import type { Accessor } from "solid-js"
 export interface PropertiesProps { readonly custom: Custom; readonly from: string; readonly reading: Accessor<PageReading | undefined> }
 export const properties = location<(props: PropertiesProps) => JSX.Element>("markdown.properties", "one")
+
+/**
+ * THE LINE AT THE TOP OF A NOTE — the one row a document page keeps for
+ * something that is about the note as a whole, drawn under the path and the
+ * row of verbs (*Edit*, *Delete…*) and above the properties.
+ *
+ * WHAT IS IN IT IS NOT THIS ROW'S. Today it is a chat: the agent's mark, how
+ * it stands and the way into the conversation beside the page. This package
+ * knows none of that and never will — it declares the PLACE and what the
+ * occupant is told about the note it is over (its path, and the name a person
+ * reads), exactly as {@link properties} declares the place a richer property
+ * drawer fills. With nothing contributed there is no line and the page is
+ * whole, which is also what *chat switched off* looks like.
+ */
+export interface NoteLineProps {
+  /** The note the page is drawing, root-relative. */
+  readonly path: string
+  /** ...and what it is called, in the words a person reads on it. */
+  readonly name: string
+}
+export const noteLine = location<(props: NoteLineProps) => JSX.Element>("markdown.note-line", "one")

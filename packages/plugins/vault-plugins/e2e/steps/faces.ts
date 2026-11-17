@@ -83,11 +83,11 @@ export const PAGE_MOVED = selector(TESTID.pageMoved)
 export const PAGE_MOVED_READ = selector(TESTID.pageMovedRead)
 export const PAGE_REFUSED = selector(TESTID.pageRefused)
 
-/** CHAT'S OWN SEAT, as the page's *Ask* spot holds it — chat's id, because the
- *  seat is chat's face in a spot this page placed (`olai-plugin-navigation/
- *  seat`). It is what a viewport with no column for a conversation draws
- *  instead of the button that would open one. */
-export const CHAT_SEAT = selector(CHAT_TESTID.chatSeat)
+/** A CHAT'S OWN PAGE, as a pane beside this one — chat's id, because the page
+ *  is chat's (`olai-plugin-chat`'s `ChatPage`). It is what *Ask for a
+ *  change…* opens: the conversation that built this plugin, in the pane next
+ *  to its page. */
+export const CHAT_PAGE = selector(CHAT_TESTID.chatPage)
 
 // ⌘K → New plugin draws no node of this row's: both levels are the palette's
 // own furniture, and `new_plugin_steps.ts` grips them through navigation's ids.

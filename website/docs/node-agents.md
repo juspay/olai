@@ -4,14 +4,14 @@ A row of an outline can have its own agent: its title names the agent, its note 
 
 ## Start a chat on a row, or about the page you are reading
 
-Hover or focus a row with no agent and **Start an agent** appears beside it.[^start] A page has a seat at its foot, **Chat about this page**.[^seat] The palette (`Cmd` + `K`) has **New chat** and **Chat about this page** rows.[^palette] Zooming into a row with no agent gives you an **Ask about** box below it.[^zoom]
+Hover or focus a row with no agent and **Start an agent** appears beside it.[^start] A note's page has one line at the top, **Chat about this page**.[^seat] The palette (`Cmd` + `K`) has **New chat** and **Chat about this page** rows.[^palette] Zooming into a row with no agent gives you an **Ask about** box below it.[^zoom]
 
 ## Where the conversation appears
 
 One conversation, with one draft and one transcript, is drawn in four places on a desktop and three on a phone:
 
 - under the row, when you unfold it[^fold]
-- on the row's own page, or in the page's seat[^page]
+- on the row's own page[^page]
 - in a pane of its own[^beside]
 - in the agent panel, the column on the right[^panel][^column]
 
@@ -29,9 +29,9 @@ The agent's first message carries an instruction from olai:[^preamble][^about] t
 
 [^start]: Where only one agent is available it starts at once; where several are, they offer their names in a small menu. The row's menu carries the same entry, for the keyboard and for a long press on a phone. A successful start opens the conversation, records on the row which chat it has, and unfolds it. If the start fails, the reason stays on the row and no chat is recorded on it.
 
-[^seat]: The seat sits under a document, a whole outline, a file olai only shows, such as a `.csv` or a picture, and a plugin's page. Days, the Agenda, the Trash and a saved layout of panes have none, and so does a serve with no agent this machine can start.
+[^seat]: The line sits at the top of a note (a `.md` file), under its path. No other page has one: not an outline, a day, the Agenda, the Trash, a saved layout, or a file olai only shows such as a `.csv` or a picture. Nor does a serve with no agent this machine can start.
 
-    Without a chat about that page, the seat holds a box reading **Ask about plan…**, an agent picker and **Send**. The closed block at the foot of this page says what sending does, and how a seat with a chat in it folds.
+    Without a chat about that note, the line holds a box reading **Ask about plan…** where `Enter` sends. The closed block at the foot of this page says what sending does.
 
 [^palette]: `Cmd` + `K` opens the palette on a Mac, and `Ctrl` + `K` everywhere else. The `+` beside **Chats** opens the palette already on **New chat**, which asks two things, and nothing is created until you send the second.
 
@@ -41,9 +41,9 @@ The agent's first message carries an instruction from olai:[^preamble][^about] t
 
 [^fold]: Unfolding puts the conversation under the row and above the row's children. Press the state shown beside the row to unfold it, and press it again to fold it. Several rows can be unfolded at once.
 
-[^page]: On the row's own page, the agent line and the strips above the conversation sit under the title. The rows under it come below the drawer of the row's properties, and the conversation comes after those rows, scrolling with the pane. Opened in a page's seat, a chat draws the same agent line, strips and box.
+[^page]: On the row's own page, the agent line and the strips above the conversation sit under the title. The rows under it come below the drawer of the row's properties, and the conversation comes after those rows, scrolling with the pane.
 
-[^beside]: A chat has an address of its own. **Open beside ›** on the agent line opens it in the pane to the right, and leaves the page you are reading as it is. While a pane holds the conversation, the row's fold, the row's page and a page's seat each draw one line reading **Shown beside**, which takes you to that pane. A link you click inside a chat pane opens in the pane beside it.
+[^beside]: A chat has an address of its own. **Open beside ›** on the agent line opens it in the pane to the right, and leaves the page you are reading as it is. While a pane holds the conversation, the row's fold, the row's page and the line at the top of a note each read **Shown beside**, which takes you to that pane. A link you click inside a chat pane opens in the pane beside it.
 
 [^panel]: The agent panel, labelled **Agent panel**, stays where it is while you move between outlines. A phone has no panel. Four things open it on the conversation they name: the control on a **Chats** row that hovering reveals, **Open in panel ›** on the agent line, `Cmd` + `J`, and the panel button in the bar beside the health dot.
 
@@ -104,19 +104,19 @@ While one new chat is starting, another is refused with *A new chat is already s
 </details>
 
 <details>
-<summary>What a chat about a page is, and what starting one does</summary>
+<summary>What a chat about a note is, and what starting one does</summary>
 
-Sending from the seat, from the **This page** block at the top of the agent panel's picker, or from the palette's **Chat about this page** creates one chat row under **Inbox › Chats**. Its title is the page's name and address, `[plan](/notes/plan.md)`, which is what makes it that page's chat ([plugins/chat.md](plugins/chat.md)). It starts the agent, delivers your message once, and on a desktop docks beside the page.
+Three doors start a chat about a note: the line at the top of it, the **This page** block at the top of the agent panel's picker, and the palette's **Chat about this page**. Sending writes `chat-agent-session` into that note's own front matter, which is what makes it that note's chat ([plugins/chat.md](plugins/chat.md)). It starts the agent, delivers your message once, and opens the conversation in the pane beside the note.
 
 | What you ask for | What happens |
 | --- | --- |
-| a chat about a page that has none | the row is created, and the page's seat opens on it |
-| a second chat about one page | refused: `this page already has a chat; no conversation was created` |
-| a chat naming a page olai does not hold, such as a deleted file | that chat row is an ordinary chat under **Chats**, and a page that address opens again offers a chat of its own |
+| a chat about a note that has none | the note carries the chat, and it opens in the pane beside the page |
+| a second chat about one note | refused: `“plan” already has a chat; no conversation was created` |
+| a chat about anything that is not a note or a row | there is no door to ask from: only those two can have one |
 
-With a chat there, the seat is that page's fold. Its head line carries the agent's mark and how it stands, and stays when the seat is open, so opening a page never wakes its agent.
+With a chat there, the line says how it stands: the agent's mark and its standing word. It reads nothing, so opening a note never wakes its agent.
 
-Press that line to open the conversation under it, and press it again to fold it away. It also opens when you start a chat from one of the page's doors, and when you open that chat from **Chats**, **Needs you** or the palette. This tab remembers a seat you left folded, so a later visit finds it folded and wakes no agent.
+Press the line, or **Open beside ›** at its end, to read the conversation in the pane to the right. Press it again and it takes you to that pane rather than opening a second one.
 
 Two things are asked once for each row while this browser tab is open: whether a row a chat stands for still exists, and that row's name where the title is a bare `/#id`. So a row deleted after that still counts as its chat's place until you reload the tab, and a row renamed after that keeps its old name under **Chats** until you reload.
 

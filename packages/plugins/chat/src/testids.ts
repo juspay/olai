@@ -119,15 +119,16 @@ export const TESTID = {
    *  the item, and then only focuses it; `data-beside` is which of the two. */
   chatOpenBeside: "chat-open-beside",
   /** *Open beside ›* — this CONVERSATION into the pane on the right, offered
-   *  wherever the item itself is drawn (a row's fold, a node's page, a note's
-   *  seat). Reads *Shown beside* and focuses that pane once one has it, and
-   *  then stands alone as the one line those faces draw in place of the
-   *  conversation; `data-beside` is which of the two, `data-item` the item. */
+   *  wherever the item itself is drawn (a row's fold, a node's page, the line
+   *  at the top of a note). Reads *Shown beside* and focuses that pane once
+   *  one has it, and then stands alone as the one line those faces draw in
+   *  place of the conversation; `data-beside` is which of the two,
+   *  `data-item` the item. */
   chatBeside: "chat-beside",
-  /** THE ONE LINE a fold, a node's page and a note's seat draw in place of a
-   *  conversation that a pane in this layout already has — the button above
-   *  and nothing else. `data-agent` is the chat's key, so a scenario can say
-   *  WHICH conversation went elsewhere. */
+  /** THE ONE LINE a fold and a node's page draw in place of a conversation
+   *  that a pane in this layout already has — the button above and nothing
+   *  else. `data-agent` is the chat's key, so a scenario can say WHICH
+   *  conversation went elsewhere. */
   chatBesideLine: "chat-beside-line",
   /** A NOTE'S SWITCH: where its chat opens, written as `chat-opens`.
    *  `data-beside` is the answer. */
@@ -287,17 +288,25 @@ export const TESTID = {
   /** ...and the mark the note's kind of file wears, beside that name. Absent
    *  for a node's chat. */
   chatFileMark: "chat-file-mark",
-  /** THE SEAT at the foot of a NOTE (`olai-plugin-navigation/seat`), as chat
-   *  fills it: the chat about that note, folded or open, or the box that
-   *  starts one. `data-note` is the note's path. No other page has one. */
-  chatSeat: "chat-seat",
-  /** The seat's head when it holds a chat: one line saying how the chat
-   *  stands, whose press opens and folds the conversation under it.
-   *  `data-chat` is the chat row; `data-folded` is `"true"` while folded. */
-  chatSeatLine: "chat-seat-line",
-  /** The box that starts a chat about a note — in its seat, or in the side
-   *  panel's **This page** block. `data-where` says which. Its fields are the
-   *  one box's (`agentPlainInput`, `agentPlainEngine`, `agentPlainSend`,
+  /** THE LINE AT THE TOP OF A NOTE (markdown's `markdown.note-line`), as chat
+   *  fills it: how the note's chat stands and the way into it beside the
+   *  page, or — with no chat yet — the one-line box that starts one.
+   *  `data-note` is the note's path, `data-chat` the chat's key where there
+   *  is one. No other page has one. */
+  chatLine: "chat-line",
+  /** How that note's chat stands, inside the line: the agent's mark, the dot
+   *  and the standing word. A readout and not a press — the LINE is the
+   *  press, and it opens the conversation beside the page. `data-standing`
+   *  is the word, `data-agent` the chat. */
+  chatLineStanding: "chat-line-standing",
+  /** The line itself, as the press that opens the conversation beside the
+   *  page — the whole row, doing what the verb at its end does.
+   *  `data-beside` is `"true"` while a pane already has it. */
+  chatLineOpen: "chat-line-open",
+  /** The box that starts a chat about a note — in the line at the top of its
+   *  page (one row, where Enter sends), or in the side panel's **This page**
+   *  block. `data-where` says which. Its fields are the one box's
+   *  (`agentPlainInput`, `agentPlainEngine`, `agentPlainSend`,
    *  `agentPlainRefused`), shared with a row's own page. */
   chatAbout: "chat-about",
   /** The side panel's **This page** block, over its picker. `data-note` is the

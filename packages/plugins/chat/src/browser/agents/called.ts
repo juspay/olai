@@ -31,19 +31,22 @@ import { type AgentItem, type Claims, nameOf } from "@olai/format"
 
 import { agentReadings } from "./reading.ts"
 
+/** A NOTE'S NAME: the directory's own word for the file (`plan` for
+ *  `notes/plan.md`).
+ *
+ *  WITH NO CLAIM TABLE YET the suffix is kept, which is the honest answer
+ *  rather than a guess: which suffix a kind claimed is the directory's to
+ *  say, and `plan.md` for a frame is a name a person recognises where `plan`
+ *  would be this package deciding what `.md` means. */
+export const nameOfNote = (claims: Claims | undefined, path: string): string =>
+  claims === undefined ? path.slice(path.lastIndexOf("/") + 1) : nameOf(claims, path)
+
 /** The item's name: a note's file name, a node's title. */
 export const nameOfItem = (
   item: AgentItem,
   claims: Claims | undefined,
   titled: (id: string) => string | null,
-): string => {
-  if (item.kind === "node") return titled(item.id) ?? item.id
-  // WITH NO CLAIM TABLE YET the suffix is kept, which is the honest answer
-  // rather than a guess: which suffix a kind claimed is the directory's to
-  // say, and `plan.md` for a frame is a name a person recognises where `plan`
-  // would be this package deciding what `.md` means.
-  return claims === undefined ? item.path.slice(item.path.lastIndexOf("/") + 1) : nameOf(claims, item.path)
-}
+): string => item.kind === "node" ? titled(item.id) ?? item.id : nameOfNote(claims, item.path)
 
 /** The live title of a node that has a chat, off this activation's roster. */
 export const titleOfNode = (id: string): string | null => agentReadings()?.agents.at(id)?.title ?? null

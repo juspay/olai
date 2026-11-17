@@ -162,6 +162,6 @@ olai drops the entry for a row that was trashed or whose link to its chat was ta
 
 Words you have typed but not sent, the files you attached and the rows you chose with `@` belong to that conversation in this browser tab. Folding the conversation away or reading its earlier chats keeps them, sending clears them, and reloading the tab discards them.
 
-Words typed into a box that starts a chat, the one in a page's seat or in the panel's **This page** block, belong to that page and that box, so leaving the page and coming back finds them. The **Ask about** box on a row's page is kept the same way.
+Words typed into a box that starts a chat belong to that note and that box, so leaving the page and coming back finds them. That is the box in the line at the top of a note, and the one in the panel's **This page** block. The **Ask about** box on a row's page is kept the same way.
 
 </details>

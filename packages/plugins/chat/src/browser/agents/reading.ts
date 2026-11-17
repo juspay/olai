@@ -13,21 +13,13 @@ import type { Roster } from "./answered.tsx"
 import { createPageOwners } from "./page-owners.ts"
 import type { PageSession } from "./Page.tsx"
 
-/** A seat on screen: which pane, the path of the note the page draws, and what
- *  that note is called. Only a note has a seat (`./Seat.tsx`). */
-export interface SeatHere {
-  readonly pane: string
-  readonly path: string
-  readonly name: string
-}
-
 /** WHO UNSENT WORDS ARE FOR: a chat (its page's plain composer, and the chat
  *  a door's start left waiting at sign-in), or one door's box on an item —
- *  the seat's, **This page**'s and a chat page's are three boxes
- *  (`./Door.tsx`), each keyed by the item it is about. */
+ *  the line at the top of a note, **This page**'s and a chat page's are three
+ *  boxes (`./Door.tsx`), each keyed by the item it is about. */
 export type Unsent =
   | { readonly kind: "row"; readonly node: string }
-  | { readonly kind: "door"; readonly where: "seat" | "panel" | "page"; readonly item: string }
+  | { readonly kind: "door"; readonly where: "line" | "panel" | "page"; readonly item: string }
 
 export const createAgentReadings = (agents: Roster) => {
   const newChat = createNewChat((to, text) => keepMessage(ui(to).messages, JSON.stringify([to.agent, to.session]), text, true))
@@ -36,12 +28,8 @@ export const createAgentReadings = (agents: Roster) => {
   const reveals = new Set<string>()
   type View = { node: () => string; chat: () => Chat | null; shown: () => boolean }
   const [views, setViews] = createSignal<readonly View[]>([])
-  /** THE SEATS ON SCREEN — one per note the panes are drawing, by pane, so the
-   *  side panel and the palette can offer a chat about the note in front
-   *  exactly where that page has a seat (`./Seat.tsx`). */
-  const [seats, setSeats] = createSignal<readonly SeatHere[]>([])
   /** UNSENT WORDS THAT HAVE NO CONVERSATION YET, owned by the activation and
-   *  kept by who they are for ({@link Unsent}). A page or a seat is drawn and
+   *  kept by who they are for ({@link Unsent}). A page or a line is drawn and
    *  taken down for reasons that have nothing to do with the person; the words
    *  outlive every one of them, and go into the conversation's own composer
    *  once it opens (`./Page.tsx`). */
@@ -171,13 +159,6 @@ export const createAgentReadings = (agents: Roster) => {
       })
       return held.value
     },
-    /** A page's seat, for as long as it is on screen. */
-    seat: (here: SeatHere) => {
-      setSeats(all => [...all, here])
-      onCleanup(() => setSeats(all => all.filter(one => one !== here)))
-    },
-    /** The seat of the page in a pane, if that page placed one. */
-    seatIn: (pane: string) => seats().find(one => one.pane === pane),
     /** The unsent words for `owner`, and the setter that replaces them. */
     unsent: (owner: Unsent) => unsent[unsentKey(owner)] ?? "",
     setUnsent: (owner: Unsent, text: string) => setUnsent(unsentKey(owner), text === "" ? undefined : text),

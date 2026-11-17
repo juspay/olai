@@ -15,6 +15,7 @@ import {
   attr,
   BREADCRUMBS,
   CHAT_PANEL,
+  CHAT_SAID,
   HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
 } from "@olai/tests/harness/world.ts";
@@ -132,6 +133,20 @@ When("I ask from the chat page {string}", async function (this: OlaiWorld, text:
   await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await door.locator(ASK_INPUT).fill(text);
   await door.locator(ASK_SEND).click();
+});
+
+/** WHICH NOTE THE AGENT WAS TOLD IT BELONGS TO, read where a person reads it:
+ *  in the transcript, under their own words. The sentence is the server's
+ *  (`../../src/teaching.ts`); what this holds is that the PATH is in it. */
+Then("the chat page's first message names the note {string}", async function (this: OlaiWorld, note: string) {
+  await this.waitUntil(async () => (await page(this).innerText()).includes(`\`${note}\``),
+    `the first message to name the note ${note}`, HYDRATION_TIMEOUT);
+});
+
+/** NOTHING HAS BEEN ANSWERED in the conversation on this page — the half of
+ *  "the words waited" that says they were not sent on somebody's behalf. */
+Then("the agent has said nothing yet", async function (this: OlaiWorld) {
+  assert.equal(await page(this).locator(CHAT_SAID).count(), 0, "the agent answered something nobody sent");
 });
 
 // ── where a note's chat opens ──────────────────────────────────────────

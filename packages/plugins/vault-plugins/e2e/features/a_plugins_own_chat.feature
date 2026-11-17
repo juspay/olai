@@ -12,10 +12,10 @@ Feature: A plugin's chat is the chat of its README
   that still has one from before must behave as though it does not, which is
   the last scenario here.
 
-  THE PHONE IS THE OTHER HALF of what the page offers. With a column beside the
-  page, *Ask for a change…* opens the conversation in it; with no column there
-  is nothing to open, so the *Ask* spot holds the page's own seat and the
-  conversation is read there.
+  THE PHONE IS THE OTHER HALF of what the page offers. *Ask for a change…*
+  opens the conversation in the pane beside the page, and a handset — which
+  draws those panes as a strip of tabs — opens the same chat page the same
+  way.
 
   @scratch:plugins
   Scenario: The conversation is a chat about the plugin's page, and the page finds it
@@ -39,7 +39,7 @@ Feature: A plugin's chat is the chat of its README
     And the plugin page offers to ask for a change
 
     When I ask for a change to the plugin "bar-beside"
-    Then the conversation building "bar-beside" is docked
+    Then the conversation building "bar-beside" is beside the page
     And there should be no page errors
 
   @scratch:plugins
@@ -64,10 +64,9 @@ Feature: A plugin's chat is the chat of its README
     And there should be no page errors
 
   @phone @scratch:plugins
-  Scenario: On a handset the new plugin's conversation is in the page's seat
-    # A phone has no column to put a conversation in, so the page draws its
-    # SEAT where the button would be — the same chat, read under the page
-    # instead of beside it.
+  Scenario: On a handset the new plugin's conversation opens as its own page
+    # A phone has no room for two panes side by side, so the same press opens
+    # the same chat page — full screen, in the strip beside the plugin's.
     Given I open the app
     When I press the palette shortcut
     And I open New plugin from the palette
@@ -76,7 +75,8 @@ Feature: A plugin's chat is the chat of its README
     And I accept the name
     Then the address is "/plugins/hours"
     And the plugin "hours" is being built by a conversation called "Hours"
-    And the plugin page seats the chat about "hours"
+    When I ask for a change to the plugin "hours"
+    Then the conversation building "hours" is beside the page
     And there should be no page errors
 
   # A RELOAD IS WHERE "FIND IT BY THE ADDRESS" IS ACTUALLY TESTED. Nothing is

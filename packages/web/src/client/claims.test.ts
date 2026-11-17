@@ -820,7 +820,8 @@ test("every stylesheet with an endless animation answers the motion preference",
 // makes that guard a fact about the page rather than a promise to them: the
 // chat composer comes from the dock (`app.panel`, the shell's slot) and from a
 // row's fold (`outline.row.fold`, the outline's); the node agent's plain box
-// is on a page the chat row draws; the new-file box is OFFERED (`files.state`'s
+// is on a page the chat row draws; the note's one-line ask box is drawn into
+// markdown's own `markdown.note-line`; the new-file box is OFFERED (`files.state`'s
 // `New`) and drawn by whoever asks; a property value box is drawn into a
 // document's own properties by `document-properties`, whose needs are
 // `[browserState, markdownState, rendererSlots]`. With navigation switched off
@@ -842,9 +843,10 @@ test("every stylesheet with an endless animation answers the motion preference",
 // was choosing a word.
 test("every box navigation does not cover checks composition itself", () => {
   expect(filesSpelling(/composing\(/)).toEqual([
-    // The ask box a row's page and a page's seat share (it moved out of
-    // `agents/Page.tsx` when the two boxes became one).
+    // The ask box a row's page and a chat's own page share.
     "plugins/chat/src/browser/agents/AskBox.tsx",
+    // The one-line ask box at the top of a note (`markdown.note-line`).
+    "plugins/chat/src/browser/agents/NoteLine.tsx",
     "plugins/chat/src/browser/chat/Composer.tsx",
     "plugins/files/src/file/NewFile.tsx",
     "plugins/navigation/src/palette/Palette.tsx",
