@@ -327,6 +327,34 @@ export interface Split {
 }
 
 /**
+ * THE ADDRESS AN APP URL NAMES — one written the way this app writes one, with
+ * its leading `/` and whatever a URL carries after it, read by the grammar;
+ * `null` for a string that names nothing.
+ *
+ * Three things come off first, and all three are the APP's spelling rather
+ * than the grammar's (website/docs/format.md's Pins): the leading slash, which
+ * a served file's path does not carry; the `?q=`, which narrows a page and
+ * names nothing, and which leaves with the rest of the path half because
+ * {@link splitAddress} cuts the fragment first; and `/zoom/`, the browser's
+ * spelling of a NODE's own page, whose path half names no document either.
+ *
+ * ONE function because two readings ask exactly this and then project it: the
+ * node a pin addresses (`./shelf.ts`'s `pinTargetIn`) and the place a chat row
+ * stands for ({@link placeWritten}). Spelled twice, the `/zoom/` rule is a rule
+ * free to disagree with itself about one of them. TOTAL over any string,
+ * because {@link parseAddress} is.
+ */
+export const addressAt = (claims: Claims, at: string): Address | null => {
+  if (!at.startsWith("/")) return null
+  const { pathname, fragment } = splitAddress(at.slice(1))
+  return parseAddress(claims, (pathname === ZOOM ? "" : pathname) + (fragment === undefined ? "" : `#${fragment}`))
+}
+
+/** The path half of a node's own page, as {@link addressAt} cuts one — the
+ *  browser's `/zoom/#id`, which names the node `/#id` names. */
+const ZOOM = "zoom/"
+
+/**
  * THE ADDRESS A TITLE CARRIES: the title itself, or the target of the one link
  * it is written as.
  *
@@ -395,17 +423,17 @@ export const samePlace = (a: Place, b: Place): boolean => placeKey(a) === placeK
  * does not serve it.
  */
 export const placeWritten = (claims: Claims, title: string): Place | null => {
-  const address = titleAddress(title)
-  if (address === undefined || !address.startsWith("/")) return null
-  const { pathname, fragment } = splitAddress(address)
-  if (pathname === "/" || pathname === "/zoom/") {
-    if (fragment === undefined) return pathname === "/" ? { kind: "page", href: "/" } : null
-    const id = spelled(fragment)
-    return id === null || id === "" ? null : { kind: "row", id }
-  }
-  const named = parseAddress(claims, pathname.slice(1) + (fragment === undefined ? "" : `#${fragment}`))
-  if (named === null) return /\.[^./]+$/.test(pathname.slice(pathname.lastIndexOf("/") + 1)) ? null : { kind: "page", href: pathname }
-  return named.kind === "node" || named.kind === "row" ? { kind: "row", id: named.id } : { kind: "file", path: named.path }
+  const at = titleAddress(title)
+  if (at === undefined || !at.startsWith("/")) return null
+  const named = addressAt(claims, at)
+  if (named !== null) return named.kind === "node" || named.kind === "row" ? { kind: "row", id: named.id } : { kind: "file", path: named.path }
+  // The grammar named nothing, so what is left is a PAGE — except the paths
+  // that name a node and nothing else (`/zoom/`, and `/` with a fragment
+  // nothing can spell), and except a file of a kind nobody claims, which olai
+  // does not serve and so does not open.
+  const { pathname, fragment } = splitAddress(at.slice(1))
+  if (pathname === ZOOM || (pathname === "" && fragment !== undefined)) return null
+  return /\.[^./]+$/.test(pathname.slice(pathname.lastIndexOf("/") + 1)) ? null : { kind: "page", href: `/${pathname}` }
 }
 
 /**
