@@ -257,9 +257,13 @@ Feature: A chat about the page in front
     When I open the Chats menu of "theirs"
     And I choose "Put to sleep" from the Chats menu
     Then the agent "theirs" stands "asleep"
-    When I go to node "install" from the palette
-    And I go back
-    Then the page seat is about "file:notes/plan.md"
+    # AWAY AND BACK IN THIS TAB, through the sidebar: a reload would answer
+    # nothing at all, since what a tab remembers about its folds goes with it.
+    When I click the document "finishes.md"
+    Then the document open is "finishes.md"
+    When I go back
+    Then the document open is "notes/plan.md"
+    And the page seat is about "file:notes/plan.md"
     And the seat is folded on the chat "theirs"
     And the agent "theirs" stands "asleep"
     And there should be no page errors
