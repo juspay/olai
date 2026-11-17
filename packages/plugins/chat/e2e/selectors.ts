@@ -239,10 +239,11 @@ export const ASK_ENGINE = selector(TESTID.agentPlainEngine);
 export const ASK_SEND = selector(TESTID.agentPlainSend);
 /** Why nothing was started — the sentence that stays beside the words. */
 export const ASK_REFUSED = selector(TESTID.agentPlainRefused);
-/** THE SEAT FOLDED: one line saying how the chat at this place stands, and
- *  the press that opens it. Drawn instead of the conversation, because
- *  opening a page never wakes its agent. `data-chat` is the chat row. */
-export const CHAT_SEAT_FOLDED = selector(TESTID.chatSeatFolded);
+/** THE SEAT'S HEAD: one line saying how the chat at this place stands, and
+ *  the press that opens and folds the conversation under it. A page meets it
+ *  folded, because opening a page never wakes its agent. `data-chat` is the
+ *  chat row; `data-folded` says whether the conversation is put away. */
+export const CHAT_SEAT_LINE = selector(TESTID.chatSeatLine);
 /** **This page**, over the side panel's picker. */
 export const CHAT_THIS_PAGE = selector(TESTID.chatThisPage);
 /** What a chat is CALLED wherever it is listed, and the mark of the place it

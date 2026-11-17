@@ -303,9 +303,10 @@ export const TESTID = {
    *  as chat fills it: the chat about that page, folded or open, or the box
    *  that starts one. `data-place` is the place it is about. */
   chatSeat: "chat-seat",
-  /** The seat folded: one line saying how the chat stands, whose press opens
-   *  it. `data-chat` is the chat row. */
-  chatSeatFolded: "chat-seat-folded",
+  /** The seat's head when it holds a chat: one line saying how the chat
+   *  stands, whose press opens and folds the conversation under it.
+   *  `data-chat` is the chat row; `data-folded` is `"true"` while folded. */
+  chatSeatLine: "chat-seat-line",
   /** The box that starts a chat about a page — in its seat, or in the side
    *  panel's **This page** block. `data-where` says which. Its fields are the
    *  one box's (`agentPlainInput`, `agentPlainEngine`, `agentPlainSend`,

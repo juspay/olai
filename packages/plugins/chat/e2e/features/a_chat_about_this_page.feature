@@ -242,3 +242,24 @@ Feature: A chat about the page in front
     Then the seat holds the conversation "theirs"
     And the agent "theirs" stands "idle"
     And there should be no page errors
+
+  # ...AND THE SAME LINE PUTS IT AWAY. The tab remembers the seat the way it
+  # remembers a row's fold, so a seat that could only be opened would read the
+  # conversation, and keep its agent awake, on every later visit to the page.
+  Scenario: A seat folded again stays folded when its page is visited again, and its agent stays asleep
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer files a chat about "[plan](/notes/plan.md)" in "house.olai" as "theirs"
+    And I open the document "notes/plan.md"
+    And I open the seat's chat
+    Then the seat holds the conversation "theirs"
+    When I fold the seat's chat
+    Then the seat is folded on the chat "theirs"
+    When I open the Chats menu of "theirs"
+    And I choose "Put to sleep" from the Chats menu
+    Then the agent "theirs" stands "asleep"
+    When I go to node "install" from the palette
+    And I go back
+    Then the page seat is about "file:notes/plan.md"
+    And the seat is folded on the chat "theirs"
+    And the agent "theirs" stands "asleep"
+    And there should be no page errors

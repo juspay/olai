@@ -42,7 +42,7 @@ import {
   CHAT_NAME,
   CHAT_PLACE_MARK,
   CHAT_SEAT,
-  CHAT_SEAT_FOLDED,
+  CHAT_SEAT_LINE,
   CHAT_SEND,
   CHAT_SIGN_IN,
   CHAT_SIGN_IN_INPUT,
@@ -215,19 +215,26 @@ When("I send the {word} box again", async function (this: OlaiWorld, where: stri
 /** THE SEAT AS A PAGE FINDS IT: one line, the chat's standing, no
  *  conversation read and so no agent woken. */
 Then("the seat is folded on the chat {string}", async function (this: OlaiWorld, name: string) {
-  const line = seat(this).locator(`${CHAT_SEAT_FOLDED}${attr("data-chat", this.nodeId(name))}`);
+  const line = seat(this).locator(`${CHAT_SEAT_LINE}${attr("data-chat", this.nodeId(name))}${attr("data-folded", "true")}`);
   await line.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   assert.equal(await seat(this).locator(CHAT_PANEL).count(), 0, "the seat read a conversation while folded");
 });
 
 Then("the seat is not folded", async function (this: OlaiWorld) {
-  await this.waitUntil(async () => await seat(this).locator(CHAT_SEAT_FOLDED).count() === 0,
-    "the seat's folded line to go", HYDRATION_TIMEOUT);
+  await seat(this).locator(`${CHAT_SEAT_LINE}${attr("data-folded", "false")}`)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
 });
 
 /** ...and the press that opens it, which is the standing itself. */
 When("I open the seat's chat", async function (this: OlaiWorld) {
-  const line = seat(this).locator(CHAT_SEAT_FOLDED);
+  const line = seat(this).locator(`${CHAT_SEAT_LINE}${attr("data-folded", "true")}`);
+  await line.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.press(line.locator(MARK).first());
+});
+
+/** ...and the same press again, which puts it away. */
+When("I fold the seat's chat", async function (this: OlaiWorld) {
+  const line = seat(this).locator(`${CHAT_SEAT_LINE}${attr("data-folded", "false")}`);
   await line.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.press(line.locator(MARK).first());
 });
