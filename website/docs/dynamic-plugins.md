@@ -6,7 +6,7 @@ Ask for a plugin. An agent writes it into the directory olai serves, and olai co
 
 1. Press `Cmd` + `K` (`Ctrl` elsewhere) to open the command palette, and choose **New plugin**. Say in one sentence what it should do.
 2. Name it.[^name]
-3. Watch it arrive on its own page at `/plugins/hex-swatch`.[^watch]
+3. Watch it arrive on its own page at `/plugins/hex-swatch`.[^watch][^builder]
 4. Read what the agent wrote, then press **Turn on**. What the plugin draws appears with no reload.
 
 ## Three ways to start a new plugin
@@ -27,7 +27,7 @@ The plugin's page describes what it does in plain words first, and shows its sou
 
 ## Where your approval is stored
 
-Whether the plugin is on, which version you approved, which conversation built it, and its own settings are kept as properties on one row in `_olai/Settings.olai`. That row is titled with the plugin's name, in the file every built-in plugin uses for its own settings.[^reserved][^travels]
+Whether the plugin is on, which version you approved, and its own settings are kept as properties on one row in `_olai/Settings.olai`. That row is titled with the plugin's name, in the file every built-in plugin uses for its own settings.[^reserved][^travels]
 
 Two plugins written out in full are in [dynamic-plugins-examples.md](dynamic-plugins-examples.md).
 
@@ -35,17 +35,19 @@ Two plugins written out in full are in [dynamic-plugins-examples.md](dynamic-plu
 
 [^name]: olai suggests a name from the sentence you wrote, and the line under the box says where the plugin will be kept, `Kept in your vault as plugins/hex-swatch/`. A name another plugin has, or one that is not lower-case letters, digits and hyphens starting with a letter, is refused while you type.
 
-[^watch]: The button opens the plugin's own page, with the conversation building it in the agent panel beside, and the page lists each file as the agent writes it. On a phone, and where there is no agent panel, the page links to the conversation's own page. That conversation is an ordinary one under **Chats**: close the panel, come back tomorrow, and an alert tells you when the agent needs you.
+[^watch]: The button opens the plugin's own page, with the conversation building it in the agent panel beside, and the page lists each file as the agent writes it. On a phone, and where there is no agent panel, the chat sits in the seat at the foot of the page. That conversation is an ordinary one under **Chats**: close the panel, come back tomorrow, and an alert tells you when the agent needs you.
 
 [^sidebar]: The **Plugins** section of the sidebar lists one row per plugin, and a single row reading **Ask for your first plugin…** while you have none. A row carries a mark only when it needs something from you: `Review` for a version nobody has read, `Problem` for one that will not start, and a moving dot while an agent is still writing its files. A plugin switched off is drawn dim.
 
     All three ask the same two questions: what the plugin should do, and what to call it.
 
-[^page]: The plugin's page opens with the title and first line of its `README.md`, then **What it uses**, read off the code's own imports. The files are below that, one tab each, beside the folder they are in. Settings it declares sit under **Settings**, and **Ask for a change** opens the conversation that built it.
+[^page]: The plugin's page opens with the title and first line of its `README.md`, then **What it uses**, read off the code's own imports. The files are below that, one tab each, beside the folder they are in. Settings it declares sit under **Settings**, and **Ask for a change…** opens the chat about this page beside it.
 
 [^version]: A version is a hash of the plugin's two code files. Editing either one pauses the plugin, stops it running, and shows what changed since the version you approved. Editing the `README.md` changes nothing, because prose is not code. Every approval carries the version the page showed you, so one made after the source changed is refused.
 
-[^reserved]: You cannot use `on`, `approved`, `builder` or `checked` as a plugin setting: a `Config` declaring one faults the plugin, and `plugins.configure` refuses to write one. `checked` is the version the building conversation last finished at, and olai writes it when that call comes in. A plugin that could write `checked` itself would declare itself finished.
+[^builder]: Asking for a new plugin starts a chat titled `[Hex Swatch](/plugins/hex-swatch)`, which is the chat about that plugin's page. Any chat at that address is the plugin's builder: the page reads **Being built** while it works, tells you when the agent has finished, and carries **Ask for a change…** on a desktop. A phone draws the chat in the page's seat instead. A plugin with no chat at its address draws the **Ask about …** box at both widths.
+
+[^reserved]: You cannot use `on`, `approved` or `checked` as a plugin setting: a `Config` declaring one faults the plugin, and `plugins.configure` refuses to write one. `checked` is the version the building conversation last finished at, and olai writes it when that call comes in. A plugin that could write `checked` itself would declare itself finished.
 
 [^travels]: A plugin folder you copy in from another directory arrives switched off and unapproved, because the code travels and your approval does not. Your answer survives a restart and a stop, because it is a line in a file: `on: no`.
 
@@ -89,10 +91,11 @@ Nothing else notifies you. A plugin starting is not news, because you pressed th
 ```
 hex-swatch            on: yes
                       approved: 3fa9c1d2b7e45610
-                      builder: n-7f3a
                       checked: 3fa9c1d2b7e45610
                       size: large
 ```
+
+A `builder` property on this row is ordinary text that olai reads nothing from: the chat about `/plugins/hex-swatch` is the builder.
 
 - Not a lock. olai refuses any write of `approved` from an agent session, which stops an agent approving the plugin it just wrote. Otherwise `approved` is an ordinary property, and one that turns up on disk is an ordinary edit to your files.
 - Not a report of what the browser file did. A component that throws an error while it is drawn is caught by the tab, the browser console names the plugin, and the plugin still says `running`, because on the server it is.

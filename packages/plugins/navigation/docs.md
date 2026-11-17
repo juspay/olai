@@ -33,7 +33,7 @@ A link opens in the pane it is drawn in.[^pane] Back and Forward walk the window
 
 ## When a page cannot be opened
 
-A pane says `Loading…` while the directory is read, and `Finding…` while olai looks for the file a row lives in.[^answering] The closed block below lists the refusals.
+A pane says `Loading…` while the directory is read, and `Finding…` while olai finds the file a row lives in.[^answering]
 
 ## The command palette
 
@@ -41,7 +41,7 @@ A pane says `Loading…` while the directory is read, and `Finding…` while ola
 
 ## What other plugins add
 
-A plugin can add a page, a palette row, a prefix, a link preview or a keyboard shortcut.[^locations] Navigation offers three services.[^services]
+A plugin can add a page, a palette row, a prefix, a link preview or a keyboard shortcut.[^locations] A page can also carry a seat at its foot.[^seat] Navigation offers three services.[^services]
 
 [^anchor]: Every link in olai is an ordinary HTML anchor, and this plugin answers the click on it.
 
@@ -69,7 +69,9 @@ A plugin can add a page, a palette row, a prefix, a link preview or a keyboard s
 
 [^levels]: A further step replaces the list, puts a breadcrumb for itself before the box, and empties the box. A step is either a group of ordinary rows or a box you type a value into. The closed block below holds both kinds, the keys that move through them, how a plugin declares one, and what happens when its plugin is switched off.
 
-[^locations]: The seven places a plugin can add to are `app.route`, `navigation.pages`, `navigation.content`, `navigation.palette-adapters`, `navigation.link-previews`, `app.keys` and `app.palette`. The closed block below says what each takes, and how a keyboard shortcut is registered.
+[^locations]: The eight places a plugin can add to are `app.route`, `navigation.pages`, `navigation.content`, `navigation.palette-adapters`, `navigation.link-previews`, `navigation.page-seats`, `app.keys` and `app.palette`. The closed block below says what each takes, and how a keyboard shortcut is registered.
+
+[^seat]: Navigation owns the seat and hands every page it draws what was contributed there. The page frame places it and says which file or address it is drawing, and what that page is called. The document page, the page of a file olai only shows, an outline's own page and a plugin's page each place one, and chat draws the conversation about that page in it ([chat.md](chat.md)).
 
 [^services]: `navigation.state` writes a plugin's address, reads one, says which plugin is behind an address, and says whether a page takes a filter. `navigation.palette` is what another plugin may do to the box: open it, open it at a step, ask a question in it, or close it. `navigation.gestures` ignores the extra click a touch browser sends after a long press. The runtime these sit on is [../architecture/plugin-system.md](../architecture/plugin-system.md).
 
@@ -159,6 +161,7 @@ The palette's steps are tested end to end against the maintained fixture in [tes
 | `navigation.content` | a handler for a computed address |
 | `navigation.palette-adapters` | palette rows and prefixes that depend on where you are |
 | `navigation.link-previews` | a preview of where a link goes |
+| `navigation.page-seats` | something drawn at the foot of a page, told which place the page is and what it is called |
 | `app.keys` | a keyboard shortcut |
 | `app.palette` | a row that opens an address |
 

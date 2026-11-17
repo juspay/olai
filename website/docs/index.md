@@ -36,7 +36,7 @@ Chat with a coding agent, such as Claude Code, beside your notes, and give it wo
 | --- | --- |
 | [Talking to an agent](chat.md) | Picking an agent, signing in, the controls while it works, and how full its context is. |
 | [Giving an agent work](giving-an-agent-work.md) | Handing an agent a file, a row or a picture, and reading what it changed. |
-| [Node agents: giving a row its own agent](node-agents.md) | Starting a conversation that belongs to one row of an outline, and managing the agent behind it. |
+| [Node agents: giving a row its own agent](node-agents.md) | Starting a conversation that belongs to one row, or to the page you are reading, and managing the agent behind it. |
 | [When olai interrupts you, and what it marks unread](attention.md) | How olai tells you an agent is waiting on you, and which messages you have not read. |
 | [Point an agent at a running olai](connecting-agents.md) | Letting an agent that runs outside olai use a running olai: `/mcp`, `olai surface`, and capture from a terminal. |
 

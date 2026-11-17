@@ -14,6 +14,7 @@ Top to bottom:
 | **Contents** | the document's headings, open by default[^contents] |
 | the body | the document, rendered |
 | **Referenced by `N` things** | what points at this document[^referrers] |
+| the seat | a chat about this document[^seat] |
 
 A page says `Loading…` until olai has read the file.[^missing]
 
@@ -34,7 +35,7 @@ Clicking a heading, or a line of **Contents**, goes to an address like `/notes/p
 
 ## What still works without this plugin
 
-Switching `markdown` off takes away document pages and the read and write procedures.[^off] Switching off outlines or the files sidebar leaves this page and its editor able to save.[^reverse]
+Switching `markdown` off takes away document pages and the read and write procedures.[^off] This page and its editor stand without outlines or the files sidebar.[^reverse]
 
 [^what]: The `markdown` plugin claims `.md` files. What a document is, and how it is written, is in [../documents-and-kinds.md](../documents-and-kinds.md).
 
@@ -65,6 +66,8 @@ Switching `markdown` off takes away document pages and the read and write proced
 [^off]: Outline editing, the sidebar and open outline pages are untouched, and outline notes and chat messages keep rendering markdown text, which a renderer that is always loaded draws, not this plugin. Switching it back on reads the files as they are now, with its editor state reset, and an address you kept can draw its page again.
 
 [^reverse]: A document page and its editor stand without those plugins, because the directory supplies access to the file and the navigation plugin supplies the address.
+
+[^seat]: The seat is navigation's, and chat fills it ([chat.md](chat.md)): with a chat about this document it draws the conversation, and without one a box headed **Chat about this page**. This plugin also draws the page of the kinds olai only shows, such as a `.csv`, a picture, a `.pdf` and a saved `.html` page, and that page puts a seat at its foot too. With chat switched off, or no agent this machine can start, neither page draws one.
 
 <details>
 <summary>What other plugins contribute</summary>
