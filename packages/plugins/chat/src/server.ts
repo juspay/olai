@@ -75,6 +75,7 @@ import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
   documentAt,
+  type NodeAgent,
   type OpFailure,
   othersOf,
   type Reading,
@@ -864,16 +865,26 @@ export default definePlugin({
 
     // ── the fifth door, and the one a row that is not chat reaches a chat by ──
 
-    /** The chat row at an address, in the vault as it stands now — the
-     *  server's half of the browser's `chatAt` (`./server/places.ts`). Read off
-     *  the reading in hand with the pure seating, so a question from another
-     *  row never moves chat's own roster under it; no reading yet is no chat. */
-    const chatAtAddress = (about: string) => Effect.map(ops.reading, (read) => {
-      const reading = read as Reading | null | undefined
-      if (reading === null || reading === undefined) return undefined
-      const place = placeIn(reading, about)
-      return place === null ? undefined : chatsIn(reading, seatingIn(reading.derived)).at(place)
-    })
+    /** The chat rows at these addresses, in the vault as it stands now, keyed
+     *  by the address asked about and holding only the ones a chat is at —
+     *  the server's half of the browser's `chatAt` (`./server/places.ts`).
+     *  Read off the reading in hand with the pure seating, built ONCE for the
+     *  whole question, so every address is answered about one revision and a
+     *  question from another row never moves chat's own roster under it; no
+     *  reading yet is no chat anywhere. */
+    const chatRowsAt = (abouts: ReadonlyArray<string>): Effect.Effect<ReadonlyMap<string, NodeAgent>> =>
+      Effect.map(ops.reading, (read) => {
+        const found = new Map<string, NodeAgent>()
+        const reading = read as Reading | null | undefined
+        if (reading === null || reading === undefined) return found
+        const seated = chatsIn(reading, seatingIn(reading.derived))
+        for (const about of abouts) {
+          const place = placeIn(reading, about)
+          const row = place === null ? undefined : seated.at(place)
+          if (row !== undefined) found.set(about, row)
+        }
+        return found
+      })
     /**
      * `conversations` — STARTING A CONVERSATION, SPEAKING INTO IT, AND WHAT
      * CAN BE STARTED, for a row that is not chat.
@@ -922,10 +933,14 @@ export default definePlugin({
       // THE CHAT AT AN ADDRESS, read off the vault as it stands now rather
       // than off whichever revision last reached this row — a caller following
       // a revision of its own is answered about that one or a later one
-      // (`./server/places.ts`).
-      seatAt: (about) => Effect.map(chatAtAddress(about), (row) =>
-        row === undefined || row.session === null ? null : { agent: row.engine, session: row.session }),
-      chatAt: (about) => Effect.map(chatAtAddress(about), (row) => row !== undefined),
+      // (`./server/places.ts`). One address or a list of them, both over the
+      // one reading and the one seating {@link chatRowsAt} builds per call.
+      seatAt: (about) =>
+        Effect.map(chatRowsAt([about]), (rows) => {
+          const row = rows.get(about)
+          return row === undefined || row.session === null ? null : { agent: row.engine, session: row.session }
+        }),
+      chatsAt: (abouts) => Effect.map(chatRowsAt(abouts), (rows) => new Set(rows.keys())),
       deliver: (who, to, text, current) =>
         chat === null
           ? Effect.succeed(false)

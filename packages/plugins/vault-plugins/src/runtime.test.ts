@@ -107,11 +107,12 @@ const nothing = () => readingOfVault(new Map([["notes.md", "# notes\n"]]))
  * bench that could not see the file would be asserting about neither.
  *
  * `chats` is the CHAT AT EACH ADDRESS, as a serve with chat up would answer
- * it: the runtime asks `Conversations.here` per revision for every plugin the
- * vault defines, and *being built* is that answer (`./source.ts`'s
- * `isBuilding`). A case adds the plugin page's address before it follows,
- * `asked` is every address the runtime named, and `bench(use, false)` is the
- * other serve — one with chat switched off, where there is no door at all.
+ * it: the runtime asks `Conversations.here` once per revision about every
+ * plugin page the vault defines, and *being built* is that answer
+ * (`./source.ts`'s `isBuilding`). A case adds the plugin page's address before
+ * it follows, `asked` is every address the runtime named, and `bench(use,
+ * false)` is the other serve — one with chat switched off, where there is no
+ * door at all.
  */
 const bench = <A, E>(
   use: (
@@ -143,7 +144,11 @@ const bench = <A, E>(
         ? {
           open: () => Effect.die(new Error("this bench opens no conversation")),
           say: () => Effect.succeed(false),
-          here: ({ about }) => Effect.sync(() => { asked.push(about); return here.has(about) }),
+          here: ({ about }) =>
+            Effect.sync(() => {
+              asked.push(...about)
+              return new Set(about.filter((one) => here.has(one)))
+            }),
           engines: () => [],
         }
         : undefined

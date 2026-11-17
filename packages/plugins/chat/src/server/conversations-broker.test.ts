@@ -82,7 +82,7 @@ test("a word said through the broker's door after the asking row unloaded lands 
       mint: () => Effect.succeed({ node: "node-1", to: SEATED, refusal: null }),
       send: () => Effect.void,
       seatAt: () => Effect.succeed(SEATED),
-      chatAt: () => Effect.succeed(true),
+      chatsAt: (abouts) => Effect.succeed(new Set(abouts)),
       deliver: (who, _to, text, current) =>
         Effect.sync(() => {
           // THE GATE IS READ AT THE LANDING and not only at the asking, which is
@@ -148,7 +148,7 @@ test("a mint in flight when chat goes keeps the node it made and answers the ref
           if (gone) return yield* new UsageFailure({ reason: "the chat has stopped" })
         }),
       seatAt: () => Effect.succeed(SEATED),
-      chatAt: () => Effect.succeed(true),
+      chatsAt: (abouts) => Effect.succeed(new Set(abouts)),
       deliver: () => Effect.succeed(true),
       engines: () => [{ id: "claude", name: "Claude Code" }],
     }

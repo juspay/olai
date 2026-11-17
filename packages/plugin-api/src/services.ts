@@ -508,11 +508,16 @@ export interface Conversations {
    *  why this is an answer rather than a failure: none of the four is anything
    *  going wrong. */
   readonly say: (input: { readonly about: string; readonly text: string }) => Effect.Effect<boolean>
-  /** Whether a chat is at the address `about` — yes or no, and nothing about
-   *  what it said: the door stays write-only. Asked of the vault as it stands
-   *  when the call runs, so a caller following a revision is answered about
-   *  that revision or a later one, never an earlier. */
-  readonly here: (input: { readonly about: string }) => Effect.Effect<boolean>
+  /** WHICH OF THESE ADDRESSES HAS A CHAT — the ones that do, and nothing
+   *  about what any of them said: the door stays write-only. A list and one
+   *  answer because that is the question a caller holding a roster asks, and
+   *  because every address is then read off ONE reading of the vault: no two
+   *  of them can come back from two different revisions. Asked of the vault as
+   *  it stands when the call runs, so a caller following a revision is
+   *  answered about that revision or a later one, never an earlier. */
+  readonly here: (input: {
+    readonly about: ReadonlyArray<string>
+  }) => Effect.Effect<ReadonlySet<string>>
   /** The engines this machine can actually start, best first — the MACHINE's
    *  answer rather than the vault's, because a caller that has to choose one
    *  needs the list the panel's own picker draws from. An empty list is a serve

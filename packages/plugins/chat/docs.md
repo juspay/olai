@@ -191,7 +191,7 @@ Every plugin that can reach a conversation uses one of seven services chat provi
 
 The name `conversations` belongs to olai's core rather than to chat, and chat is what stands behind it while it is running. A plugin asks core for it on each call and gets either the service or nothing, so a plugin that can work without chat is never held up by it.
 
-It offers four calls, and every one of them names a page by its address. `open` creates the chat row for that page, titles it with the page's name, gives it an agent and sends a first message. `say` speaks into the chat at an address, `here` answers whether a chat is there, and `engines` says what this machine can start.
+It offers four calls, and every one of them names pages by their addresses. `open` creates the chat row for that page, titles it with the page's name, gives it an agent and sends a first message. `say` speaks into the chat at an address, `here` takes a list of addresses and answers which of them have a chat, and `engines` says what this machine can start.
 
 There is no call that reads a conversation: a plugin may start one and talk to it, never hold a copy of what was said.
 

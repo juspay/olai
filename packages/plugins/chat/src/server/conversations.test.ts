@@ -64,7 +64,7 @@ const fixture = (over: Partial<ConversationsOwner> = {}) => {
         if (sendRefusal !== null) return yield* new UsageFailure({ reason: sendRefusal })
       }),
     seatAt: (about) => Effect.sync(() => seated.get(about) ?? null),
-    chatAt: (about) => Effect.sync(() => chats.has(about)),
+    chatsAt: (abouts) => Effect.sync(() => new Set(abouts.filter((about) => chats.has(about)))),
     deliver: (who, to, text, current) =>
       Effect.sync(() => {
         deliveries.push({ who, to, text, current: current() })
@@ -211,16 +211,20 @@ test("say answers false where the words found nothing to land in at the delivery
   expect(await Effect.runPromise(door(it).say({ about: ABOUT, text: "any news?" }))).toBe(false)
 })
 
-test("here follows the vault at that address, started or not", async () => {
+test("here answers which of the addresses asked about have a chat, started or not", async () => {
   const it = fixture()
-  expect(await Effect.runPromise(door(it).here({ about: ABOUT }))).toBe(true)
-  expect(await Effect.runPromise(door(it).here({ about: "/notes/plan.md" }))).toBe(false)
-  // A chat nobody has started is still a chat at that address — `here` is a
-  // fact about the vault and not about what anybody said.
-  it.unstartedAt(ABOUT)
-  expect(await Effect.runPromise(door(it).here({ about: ABOUT }))).toBe(true)
+  it.unstartedAt("/plugins/clock")
+  // A chat there, a chat nobody has started — both are chats at that address,
+  // because `here` is a fact about the vault and not about what anybody said —
+  // and nothing at an address no chat was ever put at.
+  expect(await Effect.runPromise(door(it).here({ about: [ABOUT, "/plugins/clock", "/notes/plan.md"] })))
+    .toEqual(new Set([ABOUT, "/plugins/clock"]))
+  // ...and a chat that was retitled or trashed is gone from the next answer.
   it.nothingAt(ABOUT)
-  expect(await Effect.runPromise(door(it).here({ about: ABOUT }))).toBe(false)
+  expect(await Effect.runPromise(door(it).here({ about: [ABOUT, "/plugins/clock"] })))
+    .toEqual(new Set(["/plugins/clock"]))
+  // Nothing asked about is nothing answered.
+  expect(await Effect.runPromise(door(it).here({ about: [] }))).toEqual(new Set())
 })
 
 test("engines reflects the roster, read when asked rather than captured", () => {

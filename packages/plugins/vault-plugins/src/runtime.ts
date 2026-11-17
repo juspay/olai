@@ -312,8 +312,9 @@ export const openDynamic = (
   const checkedBuilds = new Map<string, { readonly version: string; readonly why: string | null }>()
 
   /**
-   * WHICH PLUGINS HAVE A CHAT AT THEIR PAGE'S ADDRESS, as of the revision this
-   * runtime last followed.
+   * THE PLUGIN PAGE ADDRESSES A CHAT IS AT, as of the revision this runtime
+   * last followed — asked of chat by address, so a row reads its own back
+   * through `pluginAbout` ({@link rows}).
    *
    * ASKED PER REVISION AND KEPT, because the question is an EFFECT and a row
    * is a value: `Conversations.here` reads the vault as it stands when it
@@ -325,7 +326,7 @@ export const openDynamic = (
    * there is no chat anywhere, which is what a serve with chat off honestly
    * has.
    */
-  const chats = new Set<string>()
+  let chats: ReadonlySet<string> = new Set()
 
   /**
    * BRING THE MOUNTED SET INTO LINE WITH A READING.
@@ -370,15 +371,14 @@ export const openDynamic = (
       // ...AND WHICH OF THEM A CHAT IS ABOUT, asked of chat rather than read
       // off the folder: the chat is a row in the vault titled with this
       // plugin's address, and nothing on the plugin's own node records it
-      // ({@link chats}). One question per defined plugin per revision, and
-      // none at all on a serve with chat off.
-      chats.clear()
+      // ({@link chats}). ONE question per revision, over every page this
+      // reading defines, so the answers are one reading of the vault rather
+      // than one per plugin; and none at all on a serve with chat off, which
+      // is the empty set.
       const door = conversations()
-      if (door !== undefined) {
-        for (const one of defined) {
-          if (yield* door.here({ about: pluginAbout(one.name) })) chats.add(one.name)
-        }
-      }
+      chats = door === undefined
+        ? new Set()
+        : yield* door.here({ about: defined.map((one) => pluginAbout(one.name)) })
       // WANTED IS APPROVED **AND** ON, and the two are different facts: a
       // plugin a person approved and then switched off is approved and not
       // running, and a plugin somebody switched on and then edited is on and
@@ -482,7 +482,7 @@ export const openDynamic = (
       // chat is the answer {@link follow} already took for this revision.
       const asking = conversations() !== undefined
       return seen.map((one) =>
-        rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name), checkedBuilds.get(one.name), chats.has(one.name), asking))
+        rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name), checkedBuilds.get(one.name), chats.has(pluginAbout(one.name)), asking))
     },
     names: () => seen.map((one) => one.name),
     follow: (reading) => follow(reading === null ? [] : definedIn(reading, built)),

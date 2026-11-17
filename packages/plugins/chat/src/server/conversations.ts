@@ -92,8 +92,9 @@ export interface ConversationsOwner {
    *  place (`./places.ts`), or `null` where no chat is there or the one there
    *  has never been started. Asked of the vault as it stands now. */
   readonly seatAt: (about: string) => Effect.Effect<Conversing | null>
-  /** ...and whether a chat row is there at all, started or not. */
-  readonly chatAt: (about: string) => Effect.Effect<boolean>
+  /** ...and WHICH OF THESE ADDRESSES has a chat row at all, started or not —
+   *  the ones that do, read off one vault so the answers cannot disagree. */
+  readonly chatsAt: (abouts: ReadonlyArray<string>) => Effect.Effect<ReadonlySet<string>>
   /** One machine-marked message into a conversation that is already there, as
    *  the named plugin, gated on that plugin still being here. `false` where
    *  there is no chat at all to hand it to. */
@@ -157,10 +158,10 @@ export const conversationsProvision = (
         if (to === null) return false
         return yield* owner.deliver(who, to, input.text, current)
       }),
-    /** Whether a chat is there — the one fact about a conversation this door
-     *  says out loud, and it is a fact about the vault, not about what anybody
-     *  said. */
-    here: (input) => owner.chatAt(input.about),
+    /** Which addresses have a chat — the one fact about a conversation this
+     *  door says out loud, and it is a fact about the vault, not about what
+     *  anybody said. */
+    here: (input) => owner.chatsAt(input.about),
     engines: owner.engines,
   }
 }
