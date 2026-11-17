@@ -263,6 +263,11 @@ export const CHAT_PAGE_WHERE = selector(TESTID.chatPageWhere);
 export const CHAT_PAGE_STANDING = selector(TESTID.chatPageStanding);
 /** *Open <name> beside ›*, and what it reads once a pane has the item. */
 export const CHAT_OPEN_BESIDE = selector(TESTID.chatOpenBeside);
+/** ...and the opposite verb, wherever the ITEM is drawn: *Open beside ›* puts
+ *  the conversation in the pane on the right, and reads *Shown beside* — the
+ *  one line a fold, a node's page and a note's seat draw in place of a
+ *  conversation that is already in a pane — once one has it. */
+export const CHAT_BESIDE = selector(TESTID.chatBeside);
 /** A note's switch for where its chat opens; `data-beside` is the answer. */
 export const CHAT_OPENS = selector(TESTID.chatOpens);
 export const CHAT_OPENS_SWITCH = selector(TESTID.chatOpensSwitch);

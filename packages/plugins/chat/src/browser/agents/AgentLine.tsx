@@ -17,10 +17,11 @@ import { TESTID } from "../../testids.ts"
 import { dock } from "../dock.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { LINE_VERB } from "./verb.ts"
-import { type AgentItem } from "@olai/format"
+import { type AgentItem, itemOf } from "@olai/format"
 import { nameOfItem, titleOfNode } from "./called.ts"
 import { servedDirectory } from "../vault.ts"
 import { OpenBeside } from "./OpenBeside.tsx"
+import { ChatBeside } from "./ChatBeside.tsx"
 
 export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly dock?: boolean; readonly beside?: AgentItem }) {
   const agents = useAgents()
@@ -66,6 +67,22 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
           copy is drawn rather than spoken. */}
           <span class="sr-only"> — ⌘J shows or hides the panel</span></button>
       </Tip>
+    </Show>
+    {/* THIS CONVERSATION, BESIDE WHAT IT IS ABOUT — offered on every line
+        drawn where the item itself is (a fold, a node's page, a note's open
+        seat), and never on the chat's own page, whose line carries the
+        opposite verb below (`./ChatBeside.tsx`).
+
+        DRAWN ONLY WHERE THERE CAN BE A PANE BESIDE THIS ONE. Below `md` the
+        panes are a strip of tabs, one at a time, so "beside" names nothing a
+        reader would see — and this line is drawn inside a fold on the
+        narrowest screen there is, where one more wrapped row of verbs pushes
+        the rows under it off the bottom of the window (a phone is 844 tall,
+        and the row under an open fold sat at 845). The one-line *Shown
+        beside* is NOT gated: wherever a conversation has gone, the way back
+        to it is drawn. */}
+    <Show when={props.beside === undefined && props.dock !== true}>
+      <ChatBeside item={itemOf(props.node)} class={`hidden md:inline-flex ${LINE_VERB}`} />
     </Show>
     {/* THE ITEM, BESIDE THIS CONVERSATION — only on the chat's own page,
         which is the only line drawn in a pane the chat itself owns

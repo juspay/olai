@@ -1,6 +1,6 @@
 import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
-import { type AgentItem, memoryOf, UsageFailure } from "@olai/format"
+import { type AgentItem, itemOf, memoryOf, UsageFailure } from "@olai/format"
 import { Result } from "effect"
 import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, untrack, onCleanup, Show } from "solid-js"
 import { usePane } from "olai-plugin-navigation/pane"
@@ -20,6 +20,7 @@ import { AgentAbove } from "./AgentAbove.tsx"
 import { Strips } from "../chat/Strips.tsx"
 import { Conversation } from "./Fold.tsx"
 import { AskBox } from "./AskBox.tsx"
+import { ChatBeside, useBeside } from "./ChatBeside.tsx"
 import { receive } from "./handoff.ts"
 
 export interface PageSession {
@@ -157,6 +158,20 @@ export function usePage(node: Accessor<string>) {
  * beside* is a verb about the pane this line is in: on a NODE's page the
  * item is already the page, so the button would put a thing beside itself. */
 export function PageHead(props: { readonly node: string; readonly beside?: AgentItem }) {
+  const beside = useBeside(() => props.node)
+  // THE ONE LINE INSTEAD OF THE CONVERSATION, and the page session with it:
+  // `<Show>` disposes what it is not drawing, so a page whose chat is in the
+  // pane next door holds no lease on it (`./beside.ts`, `./page-owners.ts`).
+  return <Show when={beside() === null} fallback={
+    <div class="flex items-center gap-2 text-label text-muted" data-testid={TESTID.chatBesideLine} data-agent={props.node}>
+      <ChatBeside item={itemOf(props.node)} />
+    </div>
+  }>
+    <PageAgentLine node={props.node} beside={props.beside} />
+  </Show>
+}
+
+function PageAgentLine(props: { readonly node: string; readonly beside?: AgentItem }) {
   const page = usePage(() => props.node)
   return <Show when={page()?.chat()} fallback={<AgentAbove node={props.node} line />}>{current =>
     <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
@@ -168,7 +183,15 @@ export function PageHead(props: { readonly node: string; readonly beside?: Agent
   }</Show>
 }
 
+/** The conversation itself — drawn where the head says it is, and nowhere
+ *  else: with a pane on this chat the head carries the whole of what this
+ *  page says about it, so there is no second line here to press. */
 export function PageFoot(props: { readonly node: string }) {
+  const beside = useBeside(() => props.node)
+  return <Show when={beside() === null}><PageConversation node={props.node} /></Show>
+}
+
+function PageConversation(props: { readonly node: string }) {
   const page = usePage(() => props.node)
   return <Show when={page()}>{owner =>
     <div class="mt-6" data-testid={TESTID.agentPageFoot} data-agent={props.node}>

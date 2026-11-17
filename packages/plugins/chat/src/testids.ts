@@ -118,6 +118,17 @@ export const TESTID = {
    *  into the one on its right. Reads *Shown beside* where a pane already has
    *  the item, and then only focuses it; `data-beside` is which of the two. */
   chatOpenBeside: "chat-open-beside",
+  /** *Open beside ›* — this CONVERSATION into the pane on the right, offered
+   *  wherever the item itself is drawn (a row's fold, a node's page, a note's
+   *  seat). Reads *Shown beside* and focuses that pane once one has it, and
+   *  then stands alone as the one line those faces draw in place of the
+   *  conversation; `data-beside` is which of the two, `data-item` the item. */
+  chatBeside: "chat-beside",
+  /** THE ONE LINE a fold, a node's page and a note's seat draw in place of a
+   *  conversation that a pane in this layout already has — the button above
+   *  and nothing else. `data-agent` is the chat's key, so a scenario can say
+   *  WHICH conversation went elsewhere. */
+  chatBesideLine: "chat-beside-line",
   /** A NOTE'S SWITCH: where its chat opens, written as `chat-opens`.
    *  `data-beside` is the answer. */
   chatOpens: "chat-opens",

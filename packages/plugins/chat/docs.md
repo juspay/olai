@@ -10,7 +10,7 @@ One engine plugin, the plugin that runs one agent program: [claude](claude.md), 
 
 ## Where conversations appear
 
-Chat draws the conversation inside a row, on a node's page, at the foot of a page, in the agent panel, and in the sidebar's **Needs you** and **Chats** sections.[^faces][^seat][^links] The panel opens and closes with `Cmd` + `J`.[^panel] Chat adds no tools an agent can call, only instructions.[^charter]
+Chat draws the conversation inside a row, on a node's page, at the foot of a page, in a pane of its own, in the agent panel and in the sidebar.[^faces][^seat][^links][^drawnonce] The panel opens and closes with `Cmd` + `J`.[^panel] Chat adds no tools an agent can call, only instructions.[^charter]
 
 ## Give a row or a page its own chat
 
@@ -37,11 +37,13 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 [^engine]: `OLAI_AGENT_PATH` lists the directories that hold those programs; unset, olai searches `PATH`. Switching one engine plugin off, or emptying the path to its own program, makes only that engine unavailable. The other engines that are switched on are still found, and conversations carry on.
 
-[^faces]: Chat draws in ten places. They are inside a row, on a node's page, at the foot of a page, beside a row, in a row's menu and in the breadcrumbs. The other four are the sidebar, the palette, the agent panel, and a phone's bar of buttons along the bottom. The closed block below says what it draws in each.
+[^faces]: Chat draws in eleven places. They are inside a row, on a node's page, at the foot of a page, in a pane of its own, beside a row, in a row's menu and in the breadcrumbs. The other four are the sidebar, the palette, the agent panel, and a phone's bar of buttons along the bottom. The closed block below says what it draws in each.
 
 [^panel]: `Cmd` is the key on a Mac and `Ctrl` elsewhere. Each browser remembers which conversation sits in the panel. Whether the column is open, and how wide it is, belongs to the frame around the page. A serve with no desktop interface draws no panel, no toggle and no shortcut.
 
-[^links]: Every row a conversation names is a link you can click. A reference an author wrote, the result of a write, and an id in backticks all select that row in whichever outline is showing it. A sidebar row, a **Needs you** row and an agent in the palette open the conversation's own page instead, so that you can read the whole chat.
+[^links]: Every row a conversation names is a link you can click. A reference an author wrote, the result of a write, and an id in backticks all select that row in whichever outline is showing it. A sidebar row, a **Needs you** row and an agent in the palette open the chat's own page instead, so that you can read the whole chat.
+
+[^drawnonce]: The agent line's **Open beside ›** opens the conversation in the pane to the right, and leaves the page you are reading as it is. Where a pane already holds it, the other places draw one line reading **Shown beside**, which takes you to that pane. A link clicked inside a chat pane opens in the pane beside it: the one on its left, or a new one on its right.
 
 [^charter]: The paragraph chat adds to every conversation tells the agent three things. A person reads the answer in the panel beside the outline. An id in backticks is clickable, while one in a code fence is a quotation. A link to an address inside olai is opened in place. The [mcp](mcp.md) plugin puts this paragraph into the instructions an agent receives when it starts.
 
@@ -67,6 +69,7 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 | inside a row | The conversation, the line naming the agent, and the box you type in. |
 | a node's page | The agent line under the title, and the conversation and the box after the rows. |
 | the foot of a page | The chat about that page, or the box that starts one, under the heading **Chat about this page**. |
+| a pane of its own | The whole chat at its own address, headed by the name of the row or note it belongs to. |
 | beside a row | What the row's agent is doing, or a button to start an agent while one is available. |
 | a row's menu | **Start an agent** on a plain row; **Fresh start**, **Close the agent** and the sleep entries on a row that has one. |
 | the breadcrumbs | A mark on an ancestor row that has an agent, on a trail, a day's row and a search result. |

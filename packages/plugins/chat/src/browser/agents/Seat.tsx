@@ -48,6 +48,8 @@ import { AgentStanding } from "./Standing.tsx"
 import { AboutBox } from "./Door.tsx"
 import { talking } from "./roster.ts"
 import { unfolded } from "./folding.ts"
+import { itemKey } from "@olai/format"
+import { ChatBeside, useBeside } from "./ChatBeside.tsx"
 
 export function ChatSeat(props: SeatProps) {
   const agents = useAgents()
@@ -56,6 +58,12 @@ export function ChatSeat(props: SeatProps) {
   const chat = createMemo(() => {
     const path = note()
     return path === null ? undefined : agents.chatOf({ kind: "note", path })
+  })
+  /** The pane already drawing this note's chat, if any — a note's chat key is
+   *  its own path (`@olai/format`'s `itemKey`). */
+  const beside = useBeside(() => {
+    const path = note()
+    return path === null ? "" : itemKey({ kind: "note", path })
   })
   // REGISTERED FROM AN EFFECT, AS VALUES: the side panel and the palette read
   // this from outside the page, and a closure over this page's props would let
@@ -76,6 +84,14 @@ export function ChatSeat(props: SeatProps) {
             <span class="h-px flex-1 bg-rule" aria-hidden="true" />
             <Show when={!talking(chat())}><span class="font-normal normal-case tracking-normal">No chat yet</span></Show>
           </header>
+          {/* THE CONVERSATION IS DRAWN ONCE: with a pane on this note's chat
+              the seat is one line saying so, and the press focuses that pane
+              (`./beside.ts`). */}
+          <Show when={beside() === null} fallback={
+            <div class="mb-2 flex items-center gap-2 text-label text-muted" data-testid={TESTID.chatBesideLine} data-agent={itemKey({ kind: "note", path: path() })}>
+              <ChatBeside item={{ kind: "note", path: path() }} />
+            </div>
+          }>
           {/* KEYED ON THE CHAT'S KEY and not its row: the roster mints fresh
               rows every frame, and a conversation remounted per frame would be
               one re-read per frame. */}
@@ -88,6 +104,7 @@ export function ChatSeat(props: SeatProps) {
                 </div>}</Show>
               <Show when={unfolded(id)}><SeatChat node={id} /></Show>
             </>}
+          </Show>
           </Show>
         </section>
       </Show>

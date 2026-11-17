@@ -8,10 +8,11 @@ Hover or focus a row with no agent and **Start an agent** appears beside it.[^st
 
 ## Where the conversation appears
 
-One conversation, with one draft and one transcript, is drawn in three places on a desktop and two on a phone:
+One conversation, with one draft and one transcript, is drawn in four places on a desktop and three on a phone:
 
 - under the row, when you unfold it[^fold]
 - on the row's own page, or in the page's seat[^page]
+- in a pane of its own[^beside]
 - in the agent panel, the column on the right[^panel][^column]
 
 ## Find a chat again
@@ -41,6 +42,8 @@ The agent's first message carries an instruction from olai:[^preamble][^about] t
 [^fold]: Unfolding puts the conversation under the row and above the row's children. Press the state shown beside the row to unfold it, and press it again to fold it. Several rows can be unfolded at once.
 
 [^page]: On the row's own page, the agent line and the strips above the conversation sit under the title. The rows under it come below the drawer of the row's properties, and the conversation comes after those rows, scrolling with the pane. Opened in a page's seat, a chat draws the same agent line, strips and box.
+
+[^beside]: A chat has an address of its own. **Open beside ›** on the agent line opens it in the pane to the right, and leaves the page you are reading as it is. While a pane holds the conversation, the row's fold, the row's page and a page's seat each draw one line reading **Shown beside**, which takes you to that pane. A link you click inside a chat pane opens in the pane beside it.
 
 [^panel]: The agent panel, labelled **Agent panel**, stays where it is while you move between outlines. A phone has no panel. Four things open it on the conversation they name: the control on a **Chats** row that hovering reveals, **Open in panel ›** on the agent line, `Cmd` + `J`, and the panel button in the bar beside the health dot.
 
@@ -177,13 +180,3 @@ Opening one of that row's earlier chats that has gone the same way says the same
 
 </details>
 
-<details>
-<summary>The chats you already have</summary>
-
-olai files conversations that no row has claimed under a top-level **Chats** row, which it keeps in the Inbox, the outline where captured rows land. Without an Inbox nothing is filed. It asks every installed agent when it starts, and when sessions change, and asks a running agent again after each finished turn, so a conversation you drove from a terminal is filed shortly after.
-
-A filed row is titled with the stored title, or with the session id where there is none, and its note carries whichever of the message count and the last-touched minute the agent supplied. Filed rows are asleep until something opens them. **Move to…** gives one a different home and keeps its chat, and trashing one does not bring it back.
-
-Each machine files its own conversations. Moving a filed agent's row under another agent's row makes it part of that outer agent's memory, and both stay usable.
-
-</details>

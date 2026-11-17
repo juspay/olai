@@ -48,6 +48,7 @@ import { createEffect, createMemo, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 
 import { TESTID } from "../../testids.ts"
+import { LINKS_ELSEWHERE } from "olai-plugin-navigation/elsewhere"
 import { fileMark } from "../kinds.ts"
 import { createDeclared, createHome } from "../references.ts"
 import { servedDirectory } from "../vault.ts"
@@ -59,6 +60,19 @@ import { OpenBeside } from "./OpenBeside.tsx"
 import { Opens } from "./Opens.tsx"
 import { PageFoot, PageHead } from "./Page.tsx"
 import { LOOK, type Row, talking } from "./roster.ts"
+
+/**
+ * A LINK PRESSED ON THIS PAGE OPENS IN THE OTHER PANE — the pane to the left
+ * when there is one, else one opened to the right. Navigation's rule, asked
+ * for by the one attribute it reads (`olai-plugin-navigation/elsewhere`,
+ * which argues it).
+ *
+ * A conversation is the one page here a press may not replace: a half-typed
+ * message and the place somebody is reading are not written down anywhere,
+ * and an agent's answer is MADE of links to the things it is talking about.
+ * The pane is the conversation's; what it points at is the pane next to it.
+ */
+const LINKS_ASIDE = { [LINKS_ELSEWHERE]: "" }
 
 /** How the chat stands, said once at the right of the head — the same table
  *  every other face reads it off (`./roster.ts`'s `LOOK`), with no press on
@@ -109,6 +123,7 @@ export function ChatPage(props: { readonly item: AgentItem }) {
       data-testid={TESTID.chatPage}
       data-item={key()}
       data-kind={props.item.kind}
+      {...LINKS_ASIDE}
     >
       {/* PINNED FROM `md` UP, as the node page's head is and for its reason:
           the pane is the scroll, so a head that scrolled away would take the
