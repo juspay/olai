@@ -142,13 +142,16 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
    * against code the agent has since replaced.
    */
   const [shown, setShown] = createSignal(props.plugin.source.version)
-  /** The conversation, and a seat to put it in. Read for the *ask* verbs,
-   *  which are offered whenever both are there. */
+  /** THE PLUGIN'S OWN ADDRESS, which is what a chat about it is about: the
+   *  chat row is titled `[<Title>](/plugins/<word>)`, so the seat below and
+   *  the dock door both name this one string. */
+  const about = () => pluginPage.href({ word: props.plugin.name })
+  /** The dock, where there is a chat to put in it and a column to put it in.
+   *  Read for the *ask* verbs, which are offered whenever both are there. */
   const docked = () => {
-    const builder = source().builder
     const door = dock()
-    if (builder === undefined || door === undefined || !door.desktop()) return undefined
-    return { door, builder }
+    if (source().chat !== true || door === undefined || !door.desktop()) return undefined
+    return door
   }
   /** ...and whether this visit is one where a conversation should be OPENED
    *  for the reader. Arriving at a plugin that has been on for months must not
@@ -180,13 +183,12 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
     // conversation and nothing on screen moved, so the only way to find out
     // whether anything had happened was to go and look.
     askFix: () => call(client().procedures.plugins.ask({ name: props.plugin.name, said: "" }), (answer) => {
-      const open = docked()
-      if (answer.builder === null) { setSaid("There was no agent to take it. The conversation that built it is in Chats."); return }
+      if (!answer.sent) { setSaid("There was no agent to take it. The conversation that built it is in Chats."); return }
       setSaid("Sent to the conversation that built it.")
-      if (open !== undefined) open.door.open(open.builder)
+      docked()?.open(about())
     }),
-    askChange: () => { const open = docked(); if (open !== undefined) open.door.open(open.builder) },
-    canAsk: () => source().builder !== undefined && source().asking === true,
+    askChange: () => docked()?.open(about()),
+    canAsk: () => source().chat === true && source().asking === true,
     canOpen: () => docked() !== undefined,
     trusting: () => source().trusting === true,
     moved: () => shown() !== source().version,
@@ -194,7 +196,7 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
   }
   return (
     <section data-testid={TESTID.page} data-plugin={props.plugin.name} data-stage={stage()}>
-      <Show when={watching() && docked()}>{(open) => <Docking door={open().door} builder={open().builder} />}</Show>
+      <Show when={watching() && docked()}>{(door) => <Docking door={door()} about={about()} />}</Show>
       <header class="flex items-start gap-3">
         <div class="mt-1 flex size-9 shrink-0 items-center justify-center rounded-control bg-pill text-muted" aria-hidden="true">
           <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -363,20 +365,20 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
  * Its own child under a `<Show>`, so the effect exists exactly while there is
  * a dock to open: with chat off, with no shell seat, or on a phone there is no
  * component here at all rather than an effect asking every frame whether it
- * may run. Opening is a one-shot per conversation — this tracks which
- * conversation, not whether the dock is still showing it, so a reader who
- * closed the panel is not fought with.
+ * may run. Opening is a one-shot per address — this tracks which place was
+ * docked, not whether the dock is still showing it, so a reader who closed the
+ * panel is not fought with.
  */
-function Docking(props: { readonly door: DockDoor; readonly builder: string }) {
+function Docking(props: { readonly door: DockDoor; readonly about: string }) {
   // AN EFFECT AND NOT A COMPUTED: opening the dock WRITES chat's own state, and
   // a computed runs inside the render pass that is reading it. A write into
   // another row's signals while this page is being built is the shape Solid
   // warns about and this tree keeps out of its faces; what this wants is "after
   // the page exists, put the conversation beside it", which is an effect.
   createEffect<string | undefined>((before) => {
-    if (before === props.builder) return before
-    props.door.open(props.builder)
-    return props.builder
+    if (before === props.about) return before
+    props.door.open(props.about)
+    return props.about
   })
   return null
 }

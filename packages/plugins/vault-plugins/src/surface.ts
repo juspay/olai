@@ -165,16 +165,18 @@ export const surface = defineSurface({
        * ASK THE BUILDER FOR SOMETHING — *Ask Claude to fix it* under a fault,
        * and *Ask for a change* on a plugin that is running.
        *
-       * The words go into the conversation bound to this plugin, through the
-       * door chat offers for speaking into one. This row composes the sentence
-       * for the fault case so that a person pressing one button hands over the
-       * fault VERBATIM — an agent told "it broke" has to go and find out what,
-       * and the serve already knows.
+       * The words go into the chat at this plugin's page address
+       * (`/plugins/<word>`), through the door chat offers for speaking into
+       * one. This row composes the sentence for the fault case so that a
+       * person pressing one button hands over the fault VERBATIM — an agent
+       * told "it broke" has to go and find out what, and the serve already
+       * knows.
        *
-       * `false` is *there is no conversation to speak into*, which is a serve
-       * with chat off or a plugin nobody built with an agent. The page does not
-       * offer the button in either case; this answers honestly anyway rather
-       * than failing, because a roster can move between a draw and a press.
+       * `sent: false` is *there is no conversation to speak into*, which is a
+       * serve with chat off, a plugin nobody built with an agent, or a chat
+       * somebody has since retitled. The page does not offer the button in
+       * any of those cases; this answers honestly anyway rather than failing,
+       * because a roster can move between a draw and a press.
        */
       ask: {
         input: Schema.Struct({
@@ -183,8 +185,10 @@ export const surface = defineSurface({
           said: Schema.String,
         }),
         output: Schema.Struct({
-          /** The conversation it went to, or `null` if there was none. */
-          builder: Schema.NullOr(Schema.String),
+          /** Whether the words reached a conversation. The caller learns
+           *  nothing else: which chat took them is the vault's business, and
+           *  this door is write-only. */
+          sent: Schema.Boolean,
         }),
         error: OpFailure,
       },

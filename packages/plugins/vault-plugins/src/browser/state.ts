@@ -25,8 +25,8 @@
  *     written yet fails the shape check, and so does a plugin whose `apply`
  *     died. The first is not a fault, it is an agent halfway through writing
  *     the folder — which is exactly the screen the mockup calls *Being built*.
- *     What tells them apart is the thing the fault is about: a bound builder
- *     conversation, and no server half on disk yet.
+ *     What tells them apart is the thing the fault is about: a chat at the
+ *     plugin's own address, and no server half on disk yet.
  *
  * **A roster cannot see an agent's keystrokes**, and this does not pretend to.
  * What it CAN see is the agent saying it is done: `vault-plugins_run` at the

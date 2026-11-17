@@ -26,7 +26,7 @@ import {
   PLUGIN_SERVER_FILE,
   WORD,
 } from "@olai/surface"
-import { name, chunks, slugOf } from "./index.ts"
+import { name, chunks, pluginAbout, slugOf } from "./index.ts"
 import { openDynamic, RESERVED } from "./runtime.ts"
 import { pluginChunks } from "./route.ts"
 import { claim } from "./claim.ts"
@@ -94,7 +94,7 @@ export default definePlugin({
     const dynamic = openDynamic(yield* loading.acquire, loading.reserved, request => Effect.gen(function*() {
       yield* gate.run(request, "web")
       yield* followed(yield* gate.read)
-    }), () => builders.current() !== undefined)
+    }), () => builders.current())
     const settling = <T, E>(run: Effect.Effect<T, E>) => Effect.ensuring(run, Effect.sync(loading.changed))
     const followed = (read: Reading | null) => Effect.asVoid(settling(dynamic.follow(read)))
     yield* Effect.addFinalizer(() => Effect.asVoid(dynamic.follow(null)))
@@ -215,21 +215,23 @@ export default definePlugin({
             ? chat.engines()[0]?.id ?? ""
             : input.engine.trim()
           if (engine === "") return { name: word }
-          const started = yield* Effect.catch(
-            chat.open({
-              parent: null,
-              title,
-              engine,
-              say: sentence === "" ? `Build a plugin called ${title}.` : sentence,
-              teach: preambleFor(word, title),
-            }),
-            () => Effect.succeed({ node: null }),
-          )
-          if (started.node === null) return { name: word }
-          // The binding is a settings write and can be refused on its own. The
-          // conversation exists either way, and the page reads the binding off
-          // the settings file rather than off this reply.
-          yield* Effect.result(dynamic.bind(word, started.node))
+          // THE CHAT IS ABOUT THE PAGE, and that is the whole of the binding:
+          // a chat row titled `[<Title>](/plugins/<word>)` IS this plugin's
+          // builder, so nothing is written on the plugin's own node to say so
+          // and nothing has to be kept in step with the folder's name.
+          yield* Effect.result(chat.open({
+            parent: null,
+            title,
+            about: pluginAbout(word),
+            engine,
+            say: sentence === "" ? `Build a plugin called ${title}.` : sentence,
+            teach: preambleFor(word, title),
+          }))
+          // ...AND THE ROSTER IS READ AGAIN, because the row that just arrived
+          // is what makes this plugin *being built*: the runtime asks chat
+          // which plugins have one while it follows a revision, and the
+          // revision this call is level with was read before the chat existed.
+          yield* abreast
           return { name: word }
         }),
 
@@ -237,7 +239,7 @@ export default definePlugin({
         Effect.gen(function*() {
           const one = yield* lookingAt(input.name)
           const chat = builders.current()
-          if (chat === undefined || one.builder === null) return { builder: null }
+          if (chat === undefined) return { sent: false }
           const row = dynamic.rows(yield* loading.reports).find(row => row.name === input.name)
           // THE ROW'S OWN SENTENCE, whichever of the three sources produced it:
           // `rowOf` owns that precedence (folder, failed mount, failed pending
@@ -258,8 +260,10 @@ export default definePlugin({
                 + `Its files are in \`${one.folder}\`. Please fix it and call \`vault-plugins_run\` again.`
               : `The plugin \`${one.name}\` is ${row?.state ?? "off"} (its files are in `
                 + `\`${one.folder}\`). I have not said what I want changed yet.`
-          const went = yield* chat.say({ node: one.builder, text: said })
-          return { builder: went ? one.builder : null }
+          // THE ADDRESS AND NOT A NODE: chat looks up the conversation at this
+          // plugin's page itself, so a chat somebody retitled or trashed is
+          // `false` here rather than words sent to a row nobody is reading.
+          return { sent: yield* chat.say({ about: pluginAbout(input.name), text: said }) }
         }),
 
       run: ({ input }) =>

@@ -28,12 +28,14 @@
  */
 
 import { selector } from "@olai/web/testlib"
+import { titleAddress } from "@olai/format"
 
 import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT } from "@olai/tests/harness/world.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 import type { Locator } from "@olai/tests/harness/playwright.ts"
 
 import { TESTID } from "../../src/testids.ts"
+import { TESTID as CHAT_TESTID } from "olai-plugin-chat/testids"
 import { TESTID as PANEL_TESTID } from "olai-plugin-plugin-inspector/testids"
 
 // ── the sidebar's section ──────────────────────────────────────────────
@@ -62,7 +64,6 @@ export const PAGE_TRUST_STOP = selector(TESTID.pageTrustStop)
 export const PAGE_DELETE = selector(TESTID.pageDelete)
 export const PAGE_DELETE_CONFIRM = selector(TESTID.pageDeleteConfirm)
 export const PAGE_DELETE_KEEP = selector(TESTID.pageDeleteKeep)
-export const PAGE_ASK_OPEN = selector(TESTID.pageAskOpen)
 export const PAGE_ASK_SAID = selector(TESTID.pageAskSaid)
 export const PAGE_READ_ANYWAY = selector(TESTID.pageReadAnyway)
 export const PAGE_ASK = selector(TESTID.pageAsk)
@@ -81,6 +82,12 @@ export const PAGE_MOVED = selector(TESTID.pageMoved)
 export const PAGE_MOVED_READ = selector(TESTID.pageMovedRead)
 export const PAGE_REFUSED = selector(TESTID.pageRefused)
 
+/** CHAT'S OWN SEAT, as the page's *Ask* spot holds it — chat's id, because the
+ *  seat is chat's face in a spot this page placed (`olai-plugin-navigation/
+ *  seat`). It is what a viewport with no column for a conversation draws
+ *  instead of the button that would open one. */
+export const CHAT_SEAT = selector(CHAT_TESTID.chatSeat)
+
 // ⌘K → New plugin draws no node of this row's: both levels are the palette's
 // own furniture, and `new_plugin_steps.ts` grips them through navigation's ids.
 
@@ -92,6 +99,31 @@ export const addressOfPlugin = (word: string): string => `/plugins/${encodeURICo
 /** Where consent lives — the same file, and the same node shape, every row
  *  olai ships keeps its settings in. */
 export const SETTINGS_FILE = "_olai/Settings.olai"
+
+/**
+ * WHERE A CHAT ABOUT A PLUGIN IS KEPT — the Inbox's `Chats` container, which
+ * is where every chat this app mints is filed.
+ *
+ * A chat ABOUT a plugin is an ordinary chat row whose TITLE is the plugin's
+ * address (`[<name>](/plugins/<word>)`), and that title is the whole of the
+ * binding: nothing on the plugin's own node records it. So a scenario that
+ * wants one writes a row here, and a scenario that asserts one looks for the
+ * row whose title names this plugin's page.
+ */
+export const CHATS_FILE = "_olai/Inbox.olai"
+export const CHATS_ID = "chats"
+
+/** A chat's title, as this app writes one about a page. */
+export const chatTitleFor = (word: string, name: string): string =>
+  `[${name}](${addressOfPlugin(word)})`
+
+/** The chat row about one plugin, as the vault holds it, or nothing. Read
+ *  through the format's own reading of a title, so a scenario is asserting
+ *  the grammar the serve and the browser both spell rather than a string this
+ *  file made up. */
+export const chatAbout = (world: OlaiWorld, word: string): Record<string, unknown> | undefined =>
+  world.servedNodesSoFar(CHATS_FILE).find((node) =>
+    typeof node["title"] === "string" && titleAddress(node["title"]) === addressOfPlugin(word))
 
 /**
  * WHAT THE VAULT HAS WRITTEN DOWN ABOUT ONE PLUGIN: the properties on its root

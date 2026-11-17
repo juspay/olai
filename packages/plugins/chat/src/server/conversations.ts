@@ -88,9 +88,12 @@ export interface ConversationsOwner {
     text: string,
     preamble: ReadonlyArray<string>,
   ) => Effect.Effect<void, OpFailure>
-  /** Which conversation is seated on a node, or `null` for a node that is not
-   *  a node agent, or is one that has never been started. */
-  readonly seat: (node: string) => Conversing | null
+  /** THE CHAT AT AN ADDRESS — the conversation seated on the chat row at that
+   *  place (`./places.ts`), or `null` where no chat is there or the one there
+   *  has never been started. Asked of the vault as it stands now. */
+  readonly seatAt: (about: string) => Effect.Effect<Conversing | null>
+  /** ...and whether a chat row is there at all, started or not. */
+  readonly chatAt: (about: string) => Effect.Effect<boolean>
   /** One machine-marked message into a conversation that is already there, as
    *  the named plugin, gated on that plugin still being here. `false` where
    *  there is no chat at all to hand it to. */
@@ -125,6 +128,7 @@ export const conversationsProvision = (
           agent: input.engine,
           title: input.title,
           parent: input.parent,
+          about: input.about,
         })
         if (made.to === null) return { node: made.node, refusal: made.refusal }
         // THE SENTENCES BECOME LINES HERE and nowhere else — the one seam
@@ -140,19 +144,23 @@ export const conversationsProvision = (
     /**
      * ...AND SPEAKING INTO ONE THAT IS ALREADY THERE, write-only.
      *
-     * THREE WAYS TO ANSWER `false`, and each is ordinary: the asking
-     * activation has left, the node is not a node agent (its property was
-     * edited away, the record was trashed), or the vault names a conversation
-     * nobody has started. A roster drawn a second before a press can mean any
-     * of them, which is why this is an answer and not a failure.
+     * FOUR WAYS TO ANSWER `false`, and each is ordinary: the asking activation
+     * has left, no chat is at that address (its row was retitled or trashed,
+     * or the place is gone), or the chat there names a conversation nobody has
+     * started. A roster drawn a second before a press can mean any of them,
+     * which is why this is an answer and not a failure.
      */
     say: (input) =>
-      Effect.suspend(() => {
-        if (!current()) return Effect.succeed(false)
-        const to = owner.seat(input.node)
-        if (to === null) return Effect.succeed(false)
-        return owner.deliver(who, to, input.text, current)
+      Effect.gen(function*() {
+        if (!current()) return false
+        const to = yield* owner.seatAt(input.about)
+        if (to === null) return false
+        return yield* owner.deliver(who, to, input.text, current)
       }),
+    /** Whether a chat is there — the one fact about a conversation this door
+     *  says out loud, and it is a fact about the vault, not about what anybody
+     *  said. */
+    here: (input) => owner.chatAt(input.about),
     engines: owner.engines,
   }
 }

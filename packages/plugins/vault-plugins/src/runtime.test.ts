@@ -15,6 +15,7 @@ import type { WriteRequest } from "@olai/format"
 import { readingOfVault } from "@olai/format/testlib/scope"
 import {
   Agents,
+  type Conversations,
   definePlugin,
   type Host,
   mountPlugin,
@@ -104,6 +105,13 @@ const nothing = () => readingOfVault(new Map([["notes.md", "# notes\n"]]))
  * `written` is every write the runtime made, because consent is a WRITE now:
  * the switch and the approval do not move a fiber, they move a file, and a
  * bench that could not see the file would be asserting about neither.
+ *
+ * `chats` is the CHAT AT EACH ADDRESS, as a serve with chat up would answer
+ * it: the runtime asks `Conversations.here` per revision for every plugin the
+ * vault defines, and *being built* is that answer (`./source.ts`'s
+ * `isBuilding`). A case adds the plugin page's address before it follows,
+ * `asked` is every address the runtime named, and `bench(use, false)` is the
+ * other serve — one with chat switched off, where there is no door at all.
  */
 const bench = <A, E>(
   use: (
@@ -111,7 +119,9 @@ const bench = <A, E>(
     now: () => Effect.Effect<ReadonlyArray<BuiltPlugin>>,
     host: Host,
     written: ReadonlyArray<WriteRequest>,
+    chats: { readonly here: Set<string>; readonly asked: ReadonlyArray<string> },
   ) => Effect.Effect<A, E>,
+  door = true,
 ): Promise<A> =>
   Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
@@ -121,12 +131,29 @@ const bench = <A, E>(
         served: "/nowhere",
       })
       const written: Array<WriteRequest> = []
+      const here = new Set<string>()
+      const asked: Array<string> = []
+      const chats = {
+        here,
+        get asked(): ReadonlyArray<string> { return asked },
+      }
+      // A DOOR WITH ONE VERB THAT MATTERS: the runtime reads `here` and
+      // nothing else off it, and a serve with chat off has no door at all.
+      const conversations = (): Conversations | undefined => door
+        ? {
+          open: () => Effect.die(new Error("this bench opens no conversation")),
+          say: () => Effect.succeed(false),
+          here: ({ about }) => Effect.sync(() => { asked.push(about); return here.has(about) }),
+          engines: () => [],
+        }
+        : undefined
       // NO BUILT WORDS: this bench's build has no rows, so nothing is taken and
       // the plugin may have any word it likes.
       const dynamic = openDynamic(
         { mount: (plugin, config) => mountPlugin(plugins.host, plugin, { wait: false, config }) },
         [],
         request => Effect.sync(() => { written.push(request) }),
+        conversations,
       )
       // A REFUSAL IS A FAILED CASE, not a value to assert about by accident:
       // the consent verbs write, so they can fail, and a bench that swallowed
@@ -144,6 +171,7 @@ const bench = <A, E>(
         ),
         plugins.host,
         written,
+        chats,
       ))
     })),
   )
@@ -565,15 +593,20 @@ describe("consent is written down, so it survives a restart", () => {
     expect(found).toBe(false)
   })
 
-  test("the conversation building it is bound on the same node", async () => {
-    const written = await bench((dynamic, _now, _host, written) =>
+  /** THE CHAT IS NOT WRITTEN DOWN. Minting a plugin used to bind the
+   *  conversation with a `builder` property on this node; the chat is the one
+   *  at the plugin's address now, so a plugin that is being built has nothing
+   *  on its node at all until a person decides something. */
+  test("a plugin being built by a conversation writes no binding", async () => {
+    const written = await bench((dynamic, now, _host, written, chats) =>
       Effect.gen(function*() {
+        chats.here.add("/plugins/swatch")
         yield* dynamic.follow(vault({}))
-        yield* dynamic.bind("swatch", "chat-7")
+        expect((yield* now())[0]?.source?.building).toBe(true)
         return [...written]
       })
     )
-    expect(written).toEqual([{ op: "prop", id: "c", key: "builder", value: "chat-7" }])
+    expect(written).toEqual([])
   })
 })
 
@@ -642,7 +675,7 @@ test("a plugin receives its own schema knobs and edits preserve its approval", (
   expect((yield* now())[0]).toMatchObject({ state: "running", configurationValues: [{ key: "tone", value: "blue", setBy: "vault" }] })
 })))
 
-for (const key of ["approved", "on", "builder"]) {
+for (const key of ["approved", "on", "checked"]) {
   test(`a plugin cannot declare the reserved ${key} property as configuration`, () => bench((dynamic, now) => Effect.gen(function*() {
     const server = `import { definePlugin } from "@olai/plugin-api";
       import { Effect, Schema } from "effect";
@@ -663,10 +696,15 @@ test("configure edits the settings node and refuses its reserved keys before wri
   yield* dynamic.follow(vault({ server, approved: ALWAYS }))
   expect(yield* Effect.orDie(dynamic.configure("swatch", "tone", "red"))).toBe(true)
   expect(written).toEqual([{ op: "prop", id: "c", key: "tone", value: "red" }])
-  for (const key of ["approved", "on", "builder", "checked"]) {
+  for (const key of ["approved", "on", "checked"]) {
     const refused = yield* Effect.orDie(Effect.flip(dynamic.configure("swatch", key, "anything")))
     expect(refused.message).toContain("reserved")
   }
+  // ...AND `builder` IS NOT ONE OF THEM ANY MORE. It is refused for the
+  // ordinary reason every word a plugin did not declare is refused, which is
+  // the whole of what it is now: a name nothing here knows.
+  expect((yield* Effect.orDie(Effect.flip(dynamic.configure("swatch", "builder", "chat-1")))).message)
+    .toContain("No editable setting")
   expect((yield* Effect.orDie(Effect.flip(dynamic.configure("swatch", "tone", "green")))).message).toContain("blue")
   expect(written).toHaveLength(1)
   yield* Effect.orDie(dynamic.configure("swatch", "tone", null))
@@ -789,24 +827,105 @@ test("deleting a plugin removes its files and its consent", () => bench((dynamic
  * the call writes the word, and a roster read out of a vault that already
  * carries it says so without anybody having called anything. The second is the
  * restart — a serve that comes up to a folder somebody finished yesterday.
+ *
+ * WHAT STARTED THE BUILD IS THE CHAT AT THE PLUGIN'S ADDRESS, asked of chat
+ * per revision rather than read off the node: these cases say so by putting
+ * one at `/plugins/swatch` before they follow.
  */
-test("the builder's finished version is written to the plugin's node", () => bench((dynamic, now, _host, written) => Effect.gen(function*() {
-  yield* dynamic.follow(vault({ props: { builder: "chat-1" } }))
+test("the builder's finished version is written to the plugin's node", () => bench((dynamic, now, _host, written, chats) => Effect.gen(function*() {
+  chats.here.add("/plugins/swatch")
+  yield* dynamic.follow(vault({}))
   expect((yield* now())[0]?.source?.building).toBe(true)
   expect(yield* dynamic.checked("swatch", versionOf(SERVER, null))).toBe(true)
   expect(written).toEqual([{ op: "prop", id: "c", key: "checked", value: versionOf(SERVER, null) }])
 })))
 
-test("...and a serve that restarts reads it back off the file", () => bench((dynamic, now) => Effect.gen(function*() {
-  yield* dynamic.follow(vault({ props: { builder: "chat-1", checked: versionOf(SERVER, null) } }))
+test("...and a serve that restarts reads it back off the file", () => bench((dynamic, now, _host, _written, chats) => Effect.gen(function*() {
+  chats.here.add("/plugins/swatch")
+  yield* dynamic.follow(vault({ props: { checked: versionOf(SERVER, null) } }))
   expect((yield* now())[0]?.source?.building).toBeUndefined()
 })))
 
 /** ...and saying it twice at one version moves nothing: the gate refuses a
  *  property write that would change nothing, so the second call must not even
  *  ask. */
-test("...and a second run at the same version writes nothing", () => bench((dynamic, _now, _host, written) => Effect.gen(function*() {
-  yield* dynamic.follow(vault({ props: { builder: "chat-1", checked: versionOf(SERVER, null) } }))
+test("...and a second run at the same version writes nothing", () => bench((dynamic, _now, _host, written, chats) => Effect.gen(function*() {
+  chats.here.add("/plugins/swatch")
+  yield* dynamic.follow(vault({ props: { checked: versionOf(SERVER, null) } }))
   expect(yield* dynamic.checked("swatch", versionOf(SERVER, null))).toBe(true)
   expect(written).toEqual([])
+})))
+
+/**
+ * THE CHAT AT THE PLUGIN'S PAGE IS WHAT MAKES IT A BUILD — the whole of the
+ * binding, asked of chat by address while the revision is followed.
+ *
+ * The address is this row's own page (`./index.ts`'s `pluginAbout`), which is
+ * what a chat about this plugin is titled with — so these pin the string as
+ * well as the answer: a serve that asked about anything else would find no
+ * chat for a plugin that has one.
+ */
+describe("the conversation building a plugin is the chat at its address", () => {
+  test("it is asked about the plugin's own page, per revision", () => bench((dynamic, now, _host, _written, chats) => Effect.gen(function*() {
+    yield* dynamic.follow(vault({}))
+    expect((yield* now())[0]?.source?.chat).toBeUndefined()
+    expect((yield* now())[0]?.source?.building).toBeUndefined()
+    expect(chats.asked).toEqual(["/plugins/swatch"])
+  })))
+
+  test("...and a chat there is a plugin an agent is building", () => bench((dynamic, now, _host, _written, chats) => Effect.gen(function*() {
+    chats.here.add("/plugins/swatch")
+    yield* dynamic.follow(vault({}))
+    expect((yield* now())[0]?.source?.chat).toBe(true)
+    expect((yield* now())[0]?.source?.building).toBe(true)
+    // ...and a chat somebody retitled or trashed takes both with it: the
+    // answer is this revision's, not a memory of the one that minted it.
+    chats.here.clear()
+    yield* dynamic.follow(vault({}))
+    expect((yield* now())[0]?.source?.chat).toBeUndefined()
+    expect((yield* now())[0]?.source?.building).toBeUndefined()
+  })))
+
+  test("a chat about some other page is not this plugin's", () => bench((dynamic, now, _host, _written, chats) => Effect.gen(function*() {
+    chats.here.add("/plugins/other")
+    yield* dynamic.follow(vault({}))
+    expect((yield* now())[0]?.source?.chat).toBeUndefined()
+  })))
+
+  /** A serve with chat switched off: no door, so nothing is asked, nothing is
+   *  being built, and the page is told there is nobody to ask. */
+  test("with chat off nothing is asked and nothing is being built", () => bench((dynamic, now, _host, _written, chats) => Effect.gen(function*() {
+    yield* dynamic.follow(vault({}))
+    const row = (yield* now())[0]
+    expect(chats.asked).toEqual([])
+    expect(row?.source?.chat).toBeUndefined()
+    expect(row?.source?.asking).toBeUndefined()
+    expect(row?.source?.building).toBeUndefined()
+  }), false))
+})
+
+/**
+ * A `builder` PROPERTY LEFT OVER FROM BEFORE CHANGES NOTHING.
+ *
+ * It is the word this row used to write to bind a conversation to a plugin.
+ * Nothing writes it and nothing reads it now, and it is not reserved either —
+ * so what it must be is a custom property like any other: not a knob, not a
+ * fault, and not a plugin that behaves differently from the same folder
+ * without it.
+ */
+test("a stale builder property is a property nobody reads", () => bench((dynamic, now, _host, written) => Effect.gen(function*() {
+  const server = `import { definePlugin } from "@olai/plugin-api"; import { Effect, Schema } from "effect";
+    export default definePlugin({ name: "swatch", needs: [], config: Schema.Struct({ tone: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed("blue")), Schema.annotate({ description: "the tone" })) }), apply: () => Effect.void });`
+  const approved = versionOf(server, null)
+  yield* dynamic.follow(vault({ server, approved, props: { builder: "chat-1" } }))
+  const row = (yield* now())[0]
+  expect(row?.state).toBe("running")
+  expect(row?.fault).toBeUndefined()
+  expect(row?.source?.building).toBeUndefined()
+  // ONE KNOB, the one the plugin declared: a property nobody declared is not
+  // a configuration value, so nothing about it reaches a person's page.
+  expect(row?.configurationValues).toEqual([expect.objectContaining({ key: "tone", value: "blue", setBy: "default" })])
+  // ...and the switch still writes exactly what it would have written.
+  expect(yield* dynamic.set("swatch", false)).toBe(true)
+  expect(written).toEqual([{ op: "prop", id: "c", key: "on", value: "no" }])
 })))

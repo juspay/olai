@@ -47,11 +47,9 @@
  */
 
 import type { Channel, Notice } from "olai-plugin-alerts/contract"
-import type { Navigation } from "olai-plugin-navigation/contract"
 import type { BrowserManagement } from "@olai/surface/management"
 import { createEffect, onCleanup } from "solid-js"
 
-import { pluginPage } from "./route.ts"
 import { definedPlugins, faultSaid, stageOf, wakes, type Defined, type Stage } from "./state.ts"
 
 /** The dedup key, and the only thing a press is routed by. */
@@ -65,8 +63,8 @@ export const tagOf = (name: string): string => `olai:plugin:${name}`
  * of them. "An agent finished building it" is true of a plugin somebody asked
  * for in the palette and false of a folder they copied in from another vault
  * or wrote by hand — which is the same screen reached without any agent at
- * all. The bound conversation is what tells them apart, and it is the same
- * fact the page uses to decide whether there is anybody to ask.
+ * all. A chat at the plugin's own address is what tells them apart, and it is
+ * the same fact the page uses to decide whether there is anybody to ask.
  */
 export const noticeOf = (plugin: Defined, stage: "review" | "paused" | "broken"): Notice => ({
   tag: tagOf(plugin.name),
@@ -76,7 +74,7 @@ export const noticeOf = (plugin: Defined, stage: "review" | "paused" | "broken")
       ? `${plugin.source.title} is paused`
       : `${plugin.source.title} couldn't start`,
   body: stage === "review"
-    ? plugin.source.builder === undefined
+    ? plugin.source.chat !== true
       ? "It is in your vault and nobody has read it yet. Read what it does and turn it on."
       : "An agent finished building it. Read what it does and turn it on."
     : stage === "paused"
@@ -88,13 +86,19 @@ export const noticeOf = (plugin: Defined, stage: "review" | "paused" | "broken")
 /**
  * One watch over the roster, owned by the activation that calls it. Every
  * listener and every piece of memory here goes with that owner.
+ *
+ * `go` is WHERE A PRESS LANDS, handed in rather than spelled here: the
+ * component that declares navigation already holds this row's route
+ * (`../browser.tsx`), and this module composing the URL itself put a page's
+ * whole drawing — the route, its glyph — behind every reader of the two
+ * sentences below.
  */
 export const createPluginAlerts = (
   channel: Channel,
   management: BrowserManagement,
-  router: Navigation,
+  go: (word: string) => void,
 ): void => {
-  onCleanup(channel.onPress("plugin", (asked) => router.go(pluginPage.to({ word: asked.name }))))
+  onCleanup(channel.onPress("plugin", (asked) => go(asked.name)))
   const roster = management.roster()
   // WHAT EACH PLUGIN WAS DOING LAST TIME. A plain table rather than a signal:
   // nothing draws it, it is the effect's own memory of the frame before.

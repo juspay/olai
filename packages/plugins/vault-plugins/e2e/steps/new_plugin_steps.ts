@@ -11,22 +11,23 @@
  * machinery (crumbs, the box, the submit, the refusal line) is navigation's
  * and is gripped through navigation's steps, so what is added here is only
  * what this row knows — the name it suggested, the folder it named, and the
- * conversation it bound.
+ * conversation it started about that folder's page.
  *
  * ## The assertions are the DISK and the DOCK, not the sentence
  *
  * A mint that drew the right words and wrote nothing would pass any assertion
- * made about the screen. So the folder is asserted as files, the builder is
- * asserted as the `builder` property on the plugin's settings node, and the
- * conversation is asserted as the dock seated on that node — three facts that
- * outlive the frame they were drawn in.
+ * made about the screen. So the folder is asserted as files, the conversation
+ * is asserted as the chat row TITLED WITH THE PLUGIN'S PAGE under Inbox ›
+ * Chats — which is the whole of what binds the two — and the dock is asserted
+ * as seated on that row: three facts that outlive the frame they were drawn
+ * in.
  */
 
 import * as assert from "node:assert/strict"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
-import { Then, When } from "@olai/tests/harness/runner.ts"
+import { Given, Then, When } from "@olai/tests/harness/runner.ts"
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts"
 import { selector } from "@olai/web/testlib"
 import {
@@ -42,7 +43,7 @@ import {
 } from "@olai/tests/harness/world.ts"
 import type { OlaiWorld } from "@olai/tests/harness/world.ts"
 
-import { consentOf } from "./faces.ts"
+import { chatAbout, chatTitleFor, CHATS_FILE, CHATS_ID, consentOf } from "./faces.ts"
 
 /**
  * BOTH LEVELS ARE THE PALETTE'S OWN, and this row draws no node in either.
@@ -190,29 +191,70 @@ Then("the folder {string} is gone", async function (this: OlaiWorld, folder: str
 })
 
 /**
- * THE CONVERSATION THAT IS BUILDING IT, bound to the plugin by a property on
- * the plugin's own settings node — the row's record, because which chat built
- * this plugin is a fact about the plugin rather than about that chat.
+ * A CONVERSATION ABOUT A PLUGIN, WRITTEN BY HAND — for the scenarios whose
+ * subject is what a page or an alert says about a folder an agent is halfway
+ * through, with no agent having to write one.
+ *
+ * It is an ordinary chat row: titled with the plugin's page, filed under
+ * Inbox › Chats, carrying a binding that names an ENGINE AND NO SESSION —
+ * which is a chat nobody has started talking in. That is the honest fixture
+ * for these scenarios: there is a chat at the plugin's address, so the folder
+ * is being built, and there is no conversation behind it, so a press that
+ * speaks into one is told there was nobody to take it.
  */
-Then("the plugin {string} is being built by a conversation", async function (this: OlaiWorld, word: string) {
-  await this.waitUntil(
-    () => Promise.resolve(typeof consentOf(this, word)?.["builder"] === "string"),
-    `a builder to be bound to "${word}"`,
-  )
+Given("a conversation about the plugin {string} called {string}", function (this: OlaiWorld, word: string, name: string) {
+  this.writeServed(CHATS_FILE, [
+    JSON.stringify({ id: CHATS_ID, ord: "a0", title: "Chats" }),
+    JSON.stringify({
+      id: `${word}-chat`,
+      parent: CHATS_ID,
+      ord: "a0",
+      title: chatTitleFor(word, name),
+      custom: { "chat-agent-session": "claude" },
+    }),
+  ].join("\n"))
+  this.nodeNames.set(name, `${word}-chat`)
 })
 
-/** ...and a serve with no agent binds none, which is the honest answer rather
+/**
+ * THE CONVERSATION THAT IS BUILDING IT — a chat row whose TITLE is the
+ * plugin's own page, filed under Inbox › Chats like every other chat.
+ *
+ * That title is the whole of the binding: nothing is written on the plugin's
+ * settings node, so the only way a scenario can find the chat is the way the
+ * serve and the page find it, which is what makes this assertion worth making.
+ */
+Then("the plugin {string} is being built by a conversation called {string}", async function (this: OlaiWorld, word: string, name: string) {
+  await this.waitUntil(
+    () => Promise.resolve(chatAbout(this, word) !== undefined),
+    `a chat about the plugin "${word}"`,
+  )
+  const chat = chatAbout(this, word)!
+  assert.equal(chat["title"], chatTitleFor(word, name), "the chat is not titled with the plugin's page")
+  // ...AND FILED WHERE EVERY CHAT IS, which is the other half of "nothing new
+  // is stored": it is an ordinary chat row, in the ordinary place.
+  assert.equal(chat["parent"], CHATS_ID, `the chat about "${word}" is not under Inbox › Chats`)
+  // NOTHING ON THE PLUGIN'S OWN NODE records it — the `builder` property this
+  // used to write is gone, and a serve that still wrote one would pass every
+  // assertion above.
+  assert.equal(consentOf(this, word)?.["builder"], undefined, `"${word}" wrote a builder property`)
+  this.nodeNames.set(name, chat["id"] as string)
+  this.activeAgent = name
+})
+
+/** ...and a serve with no agent starts none, which is the honest answer rather
  *  than a failure of the mint: the folder is a folder somebody can write by
  *  hand. */
-Then("the plugin {string} has no builder", async function (this: OlaiWorld, word: string) {
-  // Settled first — the mint writes the README before it would write a
-  // builder, so this must not pass merely by being asked early.
+Then("nothing is building the plugin {string}", async function (this: OlaiWorld, word: string) {
+  // Settled first — the mint writes the README before it would start a chat,
+  // so this must not pass merely by being asked early.
   await this.waitUntil(
-    () => Promise.resolve(consentOf(this, word) !== undefined || fs.existsSync(path.join(this.scratch(), "plugins", word))),
+    () => Promise.resolve(fs.existsSync(path.join(this.scratch(), "plugins", word))),
     `"${word}" to have been minted at all`,
   )
   await this.page.waitForTimeout(500)
-  assert.equal(consentOf(this, word)?.["builder"], undefined, `"${word}" bound a builder on a serve with no agent`)
+  assert.equal(chatAbout(this, word), undefined, `"${word}" has a chat on a serve with no agent`)
+  assert.equal(consentOf(this, word)?.["builder"], undefined, `"${word}" wrote a builder property`)
 })
 
 /**
@@ -220,13 +262,13 @@ Then("the plugin {string} has no builder", async function (this: OlaiWorld, word
  * get built one screen rather than two: the page fills in as the three files
  * land, and the conversation doing the landing is in the seat beside it.
  */
-Then("the builder conversation for {string} is docked", async function (this: OlaiWorld, word: string) {
+Then("the conversation building {string} is docked", async function (this: OlaiWorld, word: string) {
   await this.waitUntil(
-    () => Promise.resolve(typeof consentOf(this, word)?.["builder"] === "string"),
-    `a builder to be bound to "${word}"`,
+    () => Promise.resolve(chatAbout(this, word) !== undefined),
+    `a chat about the plugin "${word}"`,
   )
-  const builder = consentOf(this, word)?.["builder"] as string
-  await this.page.locator(`${CHAT_DOCK}${attr("data-agent", builder)}`)
+  const node = chatAbout(this, word)!["id"] as string
+  await this.page.locator(`${CHAT_DOCK}${attr("data-agent", node)}`)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
   // ...AND IT IS THE CONVERSATION THE SUITE NOW ADDRESSES. Chat's own steps
   // speak to the agent a scenario SELECTED, and every way to select one is a
@@ -234,7 +276,7 @@ Then("the builder conversation for {string} is docked", async function (this: Ol
   // panel's picker. Landing here nobody made one: the dock was filled by the
   // mint. Saying which conversation that was is what makes chat's vocabulary
   // usable from a plugin's page.
-  this.activeAgent = builder
+  this.activeAgent = node
 })
 
 /** The one line of the preamble nothing else in this product says — enough to

@@ -37,6 +37,22 @@ export const slugOf = (title: string): string => {
   return hyphenated.slice(from, to)
 }
 
+/** The prefix one plugin's page claims. Here rather than in the route module
+ *  for the reason {@link slugOf} is: both halves spell it now. */
+export const PLUGIN_PATH = "/plugins/"
+
+/**
+ * WHERE A PLUGIN IS, as an address — `/plugins/<word>`, its own page.
+ *
+ * It is what a chat about this plugin is ABOUT: a chat row titled
+ * `[<Title>](/plugins/<word>)` is this plugin's builder, and that is the whole
+ * of the binding — nothing is written on the plugin's own node for it. So the
+ * serve spells this when it opens a conversation and when it speaks into one,
+ * the page spells it when it docks one, and `./browser/route.ts` spells the
+ * same string as the page's own URL.
+ */
+export const pluginAbout = (word: string): string => `${PLUGIN_PATH}${encodeURIComponent(word)}`
+
 /** One definition, at one version, as the panel asks about it. */
 export interface ApprovalRequest {
   readonly name: string

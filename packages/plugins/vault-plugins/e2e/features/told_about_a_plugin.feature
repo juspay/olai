@@ -15,7 +15,7 @@ Feature: What a plugin tells you, and what it waits to tell you
   THE DONE SIGNAL IS THE AGENT SAYING SO — `vault-plugins_run`, answered with no
   fault, at the version on disk; the guide already requires that call as the
   last act of a build. It is WRITTEN DOWN on the plugin's settings node, beside
-  the conversation that is building it, because a laptop that reboots mid-week
+  the person's own consent, because a laptop that reboots mid-week
   is an ordinary day and a signal kept in a process is gone by Monday. The page
   keeps a way past it anyway, for the conversation nobody ever finished.
 
@@ -28,12 +28,10 @@ Feature: What a plugin tells you, and what it waits to tell you
   Scenario: Nothing rings until the agent says the folder is finished
     Given I open the app
     And the notification worker is ready
-    # A FOLDER BEING WRITTEN: a conversation bound to it, and the files
-    # arriving one at a time the way the guide tells an agent to write them.
-    When I rewrite "_olai/Settings.olai" as:
-      """
-      {"id":"timer-consent","ord":"a0","title":"timer","custom":{"builder":"timer-chat"}}
-      """
+    # A FOLDER BEING WRITTEN: a conversation about the plugin's own page, and
+    # the files arriving one at a time the way the guide tells an agent to
+    # write them.
+    When a conversation about the plugin "timer" called "Timer"
     And I rewrite "plugins/timer/README.md" as:
       """
       # Timer
@@ -74,10 +72,7 @@ Feature: What a plugin tells you, and what it waits to tell you
     # arrive to say so. The files are on the screen, so what the page offers is
     # reading what is actually there.
     Given I open the app
-    When I rewrite "_olai/Settings.olai" as:
-      """
-      {"id":"timer-consent","ord":"a0","title":"timer","custom":{"builder":"timer-chat"}}
-      """
+    When a conversation about the plugin "timer" called "Timer"
     And I rewrite "plugins/timer/server.ts" as:
       """
       import { definePlugin } from "@olai/plugin-api"
@@ -136,10 +131,7 @@ Feature: What a plugin tells you, and what it waits to tell you
     # exactly the moment a person would otherwise have had to trust the code to
     # find it out.
     Given I open the app
-    When I rewrite "_olai/Settings.olai" as:
-      """
-      {"id":"timer-consent","ord":"a0","title":"timer","custom":{"builder":"timer-chat"}}
-      """
+    When a conversation about the plugin "timer" called "Timer"
     And I rewrite "plugins/timer/server.ts" as:
       """
       import { definePlugin } from "@olai/plugin-api"
@@ -168,10 +160,7 @@ Feature: What a plugin tells you, and what it waits to tell you
     # built*, so the sidebar flickered between two states that were both wrong.
     Given I open the app
     And the notification worker is ready
-    When I rewrite "_olai/Settings.olai" as:
-      """
-      {"id":"timer-consent","ord":"a0","title":"timer","custom":{"builder":"timer-chat"}}
-      """
+    When a conversation about the plugin "timer" called "Timer"
     And I rewrite "plugins/timer/server.ts" as:
       """
       import { definePlugin } from "@olai/plugin-api"
@@ -208,16 +197,13 @@ Feature: What a plugin tells you, and what it waits to tell you
   Scenario: A build that finished before a reboot is still finished after one
     # The done signal used to be a map in the serve's memory, on the argument
     # that a half-built folder is a mid-build edge. A restart is not an edge:
-    # every plugin with a builder and no approval came back reading *being
-    # built*, so the sidebar pulsed at a finished folder and the alert that was
-    # going to say *ready for you* could never ring again. It is a word on the
-    # plugin's settings node now, and this is the only way to prove that: by
-    # killing the server.
+    # every plugin with a conversation about it and no approval came back
+    # reading *being built*, so the sidebar pulsed at a finished folder and the
+    # alert that was going to say *ready for you* could never ring again. It is
+    # a word on the plugin's settings node now, and this is the only way to
+    # prove that: by killing the server.
     Given I open the app
-    When I rewrite "_olai/Settings.olai" as:
-      """
-      {"id":"timer-consent","ord":"a0","title":"timer","custom":{"builder":"timer-chat"}}
-      """
+    When a conversation about the plugin "timer" called "Timer"
     And I rewrite "plugins/timer/server.ts" as:
       """
       import { definePlugin } from "@olai/plugin-api"

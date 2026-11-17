@@ -135,20 +135,30 @@ describe("consent is in the settings file, and does not travel with the folder",
     expect(isApproved(one!)).toBe(true)
   })
 
-  test("the conversation building it rides beside the consent", () => {
+  test("the version its builder finished rides beside it", () => {
     const [one] = definedIn(
-      vault({ ...folder, ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"builder":"chat-7"}}`) }),
-      NOTHING_BUILT,
-    )
-    expect(one?.builder).toBe("chat-7")
-  })
-
-  test("...and so does the version its builder finished", () => {
-    const [one] = definedIn(
-      vault({ ...folder, ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"builder":"chat-7","checked":"abc123"}}`) }),
+      vault({ ...folder, ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"checked":"abc123"}}`) }),
       NOTHING_BUILT,
     )
     expect(one?.checked).toBe("abc123")
+  })
+
+  /** A `builder` property is what this row used to write to bind a chat to a
+   *  plugin. Nothing writes it and nothing reads it now — the chat is the one
+   *  at the plugin's own address — so one left on a node is a custom property
+   *  like any other, and the reading is the same reading without it. */
+  test("a `builder` left over from before is read as nothing at all", () => {
+    const stale = definedIn(
+      vault({ ...folder, ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"builder":"chat-7","on":"yes"}}`) }),
+      NOTHING_BUILT,
+    )[0]!
+    const without = definedIn(
+      vault({ ...folder, ...settings(`{"id":"s","ord":"a0","title":"swatch","custom":{"on":"yes"}}`) }),
+      NOTHING_BUILT,
+    )[0]!
+    expect(isOn(stale)).toBe(true)
+    expect(stale.fault).toBeNull()
+    expect({ ...stale, consent: null }).toEqual({ ...without, consent: null })
   })
 })
 
@@ -156,34 +166,39 @@ describe("consent is in the settings file, and does not travel with the folder",
  * WHETHER AN AGENT IS STILL WRITING THE FOLDER — the serve's answer, because
  * the protocol it encodes is the serve's: which call means *done*, and in what
  * order a build writes its files.
+ *
+ * THE CHAT IS ASKED FOR, not read off the folder: a plugin is being built by
+ * the chat at its own page's address, which is a row in the vault and not a
+ * word on the plugin's node, so the caller passes the answer in
+ * (`./runtime.ts`).
  */
 describe("a folder an agent is still writing", () => {
   const SETTINGS = (custom: string) => settings(`{"id":"s","ord":"a0","title":"swatch","custom":${custom}}`)
   const one = (custom: string, files: Readonly<Record<string, string>> = { "plugins/swatch/server.ts": SERVER }) =>
     definedIn(vault({ ...files, ...SETTINGS(custom) }), NOTHING_BUILT)[0]!
 
-  test("a conversation is bound and nobody has said it is finished", () => {
-    expect(isBuilding(one(`{"builder":"chat-1"}`))).toBe(true)
+  test("a chat is at its address and nobody has said it is finished", () => {
+    expect(isBuilding(one("{}"), true)).toBe(true)
   })
 
   test("...and a README with no server half is a folder with nothing to run yet", () => {
-    expect(isBuilding(one(`{"builder":"chat-1"}`, { "plugins/swatch/README.md": "# S\n" }))).toBe(true)
+    expect(isBuilding(one("{}", { "plugins/swatch/README.md": "# S\n" }), true)).toBe(true)
   })
 
   test("the builder saying so at the version on disk ends it", () => {
-    expect(isBuilding(one(`{"builder":"chat-1","checked":"${versionOf(SERVER, null)}"}`))).toBe(false)
+    expect(isBuilding(one(`{"checked":"${versionOf(SERVER, null)}"}`), true)).toBe(false)
   })
 
   test("...and saying so at a version that has since moved does not", () => {
-    expect(isBuilding(one(`{"builder":"chat-1","checked":"an-older-version"}`))).toBe(true)
+    expect(isBuilding(one(`{"checked":"an-older-version"}`), true)).toBe(true)
   })
 
   test("a folder nobody built with an agent was never being built", () => {
-    expect(isBuilding(one("{}"))).toBe(false)
+    expect(isBuilding(one("{}"), false)).toBe(false)
   })
 
   test("and an agent editing a plugin somebody approved is a change, not a build", () => {
-    expect(isBuilding(one(`{"builder":"chat-1","approved":"an-older-version"}`))).toBe(false)
+    expect(isBuilding(one(`{"approved":"an-older-version"}`), true)).toBe(false)
   })
 })
 

@@ -12,9 +12,10 @@ Feature: Asking for a plugin
   WHAT IS ASSERTED HERE IS THE DISK AND THE DOCK. A mint that drew the right
   words and wrote nothing would pass any assertion made about the screen, so
   these scenarios ask the vault what is in it: the folder with the README the
-  person's own sentence went into, the `builder` property binding the
-  conversation to the plugin, and the conversation itself in the seat beside
-  the page.
+  person's own sentence went into, the chat row TITLED WITH THE PLUGIN'S PAGE
+  — `[Bar beside](/plugins/bar-beside)`, under Inbox › Chats, which is the
+  whole of what makes it that plugin's conversation — and the conversation
+  itself in the seat beside the page.
 
   THE REFUSALS ARE IN PLACE, and that is the one interaction claim worth
   spelling out. A word already taken and a word that is not a word are both
@@ -23,7 +24,7 @@ Feature: Asking for a plugin
   would leave somebody working out that nothing had happened.
 
   @scratch:plugins
-  Scenario: One sentence, a name, and a page with the builder beside it
+  Scenario: One sentence, a name, and a page with its conversation beside it
     Given I open the outline "colours.olai"
     When I press the palette shortcut
     And I open New plugin from the palette
@@ -59,9 +60,11 @@ Feature: Asking for a plugin
     And the Plugins row "bar-beside" is marked "working"
 
     # ...AND THE CONVERSATION IS BESIDE IT, which is what makes watching one get
-    # built one screen rather than two.
-    And the plugin "bar-beside" is being built by a conversation
-    And the builder conversation for "bar-beside" is docked
+    # built one screen rather than two. Nothing was written on the plugin's own
+    # node to bind them: the chat is the chat ABOUT this page, and a title is
+    # how a chat says what it is about.
+    And the plugin "bar-beside" is being built by a conversation called "Bar beside"
+    And the conversation building "bar-beside" is docked
     And the builder was told how to write a plugin exactly once
     And the agent has answered "draws a tiny bar beside any number" exactly once
     And there should be no page errors
@@ -127,8 +130,8 @@ Feature: Asking for a plugin
   Scenario: With no agent on this serve, the folder is still minted and the page says so
     # A SERVE WITH NO CHAT STILL MINTS. The folder is a folder somebody can
     # write by hand, and that is the honest answer rather than a failure of the
-    # call — so the mint goes through, the builder comes back as nobody, and the
-    # page offers neither verb that would speak into a conversation.
+    # call — so the mint goes through, no conversation is started, and the page
+    # offers neither verb that would speak into one.
     Given I open the app
     When I press the palette shortcut
     And I open New plugin from the palette
@@ -137,7 +140,7 @@ Feature: Asking for a plugin
     And I accept the name
     Then the address is "/plugins/doorbell"
     And the folder "plugins/doorbell" holds "README.md"
-    And the plugin "doorbell" has no builder
+    And nothing is building the plugin "doorbell"
 
     # The page says what is missing in words, which is a thing a person can act
     # on — rather than drawing a button that does nothing.

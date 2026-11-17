@@ -70,10 +70,10 @@ export interface Acts {
   readonly askFix: () => void
   /** ...or open that conversation to ask it for something new. */
   readonly askChange: () => void
-  /** Whether there is a conversation to SPEAK INTO — a plugin with a builder
-   *  bound to it. The serve posts the words whether or not this tab can draw
-   *  the conversation, which is why this is a different question from the one
-   *  below. */
+  /** Whether there is a conversation to SPEAK INTO — a chat at this plugin's
+   *  page address, on a serve that can reach one. The serve posts the words
+   *  whether or not this tab can draw the conversation, which is why this is a
+   *  different question from the one below. */
   readonly canAsk: () => boolean
   /** ...and whether this tab can OPEN it: a dock is held and there is a seat
    *  for it. With chat off, or on a phone, there is nothing to open and the
@@ -178,8 +178,8 @@ function Primary(props: { readonly plugin: Defined; readonly stage: Stage; reado
         </button>
       </Show>
       {/* THE FAULT'S OWN BUTTON, and only where there is somebody to hand it
-          to. With no conversation bound the page says the sentence and offers
-          no verb, rather than a button that answers nothing. */}
+          to. With no chat at this plugin's address the page says the sentence
+          and offers no verb, rather than a button that answers nothing. */}
       <Show when={props.stage === "broken" && props.acts.canAsk()}>
         <button type="button" class={PRIMARY} data-testid={TESTID.pageVerb} data-verb="ask-fix" disabled={props.acts.busy()}
           onClick={() => props.acts.askFix()}>Ask the agent to fix it</button>

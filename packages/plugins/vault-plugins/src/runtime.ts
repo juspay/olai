@@ -53,7 +53,8 @@ import * as effect from "effect"
 import { Effect } from "effect"
 import { CONFIGURATION_FILE, decodePolicy, policyEdit, type PolicyRow } from "@olai/plugin-api/configuration"
 
-import { ALWAYS, APPROVED_KEY, BUILDER_KEY, CHECKED_KEY, type Defined, definedIn, isApproved, isBuilding, isOn, ON_KEY } from "./source.ts"
+import { pluginAbout } from "./index.ts"
+import { ALWAYS, APPROVED_KEY, CHECKED_KEY, type Defined, definedIn, isApproved, isBuilding, isOn, ON_KEY } from "./source.ts"
 
 /**
  * THE HOST'S OWN MODULES, put where a module built at runtime can reach them.
@@ -178,9 +179,6 @@ export interface DynamicRuntime {
    * between are the middle of a build, not the end of one.
    */
   readonly checked: (name: string, version: string) => Effect.Effect<boolean, OpFailure>
-  /** Bind a conversation to a plugin, so its page can dock the one that is
-   *  building it. */
-  readonly bind: (name: string, conversation: string) => Effect.Effect<boolean, OpFailure>
   readonly configure: (name: string, key: string, value: string | null) => Effect.Effect<boolean, OpFailure>
   /** One plugin as the vault holds it, for the verbs that answer about one.
    *  `null` for a word this vault does not define. */
@@ -242,12 +240,21 @@ export const openDynamic = (
   host: OwnedLoader,
   built: ReadonlyArray<string>,
   write: (request: WriteRequest) => Effect.Effect<void, OpFailure> = () => Effect.fail(new UsageFailure({ reason: "The directory’s write door is unavailable." })),
-  /** WHETHER THERE IS A CONVERSATION DOOR ON THIS SERVE right now — read per
-   *  roster, because the chat row comes and goes and the page offers or
-   *  withholds its *ask* verbs on the answer (`@olai/surface`'s
-   *  `source.asking`). A runtime composed without one is a serve where nothing
-   *  can be asked, which is the honest default. */
-  asking: () => boolean = () => false,
+  /**
+   * THE CONVERSATION DOOR ON THIS SERVE right now, or `undefined` while
+   * nobody stands behind it — read per call rather than held, because the chat
+   * row comes and goes under this runtime (core's `ConversationsWatch` is the
+   * broker the caller reads it through).
+   *
+   * Two facts come off it and both are per-revision. WHETHER ANYTHING CAN BE
+   * ASKED at all, which is what the page's *ask* verbs are offered on
+   * (`@olai/surface`'s `source.asking`); and WHICH PLUGINS HAVE A CHAT at
+   * their page's address, asked of `here` inside {@link follow} and kept for
+   * that revision ({@link chats}). A runtime composed without a door is a
+   * serve where nothing can be asked and no plugin is being built, which is
+   * the honest default.
+   */
+  conversations: () => plugins.Conversations | undefined = () => undefined,
 ): DynamicRuntime => {
   /** WHAT CAME OF THE LAST ATTEMPT AT EACH WORD — see {@link Started}. */
   const started = new Map<string, Started>()
@@ -305,6 +312,22 @@ export const openDynamic = (
   const checkedBuilds = new Map<string, { readonly version: string; readonly why: string | null }>()
 
   /**
+   * WHICH PLUGINS HAVE A CHAT AT THEIR PAGE'S ADDRESS, as of the revision this
+   * runtime last followed.
+   *
+   * ASKED PER REVISION AND KEPT, because the question is an EFFECT and a row
+   * is a value: `Conversations.here` reads the vault as it stands when it
+   * runs, and {@link rows} is called by a composition root that has a report
+   * in hand and no place to wait. So the ask happens where there is already a
+   * revision being followed, and what a row draws is this reading of it.
+   *
+   * Chat switched off is an empty set rather than a stale one: with no door
+   * there is no chat anywhere, which is what a serve with chat off honestly
+   * has.
+   */
+  const chats = new Set<string>()
+
+  /**
    * BRING THE MOUNTED SET INTO LINE WITH A READING.
    *
    * IT ANSWERS NOTHING, and used to answer *whether anything moved* off a
@@ -344,6 +367,18 @@ export const openDynamic = (
         checkedBuilds.set(one.name, { version: one.version, why: yield* compiles(one) })
       }
       forget(checkedBuilds)
+      // ...AND WHICH OF THEM A CHAT IS ABOUT, asked of chat rather than read
+      // off the folder: the chat is a row in the vault titled with this
+      // plugin's address, and nothing on the plugin's own node records it
+      // ({@link chats}). One question per defined plugin per revision, and
+      // none at all on a serve with chat off.
+      chats.clear()
+      const door = conversations()
+      if (door !== undefined) {
+        for (const one of defined) {
+          if (yield* door.here({ about: pluginAbout(one.name) })) chats.add(one.name)
+        }
+      }
       // WANTED IS APPROVED **AND** ON, and the two are different facts: a
       // plugin a person approved and then switched off is approved and not
       // running, and a plugin somebody switched on and then edited is on and
@@ -426,7 +461,6 @@ export const openDynamic = (
     const said: Readonly<Record<string, string | null>> = {
       [APPROVED_KEY]: one.approved,
       [ON_KEY]: one.on,
-      [BUILDER_KEY]: one.builder,
       [CHECKED_KEY]: one.checked,
     }
     const moving = Object.entries(props).filter(([key, value]) => (said[key] ?? null) !== value)
@@ -443,8 +477,13 @@ export const openDynamic = (
   }
 
   return {
-    rows: (report) =>
-      seen.map((one) => rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name), checkedBuilds.get(one.name), asking())),
+    rows: (report) => {
+      // ASKING IS THE DOOR BEING THERE and nothing more; which plugin has a
+      // chat is the answer {@link follow} already took for this revision.
+      const asking = conversations() !== undefined
+      return seen.map((one) =>
+        rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name), checkedBuilds.get(one.name), chats.has(one.name), asking))
+    },
     names: () => seen.map((one) => one.name),
     follow: (reading) => follow(reading === null ? [] : definedIn(reading, built)),
     chunk: (path) => {
@@ -505,13 +544,6 @@ export const openDynamic = (
       if (request !== null) yield* write(request)
       return true
     }),
-    bind: (name, conversation) => Effect.gen(function*() {
-      const one = seen.find((one) => one.name === name)
-      if (one === undefined) return false
-      const request = consent(one, { [BUILDER_KEY]: conversation })
-      if (request !== null) yield* write(request)
-      return true
-    }),
     configure: (name, key, value) => Effect.gen(function*() {
       const one = seen.find(one => one.name === name)
       if (one === undefined) return false
@@ -534,8 +566,8 @@ export const openDynamic = (
 }
 
 /**
- * THE FOUR WORDS NOTHING MAY DECLARE AS A KNOB — the plugin's approval, its
- * switch, the conversation building it and that conversation's done signal.
+ * THE THREE WORDS NOTHING MAY DECLARE AS A KNOB — the plugin's approval, its
+ * switch and its builder's done signal.
  *
  * They sit on the same node a plugin's knobs do, which is the whole of why
  * they have to be refused by name: a `Config` field called `on` would be a
@@ -543,16 +575,22 @@ export const openDynamic = (
  * would be a plugin that can say yes to itself, and one called `checked` would
  * be a plugin that declares itself finished — ringing *Ready for you* at a
  * folder its author is halfway through.
+ *
+ * `builder` WAS A FOURTH and is not reserved any more. The conversation
+ * building a plugin is the chat at its page's address now, so nothing writes
+ * that word and nothing reads it: one left over on a node somewhere is an
+ * ordinary custom property, which a plugin that does not declare it ignores
+ * exactly as it ignores any other.
  */
-export const RESERVED: ReadonlyArray<string> = [APPROVED_KEY, ON_KEY, BUILDER_KEY, CHECKED_KEY]
+export const RESERVED: ReadonlyArray<string> = [APPROVED_KEY, ON_KEY, CHECKED_KEY]
 
 /** ...AND THE SENTENCE A PERSON OR AN AGENT IS GIVEN FOR ONE, once. A schema
  *  that declares a reserved word faults the row and `plugins.configure` refuses
- *  to write one; both used to spell this out, and both still named three words
- *  the morning the fourth arrived. */
+ *  to write one; both used to spell this out, and both drifted the morning the
+ *  list changed. */
 export const RESERVED_SAID =
-  "is reserved for the plugin's approval, its switch, the conversation building it"
-  + " and that conversation's done signal"
+  "is reserved for the plugin's approval, its switch and the signal that its"
+  + " builder has finished"
 
 /**
  * WHAT THE ROWS THIS RUNTIME DRAWS SAY, as one string — the comparison that
@@ -727,6 +765,9 @@ const rowOf = (
   /** What the transform made of a version nobody has approved, where there is
    *  one to report ({@link checkedBuilds}). */
   pending: { readonly version: string; readonly why: string | null } | undefined,
+  /** Whether a chat is at this plugin's page address — what makes it a plugin
+   *  an agent is building, and what the page docks ({@link chats}). */
+  chat: boolean,
   /** Whether this serve can speak into a conversation at all. */
   asking: boolean,
 ): BuiltPlugin => {
@@ -751,14 +792,14 @@ const rowOf = (
     // which file order a build follows — is this serve's, and a page that
     // compared two hashes for itself held half a contract it could not read
     // (`./source.ts`'s `isBuilding`).
-    ...(isBuilding(one) ? { building: true } : {}),
+    ...(isBuilding(one, chat) ? { building: true } : {}),
     on: isOn(one),
     server: one.server,
     ...(one.browser === null ? {} : { browser: one.browser }),
     ...(was === undefined || was.server === one.server ? {} : { approvedServer: was.server }),
     ...(was === undefined || was.browser === one.browser || was.browser === null ? {} : { approvedBrowser: was.browser }),
     ...(one.uses.length === 0 ? {} : { uses: one.uses }),
-    ...(one.builder === null ? {} : { builder: one.builder }),
+    ...(chat ? { chat: true } : {}),
     ...(asking ? { asking: true } : {}),
     ...(up?.path == null ? {} : { chunk: up.path }),
   }

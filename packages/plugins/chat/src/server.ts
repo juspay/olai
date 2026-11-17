@@ -1,5 +1,5 @@
 import { newChat, chatLocations, type LocationQuery, type NewChatInput } from "./server/new-chat.ts"
-import { aboutIn, type Placed } from "./server/places.ts"
+import { aboutIn, chatsIn, placeIn, type Placed } from "./server/places.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
  * end, and the fourteen verbs, as a row.
@@ -861,6 +861,14 @@ export default definePlugin({
 
     // ── the fifth door, and the one a row that is not chat reaches a chat by ──
 
+    /** The chat row at an address, in the vault as it stands now — the
+     *  server's half of the browser's `chatAt` (`./server/places.ts`). */
+    const chatAtAddress = (about: string) => Effect.map(ops.reading, (read) => {
+      const reading = read as Reading
+      nodeAgents.seen(reading.derived)
+      const place = placeIn(reading, about)
+      return place === null ? undefined : chatsIn(reading, nodeAgents.nodes()).at(place)
+    })
     /**
      * `conversations` — STARTING A CONVERSATION, SPEAKING INTO IT, AND WHAT
      * CAN BE STARTED, for a row that is not chat.
@@ -906,10 +914,13 @@ export default definePlugin({
       // nowhere.
       send: (to, text, preamble) =>
         withChat(open => open.inConversation(to, undefined, panel => panel.send(text, [], [], false, preamble))),
-      seat: (node) => {
-        const row = nodeAgents.nodeAt(node)
-        return row === null || row.session === null ? null : { agent: row.engine, session: row.session }
-      },
+      // THE CHAT AT AN ADDRESS, read off the vault as it stands now rather
+      // than off whichever revision last reached this row — a caller following
+      // a revision of its own is answered about that one or a later one
+      // (`./server/places.ts`).
+      seatAt: (about) => Effect.map(chatAtAddress(about), (row) =>
+        row === undefined || row.session === null ? null : { agent: row.engine, session: row.session }),
+      chatAt: (about) => Effect.map(chatAtAddress(about), (row) => row !== undefined),
       deliver: (who, to, text, current) =>
         chat === null
           ? Effect.succeed(false)

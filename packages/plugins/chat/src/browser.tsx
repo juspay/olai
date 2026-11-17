@@ -189,6 +189,7 @@ import { ChatsThumb } from "./browser/agents/ChatsThumb.tsx"
 import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { createDock, holdDock } from "./browser/dock.ts"
+import { placeOfRoute } from "./browser/agents/place.ts"
 import { Dock } from "./browser/agents/Dock.tsx"
 import { DockToggle } from "./browser/agents/DockToggle.tsx"
 export const components = {
@@ -211,8 +212,20 @@ export const components = {
     // naming the key instead of handing it a door that does nothing. The live
     // `Dock` is not what crosses: the two verbs another row may spend are,
     // which is why the door is a narrowing and not the value itself.
+    // BY ADDRESS, because another row knows the page it is about and not
+    // which chat row is that page's: the one reading every face asks
+    // (`./browser/agents/answered.tsx`'s `chatAt`) answers it here. With no
+    // chat there yet the column opens on its picker, where the page in front
+    // offers to start one.
     yield* (yield* Offers).own(DOCK, () => ({
-      open: (node: string) => door.value.open(node),
+      open: (about: string) => {
+        const routes = heldNavigation()?.routes
+        const route = routes?.routeIn(about) ?? null
+        const row = routes === undefined || route === null ? undefined : agentReadings()?.agents.chatAt(placeOfRoute(routes, route))
+        if (row !== undefined) { door.value.open(row.id); return }
+        door.value.clear()
+        door.value.show()
+      },
       desktop: () => door.value.desktop(),
     } satisfies DockDoor))
     const roster = () => agentReadings()?.agents
