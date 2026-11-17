@@ -640,13 +640,10 @@ export default definePlugin({
           nodeAgents.seen(committed.derived)
           return yield* startAgentSession(open, binding, { node, agent })
         }),
-        // THE CHAT ROWS OF THE READING THE REFUSAL IS ASKED OVER — the same
-        // roster the browser draws, read off the reading in hand rather than
-        // off whatever revision last arrived.
-        chats: (reading) => {
-          nodeAgents.seen(reading.derived)
-          return nodeAgents.nodes()
-        },
+        // THE CHAT ROWS OF THE READING THE REFUSAL IS ASKED OVER, by the pure
+        // seating reading (`./seating.ts`) — never by moving the roster, which
+        // is the revision handler's alone.
+        chats: (reading) => seatingIn(reading.derived),
       }, input))
     }
 
@@ -862,12 +859,14 @@ export default definePlugin({
     // ── the fifth door, and the one a row that is not chat reaches a chat by ──
 
     /** The chat row at an address, in the vault as it stands now — the
-     *  server's half of the browser's `chatAt` (`./server/places.ts`). */
+     *  server's half of the browser's `chatAt` (`./server/places.ts`). Read off
+     *  the reading in hand with the pure seating, so a question from another
+     *  row never moves chat's own roster under it; no reading yet is no chat. */
     const chatAtAddress = (about: string) => Effect.map(ops.reading, (read) => {
-      const reading = read as Reading
-      nodeAgents.seen(reading.derived)
+      const reading = read as Reading | null | undefined
+      if (reading === null || reading === undefined) return undefined
       const place = placeIn(reading, about)
-      return place === null ? undefined : chatsIn(reading, nodeAgents.nodes()).at(place)
+      return place === null ? undefined : chatsIn(reading, seatingIn(reading.derived)).at(place)
     })
     /**
      * `conversations` — STARTING A CONVERSATION, SPEAKING INTO IT, AND WHAT
@@ -1129,7 +1128,7 @@ export default definePlugin({
         agentAt: (to) => nodeAgents.agentAt(to),
         // WHAT A NODE AGENT'S ROW IS ABOUT, off the same revision the roster
         // was built from (`./server/places.ts`).
-        aboutAt: (agent) => latest === null ? null : aboutIn(latest, nodeAgents.nodes(), agent),
+        aboutAt: (agent) => latest === null ? null : aboutIn(latest, seatingIn(latest.derived), agent),
         // THE PERIOD AS DECODED, from the settings this row was applied with —
         // a change re-applies the row, so the panel never holds a stale one.
         remindEvery: settings["remind-every"],
