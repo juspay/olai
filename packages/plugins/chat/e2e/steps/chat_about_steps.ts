@@ -290,9 +290,10 @@ When("I send from the seat's composer", async function (this: OlaiWorld) {
 });
 
 /** THE CONVERSATION IN THE SEAT, settled — the seat's own `data-chat` is the
- *  chat row, whatever page it is drawn under. */
+ *  chat row, whatever page it is drawn under. The head line above it names the
+ *  same chat row, so it is passed over. */
 Then("the seat holds the conversation {string}", async function (this: OlaiWorld, name: string) {
-  const conversation = seat(this).locator(attr("data-chat", this.nodeId(name)));
+  const conversation = seat(this).locator(`${attr("data-chat", this.nodeId(name))}:not(${CHAT_SEAT_LINE})`);
   await conversation.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.waitUntil(async () => {
     const status = await conversation.locator(CHAT_PANEL).getAttribute("data-status");
