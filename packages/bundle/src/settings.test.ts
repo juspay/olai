@@ -8,6 +8,7 @@ import { Effect, Schema, SchemaAST } from "effect"
 import { decodePolicy, policyControl } from "@olai/plugin-api/configuration"
 import type { Plugin } from "@olai/plugin-api"
 import { ROWS } from "./rows.ts"
+import { declaredKinds } from "./bundle.ts"
 
 const audit = (schema: Schema.ConstraintDecoder<unknown, never>, path: string): number => {
   const defaults = Schema.decodeUnknownSync(schema)({}) as Record<string, unknown>
@@ -57,11 +58,23 @@ test("the audit refuses numeric and nullable fields without a string spelling", 
   }
 })
 
-test("the agent write reservation set is enablement and definition approval", async () => {
+/**
+ * THE WHOLE STANDING RESERVATION SET, exactly — the words no agent face may
+ * write, whatever row is composed: a person's enablement choice, a person's
+ * approval of code that runs, and the key that says WHICH conversation an item
+ * is having.
+ *
+ * Chat's is spelled as a literal in its policy module, because that module is
+ * in the host's permanent entry closure and may import nothing; the word is
+ * held against the assembled vocabulary below rather than against a second
+ * copy of the literal.
+ */
+test("the agent write reservation set is enablement, definition approval and a chat's seat", async () => {
   const { WRITE_RESERVATIONS } = await import("./policy.ts")
   expect(WRITE_RESERVATIONS.map(({ key, file }) => ({ key, file })).sort((a, b) => a.key.localeCompare(b.key))).toEqual([
-    { key: "approved", file: undefined }, { key: "on", file: "settings.olai" },
+    { key: "approved", file: undefined }, { key: "chat-agent-session", file: undefined }, { key: "on", file: "settings.olai" },
   ])
+  expect([...(await Effect.runPromise(declaredKinds)).keys()]).toContain("chat-agent-session")
 })
 
 test("every shipped declaration supplies a control for each leaf in schema order", async () => {

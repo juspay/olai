@@ -489,10 +489,17 @@ When(
 When(
   "the terminal agent rewrites {string} expecting {string}, as {string}",
   async function (this: OlaiWorld, file: string, was: string, text: string) {
-    this.toolAnswer = await callTool(agentOf(this), "markdown_write", {
+    // `\n` in the step's words is a newline: a scenario that puts a whole
+    // file on one line spells it the way every other such step does
+    // (`the vault holds … saying …`).
+    //
+    // THROUGH `tryTool`, because a write this door REFUSES is one of the two
+    // things this step is used to say — the answer is kept for the refusal
+    // steps to read rather than thrown, exactly as the property writer's is.
+    this.toolAnswer = await tryTool(agentOf(this), "markdown_write", {
       file,
-      text,
-      was,
+      text: text.replace(/\\n/g, "\n"),
+      was: was.replace(/\\n/g, "\n"),
     });
   },
 );

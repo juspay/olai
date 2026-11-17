@@ -9,13 +9,13 @@ import { freshStartQuestion } from "./agents/fresh-start.ts"
 const engines: ReadonlyArray<AgentChoice> = [{ id: "claude", name: "Claude", standing: "here" }, { id: "codex", name: "Codex", standing: "here" }]
 const roster = (bound?: Row, installed = engines): Roster => ({
   at: () => bound, engines: () => installed, rows: () => bound ? [bound] : [],
-  chatAt: () => bound, placeOf: (one) => ({ kind: "row", id: one.id }), standsIn: () => false, named: (one) => ({ name: one.title }),
+  chatOf: () => bound, named: (one) => ({ name: one.title }),
   standings: () => installed,
   only: () => installed.length === 1 ? installed[0]! : null,
   missing: () => null,
-  chats: () => null, unreachable: () => [], chatsRefusal: () => null, askChats: () => {},
+  chats: () => null, askChats: () => {},
 })
-const node: Row = { id: "one", title: "One", file: "house.olai", engine: "claude", session: null, memory: 0, standing: "unbound", waiting: 0, said: null, seen: null, unread: false, sleeps: false, sleep: null }
+const node: Row = { id: "one", title: "One", kind: "node", beside: false, file: "house.olai", engine: "claude", session: null, memory: 0, standing: "unbound", waiting: 0, said: null, seen: null, unread: false, sleeps: false, sleep: null }
 
 /** What a menu draws of the answer: each entry's words, and a choice's options. */
 const drawn = (actions: ReadonlyArray<RowAction>) => actions.map(action => "choices" in action

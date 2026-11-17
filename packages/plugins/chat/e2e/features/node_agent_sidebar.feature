@@ -106,23 +106,23 @@ Feature: Agent activity is reachable from Chats and the palette
     Then the agents roster holds 10 agents
     And there should be no page errors
 
-  # THE REPORT (this scenario is its regression): a conversation filed under
-  # _olai/Inbox.olai's `chats` container opened the INBOX with the chat's row
-  # merely selected. The row must lead to the conversation's own page, whose
-  # trail roots at the file that holds the node — not at the file the reader
-  # happened to be on.
-  Scenario: A chat filed under the Inbox opens its own page, not the Inbox
+  # THE REPORT (this scenario is its regression): a conversation whose row
+  # lives in another file opened THAT FILE with the chat's row merely selected.
+  # The row must lead to the conversation's own page, whose trail roots at the
+  # file that holds the node — not at the file the reader happened to be on.
+  Scenario: A chat's row opens its own page, not the file the reader is on
     Given I open the outline "house.olai"
     When I press new chat in Chats
-    And I choose the new chat place "default"
-    And I type new chat draft "filed under chats"
+    And I type "gate" into the palette
+    And I choose the new chat place "gate"
+    And I type new chat draft "about the gate"
     And I send the new chat draft
-    Then the chat child under "chats" in "_olai/Inbox.olai" is titled "filed under chats"
+    Then the chat child under "gate" in "yard.olai" is titled "about the gate"
     When I open the outline "house.olai"
-    And I open the filed "claude" conversation "filed under chats" as node "filed"
-    Then the conversation "filed" is the root of the page
-    And the breadcrumbs are "_olai/Inbox.olai, Chats"
-    And the node page conversation is ready for "filed"
+    And I press the Chats row "new-chat"
+    Then the conversation "new-chat" is the root of the page
+    And the breadcrumbs are "yard.olai, the yard, oil the gate hinge"
+    And the node page conversation is ready for "new-chat"
     And there should be no page errors
 
   @phone

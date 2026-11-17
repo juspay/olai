@@ -100,7 +100,10 @@
 import { Schema } from "effect"
 
 import { type Derived, under } from "./derive.ts"
+import { isMarkdown } from "./document.ts"
+import { type Claims, nameOf, textKind } from "./kinds.ts"
 import { isPutAway, isRegular } from "./node.ts"
+import { documentAt, markdownIn, type OutlineSet } from "./set.ts"
 import { declaresKind, type PropDeclarations, textDeclaredAs } from "./typing.ts"
 
 /**
@@ -138,23 +141,83 @@ export const sessionValue = (engine: string, session: string | null): string =>
   session === null ? engine : `${engine}:${session}`
 
 /**
- * ONE NODE AGENT, as the set knows it.
+ * WHAT A CONVERSATION CAN BE ABOUT — a node, or a note.
  *
- * Five facts and no more, and each of them is a reading of the RECORD: where it
- * is, what it is called, which engine and which conversation the property
- * names, and how big its memory is. Everything a person actually WATCHES — is
- * it working, what did it last say — is about what that conversation is doing,
- * which is not a fact about a vault at all.
+ * Two things in a served directory carry a chat, and they carry it the same
+ * way: a NODE keeps the binding on its row and its memory in the rows under
+ * it; a NOTE — a `.md` — keeps the binding in its front matter and IS its own
+ * memory. Nothing else has one. A picture, a `.csv`, a saved page, a whole
+ * outline and a plugin's page are things olai shows, with nowhere to write a
+ * binding and nothing to be the memory of a conversation.
+ *
+ * A SUM rather than `{ id?, path? }`, for `./address.ts`'s reason one module
+ * over: the optional-halves shape makes the illegal combinations
+ * representable and pushes "which fields may co-occur" into every reader.
+ */
+export const AgentItem = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("node"), id: Schema.String }),
+  Schema.Struct({ kind: Schema.Literal("note"), path: Schema.String }),
+])
+export type AgentItem = typeof AgentItem.Type
+
+/**
+ * THE ROSTER KEY OF AN ITEM — a node's id, or `/` and a note's root-relative
+ * path.
+ *
+ * ONE STRING, because every verb that was about a node is now about an item
+ * and a wire is a poor place for a sum that half its callers would spell by
+ * hand. The two namespaces cannot collide: an id olai writes is
+ * `[A-Za-z0-9_-]+` ({@link ./node.ts}'s `ID_SHAPE`), so none of them opens
+ * with a slash, and a served path is always relative so every note's key does.
+ */
+export const itemKey = (item: AgentItem): string => item.kind === "node" ? item.id : `/${item.path}`
+
+/** ...and the same rule read backwards, so a key that crossed the wire names
+ *  the item it was made of. */
+export const itemOf = (key: string): AgentItem =>
+  key.startsWith("/") ? { kind: "note", path: key.slice(1) } : { kind: "node", id: key }
+
+/** Whether a path names a NOTE — a file of the kind a note is written in, as
+ *  the DIRECTORY's claim table says it: a kept text body that is not a half
+ *  somebody's plugin is made of. The same three tests {@link isMarkdown}
+ *  makes of a document, asked of a path, because no suffix is this package's
+ *  to spell — the row that claims one owns it. Whether the set is actually
+ *  SERVING a note there is {@link seatableNote}'s question, and it holds the
+ *  set to answer it with. */
+export const isNotePath = (claims: Claims, path: string): boolean => {
+  const kind = textKind(claims, path)
+  const claim = kind === null ? undefined : claims.byKind.get(kind)
+  return claim !== undefined && claim.kept && claim.opaque !== true
+}
+
+/**
+ * ONE CHAT'S ITEM, as the set knows it.
+ *
+ * A reading of the RECORD and nothing else: which kind of item it is, where it
+ * is, what it is called, which engine and which conversation the binding names,
+ * how big its memory is, and whether it opens beside the page. Everything a
+ * person actually WATCHES — is it working, what did it last say — is about what
+ * that conversation is doing, which is not a fact about a vault at all.
+ *
+ * ONE SHAPE FOR BOTH KINDS, rather than a roster of nodes and a roster of
+ * notes: every face that draws a chat draws the same row, and the two facts
+ * that differ — which kind it is, and whether it opens beside — are fields
+ * rather than a second collection a face could forget to read.
  */
 export const NodeAgent = Schema.Struct({
-  /** The node's own id — what a door presses, what a binding names, and what
+  /** WHICH KIND OF ITEM carries this chat: an outline row, or a `.md`. */
+  kind: Schema.Literals(["node", "note"]),
+  /** The item's own key — a node's id, or `/` and a note's path
+   *  ({@link itemKey}): what a door presses, what a binding names, and what
    *  the panel's header jumps to. */
   id: Schema.String,
-  /** The outline the node is written in, root-relative. */
+  /** Where it is, root-relative: the outline a node is written in, or the
+   *  note's own path. */
   file: Schema.String,
-  /** The node's title, live: rename the node and the roster says the new name
-   *  on the frame the store publishes, because there is no second copy of it
-   *  anywhere to go stale. */
+  /** What it is called, live: a node's title, or a note's name
+   *  ({@link ./kinds.ts}'s `nameOf` — `plan` for `notes/plan.md`). Rename
+   *  either and the roster says the new name on the frame the store
+   *  publishes, because there is no second copy of it anywhere to go stale. */
   title: Schema.String,
   /**
    * WHICH ENGINE this node's agent runs on — the first half of the property's
@@ -187,8 +250,23 @@ export const NodeAgent = Schema.Struct({
    * session would come back knowing anything. Descendants only: a node counts
    * its subtree, not itself, the way `Move to Trash` already names one
    * (`./derive.ts`'s `under`).
+   *
+   * A NOTE'S MEMORY IS `0`, and that is not a gap: a note IS its memory — the
+   * agent reads the file every time rather than carrying rows it has written
+   * somewhere else — so there is nothing under it to count, and nothing to
+   * tidy.
    */
   memory: Schema.Int,
+  /**
+   * WHETHER THIS CHAT OPENS BESIDE the page rather than alone — a note's
+   * `chat-opens` switch, read here so every face asks the roster rather than
+   * the front matter.
+   *
+   * ALWAYS `false` FOR A NODE, which is the honest shape rather than an
+   * optional field: the switch is written in a note's own front matter, and a
+   * row has nowhere to write one.
+   */
+  beside: Schema.Boolean,
 })
 export type NodeAgent = typeof NodeAgent.Type
 
@@ -318,12 +396,14 @@ export const agentsIn = (
     const said = held === undefined ? null : sessionIn(held)
     if (said === null) return []
     return [{
+      kind: "node",
       id: located.node.id,
       file: located.file,
       title: located.node.title,
       engine: said.engine,
       session: said.session,
       memory: under(derived, located.node.id),
+      beside: false,
     }]
   })
 }
@@ -350,4 +430,79 @@ export const seatableIn = (derived: Derived, node: string): boolean => {
   const located = derived.byId.get(node)
   if (located === undefined) return false
   return !isPutAway(derived.claims, located.file) && isRegular(located)
+}
+
+/**
+ * THE NOTES OF A SET THAT CARRY A CHAT — the same query as {@link agentsIn},
+ * asked of front matter instead of records, in path order.
+ *
+ * A NOTE'S BINDING IS A PROPERTY TOO, written where a note keeps its
+ * properties: the `---` block at the top ({@link ./frontmatter.ts}, read onto
+ * the document's own `props`). So this is the node reading with one thing
+ * swapped — the records become the `.md` documents and `node.custom` becomes
+ * `document.props` — and every rule around it is the same one: the kind is
+ * asked of the vault's DECLARATIONS rather than of a key this package spells
+ * ({@link textDeclaredAs}, which steps over a list-valued property), a value
+ * naming no engine names no chat, and what has been put away is not on the
+ * roster.
+ *
+ * TWO WORDS AND NOT ONE, because a note carries two declared kinds: the
+ * binding, and the switch that says whether its chat opens BESIDE the page.
+ * The switch is read here rather than at a face for the roster's own reason —
+ * a row of the roster is everything the set says about one chat, so a face
+ * draws the row instead of going back to the file.
+ *
+ * NO MEMORY COUNT and nothing to tidy: the note is the memory, so `memory` is
+ * `0` for every row this answers with ({@link NodeAgent}'s own field says
+ * why).
+ */
+export const notesIn = (
+  set: OutlineSet,
+  claims: Claims,
+  declarations: PropDeclarations,
+  sessionWord: string,
+  opensWord: string,
+): NodeAgents => {
+  // THE LICENCE BEFORE THE WALK, exactly as the node reading asks it: a vault
+  // that declares no such kind pays one walk of its declarations rather than
+  // one per document.
+  if (!declaresKind(declarations, sessionWord)) return NO_AGENTS
+  return markdownIn(set).flatMap((note) => {
+    if (isPutAway(claims, note.path)) return []
+    const held = textDeclaredAs(declarations, { custom: note.props }, sessionWord)
+    const said = held === undefined ? null : sessionIn(held)
+    if (said === null) return []
+    const opens = textDeclaredAs(declarations, { custom: note.props }, opensWord)
+    return [{
+      kind: "note" as const,
+      id: itemKey({ kind: "note", path: note.path }),
+      file: note.path,
+      title: nameOf(claims, note.path),
+      engine: said.engine,
+      session: said.session,
+      memory: 0,
+      beside: opens === BESIDE,
+    }]
+  })
+}
+
+/** The one value of the opens switch that means anything: every other
+ *  spelling, and the absence of the key, is a chat that opens alone. One
+ *  word, so the reading and the writer cannot come to disagree about it. */
+const BESIDE = "beside"
+
+/**
+ * COULD A CHAT BE SEATED ON THIS NOTE — {@link seatableIn}'s question for the
+ * other kind of item, and the same two tests {@link notesIn} applies minus the
+ * one about the property.
+ *
+ * HELD, which is what distinguishes a note from a path somebody typed: the set
+ * has to be serving a `.md` at it. A picture, a `.csv`, a saved page and a
+ * plugin's half are files olai only shows — there is no front matter to write
+ * a binding into — and a trashed or archived note is not somewhere to seat a
+ * conversation, for the roster's own reason.
+ */
+export const seatableNote = (set: OutlineSet, claims: Claims, path: string): boolean => {
+  const document = documentAt(set, path)
+  return document !== undefined && isMarkdown(document) && !isPutAway(claims, path)
 }

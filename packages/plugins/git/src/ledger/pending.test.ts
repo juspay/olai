@@ -2269,12 +2269,12 @@ test("the git reading carries the decoded policy, including push defaults", () =
     expect(git.policy.push).toBeDefined()
   })))
 
-test("filer writes retain their own writer in pending edits and the commit ledger", async () => {
+test("move writes retain their own writer in pending edits and the commit ledger", async () => {
   await withRepo({ "house.olai": HOUSE }, fixture => Effect.gen(function*() {
-    yield* Effect.orDie(fixture.ops.run({ op: "add", parent: "kitchen", title: "filed conversation" }, "filer"))
+    yield* Effect.orDie(fixture.ops.run({ op: "add", parent: "kitchen", title: "moved chat" }, "move"))
     yield* fixture.refresh
-    expect((yield* fixture.ops.pending).wrote).toEqual([{ writer: "filer", ops: 1 }])
-    yield* fixture.ops.commit({}, "filer")
-    expect(fixture.git("log", "-1", "--format=%(trailers:key=X-Olai-Writer,valueonly)").trim()).toBe("filer")
+    expect((yield* fixture.ops.pending).wrote).toEqual([{ writer: "move", ops: 1 }])
+    yield* fixture.ops.commit({}, "move")
+    expect(fixture.git("log", "-1", "--format=%(trailers:key=X-Olai-Writer,valueonly)").trim()).toBe("move")
   }))
 })

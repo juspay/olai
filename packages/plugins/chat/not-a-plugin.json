@@ -3,7 +3,7 @@
   "//settings": "The sentence a person is told when the pass is switched off reads `sleep is off in this directory's settings`: the directory's own settings, not the settings row. The sleep item's own sentence reads `off in Settings` and names the file it comes from (`_olai/Settings.olai`), which is a vault file and not the settings row.",
   "//alerts": "The words chat's own surfaces use for somebody else's alarm: the wake strip used to carry `alerts` as its accessible label and does not any more, and what remains is chat's browser entry and its attention line, which say the word as ordinary English rather than naming the alerts row.",
   "//files": "The completion menu's section heading reads `Files`: the vault's files, not the files row.",
-  "//markdown": "Markdown is the shared renderer component, including the read-only conversation preview, not a runtime lookup of the markdown plugin.",
+  "//markdown": "Markdown is the shared renderer component, including the read-only conversation preview, not a runtime lookup of the markdown plugin; in `teaching.ts` the word is the MCP TOOL NAME `markdown_read`, which is what an agent is told to read a note with.",
   "//trash": "The sleep instruction tells an agent never to trash a row it is tidying: `olai-plugin-chat`'s own words to an agent, not the trash row.",
   "alerts": {
     "src/browser.tsx": 3,
@@ -44,7 +44,8 @@
   "markdown": {
     "src/browser/LinkPreview.tsx": 2,
     "src/browser/chat/Entry.tsx": 4,
-    "src/browser/chat/ToolFrame.tsx": 2
+    "src/browser/chat/ToolFrame.tsx": 2,
+    "src/teaching.ts": 1
   },
   "mcp": {
     "src/agent.ts": 11,
@@ -55,7 +56,6 @@
   "navigation": {
     "src/browser.tsx": 11,
     "src/browser/agents/AgentPalette.ts": 4,
-    "src/browser/agents/answered.tsx": 3,
     "src/browser/agents/handoff.ts": 5,
     "src/browser/agents/new-chat-level.ts": 2,
     "src/browser/agents/new-chat.ts": 2,
@@ -70,13 +70,12 @@
     "src/agents/roster.ts": 5,
     "src/browser.tsx": 1,
     "src/browser/agents/AgentPalette.ts": 5,
-    "src/browser/agents/new-chat-level.ts": 3,
+    "src/browser/agents/new-chat-level.ts": 2,
     "src/browser/chat/Composer.tsx": 1,
     "src/browser/chat/Model.tsx": 1,
     "src/browser/chat/completion.ts": 1,
     "src/browser/chat/nodes.ts": 2,
-    "src/browser/search.ts": 2,
-    "src/testids.ts": 2
+    "src/browser/search.ts": 2
   },
   "settings": {
     "src/agent.ts": 13,
@@ -99,6 +98,6 @@
   },
   "vault": {
     "src/browser/chat/outline.ts": 4,
-    "src/server.ts": 14
+    "src/server.ts": 10
   }
 }

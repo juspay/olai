@@ -42,16 +42,18 @@ export const slugOf = (title: string): string => {
 export const PLUGIN_PATH = "/plugins/"
 
 /**
- * WHERE A PLUGIN IS, as an address — `/plugins/<word>`, its own page.
+ * WHERE A PLUGIN'S README IS — `plugins/<word>/README.md`, the first file a
+ * mint writes and the one a person reads.
  *
- * It is what a chat about this plugin is ABOUT: a chat row titled
- * `[<Title>](/plugins/<word>)` is this plugin's builder, and that is the whole
- * of the binding — nothing is written on the plugin's own node for it. So the
- * serve spells this when it opens a conversation and when it speaks into one,
- * the page spells it when it docks one, and `./browser/route.ts` spells the
- * same string as the page's own URL.
+ * It is what a plugin's BUILDER CHAT is about: a chat belongs to a node or a
+ * note, one each, and a plugin's note is its README. The tie lives in that
+ * file's own front matter, so nothing is written on the plugin's folder to say
+ * which conversation is building it and nothing has to be kept in step with
+ * the folder's name. The serve spells this when it opens a conversation and
+ * when it speaks into one, and the runtime spells it when it asks chat which
+ * plugins have one.
  */
-export const pluginAbout = (word: string): string => `${PLUGIN_PATH}${encodeURIComponent(word)}`
+export const pluginReadme = (word: string): string => `plugins/${word}/README.md`
 
 /** One definition, at one version, as the panel asks about it. */
 export interface ApprovalRequest {

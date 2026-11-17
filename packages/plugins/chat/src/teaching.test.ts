@@ -10,9 +10,11 @@
 import { expect, test } from "bun:test"
 
 import { annotated } from "./prompt.ts"
-import { HARNESS_MEMORY_OFF, REMINDER, REMINDING, teachingFor } from "./teaching.ts"
+import { HARNESS_MEMORY_OFF, NOTE_REMINDER, REMINDER, REMINDING, remindingFor, teachingFor } from "./teaching.ts"
 
 const SPACES = {
+  kind: "node" as const,
+  beside: false,
   id: "spaces",
   title: "Xyne Spaces — the org OS",
   file: "lanes.olai",
@@ -21,8 +23,6 @@ const SPACES = {
   memory: 14,
 }
 
-const ARRIVALS = ["opened", "assigned"] as const
-
 test("it names the node, by title and by the id a read would take", () => {
   const [who] = teachingFor(SPACES)
   expect(who).toContain("Xyne Spaces — the org OS")
@@ -30,12 +30,10 @@ test("it names the node, by title and by the id a read would take", () => {
   expect(who).toContain("lanes.olai")
 })
 
-test("the node's own note is the charter, and it overrides the defaults, under both arrivals", () => {
-  for (const how of ARRIVALS) {
-    const [who] = teachingFor(SPACES, how)
-    expect(who).toContain("own note is your charter")
-    expect(who).toContain("overrides everything below")
-  }
+test("the node's own note is the charter, and it overrides the defaults", () => {
+  const [who] = teachingFor(SPACES)
+  expect(who).toContain("own note is your charter")
+  expect(who).toContain("overrides everything below")
 })
 
 test("the trigger comes before the shape, and it is negative: answer, and write only on a durable fact", () => {
@@ -50,11 +48,9 @@ test("the trigger comes before the shape, and it is negative: answer, and write 
 })
 
 test("a node agent with nothing under it yet is told so, not told it has zero", () => {
-  for (const how of ARRIVALS) {
-    const [, trigger] = teachingFor({ ...SPACES, memory: 0 }, how)
-    expect(trigger).toContain("nothing under it yet")
-    expect(trigger).not.toContain("0 rows")
-  }
+  const [, trigger] = teachingFor({ ...SPACES, memory: 0 })
+  expect(trigger).toContain("nothing under it yet")
+  expect(trigger).not.toContain("0 rows")
 })
 
 test("one row is `1 row`", () => {
@@ -65,56 +61,24 @@ test("\"memory\" is said only where it means the engine's own — never as the s
   // The word the old contract leaned on five times, and the reason an agent
   // filed a node per message: told its subtree was its memory, it remembered
   // everything.
-  for (const how of ARRIVALS) {
-    const lines = teachingFor(SPACES, how)
-    const saying = lines.filter((line) => /memory/i.test(line))
-    expect(saying).toEqual([`[olai] ${HARNESS_MEMORY_OFF}`])
-  }
+  const saying = teachingFor(SPACES).filter((line) => /memory/i.test(line))
+  expect(saying).toEqual([`[olai] ${HARNESS_MEMORY_OFF}`])
   expect(REMINDER).not.toMatch(/memory/i)
 })
 
 test("every line is an `[olai] ` line, and the contract ends on the engine's memory being off", () => {
-  for (const how of ARRIVALS) {
-    const lines = teachingFor(SPACES, how)
-    for (const line of lines) expect(line.startsWith("[olai] ")).toBe(true)
-    expect(lines.at(-1)).toBe(`[olai] ${HARNESS_MEMORY_OFF}`)
-  }
+  const lines = teachingFor(SPACES)
+  for (const line of lines) expect(line.startsWith("[olai] ")).toBe(true)
+  expect(lines.at(-1)).toBe(`[olai] ${HARNESS_MEMORY_OFF}`)
 })
 
-test("the LAW is the same lines word for word under both arrivals, and under every node", () => {
-  // Two spellings of the law is two contracts — between arrivals, and between
-  // two agents a reader compares.
-  const opened = teachingFor(SPACES, "opened")
-  const assigned = teachingFor(SPACES, "assigned")
-  expect(assigned.slice(1, 3)).toEqual(opened.slice(1, 3))
-  const other = teachingFor({ id: "odu", title: "Odu", file: "ci.olai", engine: "opus", session: null, memory: 14 })
+test("the LAW is the same lines word for word under every node", () => {
+  // Two spellings of the law is two contracts, between two agents a reader
+  // compares.
+  const opened = teachingFor(SPACES)
+  const other = teachingFor({ id: "odu", kind: "node", beside: false, title: "Odu", file: "ci.olai", engine: "opus", session: null, memory: 14 })
   expect(other[0]).not.toBe(opened[0])
   expect(other.slice(1)).toEqual(opened.slice(1))
-})
-
-// ── the migration variant ─────────────────────────────────────────────
-
-test("an ASSIGNED session is told it was moved here, and what it was before", () => {
-  const [who] = teachingFor(SPACES, "assigned")
-  expect(who).toContain("ASSIGNED")
-  expect(who).toContain("Xyne Spaces — the org OS")
-  expect(who).toContain("ordinary chat until now")
-})
-
-test("... and is told to reconcile what it already knows into the subtree, which an opened one is not", () => {
-  const assigned = teachingFor(SPACES, "assigned")
-  const opened = teachingFor(SPACES, "opened")
-  expect(assigned).toHaveLength(opened.length + 1)
-  const reconcile = assigned.find((line) => !opened.includes(line) && line !== assigned[0])
-  expect(reconcile).toContain("Reconcile first")
-  expect(reconcile).toContain("still relevant from this conversation")
-  expect(reconcile).toContain("updating the entries that already hold it")
-  // ... after the law, and before the last line.
-  expect(assigned.indexOf(reconcile as string)).toBe(assigned.length - 2)
-})
-
-test("`opened` is the default, so every existing caller teaches what it taught", () => {
-  expect(teachingFor(SPACES, "opened")).toEqual(teachingFor(SPACES))
 })
 
 // ── the reminder ──────────────────────────────────────────────────────
@@ -141,20 +105,43 @@ test("under a message it rides the seam every other annotation rides", () => {
   expect(annotated("and now?", REMINDING)).toBe(`and now?\n\n[olai] ${REMINDER}`)
 })
 
-test("a chat row about a place is told its address once, right after which node it is", () => {
-  const plan = { ...SPACES, id: "plan-chat", title: "[plan](/notes/plan.md)", file: "_olai/Inbox.olai" }
-  for (const how of ARRIVALS) {
-    const lines = teachingFor(plan, how, "/notes/plan.md")
-    expect(lines[1]).toBe("[olai] This conversation is about `/notes/plan.md`: the person talks to you from that page, so read it before you answer.")
-    expect(lines.filter((line) => line.includes("/notes/plan.md`:")).length).toBe(1)
-    // ...and everything else is the plain contract, word for word.
-    expect(lines.filter((_, index) => index !== 1).slice(1)).toEqual(teachingFor(plan, how).slice(1))
-  }
+// ── and a note's contract, which is the other one ──────────────────────
+
+const PLAN = {
+  kind: "note" as const,
+  id: "/notes/plan.md",
+  title: "plan",
+  file: "notes/plan.md",
+  engine: "claude",
+  session: "sess-2",
+  memory: 0,
+  beside: false,
+}
+
+test("a note's agent is told whose note it is, that it IS the memory, and to read it", () => {
+  const lines = teachingFor(PLAN)
+  expect(lines).toHaveLength(4)
+  expect(lines[0]).toContain("notes/plan.md")
+  expect(lines[0]).toContain("plan")
+  expect(lines[1]).toContain("markdown_read")
+  expect(lines[1]).toContain("notes/plan.md")
 })
 
-test("an ordinary chat row is told exactly what it was told before", () => {
-  for (const how of ARRIVALS) {
-    expect(teachingFor(SPACES, how, null)).toEqual(teachingFor(SPACES, how))
-    expect(teachingFor(SPACES, how).some((line) => line.includes("This conversation is about"))).toBe(false)
-  }
+test("...and that it is the person's file: changed only when asked, front matter untouched", () => {
+  const [, , theirs] = teachingFor(PLAN)
+  expect(theirs).toContain("only when they ask")
+  expect(theirs).toContain("front-matter")
+})
+
+test("a note is told nothing about a subtree, a write trigger or a shape", () => {
+  const lines = teachingFor(PLAN).join("\n")
+  expect(lines).not.toContain("SUBTREE")
+  expect(lines).not.toContain("One node per fact")
+  expect(lines).not.toContain("sleep")
+})
+
+test("the reminder a chat gets is the one its own contract is about", () => {
+  expect(remindingFor(SPACES)).toEqual(REMINDING)
+  expect(remindingFor(PLAN)).toEqual([`[olai] ${NOTE_REMINDER}`])
+  expect(remindingFor(PLAN)[0]).toContain("read the note again")
 })

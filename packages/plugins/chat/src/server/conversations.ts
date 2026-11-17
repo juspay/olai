@@ -48,26 +48,27 @@
  * filled (`@olai/plugin-api`'s {@link Conversations} argues it, where the key
  * is declared).
  *
- * ## The mint is the row's, borrowed whole
+ * ## The start is the row's, borrowed whole
  *
- * {@link ConversationsOwner.mint} is the SAME three-act mint the person's *New
- * chat* runs (`./new-chat.ts`'s `newChat`): a node, a binding, a session, under
- * one permit, with the node surviving a refused start. A second spelling of
- * those three acts for machine callers is the thing most worth not having —
- * it is where "the Inbox moved under us" and "the parent can no longer hold a
- * chat" would quietly get two different answers.
+ * {@link ConversationsOwner.mint} is the SAME start the person's *New chat*
+ * runs (`./new-chat.ts`'s `newChat`, item arm): the tie and the session, under
+ * one permit, with the item surviving a refused start. A second spelling of
+ * those acts for machine callers is the thing most worth not having — it is
+ * where "that item already has a chat" would quietly get two different
+ * answers.
  */
 import { Effect } from "effect"
 
-import type { OpFailure } from "@olai/format"
+import type { AgentItem, OpFailure } from "@olai/format"
 import type { Conversations, Provision } from "@olai/plugin-api/services"
 
 import type { Conversing } from "../sessions.ts"
 import type { NewChatInput } from "./new-chat.ts"
 import { lines } from "../teaching.ts"
 
-/** What {@link ConversationsOwner.mint} answers: the node, the conversation it
- *  was seated on where one started, and the sentence where none did. */
+/** What {@link ConversationsOwner.mint} answers: the item key, the
+ *  conversation it was seated on where one started, and the sentence where
+ *  none did. */
 export interface Minted {
   readonly node: string
   readonly to: Conversing | null
@@ -75,7 +76,7 @@ export interface Minted {
 }
 
 export interface ConversationsOwner {
-  /** The three acts, through this row's own refusal when there is no chat to
+  /** The start, through this row's own refusal when there is no chat to
    *  seat anything on — which is the sentence a serve with no installed engine
    *  answers every other conversation verb with. */
   readonly mint: (input: NewChatInput) => Effect.Effect<Minted, OpFailure>
@@ -88,13 +89,14 @@ export interface ConversationsOwner {
     text: string,
     preamble: ReadonlyArray<string>,
   ) => Effect.Effect<void, OpFailure>
-  /** THE CHAT AT AN ADDRESS — the conversation seated on the chat row at that
-   *  place (`./places.ts`), or `null` where no chat is there or the one there
-   *  has never been started. Asked of the vault as it stands now. */
-  readonly seatAt: (about: string) => Effect.Effect<Conversing | null>
-  /** ...and WHICH OF THESE ADDRESSES has a chat row at all, started or not —
-   *  the ones that do, read off one vault so the answers cannot disagree. */
-  readonly chatsAt: (abouts: ReadonlyArray<string>) => Effect.Effect<ReadonlySet<string>>
+  /** THE CHAT OF AN ITEM — the conversation its tie names, or `null` where the
+   *  item has no tie or the tie has never been started. Asked of the vault as
+   *  it stands now. */
+  readonly seatAt: (about: AgentItem) => Effect.Effect<Conversing | null>
+  /** ...and WHICH OF THESE ITEMS carries a tie at all, started or not — the
+   *  keys of the ones that do, read off one vault so the answers cannot
+   *  disagree. */
+  readonly chatsAt: (abouts: ReadonlyArray<AgentItem>) => Effect.Effect<ReadonlySet<string>>
   /** One machine-marked message into a conversation that is already there, as
    *  the named plugin, gated on that plugin still being here. `false` where
    *  there is no chat at all to hand it to. */
@@ -114,42 +116,34 @@ export const conversationsProvision = (
   const current = lifetime?.current ?? (() => true)
   return {
     /**
-     * THE NODE IS ANSWERED WHATEVER HAPPENS NEXT, which is the one promise
-     * this verb makes beyond the mint's own.
+     * A REFUSAL IS ANSWERED WHATEVER HAPPENS NEXT, which is the one promise
+     * this verb makes beyond the start's own.
      *
      * A start that refused and a first message the agent would not take are
      * the same thing to the caller — a conversation that exists and has not
-     * begun — and both come back as `refusal` beside the node, because what a
-     * caller does with either is the same: write the node down, show the
-     * sentence, let somebody open it later.
+     * begun — and both come back as `refusal`, because what a caller does with
+     * either is the same: show the sentence and let somebody open the item
+     * later.
      */
     open: (input) =>
       Effect.gen(function*() {
-        const made = yield* owner.mint({
-          agent: input.engine,
-          title: input.title,
-          parent: input.parent,
-          about: input.about,
-        })
-        if (made.to === null) return { node: made.node, refusal: made.refusal }
+        const made = yield* owner.mint({ agent: input.engine, item: input.about })
+        if (made.to === null) return { refusal: made.refusal }
         // THE SENTENCES BECOME LINES HERE and nowhere else — the one seam
         // `[olai] ` is spelled on (`../teaching.ts`), so what this caller
         // asked for reaches the agent as olai's words beside olai's contract
         // rather than as a second convention.
         const said = yield* Effect.result(owner.send(made.to, input.say, lines(input.teach)))
-        return {
-          node: made.node,
-          refusal: said._tag === "Failure" ? said.failure.message : null,
-        }
+        return { refusal: said._tag === "Failure" ? said.failure.message : null }
       }),
     /**
      * ...AND SPEAKING INTO ONE THAT IS ALREADY THERE, write-only.
      *
      * FOUR WAYS TO ANSWER `false`, and each is ordinary: the asking activation
-     * has left, no chat is at that address (its row was retitled or trashed,
-     * or the place is gone), or the chat there names a conversation nobody has
-     * started. A roster drawn a second before a press can mean any of them,
-     * which is why this is an answer and not a failure.
+     * has left, the item is gone (trashed, renamed, deleted), it carries no
+     * tie, or the tie names a conversation nobody has started. A roster drawn a
+     * second before a press can mean any of them, which is why this is an
+     * answer and not a failure.
      */
     say: (input) =>
       Effect.gen(function*() {
@@ -158,7 +152,7 @@ export const conversationsProvision = (
         if (to === null) return false
         return yield* owner.deliver(who, to, input.text, current)
       }),
-    /** Which addresses have a chat — the one fact about a conversation this
+    /** Which items have a chat — the one fact about a conversation this
      *  door says out loud, and it is a fact about the vault, not about what
      *  anybody said. */
     here: (input) => owner.chatsAt(input.about),

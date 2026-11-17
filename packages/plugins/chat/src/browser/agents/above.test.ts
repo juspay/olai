@@ -8,24 +8,22 @@ import { agentAbove } from "./above.ts"
 import type { AgentChoice } from "../../wire.ts"
 
 const row = (id: string): Row => ({
-  id, title: id, file: "house.olai", engine: "claude", session: "session", memory: 0,
+  id, title: id, kind: "node", beside: false, file: "house.olai", engine: "claude", session: "session", memory: 0,
   standing: "idle", waiting: 0, said: null, seen: null, unread: false, sleeps: false, sleep: null,
 })
 const roster = (known: ReadonlyArray<string>): Roster => {
   const rows = known.map(row)
   const engines: ReadonlyArray<AgentChoice> = [{ id: "claude", name: "Claude", standing: "here" }]
   return {
-    at: (id) => rows.find((one) => one.id === id),
-    chatAt: (place) => place.kind === "row" ? rows.find((one) => one.id === place.id) : undefined,
-    placeOf: (one) => ({ kind: "row", id: one.id }),
-    standsIn: () => false,
+    at: (key) => rows.find((one) => one.id === key),
+    chatOf: (item) => item.kind === "node" ? rows.find((one) => one.id === item.id) : undefined,
     named: (one) => ({ name: one.title }),
     rows: () => rows,
     engines: () => engines,
     standings: () => engines,
     only: () => engines[0]!,
     missing: () => null,
-    chats: () => null, unreachable: () => [], chatsRefusal: () => null, askChats: () => {},
+    chats: () => null, askChats: () => {},
   }
 }
 

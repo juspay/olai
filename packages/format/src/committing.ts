@@ -292,8 +292,9 @@ export const sameGit: (a: GitState, b: GitState) => boolean = Schema
  *  writers olai has is a statement about olai. The plumbing hands back the
  *  trailer it read, verbatim, and the ledger classifies it against this list.
  *
- *  THERE ARE SIX. `filer` records the server filing conversations into the
- *  Inbox; it also records the node minted by `newChat`. `sleep` records the
+ *  THERE ARE SIX. `move` records the chat server's one-time move of a chat
+ *  from a row onto the note it was about — nobody pressed anything, and that
+ *  commit is the one a person may want to revert. `sleep` records the
  *  server's own pass over a node agent's subtree — a machine turn nobody asked
  *  for, kept apart from `auto` because the commit IS the feature (it is the
  *  thing a person reverts), while `auto` records whatever happened to be
@@ -329,7 +330,7 @@ export const Writer = Schema.Literals([
   "mcp",
   "web",
   "auto",
-  "filer",
+  "move",
   "sleep",
 ])
 export type Writer = typeof Writer.Type

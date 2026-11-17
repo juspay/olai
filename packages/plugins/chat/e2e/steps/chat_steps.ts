@@ -4614,9 +4614,6 @@ Then("the list-asks have grown", async function (this: OlaiWorld) {
   assert.notEqual(this.notedListAsks, null);
   await this.waitUntil(async () => listAsks(this.scratch()) > this.notedListAsks!, "the running engine to answer a new listing request");
 });
-Then("the filer log names {string} with {string}", async function (this: OlaiWorld, engine: string, why: string) {
-  await this.waitUntil(async () => this.serverLog.text.split("\n").some(line => line.includes(`filer: ${engine}:`) && line.includes(why)), "the filer's engine refusal to be logged");
-});
 
 When("I send the recovered draft again", async function (this: OlaiWorld) {
   const button = this.chat(CHAT_SEND);

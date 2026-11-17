@@ -27,7 +27,8 @@ import { DOT } from "@olai/web/client/readout.ts"
 import { ICON_BUTTON } from "@olai/web/client/readout.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { MENU_ITEM } from "@olai/ui-primitives/menu.ts"
-import { Link, useRouter } from "olai-plugin-navigation/routing"
+import { itemOf } from "@olai/format"
+import { Link } from "olai-plugin-navigation/routing"
 
 import { TESTID } from "../../testids.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"
@@ -46,7 +47,6 @@ import { ThisPage } from "./Door.tsx"
 
 export function Dock() {
   const agents = useAgents()
-  const router = useRouter()
   const door = () => dock()
   const node = () => door()?.node()
   /** The docked row, or nothing — a node whose binding left (the agent was
@@ -88,12 +88,12 @@ export function Dock() {
                   shares). The sentence is a pointer's convenience only: the
                   anchor is named by the agent's title and the link role says
                   the rest. */}
-              {/* SIZED, like every other place mark (`@olai/ui-primitives`'s
+              {/* SIZED, like every other file mark (`@olai/ui-primitives`'s
                   `MARK_BOX`): a kind's glyph draws itself `h-full w-full`. */}
-              <Show when={agents.named(agent()).mark}>{mark => <span class={`${MARK_BOX} text-muted`} data-testid={TESTID.chatPlaceMark}><Dynamic component={mark()} /></span>}</Show>
-              <Tip text={agents.standsIn(agent()) ? "Open the page it is about" : "Open the agent's page"} layer={LAYER.over}>
+              <Show when={agents.named(agent()).mark}>{mark => <span class={`${MARK_BOX} text-muted`} data-testid={TESTID.chatFileMark}><Dynamic component={mark()} /></span>}</Show>
+              <Tip text={itemOf(agent().id).kind === "note" ? "Open the note it is about" : "Open the agent's page"} layer={LAYER.over}>
                 <Link
-                  route={chatRoute(router.routes, agents, agent())}
+                  route={chatRoute(agent())}
                   class="min-w-0 flex-1 truncate text-body font-medium text-ink no-underline hover:text-accent"
                   testid={TESTID.chatDockTitle}
                 >

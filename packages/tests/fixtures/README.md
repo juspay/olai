@@ -124,6 +124,24 @@ bullet as work that can never be finished. Both ends of the blocking edge carry
 a mark somebody wrote, so what the scenarios assert is the rule rather than
 anything about the nodes' children.
 
+## `move-chats/` — a vault written by the phase before notes had chats
+
+One `_olai/Inbox.olai` holding the shape PR #700 left behind: a **Chats**
+container with four rows, each carrying `chat-agent-session`, and the rows are
+the whole point — `packages/plugins/chat/e2e/features/the_move_of_chats.feature`
+is about which of them the one-time move touches and which it must not.
+
+| row | title | what the move must do |
+|---|---|---|
+| `plan-row` | `[plan](/notes/plan.md)` | move the tie into `notes/plan.md` and take the property off the row, keeping its two memory children |
+| `house-row` | `[house](/house.olai)` | nothing: an outline is not a note |
+| `ordinary-row` | `an ordinary chat` | nothing: it never stood in for anywhere |
+| `kept-row` | `[kept](/notes/kept.md)` | nothing: `notes/kept.md` already carries a DIFFERENT tie, so both are left to the person |
+
+`notes/plan.md` has no front matter at all, which is the case the move writes
+a block for; `notes/kept.md` has one with a tie in it already. `house.olai` is
+three rows, there so the outline the `house-row` names is actually held.
+
 ## `chat/` — a set the agent writes to
 
 Deliberately plain: one outline, one parent, its children — one done, one under

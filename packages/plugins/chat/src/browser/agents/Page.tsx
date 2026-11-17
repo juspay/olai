@@ -25,9 +25,6 @@ import { receive } from "./handoff.ts"
 export interface PageSession {
   readonly preferredEngine: Accessor<string | undefined>
   readonly chat: Accessor<Chat | null>
-  /** The chat row whose conversation this page draws — the row's own, or a
-   *  chat row standing for it. */
-  readonly chatRow: Accessor<string>
   readonly draft: Accessor<string>
   readonly setDraft: (text: string) => void
   readonly starting: Accessor<boolean>
@@ -44,11 +41,10 @@ function createPageSession(node: string): PageSession {
   let alive = true
   const waits = new Set<() => void>()
   onCleanup(() => { alive = false; for (const stop of [...waits]) stop() })
-  const chatRow = createMemo(() => reading.agents.chatAt({ kind: "row", id: node })?.id ?? node)
-  const { pair, chat } = createNodeConversation(chatRow)
-  // THE ROW'S UNSENT WORDS are the activation's, not this session's
+  const { pair, chat } = createNodeConversation(() => node)
+  // THE CHAT'S UNSENT WORDS are the activation's, not this session's
   // (`./reading.ts`'s `unsent`): a seat is taken down and put back whenever one
-  // roster frame cannot read the chat at its place, and a start waiting at a
+  // roster frame cannot read the chat on its note, and a start waiting at a
   // sign-in spends several, so words held here would die with the session.
   const draft = () => reading.unsent({ kind: "row", node })
   const setDraft = (text: string) => reading.setUnsent({ kind: "row", node }, text)
@@ -141,7 +137,7 @@ function createPageSession(node: string): PageSession {
       await deliver(to, text, later)
     } finally { setStarting(false) }
   }
-  return { chat, chatRow, draft, setDraft, starting, failure, start, preferredEngine }
+  return { chat, draft, setDraft, starting, failure, start, preferredEngine }
 }
 
 /** The page session of a chat row, held for the pane this is drawn in — a
@@ -159,7 +155,7 @@ export function PageHead(props: { readonly node: string }) {
   const page = usePage(() => props.node)
   return <Show when={page()?.chat()} fallback={<AgentAbove node={props.node} line />}>{current =>
     <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
-      <AgentLine chat={current()} node={page()!.chatRow()} page />
+      <AgentLine chat={current()} node={props.node} page />
       <Show when={page()?.chat()} keyed>{chat => <ConversationUIProvider value={chat.ui}>
         <Strips chat={chat} />
       </ConversationUIProvider>}</Show>
@@ -172,7 +168,7 @@ export function PageFoot(props: { readonly node: string }) {
   return <Show when={page()}>{owner =>
     <div class="mt-6" data-testid={TESTID.agentPageFoot} data-agent={props.node}>
       <Show when={owner().chat()} keyed fallback={<PlainComposer node={props.node} page={owner()} />}>{chat =>
-        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={owner().chatRow()} page /></ConversationUIProvider>
+        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={props.node} page /></ConversationUIProvider>
       }</Show>
     </div>
   }</Show>
@@ -190,7 +186,7 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
     <AskBox name={node().title} draft={props.page.draft} setDraft={props.page.setDraft}
       starting={props.page.starting} failure={props.page.failure}
       send={engine => void props.page.start(engine)}
-      fixed={agents.chatAt({ kind: "row", id: props.node })?.engine} preferred={props.page.preferredEngine()}
+      fixed={agents.at(props.node)?.engine} preferred={props.page.preferredEngine()}
       note={<>Sending starts an agent here · Memory: {memoryOf(node())}</>}
       testid={TESTID.agentPlainComposer}
       class={`sticky bottom-0 ${LAYER.row} rounded-control border border-dashed border-rule bg-paper p-3 ${CLEARANCE}`} />

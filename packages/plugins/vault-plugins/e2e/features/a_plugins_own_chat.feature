@@ -1,9 +1,10 @@
-Feature: A plugin's chat is the chat about its page
-  Asking for a plugin starts a conversation, and NOTHING RECORDS WHICH ONE. The
-  chat's title is the plugin's own address — `[Bar beside](/plugins/bar-beside)`
-  — and that is the whole of the binding: the serve finds the conversation by
-  asking chat what is at that address, the page docks it by that address, and a
-  plugin's settings node carries the person's consent and nothing else.
+Feature: A plugin's chat is the chat of its README
+  Asking for a plugin starts a conversation, and NOTHING RECORDS WHICH ONE
+  except the plugin's own README note: `plugins/<word>/README.md` carries
+  `chat-agent-session` in its front matter, and that is the whole of the
+  binding — the serve finds the conversation by asking chat for that note's
+  chat, the page docks the same one, and a plugin's settings node carries the
+  person's consent and nothing else.
 
   WHAT THIS REPLACED was a `builder` property on that node, pointing at a chat
   row. Two places recorded one fact, and they could disagree the moment
@@ -26,12 +27,12 @@ Feature: A plugin's chat is the chat about its page
     And I accept the name
     Then the address is "/plugins/bar-beside"
 
-    # THE CHAT IS TITLED WITH THE PAGE, under Inbox › Chats like every other
-    # chat in this app — and the plugin's own node says nothing about it.
+    # THE CHAT IS THE README'S, written in that note's own front matter — and
+    # the plugin's settings node says nothing about it.
     And the plugin "bar-beside" is being built by a conversation called "Bar beside"
     And the plugin page is "building"
 
-    # ...AND THE PAGE FINDS IT BY THAT ADDRESS. It is docked beside the page
+    # ...AND THE PAGE FINDS IT BY THAT NOTE. It is docked beside the page
     # because this plugin is being built, and the menu offers the way back to
     # it once the reader has closed the column.
     And the conversation building "bar-beside" is docked

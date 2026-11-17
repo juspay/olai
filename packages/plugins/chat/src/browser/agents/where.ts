@@ -14,25 +14,20 @@ export interface LocationNode {
   readonly parent: string | null
 }
 
-export type WhereSection = "Default" | "Here" | "Recent" | "Nodes"
-/** A row with no node is the default: the Inbox's Chats container. */
-export interface WhereRow { readonly section: WhereSection; readonly node?: LocationNode }
+export type WhereSection = "Here" | "Recent" | "Nodes"
+/** One offered parent, under the heading that found it. */
+export interface WhereRow { readonly section: WhereSection; readonly node: LocationNode }
 
-export const DEFAULT_LABEL = "Inbox › Chats"
 export const RECENT_LIMIT = 5
 export const NODES_LIMIT = 20
 
 const trail = (node: LocationNode) => [node.file, ...node.path, node.title].join(" › ")
 
-/** Default first (so plain Enter takes it), then Here, Recent and — once
- *  something is typed — Nodes; a node is listed once, typing filters every
- *  section, and an empty section is simply absent. */
+/** Here first (so plain Enter takes the node a person is standing on), then
+ *  Recent and — once something is typed — Nodes; a node is listed once, typing
+ *  filters every section, and an empty section is simply absent. A new chat
+ *  has no default parent at all: nothing is minted until somebody picks one. */
 export const whereRows = (input: {
-  /** The vault's Inbox registry has an entry, so the default can be minted
-   *  (the server answers a `defaultParent` exactly then). */
-  readonly defaultOffered: boolean
-  /** The default container's id, once the server has said; never Recent. */
-  readonly defaultParent: string | null
   readonly here: string | null
   /** Agent nodes, most recently active first; their PARENTS are Recent. */
   readonly recent: readonly string[]
@@ -53,15 +48,8 @@ export const whereRows = (input: {
     seen.add(node.id)
     rows.push({ section, node })
   }
-  if (input.defaultOffered && `${DEFAULT_LABEL} default`.toLowerCase().includes(typed)) {
-    rows.push({ section: "Default" })
-    if (input.defaultParent !== null) seen.add(input.defaultParent)
-  }
   add("Here", input.here, 1)
-  for (const id of input.recent) {
-    const parent = byId.get(id)?.parent
-    if (parent !== input.defaultParent) add("Recent", parent, RECENT_LIMIT)
-  }
+  for (const id of input.recent) add("Recent", byId.get(id)?.parent, RECENT_LIMIT)
   if (typed !== "") for (const node of input.nodes) add("Nodes", node.id, NODES_LIMIT)
   return rows
 }

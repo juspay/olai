@@ -717,7 +717,7 @@ export const make = (options: Options): Ops & { readonly close: Effect.Effect<vo
               reason: doorRefusal({ why: "trash", says: rule.confined.says }),
             })
           }
-          const reached = barred(rule.forbidden, snapshot.value.derived, planned.success, snapshot.value.set.documents.map((doc) => doc.path), rule.confined ?? null)
+          const reached = barred(rule.forbidden, snapshot.value.derived, planned.success, snapshot.value.set, rule.confined ?? null)
           if (reached !== null) {
             return yield* new UsageFailure({
               reason: doorRefusal(reached),

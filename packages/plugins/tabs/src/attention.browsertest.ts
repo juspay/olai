@@ -11,7 +11,7 @@ const chatOver = (rows: () => readonly AttentionRow[]) =>
   ({
     agents: { rows, at: (id: string) => rows().find(row => row.id === id) },
     folding: { unfolded: () => true },
-    isCurrent: (_routes: unknown, route: Route, row: AttentionRow) => fileNamed(route) === row.file,
+    isCurrent: (route: Route, row: AttentionRow) => fileNamed(route) === row.file,
   })
 
 /** The mark a reading is, by its own name — the two are told apart by what they

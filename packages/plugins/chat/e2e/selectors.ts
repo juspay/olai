@@ -59,8 +59,8 @@ export const CHAT_SESSIONS = selector(TESTID.chatSessions);
 export const CHAT_SESSION_LIST = selector(TESTID.chatSessionList);
 export const CHAT_SESSIONS_REFUSED = selector(TESTID.chatSessionsRefused);
 export const CHAT_SESSION = selector(TESTID.chatSession);
-/** The heading over one agent's rows in the unassigned list. Drawn only where more
- *  than one agent has conversations here. */
+/** The heading over one agent's rows in the stored-conversations list. Drawn
+ *  only where more than one agent has conversations here. */
 export const CHAT_SESSION_AGENT = selector(TESTID.chatSessionAgent);
 /** One agent in that list that could not be asked what it has stored. Its own
  *  selector and not the whole call's refusal, because the two are two states:
@@ -239,14 +239,14 @@ export const ASK_ENGINE = selector(TESTID.agentPlainEngine);
 export const ASK_SEND = selector(TESTID.agentPlainSend);
 /** Why nothing was started — the sentence that stays beside the words. */
 export const ASK_REFUSED = selector(TESTID.agentPlainRefused);
-/** THE SEAT'S HEAD: one line saying how the chat at this place stands, and
- *  the press that opens and folds the conversation under it. A page meets it
- *  folded, because opening a page never wakes its agent. `data-chat` is the
- *  chat row; `data-folded` says whether the conversation is put away. */
+/** THE SEAT'S HEAD: one line saying how the note's chat stands, and the press
+ *  that opens and folds the conversation under it. A page meets it folded,
+ *  because opening a page never wakes its agent. `data-chat` is the chat's
+ *  key; `data-folded` says whether the conversation is put away. */
 export const CHAT_SEAT_LINE = selector(TESTID.chatSeatLine);
 /** **This page**, over the side panel's picker. */
 export const CHAT_THIS_PAGE = selector(TESTID.chatThisPage);
-/** What a chat is CALLED wherever it is listed, and the mark of the place it
- *  stands for. A stand-in's raw title is never either of them. */
+/** What a chat is CALLED wherever it is listed, and — for a note's chat — the
+ *  mark its kind of file wears. */
 export const CHAT_NAME = selector(TESTID.chatName);
-export const CHAT_PLACE_MARK = selector(TESTID.chatPlaceMark);
+export const CHAT_FILE_MARK = selector(TESTID.chatFileMark);

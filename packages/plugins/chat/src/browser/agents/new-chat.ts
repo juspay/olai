@@ -1,3 +1,4 @@
+import { type AgentItem } from "@olai/format"
 import { createSignal, onCleanup } from "solid-js"
 import type { Said } from "@olai/web/client/saying.ts"
 import { runAsync } from "@olai/web/client/run.ts"
@@ -42,17 +43,17 @@ export const createNewChat = (keep: (to: Conversing, text: string) => void) => {
   onCleanup(() => { alive = false })
   const handoff = createHandoff({ keep })
   /**
-   * Mint a chat under `parent` (`null`: the Inbox's Chats container) and start
-   * `engine` on it, then give the hand-off the first message to land. Answers
-   * a sentence when nothing was created, so the person's words stay where they
-   * typed them; `null` once a node exists, whatever its start said.
+   * Mint a chat under `parent` and start `engine` on it, then give the hand-off
+   * the first message to land. Answers a sentence when nothing was created, so
+   * the person's words stay where they typed them; `null` once a node exists,
+   * whatever its start said.
    *
    * The permit is held from here until the new page has taken the message, or
    * until the call answers with nothing to hand over. Where the message goes
    * once a node exists is the hand-off's, and `signal` (the asking level's) is
    * what it reads to know whether anyone is still looking.
    */
-  const start = async (parent: string | null, engine: string, text: string, signal: AbortSignal): Promise<string | null> => {
+  const start = async (parent: string, engine: string, text: string, signal: AbortSignal): Promise<string | null> => {
     const nav = navigation()
     if (!alive || nav === undefined) return "Chat isn't available"
     const release = permit.take()
@@ -69,22 +70,21 @@ export const createNewChat = (keep: (to: Conversing, text: string) => void) => {
     } finally { if (!handed) release() }
   }
   /**
-   * THE DOOR ON A PAGE: a chat about the place at `about`, called `name`,
-   * started on `engine` with `text` as its first message — which the server
-   * delivers, once, because the person stays on the page they asked from and
-   * there is no new page here for the words to wait on. Answers the new chat
-   * row, or the sentence that says why there is none; a start or a send the
-   * agent refused is the row AND its sentence, since the chat exists.
+   * THE DOOR ON A NOTE: the chat of the note at `path`, started on `engine`
+   * with `text` as its first message — which the server delivers, once,
+   * because the person stays on the page they asked from and there is no new
+   * page here for the words to wait on. Answers the chat, or the sentence that
+   * says why there is none; a start or a send the agent refused is the chat
+   * AND its sentence, since the chat exists.
    */
-  const about = async (input: { readonly about: string; readonly name: string; readonly engine: string; readonly text: string }):
+  const about = async (input: { readonly path: string; readonly engine: string; readonly text: string }):
     Promise<{ readonly node: string; readonly to: Conversing | null; readonly refusal: string | null } | string> => {
     if (!alive) return "Chat isn't available"
     const release = permit.take()
     if (release === null) return "A new chat is already starting"
     try {
-      const result = await runAsync(chatWire().procedures.conversation.newChat({
-        agent: input.engine, title: input.name, parent: null, about: input.about, say: input.text,
-      }))
+      const item: AgentItem = { kind: "note", path: input.path }
+      const result = await runAsync(chatWire().procedures.conversation.newChat({ agent: input.engine, item, say: input.text }))
       if (!alive) return "Chat isn't available"
       if (result._tag === "Failure") return result.failure.message
       return result.success

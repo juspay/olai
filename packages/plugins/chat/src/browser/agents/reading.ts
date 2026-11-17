@@ -1,10 +1,8 @@
-import { placeKey, type Place } from "@olai/format"
 import { keepMessage } from "../chat/message-draft.ts"
 import { createStore } from "solid-js/store"
 import { createNewChat } from "./new-chat.ts"
 import { createPreviews } from "../chat/previews.ts"
 import { type Accessor, createEffect, createMemo, createSignal, on, createRoot, getOwner, runWithOwner, onCleanup } from "solid-js"
-import type { Route } from "olai-plugin-navigation/routes"
 import { heldService } from "@olai/ui-primitives/held.ts"
 import type { PanelAddress } from "../../wire/session.ts"
 import type { Conversing } from "../../sessions.ts"
@@ -15,20 +13,20 @@ import type { Roster } from "./answered.tsx"
 import { createPageOwners } from "./page-owners.ts"
 import type { PageSession } from "./Page.tsx"
 
-/** A seat on screen: which pane, the route of the place the page said it is,
- *  and what that place is called. */
+/** A seat on screen: which pane, the path of the note the page draws, and what
+ *  that note is called. Only a note has a seat (`./Seat.tsx`). */
 export interface SeatHere {
   readonly pane: string
-  readonly place: Route
+  readonly path: string
   readonly name: string
 }
 
-/** WHO UNSENT WORDS ARE FOR: a row (its page's plain composer, and the chat
- *  row a door's start left waiting at sign-in), or one door's box at a place —
+/** WHO UNSENT WORDS ARE FOR: a chat (its page's plain composer, and the chat
+ *  a door's start left waiting at sign-in), or one door's box on a note —
  *  the seat's and **This page** are two boxes (`./Door.tsx`). */
 export type Unsent =
   | { readonly kind: "row"; readonly node: string }
-  | { readonly kind: "door"; readonly where: "seat" | "panel"; readonly place: Place }
+  | { readonly kind: "door"; readonly where: "seat" | "panel"; readonly path: string }
 
 export const createAgentReadings = (agents: Roster) => {
   const newChat = createNewChat((to, text) => keepMessage(ui(to).messages, JSON.stringify([to.agent, to.session]), text, true))
@@ -37,9 +35,9 @@ export const createAgentReadings = (agents: Roster) => {
   const reveals = new Set<string>()
   type View = { node: () => string; chat: () => Chat | null; shown: () => boolean }
   const [views, setViews] = createSignal<readonly View[]>([])
-  /** THE SEATS ON SCREEN — one per page that placed one, by pane, so the side
-   *  panel and the palette can offer a chat about the page in front exactly
-   *  where that page has a seat (`./Seat.tsx`). */
+  /** THE SEATS ON SCREEN — one per note the panes are drawing, by pane, so the
+   *  side panel and the palette can offer a chat about the note in front
+   *  exactly where that page has a seat (`./Seat.tsx`). */
   const [seats, setSeats] = createSignal<readonly SeatHere[]>([])
   /** UNSENT WORDS THAT HAVE NO CONVERSATION YET, owned by the activation and
    *  kept by who they are for ({@link Unsent}). A page or a seat is drawn and
@@ -49,7 +47,7 @@ export const createAgentReadings = (agents: Roster) => {
   const [unsent, setUnsent] = createStore<Record<string, string | undefined>>({})
   const unsentKey = (owner: Unsent) => owner.kind === "row"
     ? JSON.stringify(["row", owner.node])
-    : JSON.stringify(["door", owner.where, placeKey(owner.place)])
+    : JSON.stringify(["door", owner.where, owner.path])
   const isShown = (chat: Chat) => views().some(view => view.chat() === chat && view.shown())
   /** THE CONVERSATION OF A NODE AGENT THAT THE PAGE IS SHOWING, if any: the
    *  node's bound session, and a reading of it that is on screen.

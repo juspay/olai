@@ -43,8 +43,8 @@ export function Fold(props: { readonly node: string; readonly record?: string })
   const open = createMemo(() => unfolded(props.record ?? props.node))
   const started = createMemo((was: boolean) => was || open(), false)
   const shown = () => parentShown() && open()
-  /** THE CHAT AT THIS ROW — its own, or a chat row standing for it. */
-  const chatRow = createMemo(() => agents.chatAt({ kind: "row", id: props.node })?.id)
+  /** THE CHAT AT THIS ROW — a node's chat is its own row's. */
+  const chatRow = createMemo(() => agents.at(props.node)?.id)
   return <ShownProvider shown={shown}><Show when={started() && chatRow()} keyed>{id => {
     const { chat: conversation } = createNodeConversation(() => id)
     return <Show when={conversation()}>{current =>

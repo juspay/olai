@@ -253,10 +253,11 @@ Feature: Signing in to Claude from inside olai
   Scenario: A new chat refused for auth runs the terminal login and then opens
     Given the agent needs a sign-in
     When I press new chat in Chats
-    And I choose the new chat place "default"
+    And I type "kitchen" into the palette
+    And I choose the new chat place "kitchen"
     And I type new chat draft "sign in first"
     And I send the new chat draft
-    Then the pending Inbox conversation is unfolded as "new-chat" with engine "claude"
+    Then the pending conversation is unfolded as "new-chat" with engine "claude"
     And the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "Authentication required"
     And the panel offers a sign-in
@@ -266,12 +267,13 @@ Feature: Signing in to Claude from inside olai
     Then the panel offers no sign-in
     And the panel shows no such refusal
     And the agent is idle
-    And the new Inbox conversation is unfolded as "new-chat" with engine "claude"
+    And the new conversation is unfolded as "new-chat" with engine "claude"
 
   @signin @agent-stored
-  Scenario: A listed Claude chat resumes after terminal sign-in
+  Scenario: A stored Claude chat resumes after terminal sign-in
     Given the agent needs a sign-in
-    When I open the filed conversation "the last conversation" as node "listed-chat"
+    And node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     Then the panel says the conversation could not be opened
     And the panel offers a sign-in
     When I press the sign-in for "claude-ai-login"

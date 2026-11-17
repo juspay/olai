@@ -15,10 +15,9 @@ export const previewNode = (route: Route) => route.kind === "at" &&
 /** A read-only wire lease: no conversation UI, wake, visit or composer is
  * acquired by hovering. The roster is already owned by chat's activation. */
 export function ChatLinkPreview(props: { readonly route: Route; readonly roster: Roster }) {
-  // LinkPreview.Preview guarantees one immutable route per mount.
-  // ...and the chat at that row, which is the conversation drawn: the row's
-  // own, or a chat row standing for it (`./agents/answered.tsx`'s `chatAt`).
-  const node = props.roster.chatAt({ kind: "row", id: previewNode(props.route)! })?.id ?? previewNode(props.route)!
+  // LinkPreview.Preview guarantees one immutable route per mount. A node's
+  // chat is the node's own, so the row the preview reads is the node itself.
+  const node = previewNode(props.route)!
   const transcript = chatWire().streams.transcript.useCollection({ node }, transcriptRows)
   const tail = createTail(chatWire().streams.saying.useCollection({ node }, sayingRows).fold)
   const ordered = createRows(transcript.fold)

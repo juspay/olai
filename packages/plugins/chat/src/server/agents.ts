@@ -1,6 +1,14 @@
 /**
- * THE AGENTS ROSTER, ASSEMBLED — the vault's `prop:agent-session` reading with
- * each session's live state and the last line this machine overheard.
+ * THE AGENTS ROSTER, ASSEMBLED — the vault's reading of everything that carries
+ * a chat tie, with each session's live state and the last line this machine
+ * overheard.
+ *
+ * TWO THINGS CAN CARRY ONE, and the roster is both in one list: a NODE, whose
+ * tie is a property on its row and whose memory is the rows under it, and a
+ * NOTE, whose tie is in the YAML block at the top of the `.md` and which IS its
+ * own memory. Nodes first, then notes in corpus order (`../seating.ts`'s
+ * `rosterIn`), and every lookup below is by ITEM KEY — a node's id, or `/` and
+ * a note's path.
  *
  * The roster is the one answer on this wire whose two halves are kept in two
  * different packages, deliberately and for a reason each of them argues at
@@ -64,70 +72,82 @@ import {
   declarationsOf,
   isRegular,
   type Derived,
+  itemOf,
   keysDeclaredAs,
   nearestAtOrAbove,
   NO_AGENTS,
   type NodeAgent,
   type NodeAgents,
+  type Reading,
   seatableIn,
+  seatableNote,
   textDeclaredAs,
 } from "@olai/format"
 import { type Agents, NO_AGENT_ROSTER } from "olai-plugin-chat/wire"
 
-import { seatingIn } from "../seating.ts"
+import { rosterIn } from "../seating.ts"
 import type { Forecast } from "../wire/agents.ts"
-import { ownKinds, SLEEPING_TYPE, SLEPT_TYPE, SESSION_TYPE } from "../kinds.ts"
+import { OPENS_TYPE, ownKinds, SLEEPING_TYPE, SLEPT_TYPE, SESSION_TYPE } from "../kinds.ts"
+
+/** AS MUCH OF A REVISION AS THE ROSTER READS — the records (a node's tie is a
+ *  property on its row) and the documents (a note's is in its front matter).
+ *  A published revision carries all three, and so does the reading a write
+ *  commits against. */
+export type RosterReading = Pick<Reading, "set" | "claims" | "derived">
 
 export interface Roster {
   /**
    * A published revision arrived — re-read the vault's half.
    *
-   * `null` is a store that has never loaded, and the answer is NO NODE AGENTS
+   * `null` is a store that has never loaded, and the answer is NO AGENTS
    * rather than an unknown number of them: an empty roster draws nothing, which
-   * is what a directory with no `agent-session` property anywhere draws and
-   * what the sidebar showed while the first frame was arriving.
+   * is what a directory with no tie anywhere draws and what the sidebar showed
+   * while the first frame was arriving.
    */
-  readonly seen: (derived: Derived | null) => void
+  readonly seen: (reading: RosterReading | null) => void
   /**
-   * WHOSE NODE AGENT THIS CONVERSATION IS, or `null` for one no node claims —
-   * which is nearly every conversation, and also a property still naming a
-   * session in a record somebody has since trashed.
+   * WHOSE AGENT THIS CONVERSATION IS, or `null` for one no item claims —
+   * which is nearly every conversation, and also a tie still naming a
+   * session on a record somebody has since trashed.
    *
-   * THE FIRST NODE WINS where two properties name one session, which is the
+   * THE FIRST ITEM WINS where two ties name one session, which is the
    * same first-claim-wins rule the set's own id index keeps: a session belongs
-   * to one node agent, so a second node naming it is somebody's copied
-   * property rather than a second answer.
+   * to one agent, so a second item naming it is somebody's copied
+   * tie rather than a second answer.
    */
   readonly agentAt: (to: Conversing) => NodeAgent | null
   /**
-   * ... AND THE SAME READING FROM THE NODE'S END: this node's row, or `null`
-   * for a node that is not a node agent — which is every other row of every
-   * outline.
+   * ... AND THE SAME READING FROM THE ITEM'S END: this item's row, or `null`
+   * for an item that is not an agent — which is every other row of every
+   * outline and every other note in the directory.
    *
-   * The one caller is the gesture that ASSIGNS a conversation to a node
-   * (`./runtime.ts`), and what it needs is the half of the property a browser
-   * must not judge for itself: whether this node is already talking through a
-   * conversation. A tab decides that against the frame it was drawn on, which
-   * is the right answer for a dimmed row and the wrong one for a write — two
-   * tabs, or one left open while a `•••` verb ran, and the check would pass
-   * against a roster that has moved.
+   * BY ITEM KEY, which is a node's own id or `/` and a note's path
+   * (`@olai/format`'s `itemKey`; ids olai writes cannot start with a slash, so
+   * the two never collide). What a gesture needs is the half of the tie a
+   * browser must not judge for itself: whether this item is already talking
+   * through a conversation. A tab decides that against the frame it was drawn
+   * on, which is the right answer for a dimmed row and the wrong one for a
+   * write — two tabs, or one left open while a `•••` verb ran, and the check
+   * would pass against a roster that has moved.
    *
    * A SCAN, for {@link agentAt}'s reason word for word: a handful of rows,
    * re-read per revision, asked once per gesture.
    */
-  readonly nodeAt: (node: string) => NodeAgent | null
+  readonly nodeAt: (item: string) => NodeAgent | null
   /**
-   * ...AND WHETHER A NODE COULD BE ONE, which is a different question that used
+   * ...AND WHETHER AN ITEM COULD BE ONE, which is a different question that used
    * to be answered with that one.
    *
-   * {@link nodeAt} is the query over the BINDING, so it says `null` about every
-   * node that has not got one — and the gesture that WRITES a binding is
-   * precisely a gesture about such a node. What that gesture needs to know is
-   * only that there is a record there to seat an agent at
-   * (`@olai/format`'s `seatableIn`, which argues the three tests).
+   * {@link nodeAt} is the query over the TIE, so it says `null` about every
+   * item that has not got one — and the gesture that WRITES a tie is
+   * precisely a gesture about such an item. What that gesture needs to know is
+   * only that there is something there to seat an agent at: a record
+   * (`@olai/format`'s `seatableIn`, which argues the three tests) or a note the
+   * directory still holds and has not put away (`seatableNote`).
    */
-  readonly seatableAt: (node: string) => boolean
-  /** Every durable row, including sleeping agents with no acquired scope. */
+  readonly seatableAt: (item: string) => boolean
+  /** Every durable row, nodes then notes — including sleeping agents with no
+   *  acquired scope. */
   readonly nodes: () => NodeAgents
   /** THE SET THE ROWS WERE JUST BUILT FROM, or `null` before the first revision
    *  — the same `reading` {@link Roster.sleeps} and {@link Roster.sleptAt} answer
@@ -204,6 +224,18 @@ export interface Roster {
    */
   readonly sleepKeys: () => ReadonlyArray<string>
   /**
+   * WHICH KEY A NOTE'S *opens* SWITCH IS WRITTEN UNDER — {@link key}'s rule
+   * read for the fourth kind this plugin teaches: the vault's own column where
+   * it declared one, and the word this kind claims where it has not.
+   *
+   * IT IS A FRONT-MATTER KEY and not a column, which changes nothing here: a
+   * `.md`'s YAML block is custom values on a document exactly as a row's
+   * properties are custom values on a record, and the declarations fold is the
+   * same one ({@link @olai/format}'s `notesIn` reads it, the note writer writes
+   * it).
+   */
+  readonly opensKey: () => string
+  /**
    * WHETHER THIS CHAT IS TIDIED ON ITS OWN CLOCK — a person's answer, read off
    * whichever of this vault's keys for that kind carries one.
    *
@@ -235,7 +267,10 @@ export const roster = (): Roster => {
   // woken — the cell's connector is already running on the revision that moved
   // this, and the teaching asks in the middle of a send.
   let held: NodeAgents = NO_AGENTS
-  let reading: Derived | null = null
+  // THE WHOLE REVISION and not only its records, because half the roster is
+  // read off the DOCUMENTS: a note's tie is in the YAML block at the top of the
+  // file, and `seatableAt` has to answer about a path as well as about an id.
+  let read: RosterReading | null = null
   // ...and the keys that revision declares this kind on, resolved in the same
   // breath as the rows and off the same fold. The claimed word is what a store
   // that has never loaded answers with — see {@link Roster.keys}.
@@ -246,61 +281,81 @@ export const roster = (): Roster => {
   // ...and the same pair for the sleeping mark, off the same fold and in the
   // same breath — see {@link Roster.sleepKey}.
   let sleepingKeys: ReadonlyArray<string> = [SLEEPING_TYPE]
+  // ...and the key a note's *opens* switch is written under, off the same fold
+  // — see {@link Roster.opensKey}.
+  let opensKeys: ReadonlyArray<string> = [OPENS_TYPE]
   const nearest = (node: string, candidates: ReadonlySet<string>): string | null =>
-    reading === null ? null : nearestAtOrAbove(reading, node, candidates)
+    read === null ? null : nearestAtOrAbove(read.derived, node, candidates)
   /** See {@link Roster.sleeps} — and read through one closure, because the row
-   *  join wants the same answer the loop does. */
+   *  join wants the same answer the loop does.
+   *
+   *  A NOTE IS NEVER TIDIED, which needs no clause of its own: its key is a
+   *  path and no record carries one, so the index below has nothing to find. */
   const sleeping = (node: string): boolean => {
-    if (reading === null) return false
-    const at = reading.byId.get(node)
+    if (read === null) return false
+    const at = read.derived.byId.get(node)
     if (at === undefined || !isRegular(at)) return false
-    return textDeclaredAs(declarationsOf(reading, ownKinds), at.node, SLEEPING_TYPE)?.trim() === "on"
+    return textDeclaredAs(declarationsOf(read.derived, ownKinds), at.node, SLEEPING_TYPE)?.trim() === "on"
   }
   return {
-    seen: (derived) => {
-      reading = derived
-      if (derived === null) {
+    seen: (reading) => {
+      read = reading
+      if (reading === null) {
         held = NO_AGENTS
         keys = [SESSION_TYPE]
         sleptKeys = [SLEPT_TYPE]
         sleepingKeys = [SLEEPING_TYPE]
+        opensKeys = [OPENS_TYPE]
         return
       }
       // ONE FOLD, read twice. `declarationsOf` is a memo on the derivation, so
       // asking it here costs the walk the validator has already paid for — and
       // the rows and the keys cannot come from two different readings of one
       // revision, which is the whole reason they are assigned together.
-      const declarations = declarationsOf(derived, ownKinds)
-      held = seatingIn(derived)
+      const declarations = declarationsOf(reading.derived, ownKinds)
+      held = rosterIn(reading)
       const declared = keysDeclaredAs(declarations, SESSION_TYPE)
       keys = declared.length === 0 ? [SESSION_TYPE] : declared
       const declaredSlept = keysDeclaredAs(declarations, SLEPT_TYPE)
       sleptKeys = declaredSlept.length === 0 ? [SLEPT_TYPE] : declaredSlept
       const declaredSleeping = keysDeclaredAs(declarations, SLEEPING_TYPE)
       sleepingKeys = declaredSleeping.length === 0 ? [SLEEPING_TYPE] : declaredSleeping
+      const declaredOpens = keysDeclaredAs(declarations, OPENS_TYPE)
+      opensKeys = declaredOpens.length === 0 ? [OPENS_TYPE] : declaredOpens
     },
     agentAt: (to) =>
       held.find((one) => one.engine === to.agent && one.session === to.session) ?? null,
-    nodeAt: (node) => held.find((one) => one.id === node) ?? null,
-    seatableAt: (node) => reading !== null && seatableIn(reading, node),
+    nodeAt: (item) => held.find((one) => one.id === item) ?? null,
+    // THE TWO TESTS BEHIND ONE QUESTION, picked by what the key names: a record
+    // this reading still holds and has not put away, or a `.md` it still holds
+    // and has not put away. Neither is this module's rule — both are
+    // `@olai/format`'s, read of the two things that can carry a tie.
+    seatableAt: (item) => {
+      if (read === null) return false
+      const at = itemOf(item)
+      return at.kind === "node"
+        ? seatableIn(read.derived, at.id)
+        : seatableNote(read.set, read.claims, at.path)
+    },
     nodes: () => held,
-    reading: () => reading,
+    reading: () => read?.derived ?? null,
     key: () => keys[0] ?? SESSION_TYPE,
     keys: () => keys,
     sleptKey: () => sleptKeys[0] ?? SLEPT_TYPE,
     sleptKeys: () => sleptKeys,
     sleptAt: (node) => {
-      if (reading === null) return null
-      const at = reading.byId.get(node)
+      if (read === null) return null
+      const at = read.derived.byId.get(node)
       if (at === undefined || !isRegular(at)) return null
-      return textDeclaredAs(declarationsOf(reading, ownKinds), at.node, SLEPT_TYPE) ?? null
+      return textDeclaredAs(declarationsOf(read.derived, ownKinds), at.node, SLEPT_TYPE) ?? null
     },
     sleepKey: () => sleepingKeys[0] ?? SLEEPING_TYPE,
     sleepKeys: () => sleepingKeys,
+    opensKey: () => opensKeys[0] ?? OPENS_TYPE,
     sleeps: sleeping,
     nearestAt: nearest,
     rowsWith: (overheard, live, sleep) => joined(held, overheard, live).map(row => {
-      const located = reading?.byId.get(row.id)
+      const located = read?.derived.byId.get(row.id)
       const changed = located !== undefined && isRegular(located) ? located.node.changed : undefined
       // ...AND WHETHER THIS ONE IS TIDIED ON ITS OWN CLOCK, joined here for
       // {@link Roster.sleeps}'s reason: the row is what a verb labels itself

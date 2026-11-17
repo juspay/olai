@@ -96,6 +96,7 @@ import {
   serviceTag,
   type ServiceKey,
 } from "@olai/effect-cordis"
+import type { AgentItem } from "@olai/format"
 import { ConfigurationSource, ConfigurationWatch } from "./configuration.ts"
 export { ConfigurationSource, ConfigurationWatch } from "./configuration.ts"
 import { Deferred, Effect, Exit, Scope, Semaphore, Queue, Stream } from "effect"
@@ -474,49 +475,50 @@ export const Deliveries = serviceTag<Deliveries>("deliveries")
  * a wait.
  */
 export interface Conversations {
-  /** Mint a conversation ABOUT A PLACE, start it on `engine`, and send `say` as
-   *  its first message with `teach` riding the provider's teaching seam. The
-   *  conversation's row is titled `[title](about)` — `title` is the place's
-   *  name and `about` its address — which is what makes it that place's chat:
-   *  a place has one, so one that already has a chat is refused. The node
-   *  comes back even when the start refuses, because a conversation that
-   *  exists and has not begun is something a person can open later.
+  /** Open the chat OF AN ITEM — a node or a note that already exists — start
+   *  it on `engine`, and send `say` as its first message with `teach` riding
+   *  the provider's teaching seam. An item has one chat, so one that already
+   *  has a started chat is refused in words; an item whose earlier start was
+   *  refused is started again on the same item rather than given a second
+   *  chat.
+   *
+   *  NOTHING IS MINTED, which is the whole of why only a refusal comes back:
+   *  the item is the caller's own — a `README.md` it has just written, a node
+   *  it is looking at — so there is no new address for this door to report. A
+   *  conversation that exists and has not begun is something a person can open
+   *  later, from the item itself.
    *
    *  THAT PROMISE HOLDS WHEN THE PROVIDER GOES AWAY MID-CALL, which is the one
    *  case worth stating because it is the one a reader would assume otherwise.
    *  A caller reaches this door through {@link ConversationsWatch} and does not
    *  name {@link Conversations}, so chat being switched off does not unload the
-   *  caller: the three acts stop where they got to, a node already written to
-   *  the vault STAYS written, and the call answers that node with the refusal
-   *  beside it rather than failing whole. A half-minted folder somebody can
-   *  open is recoverable; a folder that exists under a name the next attempt is
-   *  refused over is not. */
+   *  caller: the acts stop where they got to, a tie already written to the
+   *  vault STAYS written, and the call answers with the refusal rather than
+   *  failing whole. */
   readonly open: (input: {
-    readonly parent: string | null
-    readonly title: string
-    readonly about: string
+    readonly about: AgentItem
     readonly engine: string
     readonly say: string
     readonly teach: ReadonlyArray<string>
-  }) => Effect.Effect<{ readonly node: string; readonly refusal: string | null }, Refusal>
-  /** Say something into the conversation ABOUT a place — the chat at the
-   *  address `about`, the same one a person sees on that page. `false` is one
-   *  of FOUR ordinary absences: the asking activation has left, there is no
-   *  chat at that address, the chat there has no conversation, or a roster
-   *  that moved between a draw and a press. The first of them is the gate the
+  }) => Effect.Effect<{ readonly refusal: string | null }, Refusal>
+  /** Say something into the chat OF AN ITEM — the same conversation a person
+   *  sees on that note or that node. `false` is one of FOUR ordinary absences:
+   *  the asking activation has left, the item is gone, it has no chat, or the
+   *  chat it has was never started. The first of them is the gate the
    *  broker's forwarded lifetime closes ({@link ConversationsWatch}), and it is
    *  why this is an answer rather than a failure: none of the four is anything
    *  going wrong. */
-  readonly say: (input: { readonly about: string; readonly text: string }) => Effect.Effect<boolean>
-  /** WHICH OF THESE ADDRESSES HAS A CHAT — the ones that do, and nothing
-   *  about what any of them said: the door stays write-only. A list and one
-   *  answer because that is the question a caller holding a roster asks, and
-   *  because every address is then read off ONE reading of the vault: no two
-   *  of them can come back from two different revisions. Asked of the vault as
-   *  it stands when the call runs, so a caller following a revision is
-   *  answered about that revision or a later one, never an earlier. */
+  readonly say: (input: { readonly about: AgentItem; readonly text: string }) => Effect.Effect<boolean>
+  /** WHICH OF THESE ITEMS HAS A CHAT — the KEYS of the ones that do
+   *  (`@olai/format`'s `itemKey`), and nothing about what any of them said:
+   *  the door stays write-only. A list and one answer because that is the
+   *  question a caller holding a roster asks, and because every item is then
+   *  read off ONE reading of the vault: no two of them can come back from two
+   *  different revisions. Asked of the vault as it stands when the call runs,
+   *  so a caller following a revision is answered about that revision or a
+   *  later one, never an earlier. */
   readonly here: (input: {
-    readonly about: ReadonlyArray<string>
+    readonly about: ReadonlyArray<AgentItem>
   }) => Effect.Effect<ReadonlySet<string>>
   /** The engines this machine can actually start, best first — the MACHINE's
    *  answer rather than the vault's, because a caller that has to choose one

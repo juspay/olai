@@ -72,7 +72,6 @@ Feature: Live chats survive a restart
     # answers one.
     And the agent refuses to load a conversation
     And the server starts again on the same port
-    And the filer's boot run has settled
     And I open the app
     And I open the outline "house.olai"
     Then node agent "kitchen" is folded
@@ -94,7 +93,6 @@ Feature: Live chats survive a restart
     When the server stops
     And I set the plugin "opencode" off on disk
     And the server starts again on the same port
-    And the filer's boot run has settled
     And I open the app
     And I open the outline "house.olai"
     # The entry stays on the record — an engine that mounts later is what
@@ -116,7 +114,6 @@ Feature: Live chats survive a restart
     And the server starts again on the same port
     And I open the app
     And I open the outline "house.olai"
-    And the filer's boot run has settled
     Then the node "order" is not shown
     And the agent has not loaded the conversation on node "order" in "_olai/Trash.olai"
     And no agent fold is open

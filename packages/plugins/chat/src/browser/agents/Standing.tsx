@@ -39,7 +39,7 @@ export function Standing(props: { readonly node: string; readonly record?: strin
   // start, and on a phone none until this row is the one tapped
   // (`OFFER_REVEAL`) — the `•••` menu and a long press carry it as well.
   return <>
-    <Show when={roster.chatAt({ kind: "row", id: props.node })} fallback={
+    <Show when={roster.at(props.node)} fallback={
       <Show when={roster.engines().length > 0}>
         <button type="button" class={`${QUIET_PILL} ${OFFER_REVEAL} gap-1 border-dashed whitespace-nowrap`}
           data-testid={TESTID.agentStart} data-agent={props.node} disabled={starting()}

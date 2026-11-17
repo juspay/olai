@@ -16,11 +16,12 @@ Feature: An agent is offered only where one can start
   Scenario: With several agents New chat offers only those that can start
     Given I open the outline "house.olai"
     When I press new chat in Chats
-    And I choose the new chat place "default"
+    And I type "pick the hinges" into the palette
+    And I choose the new chat place "hinges"
     Then the palette options are "claude, codex"
     When I press "Escape"
     Then the command palette is closed
-    And the Inbox contains no chat children
+    And nothing in the vault has a chat
 
   @no-agent @scratch:chat
   Scenario: With no agent the Chats + says so and opens the plugins panel
@@ -31,7 +32,7 @@ Feature: An agent is offered only where one can start
     When I choose Open plugins in the agent menu
     Then the agent menu is shut
     And the plugins panel is open
-    And the Inbox contains no chat children
+    And nothing in the vault has a chat
     And there should be no page errors
 
   @no-agent @rows-off:plugin-inspector @scratch:chat
@@ -94,17 +95,18 @@ Feature: An agent is offered only where one can start
     Then chat's "Start an agent" in the node menu runs at once
     When I press "Escape"
     And I press new chat in Chats
-    And I choose the new chat place "default"
+    And I type "pick the hinges" into the palette
+    And I choose the new chat place "hinges"
     # One agent left: it is the one option.
     Then the palette options are "claude"
     When I type new chat draft "engine selection"
     And I send the new chat draft
-    Then the new Inbox conversation is unfolded as "new-chat" with engine "claude"
+    Then the new conversation is unfolded as "new-chat" with engine "claude"
     When I open the plugins panel
     And I switch the plugin "codex" on
     And I close the plugins panel
-    # The new chat took this tab to the Inbox; the row menu is read back on
-    # the outline it started from.
+    # The new chat took this tab to the chat's own page; the row menu is read
+    # back on the outline it started from.
     And I open the outline "house.olai"
     And I open the node menu of "order"
     Then chat's "Start an agent" in the node menu opens a submenu

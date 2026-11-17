@@ -23,9 +23,9 @@ import { expect, test } from "bun:test"
 import { Effect } from "effect"
 
 import { CHAT_OFF } from "../wire/members.ts"
-import { SESSION_TYPE } from "../kinds.ts"
+import { OPENS_TYPE, SESSION_TYPE } from "../kinds.ts"
 import type { Chat } from "../scoped.ts"
-import { closeAgent, type Binding, setSleeping, startAgentSession } from "./binding.ts"
+import { closeAgent, type Binding, NO_SLEEP_ON_A_NOTE, setSleeping, startAgentSession } from "./binding.ts"
 
 /** Every member no gesture here reaches. A DEATH rather than a refusal: a case
  *  that called one would be asking about something this module does not own,
@@ -41,16 +41,10 @@ const elsewhere = Effect.die(new Error("this stub chat opens conversations and n
  */
 const chatOpening = (opens: ReadonlyArray<string>): {
   readonly chat: Chat
-  readonly assigned: ReadonlyArray<
-    { readonly node: string | null; readonly agent: string; readonly session: string }
-  >
   readonly replaced: ReadonlyArray<
     { readonly agent: string; readonly session: string; readonly by: { readonly agent: string; readonly session: string } }
   >
 } => {
-  const assigned: Array<
-    { readonly node: string | null; readonly agent: string; readonly session: string }
-  > = []
   const replaced: Array<
     { readonly agent: string; readonly session: string; readonly by: { readonly agent: string; readonly session: string } }
   > = []
@@ -65,12 +59,6 @@ const chatOpening = (opens: ReadonlyArray<string>): {
     }),
     live: () => new Map(),
     overheard: () => [],
-    assigned: (to: { readonly agent: string; readonly session: string }) =>
-      Effect.sync(() => void assigned.push({ node: null, ...to })),
-    assignedTo: (
-      node: string,
-      to: { readonly agent: string; readonly session: string },
-    ) => Effect.sync(() => void assigned.push({ node, ...to })),
     replaced: (to: { readonly agent: string; readonly session: string }, by: { readonly agent: string; readonly session: string }) =>
       Effect.sync(() => void replaced.push({ ...to, by })),
     reread: () => {},
@@ -98,34 +86,46 @@ const chatOpening = (opens: ReadonlyArray<string>): {
     doorFor: () => ({ scopes: () => [], deliver: () => elsewhere }),
     faults: () => elsewhere,
   } as unknown as Chat
-  return { chat, assigned, replaced }
+  return { chat, replaced }
 }
 
-/** The readings a binding reaches, as recorders: what the vault says this node
- *  is bound to, what the WRITE landed, and what the REMOVE took off. */
+/** The readings a binding reaches, as recorders: what the vault says this item
+ *  is tied to, what the WRITE landed, what the REMOVE took off, and — for a
+ *  NOTE — the text the gate holds and the documents that were written. */
 const binding = (
   bound: { readonly engine: string; readonly session: string | null; readonly title: string } | null,
+  notes: Record<string, string> = {},
 ): Binding & {
   readonly wrote: ReadonlyArray<{ node: string; value: string }>
   readonly removed: ReadonlyArray<string>
   readonly marked: ReadonlyArray<{ node: string; value: string }>
+  readonly docs: ReadonlyArray<{ path: string; text: string; was: string }>
 } => {
   const wrote: Array<{ node: string; value: string }> = []
   const removed: Array<string> = []
   const marked: Array<{ node: string; value: string }> = []
+  const docs: Array<{ path: string; text: string; was: string }> = []
   return {
     wrote,
     removed,
     marked,
+    docs,
     boundAt: () => bound,
     // The key the roster would resolve on a vault that has declared nothing —
     // the word this kind claims (`../kinds.ts`). It is spent by the refusal
-    // below and by nothing else, which is why this stub records no key.
+    // below, by the note writer, and by nothing else.
     key: () => SESSION_TYPE,
+    opensKey: () => OPENS_TYPE,
     exclusive: work => work,
     write: (node, value) => Effect.sync(() => void wrote.push({ node, value })),
     remove: (node) => Effect.sync(() => void removed.push(node)),
     mark: (node, value) => Effect.sync(() => void marked.push({ node, value })),
+    text: (path) => Effect.sync(() => notes[path] ?? null),
+    doc: (path, text, was) =>
+      Effect.sync(() => {
+        docs.push({ path, text, was })
+        notes[path] = text
+      }),
   }
 }
 
@@ -136,8 +136,8 @@ const binding = (
  * Nothing else records it: no `/clear` happened, so no adapter has anything to
  * say about this supersession (`../succession.ts`). Without the mark the node
  * agent's own previous conversation comes back as a chat no node claims,
- * re-filed into Chats and offered back to the node that had just left it —
- * which is the one node that would refuse it.
+ * offered back to the node that had just left it — which is the one node that
+ * would refuse it.
  */
 test("a fresh session on a bound node re-points the property and records what it replaced", async () => {
   const it = chatOpening(["fake-session-2"])
@@ -185,7 +185,9 @@ test("a fresh session on another engine re-points the property and records the c
 
 /** AN OPEN THAT LANDED ON NO CONVERSATION WRITES NOTHING, which is the arm the
  *  order exists for: the property is written after `newSession` has resolved, so
- *  an agent that failed to start leaves no key naming a session nobody opened. */
+ *  an agent that failed to start leaves no key naming a session nobody opened —
+ *  and nothing at all on an item that had no tie, so the words a person typed
+ *  stay in the box they were typed in. */
 test("an open that produced no conversation refuses, and writes no property", async () => {
   const it = chatOpening([])
   const at = binding(null)
@@ -200,9 +202,8 @@ test("an open that produced no conversation refuses, and writes no property", as
 
 /** CLOSING TAKES THE BINDING PROPERTY OFF AND NOTHING ELSE — no fresh
  *  session, so no supersession, and no write. The conversation the node was
- *  in becomes an unclaimed chat with its transcript intact — the next filer
- *  run files it back under Chats; the seat closes by the same reading that
- *  opened it. */
+ *  in keeps its transcript in the engine's store, tied to nothing; the seat
+ *  closes by the same reading that opened it. */
 test("closing a bound node takes the binding property off and supersedes nothing", async () => {
   const at = binding({ engine: "claude", session: "fake-session-1", title: "a" })
   await Effect.runPromise(closeAgent(at, { node: "a" }))
@@ -269,4 +270,42 @@ test("marking a node that is not an agent refuses, and writes nothing", async ()
   const said = await Effect.runPromise(Effect.flip(setSleeping(at, { node: "a", on: true })))
   expect(said.reason).toContain("no node agent")
   expect(at.marked).toEqual([])
+})
+
+// ── a note's tie, which is its front matter ────────────────────────────
+
+test("closing a NOTE's chat takes both of its keys off and leaves the prose alone", async () => {
+  const at = binding({ engine: "claude", session: "sess-1", title: "plan" }, {
+    "notes/plan.md": "---\nchat-agent-session: claude:sess-1\nchat-opens: beside\ntopic: kitchen\n---\n\n# Plan\n",
+  })
+  await Effect.runPromise(closeAgent(at, { node: "/notes/plan.md" }))
+  expect(at.removed).toEqual([])
+  expect(at.docs).toHaveLength(1)
+  expect(at.docs[0]?.path).toBe("notes/plan.md")
+  expect(at.docs[0]?.text).toBe("---\ntopic: kitchen\n---\n\n# Plan\n")
+  // The write is CONDITIONAL on the text it was derived from.
+  expect(at.docs[0]?.was).toContain("chat-agent-session: claude:sess-1")
+})
+
+test("a note the directory no longer holds refuses in words rather than writing", async () => {
+  const at = binding({ engine: "claude", session: "sess-1", title: "plan" })
+  const said = await Effect.runPromise(Effect.flip(closeAgent(at, { node: "/notes/gone.md" })))
+  expect(said.reason).toContain("notes/gone.md")
+  expect(at.docs).toEqual([])
+})
+
+test("a note whose front matter already says what the write would say is not written at all", async () => {
+  const at = binding({ engine: "claude", session: "sess-1", title: "plan" }, { "notes/plan.md": "# Plan\n" })
+  // There is nothing to remove, so composing the text answers the text that
+  // is already there and no document write is made.
+  await Effect.runPromise(closeAgent(at, { node: "/notes/plan.md" }))
+  expect(at.docs).toEqual([])
+})
+
+test("sleep is never offered on a note, whatever its tie says", async () => {
+  const at = binding({ engine: "claude", session: "sess-1", title: "plan" })
+  const said = await Effect.runPromise(Effect.flip(setSleeping(at, { node: "/notes/plan.md", on: true })))
+  expect(said.reason).toBe(NO_SLEEP_ON_A_NOTE)
+  expect(at.marked).toEqual([])
+  expect(at.docs).toEqual([])
 })

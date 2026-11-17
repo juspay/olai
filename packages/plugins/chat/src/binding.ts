@@ -65,3 +65,25 @@ export const SLEEPING_KIND = "agent-sleep"
 /** ...and what a declaration writes for it:
  *  `{"title":"agent-sleep","custom":{"type":"chat-agent-sleep"}}`. */
 export const SLEEPING_TYPE = "chat-agent-sleep"
+
+/**
+ * WHERE A NOTE'S CHAT OPENS — the fourth kind this plugin teaches a vault, and
+ * the only one that is about a FILE rather than a row: it lives in a note's
+ * YAML front matter beside the tie, and it is the person's answer to whether
+ * that note's chat opens on its own or beside the note.
+ *
+ * THE SAME TWO-LAYER COMPOSITION as the three above — the bare
+ * {@link OPENS_KIND} this plugin contributes and the word a declaration writes,
+ * `chat-opens` — and the same reason for being a kind at all: a key's spelling
+ * is not a licence, so a vault that keeps this switch under a column of its own
+ * name declares it there and olai reads and writes there.
+ *
+ * ABSENT IS `alone`, which is why there are two words and not a boolean: a
+ * person writes this by hand in a note's front matter, and `beside` says what
+ * it does where `true` would not.
+ */
+export const OPENS_KIND = "opens"
+
+/** ...and what a declaration writes for it:
+ *  `{"title":"opens","custom":{"type":"chat-opens"}}`. */
+export const OPENS_TYPE = "chat-opens"

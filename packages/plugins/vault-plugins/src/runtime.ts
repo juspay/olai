@@ -44,7 +44,7 @@
  */
 
 import { buildHalf, REGISTRY } from "@olai/plugin-build"
-import { UsageFailure, type OpFailure, type WriteRequest, type Reading } from "@olai/format"
+import { itemKey, UsageFailure, type OpFailure, type WriteRequest, type Reading } from "@olai/format"
 import * as plugins from "@olai/plugin-api/services"
 import { type OwnedLoader, type Mounted, type Plugin, type RowReport } from "@olai/plugin-api/services"
 import type { BuiltPlugin } from "@olai/surface"
@@ -53,7 +53,7 @@ import * as effect from "effect"
 import { Effect } from "effect"
 import { CONFIGURATION_FILE, decodePolicy, policyEdit, type PolicyRow } from "@olai/plugin-api/configuration"
 
-import { pluginAbout } from "./index.ts"
+import { pluginReadme } from "./index.ts"
 import { ALWAYS, APPROVED_KEY, CHECKED_KEY, type Defined, definedIn, isApproved, isBuilding, isOn, ON_KEY } from "./source.ts"
 
 /**
@@ -312,9 +312,9 @@ export const openDynamic = (
   const checkedBuilds = new Map<string, { readonly version: string; readonly why: string | null }>()
 
   /**
-   * THE PLUGIN PAGE ADDRESSES A CHAT IS AT, as of the revision this runtime
-   * last followed — asked of chat by address, so a row reads its own back
-   * through `pluginAbout` ({@link rows}).
+   * THE ITEM KEYS A CHAT IS ON, as of the revision this runtime last followed
+   * — asked of chat by ITEM, so a row reads its own back through
+   * `pluginReadme` ({@link rows}).
    *
    * ASKED PER REVISION AND KEPT, because the question is an EFFECT and a row
    * is a value: `Conversations.here` reads the vault as it stands when it
@@ -378,7 +378,7 @@ export const openDynamic = (
       const door = conversations()
       chats = door === undefined
         ? new Set()
-        : yield* door.here({ about: defined.map((one) => pluginAbout(one.name)) })
+        : yield* door.here({ about: defined.map((one) => ({ kind: "note" as const, path: pluginReadme(one.name) })) })
       // WANTED IS APPROVED **AND** ON, and the two are different facts: a
       // plugin a person approved and then switched off is approved and not
       // running, and a plugin somebody switched on and then edited is on and
@@ -482,7 +482,7 @@ export const openDynamic = (
       // chat is the answer {@link follow} already took for this revision.
       const asking = conversations() !== undefined
       return seen.map((one) =>
-        rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name), checkedBuilds.get(one.name), chats.has(pluginAbout(one.name)), asking))
+        rowOf(one, started.get(one.name), report.get(one.name), approvedSource.get(one.name), checkedBuilds.get(one.name), chats.has(itemKey({ kind: "note", path: pluginReadme(one.name) })), asking))
     },
     names: () => seen.map((one) => one.name),
     follow: (reading) => follow(reading === null ? [] : definedIn(reading, built)),

@@ -20,7 +20,8 @@ import type {} from "olai-plugin-outlines/slots"
 import type {} from "olai-plugin-sidebar/slots"
 import { slotContracts } from "./slots.ts"
 import type { Attention, AttentionRow } from "./attention.ts"
-import type { Route, Routing } from "olai-plugin-navigation/routes"
+import type { Route } from "olai-plugin-navigation/routes"
+import { type AgentItem, itemKey } from "@olai/format"
 import { DOCK, type DockDoor } from "./dock.ts"
 import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
@@ -51,7 +52,7 @@ import { readings } from "olai-plugin-search/reading"
 import { holdReading } from "./browser/search.ts"
 import { references as outlineReferences } from "olai-plugin-outlines/references"
 import { holdReferences } from "./browser/references.ts"
-import { holdServed } from "./browser/vault.ts"
+import { holdServed, servedDirectory } from "./browser/vault.ts"
 import { holdKindReader } from "./browser/kinds.ts"
 import { deployment as appDeployment } from "olai-plugin-layout/contract"
 import { holdDeployment } from "./browser/deployment.ts"
@@ -104,10 +105,9 @@ export default definePlugin({
       const folding = createFolding()
       return {
         dispose, agents, engines: enginesService(agents), readings: createAgentReadings(agents), folding, history: createHistory(),
-        // WHICH PAGE A CHAT ROW IS ABOUT, for a tab's dot: chat's own reading
-        // of what a row stands for (`./browser/agents/place.ts`).
-        isCurrent: (routes: Routing, route: Route, row: AttentionRow) =>
-          isCurrent(routes, route, row, agents.placeOf(row), folding.unfolded(row.id)),
+        // WHICH PAGE A CHAT IS ABOUT, for a tab's dot: chat's own reading of
+        // which item a page is (`./browser/agents/here.ts`).
+        isCurrent: (route: Route, row: AttentionRow) => isCurrent(servedDirectory()?.claims(), route, row, folding.unfolded(row.id)),
       }
     })), state => Effect.sync(state.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdAgentReadings(state.readings)), stop => Effect.sync(stop))
@@ -142,10 +142,8 @@ export default definePlugin({
       priority: 100,
       matches: route => {
         const id = previewNode(route)
-        const agent = id === undefined ? undefined : state.agents.chatAt({ kind: "row", id })
-        // A row written at its file is the chat's own row only where the chat
-        // row is in that file; a chat row standing for the row is anywhere.
-        return agent?.session != null && (agent.id !== id || route.kind !== "at" || route.address?.kind !== "row" || route.address.path === agent.file)
+        const agent = id === undefined ? undefined : state.agents.chatOf({ kind: "node", id })
+        return agent?.session != null
       },
       Preview: props => <ChatLinkPreview route={props.route} roster={state.agents} />,
     })
@@ -171,7 +169,7 @@ export default definePlugin({
     yield* slots.register("outline.row.action", node => rowVerbs(node, state.agents, id => agentAboveOf(id, state.agents), (row) => {
       const nav = heldNavigation()
       if (nav === undefined) return "Can't open this right now"
-      focusAgent(nav, state.agents, row)
+      focusAgent(nav, row)
     }))
     // THE STANDING TABLE, AS A DECLARED BROWSER SERVICE — one row per mounted
     // engine, live, keyed to this activation's own roster cell
@@ -197,7 +195,7 @@ import { ChatsThumb } from "./browser/agents/ChatsThumb.tsx"
 import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { createDock, holdDock } from "./browser/dock.ts"
-import { isCurrent, placeOfRoute } from "./browser/agents/place.ts"
+import { isCurrent } from "./browser/agents/here.ts"
 import { Dock } from "./browser/agents/Dock.tsx"
 import { DockToggle } from "./browser/agents/DockToggle.tsx"
 export const components = {
@@ -211,14 +209,7 @@ export const components = {
     const geometry = yield* appShell
     const slots = yield* Slots
     const renderer = yield* rendererSlots
-    // WHICH CHAT IS AT AN ADDRESS, for the door by address: the one reading
-    // every face asks (`./browser/agents/answered.tsx`'s `chatAt`).
-    const find = (about: string): string | undefined => {
-      const routes = heldNavigation()?.routes
-      const route = routes?.routeIn(about) ?? null
-      return routes === undefined || route === null ? undefined : agentReadings()?.agents.chatAt(placeOfRoute(routes, route))?.id
-    }
-    const door = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({ value: createDock(geometry, find), dispose }))), owner => Effect.sync(owner.dispose))
+    const door = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({ value: createDock(geometry), dispose }))), owner => Effect.sync(owner.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdDock(door.value)), stop => Effect.sync(stop))
     // `chat.dock`, as its static door names it (`./dock.ts`): the seat beside
     // the page, offered by the component that OWNS the seat rather than by the
@@ -228,7 +219,7 @@ export const components = {
     // `Dock` is not what crosses: the two verbs another row may spend are,
     // which is why the door is a narrowing and not the value itself.
     yield* (yield* Offers).own(DOCK, () => ({
-      open: (about: string) => door.value.openAt(about),
+      open: (item: AgentItem) => door.value.open(itemKey(item)),
       desktop: () => door.value.desktop(),
     } satisfies DockDoor))
     const roster = () => agentReadings()?.agents

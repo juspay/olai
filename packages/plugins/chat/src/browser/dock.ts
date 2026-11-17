@@ -30,7 +30,7 @@
  * with it.
  */
 import type { Accessor } from "solid-js"
-import { createEffect, createSignal, onCleanup, untrack } from "solid-js"
+import { onCleanup } from "solid-js"
 
 import { heldService } from "@olai/ui-primitives/held.ts"
 import { createPreference } from "@olai/web/client/preference.ts"
@@ -41,13 +41,11 @@ import type { Shell } from "olai-plugin-layout/contract"
 export const DOCK_KEY = "olai.chat.dock"
 
 export interface Dock {
-  /** The node whose conversation is docked, or nothing — the picker. */
+  /** The chat whose conversation is docked, by its key, or nothing — the
+   *  picker. */
   readonly node: Accessor<string | undefined>
-  /** Dock a node's conversation and open the column. */
-  readonly open: (node: string) => void
-  /** Open the column and dock the chat at `about` (an address) as soon as
-   *  `find` names it — see {@link createDock}. */
-  readonly openAt: (about: string) => void
+  /** Dock a chat's conversation and open the column. */
+  readonly open: (key: string) => void
   /** Forget the docked conversation; the column, if open, shows the picker. */
   readonly clear: () => void
   /** The shell's own three, re-exported so a door in this row names one
@@ -62,45 +60,27 @@ export interface Dock {
 
 /**
  * One dock per activation, created under an owner so its preference listener
- * and its waiting are released with it.
+ * is released with it.
  *
- * BY ADDRESS (`openAt`), because another row knows the page it is about and
- * not which chat row is that page's: `find` answers it. The answer is WAITED
- * FOR rather than asked once: a page that docks its chat as it is drawn (a
- * plugin's, after a reload) can ask before chat's roster has arrived, and a
- * miss then must neither clear what the person had docked nor give up. So the
- * column opens at once and the address is held until the chat there is docked
- * — or let go, when the column closes or something else is docked or cleared
- * by hand, so a chat appearing later never replaces what the person chose.
+ * BY KEY, and that is the whole of it: a chat's key is its node's id or `/`
+ * and its note's path (`@olai/format`'s `itemKey`), so a row that knows which
+ * item it is about can dock that chat without asking chat's roster anything.
+ * A key whose chat has not arrived yet — or never will — draws the picker
+ * rather than an empty column, and nothing has to be waited for.
  */
-export const createDock = (shell: Shell, find: (about: string) => string | undefined): Dock => {
+export const createDock = (shell: Shell): Dock => {
   const docked = createPreference(DOCK_KEY, {
     parse: (raw) => (raw === null || raw === "" ? undefined : raw),
     print: (value) => value ?? null,
   })
   onCleanup(docked.follow())
-  const [wanted, want] = createSignal<string>()
-  createEffect(() => {
-    const about = wanted()
-    if (about === undefined) return
-    if (!shell.panelOpen()) { want(undefined); return }
-    const node = find(about)
-    if (node === undefined) return
-    want(undefined)
-    untrack(() => docked.set(node))
-  })
   return {
     node: docked.value,
-    open: (node) => {
-      want(undefined)
-      docked.set(node)
+    open: (key) => {
+      docked.set(key)
       shell.setPanelOpen(true)
     },
-    openAt: (about) => {
-      shell.setPanelOpen(true)
-      want(about)
-    },
-    clear: () => { want(undefined); docked.set(undefined) },
+    clear: () => docked.set(undefined),
     opened: shell.panelOpen,
     show: () => shell.setPanelOpen(true),
     close: () => shell.setPanelOpen(false),

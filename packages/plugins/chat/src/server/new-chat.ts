@@ -1,91 +1,155 @@
+/**
+ * A CONVERSATION, STARTED — the two things *New chat* and another row's `open`
+ * can mean, and the refusals each of them owes.
+ *
+ * ## The two arms, and why they are one verb
+ *
+ * MINT A ROW: a person typed a first message and chose where it goes, so a
+ * plain node is written under that parent and the engine is started on it.
+ * There is no default parent — a chat has to belong somewhere a person picked,
+ * and a conversation filed wherever olai felt like putting it is one nobody
+ * finds twice.
+ *
+ * AN ITEM'S OWN CHAT: a node or a note that exists already. Nothing is minted;
+ * the engine is started on the item, and the tie is written where that item
+ * keeps one (`./binding.ts` — a property on a row, front matter in a note).
+ *
+ * They are one verb because they end in one act — `start` on an item key — and
+ * because the caller is the same press: the second arm is what the door on a
+ * page and the plugin builder spend, and splitting it would be two spellings
+ * of "a start that was refused leaves the item ready to try again".
+ */
+
 import { Effect } from "effect"
-import { UsageFailure, isRegular, seatableIn, outlinePaths, inOlaiDir, inboxIn, samePlace, type OpFailure, type Place, type Reading, type WriteRequest } from "@olai/format"
+import {
+  type AgentItem,
+  inOlaiDir,
+  inboxIn,
+  isRegular,
+  itemKey,
+  type NodeAgent,
+  type OpFailure,
+  outlinePaths,
+  type Reading,
+  seatableIn,
+  seatableNote,
+  UsageFailure,
+  type WriteRequest,
+} from "@olai/format"
 import type { Conversing } from "../sessions.ts"
-import { aboutTitle, newChatTitle } from "../new-chat-title.ts"
-import { chatsId, ensureChats } from "./filer.ts"
-import { chatsIn, placeIn } from "./places.ts"
+import { newChatTitle } from "../new-chat-title.ts"
 
 export interface NewChat {
-  readonly current: () => string | null
   readonly read: Effect.Effect<Reading, OpFailure>
   readonly write: (request: WriteRequest) => Effect.Effect<{ readonly id: string }, OpFailure>
-  readonly start: (node: string, agent: string, committed: Reading) => Effect.Effect<Conversing | null, OpFailure>
-  /** The chat rows of a reading, in roster order — what a second chat about
-   *  one place is refused against, and a chat row that never started is
-   *  found by. */
-  readonly chats: (reading: Reading) => ReadonlyArray<{ readonly id: string; readonly title: string; readonly session: string | null }>
+  /** Start `agent` on an ITEM KEY, against the reading the mint committed. */
+  readonly start: (
+    item: string,
+    agent: string,
+    committed: Reading,
+  ) => Effect.Effect<Conversing | null, OpFailure>
+  /** The chat roster of a reading, nodes then notes — what a second chat on
+   *  one item is refused against, and what a tie whose start was refused is
+   *  found by (`../seating.ts`'s `rosterIn`). */
+  readonly chats: (reading: Reading) => ReadonlyArray<Pick<NodeAgent, "id" | "title" | "session">>
 }
-export interface NewChatInput {
-  readonly agent: string
-  readonly title: string
-  /** null names the current Inbox registry's Chats container. */
-  readonly parent: string | null
-  /**
-   * THE PLACE THIS CHAT IS ABOUT, as an address (`/notes/plan.md`,
-   * `/plugins/swatch`) — and then `title` is the place's NAME. The row is
-   * titled `[name](address)`, which is what makes it that place's chat. A
-   * place has one: one that already has a conversation is refused, and one
-   * whose chat row never started (its start was refused) is started on that
-   * same row, so a retry never leaves a second row behind.
-   */
-  readonly about?: string
-}
+
+/**
+ * MINT A ROW UNDER A PARENT the person chose, and start the engine on it — or
+ * start one on an item that is already there.
+ *
+ * `say` rides the second arm and is delivered by the caller once the
+ * conversation exists: it is the first message of a chat somebody opened from
+ * a page, and this module's business ends at the start.
+ */
+export type NewChatInput =
+  | {
+    readonly agent: string
+    readonly title: string
+    readonly parent: string
+  }
+  | {
+    readonly agent: string
+    readonly item: AgentItem
+    readonly say?: string
+  }
+
 const parentFiles = (reading: Reading) => {
   const paths = outlinePaths(reading.set)
   const inbox = inboxIn(reading.derived.claims, paths)
   return new Set(paths.filter(file => !inOlaiDir(file) || file === inbox))
 }
+
 export const canParent = (reading: Reading, id: string, paths = parentFiles(reading)): boolean => {
   const row = reading.derived.byId.get(id)
   return row !== undefined && isRegular(row) && seatableIn(reading.derived, id) && paths.has(row.file)
 }
-/** The caller holds creationPermit across all three independent acts. Once
- * minted, the node survives a refused start and is returned for a page retry. */
-export const newChat = (owner: NewChat, input: NewChatInput) => Effect.gen(function*() {
-  const title = input.about === undefined ? newChatTitle(input.title) : aboutTitle(input.title, input.about)
-  if (title === "") return yield* new UsageFailure({ reason: "A new chat needs a non-empty title" })
-  if (input.about !== undefined) {
-    const reading = yield* owner.read
-    const place = placeIn(reading, input.about)
-    if (place === null) return yield* new UsageFailure({ reason: `olai holds nothing at ${input.about} to talk about; no conversation was created` })
-    const there = chatsIn(reading, owner.chats(reading)).at(place)
-    if (there !== undefined && there.session !== null) {
-      return yield* new UsageFailure({ reason: "this page already has a chat; no conversation was created" })
+
+/** The caller holds creationPermit across both acts. Once minted, the node
+ *  survives a refused start and is returned for a page retry. */
+export const newChat = (owner: NewChat, input: NewChatInput) =>
+  Effect.gen(function*() {
+    if ("item" in input) return yield* onItem(owner, input.item, input.agent)
+    const title = newChatTitle(input.title)
+    if (title === "") return yield* new UsageFailure({ reason: "A new chat needs a non-empty title" })
+    if (!canParent(yield* owner.read, input.parent)) {
+      return yield* new UsageFailure({
+        reason:
+          "The chosen parent vanished, was trashed, or can no longer hold a chat; no conversation was created",
+      })
     }
-    if (there !== undefined) return yield* started(owner, there.id, input.agent)
-    // ...AND A ROW A REFUSED START LEFT BEHIND: minted under Chats, titled
-    // with this place, and never made a chat because its agent would not
-    // start. Starting on it again is the retry, so every attempt is one row.
-    const left = strayAt(reading, place, new Set(owner.chats(reading).map(row => row.id)))
-    if (left !== undefined) return yield* started(owner, left, input.agent)
-  }
-  let parent = input.parent
-  if (parent === null) {
-    const file = owner.current()
-    if (file === null) return yield* new UsageFailure({ reason: "the Inbox is unavailable; no conversation was created" })
-    parent = yield* ensureChats(owner, file)
-    if (owner.current() !== file) return yield* new UsageFailure({ reason: "the Inbox changed; no conversation was created" })
-  }
-  if (!canParent(yield* owner.read, parent)) return yield* new UsageFailure({ reason: "The chosen parent vanished, was trashed, or can no longer hold a chat; no conversation was created" })
-  const node = yield* owner.write({ op: "add", parent, title })
-  return yield* started(owner, node.id, input.agent)
-})
+    const node = yield* owner.write({ op: "add", parent: input.parent, title })
+    return yield* started(owner, node.id, input.agent)
+  })
 
-/** Start `agent` on a chat row, answering the row whatever the start said. */
-const started = (owner: NewChat, node: string, agent: string) => Effect.gen(function*() {
-  const result = yield* Effect.result(owner.start(node, agent, yield* owner.read))
-  return { node, to: result._tag === "Success" ? result.success : null,
-    refusal: result._tag === "Failure" ? result.failure.message : null }
-})
+/**
+ * THE CHAT OF AN ITEM THAT EXISTS — one each, which is the whole of the
+ * refusal below.
+ *
+ * A STARTED CHAT IS KEPT: an item already talking through a conversation is
+ * not given a second one, and the sentence names what a person is looking at
+ * so the answer reads as being about their row rather than about a key.
+ *
+ * A TIE WITH NO SESSION IS A RETRY, not a second chat: a start the engine
+ * refused (no signature yet, nothing installed) leaves the engine written and
+ * no session, and pressing again starts THAT item again rather than minting
+ * anything.
+ */
+const onItem = (owner: NewChat, item: AgentItem, agent: string) =>
+  Effect.gen(function*() {
+    const reading = yield* owner.read
+    const seatable = item.kind === "node"
+      ? seatableIn(reading.derived, item.id)
+      : seatableNote(reading.set, reading.derived.claims, item.path)
+    if (!seatable) {
+      return yield* new UsageFailure({
+        reason: `olai holds nothing at ${printed(item)} to talk about; no conversation was created`,
+      })
+    }
+    const key = itemKey(item)
+    const there = owner.chats(reading).find(row => row.id === key)
+    if (there !== undefined && there.session !== null) {
+      return yield* new UsageFailure({
+        reason: `“${there.title}” already has a chat; no conversation was created`,
+      })
+    }
+    return yield* started(owner, key, agent)
+  })
 
-/** A row under Inbox › Chats whose title stands for `place` and that is not a
- *  chat row — what a door's refused start leaves behind. */
-const strayAt = (reading: Reading, place: Place, chats: ReadonlySet<string>): string | undefined =>
-  (reading.derived.children.get(chatsId(reading)) ?? []).find(row => {
-    if (!isRegular(row) || chats.has(row.node.id)) return false
-    const at = placeIn(reading, row.node.title)
-    return at !== null && samePlace(at, place)
-  })?.node.id
+/** An item as a person reads it in a sentence: a node's own page, or the
+ *  note's path. */
+const printed = (item: AgentItem): string => item.kind === "node" ? `/#${item.id}` : `/${item.path}`
+
+/** Start `agent` on an item, answering the item whatever the start said. */
+const started = (owner: NewChat, item: string, agent: string) =>
+  Effect.gen(function*() {
+    const result = yield* Effect.result(owner.start(item, agent, yield* owner.read))
+    return {
+      node: item,
+      to: result._tag === "Success" ? result.success : null,
+      refusal: result._tag === "Failure" ? result.failure.message : null,
+    }
+  })
 
 export interface LocationQuery {
   readonly filter: string
@@ -93,8 +157,9 @@ export interface LocationQuery {
   readonly ids: readonly string[]
   readonly parents: readonly string[]
 }
+
 /** Bounded projection; exact lookups never require shipping the vault. */
-export const chatLocations = (reading: Reading, query: LocationQuery, inbox: string | null = null) => {
+export const chatLocations = (reading: Reading, query: LocationQuery) => {
   const paths = parentFiles(reading)
   const limit = Math.max(0, Math.min(20, Math.floor(query.limit)))
   const ids = new Set(query.ids.slice(0, 64))
@@ -127,5 +192,5 @@ export const chatLocations = (reading: Reading, query: LocationQuery, inbox: str
     if (node === null || ![node.file, ...node.path, node.title].join(" › ").toLowerCase().includes(filter)) continue
     nodes.push(node); matches++
   }
-  return { nodes, defaultParent: inbox === null ? null : chatsId(reading) }
+  return { nodes }
 }

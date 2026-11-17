@@ -91,7 +91,8 @@ Feature: Codex subagents and background terminals are visible
 
   @agent-stored
   Scenario: Loading a stored conversation restores child work and an active terminal
-    When I open the filed "codex" conversation "an older conversation" as node "filed-chat"
+    Given node "order" in "house.olai" is tied to the stored "codex" conversation "an older conversation"
+    When I press the agent "order"
     Then the opened conversation carries the title "an older conversation"
     And the call that spawned it offers a door to 2 calls, as "explore the outline"
     And the strip says "watch files" is running
@@ -101,7 +102,8 @@ Feature: Codex subagents and background terminals are visible
 
   @agent-stored
   Scenario: Activity from a conversation left behind cannot populate the new one
-    When I open the filed "codex" conversation "an older conversation" as node "filed-chat"
+    Given node "install" in "house.olai" is tied to the stored "codex" conversation "an older conversation"
+    When I press the agent "install"
     Then the strip says "watch files" is running
     When I open the outline "house.olai"
     And I open the "codex" agent on node "order"

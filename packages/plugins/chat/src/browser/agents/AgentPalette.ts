@@ -1,4 +1,4 @@
-import { createMemo, createSignal } from "solid-js"
+import { createMemo } from "solid-js"
 import { Result } from "effect"
 import type { PaletteAdapter, PaletteItem, PaletteOption } from "olai-plugin-navigation/contract"
 import { atOnce } from "@olai/web/client/settled.ts"
@@ -14,7 +14,6 @@ import { LOOK } from "./roster.ts"
 import { chatVerbs } from "../verbs.tsx"
 import type { RowVerb } from "olai-plugin-outlines/slots"
 import type { Roster } from "./answered.tsx"
-import { placeOfRoute } from "./place.ts"
 import { dock } from "../dock.ts"
 import { sendAbout } from "./Door.tsx"
 import { talking } from "./roster.ts"
@@ -36,12 +35,9 @@ const inPalette = (verb: RowVerb): boolean => verb.id !== "close-agent"
 /** Listing reads the activation's roster; only selection opens a conversation. */
 export const createAgentPalette = (agents: Roster): PaletteAdapter => {
   const creation = agentReadings()?.newChat
-  // The last default container New chat was told of, for this activation.
-  const [last, remember] = createSignal<string | null>()
-  const memory = { last, remember: (value: string | null) => { remember(value) } }
   // One New chat row for the activation: listing again (a roster tick) hands
   // the palette the same object, so its open path and drawing stay put.
-  const newChat = creation === undefined ? undefined : newChatRow(creation, agents, memory)
+  const newChat = creation === undefined ? undefined : newChatRow(creation, agents)
   /**
    * THE CHAT ON SCREEN, AS ⌘K ROWS — the opt-in, and then the menus' own
    * verbs (`../verbs.tsx`'s `chatVerbs`) wearing this list's dressing.
@@ -128,16 +124,16 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
         if (nav === undefined) return { keepOpen: true, said: { tone: "alarm" as const, text: "Can't open this right now" } }
         const now = hereNow()
         const target = now === null ? undefined : agentAboveOf(now, agents)
-        if (target !== undefined) focusAgent(nav, agents, target)
+        if (target !== undefined) focusAgent(nav, target)
         return {}
       } },
     }]
   }
   /**
    * **CHAT ABOUT THIS PAGE** — the door, from ⌘K: offered while the page in
-   * front placed a seat, has no chat at its place, and an agent can start, and
-   * one message level away from a chat about it (`./Door.tsx` is the same door
-   * under the page).
+   * front is a note with a seat, has no chat on it, and an agent can start,
+   * and one message level away from a chat about it (`./Door.tsx` is the same
+   * door under the page).
    *
    * THE ROW GOES THE MOMENT THE CHAT EXISTS, including the chat this level's
    * own send starts, and that is the whole rule here: a level whose submit is
@@ -151,11 +147,11 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
     const pane = nav.panes()[nav.focusIndex()]
     const here = pane === undefined ? undefined : held.seatIn(pane.id)
     if (here === undefined) return []
-    if (talking(agents.chatAt(placeOfRoute(nav.routes, here.place)))) return []
-    const address = nav.routes.href(here.place)
+    if (talking(agents.chatOf({ kind: "note", path: here.path }))) return []
+    const path = here.path
     const name = here.name
     return [{
-      id: ABOUT_ROW, label: "Chat about this page", place: address.replace(/^\//, ""),
+      id: ABOUT_ROW, label: "Chat about this page", place: path,
       search: `agents chat about this page ${name}`.toLowerCase(), taking: atOnce,
       action: { kind: "level", level: {
         kind: "value",
@@ -169,7 +165,7 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
           // ONE PRESS OF THE DOOR (`./Door.tsx`'s `sendAbout`): a refusal keeps
           // the words in this box with the sentence beside them, and leaves the
           // docked conversation alone.
-          const sent = await sendAbout({ about: address, name, engine: engine.id, text })
+          const sent = await sendAbout({ path, engine: engine.id, text })
           if (sent.started === null) return { keepOpen: true, said: { tone: "alarm", text: sent.said ?? "No chat was started" } }
           const door = dock()
           if (sent.talking && door?.desktop()) door.open(sent.started)
@@ -187,13 +183,13 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
       return {
         id: `agent-${row.id}`, label: named.name, hint: LOOK[row.standing].label,
         ...(named.mark === undefined ? {} : { mark: named.mark }),
-        // A chat about a place says where it is on the second line.
+        // A note's chat says where the note is on the second line.
         place: named.where === undefined ? "Agents" : `Agents · ${named.where}`,
         search: `agents ${named.name} ${named.where ?? ""}`.trim().toLowerCase(), taking: atOnce,
         action: { kind: "run", run: async () => {
           const nav = navigation()
           if (nav === undefined) return { keepOpen: true, said: { tone: "alarm", text: "Can't open this right now" } }
-          focusAgent(nav, agents, row)
+          focusAgent(nav, row)
           return {}
         } },
       }

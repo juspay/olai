@@ -147,7 +147,7 @@ export const agentAbove = (trail: ReadonlyArray<string>, roster: Roster): Row | 
   // Reversed: the CLOSEST ancestor is the last crumb, and the pill names only
   // that one even where several ancestors have agents.
   for (let at = trail.length - 1; at >= 0; at--) {
-    const row = roster.chatAt({ kind: "row", id: trail[at]! })
+    const row = roster.at(trail[at]!)
     if (row !== undefined) return row
   }
   return undefined

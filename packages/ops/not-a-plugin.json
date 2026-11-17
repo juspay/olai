@@ -12,8 +12,10 @@
     "src/query.ts": 1,
     "src/sorted.ts": 4
   },
+  "//markdown": "The word is `@olai/format`'s own set reader `markdownAt` — the `.md` body of one file of a set, named by its grammar — not the markdown row.",
   "markdown": {
     "src/asked.ts": 8,
+    "src/door.ts": 2,
     "src/ops.ts": 4,
     "src/plan.ts": 9,
     "src/query.ts": 5,

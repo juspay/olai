@@ -50,9 +50,10 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { run } from "@olai/web/client/run.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
+import { type AgentItem, itemKey } from "@olai/format"
 import type { DockDoor } from "olai-plugin-chat/dock"
 import { Control } from "olai-plugin-plugin-inspector/control"
-import type { Route } from "olai-plugin-navigation/routes"
+import { atFile, type Route } from "olai-plugin-navigation/routes"
 import { PageSeat } from "olai-plugin-navigation/seat"
 import { Key } from "@solid-primitives/keyed"
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
@@ -60,7 +61,7 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 import { TESTID } from "../testids.ts"
 import { client } from "../client.ts"
 import { dock } from "./doors.ts"
-import { pluginPage } from "./route.ts"
+import { pluginReadme } from "../index.ts"
 import { changedCount, diffLines } from "./diff.ts"
 import { Code } from "./page/Code.tsx"
 import { Verbs, type Acts } from "./page/Verbs.tsx"
@@ -142,10 +143,11 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
    * against code the agent has since replaced.
    */
   const [shown, setShown] = createSignal(props.plugin.source.version)
-  /** THE PLUGIN'S OWN ADDRESS, which is what a chat about it is about: the
-   *  chat row is titled `[<Title>](/plugins/<word>)`, so the seat below and
-   *  the dock door both name this one string. */
-  const about = () => pluginPage.href({ word: props.plugin.name })
+  /** THE PLUGIN'S BUILDER CHAT, as an item: the chat of the plugin's own
+   *  README note (`../index.ts`'s `pluginReadme`), which `mint` writes before
+   *  the conversation is opened. The seat below and the dock door both name
+   *  this one note. */
+  const readme = (): AgentItem => ({ kind: "note", path: pluginReadme(props.plugin.name) })
   /** The dock, where there is a chat to put in it and a column to put it in.
    *  Read for the *ask* verbs, which are offered whenever both are there. */
   const docked = () => {
@@ -185,9 +187,9 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
     askFix: () => call(client().procedures.plugins.ask({ name: props.plugin.name, said: "" }), (answer) => {
       if (!answer.sent) { setSaid("There was no agent to take it. The conversation that built it is in Chats."); return }
       setSaid("Sent to the conversation that built it.")
-      docked()?.open(about())
+      docked()?.open(readme())
     }),
-    askChange: () => docked()?.open(about()),
+    askChange: () => docked()?.open(readme()),
     canAsk: () => source().chat === true && source().asking === true,
     canOpen: () => docked() !== undefined,
     trusting: () => source().trusting === true,
@@ -196,7 +198,7 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
   }
   return (
     <section data-testid={TESTID.page} data-plugin={props.plugin.name} data-stage={stage()}>
-      <Show when={watching() && docked()}>{(door) => <Docking door={door()} about={about()} />}</Show>
+      <Show when={watching() && docked()}>{(door) => <Docking door={door()} item={readme()} />}</Show>
       <header class="flex items-start gap-3">
         <div class="mt-1 flex size-9 shrink-0 items-center justify-center rounded-control bg-pill text-muted" aria-hidden="true">
           <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -311,7 +313,7 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
         </Show>
       </Show>
 
-      <Ask acts={acts} place={pluginPage.to({ word: props.plugin.name })} name={source().title} />
+      <Ask acts={acts} place={atFile(pluginReadme(props.plugin.name))} name={source().title} />
 
       <Show when={(source().uses ?? []).length > 0}>
         <Block heading="What it uses" note={stage() === "paused" ? "unchanged" : undefined}>
@@ -365,28 +367,30 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
  * Its own child under a `<Show>`, so the effect exists exactly while there is
  * a dock to open: with chat off, with no shell seat, or on a phone there is no
  * component here at all rather than an effect asking every frame whether it
- * may run. Opening is a one-shot per address — this tracks which place was
- * docked, not whether the dock is still showing it, so a reader who closed the
- * panel is not fought with.
+ * may run. Opening is a one-shot per note — this tracks which chat was docked,
+ * not whether the dock is still showing it, so a reader who closed the panel
+ * is not fought with.
  */
-function Docking(props: { readonly door: DockDoor; readonly about: string }) {
+function Docking(props: { readonly door: DockDoor; readonly item: AgentItem }) {
   // AN EFFECT AND NOT A COMPUTED: opening the dock WRITES chat's own state, and
   // a computed runs inside the render pass that is reading it. A write into
   // another row's signals while this page is being built is the shape Solid
   // warns about and this tree keeps out of its faces; what this wants is "after
   // the page exists, put the conversation beside it", which is an effect.
   createEffect<string | undefined>((before) => {
-    if (before === props.about) return before
-    props.door.open(props.about)
-    return props.about
+    const key = itemKey(props.item)
+    if (before === key) return before
+    props.door.open(props.item)
+    return key
   })
   return null
 }
 
 /** *Ask for a change* — on a desktop with a conversation about this plugin, the
  *  press that opens it beside the page. Everywhere else, the page's SEAT
- *  (`olai-plugin-navigation/seat`): the conversation itself where there is one,
- *  and where there is none, the box that starts one about this page. */
+ *  (`olai-plugin-navigation/seat`), placed on the plugin's README note: the
+ *  conversation itself where there is one, and where there is none, the box
+ *  that starts one about that note. */
 function Ask(props: { readonly acts: Acts; readonly place: Route; readonly name: string }) {
   return (
     <section class="mt-6" data-testid={TESTID.pageAsk}>

@@ -610,7 +610,7 @@ export const WHO: Readonly<Record<Writer, string>> = {
   "chat-agent": "chat agent",
   mcp: "an agent in a terminal",
   web: "you",
-  filer: "olai filed conversations into the Inbox",
+  move: "olai moved chats onto their notes",
   // The server's own quiet window, which nobody pressed. `auto-commit` rather
   // than "the server": a reader who turned the row on recognises the name of
   // the thing they turned on, and a commit trailer saying `web` here would have
@@ -622,10 +622,10 @@ export const WHO: Readonly<Record<Writer, string>> = {
   sleep: "olai put a node agent's memory in order",
 }
 
-/** Pending counts are Ops writes, including the Chats root, not a count of
- * conversations. Keep that unit explicit for automatic filing. */
-export const wroteOf = (writer: Writer, ops: number): string => writer === "filer"
-  ? `olai filed into the Inbox · ${ops} ${ops === 1 ? "write" : "writes"}`
+/** Pending counts are Ops writes, not a count of chats: a move writes a note
+ * and then its old row. Keep that unit explicit for the move. */
+export const wroteOf = (writer: Writer, ops: number): string => writer === "move"
+  ? `olai moved chats onto their notes · ${ops} ${ops === 1 ? "write" : "writes"}`
   : `${WHO[writer]} ${ops}`
 
 /** Why the repository cannot take a commit right now. Git's own words ride the

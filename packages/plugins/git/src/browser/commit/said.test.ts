@@ -625,10 +625,10 @@ test("the panel promises to record only what there is to record", () => {
   )).toBe(false)
 })
 
-test("filing names its own writer and counts writes, including the Chats root", () => {
-  expect(WHO.filer).toBe("olai filed conversations into the Inbox")
-  expect(wroteOf("filer", 1)).toBe("olai filed into the Inbox · 1 write")
-  expect(wroteOf("filer", 3)).toBe("olai filed into the Inbox · 3 writes")
+test("the move names its own writer and counts writes", () => {
+  expect(WHO.move).toBe("olai moved chats onto their notes")
+  expect(wroteOf("move", 1)).toBe("olai moved chats onto their notes · 1 write")
+  expect(wroteOf("move", 3)).toBe("olai moved chats onto their notes · 3 writes")
   expect(WHO.auto).toBe("auto-commit")
 })
 

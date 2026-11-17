@@ -41,6 +41,7 @@ import type { Locator } from "@olai/tests/harness/playwright.ts"
 
 import {
   addressOfPlugin,
+  readmeOfPlugin,
   CHAT_SEAT,
   consentOf,
   openedMore,
@@ -686,13 +687,13 @@ Then("the plugin page says {string} came of asking", async function (this: OlaiW
  * a conversation draws instead of the door it cannot open.
  *
  * The seat is chat's face (`olai-plugin-chat`'s `ChatSeat`) in a spot this
- * page placed, and it is keyed by the PLACE it is about — so this asserts
- * both halves at once: the page put its seat in the Ask section, and the seat
- * it put there is about this plugin's own address.
+ * page placed, and it is keyed by the NOTE it is about — so this asserts both
+ * halves at once: the page put its seat in the Ask section, and the seat it
+ * put there is about this plugin's own README.
  */
 Then("the plugin page seats the chat about {string}", async function (this: OlaiWorld, word: string) {
   const seat = this.page
-    .locator(`${PAGE} ${PAGE_ASK} ${CHAT_SEAT}${attr("data-place", `page:${addressOfPlugin(word)}`)}`)
+    .locator(`${PAGE} ${PAGE_ASK} ${CHAT_SEAT}${attr("data-note", readmeOfPlugin(word))}`)
     .first()
   await seat.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
   // ...AND NOT THE BUTTON BESIDE IT. *Ask for a change…* opens the column,

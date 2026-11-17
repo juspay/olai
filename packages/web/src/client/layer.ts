@@ -120,12 +120,13 @@ export const LAYER = {
   row: "z-20",
   /**
    * Over the page, under the strip and covering chrome: a lone node-page
-   * header, the scrim under an open drawer, and a tip that hangs
-   * off a ROW. What these have in common is that they leave the app's frame
-   * reachable — a row's tip is about something on the page, and the scrim's
-   * whole job is to be dismissed by pressing it while the header above it
-   * still works (#101). A tip about a header pill is not this: it rides
-   * {@link LAYER.over} with the panel behind that pill.
+   * header, the scrim under an open drawer, a tip that hangs
+   * off a ROW, and the chat's earlier-chats list, which hangs off its fold
+   * line over the pinned composer below it. What these have in common is that
+   * they leave the app's frame reachable — a row's tip is about something on
+   * the page, and the scrim's whole job is to be dismissed by pressing it
+   * while the header above it still works (#101). A tip about a header pill
+   * is not this: it rides {@link LAYER.over} with the panel behind that pill.
    */
   page: "z-30",
   /** The main-column strip: above page headings, below drawers, sheets and
@@ -184,7 +185,10 @@ export const WITHIN = {
    *  the chat panel's drop target. */
   cover: "z-2",
   /** A small panel opening inside the box, which has to clear whatever else is
-   *  in there — the chat composer's completion, the session list. */
+   *  in there — the chat composer's completion. A list that also has to clear
+   *  the PINNED composer is not this: that wrapper is a page-band stacking
+   *  context of its own, so the chat's earlier-chats list rides
+   *  {@link LAYER.page} ({@link LAYER.row} says why). */
   pop: "z-3",
 } as const
 

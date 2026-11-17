@@ -18,7 +18,7 @@ import { navigation } from "../navigation.ts"
 import { focusedNode } from "../references.ts"
 import { pageReadings } from "../pages.ts"
 import { byActivity } from "./activity-order.ts"
-import { DEFAULT_LABEL, NODES_LIMIT, whereRows, type LocationNode, type WhereRow } from "./where.ts"
+import { NODES_LIMIT, whereRows, type LocationNode, type WhereRow } from "./where.ts"
 import type { Roster } from "./answered.tsx"
 import type { createNewChat } from "./new-chat.ts"
 
@@ -40,18 +40,9 @@ const recentAgents = (agents: Roster) => createMemo(
 
 type NewChatOwner = ReturnType<typeof createNewChat>
 
-/** What the last answer said the default container was — kept by the adapter's
- *  activation (`./AgentPalette.ts`) across openings, so a level can draw
- *  Default at once and let its own answer correct it. `undefined`: not yet
- *  asked in this activation. */
-export interface DefaultMemory {
-  readonly last: Accessor<string | null | undefined>
-  readonly remember: (defaultParent: string | null) => void
-}
-
 /** The message level for one chosen place: the engines that can start, the
  *  first chosen, and one submit through the shared permit. */
-const messageLevel = (owner: NewChatOwner, agents: Roster, parent: string | null): PaletteValue => ({
+const messageLevel = (owner: NewChatOwner, agents: Roster, parent: string): PaletteValue => ({
   kind: "value",
   placeholder: "Say something to start…",
   submitLabel: "Start chat",
@@ -69,13 +60,11 @@ const messageLevel = (owner: NewChatOwner, agents: Roster, parent: string | null
 
 /** What a place row draws; a row whose drawing is unchanged keeps its object. */
 const drawn = (row: WhereRow): string =>
-  JSON.stringify([row.section, row.node?.id, row.node?.title, row.node?.file, row.node?.path])
+  JSON.stringify([row.section, row.node.id, row.node.title, row.node.file, row.node.path])
 
-const rowOf = (owner: NewChatOwner, agents: Roster) => (row: WhereRow): PaletteItem => row.node === undefined
-  ? { id: "new-chat-default", label: DEFAULT_LABEL, hint: "default", section: row.section, search: DEFAULT_LABEL.toLowerCase(),
-    taking: atOnce, action: { kind: "level", level: messageLevel(owner, agents, null) } }
-  : { id: `new-chat-at-${row.node.id}`, label: row.node.title, place: nodePlace(row.node), section: row.section,
-    search: row.node.title.toLowerCase(), taking: atOnce, action: { kind: "level", level: messageLevel(owner, agents, row.node.id) } }
+const rowOf = (owner: NewChatOwner, agents: Roster) => (row: WhereRow): PaletteItem =>
+  ({ id: `new-chat-at-${row.node.id}`, label: row.node.title, place: nodePlace(row.node), section: row.section,
+    search: row.node.title.toLowerCase(), taking: atOnce, action: { kind: "level", level: messageLevel(owner, agents, row.node.id) } })
 
 /** How long typing must pause before the where level asks again. The first
  *  question, as the level opens, is asked at once. */
@@ -98,25 +87,19 @@ const settled = (typed: Accessor<string>): Accessor<string> => {
 /** The where level's rows, for one opening: Here is read once, as it opens;
  *  the query follows the typed text once typing pauses, and an answer to a
  *  superseded question, or one landing after the level is gone, changes
- *  nothing. Whether the vault's Inbox registry has an entry is the server's to
- *  say (`defaultParent`); until this opening's answer lands, Default is drawn
- *  from what the last opening was told, so a plain Enter at once can take it. */
-const whereLevel = (owner: NewChatOwner, agents: Roster, memory: DefaultMemory) => (scope: LevelScope): Accessor<ReadonlyArray<PaletteItem>> => {
+ *  nothing. */
+const whereLevel = (owner: NewChatOwner, agents: Roster) => (scope: LevelScope): Accessor<ReadonlyArray<PaletteItem>> => {
   const here = untrack(hereNow)
   const recent = recentAgents(agents)
   const filter = settled(scope.typed)
-  const [answer, setAnswer] = createSignal<{ readonly nodes: readonly LocationNode[]; readonly defaultParent: string | null }>(
-    { nodes: [], defaultParent: untrack(memory.last) ?? null })
+  const [answer, setAnswer] = createSignal<{ readonly nodes: readonly LocationNode[] }>({ nodes: [] })
   createEffect(() => {
     const ids = recent()
     const query = { filter: filter(), limit: NODES_LIMIT, ids: here === null ? ids : [here, ...ids], parents: ids }
     let current = true
     onCleanup(() => { current = false })
     void runAsync(chatWire().procedures.conversation.locations(query)).then(result => {
-      if (current && !scope.signal.aborted && result._tag === "Success") {
-        setAnswer(result.success)
-        memory.remember(result.success.defaultParent)
-      }
+      if (current && !scope.signal.aborted && result._tag === "Success") setAnswer(result.success)
     })
   })
   // The palette keys rows by id and hands each row its item; reusing the item
@@ -124,8 +107,7 @@ const whereLevel = (owner: NewChatOwner, agents: Roster, memory: DefaultMemory) 
   // typing filters the list and answers arrive.
   const toItem = rowOf(owner, agents)
   const entries = createMemo<ReadonlyArray<{ readonly key: string; readonly item: PaletteItem }>>(previous => whereRows({
-    defaultOffered: answer().defaultParent !== null, defaultParent: answer().defaultParent, here, recent: recent(),
-    nodes: answer().nodes, typed: scope.typed(),
+    here, recent: recent(), nodes: answer().nodes, typed: scope.typed(),
   }).map(row => {
     const key = drawn(row)
     return previous.find(entry => entry.key === key) ?? { key, item: toItem(row) }
@@ -134,10 +116,10 @@ const whereLevel = (owner: NewChatOwner, agents: Roster, memory: DefaultMemory) 
 }
 
 /** The palette row. Offered only while an engine can start. */
-export const newChatRow = (owner: NewChatOwner, agents: Roster, memory: DefaultMemory): PaletteItem => ({
+export const newChatRow = (owner: NewChatOwner, agents: Roster): PaletteItem => ({
   id: NEW_CHAT_ROW, label: "New chat", place: "Agents", search: "agents new chat", taking: atOnce,
   action: { kind: "level", level: {
     kind: "group", placeholder: "Where? Find a node…", hint: "Type to find any node",
-    children: whereLevel(owner, agents, memory),
+    children: whereLevel(owner, agents),
   } },
 })

@@ -528,7 +528,8 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: A conversation comes back with what was said and what was done
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
     # WHAT A HISTORY IS, as against a turn. A `session/load` replays a
     # conversation that ended before this process started, so a person's own
@@ -551,7 +552,8 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: The conversation survives a restart of the server
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
     Given the chat eventually shows "we decided to order the cabinets"
     When the server stops
@@ -562,7 +564,8 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: A message sent while a conversation is opening does not open a second one
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
     # THE WINDOW THE REFUSAL FIX OPENED. A conversation is not entered until the
     # agent has agreed to it — which is what stops a refused load leaving the
@@ -585,7 +588,7 @@ Feature: Talking to a node agent
     # panel in whichever finished last.
     Given the chat eventually shows "we decided to order the cabinets"
     When the next conversation load will hang
-    And I open the filed conversation "the last conversation" as node "filed-chat"
+    And I press the agent "kitchen"
     And I open the fold history
     And I begin opening the past session "an older conversation"
     And I ask the agent "hello"
@@ -601,8 +604,9 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: An agent that refuses a stored conversation remains available for retry
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
     When the agent refuses to load a conversation
-    And I open the filed conversation "the last conversation" as node "filed-chat"
+    And I press the agent "kitchen"
     Then the panel says the conversation could not be opened
     And the refusal is in the agent's own words, "no such conversation"
     And there is nothing to type into
@@ -615,13 +619,14 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: A stored conversation refused after restart can be retried
-    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen" in its outline
     And the node agent's fold is ready
     # THE OTHER PLACE a conversation is opened, and the one no click can reach:
     # a server starting. Boot adopts a stored conversation and asks for it, and
     # an agent that says no there used to leave the panel reporting a dead
     # process.
-    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
+    When I press the agent "kitchen" in its outline
     And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
@@ -634,14 +639,14 @@ Feature: Talking to a node agent
     And the server stops
     And the server starts again on the same port
     And I open the app
-    And I open the filed conversation "the last conversation" as node "filed-chat" in its outline
-    And I unfold node agent "filed-chat"
+    And I press the agent "kitchen" in its outline
+    And I unfold node agent "kitchen"
     # THE OPEN IS STILL ON THE WIRE, and the roster is what says so: a
     # conversation being opened stands `waking`. The panel's own state cannot
     # say it — `off` is both "the server answered `off`" and "nothing has been
     # answered yet", which is why this window is named by the standing rather
     # than by `idle`/`thinking`/`booting`.
-    Then the agent "filed-chat" stands "waking"
+    Then the agent "kitchen" stands "waking"
     And I open the fold history
     # AND NOW THE AGENT SAYS NO. That refusal is what the restart's own open
     # gets, and it is what rebuilds this panel: the conversation it could not
@@ -654,7 +659,7 @@ Feature: Talking to a node agent
     # THE CLAIM, after that rebuild: a list somebody opened is theirs until
     # they shut it. And the press is the proof — the row that was under the
     # pointer when the list opened is the row it finds now, with no retry.
-    Then the history picker on "filed-chat" is still open
+    Then the history picker on "kitchen" is still open
     And I begin opening the past session "an older conversation"
     Then the panel says the conversation could not be opened
     And there is nothing to type into
@@ -695,19 +700,25 @@ Feature: Talking to a node agent
     And the outline list is shown
 
   @agent-stored @scratch:chat
-  Scenario: A refused listing is reported without hiding the filed conversation
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+  Scenario: A refused listing does not disturb the conversation it could not list
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    # THE STORE GOES UNREADABLE under a conversation that is already open.
+    # Nothing files an engine's conversations any more, so a listing is a
+    # second question — the one *earlier chats* is drawn from — and an engine
+    # that cannot answer it has not lost the conversation in front of somebody.
     And I ask the agent "lose"
-    Then the filer log names "claude" with "the conversation store is unreadable"
-    And the Inbox has 1 filed conversations
+    Then the chat eventually shows "the conversation store is unreadable"
+    And the chat eventually shows "we decided to order the cabinets"
+    And the chat input takes typing
 
   @agent-stored @scratch:chat
-  Scenario: A filed node opens its stored history
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+  Scenario: A tied node opens its stored history
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    When I press the agent "kitchen"
     And I open the fold history
     Then the past sessions hold "an older conversation"
     When I open the past session "an older conversation"
@@ -974,7 +985,8 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: A model the conversation was switched to survives a restart
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
     # The bug (`chat-model-reverts-on-restart`), as the human hit it: switch the
     # chat to another model, redeploy olai, and the conversation comes back on
@@ -1009,7 +1021,8 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: A conversation nobody switched follows the machine's default, and is not pinned to it
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
     # The other side of the rule, and the one that keeps this feature from
     # becoming a pin on everything it touches: what a source says FIRST is what
@@ -1038,7 +1051,8 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: A model that cannot be put back says so, and is still tried at the next restart
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
     # The refusal path, which the panel promises three things about: a row
     # where a person is looking, a header that goes on naming what the agent
@@ -1529,7 +1543,8 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: Picking a stored conversation lands on the newest line
-    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen" in its outline
     # The fold's BOUNDED transcript is what this scroll claim is about; the
     # page scrolls its pane instead (`node_agent_page` covers that face).
     And the node agent's fold is ready
@@ -1541,7 +1556,7 @@ Feature: Talking to a node agent
     Then the agent is idle
     And the transcript is scrolled to the newest line
     When I scroll the transcript to the top
-    And I open the filed conversation "the last conversation" as node "filed-chat" in its outline
+    And I press the agent "kitchen" in its outline
     And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
@@ -1550,7 +1565,8 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: Opening a long conversation does not scroll through its history
-    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen" in its outline
     And the node agent's fold is ready
     # An open is a replay: the agent re-sends the whole history before it
     # answers, and a long one reaches the panel a few lines a frame while the
@@ -1569,7 +1585,8 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: Growth after opening still lands on the newest line
-    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen" in its outline
     And the node agent's fold is ready
     # The open-jump can pass while the pane is still growing — a restored
     # conversation's markdown lands after the first paint, and a late row is
@@ -1579,7 +1596,7 @@ Feature: Talking to a node agent
     # line would leave the reader short of the newest. Armed and released
     # rather than slept, so the two moments are steps, not a race.
     When I arm late growth on the next stored conversation
-    And I open the filed conversation "the last conversation" as node "filed-chat" in its outline
+    And I press the agent "kitchen" in its outline
     And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
@@ -2237,7 +2254,8 @@ Feature: Talking to a node agent
 
   @agent-stored @scratch:chat
   Scenario: Choosing a model through ACP reaches the agent and survives a restart
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
     # The double advertises config options but no /model command, like Codex.
     Then the panel header names the model "Fake One"

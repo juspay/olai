@@ -35,7 +35,12 @@ const vault = (): OutlineSet => setOf({
     `{"id":"tap","parent":"kitchen","ord":"a1","title":"the tap","custom":{"approved":"always","chat-agent-sleep":"on"}}`,
     `{"id":"roof","parent":"house","ord":"a1","title":"the roof"}`,
   ].join("\n"),
-}, [["spare.md", "a document the door may rewrite\n"]])
+}, [
+  ["spare.md", "a document the door may rewrite\n"],
+  // A NOTE WITH A CHAT ON IT: the other place the seating key can be
+  // written, and the one the document arm is about.
+  ["notes/plan.md", "---\nchat-agent-session: claude:a1\ntopic: kitchen\n---\n# Plan\n"],
+])
 
 /** One key a real ticket forbids: the word chat's binding kind claims, which is
  *  what a vault that has declared nothing keeps its bindings under. */
@@ -72,7 +77,7 @@ const asked = (request: Request, keys: ReadonlyMap<string, string> = forbidden) 
   const at = readingOf(vault())
   const planned = plan(scoping(at, steady(), NO_KINDS, "outline-olai"), request)
   if (Result.isFailure(planned)) throw new Error(planned.failure.message)
-  return barred(keys, at.derived, planned.success)
+  return barred(keys, at.derived, planned.success, at.set)
 }
 
 /** A chain eleven nodes long — the confined node at its head and ten levels
@@ -96,7 +101,7 @@ const askedUnder = (request: Request, under: string, set: OutlineSet = vault(), 
   const at = readingOf(set)
   const planned = plan(scoping(at, steady(), NO_KINDS, "outline-olai"), request)
   if (Result.isFailure(planned)) throw new Error(planned.failure.message)
-  return barred(forbidden, at.derived, planned.success, undefined, { under, says: SAYS_TIDY, stop })
+  return barred(forbidden, at.derived, planned.success, at.set, { under, says: SAYS_TIDY, stop })
 }
 
 /**
@@ -253,7 +258,7 @@ describe("file-scoped agent reservation", () => {
     }))
     const result = plan(scoping(at, steady(), NO_KINDS, "outline-olai"), request)
     if (Result.isFailure(result)) throw new Error(result.failure.message)
-    return barred(keys, at.derived, result.success, at.set.documents.map(one => one.path))
+    return barred(keys, at.derived, result.success, at.set)
   }
 
   /** The KEY arm's own key, for the assertions below: `Barred` gained two arms
@@ -282,11 +287,69 @@ describe("file-scoped agent reservation", () => {
     const at = readingOf(setOf({ [file]: '{"id":"example","ord":"a1","title":"example","custom":{"on":"no"}}' }))
     const nodes = at.derived.nodes.map(one => one.node)
     const shadow = readingOf(setOf({ [file]: '{"id":"shadow","ord":"a0","title":"example"}' })).derived.nodes[0]!.node
-    expect(keyOf(barred(keys, at.derived, { files: [{ file, nodes: [shadow, ...nodes] }], id: "shadow", title: "example", file, summary: "shadow" }))).toBe("on")
+    expect(keyOf(barred(keys, at.derived, { files: [{ file, nodes: [shadow, ...nodes] }], id: "shadow", title: "example", file, summary: "shadow" }, at.set))).toBe("on")
   })
 
   test("a shallower empty file cannot mask an existing choice", () => {
     const at = readingOf(setOf({ [file]: '{"id":"example","ord":"a0","title":"example","custom":{"on":"no"}}' }))
-    expect(keyOf(barred(keys, at.derived, { files: [{ file: "SETTINGS.olai", nodes: [] }], id: "", title: "", file: "SETTINGS.olai", summary: "mask file" }))).toBe("on")
+    expect(keyOf(barred(keys, at.derived, { files: [{ file: "SETTINGS.olai", nodes: [] }], id: "", title: "", file: "SETTINGS.olai", summary: "mask file" }, at.set))).toBe("on")
+  })
+})
+
+/**
+ * THE OTHER PLACE A PROPERTY IS WRITTEN: the `---` block at the top of a
+ * `.md`.
+ *
+ * A note carries its chat's binding in its front matter the way a node
+ * carries it on its row, so `markdown_write` was the door the key reservation
+ * did not watch: an agent could seat a conversation on a note, or quietly drop
+ * its own binding, by rewriting a file it is otherwise free to rewrite. The
+ * rule is the record rule word for word — a MOVEMENT of the value, in either
+ * direction — and the refusal names the file, because a document has no record
+ * to name.
+ */
+describe("a reserved key in a document's front matter", () => {
+  const note = "notes/plan.md"
+  const block = (said: string) => `---\n${said}topic: kitchen\n---\n# Plan\n`
+
+  test("writing, changing or dropping the binding in a note is refused", () => {
+    for (const text of [
+      // Changed...
+      block("chat-agent-session: grok\n"),
+      // ...taken off...
+      block(""),
+      // ...and the whole block gone with it.
+      "# Plan\n",
+    ]) {
+      expect(asked({ op: "doc", file: note, text }))
+        .toEqual({ why: "document", file: note, key: SEATING, says: SAYS_SEATS })
+    }
+    // A NOTE THAT HAS NONE cannot be given one either: seating a conversation
+    // is the same movement read from the other end.
+    expect(asked({ op: "doc", file: "spare.md", text: "---\nchat-agent-session: claude\n---\nhi\n" }))
+      .toEqual({ why: "document", file: "spare.md", key: SEATING, says: SAYS_SEATS })
+    // ...and so is deleting the note the binding is written in.
+    expect(asked({ op: "delete", file: note }))
+      .toEqual({ why: "document", file: note, key: SEATING, says: SAYS_SEATS })
+  })
+
+  test("a write that leaves the key where it was lands", () => {
+    // The prose rewritten, another key added, the block reordered: none of it
+    // moves the value, so none of it is this door's business.
+    expect(asked({ op: "doc", file: note, text: "---\nchat-agent-session: claude:a1\ntopic: hinges\n---\n# Hinges\n" }))
+      .toBeNull()
+    expect(asked({ op: "doc", file: note, text: "---\ntopic: kitchen\nchat-agent-session: claude:a1\nowner: alice\n---\n" }))
+      .toBeNull()
+    // ...and a document with no reserved key in it either way is an ordinary
+    // write, as is a file of another kind.
+    expect(asked({ op: "doc", file: "spare.md", text: "rewritten\n" })).toBeNull()
+    expect(asked({ op: "create-doc", file: "notes/new.md", text: "# New\n" })).toBeNull()
+  })
+
+  test("the refusal names the file, and says why in the ticket's words", () => {
+    const words = doorRefusal({ why: "document", file: note, key: SEATING, says: SAYS_SEATS })
+    expect(words).toContain(note)
+    expect(words).toContain(SEATING)
+    expect(words).toContain(SAYS_SEATS)
   })
 })

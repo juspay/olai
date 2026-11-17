@@ -44,18 +44,16 @@ export const rowVerbs = (
       },
     }
   })()
-  /** THE CHAT AT THIS ROW — its own, or a chat row standing for it — and the
-   *  row every verb below acts on. The fold a start opens is still the drawn
-   *  row's own. */
-  const bound = roster.chatAt({ kind: "row", id: node })
-  const chat = bound?.id ?? node
+  /** THE CHAT ON THIS ROW — a node's chat is its own row's — and the row every
+   *  verb below acts on. */
+  const bound = roster.at(node)
   /** THE START GESTURE, SHARED BY BOTH HALVES: start a session on a node with
    *  a given engine, and on success mark the node read and unfold it. The
    *  start and fresh-start entries are the same act on different labels. */
   const startOn = (engine: { readonly id: string }) => async (drawn: string) => {
-    const outcome = await runAsync(chatWire().procedures.conversation.startAgentSession({ node: chat, agent: engine.id }))
+    const outcome = await runAsync(chatWire().procedures.conversation.startAgentSession({ node, agent: engine.id }))
     if (Result.isFailure(outcome)) return outcome.failure.message
-    agentReadings()?.visit(chat)
+    agentReadings()?.visit(node)
     unfold(drawn)
   }
   if (bound?.session == null) {
@@ -70,9 +68,8 @@ export const rowVerbs = (
     }, ...(openAbove === undefined ? [] : [openAbove])]
   }
   // A node already talking through a conversation: `Fresh start` — the node's
-  // own engine first, a choice only where there is one — and CLOSE, releasing
-  // the node's agent back to the unclaimed chats (the conversation is filed
-  // back under Chats by the next filer run).
+  // own engine first, a choice only where there is one — and CLOSE, which
+  // takes the binding off the row (`../server/binding.ts`).
   const available = roster.engines()
   const current = available.find(engine => engine.id === bound.engine)
   const engines = current === undefined ? available : [current, ...available.filter(engine => engine !== current)]
@@ -95,12 +92,12 @@ export const rowVerbs = (
       label: bound.sleeps ? "Stop sleeping when idle" : "Sleep when idle",
       run: async () => {
         const outcome = await runAsync(
-          chatWire().procedures.conversation.setSleeping({ node: chat, on: !bound.sleeps }),
+          chatWire().procedures.conversation.setSleeping({ node, on: !bound.sleeps }),
         )
         if (Result.isFailure(outcome)) return outcome.failure.message
       },
     },
-    ...chatVerbs(bound).map(verb => chat === node ? verb : { ...verb, run: () => verb.run(chat) }),
+    ...chatVerbs(bound),
   ]
 }
 

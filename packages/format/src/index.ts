@@ -175,6 +175,14 @@ export { claim, slugOf, slugsIn } from "./slug.ts"
  *  spend it — a leading `---` in one is the thematic break markdown says it is
  *  (`./document.ts` argues both halves). */
 export { proseIn, proseLineOffset } from "./frontmatter.ts"
+/** ...and the block itself, read and written. A `.md`'s front matter is where
+ *  a NOTE keeps its properties — including the two a chat is made of — so the
+ *  reading is public for the ops layer's write fence (which refuses an agent
+ *  the keys it may not move, in a document exactly as on a row) and the writer
+ *  for the one gesture that sets them (`olai-plugin-chat`'s server). One
+ *  splice, because a second writer would be a second answer to "what does this
+ *  block say". */
+export { frontmatterIn, matterWith } from "./frontmatter.ts"
 /** WHAT A `.csv` SAYS — its rows, squared off to the rectangle a table needs,
  *  and bounded. Exported
  *  because the BROWSER is the only thing that draws one: a `.csv`'s page is
@@ -226,7 +234,7 @@ export {
   textKind,
   unkept,
 } from "./kinds.ts"
-export type { Place, Split, StandIns } from "./address.ts"
+export type { Split } from "./address.ts"
 /** WHAT A PLACE IS CALLED — `[document]#[element]`, the one grammar every
  *  feature that has to name something trades in
  *  (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/first-class-documents.md). Exported whole, primitives
@@ -242,6 +250,12 @@ export {
   AtNode,
   AtRow,
   addressOf,
+  /** THE ADDRESS AN APP URL NAMES — one written the way this app writes one,
+   *  with its leading `/`, its `?q=` and the browser's `/zoom/` spelling of a
+   *  node's own page taken off. Public because the readings that start from a
+   *  TITLE live on both sides of the wire: the shelf's pin target here, and
+   *  the chat's one-time move on the server. */
+  addressAt,
   DocumentPath,
   /** The address a TITLE carries, and the two halves of the one link it may be
    *  written as — the shape a NAMED pin takes, read by the shelf reading down
@@ -265,14 +279,6 @@ export {
   splitAddress,
   Tag,
   writtenAddress,
-  /** WHAT A CHAT IS ABOUT — a title read as a place, one string per place, and
-   *  the rule for which chat row is at which place. Read on both sides of the
-   *  wire: the browser names and draws chats by it, the server refuses a
-   *  second chat for one place by it. */
-  standIns,
-  placeKey,
-  placeWritten,
-  samePlace,
   titleAddress,
 } from "./address.ts"
 export {
@@ -1088,8 +1094,11 @@ export { NO_PINS, pinTargetIn, sameShelf, Shelf, shelfIn, shelfOf } from "./shel
 export type { Pinned } from "./shelf.ts"
 
 /**
- * THE NODE AGENTS OF A SET — the roster, which is the query `prop:<the declared
- * key>` answered where the set is ({@link ./agents.ts}).
+ * THE CHATS OF A SET — the roster, which is the query `prop:<the declared
+ * key>` answered where the set is ({@link ./agents.ts}): over the RECORDS for
+ * a node's chat (`agentsIn`), and over the front matter of the `.md`s for a
+ * note's (`notesIn`). One row shape for both, because every face draws one
+ * list.
  *
  * THE KEY IS NOT HERE, and its absence is the phase: a node agent's property is
  * a PLUGIN'S KIND now, so `agentsIn` takes the vault's declarations and the
@@ -1103,16 +1112,28 @@ export type { Pinned } from "./shelf.ts"
  * (`olai-plugin-chat`'s wire).
  */
 export {
+  /** WHAT A CONVERSATION CAN BE ABOUT — a node or a note — and the one string
+   *  that names either across the wire. Read on both sides of it: the browser
+   *  presses an item, the server resolves one. */
+  AgentItem,
   agentsIn,
+  isNotePath,
+  itemKey,
+  itemOf,
   memoryOf,
   NO_AGENTS,
   NodeAgent,
   NodeAgents,
+  /** THE NOTES OF A SET THAT CARRY A CHAT — the same query asked of front
+   *  matter, with the switch that says whether a note's chat opens beside the
+   *  page. */
+  notesIn,
   /** EVERY OTHER NODE AGENT OF A SET — the `stop` set the memory walks take,
    *  and the exclusions a tidying pass's fence carries. */
   othersOf,
   sameAgents,
   seatableIn,
+  seatableNote,
   sessionIn,
   sessionValue,
 } from "./agents.ts"

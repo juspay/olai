@@ -19,7 +19,8 @@
     "./slots": "./src/slots.ts",
     "./carry": "./src/carry.ts",
     "./attention": "./src/attention.ts",
-    "./dock": "./src/dock.ts"
+    "./dock": "./src/dock.ts",
+    "./policy": "./src/policy.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

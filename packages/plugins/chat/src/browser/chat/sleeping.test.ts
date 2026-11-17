@@ -17,6 +17,8 @@ import { nodeAgentOf, saidOf, sleepWords } from "./sleeping.ts"
 /** One roster row, as the wire sends it. */
 const row = (over: Partial<NodeAgentRow> = {}): NodeAgentRow => ({
   id: "install",
+  kind: "node",
+  beside: false,
   file: "house.olai",
   title: "install the cabinets",
   engine: "one-engine",

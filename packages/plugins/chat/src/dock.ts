@@ -37,14 +37,15 @@
  * somewhere to put a conversation.
  */
 import { serviceTag } from "@olai/plugin-api/contracts"
+import type { AgentItem } from "@olai/format"
 
 /** What chat offers of its dock: put a conversation in the seat, and whether
  *  there is a seat to put one in. */
 export interface DockDoor {
-  /** Open the column on the chat ABOUT the place at this address — the same
-   *  chat that page's seat draws. With no chat there yet, the column opens on
-   *  its picker, where the page in front offers to start one. */
-  readonly open: (about: string) => void
+  /** Open the column on the chat of this item — the same chat that note's seat
+   *  draws, or that node's row. With no chat there yet, the column opens on
+   *  its picker. */
+  readonly open: (item: AgentItem) => void
   /** Whether this viewport has a seat at all — `false` on a phone, where the
    *  conversation is read on its own page instead. */
   readonly desktop: () => boolean

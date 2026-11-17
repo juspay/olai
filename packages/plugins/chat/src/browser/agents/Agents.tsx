@@ -6,7 +6,8 @@ import { createMemo, createSelector, Show } from "solid-js"
 import { CHIP_QUIET } from "olai-plugin-layout/chip"
 import { ENTRY_SHAPE, REGION, REGION_HEAD, REGION_LABEL } from "olai-plugin-layout/entry"
 import { useShown, useRouter } from "olai-plugin-navigation/routing"
-import { isCurrent } from "./place.ts"
+import { isCurrent } from "./here.ts"
+import { servedDirectory } from "../vault.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { SHOWN_WITHOUT_HOVER } from "@olai/ui-primitives/touch.ts"
@@ -61,8 +62,7 @@ export function Chats() {
    *  wakes nothing here either. */
   const currentIds = createMemo(() => {
     const route = router.route()
-    const reported = router.focused()?.file
-    return new Set(agents.rows().filter((row) => isCurrent(router.routes, route, row, agents.placeOf(row), unfolded(row.id), reported)).map((row) => row.id))
+    return new Set(agents.rows().filter((row) => isCurrent(servedDirectory()?.claims(), route, row, unfolded(row.id))).map((row) => row.id))
   }, new Set<string>(), { equals: (a, b) => a.size === b.size && [...a].every((id) => b.has(id)) })
   const current = createSelector<ReadonlySet<string>, string>(currentIds, (id, ids) => ids.has(id))
   return <section class={REGION} data-testid={TESTID.agentRoster}>

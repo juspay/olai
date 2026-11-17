@@ -85,13 +85,15 @@ Feature: Chat remains usable as the plugin runtime changes
   @scratch:chat @agent-stored
   Scenario: Unsent drafts stay with their conversation across drawer and session changes
     Given I open the app
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And I open the outline "house.olai"
+    And node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     Then the opened conversation carries the title "the last conversation"
     When I type "only for the last conversation" into the chat
     And I close the agent fold
     And the node agent's fold is ready
     Then the chat input reads "only for the last conversation"
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    When I press the agent "kitchen"
     And I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"

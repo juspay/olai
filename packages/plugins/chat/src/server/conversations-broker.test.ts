@@ -22,7 +22,7 @@
 import { expect, test } from "bun:test"
 import { Deferred, Effect, Fiber } from "effect"
 
-import { UsageFailure } from "@olai/format"
+import { type AgentItem, itemKey, UsageFailure } from "@olai/format"
 import {
   type Conversations,
   Conversations as ConversationsKey,
@@ -37,6 +37,9 @@ import { conversationsProvision, type ConversationsOwner } from "./conversations
 import type { Conversing } from "../sessions.ts"
 
 const SEATED: Conversing = { agent: "claude", session: "sess-1" }
+
+/** The item a plugin's builder chat is on — its own README. */
+const README: AgentItem = { kind: "note", path: "plugins/timer/README.md" }
 
 /** A host with nothing on it — none of what these cases ask about is a vault,
  *  and a row that stands behind a door needs no reading to do it. */
@@ -82,7 +85,7 @@ test("a word said through the broker's door after the asking row unloaded lands 
       mint: () => Effect.succeed({ node: "node-1", to: SEATED, refusal: null }),
       send: () => Effect.void,
       seatAt: () => Effect.succeed(SEATED),
-      chatsAt: (abouts) => Effect.succeed(new Set(abouts)),
+      chatsAt: (abouts) => Effect.succeed(new Set(abouts.map(itemKey))),
       deliver: (who, _to, text, current) =>
         Effect.sync(() => {
           // THE GATE IS READ AT THE LANDING and not only at the asking, which is
@@ -102,13 +105,13 @@ test("a word said through the broker's door after the asking row unloaded lands 
     expect((yield* asking.report).state).toBe("running")
     expect(door).toBeDefined()
 
-    expect(yield* door!.say({ about: "/plugins/timer", text: "first" })).toBe(true)
+    expect(yield* door!.say({ about: README, text: "first" })).toBe(true)
     expect(delivered).toEqual([{ who: "vault-plugins", text: "first" }])
 
     // ...AND THE ROW GOES. Nothing else moves: chat is still up, the node is
     // still seated, the door is the same object the consumer was handed.
     yield* asking.dispose
-    expect(yield* door!.say({ about: "/plugins/timer", text: "second" })).toBe(false)
+    expect(yield* door!.say({ about: README, text: "second" })).toBe(false)
     expect(delivered).toEqual([{ who: "vault-plugins", text: "first" }])
   })))
 })
@@ -148,7 +151,7 @@ test("a mint in flight when chat goes keeps the node it made and answers the ref
           if (gone) return yield* new UsageFailure({ reason: "the chat has stopped" })
         }),
       seatAt: () => Effect.succeed(SEATED),
-      chatsAt: (abouts) => Effect.succeed(new Set(abouts)),
+      chatsAt: (abouts) => Effect.succeed(new Set(abouts.map(itemKey))),
       deliver: () => Effect.succeed(true),
       engines: () => [{ id: "claude", name: "Claude Code" }],
     }
@@ -174,9 +177,7 @@ test("a mint in flight when chat goes keeps the node it made and answers the ref
     )
 
     const call = yield* Effect.forkScoped(door!.open({
-      parent: null,
-      title: "timer",
-      about: "/plugins/timer",
+      about: README,
       engine: "claude",
       say: "build me a timer",
       teach: ["Write server.ts first."],
@@ -189,7 +190,6 @@ test("a mint in flight when chat goes keeps the node it made and answers the ref
     yield* Deferred.succeed(sending, undefined)
 
     const answer = yield* Fiber.join(call)
-    expect(answer.node).toBe("plugins/timer")
     expect(answer.refusal).toBe("the chat has stopped")
     // The asker is still here to hear it, and what it would ask next is the
     // absence rather than a door that cannot work.

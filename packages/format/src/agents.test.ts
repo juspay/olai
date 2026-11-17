@@ -27,22 +27,44 @@
  */
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
-
-import { agentsIn, memoryOf, NO_AGENTS, sameAgents, sessionIn, sessionValue } from "./agents.ts"
+import {
+  type AgentItem,
+  agentsIn,
+  isNotePath,
+  itemKey,
+  itemOf,
+  memoryOf,
+  NO_AGENTS,
+  notesIn,
+  sameAgents,
+  seatableNote,
+  sessionIn,
+  sessionValue,
+} from "./agents.ts"
 import { derive, type Derived } from "./derive.ts"
 import { recordsOf, setOf } from "./fixtures.testlib.ts"
+import type { OutlineSet } from "./set.ts"
 import { declarationsOf, type KindVocabulary, NO_KINDS } from "./typing.ts"
 
-/** The made-up kind this file's vault declares, and the key it claims. See the
- *  header for why neither is the real word. */
+/** The made-up kinds this file's vault declares, and the keys they claim. See
+ *  the header for why neither is the real word. */
 const SESSION_KIND = "agent-session"
+const OPENS_KIND = "agent-opens"
 const KINDS: KindVocabulary = (() => {
-  const own = new Map([[SESSION_KIND, {
-    kind: SESSION_KIND,
-    takes: "an engine, optionally `:` and a session id",
-    admits: (value: string) => sessionIn(value) !== null,
-    claims: SESSION_KIND,
-  }]])
+  const own = new Map([
+    [SESSION_KIND, {
+      kind: SESSION_KIND,
+      takes: "an engine, optionally `:` and a session id",
+      admits: (value: string) => sessionIn(value) !== null,
+      claims: SESSION_KIND,
+    }],
+    [OPENS_KIND, {
+      kind: OPENS_KIND,
+      takes: "`alone` or `beside`",
+      admits: (value: string) => value === "alone" || value === "beside",
+      claims: OPENS_KIND,
+    }],
+  ])
   return { built: own, enabled: own }
 })()
 
@@ -67,6 +89,7 @@ const rosterIn = (derived: Derived, kinds: KindVocabulary = KINDS) =>
 test("one row per node carrying an `agent-session` property, in corpus order", () => {
   expect(rosterIn(setWith({ "lanes.olai": LANES }))).toEqual([
     {
+      kind: "node",
       id: "spaces",
       file: "lanes.olai",
       title: "Xyne Spaces — the org OS",
@@ -74,8 +97,10 @@ test("one row per node carrying an `agent-session` property, in corpus order", (
       session: "0f3c8d21",
       // Two descendants: the PR row and the steer row.
       memory: 2,
+      beside: false,
     },
     {
+      kind: "node",
       id: "mirror-pr",
       file: "lanes.olai",
       title: "PR: the fleet reports in",
@@ -83,6 +108,9 @@ test("one row per node carrying an `agent-session` property, in corpus order", (
       // The engine half alone: a node agent nobody has started a session for.
       session: null,
       memory: 0,
+      // A row has nowhere to write the switch, so a node's chat never opens
+      // beside.
+      beside: false,
     },
   ])
 })
@@ -247,4 +275,127 @@ test("a serve running no such kind reads no node agent at all", () => {
   // nothing in it declares no key, so a vault full of `agent-session` values is
   // the plain text every vault that never heard of the plugin already holds.
   expect(rosterIn(setWith({ "lanes.olai": LANES }), NO_KINDS)).toEqual(NO_AGENTS)
+})
+
+// ── the other item a chat can be about: a note ─────────────────────────
+
+/** A directory of notes and nothing else — the reading under test with its
+ *  two words folded in, exactly as {@link rosterIn} folds the node one. */
+const notesOf = (notes: Record<string, string>, shown: ReadonlyArray<string> = []) => {
+  const set = setOf({}, [...Object.entries(notes), ...shown])
+  return notesIn(set, TEST_CLAIMS, declarationsOf(derive(TEST_CLAIMS, recordsOf(set)), KINDS), SESSION_KIND, OPENS_KIND)
+}
+
+const PLAN = "---\nagent-session: claude:a1\nagent-opens: beside\ntopic: kitchen\n---\n# Plan\n"
+
+test("one row per note whose block carries a binding, in path order", () => {
+  expect(notesOf({
+    "notes/plan.md": PLAN,
+    "notes/quiet.md": "a note nobody is talking to\n",
+    "zz.md": "---\nagent-session: grok\n---\nhi\n",
+  })).toEqual([
+    {
+      kind: "note",
+      // The key of a note is its path with a slash in front, which no id olai
+      // writes can collide with.
+      id: "/notes/plan.md",
+      file: "notes/plan.md",
+      // What a note is CALLED is its name, not its path.
+      title: "plan",
+      engine: "claude",
+      session: "a1",
+      // The note IS the memory, so there is nothing under it to count.
+      memory: 0,
+      beside: true,
+    },
+    {
+      kind: "note",
+      id: "/zz.md",
+      file: "zz.md",
+      title: "zz",
+      engine: "grok",
+      session: null,
+      memory: 0,
+      beside: false,
+    },
+  ])
+})
+
+test("the switch opens a chat beside, and every other answer is alone", () => {
+  const opens = (said: string | null) =>
+    notesOf({ "plan.md": `---\nagent-session: claude${said === null ? "" : `\nagent-opens: ${said}`}\n---\n` })[0]?.beside
+  expect(opens("beside")).toBe(true)
+  expect(opens("alone")).toBe(false)
+  // Absent is alone, and so is a value nobody declared a meaning for: the
+  // switch has one word that means anything.
+  expect(opens(null)).toBe(false)
+  expect(opens("sideways")).toBe(false)
+})
+
+test("a note's binding follows the DECLARATION, like a node's", () => {
+  // The same two layers the node reading is held to: a vault that declares no
+  // such kind reads a block full of `agent-session` as the plain text every
+  // vault that never heard of the plugin already holds.
+  const set = setOf({}, [["plan.md", PLAN]])
+  expect(notesIn(set, TEST_CLAIMS, declarationsOf(derive(TEST_CLAIMS, recordsOf(set)), NO_KINDS), SESSION_KIND, OPENS_KIND))
+    .toEqual(NO_AGENTS)
+})
+
+test("a block that names no engine names no chat", () => {
+  expect(notesOf({
+    "none.md": "---\nagent-session:\n---\n",
+    "sessionless.md": "---\nagent-session: :a1\n---\n",
+    "listed.md": "---\nagent-session: [claude, grok]\n---\n",
+    "unclosed.md": "---\nagent-session: claude\n# Plan\n",
+  })).toEqual(NO_AGENTS)
+})
+
+test("what olai only SHOWS is not a note, however its text opens", () => {
+  // A `.html` and a picture are files the set keeps the path of and not the
+  // bytes; a plugin's half keeps its text and is no more a note than they are.
+  expect(notesOf(
+    { "plugins/swatch/server.ts": "---\nagent-session: claude\n---\n" },
+    ["page.html", "photos/kitchen.png"],
+  )).toEqual(NO_AGENTS)
+})
+
+// ── and where a chat may be seated ─────────────────────────────────────
+
+test("a note can be seated at; a path the directory does not serve cannot", () => {
+  const set = setOf({ "house.olai": `{"id":"house","ord":"a0","title":"House"}` }, [
+    ["notes/plan.md", "# Plan\n"],
+    ["plugins/swatch/server.ts", "export const swatch = 1\n"],
+    "photos/kitchen.png",
+  ])
+  expect(seatableNote(set, TEST_CLAIMS, "notes/plan.md")).toBe(true)
+  expect(seatableNote(set, TEST_CLAIMS, "notes/missing.md")).toBe(false)
+  expect(seatableNote(set, TEST_CLAIMS, "photos/kitchen.png")).toBe(false)
+  expect(seatableNote(set, TEST_CLAIMS, "plugins/swatch/server.ts")).toBe(false)
+  expect(seatableNote(set, TEST_CLAIMS, "house.olai")).toBe(false)
+})
+
+// ── the one string that names either item ──────────────────────────────
+
+test("a node is its own key and a note is its path, and neither reads as the other", () => {
+  const items: ReadonlyArray<readonly [AgentItem, string]> = [
+    [{ kind: "node", id: "a1b2c3" }, "a1b2c3"],
+    [{ kind: "note", path: "notes/plan.md" }, "/notes/plan.md"],
+    [{ kind: "note", path: "plan.md" }, "/plan.md"],
+  ]
+  for (const [item, key] of items) {
+    expect(itemKey(item)).toBe(key)
+    expect(itemOf(key)).toEqual(item)
+  }
+})
+
+test("a note path is a kept prose body the claim table holds, and nothing else", () => {
+  expect(isNotePath(TEST_CLAIMS, "notes/plan.md")).toBe(true)
+  expect(isNotePath(TEST_CLAIMS, "notes/plan.markdown")).toBe(false)
+  expect(isNotePath(TEST_CLAIMS, "photos/kitchen.png")).toBe(false)
+  expect(isNotePath(TEST_CLAIMS, "house.olai")).toBe(false)
+  expect(isNotePath(TEST_CLAIMS, "data/costs.csv")).toBe(false)
+  expect(isNotePath(TEST_CLAIMS, "plan")).toBe(false)
+  // A PLUGIN'S HALF IS KEPT TEXT AND IS NOT A NOTE: its body is TypeScript,
+  // which is what `opaque` says and why the suffix alone could never answer.
+  expect(isNotePath(TEST_CLAIMS, "plugins/timer/src/server.ts")).toBe(false)
 })

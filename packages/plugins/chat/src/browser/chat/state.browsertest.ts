@@ -249,8 +249,8 @@ test("a refused fresh start signs in through the node while keeping the previous
   }, () => true) }))
   const activation = Scope.makeUnsafe()
   await Effect.runPromise(holdChatWire(() => wire.client).pipe(Effect.provideService(Scope.Scope, activation)))
-  const [row, setRow] = createSignal<Row>({ id: "one", file: "Work.olai", title: "one", engine: "alpha", session: "old", memory: 1, standing: "idle", waiting: 0, said: null, seen: null, unread: false, sleeps: false, sleep: null })
-  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({ at: () => row(), chatAt: () => row(), placeOf: one => ({ kind: "row", id: one.id }), standsIn: () => false, named: one => ({ name: one.title }), rows: () => [row()], engines: () => [], standings: () => [], only: () => null, missing: () => null, chats: () => null, unreachable: () => [], chatsRefusal: () => null, askChats: () => {} }) }))
+  const [row, setRow] = createSignal<Row>({ id: "one", kind: "node", beside: false, file: "Work.olai", title: "one", engine: "alpha", session: "old", memory: 1, standing: "idle", waiting: 0, said: null, seen: null, unread: false, sleeps: false, sleep: null })
+  const owner = createRoot(dispose => ({ dispose, reading: createAgentReadings({ at: () => row(), chatOf: () => row(), named: one => ({ name: one.title }), rows: () => [row()], engines: () => [], standings: () => [], only: () => null, missing: () => null, chats: () => null, askChats: () => {} }) }))
   const view = createRoot(dispose => ({ dispose, reading: createConversation(owner.reading, () => "one", () => true) }))
   try {
     await settle()

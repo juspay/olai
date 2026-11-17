@@ -9,8 +9,7 @@ import { TESTID } from "../../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 
 /** The node's close gesture: take the binding property off, so the seat
- *  closes and the conversation becomes an unclaimed chat again — the next
- *  filer run files it back under Chats. Nothing is superseded and nothing is
+ *  closes and the node or note has no chat. Nothing is superseded and nothing is
  *  deleted — the transcript, its history and the subtree memory stay. The
  *  pending owner guards physical repeat presses. */
 export function CloseAgent(props: { readonly node: string }) {

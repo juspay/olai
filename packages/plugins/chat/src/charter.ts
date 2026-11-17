@@ -17,8 +17,9 @@
  * Every sentence below is a rule this package owns and nothing else can vouch
  * for:
  *
- *   - **A person reads the answer in the chat panel, beside the outline** —
- *     `./browser/chat/Transcript.tsx` is that panel, mounted beside the panes.
+ *   - **A person reads the answer in olai, beside what the chat is about** —
+ *     `./browser/chat/Transcript.tsx` draws the conversation in a pane, and the
+ *     note or node it belongs to is what they have open next to it.
  *   - **A backticked id in prose is pressable; one in a code fence does
  *     nothing** — `./browser/chat/refs.ts` (`askedOf`, `inFenceAt`): a span is
  *     a reference exactly when the set declares it and it is not inside a
@@ -51,8 +52,8 @@
  * stays under that, and every sentence here is spent on every turn.
  */
 export const CHARTER =
-  "A person reads your answer in olai's chat panel, beside the outline, so point at " +
-  "things the way the panel can follow. A node id written in backticks in prose is " +
+  "A person reads your answer in olai, beside the note or the outline this chat is about, so point at " +
+  "things the way olai can follow. A node id written in backticks in prose is " +
   "pressable there and shows that node; the same id inside a code fence is a quotation " +
   "and does nothing, so never fence an address you mean to be followed. A written link " +
   "to an app address — `[label](/#id)`, `[plan](notes/plan.md)` — is followed in place " +

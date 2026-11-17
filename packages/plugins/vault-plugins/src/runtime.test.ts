@@ -11,7 +11,7 @@
  * handed.
  */
 import { openTestPlugins as openPlugins } from "@olai/plugin-api/testlib"
-import type { WriteRequest } from "@olai/format"
+import { itemKey, type WriteRequest } from "@olai/format"
 import { readingOfVault } from "@olai/format/testlib/scope"
 import {
   Agents,
@@ -146,8 +146,9 @@ const bench = <A, E>(
           say: () => Effect.succeed(false),
           here: ({ about }) =>
             Effect.sync(() => {
-              asked.push(...about)
-              return new Set(about.filter((one) => here.has(one)))
+              const keys = about.map(itemKey)
+              asked.push(...keys)
+              return new Set(keys.filter((one) => here.has(one)))
             }),
           engines: () => [],
         }
@@ -605,7 +606,7 @@ describe("consent is written down, so it survives a restart", () => {
   test("a plugin being built by a conversation writes no binding", async () => {
     const written = await bench((dynamic, now, _host, written, chats) =>
       Effect.gen(function*() {
-        chats.here.add("/plugins/swatch")
+        chats.here.add("/plugins/swatch/README.md")
         yield* dynamic.follow(vault({}))
         expect((yield* now())[0]?.source?.building).toBe(true)
         return [...written]
@@ -835,10 +836,10 @@ test("deleting a plugin removes its files and its consent", () => bench((dynamic
  *
  * WHAT STARTED THE BUILD IS THE CHAT AT THE PLUGIN'S ADDRESS, asked of chat
  * per revision rather than read off the node: these cases say so by putting
- * one at `/plugins/swatch` before they follow.
+ * one on `/plugins/swatch/README.md` before they follow.
  */
 test("the builder's finished version is written to the plugin's node", () => bench((dynamic, now, _host, written, chats) => Effect.gen(function*() {
-  chats.here.add("/plugins/swatch")
+  chats.here.add("/plugins/swatch/README.md")
   yield* dynamic.follow(vault({}))
   expect((yield* now())[0]?.source?.building).toBe(true)
   expect(yield* dynamic.checked("swatch", versionOf(SERVER, null))).toBe(true)
@@ -846,7 +847,7 @@ test("the builder's finished version is written to the plugin's node", () => ben
 })))
 
 test("...and a serve that restarts reads it back off the file", () => bench((dynamic, now, _host, _written, chats) => Effect.gen(function*() {
-  chats.here.add("/plugins/swatch")
+  chats.here.add("/plugins/swatch/README.md")
   yield* dynamic.follow(vault({ props: { checked: versionOf(SERVER, null) } }))
   expect((yield* now())[0]?.source?.building).toBeUndefined()
 })))
@@ -855,31 +856,31 @@ test("...and a serve that restarts reads it back off the file", () => bench((dyn
  *  property write that would change nothing, so the second call must not even
  *  ask. */
 test("...and a second run at the same version writes nothing", () => bench((dynamic, _now, _host, written, chats) => Effect.gen(function*() {
-  chats.here.add("/plugins/swatch")
+  chats.here.add("/plugins/swatch/README.md")
   yield* dynamic.follow(vault({ props: { checked: versionOf(SERVER, null) } }))
   expect(yield* dynamic.checked("swatch", versionOf(SERVER, null))).toBe(true)
   expect(written).toEqual([])
 })))
 
 /**
- * THE CHAT AT THE PLUGIN'S PAGE IS WHAT MAKES IT A BUILD — the whole of the
- * binding, asked of chat by address while the revision is followed.
+ * THE CHAT ON THE PLUGIN'S README IS WHAT MAKES IT A BUILD — the whole of the
+ * binding, asked of chat by ITEM while the revision is followed.
  *
- * The address is this row's own page (`./index.ts`'s `pluginAbout`), which is
- * what a chat about this plugin is titled with — so these pin the string as
- * well as the answer: a serve that asked about anything else would find no
- * chat for a plugin that has one.
+ * The item is this row's own note (`./index.ts`'s `pluginReadme`), which is
+ * what a plugin's builder chat is tied to — so these pin the path as well as
+ * the answer: a serve that asked about anything else would find no chat for a
+ * plugin that has one.
  */
-describe("the conversation building a plugin is the chat at its address", () => {
-  test("it is asked about the plugin's own page, per revision", () => bench((dynamic, now, _host, _written, chats) => Effect.gen(function*() {
+describe("the conversation building a plugin is the chat on its README", () => {
+  test("it is asked about the plugin's own README, per revision", () => bench((dynamic, now, _host, _written, chats) => Effect.gen(function*() {
     yield* dynamic.follow(vault({}))
     expect((yield* now())[0]?.source?.chat).toBeUndefined()
     expect((yield* now())[0]?.source?.building).toBeUndefined()
-    expect(chats.asked).toEqual(["/plugins/swatch"])
+    expect(chats.asked).toEqual(["/plugins/swatch/README.md"])
   })))
 
   test("...and a chat there is a plugin an agent is building", () => bench((dynamic, now, _host, _written, chats) => Effect.gen(function*() {
-    chats.here.add("/plugins/swatch")
+    chats.here.add("/plugins/swatch/README.md")
     yield* dynamic.follow(vault({}))
     expect((yield* now())[0]?.source?.chat).toBe(true)
     expect((yield* now())[0]?.source?.building).toBe(true)
@@ -891,8 +892,8 @@ describe("the conversation building a plugin is the chat at its address", () => 
     expect((yield* now())[0]?.source?.building).toBeUndefined()
   })))
 
-  test("a chat about some other page is not this plugin's", () => bench((dynamic, now, _host, _written, chats) => Effect.gen(function*() {
-    chats.here.add("/plugins/other")
+  test("a chat on some other note is not this plugin's", () => bench((dynamic, now, _host, _written, chats) => Effect.gen(function*() {
+    chats.here.add("/plugins/other/README.md")
     yield* dynamic.follow(vault({}))
     expect((yield* now())[0]?.source?.chat).toBeUndefined()
   })))

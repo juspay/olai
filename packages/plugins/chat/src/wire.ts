@@ -41,6 +41,7 @@ import { collection } from "@kolu/surface"
 import { Conversing, PanelAddress } from "./wire/session.ts"
 import { collectionDeltasSchema, defineSurface } from "@kolu/surface/define"
 import { Schema } from "effect"
+import { AgentItem } from "@olai/format"
 
 import { Agents, NO_AGENT_ROSTER, sameAgentRoster } from "./wire/agents.ts"
 import {
@@ -320,45 +321,59 @@ export const surface = defineSurface({
         input: Schema.Struct({ agent: Schema.String, session: Schema.String, at: Schema.String }),
         error: ChatFailure,
       },
-      /** Mint under the visible location and return the node even if start refuses.
-       *  `about` makes it the chat of a place — `title` is then the place's
-       *  name, and the row is titled `[name](about)` — and `say` is its first
-       *  message, delivered once by the server. */
+      /**
+       * A CONVERSATION, STARTED — the two things that can mean, as a union so
+       * a caller cannot half-say either.
+       *
+       * MINT: a first message, and a PARENT the person chose — there is no
+       * default, because a chat filed wherever olai felt like putting it is
+       * one nobody finds twice.
+       *
+       * ITEM: the chat of a node or a note that already exists. Refused where
+       * that item already has a started chat; a tie whose start was refused is
+       * started again on the same item rather than mints a second one. `say`
+       * is its first message, delivered once by the server.
+       *
+       * The answer's `node` is the ITEM KEY either way — a node's id, or `/`
+       * and a note's path — and it comes back even when the start refuses,
+       * because a chat that exists and has not begun is something a person can
+       * open later.
+       */
       newChat: {
-        input: Schema.Struct({
-          agent: Schema.String, title: Schema.String, parent: Schema.NullOr(Schema.String),
-          about: Schema.optionalKey(Schema.String), say: Schema.optionalKey(Schema.String),
-        }),
+        input: Schema.Union([
+          Schema.Struct({ agent: Schema.String, title: Schema.String, parent: Schema.String }),
+          Schema.Struct({ agent: Schema.String, item: AgentItem, say: Schema.optionalKey(Schema.String) }),
+        ]),
         output: Schema.Struct({ node: Schema.String, to: Schema.NullOr(Schema.Struct({ agent: Schema.String, session: Schema.String })), refusal: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
       locations: {
         input: Schema.Struct({ filter: Schema.String, limit: Schema.Number, ids: Schema.Array(Schema.String), parents: Schema.Array(Schema.String) }),
         output: Schema.Struct({ nodes: Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String, file: Schema.String,
-          path: Schema.Array(Schema.String), parent: Schema.NullOr(Schema.String) })), defaultParent: Schema.NullOr(Schema.String) }),
+          path: Schema.Array(Schema.String), parent: Schema.NullOr(Schema.String) })) }),
         error: ChatFailure,
       },
-      /** Null means the node panel holds an auth-refused open for sign-in. */
+      /** Null means the panel holds an auth-refused open for sign-in. */
       startAgentSession: {
         input: Schema.Struct({
-          /** The node whose property is about to name the session — the id the
-           *  roster answers with. */
+          /** The ITEM whose tie is about to name the session — the key the
+           *  roster answers with: a node's id, or `/` and a note's path. */
           node: Schema.String,
-          /** ... and the engine to open it with, off that node's property. */
+          /** ... and the engine to open it with, off that item's tie. */
           agent: Schema.String,
         }),
         output: Schema.NullOr(Conversing),
         error: ChatFailure,
       },
-      /** RELEASE a node's agent: the binding property is taken off, the seat
-       *  closes, and the conversation becomes an unclaimed chat again — the
-       *  next filer run files it back under Chats, as its own filed node. The
-       *  original node is plain again. Nothing is superseded — the
-       *  transcript, its history and the subtree stay. */
+      /** RELEASE an item's agent: the tie is taken off — a node's property, or
+       *  both of a note's front-matter keys — the seat closes, and the
+       *  conversation becomes a chat nobody claims. The item is plain again.
+       *  Nothing is superseded: the transcript, its history and the memory
+       *  stay. */
       closeAgent: {
         input: Schema.Struct({
-          /** The node whose agent is being released — the id the roster
-           *  answers with. Refuses when no node agent is bound there. */
+          /** The item whose agent is being released — the key the roster
+           *  answers with. Refuses when nothing is tied there. */
           node: Schema.String,
         }),
         error: ChatFailure,
@@ -368,20 +383,21 @@ export const surface = defineSurface({
        * keeping the chat.
        *
        * THE OTHER HALF OF THE PAIR {@link closeAgent} BELONGS TO, and the
-       * difference is the binding: this one leaves the node naming its
+       * difference is the tie: this one leaves the item naming its
        * conversation, so the roster draws it `asleep` and opening it again
-       * continues where it left off; `closeAgent` takes the property off and
+       * continues where it left off; `closeAgent` takes the tie off and
        * the chat becomes unclaimed. A person who wanted the seat back and not
        * the chat gone has had no verb for it until now — only *Close the
        * agent*, which is the one that loses the node.
        *
        * The turn in flight stops and every question still waiting is withdrawn
        * (`../scoped.ts`'s `Chat.sleep`), so a *Needs you* row for this node is
-       * gone with it. Refuses where nothing is awake there.
+       * gone with it. Refuses where nothing is awake there. A note's agent is
+       * put to sleep exactly as a node's: the seat is a process, not memory.
        */
       sleep: {
         input: Schema.Struct({
-          /** The node to put to sleep — the id the roster answers with, which
+          /** The item to put to sleep — the key the roster answers with, which
            *  is what the row the verb was drawn on names. */
           node: Schema.String,
         }),
@@ -397,14 +413,15 @@ export const surface = defineSurface({
        * `on` or absent) is the whole of the state — a person can type it in the
        * drawer instead. `off` and absent are the same answer.
        *
-       * IT REFUSES WHERE THERE IS NOTHING TO MARK (no node agent bound there),
-       * and with the settings sentence when sleep is off in this directory: a
-       * mark written while the pass cannot run at all would be a promise the
-       * row's own label does not keep.
+       * IT REFUSES WHERE THERE IS NOTHING TO MARK (nothing tied there), where
+       * the item is a NOTE (a note's chat is never tidied — the note is its
+       * memory), and with the settings sentence when sleep is off in this
+       * directory: a mark written while the pass cannot run at all would be a
+       * promise the row's own label does not keep.
        */
       setSleeping: {
         input: Schema.Struct({
-          /** The node whose chat is being marked — the id the roster answers
+          /** The item whose chat is being marked — the key the roster answers
            *  with, which is what the row the verb was drawn on names. */
           node: Schema.String,
           /** `true` marks it, `false` takes the mark off. */
@@ -428,8 +445,8 @@ export const surface = defineSurface({
        * somebody pressed. `Started` therefore means the turn has been handed
        * over — the memo and the commit are still to come — and `Refused` carries
        * the sentence a person reads when the pass could not begin: another pass
-       * is already running, the node is not a node agent with a conversation, or
-       * `sleep` is off in this directory's settings.
+       * is already running, the item is a note, it is not an agent with a
+       * conversation, or `sleep` is off in this directory's settings.
        *
        * A REFUSAL IS AN ANSWER HERE rather than a failed call, and that is the
        * same shape `closeAgent`'s failure sentence has: nothing went wrong, a
@@ -437,8 +454,8 @@ export const surface = defineSurface({
        */
       tidyMemory: {
         input: Schema.Struct({
-          /** The node whose memory is to be tidied — the id the roster answers
-           *  with, which is what the row the verb was drawn on names. */
+          /** The item whose memory is to be tidied — the key the roster
+           *  answers with, which is what the row the verb was drawn on names. */
           node: Schema.String,
         }),
         output: Schema.Union([
