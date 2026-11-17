@@ -191,7 +191,7 @@ import { holdChannel } from "./browser/channel.ts"
 import { configurationPanel } from "olai-plugin-plugin-inspector/contract"
 import { holdPluginsDoor } from "./browser/plugins-door.ts"
 import { createAttention } from "./browser/chat/attention/attention.ts"
-import { createComponent, createEffect, createRoot, createSignal, Show, untrack } from "solid-js"
+import { createComponent, createRoot, Show } from "solid-js"
 import { shell as appShell, thumbs as thumbSeats, tools as toolSeats } from "olai-plugin-layout/contract"
 import { ChatsThumb } from "./browser/agents/ChatsThumb.tsx"
 import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
@@ -211,7 +211,14 @@ export const components = {
     const geometry = yield* appShell
     const slots = yield* Slots
     const renderer = yield* rendererSlots
-    const door = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({ value: createDock(geometry), dispose }))), owner => Effect.sync(owner.dispose))
+    // WHICH CHAT IS AT AN ADDRESS, for the door by address: the one reading
+    // every face asks (`./browser/agents/answered.tsx`'s `chatAt`).
+    const find = (about: string): string | undefined => {
+      const routes = heldNavigation()?.routes
+      const route = routes?.routeIn(about) ?? null
+      return routes === undefined || route === null ? undefined : agentReadings()?.agents.chatAt(placeOfRoute(routes, route))?.id
+    }
+    const door = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({ value: createDock(geometry, find), dispose }))), owner => Effect.sync(owner.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdDock(door.value)), stop => Effect.sync(stop))
     // `chat.dock`, as its static door names it (`./dock.ts`): the seat beside
     // the page, offered by the component that OWNS the seat rather than by the
@@ -220,34 +227,8 @@ export const components = {
     // naming the key instead of handing it a door that does nothing. The live
     // `Dock` is not what crosses: the two verbs another row may spend are,
     // which is why the door is a narrowing and not the value itself.
-    // BY ADDRESS, because another row knows the page it is about and not
-    // which chat row is that page's: the one reading every face asks
-    // (`./browser/agents/answered.tsx`'s `chatAt`) answers it. The answer is
-    // WAITED FOR rather than asked once: a page that docks its chat as it is
-    // drawn (a plugin's, after a reload) can ask before chat's roster has
-    // arrived, and a miss then must neither clear what the person had docked
-    // nor give up. So the column opens at once, the address is held while it
-    // is open, and the chat there is docked the moment the roster has it.
-    const wanted = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
-      const [address, want] = createSignal<string>()
-      createEffect(() => {
-        const about = address()
-        if (about === undefined) return
-        if (!door.value.opened()) { want(undefined); return }
-        const routes = heldNavigation()?.routes
-        const route = routes?.routeIn(about) ?? null
-        const row = routes === undefined || route === null ? undefined : agentReadings()?.agents.chatAt(placeOfRoute(routes, route))
-        if (row === undefined) return
-        want(undefined)
-        untrack(() => door.value.open(row.id))
-      })
-      return { want, dispose }
-    })), owner => Effect.sync(owner.dispose))
     yield* (yield* Offers).own(DOCK, () => ({
-      open: (about: string) => {
-        door.value.show()
-        wanted.want(about)
-      },
+      open: (about: string) => door.value.openAt(about),
       desktop: () => door.value.desktop(),
     } satisfies DockDoor))
     const roster = () => agentReadings()?.agents
