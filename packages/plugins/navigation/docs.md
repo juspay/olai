@@ -33,7 +33,7 @@ A link opens in the pane it is drawn in.[^pane] Back and Forward walk the window
 
 ## When a page cannot be opened
 
-A pane says `Loading…` while the directory is read, and `Finding…` while olai finds the file a row lives in.[^answering]
+A pane says `Loading…` while the directory is read, and `Finding…` while olai looks for the file a row lives in.[^answering] The closed block below lists the refusals.
 
 ## The command palette
 
@@ -41,7 +41,7 @@ A pane says `Loading…` while the directory is read, and `Finding…` while ola
 
 ## What other plugins add
 
-A plugin can add a page, a palette row, a prefix, a link preview or a keyboard shortcut.[^locations] A page can also carry a seat at its foot.[^seat] Navigation offers three services.[^services]
+A plugin can add a page, a palette row, a prefix, a link preview or a keyboard shortcut.[^locations][^seat] Navigation offers three services.[^services]
 
 [^anchor]: Every link in olai is an ordinary HTML anchor, and this plugin answers the click on it.
 

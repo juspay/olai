@@ -4,7 +4,7 @@ olai runs a coding agent beside your notes. Pick an agent, sign in once, then ty
 
 ## Pick an agent
 
-A conversation is one chat with one agent, about a row or a page ([node agents](node-agents.md)).[^plugin] What each agent needs:[^path]
+A conversation is one chat with one agent, from start to end.[^plugin] What each agent needs:[^path]
 
 | Agent | Needs |
 | --- | --- |

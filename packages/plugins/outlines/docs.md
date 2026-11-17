@@ -6,31 +6,31 @@ It also draws the breadcrumbs and the filter box. A note is the text under a row
 
 ## The pages it draws
 
-It draws every kind of file whose contents are rows, each page with a seat at its foot.[^hosted][^seat] A single row has its own page at `/zoom/#<id>`, which the bullet and **Zoom in** open; `/#<id>` selects the row where it is.[^reveal] Links in a row are [navigation.md](navigation.md)'s.[^rowlinks]
+It draws every kind of file whose contents are rows.[^hosted][^seat] A single row has its own page at `/zoom/#<id>`, which the bullet and **Zoom in** open; `/#<id>` selects the row where it is.[^reveal] Links inside a row belong to [navigation.md](navigation.md).[^rowlinks]
 
 ## The filter bar
 
-Every page whose address can take `?q=` draws the box, which narrows the page: outline pages, a single row's page, a day, the Agenda and the Trash.[^hint]
+Every page whose address can take `?q=` draws the box: outline pages, a single row's page, a day, the Agenda and the Trash.[^hint] It narrows the page.
 
-On an outline the bar carries the **Finished** checkbox.[^finished]
+On an outline the bar also carries the **Finished** checkbox.[^finished]
 
 ## The row menu
 
-A row's `•••` menu, which a long press opens on a phone, is grouped, with a rule between groups.[^groups] The palette lists the same commands flat, so a mark reads `Mark: Done`.[^submenu]
+A row's `•••` menu, which a long press opens on a phone, is grouped, with a rule between groups.[^groups] The palette lists the same commands flat, so a mark there reads `Mark: Done`.[^submenu]
 
 ## Preferences, and a directory with no outlines
 
-Two rows under **Outlines** in the preferences panel ([preferences.md](preferences.md)) set **Row density** and **Show finished**.[^motion] With no outlines the page says **No outlines yet** and offers **New outline**.[^empty]
+Two rows under **Outlines** in the preferences panel ([preferences.md](preferences.md)) set **Row density** and **Show finished**.[^motion] With no outlines at all the page says **No outlines yet** and offers **New outline**.[^empty]
 
 ## What an agent can read
 
-Two MCP tools, the calls an agent makes, read rows: `outlines_read` reads one row and its children, `outlines_subtree` everything under a row.[^fields] Outlines also adds a paragraph to an agent's instructions ([mcp.md](mcp.md)).[^paragraph] Switching outlines off takes its pages.[^off]
+Two MCP tools, the calls an agent makes, read rows: `outlines_read` reads one row and its children, `outlines_subtree` everything under a row.[^fields] Outlines also adds a paragraph to an agent's instructions ([mcp.md](mcp.md)).[^paragraph] Switching outlines off takes its pages with it.[^off]
 
 [^elsewhere]: Typing in an outline is [../editing.md](../editing.md); moving work about is [../organising.md](../organising.md).
 
 [^hosted]: Outlines claims those files by registering one bullet glyph and one page, rather than by naming a file format plugin. It also draws the pages other plugins define over a reading of rows, such as the journal's day page and Agenda. A page a plugin draws for itself belongs to [navigation.md](navigation.md) instead.
 
-[^seat]: The seat is navigation's, and chat draws the conversation about this outline in it ([chat.md](chat.md)). The page says which file it is drawing, so the front page `/` and an address such as `house.olai#install` are both the outline `house.olai`, with one chat between them. A day, the Agenda and the Trash carry no seat.
+[^seat]: An outline's page carries a seat at its foot, which chat fills with the conversation about this outline ([chat.md](chat.md)). The page says which file it is drawing, so the front page `/` and an address such as `house.olai#install` are both the outline `house.olai`, with one chat between them. A day, the Agenda and the Trash carry no seat.
 
 [^reveal]: A link written `/#<id>` selects the row in the pane that is already showing it. Where no pane shows it, the row's file opens at that row.
 

@@ -27,7 +27,7 @@ Clicking **Edit** replaces the body with a plain-text box named `Edit <file>`, h
 | **Save** | `Cmd` + `Enter` | writes the file and leaves the editor |
 | **Cancel** | `Escape` | throws the text away and leaves the editor |
 
-`Cmd` is the modifier on a Mac and `Ctrl` elsewhere. To make a document, use **New document** in the sidebar's `+` menu ([files.md](files.md)).[^new] If the file changes on disk, olai refuses the save.[^conflict] olai keeps text you have not saved for that pane and that file.[^draft]
+`Cmd` is the modifier on a Mac and `Ctrl` elsewhere.[^new] If the file changes on disk, olai refuses the save.[^conflict] olai keeps text you have not saved for that pane and that file.[^draft]
 
 ## Headings and links
 
@@ -35,7 +35,7 @@ Clicking a heading, or a line of **Contents**, goes to an address like `/notes/p
 
 ## What still works without this plugin
 
-Switching `markdown` off takes away document pages and the read and write procedures.[^off] This page and its editor stand without outlines or the files sidebar.[^reverse]
+Switching `markdown` off takes away document pages and the read and write procedures.[^off] Switching off outlines or the files sidebar leaves this page and its editor able to save.[^reverse]
 
 [^what]: The `markdown` plugin claims `.md` files. What a document is, and how it is written, is in [../documents-and-kinds.md](../documents-and-kinds.md).
 
@@ -47,7 +47,7 @@ Switching `markdown` off takes away document pages and the read and write proced
 
 [^missing]: An address naming no such file says `Page not found`, with the detail `There is no document named notes/plan.md.`
 
-[^new]: A document you have just made opens with its editor already open.
+[^new]: To make a document, use **New document** in the sidebar's `+` menu ([files.md](files.md)). A document you have just made opens with its editor already open.
 
 [^conflict]: The editor says `This file changed while you were editing. Your text is safe here, and Save won't overwrite the change.` **Save** is refused, and an **Overwrite anyway** button appears beside it once you have read the refusal.
 
