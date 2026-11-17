@@ -91,7 +91,7 @@ Feature: See the outline
   Scenario: A section heading holds the seam while its branch scrolls
     Given the window is shorter than the page
     And I read the outline with Notes on "open"
-    When I scroll to the bottom of the page
+    When I scroll to the end of the outline
     Then the section heading of "kitchen" is pinned under the main-column chrome
     # The negative half, and it is what makes the claim mean anything: only a
     # TOP-LEVEL row is a section. A client that pinned every row would stack the

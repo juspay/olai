@@ -215,3 +215,31 @@ export const CHAT_RANG_FOLD = selector(TESTID.chatRangFold);
  *  PAGE until the row is open, which is what lets a scenario assert the fold
  *  without asserting a word the plugin wrote. */
 export const CHAT_RANG_BODY = selector(TESTID.chatRangBody);
+
+// ── a chat ABOUT a place: the seat, the door and the name ──────────────
+//
+// The faces a chat that stands for a place is read through. `chatSeat` is the
+// spot a page frame placed at its foot and chat filled; `chatAbout` is the box
+// that starts a chat about that page, drawn in the seat or in the side panel
+// (`data-where`); `chatThisPage` is the panel's block over its picker. The two
+// name ids are what every list draws a chat with — the place's own name and
+// its kind's mark — so a scenario asserts what a person reads rather than the
+// raw title the row carries.
+
+/** The seat at the foot of a page. `data-place` is the place it is about, as
+ *  `@olai/format`'s `placeKey` spells it (`file:notes/plan.md`). */
+export const CHAT_SEAT = selector(TESTID.chatSeat);
+/** The box that starts a chat about this page — `data-where` is `seat` or
+ *  `panel`, which is the whole difference between the door's two faces. */
+export const CHAT_ABOUT = selector(TESTID.chatAbout);
+export const CHAT_ABOUT_INPUT = selector(TESTID.chatAboutInput);
+export const CHAT_ABOUT_ENGINE = selector(TESTID.chatAboutEngine);
+export const CHAT_ABOUT_SEND = selector(TESTID.chatAboutSend);
+/** Why nothing was started — a second chat for one place, above all. */
+export const CHAT_ABOUT_REFUSED = selector(TESTID.chatAboutRefused);
+/** **This page**, over the side panel's picker. */
+export const CHAT_THIS_PAGE = selector(TESTID.chatThisPage);
+/** What a chat is CALLED wherever it is listed, and the mark of the place it
+ *  stands for. A stand-in's raw title is never either of them. */
+export const CHAT_NAME = selector(TESTID.chatName);
+export const CHAT_PLACE_MARK = selector(TESTID.chatPlaceMark);
