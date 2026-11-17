@@ -9,6 +9,7 @@ import { freshStartQuestion } from "./agents/fresh-start.ts"
 const engines: ReadonlyArray<AgentChoice> = [{ id: "claude", name: "Claude", standing: "here" }, { id: "codex", name: "Codex", standing: "here" }]
 const roster = (bound?: Row, installed = engines): Roster => ({
   at: () => bound, engines: () => installed, rows: () => bound ? [bound] : [],
+  chatAt: () => bound, placeOf: (one) => ({ kind: "row", id: one.id }), standsIn: () => false,
   standings: () => installed,
   only: () => installed.length === 1 ? installed[0]! : null,
   missing: () => null,

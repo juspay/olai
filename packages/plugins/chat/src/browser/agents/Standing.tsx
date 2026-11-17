@@ -39,7 +39,7 @@ export function Standing(props: { readonly node: string; readonly record?: strin
   // start, and on a phone none until this row is the one tapped
   // (`OFFER_REVEAL`) — the `•••` menu and a long press carry it as well.
   return <>
-    <Show when={roster.at(props.node)} fallback={
+    <Show when={roster.chatAt({ kind: "row", id: props.node })} fallback={
       <Show when={roster.engines().length > 0}>
         <button type="button" class={`${QUIET_PILL} ${OFFER_REVEAL} gap-1 border-dashed whitespace-nowrap`}
           data-testid={TESTID.agentStart} data-agent={props.node} disabled={starting()}
@@ -52,14 +52,16 @@ export function Standing(props: { readonly node: string; readonly record?: strin
             else setMenu(event.currentTarget)
           }}><AgentMark id={roster.engines()[0]?.id ?? ""} />Start an agent</button>
       </Show>
-    }>{agent => <AgentStanding row={agent()} record={props.record} />}</Show>
+    }>{agent => <AgentStanding row={agent()} fold={props.record ?? props.node} />}</Show>
     <Show when={menu()}>{anchor => <EngineMenu anchor={anchor()} engines={roster.standings()}
       close={() => setMenu(null)} pick={agent => void start(agent)} />}</Show>
     <Show when={saying.said()}>{said => <SaidLine said={said()} testid={TESTID.agentRefused} class="text-label" />}</Show>
   </>
 }
 
-function AgentStanding(props: { readonly row: Row; readonly record?: string }) {
+/** `fold` is the drawn row's own fold — the row this mark sits beside, which
+ *  is not the chat row's id when a chat row elsewhere stands for this one. */
+function AgentStanding(props: { readonly row: Row; readonly fold: string }) {
   const busy = () => props.row.standing === "working" || props.row.standing === "waking"
   const now = createNow(busy)
   const age = createTicking(MINUTE, () => props.row.standing === "asleep")
@@ -69,8 +71,8 @@ function AgentStanding(props: { readonly row: Row; readonly record?: string }) {
       classList={{ "text-doing": props.row.standing === "needs-you" }}
       disabled={props.row.session === null && props.row.unopened !== true}
       data-testid={TESTID.agentStanding} data-agent={props.row.id} data-standing={props.row.standing}
-      aria-expanded={props.row.session === null && props.row.unopened !== true ? undefined : unfolded(props.record ?? props.row.id)}
-      onClick={event => { event.stopPropagation(); unfolded(props.record ?? props.row.id) ? fold(props.record ?? props.row.id) : unfold(props.record ?? props.row.id) }}>
+      aria-expanded={props.row.session === null && props.row.unopened !== true ? undefined : unfolded(props.fold)}
+      onClick={event => { event.stopPropagation(); unfolded(props.fold) ? fold(props.fold) : unfold(props.fold) }}>
       <AgentMark id={props.row.engine} /><span class={`${DOT} ${look().dot}`} aria-hidden="true" />
       {look().label}
       <Show when={busy() && props.row.since}>{since => <span class="tabular-nums"> · {outFor(since(), now())}</span>}</Show>

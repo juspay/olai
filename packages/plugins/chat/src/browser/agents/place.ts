@@ -58,3 +58,20 @@ export const standsFor = (
  *  page is opened from the same list. */
 export const routeOfPlace = (routes: Routing, place: Place): Route =>
   place.kind === "row" ? zoomNode(place.id) : place.kind === "file" ? atFile(place.path) : routes.routeOf(place.href)
+
+/**
+ * THE PAGE IN FRONT, as a place — what a lit row and a tab's dot compare a
+ * chat's place against.
+ *
+ * Not quite {@link placeOfRoute}, and the difference is which page is DRAWN.
+ * `house.olai#install` names the row `install` when it is a title, and it is a
+ * row's own place; as the address of a pane it is the outline `house.olai`,
+ * landed at that row, so the page in front is the file. The front page names
+ * no file, so the file the pane reported drawing stands in for it where one
+ * was reported.
+ */
+export const pageInFront = (routes: Routing, route: Route, reported?: string): Place => {
+  if (route.kind === "at" && route.address?.kind === "row") return { kind: "file", path: route.address.path }
+  if (route.kind === "at" && route.address === null && reported !== undefined) return { kind: "file", path: reported }
+  return placeOfRoute(routes, route)
+}

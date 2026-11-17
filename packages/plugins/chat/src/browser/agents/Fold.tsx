@@ -43,13 +43,15 @@ export function Fold(props: { readonly node: string; readonly record?: string })
   const open = createMemo(() => unfolded(props.record ?? props.node))
   const started = createMemo((was: boolean) => was || open(), false)
   const shown = () => parentShown() && open()
-  return <ShownProvider shown={shown}><Show when={started()}>{_open => {
-    const { chat: conversation } = createNodeConversation(() => props.node)
+  /** THE CHAT AT THIS ROW — its own, or a chat row standing for it. */
+  const chatRow = createMemo(() => agents.chatAt({ kind: "row", id: props.node })?.id)
+  return <ShownProvider shown={shown}><Show when={started() && chatRow()} keyed>{id => {
+    const { chat: conversation } = createNodeConversation(() => id)
     return <Show when={conversation()}>{current =>
-    <section style={{ display: open() ? undefined : "none" }} class="my-2 rounded-surface border border-rule bg-panel shadow-raised" data-testid={TESTID.agentFold} data-agent={props.node} aria-label={agents.at(props.node)?.title}>
-      <AgentLine chat={current()} node={props.node} />
+    <section style={{ display: open() ? undefined : "none" }} class="my-2 rounded-surface border border-rule bg-panel shadow-raised" data-testid={TESTID.agentFold} data-agent={props.node} data-chat={id} aria-label={agents.at(id)?.title}>
+      <AgentLine chat={current()} node={id} />
       <Show when={conversation()} keyed>{chat => <ConversationUIProvider value={chat.ui}>
-        <Conversation chat={chat} node={props.node} />
+        <Conversation chat={chat} node={id} />
       </ConversationUIProvider>}</Show>
     </section>
     }</Show>

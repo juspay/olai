@@ -27,6 +27,9 @@ import { receive } from "./handoff.ts"
 export interface PageSession {
   readonly preferredEngine: Accessor<string | undefined>
   readonly chat: Accessor<Chat | null>
+  /** The chat row whose conversation this page draws — the row's own, or a
+   *  chat row standing for it. */
+  readonly chatRow: Accessor<string>
   readonly draft: Accessor<string>
   readonly setDraft: (text: string) => void
   readonly starting: Accessor<boolean>
@@ -43,7 +46,8 @@ function createPageSession(node: string): PageSession {
   let alive = true
   const waits = new Set<() => void>()
   onCleanup(() => { alive = false; for (const stop of [...waits]) stop() })
-  const { pair, chat } = createNodeConversation(() => node)
+  const chatRow = createMemo(() => reading.agents.chatAt({ kind: "row", id: node })?.id ?? node)
+  const { pair, chat } = createNodeConversation(chatRow)
   const [draft, setDraft] = createSignal("")
   const [starting, setStarting] = createSignal(false)
   const [failure, setFailure] = createSignal<string | null>(null)
@@ -122,7 +126,7 @@ function createPageSession(node: string): PageSession {
       await deliver(to, text, later)
     } finally { setStarting(false) }
   }
-  return { chat, draft, setDraft, starting, failure, start, preferredEngine }
+  return { chat, chatRow, draft, setDraft, starting, failure, start, preferredEngine }
 }
 
 function usePage(node: Accessor<string>) {
@@ -137,7 +141,7 @@ export function PageHead(props: { readonly node: string }) {
   const page = usePage(() => props.node)
   return <Show when={page()?.chat()} fallback={<AgentAbove node={props.node} line />}>{current =>
     <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
-      <AgentLine chat={current()} node={props.node} page />
+      <AgentLine chat={current()} node={page()!.chatRow()} page />
       <Show when={page()?.chat()} keyed>{chat => <ConversationUIProvider value={chat.ui}>
         <Strips chat={chat} />
       </ConversationUIProvider>}</Show>
@@ -150,7 +154,7 @@ export function PageFoot(props: { readonly node: string }) {
   return <Show when={page()}>{owner =>
     <div class="mt-6" data-testid={TESTID.agentPageFoot} data-agent={props.node}>
       <Show when={owner().chat()} keyed fallback={<PlainComposer node={props.node} page={owner()} />}>{chat =>
-        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={props.node} page /></ConversationUIProvider>
+        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={owner().chatRow()} page /></ConversationUIProvider>
       }</Show>
     </div>
   }</Show>
@@ -160,7 +164,7 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   const pane = usePane()
   const agents = useAgents()
   const [chosen, choose] = createSignal<string>()
-  const engine = () => agents.at(props.node)?.engine ?? chosen() ?? props.page.preferredEngine() ?? agents.engines()[0]?.id
+  const engine = () => agents.chatAt({ kind: "row", id: props.node })?.engine ?? chosen() ?? props.page.preferredEngine() ?? agents.engines()[0]?.id
   const missing = () => agents.missing(engine())
   const metadata = () => {
     const page = pane === undefined ? undefined : pageReadings()?.at(pane.id)?.shows
@@ -186,7 +190,7 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
           value={props.page.draft()} onInput={event => props.page.setDraft(event.currentTarget.value)}
           onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (composing(event)) return; send() } }} />
         <div class="flex flex-wrap items-center gap-2 text-label text-muted">
-          <select aria-label="Agent" data-testid={TESTID.agentPlainEngine} value={engine()} disabled={props.page.starting() || agents.at(props.node) !== undefined}
+          <select aria-label="Agent" data-testid={TESTID.agentPlainEngine} value={engine()} disabled={props.page.starting() || agents.chatAt({ kind: "row", id: props.node }) !== undefined}
             onChange={event => choose(event.currentTarget.value)}>
             <For each={agents.engines()}>{one => <option value={one.id}>{one.name}</option>}</For>
           </select>

@@ -115,7 +115,7 @@ export function CrumbMark(props: { readonly node: string }) {
   const agents = useAgents()
   const router = useMaybeRouter()
   return (
-    <Show when={agents.at(props.node)}>
+    <Show when={agents.chatAt({ kind: "row", id: props.node })}>
       {(row) => (
         <Tip text={`Open the conversation with ${row().title}`}>
           <button

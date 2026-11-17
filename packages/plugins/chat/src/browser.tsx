@@ -128,8 +128,10 @@ export default definePlugin({
       priority: 100,
       matches: route => {
         const id = previewNode(route)
-        const agent = id === undefined ? undefined : state.agents.at(id)
-        return agent?.session != null && (route.kind !== "at" || route.address?.kind !== "row" || route.address.path === agent.file)
+        const agent = id === undefined ? undefined : state.agents.chatAt({ kind: "row", id })
+        // A row written at its file is the chat's own row only where the chat
+        // row is in that file; a chat row standing for the row is anywhere.
+        return agent?.session != null && (agent.id !== id || route.kind !== "at" || route.address?.kind !== "row" || route.address.path === agent.file)
       },
       Preview: props => <ChatLinkPreview route={props.route} roster={state.agents} />,
     })

@@ -60,7 +60,8 @@ export function Chats() {
    *  wakes nothing here either. */
   const currentIds = createMemo(() => {
     const route = router.route()
-    return new Set(agents.rows().filter((row) => isCurrent(route, row, unfolded(row.id))).map((row) => row.id))
+    const reported = router.focused()?.file
+    return new Set(agents.rows().filter((row) => isCurrent(router.routes, route, row, agents.placeOf(row), unfolded(row.id), reported)).map((row) => row.id))
   }, new Set<string>(), { equals: (a, b) => a.size === b.size && [...a].every((id) => b.has(id)) })
   const current = createSelector<ReadonlySet<string>, string>(currentIds, (id, ids) => ids.has(id))
   return <section class={REGION} data-testid={TESTID.agentRoster}>

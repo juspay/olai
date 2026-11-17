@@ -422,9 +422,9 @@ export interface ChatPlaces<Row> {
   readonly at: (place: Place) => Row | undefined
   /** The place a chat row stands for once the rule has run — its own row for
    *  every chat that is not a winning stand-in. */
-  readonly of: (row: Row) => Place
+  readonly of: (row: { readonly id: string }) => Place
   /** Whether a chat row stands for a place other than itself. */
-  readonly standsIn: (row: Row) => boolean
+  readonly standsIn: (row: { readonly id: string }) => boolean
 }
 
 export const chatPlaces = <Row extends { readonly id: string }>(
