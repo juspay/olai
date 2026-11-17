@@ -49,14 +49,27 @@ function createPageSession(node: string): PageSession {
   const [draft, setDraft] = createSignal("")
   const [starting, setStarting] = createSignal(false)
   const [failure, setFailure] = createSignal<string | null>(null)
+  // THE WORDS THIS PAGE IS HOLDING GO INTO ITS CONVERSATION the moment there
+  // is one to put them in — the plain composer's unsent draft, and the words
+  // a door's start left here when it stopped at a sign-in (`./Seat.tsx`'s
+  // `sendAbout` parks them for this row).
+  //
+  // INTO THE CHAT'S OWN MEMORY (`value.ui`), and not before it is OPEN. A
+  // start held at a sign-in has a conversation that could not be opened: its
+  // row names no session, nobody is reading it, and the UI that answers for
+  // that pair is evicted the moment the sign-in replaces it
+  // (`./reading.ts`'s `belongs`). Words moved into that one are words the
+  // composer that finally opens never sees — which is where a sign-in used
+  // to lose them. Held here instead, they go in when there is somewhere for
+  // them to stay.
   createEffect(() => {
     const value = chat()
     const state = value?.state()
     const text = draft()
     const to = pair()
-    if (value === null || to === null || state?.talking?.kind !== "agent"
+    if (value === null || to === null || state?.talking?.kind !== "agent" || state.unopened != null
       || state.session?.id !== to.session || state.talking.id !== to.agent || text === "") return
-    keepMessage(reading.ui(to).messages, JSON.stringify([to.agent, to.session]), text, true)
+    keepMessage(value.ui.messages, JSON.stringify([to.agent, to.session]), text, true)
     setDraft("")
   })
   const ready = (to: Conversing): Promise<Chat | null> => new Promise(resolve => {
@@ -101,6 +114,18 @@ function createPageSession(node: string): PageSession {
         return deliver(to, text, "").finally(() => setStarting(false))
       },
     }))
+  })
+  // ...AND WORDS OUTLIVE THIS SESSION. A seat is taken down and put back for
+  // reasons that are nothing to do with the person — one roster frame in
+  // which the chat at this place is not yet readable is enough, and a start
+  // waiting at a sign-in spends several. A session disposed while it is
+  // still holding somebody's words parks them again, so the next session of
+  // this node claims them exactly as the first one did.
+  onCleanup(() => {
+    const text = draft()
+    const engine = preferredEngine() ?? reading.agents.at(chatRow())?.engine
+    if (text === "" || engine === undefined) return
+    reading.newChat.park(node, { engine, text, to: null, refusal: failure() })
   })
   const start = async (engine: string) => {
     const text = draft()
