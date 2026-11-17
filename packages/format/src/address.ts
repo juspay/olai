@@ -339,6 +339,118 @@ export const addressWritten = (title: string): string =>
   linkedTitle(title)?.at ?? title.trim()
 
 /**
+ * THE ADDRESS A TITLE IS WRITTEN AS — bare, or as the target of one named link
+ * — or `undefined` for a title that is prose.
+ *
+ * The cheap test first: nearly every title in a directory is neither, and this
+ * runs once per title per draw. A target with whitespace in it is a sentence
+ * somebody wrote, not an address. Navigation reads a title through this before
+ * its router parses what is left (`olai-plugin-navigation`'s `addressIn`), and
+ * {@link placeWritten} below reads it the same way on the server, so the two
+ * cannot disagree about what counts as an address at all.
+ */
+export const titleAddress = (title: string): string | undefined => {
+  const text = title.trim()
+  if (!text.startsWith("/") && !text.startsWith("[")) return undefined
+  const address = addressWritten(text)
+  return /\s/.test(address) ? undefined : address
+}
+
+/**
+ * A PLACE — anything olai can open from an address, as far as a conversation
+ * ABOUT it is concerned.
+ *
+ * Coarser than an {@link Address} on purpose. A chat about a document is about
+ * the whole document, so a heading inside it is the file; a row is the same
+ * row whether it is written `/#id`, `/zoom/#id` or `house.olai#id`, so a row is
+ * its id and nothing else; and every page that is not a file or a row (a
+ * plugin's page, the agenda, a day) is its address with any `?q=` dropped,
+ * because a filter narrows a page and does not make it a different one.
+ */
+export type Place =
+  | { readonly kind: "row"; readonly id: string }
+  | { readonly kind: "file"; readonly path: string }
+  | { readonly kind: "page"; readonly href: string }
+
+/** One string per place, so a place can key a map. */
+export const placeKey = (place: Place): string =>
+  place.kind === "row" ? `row:${place.id}` : place.kind === "file" ? `file:${place.path}` : `page:${place.href}`
+
+/** Whether two places are the same place. */
+export const samePlace = (a: Place, b: Place): boolean => placeKey(a) === placeKey(b)
+
+/**
+ * THE PLACE A TITLE NAMES, by this format's own grammar — the server's half of
+ * "what does this chat row stand for", and `null` for a title that names none.
+ *
+ * The browser asks the same question through the router, which also knows
+ * which plugin pages are mounted; the server has no router, so a page that is
+ * not a file or a row is answered as its written path. For files and rows the
+ * two halves agree, which is what lets the server refuse a second chat for a
+ * place the browser offered a door to.
+ *
+ * Whether the place still EXISTS is the caller's question, asked of whatever
+ * reading it holds: this is a reading of text and claims, nothing more. A path
+ * that looks like a file of a kind nobody claims names nothing, because olai
+ * does not serve it.
+ */
+export const placeWritten = (claims: Claims, title: string): Place | null => {
+  const address = titleAddress(title)
+  if (address === undefined || !address.startsWith("/")) return null
+  const { pathname, fragment } = splitAddress(address)
+  if (pathname === "/" || pathname === "/zoom/") {
+    if (fragment === undefined) return pathname === "/" ? { kind: "page", href: "/" } : null
+    const id = spelled(fragment)
+    return id === null || id === "" ? null : { kind: "row", id }
+  }
+  const named = parseAddress(claims, pathname.slice(1) + (fragment === undefined ? "" : `#${fragment}`))
+  if (named === null) return /\.[^./]+$/.test(pathname.slice(pathname.lastIndexOf("/") + 1)) ? null : { kind: "page", href: pathname }
+  return named.kind === "node" || named.kind === "row" ? { kind: "row", id: named.id } : { kind: "file", path: named.path }
+}
+
+/**
+ * WHICH CHAT IS AT WHICH PLACE — the one rule, over a list of chat rows in
+ * roster order and what each one's title stands for.
+ *
+ * A chat row is always its OWN row's chat, so a row's own chat wins over any
+ * stand-in for it, and a chat row titled with its own address stands for
+ * nothing else. Between stand-ins for one place the first in order wins, and a
+ * stand-in that loses is an ordinary chat row, standing for itself.
+ */
+export interface ChatPlaces<Row> {
+  /** The chat at a place, or `undefined`. */
+  readonly at: (place: Place) => Row | undefined
+  /** The place a chat row stands for once the rule has run — its own row for
+   *  every chat that is not a winning stand-in. */
+  readonly of: (row: Row) => Place
+  /** Whether a chat row stands for a place other than itself. */
+  readonly standsIn: (row: Row) => boolean
+}
+
+export const chatPlaces = <Row extends { readonly id: string }>(
+  rows: ReadonlyArray<Row>,
+  standsFor: (row: Row) => Place | null,
+): ChatPlaces<Row> => {
+  const own = new Map<string, Row>()
+  for (const row of rows) if (!own.has(row.id)) own.set(row.id, row)
+  const at = new Map<string, Row>()
+  const standing = new Map<string, Place>()
+  for (const row of rows) {
+    const place = standsFor(row)
+    if (place === null || (place.kind === "row" && own.has(place.id))) continue
+    const key = placeKey(place)
+    if (at.has(key) || standing.has(row.id)) continue
+    at.set(key, row)
+    standing.set(row.id, place)
+  }
+  return {
+    at: (place) => (place.kind === "row" ? own.get(place.id) : undefined) ?? at.get(placeKey(place)),
+    of: (row) => standing.get(row.id) ?? { kind: "row", id: row.id },
+    standsIn: (row) => standing.has(row.id),
+  }
+}
+
+/**
  * A title written as ONE MARKDOWN LINK around an address, cut into its two
  * halves — `undefined` for every other title.
  *

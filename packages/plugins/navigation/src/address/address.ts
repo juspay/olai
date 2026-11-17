@@ -23,7 +23,7 @@
  * at the bottom of this file is the reader for.
  */
 
-import { addressWritten, basenameOf, linkedTitle } from "@olai/format"
+import { basenameOf, linkedTitle, titleAddress } from "@olai/format"
 
 import { panesOf, type Workspace, type WorkspaceRouting } from "../workspace.ts"
 import type { Names } from "olai-plugin-outlines/names"
@@ -70,14 +70,9 @@ export const addressIn = (
   return address === undefined ? undefined : routes.routeIn(address) ?? undefined
 }
 
-/** The address a title spells, or `undefined` for prose. Cheap first: nearly
- *  every title in a directory is neither, and this runs once per title per draw. */
-const written = (title: string): string | undefined => {
-  const text = title.trim()
-  if (!text.startsWith("/") && !text.startsWith("[")) return undefined
-  const address = addressWritten(text)
-  return /\s/.test(address) ? undefined : address
-}
+/** The address a title spells, or `undefined` for prose — the format's one
+ *  reading, which the server's half of a chat's place reads too. */
+const written = titleAddress
 
 /** The name written INTO a title, for the address somebody named — `undefined`
  *  for the bare form, which is what this app writes and what {@link nameOf}
