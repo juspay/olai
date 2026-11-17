@@ -2,6 +2,7 @@ import { createMemo, untrack, type Accessor } from "solid-js"
 import type { PanelAddress } from "../../wire/session.ts"
 import type { Chat } from "../chat/state.ts"
 import type { createAgentReadings } from "./reading.ts"
+import { talking } from "./roster.ts"
 
 /** A page's lease follows its live binding or its explicit history visit. */
 export const createConversation = (
@@ -20,10 +21,7 @@ export const createConversation = (
       && (resumed?.agent !== agent.engine || resumed.session !== agent.session))) return null
     return { agent: agent.engine, session: agent.session }
   }, null, { equals: (a, b) => a?.agent === b?.agent && a?.session === b?.session })
-  const hasPanel = createMemo(() => {
-    const agent = reading?.agents.at(node())
-    return agent !== undefined && (agent.session !== null || agent.unopened === true)
-  })
+  const hasPanel = createMemo(() => talking(reading?.agents.at(node())))
   const address = createMemo<PanelAddress>(() => {
     const visited = reading?.visiting(node())
     return visited === undefined ? { node: node() } : { agent: visited.agent, session: visited.session }

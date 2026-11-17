@@ -1,6 +1,6 @@
 import { useRouter } from "olai-plugin-navigation/routing"
 import { zoomNode, type Route, type Routing } from "olai-plugin-navigation/routes"
-import type { Row } from "./roster.ts"
+import { talking, type Row } from "./roster.ts"
 import { unfold } from "./folding.ts"
 import { agentReadings } from "./reading.ts"
 import { useAgents, type Roster } from "./answered.tsx"
@@ -12,7 +12,7 @@ import { routeOfPlace } from "./place.ts"
  *  conversation yet has nothing to unfold. */
 export const visitAgent = (row: Row): void => {
   agentReadings()?.visit(row.id)
-  if (row.session !== null || row.unopened === true) unfold(row.id)
+  if (talking(row)) unfold(row.id)
 }
 /** WHERE A CHAT OPENS: the place a stand-in is about, and an ordinary chat
  *  row's own page — `/zoom/#id`, not the `/#id` reveal. Sidebar rows, the

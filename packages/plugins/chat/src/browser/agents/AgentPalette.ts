@@ -16,7 +16,8 @@ import type { RowVerb } from "olai-plugin-outlines/slots"
 import type { Roster } from "./answered.tsx"
 import { placeOfRoute } from "./place.ts"
 import { dock } from "../dock.ts"
-import { sendAbout, talking } from "./Seat.tsx"
+import { sendAbout } from "./Door.tsx"
+import { talking } from "./roster.ts"
 
 /** The palette row that starts a chat about the page in front. */
 export const ABOUT_ROW = "chat-about-page"
@@ -135,7 +136,7 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
   /**
    * **CHAT ABOUT THIS PAGE** — the door, from ⌘K: offered while the page in
    * front placed a seat, has no chat at its place, and an agent can start, and
-   * one message level away from a chat about it (`./Seat.tsx` is the same door
+   * one message level away from a chat about it (`./Door.tsx` is the same door
    * under the page). Kept as one object per page, so a roster tick under an
    * open level hands the palette the row it already has.
    *
@@ -177,7 +178,7 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
           if (engine === undefined) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
           setSending(true)
           signal.addEventListener("abort", () => setSending(false), { once: true })
-          // ONE PRESS OF THE DOOR (`./Seat.tsx`'s `sendAbout`): a refusal keeps
+          // ONE PRESS OF THE DOOR (`./Door.tsx`'s `sendAbout`): a refusal keeps
           // the words in this box with the sentence beside them, and leaves the
           // docked conversation alone.
           const sent = await sendAbout({ about: address, name, engine: engine.id, text })

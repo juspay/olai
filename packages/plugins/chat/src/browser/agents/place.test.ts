@@ -5,10 +5,9 @@ import { type Place, placeWritten } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
 
-import { isCurrent, placeOfRoute, standsFor } from "./place.ts"
+import { isCurrent, placeIn, placeOfRoute } from "./place.ts"
 
 const routes = routingIn()
-const everything = () => true
 const file = (path: string): Place => ({ kind: "file", path })
 const row = (id: string): Place => ({ kind: "row", id })
 
@@ -26,15 +25,9 @@ describe("what a chat row stands for", () => {
     ["a path olai does not serve", "/etc/passwd", null],
   ]
   for (const [said, title, place] of cases) {
-    test(said, () => expect(standsFor(routes, title, everything)).toEqual(place))
+    test(said, () => expect(placeIn(routes, title)).toEqual(place))
   }
 
-  test("a file that is not there stands for nothing", () => {
-    expect(standsFor(routes, "[plan](/notes/plan.md)", (place) => place.kind !== "file")).toBeNull()
-  })
-  test("a row that does not exist stands for nothing", () => {
-    expect(standsFor(routes, "/#gone", (place) => place.kind !== "row")).toBeNull()
-  })
   test("the front page is the page /", () => {
     expect(placeOfRoute(routes, routes.routeOf("/"))).toEqual({ kind: "page", href: "/" })
   })
@@ -47,7 +40,7 @@ describe("the server's half agrees with the browser's", () => {
     "[order](/house.olai#order)", "/report.pdf", "/a%20file%20with%20spaces.olai",
   ]
   for (const title of titles) {
-    test(title, () => expect(standsFor(routes, title, everything)).toEqual(placeWritten(TEST_CLAIMS, title)))
+    test(title, () => expect(placeIn(routes, title)).toEqual(placeWritten(TEST_CLAIMS, title)))
   }
 })
 

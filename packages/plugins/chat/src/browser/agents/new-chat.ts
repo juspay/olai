@@ -90,5 +90,5 @@ export const createNewChat = (keep: (to: Conversing, text: string) => void) => {
       return result.success
     } finally { release() }
   }
-  return { pending: permit.held, said, say, start, about, keep, take: handoff.take, park: handoff.park }
+  return { pending: permit.held, said, say, start, about, take: handoff.take }
 }

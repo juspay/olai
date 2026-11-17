@@ -13,7 +13,7 @@ import { createNow, outFor } from "../chat/elapsed.ts"
 import { chatWire } from "../wire.ts"
 import { TESTID } from "../../testids.ts"
 import { useAgents } from "./answered.tsx"
-import { LOOK, type Row } from "./roster.ts"
+import { LOOK, talking, type Row } from "./roster.ts"
 import { fold, unfold, unfolded } from "./folding.ts"
 const EngineMenu = lazy(() => import("./EngineMenu.tsx"))
 
@@ -71,9 +71,9 @@ export function AgentStanding(props: { readonly row: Row; readonly fold: string 
   return <Tip text={look().detail}>
     <button type="button" class="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-1.5 text-caption text-muted enabled:hover:bg-ink/5 enabled:hover:text-ink"
       classList={{ "text-doing": props.row.standing === "needs-you" }}
-      disabled={props.row.session === null && props.row.unopened !== true}
+      disabled={!talking(props.row)}
       data-testid={TESTID.agentStanding} data-agent={props.row.id} data-standing={props.row.standing}
-      aria-expanded={props.row.session === null && props.row.unopened !== true ? undefined : unfolded(props.fold)}
+      aria-expanded={talking(props.row) ? unfolded(props.fold) : undefined}
       onClick={event => { event.stopPropagation(); unfolded(props.fold) ? fold(props.fold) : unfold(props.fold) }}>
       <AgentMark id={props.row.engine} /><span class={`${DOT} ${look().dot}`} aria-hidden="true" />
       {look().label}

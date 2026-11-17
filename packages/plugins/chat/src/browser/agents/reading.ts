@@ -1,3 +1,4 @@
+import { placeKey, type Place } from "@olai/format"
 import { keepMessage } from "../chat/message-draft.ts"
 import { createStore } from "solid-js/store"
 import { createNewChat } from "./new-chat.ts"
@@ -22,6 +23,13 @@ export interface SeatHere {
   readonly name: string
 }
 
+/** WHO UNSENT WORDS ARE FOR: a row (its page's plain composer, and the chat
+ *  row a door's start left waiting at sign-in), or one door's box at a place —
+ *  the seat's and **This page** are two boxes (`./Door.tsx`). */
+export type Unsent =
+  | { readonly kind: "row"; readonly node: string }
+  | { readonly kind: "door"; readonly where: "seat" | "panel"; readonly place: Place }
+
 export const createAgentReadings = (agents: Roster) => {
   const newChat = createNewChat((to, text) => keepMessage(ui(to).messages, JSON.stringify([to.agent, to.session]), text, true))
   const page = createPageOwners<PageSession>()
@@ -33,6 +41,15 @@ export const createAgentReadings = (agents: Roster) => {
    *  panel and the palette can offer a chat about the page in front exactly
    *  where that page has a seat (`./Seat.tsx`). */
   const [seats, setSeats] = createSignal<readonly SeatHere[]>([])
+  /** UNSENT WORDS THAT HAVE NO CONVERSATION YET, owned by the activation and
+   *  kept by who they are for ({@link Unsent}). A page or a seat is drawn and
+   *  taken down for reasons that have nothing to do with the person; the words
+   *  outlive every one of them, and go into the conversation's own composer
+   *  once it opens (`./Page.tsx`). */
+  const [unsent, setUnsent] = createStore<Record<string, string | undefined>>({})
+  const unsentKey = (owner: Unsent) => owner.kind === "row"
+    ? JSON.stringify(["row", owner.node])
+    : JSON.stringify(["door", owner.where, placeKey(owner.place)])
   const isShown = (chat: Chat) => views().some(view => view.chat() === chat && view.shown())
   /** THE CONVERSATION OF A NODE AGENT THAT THE PAGE IS SHOWING, if any: the
    *  node's bound session, and a reading of it that is on screen.
@@ -162,6 +179,9 @@ export const createAgentReadings = (agents: Roster) => {
     },
     /** The seat of the page in a pane, if that page placed one. */
     seatIn: (pane: string) => seats().find(one => one.pane === pane),
+    /** The unsent words for `owner`, and the setter that replaces them. */
+    unsent: (owner: Unsent) => unsent[unsentKey(owner)] ?? "",
+    setUnsent: (owner: Unsent, text: string) => setUnsent(unsentKey(owner), text === "" ? undefined : text),
     needsSurface: (element: HTMLElement, shown: () => boolean) => {
       const row = { element, shown }
       needsSurfaces.add(row)

@@ -42,7 +42,7 @@ import { LOOK, type Row } from "./roster.ts"
 import { ChatName } from "./ChatName.tsx"
 import { MARK_BOX } from "@olai/ui-primitives/mark.ts"
 import { chatRoute } from "./focus.ts"
-import { ThisPage } from "./Seat.tsx"
+import { ThisPage } from "./Door.tsx"
 
 export function Dock() {
   const agents = useAgents()
@@ -167,7 +167,7 @@ function Picker(props: { readonly rows: ReadonlyArray<Row> }) {
     <div class="olai-scroll min-h-0 flex-1 overflow-y-auto p-1" data-testid={TESTID.chatDockPicker}>
       {/* THE PAGE IN FRONT FIRST, where it has a seat and no chat yet: the
           one conversation a reader opening this column is most likely after
-          is one about what they are looking at (`./Seat.tsx`). */}
+          is one about what they are looking at (`./Door.tsx`). */}
       <ThisPage open={(node) => dock()?.open(node)} />
       <Show when={props.rows.length > 0} fallback={
         <p class="m-0 px-3 py-6 text-label text-muted">No chats yet. Start an agent on any row, or press + beside Chats.</p>

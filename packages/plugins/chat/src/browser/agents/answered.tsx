@@ -29,12 +29,12 @@ import { chatWire } from "../wire.ts"
 
 import type { NotHere } from "@kolu/acp/engine"
 import { standIns, type Place } from "@olai/format"
-import { addressIn, labelIn, nameOf } from "olai-plugin-navigation/address/address.ts"
+import { labelIn, nameOf } from "olai-plugin-navigation/address/address.ts"
 import { navigation } from "../navigation.ts"
 import { servedDirectory } from "../vault.ts"
 import { createDeclared } from "../references.ts"
 import { placeMark } from "../kinds.ts"
-import { placeOfRoute, routeOfPlace } from "./place.ts"
+import { placeIn, routeOfPlace } from "./place.ts"
 
 /**
  * WHAT A CHAT IS CALLED wherever it is listed — the sidebar, the side panel's
@@ -122,10 +122,7 @@ export function createAgents(): Roster {
   const declared = createDeclared()
   const written = createMemo(() => {
     const routes = navigation()?.routes
-    return rows().map(row => {
-      const route = routes === undefined ? undefined : addressIn(routes, row.title)
-      return route === undefined ? null : placeOfRoute(routes!, route)
-    })
+    return rows().map(row => routes === undefined ? null : placeIn(routes, row.title))
   })
   createEffect(() => declared.want(written().flatMap(place => place?.kind === "row" ? [place.id] : [])))
   const served = createMemo(() => new Set(servedDirectory()?.paths() ?? []))

@@ -40,17 +40,13 @@ export const placeOfRoute = (routes: Routing, route: Route): Place => {
   return { kind: "page", href: routes.href(routes.narrowedTo(route, "")) }
 }
 
-/** The place a chat row's title stands for, or `null` for a row that stands
- *  for itself. `held` answers whether the place is one olai still has. */
-export const standsFor = (
-  routes: Routing,
-  title: string,
-  held: (place: Place) => boolean,
-): Place | null => {
+/** The place a chat row's title is written as, or `null` for a title that is
+ *  no address (a row that stands for itself). Whether olai still has that
+ *  place is the roster's question (`./answered.tsx`), asked of the readings
+ *  it holds. */
+export const placeIn = (routes: Routing, title: string): Place | null => {
   const route = addressIn(routes, title)
-  if (route === undefined) return null
-  const place = placeOfRoute(routes, route)
-  return held(place) ? place : null
+  return route === undefined ? null : placeOfRoute(routes, route)
 }
 
 /** The route that opens a place — what a stand-in's row in the sidebar or the
