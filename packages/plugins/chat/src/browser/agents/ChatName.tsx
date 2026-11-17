@@ -1,3 +1,4 @@
+import { MARK_BOX } from "@olai/ui-primitives/mark.ts"
 import { Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import { useAgents } from "./answered.tsx"
@@ -20,7 +21,3 @@ export function ChatName(props: { readonly row: Row; readonly class?: string }) 
   </>
 }
 
-/** The box a place's mark is drawn in, wherever a chat is named — one
- *  spelling, shared by the sidebar's rows, the panel's title and picker, and
- *  the side panel's **This page** block. */
-export const MARK_BOX = "inline-flex h-3.5 w-[calc(0.875rem*18/16)] shrink-0 items-center"

@@ -83,6 +83,7 @@ import { createMemo, For, type JSX, Show } from "solid-js"
 
 import { renderTitle, sameDrawing } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
+import { MARK_BOX } from "@olai/ui-primitives/mark.ts"
 
 import type { Place } from "./place.ts"
 import { PlaceLine, type CrumbFaces } from "./PlaceLine.tsx"
@@ -194,7 +195,7 @@ export function Result(props: {
     >
       <span class="flex w-full min-w-0 items-center gap-3">
         <span class="flex min-w-0 flex-1 items-center gap-2">
-          <Show when={props.mark}>{(mark) => <Dynamic component={mark()} />}</Show>
+          <Show when={props.mark}>{(mark) => <span class={`${MARK_BOX} text-muted`}><Dynamic component={mark()} /></span>}</Show>
           <Show
             when={drawing()}
             fallback={

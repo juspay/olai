@@ -39,7 +39,8 @@ import { byActivity } from "./activity-order.ts"
 import { createNodeConversation } from "./conversation.ts"
 import { Conversation } from "./Fold.tsx"
 import { LOOK, type Row } from "./roster.ts"
-import { ChatName, MARK_BOX } from "./ChatName.tsx"
+import { ChatName } from "./ChatName.tsx"
+import { MARK_BOX } from "@olai/ui-primitives/mark.ts"
 import { chatRoute } from "./focus.ts"
 import { ThisPage } from "./Seat.tsx"
 
@@ -87,7 +88,7 @@ export function Dock() {
                   shares). The sentence is a pointer's convenience only: the
                   anchor is named by the agent's title and the link role says
                   the rest. */}
-              {/* SIZED, like every other place mark (`./ChatName.tsx`'s
+              {/* SIZED, like every other place mark (`@olai/ui-primitives`'s
                   `MARK_BOX`): a kind's glyph draws itself `h-full w-full`. */}
               <Show when={agents.named(agent()).mark}>{mark => <span class={`${MARK_BOX} text-muted`} data-testid={TESTID.chatPlaceMark}><Dynamic component={mark()} /></span>}</Show>
               <Tip text={agents.standsIn(agent()) ? "Open the page it is about" : "Open the agent's page"} layer={LAYER.over}>
