@@ -11,8 +11,8 @@ Feature: Agent activity is reachable from Chats and the palette
     And I type "Agents" into the palette
     Then the Agents palette lists 11 agents
     When I pick the Agents palette row "recent-0"
-    Then the zoomed node is "recent-0"
-    And the node page conversation is ready for "recent-0"
+    Then pane 0 is showing "/chat/recent-0"
+    And the chat page conversation is ready
     When I ask the agent "palette reached the oldest agent"
     Then the agent has answered "palette reached the oldest agent" exactly once
     And the Chats row "recent-0" is current
@@ -28,14 +28,14 @@ Feature: Agent activity is reachable from Chats and the palette
     And the Chats row "recent-10" wears no dot
     And there should be no page errors
 
-  Scenario: An unbound palette row opens a page of its own without a conversation
+  Scenario: An unbound palette row opens its chat page with the door on it
     Given the sidebar has eleven agents with dated vault edits
     And I open the outline "house.olai"
     When I press the palette shortcut
     And I type "Agents" into the palette
     And I pick the Agents palette row "recent-1"
-    Then the zoomed node is "recent-1"
-    And the node page offers no conversation
+    Then pane 0 is showing "/chat/recent-1"
+    And the chat page offers to chat about "Chats agent 1"
     And there should be no page errors
 
   Scenario: Chats follows speech and Needs you lists waiting agents before stopped ones
@@ -75,12 +75,11 @@ Feature: Agent activity is reachable from Chats and the palette
     Then the Chats menu offers "Put to sleep, Tidy memory, Close the agent"
     When I choose "Put to sleep" from the Chats menu
     Then the agent "order" stands "asleep"
-    # A NEEDS YOU ROW IS THE SAME DESTINATION as a Chats row: the conversation's
-    # own page, not the file it lives in. `isCurrent` compares the address's
-    # node id, so the row goes on being current on that page.
+    # A NEEDS YOU ROW IS THE SAME DESTINATION as a Chats row: the
+    # conversation's own page, not the file it lives in.
     When I press the Needs you row "install"
-    Then the zoomed node is "install"
-    And the address is "/zoom/#install"
+    Then the address is "/chat/install"
+    And the chat page is about the node "install" named "install the cabinets" in "house.olai"
     And the Chats row "install" is current
     And the panel is open at the question
     And there should be no page errors
@@ -108,8 +107,8 @@ Feature: Agent activity is reachable from Chats and the palette
 
   # THE REPORT (this scenario is its regression): a conversation whose row
   # lives in another file opened THAT FILE with the chat's row merely selected.
-  # The row must lead to the conversation's own page, whose trail roots at the
-  # file that holds the node — not at the file the reader happened to be on.
+  # The row must lead to the conversation itself — its own page, named by the
+  # row that holds it — and not to the file the reader happened to be on.
   Scenario: A chat's row opens its own page, not the file the reader is on
     Given I open the outline "house.olai"
     When I press new chat in Chats
@@ -120,9 +119,8 @@ Feature: Agent activity is reachable from Chats and the palette
     Then the chat child under "gate" in "yard.olai" is titled "about the gate"
     When I open the outline "house.olai"
     And I press the Chats row "new-chat"
-    Then the conversation "new-chat" is the root of the page
-    And the breadcrumbs are "yard.olai, the yard, oil the gate hinge"
-    And the node page conversation is ready for "new-chat"
+    Then the chat page is about the node "new-chat" named "about the gate" in "yard.olai"
+    And the chat page conversation is ready
     And there should be no page errors
 
   @phone

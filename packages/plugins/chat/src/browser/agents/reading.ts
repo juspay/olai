@@ -22,11 +22,12 @@ export interface SeatHere {
 }
 
 /** WHO UNSENT WORDS ARE FOR: a chat (its page's plain composer, and the chat
- *  a door's start left waiting at sign-in), or one door's box on a note —
- *  the seat's and **This page** are two boxes (`./Door.tsx`). */
+ *  a door's start left waiting at sign-in), or one door's box on an item —
+ *  the seat's, **This page**'s and a chat page's are three boxes
+ *  (`./Door.tsx`), each keyed by the item it is about. */
 export type Unsent =
   | { readonly kind: "row"; readonly node: string }
-  | { readonly kind: "door"; readonly where: "seat" | "panel"; readonly path: string }
+  | { readonly kind: "door"; readonly where: "seat" | "panel" | "page"; readonly item: string }
 
 export const createAgentReadings = (agents: Roster) => {
   const newChat = createNewChat((to, text) => keepMessage(ui(to).messages, JSON.stringify([to.agent, to.session]), text, true))
@@ -47,7 +48,7 @@ export const createAgentReadings = (agents: Roster) => {
   const [unsent, setUnsent] = createStore<Record<string, string | undefined>>({})
   const unsentKey = (owner: Unsent) => owner.kind === "row"
     ? JSON.stringify(["row", owner.node])
-    : JSON.stringify(["door", owner.where, owner.path])
+    : JSON.stringify(["door", owner.where, owner.item])
   const isShown = (chat: Chat) => views().some(view => view.chat() === chat && view.shown())
   /** THE CONVERSATION OF A NODE AGENT THAT THE PAGE IS SHOWING, if any: the
    *  node's bound session, and a reading of it that is on screen.

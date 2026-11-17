@@ -50,17 +50,17 @@ The agent's first message carries an instruction from olai:[^preamble][^about] t
 
     The rest: **Not running**, the agent stopped. **Asleep**: it is saved, and opening it carries the conversation on, with the age of the last line heard. **No agent**: there is no chat on this row yet.
 
-[^needs]: The **Needs you** part of the sidebar lists agents waiting for an answer first and agents that are not running after them, newest activity first. A row there shows how many questions are waiting, or **Not running**. The part is absent when nothing is waiting. Pressing a row in either part opens that conversation's own page.
+[^needs]: The **Needs you** part of the sidebar lists agents waiting for an answer first and agents that are not running after them, newest activity first. A row there shows how many questions are waiting, or **Not running**. The part is absent when nothing is waiting. Pressing a row in either part opens that chat's own page.
 
 [^chats]: The **Chats** part lists every chat. Awake agents come first, in the order of the states above, and the rest follow by when they last said something. The limit of ten is applied after that sorting, so ten sleeping chats can never hide a live one. An awake row wears its state's dot, and a title in bold means the agent has spoken since you last read it ([what olai tells you about](attention.md)).
 
 [^beyond]: Search for **Agents**, or for a title, in the palette to reach every agent, including the ones past the limit of ten. Each **Chats** row has a **•••** button of its own, revealed when you hover or focus it, carrying **Put to sleep**, **Tidy memory** and **Close the agent**. A phone draws no **•••**: the row's menu in the outline carries the same entries.
 
-[^opening]: Clicking a chat about a page, in **Chats**, in **Needs you** or in the palette, opens the page itself rather than the chat row. A chat of its own row opens that row's page. Its **Chats** row is marked as the page you are on while you read that page, and a row's chat unfolded in its outline is marked there.
+[^opening]: Clicking a chat, in **Chats**, in **Needs you** or in the palette, opens that chat's own page: `/chat/notes/plan.md` for a note, `/chat/<row id>` for a row. The page is headed by the name of the thing that chat belongs to. **Open plan beside ›** on it puts that thing in the pane to its left. Its **Chats** row is marked while you read the page.
 
     A chat about a page is listed under that page's name, with the page's own mark, and the palette adds the path under it, `Agents · notes/plan.md`. What such a title is called, however it is spelled, is in [plugins/chat.md](plugins/chat.md).
 
-[^above]: The button on a row that sits under an agent's row reads `↑` with that agent's mark, the row's title and the agent's name. Pressing it opens that conversation's page.
+[^above]: The button on a row that sits under an agent's row reads `↑` with that agent's mark, the row's title and the agent's name. Pressing it opens that chat's own page.
 
     The trail of parent rows drawn above a row, on a day's row and in the place line of a search result marks every parent that has an agent, and each mark opens that agent's conversation. Where two rows above you have agents, the button names the nearest one and both marks are drawn.
 

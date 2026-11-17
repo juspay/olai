@@ -101,6 +101,27 @@ export const TESTID = {
   agentFold: "agent-fold",
   agentPageHead: "agent-page-head",
   agentPageFoot: "agent-page-foot",
+  // ── a chat's own page, `/chat/<item>` ────────────────────────────────
+  /** THE WHOLE PAGE. `data-item` is the item key the address names — a
+   *  node's id, or `/` and a note's path — and `data-kind` says which of the
+   *  two it is. The conversation under it keeps the page faces' own ids
+   *  above, so a scenario addresses it exactly as it addresses a node's. */
+  chatPage: "chat-page",
+  /** Its heading: the item's name, live. */
+  chatPageTitle: "chat-page-title",
+  /** The small mono line under it — a note's path, a node's outline. */
+  chatPageWhere: "chat-page-where",
+  /** How the chat stands, at the right of the head. Read-only here: the page
+   *  IS the conversation, so there is nothing for a press to unfold. */
+  chatPageStanding: "chat-page-standing",
+  /** *Open <name> beside ›* — the item into the pane on the left, this chat
+   *  into the one on its right. Reads *Shown beside* where a pane already has
+   *  the item, and then only focuses it; `data-beside` is which of the two. */
+  chatOpenBeside: "chat-open-beside",
+  /** A NOTE'S SWITCH: where its chat opens, written as `chat-opens`.
+   *  `data-beside` is the answer. */
+  chatOpens: "chat-opens",
+  chatOpensSwitch: "chat-opens-switch",
   agentPlainComposer: "agent-plain-composer",
   agentPlainInput: "agent-plain-input",
   agentPlainEngine: "agent-plain-engine",

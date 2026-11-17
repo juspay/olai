@@ -527,8 +527,13 @@ export const outlineAt = (claims: Claims, at: AtDocument): AtOutline | null => {
  * runs once per link the browser draws, per frame, and nearly every filename
  * in a vault is already the characters a URL takes verbatim. The walk is what
  * the answer IS; the test is what says the answer is the argument.
+ *
+ * EXPORTED for the one grammar that writes a path into a URL of its OWN
+ * rather than into an address — `olai-plugin-chat`'s `/chat/<note path>` —
+ * so a chat page's address escapes a filename exactly as every other link to
+ * that file does, rather than in a second spelling one character apart.
  */
-const spellPath = (path: string): string =>
+export const spellPath = (path: string): string =>
   PLAIN.test(path) ? path : path.split("/").map(encodeURIComponent).join("/")
 
 /** EXACTLY the characters `encodeURIComponent` leaves alone, plus the
@@ -545,9 +550,10 @@ const PLAIN = /^[A-Za-z0-9\-_.!~*'()/]*$/
  * Per SEGMENT because `%2F` is a slash in somebody's filename rather than a
  * separator, and a whole-string decode would turn one into the other. A path
  * with no `%` in it can hold neither, so it is its own reading — which is
- * every path a person types and every one this module prints.
+ * every path a person types and every one this module prints. Exported for
+ * {@link spellPath}'s reader, so the two ends of one escaping stay together.
  */
-const readPath = (text: string): string | null => {
+export const readPath = (text: string): string | null => {
   if (!text.includes("%")) return text
   const segments = text.split("/").map(spelled)
   return segments.includes(null) ? null : segments.join("/")

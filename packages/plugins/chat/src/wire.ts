@@ -430,6 +430,29 @@ export const surface = defineSurface({
         error: ChatFailure,
       },
       /**
+       * WHERE THIS NOTE'S CHAT OPENS — the switch *Opens alone* / *Opens with
+       * <name> beside*, written into the note's own front matter as
+       * `chat-opens`.
+       *
+       * A PATH AND NOT AN ITEM KEY, which is the shape of the rule: only a
+       * note has this switch. A node's chat has nowhere to keep one — the
+       * answer is a line in a YAML block, and a row has no block — so a verb
+       * taking the key would be a verb half its callers could spell wrong.
+       *
+       * It refuses a path this directory does not hold a note at, and one
+       * with no chat on it: the switch says where a conversation opens, and a
+       * note without one has no conversation to place.
+       */
+      setOpens: {
+        input: Schema.Struct({
+          /** The note, root-relative — the same path its item key carries. */
+          path: Schema.String,
+          /** `true` writes `beside`, `false` writes `alone`. */
+          beside: Schema.Boolean,
+        }),
+        error: ChatFailure,
+      },
+      /**
        * TIDY THIS NODE'S MEMORY NOW — the verb a person presses (*Tidy
        * memory*), and the only way into the pass that is not the loop's own
        * clock.
@@ -641,6 +664,7 @@ export const faces = {
     "conversation.closeAgent": "tool",
     "conversation.sleep": "tool",
     "conversation.setSleeping": "tool",
+    "conversation.setOpens": "tool",
     "conversation.tidyMemory": "tool",
     "conversation.reopen": "tool",
     "conversation.sessions": "tool",

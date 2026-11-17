@@ -8,9 +8,19 @@ import { createRows } from "./chat/order.ts"
 import { createTail, grownText } from "./chat/growing.ts"
 import { servedDirectory } from "./vault.ts"
 import { LOOK } from "./agents/roster.ts"
+import { itemKey } from "@olai/format"
+import { chatPage } from "./agents/route.ts"
 
-export const previewNode = (route: Route) => route.kind === "at" &&
-  (route.address?.kind === "node" || route.address?.kind === "row") ? route.address.id : undefined
+/** WHOSE CONVERSATION A LINK IS ABOUT: a chat's own page (`/chat/<item>`,
+ *  which is where every door that opens a chat goes), or a node's page, which
+ *  draws that node's chat at its foot. The answer is the ITEM KEY, which is
+ *  what the wire and the roster are both keyed by. */
+export const previewNode = (route: Route) => {
+  const chat = chatPage.value(route)
+  if (chat !== null) return itemKey(chat)
+  return route.kind === "at" && (route.address?.kind === "node" || route.address?.kind === "row")
+    ? route.address.id : undefined
+}
 
 /** A read-only wire lease: no conversation UI, wake, visit or composer is
  * acquired by hovering. The roster is already owned by chat's activation. */

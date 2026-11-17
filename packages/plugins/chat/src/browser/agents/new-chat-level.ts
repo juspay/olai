@@ -70,19 +70,34 @@ const rowOf = (owner: NewChatOwner, agents: Roster) => (row: WhereRow): PaletteI
  *  question, as the level opens, is asked at once. */
 export const TYPING_PAUSE_MS = 120
 
-/** The typed text, settled: the first value at once, later ones after a pause.
- *  The timer is the level's and stops with it. */
-const settled = (typed: Accessor<string>): Accessor<string> => {
+/** The typed text, settled: the value the level opened with is the question it
+ *  asks at once, and later ones wait for typing to pause. The timer is the
+ *  level's and stops with it.
+ *
+ *  JUDGED BY THE VALUE and never by which run this is. Counting runs swallowed
+ *  a change that landed before the first effect ran — words typed into the box
+ *  in the same breath as the level opening, which under load is an ordinary
+ *  thing — and the level then asked its question about the empty box forever,
+ *  since nothing was going to type again. */
+export const settled = (typed: Accessor<string>): Accessor<string> => {
   const [value, setValue] = createSignal(untrack(typed))
-  let first = true
   createEffect(() => {
     const now = typed()
-    if (first) { first = false; return }
+    if (now === untrack(value)) return
     const timer = setTimeout(() => setValue(now), TYPING_PAUSE_MS)
     onCleanup(() => clearTimeout(timer))
   })
   return value
 }
+
+
+/** How long the level waits before asking again when a question comes back
+ *  with no answer, and how many times it tries. A plugin arriving or leaving
+ *  recomposes this serve's surface, and a call made across that moment is
+ *  refused: a level that asked once would then stay EMPTY for as long as
+ *  somebody looked at it, because nothing is ever going to type again. */
+export const RETRY_PAUSE_MS = 150
+const RETRIES = 10
 
 /** The where level's rows, for one opening: Here is read once, as it opens;
  *  the query follows the typed text once typing pauses, and an answer to a
@@ -97,11 +112,18 @@ const whereLevel = (owner: NewChatOwner, agents: Roster) => (scope: LevelScope):
     const ids = recent()
     const query = { filter: filter(), limit: NODES_LIMIT, ids: here === null ? ids : [here, ...ids], parents: ids }
     let current = true
-    onCleanup(() => { current = false })
-    void runAsync(chatWire().procedures.conversation.locations(query)).then(result => {
-      if (current && !scope.signal.aborted && result._tag === "Success") setAnswer(result.success)
-    })
+    let timer: ReturnType<typeof setTimeout> | undefined
+    onCleanup(() => { current = false; clearTimeout(timer) })
+    const ask = (left: number): void => {
+      void runAsync(chatWire().procedures.conversation.locations(query)).then(result => {
+        if (!current || scope.signal.aborted) return
+        if (result._tag === "Success") setAnswer(result.success)
+        else if (left > 0) timer = setTimeout(() => ask(left - 1), RETRY_PAUSE_MS)
+      })
+    }
+    ask(RETRIES)
   })
+
   // The palette keys rows by id and hands each row its item; reusing the item
   // of a row whose drawing is unchanged keeps that row's bindings asleep while
   // typing filters the list and answers arrive.

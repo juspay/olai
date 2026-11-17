@@ -4,7 +4,7 @@ import type { Route } from "olai-plugin-navigation/routes"
 import { talking, type Row } from "./roster.ts"
 import { unfold } from "./folding.ts"
 import { agentReadings } from "./reading.ts"
-import { routeOfItem } from "./here.ts"
+import { chatRouteOf } from "./route.ts"
 /** Opening a conversation marks it visited and unfolds it — under its row, so
  *  the outline it came from still holds the conversation when the reader goes
  *  back, and in the seat at the foot of a note (`./Seat.tsx`), which is keyed
@@ -14,11 +14,12 @@ export const visitAgent = (row: Row): void => {
   agentReadings()?.visit(row.id)
   if (talking(row)) unfold(row.id)
 }
-/** WHERE A CHAT OPENS: a note's chat opens its note, a node's opens the node's
- *  own page — `/zoom/#id`, not the `/#id` reveal (`./here.ts`). Sidebar rows,
- *  the palette and a crumb's mark share this, so none can drift from the
- *  others. */
-export const chatRoute = (row: Row): Route => routeOfItem(itemOf(row.id))
+/** WHERE A CHAT OPENS: its own page, `/chat/<item>` (`./route.ts`). The
+ *  sidebar's rows, the palette, the pill above a node and a crumb's mark
+ *  share this, so none can drift from the others — and a conversation is
+ *  opened in one place rather than wherever the thing it is about happens to
+ *  draw it. */
+export const chatRoute = (row: Row): Route => chatRouteOf(itemOf(row.id))
 export const focusAgent = (nav: { readonly go: (route: Route) => void }, row: Row): void => {
   nav.go(chatRoute(row))
   visitAgent(row)

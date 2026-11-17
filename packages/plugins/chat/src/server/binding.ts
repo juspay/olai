@@ -53,7 +53,7 @@
  * on and two tabs can be looking at one item.
  */
 
-import { itemOf, matterWith, type OpFailure, sessionValue, UsageFailure } from "@olai/format"
+import { itemKey, itemOf, matterWith, type OpFailure, sessionValue, UsageFailure } from "@olai/format"
 import { Effect } from "effect"
 
 import type { Conversing } from "../sessions.ts"
@@ -241,6 +241,39 @@ export const setSleeping = (
       return yield* new UsageFailure({ reason: `no node agent is bound to this node to mark` })
     }
     yield* binding.mark(input.node, input.on ? "on" : "")
+  })
+
+/**
+ * WHERE THIS NOTE'S CHAT OPENS — the switch under a note's chat, written into
+ * the note's own front matter beside the tie.
+ *
+ * ONE ACT, like {@link setSleeping}, and through the same writer the tie goes
+ * through ({@link matterWritten}): the key IS the state, a person can type it
+ * by hand, and a `git pull` carries their answer to the next machine.
+ *
+ * BOTH ANSWERS ARE WRITTEN OUT, which is the one place this differs from the
+ * sleeping mark: `alone` is the absence's meaning, but it is also the answer
+ * the one-time move writes when it seats a chat on a note (`./move.ts`), and
+ * a switch that removed the key to say *alone* would leave a reader of the
+ * file unable to tell "somebody chose alone" from "nobody has chosen". The
+ * reading treats absent and `alone` as the one answer either way
+ * (`@olai/format`'s `notesIn`).
+ *
+ * Refuses a path with no chat on it, for {@link closeAgent}'s reason: the
+ * switch says where a conversation opens, and a note with none has nothing to
+ * place. A path the directory holds no note at fails the same way — its key
+ * is bound to nothing.
+ */
+export const setOpens = (
+  binding: Binding,
+  input: { readonly path: string; readonly beside: boolean },
+): Effect.Effect<void, OpFailure> =>
+  Effect.gen(function*() {
+    const item = itemKey({ kind: "note", path: input.path })
+    if (binding.boundAt(item) === null) {
+      return yield* new UsageFailure({ reason: `no chat is tied to \`${input.path}\` to place` })
+    }
+    yield* matterWritten(binding, input.path, [[binding.opensKey(), input.beside ? "beside" : "alone"]])
   })
 
 /**

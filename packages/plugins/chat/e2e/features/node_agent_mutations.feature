@@ -48,9 +48,11 @@ Feature: Node session ownership follows changes to the node
     When I open the Trash
     And I put back "install" from the Trash
     Then "house.olai" holds the node "install"
-    When I press the agent "install"
+    # THE SUBTREE CAME BACK WITH IT, read in the outline where those rows live
+    # — the press below opens the chat itself, which is a page of its own.
+    When I open the outline "house.olai"
     Then the node "hinges" is shown
-    When I show the done nodes
+    When I press the agent "install"
     Then the panel is in the remembered conversation "current"
     When I open the fold history
     And I open the past session "first cabinet history"

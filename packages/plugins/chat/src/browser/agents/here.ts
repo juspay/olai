@@ -23,6 +23,7 @@
  */
 import { type AgentItem, type Claims, isNotePath, itemKey, itemOf } from "@olai/format"
 import { atFile, fileNamed, type Route, zoomNode } from "olai-plugin-navigation/routes"
+import { chatPage } from "./route.ts"
 
 /** The item a page is about, or `null` for a page nothing can be said to. */
 export const itemHere = (claims: Claims | undefined, route: Route): AgentItem | null => {
@@ -44,18 +45,19 @@ export const noteHere = (claims: Claims | undefined, route: Route): string | nul
   return item === null || item.kind !== "note" ? null : item.path
 }
 
-/** WHERE AN ITEM'S CHAT OPENS: a note's is its note's page, a node's is the
- *  node's own page — `/zoom/#id`, not the `/#id` reveal. The sidebar rows, the
- *  palette and a crumb's mark share this, so none can drift from the others. */
+/** WHERE AN ITEM ITSELF OPENS: a note's page, or a node's own page —
+ *  `/zoom/#id`, not the `/#id` reveal. What *Open <name> beside* puts in the
+ *  pane next to a chat, and the page a conversation is ABOUT. Where the chat
+ *  itself opens is its own address (`./route.ts`). */
 export const routeOfItem = (item: AgentItem): Route =>
   item.kind === "note" ? atFile(item.path) : zoomNode(item.id)
 
 /**
- * IS `route` THE PAGE THIS CHAT IS ABOUT? Its item is the page in front — a
- * note's note, a node's own page — or, for a node, its outline is in front
+ * IS `route` THIS CHAT? Its OWN PAGE (`/chat/<item>`), the page its item is —
+ * a note's note, a node's own page — or, for a node, its outline in front
  * with the conversation unfolded on its row, which is the rule a node's chat
- * has always had. What the sidebar lights a **Chats** row by, and what a tab's
- * dot follows (offered to the tabs row as `chat.state`'s `isCurrent`).
+ * has always had. What the sidebar lights a **Chats** row by, and what a
+ * tab's dot follows (offered to the tabs row as `chat.state`'s `isCurrent`).
  */
 export const isCurrent = (
   claims: Claims | undefined,
@@ -63,6 +65,8 @@ export const isCurrent = (
   row: { readonly id: string; readonly file: string },
   unfolded: boolean,
 ): boolean => {
+  const chat = chatPage.value(route)
+  if (chat !== null) return itemKey(chat) === row.id
   const here = itemHere(claims, route)
   if (here !== null && itemKey(here) === row.id) return true
   return itemOf(row.id).kind === "node" && unfolded && fileNamed(route) === row.file

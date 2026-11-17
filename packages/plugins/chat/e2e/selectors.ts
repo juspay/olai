@@ -250,3 +250,19 @@ export const CHAT_THIS_PAGE = selector(TESTID.chatThisPage);
  *  mark its kind of file wears. */
 export const CHAT_NAME = selector(TESTID.chatName);
 export const CHAT_FILE_MARK = selector(TESTID.chatFileMark);
+
+// ── a chat's own page, `/chat/<item>` ──────────────────────────────────
+
+/** THE PAGE. `data-item` is the item key the address names, `data-kind` which
+ *  of the two kinds of item it is. */
+export const CHAT_PAGE = selector(TESTID.chatPage);
+/** Its heading, and the small mono line under it saying where the item is. */
+export const CHAT_PAGE_TITLE = selector(TESTID.chatPageTitle);
+export const CHAT_PAGE_WHERE = selector(TESTID.chatPageWhere);
+/** How the chat stands, at the right of that line — read-only here. */
+export const CHAT_PAGE_STANDING = selector(TESTID.chatPageStanding);
+/** *Open <name> beside ›*, and what it reads once a pane has the item. */
+export const CHAT_OPEN_BESIDE = selector(TESTID.chatOpenBeside);
+/** A note's switch for where its chat opens; `data-beside` is the answer. */
+export const CHAT_OPENS = selector(TESTID.chatOpens);
+export const CHAT_OPENS_SWITCH = selector(TESTID.chatOpensSwitch);

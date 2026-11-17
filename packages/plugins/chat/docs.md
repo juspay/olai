@@ -14,13 +14,14 @@ Chat draws the conversation inside a row, on a node's page, at the foot of a pag
 
 ## Give a row or a page its own chat
 
-A row with its own agent is called a node agent. You make one by giving the row a property, a key and a value, whose kind is `chat-agent-session`. The rows under it are that agent's memory.[^declare] A chat row titled with an address is the chat at that address instead.[^standsfor]
+A row with its own agent is called a node agent. You make one by giving the row a property, a key and a value, whose kind is `chat-agent-session`. The rows under it are that agent's memory.[^declare]
 
 | Kind | What a value means |
 | --- | --- |
 | `chat-agent-session` | The engine, and after a colon the conversation: `claude`, or `claude:0f3c8d21-…`. |
 | `chat-agent-slept` | When olai last shortened that memory. Only olai's own pass writes it. |
 | `chat-agent-sleep` | `on` lets olai shorten that memory on a schedule; absent or `off` does not. |
+| `chat-opens` | On a note: `beside` opens its chat with the note beside it; `alone` or absent, alone. |
 
 ## Let olai shorten an agent's memory
 
@@ -47,8 +48,6 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 [^seat]: The seat is at the foot of a document, a whole outline, a file olai only shows, such as a `.csv` or a picture, and a plugin's page. Days, the Agenda, the Trash and a saved layout have no seat.
 
     Without a chat about that page the seat holds a box reading **Ask about plan…**, an agent picker and **Send**. With one it is that page's fold, which the closed block below describes.
-
-[^standsfor]: A title is an address written bare, `/notes/plan.md`, or as one named link, `[plan](/notes/plan.md)`. One place has one chat: a row's own chat beats a chat row standing in for it, and between two stand-ins the first in the **Chats** list wins, leaving the other an ordinary chat row. A title naming a file olai does not serve, a deleted file or a row that is not there stands for nothing, and that chat row is its own chat again.
 
 [^declare]: What a node agent writes under its row goes into your files. Each kind claims the property key spelled the same way as itself, so you need not declare any of the three. olai never adds the property for you, and it never treats an undeclared column as one of these kinds. An agent may write none of the three: an agent that gave itself the property would be deciding on its own that olai may wake it.
 

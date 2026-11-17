@@ -1,6 +1,6 @@
 import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
-import { memoryOf, UsageFailure } from "@olai/format"
+import { type AgentItem, memoryOf, UsageFailure } from "@olai/format"
 import { Result } from "effect"
 import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, untrack, onCleanup, Show } from "solid-js"
 import { usePane } from "olai-plugin-navigation/pane"
@@ -150,12 +150,17 @@ export function usePage(node: Accessor<string>) {
 
 /** The agent line and, under it, what the conversation has standing. The
  * strips are HERE rather than above the transcript because the page's head is
- * what the pane's scroll cannot carry away (`../chat/Strips.tsx`). */
-export function PageHead(props: { readonly node: string }) {
+ * what the pane's scroll cannot carry away (`../chat/Strips.tsx`).
+ *
+ * `beside` is the ITEM this conversation's own page is about — handed in by
+ * that page (`./ChatPage.tsx`) and by nothing else, because *Open <name>
+ * beside* is a verb about the pane this line is in: on a NODE's page the
+ * item is already the page, so the button would put a thing beside itself. */
+export function PageHead(props: { readonly node: string; readonly beside?: AgentItem }) {
   const page = usePage(() => props.node)
   return <Show when={page()?.chat()} fallback={<AgentAbove node={props.node} line />}>{current =>
     <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
-      <AgentLine chat={current()} node={props.node} page />
+      <AgentLine chat={current()} node={props.node} page beside={props.beside} />
       <Show when={page()?.chat()} keyed>{chat => <ConversationUIProvider value={chat.ui}>
         <Strips chat={chat} />
       </ConversationUIProvider>}</Show>

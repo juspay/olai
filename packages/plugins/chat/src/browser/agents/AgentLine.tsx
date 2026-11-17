@@ -17,8 +17,12 @@ import { TESTID } from "../../testids.ts"
 import { dock } from "../dock.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { LINE_VERB } from "./verb.ts"
+import { type AgentItem } from "@olai/format"
+import { nameOfItem, titleOfNode } from "./called.ts"
+import { servedDirectory } from "../vault.ts"
+import { OpenBeside } from "./OpenBeside.tsx"
 
-export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly dock?: boolean }) {
+export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly dock?: boolean; readonly beside?: AgentItem }) {
   const agents = useAgents()
   const state = () => props.chat.state()
   const doing = () => busyIn(state())
@@ -63,6 +67,10 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
           <span class="sr-only"> — ⌘J shows or hides the panel</span></button>
       </Tip>
     </Show>
+    {/* THE ITEM, BESIDE THIS CONVERSATION — only on the chat's own page,
+        which is the only line drawn in a pane the chat itself owns
+        (`./OpenBeside.tsx`). */}
+    <Show when={props.beside}>{item => <OpenBeside item={item()} name={nameOfItem(item(), servedDirectory()?.claims(), titleOfNode)} />}</Show>
     <Show when={!props.page}><Link route={atNode(props.node)} class={LINE_VERB}>Show in outline ›</Link></Show>
     <Show when={agents.at(props.node)}>
       {agent => <>

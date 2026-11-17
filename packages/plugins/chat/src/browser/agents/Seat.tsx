@@ -79,7 +79,7 @@ export function ChatSeat(props: SeatProps) {
           {/* KEYED ON THE CHAT'S KEY and not its row: the roster mints fresh
               rows every frame, and a conversation remounted per frame would be
               one re-read per frame. */}
-          <Show when={talking(chat()) ? chat()!.id : undefined} keyed fallback={<AboutBox where="seat" path={path} name={() => props.name}
+          <Show when={talking(chat()) ? chat()!.id : undefined} keyed fallback={<AboutBox where="seat" item={() => ({ kind: "note", path: path() })} name={() => props.name}
             started={(sent) => { const door = dock(); if (sent.talking && door?.desktop()) door.open(sent.started) }} />}>
             {(id) => <>
               <Show when={agents.at(id)}>{(row) =>

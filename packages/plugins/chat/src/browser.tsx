@@ -21,7 +21,7 @@ import type {} from "olai-plugin-sidebar/slots"
 import { slotContracts } from "./slots.ts"
 import type { Attention, AttentionRow } from "./attention.ts"
 import type { Route } from "olai-plugin-navigation/routes"
-import { type AgentItem, itemKey } from "@olai/format"
+import { type AgentItem, itemKey, itemOf } from "@olai/format"
 import { DOCK, type DockDoor } from "./dock.ts"
 import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
@@ -40,6 +40,9 @@ import { CrumbMark } from "./browser/agents/AgentAbove.tsx"
 import { trackCamera } from "./browser/chat/camera.ts"
 import { Fold } from "./browser/agents/Fold.tsx"
 import { PageHead, PageFoot } from "./browser/agents/Page.tsx"
+import { ChatPage } from "./browser/agents/ChatPage.tsx"
+import { chatPage } from "./browser/agents/route.ts"
+import { defineSelfDrawnPage } from "olai-plugin-navigation/routes"
 import { browserState as outlineBrowser } from "olai-plugin-outlines/contract"
 import { holdPages } from "./browser/pages.ts"
 import { agentReadings, createAgentReadings, holdAgentReadings } from "./browser/agents/reading.ts"
@@ -128,6 +131,15 @@ export default definePlugin({
     // this activation. Page faces consume them too; claiming them twice would
     // refuse the activation. Reverse cleanup removes the page before that owner.
     yield* slots.register("outline.page.foot", props => <AgentsProvider value={state.agents}><PageFoot {...props} /></AgentsProvider>)
+    // A CONVERSATION'S OWN PAGE, as a self-drawn route — the address every
+    // door that opens a chat goes to (`./browser/agents/route.ts`). It is
+    // registered on this row rather than in a component of its own because
+    // the page is the roster's reader: with chat off there is no page, which
+    // is the same sentence the seat and the fold say.
+    yield* slots.register(
+      "app.route",
+      defineSelfDrawnPage(chatPage, props => <AgentsProvider value={state.agents}><ChatPage item={props.value} /></AgentsProvider>),
+    )
     yield* slots.register("sidebar.section", { said: "Needs you", body: () => <AgentsProvider value={state.agents}><NeedsYou /></AgentsProvider> })
     yield* slots.register("sidebar.section", { said: SECTION, body: () => <AgentsProvider value={state.agents}><Chats /></AgentsProvider> })
     const palette = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
@@ -141,8 +153,10 @@ export default definePlugin({
     yield* (yield* rendererSlots).contribute(linkPreviews, {
       priority: 100,
       matches: route => {
-        const id = previewNode(route)
-        const agent = id === undefined ? undefined : state.agents.chatOf({ kind: "node", id })
+        // THE KEY IS THE ITEM'S, a node's id or a note's path, because a chat
+        // page is addressed by either (`./browser/LinkPreview.tsx`).
+        const key = previewNode(route)
+        const agent = key === undefined ? undefined : state.agents.chatOf(itemOf(key))
         return agent?.session != null
       },
       Preview: props => <ChatLinkPreview route={props.route} roster={state.agents} />,

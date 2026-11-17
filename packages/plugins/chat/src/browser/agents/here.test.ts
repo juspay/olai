@@ -4,6 +4,7 @@ import { describe, expect, test } from "bun:test"
 import type { AgentItem } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
+import { chatPage } from "./route.ts"
 
 import { isCurrent, itemHere, noteHere, routeOfItem } from "./here.ts"
 
@@ -69,5 +70,16 @@ describe("the dot on a tab and the lit Chats row", () => {
     expect(isCurrent(TEST_CLAIMS, at("/house.olai"), node, true)).toBe(true)
     expect(isCurrent(TEST_CLAIMS, at("/house.olai"), node, false)).toBe(false)
     expect(isCurrent(TEST_CLAIMS, at("/notes/plan.md"), node, true)).toBe(false)
+  })
+
+  // THE CHAT'S OWN PAGE IS THE CHAT, which is the one a press on a Chats row
+  // now opens: the row is lit there, and on nobody else's page.
+  test("a chat page lights its own row and no other", () => {
+    const onNote = chatPage.to({ kind: "note", path: "notes/plan.md" })
+    const onNode = chatPage.to({ kind: "node", id: "install" })
+    expect(isCurrent(TEST_CLAIMS, onNote, note, false)).toBe(true)
+    expect(isCurrent(TEST_CLAIMS, onNote, node, true)).toBe(false)
+    expect(isCurrent(TEST_CLAIMS, onNode, node, false)).toBe(true)
+    expect(isCurrent(TEST_CLAIMS, onNode, note, false)).toBe(false)
   })
 })

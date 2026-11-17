@@ -3,8 +3,8 @@ Feature: A note's chat is named, opened and lit by its note
   A chat that belongs to a note is listed under the note's own name, wearing
   the mark that kind of file wears — in the sidebar's Chats, the side panel's
   title and picker, and the palette, whose second line says where the note is.
-  Pressing such a row opens the NOTE, and the row is lit exactly while that
-  note is the page in front.
+  Pressing such a row opens that chat's own page, and the row is lit exactly
+  while that chat is the page in front.
 
   Scenario Outline: The sidebar and the palette name the note on <screen>
     Given the vault holds "notes/plan.md" saying "# Plan"
@@ -34,20 +34,22 @@ Feature: A note's chat is named, opened and lit by its note
     Then the panel picker row "theirs" reads "plan" with a file mark
     And there should be no page errors
 
-  Scenario: Pressing the Chats row opens the note, and the row is lit there and nowhere else
+  Scenario: Pressing the Chats row opens the chat, and the row is lit there and nowhere else
     Given the vault holds "notes/plan.md" saying "# Plan"
     And I open the document "notes/plan.md"
     When I ask about this page "open me later"
     Then the note "notes/plan.md" carries a chat as "plan-chat"
-    # COLD, so this tab remembers no open seat: what follows is the press on
-    # the Chats row doing the opening.
+    # COLD, so this tab remembers nothing: what follows is the press on the
+    # Chats row doing the opening.
     When I open the address "/"
     Then the Chats row "plan-chat" is not current
     When I press the Chats row "plan-chat"
-    Then the document open is "notes/plan.md"
+    # THE CHAT ITSELF, at its own address — the note is one press away on it
+    # (*Open plan beside ›*), and the conversation is drawn once.
+    Then pane 0 is showing "/chat/notes/plan.md"
+    And the chat page is about the note "notes/plan.md" named "plan"
     And the Chats row "plan-chat" is current
-    And the seat is not folded
-    And the seat holds the conversation "plan-chat"
+    And the chat page conversation is ready
     When I open the outline "house.olai"
     Then the Chats row "plan-chat" is not current
     And there should be no page errors

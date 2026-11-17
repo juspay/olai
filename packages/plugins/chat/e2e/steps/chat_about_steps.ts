@@ -114,8 +114,12 @@ const noteText = (world: OlaiWorld, note: string): string => {
  * claim has to be made against the bytes rather than against the same parser
  * that wrote them. It is as small as that claim: plain `key: value` lines,
  * which is what the writer promises to leave (`@olai/format`'s `matterWith`).
+ *
+ * EXPORTED for the chat page's own steps (`./chat_page_steps.ts`), which make
+ * the same claim about the other key a note's chat carries: one reader of a
+ * note's front matter in this row's steps, not two.
  */
-const matterOf = (world: OlaiWorld, note: string): Record<string, string> => {
+export const matterOf = (world: OlaiWorld, note: string): Record<string, string> => {
   const text = noteText(world, note);
   if (!text.startsWith("---\n")) return {};
   const end = text.indexOf("\n---", 3);

@@ -74,7 +74,11 @@ Feature: A node with an `agent-session` property IS an agent
     And I ask the agent "ask"
     Then the chat shows a question
     And the agent "door-live" stands "needs-you"
-    And the aside on "door-live" stands "needs-you"
+    # THE ROW'S OWN FACE says the same thing, and the row is in its outline:
+    # the press above opened the chat's own page, so the way back to the row
+    # is the way a person takes.
+    When I return to the conversation's outline
+    Then the aside on "door-live" stands "needs-you"
     And the aside on "door-live" reads "Needs you"
 
   @scratch:good
@@ -247,8 +251,12 @@ Feature: A node with an `agent-session` property IS an agent
     And the agent is idle
     When I ask the agent "done door-live"
     Then the agent is idle
-    And the node "door-live" has status "done"
     And the chat shows no refusal
+    # WHAT IT WROTE is read on the row, which is in the outline the press came
+    # from — the chat itself is a page of its own now.
+    When I return to the conversation's outline
+    And I show the done nodes
+    Then the node "door-live" has status "done"
 
   @agent-stored @scratch:lanes
   Scenario: Two node agents converse at once, with both roster rows live
@@ -390,7 +398,9 @@ Feature: A node with an `agent-session` property IS an agent
     Then the node "lane-fresh" keeps the session "claude:fake-stored-new" in file "backlog.olai"
     When I open the outline "lanes.olai"
     And I press the agent "lane-fresh"
-    Then the sidebar marks the outline "backlog.olai" as the one open
+    # ...AND THE CHAT KNOWS WHERE THE ROW WENT: its page says the node is in
+    # the other file now, because the row is the only record of either.
+    Then the chat page is about the node "lane-fresh" named "a lane nobody has put an agent on" in "backlog.olai"
     When I open the fold history
     Then the past sessions hold "an older conversation"
 
@@ -699,25 +709,24 @@ Feature: A node with an `agent-session` property IS an agent
     # The sibling of *A conversation no node claims has no sessions of its
     # own*, from the press's other face. A door press switches the panel and
     # navigates nowhere — the reader is already on the node; a SIDEBAR press
-    # owes both at once: the outline at the agent's own row AND the panel
-    # switched to its conversation (`@olai/web`'s `agents/focus.ts`). The
+    # owes both at once: the CHAT'S OWN PAGE, carrying the reader to the
+    # conversation, AND the panel switched to it (`agents/focus.ts`). The
     # failure this catches is exactly one half of that working: a press that
     # navigates and leaves the panel where it was looks, to a person, exactly
     # like a press that worked — because the page moved — and an assertion of
     # the navigation alone would pass straight over it.
     #
     # It starts on `backlog.olai`, not `lanes.olai`: the navigation half is
-    # real only if the press has to CARRY the reader somewhere, and every
-    # agent in this vault lives on the one board it used to have, so the
-    # row's route used to resolve to the page the reader was already on. The
-    # panel half is anchored the door scenario's way: the boot came up in a
-    # stored conversation NO NODE claims, so the sessions pill afterwards is
-    # the panel having MOVED — not the panel happening to be showing the
+    # real only if the press has to CARRY the reader somewhere. The panel half
+    # is anchored the door scenario's way: the boot came up in a stored
+    # conversation NO NODE claims, so the sessions pill afterwards is the
+    # panel having MOVED — not the panel happening to be showing the
     # conversation anyway.
     Given I open the outline "backlog.olai"
     Then no agent fold is open
     When I press the agent "door-live"
-    Then the sidebar marks the outline "lanes.olai" as the one open
+    Then the chat page is about the node "door-live" named "watch the connector" in "lanes.olai"
+    And the Chats row "door-live" is current
     When I open the fold history
     Then the panel offers a fresh session, saying "keeping memory in"
 
@@ -726,7 +735,7 @@ Feature: A node with an `agent-session` property IS an agent
     Given I open the outline "backlog.olai"
     Then the agent "door-live" stands "asleep"
     When I press the agent "door-implement"
-    Then the sidebar marks the outline "lanes.olai" as the one open
+    Then the chat page is about the node "door-implement" named "implement + open PR" in "lanes.olai"
     And the agent "door-live" stands "asleep"
     And the agents roster says nothing
     And no agent fold is open

@@ -272,6 +272,11 @@ export {
   NodeId,
   parseAddress,
   printAddress,
+  /** The two ends of the per-segment escaping a path wears in a URL, for the
+   *  one grammar that writes a path into an address of its own making
+   *  (`olai-plugin-chat`'s `/chat/<note path>`). */
+  readPath,
+  spellPath,
   Slug,
   /** Path, query and fragment of an address, cut the way this app writes one —
    *  the URL's own punctuation, read on both sides of the wire. What the halves

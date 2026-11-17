@@ -150,9 +150,14 @@ When("I press the agent panel's title", async function (this: OlaiWorld) {
   await this.page.locator(`${CHAT_DOCK} ${TITLE}`).click();
 });
 
+/** THE PAGE IS THE CONVERSATION: either face of it — the chat's own page,
+ *  where a door that opens a chat lands, or the node's own page, where a zoom
+ *  lands. Both draw that agent's conversation under their head. */
 Then("the page is the agent {string}", async function (this: OlaiWorld, node: string) {
+  const id = this.nodeId(node);
   await this.frontLane()
-    .locator(`${ZOOM_TITLE}${attr("data-node-id", this.nodeId(node))}`)
+    .locator(`${ZOOM_TITLE}${attr("data-node-id", id)}, ${selector(TESTID.chatPage)}${attr("data-item", id)}`)
+    .first()
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 

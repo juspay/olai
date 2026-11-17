@@ -135,7 +135,7 @@ import { kinds } from "./kinds.ts"
 // composed). One word, one answer.
 import { SEATS } from "./policy.ts"
 import { roster as agentsRoster, type RosterReading } from "./server/agents.ts"
-import { closeAgent, type Binding, NO_SLEEP_ON_A_NOTE, setSleeping, startAgentSession } from "./server/binding.ts"
+import { closeAgent, type Binding, NO_SLEEP_ON_A_NOTE, setOpens, setSleeping, startAgentSession } from "./server/binding.ts"
 import { scopeThrough } from "./server/doorbell.ts"
 import { inBundleOrder } from "./server/order.ts"
 import { contextFor } from "./server/context.ts"
@@ -750,6 +750,14 @@ export default definePlugin({
             Effect.tap(() => published),
           )
           : Effect.fail(new UsageFailure({ reason: SLEEP_OFF })),
+      // WHERE A NOTE'S CHAT OPENS — the same permit the tie's writes take,
+      // because it is the same block of the same file: a switch flipped while
+      // a start is writing the tie would otherwise race it through the gate
+      // and lose one of the two keys (`./server/binding.ts`).
+      setOpens: ({ input }: { input: { path: string; beside: boolean } }) =>
+        bindingPermit.withPermit(setOpens(binding, input)).pipe(
+          Effect.tap(() => published),
+        ),
       closeAgent: ({ input }: { input: { node: string } }) =>
         bindingPermit.withPermit(closeAgent(binding, input)).pipe(
           // Publish after the tie is gone: the seat closes and the roster

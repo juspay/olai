@@ -23,17 +23,14 @@ Feature: A note's chat travels with the file, and every page is whole without ch
     And the Chats row "blueprint-chat" reads "blueprint" with a file mark
     And there is no Chats row for the note "notes/plan.md"
     # PRESSING THE ROW OPENS THE CHAT, which is what a press on a Chats row
-    # has always done (`./focus.ts`'s `visitAgent`): the note's page comes
-    # forward with its seat already unfolded, so there is nothing left to
-    # press and the conversation can be talked to where it is drawn.
+    # has always done (`./focus.ts`): the conversation's own page comes
+    # forward, named by the note under its new name, and can be talked to
+    # where it is drawn.
     When I press the Chats row "blueprint-chat"
-    Then the document open is "notes/blueprint.md"
-    And the page seat is about the note "notes/blueprint.md"
-    And the seat is not folded
-    And the seat holds the conversation "blueprint-chat"
-    When I type "after it moved" into the seat's composer
-    And I send from the seat's composer
-    Then the seat agent has answered "after it moved" exactly once
+    Then the chat page is about the note "notes/blueprint.md" named "blueprint"
+    And the chat page conversation is ready
+    When I ask the agent "after it moved"
+    Then the agent has answered "after it moved" exactly once
     And there should be no page errors
 
   Scenario: A note that is deleted takes its chat with it

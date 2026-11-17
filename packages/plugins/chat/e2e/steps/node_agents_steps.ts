@@ -536,12 +536,14 @@ Then(
     const id = this.nodeId(this.activeAgent);
     const line = this.page.locator(`${selector(PLUGIN_TESTID.agentFold)}${attr("data-agent", id)}`);
     const pageHead = this.page.locator(`${selector(PLUGIN_TESTID.agentPageHead)}${attr("data-agent", id)}`);
+    // The conversation's two page faces name their subject in one line each:
+    // the node's own page heads with the node's title, and the chat's own page
+    // heads with the name of the item the chat belongs to.
+    const titled = this.page.locator(`${ZOOM_TITLE}, ${selector(PLUGIN_TESTID.chatPageTitle)}`).first();
     await this.waitUntil(
       async () => (await line.count()) > 0
         ? (await line.getAttribute("aria-label")) === title
-        // The conversation's other face: the page's own head, under the page's
-        // title — which is the node's title, the name a person reads it by.
-        : await pageHead.isVisible() && oneLine(await this.page.locator(ZOOM_TITLE).innerText()) === title,
+        : await pageHead.isVisible() && oneLine(await titled.innerText()) === title,
       `the panel header to name the node agent ${JSON.stringify(title)}`,
     );
   },

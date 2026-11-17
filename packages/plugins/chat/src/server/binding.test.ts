@@ -25,7 +25,7 @@ import { Effect } from "effect"
 import { CHAT_OFF } from "../wire/members.ts"
 import { OPENS_TYPE, SESSION_TYPE } from "../kinds.ts"
 import type { Chat } from "../scoped.ts"
-import { closeAgent, type Binding, NO_SLEEP_ON_A_NOTE, setSleeping, startAgentSession } from "./binding.ts"
+import { closeAgent, type Binding, NO_SLEEP_ON_A_NOTE, setOpens, setSleeping, startAgentSession } from "./binding.ts"
 
 /** Every member no gesture here reaches. A DEATH rather than a refusal: a case
  *  that called one would be asking about something this module does not own,
@@ -307,5 +307,43 @@ test("sleep is never offered on a note, whatever its tie says", async () => {
   const said = await Effect.runPromise(Effect.flip(setSleeping(at, { node: "/notes/plan.md", on: true })))
   expect(said.reason).toBe(NO_SLEEP_ON_A_NOTE)
   expect(at.marked).toEqual([])
+  expect(at.docs).toEqual([])
+})
+
+// ── and where that note's chat opens, beside the tie ───────────────────
+
+test("the switch writes `beside` into the front matter and leaves everything else alone", async () => {
+  const at = binding({ engine: "claude", session: "sess-1", title: "plan" }, {
+    "notes/plan.md": "---\nchat-agent-session: claude:sess-1\ntopic: kitchen\n---\n\n# Plan\n",
+  })
+  await Effect.runPromise(setOpens(at, { path: "notes/plan.md", beside: true }))
+  expect(at.docs).toHaveLength(1)
+  expect(at.docs[0]?.text).toBe("---\nchat-agent-session: claude:sess-1\ntopic: kitchen\nchat-opens: beside\n---\n\n# Plan\n")
+})
+
+/** ...AND `alone` IS WRITTEN OUT, rather than the key being removed: a reader
+ *  of the file can then tell an answer somebody gave from one nobody has. */
+test("the switch back writes `alone` in place", async () => {
+  const at = binding({ engine: "claude", session: "sess-1", title: "plan" }, {
+    "notes/plan.md": "---\nchat-agent-session: claude:sess-1\nchat-opens: beside\n---\n\n# Plan\n",
+  })
+  await Effect.runPromise(setOpens(at, { path: "notes/plan.md", beside: false }))
+  expect(at.docs[0]?.text).toBe("---\nchat-agent-session: claude:sess-1\nchat-opens: alone\n---\n\n# Plan\n")
+})
+
+test("a note that already says it is not written again", async () => {
+  const at = binding({ engine: "claude", session: "sess-1", title: "plan" }, {
+    "notes/plan.md": "---\nchat-agent-session: claude:sess-1\nchat-opens: beside\n---\n\n# Plan\n",
+  })
+  await Effect.runPromise(setOpens(at, { path: "notes/plan.md", beside: true }))
+  expect(at.docs).toEqual([])
+})
+
+/** A SWITCH IS ABOUT A CHAT, so a note with none is refused in words and its
+ *  file is left exactly as it was. */
+test("a note with no chat on it refuses, and writes nothing", async () => {
+  const at = binding(null, { "notes/plan.md": "# Plan\n" })
+  const said = await Effect.runPromise(Effect.flip(setOpens(at, { path: "notes/plan.md", beside: true })))
+  expect(said.reason).toContain("notes/plan.md")
   expect(at.docs).toEqual([])
 })

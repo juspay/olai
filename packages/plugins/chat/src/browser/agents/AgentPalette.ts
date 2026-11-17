@@ -165,7 +165,7 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
           // ONE PRESS OF THE DOOR (`./Door.tsx`'s `sendAbout`): a refusal keeps
           // the words in this box with the sentence beside them, and leaves the
           // docked conversation alone.
-          const sent = await sendAbout({ path, engine: engine.id, text })
+          const sent = await sendAbout({ item: { kind: "note", path }, engine: engine.id, text })
           if (sent.started === null) return { keepOpen: true, said: { tone: "alarm", text: sent.said ?? "No chat was started" } }
           const door = dock()
           if (sent.talking && door?.desktop()) door.open(sent.started)
