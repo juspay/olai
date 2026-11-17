@@ -31,15 +31,20 @@ Feature: A chat about a whole outline
     Then a chat titled "[house](/house.olai)" is filed under Inbox Chats as "house-chat"
     And the seat holds the conversation "house-chat"
     # `/` names no file of its own; the frame that drew it says which outline it
-    # turned out to be, and that is the place.
+    # turned out to be, and that is the place. Arriving cold, the seat is the
+    # page's fold: it says the chat is there and reads nothing until pressed.
     When I open the address "/"
     Then the page seat is about "file:house.olai"
-    And the seat holds the conversation "house-chat"
+    And the seat is folded on the chat "house-chat"
+    When I open the seat's chat
+    Then the seat holds the conversation "house-chat"
     And the seat offers no chat box
     # ... and a landing inside the outline is the outline, not the row.
     When I open the address "/house.olai#install"
     Then the page seat is about "file:house.olai"
-    And the seat holds the conversation "house-chat"
+    And the seat is folded on the chat "house-chat"
+    When I open the seat's chat
+    Then the seat holds the conversation "house-chat"
     And there should be no page errors
 
   Scenario: A row's own chat still unfolds under its row, on the page the outline's chat sits at the foot of

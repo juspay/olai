@@ -230,13 +230,19 @@ export const CHAT_RANG_BODY = selector(TESTID.chatRangBody);
  *  `@olai/format`'s `placeKey` spells it (`file:notes/plan.md`). */
 export const CHAT_SEAT = selector(TESTID.chatSeat);
 /** The box that starts a chat about this page — `data-where` is `seat` or
- *  `panel`, which is the whole difference between the door's two faces. */
+ *  `panel`, which is the whole difference between the door's two faces. Its
+ *  FIELDS are a row page's plain composer's, because it is that same box
+ *  (`agents/AskBox.tsx`): one component, one set of ids. */
 export const CHAT_ABOUT = selector(TESTID.chatAbout);
-export const CHAT_ABOUT_INPUT = selector(TESTID.chatAboutInput);
-export const CHAT_ABOUT_ENGINE = selector(TESTID.chatAboutEngine);
-export const CHAT_ABOUT_SEND = selector(TESTID.chatAboutSend);
-/** Why nothing was started — a second chat for one place, above all. */
-export const CHAT_ABOUT_REFUSED = selector(TESTID.chatAboutRefused);
+export const ASK_INPUT = selector(TESTID.agentPlainInput);
+export const ASK_ENGINE = selector(TESTID.agentPlainEngine);
+export const ASK_SEND = selector(TESTID.agentPlainSend);
+/** Why nothing was started — the sentence that stays beside the words. */
+export const ASK_REFUSED = selector(TESTID.agentPlainRefused);
+/** THE SEAT FOLDED: one line saying how the chat at this place stands, and
+ *  the press that opens it. Drawn instead of the conversation, because
+ *  opening a page never wakes its agent. `data-chat` is the chat row. */
+export const CHAT_SEAT_FOLDED = selector(TESTID.chatSeatFolded);
 /** **This page**, over the side panel's picker. */
 export const CHAT_THIS_PAGE = selector(TESTID.chatThisPage);
 /** What a chat is CALLED wherever it is listed, and the mark of the place it

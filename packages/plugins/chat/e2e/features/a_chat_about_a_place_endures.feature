@@ -17,7 +17,10 @@ Feature: What becomes of a chat whose place went away, and of every page when ch
     When I close the agent panel
     And I open the outline "house.olai"
     And the file "notes/plan.md" is deleted
-    Then the Chats row "plan-chat" reads "[plan](/notes/plan.md)" with no place mark
+    # STILL CALLED WHAT SOMEBODY CALLED IT: the label in the title is the name
+    # a person gave this conversation, and a file that went away does not take
+    # it back. What it loses is the place — so no mark, and its own page.
+    Then the Chats row "plan-chat" reads "plan" with no place mark
     When I press the Chats row "plan-chat"
     Then the conversation "plan-chat" is the root of the page
     And the node page conversation is ready for "plan-chat"
@@ -47,7 +50,11 @@ Feature: What becomes of a chat whose place went away, and of every page when ch
     And I close the plugins panel
     Then the page seat is about "file:house.olai"
     And the seat offers to chat about "house"
+    # Chat came back on a fresh activation, so this tab remembers no open
+    # seat: the page's fold is shut again until it is pressed.
     When I open the document "notes/plan.md"
     Then the page seat is about "file:notes/plan.md"
-    And the seat holds the conversation "plan-chat"
+    And the seat is folded on the chat "plan-chat"
+    When I open the seat's chat
+    Then the seat holds the conversation "plan-chat"
     And there should be no page errors

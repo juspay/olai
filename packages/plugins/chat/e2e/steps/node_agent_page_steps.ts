@@ -23,8 +23,13 @@ import {
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 
 const plain = selector(PLUGIN_TESTID.agentPlainComposer);
-const input = selector(PLUGIN_TESTID.agentPlainInput);
-const send = selector(PLUGIN_TESTID.agentPlainSend);
+// SCOPED TO THAT BOX, because its fields are not its own: a row page's plain
+// composer and a page's *Ask about …* door are one component now
+// (`agents/AskBox.tsx`), so `agent-plain-input` is on screen twice wherever a
+// seat is drawn beside a row page — an outline page in a split, above all.
+const input = `${plain} ${selector(PLUGIN_TESTID.agentPlainInput)}`;
+const send = `${plain} ${selector(PLUGIN_TESTID.agentPlainSend)}`;
+const picker = `${plain} ${selector(PLUGIN_TESTID.agentPlainEngine)}`;
 const head = selector(PLUGIN_TESTID.agentPageHead);
 const foot = selector(PLUGIN_TESTID.agentPageFoot);
 const PINNED_TITLE = selector(PLUGIN_TESTID.zoomPinnedTitle);
@@ -70,7 +75,7 @@ Then("the plain node composer is starting", async function(this: OlaiWorld) {
   assert.equal(await this.page.locator(send).isDisabled(), true);
 });
 When("I choose {string} in the plain node composer", async function(this: OlaiWorld, engine: string) {
-  await this.page.locator(selector(PLUGIN_TESTID.agentPlainEngine)).selectOption(engine);
+  await this.page.locator(picker).selectOption(engine);
 });
 When("I ask for a tall page answer", async function(this: OlaiWorld) {
   await this.chat(CHAT_INPUT).fill(Array.from({ length: 80 }, (_, i) => `page line ${i}`).join("\n\n"));

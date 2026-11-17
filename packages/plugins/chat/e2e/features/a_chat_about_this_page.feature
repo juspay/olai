@@ -18,6 +18,9 @@ Feature: A chat about the page in front
     When I ask about this page "when do the cabinets land"
     Then a chat titled "[plan](/notes/plan.md)" is filed under Inbox Chats as "plan-chat"
     And the Inbox has 1 filed conversations
+    # THE SEAT OPENS ITSELF for a chat started from its own door: a page never
+    # wakes an agent on its own, but the person just started this one.
+    And the seat is not folded
     And the seat holds the conversation "plan-chat"
     # ONCE: the server delivers the door's first message, and a second delivery
     # would draw a second answer under the same words.
@@ -82,6 +85,9 @@ Feature: A chat about the page in front
     Then the side panel offers This page "file:notes/plan.md" named "plan" at "notes/plan.md"
     When another writer files a chat about "/notes/plan.md" in "house.olai" as "theirs"
     Then the seat stops saying "No chat yet"
+    # ... and the page did not open it: a chat it did not start is a folded
+    # line until somebody presses it.
+    And the seat is folded on the chat "theirs"
     And the side panel offers no This page
     When I press the palette shortcut
     Then the palette offers no chat about this page
@@ -122,4 +128,117 @@ Feature: A chat about the page in front
     And the seat holds the conversation "sales-chat"
     And the seat agent has answered "which month sold more" exactly once
     And the Chats row "sales-chat" reads "sales.csv" with a place mark
+    And there should be no page errors
+
+  # A REFUSED START KEEPS THE WORDS. The agent will not start, so there is no
+  # conversation to put them in — and a box that cleared itself would have
+  # thrown away the only copy. The row the attempt left under Inbox › Chats is
+  # the row the next attempt starts on, so retrying never files a second one,
+  # and what was docked beside the page is left exactly where it was.
+  Scenario: A refused start keeps the words in the seat's box, files one row, and sends once when it can
+    Given the harness keeps distinct sessions on disk
+    And the vault holds "notes/plan.md" saying "# Plan"
+    And I open the outline "house.olai"
+    When I ask about this page "about the house"
+    Then a chat titled "[house](/house.olai)" is filed under Inbox Chats as "house-chat"
+    And the agent panel shows "house-chat"
+    When I open the document "notes/plan.md"
+    And the agent refuses to new a conversation
+    And I ask about this page "what is left to decide"
+    Then the chat box in the seat is refused with "this agent will not start a conversation in this directory"
+    And the chat box in the seat holds "what is left to decide"
+    # ... and nothing was docked over the conversation the reader had beside
+    # the page.
+    And the agent panel shows "house-chat"
+    When I send the seat box again
+    Then the chat box in the seat is refused with "this agent will not start a conversation in this directory"
+    And the chat box in the seat holds "what is left to decide"
+    And exactly 1 chat rows under Inbox Chats are titled "[plan](/notes/plan.md)"
+    And a chat titled "[plan](/notes/plan.md)" waits under Inbox Chats as "plan-chat"
+    When the agent will new a conversation again
+    And I send the seat box again
+    Then a chat titled "[plan](/notes/plan.md)" is filed under Inbox Chats as "plan-chat"
+    And exactly 1 chat rows under Inbox Chats are titled "[plan](/notes/plan.md)"
+    And the seat holds the conversation "plan-chat"
+    And the seat agent has answered "what is left to decide" exactly once
+    And there should be no page errors
+
+  Scenario: The palette's door keeps the words too, and its retry files no second row
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And I open the document "notes/plan.md"
+    And the agent refuses to new a conversation
+    When I press the palette shortcut
+    And I open chat about this page from the palette
+    And I type "which hinges did we pick" into the palette
+    And I press the palette submit
+    Then the palette says "this agent will not start a conversation in this directory"
+    And the new chat draft is "which hinges did we pick"
+    And exactly 1 chat rows under Inbox Chats are titled "[plan](/notes/plan.md)"
+    When the agent will new a conversation again
+    And I press the palette submit
+    Then a chat titled "[plan](/notes/plan.md)" is filed under Inbox Chats as "plan-chat"
+    And exactly 1 chat rows under Inbox Chats are titled "[plan](/notes/plan.md)"
+    And the command palette is closed
+    And the seat holds the conversation "plan-chat"
+    And the seat agent has answered "which hinges did we pick" exactly once
+    And there should be no page errors
+
+  # A START THAT STOPPED AT SIGN-IN is not a refusal: the chat row is there,
+  # and what it is missing is a conversation. So the door closes — this page
+  # has its chat — and the words wait for that row rather than going back
+  # into the door's box. They are not sent by themselves: once somebody signs
+  # in, they are in the conversation's composer, with a Send still to press.
+  @claude @signin
+  Scenario: A start that stops at sign-in keeps the words for the conversation the sign-in opens
+    Given the agent needs a sign-in
+    And the vault holds "notes/plan.md" saying "# Plan"
+    And I open the document "notes/plan.md"
+    When I ask about this page "sign in first"
+    Then a chat titled "[plan](/notes/plan.md)" waits under Inbox Chats as "plan-chat"
+    And the seat is not folded
+    And the seat offers a sign-in
+    When I press the seat's sign-in for "claude-ai-login"
+    And I type "123456" into the seat's sign-in
+    Then the seat holds the conversation "plan-chat"
+    And the seat's composer reads "sign in first"
+    # NOT SENT BY THEMSELVES: nothing was answered until the person pressed.
+    And the seat agent has said nothing yet
+    When I send from the seat's composer
+    Then the seat agent has answered "sign in first" exactly once
+    And the seat's composer reads ""
+    And exactly 1 chat rows under Inbox Chats are titled "[plan](/notes/plan.md)"
+    And there should be no page errors
+
+  @claude @signin
+  Scenario: The palette's door stops at the same sign-in, and files the same one row
+    Given the agent needs a sign-in
+    And the vault holds "notes/plan.md" saying "# Plan"
+    And I open the document "notes/plan.md"
+    When I press the palette shortcut
+    And I open chat about this page from the palette
+    And I type "sign in first" into the palette
+    And I press the palette submit
+    Then a chat titled "[plan](/notes/plan.md)" waits under Inbox Chats as "plan-chat"
+    And the command palette is closed
+    And the seat offers a sign-in
+    When I press the seat's sign-in for "claude-ai-login"
+    And I type "123456" into the seat's sign-in
+    Then the seat holds the conversation "plan-chat"
+    And the seat's composer reads "sign in first"
+    And exactly 1 chat rows under Inbox Chats are titled "[plan](/notes/plan.md)"
+    And there should be no page errors
+
+  # OPENING A PAGE NEVER WAKES ITS AGENT. The seat is the page's fold: it says
+  # how the chat there stands and nothing more until somebody presses it, so a
+  # reader walking past a document does not start eight sleeping agents.
+  Scenario: A page whose chat is asleep leaves it asleep until the seat's line is pressed
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer files a chat about "[plan](/notes/plan.md)" in "house.olai" as "theirs"
+    And I open the document "notes/plan.md"
+    Then the page seat is about "file:notes/plan.md"
+    And the seat is folded on the chat "theirs"
+    And the agent "theirs" stands "asleep"
+    When I open the seat's chat
+    Then the seat holds the conversation "theirs"
+    And the agent "theirs" stands "idle"
     And there should be no page errors

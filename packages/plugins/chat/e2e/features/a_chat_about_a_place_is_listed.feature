@@ -44,11 +44,14 @@ Feature: A chat about a place is named, opened and lit by that place
     And I open the document "notes/plan.md"
     When I ask about this page "open me later"
     Then a chat titled "[plan](/notes/plan.md)" is filed under Inbox Chats as "plan-chat"
-    When I open the outline "house.olai"
+    # COLD, so this tab remembers no open seat: what follows is the press on
+    # the Chats row doing the opening.
+    When I open the address "/"
     Then the Chats row "plan-chat" is not current
     When I press the Chats row "plan-chat"
     Then the document open is "notes/plan.md"
     And the Chats row "plan-chat" is current
+    And the seat is not folded
     And the seat holds the conversation "plan-chat"
     When I open the outline "house.olai"
     Then the Chats row "plan-chat" is not current
@@ -93,8 +96,42 @@ Feature: A chat about a place is named, opened and lit by that place
     Then the chat child under "chats" in "_olai/Inbox.olai" is titled "/notes/plan.md"
     And the Chats row "new-chat" reads "/notes/plan.md" with no place mark
     And the Chats row "plan-chat" reads "plan" with a place mark
+    # Arriving cold the seat is folded, and the chat behind it is the FIRST
+    # row — the second one stands for nothing.
     When I open the document "notes/plan.md"
+    Then the seat is folded on the chat "plan-chat"
+    When I open the seat's chat
     Then the seat holds the conversation "plan-chat"
     When I press the Chats row "new-chat"
     Then the conversation "new-chat" is the root of the page
     And there should be no page errors
+
+  # A MARK COSTS A ROW NO HEIGHT. A kind's glyph draws itself into whatever
+  # box its caller gives it, so one drawn in no box takes the whole row — a
+  # palette row for a chat about a document was six hundred points tall. The
+  # claim is a comparison, because "a row is 36px" is a number a theme owns:
+  # the row with a mark is the row without one.
+  Scenario Outline: A place's mark leaves the row the height it had on <screen>
+    Given the harness keeps distinct sessions on disk
+    And the vault holds "notes/plan.md" saying "# Plan"
+    And I open the document "notes/plan.md"
+    When I ask about this page "about the plan"
+    Then a chat titled "[plan](/notes/plan.md)" is filed under Inbox Chats as "plan-chat"
+    When I press new chat in Chats
+    And I choose the new chat place "default"
+    And I type new chat draft "an ordinary chat"
+    And I send the new chat draft
+    Then the chat child under "chats" in "_olai/Inbox.olai" is titled "an ordinary chat"
+    And the Chats row "plan-chat" is no taller than the row "new-chat"
+    When I press the palette shortcut
+    And I type "Agents" into the palette
+    Then the Agents palette row "plan-chat" is no taller than the row "new-chat"
+    And there should be no page errors
+
+    Examples:
+      | screen  |
+      | desktop |
+    @phone
+    Examples:
+      | screen |
+      | phone  |

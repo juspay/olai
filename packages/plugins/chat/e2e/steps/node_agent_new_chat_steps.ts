@@ -188,14 +188,18 @@ Then("the refused new chat leaves a plain Inbox node as {string}", async functio
   assert.equal(sessionOf(rows[0]!), undefined);
   this.nodeNames.set(name, rows[0]!.id as string); this.activeAgent = name;
 });
+// SCOPED TO THE ROW PAGE'S BOX: its fields are the same component's as a
+// page's *Ask about …* door (`agents/AskBox.tsx`), so an id of its own is not
+// one — a seat drawn beside it would make every one of these two elements.
+const plainBox = `${selector(PLUGIN_TESTID.agentPlainComposer)} `;
 Then("the plain retry draft is {string}", async function(this: OlaiWorld, text: string) {
-  await this.waitUntil(async () => await this.page.locator(selector(PLUGIN_TESTID.agentPlainInput)).inputValue() === text, "the plain draft");
+  await this.waitUntil(async () => await this.page.locator(`${plainBox}${selector(PLUGIN_TESTID.agentPlainInput)}`).inputValue() === text, "the plain draft");
 });
 Then("the plain retry engine is {string}", async function(this: OlaiWorld, engine: string) {
-  assert.equal(await this.page.locator(selector(PLUGIN_TESTID.agentPlainEngine)).inputValue(), engine);
+  assert.equal(await this.page.locator(`${plainBox}${selector(PLUGIN_TESTID.agentPlainEngine)}`).inputValue(), engine);
 });
 When("I retry the plain chat draft", async function(this: OlaiWorld) {
-  await this.page.locator(selector(PLUGIN_TESTID.agentPlainSend)).click();
+  await this.page.locator(`${plainBox}${selector(PLUGIN_TESTID.agentPlainSend)}`).click();
 });
 Then("the new chat receives the ordinary node contract", async function(this: OlaiWorld) {
   const text = await this.chatRoot().innerText();

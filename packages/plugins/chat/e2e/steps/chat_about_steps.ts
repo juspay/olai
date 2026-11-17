@@ -21,6 +21,7 @@ import { selector } from "@olai/web/testlib";
 import {
   attr,
   CHAT_DOCK,
+  CHAT_INPUT,
   CHAT_PANEL,
   CHAT_SAID,
   HYDRATION_TIMEOUT,
@@ -33,14 +34,19 @@ import type { OlaiWorld } from "@olai/tests/harness/world.ts";
 import { PLUGIN_TESTID } from "@olai/tests/harness/testids.ts";
 import { TESTID } from "../../src/testids.ts";
 import {
+  ASK_ENGINE,
+  ASK_INPUT,
+  ASK_REFUSED,
+  ASK_SEND,
   CHAT_ABOUT,
-  CHAT_ABOUT_ENGINE,
-  CHAT_ABOUT_INPUT,
-  CHAT_ABOUT_REFUSED,
-  CHAT_ABOUT_SEND,
   CHAT_NAME,
   CHAT_PLACE_MARK,
   CHAT_SEAT,
+  CHAT_SEAT_FOLDED,
+  CHAT_SEND,
+  CHAT_SIGN_IN,
+  CHAT_SIGN_IN_INPUT,
+  CHAT_SIGN_IN_METHOD,
   CHAT_THIS_PAGE,
 } from "../selectors.ts";
 
@@ -76,8 +82,8 @@ const chatsRow = (world: OlaiWorld, name: string): Locator =>
 const askFrom = async (world: OlaiWorld, where: string, text: string): Promise<void> => {
   const door = box(world, where);
   await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await door.locator(CHAT_ABOUT_INPUT).fill(text);
-  await door.locator(CHAT_ABOUT_SEND).click();
+  await door.locator(ASK_INPUT).fill(text);
+  await door.locator(ASK_SEND).click();
 };
 
 // ── the files a scenario is about ──────────────────────────────────────
@@ -95,13 +101,13 @@ Given("the vault holds {string} saying {string}", function (this: OlaiWorld, fil
 /**
  * ANOTHER WRITER FILES A CHAT AT AN ADDRESS — a second tab, a `git pull`, the
  * same door pressed on another machine. The row carries the binding property
- * with no session, which is a chat row that has not been started: it is in the
- * roster, it stands for the place, and it is what a second chat for one place
- * is refused against.
+ * with a session on it, which is a chat a person could go on reading: that is
+ * what closes this page's doors, where a row whose start was refused (no
+ * session) is still the place's door.
  */
 Given("another writer files a chat about {string} in {string} as {string}", function (this: OlaiWorld, address: string, file: string, name: string) {
   const id = `hand-${name}`;
-  this.appendServed(file, { id, ord: "z0", title: address, custom: { "chat-agent-session": "claude" } });
+  this.appendServed(file, { id, ord: "z0", title: address, custom: { "chat-agent-session": "claude:fake-session-1" } });
   this.nodeNames.set(name, id);
 });
 
@@ -132,7 +138,7 @@ Then("the seat offers to chat about {string}", async function (this: OlaiWorld, 
   const words = (await here.innerText()).toLowerCase();
   assert.ok(words.includes("chat about this page"), `the seat's header, which read ${JSON.stringify(words)}`);
   assert.ok(words.includes("no chat yet"), "the seat says there is no chat yet");
-  const input = here.locator(CHAT_ABOUT_INPUT);
+  const input = here.locator(ASK_INPUT);
   await input.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   assert.equal(await input.getAttribute("placeholder"), `Ask about ${name}…`);
   assert.equal(await input.getAttribute("aria-label"), `Ask about ${name}`);
@@ -158,7 +164,7 @@ Then("the seat stops saying {string}", async function (this: OlaiWorld, words: s
 
 /** The agents the box can start a chat with — the picker beside Send. */
 Then("the seat box offers the agents {string}", async function (this: OlaiWorld, agents: string) {
-  const picker = seat(this).locator(CHAT_ABOUT_ENGINE);
+  const picker = seat(this).locator(ASK_ENGINE);
   await picker.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const options = await picker.locator("option").evaluateAll((all) => all.map((one) => (one as HTMLOptionElement).value));
   assert.deepEqual(options, agents.split(",").map((one) => one.trim()).filter(Boolean));
@@ -180,12 +186,100 @@ When("I ask about this page in the panel {string}", async function (this: OlaiWo
   await askFrom(this, "panel", text);
 });
 
-/** What the door said instead of starting one — a second chat for one place,
- *  above all. `data-where` keeps the two faces' refusals apart. */
+/** What the door said instead of starting one — a refused start, above all:
+ *  the words stay in the box and the sentence is beside them. `data-where`
+ *  keeps the two faces' refusals apart. */
 Then("the chat box in the {word} is refused with {string}", async function (this: OlaiWorld, where: string, sentence: string) {
-  const line = box(this, where).locator(CHAT_ABOUT_REFUSED);
+  const line = box(this, where).locator(ASK_REFUSED);
   await line.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  assert.equal((await line.innerText()).trim(), sentence);
+  // What the AGENT said rides the sentence, so this reads the words rather
+  // than the whole line a serve may have wrapped them in.
+  const said = (await line.innerText()).trim();
+  assert.ok(said.includes(sentence), `the box's refusal read ${JSON.stringify(said)}`);
+});
+
+/** ...and the words themselves, still where they were typed. */
+Then("the chat box in the {word} holds {string}", async function (this: OlaiWorld, where: string, text: string) {
+  const input = box(this, where).locator(ASK_INPUT);
+  await input.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.equal(await input.inputValue(), text);
+});
+
+/** Press Send again without retyping — the retry a refused start asks for. */
+When("I send the {word} box again", async function (this: OlaiWorld, where: string) {
+  await box(this, where).locator(ASK_SEND).click();
+});
+
+// ── the seat folded, which is how a page meets a chat it did not wake ──
+
+/** THE SEAT AS A PAGE FINDS IT: one line, the chat's standing, no
+ *  conversation read and so no agent woken. */
+Then("the seat is folded on the chat {string}", async function (this: OlaiWorld, name: string) {
+  const line = seat(this).locator(`${CHAT_SEAT_FOLDED}${attr("data-chat", this.nodeId(name))}`);
+  await line.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  assert.equal(await seat(this).locator(CHAT_PANEL).count(), 0, "the seat read a conversation while folded");
+});
+
+Then("the seat is not folded", async function (this: OlaiWorld) {
+  await this.waitUntil(async () => await seat(this).locator(CHAT_SEAT_FOLDED).count() === 0,
+    "the seat's folded line to go", HYDRATION_TIMEOUT);
+});
+
+/** ...and the press that opens it, which is the standing itself. */
+When("I open the seat's chat", async function (this: OlaiWorld) {
+  const line = seat(this).locator(CHAT_SEAT_FOLDED);
+  await line.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.press(line.locator(MARK).first());
+});
+
+// ── the conversation IN THE SEAT, which is the only face it has ───────
+//
+// A chat whose start stopped at sign-in is docked nowhere and has no page of
+// its own a reader would go to: the seat is where it is read, so the few
+// gestures that scenario needs are spelled against the seat here rather than
+// taken from `./chat_steps.ts`, whose locators are the harness's `chat()` —
+// the fold, the row page and the dock, by `data-agent`.
+
+Then("the seat offers a sign-in", async function (this: OlaiWorld) {
+  await seat(this).locator(CHAT_SIGN_IN).first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+When("I press the seat's sign-in for {string}", async function (this: OlaiWorld, method: string) {
+  await this.press(seat(this).locator(`${CHAT_SIGN_IN_METHOD}${attr("data-method", method)}`));
+});
+
+When("I type {string} into the seat's sign-in", async function (this: OlaiWorld, code: string) {
+  const input = seat(this).locator(CHAT_SIGN_IN_INPUT);
+  await input.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await input.fill(code);
+  await input.press("Enter");
+});
+
+Then("the seat's composer reads {string}", async function (this: OlaiWorld, text: string) {
+  const input = seat(this).locator(CHAT_INPUT);
+  await input.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  try {
+    await this.waitUntil(async () => await input.inputValue() === text,
+      `the seat's composer to hold ${JSON.stringify(text)}`, HYDRATION_TIMEOUT);
+  } catch {
+    assert.fail(`the seat's composer holds ${JSON.stringify(await input.inputValue())} rather than ${JSON.stringify(text)}`);
+  }
+});
+
+/** Nothing has been answered in the seat's conversation — the half of "the
+ *  words waited" that says they were not sent on somebody's behalf. */
+Then("the seat agent has said nothing yet", async function (this: OlaiWorld) {
+  assert.equal(await seat(this).locator(CHAT_SAID).count(), 0, "the seat's agent answered something nobody sent");
+});
+
+When("I type {string} into the seat's composer", async function (this: OlaiWorld, text: string) {
+  const input = seat(this).locator(CHAT_INPUT);
+  await input.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await input.fill(text);
+});
+
+When("I send from the seat's composer", async function (this: OlaiWorld) {
+  await seat(this).locator(CHAT_SEND).click();
 });
 
 /** THE CONVERSATION IN THE SEAT, settled — the seat's own `data-chat` is the
@@ -277,6 +371,54 @@ Then("a chat titled {string} is filed under Inbox Chats as {string}", async func
   this.activeAgent = name;
 });
 
+/** ONE ROW PER PLACE, however many times a refused start was retried: the
+ *  server starts again on the row the last attempt left rather than minting
+ *  another (`../../src/server/new-chat.ts`). */
+Then("exactly {int} chat rows under Inbox Chats are titled {string}", async function (this: OlaiWorld, count: number, title: string) {
+  const rows = this.servedNodesSoFar("_olai/Inbox.olai").filter((node) => node.parent === "chats" && node.title === title);
+  assert.equal(rows.length, count, `the Inbox holds ${rows.length} rows titled ${JSON.stringify(title)}`);
+});
+
+/** ...and the row a refused start left: filed, titled for the place, and
+ *  carrying no conversation at all. Named for the scenario. */
+Then("a chat titled {string} waits under Inbox Chats as {string}", async function (this: OlaiWorld, title: string, name: string) {
+  let row: Record<string, unknown> | undefined;
+  await this.waitUntil(async () => {
+    row = this.servedNodesSoFar("_olai/Inbox.olai").find((node) => node.parent === "chats" && node.title === title);
+    return row !== undefined;
+  }, `a chat row titled ${JSON.stringify(title)} under Inbox › Chats`, HYDRATION_TIMEOUT);
+  const custom = (row?.custom ?? {}) as Record<string, unknown>;
+  const session = custom["chat-agent-session"] ?? custom["agent-session"];
+  assert.ok(session === undefined, `the row a refused start left carries a session (${JSON.stringify(session)})`);
+  const id = row?.id;
+  assert.ok(typeof id === "string");
+  this.nodeNames.set(name, id);
+});
+
+// ── how big a place's mark is, which is a claim about one row's HEIGHT ──
+//
+// A kind's glyph draws itself into the box its caller gives it, so a mark
+// drawn in no box at all takes the whole row — a palette row for a chat about
+// a document was six hundred points tall. The claim is the only one that can
+// go silently wrong: a row with a mark is the same height as one without.
+
+const heightOf = async (world: OlaiWorld, locator: Locator, what: string): Promise<number> =>
+  (await world.box(locator, what)).height;
+
+Then("the Agents palette row {string} is no taller than the row {string}", async function (this: OlaiWorld, marked: string, plain: string) {
+  const rowOf = (name: string) => this.page.locator(`${PALETTE_ITEM}${attr("data-id", `agent-${this.nodeId(name)}`)}`);
+  const tall = await heightOf(this, rowOf(marked), `the palette row for ${marked}`);
+  const flat = await heightOf(this, rowOf(plain), `the palette row for ${plain}`);
+  assert.ok(tall <= flat + 1, `the palette row for ${marked} is ${tall}px tall beside ${flat}px for ${plain} — its mark is drawn in no box`);
+});
+
+Then("the Chats row {string} is no taller than the row {string}", async function (this: OlaiWorld, marked: string, plain: string) {
+  await this.showSidebar();
+  const tall = await heightOf(this, chatsRow(this, marked), `the Chats row for ${marked}`);
+  const flat = await heightOf(this, chatsRow(this, plain), `the Chats row for ${plain}`);
+  assert.ok(tall <= flat + 1, `the Chats row for ${marked} is ${tall}px tall beside ${flat}px for ${plain} — its mark is drawn in no box`);
+});
+
 // ── the side panel's **This page** ─────────────────────────────────────
 
 Then("the side panel offers This page {string} named {string} at {string}", async function (this: OlaiWorld, place: string, name: string, path: string) {
@@ -335,9 +477,13 @@ Then("the Chats row {string} reads {string} with no place mark", async function 
   await this.showSidebar();
   const row = chatsRow(this, name);
   await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await this.waitUntil(async () => (await row.locator(CHAT_NAME).innerText()).trim() === reads,
-    `the Chats row to read ${JSON.stringify(reads)}`);
-  assert.equal(await row.locator(CHAT_PLACE_MARK).count(), 0, "an ordinary chat row wears a place mark");
+  // BOTH, WAITED FOR TOGETHER: a place that went away reaches this tab as a
+  // served-directory frame, and the name a label gives the row is the same
+  // before and after it — so reading the mark the instant the name matches
+  // would be reading it one frame early.
+  await this.waitUntil(async () =>
+    (await row.locator(CHAT_NAME).innerText()).trim() === reads && await row.locator(CHAT_PLACE_MARK).count() === 0,
+    `the Chats row to read ${JSON.stringify(reads)} with no place mark`, HYDRATION_TIMEOUT);
 });
 
 Then("the Chats row {string} never says {string}", async function (this: OlaiWorld, name: string, raw: string) {

@@ -77,3 +77,24 @@ Feature: A plugin's chat is the chat about its page
     And the plugin "hours" is being built by a conversation called "Hours"
     And the plugin page seats the chat about "hours"
     And there should be no page errors
+
+  # A RELOAD IS WHERE "FIND IT BY THE ADDRESS" IS ACTUALLY TESTED. Nothing is
+  # written down about which conversation builds this plugin, so a fresh tab
+  # has to ask chat what is at `/plugins/bar-beside` — and it asks while
+  # chat's roster is still arriving, which is the race the column has to
+  # survive: it opens at once and docks the chat the moment the answer is
+  # there, rather than giving up and docking nothing.
+  @scratch:plugins
+  Scenario: A reload on the page of a plugin being built docks its chat again
+    Given I open the outline "colours.olai"
+    When I press the palette shortcut
+    And I open New plugin from the palette
+    And I ask for a plugin that "draws a tiny bar beside any number"
+    And I name the plugin "Bar beside"
+    And I accept the name
+    Then the address is "/plugins/bar-beside"
+    And the conversation building "bar-beside" is docked
+    When I reload the page
+    Then the plugin page is "building"
+    And the conversation building "bar-beside" is docked
+    And there should be no page errors
