@@ -1,4 +1,5 @@
-import { linkPreviews } from "olai-plugin-navigation/contract"
+import { linkPreviews, pageSeats } from "olai-plugin-navigation/contract"
+import { ChatSeat } from "./browser/agents/Seat.tsx"
 import { ChatLinkPreview, previewNode } from "./browser/LinkPreview.tsx"
 import { Landings } from "@olai/plugin-api"
 import { holdLandings } from "./browser/landings.ts"
@@ -141,6 +142,12 @@ export default definePlugin({
       Preview: props => <ChatLinkPreview route={props.route} roster={state.agents} />,
     })
     yield* (yield* rendererSlots).contribute(paletteAdapters, palette.value)
+    // THE SEAT AT THE FOOT OF A PAGE, filled for this activation's life: the
+    // conversation about that page, or the box that starts one. Chat off, and
+    // the seat is empty and the page whole (`olai-plugin-navigation/seat`).
+    yield* (yield* rendererSlots).contribute(pageSeats, {
+      Seat: props => <AgentsProvider value={state.agents}><ChatSeat {...props} /></AgentsProvider>,
+    })
     // The aside reads the activation roster once per row; only opening a fold
     // acquires a conversation. Unbound rows offer a start gesture.
     yield* slots.register("outline.row.placement", SESSION_KIND, { inRows: false })

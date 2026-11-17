@@ -30,11 +30,10 @@ import { chatWire } from "../wire.ts"
 import type { NotHere } from "@kolu/acp/engine"
 import { chatPlaces, type Place } from "@olai/format"
 import { addressIn, labelIn, nameOf } from "olai-plugin-navigation/address/address.ts"
-import { PinMark } from "olai-plugin-navigation/address/Face.tsx"
 import { navigation } from "../navigation.ts"
 import { servedDirectory } from "../vault.ts"
 import { createDeclared } from "../references.ts"
-import { fileMark } from "../kinds.ts"
+import { placeMark } from "../kinds.ts"
 import { placeOfRoute, routeOfPlace } from "./place.ts"
 
 /**
@@ -148,7 +147,7 @@ export function createAgents(): Roster {
     const own = place.kind === "file" ? routes.name(route) : place.kind === "row" ? declared.title(place.id) ?? undefined : undefined
     return {
       name: labelIn(row.title) ?? own ?? nameOf(routes, route, undefined),
-      mark: place.kind === "file" ? fileMark(place.path) : place.kind === "page" ? routes.face(route)?.route.glyph ?? PinMark : PinMark,
+      mark: placeMark(routes, place),
       ...(place.kind === "file" ? { where: place.path } : place.kind === "page" ? { where: place.href.replace(/^\//, "") } : {}),
     }
   }

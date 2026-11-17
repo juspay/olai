@@ -5,7 +5,8 @@ import { TEST_CLAIMS, readingOf, setOf, planning } from "@olai/ops/testlib"
 import { newChat, chatLocations, type NewChat } from "./new-chat.ts"
 
 const fixture = () => {
-  const texts: Record<string, string> = {}
+  const texts: Record<string, string> = { "house.olai": '{"id":"kitchen","title":"kitchen remodel","ord":"a0"}\n' }
+  const started: string[] = []
   const events: string[] = []
   let inbox: string | null = "Inbox.olai"
   let refuse: "write" | "start" | undefined
@@ -23,7 +24,12 @@ const fixture = () => {
       events.push(`start:${engine}`)
       expect(readingOf(setOf(texts)).derived.byId.has(node)).toBe(true)
       if (refuse === "start") return yield* new UsageFailure({ reason: "start refused" })
+      started.push(node)
       return { agent: engine, session: "session" }
+    }),
+    chats: (reading) => started.flatMap(id => {
+      const row = reading.derived.byId.get(id)
+      return row !== undefined && isRegular(row) ? [{ id, title: row.node.title }] : []
     }),
   }
   return { owner, texts, events, inbox: (value: string | null) => { inbox = value }, refuse: (value: typeof refuse) => { refuse = value } }
@@ -64,6 +70,50 @@ test("a refused write starts nothing; a refused start preserves the minted node"
   expect(refused.to).toBeNull()
   expect(it.events).toEqual(["create", "create", "add", "start:claude"])
   expect(readingOf(setOf(it.texts)).derived.nodes.some(row => isRegular(row) && row.node.title === "First message")).toBe(true)
+})
+
+const titleOf = (it: ReturnType<typeof fixture>, id: string): string => {
+  const row = readingOf(setOf(it.texts)).derived.byId.get(id)!
+  if (!isRegular(row)) throw new Error("new chat minted a mirror")
+  return row.node.title
+}
+
+test("a chat about a place is titled with its name around its address", async () => {
+  const it = fixture()
+  const { node } = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "house", parent: null, about: "/house.olai" }))
+  expect(titleOf(it, node)).toBe("[house](/house.olai)")
+})
+
+test("a long name is cut, and the address is never touched", async () => {
+  const it = fixture()
+  const name = "a plan for the kitchen that goes on and on about cabinets, worktops and hinges"
+  const { node } = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: name, parent: null, about: "/house.olai" }))
+  const title = titleOf(it, node)
+  expect(title.endsWith("…](/house.olai)")).toBe(true)
+  expect(title.length).toBeLessThanOrEqual(60 + "[](/house.olai)".length)
+})
+
+test("a second chat about one place is refused in words, and nothing is minted", async () => {
+  const it = fixture()
+  await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "house", parent: null, about: "/house.olai" }))
+  const events = it.events.length
+  const second = await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", title: "house", parent: null, about: "/house.olai?q=hinges" })))
+  if (second._tag !== "Failure") throw new Error("a second chat about one place was minted")
+  expect(second.failure.message).toBe("this page already has a chat; no conversation was created")
+  expect(it.events.length).toBe(events)
+})
+
+test("a name that cannot be a link's label leaves the bare address", async () => {
+  const it = fixture()
+  const { node } = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "house [old]", parent: null, about: "/house.olai" }))
+  expect(titleOf(it, node)).toBe("/house.olai")
+})
+
+test("an address naming nothing olai holds is refused before anything is minted", async () => {
+  const it = fixture()
+  const missing = await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", title: "gone", parent: null, about: "/gone.olai" })))
+  expect(missing._tag).toBe("Failure")
+  expect(it.events).toEqual([])
 })
 
 test("new chat seats against the committed reading while its display projection still lags", async () => {

@@ -297,6 +297,20 @@ export const TESTID = {
   /** ...and the mark of the place it stands for, beside that name: a file's
    *  kind mark, a plugin page's own, or the pin. Absent for an ordinary chat. */
   chatPlaceMark: "chat-place-mark",
+  /** THE SEAT at the foot of a page with one (`olai-plugin-navigation/seat`),
+   *  as chat fills it: the conversation about that page, or the box that starts
+   *  one. `data-place` is the place it is about. */
+  chatSeat: "chat-seat",
+  /** The box that starts a chat about a page — in its seat, or in the side
+   *  panel's **This page** block. `data-where` says which. */
+  chatAbout: "chat-about",
+  chatAboutInput: "chat-about-input",
+  chatAboutEngine: "chat-about-engine",
+  chatAboutSend: "chat-about-send",
+  /** What starting it said, where it did not start. */
+  chatAboutRefused: "chat-about-refused",
+  /** The side panel's **This page** block, over its picker. */
+  chatThisPage: "chat-this-page",
   /** The picker: which agent this conversation is with. Drawn in the
    *  transcript's place when the panel is asking, and over it when `+ new`
    *  does the asking. */

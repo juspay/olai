@@ -1,6 +1,6 @@
-import { createSignal } from "solid-js"
+import { createMemo, createSignal } from "solid-js"
 import { Result } from "effect"
-import type { PaletteAdapter, PaletteItem } from "olai-plugin-navigation/contract"
+import type { PaletteAdapter, PaletteItem, PaletteOption } from "olai-plugin-navigation/contract"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { chatWire } from "../wire.ts"
@@ -14,6 +14,11 @@ import { LOOK } from "./roster.ts"
 import { chatVerbs } from "../verbs.tsx"
 import type { RowVerb } from "olai-plugin-outlines/slots"
 import type { Roster } from "./answered.tsx"
+import { placeOfRoute } from "./place.ts"
+import { dock } from "../dock.ts"
+
+/** The palette row that starts a chat about the page in front. */
+export const ABOUT_ROW = "chat-about-page"
 
 /**
  * EVERY CHAT VERB BUT THE ONE THAT UNBINDS.
@@ -126,11 +131,53 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
       } },
     }]
   }
+  /**
+   * **CHAT ABOUT THIS PAGE** — the door, from ⌘K: offered while the page in
+   * front placed a seat, has no chat at its place, and an agent can start, and
+   * one message level away from a chat about it (`./Seat.tsx` is the same door
+   * under the page). Kept as one object per page, so a roster tick under an
+   * open level hands the palette the row it already has.
+   */
+  let aboutHeld: { readonly key: string; readonly item: PaletteItem } | undefined
+  const about = (): ReadonlyArray<PaletteItem> => {
+    const nav = navigation()
+    const held = agentReadings()
+    if (nav === undefined || held === undefined || creation === undefined || agents.engines().length === 0) return []
+    const pane = nav.panes()[nav.focusIndex()]
+    const here = pane === undefined ? undefined : held.seatIn(pane.id)
+    if (here === undefined || agents.chatAt(placeOfRoute(nav.routes, here.place())) !== undefined) return []
+    const address = nav.routes.href(here.place())
+    const name = here.name()
+    const key = JSON.stringify([address, name])
+    if (aboutHeld?.key === key) return [aboutHeld.item]
+    const item: PaletteItem = {
+      id: ABOUT_ROW, label: "Chat about this page", place: address.replace(/^\//, ""),
+      search: `agents chat about this page ${name}`.toLowerCase(), taking: atOnce,
+      action: { kind: "level", level: {
+        kind: "value",
+        placeholder: `Ask about ${name}…`,
+        submitLabel: "Start chat",
+        options: () => createMemo<ReadonlyArray<PaletteOption>>(previous => agents.engines().map(engine =>
+          previous.find(option => option.id === engine.id && option.label === engine.name) ?? { id: engine.id, label: engine.name }), []),
+        validate: text => text.trim() === "" ? "Type a message first." : null,
+        submit: async (text, engine) => {
+          if (engine === undefined) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
+          const made = await creation.about({ about: address, name, engine: engine.id, text })
+          if (typeof made === "string") return { keepOpen: true, said: { tone: "alarm", text: made } }
+          const door = dock()
+          if (door?.desktop()) door.open(made.node)
+          return {}
+        },
+      } },
+    }
+    aboutHeld = { key, item }
+    return [item]
+  }
   return { items: (): ReadonlyArray<PaletteItem> => {
     // ONLY WHAT WORKS: with no engine this machine can start, there is no
     // `new chat` row to choose — the plugins panel says why.
     const creating: ReadonlyArray<PaletteItem> = agents.engines().length === 0 || newChat === undefined ? [] : [newChat]
-    return [...creating, ...above(), ...sleeping(), ...byActivity(agents.rows()).map((row): PaletteItem => {
+    return [...creating, ...about(), ...above(), ...sleeping(), ...byActivity(agents.rows()).map((row): PaletteItem => {
       const named = agents.named(row)
       return {
         id: `agent-${row.id}`, label: named.name, hint: LOOK[row.standing].label,

@@ -129,7 +129,10 @@ function createPageSession(node: string): PageSession {
   return { chat, chatRow, draft, setDraft, starting, failure, start, preferredEngine }
 }
 
-function usePage(node: Accessor<string>) {
+/** The page session of a chat row, held for the pane this is drawn in — a
+ *  row's own page, and the seat under a page about a place whose chat row has
+ *  no conversation yet (`./Seat.tsx`). */
+export function usePage(node: Accessor<string>) {
   const pane = usePane()
   return createMemo(() => pane === undefined ? undefined : agentReadings()?.page(pane, node(), () => createPageSession(node())))
 }

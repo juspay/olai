@@ -635,6 +635,13 @@ export default definePlugin({
           nodeAgents.seen(committed.derived)
           return yield* startAgentSession(open, binding, { node, agent })
         }),
+        // THE CHAT ROWS OF THE READING THE REFUSAL IS ASKED OVER — the same
+        // roster the browser draws, read off the reading in hand rather than
+        // off whatever revision last arrived.
+        chats: (reading) => {
+          nodeAgents.seen(reading.derived)
+          return nodeAgents.nodes()
+        },
       }, input))
     }
 
@@ -717,8 +724,17 @@ export default definePlugin({
         withChat((open) => open.seen(input, input.at))
           .pipe(Effect.tap(() => Effect.sync(republishAgents))),
       locations: ({ input }: { input: LocationQuery }) => Effect.map(ops.reading, reading => chatLocations(reading as Reading, input, vault.inbox.current())),
-      newChat: ({ input }: { input: NewChatInput }) =>
-        withChat(open => mintConversation(open, input)).pipe(Effect.tap(() => published)),
+      // A CHAT ABOUT A PLACE (`about`) carries its first message (`say`) and
+      // is handed it HERE, once, the way another row's `open` is: the door on
+      // a page stays on that page, so there is no page of the chat row's own
+      // for the words to wait on. A refused send is the answer's `refusal`.
+      newChat: ({ input }: { input: NewChatInput & { readonly say?: string } }) =>
+        withChat(open => Effect.gen(function*() {
+          const made = yield* mintConversation(open, input)
+          if (made.to === null || input.say === undefined || input.say.trim() === "") return made
+          const said = yield* Effect.result(open.inConversation(made.to, undefined, panel => panel.send(input.say!, [], [], false, [])))
+          return said._tag === "Failure" ? { ...made, refusal: said.failure.message } : made
+        })).pipe(Effect.tap(() => published)),
       // THE TWO GESTURES THAT ARE TWO ACTS, and the only ones here that are —
       // {@link ./server/binding.ts} argues both orders and the refusal.
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>

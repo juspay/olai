@@ -320,9 +320,15 @@ export const surface = defineSurface({
         input: Schema.Struct({ agent: Schema.String, session: Schema.String, at: Schema.String }),
         error: ChatFailure,
       },
-      /** Mint under the visible location and return the node even if start refuses. */
+      /** Mint under the visible location and return the node even if start refuses.
+       *  `about` makes it the chat of a place — `title` is then the place's
+       *  name, and the row is titled `[name](about)` — and `say` is its first
+       *  message, delivered once by the server. */
       newChat: {
-        input: Schema.Struct({ agent: Schema.String, title: Schema.String, parent: Schema.NullOr(Schema.String) }),
+        input: Schema.Struct({
+          agent: Schema.String, title: Schema.String, parent: Schema.NullOr(Schema.String),
+          about: Schema.optionalKey(Schema.String), say: Schema.optionalKey(Schema.String),
+        }),
         output: Schema.Struct({ node: Schema.String, to: Schema.NullOr(Schema.Struct({ agent: Schema.String, session: Schema.String })), refusal: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },

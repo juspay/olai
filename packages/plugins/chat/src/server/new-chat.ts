@@ -1,20 +1,31 @@
 import { Effect } from "effect"
 import { UsageFailure, isRegular, seatableIn, outlinePaths, inOlaiDir, inboxIn, type OpFailure, type Reading, type WriteRequest } from "@olai/format"
 import type { Conversing } from "../sessions.ts"
-import { newChatTitle } from "../new-chat-title.ts"
+import { aboutTitle, newChatTitle } from "../new-chat-title.ts"
 import { chatsId, ensureChats } from "./filer.ts"
+import { chatsIn, placeIn } from "./places.ts"
 
 export interface NewChat {
   readonly current: () => string | null
   readonly read: Effect.Effect<Reading, OpFailure>
   readonly write: (request: WriteRequest) => Effect.Effect<{ readonly id: string }, OpFailure>
   readonly start: (node: string, agent: string, committed: Reading) => Effect.Effect<Conversing | null, OpFailure>
+  /** The chat rows of a reading, in roster order — what a second chat about
+   *  one place is refused against. */
+  readonly chats: (reading: Reading) => ReadonlyArray<{ readonly id: string; readonly title: string }>
 }
 export interface NewChatInput {
   readonly agent: string
   readonly title: string
   /** null names the current Inbox registry's Chats container. */
   readonly parent: string | null
+  /**
+   * THE PLACE THIS CHAT IS ABOUT, as an address (`/notes/plan.md`,
+   * `/plugins/swatch`) — and then `title` is the place's NAME. The row is
+   * titled `[name](address)`, which is what makes it that place's chat; a
+   * place that already has a chat is refused, since a place has one.
+   */
+  readonly about?: string
 }
 const parentFiles = (reading: Reading) => {
   const paths = outlinePaths(reading.set)
@@ -28,8 +39,16 @@ export const canParent = (reading: Reading, id: string, paths = parentFiles(read
 /** The caller holds creationPermit across all three independent acts. Once
  * minted, the node survives a refused start and is returned for a page retry. */
 export const newChat = (owner: NewChat, input: NewChatInput) => Effect.gen(function*() {
-  const title = newChatTitle(input.title)
+  const title = input.about === undefined ? newChatTitle(input.title) : aboutTitle(input.title, input.about)
   if (title === "") return yield* new UsageFailure({ reason: "A new chat needs a non-empty title" })
+  if (input.about !== undefined) {
+    const reading = yield* owner.read
+    const place = placeIn(reading, input.about)
+    if (place === null) return yield* new UsageFailure({ reason: `olai holds nothing at ${input.about} to talk about; no conversation was created` })
+    if (chatsIn(reading, owner.chats(reading)).at(place) !== undefined) {
+      return yield* new UsageFailure({ reason: "this page already has a chat; no conversation was created" })
+    }
+  }
   let parent = input.parent
   if (parent === null) {
     const file = owner.current()

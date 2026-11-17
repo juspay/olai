@@ -12,6 +12,10 @@ import type { Locations } from "@olai/plugin-api/contracts"
 import { heldService } from "@olai/ui-primitives/held.ts"
 import { fileKinds } from "olai-plugin-files/contract"
 import type { JSX } from "solid-js"
+import type { Place } from "@olai/format"
+import { PinMark } from "olai-plugin-navigation/address/Face.tsx"
+import type { Routing } from "olai-plugin-navigation/routes"
+import { routeOfPlace } from "./agents/place.ts"
 import { servedDirectory } from "./vault.ts"
 
 const reader = heldService<Locations["read"]>()
@@ -27,3 +31,11 @@ export const fileMark = (path: string): (() => JSX.Element) | undefined => {
   if (files === undefined || kind == null) return undefined
   return forFileClaim(files.claims().byKind.get(kind), (reader.read()?.(fileKinds) ?? []).map(entry => entry.value))?.glyph
 }
+
+/** THE MARK A PLACE WEARS where a chat about it is named: a file its kind's
+ *  own, a plugin's page the glyph its route declares, and anything else the
+ *  pin every address wears. */
+export const placeMark = (routes: Routing, place: Place): (() => JSX.Element) | undefined =>
+  place.kind === "file" ? fileMark(place.path)
+    : place.kind === "page" ? routes.face(routeOfPlace(routes, place))?.route.glyph ?? PinMark
+    : PinMark
