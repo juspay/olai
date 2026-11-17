@@ -843,6 +843,7 @@ test("every stylesheet with an endless animation answers the motion preference",
 test("every box navigation does not cover checks composition itself", () => {
   expect(filesSpelling(/composing\(/)).toEqual([
     "plugins/chat/src/browser/agents/Page.tsx",
+    "plugins/chat/src/browser/agents/Seat.tsx",
     "plugins/chat/src/browser/chat/Composer.tsx",
     "plugins/files/src/file/NewFile.tsx",
     "plugins/navigation/src/palette/Palette.tsx",

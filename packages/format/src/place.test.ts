@@ -3,7 +3,7 @@
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 
-import { chatPlaces, type Place, placeKey, placeWritten, samePlace } from "./address.ts"
+import { type Place, placeKey, placeWritten, samePlace, standIns } from "./address.ts"
 
 const file = (path: string): Place => ({ kind: "file", path })
 const row = (id: string): Place => ({ kind: "row", id })
@@ -47,12 +47,12 @@ describe("same place", () => {
 
 describe("which chat is at a place", () => {
   interface Chat { readonly id: string; readonly title: string }
-  const places = (chats: ReadonlyArray<Chat>) => chatPlaces(chats, (chat) => placeWritten(TEST_CLAIMS, chat.title))
+  const places = (chats: ReadonlyArray<Chat>) => standIns(chats, (chat) => placeWritten(TEST_CLAIMS, chat.title))
 
   test("a plain chat row is its own row's chat", () => {
     const chats = places([{ id: "c1", title: "Which extractor fan is quiet?" }])
     expect(chats.at(row("c1"))?.id).toBe("c1")
-    expect(chats.of({ id: "c1", title: "" })).toEqual(row("c1"))
+    expect(chats.of({ id: "c1" })).toEqual(row("c1"))
   })
   test("a stand-in is the chat of its place, and still of its own row", () => {
     const plan = { id: "c2", title: "[plan](/notes/plan.md)" }

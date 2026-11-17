@@ -5,7 +5,7 @@ import { type Place, placeWritten } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 import { routingIn } from "olai-plugin-navigation/routes.testlib.ts"
 
-import { placeOfRoute, standsFor } from "./place.ts"
+import { isCurrent, placeOfRoute, standsFor } from "./place.ts"
 
 const routes = routingIn()
 const everything = () => true
@@ -49,4 +49,28 @@ describe("the server's half agrees with the browser's", () => {
   for (const title of titles) {
     test(title, () => expect(standsFor(routes, title, everything)).toEqual(placeWritten(TEST_CLAIMS, title)))
   }
+})
+
+describe("the dot on a tab and the lit Chats row follow the place", () => {
+  const inbox = { id: "plan", file: "_olai/Inbox.olai" }
+  const plan: Place = file("notes/plan.md")
+  test("a chat about a document is current on that document, a heading in it included", () => {
+    expect(isCurrent(routes, routes.routeOf("/notes/plan.md"), inbox, plan, false)).toBe(true)
+    expect(isCurrent(routes, routes.routeOf("/notes/plan.md#budget"), inbox, plan, false)).toBe(true)
+  })
+  test("...and not on the outline its chat row is filed in, unfolded or not", () => {
+    expect(isCurrent(routes, routes.routeOf("/_olai/Inbox.olai"), inbox, plan, true)).toBe(false)
+  })
+  test("a chat about a whole outline is current at its file, the front page that shows it, and a row landed in it", () => {
+    const house = file("house.olai")
+    expect(isCurrent(routes, routes.routeOf("/house.olai"), inbox, house, false)).toBe(true)
+    expect(isCurrent(routes, routes.routeOf("/house.olai#install"), inbox, house, false)).toBe(true)
+    expect(isCurrent(routes, routes.routeOf("/"), inbox, house, false, "house.olai")).toBe(true)
+  })
+  test("a row chat keeps its rule: its own page, or its outline with it unfolded", () => {
+    const own = { id: "install", file: "house.olai" }
+    expect(isCurrent(routes, routes.routeOf("/zoom/#install"), own, row("install"), false)).toBe(true)
+    expect(isCurrent(routes, routes.routeOf("/house.olai"), own, row("install"), true)).toBe(true)
+    expect(isCurrent(routes, routes.routeOf("/house.olai"), own, row("install"), false)).toBe(false)
+  })
 })

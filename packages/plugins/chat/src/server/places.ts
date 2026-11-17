@@ -5,13 +5,13 @@
  * (`./conversations.ts`).
  *
  * Over the format's own reading of a title (`@olai/format`'s `placeWritten`)
- * and its rule about who wins a place (`chatPlaces`), with the one fact a
+ * and its rule about who wins a place (`standIns`), with the one fact a
  * title cannot carry asked of the reading in hand: whether the place is still
  * there. A file the set no longer holds and a row that no longer exists stand
  * for nothing, so their chat rows are ordinary chats again — the browser's
  * rule, read off the same vault.
  */
-import { type ChatPlaces, chatPlaces, documentAt, type Place, placeWritten, type Reading, titleAddress } from "@olai/format"
+import { documentAt, type Place, placeWritten, type Reading, type StandIns, standIns, titleAddress } from "@olai/format"
 
 /** The three parts of a reading this module reads — what a published revision
  *  carries, so the roster's last revision answers as well as a fresh read. */
@@ -35,7 +35,7 @@ export const placeIn = (reading: Placed, title: string): Place | null => {
 export const chatsIn = <Row extends { readonly id: string; readonly title: string }>(
   reading: Placed,
   rows: ReadonlyArray<Row>,
-): ChatPlaces<Row> => chatPlaces(rows, (row) => placeIn(reading, row.title))
+): StandIns<Row> => standIns(rows, (row) => placeIn(reading, row.title))
 
 /** The address a chat row is about, where its title names a place it is the
  *  chat of — what its first message says (`../teaching.ts`'s `ABOUT`). */

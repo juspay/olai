@@ -19,9 +19,9 @@
  * server answers the same question with the format's grammar (`@olai/format`'s
  * `placeWritten`), and for files and rows the two agree.
  */
-import type { Place } from "@olai/format"
+import { type Place, samePlace } from "@olai/format"
 import { addressIn } from "olai-plugin-navigation/address/address.ts"
-import { atFile, type Route, type Routing, zoomNode } from "olai-plugin-navigation/routes"
+import { atFile, fileNamed, type Route, type Routing, zoomNode } from "olai-plugin-navigation/routes"
 
 /**
  * THE PLACE A ROUTE OPENS. A row is its id however it was spelled, a file is
@@ -75,3 +75,22 @@ export const pageInFront = (routes: Routing, route: Route, reported?: string): P
   if (route.kind === "at" && route.address === null && reported !== undefined) return { kind: "file", path: reported }
   return placeOfRoute(routes, route)
 }
+
+/**
+ * IS `route` THE PAGE A CHAT ROW IS ABOUT? Its PLACE is in front (a stand-in's
+ * file or page; a row chat's own page), or — the rule a row chat always had —
+ * its outline is in front with the conversation unfolded on its row. What the
+ * sidebar lights a **Chats** row by, and what a tab's dot follows (offered to
+ * the tabs row as `chat.state`'s `isCurrent`).
+ */
+export const isCurrent = (
+  routes: Routing,
+  route: Route,
+  row: { readonly id: string; readonly file: string },
+  place: Place,
+  unfolded: boolean,
+  reported?: string,
+): boolean =>
+  samePlace(pageInFront(routes, route, reported), place)
+    || (route.kind === "at" && route.address?.kind === "node" && route.address.id === row.id)
+    || (place.kind === "row" && place.id === row.id && unfolded && fileNamed(route) === row.file)

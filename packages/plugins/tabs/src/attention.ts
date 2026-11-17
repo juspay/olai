@@ -31,7 +31,7 @@
 import { keyArray } from "@solid-primitives/keyed"
 import { type Accessor, createMemo } from "solid-js"
 
-import { type Attention, type AttentionRow, isCurrent, NEEDS_YOU_DOT, UNREAD_DOT } from "olai-plugin-chat/attention"
+import { type Attention, type AttentionRow, NEEDS_YOU_DOT, UNREAD_DOT } from "olai-plugin-chat/attention"
 import type { Routing } from "olai-plugin-navigation/routes"
 import { panesOf, workspaceOf } from "olai-plugin-navigation/workspace"
 
@@ -79,7 +79,7 @@ export const marksOver = (
       const mine = rows().filter(about)
       if (mine.length === 0) return new Set<string>()
       return new Set(parsed().filter((tab) => tab.panes().some(({ route }) =>
-        mine.some((row) => isCurrent(routes, route, row, chat.agents.placeOf(row), chat.folding.unfolded(row.id))))).map((tab) => tab.id))
+        mine.some((row) => chat.isCurrent(routes, route, row)))).map((tab) => tab.id))
     }),
   })
 

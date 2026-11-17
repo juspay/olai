@@ -15,7 +15,7 @@
   },
   "navigation": {
     "src/browser.tsx": 9,
-    "src/browser/BodyPage.tsx": 7,
+    "src/browser/BodyPage.tsx": 8,
     "src/browser/PageView.tsx": 4
   },
   "outlines": {

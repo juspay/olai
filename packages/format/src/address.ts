@@ -417,7 +417,7 @@ export const placeWritten = (claims: Claims, title: string): Place | null => {
  * nothing else. Between stand-ins for one place the first in order wins, and a
  * stand-in that loses is an ordinary chat row, standing for itself.
  */
-export interface ChatPlaces<Row> {
+export interface StandIns<Row> {
   /** The chat at a place, or `undefined`. */
   readonly at: (place: Place) => Row | undefined
   /** The place a chat row stands for once the rule has run — its own row for
@@ -427,10 +427,10 @@ export interface ChatPlaces<Row> {
   readonly standsIn: (row: { readonly id: string }) => boolean
 }
 
-export const chatPlaces = <Row extends { readonly id: string }>(
+export const standIns = <Row extends { readonly id: string }>(
   rows: ReadonlyArray<Row>,
   standsFor: (row: Row) => Place | null,
-): ChatPlaces<Row> => {
+): StandIns<Row> => {
   const own = new Map<string, Row>()
   for (const row of rows) if (!own.has(row.id)) own.set(row.id, row)
   const at = new Map<string, Row>()

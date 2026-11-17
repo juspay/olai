@@ -226,7 +226,7 @@ export {
   textKind,
   unkept,
 } from "./kinds.ts"
-export type { ChatPlaces, Place, Split } from "./address.ts"
+export type { Place, Split, StandIns } from "./address.ts"
 /** WHAT A PLACE IS CALLED — `[document]#[element]`, the one grammar every
  *  feature that has to name something trades in
  *  (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/first-class-documents.md). Exported whole, primitives
@@ -269,7 +269,7 @@ export {
    *  the rule for which chat row is at which place. Read on both sides of the
    *  wire: the browser names and draws chats by it, the server refuses a
    *  second chat for one place by it. */
-  chatPlaces,
+  standIns,
   placeKey,
   placeWritten,
   samePlace,

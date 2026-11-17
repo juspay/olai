@@ -16,7 +16,7 @@
  * which is how the side panel's **This page** block and the palette's **Chat
  * about this page** know the page in front has a seat at all.
  */
-import { batch, createMemo, createSignal, For, Show, type Accessor } from "solid-js"
+import { batch, createEffect, createMemo, createSignal, For, Show, type Accessor } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import { placeMark } from "../kinds.ts"
 import { dock } from "../dock.ts"
@@ -45,7 +45,15 @@ export function ChatSeat(props: SeatProps) {
   const pane = usePane()
   const place = createMemo(() => placeOfRoute(router.routes, props.place))
   const chat = createMemo(() => agents.chatAt(place()))
-  if (pane !== undefined) agentReadings()?.seat({ pane: pane.id, place: () => props.place, name: () => props.name })
+  // REGISTERED FROM AN EFFECT, AS VALUES: the side panel and the palette read
+  // this from outside the page, and a closure over this page's props would let
+  // them read a page that is being left (Solid's stale-accessor error). An
+  // effect never runs for a disposed page, and re-registers when the page says
+  // it is a different place.
+  createEffect(() => {
+    const reading = agentReadings()
+    if (pane !== undefined) reading?.seat({ pane: pane.id, place: props.place, name: props.name })
+  })
   return (
     <Show when={chat() !== undefined || agents.engines().length > 0}>
       <section class="mt-12" data-testid={TESTID.chatSeat} data-place={placeKey(place())} id="seat">
@@ -169,23 +177,23 @@ export function ThisPage(props: { readonly open: (node: string) => void }) {
     const pane = router.panes()[router.focusIndex()]
     const here = pane === undefined ? undefined : agentReadings()?.seatIn(pane.id)
     if (here === undefined || agents.engines().length === 0) return undefined
-    return agents.chatAt(placeOfRoute(router.routes, here.place())) === undefined ? here : undefined
+    return agents.chatAt(placeOfRoute(router.routes, here.place)) === undefined ? here : undefined
   })
   return (
     <Show when={seat()} keyed>
       {(here) => {
-        const place = () => placeOfRoute(router.routes, here.place())
+        const place = () => placeOfRoute(router.routes, here.place)
         const mark = () => placeMark(router.routes, place())
         return (
           <section class="mb-2 px-1" data-testid={TESTID.chatThisPage} data-place={placeKey(place())}>
             <p class="m-0 px-2 pb-1 pt-2 text-caption font-semibold uppercase tracking-[0.08em] text-muted">This page</p>
             <p class="m-0 flex items-baseline gap-2 px-2 pb-2 text-body">
               <Show when={mark()}>{(drawn) => <span class={`${MARK_BOX} self-center text-muted`}><Dynamic component={drawn()} /></span>}</Show>
-              <span class="min-w-0 truncate">{here.name()}</span>
-              <span class="min-w-0 flex-1 truncate font-mono text-caption text-muted">{router.routes.href(here.place()).replace(/^\//, "")}</span>
+              <span class="min-w-0 truncate">{here.name}</span>
+              <span class="min-w-0 flex-1 truncate font-mono text-caption text-muted">{router.routes.href(here.place).replace(/^\//, "")}</span>
               <span class="shrink-0 text-caption text-muted">No chat yet</span>
             </p>
-            <AboutBox where="panel" place={here.place} name={here.name} started={props.open} />
+            <AboutBox where="panel" place={() => here.place} name={() => here.name} started={props.open} />
           </section>
         )
       }}

@@ -26,13 +26,7 @@
 import type { Accessor } from "solid-js"
 
 import { serviceTag } from "@olai/plugin-api/contracts"
-import { fileNamed, type Route, type Routing } from "olai-plugin-navigation/routes"
-import { type Place, samePlace } from "@olai/format"
-
-/** What a chat row stands for — re-exported so a reader of this door names the
- *  place it is handed by the door's own word. */
-export type { Place }
-import { pageInFront } from "./browser/agents/place.ts"
+import type { Route, Routing } from "olai-plugin-navigation/routes"
 
 import type { AgentStanding, NodeAgentRow } from "./wire/agents.ts"
 
@@ -68,34 +62,20 @@ export interface Attention {
   readonly agents: {
     readonly rows: Accessor<ReadonlyArray<AttentionRow>>
     readonly at: (node: string) => AttentionRow | undefined
-    /** The place a chat row stands for — its own row for an ordinary chat, the
-     *  place its title names for a chat row standing for one. */
-    readonly placeOf: (row: { readonly id: string }) => Place
   }
   /** Whether a node's conversation is unfolded on its row, in this tab. */
   readonly folding: { readonly unfolded: (node: string) => boolean }
+  /**
+   * IS `route` THE PAGE A CHAT ROW IS ABOUT — the page in front is its place
+   * (a stand-in's file or page, a row chat's own page), or, for a row chat, its
+   * outline is in front with the conversation unfolded on its row. Chat's own
+   * answer, because which place a chat row stands for is a reading only chat's
+   * browser half holds (`./browser/agents/place.ts`).
+   */
+  readonly isCurrent: (routes: Routing, route: Route, row: AttentionRow) => boolean
 }
 
 export const chatState = serviceTag<Attention>("chat.state")
-
-/**
- * Is `route` the page a chat row is about? Its PLACE is in front (a stand-in's
- * file or page; a row chat's own page), or — today's rule for a row chat — its
- * outline is in front with the conversation unfolded on its row. `reported` is
- * the file the pane says it is drawing, which is how the front page `/` is
- * known to be the outline it shows.
- */
-export const isCurrent = (
-  routes: Routing,
-  route: Route,
-  row: Pick<AttentionRow, "id" | "file">,
-  place: Place,
-  unfolded: boolean,
-  reported?: string,
-): boolean =>
-  samePlace(pageInFront(routes, route, reported), place)
-    || (route.kind === "at" && route.address?.kind === "node" && route.address.id === row.id)
-    || (place.kind === "row" && place.id === row.id && unfolded && fileNamed(route) === row.file)
 
 /** The paint of the needs-you dot — the one piece of a standing's look another
  *  row draws (a tab's dot). The rest of the table is chat's (`browser/agents/roster.ts`).

@@ -26,10 +26,10 @@ export const holdKindReader = reader.hold
 /** The mark the kind of file at `path` wears, or `undefined` where nobody
  *  claims the file or no kind plugin draws one. */
 export const fileMark = (path: string): (() => JSX.Element) | undefined => {
-  const files = servedDirectory()
-  const kind = files?.kindOf(path)
-  if (files === undefined || kind == null) return undefined
-  return forFileClaim(files.claims().byKind.get(kind), (reader.read()?.(fileKinds) ?? []).map(entry => entry.value))?.glyph
+  const directory = servedDirectory()
+  const kind = directory?.kindOf(path)
+  if (directory === undefined || kind == null) return undefined
+  return forFileClaim(directory.claims().byKind.get(kind), (reader.read()?.(fileKinds) ?? []).map(entry => entry.value))?.glyph
 }
 
 /** THE MARK A PLACE WEARS where a chat about it is named: a file its kind's

@@ -18,8 +18,8 @@ import type { PageSession } from "./Page.tsx"
  *  and what that place is called. */
 export interface SeatHere {
   readonly pane: string
-  readonly place: Accessor<Route>
-  readonly name: Accessor<string>
+  readonly place: Route
+  readonly name: string
 }
 
 export const createAgentReadings = (agents: Roster) => {

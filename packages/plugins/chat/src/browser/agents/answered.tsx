@@ -28,7 +28,7 @@ import type { Row } from "./roster.ts"
 import { chatWire } from "../wire.ts"
 
 import type { NotHere } from "@kolu/acp/engine"
-import { chatPlaces, type Place } from "@olai/format"
+import { standIns, type Place } from "@olai/format"
 import { addressIn, labelIn, nameOf } from "olai-plugin-navigation/address/address.ts"
 import { navigation } from "../navigation.ts"
 import { servedDirectory } from "../vault.ts"
@@ -66,7 +66,7 @@ export interface Roster {
    * palette, the sidebar, link previews and the dot on a tab.
    *
    * A chat row is the chat of its own row; a chat row titled with an address
-   * is also the chat of that place (`@olai/format`'s `chatPlaces` holds the
+   * is also the chat of that place (`@olai/format`'s `standIns` holds the
    * rule about who wins a place, `./place.ts` what a title stands for).
    */
   readonly chatAt: (place: Place) => Row | undefined
@@ -128,15 +128,15 @@ export function createAgents(): Roster {
     })
   })
   createEffect(() => declared.want(written().flatMap(place => place?.kind === "row" ? [place.id] : [])))
-  const files = createMemo(() => new Set(servedDirectory()?.paths() ?? []))
+  const served = createMemo(() => new Set(servedDirectory()?.paths() ?? []))
   const present = (place: Place): boolean => place.kind === "file"
-    ? servedDirectory()?.kindOf(place.path) != null && files().has(place.path)
+    ? servedDirectory()?.kindOf(place.path) != null && served().has(place.path)
     : place.kind !== "row" || declared.told(place.id) !== null
   const places = createMemo(() => {
     const said = written()
     const all = rows()
     const of = new Map(all.map((row, index) => [row, said[index] ?? null]))
-    return chatPlaces(all, row => { const place = of.get(row) ?? null; return place !== null && present(place) ? place : null })
+    return standIns(all, row => { const place = of.get(row) ?? null; return place !== null && present(place) ? place : null })
   })
   const named = (row: Row): Named => {
     const routes = navigation()?.routes

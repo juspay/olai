@@ -19,7 +19,8 @@ import type {} from "olai-plugin-navigation/slots"
 import type {} from "olai-plugin-outlines/slots"
 import type {} from "olai-plugin-sidebar/slots"
 import { slotContracts } from "./slots.ts"
-import type { Attention } from "./attention.ts"
+import type { Attention, AttentionRow } from "./attention.ts"
+import type { Route, Routing } from "olai-plugin-navigation/routes"
 import { DOCK, type DockDoor } from "./dock.ts"
 import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
@@ -100,7 +101,14 @@ export default definePlugin({
     yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const agents = createAgents()
-      return { dispose, agents, engines: enginesService(agents), readings: createAgentReadings(agents), folding: createFolding(), history: createHistory() }
+      const folding = createFolding()
+      return {
+        dispose, agents, engines: enginesService(agents), readings: createAgentReadings(agents), folding, history: createHistory(),
+        // WHICH PAGE A CHAT ROW IS ABOUT, for a tab's dot: chat's own reading
+        // of what a row stands for (`./browser/agents/place.ts`).
+        isCurrent: (routes: Routing, route: Route, row: AttentionRow) =>
+          isCurrent(routes, route, row, agents.placeOf(row), folding.unfolded(row.id)),
+      }
     })), state => Effect.sync(state.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdAgentReadings(state.readings)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdFolding(state.folding)), stop => Effect.sync(stop))
@@ -189,7 +197,7 @@ import { ChatsThumb } from "./browser/agents/ChatsThumb.tsx"
 import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { createDock, holdDock } from "./browser/dock.ts"
-import { placeOfRoute } from "./browser/agents/place.ts"
+import { isCurrent, placeOfRoute } from "./browser/agents/place.ts"
 import { Dock } from "./browser/agents/Dock.tsx"
 import { DockToggle } from "./browser/agents/DockToggle.tsx"
 export const components = {

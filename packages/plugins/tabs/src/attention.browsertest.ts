@@ -1,14 +1,17 @@
 import { expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
-import type { AttentionRow, Place } from "olai-plugin-chat/attention"
-import { NO_PAGES, routingOver } from "olai-plugin-navigation/routes"
+import type { AttentionRow } from "olai-plugin-chat/attention"
+import { fileNamed, NO_PAGES, type Route, routingOver } from "olai-plugin-navigation/routes"
 import { marksOver } from "./attention.ts"
 import type { Dots, Tab } from "./contract.ts"
 
-const chatOver = (rows: () => readonly AttentionRow[], places: Readonly<Record<string, Place>> = {}) =>
+/** Chat's `isCurrent` is chat's own rule (its tests hold it); here a row is
+ *  current on the tab showing its file, which is all these marks need. */
+const chatOver = (rows: () => readonly AttentionRow[]) =>
   ({
-    agents: { rows, at: (id: string) => rows().find(row => row.id === id), placeOf: (row: { readonly id: string }): Place => places[row.id] ?? { kind: "row", id: row.id } },
+    agents: { rows, at: (id: string) => rows().find(row => row.id === id) },
     folding: { unfolded: () => true },
+    isCurrent: (_routes: unknown, route: Route, row: AttentionRow) => fileNamed(route) === row.file,
   })
 
 /** The mark a reading is, by its own name — the two are told apart by what they
@@ -80,24 +83,5 @@ test("the unread mark reads chat's own fact, and ranks below the question", () =
     expect([...needing.ids()]).toEqual([])
     setRows([])
     expect(unread.ids().size).toBe(0)
-  } finally { view.dispose() }
-})
-
-test("a chat row standing for a place marks the tab showing that place, not the outline it is filed in", () => {
-  // The chat row lives in the Inbox and is about `notes/plan.md`. Its dot
-  // follows the PLACE: a tab on the document wears it, and a tab on the Inbox
-  // outline the row is filed in does not, conversation unfolded or not.
-  const routes = routingOver(() => undefined, () => NO_PAGES)
-  const [rows, setRows] = createSignal<readonly AttentionRow[]>([])
-  const tabs = () => [
-    { id: "plan", href: "/notes/plan.md", title: "plan" },
-    { id: "inbox", href: "/_olai/Inbox.olai", title: "Inbox" },
-    { id: "heading", href: "/notes/plan.md#budget", title: "plan" },
-  ] as const
-  const chat = chatOver(rows, { plan: { kind: "file", path: "notes/plan.md" } })
-  const view = createRoot(dispose => ({ dispose, marks: marksOver(chat, routes, tabs) }))
-  try {
-    setRows([{ id: "plan", file: "_olai/Inbox.olai", standing: "needs-you", unread: false }])
-    expect([...mark(view.marks, "Needs you").ids()].sort()).toEqual(["heading", "plan"])
   } finally { view.dispose() }
 })
