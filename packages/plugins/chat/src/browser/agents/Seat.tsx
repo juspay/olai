@@ -1,32 +1,50 @@
 /**
  * THE SEAT, FILLED — what chat draws at the foot of a page that placed one
- * (`olai-plugin-navigation/seat`): the conversation about that page, or the box
- * that starts one.
+ * (`olai-plugin-navigation/seat`): the chat about that page, folded or open, or
+ * the box that starts one.
  *
- * Which conversation is the one reading every face asks
- * (`./answered.tsx`'s `chatAt`), over the place the page said it is. With one,
- * the seat draws the pieces a row's fold draws — the agent line, the strips,
- * the conversation and its composer. With none, it draws *Ask about …*:
- * sending makes a chat row under Inbox › Chats titled `[name](address)`,
- * starts the agent on it and hands it the words, once (`./new-chat.ts`'s
- * `about`). With no agent this machine can start, there is no door to offer
- * and the seat draws nothing.
+ * Which chat is the one reading every face asks (`./answered.tsx`'s `chatAt`),
+ * over the place the page said it is.
+ *
+ * ## The seat is the page's fold
+ *
+ * Opening a page must never wake its agent: nothing else in olai starts an
+ * agent process without a press, and eight may be awake at once. So with a chat
+ * there, the seat is FOLDED by default — one line, the agent's mark and how it
+ * stands, which reads nothing and wakes nothing — and pressing that line opens
+ * it, exactly as a row's fold opens under its row. It also opens when a chat is
+ * started from one of the page's doors, and when the chat is opened from
+ * **Chats**, **Needs you** or the palette (`./focus.ts`'s `visitAgent`). Open,
+ * it draws what a row's fold draws: the agent line, the strips, the
+ * conversation and its composer. The choice is remembered for this tab under
+ * the chat row's id, the key a row's own fold uses (`./folding.ts`).
+ *
+ * ## The door
+ *
+ * With no conversation at the place, the seat draws *Ask about …*. Sending
+ * makes a chat row under Inbox › Chats titled `[name](address)`, starts the
+ * agent and hands it the words, once, through the server (`./new-chat.ts`'s
+ * `about`). A refused start keeps the words in the box and says why; the row
+ * it left is the one a retry starts on, so a place never gathers a second one
+ * (`../../server/new-chat.ts`). With no agent this machine can start and no
+ * chat, there is no door to offer and the seat draws nothing.
  *
  * A seat on screen tells the activation it is there (`./reading.ts`'s `seat`),
  * which is how the side panel's **This page** block and the palette's **Chat
  * about this page** know the page in front has a seat at all.
  */
-import { batch, createEffect, createMemo, createSignal, For, Show, type Accessor } from "solid-js"
+import { batch, createEffect, createMemo, createSignal, Show, type Accessor } from "solid-js"
 import { Dynamic } from "solid-js/web"
-import { placeMark } from "../kinds.ts"
-import { dock } from "../dock.ts"
-import { placeKey } from "@olai/format"
+import { UsageFailure, placeKey } from "@olai/format"
+import { MARK_BOX } from "@olai/ui-primitives/mark.ts"
 import type { SeatProps } from "olai-plugin-navigation/contract"
 import type { Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { usePane } from "olai-plugin-navigation/pane"
-import { composing } from "@olai/web/client/composition.ts"
 import { TESTID } from "../../testids.ts"
+import { placeMark } from "../kinds.ts"
+import { dock } from "../dock.ts"
+import { keepMessage } from "../chat/message-draft.ts"
 import { ConversationUIProvider } from "../chat/ui.tsx"
 import { useAgents } from "./answered.tsx"
 import { agentReadings } from "./reading.ts"
@@ -34,10 +52,58 @@ import { placeOfRoute } from "./place.ts"
 import { usePage } from "./Page.tsx"
 import { AgentLine } from "./AgentLine.tsx"
 import { Conversation } from "./Fold.tsx"
-import { MARK_BOX } from "./ChatName.tsx"
+import { AskBox } from "./AskBox.tsx"
+import { AgentStanding } from "./Standing.tsx"
+import { unfold, unfolded } from "./folding.ts"
+import type { Row } from "./roster.ts"
 
 /** The words under the box, which say what sending does. */
 export const ABOUT_NOTE = "Sending starts a chat about this page · it is filed under Inbox › Chats"
+
+/** Whether a chat row has a conversation to read — a session, or an open its
+ *  agent stopped at sign-in. A chat row without one is still the place's door:
+ *  its start was refused, and the next send starts on it. */
+export const talking = (row: Row | undefined): boolean =>
+  row !== undefined && (row.session !== null || row.unopened === true)
+
+/** What one press of a door came to: the chat row that now has a conversation
+ *  (or is waiting at sign-in), or `null` with the sentence that says why not —
+ *  in which case the words stay where they were typed. */
+export interface Sent {
+  readonly started: string | null
+  readonly talking: boolean
+  readonly said: string | null
+}
+
+/**
+ * ONE PRESS OF A DOOR — the seat's box, **This page** and **Chat about this
+ * page** all send through here, so a refusal means one thing everywhere.
+ *
+ *   - nothing created, or a start the agent refused: the words stay in the box
+ *     that sent them, and the sentence is shown;
+ *   - a start that stopped at sign-in: the chat row exists with no
+ *     conversation yet, so the words wait in that row's box (its page session,
+ *     which hands them to the conversation once it opens);
+ *   - a conversation the first message did not reach: the words wait in its
+ *     composer, with the sentence over it.
+ *
+ * Anything that started opens the seat's fold, so the person sees it.
+ */
+export const sendAbout = async (input: { readonly about: string; readonly name: string; readonly engine: string; readonly text: string }): Promise<Sent> => {
+  const reading = agentReadings()
+  if (reading === undefined) return { started: null, talking: false, said: "Chat isn't available" }
+  const made = await reading.newChat.about(input)
+  if (typeof made === "string") return { started: null, talking: false, said: made }
+  if (made.to === null && made.refusal !== null) return { started: null, talking: false, said: made.refusal }
+  if (made.to === null) reading.newChat.park(made.node, { engine: input.engine, text: input.text, to: null, refusal: null })
+  else if (made.refusal !== null) {
+    const ui = reading.ui(made.to)
+    keepMessage(ui.messages, JSON.stringify([made.to.agent, made.to.session]), input.text, true)
+    ui.refused[1](new UsageFailure({ reason: made.refusal }))
+  }
+  unfold(made.node)
+  return { started: made.node, talking: made.to !== null, said: null }
+}
 
 export function ChatSeat(props: SeatProps) {
   const agents = useAgents()
@@ -56,32 +122,38 @@ export function ChatSeat(props: SeatProps) {
   })
   return (
     <Show when={chat() !== undefined || agents.engines().length > 0}>
-      <section class="mt-12" data-testid={TESTID.chatSeat} data-place={placeKey(place())} id="seat">
+      <section class="mt-12" data-testid={TESTID.chatSeat} data-place={placeKey(place())}>
         <header class="mb-3 flex items-center gap-3 text-caption font-semibold uppercase tracking-[0.08em] text-muted">
           <span>Chat about this page</span>
           <span class="h-px flex-1 bg-rule" aria-hidden="true" />
-          <Show when={chat() === undefined}><span class="font-normal normal-case tracking-normal">No chat yet</span></Show>
+          <Show when={!talking(chat())}><span class="font-normal normal-case tracking-normal">No chat yet</span></Show>
         </header>
-        <Show when={chat()?.id} keyed fallback={<AboutBox where="seat" place={() => props.place} name={() => props.name}
-          started={(node) => { const door = dock(); if (door?.desktop()) door.open(node) }} />}>
-          {(id) => <SeatChat node={id} name={props.name} />}
+        {/* KEYED ON THE CHAT ROW'S ID and not its row: the roster mints fresh
+            rows every frame, and a conversation remounted per frame would be
+            one re-read per frame. */}
+        <Show when={talking(chat()) ? chat()!.id : undefined} keyed fallback={<AboutBox where="seat" place={() => props.place} name={() => props.name}
+          started={(sent) => { const door = dock(); if (sent.talking && door?.desktop()) door.open(sent.started) }} />}>
+          {(id) => <Show when={unfolded(id)} fallback={<Show when={agents.at(id)}>{(row) => <SeatFolded row={row()} />}</Show>}><SeatChat node={id} /></Show>}
         </Show>
       </section>
     </Show>
   )
 }
 
-/** A chat row's conversation in the seat — or, where it has none yet (its start
- *  was refused, or a hand-typed row names only an engine), the box that starts
- *  one on THAT row, through the row page's own session. */
-function SeatChat(props: { readonly node: string; readonly name: string }) {
+/** The seat folded: how the chat stands, as the press that opens it. Reads no
+ *  conversation, so it wakes no agent. */
+function SeatFolded(props: { readonly row: Row }) {
+  return <div class="flex items-center gap-2 text-label text-muted" data-testid={TESTID.chatSeatFolded} data-chat={props.row.id}>
+    <AgentStanding row={props.row} fold={props.row.id} />
+  </div>
+}
+
+/** The seat open: the chat row's conversation, through the row page's own
+ *  session — which is also where words a sign-in held up are waiting. */
+function SeatChat(props: { readonly node: string }) {
   const page = usePage(() => props.node)
   return (
-    <Show when={page()?.chat()} keyed fallback={
-      <Show when={page()}>{(session) => <AskBox where="seat" name={props.name}
-        draft={session().draft} setDraft={session().setDraft} starting={session().starting} failure={session().failure}
-        send={(engine) => void session().start(engine)} />}</Show>
-    }>
+    <Show when={page()?.chat()} keyed fallback={<p class="m-0 py-2 text-label text-muted">Opening…</p>}>
       {(chat) => (
         <div class="rounded-surface border border-rule bg-panel shadow-raised" data-chat={props.node}>
           <AgentLine chat={chat} node={props.node} />
@@ -94,81 +166,41 @@ function SeatChat(props: { readonly node: string; readonly name: string }) {
 
 /**
  * THE DOOR, as a box: a page's place and name, and the words to start a chat
- * about it with. Its own draft, which survives the person pressing Send while
- * the agent is refused; `started` is told the new chat row once there is one
- * (the side panel docks it).
+ * about it with. Its own draft, which a refused start leaves where it is;
+ * `started` is told what came of a press that started something (the side
+ * panel docks a conversation; the seat docks one on a desktop).
  */
 export function AboutBox(props: {
   readonly where: "seat" | "panel"
   readonly place: Accessor<Route>
   readonly name: Accessor<string>
-  readonly started?: (node: string) => void
+  readonly started?: (sent: Sent & { readonly started: string }) => void
 }) {
   const router = useRouter()
   const [draft, setDraft] = createSignal("")
   const [starting, setStarting] = createSignal(false)
   const [failure, setFailure] = createSignal<string | null>(null)
   const send = async (engine: string) => {
-    const reading = agentReadings()
     const text = draft()
-    if (reading === undefined || starting() || text.trim() === "") return
+    if (starting() || text.trim() === "") return
     batch(() => { setStarting(true); setFailure(null) })
     try {
-      const made = await reading.newChat.about({ about: router.routes.href(props.place()), name: props.name(), engine, text })
-      if (typeof made === "string") { setFailure(made); return }
+      const sent = await sendAbout({ about: router.routes.href(props.place()), name: props.name(), engine, text })
+      if (sent.started === null) { setFailure(sent.said); return }
       setDraft("")
-      if (made.refusal !== null) setFailure(made.refusal)
-      props.started?.(made.node)
+      props.started?.({ ...sent, started: sent.started })
     } finally { setStarting(false) }
   }
-  return <AskBox where={props.where} name={props.name()} draft={draft} setDraft={setDraft} starting={starting} failure={failure}
-    send={(engine) => void send(engine)} />
-}
-
-/** The box itself: what to say, which agent, and Send. */
-function AskBox(props: {
-  readonly where: "seat" | "panel"
-  readonly name: string
-  readonly draft: Accessor<string>
-  readonly setDraft: (text: string) => void
-  readonly starting: Accessor<boolean>
-  readonly failure: Accessor<string | null>
-  readonly send: (engine: string) => void
-}) {
-  const agents = useAgents()
-  const [chosen, choose] = createSignal<string>()
-  const engine = () => chosen() ?? agents.engines()[0]?.id
-  const send = () => { const id = engine(); if (id !== undefined) props.send(id) }
-  return (
-    <div class="rounded-control border border-dashed border-rule bg-paper p-3" data-testid={TESTID.chatAbout} data-where={props.where}>
-      {/* `composing`, because a page drawn by another row promises this box
-          nothing about the window-wide guard that keeps an IME's key out. */}
-      <textarea class="min-h-20 w-full resize-y bg-transparent text-body outline-none" data-testid={TESTID.chatAboutInput}
-        aria-label={`Ask about ${props.name}`} placeholder={`Ask about ${props.name}…`}
-        value={props.draft()} onInput={(event) => props.setDraft(event.currentTarget.value)}
-        onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (composing(event)) return; send() } }} />
-      <div class="flex flex-wrap items-center gap-2 text-label text-muted">
-        <select aria-label="Agent" data-testid={TESTID.chatAboutEngine} value={engine()} disabled={props.starting()}
-          onChange={(event) => choose(event.currentTarget.value)}>
-          <For each={agents.engines()}>{(one) => <option value={one.id}>{one.name}</option>}</For>
-        </select>
-        <span class="flex-1" />
-        <button type="button" class="rounded-control bg-accent px-3 py-1 font-semibold text-paper" data-testid={TESTID.chatAboutSend}
-          disabled={props.starting()} onClick={send}>
-          {props.starting() ? "Starting…" : "Send"}
-        </button>
-      </div>
-      <p class="mb-0 mt-2 text-label text-muted">{ABOUT_NOTE}</p>
-      <Show when={props.failure()}>{(message) => <p role="alert" class="mb-0 mt-1 text-label text-alarm" data-testid={TESTID.chatAboutRefused}>{message()}</p>}</Show>
-    </div>
-  )
+  return <AskBox name={props.name()} draft={draft} setDraft={setDraft} starting={starting} failure={failure}
+    send={(engine) => void send(engine)} note={ABOUT_NOTE} testid={TESTID.chatAbout} where={props.where} />
 }
 
 /**
  * THE SIDE PANEL'S **This page** BLOCK, over its picker — the same door, beside
  * the page rather than under it, offered exactly where the page in front placed
- * a seat, has no chat at its place, and an agent can start. Sending docks the
- * new chat, so the conversation that just started is the one beside the page.
+ * a seat, has no conversation at its place, and an agent can start. Sending
+ * docks the new chat, so the conversation that just started is the one beside
+ * the page; a refused start leaves whatever was docked alone.
  */
 export function ThisPage(props: { readonly open: (node: string) => void }) {
   const agents = useAgents()
@@ -177,7 +209,7 @@ export function ThisPage(props: { readonly open: (node: string) => void }) {
     const pane = router.panes()[router.focusIndex()]
     const here = pane === undefined ? undefined : agentReadings()?.seatIn(pane.id)
     if (here === undefined || agents.engines().length === 0) return undefined
-    return agents.chatAt(placeOfRoute(router.routes, here.place)) === undefined ? here : undefined
+    return talking(agents.chatAt(placeOfRoute(router.routes, here.place))) ? undefined : here
   })
   return (
     <Show when={seat()} keyed>
@@ -193,7 +225,8 @@ export function ThisPage(props: { readonly open: (node: string) => void }) {
               <span class="min-w-0 flex-1 truncate font-mono text-caption text-muted">{router.routes.href(here.place).replace(/^\//, "")}</span>
               <span class="shrink-0 text-caption text-muted">No chat yet</span>
             </p>
-            <AboutBox where="panel" place={() => here.place} name={() => here.name} started={props.open} />
+            <AboutBox where="panel" place={() => here.place} name={() => here.name}
+              started={(sent) => { if (sent.talking) props.open(sent.started) }} />
           </section>
         )
       }}

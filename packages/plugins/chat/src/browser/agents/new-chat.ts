@@ -77,7 +77,7 @@ export const createNewChat = (keep: (to: Conversing, text: string) => void) => {
    * agent refused is the row AND its sentence, since the chat exists.
    */
   const about = async (input: { readonly about: string; readonly name: string; readonly engine: string; readonly text: string }):
-    Promise<{ readonly node: string; readonly refusal: string | null } | string> => {
+    Promise<{ readonly node: string; readonly to: Conversing | null; readonly refusal: string | null } | string> => {
     if (!alive) return "Chat isn't available"
     const release = permit.take()
     if (release === null) return "A new chat is already starting"
@@ -87,8 +87,8 @@ export const createNewChat = (keep: (to: Conversing, text: string) => void) => {
       }))
       if (!alive) return "Chat isn't available"
       if (result._tag === "Failure") return result.failure.message
-      return { node: result.success.node, refusal: result.success.refusal }
+      return result.success
     } finally { release() }
   }
-  return { pending: permit.held, said, say, start, about, take: handoff.take }
+  return { pending: permit.held, said, say, start, about, keep, take: handoff.take, park: handoff.park }
 }

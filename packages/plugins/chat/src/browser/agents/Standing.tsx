@@ -59,9 +59,11 @@ export function Standing(props: { readonly node: string; readonly record?: strin
   </>
 }
 
-/** `fold` is the drawn row's own fold — the row this mark sits beside, which
- *  is not the chat row's id when a chat row elsewhere stands for this one. */
-function AgentStanding(props: { readonly row: Row; readonly fold: string }) {
+/** How a chat stands, as one press that folds and unfolds it. `fold` is the
+ *  fold it opens: the drawn row's own beside a row (not the chat row's id when
+ *  a chat row elsewhere stands for this one), and the chat row's in a page's
+ *  seat (`./Seat.tsx`). */
+export function AgentStanding(props: { readonly row: Row; readonly fold: string }) {
   const busy = () => props.row.standing === "working" || props.row.standing === "waking"
   const now = createNow(busy)
   const age = createTicking(MINUTE, () => props.row.standing === "asleep")

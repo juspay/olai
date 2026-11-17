@@ -105,6 +105,8 @@ export const TESTID = {
   agentPlainInput: "agent-plain-input",
   agentPlainEngine: "agent-plain-engine",
   agentPlainSend: "agent-plain-send",
+  /** What a start from the box said, where it did not start. */
+  agentPlainRefused: "agent-plain-refused",
   // ── the sidebar's agents roster, and the door on an agent's row ───────
   /** The AGENTS section of the sidebar — the roster, which is the query
    *  `prop:agent-session`. Drawn only when the directory has a node agent, on the
@@ -298,17 +300,17 @@ export const TESTID = {
    *  kind mark, a plugin page's own, or the pin. Absent for an ordinary chat. */
   chatPlaceMark: "chat-place-mark",
   /** THE SEAT at the foot of a page with one (`olai-plugin-navigation/seat`),
-   *  as chat fills it: the conversation about that page, or the box that starts
-   *  one. `data-place` is the place it is about. */
+   *  as chat fills it: the chat about that page, folded or open, or the box
+   *  that starts one. `data-place` is the place it is about. */
   chatSeat: "chat-seat",
+  /** The seat folded: one line saying how the chat stands, whose press opens
+   *  it. `data-chat` is the chat row. */
+  chatSeatFolded: "chat-seat-folded",
   /** The box that starts a chat about a page — in its seat, or in the side
-   *  panel's **This page** block. `data-where` says which. */
+   *  panel's **This page** block. `data-where` says which. Its fields are the
+   *  one box's (`agentPlainInput`, `agentPlainEngine`, `agentPlainSend`,
+   *  `agentPlainRefused`), shared with a row's own page. */
   chatAbout: "chat-about",
-  chatAboutInput: "chat-about-input",
-  chatAboutEngine: "chat-about-engine",
-  chatAboutSend: "chat-about-send",
-  /** What starting it said, where it did not start. */
-  chatAboutRefused: "chat-about-refused",
   /** The side panel's **This page** block, over its picker. */
   chatThisPage: "chat-this-page",
   /** The picker: which agent this conversation is with. Drawn in the

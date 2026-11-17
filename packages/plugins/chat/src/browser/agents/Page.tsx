@@ -1,9 +1,8 @@
-import { composing } from "@olai/web/client/composition.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { memoryOf, UsageFailure } from "@olai/format"
 import { Result } from "effect"
-import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, untrack, For, onCleanup, Show } from "solid-js"
+import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, untrack, onCleanup, Show } from "solid-js"
 import { usePane } from "olai-plugin-navigation/pane"
 import { runAsync } from "@olai/web/client/run.ts"
 import { TESTID } from "../../testids.ts"
@@ -20,8 +19,7 @@ import { AgentLine } from "./AgentLine.tsx"
 import { AgentAbove } from "./AgentAbove.tsx"
 import { Strips } from "../chat/Strips.tsx"
 import { Conversation } from "./Fold.tsx"
-import { NoAgent } from "../chat/NoAgent.tsx"
-import { EngineAbsence } from "./EngineAbsence.tsx"
+import { AskBox } from "./AskBox.tsx"
 import { receive } from "./handoff.ts"
 
 export interface PageSession {
@@ -166,45 +164,18 @@ export function PageFoot(props: { readonly node: string }) {
 function PlainComposer(props: { readonly node: string; readonly page: PageSession }) {
   const pane = usePane()
   const agents = useAgents()
-  const [chosen, choose] = createSignal<string>()
-  const engine = () => agents.chatAt({ kind: "row", id: props.node })?.engine ?? chosen() ?? props.page.preferredEngine() ?? agents.engines()[0]?.id
-  const missing = () => agents.missing(engine())
   const metadata = () => {
     const page = pane === undefined ? undefined : pageReadings()?.at(pane.id)?.shows
     return page?.kind === "node" && page.zoomed.kind === "node" && page.zoomed.shows.node.id === props.node
       ? { title: page.zoomed.shows.node.title, memory: page.zoomed.under } : null
   }
-  const send = () => { const id = engine(); if (id !== undefined) void props.page.start(id) }
   return <Show when={metadata()}>{node =>
-    <div class={`sticky bottom-0 ${LAYER.row} rounded-control border border-dashed border-rule bg-paper p-3 ${CLEARANCE}`} data-testid={TESTID.agentPlainComposer}>
-      <Show when={agents.engines().some(one => one.id === engine())} fallback={
-        <Show when={engine()} fallback={<NoAgent />}>{id =>
-          <Show when={missing()} fallback={
-            <p class="m-0 text-body text-muted">This agent isn't turned on. Turn it on in Plugins.</p>
-          }>{reason => <EngineAbsence id={id()} missing={reason()} testid={TESTID.chatInstall} />}</Show>
-        }</Show>
-      }>
-        {/* `composing` (`@olai/web/client/composition.ts`) because this page
-            is reached from a node's own address and is drawn by the chat row,
-            which names navigation nowhere — so the window-wide guard that
-            keeps an IME's key out of every handler is not promised to it. */}
-        <textarea class="min-h-20 w-full resize-y bg-transparent text-body outline-none" data-testid={TESTID.agentPlainInput}
-          aria-label={`Ask about ${node().title}`} placeholder={`Ask about ${node().title}…`}
-          value={props.page.draft()} onInput={event => props.page.setDraft(event.currentTarget.value)}
-          onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (composing(event)) return; send() } }} />
-        <div class="flex flex-wrap items-center gap-2 text-label text-muted">
-          <select aria-label="Agent" data-testid={TESTID.agentPlainEngine} value={engine()} disabled={props.page.starting() || agents.chatAt({ kind: "row", id: props.node }) !== undefined}
-            onChange={event => choose(event.currentTarget.value)}>
-            <For each={agents.engines()}>{one => <option value={one.id}>{one.name}</option>}</For>
-          </select>
-          <span class="flex-1" />
-          <button type="button" class="rounded-control bg-accent px-3 py-1 font-semibold text-paper" data-testid={TESTID.agentPlainSend} disabled={props.page.starting()} onClick={send}>
-            {props.page.starting() ? "Starting…" : "Send"}
-          </button>
-        </div>
-        <p class="mb-0 mt-2 text-label text-muted">Sending starts an agent here · Memory: {memoryOf(node())}</p>
-      </Show>
-      <Show when={props.page.failure()}>{message => <p role="alert" class="mb-0 text-label text-alarm">{message()}</p>}</Show>
-    </div>
+    <AskBox name={node().title} draft={props.page.draft} setDraft={props.page.setDraft}
+      starting={props.page.starting} failure={props.page.failure}
+      send={engine => void props.page.start(engine)}
+      fixed={agents.chatAt({ kind: "row", id: props.node })?.engine} preferred={props.page.preferredEngine()}
+      note={<>Sending starts an agent here · Memory: {memoryOf(node())}</>}
+      testid={TESTID.agentPlainComposer}
+      class={`sticky bottom-0 ${LAYER.row} rounded-control border border-dashed border-rule bg-paper p-3 ${CLEARANCE}`} />
   }</Show>
 }

@@ -16,6 +16,7 @@ import type { RowVerb } from "olai-plugin-outlines/slots"
 import type { Roster } from "./answered.tsx"
 import { placeOfRoute } from "./place.ts"
 import { dock } from "../dock.ts"
+import { sendAbout, talking } from "./Seat.tsx"
 
 /** The palette row that starts a chat about the page in front. */
 export const ABOUT_ROW = "chat-about-page"
@@ -157,7 +158,7 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
     const pane = nav.panes()[nav.focusIndex()]
     const here = pane === undefined ? undefined : held.seatIn(pane.id)
     if (here === undefined) return []
-    if (agents.chatAt(placeOfRoute(nav.routes, here.place)) !== undefined && !sending()) return []
+    if (talking(agents.chatAt(placeOfRoute(nav.routes, here.place))) && !sending()) return []
     const address = nav.routes.href(here.place)
     const name = here.name
     const key = JSON.stringify([address, name])
@@ -176,10 +177,13 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
           if (engine === undefined) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
           setSending(true)
           signal.addEventListener("abort", () => setSending(false), { once: true })
-          const made = await creation.about({ about: address, name, engine: engine.id, text })
-          if (typeof made === "string") return { keepOpen: true, said: { tone: "alarm", text: made } }
+          // ONE PRESS OF THE DOOR (`./Seat.tsx`'s `sendAbout`): a refusal keeps
+          // the words in this box with the sentence beside them, and leaves the
+          // docked conversation alone.
+          const sent = await sendAbout({ about: address, name, engine: engine.id, text })
+          if (sent.started === null) return { keepOpen: true, said: { tone: "alarm", text: sent.said ?? "No chat was started" } }
           const door = dock()
-          if (door?.desktop()) door.open(made.node)
+          if (sent.talking && door?.desktop()) door.open(sent.started)
           return {}
         },
       } },

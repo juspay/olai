@@ -123,6 +123,13 @@ export const createHandoff = (input: {
       from.nav.go(zoomNode(node))
       announce(node)
     }),
+    /** Leave words for `node`'s page session to take, without opening it —
+     *  the door on a page whose start stopped at sign-in: the words wait in
+     *  that chat row's box and go to its conversation once it opens. */
+    park: (node: string, words: Omit<Arrival, "done">) => batch(() => {
+      parked.set(node, { ...words, done: () => {} })
+      announce(node)
+    }),
     /** Claim `node`'s arrival (or its parked words), once. Read in a page's
      *  effect, it subscribes to that node's tick alone. */
     take: (node: string) => {

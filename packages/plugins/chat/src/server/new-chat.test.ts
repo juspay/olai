@@ -29,7 +29,7 @@ const fixture = () => {
     }),
     chats: (reading) => started.flatMap(id => {
       const row = reading.derived.byId.get(id)
-      return row !== undefined && isRegular(row) ? [{ id, title: row.node.title }] : []
+      return row !== undefined && isRegular(row) ? [{ id, title: row.node.title, session: "session" }] : []
     }),
   }
   return { owner, texts, events, inbox: (value: string | null) => { inbox = value }, refuse: (value: typeof refuse) => { refuse = value } }
@@ -101,6 +101,20 @@ test("a second chat about one place is refused in words, and nothing is minted",
   if (second._tag !== "Failure") throw new Error("a second chat about one place was minted")
   expect(second.failure.message).toBe("this page already has a chat; no conversation was created")
   expect(it.events.length).toBe(events)
+})
+
+test("a refused start about a place leaves one row, and the retry starts on that row", async () => {
+  const it = fixture()
+  it.refuse("start")
+  const first = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "house", parent: null, about: "/house.olai" }))
+  expect(first.refusal).toBe("start refused")
+  const second = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "house", parent: null, about: "/house.olai" }))
+  expect(second.node).toBe(first.node)
+  it.refuse(undefined)
+  const third = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "house", parent: null, about: "/house.olai" }))
+  expect(third.node).toBe(first.node)
+  expect(third.to).toEqual({ agent: "claude", session: "session" })
+  expect(it.events.filter(event => event === "add")).toEqual(["add"])
 })
 
 test("a name that cannot be a link's label leaves the bare address", async () => {
