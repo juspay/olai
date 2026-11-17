@@ -191,7 +191,7 @@ import { holdChannel } from "./browser/channel.ts"
 import { configurationPanel } from "olai-plugin-plugin-inspector/contract"
 import { holdPluginsDoor } from "./browser/plugins-door.ts"
 import { createAttention } from "./browser/chat/attention/attention.ts"
-import { createComponent, createEffect, createRoot, Show, untrack } from "solid-js"
+import { createComponent, createEffect, createRoot, createSignal, Show, untrack } from "solid-js"
 import { shell as appShell, thumbs as thumbSeats, tools as toolSeats } from "olai-plugin-layout/contract"
 import { ChatsThumb } from "./browser/agents/ChatsThumb.tsx"
 import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
@@ -222,17 +222,31 @@ export const components = {
     // which is why the door is a narrowing and not the value itself.
     // BY ADDRESS, because another row knows the page it is about and not
     // which chat row is that page's: the one reading every face asks
-    // (`./browser/agents/answered.tsx`'s `chatAt`) answers it here. With no
-    // chat there yet the column opens on its picker, where the page in front
-    // offers to start one.
-    yield* (yield* Offers).own(DOCK, () => ({
-      open: (about: string) => {
+    // (`./browser/agents/answered.tsx`'s `chatAt`) answers it. The answer is
+    // WAITED FOR rather than asked once: a page that docks its chat as it is
+    // drawn (a plugin's, after a reload) can ask before chat's roster has
+    // arrived, and a miss then must neither clear what the person had docked
+    // nor give up. So the column opens at once, the address is held while it
+    // is open, and the chat there is docked the moment the roster has it.
+    const wanted = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
+      const [address, want] = createSignal<string>()
+      createEffect(() => {
+        const about = address()
+        if (about === undefined) return
+        if (!door.value.opened()) { want(undefined); return }
         const routes = heldNavigation()?.routes
         const route = routes?.routeIn(about) ?? null
         const row = routes === undefined || route === null ? undefined : agentReadings()?.agents.chatAt(placeOfRoute(routes, route))
-        if (row !== undefined) { door.value.open(row.id); return }
-        door.value.clear()
+        if (row === undefined) return
+        want(undefined)
+        untrack(() => door.value.open(row.id))
+      })
+      return { want, dispose }
+    })), owner => Effect.sync(owner.dispose))
+    yield* (yield* Offers).own(DOCK, () => ({
+      open: (about: string) => {
         door.value.show()
+        wanted.want(about)
       },
       desktop: () => door.value.desktop(),
     } satisfies DockDoor))
