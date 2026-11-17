@@ -38,6 +38,10 @@ interface PageGrammar {
   readonly href: (page: unknown) => string
   readonly breadcrumb: (page: unknown) => string
   readonly narrowable: boolean
+  /** The mark a page of this grammar wears where a place is named — a chat
+   *  about it in the sidebar, the palette, the side panel. Absent wears the
+   *  pin mark every other address does. */
+  readonly glyph?: () => JSX.Element
 }
 
 /** The NODE-page protocol: a value that becomes a document-format request and
@@ -158,6 +162,7 @@ interface GrammarSpec<Value> {
   readonly href: (value: Value) => `/${string}`
   readonly breadcrumb: (value: Value) => string
   readonly narrowable: boolean
+  readonly glyph?: () => JSX.Element
 }
 
 /** The grammar half, erased — shared by both definers so the one cast of a
@@ -169,6 +174,7 @@ const erasedGrammar = <Value>(spec: GrammarSpec<Value>): PageGrammar => ({
   href: (value) => spec.href(value as Value),
   breadcrumb: (value) => spec.breadcrumb(value as Value),
   narrowable: spec.narrowable,
+  ...(spec.glyph === undefined ? {} : { glyph: spec.glyph }),
 })
 
 const definedOver = <Value, Source extends PageRoute>(source: Source, spec: GrammarSpec<Value>): DefinedGrammar<Value, Source> => ({

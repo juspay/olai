@@ -50,6 +50,7 @@ import { holdReading } from "./browser/search.ts"
 import { references as outlineReferences } from "olai-plugin-outlines/references"
 import { holdReferences } from "./browser/references.ts"
 import { holdServed } from "./browser/vault.ts"
+import { holdKindReader } from "./browser/kinds.ts"
 import { deployment as appDeployment } from "olai-plugin-layout/contract"
 import { holdDeployment } from "./browser/deployment.ts"
 import { enginesService } from "./browser/engines.tsx"
@@ -85,6 +86,10 @@ export default definePlugin({
     // activation (`./browser/vault.ts`).
     const served = yield* fileAccess
     yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
+    // ...and what each kind of file is drawn with, so a chat about a file
+    // wears its file's mark (`./browser/kinds.ts`).
+    const renderer = yield* rendererSlots
+    yield* Effect.acquireRelease(Effect.sync(() => holdKindReader(renderer.read)), stop => Effect.sync(stop))
 
     // THIS PLUGIN'S OWN MEMBERS, held for the thirty modules that read them at
     // module scope — see `./browser/wire.ts`.
@@ -151,7 +156,7 @@ export default definePlugin({
     yield* slots.register("outline.row.action", node => rowVerbs(node, state.agents, id => agentAboveOf(id, state.agents), (row) => {
       const nav = heldNavigation()
       if (nav === undefined) return "Can't open this right now"
-      focusAgent((route) => nav.go(route), row)
+      focusAgent(nav, state.agents, row)
     }))
     // THE STANDING TABLE, AS A DECLARED BROWSER SERVICE — one row per mounted
     // engine, live, keyed to this activation's own roster cell

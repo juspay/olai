@@ -57,6 +57,7 @@ import { TESTID } from "../testids.ts"
 import { palette, router } from "./doors.ts"
 import { NEW_PLUGIN_ROW } from "./new-plugin.ts"
 import { pluginPage } from "./route.ts"
+import { PluginGlyph } from "./glyph.tsx"
 import { definedPlugins, faultSaid, LOOK, MARK_WORD, markOf, stageOf, type Defined } from "./state.ts"
 
 /**
@@ -75,16 +76,8 @@ const EMPTY_SAID = "Ask for your first plugin…"
 
 /** The mark a plugin the vault defines wears in the column — the same square
  *  the page heads with, so a row and the page it opens are recognisably one
- *  thing. Decorative: every row says its name in words beside it. */
-function Glyph() {
-  return (
-    <svg viewBox="0 0 16 16" class="size-3.5 shrink-0 text-muted" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
-      <rect x="2.5" y="2.5" width="11" height="11" rx="2" />
-      <path d="M8 2.5v11" />
-      <path d="M2.5 8h5.5" fill="currentColor" />
-    </svg>
-  )
-}
+ *  thing (`./glyph.tsx`). */
+const Glyph = PluginGlyph
 
 export function Section(props: { readonly management: BrowserManagement }) {
   // THE SUBSCRIPTION IS THIS FACE'S. `roster()` is called once, in the body,

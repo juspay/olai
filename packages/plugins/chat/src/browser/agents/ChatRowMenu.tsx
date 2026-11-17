@@ -34,11 +34,13 @@ import type { RowVerb } from "olai-plugin-outlines/slots"
 import { TESTID } from "../../testids.ts"
 import { chatVerbs } from "../verbs.tsx"
 import type { Row } from "./roster.ts"
+import { useAgents } from "./answered.tsx"
 
 const ChatRowPanel = lazy(() => import("./ChatRowPanel.tsx"))
 
 export function ChatRowMenu(props: { readonly row: Row }) {
   const saying = createSaying()
+  const agents = useAgents()
   const [anchor, setAnchor] = createSignal<HTMLElement | null>(null)
   /** Which verbs a row offers depends on how its agent STANDS, so this tracks
    *  the roster rather than freezing at the press: an agent that goes to sleep
@@ -66,7 +68,7 @@ export function ChatRowMenu(props: { readonly row: Row }) {
       classList={{ "opacity-100": anchor() !== null }}
       data-testid={TESTID.chatRowMenu} data-agent={props.row.id}
       aria-haspopup="menu" aria-expanded={anchor() !== null}
-      aria-label={`More for ${props.row.title}`}
+      aria-label={`More for ${agents.named(props.row).name}`}
       onClick={event => {
         // A control inside the row's own anchor would navigate as well as
         // open; the row draws this one beside it, and the press stops here.

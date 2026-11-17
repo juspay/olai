@@ -1205,6 +1205,7 @@ export function Palette(props: {
                           href={actionHref(router.routes, item().action)}
                           onNavigate={navigated}
                           label={item().label}
+                          mark={item().mark}
 
                           from={item().from}
                           needles={needles()}

@@ -29,11 +29,30 @@ import { chatWire } from "../wire.ts"
 
 import type { NotHere } from "@kolu/acp/engine"
 import { chatPlaces, type Place } from "@olai/format"
-import { addressIn } from "olai-plugin-navigation/address/address.ts"
+import { addressIn, labelIn, nameOf } from "olai-plugin-navigation/address/address.ts"
+import { PinMark } from "olai-plugin-navigation/address/Face.tsx"
 import { navigation } from "../navigation.ts"
 import { servedDirectory } from "../vault.ts"
 import { createDeclared } from "../references.ts"
-import { placeOfRoute } from "./place.ts"
+import { fileMark } from "../kinds.ts"
+import { placeOfRoute, routeOfPlace } from "./place.ts"
+
+/**
+ * WHAT A CHAT IS CALLED wherever it is listed — the sidebar, the side panel's
+ * title and picker, the palette.
+ *
+ * An ordinary chat row is its title. A chat row standing for a place is the
+ * label written in its title, or the place's own name where the title is bare,
+ * and it wears the place's mark: a file its kind's own, a plugin's page the
+ * mark its route declares, anything else the pin every address wears. The raw
+ * title (`[plan](/notes/plan.md)`) is never what a person reads.
+ */
+export interface Named {
+  readonly name: string
+  readonly mark?: () => JSX.Element
+  /** Where the place is — the palette's second line. */
+  readonly where?: string
+}
 
 /** The shared roster, installed engines and stored history answer. */
 export interface Roster {
@@ -57,6 +76,8 @@ export interface Roster {
   readonly placeOf: (row: { readonly id: string }) => Place
   /** Whether a chat row stands for a place other than its own row. */
   readonly standsIn: (row: { readonly id: string }) => boolean
+  /** What a chat row is called, and the mark it wears ({@link Named}). */
+  readonly named: (row: Row) => Named
   /** The engines this serve mounted that this machine can start — the fold
    *  every "startable" consumer keeps: the verbs, the palette, the composer's
    *  select. A `not-here` row is NOT in it, on purpose ({@link standings}). */
@@ -100,24 +121,37 @@ export function createAgents(): Roster {
   // files, and the outline's naming of a node (asked for the ids a title
   // names, once each).
   const declared = createDeclared()
-  const named = createMemo(() => {
+  const written = createMemo(() => {
     const routes = navigation()?.routes
     return rows().map(row => {
       const route = routes === undefined ? undefined : addressIn(routes, row.title)
       return route === undefined ? null : placeOfRoute(routes!, route)
     })
   })
-  createEffect(() => declared.want(named().flatMap(place => place?.kind === "row" ? [place.id] : [])))
+  createEffect(() => declared.want(written().flatMap(place => place?.kind === "row" ? [place.id] : [])))
   const files = createMemo(() => new Set(servedDirectory()?.paths() ?? []))
   const present = (place: Place): boolean => place.kind === "file"
     ? servedDirectory()?.kindOf(place.path) != null && files().has(place.path)
     : place.kind !== "row" || declared.told(place.id) !== null
   const places = createMemo(() => {
-    const said = named()
+    const said = written()
     const all = rows()
     const of = new Map(all.map((row, index) => [row, said[index] ?? null]))
     return chatPlaces(all, row => { const place = of.get(row) ?? null; return place !== null && present(place) ? place : null })
   })
+  const named = (row: Row): Named => {
+    const routes = navigation()?.routes
+    const all = places()
+    if (routes === undefined || !all.standsIn(row)) return { name: row.title }
+    const place = all.of(row)
+    const route = routeOfPlace(routes, place)
+    const own = place.kind === "file" ? routes.name(route) : place.kind === "row" ? declared.title(place.id) ?? undefined : undefined
+    return {
+      name: labelIn(row.title) ?? own ?? nameOf(routes, route, undefined),
+      mark: place.kind === "file" ? fileMark(place.path) : place.kind === "page" ? routes.face(route)?.route.glyph ?? PinMark : PinMark,
+      ...(place.kind === "file" ? { where: place.path } : place.kind === "page" ? { where: place.href.replace(/^\//, "") } : {}),
+    }
+  }
   let active = true
   onCleanup(() => { active = false })
   // THE WHOLE TABLE FIRST ({@link Roster.standings}), then the fold: a reader
@@ -217,6 +251,7 @@ export function createAgents(): Roster {
     chatAt: place => places().at(place),
     placeOf: row => places().of(row),
     standsIn: row => places().standsIn(row),
+    named,
     missing: engine => engine === undefined ? null : missing().get(engine) ?? null,
     chats,
     unreachable, chatsRefusal, askChats }

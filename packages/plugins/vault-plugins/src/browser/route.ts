@@ -37,6 +37,7 @@
 import { defineSelfDrawnRoute } from "olai-plugin-navigation/routes"
 
 import { PLUGIN_FILES, WORD } from "@olai/surface"
+import { PluginGlyph } from "./glyph.tsx"
 
 /** The prefix this page claims. Trailing slash, so `/plugins` itself is not
  *  ours: a list of plugins is the panel's and the sidebar's job, and claiming
@@ -89,4 +90,7 @@ export const pluginPage = defineSelfDrawnRoute<PluginPage>({
   // read. The page itself heads with the title.
   breadcrumb: ({ word, file }) => `Plugins › ${word}${file === undefined ? "" : ` › ${file}`}`,
   narrowable: false,
+  // The square the column and the page head with, so a chat about this page
+  // wears it wherever the chat is named.
+  glyph: PluginGlyph,
 })

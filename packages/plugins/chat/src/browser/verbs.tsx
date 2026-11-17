@@ -82,7 +82,7 @@ export const rowVerbs = (
       id: "fresh-start", label: "Fresh start", writes: true,
       choices: engines.map(engine => ({
         id: `fresh-start-${engine.id}`, label: engine.name, writes: true,
-        confirm: freshStartQuestion(bound.title), run: startOn(engine),
+        confirm: freshStartQuestion(roster.named(bound).name), run: startOn(engine),
       })),
     },
     // THE OPT-IN, AND THE LABEL IS THE INDICATOR: nothing is tidied on its own

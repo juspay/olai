@@ -13,6 +13,7 @@ import { atOnce,type Taking } from "@olai/web/client/settled.ts"
 import { HOME_ROUTE,type Route } from "olai-plugin-navigation/routes"
 import type { Asking } from "./asking.ts"
 import type { PaletteLevel, PaletteRunResult } from "./levels.ts"
+import type { JSX } from "solid-js"
 
 export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
@@ -73,6 +74,9 @@ export interface PaletteItem {
    *  (`packages/tests`' palette and header steps). */
   readonly id: string
   readonly label: string
+  /** A mark drawn before the label — what kind of place the row opens, where
+   *  the row's contributor has one to say. Absent draws the label alone. */
+  readonly mark?: () => JSX.Element
   /** A short word about the row, drawn INLINE at the right: a chord, a
    *  reminder. Only a command has one — it is a few characters by
    *  construction, which is why it may sit beside the label without ever

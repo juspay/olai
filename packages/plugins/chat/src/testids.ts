@@ -290,6 +290,13 @@ export const TESTID = {
    *  `PluginMark`). `data-mark` says which was drawn — the plugin's own, by
    *  name, or the `generic` a plugin that hangs none gets. */
   chatPluginMark: "chat-plugin-mark",
+  /** WHAT A CHAT IS CALLED in a list — the sidebar, the side panel's title and
+   *  picker: its place's name for a chat row standing for one, its title
+   *  otherwise. Never the raw title of a stand-in. */
+  chatName: "chat-name",
+  /** ...and the mark of the place it stands for, beside that name: a file's
+   *  kind mark, a plugin page's own, or the pin. Absent for an ordinary chat. */
+  chatPlaceMark: "chat-place-mark",
   /** The picker: which agent this conversation is with. Drawn in the
    *  transcript's place when the panel is asking, and over it when `+ new`
    *  does the asking. */

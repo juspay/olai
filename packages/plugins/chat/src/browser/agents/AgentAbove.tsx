@@ -51,8 +51,9 @@ import { focusAgent, visitAgent } from "./focus.ts"
 /** One bound ancestor as a press: its engine's mark, its title, and the name of
  *  the engine beside it. */
 function Pill(props: { readonly row: Row; readonly engine: string }) {
+  const agents = useAgents()
   return (
-    <Tip text={`Open the conversation with ${props.row.title}`}>
+    <Tip text={`Open the conversation with ${agents.named(props.row).name}`}>
       <a
         href={hrefOfPlain(zoomNode(props.row.id))}
         class="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full border border-rule px-2 py-0.5 text-label text-muted no-underline hover:bg-rule hover:text-ink"
@@ -63,7 +64,7 @@ function Pill(props: { readonly row: Row; readonly engine: string }) {
       >
         <span aria-hidden="true">↑</span>
         <AgentMark id={props.row.engine} />
-        <span class="min-w-0 truncate text-ink">{props.row.title}</span>
+        <span class="min-w-0 truncate text-ink">{agents.named(props.row).name}</span>
         <span class="shrink-0 text-muted">· {props.engine}</span>
         {/* WHAT THE ↑ SAYS, for a reader who never hovers. The arrow is
             `aria-hidden` and the tip is drawn by this app rather than
@@ -117,7 +118,7 @@ export function CrumbMark(props: { readonly node: string }) {
   return (
     <Show when={agents.chatAt({ kind: "row", id: props.node })}>
       {(row) => (
-        <Tip text={`Open the conversation with ${row().title}`}>
+        <Tip text={`Open the conversation with ${agents.named(row()).name}`}>
           <button
             type="button"
             tabIndex={-1}
@@ -125,14 +126,14 @@ export function CrumbMark(props: { readonly node: string }) {
             data-testid={TESTID.crumbMark}
             data-agent={row().id}
             data-engine={row().engine}
-            aria-label={`Open the conversation with ${row().title}`}
+            aria-label={`Open the conversation with ${agents.named(row()).name}`}
             onClick={(event) => {
               // The row this can sit in is itself a link (a search result), so
               // the press belongs to this control and to no other.
               event.preventDefault()
               event.stopPropagation()
               if (router === undefined) return
-              focusAgent((route) => router.go(route), row())
+              focusAgent(router, agents, row())
               // What a followed link says after it moved (`routing.tsx`'s
               // `follow`), so a palette or a header box closes itself.
               event.currentTarget.dispatchEvent(new CustomEvent("olai-navigated", { bubbles: true }))

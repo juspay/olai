@@ -70,11 +70,11 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
       {
         id: "sleep-when-idle",
         label: shown.sleeps ? "Stop sleeping when idle" : "Sleep when idle",
-        place: `on “${shown.title}”`,
+        place: `on “${agents.named(shown).name}”`,
         // THE WORDS THAT ARE ON SCREEN, both of them: the label flips with the
         // mark, and a search that spelled only the "on" one left a person who
         // typed what they could see — "stop" — with no row at all.
-        search: `${shown.sleeps ? "stop sleeping when idle" : "sleep when idle"} ${shown.title}`.toLowerCase(),
+        search: `${shown.sleeps ? "stop sleeping when idle" : "sleep when idle"} ${agents.named(shown).name}`.toLowerCase(),
         taking: atOnce,
         action: { kind: "run", run: async () => {
           const outcome = await runAsync(
@@ -94,8 +94,8 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
          dressing: where the row says it acts, what a person can type to find
          it, and that a refusal is a line rather than a failed call. */
       ...chatVerbs(shown).filter(inPalette).map((verb): PaletteItem => ({
-        id: verb.id, label: verb.label, place: `on “${shown.title}”`,
-        search: `${verb.label} ${shown.title}`.toLowerCase(), taking: atOnce,
+        id: verb.id, label: verb.label, place: `on “${agents.named(shown).name}”`,
+        search: `${verb.label} ${agents.named(shown).name}`.toLowerCase(), taking: atOnce,
         action: { kind: "run", run: async () => {
           const said = await verb.run(shown.id)
           return typeof said === "string"
@@ -114,14 +114,14 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
     const row = here === null ? undefined : agentAboveOf(here, agents)
     if (row === undefined) return []
     return [{
-      id: "open-agent-above", label: "Open the agent above", place: `on “${row.title}”`,
-      search: `open the agent above ${row.title}`.toLowerCase(), taking: atOnce,
+      id: "open-agent-above", label: "Open the agent above", place: `on “${agents.named(row).name}”`,
+      search: `open the agent above ${agents.named(row).name}`.toLowerCase(), taking: atOnce,
       action: { kind: "run", run: async () => {
         const nav = navigation()
         if (nav === undefined) return { keepOpen: true, said: { tone: "alarm" as const, text: "Can't open this right now" } }
         const now = hereNow()
         const target = now === null ? undefined : agentAboveOf(now, agents)
-        if (target !== undefined) focusAgent(route => nav.go(route), target)
+        if (target !== undefined) focusAgent(nav, agents, target)
         return {}
       } },
     }]
@@ -130,15 +130,21 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
     // ONLY WHAT WORKS: with no engine this machine can start, there is no
     // `new chat` row to choose — the plugins panel says why.
     const creating: ReadonlyArray<PaletteItem> = agents.engines().length === 0 || newChat === undefined ? [] : [newChat]
-    return [...creating, ...above(), ...sleeping(), ...byActivity(agents.rows()).map((row): PaletteItem => ({
-      id: `agent-${row.id}`, label: row.title, hint: LOOK[row.standing].label,
-      place: "Agents", search: `agents ${row.title}`.toLowerCase(), taking: atOnce,
-      action: { kind: "run", run: async () => {
-        const nav = navigation()
-        if (nav === undefined) return { keepOpen: true, said: { tone: "alarm", text: "Can't open this right now" } }
-        focusAgent(route => nav.go(route), row)
-        return {}
-      } },
-    }))]
+    return [...creating, ...above(), ...sleeping(), ...byActivity(agents.rows()).map((row): PaletteItem => {
+      const named = agents.named(row)
+      return {
+        id: `agent-${row.id}`, label: named.name, hint: LOOK[row.standing].label,
+        ...(named.mark === undefined ? {} : { mark: named.mark }),
+        // A chat about a place says where it is on the second line.
+        place: named.where === undefined ? "Agents" : `Agents · ${named.where}`,
+        search: `agents ${named.name} ${named.where ?? ""}`.trim().toLowerCase(), taking: atOnce,
+        action: { kind: "run", run: async () => {
+          const nav = navigation()
+          if (nav === undefined) return { keepOpen: true, said: { tone: "alarm", text: "Can't open this right now" } }
+          focusAgent(nav, agents, row)
+          return {}
+        } },
+      }
+    })]
   } }
 }
