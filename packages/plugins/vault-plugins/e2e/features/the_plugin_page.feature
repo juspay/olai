@@ -273,18 +273,13 @@ Feature: A plugin's own page
 
   @phone @scratch:plugins
   Scenario: On a handset the conversation opens as its own page
-    # A phone has no room for two panes side by side, so *Ask for a change…*
-    # opens the builder chat as its own page in the strip beside this one. The
-    # sentence this used to draw — "no agent is available to ask right now" —
-    # was false: the agent is there, it was the column that was not.
+    # A phone shows one pane at a time, so *Ask for a change…* opens the
+    # builder chat as its own page in the strip beside this one — the way into
+    # the conversation is the same on both viewports.
     Given a conversation about the plugin "greeting" called "Greeting"
     And I open the app
     When I go to the plugin "greeting"
     Then the plugin page offers to ask for a change
-    # ...and no primary verb at all while the folder is still being written:
-    # the only thing that stops a build is the agent's own Stop inside the
-    # conversation.
-    And the plugin page offers no verb
     When I read the unfinished plugin "greeting" anyway
     Then the plugin page's verb is in the foot
     # ...and the press opens the builder chat as a page of its own.

@@ -5,10 +5,10 @@ Feature: A chat about a note
   person can read it and a `git pull` carries it. Nothing is filed anywhere
   else. The note's page says so in one line at the top: how its chat stands and
   the way into it, in the pane beside the page. Where there is no chat yet that
-  line offers one — a box, the side panel's **This page** block, and a palette
-  row. All three start the same thing, with the first message delivered once,
-  all three open the conversation beside the note, and all three go away the
-  moment that note has a chat.
+  line offers one — a box — and the palette offers a second door. Both start
+  the same thing, with the first message delivered once, both open the
+  conversation beside the note, and both go away the moment that note has a
+  chat.
 
   Scenario Outline: A note with no chat offers one, and what it starts opens beside <screen>
     Given the vault holds "notes/plan.md" saying "# Plan\n\nThe cabinets land on Tuesday."
@@ -73,24 +73,7 @@ Feature: A chat about a note
     And the note "notes/plan.md" carries a chat as "plan-chat"
     And there should be no page errors
 
-  Scenario: The side panel offers This page, and what it starts is docked beside the page
-    Given the vault holds "notes/plan.md" saying "# Plan"
-    And I open the document "notes/plan.md"
-    When I press the agent panel toggle
-    Then the side panel offers This page the note "notes/plan.md" named "plan"
-    When I ask about this page in the panel "what is left to decide"
-    Then the note "notes/plan.md" carries a chat as "plan-chat"
-    And the agent panel shows "plan-chat"
-    And the agent panel title reads "plan" with a file mark
-    And the agent panel's conversation is ready
-    And the agent's answer mentions "you said: what is left to decide"
-    # The note's own line now stands on that chat, and offers no box.
-    And the line stands on the chat "plan-chat"
-    And the line offers no chat box
-    And the side panel offers no This page
-    And there should be no page errors
-
-  Scenario: The palette is the third door, and it closes once this note has a chat
+  Scenario: The palette is the second door, and it closes once this note has a chat
     Given the vault holds "notes/plan.md" saying "# Plan"
     And I open the document "notes/plan.md"
     When I press the palette shortcut
@@ -117,14 +100,11 @@ Feature: A chat about a note
   Scenario: A chat tied from somewhere else closes every door on this note
     Given the vault holds "notes/plan.md" saying "# Plan"
     And I open the document "notes/plan.md"
-    When I press the agent panel toggle
-    Then the side panel offers This page the note "notes/plan.md" named "plan"
     When another writer ties a chat to the note "notes/plan.md" as "theirs"
     Then the line offers no chat box
     # ... and the page did not open it: a chat it did not start is one line
     # saying how it stands until somebody presses it.
     And the line stands on the chat "theirs"
-    And the side panel offers no This page
     When I press the palette shortcut
     Then the palette offers no chat about this page
     And no chat is filed under the Inbox

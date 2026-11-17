@@ -4,8 +4,8 @@
  *
  * Four faces, one reading ("the chat of this note"), and they are all here
  * because they are one surface: the LINE at the top of the note's page, the
- * DOOR that starts a chat about it (the one-row box in that line, the **This
- * page** block over the side panel's picker, the palette's row), the NAME a
+ * DOOR that starts a chat about it (the one-row box in that line, the box on
+ * the chat's own page, the palette's row), the NAME a
  * note's chat is listed under wherever it is listed, and what the FILE holds
  * once a door was used — the tie lives in the note's own front matter and
  * nowhere else.
@@ -14,7 +14,7 @@
  * (`/chat/<note>`), so a step that drives the conversation is the ordinary
  * chat vocabulary's (`./chat_steps.ts`, `./chat_page_steps.ts`): once a
  * note's chat is named here, `this.activeAgent` is set and the page, the fold
- * and the dock are addressed by it. What is here is what the LINE says, and
+ * and a chat page are addressed by it. What is here is what the LINE says, and
  * what the file holds.
  */
 import assert from "node:assert/strict";
@@ -24,7 +24,6 @@ import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { selector } from "@olai/web/testlib";
 import {
   attr,
-  CHAT_DOCK,
   CHAT_PANEL,
   HYDRATION_TIMEOUT,
   PALETTE_ITEM,
@@ -47,7 +46,6 @@ import {
   CHAT_LINE_OPEN,
   CHAT_LINE_STANDING,
   CHAT_NAME,
-  CHAT_THIS_PAGE,
 } from "../selectors.ts";
 
 /** The palette's row for the door, by the id the adapter gives it
@@ -59,8 +57,6 @@ const ABOUT_ROW = "chat-about-page";
 
 const ROW = selector(TESTID.agentRow);
 const ROSTER = selector(TESTID.agentRoster);
-const DOCK_TITLE = selector(TESTID.chatDockTitle);
-const DOCK_PICK = selector(TESTID.chatDockPick);
 /** The palette row's second line — navigation's id, through the harness's
  *  combined table, because a plugin may not import the registry. */
 const PALETTE_PLACE = selector(PLUGIN_TESTID.paletteItemPlace);
@@ -74,7 +70,7 @@ const keyOf = (note: string): string => `/${note}`;
 /** The line at the top of the note the page in front draws. */
 const line = (world: OlaiWorld): Locator => world.frontLane().locator(CHAT_LINE).first();
 
-/** The box that starts a chat, in the line or in the side panel. */
+/** The box that starts a chat, in the line or on the chat's own page. */
 const box = (world: OlaiWorld, where: string): Locator =>
   world.page.locator(`${CHAT_ABOUT}${attr("data-where", where)}`);
 
@@ -230,8 +226,14 @@ When("I ask about this page {string}", async function (this: OlaiWorld, text: st
   await askFrom(this, "line", text);
 });
 
-When("I ask about this page in the panel {string}", async function (this: OlaiWorld, text: string) {
-  await askFrom(this, "panel", text);
+/** THE TWO-COLUMN BUTTON on a Chats row: the chat's page in the pane beside
+ *  the focused one, or a focus on the pane that already has it. */
+When("I open the Chats row {string} beside", async function (this: OlaiWorld, name: string) {
+  await this.showSidebar();
+  const row = chatsRow(this, name);
+  await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  this.activeAgent = name;
+  await this.press(this.page.locator(`${ROSTER} ${CHAT_BESIDE}${attr("data-agent", this.nodeId(name))}`));
 });
 
 /** What the door said instead of starting one — a refused start, above all:
@@ -383,24 +385,7 @@ Then("the Chats row {string} is no taller than the row {string}", async function
   assert.ok(tall <= flat + 1, `the Chats row for ${marked} is ${tall}px tall beside ${flat}px for ${plain} — its mark is drawn in no box`);
 });
 
-// ── the side panel's **This page** ─────────────────────────────────────
 
-Then("the side panel offers This page the note {string} named {string}", async function (this: OlaiWorld, note: string, name: string) {
-  const block = this.page.locator(`${CHAT_THIS_PAGE}${attr("data-note", note)}`);
-  await block.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  const words = await block.innerText();
-  assert.ok(words.includes(name), `**This page** names ${name}, and read ${JSON.stringify(words)}`);
-  assert.ok(words.includes(note), `**This page** says where the note is (${note})`);
-  assert.ok(words.includes("No chat yet"), "**This page** says there is no chat yet");
-  // The kind's own mark, beside the name.
-  assert.equal(await block.locator("p svg").count() > 0, true, "**This page** draws no mark for the note");
-  await block.locator(`${CHAT_ABOUT}${attr("data-where", "panel")}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-});
-
-Then("the side panel offers no This page", async function (this: OlaiWorld) {
-  await this.waitUntil(async () => await this.page.locator(CHAT_THIS_PAGE).count() === 0,
-    "the side panel to offer no **This page** block");
-});
 
 // ── the palette's door ─────────────────────────────────────────────────
 
@@ -478,22 +463,6 @@ Then("the Chats row {string} is not current", async function (this: OlaiWorld, n
     `the Chats row for ${name} to stop being the current page`);
 });
 
-/** The docked conversation's title — the note's name and its mark. */
-Then("the agent panel title reads {string} with a file mark", async function (this: OlaiWorld, reads: string) {
-  const title = this.page.locator(`${CHAT_DOCK} ${DOCK_TITLE}`);
-  await title.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await this.waitUntil(async () => (await title.innerText()).trim() === reads, `the panel title to read ${JSON.stringify(reads)}`);
-  assert.equal(await this.page.locator(`${CHAT_DOCK} ${CHAT_FILE_MARK}`).count(), 1, "the panel title wears no file mark");
-});
-
-/** ...and one row of the panel's picker, which is the third list. */
-Then("the panel picker row {string} reads {string} with a file mark", async function (this: OlaiWorld, name: string, reads: string) {
-  const row = this.page.locator(`${CHAT_DOCK} ${DOCK_PICK}${attr("data-agent", this.nodeId(name))}`);
-  await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  await this.waitUntil(async () => (await row.locator(CHAT_NAME).innerText()).trim() === reads,
-    `the picker row to read ${JSON.stringify(reads)}`);
-  assert.equal(await row.locator(CHAT_FILE_MARK).count(), 1, "the picker row wears no file mark");
-});
 
 /** ...and the palette's, whose second line says where the note is. */
 Then("the Agents palette row {string} reads {string} placed {string}", async function (this: OlaiWorld, name: string, reads: string, place: string) {

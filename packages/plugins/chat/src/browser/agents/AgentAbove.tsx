@@ -31,8 +31,8 @@
  * ## The trail is read here, not passed in
  *
  * Every surface that draws either shape already knows its node, and only the
- * node: asking `./above.ts` for its ancestors means a folded row, a docked
- * conversation and a page's head answer one question one way. The memo tracks
+ * node: asking `./above.ts` for its ancestors means a folded row, a chat page
+ * and a page's head answer one question one way. The memo tracks
  * the pages and the roster, so an agent started or stopped above retargets the
  * pill in place.
  */

@@ -31,8 +31,8 @@ import { type AgentItem, itemKey } from "@olai/format"
 import { fileMark } from "../kinds.ts"
 
 /**
- * WHAT A CHAT IS CALLED wherever it is listed — the sidebar, the side panel's
- * title and picker, the palette.
+ * WHAT A CHAT IS CALLED wherever it is listed — the sidebar, a chat page's
+ * head, the palette.
  *
  * A node's chat is its row's title. A note's chat is the note's name (`plan`
  * for `notes/plan.md`), wearing the mark its kind of file wears, with the
@@ -49,14 +49,14 @@ export interface Named {
 export interface Roster {
   readonly rows: Accessor<ReadonlyArray<Row>>
   /** A chat by its ITEM KEY — a node's id, or `/` and a note's path
-   *  (`@olai/format`'s `itemKey`). It is what the wire, the seat and the side
-   *  panel's memory address a conversation by, and a face holding the item
-   *  itself asks {@link chatOf} instead. */
+   *  (`@olai/format`'s `itemKey`). It is what the wire addresses a
+   *  conversation by, and a face holding the item itself asks {@link chatOf}
+   *  instead. */
   readonly at: (key: string) => Row | undefined
   /**
    * THE CHAT OF AN ITEM — the one reading every face asks: the mark beside a
-   * row, its fold and page, the seat under a note, the side panel, the
-   * palette, the sidebar, link previews and the dot on a tab.
+   * row, its fold and page, the line at the top of a note, the chat's own
+   * page, the palette, the sidebar, link previews and the dot on a tab.
    *
    * Only a node and a note can have one, and each has at most one: the item
    * IS the key the roster is listed by, so this is a lookup and never a rule.

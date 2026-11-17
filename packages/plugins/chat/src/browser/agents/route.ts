@@ -86,6 +86,6 @@ export const chatPage = defineSelfDrawnRoute<AgentItem>({
 /** WHERE AN ITEM'S CHAT IS: its own page, which is the only place a
  *  conversation is drawn as a page. Every door that opens a chat — the
  *  sidebar's **Chats** and **Needs you** rows, the palette's agent rows, the
- *  pill above a node, the dock's title — goes through `./focus.ts`, which
+ *  pill above a node — goes through `./focus.ts`, which
  *  spends this. */
 export const chatRouteOf = (item: AgentItem) => chatPage.to(item)

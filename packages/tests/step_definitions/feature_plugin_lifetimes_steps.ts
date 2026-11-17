@@ -2,7 +2,7 @@ import { TESTID } from "@olai/bundle/testids"
 import * as assert from "node:assert";
 import { Then } from "@cucumber/cucumber";
 import { selector } from "@olai/web/testlib"
-import { CHAT_TOGGLE, HYDRATION_TIMEOUT, OFFLINE, TITLE_EDITOR } from "../support/world.ts";
+import { HYDRATION_TIMEOUT, OFFLINE, TITLE_EDITOR } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 const contributions: Readonly<Record<string, string>> = {

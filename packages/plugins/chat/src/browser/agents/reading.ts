@@ -15,11 +15,11 @@ import type { PageSession } from "./Page.tsx"
 
 /** WHO UNSENT WORDS ARE FOR: a chat (its page's plain composer, and the chat
  *  a door's start left waiting at sign-in), or one door's box on an item —
- *  the line at the top of a note, **This page**'s and a chat page's are three
- *  boxes (`./Door.tsx`), each keyed by the item it is about. */
+ *  the line at the top of a note and a chat page's are two boxes
+ *  (`./Door.tsx`), each keyed by the item it is about. */
 export type Unsent =
   | { readonly kind: "row"; readonly node: string }
-  | { readonly kind: "door"; readonly where: "line" | "panel" | "page"; readonly item: string }
+  | { readonly kind: "door"; readonly where: "line" | "page"; readonly item: string }
 
 export const createAgentReadings = (agents: Roster) => {
   const newChat = createNewChat((to, text) => keepMessage(ui(to).messages, JSON.stringify([to.agent, to.session]), text, true))

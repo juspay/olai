@@ -1,5 +1,5 @@
 /**
- * The agent panel, driven through the browser.
+ * A conversation, driven through the browser.
  *
  * Every assertion here is about the PAGE — what a person would see — because
  * everything below it already has unit tests: the ops layer has its own, the
@@ -939,7 +939,7 @@ Then("the agent is working", async function (this: OlaiWorld) {
   await this.expectAttribute(this.chatSelector(CHAT_PANEL),
     "data-status",
     "thinking",
-    "the agent panel",
+    "the conversation",
   );
 });
 
@@ -977,7 +977,7 @@ Then("the agent is idle", async function (this: OlaiWorld) {
     this.chatSelector(`${CHAT_PANEL}${attr("data-pending-sends", "0")}`),
     "data-status",
     "idle",
-    "the agent panel",
+    "the conversation",
     HYDRATION_TIMEOUT,
   );
 });
@@ -4598,10 +4598,6 @@ When("I open the nested agent's work", async function (this: OlaiWorld) {
 When("I return to the parent agent {string}", async function (this: OlaiWorld, name: string) {
   await this.page.getByRole("button", { name: `Back to ${name}`, exact: true }).click();
 });
-
-Then("the agent panel is already visible", async function(this: OlaiWorld) {
-  await this.chat(CHAT_PANEL).waitFor({ state: "visible" })
-})
 
 When("the agent starts so far are counted", function (this: OlaiWorld) {
   this.notedAgentStarts = this.serverLog.text.split("chat agent ready").length - 1;

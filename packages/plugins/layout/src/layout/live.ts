@@ -2,9 +2,9 @@
  * THE SHELL'S LIVE GEOMETRY — this row's own, and PRIVATE to this package.
  *
  * Three readings with one owner and one lifetime: whether the viewport is at
- * the desktop breakpoint, how wide the window is, and the four preference
- * circuits this browser's layout keeps. All three are installed by the layout
- * root's `activate` block (`../browser.tsx`) and released with it.
+ * the desktop breakpoint, how wide the window is, and the preference circuits
+ * this browser's layout keeps. All three are installed by the layout root's
+ * `activate` block (`../browser.tsx`) and released with it.
  *
  * They used to be module signals in `./prefs.ts` and `./media.ts` — declared
  * contract doors — and six other packages read them straight across the wall.
@@ -23,13 +23,9 @@ import { heldService } from "@olai/ui-primitives/held.ts"
 import type { SetOptions } from "@olai/web/client/preference.ts"
 
 import {
-  CHAT_DEFAULT_PX,
-  type ChatSnap,
   clamp,
-  fitWidths,
+  fitSidebar,
   type LayoutPreferences,
-  PANEL_MAX_PX,
-  PANEL_MIN_PX,
   SIDEBAR_DEFAULT_PX,
   SIDEBAR_MAX_PX,
   SIDEBAR_MIN_PX,
@@ -50,7 +46,7 @@ export const desktop: Accessor<boolean> = () => state()?.desktop() ?? false
 export const publishDesktop = (value: boolean): void => { state()?.setDesktop(value) }
 const viewportWidth = () => state()?.width() ?? 10_000
 
-// ── the four circuits, one factory ────────────────────────────────────────
+// ── the two circuits, one factory ─────────────────────────────────────────
 //
 // Each preference is its codec and nothing else; the read→signal→write→watch
 // wiring is `createPreference`'s (../preference.ts). The setters below stay,
@@ -95,27 +91,9 @@ export const revealSidebar = (): void => {
 
 // ── sidebar width ─────────────────────────────────────────────────────────
 
-// ── the seat's panel (desktop: a column beside the page) ─────────────────
-
-/** Is the right-hand panel open? A preference, like the sidebar's: a reader
- *  who keeps a conversation beside the page keeps it across reloads. Whether
- *  anything is IN the seat is the occupant's to say; with nobody in it the
- *  frame draws no column whatever this answers. */
-export const panelOpen: Accessor<boolean> = () => active()?.panelOpenPref.value() ?? false
-
-export const setPanelOpen = (open: boolean): void => active()?.panelOpenPref.set(open)
-
-export const togglePanel = (): void => setPanelOpen(!panelOpen())
-
 /** Live width, clamped to the current viewport. */
 export const sidebarWidth: Accessor<number> = () =>
-  fitWidths(
-    (active()?.sidebarWidthPref.value() ?? SIDEBAR_DEFAULT_PX),
-    (active()?.panelWidthPref.value() ?? CHAT_DEFAULT_PX),
-    sidebarOpen(),
-    panelOpen(),
-    viewportWidth(),
-  ).side
+  fitSidebar(active()?.sidebarWidthPref.value() ?? SIDEBAR_DEFAULT_PX, sidebarOpen(), viewportWidth())
 
 /**
  * Set the sidebar width. During a drag pass `{ persist: false }` so every
@@ -125,31 +103,6 @@ export const sidebarWidth: Accessor<number> = () =>
 export const setSidebarWidth = (px: number, opts?: SetOptions): void =>
   active()?.sidebarWidthPref.set(clamp(Math.round(px), SIDEBAR_MIN_PX, SIDEBAR_MAX_PX), opts)
 
-// ── chat width ────────────────────────────────────────────────────────────
-
-/** Live width, clamped to the current viewport. */
-export const panelWidth: Accessor<number> = () =>
-  fitWidths(
-    (active()?.sidebarWidthPref.value() ?? SIDEBAR_DEFAULT_PX),
-    (active()?.panelWidthPref.value() ?? CHAT_DEFAULT_PX),
-    sidebarOpen(),
-    panelOpen(),
-    viewportWidth(),
-  ).chat
-
-export const setPanelWidth = (px: number, opts?: SetOptions): void =>
-  active()?.panelWidthPref.set(clamp(Math.round(px), PANEL_MIN_PX, PANEL_MAX_PX), opts)
-
-/** Reset the sidebar (and the seat's panel) to default widths — the palette's
+/** Put the directory column back to its default width — the palette's
  *  "Reset sidebar width", for keyboard users. */
-export const resetPanelWidths = (): void => {
-  setSidebarWidth(SIDEBAR_DEFAULT_PX)
-  setPanelWidth(CHAT_DEFAULT_PX)
-}
-
-// ── mobile chat snap ──────────────────────────────────────────────────────
-
-export const panelSnap: Accessor<ChatSnap> = () => active()?.panelSnapPref.value() ?? "half"
-
-export const setPanelSnap = (snap: ChatSnap): void => active()?.panelSnapPref.set(snap)
-
+export const resetSidebarWidth = (): void => setSidebarWidth(SIDEBAR_DEFAULT_PX)

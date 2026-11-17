@@ -35,7 +35,7 @@ Two plugins written out in full are in [dynamic-plugins-examples.md](dynamic-plu
 
 [^name]: olai suggests a name from the sentence you wrote, and the line under the box says where the plugin will be kept, `Kept in your vault as plugins/hex-swatch/`. A name another plugin has, or one that is not lower-case letters, digits and hyphens starting with a letter, is refused while you type.
 
-[^watch]: The button opens the plugin's own page, with the conversation building it in the agent panel beside, and the page lists each file as the agent writes it. On a phone, and where there is no agent panel, the chat sits in the seat at the foot of the page. That conversation is an ordinary one under **Chats**: close the panel, come back tomorrow, and an alert tells you when the agent needs you.
+[^watch]: The button opens the plugin's own page, with the conversation building it opened in the pane beside, and the page lists each file as the agent writes it. That conversation is an ordinary one under **Chats**: close the pane, come back tomorrow, and an alert tells you when the agent needs you.
 
 [^sidebar]: The **Plugins** section of the sidebar lists one row per plugin, and a single row reading **Ask for your first plugin…** while you have none. A row carries a mark only when it needs something from you: `Review` for a version nobody has read, `Problem` for one that will not start, and a moving dot while an agent is still writing its files. A plugin switched off is drawn dim.
 
@@ -45,7 +45,7 @@ Two plugins written out in full are in [dynamic-plugins-examples.md](dynamic-plu
 
 [^version]: A version is a hash of the plugin's two code files. Editing either one pauses the plugin, stops it running, and shows what changed since the version you approved. Editing the `README.md` changes nothing, because prose is not code. Every approval carries the version the page showed you, so one made after the source changed is refused.
 
-[^builder]: Asking for a new plugin starts a chat titled `[Hex Swatch](/plugins/hex-swatch)`, which is the chat about that plugin's page. Any chat at that address is the plugin's builder: the page reads **Being built** while it works, tells you when the agent has finished, and carries **Ask for a change…** on a desktop. A phone draws the chat in the page's seat instead. A plugin with no chat at its address draws the **Ask about …** box at both widths.
+[^builder]: Asking for a new plugin starts a chat titled `[Hex Swatch](/plugins/hex-swatch)`, which is the chat about that plugin's page. Any chat at that address is the plugin's builder: the page reads **Being built** while it works, tells you when the agent has finished, and carries **Ask for a change…**, which opens that chat in the pane beside. A plugin with no chat at its address draws the **Ask about …** box instead.
 
 [^reserved]: You cannot use `on`, `approved` or `checked` as a plugin setting: a `Config` declaring one faults the plugin, and `plugins.configure` refuses to write one. `checked` is the version the building conversation last finished at, and olai writes it when that call comes in. A plugin that could write `checked` itself would declare itself finished.
 

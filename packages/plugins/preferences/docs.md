@@ -27,7 +27,7 @@ A heading named after a plugin holds the settings that plugin asks to have shown
 ## What is deliberately not here
 
 - No switch for reduced motion or higher contrast. You have already set those in your operating system, and olai follows them as they change: [theme.md](theme.md) explains how.
-- No controls for width. You size the sidebar and the panels by dragging their edges.
+- No controls for width. You size the sidebar and the panes by dragging their edges.
 
 ## When something is off
 

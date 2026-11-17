@@ -4,7 +4,7 @@
  * note's is `/` and its path (`@olai/format`'s `itemKey`).
  *
  * `at(key)` is read once per outline row (its standing), per Chats row, per
- * fold and per dock. A `Map` minted on every roster frame woke every one of
+ * fold and per chat page. A `Map` minted on every roster frame woke every one of
  * those readers whenever ANY agent moved — which, while an agent is working, is
  * several times a turn. Here each key has a signal of its own, written only
  * when the row under that key SAYS something new: the next frame's row is

@@ -68,7 +68,7 @@ const panel = selector(PLUGIN_TESTID.chatRowMenuPanel);
 const item = selector(PLUGIN_TESTID.chatRowMenuItem);
 const menuSaid = selector(PLUGIN_TESTID.chatRowMenuSaid);
 
-/** The row is hovered first, for the dock door's reason: the `•••` is revealed
+/** The row is hovered first, for the beside door's reason: the `•••` is revealed
  *  on hover, so the press lands on a control a person could have seen. */
 When("I open the Chats menu of {string}", async function (this: OlaiWorld, id: string) {
   await this.showSidebar();

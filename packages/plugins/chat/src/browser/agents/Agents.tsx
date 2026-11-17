@@ -21,7 +21,8 @@ import { ChatRowMenu } from "./ChatRowMenu.tsx"
 import { needing } from "./attention-order.ts"
 import { byActivity } from "./activity-order.ts"
 import { unfolded } from "./folding.ts"
-import { dock } from "../dock.ts"
+import { useChatBeside } from "./ChatBeside.tsx"
+import { itemOf } from "@olai/format"
 
 export function NeedsYou() {
   const shown = useShown()
@@ -102,28 +103,38 @@ export function Chats() {
           an anchor is a control whose activation is also a navigation (the
           pins' rule). Revealed on hover or focus, over the row's right edge on
           the column's own ground — and on a screen with no hover to offer,
-          simply drawn (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`): the
-          dock door is only ever drawn beside a desktop-width dock, which a
-          touch tablet is. The `•••` is always there — every row has verbs —
-          and the dock door only where there is a seat to open, which the dock
-          component's shell decides. */}
+          simply drawn (`@olai/ui-primitives`'s `SHOWN_WITHOUT_HOVER`). The
+          `•••` is always there — every row has verbs — and the beside door
+          only above `md`, where there are panes side by side to put a
+          conversation in; below it the panes are a strip of tabs, one at a
+          time, and "beside" names nothing a reader would see. */}
       <div class="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
-        <Show when={dock()?.desktop()}>
-          <Tip text="Open in the panel">
-          <button type="button"
-            class={`inline-flex size-6 items-center justify-center rounded-control bg-desk text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
-            data-testid={TESTID.chatDockOpen} data-agent={row().id}
-            aria-label={`Open ${agents.named(row()).name} in the panel`}
-            onClick={(event) => { event.stopPropagation(); dock()?.open(row().id) }}>
-            <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="2" y="3" width="12" height="10" rx="1.5" />
-              <path d="M9.5 3v10" />
-            </svg>
-          </button>
-          </Tip>
-        </Show>
+        <BesideDoor id={row().id} name={agents.named(row()).name} />
         <ChatRowMenu row={row()} />
       </div>
     </li>}</Key></ul>
   </section>
+}
+
+/** THE TWO-COLUMN BUTTON on a Chats row: this chat's page in the pane to the
+ *  right of the focused one, or — while a pane already has it — that pane
+ *  focused, which is the drawn-once rule every *Open beside* obeys
+ *  (`./ChatBeside.tsx`). */
+function BesideDoor(props: { readonly id: string; readonly name: string }) {
+  const { beside, press } = useChatBeside(() => itemOf(props.id))
+  return (
+    <Tip text={beside() === null ? "Open beside" : "Shown beside"}>
+    <button type="button"
+      class={`hidden size-6 items-center justify-center rounded-control bg-desk text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100 md:inline-flex ${SHOWN_WITHOUT_HOVER}`}
+      data-testid={TESTID.chatBeside} data-agent={props.id} data-item={props.id}
+      data-beside={String(beside() !== null)}
+      aria-label={beside() === null ? `Open ${props.name} beside` : `${props.name} is shown beside`}
+      onClick={(event) => { event.stopPropagation(); press() }}>
+      <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="3" width="12" height="10" rx="1.5" />
+        <path d="M9.5 3v10" />
+      </svg>
+    </button>
+    </Tip>
+  )
 }

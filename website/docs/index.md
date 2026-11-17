@@ -42,7 +42,7 @@ Chat with a coding agent, such as Claude Code, beside your notes, and give it wo
 
 ### Each agent
 
-The five coding agents the chat panel can run.
+The five coding agents olai can run.
 
 | Page | What it covers |
 | --- | --- |
@@ -111,7 +111,7 @@ The parts of the page you see and use.
 | Page | What it covers |
 | --- | --- |
 | [UI renderer: starting the browser app and its named places](plugins/ui-renderer.md) | Draws the browser app with Solid, and lets plugins add parts to named places on the page. |
-| [Layout](plugins/layout.md) | The page's frame: the panels, the header and its health dot, banners, and the places where file viewers sit. |
+| [Layout](plugins/layout.md) | The page's frame: the sidebar column, the header and its health dot, banners, and the places where file viewers sit. |
 | [Addresses, panes and the command palette](plugins/navigation.md) | Page addresses, Back and Forward, which pane has focus, and the command palette. |
 | [Tabs](plugins/tabs.md) | Several pages open as tabs above the panes, each with its own Back and Forward. |
 | [Sidebar](plugins/sidebar.md) | The column of files on the left, the narrow rail beside it, and the places plugins can add to them. |

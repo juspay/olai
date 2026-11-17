@@ -155,9 +155,8 @@ export function Commit() {
       <Show when={showPill()}>
       {/* {@link LAYER.over}: this pill lives in the bar, so the sentence
           about it is the same claim the panel behind it already makes —
-          cover the bar (and the chat dock that shares the page layer).
-          Sitting at the page layer is how the coral rule cut the first
-          line and how the dock's header pills painted through the rest. */}
+          cover the bar. Sitting at the page layer is how the coral rule cut
+          the first line and how a page's own pills painted through the rest. */}
       <Tip text={said()} layer={LAYER.over}>
         <button
           type="button"

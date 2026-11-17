@@ -89,7 +89,7 @@ A reader gives a page a few seconds to a minute. The **main flow** is what they 
 | a document | a `.md` file | "a note" for the file: a note is the text under a row |
 | the sidebar | the left column of files, and the rail beside it | "the tree", "the left panel" |
 | the palette | what `Cmd` + `K` opens, labelled **Command palette** | "the command bar", "the launcher" |
-| the agent panel, a conversation | the right-hand panel, labelled **Agent panel**; one chat in it | "the dock", "a thread", "a session" outside an agent's own page |
+| a conversation | one chat with one agent, drawn on its chat page, which a pane shows | "the dock", "a thread", "a session" outside an agent's own page |
 | an agent | Claude Code, Codex, opencode, pi or Oh My Pi | "an engine", which is the plugin that runs one |
 | a plugin | one of the parts the **Plugins** panel lists | "a row" for a plugin, "a capability", "a module" |
 | a property | a key and a value on a row | "a field", "an attribute" |

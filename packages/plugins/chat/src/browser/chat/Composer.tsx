@@ -700,9 +700,10 @@ export function Composer(props: {
       // writer had not finished choosing. Navigation starts a window-capture
       // guard (`@olai/web/client/composition.ts`) that stops such a key
       // reaching any handler, and while the palette's row is on, this line
-      // never runs. But the composer is drawn from the DOCK (`app.panel`, the
-      // shell's slot) and from a row's fold (`outline.row.fold`, the
-      // outline's), neither of which carries navigation's lifetime — so with
+      // never runs. But the composer is drawn from a chat's own page
+      // (`app.route`, navigation's slot) and from a row's fold
+      // (`outline.row.fold`, the outline's), neither of which carries
+      // navigation's lifetime — so with
       // that row switched off the guard is simply absent and this is the only
       // thing standing between an IME and a half-sent turn.
       if (composing(event)) return

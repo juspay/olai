@@ -54,7 +54,7 @@ On a desktop a strip of tabs sits above the page, and `Cmd` + `Shift` + `O` open
 
 [^tabs]: The other ways to open a tab are the `+` at the end of the strip and **Open in new tab** from a link's menu. `Cmd` + `Shift` + `.` and `Cmd` + `Shift` + `,` move to the next and previous tab, and `Cmd` + `Shift` + `X` closes the tab in front, as do its `×` and a middle-click. Right-click a tab for **Duplicate tab** and **Close other tabs**, and drag a tab along the strip to reorder it.
 
-[^tabstate]: The tab in front is the one the address bar, the sidebar, Back and every pane gesture act on, while the sidebar, the agent panel and the palette are shared by every tab. A tab opened from a link opens behind the one in front, and closing the last tab leaves one tab on the front page. Back and Forward move within the tab in front, and closing a tab takes its pages out of them.
+[^tabstate]: The tab in front is the one the address bar, the sidebar, Back and every pane gesture act on, while the sidebar and the palette are shared by every tab. A tab opened from a link opens behind the one in front, and closing the last tab leaves one tab on the front page. Back and Forward move within the tab in front, and closing a tab takes its pages out of them.
 
 [^tabsback]: The open tabs are remembered in this browser, so a reload brings them back, though each tab's Back history starts fresh. A phone has no strip of tabs: **Open in new tab** shows the page straight away, and the tabs from your desk are kept for when you come back to it ([plugins/tabs.md](plugins/tabs.md)).
 

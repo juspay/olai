@@ -766,7 +766,7 @@ const rowOf = (
    *  one to report ({@link checkedBuilds}). */
   pending: { readonly version: string; readonly why: string | null } | undefined,
   /** Whether a chat is at this plugin's page address — what makes it a plugin
-   *  an agent is building, and what the page docks ({@link chats}). */
+   *  an agent is building, and what the page opens beside it ({@link chats}). */
   chat: boolean,
   /** Whether this serve can speak into a conversation at all. */
   asking: boolean,

@@ -6,7 +6,7 @@
  * ## Why so many components, and why that is the design rather than the cost
  *
  * This row's faces hang in five different plugins' houses: the sidebar's
- * section, navigation's route and palette, chat's agent panel and engine
+ * section, navigation's route and palette, chat's beside door and engine
  * roster, and the alerts channel. Every one of those is a plugin a serve may
  * not compose, or a person may switch off, and NONE of them is a reason for
  * the rest of this surface to stop. A row that declared all five would be
@@ -24,7 +24,7 @@
  * | `page` | management, `Slots` | no `/plugins/<word>` page; the sidebar's rows still draw, and still link |
  * | `palette` | palette control, navigation, management, renderer | no *New plugin* row, no `+` on the heading, and the empty vault's row is a sentence; everything already in the vault still works |
  * | `new-plugin` | palette control, `Offers` | no **New plugin** door on the plugins panel; the palette's own row is untouched |
- * | `dock` | chat's panel door | the page does not dock the builder and offers no verb that would |
+ * | `beside` | chat's beside door | the page offers no *Ask for a change…* row and opens no builder chat |
  * | `engines` | chat's engine roster | *New plugin* offers no engine and mints a folder anyway, saying so |
  * | `notices` | the alerts channel, management, navigation | nothing pings; the sidebar's mark and the page still say everything |
  *
@@ -50,7 +50,6 @@ import { browserManagement } from "@olai/surface/management"
 import { defineSelfDrawnPage } from "olai-plugin-navigation/routes"
 import { alertsChannel as noticeChannel } from "olai-plugin-alerts/contract"
 import { engines as engineRoster } from "olai-plugin-chat/browser-engines"
-import { chatDock as panelDoor } from "olai-plugin-chat/dock"
 import { chatBeside as besideDoor } from "olai-plugin-chat/beside"
 import { navigation as appRouter, paletteAdapters, paletteControl } from "olai-plugin-navigation/contract"
 import { rendererSlots } from "olai-plugin-ui-renderer/contract"
@@ -60,7 +59,7 @@ import { createRoot } from "solid-js"
 import { type Approvals, name, type NewPlugin } from "./index.ts"
 import { client, holdClient, type Client } from "./client.ts"
 import { createPluginAlerts } from "./browser/alerts.ts"
-import { holdBeside, holdDock, holdEngines, holdPalette, holdRouter } from "./browser/doors.ts"
+import { holdBeside, holdEngines, holdPalette, holdRouter } from "./browser/doors.ts"
 import { NEW_PLUGIN_ROW, newPluginRow } from "./browser/new-plugin.ts"
 import { PluginPage } from "./browser/Page.tsx"
 import { pluginPage } from "./browser/route.ts"
@@ -154,18 +153,11 @@ export const components = {
     yield* (yield* Offers).own("new-plugin", (): NewPlugin => ({ open: () => control.showAt([NEW_PLUGIN_ROW]) }))
   }) }),
 
-  /** THE BUILDER, BESIDE THE PAGE — the agent panel's own door, held for the
-   *  page to read. Its absence is a serve with no conversations, a layout with
-   *  no seat, or a phone, and in all three the page simply does not dock. */
-  dock: definePlugin({ name: "dock", needs: [panelDoor], apply: Effect.gen(function*() {
-    const door = yield* panelDoor
-    yield* Effect.acquireRelease(Effect.sync(() => holdDock(door)), stop => Effect.sync(stop))
-  }) }),
-
   /** THE CONVERSATION IN THE PANE BESIDE — chat's own door, held for the
-   *  page's *Ask for a change…* row (`olai-plugin-chat/beside`). Its absence
-   *  is a serve with chat off or no router, and the page then offers no row
-   *  rather than one that cannot open anything. */
+   *  page's *Ask for a change…* row and the one-time open on a plugin being
+   *  built (`olai-plugin-chat/beside`). Its absence is a serve with chat off
+   *  or no router, and the page then offers no row rather than one that
+   *  cannot open anything. */
   beside: definePlugin({ name: "beside", needs: [besideDoor], apply: Effect.gen(function*() {
     const door = yield* besideDoor
     yield* Effect.acquireRelease(Effect.sync(() => holdBeside(door)), stop => Effect.sync(stop))

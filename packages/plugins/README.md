@@ -27,7 +27,7 @@ same the file’s row selection word:
   readings that simply are not there. They are the promotion track of
   [the Cordis plan](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/cordis-for-olai.md),
   and the point of each is the same: what a serve HAS is a row list.
-- **ENGINES** — an ACP agent the chat panel can seat: `claude`, `codex`,
+- **ENGINES** — an ACP agent a conversation can seat: `claude`, `codex`,
   `opencode`, `pi`, `omp`. Each hands over a `Leg` (how to read that agent's
   wire), a probe that finds it on this host, and the channel its standing prompt
   rides — and, on its browser half, the mark it wears and the whole sentence for

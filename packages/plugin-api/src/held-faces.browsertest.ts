@@ -39,7 +39,7 @@ test("two callers get two holders, so minting one shares nothing", () =>
     // before its row's renderer arrived has always been told.
     expect(wordsIn(other)).toEqual([])
     expect(other.dressed("outline.row.chip").size).toBe(0)
-    expect(other.only("app.panel")).toBeNull()
+    expect(other.only("app.viewer")).toBeNull()
   }))))
 
 /**

@@ -14,7 +14,6 @@ import { AgentAbove } from "./AgentAbove.tsx"
 import { FreshStart } from "./FreshStart.tsx"
 import type { Chat } from "../chat/state.ts"
 import { TESTID } from "../../testids.ts"
-import { dock } from "../dock.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { LINE_VERB } from "./verb.ts"
 import { type AgentItem, itemOf } from "@olai/format"
@@ -23,14 +22,11 @@ import { servedDirectory } from "../vault.ts"
 import { OpenBeside } from "./OpenBeside.tsx"
 import { ChatBeside } from "./ChatBeside.tsx"
 
-export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly dock?: boolean; readonly beside?: AgentItem }) {
+export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly beside?: AgentItem }) {
   const agents = useAgents()
   const state = () => props.chat.state()
   const doing = () => busyIn(state())
-  /** The seat's door, offered where there is a seat and this is not already
-   *  it: a desktop with the dock component standing (`../dock.ts`). */
-  const dockable = () => props.dock !== true && (dock()?.desktop() ?? false)
-  return <div class="relative flex flex-wrap items-center gap-2 border-b border-rule bg-desk/50 px-3 py-1.5 text-label text-muted" classList={{ "rounded-t-surface": !props.page && !props.dock }}>
+  return <div class="relative flex flex-wrap items-center gap-2 border-b border-rule bg-desk/50 px-3 py-1.5 text-label text-muted" classList={{ "rounded-t-surface": !props.page }}>
     <Show when={agentIn(state())}>{agent => <span class="inline-flex items-center gap-1" data-testid={TESTID.chatAgent} data-agent={agent().id}>
       <AgentMark id={agent().id} />{agent().name}
     </span>}</Show>
@@ -58,19 +54,9 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
     </Show>
     <span class="flex-1" />
     <AgentAbove node={props.node} />
-    <Show when={dockable()}>
-      <Tip text="Keep this conversation beside the page (⌘J shows or hides the panel)">
-        <button type="button" class={LINE_VERB} data-testid={TESTID.chatDockHere}
-          onClick={() => dock()?.open(props.node)}>Open in panel ›{/*
-          THE CHORD, in the button's own name: ⌘J is the only way back to a
-          panel this button opened, and the tip that used to be its only
-          copy is drawn rather than spoken. */}
-          <span class="sr-only"> — ⌘J shows or hides the panel</span></button>
-      </Tip>
-    </Show>
     {/* THIS CONVERSATION, BESIDE WHAT IT IS ABOUT — offered on every line
-        drawn where the item itself is (a fold, a node's page, a note's open
-        seat), and never on the chat's own page, whose line carries the
+        drawn where the item itself is (a fold, a node's page, the line at the
+        top of a note), and never on the chat's own page, whose line carries the
         opposite verb below (`./ChatBeside.tsx`).
 
         DRAWN ONLY WHERE THERE CAN BE A PANE BESIDE THIS ONE. Below `md` the
@@ -81,7 +67,7 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
         and the row under an open fold sat at 845). The one-line *Shown
         beside* is NOT gated: wherever a conversation has gone, the way back
         to it is drawn. */}
-    <Show when={props.beside === undefined && props.dock !== true}>
+    <Show when={props.beside === undefined}>
       <ChatBeside item={itemOf(props.node)} class={`hidden md:inline-flex ${LINE_VERB}`} />
     </Show>
     {/* THE ITEM, BESIDE THIS CONVERSATION — only on the chat's own page,

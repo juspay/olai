@@ -778,8 +778,8 @@ Feature: Talking to a node agent
     # answered a different question than the one being asked of it.
     And the panel header names the model "Fake One"
     And the header says the agent is working
-    # Close via the permanent header toggle (no × in the panel). The toggle
-    # stays visible, unpressed, and still busy while the turn runs.
+    # Close via the row's own fold toggle. It stays visible, unpressed, and
+    # still busy while the turn runs.
     When I close the agent fold
     Then the aside on "kitchen" stands "working"
     When I open the agent fold again

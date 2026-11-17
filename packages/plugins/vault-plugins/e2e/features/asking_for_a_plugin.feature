@@ -2,14 +2,14 @@ Feature: Asking for a plugin
   Nobody is asked about halves, slots, service keys or a word grammar. A person
   says in one sentence what they want, olai suggests a name and says where the
   folder will be kept, and the press lands on the plugin's own page with the
-  conversation that is building it docked beside.
+  conversation that is building it in the pane beside.
 
   IT IS THE SHAPE **NEW CHAT** ALREADY HAS — ⌘K, a row, two levels, a submit —
   because the gesture is the same gesture with a different noun, and a second
   way of asking for something would be a second thing to learn for no reason
   at all.
 
-  WHAT IS ASSERTED HERE IS THE DISK AND THE DOCK. A mint that drew the right
+  WHAT IS ASSERTED HERE IS THE DISK AND THE PANE. A mint that drew the right
   words and wrote nothing would pass any assertion made about the screen, so
   these scenarios ask the vault what is in it: the folder with the README the
   person's own sentence went into, the chat row TITLED WITH THE PLUGIN'S PAGE
@@ -64,7 +64,7 @@ Feature: Asking for a plugin
     # node to bind them: the chat is the chat ABOUT this page, and a title is
     # how a chat says what it is about.
     And the plugin "bar-beside" is being built by a conversation called "Bar beside"
-    And the conversation building "bar-beside" is docked
+    And the conversation building "bar-beside" is beside the page
     And the builder was told how to write a plugin exactly once
     And the agent has answered "draws a tiny bar beside any number" exactly once
     And there should be no page errors

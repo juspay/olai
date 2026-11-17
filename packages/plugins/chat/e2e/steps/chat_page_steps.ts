@@ -18,6 +18,7 @@ import {
   CHAT_SAID,
   HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
+  ZOOM_TITLE,
 } from "@olai/tests/harness/world.ts";
 import type { Locator } from "@olai/tests/harness/playwright.ts";
 import type { OlaiWorld } from "@olai/tests/harness/world.ts";
@@ -44,6 +45,18 @@ const page = (world: OlaiWorld): Locator => world.frontLane().locator(CHAT_PAGE)
 /** ...and the page about one item, by the key its address names. */
 const pageOf = (world: OlaiWorld, item: string): Locator =>
   world.frontLane().locator(`${CHAT_PAGE}${attr("data-item", item)}`);
+
+/** WHERE A CHAT'S DOOR LANDED: the item's own page, or the chat's. One step
+ *  for the two because a door that opens a conversation is allowed to land on
+ *  either — the node's zoom page draws the conversation at its foot, and the
+ *  chat page draws it whole. */
+Then("the page is the agent {string}", async function (this: OlaiWorld, node: string) {
+  const id = this.nodeId(node);
+  await this.frontLane()
+    .locator(`${ZOOM_TITLE}${attr("data-node-id", id)}, ${CHAT_PAGE}${attr("data-item", id)}`)
+    .first()
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
 
 /** The head's three facts: what kind of item, what it is called, and where it
  *  is. Asserted together because they are one line a person reads. */
@@ -107,8 +120,8 @@ Then("the chat page conversation is ready", async function (this: OlaiWorld) {
   assert.ok(item, "the chat page names no item");
   await here.locator(`${selector(TESTID.agentPageFoot)}${attr("data-agent", item)}`)
     .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-  // SCOPED TO THE PAGE, not to the harness's conversation hosts: a note's
-  // chat can be drawn in the side panel at the same time, and a locator
+  // SCOPED TO THE PAGE, not to the harness's conversation hosts: the same
+  // chat can be drawn under its row's fold at the same time, and a locator
   // matching both is a strict-mode failure rather than an answer.
   const panel = here.locator(`${selector(TESTID.agentPageFoot)}${attr("data-agent", item)} ${CHAT_PANEL}`);
   await this.waitUntil(async () => await panel.getAttribute("data-session-id") !== null,

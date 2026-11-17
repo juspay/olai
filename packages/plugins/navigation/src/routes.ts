@@ -39,7 +39,7 @@ interface PageGrammar {
   readonly breadcrumb: (page: unknown) => string
   readonly narrowable: boolean
   /** The mark a page of this grammar wears where a place is named — a chat
-   *  about it in the sidebar, the palette, the side panel. Absent wears the
+   *  about it in the sidebar, or the palette. Absent wears the
    *  pin mark every other address does. */
   readonly glyph?: () => JSX.Element
 }

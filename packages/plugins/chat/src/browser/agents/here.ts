@@ -38,8 +38,8 @@ export const itemHere = (claims: Claims | undefined, route: Route): AgentItem | 
   return isNotePath(claims, address.path) ? { kind: "note", path: address.path } : null
 }
 
-/** ...and the same answer for the faces that only ever take a note: the page's
- *  seat, the palette's door, the side panel's **This page**. */
+/** ...and the same answer for the faces that only ever take a note: the line
+ *  at the top of its page, and the palette's door. */
 export const noteHere = (claims: Claims | undefined, route: Route): string | null => {
   const item = itemHere(claims, route)
   return item === null || item.kind !== "note" ? null : item.path

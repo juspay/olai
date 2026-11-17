@@ -1,7 +1,7 @@
 /**
  * *ASK ABOUT …* — THE ONE BOX that starts a conversation: on a row's own page,
- * and in the seat at the foot of a page and the side panel's **This page**
- * block. What **Send** does is the caller's (start an agent on the row, or a
+ * in the line at the top of a note, and on the chat page of an item that has
+ * no chat yet. What **Send** does is the caller's (start an agent on the row, or a
  * chat about the page); the words, the choice of agent, the key handling and
  * the sentence a refusal leaves are this box's, once.
  *

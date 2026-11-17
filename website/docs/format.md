@@ -164,7 +164,7 @@ A read answers with the same map a write would produce, so a key with no value i
 
 This is the one exception, and it is a type the chat plugin declares rather than a key olai itself reads. A row carrying a property of that type is a node agent: an agent that lives on a row.
 
-The row's title is the agent's name, the note under it is the agent's instructions, and the rows beneath it are its memory. The list behind the agent panel is the search `prop:chat-agent-session` ([node-agents.md](node-agents.md)). The chat plugin contributes the type, so a serve running without chat does not read it ([live-properties.md](live-properties.md)).
+The row's title is the agent's name, the note under it is the agent's instructions, and the rows beneath it are its memory. The list of chats in the sidebar is the search `prop:chat-agent-session` ([node-agents.md](node-agents.md)). The chat plugin contributes the type, so a serve running without chat does not read it ([live-properties.md](live-properties.md)).
 
 One key holds two things, which engine the agent runs on and which conversation it is talking through, split at the first colon:
 

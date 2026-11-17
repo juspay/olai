@@ -51,6 +51,12 @@ When("I open the chat beside the fold on {string}", async function (this: OlaiWo
   await this.press(await beside(this, fold(this, node), false));
 });
 
+/** ...and the same verb on a node PAGE's own agent line, which is the head
+ *  the zoomed page pins. */
+When("I open the chat beside from the agent line", async function (this: OlaiWorld) {
+  await this.press(await beside(this, this.chatLine(), false));
+});
+
 When("I press Shown beside about {string}", async function (this: OlaiWorld, chat: string) {
   await this.press(await beside(this, besideLine(this, chat), true));
 });

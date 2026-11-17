@@ -32,10 +32,10 @@ Feature: A plugin's chat is the chat of its README
     And the plugin "bar-beside" is being built by a conversation called "Bar beside"
     And the plugin page is "building"
 
-    # ...AND THE PAGE FINDS IT BY THAT NOTE. It is docked beside the page
-    # because this plugin is being built, and the menu offers the way back to
-    # it once the reader has closed the column.
-    And the conversation building "bar-beside" is docked
+    # ...AND THE PAGE FINDS IT BY THAT NOTE. It opens in the pane beside the
+    # page because this plugin is being built, and the menu offers the way back
+    # to it once the reader has closed that pane.
+    And the conversation building "bar-beside" is beside the page
     And the plugin page offers to ask for a change
 
     When I ask for a change to the plugin "bar-beside"
@@ -94,8 +94,8 @@ Feature: A plugin's chat is the chat of its README
     And I name the plugin "Bar beside"
     And I accept the name
     Then the address is "/plugins/bar-beside"
-    And the conversation building "bar-beside" is docked
+    And the conversation building "bar-beside" is beside the page
     When I reload the page
     Then the plugin page is "building"
-    And the conversation building "bar-beside" is docked
+    And the conversation building "bar-beside" is beside the page
     And there should be no page errors

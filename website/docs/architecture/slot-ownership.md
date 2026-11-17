@@ -14,7 +14,7 @@ What a slot is keyed by decides how many components it holds and who may add one
 | --- | --- | --- |
 | `plugin` | one component per plugin, under the name the runtime stamped | `app.header`, `delivery.mark` |
 | `kind` | one component per property kind, under that kind's bare word | `outline.row.chip`, `outline.row.pane` |
-| `app` | one component in all; a second plugin asking is refused by name | `app.panel`, `search.box.below` |
+| `app` | one component in all; a second plugin asking is refused by name | `app.viewer`, `search.box.below` |
 | `nothing` | a list; one plugin may put several components in it | `outline.row.action`, `sidebar.entry` |
 
 ## Adding a component and taking it away
@@ -65,7 +65,7 @@ A plugin that goes away takes its own state and leaves unrelated work standing.
 | Outlines | `outlines.dated-row`, `outlines.page-view`, `outlines.title`, `outlines.property-route` |
 | Navigation | `app.route`, `app.keys`, `app.palette` |
 | Navigation | `navigation.content`, `navigation.pages`, `navigation.palette-adapters`, `navigation.link-previews` |
-| Layout | `app.panel`, `app.header`, `app.banner`, `app.viewer`, `app.mount` |
+| Layout | `app.header`, `app.banner`, `app.viewer`, `app.mount` |
 | Layout | `layout.sidebar`, `layout.strip`, `layout.tools`, `layout.thumbs`, `layout.overlays`, `layout.content-status` |
 | Sidebar | `sidebar.entry`, `sidebar.section`, `sidebar.regions`, `sidebar.rail` |
 | Chat | `conversation.wake`, `delivery.mark`, `tool.reply` |

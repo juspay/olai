@@ -75,9 +75,9 @@ export interface Acts {
    *  whether or not this tab can draw the conversation, which is why this is a
    *  different question from the one below. */
   readonly canAsk: () => boolean
-  /** ...and whether this tab can OPEN it: a dock is held and there is a seat
-   *  for it. With chat off, or on a phone, there is nothing to open and the
-   *  page offers no verb that would. */
+  /** ...and whether this tab can OPEN it: chat's beside door is held, so
+   *  there is a pane to put the conversation in. With chat off, or no router,
+   *  there is nothing to open and the page offers no verb that would. */
   readonly canOpen: () => boolean
   /** Whether what is on screen has moved since this reader started reading. */
   readonly moved: () => boolean
@@ -145,8 +145,8 @@ function Primary(props: { readonly plugin: Defined; readonly stage: Stage; reado
         was never going to start — and the agent went on writing files. The
         thing that actually stops a build is the agent's own Stop, in the
         conversation, so this is a way to that conversation and nothing else.
-        With no seat to open one in, the page draws no verb here at all: the
-        *Ask* section below links to the conversation's own page.
+        With chat off there is no conversation to open and the page draws no
+        verb here at all.
       */}
       <Show when={props.stage === "building" && props.acts.canOpen()}>
         <Tip text="The agent's own Stop is in the conversation. Nothing starts here until you turn it on.">

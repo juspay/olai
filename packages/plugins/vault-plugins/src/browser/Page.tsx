@@ -51,7 +51,7 @@ import { DOT } from "@olai/web/client/readout.ts"
 import { run } from "@olai/web/client/run.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { type AgentItem, itemKey } from "@olai/format"
-import type { DockDoor } from "olai-plugin-chat/dock"
+import type { BesideDoor } from "olai-plugin-chat/beside"
 import { Control } from "olai-plugin-plugin-inspector/control"
 import { useHere } from "olai-plugin-navigation/routing"
 import { Key } from "@solid-primitives/keyed"
@@ -59,7 +59,7 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { client } from "../client.ts"
-import { beside, dock, engines } from "./doors.ts"
+import { beside, engines, router } from "./doors.ts"
 import { pluginReadme } from "../index.ts"
 import { changedCount, diffLines } from "./diff.ts"
 import { Code } from "./page/Code.tsx"
@@ -122,6 +122,9 @@ function Missing(props: { readonly word: string }) {
 
 function Known(props: { readonly plugin: Defined; readonly file?: string; readonly management: BrowserManagement }) {
   const source = () => props.plugin.source
+  /** WHICH PANE THIS PAGE IS IN, for every door that opens the builder chat
+   *  in the pane beside it. */
+  const here = useHere()
   const [read, setRead] = createSignal(false)
   const stage = () => stageOf(props.plugin, read())
   const [busy, setBusy] = createSignal(false)
@@ -144,16 +147,13 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
   const [shown, setShown] = createSignal(props.plugin.source.version)
   /** THE PLUGIN'S BUILDER CHAT, as an item: the chat of the plugin's own
    *  README note (`../index.ts`'s `pluginReadme`), which `mint` writes before
-   *  the conversation is opened. The seat below and the dock door both name
-   *  this one note. */
+   *  the conversation is opened. The *ask* verbs and the one-time open below
+   *  both name this one note. */
   const readme = (): AgentItem => ({ kind: "note", path: pluginReadme(props.plugin.name) })
-  /** The dock, where there is a chat to put in it and a column to put it in.
-   *  Read for the *ask* verbs, which are offered whenever both are there. */
-  const docked = () => {
-    const door = dock()
-    if (source().chat !== true || door === undefined || !door.desktop()) return undefined
-    return door
-  }
+  /** THE PANE BESIDE THIS ONE, where there is a chat to put in it and a door
+   *  held to put it there (`olai-plugin-chat/beside`). Read for the *ask*
+   *  verbs, which are offered whenever both are there. */
+  const open = () => (source().chat === true ? beside() : undefined)
   /** ...and whether this visit is one where a conversation should be OPENED
    *  for the reader. Arriving at a plugin that has been on for months must not
    *  take over the column beside it; arriving at one that is being built, or
@@ -180,24 +180,24 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
     // "it broke" into the conversation.
     //
     // ...AND WHAT CAME OF IT IS DRAWN, which is the half the press was missing
-    // where there is no dock to open: on a phone the words went into the
-    // conversation and nothing on screen moved, so the only way to find out
-    // whether anything had happened was to go and look.
+    // where there is no conversation on screen: the words went into the chat
+    // and nothing here moved, so the only way to find out whether anything
+    // had happened was to go and look.
     askFix: () => call(client().procedures.plugins.ask({ name: props.plugin.name, said: "" }), (answer) => {
       if (!answer.sent) { setSaid("There was no agent to take it. The conversation that built it is in Chats."); return }
       setSaid("Sent to the conversation that built it.")
-      docked()?.open(readme())
+      open()?.open({ item: readme(), from: here() })
     }),
-    askChange: () => docked()?.open(readme()),
+    askChange: () => open()?.open({ item: readme(), from: here() }),
     canAsk: () => source().chat === true && source().asking === true,
-    canOpen: () => docked() !== undefined,
+    canOpen: () => open() !== undefined,
     trusting: () => source().trusting === true,
     moved: () => shown() !== source().version,
     reread: () => setShown(source().version),
   }
   return (
     <section data-testid={TESTID.page} data-plugin={props.plugin.name} data-stage={stage()}>
-      <Show when={watching() && docked()}>{(door) => <Docking door={door()} item={readme()} />}</Show>
+      <Show when={watching() && open()}>{(door) => <Beside door={door()} item={readme()} from={here} />}</Show>
       <header class="flex items-start gap-3">
         <div class="mt-1 flex size-9 shrink-0 items-center justify-center rounded-control bg-pill text-muted" aria-hidden="true">
           <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -360,26 +360,38 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
 }
 
 /**
- * THE CONVERSATION THAT BUILT IT, BESIDE THE PAGE — on a desktop, and only
- * while somebody is holding the panel's door.
+ * THE CONVERSATION THAT BUILT IT, IN THE PANE BESIDE — once, while this page
+ * is one a decision is waiting on.
  *
  * Its own child under a `<Show>`, so the effect exists exactly while there is
- * a dock to open: with chat off, with no shell seat, or on a phone there is no
- * component here at all rather than an effect asking every frame whether it
- * may run. Opening is a one-shot per note — this tracks which chat was docked,
- * not whether the dock is still showing it, so a reader who closed the panel
- * is not fought with.
+ * a chat to open and a door held to open it: with chat off, or no router,
+ * there is no component here at all rather than an effect asking every frame
+ * whether it may run. Opening is a one-shot per note — this tracks which chat
+ * it opened, not whether a pane is still showing it, so a reader who closed
+ * that pane is not fought with. Chat decides where it lands and what happens
+ * when a pane already has it (`olai-plugin-chat/beside`), so this cannot open
+ * a second copy of the conversation.
+ *
+ * THE READER STAYS ON THE PAGE THEY ASKED FOR. A pressed *Open beside* takes
+ * the reader to the conversation, which is what a person who pressed it meant;
+ * this one nobody pressed, so the focus goes back to the pane this page is in.
+ * Left in the new pane, every navigation after it — the mint's own landing, a
+ * notification pressed, a verb on this page — would replace the conversation
+ * instead of the page.
  */
-function Docking(props: { readonly door: DockDoor; readonly item: AgentItem }) {
-  // AN EFFECT AND NOT A COMPUTED: opening the dock WRITES chat's own state, and
-  // a computed runs inside the render pass that is reading it. A write into
-  // another row's signals while this page is being built is the shape Solid
-  // warns about and this tree keeps out of its faces; what this wants is "after
-  // the page exists, put the conversation beside it", which is an effect.
+function Beside(props: { readonly door: BesideDoor; readonly item: AgentItem; readonly from: () => number }) {
+  // AN EFFECT AND NOT A COMPUTED: opening a pane WRITES the router's own
+  // state, and a computed runs inside the render pass that is reading it. A
+  // write into another row's signals while this page is being built is the
+  // shape Solid warns about and this tree keeps out of its faces; what this
+  // wants is "after the page exists, put the conversation beside it", which is
+  // an effect.
   createEffect<string | undefined>((before) => {
     const key = itemKey(props.item)
     if (before === key) return before
-    props.door.open(props.item)
+    const here = props.from()
+    props.door.open({ item: props.item, from: here })
+    router()?.focus(here)
     return key
   })
   return null

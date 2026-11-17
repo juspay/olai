@@ -64,7 +64,7 @@ Feature: One press up to the closest node agent
     And the crumb on "install" wears the agent's mark
     And there should be no page errors
 
-  Scenario: A bound node's own line wears the pill, on the page and in the panel
+  Scenario: A bound node's own line wears the pill, on the page and on the chat page
     Given I open the outline "house.olai"
     When I open the "claude" agent on node "install"
     And the node agent's fold is ready
@@ -74,9 +74,9 @@ Feature: One press up to the closest node agent
     Then the node page conversation is ready for "hinges"
     And the agent page's line wears the agent-above pill
     And the agent-above pill points at "install"
-    When I open this conversation in the panel from its agent line
-    Then the agent panel's conversation is ready
-    And the agent panel's agent-above pill points at "install"
+    When I open the chat beside from the agent line
+    Then the chat page conversation is ready
+    And the chat page's agent-above pill points at "install"
     And there should be no page errors
 
   Scenario: Stopping an ancestor retargets the pill in place; stopping the last empties it

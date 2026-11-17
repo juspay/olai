@@ -46,10 +46,7 @@ import { LONG_PRESS_MS, selector } from "@olai/web/testlib"
 // asserting on the padi pill is asserting on `olai-plugin-kolu`'s output, not
 // on the app's — and the chat panel became a row on that same line, so the
 // hundred-odd `CHAT_*` constants below are read off `olai-plugin-chat`'s door
-// rather than off `@olai/web`'s. One `chat*` name is still the app's and is
-// imported above with the rest of them: {@link PANEL_RESIZE} is the dock's drag
-// handle, which `client/layout/Handle.tsx` draws beside the sidebar's off the
-// same stored width — the column's chrome, not the conversation's.
+// rather than off `@olai/web`'s.
 //
 // They route through the REGISTRY rather than through each plugin's own door
 // because `packages/bundle/src/fence.test.ts` holds, as an equality per
@@ -712,10 +709,6 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   PLUGIN_TESTID.headerSearchOpen,
   // ONE dot for everything the bar used to stand a pill for.
   TESTID.health,
-  // The agent panel's toggle: a DOOR, pressed while the column is open, and
-  // not a readout — it reports nothing, which is what keeps it in the calm
-  // bar beside the gear (`olai-plugin-chat`'s `the_agent_panel.feature`).
-  PLUGIN_TESTID.chatToggle,
   TESTID.prefsTrigger,
   // Who is looking, last — a plugin's face in the app.viewer seat.
   PLUGIN_TESTID.identity,
@@ -804,20 +797,14 @@ export const GIT_NEWS = selector(PLUGIN_TESTID.gitNews);
 export const COMMIT_PANEL = selector(PLUGIN_TESTID.commitPanel);
 
 /** The conversation's root, wherever it is drawn — under a row's fold, at the
- *  foot of a node page, or in the dock. Absent entirely when no ACP agent is
- *  configured, which is a state the suite never runs in: every server it
- *  spawns is pointed at the scripted agent (`support/hooks.ts`). */
-export const CHAT_TOGGLE = selector(PLUGIN_TESTID.chatToggle);
+ *  foot of a node page, or on the chat's own page. Absent entirely when no ACP
+ *  agent is configured, which is a state the suite never runs in: every server
+ *  it spawns is pointed at the scripted agent (`support/hooks.ts`). */
 export const CHAT_PANEL = selector(PLUGIN_TESTID.chatPanel);
-/** THE DOCK: the seat's column, carrying `data-agent` while a conversation is
- *  docked. The steps that address "the conversation" look here as well as in
- *  the front lane ({@link OlaiWorld.chatSelector}). */
-export const CHAT_DOCK = selector(PLUGIN_TESTID.chatDock);
 /** The lane in front, or the alternate layout fixture's one `main` — the
  *  scope every row step looks in ({@link OlaiWorld.frontLane}). */
 export const FRONT_LANE = `${selector(PLUGIN_TESTID.lane)}[data-lane-front="true"], main[aria-label="Alternate layout fixture"]`;
-export const PANEL_COLUMN = selector(TESTID.panelColumn);
-export const PANEL_RESIZE = selector(TESTID.panelResize);
+
 export const PALETTE = selector(TESTID.palette);
 export const PALETTE_ITEM = selector(TESTID.paletteItem);
 export const PALETTE_LIST = selector(TESTID.paletteList);
@@ -2001,29 +1988,27 @@ export class OlaiWorld extends World {
   set activeAgent(node: string | null) { if (node === null) this.activeAgents.delete(this.page); else this.activeAgents.set(this.page, node); }
   get menuNode(): string | null { return this.menuNodes.get(this.page) ?? null; }
   set menuNode(node: string | null) { if (node === null) this.menuNodes.delete(this.page); else this.menuNodes.set(this.page, node); }
-  /** WHERE THE ACTIVE AGENT'S CONVERSATION IS DRAWN: under its row's fold or at
-   *  the foot of its page in the FRONT LANE, or in the dock beside every lane.
-   *  One selector for the three, so a step that types into "the chat" finds the
-   *  conversation wherever the scenario put it. */
+  /** WHERE THE ACTIVE AGENT'S CONVERSATION IS DRAWN, in the FRONT LANE: under
+   *  its row's fold, at the foot of its node page, or on its own chat page in
+   *  a pane. One selector for the three, so a step that types into "the chat"
+   *  finds the conversation wherever the scenario put it. */
   private chatHosts(...hosts: ReadonlyArray<string>): string {
     assert.ok(this.activeAgent, "select a node agent before addressing its conversation");
     const of = attr("data-agent", this.nodeId(this.activeAgent));
-    const inLane = `:is(${FRONT_LANE}) :is(${hosts.join(", ")})${of}`;
-    return `:is(${inLane}, ${CHAT_DOCK}${of})`;
+    return `:is(${FRONT_LANE}) :is(${hosts.join(", ")})${of}`;
   }
   /** Whether `selector` came out of {@link chatSelector}: it already names the
-   *  front lane (and the dock beside it), so it is matched against the PAGE —
-   *  under the lane it would be asking for a lane inside a lane and find
-   *  nothing. The dock's selector is the one spelling both halves share. */
+   *  front lane, so it is matched against the PAGE — under the lane it would
+   *  be asking for a lane inside a lane and find nothing. */
   private conversationScoped(selector: string): boolean {
-    return selector.includes(CHAT_DOCK);
+    return selector.includes(FRONT_LANE);
   }
   chatSelector(control: string): string {
     return `${this.chatHosts(selector(PLUGIN_TESTID.agentFold), selector(PLUGIN_TESTID.agentPageHead), selector(PLUGIN_TESTID.agentPageFoot))} :is(${control})`;
   }
   chat(control: string, options?: Parameters<Page["locator"]>[1]): Locator { return this.page.locator(this.chatSelector(control), options); }
   /** Settings and the standing strips (plan, tools, still running, alerts)
-   *  live in the fold, the zoomed page's pinned head, or the dock. */
+   *  live in the fold, or in the pinned head of a node page or a chat page. */
   chatLine(): Locator {
     return this.page.locator(this.chatHosts(selector(PLUGIN_TESTID.agentFold), selector(PLUGIN_TESTID.agentPageHead)));
   }
@@ -3031,9 +3016,6 @@ export class OlaiWorld extends World {
    *  `e2e/steps/forced_colours_steps.ts`). */
   ringBefore?: { style: string; width: number; colour: string };
   scrollbarBefore?: string;
-  /** The seat's column width before a drag (`olai-plugin-chat`'s agent panel steps). */
-  panelWidthBefore?: number;
-
   /** A box taken BEFORE something replaced what was inside it, for the
    *  scenarios that claim the swap changed nothing about it — the markdown
    *  renderer landing under a note, and under a tree row's title

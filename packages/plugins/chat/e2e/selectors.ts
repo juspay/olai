@@ -220,11 +220,10 @@ export const CHAT_RANG_BODY = selector(TESTID.chatRangBody);
 //
 // The faces a chat about a note is read through. `chatLine` is the one row
 // markdown's document page keeps at the top and chat fills; `chatAbout` is
-// the box that starts a chat about that note, drawn in the line or in the
-// side panel (`data-where`); `chatThisPage` is the panel's block over its
-// picker. The two name ids are what every list draws a chat with — the note's
-// own name and its kind's mark — so a scenario asserts what a person reads
-// rather than the raw key the row carries.
+// the box that starts a chat about that note, drawn in the line or on the
+// chat's own page (`data-where`). The two name ids are what every list draws
+// a chat with — the note's own name and its kind's mark — so a scenario
+// asserts what a person reads rather than the raw key the row carries.
 
 /** The line at the top of a note. `data-note` is the note it is about,
  *  `data-chat` the chat's key where there is one. */
@@ -237,7 +236,7 @@ export const CHAT_LINE_OPEN = selector(TESTID.chatLineOpen);
  *  conversation, so opening a note wakes nothing. */
 export const CHAT_LINE_STANDING = selector(TESTID.chatLineStanding);
 /** The box that starts a chat about this note — `data-where` is `line` or
- *  `panel`, which is the whole difference between the door's two faces. Its
+ *  `page`, which is the whole difference between the door's two faces. Its
  *  FIELDS are a row page's plain composer's, because they are the same
  *  fields: one input id, one picker id, one refusal id. The line has no Send
  *  button at all — it is one row, and Enter sends. */
@@ -247,8 +246,7 @@ export const ASK_ENGINE = selector(TESTID.agentPlainEngine);
 export const ASK_SEND = selector(TESTID.agentPlainSend);
 /** Why nothing was started — the sentence that stays beside the words. */
 export const ASK_REFUSED = selector(TESTID.agentPlainRefused);
-/** **This page**, over the side panel's picker. */
-export const CHAT_THIS_PAGE = selector(TESTID.chatThisPage);
+
 /** What a chat is CALLED wherever it is listed, and — for a note's chat — the
  *  mark its kind of file wears. */
 export const CHAT_NAME = selector(TESTID.chatName);

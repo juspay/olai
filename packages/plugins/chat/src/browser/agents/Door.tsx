@@ -1,10 +1,10 @@
 /**
  * THE DOOR — how a chat about an ITEM is started where that item is: the
- * one-row box in the line at the top of a note (`./NoteLine.tsx`), the side
- * panel's **This page** block beside it, the palette's **Chat about this
- * page** level (`./AgentPalette.ts`), and the *Ask about <name>…* box a chat
- * page draws for an item that has no chat yet (`./ChatPage.tsx`). All of them
- * send through {@link sendAbout}, so a refusal means one thing everywhere.
+ * one-row box in the line at the top of a note (`./NoteLine.tsx`), the
+ * palette's **Chat about this page** level (`./AgentPalette.ts`), and the
+ * *Ask about <name>…* box a chat page draws for an item that has no chat yet
+ * (`./ChatPage.tsx`). All of them send through {@link sendAbout}, so a refusal
+ * means one thing everywhere.
  *
  * Sending writes the tie where that kind of item keeps one — a note's own
  * front matter, a node's row — starts the agent and hands it the words, once,
@@ -16,22 +16,13 @@
  * A door is offered while the item has no conversation (`talking`), not only
  * while it has no tie: an item whose start was refused is still its own door.
  */
-import { batch, createMemo, createSignal, Show, type Accessor } from "solid-js"
-import { Dynamic } from "solid-js/web"
+import { batch, createSignal, type Accessor } from "solid-js"
 import { type AgentItem, itemKey, UsageFailure } from "@olai/format"
-import { MARK_BOX } from "@olai/ui-primitives/mark.ts"
-import { useRouter } from "olai-plugin-navigation/routing"
 import { TESTID } from "../../testids.ts"
-import { fileMark } from "../kinds.ts"
 import { keepMessage } from "../chat/message-draft.ts"
-import { useAgents } from "./answered.tsx"
-import { nameOfNote } from "./called.ts"
-import { noteHere } from "./here.ts"
-import { servedDirectory } from "../vault.ts"
 import { agentReadings } from "./reading.ts"
 import { AskBox } from "./AskBox.tsx"
 import { unfold } from "./folding.ts"
-import { talking } from "./roster.ts"
 
 /** The words under the box, which say what sending does — one sentence per
  *  kind of item, because what carries the tie and what the memory IS are
@@ -84,11 +75,10 @@ export const sendAbout = async (input: { readonly item: AgentItem; readonly engi
  * THE DOOR, as a box: an item, what it is called, and the words to start a
  * chat about it with — kept by the activation for this box on this item, so a
  * refused start, or leaving the page, leaves them where they are. `started` is
- * told what came of a press that started something (the side panel docks the
- * conversation it started).
+ * told what came of a press that started something.
  */
 export function AboutBox(props: {
-  readonly where: "line" | "panel" | "page"
+  readonly where: "line" | "page"
   readonly item: Accessor<AgentItem>
   readonly name: Accessor<string>
   readonly started?: (sent: Sent & { readonly started: string }) => void
@@ -113,49 +103,4 @@ export function AboutBox(props: {
   return <AskBox name={props.name()} draft={draft} setDraft={setDraft} starting={starting} failure={failure}
     send={(engine) => void send(engine)} note={props.item().kind === "note" ? ABOUT_NOTE : ABOUT_NODE}
     testid={TESTID.chatAbout} where={props.where} />
-}
-
-/**
- * THE SIDE PANEL'S **This page** BLOCK, over its picker — the same door,
- * beside the page rather than on it, offered exactly where the page in the
- * FOCUSED pane is a note with no conversation on it and an agent can start.
- * Sending docks the new chat, so the conversation that just started is the
- * one beside the page; a refused start leaves whatever was docked alone.
- *
- * WHICH NOTE IS A QUESTION ABOUT THE ROUTE and nothing else (`./here.ts`'s
- * `noteHere`, over the focused pane's address): this block is drawn outside
- * every page, and a page that had to announce itself for the panel to know
- * what it was is a second reading of the same fact — the one the seat used to
- * keep, and the reason a page being left could be read as the page in front.
- */
-export function ThisPage(props: { readonly open: (node: string) => void }) {
-  const agents = useAgents()
-  const router = useRouter()
-  const note = createMemo(() => {
-    const pane = router.panes()[router.focusIndex()]
-    const path = pane === undefined ? null : noteHere(servedDirectory()?.claims(), pane.route())
-    if (path === null || agents.engines().length === 0) return null
-    return talking(agents.chatOf({ kind: "note", path })) ? null : path
-  })
-  return (
-    <Show when={note()} keyed>
-      {(path) => {
-        const mark = () => fileMark(path)
-        const name = () => nameOfNote(servedDirectory()?.claims(), path)
-        return (
-          <section class="mb-2 px-1" data-testid={TESTID.chatThisPage} data-note={path}>
-            <p class="m-0 px-2 pb-1 pt-2 text-caption font-semibold uppercase tracking-[0.08em] text-muted">This page</p>
-            <p class="m-0 flex items-baseline gap-2 px-2 pb-2 text-body">
-              <Show when={mark()}>{(drawn) => <span class={`${MARK_BOX} self-center text-muted`}><Dynamic component={drawn()} /></span>}</Show>
-              <span class="min-w-0 truncate">{name()}</span>
-              <span class="min-w-0 flex-1 truncate font-mono text-caption text-muted">{path}</span>
-              <span class="shrink-0 text-caption text-muted">No chat yet</span>
-            </p>
-            <AboutBox where="panel" item={() => ({ kind: "note", path })} name={name}
-              started={(sent) => { if (sent.talking) props.open(sent.started) }} />
-          </section>
-        )
-      }}
-    </Show>
-  )
 }

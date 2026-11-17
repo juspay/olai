@@ -14,7 +14,7 @@ A conversation is one chat with one agent, from start to end.[^plugin] What each
 | [Pi](plugins/pi.md) | `pi` on the server's `PATH` |
 | [Oh My Pi](plugins/omp.md) | `omp` on the server's `PATH` |
 
-With none installed, the panel says **No agent yet.** and lists what to install.[^none]
+With none installed, the conversation says **No agent yet.** and lists what to install.[^none]
 
 <details>
 <summary>What differs between the agents</summary>
@@ -93,7 +93,7 @@ A conversation opens with its newest sixty messages.[^scroll] A restart reopens 
 
     You can sign in before a conversation exists: the first start records only which agent you chose, and the conversation is written down once the agent opens one.
 
-[^line]: The agent line carries the agent's icon and name, and one of these states: **Starting…**, **Working…**, **Waiting on you**, **Ready**, **Not running** or **Not set up**. Its buttons sit at the right: **Open in panel ›**, **Open beside ›**, which puts the conversation in the pane to the right, **Show in outline ›**, **Fresh start** and **Close**.
+[^line]: The agent line carries the agent's icon and name, and one of these states: **Starting…**, **Working…**, **Waiting on you**, **Ready**, **Not running** or **Not set up**. Its buttons sit at the right: **Open beside ›**, which puts the conversation in the pane to the right, **Show in outline ›**, **Fresh start** and **Close**.
 
 [^account]: The account reads `Claude Max · you@example.com` for a subscription, `Anthropic API key · apiKeyHelper` for an API key or a gateway, and `Not signed in` when the agent looked and found nobody. The organization, the plan and the rest of the detail are in the tip that hovering shows, and pressing the account opens the sign-in chooser. An agent that reports no account shows none, which is not the same as being signed out. Pi, Oh My Pi and OpenCode report no account.
 
@@ -162,6 +162,6 @@ olai drops the entry for a row that was trashed or whose link to its chat was ta
 
 Words you have typed but not sent, the files you attached and the rows you chose with `@` belong to that conversation in this browser tab. Folding the conversation away or reading its earlier chats keeps them, sending clears them, and reloading the tab discards them.
 
-Words typed into a box that starts a chat belong to that note and that box, so leaving the page and coming back finds them. That is the box in the line at the top of a note, and the one in the panel's **This page** block. The **Ask about** box on a row's page is kept the same way.
+Words typed into a box that starts a chat belong to that note and that box, so leaving the page and coming back finds them. That is the box in the line at the top of a note. The **Ask about** box on a row's page is kept the same way.
 
 </details>

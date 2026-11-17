@@ -266,7 +266,7 @@ export function CompletionMenu(props: {
   })
 
   return (
-    // `WITHIN.pop`, and it STAYS in this panel. The chat dock is already a
+    // `WITHIN.pop`, and it STAYS in this panel. A chat page is already a
     // stacking context at {@link LAYER.page}, above every sticky section
     // heading (`../layer.ts`). Portalling this list to the document at
     // `z-3` would put it UNDER the page; raising it to a page layer would

@@ -8,12 +8,11 @@ Hover or focus a row with no agent and **Start an agent** appears beside it.[^st
 
 ## Where the conversation appears
 
-One conversation, with one draft and one transcript, is drawn in four places on a desktop and three on a phone:
+One conversation, with one draft and one transcript, is drawn in three places:
 
 - under the row, when you unfold it[^fold]
 - on the row's own page[^page]
-- in a pane of its own[^beside]
-- in the agent panel, the column on the right[^panel][^column]
+- in a pane of its own, at the chat's own address[^beside]
 
 ## Find a chat again
 
@@ -45,10 +44,6 @@ The agent's first message carries an instruction from olai:[^preamble][^about] t
 
 [^beside]: A chat has an address of its own. **Open beside ›** on the agent line opens it in the pane to the right, and leaves the page you are reading as it is. While a pane holds the conversation, the row's fold, the row's page and the line at the top of a note each read **Shown beside**, which takes you to that pane. A link you click inside a chat pane opens in the pane beside it.
 
-[^panel]: The agent panel, labelled **Agent panel**, stays where it is while you move between outlines. A phone has no panel. Four things open it on the conversation they name: the control on a **Chats** row that hovering reveals, **Open in panel ›** on the agent line, `Cmd` + `J`, and the panel button in the bar beside the health dot.
-
-[^column]: The panel's bar names the conversation it is showing, carries **Switch conversation** for picking another, and a `×` that closes it. With no conversation chosen, the panel offers that same list. Which conversation it shows, whether it is open and how wide it is are remembered by this browser.
-
 [^standings]: What a row can say about its agent. **Needs you**: it asked you something and is waiting for the answer. **Working…**: it is working on a reply, with the time it has been at it. **Starting…**: it is starting. **Idle**: it is ready for your next message.
 
     The rest: **Not running**, the agent stopped. **Asleep**: it is saved, and opening it carries the conversation on, with the age of the last line heard. **No agent**: there is no chat on this row yet.
@@ -57,7 +52,7 @@ The agent's first message carries an instruction from olai:[^preamble][^about] t
 
 [^chats]: The **Chats** part lists every chat. Awake agents come first, in the order of the states above, and the rest follow by when they last said something. The limit of ten is applied after that sorting, so ten sleeping chats can never hide a live one. An awake row wears its state's dot, and a title in bold means the agent has spoken since you last read it ([what olai tells you about](attention.md)).
 
-[^beyond]: Search for **Agents**, or for a title, in the palette to reach every agent, including the ones past the limit of ten. Each **Chats** row has a **•••** button of its own, revealed when you hover or focus it, carrying **Put to sleep**, **Tidy memory** and **Close the agent**. A phone draws no **•••**: the row's menu in the outline carries the same entries.
+[^beyond]: Search for **Agents**, or for a title, in the palette to reach every agent, including the ones past the limit of ten. Each **Chats** row has a **•••** button of its own, revealed when you hover or focus it, carrying **Put to sleep**, **Tidy memory** and **Close the agent**. Beside it is a two-column button that opens that chat in the pane to the right. A phone draws no **•••**: the row's menu in the outline carries the same entries.
 
 [^opening]: Clicking a chat, in **Chats**, in **Needs you** or in the palette, opens that chat's own page: `/chat/notes/plan.md` for a note, `/chat/<row id>` for a row. The page is headed by the name of the thing that chat belongs to. **Open plan beside ›** on it puts that thing in the pane to its left. Its **Chats** row is marked while you read the page.
 
@@ -75,7 +70,7 @@ The agent's first message carries an instruction from olai:[^preamble][^about] t
 
 [^seats]: Eight is the limit on agents awake at once. An agent left idle is closed after 48 hours, which the chat plugin's `idle-ms` setting shortens. Reading a conversation, work that is running and a question you have not answered each keep an agent awake.
 
-[^waiting]: When no agent can be given up, starting or opening a chat is refused with *All 8 agents are awake — put one to sleep in Chats.* The panel says that quietly and offers no retry, because it is holding your request: **This chat opens here as soon as a seat frees.** Putting one agent to sleep is all you have to do.
+[^waiting]: When no agent can be given up, starting or opening a chat is refused with *All 8 agents are awake — put one to sleep in Chats.* Where the conversation would be drawn, olai says that quietly and offers no retry, because it is holding your request: **This chat opens here as soon as a seat frees.** Putting one agent to sleep is all you have to do.
 
 [^preamble]: The instruction is drawn as a notice under your message. It says who the agent is, naming the row's title, its id and its file, and that the row's note says what to do and overrides the rest. It then says when to write to the rows below, which is only when a lasting fact has changed, and in what shape, which is one row per fact.
 
@@ -106,7 +101,7 @@ While one new chat is starting, another is refused with *A new chat is already s
 <details>
 <summary>What a chat about a note is, and what starting one does</summary>
 
-Three doors start a chat about a note: the line at the top of it, the **This page** block at the top of the agent panel's picker, and the palette's **Chat about this page**. Sending writes `chat-agent-session` into that note's own front matter, which is what makes it that note's chat ([plugins/chat.md](plugins/chat.md)). It starts the agent, delivers your message once, and opens the conversation in the pane beside the note.
+Two doors start a chat about a note: the line at the top of it, and the palette's **Chat about this page**. Sending writes `chat-agent-session` into that note's own front matter, which is what makes it that note's chat ([plugins/chat.md](plugins/chat.md)). It starts the agent, delivers your message once, and opens the conversation in the pane beside the note.
 
 | What you ask for | What happens |
 | --- | --- |

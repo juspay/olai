@@ -18,15 +18,13 @@ import { SESSION_KIND } from "./binding.ts"
  * Cross-plugin live readings are declared services or scoped contributions;
  * naming an unused service would leave this component waiting for no reader.
  */
-import type {} from "olai-plugin-layout/slots"
 import type {} from "olai-plugin-navigation/slots"
 import type {} from "olai-plugin-outlines/slots"
 import type {} from "olai-plugin-sidebar/slots"
 import { slotContracts } from "./slots.ts"
 import type { Attention, AttentionRow } from "./attention.ts"
 import type { Route } from "olai-plugin-navigation/routes"
-import { type AgentItem, itemKey, itemOf } from "@olai/format"
-import { DOCK, type DockDoor } from "./dock.ts"
+import { itemKey, itemOf } from "@olai/format"
 import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
 import { definePlugin, Faces, Slots, Wired, Offers } from "@olai/plugin-api"
@@ -209,60 +207,12 @@ import { configurationPanel } from "olai-plugin-plugin-inspector/contract"
 import { holdPluginsDoor } from "./browser/plugins-door.ts"
 import { createAttention } from "./browser/chat/attention/attention.ts"
 import { createComponent, createRoot, Show } from "solid-js"
-import { shell as appShell, thumbs as thumbSeats, tools as toolSeats } from "olai-plugin-layout/contract"
+import { shell as appShell, thumbs as thumbSeats } from "olai-plugin-layout/contract"
 import { ChatsThumb } from "./browser/agents/ChatsThumb.tsx"
-import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
-import { atOnce } from "@olai/web/client/settled.ts"
-import { createDock, holdDock } from "./browser/dock.ts"
 import { isCurrent } from "./browser/agents/here.ts"
-import { Dock } from "./browser/agents/Dock.tsx"
-import { DockToggle } from "./browser/agents/DockToggle.tsx"
 export const components = {
-  /** THE DOCK, DECLARED — a component of its own because it needs the shell's
-   *  seat, and content runs under another layout entirely (`./browser/dock.ts`).
-   *  Everything that OFFERS the panel is this component's: the seat's face,
-   *  the bar's toggle, the ⌘J chord and the palette row leave with it, and the
-   *  doors on a Chats row and an agent line draw nothing when `dock()` answers
-   *  nothing. */
-  dock: definePlugin({ name: "dock", needs: [appShell, Slots, rendererSlots, Offers], apply: Effect.gen(function*() {
-    const geometry = yield* appShell
-    const slots = yield* Slots
-    const renderer = yield* rendererSlots
-    const door = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({ value: createDock(geometry), dispose }))), owner => Effect.sync(owner.dispose))
-    yield* Effect.acquireRelease(Effect.sync(() => holdDock(door.value)), stop => Effect.sync(stop))
-    // `chat.dock`, as its static door names it (`./dock.ts`): the seat beside
-    // the page, offered by the component that OWNS the seat rather than by the
-    // row — so a consumer that declares it waits for exactly what the column
-    // waits for, and a serve with no shell holds that consumer `waiting`
-    // naming the key instead of handing it a door that does nothing. The live
-    // `Dock` is not what crosses: the two verbs another row may spend are,
-    // which is why the door is a narrowing and not the value itself.
-    yield* (yield* Offers).own(DOCK, () => ({
-      open: (item: AgentItem) => door.value.open(itemKey(item)),
-      desktop: () => door.value.desktop(),
-    } satisfies DockDoor))
-    const roster = () => agentReadings()?.agents
-    yield* slots.register("app.panel", () => <Show when={roster()}>{agents => <AgentsProvider value={agents()}><Dock /></AgentsProvider>}</Show>)
-    yield* slots.register("app.keys", { key: "j", whileEditing: true, said: "Show or hide the agent panel", press: () => { if (door.value.desktop()) door.value.toggle() } })
-    yield* renderer.contribute(toolSeats, { body: props => <DockToggle where={props.where} />, headerOrder: 15, closetOrder: 30 })
-    yield* renderer.contribute(paletteAdapters, {
-      available: () => door.value.desktop(),
-      items: () => door.value.desktop() ? [{
-        id: "panel-agents",
-        label: door.value.opened() ? "Hide agent panel" : "Show agent panel",
-        hint: "⌘J",
-        search: "toggle agent panel chat dock conversation show hide",
-        taking: atOnce,
-        action: { kind: "run", run: async () => { door.value.toggle(); return {} } },
-      }] : [],
-    })
-    // `app.keys` is navigation's slot; naming its contract here keeps the
-    // registration typed against the one the palette listens to.
-    void navigationSlots
-  }) }),
-  /** THE PHONE'S THUMB, DECLARED — a component of its own for the dock's
-   *  reason: it needs the shell (to open the drawer) and nothing else of
-   *  this row's does. */
+  /** THE PHONE'S THUMB, DECLARED — a component of its own because it needs
+   *  the shell (to open the drawer) and nothing else of this row's does. */
   thumb: definePlugin({ name: "thumb", needs: [appShell, rendererSlots], apply: Effect.gen(function*() {
     const geometry = yield* appShell
     const renderer = yield* rendererSlots

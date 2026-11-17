@@ -57,15 +57,6 @@
  * the selector still compiles, and a scenario fails thirty seconds later with a
  * timeout that says nothing about why. Declaring them once and importing them
  * on both sides makes a rename a type error.
- *
- * ## What stayed behind in `@olai/web`, and why exactly one thing did
- *
- * `panelResize` — the drag handle on the dock's left edge — is drawn by
- * `@olai/web`'s `client/layout/Handle.tsx`, beside the sidebar's handle and off
- * the same stored width. It is chrome about the COLUMN rather than about the
- * conversation in it, nothing in this package draws it, and the rule for what
- * moves is the renderer and not the word in the name. So it is the one `chat*`
- * id the app's table still holds, and its comment there says so.
  */
 
 export const TESTID = {
@@ -203,39 +194,18 @@ export const TESTID = {
   /** ... and why one did not happen: the node had no agent to close. */
   chatCloseSaid: "chat-close-said",
 
-  // ── the conversation, wherever it is drawn, and the dock ──────────
-  /** The header's agent-panel toggle on a desktop. `aria-pressed` says
-   *  whether the column is open. Absent on a phone, which has no seat. */
-  chatToggle: "chat-toggle",
+  // ── the conversation, wherever it is drawn ────────────────────────
   /** A conversation's root — under a row's fold, at the foot of a node page,
-   *  or in the dock. Its `data-status` carries the cell's own state —
+   *  or on its own chat page. Its `data-status` carries the cell's own state —
    *  `booting` / `idle` / `thinking` / `gone` — so a scenario waits on the
-   *  state rather than on a spinner's styling. */
+   *  state rather than on a spinner's styling. `data-drawn` says which of the
+   *  two arrangements it is: `page` or `fold`. */
   chatPanel: "chat-panel",
-  /** THE DOCK: the seat's column, as this row draws it. `data-agent` names
-   *  the docked node (absent while the picker is up), `data-standing` its
-   *  standing. */
-  chatDock: "chat-dock",
-  /** The docked agent's title in the dock's bar — a link to its page. */
-  chatDockTitle: "chat-dock-title",
-  /** The bar's `×`. */
-  chatDockClose: "chat-dock-close",
-  /** The bar's switch, and the menu it opens. */
-  chatDockSwitch: "chat-dock-switch",
-  chatDockMenu: "chat-dock-menu",
-  /** One chat in the picker or the switch's menu; `data-agent` is its node. */
-  chatDockPick: "chat-dock-pick",
-  /** The column's face while nothing is docked. */
-  chatDockPicker: "chat-dock-picker",
-  /** The door on a Chats row that docks that conversation; `data-agent`. */
-  chatDockOpen: "chat-dock-open",
-  /** The agent line's door — `Open in panel ›` — on a fold or a node page. */
-  chatDockHere: "chat-dock-here",
   /** The phone's thumb to the chats: opens the drawer on Needs you, and
    *  carries `data-waiting`, the count of conversations that need somebody. */
   thumbChats: "thumb-chats",
 
-  // ── the panel's header, and the conversation drawn under it ───────
+  // ── the conversation's header, and the transcript drawn under it ──
   chatTitle: "chat-title",
   chatModel: "chat-model",
   /** Where a person types to narrow the open model list — the first thing in
@@ -282,8 +252,8 @@ export const TESTID = {
    *  `PluginMark`). `data-mark` says which was drawn — the plugin's own, by
    *  name, or the `generic` a plugin that hangs none gets. */
   chatPluginMark: "chat-plugin-mark",
-  /** WHAT A CHAT IS CALLED in a list — the sidebar, the side panel's title and
-   *  picker: a note's own name, a node's title. */
+  /** WHAT A CHAT IS CALLED in a list — the sidebar, a chat page's head:
+   *  a note's own name, a node's title. */
   chatName: "chat-name",
   /** ...and the mark the note's kind of file wears, beside that name. Absent
    *  for a node's chat. */
@@ -303,15 +273,12 @@ export const TESTID = {
    *  page — the whole row, doing what the verb at its end does.
    *  `data-beside` is `"true"` while a pane already has it. */
   chatLineOpen: "chat-line-open",
-  /** The box that starts a chat about a note — in the line at the top of its
-   *  page (one row, where Enter sends), or in the side panel's **This page**
-   *  block. `data-where` says which. Its fields are the one box's
+  /** The box that starts a chat about an item — in the line at the top of a
+   *  note (one row, where Enter sends), or on the chat's own page.
+   *  `data-where` says which. Its fields are the one box's
    *  (`agentPlainInput`, `agentPlainEngine`, `agentPlainSend`,
    *  `agentPlainRefused`), shared with a row's own page. */
   chatAbout: "chat-about",
-  /** The side panel's **This page** block, over its picker. `data-note` is the
-   *  note the page in front is. */
-  chatThisPage: "chat-this-page",
   /** The picker: which agent this conversation is with. Drawn in the
    *  transcript's place when the panel is asking, and over it when `+ new`
    *  does the asking. */

@@ -424,7 +424,7 @@ test("a list face goes when its plugin does, and the app is told", async () => {
   expect(moved.length).toBeGreaterThan(arrivals)
 })
 
-/** THE APP'S ONE PANEL IS ONE, whoever asks — and the refusal names BOTH
+/** THE APP'S ONE VIEWER SEAT IS ONE, whoever asks — and the refusal names BOTH
  *  plugins, because the key is the slot's own name and carries neither. A
  *  sentence naming only the loser tells a reader nothing about what to take
  *  out. */
@@ -437,7 +437,7 @@ test("a second plugin claiming the app's single slot is refused, naming both", a
       name: "alpha",
       needs: [Slots],
       apply: Effect.gen(function*() {
-        yield* (yield* Slots).register("app.panel", panel)
+        yield* (yield* Slots).register("app.viewer", panel)
       }),
     }),
   ))
@@ -447,7 +447,7 @@ test("a second plugin claiming the app's single slot is refused, naming both", a
       name: "beta",
       needs: [Slots],
       apply: Effect.gen(function*() {
-        yield* (yield* Slots).register("app.panel", () => null)
+        yield* (yield* Slots).register("app.viewer", () => null)
       }),
     }),
   ))
@@ -456,11 +456,11 @@ test("a second plugin claiming the app's single slot is refused, naming both", a
   const fault = report.state === "failed" ? report.fault ?? "" : ""
   expect(fault).toContain("beta")
   expect(fault).toContain("alpha")
-  expect(fault).toContain("app.panel")
+  expect(fault).toContain("app.viewer")
   // ...and the seat is still alpha's, with the plugin's word on the row: `only`
   // answers one face and not an array, because "there is at most one" is the
   // thing the slot exists to say.
-  expect(app.only("app.panel")).toEqual({ plugin: "alpha", face: panel })
+  expect(app.only("app.viewer")).toEqual({ plugin: "alpha", face: panel })
 })
 
 /** AN UNOCCUPIED SLOT IS A LEGITIMATE STATE — a serve running one plugin has
@@ -471,7 +471,7 @@ test("a slot nobody has hung a face in reads empty, whatever its cardinality", a
   expect(app.hung("app.header")).toEqual([])
   expect(app.hung("app.keys")).toEqual([])
   expect(app.dressed("outline.row.chip").size).toBe(0)
-  expect(app.only("app.panel")).toBe(null)
+  expect(app.only("app.viewer")).toBe(null)
 })
 
 /**

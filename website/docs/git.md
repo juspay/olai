@@ -170,7 +170,7 @@ git refuses every write while an `index.lock` file exists, and a killed process,
 
 | Trailer | Who |
 | --- | --- |
-| `chat-agent` | an agent in olai's own agent panel |
+| `chat-agent` | an agent you chat with inside olai |
 | `mcp` | anything on `/mcp`, including a command you typed with `olai surface` |
 | `web` | the browser: the keyboard editor and the row's `•••` menu |
 | `filer` | olai filing conversations into the Inbox |

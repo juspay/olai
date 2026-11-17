@@ -467,9 +467,9 @@ Then("the plugin page offers to ask for a change", async function (this: OlaiWor
   await this.page.locator(PAGE_ASK_CHANGE).first().waitFor({ state: "visible", timeout: POLL_TIMEOUT })
 })
 
-/** ...and pressing it, which opens the column on the chat ABOUT this page —
- *  the dock takes an address now, so what lands beside the page is whichever
- *  chat is at it. */
+/** ...and pressing it, which opens the chat ABOUT this page in the pane
+ *  beside it — chat decides where it lands and focuses the pane that already
+ *  has it. */
 When("I ask for a change to the plugin {string}", async function (this: OlaiWorld, word: string) {
   await shownPage(this, word)
   await openedMore(this)
@@ -691,8 +691,8 @@ Then("the conversation building {string} is beside the page", async function (th
   await this.page.locator(`${CHAT_PAGE}${attr("data-item", key)}`)
     .first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
   // ...AND IT IS THE CONVERSATION THE SUITE NOW ADDRESSES, the same way the
-  // docked one is (`./new_plugin_steps.ts`): a press on this page is how a
-  // person selects it.
+  // one the mint opened is (`./new_plugin_steps.ts`): a press on this page is
+  // how a person selects it.
   this.activeAgent = key
 })
 
@@ -713,18 +713,5 @@ Then("the plugin {string} has written {string}", async function (this: OlaiWorld
   await this.waitUntil(
     async () => (await row.getAttribute("data-written")) === "yes",
     `"${word}" to have written ${file}`,
-  )
-})
-
-/** No primary verb at all — the state a folder being written is in on a
- *  viewport with no seat for its conversation: there is nothing to press here
- *  that would do anything, so nothing is drawn rather than a button that
- *  writes a switch nobody is waiting on. */
-Then("the plugin page offers no verb", async function (this: OlaiWorld) {
-  await this.page.locator(`${PAGE} ${PAGE_STATE}`).first().waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-  assert.equal(
-    await this.page.locator(`${PAGE} ${PAGE_VERB}:visible`).count(),
-    0,
-    "the page offers a verb where there is nothing for one to do",
   )
 })
