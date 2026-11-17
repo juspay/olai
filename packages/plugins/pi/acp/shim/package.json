@@ -9,5 +9,9 @@
     "@modelcontextprotocol/sdk": "^1.32.1",
     "pi-acp": "0.0.33",
     "typebox": "1.3.20"
+  },
+  "//overrides": "GHSA-mrhx-c7xc-m3w5: pi-acp declares zod ^3.25.0 (0.0.34 still does), while the advisory's first patched release is 4.6.6. pi-acp's compiled dist never imports zod, and @agentclientprotocol/sdk's peer range accepts ^4.0.0, so this override moves the unused line to the patched major rather than moving the adapter pin.",
+  "overrides": {
+    "zod": "^4.6.6"
   }
 }
