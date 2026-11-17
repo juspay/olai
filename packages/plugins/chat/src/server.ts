@@ -1,4 +1,5 @@
 import { newChat, chatLocations, type LocationQuery, type NewChatInput } from "./server/new-chat.ts"
+import { aboutIn, chatsIn, placeIn, type Placed } from "./server/places.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
  * end, and the fourteen verbs, as a row.
@@ -74,6 +75,7 @@ import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
 import { inMemoryStore } from "@kolu/surface/server"
 import {
   documentAt,
+  type NodeAgent,
   type OpFailure,
   othersOf,
   type Reading,
@@ -436,6 +438,16 @@ export default definePlugin({
     /** THE VAULT'S HALF OF THE AGENTS ROSTER, held across revisions: which node
      *  carries a session property, what it is called, how big its subtree is. */
     const nodeAgents = agentsRoster()
+    /** THE REVISION THE ROSTER WAS LAST BUILT FROM, whole enough to say what a
+     *  chat row is about — its title read as a place, and that place still
+     *  held (`./server/places.ts`). `null` before the vault has loaded. Only
+     *  `levelWith` writes it, in the same step that moves the roster, so the two
+     *  cannot be a revision apart. */
+    let latest: Placed | null = null
+    const levelWith = (reading: Placed | null) => {
+      nodeAgents.seen(reading?.derived ?? null)
+      latest = reading
+    }
 
     /**
      * WHAT A GROWING ROW COSTS THE WIRE — the transcript's changes, turned into
@@ -632,9 +644,13 @@ export default definePlugin({
           // Ops has committed the new node, but revision delivery may still
           // be queued. Seat against that committed reading, not the earlier
           // roster used to paint the sidebar.
-          nodeAgents.seen(committed.derived)
+          levelWith(committed)
           return yield* startAgentSession(open, binding, { node, agent })
         }),
+        // THE CHAT ROWS OF THE READING THE REFUSAL IS ASKED OVER, by the pure
+        // seating reading (`./seating.ts`) — never by moving the roster, which
+        // is the revision handler's alone.
+        chats: (reading) => seatingIn(reading.derived),
       }, input))
     }
 
@@ -717,8 +733,17 @@ export default definePlugin({
         withChat((open) => open.seen(input, input.at))
           .pipe(Effect.tap(() => Effect.sync(republishAgents))),
       locations: ({ input }: { input: LocationQuery }) => Effect.map(ops.reading, reading => chatLocations(reading as Reading, input, vault.inbox.current())),
-      newChat: ({ input }: { input: NewChatInput }) =>
-        withChat(open => mintConversation(open, input)).pipe(Effect.tap(() => published)),
+      // A CHAT ABOUT A PLACE (`about`) carries its first message (`say`) and
+      // is handed it HERE, once, the way another row's `open` is: the door on
+      // a page stays on that page, so there is no page of the chat row's own
+      // for the words to wait on. A refused send is the answer's `refusal`.
+      newChat: ({ input }: { input: NewChatInput & { readonly say?: string } }) =>
+        withChat(open => Effect.gen(function*() {
+          const made = yield* mintConversation(open, input)
+          if (made.to === null || input.say === undefined || input.say.trim() === "") return made
+          const said = yield* Effect.result(open.inConversation(made.to, undefined, panel => panel.send(input.say!, [], [], false, [])))
+          return said._tag === "Failure" ? { ...made, refusal: said.failure.message } : made
+        })).pipe(Effect.tap(() => published)),
       // THE TWO GESTURES THAT ARE TWO ACTS, and the only ones here that are —
       // {@link ./server/binding.ts} argues both orders and the refusal.
       startAgentSession: ({ input }: { input: { node: string; agent: string } }) =>
@@ -840,6 +865,26 @@ export default definePlugin({
 
     // ── the fifth door, and the one a row that is not chat reaches a chat by ──
 
+    /** The chat rows at these addresses, in the vault as it stands now, keyed
+     *  by the address asked about and holding only the ones a chat is at —
+     *  the server's half of the browser's `chatAt` (`./server/places.ts`).
+     *  Read off the reading in hand with the pure seating, built ONCE for the
+     *  whole question, so every address is answered about one revision and a
+     *  question from another row never moves chat's own roster under it; no
+     *  reading yet is no chat anywhere. */
+    const chatRowsAt = (abouts: ReadonlyArray<string>): Effect.Effect<ReadonlyMap<string, NodeAgent>> =>
+      Effect.map(ops.reading, (read) => {
+        const found = new Map<string, NodeAgent>()
+        const reading = read as Reading | null | undefined
+        if (reading === null || reading === undefined) return found
+        const seated = chatsIn(reading, seatingIn(reading.derived))
+        for (const about of abouts) {
+          const place = placeIn(reading, about)
+          const row = place === null ? undefined : seated.at(place)
+          if (row !== undefined) found.set(about, row)
+        }
+        return found
+      })
     /**
      * `conversations` — STARTING A CONVERSATION, SPEAKING INTO IT, AND WHAT
      * CAN BE STARTED, for a row that is not chat.
@@ -885,10 +930,17 @@ export default definePlugin({
       // nowhere.
       send: (to, text, preamble) =>
         withChat(open => open.inConversation(to, undefined, panel => panel.send(text, [], [], false, preamble))),
-      seat: (node) => {
-        const row = nodeAgents.nodeAt(node)
-        return row === null || row.session === null ? null : { agent: row.engine, session: row.session }
-      },
+      // THE CHAT AT AN ADDRESS, read off the vault as it stands now rather
+      // than off whichever revision last reached this row — a caller following
+      // a revision of its own is answered about that one or a later one
+      // (`./server/places.ts`). One address or a list of them, both over the
+      // one reading and the one seating {@link chatRowsAt} builds per call.
+      seatAt: (about) =>
+        Effect.map(chatRowsAt([about]), (rows) => {
+          const row = rows.get(about)
+          return row === undefined || row.session === null ? null : { agent: row.engine, session: row.session }
+        }),
+      chatsAt: (abouts) => Effect.map(chatRowsAt(abouts), (rows) => new Set(rows.keys())),
       deliver: (who, to, text, current) =>
         chat === null
           ? Effect.succeed(false)
@@ -950,7 +1002,7 @@ export default definePlugin({
      */
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
-        nodeAgents.seen(revision.value.derived)
+        levelWith(revision.value)
         // WHICH NODE AGENT THE OPEN CONVERSATION BELONGS TO is a PROPERTY, so a
         // revision can change it. Without this the panel would go on saying it
         // belonged to nobody until the next time a session opened.
@@ -959,7 +1011,7 @@ export default definePlugin({
       })
     )
     yield* vault.unloaded(Effect.sync(() => {
-      nodeAgents.seen(null)
+      levelWith(null)
       republishAgents()
     }))
 
@@ -985,7 +1037,7 @@ export default definePlugin({
       // subscriber. Seed routing from the current reading used by writes so a
       // remembered node session starts with its final MCP credential.
       const initialReading = (yield* ops.reading) as Reading | null
-      if (initialReading !== null) nodeAgents.seen(initialReading.derived)
+      if (initialReading !== null) levelWith(initialReading)
       /**
        * THE ENGINES MOUNTED RIGHT NOW, in the build's order — asked, not
        * captured.
@@ -1093,6 +1145,9 @@ export default definePlugin({
         overheard: yield* sessionsIn(localState),
         live: liveIn(localState),
         agentAt: (to) => nodeAgents.agentAt(to),
+        // WHAT A NODE AGENT'S ROW IS ABOUT, off the same revision the roster
+        // was built from (`./server/places.ts`).
+        aboutAt: (agent) => latest === null ? null : aboutIn(latest, seatingIn(latest.derived), agent),
         // THE PERIOD AS DECODED, from the settings this row was applied with —
         // a change re-applies the row, so the panel never holds a stale one.
         remindEvery: settings["remind-every"],

@@ -403,9 +403,22 @@ export const BuiltPlugin = Schema.Struct({
       /** ...and the technical name beside it — `Kinds`, `outline.row.chip`. */
       named: Schema.String,
     }))),
-    /** The node of the conversation building this plugin, where one is bound to
-     *  it — what the page docks and what *Ask for a change* reopens. */
-    builder: Schema.optionalKey(Schema.String),
+    /**
+     * WHETHER A CHAT IS AT THIS PLUGIN'S PAGE — the conversation building it,
+     * which is the chat about the address `/plugins/<word>` and nothing
+     * written on the plugin's own node.
+     *
+     * A BOOLEAN AND NOT THE CHAT'S NODE, because no reader of this ever
+     * wanted the node: the page docks the chat by ADDRESS (chat's own
+     * `DockDoor.open`), the serve speaks into it by address, and what each
+     * face actually asks is *is there one*. Carrying the id made the roster a
+     * second place the binding was recorded, and the two could disagree the
+     * moment somebody retitled the chat.
+     *
+     * Absent where there is none, which is a plugin nobody asked an agent
+     * for — or one whose chat has been retitled or trashed since.
+     */
+    chat: Schema.optionalKey(Schema.Boolean),
     /**
      * ...AND WHETHER THERE IS ANYBODY BEHIND IT RIGHT NOW — the serve holding a
      * conversations door, which is chat being up on THIS serve.

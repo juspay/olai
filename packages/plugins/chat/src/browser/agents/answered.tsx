@@ -28,11 +28,55 @@ import type { Row } from "./roster.ts"
 import { chatWire } from "../wire.ts"
 
 import type { NotHere } from "@kolu/acp/engine"
+import { standIns, type Place } from "@olai/format"
+import { labelIn, nameOf } from "olai-plugin-navigation/address/address.ts"
+import { navigation } from "../navigation.ts"
+import { servedDirectory } from "../vault.ts"
+import { createDeclared } from "../references.ts"
+import { placeMark } from "../kinds.ts"
+import { placeIn, routeOfPlace } from "./place.ts"
+
+/**
+ * WHAT A CHAT IS CALLED wherever it is listed — the sidebar, the side panel's
+ * title and picker, the palette.
+ *
+ * An ordinary chat row is its title. A chat row standing for a place is the
+ * label written in its title, or the place's own name where the title is bare,
+ * and it wears the place's mark: a file its kind's own, a plugin's page the
+ * mark its route declares, anything else the pin every address wears. The raw
+ * title (`[plan](/notes/plan.md)`) is never what a person reads.
+ */
+export interface Named {
+  readonly name: string
+  readonly mark?: () => JSX.Element
+  /** Where the place is — the palette's second line. */
+  readonly where?: string
+}
 
 /** The shared roster, installed engines and stored history answer. */
 export interface Roster {
   readonly rows: Accessor<ReadonlyArray<Row>>
+  /** A chat row by its own id — what the seat, the wire and the side panel's
+   *  memory address a conversation by. A face asking which chat is ON a row
+   *  asks {@link chatAt} instead. */
   readonly at: (node: string) => Row | undefined
+  /**
+   * THE CHAT AT A PLACE — the one reading every face asks: the mark beside a
+   * row, its fold and page, the seat under a page, the side panel, the
+   * palette, the sidebar, link previews and the dot on a tab.
+   *
+   * A chat row is the chat of its own row; a chat row titled with an address
+   * is also the chat of that place (`@olai/format`'s `standIns` holds the
+   * rule about who wins a place, `./place.ts` what a title stands for).
+   */
+  readonly chatAt: (place: Place) => Row | undefined
+  /** The place a chat row stands for once that rule has run — its own row for
+   *  every chat that is not a stand-in. */
+  readonly placeOf: (row: { readonly id: string }) => Place
+  /** Whether a chat row stands for a place other than its own row. */
+  readonly standsIn: (row: { readonly id: string }) => boolean
+  /** What a chat row is called, and the mark it wears ({@link Named}). */
+  readonly named: (row: Row) => Named
   /** The engines this serve mounted that this machine can start — the fold
    *  every "startable" consumer keeps: the verbs, the palette, the composer's
    *  select. A `not-here` row is NOT in it, on purpose ({@link standings}). */
@@ -69,6 +113,46 @@ export function createAgents(): Roster {
   // THE SAME ROWS BY NODE, as a keyed projection rather than a fresh `Map` per
   // frame — `./table.ts` says why, and its browsertest holds the count.
   const byNode = createRosterTable(rows)
+  // WHAT EACH CHAT ROW STANDS FOR, read off its title with the router's own
+  // grammar — held by chat's `navigation` component, so with no navigation
+  // every chat stands for its own row and nothing else changes. Whether a
+  // place is still there is two readings this row already holds: the served
+  // files, and the outline's naming of a node (asked for the ids a title
+  // names, once each).
+  const declared = createDeclared()
+  const written = createMemo(() => {
+    const routes = navigation()?.routes
+    return rows().map(row => routes === undefined ? null : placeIn(routes, row.title))
+  })
+  createEffect(() => declared.want(written().flatMap(place => place?.kind === "row" ? [place.id] : [])))
+  const served = createMemo(() => new Set(servedDirectory()?.paths() ?? []))
+  const present = (place: Place): boolean => place.kind === "file"
+    ? servedDirectory()?.kindOf(place.path) != null && served().has(place.path)
+    : place.kind !== "row" || declared.told(place.id) !== null
+  const places = createMemo(() => {
+    const said = written()
+    const all = rows()
+    const of = new Map(all.map((row, index) => [row, said[index] ?? null]))
+    return standIns(all, row => { const place = of.get(row) ?? null; return place !== null && present(place) ? place : null })
+  })
+  const named = (row: Row): Named => {
+    const routes = navigation()?.routes
+    const all = places()
+    // A TITLE WRITTEN AS A NAMED LINK IS READ BY ITS LABEL whatever became of
+    // the place: somebody named that chat, and a page that was deleted (or a
+    // link to somewhere olai cannot open) is no reason to show them the
+    // brackets. Only a chat standing for a place wears that place's mark; a
+    // bare address is left as it was typed.
+    if (routes === undefined || !all.standsIn(row)) return { name: labelIn(row.title) ?? row.title }
+    const place = all.of(row)
+    const route = routeOfPlace(routes, place)
+    const own = place.kind === "file" ? routes.name(route) : place.kind === "row" ? declared.title(place.id) ?? undefined : undefined
+    return {
+      name: labelIn(row.title) ?? own ?? nameOf(routes, route, undefined),
+      mark: placeMark(routes, place),
+      ...(place.kind === "file" ? { where: place.path } : place.kind === "page" ? { where: place.href.replace(/^\//, "") } : {}),
+    }
+  }
   let active = true
   onCleanup(() => { active = false })
   // THE WHOLE TABLE FIRST ({@link Roster.standings}), then the fold: a reader
@@ -165,6 +249,10 @@ export function createAgents(): Roster {
 
 
   return { rows, at: byNode.at, engines, standings, only,
+    chatAt: place => places().at(place),
+    placeOf: row => places().of(row),
+    standsIn: row => places().standsIn(row),
+    named,
     missing: engine => engine === undefined ? null : missing().get(engine) ?? null,
     chats,
     unreachable, chatsRefusal, askChats }

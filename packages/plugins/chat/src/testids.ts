@@ -105,6 +105,8 @@ export const TESTID = {
   agentPlainInput: "agent-plain-input",
   agentPlainEngine: "agent-plain-engine",
   agentPlainSend: "agent-plain-send",
+  /** What a start from the box said, where it did not start. */
+  agentPlainRefused: "agent-plain-refused",
   // ── the sidebar's agents roster, and the door on an agent's row ───────
   /** The AGENTS section of the sidebar — the roster, which is the query
    *  `prop:agent-session`. Drawn only when the directory has a node agent, on the
@@ -290,6 +292,28 @@ export const TESTID = {
    *  `PluginMark`). `data-mark` says which was drawn — the plugin's own, by
    *  name, or the `generic` a plugin that hangs none gets. */
   chatPluginMark: "chat-plugin-mark",
+  /** WHAT A CHAT IS CALLED in a list — the sidebar, the side panel's title and
+   *  picker: its place's name for a chat row standing for one, its title
+   *  otherwise. Never the raw title of a stand-in. */
+  chatName: "chat-name",
+  /** ...and the mark of the place it stands for, beside that name: a file's
+   *  kind mark, a plugin page's own, or the pin. Absent for an ordinary chat. */
+  chatPlaceMark: "chat-place-mark",
+  /** THE SEAT at the foot of a page with one (`olai-plugin-navigation/seat`),
+   *  as chat fills it: the chat about that page, folded or open, or the box
+   *  that starts one. `data-place` is the place it is about. */
+  chatSeat: "chat-seat",
+  /** The seat's head when it holds a chat: one line saying how the chat
+   *  stands, whose press opens and folds the conversation under it.
+   *  `data-chat` is the chat row; `data-folded` is `"true"` while folded. */
+  chatSeatLine: "chat-seat-line",
+  /** The box that starts a chat about a page — in its seat, or in the side
+   *  panel's **This page** block. `data-where` says which. Its fields are the
+   *  one box's (`agentPlainInput`, `agentPlainEngine`, `agentPlainSend`,
+   *  `agentPlainRefused`), shared with a row's own page. */
+  chatAbout: "chat-about",
+  /** The side panel's **This page** block, over its picker. */
+  chatThisPage: "chat-this-page",
   /** The picker: which agent this conversation is with. Drawn in the
    *  transcript's place when the panel is asking, and over it when `+ new`
    *  does the asking. */

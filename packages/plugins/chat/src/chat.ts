@@ -259,6 +259,10 @@ export interface PanelOptions {
    * telling it nothing.
    */
   readonly agentAt?: (to: Conversing) => NodeAgent | null
+  /** THE ADDRESS A NODE AGENT'S ROW STANDS FOR, where its title names a place
+   *  and it is that place's chat — said once in its first message
+   *  (`./teaching.ts`'s `ABOUT`). Absent, or `null`, says nothing. */
+  readonly aboutAt?: (agent: NodeAgent) => string | null
   /**
    * EVERY HOW MANY MESSAGES A NODE AGENT IS REMINDED OF ITS WRITING RULE
    * (`./settings.ts`'s `remind-every`, `./teaching.ts`'s `REMINDER`) — the
@@ -1370,7 +1374,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // message that merely REMINDS carries none of them — the reminder is one
       // line of law, not a second briefing.
       const lines = teaches
-        ? [...teachingFor(node, row?.assigned === true ? "assigned" : "opened"), ...preamble]
+        ? [...teachingFor(node, row?.assigned === true ? "assigned" : "opened", options.aboutAt?.(node) ?? null), ...preamble]
         : reminds ? REMINDING : []
       // ...AND WHICH CHANNEL THIS ENGINE'S STANDING PROMPT RIDES, which is the
       // engine's own answer and not an assumption of this file's

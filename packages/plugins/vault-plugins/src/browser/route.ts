@@ -37,11 +37,15 @@
 import { defineSelfDrawnRoute } from "olai-plugin-navigation/routes"
 
 import { PLUGIN_FILES, WORD } from "@olai/surface"
+import { PLUGIN_PATH } from "../index.ts"
+import { PluginGlyph } from "./glyph.tsx"
 
 /** The prefix this page claims. Trailing slash, so `/plugins` itself is not
  *  ours: a list of plugins is the panel's and the sidebar's job, and claiming
- *  the bare word would take an address away from a page that might want it. */
-export const PLUGIN_PATH = "/plugins/"
+ *  the bare word would take an address away from a page that might want it.
+ *  It is the package's own (`../index.ts`), because the serve spells this URL
+ *  too now: a chat about a plugin is a chat about this page. */
+export { PLUGIN_PATH }
 
 /**
  * One plugin's page: the folder's word, and — where the address named one of
@@ -89,4 +93,7 @@ export const pluginPage = defineSelfDrawnRoute<PluginPage>({
   // read. The page itself heads with the title.
   breadcrumb: ({ word, file }) => `Plugins › ${word}${file === undefined ? "" : ` › ${file}`}`,
   narrowable: false,
+  // The square the column and the page head with, so a chat about this page
+  // wears it wherever the chat is named.
+  glyph: PluginGlyph,
 })

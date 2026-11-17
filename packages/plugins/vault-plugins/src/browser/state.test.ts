@@ -15,6 +15,7 @@ import { describe, expect, test } from "bun:test"
 import type { BuiltPlugin } from "@olai/surface"
 
 import { changedCount, diffLines } from "./diff.ts"
+import { noticeOf } from "./alerts.ts"
 import { markOf, metaOf, stageOf, wakes, type Defined } from "./state.ts"
 
 const plugin = (source: Partial<BuiltPlugin["source"] & object>, row: Partial<BuiltPlugin> = {}): Defined => ({
@@ -61,7 +62,7 @@ describe("which of the six", () => {
   })
 
   test("a half that will not compile is broken before anybody approves it", () => {
-    const broken = plugin({ builder: "chat-1" }, { state: "failed", fault: "Unexpected token" })
+    const broken = plugin({ chat: true }, { state: "failed", fault: "Unexpected token" })
     expect(stageOf(broken)).toBe("broken")
     expect(markOf(stageOf(broken))).toBe("problem")
   })
@@ -72,6 +73,25 @@ describe("which of the six", () => {
     expect(wakes("broken")).toBe(true)
     expect(wakes("on")).toBe(false)
     expect(wakes("building")).toBe(false)
+  })
+})
+
+/**
+ * WHAT THE BANNER SAYS ABOUT HOW IT GOT THERE — the one line in this row that
+ * is a sentence about the plugin's history rather than its state.
+ *
+ * "An agent finished building it" is true of a plugin somebody asked for in
+ * the palette and false of a folder they copied in or wrote by hand, and the
+ * two reach the same screen. The chat at the plugin's own address is what
+ * tells them apart.
+ */
+describe("what the notice says about a plugin that is ready", () => {
+  test("a chat at its address is an agent having finished it", () => {
+    expect(noticeOf(plugin({ chat: true }), "review").body).toContain("An agent finished building it")
+  })
+
+  test("...and with no chat there, nobody is said to have built it", () => {
+    expect(noticeOf(plugin({}), "review").body).toContain("nobody has read it yet")
   })
 })
 

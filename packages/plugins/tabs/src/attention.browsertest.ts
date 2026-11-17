@@ -1,12 +1,18 @@
 import { expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
 import type { AttentionRow } from "olai-plugin-chat/attention"
-import { NO_PAGES, routingOver } from "olai-plugin-navigation/routes"
+import { fileNamed, NO_PAGES, type Route, routingOver } from "olai-plugin-navigation/routes"
 import { marksOver } from "./attention.ts"
 import type { Dots, Tab } from "./contract.ts"
 
+/** Chat's `isCurrent` is chat's own rule (its tests hold it); here a row is
+ *  current on the tab showing its file, which is all these marks need. */
 const chatOver = (rows: () => readonly AttentionRow[]) =>
-  ({ agents: { rows, at: (id: string) => rows().find(row => row.id === id) }, folding: { unfolded: () => true } })
+  ({
+    agents: { rows, at: (id: string) => rows().find(row => row.id === id) },
+    folding: { unfolded: () => true },
+    isCurrent: (_routes: unknown, route: Route, row: AttentionRow) => fileNamed(route) === row.file,
+  })
 
 /** The mark a reading is, by its own name — the two are told apart by what they
  *  are CALLED and by their rank, never by their paint. */

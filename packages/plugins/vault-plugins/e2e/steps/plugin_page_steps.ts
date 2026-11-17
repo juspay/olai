@@ -41,6 +41,7 @@ import type { Locator } from "@olai/tests/harness/playwright.ts"
 
 import {
   addressOfPlugin,
+  CHAT_SEAT,
   consentOf,
   openedMore,
   PAGE,
@@ -58,7 +59,6 @@ import {
   PAGE_MOVED_READ,
   PAGE_README,
   PAGE_STATE,
-  PAGE_ASK_OPEN,
   PAGE_ASK_SAID,
   PAGE_DELETE,
   PAGE_DELETE_CONFIRM,
@@ -465,28 +465,41 @@ Then("the plugin page offers to ask for a change", async function (this: OlaiWor
   await this.page.locator(PAGE_ASK_CHANGE).first().waitFor({ state: "visible", timeout: POLL_TIMEOUT })
 })
 
+/** ...and pressing it, which opens the column on the chat ABOUT this page —
+ *  the dock takes an address now, so what lands beside the page is whichever
+ *  chat is at it. */
+When("I ask for a change to the plugin {string}", async function (this: OlaiWorld, word: string) {
+  await shownPage(this, word)
+  await openedMore(this)
+  const row = this.page.locator(PAGE_ASK_CHANGE).first()
+  await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  await this.press(row)
+})
+
 /**
- * ...AND A SERVE WITH NO AGENT SAYS SO, in words, rather than drawing a button
+ * ...AND A SERVE WITH NO CHAT OFFERS NO DOOR AT ALL, rather than a button
  * that does nothing.
  *
- * The sentence itself is the page's to word — the assertion is that it names
- * the absence and that NEITHER verb that would speak into a conversation is
- * drawn, which is the half a rewording cannot quietly take away.
+ * Three absences, because there are three doors onto a conversation and chat
+ * owns two of them: the page's own *Ask for a change*, the fault's *Ask the
+ * agent to fix it*, and the SEAT the *Ask* spot holds where chat is up — the
+ * box that would start one. With the chat row switched off there is nobody to
+ * draw the third, which is why the page says nothing here instead of a
+ * sentence about an agent that is not missing.
  */
 Then("the plugin page offers nobody to ask", async function (this: OlaiWorld) {
   const ask = this.page.locator(`${PAGE} ${PAGE_ASK}`).first()
-  await ask.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
-  const said = await ask.innerText()
-  assert.match(
-    said,
-    /agent|conversation|chat/i,
-    `the ask section says ${JSON.stringify(said)}, which does not name what is missing`,
-  )
-  assert.equal(await this.page.locator(PAGE_ASK_CHANGE).count(), 0, "a plugin with no builder offered *Ask for a change*")
+  await ask.waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT })
+  assert.equal(await this.page.locator(PAGE_ASK_CHANGE).count(), 0, "a plugin with no chat offered *Ask for a change*")
   assert.equal(
     await this.page.locator(`${PAGE} ${PAGE_VERB}${attr("data-verb", "ask-fix")}`).count(),
     0,
-    "a plugin with no builder offered *Ask Claude to fix it*",
+    "a plugin with no chat offered *Ask Claude to fix it*",
+  )
+  assert.equal(
+    await this.page.locator(`${PAGE} ${PAGE_ASK} ${CHAT_SEAT}`).count(),
+    0,
+    "a serve with no chat drew a seat to start one in",
   )
 })
 
@@ -668,14 +681,27 @@ Then("the plugin page says {string} came of asking", async function (this: OlaiW
   )
 })
 
-/** The conversation at its OWN address, which is what a viewport with no seat
- *  for one offers instead of a door it cannot open. */
-Then("the plugin page offers the conversation's own page", async function (this: OlaiWorld) {
-  const link = this.page.locator(`${PAGE} ${PAGE_ASK_OPEN}`).first()
-  await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
-  assert.ok(
-    ((await link.getAttribute("href")) ?? "").length > 1,
-    "the page offers to open the conversation and names no address",
+/**
+ * THE PAGE'S OWN SEAT, in the *Ask* spot — what a viewport with no column for
+ * a conversation draws instead of the door it cannot open.
+ *
+ * The seat is chat's face (`olai-plugin-chat`'s `ChatSeat`) in a spot this
+ * page placed, and it is keyed by the PLACE it is about — so this asserts
+ * both halves at once: the page put its seat in the Ask section, and the seat
+ * it put there is about this plugin's own address.
+ */
+Then("the plugin page seats the chat about {string}", async function (this: OlaiWorld, word: string) {
+  const seat = this.page
+    .locator(`${PAGE} ${PAGE_ASK} ${CHAT_SEAT}${attr("data-place", `page:${addressOfPlugin(word)}`)}`)
+    .first()
+  await seat.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT })
+  // ...AND NOT THE BUTTON BESIDE IT. *Ask for a change…* opens the column,
+  // and there is none here: drawing both would be two doors onto one
+  // conversation, one of which does nothing.
+  assert.equal(
+    await this.page.locator(`${PAGE} ${PAGE_ASK_CHANGE}`).count(),
+    0,
+    "a viewport with no column offered *Ask for a change*",
   )
 })
 

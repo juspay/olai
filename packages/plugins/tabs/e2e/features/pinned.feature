@@ -5,7 +5,7 @@ Feature: The strip reserves its place above the reading
     And I show the done nodes
     And the window is shorter than the page
     And I read the outline with Notes on "open"
-    When I scroll to the bottom of the page
+    When I scroll to the end of the outline
     Then the tab strip is pinned below the app header
     And the section heading of "kitchen" is pinned under the main-column chrome
     And there should be no page errors
@@ -32,7 +32,7 @@ Feature: The strip reserves its place above the reading
     And I show the done nodes
     And the window is shorter than the page
     And I read the outline with Notes on "open"
-    When I scroll to the bottom of the page
+    When I scroll to the end of the outline
     Then there is no tab strip
     And the main-column reserve equals the visible chrome
     And the section heading of "kitchen" is pinned under the main-column chrome

@@ -2,39 +2,45 @@
 
 A row of an outline can have its own agent: its title names the agent, its note says what to do, and the rows under it are its memory.
 
-## Start an agent on a row
+## Start a chat on a row, or about the page you are reading
 
-Hover or focus a row with no agent and **Start an agent** appears beside it.[^start] The palette (`Cmd` + `K`) has a **New chat** row: it asks where the chat goes and what to say.[^palette] Zooming into a row with no agent gives you an **Ask about** box below it.[^zoom]
+Hover or focus a row with no agent and **Start an agent** appears beside it.[^start] A page has a seat at its foot, **Chat about this page**.[^seat] The palette (`Cmd` + `K`) has **New chat** and **Chat about this page** rows.[^palette] Zooming into a row with no agent gives you an **Ask about** box below it.[^zoom]
 
 ## Where the conversation appears
 
 One conversation, with one draft and one transcript, is drawn in three places on a desktop and two on a phone:
 
 - under the row, when you unfold it[^fold]
-- on the row's own page[^page]
+- on the row's own page, or in the page's seat[^page]
 - in the agent panel, the column on the right[^panel][^column]
 
 ## Find a chat again
 
-Each row says how its agent is doing.[^standings] In the sidebar, **Needs you** lists agents waiting for an answer,[^needs] and **Chats** lists every chat, at most ten rows,[^chats] with the rest in the palette.[^beyond] A row below an agent's row shows a button to it.[^above]
+Each row says how its agent is doing.[^standings][^above] In the sidebar, **Needs you** lists agents waiting for an answer,[^needs] and **Chats** lists every chat, at most ten rows,[^chats][^opening] with the rest in the palette.[^beyond]
 
 ## Keep, close or replace a conversation
 
-A conversation's buttons are **Fresh start**, **Close**, **Put to sleep**, **Sleep when idle**, **Tidy memory** and **Open the agent above**.[^verbs] The conversation line also offers **Earlier chats ↑**.[^earlier] Eight agents can be awake at once; a ninth is refused until one sleeps.[^seats][^waiting]
+A conversation's buttons are **Fresh start**, **Close**, **Put to sleep**, **Sleep when idle**, **Tidy memory** and **Open the agent above**.[^verbs][^earlier] Eight agents can be awake at once; a ninth is refused until one sleeps.[^seats][^waiting]
 
 ## What the agent is told about its row
 
-The agent's first message carries an instruction from olai:[^preamble] the row's note says what to do, and the rows under it are its only memory.[^memory] Every twentieth message repeats that rule.[^remind] A chat you have marked tidies its own rows when it is left alone.[^tidy]
+The agent's first message carries an instruction from olai:[^preamble][^about] the row's note says what to do, and the rows under it are its only memory.[^memory] Every twentieth message repeats that rule.[^remind] A chat you have marked tidies its own rows when it is left alone.[^tidy]
 
 [^start]: Where only one agent is available it starts at once; where several are, they offer their names in a small menu. The row's menu carries the same entry, for the keyboard and for a long press on a phone. A successful start opens the conversation, records on the row which chat it has, and unfolds it. If the start fails, the reason stays on the row and no chat is recorded on it.
 
-[^palette]: `Cmd` + `K` opens the palette on a Mac, and `Ctrl` + `K` everywhere else. The `+` beside **Chats** opens the palette already on **New chat**. It asks two things, and nothing is created until you send the second. Where a new chat can go, and what creating one does, are in the closed block at the foot of this page.
+[^seat]: The seat sits under a document, a whole outline, a file olai only shows, such as a `.csv` or a picture, and a plugin's page. Days, the Agenda, the Trash and a saved layout of panes have none, and so does a serve with no agent this machine can start.
+
+    Without a chat about that page, the seat holds a box reading **Ask about plan…**, an agent picker and **Send**. The closed block at the foot of this page says what sending does, and how a seat with a chat in it folds.
+
+[^palette]: `Cmd` + `K` opens the palette on a Mac, and `Ctrl` + `K` everywhere else. The `+` beside **Chats** opens the palette already on **New chat**, which asks two things, and nothing is created until you send the second.
+
+    The palette's **Chat about this page** asks one thing, in a box reading **Ask about plan…**, and is offered only while the page in front has no chat. Where a new chat can go, and what creating one does, are in the closed block at the foot of this page.
 
 [^zoom]: Zooming into a row means opening it so that it is the top of what you see. Sending from the box below it starts that row's agent and delivers what you typed to the new conversation, with the rows under it still in front of you.
 
 [^fold]: Unfolding puts the conversation under the row and above the row's children. Press the state shown beside the row to unfold it, and press it again to fold it. Several rows can be unfolded at once.
 
-[^page]: On the row's own page, the agent line and the strips above the conversation sit under the title. The rows under it come below the drawer of the row's properties, and the conversation comes after those rows, scrolling with the pane.
+[^page]: On the row's own page, the agent line and the strips above the conversation sit under the title. The rows under it come below the drawer of the row's properties, and the conversation comes after those rows, scrolling with the pane. Opened in a page's seat, a chat draws the same agent line, strips and box.
 
 [^panel]: The agent panel, labelled **Agent panel**, stays where it is while you move between outlines. A phone has no panel. Four things open it on the conversation they name: the control on a **Chats** row that hovering reveals, **Open in panel ›** on the agent line, `Cmd` + `J`, and the panel button in the bar beside the health dot.
 
@@ -49,6 +55,10 @@ The agent's first message carries an instruction from olai:[^preamble] the row's
 [^chats]: The **Chats** part lists every chat. Awake agents come first, in the order of the states above, and the rest follow by when they last said something. The limit of ten is applied after that sorting, so ten sleeping chats can never hide a live one. An awake row wears its state's dot, and a title in bold means the agent has spoken since you last read it ([what olai tells you about](attention.md)).
 
 [^beyond]: Search for **Agents**, or for a title, in the palette to reach every agent, including the ones past the limit of ten. Each **Chats** row has a **•••** button of its own, revealed when you hover or focus it, carrying **Put to sleep**, **Tidy memory** and **Close the agent**. A phone draws no **•••**: the row's menu in the outline carries the same entries.
+
+[^opening]: Clicking a chat about a page, in **Chats**, in **Needs you** or in the palette, opens the page itself rather than the chat row. A chat of its own row opens that row's page. Its **Chats** row is marked as the page you are on while you read that page, and a row's chat unfolded in its outline is marked there.
+
+    A chat about a page is listed under that page's name, with the page's own mark, and the palette adds the path under it, `Agents · notes/plan.md`. What such a title is called, however it is spelled, is in [plugins/chat.md](plugins/chat.md).
 
 [^above]: The button on a row that sits under an agent's row reads `↑` with that agent's mark, the row's title and the agent's name. Pressing it opens that conversation's page.
 
@@ -70,6 +80,8 @@ The agent's first message carries an instruction from olai:[^preamble] the row's
 
 [^remind]: The reminder is one line, carried by every twentieth message a person sends. The number is `remind-every` on the chat row in `_olai/Settings.olai`, where `0` never reminds.
 
+[^about]: A chat about a page is told one line more in its first message: ``This conversation is about `/notes/plan.md`: the person talks to you from that page, so read it before you answer.`` What a chat on a row of its own is told, and what the two have in common, are in [plugins/chat.md](plugins/chat.md).
+
 [^tidy]: Tidying is one turn olai starts itself: when the chat has been left alone long enough, and enough has moved, the agent is asked to tidy its rows, shorten what they say and file them away. Nothing is tidied until you ask for it, chat by chat.
 
     Press **On** on the **Sleep** item in the **Tools** strip above the conversation, which writes `chat-agent-sleep: on` onto the row, or use **Sleep when idle** in the menus. What the item then says, what a pass does, and the settings that time it, are in the closed block at the foot of this page.
@@ -85,6 +97,25 @@ The agent's first message carries an instruction from olai:[^preamble] the row's
 `Enter` or **Start chat** creates a child of the place you chose, titled from the first line of your message and cut at a word boundary to 60 characters. It starts the agent, opens the new row's own page and delivers the message once. An empty message is refused on the spot. Files olai keeps for itself, such as Settings and Properties, are never offered as a home.
 
 While one new chat is starting, another is refused with *A new chat is already starting*, and your words stay in the box. Closing the palette does not cancel it: the chat is still created, and the message waits there as its draft.
+
+</details>
+
+<details>
+<summary>What a chat about a page is, and what starting one does</summary>
+
+Sending from the seat, from the **This page** block at the top of the agent panel's picker, or from the palette's **Chat about this page** creates one chat row under **Inbox › Chats**. Its title is the page's name and address, `[plan](/notes/plan.md)`, which is what makes it that page's chat ([plugins/chat.md](plugins/chat.md)). It starts the agent, delivers your message once, and on a desktop docks beside the page.
+
+| What you ask for | What happens |
+| --- | --- |
+| a chat about a page that has none | the row is created, and the page's seat opens on it |
+| a second chat about one page | refused: `this page already has a chat; no conversation was created` |
+| a chat naming a page olai does not hold, such as a deleted file | that chat row is an ordinary chat under **Chats**, and a page that address opens again offers a chat of its own |
+
+With a chat there, the seat is that page's fold. Its head line carries the agent's mark and how it stands, and stays when the seat is open, so opening a page never wakes its agent.
+
+Press that line to open the conversation under it, and press it again to fold it away. It also opens when you start a chat from one of the page's doors, and when you open that chat from **Chats**, **Needs you** or the palette. This tab remembers a seat you left folded, so a later visit finds it folded and wakes no agent.
+
+Two things are asked once for each row while this browser tab is open: whether a row a chat stands for still exists, and that row's name where the title is a bare `/#id`. So a row deleted after that still counts as its chat's place until you reload the tab, and a row renamed after that keeps its old name under **Chats** until you reload.
 
 </details>
 

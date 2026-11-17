@@ -16,7 +16,9 @@ export const previewNode = (route: Route) => route.kind === "at" &&
  * acquired by hovering. The roster is already owned by chat's activation. */
 export function ChatLinkPreview(props: { readonly route: Route; readonly roster: Roster }) {
   // LinkPreview.Preview guarantees one immutable route per mount.
-  const node = previewNode(props.route)!
+  // ...and the chat at that row, which is the conversation drawn: the row's
+  // own, or a chat row standing for it (`./agents/answered.tsx`'s `chatAt`).
+  const node = props.roster.chatAt({ kind: "row", id: previewNode(props.route)! })?.id ?? previewNode(props.route)!
   const transcript = chatWire().streams.transcript.useCollection({ node }, transcriptRows)
   const tail = createTail(chatWire().streams.saying.useCollection({ node }, sayingRows).fold)
   const ordered = createRows(transcript.fold)
@@ -34,7 +36,7 @@ export function ChatLinkPreview(props: { readonly route: Route; readonly roster:
   })
   return <>
     <div class="text-xs text-muted">{props.roster.at(node)?.file} › Chat</div>
-    <strong>{props.roster.at(node)?.title ?? `#${node}`}</strong>
+    <strong>{(() => { const row = props.roster.at(node); return row === undefined ? `#${node}` : props.roster.named(row).name })()}</strong>
     <Show when={props.roster.at(node)}>{row => <span class="ml-2 rounded border border-rule/60 px-1 text-xs">{LOOK[row().standing].label}</span>}</Show>
     <div class="mt-2 space-y-2"><For each={keys()}>{key => {
       const row = () => transcript.byKey(key)?.()

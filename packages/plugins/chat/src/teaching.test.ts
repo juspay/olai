@@ -140,3 +140,21 @@ test("under a message it rides the seam every other annotation rides", () => {
   expect(said.startsWith("what is blocking the connector?\n\n[olai] ")).toBe(true)
   expect(annotated("and now?", REMINDING)).toBe(`and now?\n\n[olai] ${REMINDER}`)
 })
+
+test("a chat row about a place is told its address once, right after which node it is", () => {
+  const plan = { ...SPACES, id: "plan-chat", title: "[plan](/notes/plan.md)", file: "_olai/Inbox.olai" }
+  for (const how of ARRIVALS) {
+    const lines = teachingFor(plan, how, "/notes/plan.md")
+    expect(lines[1]).toBe("[olai] This conversation is about `/notes/plan.md`: the person talks to you from that page, so read it before you answer.")
+    expect(lines.filter((line) => line.includes("/notes/plan.md`:")).length).toBe(1)
+    // ...and everything else is the plain contract, word for word.
+    expect(lines.filter((_, index) => index !== 1).slice(1)).toEqual(teachingFor(plan, how).slice(1))
+  }
+})
+
+test("an ordinary chat row is told exactly what it was told before", () => {
+  for (const how of ARRIVALS) {
+    expect(teachingFor(SPACES, how, null)).toEqual(teachingFor(SPACES, how))
+    expect(teachingFor(SPACES, how).some((line) => line.includes("This conversation is about"))).toBe(false)
+  }
+})

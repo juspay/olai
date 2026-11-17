@@ -1,3 +1,4 @@
+import { ChatName } from "./ChatName.tsx"
 import { agentReadings } from "./reading.ts"
 import { NewChat, NewChatSaid } from "./NewChat.tsx"
 import { Key } from "@solid-primitives/keyed"
@@ -5,7 +6,7 @@ import { createMemo, createSelector, Show } from "solid-js"
 import { CHIP_QUIET } from "olai-plugin-layout/chip"
 import { ENTRY_SHAPE, REGION, REGION_HEAD, REGION_LABEL } from "olai-plugin-layout/entry"
 import { useShown, useRouter } from "olai-plugin-navigation/routing"
-import { isCurrent } from "../../attention.ts"
+import { isCurrent } from "./place.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { SHOWN_WITHOUT_HOVER } from "@olai/ui-primitives/touch.ts"
@@ -34,7 +35,7 @@ export function NeedsYou() {
         <a href={focus.href(row())} class={`${ENTRY_SHAPE} w-full gap-2 text-left text-doing`} data-testid={TESTID.agentNeedRow}
           data-agent={row().id} data-standing={row().standing} on:olai-navigated={() => focus.visit(row())}>
           <span class={`${DOT} ${LOOK[row().standing].dot}`} aria-hidden="true" />
-          <span class="min-w-0 flex-1 truncate">{row().title}</span>
+          <ChatName row={row()} />
           <Show when={row().standing === "gone"} fallback={<span class={CHIP_QUIET} data-testid={TESTID.agentWaiting}>{row().waiting}</span>}>
             <span class="shrink-0 text-label text-muted">Not running</span>
           </Show>
@@ -60,7 +61,8 @@ export function Chats() {
    *  wakes nothing here either. */
   const currentIds = createMemo(() => {
     const route = router.route()
-    return new Set(agents.rows().filter((row) => isCurrent(route, row, unfolded(row.id))).map((row) => row.id))
+    const reported = router.focused()?.file
+    return new Set(agents.rows().filter((row) => isCurrent(router.routes, route, row, agents.placeOf(row), unfolded(row.id), reported)).map((row) => row.id))
   }, new Set<string>(), { equals: (a, b) => a.size === b.size && [...a].every((id) => b.has(id)) })
   const current = createSelector<ReadonlySet<string>, string>(currentIds, (id, ids) => ids.has(id))
   return <section class={REGION} data-testid={TESTID.agentRoster}>
@@ -73,7 +75,7 @@ export function Chats() {
       {/* THE WHOLE TITLE under the pointer, because the row truncates it. It
           is a convenience and nothing more: the same words are the anchor's
           own text, so a reader who never hovers already has them. */}
-      <Tip text={row().title}>
+      <Tip text={agents.named(row()).name}>
       <a href={focus.href(row())} class={`${ENTRY_SHAPE} w-full gap-2 text-left`} data-testid={TESTID.agentRow}
         data-agent={row().id} data-engine={row().engine} data-standing={row().standing} aria-current={current(row().id) ? "page" : undefined}
         data-unread={row().unread ? "true" : undefined}
@@ -91,9 +93,8 @@ export function Chats() {
         <Show when={awake(row().standing)}>
           <span class={`${DOT} ${LOOK[row().standing].dot}`} role="img" aria-label={LOOK[row().standing].label} />
         </Show>
-        <span class="min-w-0 flex-1 truncate" classList={{ "font-semibold": row().unread }}>
-          {row().title}<Show when={row().unread}><span class="sr-only"> Unread</span></Show>
-        </span>
+        <ChatName row={row()} class={`min-w-0 flex-1 truncate${row().unread ? " font-semibold" : ""}`} />
+        <Show when={row().unread}><span class="sr-only"> Unread</span></Show>
         <Show when={row().said?.at ?? row().changed}>{at => <span class="shrink-0 tabular-nums text-caption text-muted">{agoOf(at(), now())}</span>}</Show>
       </a>
       </Tip>
@@ -112,7 +113,7 @@ export function Chats() {
           <button type="button"
             class={`inline-flex size-6 items-center justify-center rounded-control bg-desk text-muted opacity-0 shadow-raised hover:text-ink focus-visible:opacity-100 group-hover/chat:opacity-100 ${SHOWN_WITHOUT_HOVER}`}
             data-testid={TESTID.chatDockOpen} data-agent={row().id}
-            aria-label={`Open ${row().title} in the panel`}
+            aria-label={`Open ${agents.named(row()).name} in the panel`}
             onClick={(event) => { event.stopPropagation(); dock()?.open(row().id) }}>
             <svg viewBox="0 0 16 16" class="size-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
               <rect x="2" y="3" width="12" height="10" rx="1.5" />

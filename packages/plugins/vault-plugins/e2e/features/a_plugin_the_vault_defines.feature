@@ -28,7 +28,7 @@ Feature: A plugin the vault defines
   has the page open DISARMS the verbs rather than swapping the source under them.
 
   AND CONSENT IS IN A FILE, not in a set in this process's memory: `approved`,
-  `on` and `builder` are properties on a root node titled `<word>` in
+  `on` and `checked` are properties on a root node titled `<word>` in
   `_olai/Settings.olai`, the same file every row olai ships keeps its settings
   in. Three of these scenarios are about what that buys — a folder copied in
   arriving off and unapproved, and both halves of a decision surviving a

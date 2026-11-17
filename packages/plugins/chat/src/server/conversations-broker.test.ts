@@ -81,7 +81,8 @@ test("a word said through the broker's door after the asking row unloaded lands 
     const owner: ConversationsOwner = {
       mint: () => Effect.succeed({ node: "node-1", to: SEATED, refusal: null }),
       send: () => Effect.void,
-      seat: () => SEATED,
+      seatAt: () => Effect.succeed(SEATED),
+      chatsAt: (abouts) => Effect.succeed(new Set(abouts)),
       deliver: (who, _to, text, current) =>
         Effect.sync(() => {
           // THE GATE IS READ AT THE LANDING and not only at the asking, which is
@@ -101,13 +102,13 @@ test("a word said through the broker's door after the asking row unloaded lands 
     expect((yield* asking.report).state).toBe("running")
     expect(door).toBeDefined()
 
-    expect(yield* door!.say({ node: "node-1", text: "first" })).toBe(true)
+    expect(yield* door!.say({ about: "/plugins/timer", text: "first" })).toBe(true)
     expect(delivered).toEqual([{ who: "vault-plugins", text: "first" }])
 
     // ...AND THE ROW GOES. Nothing else moves: chat is still up, the node is
     // still seated, the door is the same object the consumer was handed.
     yield* asking.dispose
-    expect(yield* door!.say({ node: "node-1", text: "second" })).toBe(false)
+    expect(yield* door!.say({ about: "/plugins/timer", text: "second" })).toBe(false)
     expect(delivered).toEqual([{ who: "vault-plugins", text: "first" }])
   })))
 })
@@ -146,7 +147,8 @@ test("a mint in flight when chat goes keeps the node it made and answers the ref
           yield* Deferred.await(sending)
           if (gone) return yield* new UsageFailure({ reason: "the chat has stopped" })
         }),
-      seat: () => SEATED,
+      seatAt: () => Effect.succeed(SEATED),
+      chatsAt: (abouts) => Effect.succeed(new Set(abouts)),
       deliver: () => Effect.succeed(true),
       engines: () => [{ id: "claude", name: "Claude Code" }],
     }
@@ -174,6 +176,7 @@ test("a mint in flight when chat goes keeps the node it made and answers the ref
     const call = yield* Effect.forkScoped(door!.open({
       parent: null,
       title: "timer",
+      about: "/plugins/timer",
       engine: "claude",
       say: "build me a timer",
       teach: ["Write server.ts first."],

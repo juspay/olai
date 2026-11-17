@@ -143,3 +143,21 @@ export interface LinkPreview {
   readonly Preview: (props: { readonly route: Route }) => JSX.Element
 }
 export const linkPreviews = location<LinkPreview>("navigation.link-previews", "many")
+
+/** What a page frame tells the seat it places (`./seat.tsx`). */
+export interface SeatProps {
+  /** The place the page is: the file a document or outline frame draws (the
+   *  front page and a row landing included, so they are that file), or the
+   *  route of a plugin's page. */
+  readonly place: Route
+  /** What the page is called, in the words a person reads on it. */
+  readonly name: string
+}
+
+/** THE SEAT: what a contributor draws at the foot of a page about that page.
+ *  Navigation owns the location and hands it to the pages it draws; a frame
+ *  places it with `olai-plugin-navigation/seat`'s `PageSeat`. */
+export interface PageSeat {
+  readonly Seat: (props: SeatProps) => JSX.Element
+}
+export const pageSeats = location<PageSeat>("navigation.page-seats", "many")

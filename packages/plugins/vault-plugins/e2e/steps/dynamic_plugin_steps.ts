@@ -358,7 +358,7 @@ Then("the plugin layout names the folder, the settings file and the reserved wor
   )
   assert.strictEqual(layout.settings.file, "_olai/Settings.olai")
   assert.strictEqual(layout.settings.schema, "Config")
-  assert.deepStrictEqual([...layout.settings.reserved].sort(), ["approved", "builder", "checked", "on"])
+  assert.deepStrictEqual([...layout.settings.reserved].sort(), ["approved", "checked", "on"])
 })
 
 /** The agent's own feedback loop: ask olai to look at the folder now and say

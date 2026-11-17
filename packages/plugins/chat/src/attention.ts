@@ -26,7 +26,7 @@
 import type { Accessor } from "solid-js"
 
 import { serviceTag } from "@olai/plugin-api/contracts"
-import { fileNamed, type Route } from "olai-plugin-navigation/routes"
+import type { Route, Routing } from "olai-plugin-navigation/routes"
 
 import type { AgentStanding, NodeAgentRow } from "./wire/agents.ts"
 
@@ -65,15 +65,17 @@ export interface Attention {
   }
   /** Whether a node's conversation is unfolded on its row, in this tab. */
   readonly folding: { readonly unfolded: (node: string) => boolean }
+  /**
+   * IS `route` THE PAGE A CHAT ROW IS ABOUT — the page in front is its place
+   * (a stand-in's file or page, a row chat's own page), or, for a row chat, its
+   * outline is in front with the conversation unfolded on its row. Chat's own
+   * answer, because which place a chat row stands for is a reading only chat's
+   * browser half holds (`./browser/agents/place.ts`).
+   */
+  readonly isCurrent: (routes: Routing, route: Route, row: AttentionRow) => boolean
 }
 
 export const chatState = serviceTag<Attention>("chat.state")
-
-/** Is `route` the page a conversation row is about — its outline with the
- *  conversation unfolded, or the node's own page? */
-export const isCurrent = (route: Route, row: Pick<AttentionRow, "id" | "file">, unfolded: boolean): boolean =>
-  (unfolded && fileNamed(route) === row.file)
-    || (route.kind === "at" && route.address?.kind === "node" && route.address.id === row.id)
 
 /** The paint of the needs-you dot — the one piece of a standing's look another
  *  row draws (a tab's dot). The rest of the table is chat's (`browser/agents/roster.ts`).

@@ -1,9 +1,8 @@
-import { composing } from "@olai/web/client/composition.ts"
 import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { memoryOf, UsageFailure } from "@olai/format"
 import { Result } from "effect"
-import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, untrack, For, onCleanup, Show } from "solid-js"
+import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, untrack, onCleanup, Show } from "solid-js"
 import { usePane } from "olai-plugin-navigation/pane"
 import { runAsync } from "@olai/web/client/run.ts"
 import { TESTID } from "../../testids.ts"
@@ -20,13 +19,15 @@ import { AgentLine } from "./AgentLine.tsx"
 import { AgentAbove } from "./AgentAbove.tsx"
 import { Strips } from "../chat/Strips.tsx"
 import { Conversation } from "./Fold.tsx"
-import { NoAgent } from "../chat/NoAgent.tsx"
-import { EngineAbsence } from "./EngineAbsence.tsx"
+import { AskBox } from "./AskBox.tsx"
 import { receive } from "./handoff.ts"
 
 export interface PageSession {
   readonly preferredEngine: Accessor<string | undefined>
   readonly chat: Accessor<Chat | null>
+  /** The chat row whose conversation this page draws — the row's own, or a
+   *  chat row standing for it. */
+  readonly chatRow: Accessor<string>
   readonly draft: Accessor<string>
   readonly setDraft: (text: string) => void
   readonly starting: Accessor<boolean>
@@ -43,18 +44,36 @@ function createPageSession(node: string): PageSession {
   let alive = true
   const waits = new Set<() => void>()
   onCleanup(() => { alive = false; for (const stop of [...waits]) stop() })
-  const { pair, chat } = createNodeConversation(() => node)
-  const [draft, setDraft] = createSignal("")
+  const chatRow = createMemo(() => reading.agents.chatAt({ kind: "row", id: node })?.id ?? node)
+  const { pair, chat } = createNodeConversation(chatRow)
+  // THE ROW'S UNSENT WORDS are the activation's, not this session's
+  // (`./reading.ts`'s `unsent`): a seat is taken down and put back whenever one
+  // roster frame cannot read the chat at its place, and a start waiting at a
+  // sign-in spends several, so words held here would die with the session.
+  const draft = () => reading.unsent({ kind: "row", node })
+  const setDraft = (text: string) => reading.setUnsent({ kind: "row", node }, text)
+  /** Words put in front of what the box already holds. */
+  const before = (words: string) => setDraft(draft() === "" ? words : `${words}\n${draft()}`)
   const [starting, setStarting] = createSignal(false)
   const [failure, setFailure] = createSignal<string | null>(null)
+  // THE WORDS GO INTO THE CONVERSATION the moment there is one to put them in
+  // — the plain composer's unsent draft, and the words a door's start left for
+  // this row when it stopped at a sign-in (`./Door.tsx`'s `sendAbout`).
+  //
+  // INTO THE CHAT'S OWN MEMORY (`value.ui`), and not before it is OPEN. A
+  // start held at a sign-in has a conversation that could not be opened: its
+  // row names no session, nobody is reading it, and the UI that answers for
+  // that pair is evicted the moment the sign-in replaces it
+  // (`./reading.ts`'s `belongs`). Words moved into that one are words the
+  // composer that finally opens never sees.
   createEffect(() => {
     const value = chat()
     const state = value?.state()
     const text = draft()
     const to = pair()
-    if (value === null || to === null || state?.talking?.kind !== "agent"
+    if (value === null || to === null || state?.talking?.kind !== "agent" || state.unopened != null
       || state.session?.id !== to.session || state.talking.id !== to.agent || text === "") return
-    keepMessage(reading.ui(to).messages, JSON.stringify([to.agent, to.session]), text, true)
+    keepMessage(value.ui.messages, JSON.stringify([to.agent, to.session]), text, true)
     setDraft("")
   })
   const ready = (to: Conversing): Promise<Chat | null> => new Promise(resolve => {
@@ -93,7 +112,7 @@ function createPageSession(node: string): PageSession {
     untrack(() => receive(arrival, {
       prefer,
       refuse: setFailure,
-      redraft: words => setDraft(now => now === "" ? words : `${words}\n${now}`),
+      redraft: before,
       deliver: (to, text) => {
         setStarting(true)
         return deliver(to, text, "").finally(() => setStarting(false))
@@ -110,7 +129,7 @@ function createPageSession(node: string): PageSession {
       if (Result.isFailure(result)) {
         // After the await: the words and the refusal appear together.
         batch(() => {
-          setDraft(now => now === "" ? text : `${text}\n${now}`)
+          before(text)
           setFailure(result.failure.message)
         })
         return
@@ -122,10 +141,13 @@ function createPageSession(node: string): PageSession {
       await deliver(to, text, later)
     } finally { setStarting(false) }
   }
-  return { chat, draft, setDraft, starting, failure, start, preferredEngine }
+  return { chat, chatRow, draft, setDraft, starting, failure, start, preferredEngine }
 }
 
-function usePage(node: Accessor<string>) {
+/** The page session of a chat row, held for the pane this is drawn in — a
+ *  row's own page, and the open seat under a page about a place
+ *  (`./Seat.tsx`). */
+export function usePage(node: Accessor<string>) {
   const pane = usePane()
   return createMemo(() => pane === undefined ? undefined : agentReadings()?.page(pane, node(), () => createPageSession(node())))
 }
@@ -137,7 +159,7 @@ export function PageHead(props: { readonly node: string }) {
   const page = usePage(() => props.node)
   return <Show when={page()?.chat()} fallback={<AgentAbove node={props.node} line />}>{current =>
     <div data-testid={TESTID.agentPageHead} data-agent={props.node}>
-      <AgentLine chat={current()} node={props.node} page />
+      <AgentLine chat={current()} node={page()!.chatRow()} page />
       <Show when={page()?.chat()} keyed>{chat => <ConversationUIProvider value={chat.ui}>
         <Strips chat={chat} />
       </ConversationUIProvider>}</Show>
@@ -150,7 +172,7 @@ export function PageFoot(props: { readonly node: string }) {
   return <Show when={page()}>{owner =>
     <div class="mt-6" data-testid={TESTID.agentPageFoot} data-agent={props.node}>
       <Show when={owner().chat()} keyed fallback={<PlainComposer node={props.node} page={owner()} />}>{chat =>
-        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={props.node} page /></ConversationUIProvider>
+        <ConversationUIProvider value={chat.ui}><Conversation chat={chat} node={owner().chatRow()} page /></ConversationUIProvider>
       }</Show>
     </div>
   }</Show>
@@ -159,45 +181,18 @@ export function PageFoot(props: { readonly node: string }) {
 function PlainComposer(props: { readonly node: string; readonly page: PageSession }) {
   const pane = usePane()
   const agents = useAgents()
-  const [chosen, choose] = createSignal<string>()
-  const engine = () => agents.at(props.node)?.engine ?? chosen() ?? props.page.preferredEngine() ?? agents.engines()[0]?.id
-  const missing = () => agents.missing(engine())
   const metadata = () => {
     const page = pane === undefined ? undefined : pageReadings()?.at(pane.id)?.shows
     return page?.kind === "node" && page.zoomed.kind === "node" && page.zoomed.shows.node.id === props.node
       ? { title: page.zoomed.shows.node.title, memory: page.zoomed.under } : null
   }
-  const send = () => { const id = engine(); if (id !== undefined) void props.page.start(id) }
   return <Show when={metadata()}>{node =>
-    <div class={`sticky bottom-0 ${LAYER.row} rounded-control border border-dashed border-rule bg-paper p-3 ${CLEARANCE}`} data-testid={TESTID.agentPlainComposer}>
-      <Show when={agents.engines().some(one => one.id === engine())} fallback={
-        <Show when={engine()} fallback={<NoAgent />}>{id =>
-          <Show when={missing()} fallback={
-            <p class="m-0 text-body text-muted">This agent isn't turned on. Turn it on in Plugins.</p>
-          }>{reason => <EngineAbsence id={id()} missing={reason()} testid={TESTID.chatInstall} />}</Show>
-        }</Show>
-      }>
-        {/* `composing` (`@olai/web/client/composition.ts`) because this page
-            is reached from a node's own address and is drawn by the chat row,
-            which names navigation nowhere — so the window-wide guard that
-            keeps an IME's key out of every handler is not promised to it. */}
-        <textarea class="min-h-20 w-full resize-y bg-transparent text-body outline-none" data-testid={TESTID.agentPlainInput}
-          aria-label={`Ask about ${node().title}`} placeholder={`Ask about ${node().title}…`}
-          value={props.page.draft()} onInput={event => props.page.setDraft(event.currentTarget.value)}
-          onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (composing(event)) return; send() } }} />
-        <div class="flex flex-wrap items-center gap-2 text-label text-muted">
-          <select aria-label="Agent" data-testid={TESTID.agentPlainEngine} value={engine()} disabled={props.page.starting() || agents.at(props.node) !== undefined}
-            onChange={event => choose(event.currentTarget.value)}>
-            <For each={agents.engines()}>{one => <option value={one.id}>{one.name}</option>}</For>
-          </select>
-          <span class="flex-1" />
-          <button type="button" class="rounded-control bg-accent px-3 py-1 font-semibold text-paper" data-testid={TESTID.agentPlainSend} disabled={props.page.starting()} onClick={send}>
-            {props.page.starting() ? "Starting…" : "Send"}
-          </button>
-        </div>
-        <p class="mb-0 mt-2 text-label text-muted">Sending starts an agent here · Memory: {memoryOf(node())}</p>
-      </Show>
-      <Show when={props.page.failure()}>{message => <p role="alert" class="mb-0 text-label text-alarm">{message()}</p>}</Show>
-    </div>
+    <AskBox name={node().title} draft={props.page.draft} setDraft={props.page.setDraft}
+      starting={props.page.starting} failure={props.page.failure}
+      send={engine => void props.page.start(engine)}
+      fixed={agents.chatAt({ kind: "row", id: props.node })?.engine} preferred={props.page.preferredEngine()}
+      note={<>Sending starts an agent here · Memory: {memoryOf(node())}</>}
+      testid={TESTID.agentPlainComposer}
+      class={`sticky bottom-0 ${LAYER.row} rounded-control border border-dashed border-rule bg-paper p-3 ${CLEARANCE}`} />
   }</Show>
 }

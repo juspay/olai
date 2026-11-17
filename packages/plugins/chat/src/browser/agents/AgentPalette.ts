@@ -1,6 +1,6 @@
-import { createSignal } from "solid-js"
+import { createMemo, createSignal } from "solid-js"
 import { Result } from "effect"
-import type { PaletteAdapter, PaletteItem } from "olai-plugin-navigation/contract"
+import type { PaletteAdapter, PaletteItem, PaletteOption } from "olai-plugin-navigation/contract"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { runAsync } from "@olai/web/client/run.ts"
 import { chatWire } from "../wire.ts"
@@ -14,6 +14,13 @@ import { LOOK } from "./roster.ts"
 import { chatVerbs } from "../verbs.tsx"
 import type { RowVerb } from "olai-plugin-outlines/slots"
 import type { Roster } from "./answered.tsx"
+import { placeOfRoute } from "./place.ts"
+import { dock } from "../dock.ts"
+import { sendAbout } from "./Door.tsx"
+import { talking } from "./roster.ts"
+
+/** The palette row that starts a chat about the page in front. */
+export const ABOUT_ROW = "chat-about-page"
 
 /**
  * EVERY CHAT VERB BUT THE ONE THAT UNBINDS.
@@ -70,11 +77,11 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
       {
         id: "sleep-when-idle",
         label: shown.sleeps ? "Stop sleeping when idle" : "Sleep when idle",
-        place: `on “${shown.title}”`,
+        place: `on “${agents.named(shown).name}”`,
         // THE WORDS THAT ARE ON SCREEN, both of them: the label flips with the
         // mark, and a search that spelled only the "on" one left a person who
         // typed what they could see — "stop" — with no row at all.
-        search: `${shown.sleeps ? "stop sleeping when idle" : "sleep when idle"} ${shown.title}`.toLowerCase(),
+        search: `${shown.sleeps ? "stop sleeping when idle" : "sleep when idle"} ${agents.named(shown).name}`.toLowerCase(),
         taking: atOnce,
         action: { kind: "run", run: async () => {
           const outcome = await runAsync(
@@ -94,8 +101,8 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
          dressing: where the row says it acts, what a person can type to find
          it, and that a refusal is a line rather than a failed call. */
       ...chatVerbs(shown).filter(inPalette).map((verb): PaletteItem => ({
-        id: verb.id, label: verb.label, place: `on “${shown.title}”`,
-        search: `${verb.label} ${shown.title}`.toLowerCase(), taking: atOnce,
+        id: verb.id, label: verb.label, place: `on “${agents.named(shown).name}”`,
+        search: `${verb.label} ${agents.named(shown).name}`.toLowerCase(), taking: atOnce,
         action: { kind: "run", run: async () => {
           const said = await verb.run(shown.id)
           return typeof said === "string"
@@ -114,15 +121,60 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
     const row = here === null ? undefined : agentAboveOf(here, agents)
     if (row === undefined) return []
     return [{
-      id: "open-agent-above", label: "Open the agent above", place: `on “${row.title}”`,
-      search: `open the agent above ${row.title}`.toLowerCase(), taking: atOnce,
+      id: "open-agent-above", label: "Open the agent above", place: `on “${agents.named(row).name}”`,
+      search: `open the agent above ${agents.named(row).name}`.toLowerCase(), taking: atOnce,
       action: { kind: "run", run: async () => {
         const nav = navigation()
         if (nav === undefined) return { keepOpen: true, said: { tone: "alarm" as const, text: "Can't open this right now" } }
         const now = hereNow()
         const target = now === null ? undefined : agentAboveOf(now, agents)
-        if (target !== undefined) focusAgent(route => nav.go(route), target)
+        if (target !== undefined) focusAgent(nav, agents, target)
         return {}
+      } },
+    }]
+  }
+  /**
+   * **CHAT ABOUT THIS PAGE** — the door, from ⌘K: offered while the page in
+   * front placed a seat, has no chat at its place, and an agent can start, and
+   * one message level away from a chat about it (`./Door.tsx` is the same door
+   * under the page).
+   *
+   * THE ROW GOES THE MOMENT THE CHAT EXISTS, including the chat this level's
+   * own send starts, and that is the whole rule here: a level whose submit is
+   * in flight keeps standing without its row, and resumes asking for it once
+   * the submit settles (`olai-plugin-navigation`'s `levels.ts`, `rootStands`).
+   */
+  const about = (): ReadonlyArray<PaletteItem> => {
+    const nav = navigation()
+    const held = agentReadings()
+    if (nav === undefined || held === undefined || creation === undefined || agents.engines().length === 0) return []
+    const pane = nav.panes()[nav.focusIndex()]
+    const here = pane === undefined ? undefined : held.seatIn(pane.id)
+    if (here === undefined) return []
+    if (talking(agents.chatAt(placeOfRoute(nav.routes, here.place)))) return []
+    const address = nav.routes.href(here.place)
+    const name = here.name
+    return [{
+      id: ABOUT_ROW, label: "Chat about this page", place: address.replace(/^\//, ""),
+      search: `agents chat about this page ${name}`.toLowerCase(), taking: atOnce,
+      action: { kind: "level", level: {
+        kind: "value",
+        placeholder: `Ask about ${name}…`,
+        submitLabel: "Start chat",
+        options: () => createMemo<ReadonlyArray<PaletteOption>>(previous => agents.engines().map(engine =>
+          previous.find(option => option.id === engine.id && option.label === engine.name) ?? { id: engine.id, label: engine.name }), []),
+        validate: text => text.trim() === "" ? "Type a message first." : null,
+        submit: async (text, engine) => {
+          if (engine === undefined) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
+          // ONE PRESS OF THE DOOR (`./Door.tsx`'s `sendAbout`): a refusal keeps
+          // the words in this box with the sentence beside them, and leaves the
+          // docked conversation alone.
+          const sent = await sendAbout({ about: address, name, engine: engine.id, text })
+          if (sent.started === null) return { keepOpen: true, said: { tone: "alarm", text: sent.said ?? "No chat was started" } }
+          const door = dock()
+          if (sent.talking && door?.desktop()) door.open(sent.started)
+          return {}
+        },
       } },
     }]
   }
@@ -130,15 +182,21 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
     // ONLY WHAT WORKS: with no engine this machine can start, there is no
     // `new chat` row to choose — the plugins panel says why.
     const creating: ReadonlyArray<PaletteItem> = agents.engines().length === 0 || newChat === undefined ? [] : [newChat]
-    return [...creating, ...above(), ...sleeping(), ...byActivity(agents.rows()).map((row): PaletteItem => ({
-      id: `agent-${row.id}`, label: row.title, hint: LOOK[row.standing].label,
-      place: "Agents", search: `agents ${row.title}`.toLowerCase(), taking: atOnce,
-      action: { kind: "run", run: async () => {
-        const nav = navigation()
-        if (nav === undefined) return { keepOpen: true, said: { tone: "alarm", text: "Can't open this right now" } }
-        focusAgent(route => nav.go(route), row)
-        return {}
-      } },
-    }))]
+    return [...creating, ...about(), ...above(), ...sleeping(), ...byActivity(agents.rows()).map((row): PaletteItem => {
+      const named = agents.named(row)
+      return {
+        id: `agent-${row.id}`, label: named.name, hint: LOOK[row.standing].label,
+        ...(named.mark === undefined ? {} : { mark: named.mark }),
+        // A chat about a place says where it is on the second line.
+        place: named.where === undefined ? "Agents" : `Agents · ${named.where}`,
+        search: `agents ${named.name} ${named.where ?? ""}`.trim().toLowerCase(), taking: atOnce,
+        action: { kind: "run", run: async () => {
+          const nav = navigation()
+          if (nav === undefined) return { keepOpen: true, said: { tone: "alarm", text: "Can't open this right now" } }
+          focusAgent(nav, agents, row)
+          return {}
+        } },
+      }
+    })]
   } }
 }

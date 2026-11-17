@@ -102,7 +102,7 @@ export function Face(props: {
   }
   return (
     <>
-      <Show when={props.target.kind === "layout"} fallback={<Mark />}>
+      <Show when={props.target.kind === "layout"} fallback={<PinMark />}>
         <svg data-layout-mark class="size-3.5 shrink-0" aria-hidden="true"
           viewBox="0 0 16 16" fill="none" stroke="currentColor">
           <rect x="1" y="2" width="6" height="12" rx="1" />
@@ -152,8 +152,9 @@ export function Face(props: {
  *  that is about a PLACE SOMEBODY KEEPS rather than about a kind of file, so it
  *  is here rather than in `../file/icons.tsx`'s table of directory kinds. Ours,
  *  drawn to that table's metrics (a 16-box, `currentColor`, the row's own ink)
- *  so the two read as one column. */
-function Mark() {
+ *  so the two read as one column. Exported for the faces that name a place
+ *  whose page declares no mark of its own (a chat about it). */
+export function PinMark() {
   return (
     <svg
       viewBox="0 0 16 16"

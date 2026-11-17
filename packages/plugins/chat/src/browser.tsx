@@ -1,4 +1,5 @@
-import { linkPreviews } from "olai-plugin-navigation/contract"
+import { linkPreviews, pageSeats } from "olai-plugin-navigation/contract"
+import { ChatSeat } from "./browser/agents/Seat.tsx"
 import { ChatLinkPreview, previewNode } from "./browser/LinkPreview.tsx"
 import { Landings } from "@olai/plugin-api"
 import { holdLandings } from "./browser/landings.ts"
@@ -18,7 +19,8 @@ import type {} from "olai-plugin-navigation/slots"
 import type {} from "olai-plugin-outlines/slots"
 import type {} from "olai-plugin-sidebar/slots"
 import { slotContracts } from "./slots.ts"
-import type { Attention } from "./attention.ts"
+import type { Attention, AttentionRow } from "./attention.ts"
+import type { Route, Routing } from "olai-plugin-navigation/routes"
 import { DOCK, type DockDoor } from "./dock.ts"
 import {Clocks} from "@olai/plugin-api"
 import {fileAccess} from "olai-plugin-vault/contract"
@@ -50,6 +52,7 @@ import { holdReading } from "./browser/search.ts"
 import { references as outlineReferences } from "olai-plugin-outlines/references"
 import { holdReferences } from "./browser/references.ts"
 import { holdServed } from "./browser/vault.ts"
+import { holdKindReader } from "./browser/kinds.ts"
 import { deployment as appDeployment } from "olai-plugin-layout/contract"
 import { holdDeployment } from "./browser/deployment.ts"
 import { enginesService } from "./browser/engines.tsx"
@@ -85,6 +88,10 @@ export default definePlugin({
     // activation (`./browser/vault.ts`).
     const served = yield* fileAccess
     yield* Effect.acquireRelease(Effect.sync(() => holdServed(served)), stop => Effect.sync(stop))
+    // ...and what each kind of file is drawn with, so a chat about a file
+    // wears its file's mark (`./browser/kinds.ts`).
+    const renderer = yield* rendererSlots
+    yield* Effect.acquireRelease(Effect.sync(() => holdKindReader(renderer.read)), stop => Effect.sync(stop))
 
     // THIS PLUGIN'S OWN MEMBERS, held for the thirty modules that read them at
     // module scope — see `./browser/wire.ts`.
@@ -94,7 +101,14 @@ export default definePlugin({
     yield* holdFaces(faces)
     const state = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => {
       const agents = createAgents()
-      return { dispose, agents, engines: enginesService(agents), readings: createAgentReadings(agents), folding: createFolding(), history: createHistory() }
+      const folding = createFolding()
+      return {
+        dispose, agents, engines: enginesService(agents), readings: createAgentReadings(agents), folding, history: createHistory(),
+        // WHICH PAGE A CHAT ROW IS ABOUT, for a tab's dot: chat's own reading
+        // of what a row stands for (`./browser/agents/place.ts`).
+        isCurrent: (routes: Routing, route: Route, row: AttentionRow) =>
+          isCurrent(routes, route, row, agents.placeOf(row), folding.unfolded(row.id)),
+      }
     })), state => Effect.sync(state.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdAgentReadings(state.readings)), stop => Effect.sync(stop))
     yield* Effect.acquireRelease(Effect.sync(() => holdFolding(state.folding)), stop => Effect.sync(stop))
@@ -128,12 +142,20 @@ export default definePlugin({
       priority: 100,
       matches: route => {
         const id = previewNode(route)
-        const agent = id === undefined ? undefined : state.agents.at(id)
-        return agent?.session != null && (route.kind !== "at" || route.address?.kind !== "row" || route.address.path === agent.file)
+        const agent = id === undefined ? undefined : state.agents.chatAt({ kind: "row", id })
+        // A row written at its file is the chat's own row only where the chat
+        // row is in that file; a chat row standing for the row is anywhere.
+        return agent?.session != null && (agent.id !== id || route.kind !== "at" || route.address?.kind !== "row" || route.address.path === agent.file)
       },
       Preview: props => <ChatLinkPreview route={props.route} roster={state.agents} />,
     })
     yield* (yield* rendererSlots).contribute(paletteAdapters, palette.value)
+    // THE SEAT AT THE FOOT OF A PAGE, filled for this activation's life: the
+    // conversation about that page, or the box that starts one. Chat off, and
+    // the seat is empty and the page whole (`olai-plugin-navigation/seat`).
+    yield* (yield* rendererSlots).contribute(pageSeats, {
+      Seat: props => <AgentsProvider value={state.agents}><ChatSeat {...props} /></AgentsProvider>,
+    })
     // The aside reads the activation roster once per row; only opening a fold
     // acquires a conversation. Unbound rows offer a start gesture.
     yield* slots.register("outline.row.placement", SESSION_KIND, { inRows: false })
@@ -149,7 +171,7 @@ export default definePlugin({
     yield* slots.register("outline.row.action", node => rowVerbs(node, state.agents, id => agentAboveOf(id, state.agents), (row) => {
       const nav = heldNavigation()
       if (nav === undefined) return "Can't open this right now"
-      focusAgent((route) => nav.go(route), row)
+      focusAgent(nav, state.agents, row)
     }))
     // THE STANDING TABLE, AS A DECLARED BROWSER SERVICE — one row per mounted
     // engine, live, keyed to this activation's own roster cell
@@ -169,12 +191,13 @@ import { holdChannel } from "./browser/channel.ts"
 import { configurationPanel } from "olai-plugin-plugin-inspector/contract"
 import { holdPluginsDoor } from "./browser/plugins-door.ts"
 import { createAttention } from "./browser/chat/attention/attention.ts"
-import { createComponent, createEffect, createRoot, Show, untrack } from "solid-js"
+import { createComponent, createRoot, Show } from "solid-js"
 import { shell as appShell, thumbs as thumbSeats, tools as toolSeats } from "olai-plugin-layout/contract"
 import { ChatsThumb } from "./browser/agents/ChatsThumb.tsx"
 import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
 import { atOnce } from "@olai/web/client/settled.ts"
 import { createDock, holdDock } from "./browser/dock.ts"
+import { isCurrent, placeOfRoute } from "./browser/agents/place.ts"
 import { Dock } from "./browser/agents/Dock.tsx"
 import { DockToggle } from "./browser/agents/DockToggle.tsx"
 export const components = {
@@ -188,7 +211,14 @@ export const components = {
     const geometry = yield* appShell
     const slots = yield* Slots
     const renderer = yield* rendererSlots
-    const door = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({ value: createDock(geometry), dispose }))), owner => Effect.sync(owner.dispose))
+    // WHICH CHAT IS AT AN ADDRESS, for the door by address: the one reading
+    // every face asks (`./browser/agents/answered.tsx`'s `chatAt`).
+    const find = (about: string): string | undefined => {
+      const routes = heldNavigation()?.routes
+      const route = routes?.routeIn(about) ?? null
+      return routes === undefined || route === null ? undefined : agentReadings()?.agents.chatAt(placeOfRoute(routes, route))?.id
+    }
+    const door = yield* Effect.acquireRelease(Effect.sync(() => createRoot(dispose => ({ value: createDock(geometry, find), dispose }))), owner => Effect.sync(owner.dispose))
     yield* Effect.acquireRelease(Effect.sync(() => holdDock(door.value)), stop => Effect.sync(stop))
     // `chat.dock`, as its static door names it (`./dock.ts`): the seat beside
     // the page, offered by the component that OWNS the seat rather than by the
@@ -198,7 +228,7 @@ export const components = {
     // `Dock` is not what crosses: the two verbs another row may spend are,
     // which is why the door is a narrowing and not the value itself.
     yield* (yield* Offers).own(DOCK, () => ({
-      open: (node: string) => door.value.open(node),
+      open: (about: string) => door.value.openAt(about),
       desktop: () => door.value.desktop(),
     } satisfies DockDoor))
     const roster = () => agentReadings()?.agents

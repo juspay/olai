@@ -177,7 +177,7 @@ export const components = {
     const management = yield* browserManagement
     const lane = yield* appRouter
     yield* Effect.acquireRelease(
-      Effect.sync(() => createRoot((dispose) => { createPluginAlerts(channel, management, lane); return dispose })),
+      Effect.sync(() => createRoot((dispose) => { createPluginAlerts(channel, management, (word) => lane.go(pluginPage.to({ word }))); return dispose })),
       (dispose) => Effect.sync(dispose),
     )
   }) }),

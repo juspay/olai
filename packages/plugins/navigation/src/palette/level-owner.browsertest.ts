@@ -14,7 +14,7 @@ import { atOnce } from "@olai/web/client/settled.ts"
 import type { PaletteAdapter } from "../index.ts"
 import type { PaletteItem } from "./items.ts"
 import { createLevelOwner, resetLevelMemory } from "./level-owner.ts"
-import type { PaletteLevel } from "./levels.ts"
+import type { PaletteLevel, PaletteRunResult } from "./levels.ts"
 
 const NOTE: PaletteLevel = {
   kind: "value",
@@ -130,4 +130,56 @@ test("a level's own work ends when it is popped and when the drawing goes, and i
   })
   resetLevelMemory()
   expect(signal?.aborted).toBe(true)
+})
+
+test("a level whose submit takes its own row away stays open until the submit settles", async () => {
+  resetLevelMemory()
+  // The send is exactly what takes the row away: the row is offered while
+  // there is nothing started, and starting it is what the level does.
+  const [started, setStarted] = createSignal(false)
+  const sent = Promise.withResolvers<PaletteRunResult>()
+  const START: PaletteLevel = {
+    kind: "value",
+    options: [{ id: "now", label: "Now" }],
+    submit: () => {
+      setStarted(true)
+      return sent.promise
+    },
+  }
+  const adapter: PaletteAdapter = { items: () => (started() ? [] : [row("start", START)]) }
+  const [adapters] = createSignal<ReadonlyArray<PaletteAdapter>>([adapter])
+  let closed = 0
+  const host = {
+    adapters, touched: () => {}, leaveRoot: () => {}, relist: () => {}, hush: () => {},
+    say: () => {}, refuse: () => {}, close: () => { closed++ }, focus: () => {},
+  }
+  const flush = (): Promise<void> => {
+    const tick = Promise.withResolvers<void>()
+    setTimeout(tick.resolve, 0)
+    return tick.promise
+  }
+  const { owner, dispose } = createRoot((dispose) => {
+    const owner = createLevelOwner(host)
+    owner.depth(); owner.busy()
+    owner.drill(row("start", START), START)
+    return { owner, dispose }
+  })
+  expect(owner.depth()).toBe(1)
+  owner.type("about this page")
+  owner.submit()
+  expect(owner.busy()).toBe(true)
+
+  await flush()
+  // The row is gone and the level it was sent from is still standing.
+  expect(adapter.items?.()).toEqual([])
+  expect(owner.depth()).toBe(1)
+  expect(closed).toBe(0)
+
+  sent.resolve({})
+  await flush()
+  // Settled: the ordinary rule resumes, and the answer that closes the
+  // palette was not dropped.
+  expect(closed).toBe(1)
+  expect(owner.depth()).toBe(0)
+  dispose()
 })

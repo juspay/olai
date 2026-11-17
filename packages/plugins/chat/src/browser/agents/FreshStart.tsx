@@ -101,7 +101,7 @@ export function FreshStart(props: {
     <Show when={confirm.where() === "asking"}>
       <span role="group" aria-label="Confirm fresh start" class="block max-w-sm whitespace-normal text-label"
         onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); cancel() } }}>
-        <span>{freshStartQuestion(props.agent.title)}</span>
+        <span>{freshStartQuestion(agents.named(props.agent).name)}</span>
         <span class="mt-2 flex gap-2">
           <button type="button" class={ALARM_PILL} onClick={() => fresh(chosen())}>Start fresh chat</button>
           <button type="button" class={QUIET_PILL}

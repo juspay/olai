@@ -215,3 +215,38 @@ export const CHAT_RANG_FOLD = selector(TESTID.chatRangFold);
  *  PAGE until the row is open, which is what lets a scenario assert the fold
  *  without asserting a word the plugin wrote. */
 export const CHAT_RANG_BODY = selector(TESTID.chatRangBody);
+
+// ── a chat ABOUT a place: the seat, the door and the name ──────────────
+//
+// The faces a chat that stands for a place is read through. `chatSeat` is the
+// spot a page frame placed at its foot and chat filled; `chatAbout` is the box
+// that starts a chat about that page, drawn in the seat or in the side panel
+// (`data-where`); `chatThisPage` is the panel's block over its picker. The two
+// name ids are what every list draws a chat with — the place's own name and
+// its kind's mark — so a scenario asserts what a person reads rather than the
+// raw title the row carries.
+
+/** The seat at the foot of a page. `data-place` is the place it is about, as
+ *  `@olai/format`'s `placeKey` spells it (`file:notes/plan.md`). */
+export const CHAT_SEAT = selector(TESTID.chatSeat);
+/** The box that starts a chat about this page — `data-where` is `seat` or
+ *  `panel`, which is the whole difference between the door's two faces. Its
+ *  FIELDS are a row page's plain composer's, because it is that same box
+ *  (`agents/AskBox.tsx`): one component, one set of ids. */
+export const CHAT_ABOUT = selector(TESTID.chatAbout);
+export const ASK_INPUT = selector(TESTID.agentPlainInput);
+export const ASK_ENGINE = selector(TESTID.agentPlainEngine);
+export const ASK_SEND = selector(TESTID.agentPlainSend);
+/** Why nothing was started — the sentence that stays beside the words. */
+export const ASK_REFUSED = selector(TESTID.agentPlainRefused);
+/** THE SEAT'S HEAD: one line saying how the chat at this place stands, and
+ *  the press that opens and folds the conversation under it. A page meets it
+ *  folded, because opening a page never wakes its agent. `data-chat` is the
+ *  chat row; `data-folded` says whether the conversation is put away. */
+export const CHAT_SEAT_LINE = selector(TESTID.chatSeatLine);
+/** **This page**, over the side panel's picker. */
+export const CHAT_THIS_PAGE = selector(TESTID.chatThisPage);
+/** What a chat is CALLED wherever it is listed, and the mark of the place it
+ *  stands for. A stand-in's raw title is never either of them. */
+export const CHAT_NAME = selector(TESTID.chatName);
+export const CHAT_PLACE_MARK = selector(TESTID.chatPlaceMark);

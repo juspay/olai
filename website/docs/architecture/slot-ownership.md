@@ -64,7 +64,7 @@ A plugin that goes away takes its own state and leaves unrelated work standing.
 | Outlines | `outline.row.chip`, `.pane`, `.block`, `.placement`, `.aside`, `.fold`, `.action`, `outline.crumb.aside`, `outline.page.head`, `.foot` |
 | Outlines | `outlines.dated-row`, `outlines.page-view`, `outlines.title`, `outlines.property-route` |
 | Navigation | `app.route`, `app.keys`, `app.palette` |
-| Navigation | `navigation.content`, `navigation.pages`, `navigation.palette-adapters`, `navigation.link-previews` |
+| Navigation | `navigation.content`, `navigation.pages`, `navigation.palette-adapters`, `navigation.link-previews`, `navigation.page-seats` |
 | Layout | `app.panel`, `app.header`, `app.banner`, `app.viewer`, `app.mount` |
 | Layout | `layout.sidebar`, `layout.strip`, `layout.tools`, `layout.thumbs`, `layout.overlays`, `layout.content-status` |
 | Sidebar | `sidebar.entry`, `sidebar.section`, `sidebar.regions`, `sidebar.rail` |
@@ -154,5 +154,14 @@ A contribution is `{ priority, matches, Preview }`, mounted once per page, and a
 - Equal priorities are sorted by which plugin contributed them, so the order plugins started in cannot change which one is picked.
 - A plugin may take out a lease for that page when the preview is built, and the card owns the lease. Navigating away, removing the link, dismissing the card and withdrawing the contribution all release it.
 - A plugin leaving removes its component, and a plugin coming back is matched through the live list of slots.
+
+### `navigation.page-seats`
+
+A contribution is `{ Seat }`, a component drawn at the foot of a page, and a slot keyed by nothing, so several plugins may fill one seat.
+
+- Navigation reads the slot through a renderer component of its own and hands what it read to every page it draws, so a serve with no renderer leaves every seat empty.
+- The page frame places the seat and tells it two things: the place the page is, which is a file, a row or a plugin page's address, and what that page is called. Only the frame knows, so the front page `/` and `house.olai#install` both say they are the outline `house.olai`.
+- Four frames place one: the document page, the page of a kind olai only shows, an outline's page and a plugin's page. A frame drawn outside a page view, such as a preview card, is handed no seats and draws none.
+- A contribution lives for the life of its own activation, so a plugin that leaves takes its seat with it and the page is whole.
 
 </details>

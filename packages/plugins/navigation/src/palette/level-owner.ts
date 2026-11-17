@@ -160,13 +160,21 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
 
   /**
    * DOES THIS STEP STILL STAND? The root of the path stands while its adapter
-   * is contributed, `available`, and still offers that row id as a level; a
-   * deeper step while its adapter is contributed — its parent's rows may move
-   * under it without anything being withdrawn (`./levels.ts`'s `rootStands`).
+   * is contributed, `available`, and still offers that row id as a level —
+   * or, while a submit of its own is in flight, without the row (`./levels.ts`'s
+   * `rootStands` says why a send that takes its own row away does not end the
+   * level); a deeper step stands while its adapter is contributed — its
+   * parent's rows may move under it without anything being withdrawn.
    */
   const stands = (live: ReadonlyArray<PaletteAdapter>) => (depth: number, step: Step) =>
     depth === 0
-      ? rootStands(live.includes(step.source), step.source.available?.() !== false, step.source.items?.() ?? [], step.id)
+      ? rootStands(
+        live.includes(step.source),
+        step.source.available?.() !== false,
+        step.source.items?.() ?? [],
+        step.id,
+        step.busy,
+      )
       : live.includes(step.source)
   /** The levels still standing: cut at the first that does not, so nothing is
    *  drawn from a dead or withdrawn contribution even for the moment before
@@ -177,9 +185,15 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
    * question below about WHICH levels stand reads this instead, so typing
    * re-runs none of them: not the standing check, which asks the root
    * adapter's `items()`, and not the crumbs.
+   *
+   * A SUBMIT STARTING OR SETTLING IS A CHANGE OF SHAPE, because it is half of
+   * whether the root still stands: it is read here and nowhere else, so the
+   * standing check runs again exactly when the flag moves.
    */
   const shape = createMemo(() => path(), [], {
-    equals: (was, now) => was.length === now.length && was.every((step, at) => step.serial === now[at]!.serial),
+    equals: (was, now) =>
+      was.length === now.length
+      && was.every((step, at) => step.serial === now[at]!.serial && step.busy === now[at]!.busy),
   })
   const standingLives = createMemo(() => {
     const steps = shape()
@@ -383,6 +397,10 @@ export function createLevelOwner(host: LevelHost): LevelOwner {
    * answer, like a `run` row's, closes the palette or keeps it up with
    * something said. An answer for a level that is gone — popped, closed,
    * withdrawn — changes nothing.
+   *
+   * The busy flag it raises is also what holds the level up while the send is
+   * out, so a send that takes its own row away still gets to answer (`stands`
+   * above); lowering it hands the level back to the ordinary rule.
    */
   const submit = () => {
     const at = untrack(valueTop)

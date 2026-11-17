@@ -38,7 +38,7 @@
 import type { Claims } from "./kinds.ts"
 import { Schema } from "effect"
 
-import { addressWritten, parseAddress, splitAddress } from "./address.ts"
+import { addressAt, addressWritten } from "./address.ts"
 import { type Derived, nodeNamed, rootsOf } from "./derive.ts"
 import { pinsIn } from "./node.ts"
 
@@ -130,11 +130,12 @@ export const sameShelf: (a: Shelf, b: Shelf) => boolean = Schema.toEquivalence(S
  * WHICH addresses name one is `./address.ts`'s answer and not this function's:
  * the bare `#id` and the qualified `garden.olai#id` both do, and the second
  * normalises to the same id, which is exactly why this asks the grammar rather
- * than matching a shape. What is done here is the two things the app writes
- * around an address in a title, both of which website/docs/format.md's Pins spells: the
- * leading slash is skipped, and the `?q=` is taken out — it sits between the two
- * halves of a URL, so cutting the fragment first leaves the path to cut at the
- * `?`. Neither is interpreted; what a query MEANS is the browser's.
+ * than matching a shape. What the app writes AROUND an address in a title —
+ * the leading slash, the `?q=` between the two halves of a URL, the `/zoom/`
+ * spelling of a node's own page — comes off in `./address.ts`'s
+ * {@link addressAt}, the one reading of that, which the server's other half of
+ * the same question (`placeWritten`, the place a chat row stands for) projects
+ * too. Nothing there is interpreted; what a query MEANS is the browser's.
  *
  * EVERY OTHER ADDRESS ANSWERS `undefined`, and none of them is a mistake: a
  * document, a heading, a day and the pages that spell a word all name
@@ -148,7 +149,7 @@ export const sameShelf: (a: Shelf, b: Shelf) => boolean = Schema.toEquivalence(S
  * rule the sidebar's shelf is (`@olai/web`'s `NodeTitle.tsx` draws one face for
  * both). One question, one function, two readings.
  *
- * TOTAL over any string, because {@link parseAddress} is: a title spelled with
+ * TOTAL over any string, because {@link addressAt} is: a title spelled with
  * an escape nothing can read names nothing, rather than throwing on the server
  * that is answering every open tab.
  *
@@ -162,15 +163,7 @@ export const sameShelf: (a: Shelf, b: Shelf) => boolean = Schema.toEquivalence(S
  * extra answers cost a reader nothing.
  */
 export const pinTargetIn = (claims: Claims, title: string): string | undefined => {
-  const at = addressWritten(title)
-  if (!at.startsWith("/")) return undefined
-  // Cut the way this app writes a URL ({@link splitAddress}, the one spelling
-  // of that cut and the same one the browser's parser reads a title with), then
-  // hand the two halves of what is left to the grammar — which is what decides
-  // whether this names a node.
-  const { pathname, fragment } = splitAddress(at.slice(1))
-  // `/zoom/#id` is the browser's spelling of a node's own page; it names the node too.
-  const address = parseAddress(claims, (pathname === "zoom/" ? "" : pathname) + (fragment === undefined ? "" : `#${fragment}`))
+  const address = addressAt(claims, addressWritten(title))
   // A ROW names a node too — `Tasks.olai#a1b2c3` is what a hand writes when
   // it knows where the node lives — and what a pin draws is the node's NAME,
   // which the id half answers alone: the file half can go stale across a

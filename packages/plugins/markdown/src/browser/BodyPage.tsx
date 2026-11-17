@@ -13,6 +13,8 @@ import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { documentRequest } from "olai-plugin-markdown/document-route"
 import { Referrers } from "olai-plugin-markdown/referrers"
 import type { ReferrerMemory } from "@olai/ui-primitives/referrer-memory.ts"
+import { PageSeat } from "olai-plugin-navigation/seat"
+import { atFile } from "olai-plugin-navigation/routes"
 
 export function BodyPage(props: {
   readonly directory: Directory
@@ -47,6 +49,8 @@ export function BodyPage(props: {
             <header class="mb-8"><h1 class="m-0 max-w-full break-all font-mono text-body tracking-tight text-muted">{path}</h1></header>
             <props.Body file={path} />
             <Referrers file={path} reading={page} claims={props.directory.claims()} href={navigation.routes.href} memory={props.memory} />
+            {/* THE SEAT, at the foot of every kind olai only shows. */}
+            <PageSeat place={atFile(path)} name={navigation.routes.name(atFile(path)) ?? path} />
           </section>
         }</Show>}</Match>
       </Switch>}

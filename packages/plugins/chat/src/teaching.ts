@@ -142,16 +142,27 @@ export const lines = (sentences: ReadonlyArray<string>): ReadonlyArray<string> =
 export const teachingFor = (
   agent: NodeAgent,
   how: Arrival = "opened",
+  /** The address this chat row stands for, where its title names a place
+   *  (`./server/places.ts`), and `null` for a chat row that is its own. */
+  about: string | null = null,
 ): ReadonlyArray<string> => {
   const says = SAYS[how]
   return lines([
     `${says.who(agent)} ${CHARTER}`,
+    ...(about === null ? [] : [ABOUT(about)]),
     TRIGGER(agent.memory === 0 ? "nothing under it yet" : memoryOf(agent)),
     SHAPE,
     ...(says.reconcile === null ? [] : [says.reconcile]),
     HARNESS_MEMORY_OFF,
   ])
 }
+
+/** WHAT THE CONVERSATION IS ABOUT, for a chat row titled with an address: the
+ *  page a person was on when they started it, and the one they will be on
+ *  when they read the answer. Said once, in the first message, beside which
+ *  node the conversation is. */
+export const ABOUT = (address: string): string =>
+  `This conversation is about \`${address}\`: the person talks to you from that page, so read it before you answer.`
 
 /**
  * THE REMINDER — the law in one sentence, for the Nth message after the

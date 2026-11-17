@@ -68,5 +68,27 @@ export const createNewChat = (keep: (to: Conversing, text: string) => void) => {
       return null
     } finally { if (!handed) release() }
   }
-  return { pending: permit.held, said, say, start, take: handoff.take }
+  /**
+   * THE DOOR ON A PAGE: a chat about the place at `about`, called `name`,
+   * started on `engine` with `text` as its first message — which the server
+   * delivers, once, because the person stays on the page they asked from and
+   * there is no new page here for the words to wait on. Answers the new chat
+   * row, or the sentence that says why there is none; a start or a send the
+   * agent refused is the row AND its sentence, since the chat exists.
+   */
+  const about = async (input: { readonly about: string; readonly name: string; readonly engine: string; readonly text: string }):
+    Promise<{ readonly node: string; readonly to: Conversing | null; readonly refusal: string | null } | string> => {
+    if (!alive) return "Chat isn't available"
+    const release = permit.take()
+    if (release === null) return "A new chat is already starting"
+    try {
+      const result = await runAsync(chatWire().procedures.conversation.newChat({
+        agent: input.engine, title: input.name, parent: null, about: input.about, say: input.text,
+      }))
+      if (!alive) return "Chat isn't available"
+      if (result._tag === "Failure") return result.failure.message
+      return result.success
+    } finally { release() }
+  }
+  return { pending: permit.held, said, say, start, about, take: handoff.take }
 }

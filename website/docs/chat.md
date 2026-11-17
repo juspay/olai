@@ -73,7 +73,7 @@ Press **Send** at any time.[^send] **Cancel** stops the turn, which is the agent
 
 A conversation opens with its newest sixty messages.[^scroll] A restart reopens up to eight conversations that were open.[^restart]
 
-[^plugin]: Each agent is a plugin, one of the parts the **Plugins** panel lists. Switching that plugin off takes away the choice of that agent and leaves the other agents alone ([choosing what runs](settings.md)). Starting a conversation on a row of an outline, and the **New chat** row in the palette that `Cmd` + `K` opens, are on [node agents](node-agents.md).
+[^plugin]: Each agent is a plugin, one of the parts the **Plugins** panel lists. Switching that plugin off takes away the choice of that agent and leaves the other agents alone ([choosing what runs](settings.md)). Starting a conversation on a row, starting one about the page in front of you, and the **New chat** row in the palette that `Cmd` + `K` opens, are on [node agents](node-agents.md).
 
 [^path]: Each of these agents is started by a helper program, called an adapter, and you can name a different one: `KOLU_ACP_AGENT` for Claude Code, `OLAI_ACP_CODEX` for Codex, `OLAI_ACP_PI` for Pi. An empty value for one of the three variables makes that agent unavailable, with an explanation, and leaves the other agents alone.
 
@@ -161,5 +161,7 @@ When olai starts again it reopens the conversations that were open when the proc
 olai drops the entry for a row that was trashed or whose link to its chat was taken off, for an agent that refuses to resume or asks to be signed in, and for an agent that has been uninstalled.
 
 Words you have typed but not sent, the files you attached and the rows you chose with `@` belong to that conversation in this browser tab. Folding the conversation away or reading its earlier chats keeps them, sending clears them, and reloading the tab discards them.
+
+Words typed into a box that starts a chat, the one in a page's seat or in the panel's **This page** block, belong to that page and that box, so leaving the page and coming back finds them. The **Ask about** box on a row's page is kept the same way.
 
 </details>

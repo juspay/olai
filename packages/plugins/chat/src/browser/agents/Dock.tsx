@@ -19,6 +19,7 @@
  * per conversation by the activation (`./reading.ts`).
  */
 import { createMemo, For, Show } from "solid-js"
+import { Dynamic } from "solid-js/web"
 
 import { createInlinePicker } from "@olai/web/client/inlinePicker.ts"
 import { LAYER, WITHIN } from "@olai/web/client/layer.ts"
@@ -26,8 +27,7 @@ import { DOT } from "@olai/web/client/readout.ts"
 import { ICON_BUTTON } from "@olai/web/client/readout.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { MENU_ITEM } from "@olai/ui-primitives/menu.ts"
-import { Link } from "olai-plugin-navigation/routing"
-import { zoomNode } from "olai-plugin-navigation/routes"
+import { Link, useRouter } from "olai-plugin-navigation/routing"
 
 import { TESTID } from "../../testids.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"
@@ -39,9 +39,14 @@ import { byActivity } from "./activity-order.ts"
 import { createNodeConversation } from "./conversation.ts"
 import { Conversation } from "./Fold.tsx"
 import { LOOK, type Row } from "./roster.ts"
+import { ChatName } from "./ChatName.tsx"
+import { MARK_BOX } from "@olai/ui-primitives/mark.ts"
+import { chatRoute } from "./focus.ts"
+import { ThisPage } from "./Door.tsx"
 
 export function Dock() {
   const agents = useAgents()
+  const router = useRouter()
   const door = () => dock()
   const node = () => door()?.node()
   /** The docked row, or nothing — a node whose binding left (the agent was
@@ -83,13 +88,16 @@ export function Dock() {
                   shares). The sentence is a pointer's convenience only: the
                   anchor is named by the agent's title and the link role says
                   the rest. */}
-              <Tip text="Open the agent's page" layer={LAYER.over}>
+              {/* SIZED, like every other place mark (`@olai/ui-primitives`'s
+                  `MARK_BOX`): a kind's glyph draws itself `h-full w-full`. */}
+              <Show when={agents.named(agent()).mark}>{mark => <span class={`${MARK_BOX} text-muted`} data-testid={TESTID.chatPlaceMark}><Dynamic component={mark()} /></span>}</Show>
+              <Tip text={agents.standsIn(agent()) ? "Open the page it is about" : "Open the agent's page"} layer={LAYER.over}>
                 <Link
-                  route={zoomNode(agent().id)}
+                  route={chatRoute(router.routes, agents, agent())}
                   class="min-w-0 flex-1 truncate text-body font-medium text-ink no-underline hover:text-accent"
                   testid={TESTID.chatDockTitle}
                 >
-                  {agent().title}
+                  {agents.named(agent()).name}
                 </Link>
               </Tip>
               <AgentAbove node={agent().id} />
@@ -147,7 +155,7 @@ function ChatRow(props: { readonly row: Row; readonly current: boolean; readonly
     >
       <AgentMark id={props.row.engine} />
       <span class={`${DOT} ${LOOK[props.row.standing].dot}`} aria-hidden="true" />
-      <span class="min-w-0 flex-1 truncate" classList={{ "font-semibold": props.row.unread }}>{props.row.title}</span>
+      <ChatName row={props.row} class={`min-w-0 flex-1 truncate${props.row.unread ? " font-semibold" : ""}`} />
       <span class="shrink-0 text-caption text-muted">{LOOK[props.row.standing].label}</span>
     </button>
   )
@@ -157,6 +165,10 @@ function ChatRow(props: { readonly row: Row; readonly current: boolean; readonly
 function Picker(props: { readonly rows: ReadonlyArray<Row> }) {
   return (
     <div class="olai-scroll min-h-0 flex-1 overflow-y-auto p-1" data-testid={TESTID.chatDockPicker}>
+      {/* THE PAGE IN FRONT FIRST, where it has a seat and no chat yet: the
+          one conversation a reader opening this column is most likely after
+          is one about what they are looking at (`./Door.tsx`). */}
+      <ThisPage open={(node) => dock()?.open(node)} />
       <Show when={props.rows.length > 0} fallback={
         <p class="m-0 px-3 py-6 text-label text-muted">No chats yet. Start an agent on any row, or press + beside Chats.</p>
       }>

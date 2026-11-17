@@ -79,10 +79,11 @@ import { Index } from "solid-js"
  * in height to say something nobody asked to see.
  */
 import type { Claims } from "@olai/format"
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, For, type JSX, Show } from "solid-js"
 
 import { renderTitle, sameDrawing } from "@olai/markdown-ui/title.ts"
 import { TitleHtml } from "@olai/markdown-ui/TitleHtml.tsx"
+import { MARK_BOX } from "@olai/ui-primitives/mark.ts"
 
 import type { Place } from "./place.ts"
 import { PlaceLine, type CrumbFaces } from "./PlaceLine.tsx"
@@ -117,6 +118,9 @@ export function Result(props: {
   readonly onNavigate?: () => void
   readonly claims: Claims | undefined;
   readonly label: string
+  /** A mark drawn before the label — the kind of place a row opens, where the
+   *  row's contributor has one to say. */
+  readonly mark?: () => JSX.Element
   /** A chord or a word, inline at the right of the first line. */
   readonly hint?: string
   /** Where the node lives — the second line. See `../palette/items.ts` for
@@ -191,6 +195,7 @@ export function Result(props: {
     >
       <span class="flex w-full min-w-0 items-center gap-3">
         <span class="flex min-w-0 flex-1 items-center gap-2">
+          <Show when={props.mark}>{(mark) => <span class={`${MARK_BOX} text-muted`}><Dynamic component={mark()} /></span>}</Show>
           <Show
             when={drawing()}
             fallback={

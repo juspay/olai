@@ -75,15 +75,9 @@ export { PLUGIN_BROWSER_FILE, PLUGIN_FOLDER, PLUGIN_README_FILE, PLUGIN_SERVER_F
 export const APPROVED_KEY = "approved"
 export const ON_KEY = "on"
 
-/** The property that binds the conversation building a plugin to the plugin it
- *  is building. It sits on the plugin's settings node beside the consent,
- *  because that is the row's own record and the chat is a fact about this
- *  plugin rather than about that conversation. */
-export const BUILDER_KEY = "builder"
-
 /**
  * THE VERSION THE BUILDER SAID IT HAD FINISHED — `vault-plugins_run`, answered
- * without a fault, written down beside the binding above.
+ * without a fault, written down beside the consent above.
  *
  * ON THE NODE AND NOT IN A MAP, which this branch got wrong once: it was this
  * process's memory, on the argument that a half-built folder is a mid-build
@@ -151,10 +145,8 @@ export interface Defined {
    * is a fact a reader can pick wrongly.
    */
   readonly on: string | null
-  /** The conversation building this plugin, where one is bound. */
-  readonly builder: string | null
-  /** The version that builder last finished and said was good, where it has
-   *  said so at all ({@link CHECKED_KEY}). */
+  /** The version the agent building it last finished and said was good, where
+   *  it has said so at all ({@link CHECKED_KEY}). */
   readonly checked: string | null
   /** What the code reaches for, read off its own imports. */
   readonly uses: ReadonlyArray<Uses>
@@ -192,9 +184,13 @@ export const isOn = (one: Defined): boolean => one.on === "yes"
  * Three conditions, and each is a different thing that would otherwise be
  * guessed at:
  *
- *   - A CONVERSATION IS BOUND to it. A folder somebody copied in or wrote by
- *     hand was never being built, and saying an agent finished it would be a
- *     sentence about how it got there that is false.
+ *   - A CHAT IS AT ITS PAGE'S ADDRESS. That is what asking for a plugin
+ *     leaves behind — a chat row titled `[<Title>](/plugins/<word>)` — and a
+ *     folder somebody copied in or wrote by hand has none, so saying an agent
+ *     finished it would be a sentence about how it got there that is false.
+ *     The reading cannot see it: the chat is a row in the vault and this is a
+ *     reading of the folder, so the caller asks chat and passes the answer in
+ *     (`./runtime.ts` asks `Conversations.here` per revision).
  *   - NOBODY HAS APPROVED IT YET. This only applies before the first yes: an
  *     agent editing a plugin a person turned on is not a build in progress, it
  *     is a change to something that was running, which is *Paused* with a diff.
@@ -208,8 +204,8 @@ export const isOn = (one: Defined): boolean => one.on === "yes"
  * its server half arrived rang *Ready for you* at a plugin whose face was
  * still being written.
  */
-export const isBuilding = (one: Defined): boolean =>
-  one.builder !== null
+export const isBuilding = (one: Defined, chat: boolean): boolean =>
+  chat
   && one.approved === null
   && (one.server.trim() === "" || one.checked !== one.version)
 
@@ -356,7 +352,6 @@ const defined = (
     version: versionOf(server ?? "", browser),
     approved: said(APPROVED_KEY),
     on: said(ON_KEY),
-    builder: said(BUILDER_KEY),
     checked: said(CHECKED_KEY),
     uses: usesOf(server ?? "", browser),
     consent: { file: consent.file, node, nodes: consent.nodes },

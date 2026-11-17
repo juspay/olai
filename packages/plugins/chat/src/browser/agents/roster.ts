@@ -19,6 +19,12 @@ export type Standing = AgentStanding
  */
 export type Row = NodeAgentRow & { readonly unread: boolean }
 
+/** Whether a chat row has a conversation to read — a session, or an open its
+ *  agent stopped at sign-in. A chat row without one is still its place's door:
+ *  its start was refused, and the next send starts on it. */
+export const talking = (row: Pick<NodeAgentRow, "session" | "unopened"> | undefined): boolean =>
+  row !== undefined && (row.session !== null || row.unopened === true)
+
 /**
  * IS THIS AGENT AWAKE — doing something, with a process behind it?
  *

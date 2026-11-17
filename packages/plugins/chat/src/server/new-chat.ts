@@ -1,20 +1,34 @@
 import { Effect } from "effect"
-import { UsageFailure, isRegular, seatableIn, outlinePaths, inOlaiDir, inboxIn, type OpFailure, type Reading, type WriteRequest } from "@olai/format"
+import { UsageFailure, isRegular, seatableIn, outlinePaths, inOlaiDir, inboxIn, samePlace, type OpFailure, type Place, type Reading, type WriteRequest } from "@olai/format"
 import type { Conversing } from "../sessions.ts"
-import { newChatTitle } from "../new-chat-title.ts"
+import { aboutTitle, newChatTitle } from "../new-chat-title.ts"
 import { chatsId, ensureChats } from "./filer.ts"
+import { chatsIn, placeIn } from "./places.ts"
 
 export interface NewChat {
   readonly current: () => string | null
   readonly read: Effect.Effect<Reading, OpFailure>
   readonly write: (request: WriteRequest) => Effect.Effect<{ readonly id: string }, OpFailure>
   readonly start: (node: string, agent: string, committed: Reading) => Effect.Effect<Conversing | null, OpFailure>
+  /** The chat rows of a reading, in roster order — what a second chat about
+   *  one place is refused against, and a chat row that never started is
+   *  found by. */
+  readonly chats: (reading: Reading) => ReadonlyArray<{ readonly id: string; readonly title: string; readonly session: string | null }>
 }
 export interface NewChatInput {
   readonly agent: string
   readonly title: string
   /** null names the current Inbox registry's Chats container. */
   readonly parent: string | null
+  /**
+   * THE PLACE THIS CHAT IS ABOUT, as an address (`/notes/plan.md`,
+   * `/plugins/swatch`) — and then `title` is the place's NAME. The row is
+   * titled `[name](address)`, which is what makes it that place's chat. A
+   * place has one: one that already has a conversation is refused, and one
+   * whose chat row never started (its start was refused) is started on that
+   * same row, so a retry never leaves a second row behind.
+   */
+  readonly about?: string
 }
 const parentFiles = (reading: Reading) => {
   const paths = outlinePaths(reading.set)
@@ -28,8 +42,23 @@ export const canParent = (reading: Reading, id: string, paths = parentFiles(read
 /** The caller holds creationPermit across all three independent acts. Once
  * minted, the node survives a refused start and is returned for a page retry. */
 export const newChat = (owner: NewChat, input: NewChatInput) => Effect.gen(function*() {
-  const title = newChatTitle(input.title)
+  const title = input.about === undefined ? newChatTitle(input.title) : aboutTitle(input.title, input.about)
   if (title === "") return yield* new UsageFailure({ reason: "A new chat needs a non-empty title" })
+  if (input.about !== undefined) {
+    const reading = yield* owner.read
+    const place = placeIn(reading, input.about)
+    if (place === null) return yield* new UsageFailure({ reason: `olai holds nothing at ${input.about} to talk about; no conversation was created` })
+    const there = chatsIn(reading, owner.chats(reading)).at(place)
+    if (there !== undefined && there.session !== null) {
+      return yield* new UsageFailure({ reason: "this page already has a chat; no conversation was created" })
+    }
+    if (there !== undefined) return yield* started(owner, there.id, input.agent)
+    // ...AND A ROW A REFUSED START LEFT BEHIND: minted under Chats, titled
+    // with this place, and never made a chat because its agent would not
+    // start. Starting on it again is the retry, so every attempt is one row.
+    const left = strayAt(reading, place, new Set(owner.chats(reading).map(row => row.id)))
+    if (left !== undefined) return yield* started(owner, left, input.agent)
+  }
   let parent = input.parent
   if (parent === null) {
     const file = owner.current()
@@ -39,10 +68,24 @@ export const newChat = (owner: NewChat, input: NewChatInput) => Effect.gen(funct
   }
   if (!canParent(yield* owner.read, parent)) return yield* new UsageFailure({ reason: "The chosen parent vanished, was trashed, or can no longer hold a chat; no conversation was created" })
   const node = yield* owner.write({ op: "add", parent, title })
-  const started = yield* Effect.result(owner.start(node.id, input.agent, yield* owner.read))
-  return { node: node.id, to: started._tag === "Success" ? started.success : null,
-    refusal: started._tag === "Failure" ? started.failure.message : null }
+  return yield* started(owner, node.id, input.agent)
 })
+
+/** Start `agent` on a chat row, answering the row whatever the start said. */
+const started = (owner: NewChat, node: string, agent: string) => Effect.gen(function*() {
+  const result = yield* Effect.result(owner.start(node, agent, yield* owner.read))
+  return { node, to: result._tag === "Success" ? result.success : null,
+    refusal: result._tag === "Failure" ? result.failure.message : null }
+})
+
+/** A row under Inbox › Chats whose title stands for `place` and that is not a
+ *  chat row — what a door's refused start leaves behind. */
+const strayAt = (reading: Reading, place: Place, chats: ReadonlySet<string>): string | undefined =>
+  (reading.derived.children.get(chatsId(reading)) ?? []).find(row => {
+    if (!isRegular(row) || chats.has(row.node.id)) return false
+    const at = placeIn(reading, row.node.title)
+    return at !== null && samePlace(at, place)
+  })?.node.id
 
 export interface LocationQuery {
   readonly filter: string

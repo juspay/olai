@@ -272,17 +272,17 @@ Feature: A plugin's own page
     And there should be no page errors
 
   @phone @scratch:plugins
-  Scenario: On a handset the conversation is reached at its own address
+  Scenario: On a handset the conversation is in the page's seat
     # There is no column beside the page on a phone, so there is nothing to
     # dock. The sentence this used to draw — "no agent is available to ask
     # right now" — was false: the agent is there, it is the seat that is not.
-    Given I open the app
-    When I rewrite "_olai/Settings.olai" as:
-      """
-      {"id":"greeting-consent","ord":"a0","title":"greeting","custom":{"builder":"greeting-chat"}}
-      """
-    And I go to the plugin "greeting"
-    Then the plugin page offers the conversation's own page
+    # What the *Ask* spot holds instead is the page's own SEAT, which is where
+    # the conversation about this page is read when there is nowhere to put a
+    # column.
+    Given a conversation about the plugin "greeting" called "Greeting"
+    And I open the app
+    When I go to the plugin "greeting"
+    Then the plugin page seats the chat about "greeting"
     # ...and no primary verb at all while the folder is still being written: a
     # handset has no seat to open the conversation in, and the only thing that
     # actually stops a build is the agent's own Stop inside it.

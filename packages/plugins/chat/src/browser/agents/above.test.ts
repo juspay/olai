@@ -16,6 +16,10 @@ const roster = (known: ReadonlyArray<string>): Roster => {
   const engines: ReadonlyArray<AgentChoice> = [{ id: "claude", name: "Claude", standing: "here" }]
   return {
     at: (id) => rows.find((one) => one.id === id),
+    chatAt: (place) => place.kind === "row" ? rows.find((one) => one.id === place.id) : undefined,
+    placeOf: (one) => ({ kind: "row", id: one.id }),
+    standsIn: () => false,
+    named: (one) => ({ name: one.title }),
     rows: () => rows,
     engines: () => engines,
     standings: () => engines,

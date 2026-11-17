@@ -474,10 +474,13 @@ export const Deliveries = serviceTag<Deliveries>("deliveries")
  * a wait.
  */
 export interface Conversations {
-  /** Mint a conversation, start it on `engine`, and send `say` as its first
-   *  message with `teach` riding the provider's teaching seam. The node comes
-   *  back even when the start refuses, because a conversation that exists and
-   *  has not begun is something a person can open later.
+  /** Mint a conversation ABOUT A PLACE, start it on `engine`, and send `say` as
+   *  its first message with `teach` riding the provider's teaching seam. The
+   *  conversation's row is titled `[title](about)` — `title` is the place's
+   *  name and `about` its address — which is what makes it that place's chat:
+   *  a place has one, so one that already has a chat is refused. The node
+   *  comes back even when the start refuses, because a conversation that
+   *  exists and has not begun is something a person can open later.
    *
    *  THAT PROMISE HOLDS WHEN THE PROVIDER GOES AWAY MID-CALL, which is the one
    *  case worth stating because it is the one a reader would assume otherwise.
@@ -491,17 +494,30 @@ export interface Conversations {
   readonly open: (input: {
     readonly parent: string | null
     readonly title: string
+    readonly about: string
     readonly engine: string
     readonly say: string
     readonly teach: ReadonlyArray<string>
   }) => Effect.Effect<{ readonly node: string; readonly refusal: string | null }, Refusal>
-  /** Say something into the conversation seated on `node`. `false` is one of
-   *  FOUR ordinary absences: the asking activation has left, there is no such
-   *  node, no conversation on it, or a roster that moved between a draw and a
-   *  press. The first of them is the gate the broker's forwarded lifetime
-   *  closes ({@link ConversationsWatch}), and it is why this is an answer
-   *  rather than a failure: none of the four is anything going wrong. */
-  readonly say: (input: { readonly node: string; readonly text: string }) => Effect.Effect<boolean>
+  /** Say something into the conversation ABOUT a place — the chat at the
+   *  address `about`, the same one a person sees on that page. `false` is one
+   *  of FOUR ordinary absences: the asking activation has left, there is no
+   *  chat at that address, the chat there has no conversation, or a roster
+   *  that moved between a draw and a press. The first of them is the gate the
+   *  broker's forwarded lifetime closes ({@link ConversationsWatch}), and it is
+   *  why this is an answer rather than a failure: none of the four is anything
+   *  going wrong. */
+  readonly say: (input: { readonly about: string; readonly text: string }) => Effect.Effect<boolean>
+  /** WHICH OF THESE ADDRESSES HAS A CHAT — the ones that do, and nothing
+   *  about what any of them said: the door stays write-only. A list and one
+   *  answer because that is the question a caller holding a roster asks, and
+   *  because every address is then read off ONE reading of the vault: no two
+   *  of them can come back from two different revisions. Asked of the vault as
+   *  it stands when the call runs, so a caller following a revision is
+   *  answered about that revision or a later one, never an earlier. */
+  readonly here: (input: {
+    readonly about: ReadonlyArray<string>
+  }) => Effect.Effect<ReadonlySet<string>>
   /** The engines this machine can actually start, best first — the MACHINE's
    *  answer rather than the vault's, because a caller that has to choose one
    *  needs the list the panel's own picker draws from. An empty list is a serve

@@ -1423,6 +1423,22 @@ Then(
   },
 );
 
+/** THE END OF THE OUTLINE, which is no longer the end of the page: an outline's
+ *  page carries a seat at its foot (a chat about the page, `olai-plugin-
+ *  navigation/seat`), so the very bottom of the page is past the last branch
+ *  and no section holds the seam there. This puts the tree's own last pixel at
+ *  the bottom of the window — a reader at the end of the last branch. */
+When("I scroll to the end of the outline", async function (this: OlaiWorld) {
+  const tree = this.frontLane().locator(OUTLINE_TREE).first();
+  await this.waitUntil(async () => {
+    await tree.evaluate((element) => {
+      window.scrollTo(0, scrollY + element.getBoundingClientRect().bottom - innerHeight);
+    });
+    await this.waitForFrame();
+    return tree.evaluate((element) => scrollY > 0 && Math.abs(element.getBoundingClientRect().bottom - innerHeight) <= 2);
+  }, "the outline's last row to sit at the bottom of the window");
+});
+
 /** The negative half, and it is what makes the claim mean anything: a row that
  *  is not a section does NOT hold the seam. Without it, a client that pinned
  *  every row in the tree — or drew the whole outline inside the viewport —

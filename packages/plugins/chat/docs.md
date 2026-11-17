@@ -1,4 +1,4 @@
-# Talking to an agent from a row
+# Talking to an agent from a row or a page
 
 This plugin lets you talk to an agent from any row, which is one line of an outline. An agent is a coding assistant such as Claude Code or Codex.
 
@@ -6,15 +6,15 @@ Chat is on by default.[^workflow]
 
 ## What chat needs to work
 
-One engine plugin, the plugin that runs one agent program: [claude](claude.md), [codex](codex.md), [opencode](opencode.md), [pi](pi.md) or [omp](omp.md).[^none] `OLAI_AGENT_PATH` lists the directories that hold those programs; unset, olai searches `PATH`.[^engine]
+One engine plugin, the plugin that runs one agent program: [claude](claude.md), [codex](codex.md), [opencode](opencode.md), [pi](pi.md) or [omp](omp.md).[^none][^engine]
 
 ## Where conversations appear
 
-Chat draws the conversation inside a row, on a node's page, in the agent panel, and in the sidebar's **Needs you** and **Chats** sections.[^faces] The panel opens and closes with `Cmd` + `J`.[^panel] Every row a conversation names is a link.[^links] Chat adds no tools an agent can call, only instructions.[^charter]
+Chat draws the conversation inside a row, on a node's page, at the foot of a page, in the agent panel, and in the sidebar's **Needs you** and **Chats** sections.[^faces][^seat][^links] The panel opens and closes with `Cmd` + `J`.[^panel] Chat adds no tools an agent can call, only instructions.[^charter]
 
-## Give a row its own agent
+## Give a row or a page its own chat
 
-A row with its own agent is called a node agent. You make one by giving the row a property, a key and a value, whose kind is `chat-agent-session`. The rows under it are that agent's memory.[^declare]
+A row with its own agent is called a node agent. You make one by giving the row a property, a key and a value, whose kind is `chat-agent-session`. The rows under it are that agent's memory.[^declare] A chat row titled with an address is the chat at that address instead.[^standsfor]
 
 | Kind | What a value means |
 | --- | --- |
@@ -34,15 +34,21 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 [^none]: With no engine available the agent menu says `No agent is set up` and offers **Open plugins**, and a Chats section with nothing in it reads `No chats yet. Start an agent on any row, or press + beside Chats.`
 
-[^engine]: Switching one engine plugin off, or emptying the path to its own program, makes only that engine unavailable. The other engines that are switched on are still found, and conversations carry on.
+[^engine]: `OLAI_AGENT_PATH` lists the directories that hold those programs; unset, olai searches `PATH`. Switching one engine plugin off, or emptying the path to its own program, makes only that engine unavailable. The other engines that are switched on are still found, and conversations carry on.
 
-[^faces]: Chat draws in nine places. They are inside a row, on a node's page, beside a row, in a row's menu, in the breadcrumbs, in the sidebar, in the palette, in the agent panel, and in a phone's bar of buttons along the bottom. The closed block below says what it draws in each.
+[^faces]: Chat draws in ten places. They are inside a row, on a node's page, at the foot of a page, beside a row, in a row's menu and in the breadcrumbs. The other four are the sidebar, the palette, the agent panel, and a phone's bar of buttons along the bottom. The closed block below says what it draws in each.
 
 [^panel]: `Cmd` is the key on a Mac and `Ctrl` elsewhere. Each browser remembers which conversation sits in the panel. Whether the column is open, and how wide it is, belongs to the frame around the page. A serve with no desktop interface draws no panel, no toggle and no shortcut.
 
 [^links]: Every row a conversation names is a link you can click. A reference an author wrote, the result of a write, and an id in backticks all select that row in whichever outline is showing it. A sidebar row, a **Needs you** row and an agent in the palette open the conversation's own page instead, so that you can read the whole chat.
 
 [^charter]: The paragraph chat adds to every conversation tells the agent three things. A person reads the answer in the panel beside the outline. An id in backticks is clickable, while one in a code fence is a quotation. A link to an address inside olai is opened in place. The [mcp](mcp.md) plugin puts this paragraph into the instructions an agent receives when it starts.
+
+[^seat]: The seat is at the foot of a document, a whole outline, a file olai only shows, such as a `.csv` or a picture, and a plugin's page. Days, the Agenda, the Trash and a saved layout have no seat.
+
+    Without a chat about that page the seat holds a box reading **Ask about plan…**, an agent picker and **Send**. With one it is that page's fold, which the closed block below describes.
+
+[^standsfor]: A title is an address written bare, `/notes/plan.md`, or as one named link, `[plan](/notes/plan.md)`. One place has one chat: a row's own chat beats a chat row standing in for it, and between two stand-ins the first in the **Chats** list wins, leaving the other an ordinary chat row. A title naming a file olai does not serve, a deleted file or a row that is not there stands for nothing, and that chat row is its own chat again.
 
 [^declare]: What a node agent writes under its row goes into your files. Each kind claims the property key spelled the same way as itself, so you need not declare any of the three. olai never adds the property for you, and it never treats an undeclared column as one of these kinds. An agent may write none of the three: an agent that gave itself the property would be deciding on its own that olai may wake it.
 
@@ -52,7 +58,7 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 [^off]: To stop using one agent, switch that engine's own plugin off instead. Turn chat off when a deployment asks for it, or when this serve should not be a chat for a while.
 
-    Switching it off removes the conversations, the sidebar sections, the palette rows, the agent panel and everything in the closed block below, including any **New chat** step you had open. Outline and document editors already on screen keep working, and switching chat back on restores what it draws.
+    Switching it off removes the conversations, the sidebar sections, the palette rows, the agent panel, the seat at the foot of a page and everything in the closed block below, including any **New chat** step you had open. Every page is then whole, outline and document editors already on screen keep working, and switching chat back on restores what it draws.
 
 <details>
 <summary>What chat draws, place by place</summary>
@@ -61,15 +67,47 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 | --- | --- |
 | inside a row | The conversation, the line naming the agent, and the box you type in. |
 | a node's page | The agent line under the title, and the conversation and the box after the rows. |
+| the foot of a page | The chat about that page, or the box that starts one, under the heading **Chat about this page**. |
 | beside a row | What the row's agent is doing, or a button to start an agent while one is available. |
 | a row's menu | **Start an agent** on a plain row; **Fresh start**, **Close the agent** and the sleep entries on a row that has one. |
 | the breadcrumbs | A mark on an ancestor row that has an agent, on a trail, a day's row and a search result. |
 | the sidebar | The **Needs you** and **Chats** sections, with a `+` beside the Chats heading for **New chat**. |
-| the palette | Every agent, and the **New chat** row while an engine can start. |
-| the agent panel | The conversation you put there, on a desktop. |
+| the palette | Every agent, the **New chat** row and **Chat about this page**, while an engine can start. |
+| the agent panel | The conversation you put there, on a desktop, with a **This page** block over its picker. |
 | a phone's bottom bar | The **Chats** button, with a count of how many conversations need an answer. |
 
 An agent that is working or starting shows a dot that pulses, with a ring around it, so a computer set to reduce motion still shows what the agent is doing. On a screen that forces its own colours, these marks are drawn in your colours rather than olai's ([theme](theme.md)). The words beside them say the same thing either way.
+
+</details>
+
+<details>
+<summary>A chat about the page in front of you</summary>
+
+Three doors offer a chat where the page has a seat, no chat yet, and an agent this machine can start. They are the box in the seat, the **This page** block at the top of the agent panel's picker, and **Chat about this page** in the palette, under **New chat**.
+
+Sending creates a chat row under **Inbox › Chats**, titled `[plan](/notes/plan.md)`, starts the agent and delivers your message once, which is what the words under the box say: `Sending starts a chat about this page · it is filed under Inbox › Chats`. On a desktop the new chat is docked beside the page as well, and the page's seat opens on it. A second chat for one page is refused with `this page already has a chat; no conversation was created`.
+
+A start the agent refuses keeps your words in the box you typed them in, with the reason beside them, and leaves at most one row for that page under **Inbox › Chats**. Pressing **Send** again starts on that same row, and the conversation docked in the agent panel is left as it is. A start that stops at sign-in leaves your words waiting in that chat row's box, and they go to the conversation once it opens.
+
+With a chat about the page, the seat is that page's fold. Its head line carries the agent's mark and how it stands, and draws without reading the conversation, so the page wakes no agent.
+
+Pressing that line opens the conversation under it, and pressing it again folds it away. It also opens when you start a chat from one of the doors, and when you open that chat from **Chats**, **Needs you** or the palette. This tab remembers a seat you left folded, so coming back finds it folded and its agent asleep.
+
+| Where a chat about a page is named | What you read |
+| --- | --- |
+| the sidebar's **Chats** and **Needs you** | the page's name, with its mark: a file's own kind mark, a plugin's own mark, otherwise a pin |
+| the agent panel's title and picker | the same name and mark |
+| the palette | that name, with the page's path on the second line, `Agents · notes/plan.md` |
+
+The stored title, `[plan](/notes/plan.md)`, is never what you read. A title written as a named link is read by its label, with the place's mark while olai holds that place and without a mark where it holds nothing there. A title written bare takes the place's own name, `plan` for `notes/plan.md` and `house` for `house.olai`, and is read as you typed it where olai holds nothing at that address.
+
+Clicking such a chat in the sidebar or the palette opens the page it is about, and a **Chats** row is marked as the current page while you are on it. A chat on a row of its own opens its own page, as every chat does.
+
+A name you type is cut at 60 characters, and one holding a `]` is dropped in favour of the bare address; the address itself is never cut. Title a chat row by hand with a page that draws no seat, such as `/agenda`, and you read it in the agent panel or on the chat row's own page.
+
+The agent is told one line more in its first message: ``This conversation is about `/notes/plan.md`: the person talks to you from that page, so read it before you answer.`` A chat on a row of its own is told what a node agent is told, and nothing else. The rest of the instruction is the same for both, and the rows under the chat row are the memory either way.
+
+> A file's address is its path. Rename the file outside olai and the chat about it becomes an ordinary chat row, under the title you can still read. Retitle it with the new path to make it that file's chat again.
 
 </details>
 
@@ -148,14 +186,18 @@ Every plugin that can reach a conversation uses one of seven services chat provi
 | `session-start` | What to ask this machine when a conversation opens. | kolu, odu |
 | `chat.seating` | Which rows have agents, with the engine and session of each, from one reading of the directory. | [xyne-spaces](xyne-spaces.md) |
 | `watching` | What a plugin that mirrors a conversation is told. | xyne-spaces |
-| `conversations` | Starting a conversation, speaking into it, and which agents can be started. | [vault-plugins](vault-plugins.md) |
-| `chat.dock` | Putting a conversation beside the page, and whether this window has room for one. | vault-plugins |
+| `conversations` | Starting a chat about an address, speaking into the one there, and which agents can be started. | [vault-plugins](vault-plugins.md) |
+| `chat.dock` | Putting the chat at an address beside the page, and whether this window has room for one. | vault-plugins |
 
 The name `conversations` belongs to olai's core rather than to chat, and chat is what stands behind it while it is running. A plugin asks core for it on each call and gets either the service or nothing, so a plugin that can work without chat is never held up by it.
 
-It offers three calls. `open` creates the row, gives it an agent and sends a first message. `say` speaks into a conversation that already exists. `engines` says what this machine can start. There is no call that reads a conversation: a plugin may start one and talk to it, never hold a copy of what was said.
+It offers four calls, and every one of them names pages by their addresses. `open` creates the chat row for that page, titles it with the page's name, gives it an agent and sends a first message. `say` speaks into the chat at an address, `here` takes a list of addresses and answers which of them have a chat, and `engines` says what this machine can start.
 
-Chat's panel component offers `chat.dock`, rather than the plugin itself, so a serve with no desktop interface leaves a plugin waiting for it instead of handing over something that does nothing.
+There is no call that reads a conversation: a plugin may start one and talk to it, never hold a copy of what was said.
+
+Chat's panel component offers `chat.dock`, rather than the plugin itself, so a serve with no desktop interface leaves a plugin waiting for it instead of handing over something that does nothing. Its `open` takes an address: the column opens at once, and the chat at that address is docked as soon as chat's roster holds it. An address with no chat leaves whatever was docked where it is.
+
+The address it is waiting on is let go when the column closes, when somebody docks another chat, and when somebody clears the panel, so a chat that arrives afterwards never replaces the one they chose.
 
 A serve with no chat plugin leaves all seven unavailable, and the plugins panel says so on each plugin's row, naming what it is waiting for. The runtime resolves that the moment chat is back.
 

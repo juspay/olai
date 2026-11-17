@@ -227,13 +227,23 @@ export const resolvePath = <R>(
  * still `available`, and still offer that row id as a level. A deeper step
  * asks only the first of those: its parent's rows may change under it (a
  * search answering again, a filter typed in), and that is not a withdrawal.
+ *
+ * WHILE A SUBMIT IS IN FLIGHT the row list is not asked: `busy` stands in for
+ * the row until the submit settles. A level's send is often exactly what takes
+ * its own row away — *Chat about this page* is offered while the page has no
+ * chat, and starting one is what it does — and a level that fell mid-send
+ * would abort its own step and drop the answer that closes the palette. The
+ * contribution's withdrawal is still a withdrawal: `present` and `available`
+ * are not waived, so nothing is drawn from a source that is gone.
  */
 export const rootStands = (
   present: boolean,
   available: boolean,
   offered: ReadonlyArray<PaletteItem>,
   id: string,
-): boolean => present && available && offered.some((item) => item.id === id && item.action.kind === "level")
+  busy: boolean,
+): boolean =>
+  present && available && (busy || offered.some((item) => item.id === id && item.action.kind === "level"))
 
 // ── a value level's choice and submit ─────────────────────────────────────
 

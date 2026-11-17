@@ -2,6 +2,10 @@
   "//mcp": "The surface-mcp protocol brand in the pure refusal decoder is wire vocabulary, not a dependency on the mcp plugin.",
   "//image": "The image/* picker MIME wildcard is attachment policy, not a dependency on the image plugin.",
   "//search": "URL.search is browser address vocabulary in media validation and the sealed link bridge.",
+  "//chat": "A plugin's `source.chat` says a chat (a conversation row) is at that plugin's page address — the vault's word for a conversation on the wire a plugin's page reads, not a dependency on the chat plugin.",
+  "chat": {
+    "src/plugins.ts": 1
+  },
   "capture": {
     "src/edit.ts": 1
   },

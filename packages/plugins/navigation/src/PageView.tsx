@@ -1,7 +1,8 @@
 /** Dispatch file pages by the current claim, then ordinary content routes. */
 
 import { type Address, fileKind } from "@olai/format"
-import { content, pages } from "./index.ts"
+import { content, pageSeats, pages } from "./index.ts"
+import { SeatsProvider } from "./seat.tsx"
 import { useHere, useRouter } from "./routing.tsx"
 import { HOME_ROUTE } from "./routes.ts"
 import { readLocation } from "./locations.ts"
@@ -57,6 +58,9 @@ export function PageView() {
       ? { line: "This page can't be opened", detail: `The plugin that opens ${kind.noun}s is turned off.` }
       : { line: "Page not found", detail: `There is no ${kind.noun} named ${path}.` }
   }
+  // WHAT IS CONTRIBUTED AT THE SEAT, handed to the page drawn here — which
+  // places it where it belongs and says which place it is (`./seat.tsx`).
+  const seats = createMemo(() => readLocation(pageSeats).map(entry => entry.value))
   return <Show when={draw()} keyed fallback={
     <main class="min-w-0 flex-1 p-8" data-testid={TESTID.pane} data-pane={String(here())} data-href={router.routes.href(route())}>
       <Empty
@@ -66,5 +70,5 @@ export function PageView() {
         action={said().line === "Loading…" ? undefined : { label: "Go home", href: router.routes.href(HOME_ROUTE), testid: TESTID.pageGoHome }}
       />
     </main>
-  }>{Page => <Page {...address()!} route={route()} index={here()} />}</Show>
+  }>{Page => <SeatsProvider seats={seats}><Page {...address()!} route={route()} index={here()} /></SeatsProvider>}</Show>
 }

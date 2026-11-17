@@ -52,13 +52,15 @@ import { run } from "@olai/web/client/run.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import type { DockDoor } from "olai-plugin-chat/dock"
 import { Control } from "olai-plugin-plugin-inspector/control"
-import { atNode } from "olai-plugin-navigation/routes"
+import type { Route } from "olai-plugin-navigation/routes"
+import { PageSeat } from "olai-plugin-navigation/seat"
 import { Key } from "@solid-primitives/keyed"
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { client } from "../client.ts"
-import { dock, router } from "./doors.ts"
+import { dock } from "./doors.ts"
+import { pluginPage } from "./route.ts"
 import { changedCount, diffLines } from "./diff.ts"
 import { Code } from "./page/Code.tsx"
 import { Verbs, type Acts } from "./page/Verbs.tsx"
@@ -140,13 +142,16 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
    * against code the agent has since replaced.
    */
   const [shown, setShown] = createSignal(props.plugin.source.version)
-  /** The conversation, and a seat to put it in. Read for the *ask* verbs,
-   *  which are offered whenever both are there. */
+  /** THE PLUGIN'S OWN ADDRESS, which is what a chat about it is about: the
+   *  chat row is titled `[<Title>](/plugins/<word>)`, so the seat below and
+   *  the dock door both name this one string. */
+  const about = () => pluginPage.href({ word: props.plugin.name })
+  /** The dock, where there is a chat to put in it and a column to put it in.
+   *  Read for the *ask* verbs, which are offered whenever both are there. */
   const docked = () => {
-    const builder = source().builder
     const door = dock()
-    if (builder === undefined || door === undefined || !door.desktop()) return undefined
-    return { door, builder }
+    if (source().chat !== true || door === undefined || !door.desktop()) return undefined
+    return door
   }
   /** ...and whether this visit is one where a conversation should be OPENED
    *  for the reader. Arriving at a plugin that has been on for months must not
@@ -178,13 +183,12 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
     // conversation and nothing on screen moved, so the only way to find out
     // whether anything had happened was to go and look.
     askFix: () => call(client().procedures.plugins.ask({ name: props.plugin.name, said: "" }), (answer) => {
-      const open = docked()
-      if (answer.builder === null) { setSaid("There was no agent to take it. The conversation that built it is in Chats."); return }
+      if (!answer.sent) { setSaid("There was no agent to take it. The conversation that built it is in Chats."); return }
       setSaid("Sent to the conversation that built it.")
-      if (open !== undefined) open.door.open(open.builder)
+      docked()?.open(about())
     }),
-    askChange: () => { const open = docked(); if (open !== undefined) open.door.open(open.builder) },
-    canAsk: () => source().builder !== undefined && source().asking === true,
+    askChange: () => docked()?.open(about()),
+    canAsk: () => source().chat === true && source().asking === true,
     canOpen: () => docked() !== undefined,
     trusting: () => source().trusting === true,
     moved: () => shown() !== source().version,
@@ -192,7 +196,7 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
   }
   return (
     <section data-testid={TESTID.page} data-plugin={props.plugin.name} data-stage={stage()}>
-      <Show when={watching() && docked()}>{(open) => <Docking door={open().door} builder={open().builder} />}</Show>
+      <Show when={watching() && docked()}>{(door) => <Docking door={door()} about={about()} />}</Show>
       <header class="flex items-start gap-3">
         <div class="mt-1 flex size-9 shrink-0 items-center justify-center rounded-control bg-pill text-muted" aria-hidden="true">
           <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -307,7 +311,7 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
         </Show>
       </Show>
 
-      <Ask acts={acts} builder={source().builder} />
+      <Ask acts={acts} place={pluginPage.to({ word: props.plugin.name })} name={source().title} />
 
       <Show when={(source().uses ?? []).length > 0}>
         <Block heading="What it uses" note={stage() === "paused" ? "unchanged" : undefined}>
@@ -361,68 +365,32 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
  * Its own child under a `<Show>`, so the effect exists exactly while there is
  * a dock to open: with chat off, with no shell seat, or on a phone there is no
  * component here at all rather than an effect asking every frame whether it
- * may run. Opening is a one-shot per conversation — this tracks which
- * conversation, not whether the dock is still showing it, so a reader who
- * closed the panel is not fought with.
+ * may run. Opening is a one-shot per address — this tracks which place was
+ * docked, not whether the dock is still showing it, so a reader who closed the
+ * panel is not fought with.
  */
-function Docking(props: { readonly door: DockDoor; readonly builder: string }) {
+function Docking(props: { readonly door: DockDoor; readonly about: string }) {
   // AN EFFECT AND NOT A COMPUTED: opening the dock WRITES chat's own state, and
   // a computed runs inside the render pass that is reading it. A write into
   // another row's signals while this page is being built is the shape Solid
   // warns about and this tree keeps out of its faces; what this wants is "after
   // the page exists, put the conversation beside it", which is an effect.
   createEffect<string | undefined>((before) => {
-    if (before === props.builder) return before
-    props.door.open(props.builder)
-    return props.builder
+    if (before === props.about) return before
+    props.door.open(props.about)
+    return props.about
   })
   return null
 }
 
-/** *Ask for a change* — the one row that reopens the conversation that wrote
- *  the code, and the honest sentence where there is none to reopen. */
-function Ask(props: { readonly acts: Acts; readonly builder: string | undefined }) {
-  /** The conversation's own address, for the viewport with no seat to dock it
-   *  in. `undefined` is a tab whose router nobody is holding — navigation off,
-   *  where a link would be a dead one. */
-  const elsewhere = () => {
-    const builder = props.builder
-    const lane = router()
-    return builder === undefined || lane === undefined ? undefined : lane.routes.href(atNode(builder))
-  }
+/** *Ask for a change* — on a desktop with a conversation about this plugin, the
+ *  press that opens it beside the page. Everywhere else, the page's SEAT
+ *  (`olai-plugin-navigation/seat`): the conversation itself where there is one,
+ *  and where there is none, the box that starts one about this page. */
+function Ask(props: { readonly acts: Acts; readonly place: Route; readonly name: string }) {
   return (
     <section class="mt-6" data-testid={TESTID.pageAsk}>
-      <Show
-        when={props.acts.canOpen()}
-        fallback={
-          <Show
-            when={elsewhere()}
-            fallback={
-              <p class="m-0 text-label text-muted">
-                {props.builder === undefined
-                  ? "No conversation is bound to this plugin, so there is nobody to ask. Edit the folder yourself, or ask for a new plugin."
-                  : "The conversation that built it is in Chats."}
-              </p>
-            }
-          >
-            {/* NO SEAT BESIDE THE PAGE — a handset, or a serve with no shell —
-                so the conversation is reached at its OWN address rather than
-                refused. The sentence this used to draw ("no agent is available
-                to ask right now") was false on a phone: the agent is there, it
-                is the column that is not. */}
-            {(href) => (
-              <a
-                class="flex w-full items-baseline gap-2 rounded-control border border-line/60 px-3 py-2 text-body no-underline hover:bg-ink/5"
-                data-testid={TESTID.pageAskOpen}
-                href={href()}
-              >
-                <span>Open the conversation that built it</span>
-                <span class="text-label text-muted">it is a chat like any other</span>
-              </a>
-            )}
-          </Show>
-        }
-      >
+      <Show when={props.acts.canOpen()} fallback={<PageSeat place={props.place} name={props.name} />}>
         <button
           type="button"
           class="flex w-full cursor-pointer items-baseline gap-2 rounded-control border border-line/60 bg-transparent px-3 py-2 text-left text-body hover:bg-ink/5"
