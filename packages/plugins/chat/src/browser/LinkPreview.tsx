@@ -36,7 +36,7 @@ export function ChatLinkPreview(props: { readonly route: Route; readonly roster:
   })
   return <>
     <div class="text-xs text-muted">{props.roster.at(node)?.file} › Chat</div>
-    <strong>{props.roster.at(node)?.title ?? `#${node}`}</strong>
+    <strong>{(() => { const row = props.roster.at(node); return row === undefined ? `#${node}` : props.roster.named(row).name })()}</strong>
     <Show when={props.roster.at(node)}>{row => <span class="ml-2 rounded border border-rule/60 px-1 text-xs">{LOOK[row().standing].label}</span>}</Show>
     <div class="mt-2 space-y-2"><For each={keys()}>{key => {
       const row = () => transcript.byKey(key)?.()

@@ -141,7 +141,12 @@ export function createAgents(): Roster {
   const named = (row: Row): Named => {
     const routes = navigation()?.routes
     const all = places()
-    if (routes === undefined || !all.standsIn(row)) return { name: row.title }
+    // A TITLE WRITTEN AS A NAMED LINK IS READ BY ITS LABEL whatever became of
+    // the place: somebody named that chat, and a page that was deleted (or a
+    // link to somewhere olai cannot open) is no reason to show them the
+    // brackets. Only a chat standing for a place wears that place's mark; a
+    // bare address is left as it was typed.
+    if (routes === undefined || !all.standsIn(row)) return { name: labelIn(row.title) ?? row.title }
     const place = all.of(row)
     const route = routeOfPlace(routes, place)
     const own = place.kind === "file" ? routes.name(route) : place.kind === "row" ? declared.title(place.id) ?? undefined : undefined
