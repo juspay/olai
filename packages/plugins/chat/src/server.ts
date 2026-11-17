@@ -1,4 +1,5 @@
 import { newChat, chatLocations, type LocationQuery, type NewChatInput } from "./server/new-chat.ts"
+import { aboutIn, type Placed } from "./server/places.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
  * end, and the fourteen verbs, as a row.
@@ -436,6 +437,10 @@ export default definePlugin({
     /** THE VAULT'S HALF OF THE AGENTS ROSTER, held across revisions: which node
      *  carries a session property, what it is called, how big its subtree is. */
     const nodeAgents = agentsRoster()
+    /** THE REVISION THE ROSTER WAS LAST BUILT FROM, whole enough to say what a
+     *  chat row is about — its title read as a place, and that place still
+     *  held (`./server/places.ts`). `null` before the vault has loaded. */
+    let latest: Placed | null = null
 
     /**
      * WHAT A GROWING ROW COSTS THE WIRE — the transcript's changes, turned into
@@ -967,6 +972,7 @@ export default definePlugin({
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
         nodeAgents.seen(revision.value.derived)
+        latest = revision.value
         // WHICH NODE AGENT THE OPEN CONVERSATION BELONGS TO is a PROPERTY, so a
         // revision can change it. Without this the panel would go on saying it
         // belonged to nobody until the next time a session opened.
@@ -976,6 +982,7 @@ export default definePlugin({
     )
     yield* vault.unloaded(Effect.sync(() => {
       nodeAgents.seen(null)
+      latest = null
       republishAgents()
     }))
 
@@ -1001,7 +1008,7 @@ export default definePlugin({
       // subscriber. Seed routing from the current reading used by writes so a
       // remembered node session starts with its final MCP credential.
       const initialReading = (yield* ops.reading) as Reading | null
-      if (initialReading !== null) nodeAgents.seen(initialReading.derived)
+      if (initialReading !== null) { nodeAgents.seen(initialReading.derived); latest = initialReading }
       /**
        * THE ENGINES MOUNTED RIGHT NOW, in the build's order — asked, not
        * captured.
@@ -1109,6 +1116,9 @@ export default definePlugin({
         overheard: yield* sessionsIn(localState),
         live: liveIn(localState),
         agentAt: (to) => nodeAgents.agentAt(to),
+        // WHAT A NODE AGENT'S ROW IS ABOUT, off the same revision the roster
+        // was built from (`./server/places.ts`).
+        aboutAt: (agent) => latest === null ? null : aboutIn(latest, nodeAgents.nodes(), agent),
         // THE PERIOD AS DECODED, from the settings this row was applied with —
         // a change re-applies the row, so the panel never holds a stale one.
         remindEvery: settings["remind-every"],
