@@ -46,8 +46,10 @@ export function MarkdownPageView() {
           <Match when={only(shows(), "document")}>{doc => <>
             <DocumentPage file={doc().file} custom={doc().props} />
             {/* THE SEAT, at the foot of the document: the page says which
-                file it is, and whatever is contributed there is about it. */}
-            <PageSeat place={atFile(doc().file)} name={router.routes.name(atFile(doc().file)) ?? doc().file} />
+                file it is, and whatever is contributed there is about it.
+                Keyed on the file, so a seat never reads a document this
+                branch has already let go of. */}
+            <Show when={doc().file} keyed>{file => <PageSeat place={atFile(file)} name={router.routes.name(atFile(file)) ?? file} />}</Show>
           </>}</Match>
         </Switch>}
       </Show>

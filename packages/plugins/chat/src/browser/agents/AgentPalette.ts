@@ -137,7 +137,18 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
    * one message level away from a chat about it (`./Seat.tsx` is the same door
    * under the page). Kept as one object per page, so a roster tick under an
    * open level hands the palette the row it already has.
+   *
+   * IT ALSO STANDS WHILE ITS OWN SEND IS OUT, which is not a second rule but
+   * the first one's cost. A level's lifetime is its row's: the palette aborts
+   * a step whose row its adapter no longer lists, and an aborted step drops
+   * the answer that would have closed the palette
+   * (`olai-plugin-navigation`'s `level-owner.ts`). The chat this level is
+   * starting is exactly what takes the row away, so without this the one
+   * gesture that works leaves the overlay standing over the page it just
+   * started a conversation about. The flag goes down when the step does —
+   * `submit` is handed that step's own `signal`.
    */
+  const [sending, setSending] = createSignal(false)
   let aboutHeld: { readonly key: string; readonly item: PaletteItem } | undefined
   const about = (): ReadonlyArray<PaletteItem> => {
     const nav = navigation()
@@ -145,7 +156,8 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
     if (nav === undefined || held === undefined || creation === undefined || agents.engines().length === 0) return []
     const pane = nav.panes()[nav.focusIndex()]
     const here = pane === undefined ? undefined : held.seatIn(pane.id)
-    if (here === undefined || agents.chatAt(placeOfRoute(nav.routes, here.place())) !== undefined) return []
+    if (here === undefined) return []
+    if (agents.chatAt(placeOfRoute(nav.routes, here.place())) !== undefined && !sending()) return []
     const address = nav.routes.href(here.place())
     const name = here.name()
     const key = JSON.stringify([address, name])
@@ -160,8 +172,10 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
         options: () => createMemo<ReadonlyArray<PaletteOption>>(previous => agents.engines().map(engine =>
           previous.find(option => option.id === engine.id && option.label === engine.name) ?? { id: engine.id, label: engine.name }), []),
         validate: text => text.trim() === "" ? "Type a message first." : null,
-        submit: async (text, engine) => {
+        submit: async (text, engine, signal) => {
           if (engine === undefined) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
+          setSending(true)
+          signal.addEventListener("abort", () => setSending(false), { once: true })
           const made = await creation.about({ about: address, name, engine: engine.id, text })
           if (typeof made === "string") return { keepOpen: true, said: { tone: "alarm", text: made } }
           const door = dock()

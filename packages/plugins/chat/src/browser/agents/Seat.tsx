@@ -34,6 +34,7 @@ import { placeOfRoute } from "./place.ts"
 import { usePage } from "./Page.tsx"
 import { AgentLine } from "./AgentLine.tsx"
 import { Conversation } from "./Fold.tsx"
+import { MARK_BOX } from "./ChatName.tsx"
 
 /** The words under the box, which say what sending does. */
 export const ABOUT_NOTE = "Sending starts a chat about this page · it is filed under Inbox › Chats"
@@ -179,7 +180,7 @@ export function ThisPage(props: { readonly open: (node: string) => void }) {
           <section class="mb-2 px-1" data-testid={TESTID.chatThisPage} data-place={placeKey(place())}>
             <p class="m-0 px-2 pb-1 pt-2 text-caption font-semibold uppercase tracking-[0.08em] text-muted">This page</p>
             <p class="m-0 flex items-baseline gap-2 px-2 pb-2 text-body">
-              <Show when={mark()}>{(drawn) => <span class="inline-flex shrink-0 self-center text-muted"><Dynamic component={drawn()} /></span>}</Show>
+              <Show when={mark()}>{(drawn) => <span class={`${MARK_BOX} self-center text-muted`}><Dynamic component={drawn()} /></span>}</Show>
               <span class="min-w-0 truncate">{here.name()}</span>
               <span class="min-w-0 flex-1 truncate font-mono text-caption text-muted">{router.routes.href(here.place()).replace(/^\//, "")}</span>
               <span class="shrink-0 text-caption text-muted">No chat yet</span>

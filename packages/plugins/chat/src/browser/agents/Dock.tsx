@@ -39,7 +39,7 @@ import { byActivity } from "./activity-order.ts"
 import { createNodeConversation } from "./conversation.ts"
 import { Conversation } from "./Fold.tsx"
 import { LOOK, type Row } from "./roster.ts"
-import { ChatName } from "./ChatName.tsx"
+import { ChatName, MARK_BOX } from "./ChatName.tsx"
 import { chatRoute } from "./focus.ts"
 import { ThisPage } from "./Seat.tsx"
 
@@ -87,7 +87,9 @@ export function Dock() {
                   shares). The sentence is a pointer's convenience only: the
                   anchor is named by the agent's title and the link role says
                   the rest. */}
-              <Show when={agents.named(agent()).mark}>{mark => <span class="inline-flex shrink-0 text-muted" data-testid={TESTID.chatPlaceMark}><Dynamic component={mark()} /></span>}</Show>
+              {/* SIZED, like every other place mark (`./ChatName.tsx`'s
+                  `MARK_BOX`): a kind's glyph draws itself `h-full w-full`. */}
+              <Show when={agents.named(agent()).mark}>{mark => <span class={`${MARK_BOX} text-muted`} data-testid={TESTID.chatPlaceMark}><Dynamic component={mark()} /></span>}</Show>
               <Tip text={agents.standsIn(agent()) ? "Open the page it is about" : "Open the agent's page"} layer={LAYER.over}>
                 <Link
                   route={chatRoute(router.routes, agents, agent())}
