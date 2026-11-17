@@ -46,7 +46,7 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 [^seat]: The seat is at the foot of a document, a whole outline, a file olai only shows, such as a `.csv` or a picture, and a plugin's page. Days, the Agenda, the Trash and a saved layout have no seat.
 
-    With a chat about that page the seat is that page's fold: one line, the agent's mark and how it stands, so drawing the page wakes no agent, and pressing the line opens the conversation. Without a chat it holds a box reading **Ask about plan…**, an agent picker and **Send**.
+    Without a chat about that page the seat holds a box reading **Ask about plan…**, an agent picker and **Send**. With one it is that page's fold, which the closed block below describes.
 
 [^standsfor]: A title is an address written bare, `/notes/plan.md`, or as one named link, `[plan](/notes/plan.md)`. One place has one chat: a row's own chat beats a chat row standing in for it, and between two stand-ins the first in the **Chats** list wins, leaving the other an ordinary chat row. A title naming a file olai does not serve, a deleted file or a row that is not there stands for nothing, and that chat row is its own chat again.
 
@@ -89,6 +89,10 @@ Sending creates a chat row under **Inbox › Chats**, titled `[plan](/notes/plan
 
 A start the agent refuses keeps your words in the box you typed them in, with the reason beside them, and leaves at most one row for that page under **Inbox › Chats**. Pressing **Send** again starts on that same row, and the conversation docked in the agent panel is left as it is. A start that stops at sign-in leaves your words waiting in that chat row's box, and they go to the conversation once it opens.
 
+With a chat about the page, the seat is that page's fold. Its head line carries the agent's mark and how it stands, and draws without reading the conversation, so the page wakes no agent.
+
+Pressing that line opens the conversation under it, and pressing it again folds it away. It also opens when you start a chat from one of the doors, and when you open that chat from **Chats**, **Needs you** or the palette. This tab remembers a seat you left folded, so coming back finds it folded and its agent asleep.
+
 | Where a chat about a page is named | What you read |
 | --- | --- |
 | the sidebar's **Chats** and **Needs you** | the page's name, with its mark: a file's own kind mark, a plugin's own mark, otherwise a pin |
@@ -101,7 +105,7 @@ Clicking such a chat in the sidebar or the palette opens the page it is about, a
 
 A name you type is cut at 60 characters, and one holding a `]` is dropped in favour of the bare address; the address itself is never cut. Title a chat row by hand with a page that draws no seat, such as `/agenda`, and you read it in the agent panel or on the chat row's own page.
 
-The agent is told one line more in its first message: ``This conversation is about `/notes/plan.md`: the person talks to you from that page, so read it before you answer.``
+The agent is told one line more in its first message: ``This conversation is about `/notes/plan.md`: the person talks to you from that page, so read it before you answer.`` A chat on a row of its own is told what a node agent is told, and nothing else. The rest of the instruction is the same for both, and the rows under the chat row are the memory either way.
 
 > A file's address is its path. Rename the file outside olai and the chat about it becomes an ordinary chat row, under the title you can still read. Retitle it with the new path to make it that file's chat again.
 
@@ -192,6 +196,8 @@ It offers four calls, and every one of them names a page by its address. `open` 
 There is no call that reads a conversation: a plugin may start one and talk to it, never hold a copy of what was said.
 
 Chat's panel component offers `chat.dock`, rather than the plugin itself, so a serve with no desktop interface leaves a plugin waiting for it instead of handing over something that does nothing. Its `open` takes an address: the column opens at once, and the chat at that address is docked as soon as chat's roster holds it. An address with no chat leaves whatever was docked where it is.
+
+The address it is waiting on is let go when the column closes, when somebody docks another chat, and when somebody clears the panel, so a chat that arrives afterwards never replaces the one they chose.
 
 A serve with no chat plugin leaves all seven unavailable, and the plugins panel says so on each plugin's row, naming what it is waiting for. The runtime resolves that the moment chat is back.
 

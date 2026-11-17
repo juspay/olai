@@ -80,7 +80,7 @@ The agent's first message carries an instruction from olai:[^preamble][^about] t
 
 [^remind]: The reminder is one line, carried by every twentieth message a person sends. The number is `remind-every` on the chat row in `_olai/Settings.olai`, where `0` never reminds.
 
-[^about]: A chat about a page is told one line more in its first message: ``This conversation is about `/notes/plan.md`: the person talks to you from that page, so read it before you answer.`` A chat on a row of its own is told what it was told before, and nothing else. The rest of the instruction is the same for both, and the rows under the chat row are the memory either way.
+[^about]: A chat about a page is told one line more in its first message: ``This conversation is about `/notes/plan.md`: the person talks to you from that page, so read it before you answer.`` What a chat on a row of its own is told, and what the two have in common, are in [plugins/chat.md](plugins/chat.md).
 
 [^tidy]: Tidying is one turn olai starts itself: when the chat has been left alone long enough, and enough has moved, the agent is asked to tidy its rows, shorten what they say and file them away. Nothing is tidied until you ask for it, chat by chat.
 
@@ -110,9 +110,10 @@ Sending from the seat, from the **This page** block at the top of the agent pane
 | a chat about a page that has none | the row is created, and the page's seat opens on it |
 | a second chat about one page | refused: `this page already has a chat; no conversation was created` |
 | a chat naming a page olai does not hold, such as a deleted file | that chat row is an ordinary chat under **Chats**, and a page that address opens again offers a chat of its own |
-| a start the agent refuses | your words stay in the box with the reason, and the next send starts on the row it left ([plugins/chat.md](plugins/chat.md)) |
 
-With a chat there, the seat is that page's fold: one line, the agent's mark and how it stands, so opening a page never wakes its agent. Press the line to open it. It also opens when you start a chat from one of the page's doors, and when you open that chat from **Chats**, **Needs you** or the palette. This tab remembers it, as it does a row's fold.
+With a chat there, the seat is that page's fold. Its head line carries the agent's mark and how it stands, and stays when the seat is open, so opening a page never wakes its agent.
+
+Press that line to open the conversation under it, and press it again to fold it away. It also opens when you start a chat from one of the page's doors, and when you open that chat from **Chats**, **Needs you** or the palette. This tab remembers a seat you left folded, so a later visit finds it folded and wakes no agent.
 
 Two things are asked once for each row while this browser tab is open: whether a row a chat stands for still exists, and that row's name where the title is a bare `/#id`. So a row deleted after that still counts as its chat's place until you reload the tab, and a row renamed after that keeps its old name under **Chats** until you reload.
 
