@@ -439,8 +439,14 @@ export default definePlugin({
     const nodeAgents = agentsRoster()
     /** THE REVISION THE ROSTER WAS LAST BUILT FROM, whole enough to say what a
      *  chat row is about — its title read as a place, and that place still
-     *  held (`./server/places.ts`). `null` before the vault has loaded. */
+     *  held (`./server/places.ts`). `null` before the vault has loaded. Only
+     *  `levelWith` writes it, in the same step that moves the roster, so the two
+     *  cannot be a revision apart. */
     let latest: Placed | null = null
+    const levelWith = (reading: Placed | null) => {
+      nodeAgents.seen(reading?.derived ?? null)
+      latest = reading
+    }
 
     /**
      * WHAT A GROWING ROW COSTS THE WIRE — the transcript's changes, turned into
@@ -637,7 +643,7 @@ export default definePlugin({
           // Ops has committed the new node, but revision delivery may still
           // be queued. Seat against that committed reading, not the earlier
           // roster used to paint the sidebar.
-          nodeAgents.seen(committed.derived)
+          levelWith(committed)
           return yield* startAgentSession(open, binding, { node, agent })
         }),
         // THE CHAT ROWS OF THE READING THE REFUSAL IS ASKED OVER, by the pure
@@ -981,8 +987,7 @@ export default definePlugin({
      */
     yield* vault.revision((revision: VaultRevision) =>
       Effect.sync(() => {
-        nodeAgents.seen(revision.value.derived)
-        latest = revision.value
+        levelWith(revision.value)
         // WHICH NODE AGENT THE OPEN CONVERSATION BELONGS TO is a PROPERTY, so a
         // revision can change it. Without this the panel would go on saying it
         // belonged to nobody until the next time a session opened.
@@ -991,8 +996,7 @@ export default definePlugin({
       })
     )
     yield* vault.unloaded(Effect.sync(() => {
-      nodeAgents.seen(null)
-      latest = null
+      levelWith(null)
       republishAgents()
     }))
 
@@ -1018,7 +1022,7 @@ export default definePlugin({
       // subscriber. Seed routing from the current reading used by writes so a
       // remembered node session starts with its final MCP credential.
       const initialReading = (yield* ops.reading) as Reading | null
-      if (initialReading !== null) { nodeAgents.seen(initialReading.derived); latest = initialReading }
+      if (initialReading !== null) levelWith(initialReading)
       /**
        * THE ENGINES MOUNTED RIGHT NOW, in the build's order — asked, not
        * captured.
