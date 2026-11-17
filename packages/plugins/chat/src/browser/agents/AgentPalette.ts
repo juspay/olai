@@ -137,21 +137,13 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
    * **CHAT ABOUT THIS PAGE** — the door, from ⌘K: offered while the page in
    * front placed a seat, has no chat at its place, and an agent can start, and
    * one message level away from a chat about it (`./Door.tsx` is the same door
-   * under the page). Kept as one object per page, so a roster tick under an
-   * open level hands the palette the row it already has.
+   * under the page).
    *
-   * IT ALSO STANDS WHILE ITS OWN SEND IS OUT, which is not a second rule but
-   * the first one's cost. A level's lifetime is its row's: the palette aborts
-   * a step whose row its adapter no longer lists, and an aborted step drops
-   * the answer that would have closed the palette
-   * (`olai-plugin-navigation`'s `level-owner.ts`). The chat this level is
-   * starting is exactly what takes the row away, so without this the one
-   * gesture that works leaves the overlay standing over the page it just
-   * started a conversation about. The flag goes down when the step does —
-   * `submit` is handed that step's own `signal`.
+   * THE ROW GOES THE MOMENT THE CHAT EXISTS, including the chat this level's
+   * own send starts, and that is the whole rule here: a level whose submit is
+   * in flight keeps standing without its row, and resumes asking for it once
+   * the submit settles (`olai-plugin-navigation`'s `levels.ts`, `rootStands`).
    */
-  const [sending, setSending] = createSignal(false)
-  let aboutHeld: { readonly key: string; readonly item: PaletteItem } | undefined
   const about = (): ReadonlyArray<PaletteItem> => {
     const nav = navigation()
     const held = agentReadings()
@@ -159,12 +151,10 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
     const pane = nav.panes()[nav.focusIndex()]
     const here = pane === undefined ? undefined : held.seatIn(pane.id)
     if (here === undefined) return []
-    if (talking(agents.chatAt(placeOfRoute(nav.routes, here.place))) && !sending()) return []
+    if (talking(agents.chatAt(placeOfRoute(nav.routes, here.place)))) return []
     const address = nav.routes.href(here.place)
     const name = here.name
-    const key = JSON.stringify([address, name])
-    if (aboutHeld?.key === key) return [aboutHeld.item]
-    const item: PaletteItem = {
+    return [{
       id: ABOUT_ROW, label: "Chat about this page", place: address.replace(/^\//, ""),
       search: `agents chat about this page ${name}`.toLowerCase(), taking: atOnce,
       action: { kind: "level", level: {
@@ -174,10 +164,8 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
         options: () => createMemo<ReadonlyArray<PaletteOption>>(previous => agents.engines().map(engine =>
           previous.find(option => option.id === engine.id && option.label === engine.name) ?? { id: engine.id, label: engine.name }), []),
         validate: text => text.trim() === "" ? "Type a message first." : null,
-        submit: async (text, engine, signal) => {
+        submit: async (text, engine) => {
           if (engine === undefined) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
-          setSending(true)
-          signal.addEventListener("abort", () => setSending(false), { once: true })
           // ONE PRESS OF THE DOOR (`./Door.tsx`'s `sendAbout`): a refusal keeps
           // the words in this box with the sentence beside them, and leaves the
           // docked conversation alone.
@@ -188,9 +176,7 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
           return {}
         },
       } },
-    }
-    aboutHeld = { key, item }
-    return [item]
+    }]
   }
   return { items: (): ReadonlyArray<PaletteItem> => {
     // ONLY WHAT WORKS: with no engine this machine can start, there is no

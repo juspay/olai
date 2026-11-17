@@ -70,12 +70,18 @@ test("the root of a path stands while its source is present, available and still
     search: id,
   })
   const offered = [row("fruit", true), row("plain", false)]
-  expect(rootStands(true, true, offered, "fruit")).toBe(true)
-  expect(rootStands(false, true, offered, "fruit")).toBe(false)
-  expect(rootStands(true, false, offered, "fruit")).toBe(false)
-  expect(rootStands(true, true, [], "fruit")).toBe(false)
+  expect(rootStands(true, true, offered, "fruit", false)).toBe(true)
+  expect(rootStands(false, true, offered, "fruit", false)).toBe(false)
+  expect(rootStands(true, false, offered, "fruit", false)).toBe(false)
+  expect(rootStands(true, true, [], "fruit", false)).toBe(false)
   // Still offered, but no longer as a level.
-  expect(rootStands(true, true, offered, "plain")).toBe(false)
+  expect(rootStands(true, true, offered, "plain", false)).toBe(false)
+  // A submit in flight stands in for the row — a send that takes its own row
+  // away does not end the level — but not for the contribution itself.
+  expect(rootStands(true, true, [], "fruit", true)).toBe(true)
+  expect(rootStands(true, true, offered, "plain", true)).toBe(true)
+  expect(rootStands(false, true, [], "fruit", true)).toBe(false)
+  expect(rootStands(true, false, [], "fruit", true)).toBe(false)
 })
 
 test("drilling pushes; popping keeps the prefix, empties the new top and names what went", () => {
