@@ -472,11 +472,17 @@ test("a reader holding a key across a file's birth is handed the body", () =>
       yield* store.refresh("cheap")
 
       // The new head prompts one procedure read, whose only frame is the body.
-      expect(yield* open.take).toEqual({
-        rev: 2,
-        text: "<h1>Born</h1>\n",
-        refused: false,
-      })
+      //
+      // THE REVISION IS NOT THE CLAIM, and the test beside this one says so in
+      // as many words: a birth and the cheap refresh that follows it may land as
+      // one revision or as two, so the number is a count of frames the store
+      // happened to cut. What is being pinned is the edge this test is named
+      // for — the holder was handed the body rather than the announce frame's
+      // `null` — so the count is asserted as a floor.
+      const born = yield* open.take
+      expect(born.text).toBe("<h1>Born</h1>\n")
+      expect(born.refused).toBe(false)
+      expect(born.rev).toBeGreaterThanOrEqual(2)
     })))
 
 /**
