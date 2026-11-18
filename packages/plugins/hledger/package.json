@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@olai/plugin-api": "workspace:*",
-    "effect": "4.0.0",
+    "effect": "4.1.4",
     "@olai/web": "workspace:*",
     "@olai/ui-primitives": "workspace:*",
     "@olai/markdown-ui": "workspace:*",

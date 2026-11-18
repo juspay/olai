@@ -477,28 +477,7 @@ describe("the padi mirror", () => {
 })
 
 describe("the frame projection", () => {
-  /**
-   * ABSENT GRID IS A FRAME, not a dead stream.
-   *
-   * padi's `grid` is additive and optional (5.5), so two ordinary things omit
-   * it: a padi older than the field, and an ABORTED attach on a current kaval.
-   * On kolu#2217's first head an absent-grid frame killed the stream — the
-   * author's own bug, fixed in round 2 — so a plain aborted attach took a pane
-   * down with it. What the contract promises, and what this pins from the
-   * consumer's side, is that the frame arrives and says nothing about a grid:
-   * the pane then keeps the size it has, because guessing is the failure the
-   * field exists to end.
-   */
-  it("carries an absent grid across as `null`, and keeps the frame", () => {
-    expect(frameOf({ kind: "snapshot", data: "hello", topLine: 0 })).toEqual({
-      kind: "snapshot",
-      data: "hello",
-      topLine: 0,
-      grid: null,
-    })
-  })
-
-  it("carries a present grid verbatim — one spelling, no rounding", () => {
+  it("carries the frame's grid verbatim — one spelling, no rounding", () => {
     expect(
       frameOf({ kind: "snapshot", data: "x", topLine: 3, grid: { cols: 203, rows: 51 } }),
     ).toEqual({ kind: "snapshot", data: "x", topLine: 3, grid: { cols: 203, rows: 51 } })
@@ -636,46 +615,58 @@ describe("a foreign resize", () => {
     // The pane saw the fresh snapshot, which is what carries the new size.
     expect(frames.length).toBeGreaterThanOrEqual(2)
   })
-})
 
-describe("the pty grid as a FALLBACK — kolu's two channels are independently optional", () => {
-  it("takes the RECORD's grid when the frame names none", () => {
-    // Rule 2c's recovery, and the half that was missing: the mirror detected
-    // the foreign resize off the record and then handed the pane a frame with
-    // `grid: null`, which means "keep the size you have" — guaranteed wrong,
-    // because the size it has is the one somebody else just moved away from.
-    expect(
-      frameOf({ kind: "snapshot", data: "hello", topLine: 0 }, { cols: 80, rows: 24 }),
-    ).toEqual({ kind: "snapshot", data: "hello", topLine: 0, grid: { cols: 80, rows: 24 } })
-  })
-
-  it("prefers the FRAME's grid when both say — it is the one that describes THIS screen", () => {
-    // The frame's grid is the size the bytes were laid out at; the record's is
-    // the pty's current size. When they disagree the bytes win, because the
-    // bytes are what is about to be painted.
-    expect(
-      frameOf(
-        { kind: "snapshot", data: "x", topLine: 0, grid: { cols: 203, rows: 51 } },
-        { cols: 80, rows: 24 },
-      ),
-    ).toEqual({ kind: "snapshot", data: "x", topLine: 0, grid: { cols: 203, rows: 51 } })
-  })
-
-  it("still says `null` when NEITHER channel names one", () => {
-    // A padi too old on both halves. Not knowing stays not knowing — inventing
-    // a size here is the failure the whole field was added to end.
-    expect(frameOf({ kind: "snapshot", data: "x", topLine: 0 })).toEqual({
-      kind: "snapshot",
-      data: "x",
-      topLine: 0,
-      grid: null,
+  /**
+   * THE CONTROL FRAME DOES NOT CROSS, and this is the fence that says so.
+   *
+   * padi 7.5 sends a `resized` frame whose only content is a grid — no bytes.
+   * olai's record-driven re-attach above is how this pane learns of a foreign
+   * resize, so the frame is filtered at the projection seam (`./mirror.ts`).
+   * What must never happen is the other thing a widening union invites: the
+   * frame reaching a pane as a delta, which would paint nothing and, worse,
+   * make the NEXT arm upstream arrive the same way.
+   */
+  it("never projects padi's `resized` control frame as bytes", async () => {
+    const seen = recorder()
+    const resizing = resizingFace(ID, [{ cols: 80, rows: 24 }])
+    resizing.face.padi.surface.terminalAttach.get = (() =>
+      Stream.fromIterable([
+        {
+          kind: "snapshot" as const,
+          data: "attach",
+          topLine: 0,
+          grid: { cols: 80, rows: 24 },
+        },
+        { kind: "resized" as const, grid: { cols: 203, rows: 51 } },
+        { kind: "delta" as const, data: "after" },
+      ])) as never
+    const mirror = makeMirror(seen.sink, {
+      env: {},
+      now: () => AT,
+      dial: () =>
+        Effect.succeed({
+          client: resizing.face,
+          identity: { stateRoot: "/run/padi", surfaceVersion: SPEAKS },
+          startedAt: 0,
+          dispose: () => {},
+          onClose: () => {},
+        } as never),
     })
-  })
+    const fiber = Effect.runFork(Effect.scoped(mirror.run))
+    await Effect.runPromise(Effect.sleep("400 millis"))
 
-  it("leaves a DELTA alone — bytes carry no layout claim", () => {
-    expect(frameOf({ kind: "delta", data: "$ " }, { cols: 80, rows: 24 })).toEqual({
-      kind: "delta",
-      data: "$ ",
-    })
+    const kinds: string[] = []
+    const watching = Effect.runFork(
+      Stream.runForEach(mirror.attach(ID, { cols: 80, rows: 24 }), (frame) =>
+        Effect.sync(() => {
+          kinds.push(frame.kind)
+        })),
+    )
+    await Effect.runPromise(Effect.sleep("400 millis"))
+    await Effect.runPromise(Fiber.interrupt(watching))
+    await Effect.runPromise(Fiber.interrupt(fiber))
+
+    // The bytes on both sides of it are delivered; the control frame is not.
+    expect(kinds).toEqual(["snapshot", "delta"])
   })
 })

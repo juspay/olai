@@ -17,7 +17,7 @@
   },
   "//dependencies": "`effect`, and `typescript` for the `./fence` door alone. `cordis` and `@cordisjs/plugin-loader`/`-include` are NOT declared and that is not an omission — they are hydrated from the npins pin (nix/cordis.nix) into the ROOT node_modules the way every `@kolu/*` member is, and a manifest naming one would send bun to a registry that does not have it. `scripts/check-hydrated-deps.sh` is what holds their versions; the fence is what holds the fact that this package is the only one allowed to name them. TYPESCRIPT IS DECLARED BECAUSE THE FENCE IS CONSUMED AS SOURCE: a consumer hydrates this package and runs its claims over its own tree, so the parser is a runtime dependency of that door and not a build-time one. It is the compiler the root already carries — nothing here transpiles anything, it parses `exports`, comments and module-level declarations.",
   "dependencies": {
-    "effect": "4.0.0",
+    "effect": "4.1.4",
     "typescript": "^5.8.0"
   }
 }

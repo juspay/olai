@@ -35,7 +35,7 @@
  * instead of a slow leak.
  */
 
-import { isSnapshotFrame, snapshotGrid } from "@kolu/padi-client/attach"
+import { isResizedFrame, isSnapshotFrame } from "@kolu/padi-client/attach"
 import { type TerminalMetadata, tileTerminalOf } from "@kolu/padi-client/surface"
 import { gridsEqual, type TerminalGrid } from "@kolu/terminal-vocab/schema"
 import type { FleetOwner, FleetTerminal, KoluLink, Snapshot, TerminalFrame } from "./wire/index.ts"
@@ -209,14 +209,6 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
    *  union's own shape. */
   const gridOf = (record: TerminalMetadata): TerminalGrid | undefined =>
     "grid" in record ? record.grid : undefined
-
-  /** The pty grid this mirror currently holds for one terminal, or `undefined`
-   *  where it holds no record for it — the fallback a snapshot that names no
-   *  grid is read against. */
-  const recordGrid = (id: string): TerminalGrid | undefined => {
-    const record = records.get(id)
-    return record === undefined ? undefined : gridOf(record)
-  }
 
   /** Did the pty's grid MOVE? Absent on either side is a padi too old to say,
    *  and that is not a change — a consumer that never sees one behaves exactly
@@ -533,16 +525,26 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       )
       return Stream.switchMap(epochs, (epoch) =>
         Stream.map(
-          face(epoch === 0 && grid !== undefined ? { id, resizeTo: grid } : { id }),
-          // THE RECORD'S GRID IS THE FALLBACK, read at frame time rather than
-          // captured: after a foreign resize the fresh snapshot is the pane's
-          // only chance to learn its new size, and two reachable padis send a
-          // snapshot that names none (a kaval predating 5.5, and an
-          // abort-before-snapshot open). Detecting the move and then handing
-          // the pane nothing to adopt is a correct detector with no recovery
-          // behind it — the pane paints 80-column bytes at 100 columns and
-          // nothing fires again.
-          (frame) => frameOf(frame, recordGrid(id)),
+          // A `resized` CONTROL FRAME STOPS HERE, deliberately and visibly.
+          //
+          // padi 7.5 sends one where the pty's mirror changed size, and its
+          // POSITION in the stream is its content: every byte before it was
+          // laid out for the old grid, every byte after it for the new one. It
+          // has no bytes of its own, and olai's wire has no arm to carry it —
+          // olai learns about a foreign resize from the terminal's RECORD
+          // instead (`watchGrid` above, and the epoch re-attach below), which
+          // is the detector this pane already has and the reason it re-attaches
+          // at all. Teaching the live pane to adopt a size mid-stream is a
+          // change to what a reader sees, and it belongs with the work that
+          // re-seats this pane, not with a pin bump.
+          //
+          // Dropped HERE rather than in `frameOf` so the projection stays total
+          // over what it is given, and a future arm still fails the compiler
+          // rather than arriving as bytes.
+          face(epoch === 0 && grid !== undefined ? { id, resizeTo: grid } : { id }).pipe(
+            Stream.filter((frame): frame is PaintedFrame => !isResizedFrame(frame)),
+          ),
+          (frame) => frameOf(frame),
         )
       ).pipe(
         // A DROPPED LINK IS NOT A PANE'S FAULT AND NOT ITS PROBLEM TO NAME.
@@ -568,6 +570,15 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
 export const UNDIALED: KoluLink = KOLU_UNDIALED
 
 /**
+ * PADI'S FRAMES THAT CARRY A SCREEN OR BYTES — the control frame excluded, by
+ * type rather than by a comment. `resized` has no `data`, so a projection that
+ * claimed to handle it would either invent bytes or fail the compiler; the arm
+ * is dropped at the one seam that reads the stream (`attach` below), and what
+ * reaches this function is what a pane can paint.
+ */
+export type PaintedFrame = Exclude<PadiAttachFrame, { readonly kind: "resized" }>
+
+/**
  * PADI'S FRAME → OLAI'S — the projection, and it is deliberately three fields.
  *
  * THE TWO PREDICATES ARE KOLU'S, imported rather than restated. They were
@@ -582,30 +593,27 @@ export const UNDIALED: KoluLink = KOLU_UNDIALED
  * Now an arm kolu adds is not a snapshot, is not silently a delta, and the
  * compiler has padi's real union to check the claim against.
  *
+ * THE GRID IS THE FRAME'S OWN, because padi made it required (padi 7.5). It
+ * used to be optional, and a pane read the terminal RECORD's grid when the
+ * frame named none — a fallback for two producers that no longer exist (an
+ * older kaval is refused at the handshake, and an attach that describes no
+ * screen now emits no snapshot at all). A snapshot is bytes already laid out
+ * for one cols×rows, so the field is not a hint to compare against: it is the
+ * size to size the renderer to, and every snapshot names it.
+ *
  * padi's snapshot arm also carries a reflow epoch for a scrollback-backfill
  * cursor olai does not keep: this pane is a window on the live screen, not a
  * scrollback reader, and a field nothing draws does not cross (`./fleet.ts`'s
  * law, one member over).
  */
-export const frameOf = (
-  frame: PadiAttachFrame,
-  /** The pty's grid as the terminal's RECORD carries it, where the frame does
-   *  not name one. Kolu's two channels for the same fact are independently
-   *  optional (`attach.ts`'s 5.5 field, `servePadi`'s 5.6 record), so a pane
-   *  that reads only the frame can detect a foreign resize and still have
-   *  nothing to size against. */
-  ptyGrid?: TerminalGrid,
-): TerminalFrame =>
+export const frameOf = (frame: PaintedFrame): TerminalFrame =>
   isSnapshotFrame(frame)
     ? {
-      kind: "snapshot",
-      data: frame.data,
-      topLine: frame.topLine,
-      // ABSENT BECOMES `null` HERE, which is the projection's job: padi says
-      // nothing when it is too old to know, and olai's wire has one spelling
-      // for "no grid" so no reader asks the question twice.
-      grid: snapshotGrid(frame) ?? ptyGrid ?? null,
-    }
+        kind: "snapshot",
+        data: frame.data,
+        topLine: frame.topLine,
+        grid: frame.grid,
+      }
     : { kind: "delta", data: frame.data }
 
 /** A window that cannot open, as ONE frame and then the end.

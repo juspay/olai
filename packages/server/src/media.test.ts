@@ -18,6 +18,7 @@
 
 import { BODY_REFUSED } from "@olai/surface"
 import { expect, test } from "bun:test"
+import { request } from "node:http"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
@@ -63,10 +64,42 @@ const vault = (): string => {
 }
 
 /** A real server over that directory, and its address — the package's own
- *  helper (`./serve.testlib.ts`), which is where "stand a server up and find
- *  out where it bound" is spelled for every test that needs it. */
+ *  helper (`./serve.testlib.ts`), which is where "stand a server up and find out
+ *  where it bound" is spelled for every test that needs it. */
 const withVault = (body: (url: string) => Promise<void>): Promise<void> =>
   withServing({ root: vault() }, (url) => body(url))
+
+/**
+ * ONE REQUEST WHOSE PATH IS THE PATH, unnormalised.
+ *
+ * `fetch` builds a WHATWG URL, and that resolver treats `..` and `%2e%2e` as
+ * climb segments and REMOVES them before the request leaves the process — so a
+ * test that asks for `/media/../../etc/hostname` through it asks the server for
+ * `/etc/hostname` and measures the static engine instead of this route. Node's
+ * own client writes the path out verbatim, which is what a client that does not
+ * normalise (a script, an older browser, a hand-written request) sends, and it
+ * is the request the guard exists to answer.
+ */
+const askRaw = (
+  url: string,
+  at: string,
+): Promise<{ status: number; location: string | undefined }> => {
+  const { promise, resolve, reject } = Promise.withResolvers<{
+    status: number
+    location: string | undefined
+  }>()
+  const base = new URL(url)
+  const asking = request(
+    { host: base.hostname, port: base.port, path: at, method: "GET" },
+    (answer) => {
+      answer.resume()
+      resolve({ status: answer.statusCode ?? 0, location: answer.headers.location })
+    },
+  )
+  asking.on("error", reject)
+  asking.end()
+  return promise
+}
 
 // THE PAGE, as the browser gets it: the seal in front, the file after it, and
 // the policy on the response. Every line here is one of the mechanisms
@@ -148,7 +181,7 @@ test("the vault's other files are not served, however they are asked for", async
         "/media/notes/",
       ]
     ) {
-      const answer = await fetch(`${url}${at}`, { redirect: "manual" })
+      const answer = await askRaw(url, at)
       expect([answer.status, at]).toEqual([404, at])
     }
   })
