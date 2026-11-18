@@ -9,11 +9,13 @@
  * end at the same two panes, and which one a person presses is only which
  * half they were looking at.
  *
- * It opens to the RIGHT and does not touch the pane it was pressed in: the
- * person is reading that outline or that note, and a verb about a
- * conversation may not take the page under it away. `openRight` reuses the
- * pane already there, so pressing it twice does not grow a column
- * (`Router.openRight`).
+ * It opens to the RIGHT and touches NO pane that is already open: not the one
+ * it was pressed in — the person is reading that outline or that note, and a
+ * verb about a conversation may not take the page under it away — and not the
+ * one next to it either, which is a page somebody else put there. The chat is
+ * a new column (`Router.openRight`'s `forceNew`). Pressing twice does not
+ * grow one, because the second press finds the pane that has the chat and
+ * goes there instead of opening anything.
  *
  * ONCE A PANE HAS THE CHAT the same button reads *Shown beside* and focuses
  * that pane — and the face around it draws this line INSTEAD of the
@@ -83,7 +85,10 @@ export const useChatBeside = (item: Accessor<AgentItem>): {
     press: () => {
       const at = drawnIn(router.panes().map((pane) => pane.route()), itemKey(item()))
       if (at !== null) showPane(router, at)
-      else router.openRight(here(), chatRouteOf(item()))
+      // A NEW PANE TO THE RIGHT, never the one already there: the column
+      // beside this one is a page somebody put there, and opening a
+      // conversation is not a gesture that closes anything (`./focus.ts`).
+      else router.openRight(here(), chatRouteOf(item()), true)
     },
   }
 }

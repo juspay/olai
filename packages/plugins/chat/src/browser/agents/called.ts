@@ -24,10 +24,13 @@
  * (`./ChatPage.tsx`).
  *
  * PURE, with both readings handed in, so the rules are a table test rather
- * than something only a running tab can answer.
+ * than something only a running tab can answer — except the one live thing at
+ * the foot of the file, which is a drawn page lending its own reading of the
+ * outline to the label ({@link namesNode}).
  */
 
-import { type AgentItem, noteTitle, type Claims } from "@olai/format"
+import { type AgentItem, nodeChatTitle, noteTitle, type Claims } from "@olai/format"
+import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
 
 import { agentReadings } from "./reading.ts"
 
@@ -45,12 +48,21 @@ import { agentReadings } from "./reading.ts"
 export const nameOfNote = (claims: Claims | undefined, path: string): string =>
   claims === undefined ? path.slice(path.lastIndexOf("/") + 1) : noteTitle(claims, path)
 
-/** The item's name: a note's file name, a node's title. */
+/** The item's name: a note's file name, a node's title — and a node's title
+ *  is its LINK'S LABEL where the row is written as one markdown link
+ *  (`[plan](/notes/plan.md)`), which is `@olai/format`'s `nodeChatTitle`, the
+ *  rule the roster already titles a row with. Applied HERE as well as there,
+ *  because the title handed in is the roster's for a row that has a chat and
+ *  the OUTLINE'S OWN for a row that has none — the row the one-time move
+ *  leaves behind is exactly such a row, and `[plan](/notes/plan.md)` is not a
+ *  name anybody wrote to be read. */
 export const nameOfItem = (
   item: AgentItem,
   claims: Claims | undefined,
   titled: (id: string) => string | null,
-): string => item.kind === "node" ? titled(item.id) ?? item.id : nameOfNote(claims, item.path)
+): string => item.kind === "node"
+  ? nodeChatTitle(titled(item.id) ?? item.id)
+  : nameOfNote(claims, item.path)
 
 /** WHAT THE CHAT PAGE'S COLUMN IS CALLED — the item's name and the word
  *  `chat`. A note and its chat side by side are two panes about one thing,
@@ -65,5 +77,49 @@ export const labelOfChat = (
   titled: (id: string) => string | null,
 ): string => `${nameOfItem(item, claims, titled)} · chat`
 
-/** The live title of a node that has a chat, off this activation's roster. */
-export const titleOfNode = (id: string): string | null => agentReadings()?.agents.at(id)?.title ?? null
+/**
+ * THE LIVE TITLE OF A NODE — the roster's for a row that has a chat, and, for
+ * a row that has none, whatever the chat page drawn about that row learnt
+ * from the outline ({@link namesNode}).
+ *
+ * The second half is what a TAB needs. A label is asked by the pane header,
+ * the phone's strip and the rail — outside any component, with no owner to
+ * declare an outline reading in — so a node with no chat used to be labelled
+ * by its id, and a row written as one link (`[plan](/notes/plan.md)`, what the
+ * one-time move leaves behind) by that raw text wherever the page's own
+ * reading reached. The page HAS an owner and is already asking; this is that
+ * answer, lent to the label for exactly as long as the page is drawn.
+ */
+export const titleOfNode = (id: string): string | null =>
+  agentReadings()?.agents.at(id)?.title ?? drawnTitles().get(id) ?? null
+
+/** Node id → the title a drawn chat page has for it. Rebuilt from {@link held}
+ *  rather than written key by key, so two panes on one node cannot clear each
+ *  other's entry when one of them closes. */
+const [drawnTitles, setDrawnTitles] = createSignal<ReadonlyMap<string, string>>(new Map())
+const held = new Map<object, readonly [string, string]>()
+const republish = (): void => {
+  const next = new Map<string, string>()
+  for (const [id, title] of held.values()) next.set(id, title)
+  setDrawnTitles(next)
+}
+
+/** A page saying what the node it is about is called, for as long as it is
+ *  drawn. The token is this page's own identity, so the entry goes when the
+ *  page does and not when another page about another node is disposed. A page
+ *  about a NOTE, and one whose outline has not answered yet, publish nothing
+ *  — an absent entry is what leaves the label its own fallback. */
+export const namesNode = (id: Accessor<string | null>, title: Accessor<string | null>): void => {
+  const token = {}
+  createEffect(() => {
+    const node = id()
+    const said = node === null ? null : title()
+    if (node === null || said === null) held.delete(token)
+    else held.set(token, [node, said])
+    republish()
+  })
+  onCleanup(() => {
+    held.delete(token)
+    republish()
+  })
+}

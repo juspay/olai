@@ -2186,7 +2186,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         return at === null
           ? Effect.fail(
             new UsageFailure({
-              reason: "no agent has been chosen for this panel yet — pick one to start",
+              reason: "no agent has been chosen for this chat yet — pick one to start",
             }),
           )
           : use(at.agent)
@@ -2378,7 +2378,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // not go is the same however they failed to.
           return undeliverable(key, prompt, {
             gone: "unreachable",
-            why: "no agent has been chosen for this panel yet",
+            why: "no agent has been chosen for this chat yet",
           })
         }
         const agent = at.agent
@@ -3323,7 +3323,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         if (at === null) {
           return Effect.fail(
             new UsageFailure({
-              reason: "no agent has been chosen for this panel yet — pick one to start",
+              reason: "no agent has been chosen for this chat yet — pick one to start",
             }),
           )
         }
@@ -3761,7 +3761,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           const scoping = options.scoping ?? null
           if (scoping === null) {
             return yield* new UsageFailure({
-              reason: "this panel keeps no doorbells: no plugin here rings a conversation",
+              reason: "this chat keeps no doorbells: no plugin here rings a conversation",
             })
           }
           // A SCOPE WRITE DISOWNS WHAT THE OLD SCOPE WAS HOLDING — every scope

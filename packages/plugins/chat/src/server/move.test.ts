@@ -240,8 +240,8 @@ test("a reading that cannot name a note is NOT a vault with nothing to move", ()
   // THE REGRESSION. On a serve's first readings the markdown kind has not been
   // taught yet: `demo.md` is not served, its address names nothing, and every
   // candidate looks like a row titled for nowhere. A one-shot that ran there
-  // would be spent against a vault it had not been shown — which is exactly
-  // how a real directory kept its `[demo](/demo.md)` rows through a boot.
+  // would be spent against a directory it had not been shown, and the
+  // link-titled rows would stay rows for good.
   const early = readingOf(
     setOf({ "lanes.olai": JSON.stringify(CHAT_ROW) }),
     BOOTSTRAP,

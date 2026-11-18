@@ -7,7 +7,7 @@ import { chatWire } from "../wire.ts"
 import { fold } from "./folding.ts"
 import { TESTID } from "../../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
-import { closeCost, closeTip } from "./closing.ts"
+import { closeCost, closeMade, closeTip } from "./closing.ts"
 
 /** The item's close gesture: take the tie off, so the conversation is this
  *  row's or this note's no longer. Nothing is superseded and nothing is
@@ -33,6 +33,9 @@ export function CloseAgent(props: { readonly node: string }) {
         setClosing(false)
         // The binding is gone; closing the fold makes it visible now.
         fold(props.node)
+        // ...and a page drawing this chat forgets the conversation it was
+        // reading, because this press is why it stopped (`./closing.ts`).
+        closeMade(props.node)
       },
     )
   }

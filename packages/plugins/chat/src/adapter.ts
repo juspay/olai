@@ -73,7 +73,7 @@ export const whyNoAgent = (because: OffBecause): string => {
     case "none-installed":
       return `no agent: every engine this serve has was asked and this machine has none of ` +
         `them — nothing was found on ${AGENT_PATH_ENV} (or PATH, where that is unset), and no ` +
-        `adapter was baked in. The outlines are served as usual, and the chat panel says the ` +
+        `adapter was baked in. The outlines are served as usual, and every chat says the ` +
         `same thing with each engine's own words on how to get it.`
   }
 }

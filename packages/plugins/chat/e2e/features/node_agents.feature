@@ -433,7 +433,10 @@ Feature: A node with an `agent-session` property IS an agent
     And the node agent's fold is ready
     Then the agent "door-live" stands "idle"
     When I open the fold history
-    Then the panel offers a fresh session, saying "keeping memory in"
+    # A LEAF ROW HAS NOTHING UNDER IT YET, and the control says that rather
+    # than counting it: "keeping memory in 0 rows" is arithmetic where a
+    # person wants a plain fact.
+    Then the panel offers a fresh session, saying "nothing under it yet"
     When I request a fresh session without confirming
     Then the fresh-session confirmation says "The current chat moves to earlier chats."
     When I cancel the fresh session
@@ -488,7 +491,7 @@ Feature: A node with an `agent-session` property IS an agent
     # wrote is being thrown away, and *try again* is still there beside it for an
     # engine that had merely lost its store for a moment.
     When I open the fold history
-    Then the panel offers a fresh session, saying "keeping memory in"
+    Then the panel offers a fresh session, saying "nothing under it yet"
     # ...and pressing it moves. A fresh conversation is `session/new`, which this
     # agent never refused — it said no to the old one — so the node comes back to
     # a conversation and the refusal is off the screen.
@@ -679,7 +682,7 @@ Feature: A node with an `agent-session` property IS an agent
     And node "lane-fresh" in "lanes.olai" is tied to the stored "claude" conversation "the last conversation"
     When I press the agent "lane-fresh"
     And I open the fold history
-    Then the panel offers a fresh session, saying "keeping memory in"
+    Then the panel offers a fresh session, saying "nothing under it yet"
     And the past sessions hold "an older conversation"
 
   @codex @scratch:chat
@@ -728,7 +731,7 @@ Feature: A node with an `agent-session` property IS an agent
     Then the chat page is about the node "door-live" named "watch the connector" in "lanes.olai"
     And the Chats row "door-live" is current
     When I open the fold history
-    Then the panel offers a fresh session, saying "keeping memory in"
+    Then the panel offers a fresh session, saying "nothing under it yet"
 
   @scratch:lanes
   Scenario: An unbound agent's sidebar press navigates, and says nothing

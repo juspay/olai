@@ -110,6 +110,25 @@ Feature: A chat about a note
     And no chat is filed under the Inbox
     And there should be no page errors
 
+  # A CLOSE THE PERSON MADE IS NOT A TIE SOMEBODY ELSE TOOK AWAY. **Close the
+  # chat** takes the tie off this note, which is what it says it costs — so
+  # the page it was drawn on says what any page for a note with no chat says:
+  # here is a box to start one. Saying the front matter lost the tie would
+  # blame an outside writer for the person's own press, and *Tie it to plan
+  # again* would offer back the one thing the press was told it gives up.
+  Scenario: Closing a note's chat leaves its page offering a start, not a way back
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    Then the chat page is about the note "notes/plan.md" named "plan"
+    And the chat page conversation is ready
+    When I close the chat from the chat page
+    Then the chat page offers to chat about "plan"
+    And the chat page never offers to tie it again
+    And the note "notes/plan.md" has no chat
+    And there should be no page errors
+
   Scenario: The agent is told which note the conversation belongs to
     Given the harness keeps distinct sessions on disk
     And the vault holds "notes/plan.md" saying "# Plan"

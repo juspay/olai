@@ -78,7 +78,7 @@ The first message carries an instruction from olai.[^preamble] On a row, the not
 
 [^remind]: The reminder is one line, carried by every twentieth message a person sends. A document's chat is reminded to read the document again before answering. The number is `remind-every` on the chat row in `_olai/Settings.olai`, where `0` never reminds.
 
-[^tidy]: Tidying is one turn olai starts itself: when the chat has been left alone long enough, and enough rows have moved, the agent is asked to shorten its own rows and file them away. Nothing is tidied until you ask for it, chat by chat.
+[^tidy]: The rows under an agent grow and nothing shortens them. Tidying is one turn olai starts itself: when the chat has been quiet long enough and enough rows have moved, the agent is asked to shorten its own rows and file them away. Nothing is tidied until you ask for it, chat by chat.
 
     Press **On** on the **Sleep** item in the **Tools** strip above the conversation, which writes `chat-agent-sleep: on` onto the row, or use **Sleep when idle** in the menus. What a pass does, what the item can say and the settings behind it are on [the chat plugin's page](plugins/chat.md).
 

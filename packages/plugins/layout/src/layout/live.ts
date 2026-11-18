@@ -37,7 +37,8 @@ export const createLayoutState = () => {
   const [width, setWidth] = createSignal(10_000)
   const [prefs, setPreferences] = createSignal<LayoutPreferences>()
   const [drawer, setDrawer] = createSignal(false)
-  return { desktop, setDesktop, width, setWidth, prefs, setPreferences, drawer, setDrawer }
+  const [strips, setStrips] = createSignal(0)
+  return { desktop, setDesktop, width, setWidth, prefs, setPreferences, drawer, setDrawer, strips, setStrips }
 }
 const held = heldService<ReturnType<typeof createLayoutState>>()
 export const holdLayoutState = held.hold
@@ -45,6 +46,26 @@ const state = held.read
 export const desktop: Accessor<boolean> = () => state()?.desktop() ?? false
 export const publishDesktop = (value: boolean): void => { state()?.setDesktop(value) }
 const viewportWidth = () => state()?.width() ?? 10_000
+
+// ── the phone's tab strip ─────────────────────────────────────────────────
+//
+// WHETHER THE PAGE HAS A STRIP OVER IT, which is a fact about the lane in
+// front and is wanted by something outside every lane: what the document
+// reserves at its top for an in-page jump (`./css.ts`'s `scroll-padding-top`
+// — a `#heading` followed on a phone landed UNDER the strip, which is the
+// chrome the strip's own `sticky` keeps there). A COUNT rather than a flag,
+// because a lane holds this for as long as it draws one and lanes come and go
+// in either order; the last one to let go is what puts it back.
+
+/** Is the phone's strip of tabs over the page? */
+export const phoneTabs: Accessor<boolean> = () => (state()?.strips() ?? 0) > 0
+
+/** A lane saying it is drawing one, for as long as it does. */
+export const holdPhoneTabs = (): (() => void) => {
+  const owner = state()
+  owner?.setStrips((count) => count + 1)
+  return () => { owner?.setStrips((count) => Math.max(0, count - 1)) }
+}
 
 // ── the two circuits, one factory ─────────────────────────────────────────
 //

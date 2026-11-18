@@ -39,9 +39,9 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 [^engine]: `OLAI_AGENT_PATH` lists the directories that hold those programs; unset, olai searches `PATH`. Switching one engine plugin off, or emptying the path to its own program, makes only that engine unavailable. The other engines that are switched on are still found, and conversations carry on.
 
-[^page]: A chat's page is headed by the name of the row or document it is about, with that document's path, or the path of the outline the row is written in, under it. Then comes the agent line, carrying **Open <name> beside ›**, and the conversation with its box pinned at the foot. There are no breadcrumbs. An item with no chat yet draws a box reading **Ask about <name>…** in place of the conversation.
+[^page]: A chat's page is headed by one line that stays in view: the name of the row or document it is about, how the chat stands, and **Open <name> beside ›**. The path and the agent line scroll with the conversation, whose box is pinned at the foot. There are no breadcrumbs. With no chat yet, a box reading **Ask about <name>…** stands in its place.
 
-[^drawnonce]: The agent line's **Open beside ›** opens the conversation in the pane to the right. Where a pane already holds that conversation, every other place draws one line reading **Shown beside**, which takes you to that pane. A link clicked inside a chat pane opens in the pane beside it.
+[^drawnonce]: The **Open beside ›** button opens the conversation in a new pane to the right, taking no pane already open. Where a pane already holds that conversation, every other place draws one line reading **Shown beside**, which takes you to that pane. A link clicked inside a chat pane opens in the pane beside it.
 
 [^faces]: Chat draws in ten places, from inside a row to the phone's bottom bar. The closed block below says what it draws in each.
 
@@ -59,7 +59,7 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 [^notekeys]: A document's chat lives in the `---` block at the top of the file. `chat-agent-session` says which conversation the document is having. `chat-opens` says where that chat opens. olai refuses a write by an agent that changes or drops either of them, so an agent rewriting the file through olai keeps that block as it is.
 
-[^outside]: A program editing the file outside olai is outside that fence. Say the `---` block comes back without the key, after a `git pull` or an agent rewriting its own `README.md` with its own file tools. The open chat page then says `plan no longer names this conversation — the tie has gone from the note's front matter. The conversation itself is untouched.` and offers one press, **Tie it to plan again**, which writes the key back.
+[^outside]: A program editing the file outside olai is outside that fence. A `git pull` can bring the `---` block back without the key. The chat page then says `plan no longer names this conversation`, that the conversation is untouched, and offers one press, **Tie it to plan again**, which writes the key back. That offer stands only while the pane stays open: a reload takes it away, and the way to that conversation with it.
 
 [^opens]: The chat page of a document carries **Opens**, with a switch reading `alone` or `with plan beside`, which writes `chat-opens`. Opening that chat from **Chats** obeys it: `beside` draws the document and the conversation side by side, as one address, so a reload brings both back. A node's chat always opens alone, because a row has nowhere to keep the switch.
 
@@ -95,7 +95,7 @@ Set `on: no` on the `chat` node in `_olai/Settings.olai`, or use its switch in t
 
 Where a pane already holds a conversation, the fold under its row and that row's own page draw one line reading **Shown beside** in place of it.
 
-On a phone the chat page fills the screen, and its head stays pinned under the app's bar for the whole scroll, so the way back to the document is always there. With the document open as a second tab, the strip of tabs is pinned there too. **Open <name> beside ›** reads **Open <name> ›** there, and puts the row or document in the next tab along.
+On a phone the chat page fills the screen. The line with the item's name and its door stays pinned under the app's bar for the whole scroll; the rest of the head scrolls. With the document as a second tab, that strip is pinned too, and each tab keeps its place. **Open <name> beside ›** reads **Open <name> ›** there, and puts the row or document in the next tab along.
 
 An agent that is working or starting shows a dot that pulses, with a ring around it, so a computer set to reduce motion still shows what the agent is doing. On a screen that forces its own colours, these marks are drawn in your colours rather than olai's ([theme](theme.md)). The words beside them say the same thing either way.
 

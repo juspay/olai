@@ -9,7 +9,7 @@ import { fold, unfold } from "./agents/folding.ts"
 import { chatWire } from "./wire.ts"
 
 import { freshStartQuestion } from "./agents/fresh-start.ts"
-import { CLOSE_CHAT } from "./agents/closing.ts"
+import { CLOSE_CHAT, closeMade } from "./agents/closing.ts"
 
 /**
  * ONE ENTRY per gesture, however many engines: a choice of the engines that
@@ -152,6 +152,9 @@ const CLOSE_AGENT: RowVerb = {
     const outcome = await runAsync(chatWire().procedures.conversation.closeAgent({ node }))
     if (Result.isFailure(outcome)) return outcome.failure.message
     fold(node)
+    // ...and a page drawing this chat forgets the conversation it was
+    // reading: this press is why it stopped (`./agents/closing.ts`).
+    closeMade(node)
   },
 }
 

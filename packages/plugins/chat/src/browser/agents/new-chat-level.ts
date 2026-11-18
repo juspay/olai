@@ -169,9 +169,12 @@ export const settled = (typed: Accessor<string>): Accessor<string> => {
  *
  *  A level that asked and was told nothing used to show an empty list, which
  *  reads exactly like *there is nothing here* — the one thing it is not. The
- *  server's own sentence goes on the row, and the press asks again: a person's
- *  gesture rather than a clock, so nothing is retried behind their back and
- *  nothing is retried for a level nobody is looking at.
+ *  server's own sentence goes on the row, and the press asks again: a
+ *  person's gesture rather than a clock. The ONE thing that asks by itself is
+ *  a question that went out on the settle after a reconnect, which goes out
+ *  once more on the next frame of this plugin's roster and then waits too
+ *  (`itemLevel`'s `reconnected` and `spent`). Every other refusal is this row
+ *  until it is pressed, and a level nobody is looking at is gone.
  *
  *  Its id is deliberately NOT under `new-chat-`: the item rows are addressed
  *  by that prefix wherever they are read, and a refusal is not one of them. */
@@ -195,6 +198,16 @@ const itemLevel = (owner: NewChatOwner, agents: Roster) => (scope: LevelScope): 
    *  presses are two questions, and the second must not be swallowed because
    *  the first left the signal where it already was. */
   const [pressed, setPressed] = createSignal(0)
+  /** WHETHER THE QUESTION NOW ON THE WIRE WAS ASKED ON THE EDGE A NEW
+   *  CONNECTION LEFT — the settle after this tab dialled — and whether its one
+   *  automatic re-ask is still to come. Only such a question has one at all
+   *  ({@link REFUSED_ROW} argues the rule); `spent` is true for every other,
+   *  which is "no automatic re-ask". */
+  let reconnected = false
+  let spent = true
+  /** Whether the ask about to go out IS that one automatic re-ask — so it
+   *  cannot hand itself another one. */
+  let retrying = false
   createEffect(() => {
     const keys = recent()
     const query = { filter: filter(), limit: ITEMS_LIMIT, keys: here === null ? keys : [here, ...keys] }
@@ -213,7 +226,26 @@ const itemLevel = (owner: NewChatOwner, agents: Roster) => (scope: LevelScope): 
     // and asks the question again the moment the composition has settled.
     // That is the EVENT the refusal came from, rather than a guess at how
     // long it lasts.
-    if (pluginsChanging()) return
+    if (pluginsChanging()) {
+      reconnected = true
+      return
+    }
+    // ...AND THE LIST FOLLOWS THE VAULT, which is the other half of asking at
+    // the right moment. What `conversation.locations` answers is read off the
+    // directory the serve holds, and that reading is remade — briefly empty —
+    // when the serve recomposes. A question asked into that window is
+    // answered truthfully with nothing, which draws an empty list: no
+    // refusal, nothing to press, and a level that sits there saying *there is
+    // nothing here* about a vault full of rows. This read is TRACKED, so the
+    // directory settling is itself the event that asks again.
+    servedDirectory()?.standing()
+    // THE SETTLE AFTER A RECONNECT IS THE ONE EDGE WORTH A SECOND CHANCE: the
+    // wire is new and the serve behind it may still be composing, which
+    // refuses. That — and only that — arms the one re-ask below; the edge is
+    // consumed here, so the question after it is an ordinary one again.
+    spent = retrying || !reconnected
+    retrying = false
+    reconnected = false
     void runAsync(chatWire().procedures.conversation.locations(query)).then(result => {
       if (!current || scope.signal.aborted) return
       if (result._tag === "Success") setAnswer({ items: result.success.items, refusal: null })
@@ -224,23 +256,28 @@ const itemLevel = (owner: NewChatOwner, agents: Roster) => (scope: LevelScope): 
       else setAnswer(before => ({ items: before.items, refusal: result.failure.message }))
     })
   })
-  // ...AND A FRAME ON THIS PLUGIN'S OWN ROSTER IS PROOF THE WIRE ANSWERS.
+  // ...AND A QUESTION ASKED ON THAT EDGE, IF IT WAS REFUSED, GOES OUT ONCE
+  // MORE — on the next frame of this plugin's own roster, and never again.
   //
-  // The refusal above has two causes and only one of them has an edge of its
-  // own. A call interrupted by the dial is covered by the guard above; a serve
-  // that was still composing BEHIND that wire — `conversation.locations` reads
-  // the directory the chat server holds, and that reading is remade when the
-  // server recomposes — refuses with its own sentence, at a moment nothing in
-  // this tab announces. What does arrive is the roster cell's next frame: the
-  // subscription re-opens over the new wire and the serve answers it, so a
-  // frame IS the serve saying it can answer questions again.
+  // The refusal has two causes and the dial's half is handled above. The
+  // other is a serve still composing BEHIND a wire that is up —
+  // `conversation.locations` reads the directory the chat server holds — and
+  // nothing in this tab announces the moment it is ready. What does arrive is
+  // the roster cell's next frame over that same wire, so a frame is the serve
+  // saying it can answer questions again.
   //
-  // Tracked only while a refusal stands, and `answer` is read untracked: a
-  // question that was answered must not be asked again on every activity tick,
-  // and a refused ask must not re-run the effect that made it.
+  // EVERY OTHER REFUSAL WAITS FOR THE PERSON. Frames also come from ordinary
+  // activity — a turn starting, an answer landing — and a level that asked
+  // again on each of them turned a standing refusal into a question per tick,
+  // which is a timer with another clock. So a frame is worth one question
+  // only where a reconnect is what put the refusal there; everywhere else the
+  // row says what the server said and *Ask again* is the whole of the retry.
   createEffect(() => {
     agents.rows()
-    if (untrack(() => answer().refusal) !== null) setPressed(count => count + 1)
+    if (spent || untrack(() => answer().refusal) === null) return
+    spent = true
+    retrying = true
+    setPressed(count => count + 1)
   })
 
   // The palette keys rows by id and hands each row its item; reusing the item

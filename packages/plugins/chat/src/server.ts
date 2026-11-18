@@ -205,7 +205,7 @@ const MEMO =
  * decision, and the row-menu verb is where it is made.
  */
 const SLEEPING_MARK =
-  "it is whether olai may tidy this chat on its own, which is a person's choice in the panel"
+  "it is whether olai may tidy this chat on its own, which is a person's choice at the chat's own controls"
 
 export default definePlugin({
   environment: [
@@ -637,7 +637,25 @@ export default definePlugin({
           // earlier roster used to paint the sidebar: a revision delivery may
           // still be queued behind a write that has already committed.
           levelWith(committed)
-          return yield* startAgentSession(open, binding, { node, agent })
+          const to = yield* startAgentSession(open, binding, { node, agent })
+          // ...AND LEVEL AGAIN WITH THE TIE THIS START JUST WROTE, before the
+          // caller says anything into the conversation.
+          //
+          // What an agent is told about the item it belongs to is read off the
+          // roster, by the conversation it is having (`../chat.ts`'s
+          // `teaching`, over `./server/agents.ts`'s `agentAt`), and the row
+          // that answers exists only once a reading carrying the tie has been
+          // seen. Both callers here send a first message the moment this
+          // returns — the door's words, a plugin builder's brief — and the
+          // revision carrying the tie arrives on its own clock. Without this
+          // line that is a race whose losing side is silent: the message goes
+          // out with no contract at all, so a note's agent is never told the
+          // note is its memory and nothing anywhere says so.
+          //
+          // The write has committed by now, so the gate's own reading HAS the
+          // tie: this is the fact arriving, not a wait for it.
+          levelWith(yield* gate.read)
+          return to
         }),
         // THE ROSTER OF THE READING THE REFUSAL IS ASKED OVER, by the pure
         // reading (`./seating.ts`'s `rosterIn`) — never by moving the carrier,
@@ -733,6 +751,8 @@ export default definePlugin({
           const made = yield* mintConversation(open, input)
           const say = input.say
           if (made.to === null || say === undefined || say.trim() === "") return made
+          // The roster is level with the tie the start wrote, so these words
+          // carry the contract (`mintConversation`'s `start`).
           const said = yield* Effect.result(open.inConversation(made.to, undefined, panel => panel.send(say, [], [], false, [])))
           return said._tag === "Failure" ? { ...made, refusal: said.failure.message } : made
         })).pipe(Effect.tap(() => published)),
@@ -1025,9 +1045,9 @@ export default definePlugin({
      *   - AT THE BUILD, the snapshot the write gate holds can still be the
      *     directory as it was read before the file rows registered their kinds
      *     — outlines only, with no note in the set. A move judged there finds
-     *     nothing to move onto and a one-shot that ran would be spent, which
-     *     is how a real vault kept its `[demo](/demo.md)` rows through a boot
-     *     that logged nothing.
+     *     nothing to move onto and a one-shot that ran would be spent: after a
+     *     boot that logged nothing, the directory's link-titled chat rows
+     *     would stay rows for good.
      *   - ON EVERY REVISION, a serve with the markdown row switched OFF never
      *     reaches "nothing to do": the reading can never name a note, so the
      *     migration re-read the whole directory on every change for the life

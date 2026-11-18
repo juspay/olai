@@ -51,7 +51,7 @@ export function OpenBeside(props: { readonly item: AgentItem; readonly name: str
     const already = shown()
     if (already !== undefined) { showPane(router, already.index()); return }
     const here = pane?.index ?? router.focusIndex()
-    if (!desktop()) { router.openRight(here, target()); return }
+    if (!desktop()) { router.openRight(here, target(), true); return }
     // ONE PRESS, ONE ENTRY. The two acts — this pane becomes the ITEM, the
     // chat opens to its right — are one gesture, so they are committed as one
     // workspace: pressed as `goIn` and then `openRight` they were two history
@@ -59,7 +59,12 @@ export function OpenBeside(props: { readonly item: AgentItem; readonly name: str
     // conversation still MOVES rather than reopening: the pane holding this
     // route keeps its identity when the new list is matched by address
     // (`olai-plugin-navigation`'s `createPaneState`).
-    router.open(openRight(navigateIn(router.workspace(), here, target()), here, chatRouteOf(props.item)))
+    //
+    // A NEW PANE, NEVER A NEIGHBOUR'S. `forceNew` in both arms: the ordinary
+    // `openRight` reuses the column to the right, and the column to the right
+    // is a page somebody else put there — this press opens a conversation, it
+    // does not close anything (`./focus.ts` spends the same rule).
+    router.open(openRight(navigateIn(router.workspace(), here, target()), here, chatRouteOf(props.item), true))
   }
   return (
     <button

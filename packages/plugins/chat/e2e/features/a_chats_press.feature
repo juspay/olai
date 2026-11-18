@@ -67,6 +67,57 @@ Feature: A press in Chats opens the conversation the way its item says
     And the chat page conversation is ready
     And there should be no page errors
 
+  # ...AND THE PANE TO THE RIGHT IS NOT THE PANE IT TAKES. The chat goes in as
+  # a NEW column between the note and whatever was next to it: a press in a
+  # list of chats opens a conversation, it never closes a page somebody
+  # arranged.
+  Scenario: A Chats press on a beside note overwrites no pane, with two open
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    And I press the opens switch
+    Then the note "notes/plan.md" says it opens "beside"
+    When I open the outline "house.olai"
+    And I alt-click the zoom of "install"
+    Then there are 2 panes
+    # THE PRESS LANDS IN THE FIRST PANE, which is the one with a neighbour to
+    # lose.
+    When I focus pane 0
+    And I press the Chats row "plan-chat"
+    Then there are 3 panes
+    And pane 0 is showing "/notes/plan.md"
+    And pane 1 is showing "/chat/notes/plan.md"
+    And pane 2 is showing "/zoom/#install"
+    And pane 1 is focused
+    And the chat page conversation is ready
+    And there should be no page errors
+
+  Scenario: A Chats press on a beside note overwrites no pane, with three open
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    And I press the opens switch
+    Then the note "notes/plan.md" says it opens "beside"
+    # THREE PANES A READER ARRANGED, and the press lands in the leftmost.
+    When I open the outline "house.olai"
+    And I alt-click the zoom of "install"
+    And I alt-click the zoom of "hinges" in pane 1
+    Then there are 3 panes
+    When I focus pane 0
+    And I press the Chats row "plan-chat"
+    Then there are 4 panes
+    And pane 0 is showing "/notes/plan.md"
+    And pane 1 is showing "/chat/notes/plan.md"
+    # BOTH OF THE READER'S OTHER COLUMNS ARE STILL THERE, in the order they
+    # were in.
+    And pane 2 is showing "/zoom/#install"
+    And pane 3 is showing "/zoom/#hinges"
+    And pane 1 is focused
+    And the chat page conversation is ready
+    And there should be no page errors
+
   Scenario: A node's chat opens alone whatever else is on screen
     Given I open the outline "house.olai"
     When I open the "claude" agent on node "install"
@@ -151,4 +202,65 @@ Feature: A press in Chats opens the conversation the way its item says
     And the chat page is about the note "notes/plan.md" named "plan"
     And the chat page conversation is ready
     And the chat page fills the phone screen
+    And there should be no page errors
+
+  # WHAT IS LEFT FOR THE CONVERSATION, as a number, upright and on its side.
+  # Only the line with the item's name and its door is pinned; the agent line,
+  # the tool row and the switches scroll with the chat. Pinning the whole head
+  # left about 190 of a portrait handset's 844 pixels for the conversation and
+  # covered the box entirely on its side, which is the complaint this
+  # measures.
+  @phone
+  Scenario: On a phone the conversation gets most of the screen, upright and on its side
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    Then the chat page is about the note "notes/plan.md" named "plan"
+    And the chat page conversation is ready
+    When I ask the agent "flood"
+    And the agent is idle
+    And I scroll the page to its end
+    Then the chat page's head stays in view
+    And the conversation gets at least 50% of the screen
+    # ON ITS SIDE the screen is 390 points tall and the rule is the same one,
+    # so the conversation still has a readable band between the pinned line
+    # and the box.
+    When I turn the phone on its side
+    And I scroll the page to its end
+    Then the conversation gets at least 33% of the screen
+    And there should be no page errors
+
+  # EACH TAB KEEPS ITS OWN PLACE. A split on a phone is one page under a strip
+  # of tabs, and the window is what scrolls — so without this the note and the
+  # conversation shared one scroll: going to the chat landed at the top of it,
+  # thousands of pixels above the newest line, and going back and forth
+  # drifted.
+  @phone
+  Scenario: On a phone split each tab keeps its place and the chat opens at its end
+    Given the vault holds a note long enough to scroll "notes/plan.md"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    Then the chat page is about the note "notes/plan.md" named "plan"
+    And the chat page conversation is ready
+    # A CONVERSATION LONGER THAN THE SCREEN, and the note beside it as a tab.
+    When I ask the agent "flood"
+    And the agent is idle
+    And I press Open beside on the chat page
+    Then the pane tabs read "plan · chat | plan"
+    And pane 1 is focused
+    # THE NOTE IS READ PART WAY DOWN and left there.
+    When I scroll this tab down a screen
+    And I remember where this tab stands
+    And I press Alt+Left
+    # THE CHAT OPENS AT ITS END, as it does in a column on a desktop.
+    Then this tab is at the end of what it shows
+    When I press Alt+Right
+    Then this tab stands where it was left
+    # ...AND BACK AGAIN, both ways, with no drift either way.
+    When I press Alt+Left
+    Then this tab is at the end of what it shows
+    When I press Alt+Right
+    Then this tab stands where it was left
     And there should be no page errors

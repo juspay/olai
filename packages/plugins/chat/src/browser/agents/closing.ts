@@ -27,7 +27,9 @@
  * warning. Should the other doors learn to ask, this is the copy the question
  * would be built from.
  */
+import { createStore } from "solid-js/store"
 import { itemOf } from "@olai/format"
+import { heldService } from "@olai/ui-primitives/held.ts"
 
 /** The words on the control, wherever it is drawn. */
 export const CLOSE_CHAT = "Close the chat"
@@ -42,3 +44,39 @@ export const closeCost = (key: string): string =>
 /** The whole sentence a tip and a screen reader get: what it is, then what it
  *  costs. */
 export const closeTip = (key: string): string => `${CLOSE_CHAT}. ${closeCost(key)}`
+
+/**
+ * ...AND THE CLOSES THIS TAB'S OWN READER MADE, counted per item.
+ *
+ * A chat page remembers which conversation it is drawing, so that a note
+ * whose front matter loses the tie under an open page can offer it back
+ * (`./Lost.tsx`). That memory is right for a tie somebody else took away and
+ * WRONG for this press: a person who closes a chat is told their own act was
+ * an outside writer's, and offered a way back the whole of {@link closeCost}
+ * says they no longer have. So the press says so, and the page forgets.
+ *
+ * A COUNTER, not a flag: a chat closed, started again and closed again is two
+ * closes, and the second must still be heard by a page that is reading the
+ * first. Nothing is ever removed — the keys are the items one reader pressed
+ * Close on, which is bounded by that reader's own gestures.
+ *
+ * HELD FOR THE ACTIVATION, the way the fold beside it is (`./folding.ts`):
+ * what a tab pressed is this tab's, it is never written down, and a chat
+ * plugin that goes away takes it with it. A page drawn with nothing held
+ * reads 0 and forgets nothing, which is the honest answer when there is no
+ * chat plugin to have pressed anything.
+ */
+export const createCloses = () => {
+  const [closes, setCloses] = createStore<Record<string, number | undefined>>({})
+  return {
+    at: (key: string): number => closes[key] ?? 0,
+    closed: (key: string) => setCloses(key, (count) => (count ?? 0) + 1),
+  }
+}
+const held = heldService<ReturnType<typeof createCloses>>()
+export const holdCloses = held.hold
+/** How many times this reader has closed that item's chat — a tracked read,
+ *  so a page that is drawing one re-runs when the press lands. */
+export const closedHere = (key: string): number => held.read()?.at(key) ?? 0
+/** Said by the press itself, wherever Close is drawn. */
+export const closeMade = (key: string): void => { held.read()?.closed(key) }

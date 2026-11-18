@@ -31,8 +31,9 @@
  * (`./Agents.tsx`).
  */
 import { itemOf } from "@olai/format"
-import { hrefOfWorkspace, navigateIn, openRight, type AddressTarget, type Workspace, type WorkspaceRouting } from "olai-plugin-navigation/workspace"
+import { focusAt, hrefOfWorkspace, navigateIn, openRight, panesOf, type AddressTarget, type Workspace, type WorkspaceRouting } from "olai-plugin-navigation/workspace"
 import type { Route } from "olai-plugin-navigation/routes"
+import { drawnIn } from "./beside.ts"
 import { talking, type Row } from "./roster.ts"
 import { unfold } from "./folding.ts"
 import { agentReadings } from "./reading.ts"
@@ -58,14 +59,32 @@ export const chatRoute = (row: Row): Route => chatRouteOf(itemOf(row.id))
  * and a reader lost the columns they had arranged to press a row in the
  * sidebar. It is the same two verbs *Open <name> beside* spends
  * (`./OpenBeside.tsx`): the pane a press lands in becomes the ITEM, and the
- * conversation opens to its right, reusing the column already there rather
- * than growing one. Every other pane is left exactly as it was.
+ * conversation opens to its right.
+ *
+ * AND NOTHING IS OVERWRITTEN TO MAKE ROOM. The chat is a NEW pane to the
+ * right of the item — `forceNew`, rather than `openRight`'s ordinary reuse of
+ * the column already there: with `house`, `kept` and `Inbox` open, a press on
+ * a *beside* row gave `plan`, its chat and `Inbox`, and the pane holding
+ * `kept` was simply gone. A press in a list of chats is not a press that
+ * closes anything.
+ *
+ * UNLESS THE CHAT IS ALREADY DRAWN somewhere in this layout, in which case
+ * that pane is the answer and the press only focuses it (`./beside.ts`'s
+ * `drawnIn`, the reading every *Shown beside* spends): a second column on one
+ * conversation is the drawn-twice bug this change exists to refuse.
  */
 export const chatTarget = (row: Row, here: Workspace): AddressTarget => {
   const item = itemOf(row.id)
   const chat = chatRouteOf(item)
   if (!row.beside) return { kind: "page", route: chat }
-  return { kind: "layout", workspace: openRight(navigateIn(here, here.focus, routeOfItem(item)), here.focus, chat) }
+  const withItem = navigateIn(here, here.focus, routeOfItem(item))
+  const already = drawnIn(panesOf(withItem).map((pane) => pane.route), row.id)
+  return {
+    kind: "layout",
+    workspace: already === null
+      ? openRight(withItem, here.focus, chat, true)
+      : focusAt(withItem, already),
+  }
 }
 /** The address of {@link chatTarget}, for a row that is a link. */
 export const chatHref = (routes: WorkspaceRouting, row: Row, here: Workspace): string => {

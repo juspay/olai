@@ -130,7 +130,11 @@ Then("the new chat items are {string}", async function(this: OlaiWorld, names: s
   const wanted = names.trim() === "" ? [] : names.split(",").map(name => itemId(this, name.trim()));
   await this.waitUntil(async () => JSON.stringify(await itemIds(this)) === JSON.stringify(wanted), `the items to be ${wanted.join(",")}`)
     .catch(() => undefined);
-  assert.deepEqual(await itemIds(this), wanted, "the new chat items");
+  // WHAT THE LEVEL ACTUALLY SHOWED, in the message: an empty list and a list
+  // holding only the refusal row look the same through `itemIds`, and they
+  // are two different failures.
+  assert.deepEqual(await itemIds(this), wanted,
+    `the new chat items — the level reads ${JSON.stringify(await this.page.locator(PALETTE).innerText())}`);
 });
 Then("the new chat items include {string}", async function(this: OlaiWorld, name: string) {
   await this.page.locator(`${PALETTE_ITEM}${attr("data-id", itemId(this, name))}`).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });

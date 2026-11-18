@@ -9,7 +9,7 @@
  * switch saying where a note's chat opens, and *Open <name> beside*.
  */
 import assert from "node:assert/strict";
-import { Then, When } from "@olai/tests/harness/runner.ts";
+import { Given, Then, When } from "@olai/tests/harness/runner.ts";
 import { selector } from "@olai/web/testlib";
 import {
   APP_HEADER,
@@ -178,6 +178,32 @@ When("I press tie it again", async function (this: OlaiWorld) {
   await this.press(button);
 });
 
+/** THE PERSON'S OWN CLOSE, pressed where the conversation is drawn whole.
+ *  Scoped to the page rather than to `world.chat(…)` so that it is this
+ *  page's control and not a fold's somewhere behind it. */
+When("I close the chat from the chat page", async function (this: OlaiWorld) {
+  const close = page(this).locator(selector(TESTID.chatCloseAgent));
+  await close.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.press(close);
+});
+
+/** ...AND WHAT THE PAGE MUST NOT SAY AFTERWARDS. A close the person made is
+ *  not a tie an outside writer took away: no untied face, no press offering
+ *  the conversation back, and nothing saying the note stopped naming it. (The
+ *  door it falls back to names the front matter itself, truthfully — that is
+ *  where a chat about a note is kept — so the words held here are the untied
+ *  face's own.) */
+Then("the chat page never offers to tie it again", async function (this: OlaiWorld) {
+  const here = page(this);
+  await here.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(async () => await here.locator(CHAT_RETIE).count() === 0,
+    "the chat page to offer no way back", HYDRATION_TIMEOUT);
+  assert.equal(await here.locator(CHAT_PAGE_UNTIED).count(), 0, "the chat page drew the untied face");
+  const words = await here.innerText();
+  assert.ok(!words.includes("no longer names this conversation") && !words.includes("the tie has gone"),
+    `the chat page said an outside writer took the tie: ${JSON.stringify(words)}`);
+});
+
 When("I ask from the chat page {string}", async function (this: OlaiWorld, text: string) {
   const door = page(this).locator(`${CHAT_ABOUT}${attr("data-where", "page")}`);
   await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
@@ -329,4 +355,71 @@ Then("the chat page's head stays in view", async function (this: OlaiWorld) {
   const box = await head.boundingBox();
   assert.ok(above && box && Math.abs(box.y - above.y - above.height) <= 1,
     `the chat page's head scrolled away: ${JSON.stringify({ above, box, scrolled })}`);
+});
+
+// ── how much of the screen the conversation gets ───────────────────────
+
+/**
+ * THE SHARE OF THE SCREEN LEFT FOR THE CONVERSATION, measured between the
+ * chrome pinned over the page and the composer pinned under it.
+ *
+ * This is the complaint, as a number. With the whole head pinned, a portrait
+ * handset spent 450 of its 844 pixels on chrome and a landscape one 310 of
+ * 390 — the conversation was a slot, and on its side there was none at all.
+ * What a scenario asserts is therefore not "the head is small" but what is
+ * LEFT: the band from the lowest thing pinned at the top (the bar, the strip
+ * of tabs where there is one, and the page's own pinned line) down to the top
+ * of the box somebody types in.
+ *
+ * READ AFTER A SCROLL, by the scenario's own doing: a pinned band is only
+ * pinned once the page has moved under it, and these numbers at the top of an
+ * unscrolled page would be about nothing.
+ */
+Then("the conversation gets at least {int}% of the screen", async function (this: OlaiWorld, share: number) {
+  const here = page(this);
+  await here.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await here.locator(CHAT_SEND).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const { width, height } = this.viewport();
+  const bottomOf = async (locator: Locator): Promise<number | null> => {
+    if (await locator.count() === 0) return null;
+    const box = await locator.first().boundingBox();
+    return box === null ? null : box.y + box.height;
+  };
+  const chrome = Math.max(...[
+    await bottomOf(this.page.locator(APP_HEADER)),
+    await bottomOf(this.frontLane().locator(PANE_TABS)),
+    await bottomOf(here.locator(CHAT_PAGE_HEAD)),
+  ].filter((edge): edge is number => edge !== null));
+  const composer = await here.locator(CHAT_SEND).first().boundingBox();
+  assert.ok(composer !== null, "the chat page draws no composer to measure against");
+  const room = Math.min(composer.y, height) - Math.max(chrome, 0);
+  const got = Math.round((room / height) * 100);
+  const said = JSON.stringify({ chrome: Math.round(chrome), composer: Math.round(composer.y), room: Math.round(room), screen: [width, height] });
+  assert.ok(got >= share,
+    `the conversation gets ${got}% of a ${width}×${height} screen, under the ${share}% this asks for: ${said}`);
+});
+
+/**
+ * THE SAME HANDSET, TURNED — 844×390, which is 390×844's other orientation
+ * and the width at which this app stops being a phone (`md` is 48rem). One
+ * rule at every width is what the head is written to, so a scenario measures
+ * the same thing on both and this is how it gets there.
+ */
+When("I turn the phone on its side", async function (this: OlaiWorld) {
+  const { width, height } = this.viewport();
+  await this.page.setViewportSize({ width: height, height: width });
+  await this.waitForFrame();
+});
+
+// ── a row whose title is a link, with no chat on it ────────────────────
+
+/**
+ * THE ROW THE ONE-TIME MOVE LEAVES BEHIND, in a corpus of its own: a row
+ * titled as one markdown link and no longer carrying a chat. Written as its
+ * own outline so the scenario names the file it is in, and with the id it is
+ * asked for so the scenario can open `/chat/<id>` by hand — which is how a
+ * person reaches the chat page of a row that is on no list of chats.
+ */
+Given("the vault holds the row {string} titled {string} with no chat", function (this: OlaiWorld, id: string, title: string) {
+  this.writeServed(`${id}.olai`, `${JSON.stringify({ id, ord: "a0", title })}\n`);
 });

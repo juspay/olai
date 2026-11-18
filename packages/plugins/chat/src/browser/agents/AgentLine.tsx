@@ -17,9 +17,6 @@ import { TESTID } from "../../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { LINE_VERB } from "./verb.ts"
 import { type AgentItem, itemOf } from "@olai/format"
-import { nameOfItem, titleOfNode } from "./called.ts"
-import { servedDirectory } from "../vault.ts"
-import { OpenBeside } from "./OpenBeside.tsx"
 import { ChatBeside } from "./ChatBeside.tsx"
 
 export function AgentLine(props: { readonly chat: Chat; readonly node: string; readonly page?: boolean; readonly beside?: AgentItem }) {
@@ -56,8 +53,10 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
     <AgentAbove node={props.node} />
     {/* THIS CONVERSATION, BESIDE WHAT IT IS ABOUT — offered on every line
         drawn where the item itself is (a fold, a node's page, the line at the
-        top of a note), and never on the chat's own page, whose line carries the
-        opposite verb below (`./ChatBeside.tsx`).
+        top of a note), and never on the chat's own page, whose head carries
+        the opposite verb (`./ChatPage.tsx`'s pinned line, which is where the
+        way back has to be: this line scrolls away with the conversation).
+        `beside` is how that page says the line is its own.
 
         DRAWN ONLY WHERE THERE CAN BE A PANE BESIDE THIS ONE. Below `md` the
         panes are a strip of tabs, one at a time, so "beside" names nothing a
@@ -70,10 +69,6 @@ export function AgentLine(props: { readonly chat: Chat; readonly node: string; r
     <Show when={props.beside === undefined}>
       <ChatBeside item={itemOf(props.node)} class={`hidden md:inline-flex ${LINE_VERB}`} />
     </Show>
-    {/* THE ITEM, BESIDE THIS CONVERSATION — only on the chat's own page,
-        which is the only line drawn in a pane the chat itself owns
-        (`./OpenBeside.tsx`). */}
-    <Show when={props.beside}>{item => <OpenBeside item={item()} name={nameOfItem(item(), servedDirectory()?.claims(), titleOfNode)} />}</Show>
     <Show when={!props.page}><Link route={atNode(props.node)} class={LINE_VERB}>Show in outline ›</Link></Show>
     <Show when={agents.at(props.node)}>
       {agent => <>

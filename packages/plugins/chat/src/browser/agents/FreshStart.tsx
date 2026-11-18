@@ -90,10 +90,14 @@ export function FreshStart(props: {
   /** WHAT SURVIVES A FRESH START, named by whatever keeps it. A node's memory
    *  is the rows under it and is counted; a NOTE'S memory is the note itself,
    *  which the old sentence counted as "0 rows" — wrong, and the opposite of
-   *  the reassurance this sentence exists to give. */
+   *  the reassurance this sentence exists to give. A node with nothing under
+   *  it yet is counted no better: "keeping memory in 0 rows" is arithmetic
+   *  where a person wants a plain fact, so it says the plain fact. */
   const keeping = (): string => props.agent.kind === "note"
     ? `keeping the note ${agents.named(props.agent).name} as its memory`
-    : `keeping memory in ${memoryOf(props.agent)}`
+    : props.agent.memory === 0
+      ? "and there is nothing under it yet to keep"
+      : `keeping memory in ${memoryOf(props.agent)}`
 
   return <span class="relative">
     {/* WHERE THE MEMORY GOES. "Fresh start" does not say that the memory

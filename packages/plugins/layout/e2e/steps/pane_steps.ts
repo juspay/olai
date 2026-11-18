@@ -384,3 +384,87 @@ When("I widen the first pane by dragging its divider", async function (this: Ola
   await this.waitUntil(async () => new URL(this.page.url()).searchParams.get("w") !== before,
     "the resize to change the workspace widths");
 });
+
+// ── each tab's own place in the page ───────────────────────────────────
+//
+// A split below `md` is a strip of tabs over ONE page, and the thing that
+// scrolls there is the document — so "where this tab stands" is the window's
+// own scroll, read at the moment a scenario asks and compared after a tab has
+// been away and come back. The failure these are written against is a tab
+// that inherits wherever the tab before it left the window.
+
+/** What a scenario remembered about the tab it was reading. One per world,
+ *  and a world is one scenario, so nothing here outlives the run. */
+const stood = new WeakMap<OlaiWorld, number>();
+
+/**
+ * Down a screen, and no further: part way through a long page is the only
+ * place a drifting restore shows. Fails when the page had nowhere to go,
+ * which is a scenario asserting nothing.
+ *
+ * AND IT WAITS FOR THE PAGE TO SETTLE THERE. A document whose blocks are
+ * still being drawn moves under a scroll that lands in the middle of it, so
+ * what the next step remembers has to be where the page CAME TO REST rather
+ * than the number this step asked for — otherwise the scenario is about this
+ * step's own race and not about tabs at all.
+ */
+When("I scroll this tab down a screen", async function (this: OlaiWorld) {
+  const room = await this.page.evaluate(() => {
+    window.scrollTo({ top: window.innerHeight, behavior: "instant" });
+    return document.documentElement.scrollHeight - window.innerHeight;
+  });
+  assert.ok(room > 1, `this tab has nothing to scroll: ${room}px of room under the viewport`);
+  let was = "";
+  let still = 0;
+  await this.waitUntil(async () => {
+    const now = await this.page.evaluate(() => `${window.scrollY}/${document.documentElement.scrollHeight}`);
+    still = now === was ? still + 1 : 0;
+    was = now;
+    // THREE READINGS THE SAME, position and height both: a document drawing
+    // its blocks is still the same height for one reading at a time, and a
+    // page that settles and then moves again is the thing this is waiting
+    // out.
+    return still >= 3 && !now.startsWith("0/");
+  }, "this tab to come to rest part way down its page");
+});
+
+/** Where the page stands now, as the place this tab must come back to. */
+When("I remember where this tab stands", async function (this: OlaiWorld) {
+  stood.set(this, await this.page.evaluate(() => window.scrollY));
+});
+
+When("I press Alt+Left", async function (this: OlaiWorld) {
+  await pressed(this, "Alt+ArrowLeft");
+});
+
+/** BACK WHERE IT WAS, read once rather than waited for: putting a tab back is
+ *  part of the same update that draws it, so a place that is not there by the
+ *  frame after the switch is the bug — and the number it came back at is the
+ *  whole of what a failure has to say. */
+Then("this tab stands where it was left", async function (this: OlaiWorld) {
+  const was = stood.get(this);
+  assert.ok(was !== undefined, "no scenario remembered where this tab stood");
+  assert.ok(was > 0, "the tab was remembered at the top, where every tab starts");
+  await this.waitForFrame();
+  const now = await this.page.evaluate(() => ({
+    at: window.scrollY,
+    room: document.documentElement.scrollHeight - window.innerHeight,
+  }));
+  assert.ok(Math.abs(now.at - was) <= 2,
+    `this tab was left at ${was}px and came back at ${now.at}px (${now.room}px of room): each tab keeps its own place`);
+});
+
+/** THE NEWEST LINE, on a phone — the document is the chat's scrollport there,
+ *  so a conversation opened at its end is a window scrolled to the bottom. */
+Then("this tab is at the end of what it shows", async function (this: OlaiWorld) {
+  const seen = { at: 0, room: 0 };
+  await this.waitUntil(async () => {
+    Object.assign(seen, await this.page.evaluate(() => ({
+      at: window.scrollY,
+      room: document.documentElement.scrollHeight - window.innerHeight,
+    })));
+    return seen.room > 1 && seen.at >= seen.room - 48;
+  }, "this tab to stand at the end of what it shows").catch(() => {
+    assert.fail(`this tab stands at ${seen.at}px of ${seen.room}px: a chat opens at its newest line`);
+  });
+});

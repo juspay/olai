@@ -1,6 +1,6 @@
 import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
-import { type AgentItem, itemOf, memoryOf, UsageFailure } from "@olai/format"
+import { type AgentItem, itemOf, memoryOf, nodeChatTitle, UsageFailure } from "@olai/format"
 import { Result } from "effect"
 import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, onCleanup, Show } from "solid-js"
 import { usePane } from "olai-plugin-navigation/pane"
@@ -138,9 +138,11 @@ export function usePage(node: Accessor<string>) {
  * what the pane's scroll cannot carry away (`../chat/Strips.tsx`).
  *
  * `beside` is the ITEM this conversation's own page is about — handed in by
- * that page (`./ChatPage.tsx`) and by nothing else, because *Open <name>
- * beside* is a verb about the pane this line is in: on a NODE's page the
- * item is already the page, so the button would put a thing beside itself. */
+ * that page (`./ChatPage.tsx`) and by nothing else. It is not a verb any
+ * more, it is WHOSE LINE THIS IS: a line on the chat's own page draws no
+ * *Open beside* of its own (the page's pinned line carries the way back, and
+ * this line scrolls), where every other line offers the conversation beside
+ * the item it is drawn under. */
 export function PageHead(props: { readonly node: string; readonly beside?: AgentItem }) {
   const beside = useBeside(() => props.node)
   // THE ONE LINE INSTEAD OF THE CONVERSATION, and the page session with it:
@@ -192,7 +194,12 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
   const metadata = () => {
     const page = pane === undefined ? undefined : pageReadings()?.at(pane.id)?.shows
     return page?.kind === "node" && page.zoomed.kind === "node" && page.zoomed.shows.node.id === props.node
-      ? { title: page.zoomed.shows.node.title, memory: page.zoomed.under } : null
+      // THE ROW'S TITLE, BY THE CHAT'S OWN NAMING RULE: a row written as one
+      // markdown link is called by its label wherever a chat is named, and
+      // `Ask about [plan](/notes/plan.md)…` is the raw text of a title
+      // nobody wrote to be read aloud (`@olai/format`'s `nodeChatTitle`, the
+      // rule the roster titles a row with).
+      ? { title: nodeChatTitle(page.zoomed.shows.node.title), memory: page.zoomed.under } : null
   }
   return <Show when={metadata()}>{node =>
     <AskBox name={node().title} draft={props.page.draft} setDraft={props.page.setDraft}

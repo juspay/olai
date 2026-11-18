@@ -175,3 +175,21 @@ Feature: A chat is a page of its own
     Then pane 0 is showing "/chat/install"
     And the chat page is about the node "install" named "install the cabinets" in "house.olai"
     And there should be no page errors
+
+  # A ROW WITH NO CHAT IS NAMED BY THE SAME RULE as a row with one: a title
+  # written as one markdown link is called by its LABEL. The row the one-time
+  # move leaves behind is exactly such a row — `[plan](/notes/plan.md)`, with
+  # its chat now on the note — and its own page, its column and the box that
+  # would start a chat on it all used to read that raw text back.
+  Scenario: A row titled as a link with no chat is called by its label
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And the vault holds the row "link-row" titled "[plan](/notes/plan.md)" with no chat
+    When I open the address "/chat/link-row"
+    Then the chat page is about the node "link-row" named "plan" in "link-row.olai"
+    # THE BOX THAT WOULD START ONE says the same word.
+    And the chat page offers to chat about "plan"
+    # ...AND SO DOES THE COLUMN, which is read outside the page altogether.
+    When I press Open beside on the chat page
+    Then there are 2 panes
+    And pane 1's header reads "plan · chat", and its close button is called "Close plan · chat"
+    And there should be no page errors

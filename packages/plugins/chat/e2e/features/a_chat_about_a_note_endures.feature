@@ -8,12 +8,19 @@ Feature: A note's chat travels with the file, and every page is whole without ch
   And when chat is switched off every page is whole: no line, no door, nothing
   left behind. Switched on again, both come back to the note that had them.
 
-  Scenario: Renaming a note on disk keeps its chat
+  Scenario: Renaming a note while its agent is answering keeps the chat
     Given the vault holds "notes/plan.md" saying "# Plan"
     And I open the document "notes/plan.md"
     When I ask about this page "before it moved"
     Then the note "notes/plan.md" carries a chat as "plan-chat"
     And the agent has answered "before it moved" exactly once
+    # THE FILE MOVES WHILE A TURN IS IN FLIGHT, which is the case worth
+    # testing: a rename against a chat that was sitting idle proves nothing
+    # about the hard one. The agent holds this turn, and the standing says so
+    # — read off the roster, where every face reads it.
+    When I ask the agent "hold"
+    Then the agent is working
+    And the agent "plan-chat" stands "working"
     When I open the outline "house.olai"
     And the file "notes/plan.md" is renamed to "notes/blueprint.md"
     # THE TIE TRAVELS WITH THE FILE: it was written in the front matter, so the
@@ -21,10 +28,16 @@ Feature: A note's chat travels with the file, and every page is whole without ch
     Then the note "notes/blueprint.md" carries a chat as "blueprint-chat"
     And the Chats row "blueprint-chat" reads "blueprint" with a file mark
     And there is no Chats row for the note "notes/plan.md"
+    # THE SEAT DOES NOT TRAVEL WITH IT, and that is the other half of the same
+    # rule: a note's agent is taught the path it was started on and the note
+    # itself is its memory, so a file that moved frees the seat rather than
+    # leaving a process answering about a name nothing holds. The chat is the
+    # new note's, asleep, and nothing of it was thrown away.
+    And the agent "blueprint-chat" stands "asleep"
     # PRESSING THE ROW OPENS THE CHAT, which is what a press on a Chats row
     # has always done (`./focus.ts`): the conversation's own page comes
-    # forward, named by the note under its new name, and can be talked to
-    # where it is drawn.
+    # forward, named by the note under its new name, carries on where it left
+    # off, and can be talked to where it is drawn.
     When I press the Chats row "blueprint-chat"
     Then the chat page is about the note "notes/blueprint.md" named "blueprint"
     And the chat page conversation is ready

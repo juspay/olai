@@ -162,9 +162,9 @@ export interface Mover extends Pick<Binding, "text" | "doc" | "remove" | "key" |
  * note looks exactly like a chat row titled for nothing: `movesIn` answers the
  * empty list, truthfully, about a vault it is not yet being shown.
  *
- * A ONE-SHOT THAT RAN THERE WOULD BE SPENT, which is how a real vault kept its
- * `[demo](/demo.md)` rows through a boot that logged nothing. So the applier
- * asks this first and says *not yet* rather than *nothing to do*.
+ * A ONE-SHOT THAT RAN THERE WOULD BE SPENT, and the link-titled chat rows it
+ * exists to move would stay rows for good, after a boot that logged nothing.
+ * So the applier asks this first and says *not yet* rather than *nothing to do*.
  *
  * IT IS THE SECOND HALF OF A GUARD, not the whole of one. *Not yet* is only
  * an answer worth giving while a note's kind is still ON ITS WAY, and this
