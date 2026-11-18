@@ -2264,8 +2264,28 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // agent picks, and what somebody chooses after that is written down
         // when they choose it ({@link Panel.setModel}).
         const pinned = opens.kind === "resume" ? yield* remembers(row.id, opens.id) : null
+        /**
+         * THE BRING-UP CAN BE GIVEN UP ON, which is a thing only the
+         * conversation can do and so a thing it is told
+         * (`@kolu/acp-harness`'s `HarnessOptions.abandonWhen`).
+         *
+         * Spawning the adapter, shaking hands and opening are one promise, and
+         * a promise does not notice an interrupt: this panel opens a
+         * conversation INSIDE the reading that asked for it (`./scoped.ts`),
+         * and a reader that goes away a beat later — a tab re-subscribing, a
+         * page that was taken down — interrupts the fiber waiting here while
+         * the open carries on. What that costs is not a wasted handshake: an
+         * open LAUNCHES every MCP server the session was composed with and
+         * spends the agent's own record of the conversation, for nobody.
+         *
+         * So the fiber's own signal goes over with it. The conversation stops
+         * its process the moment the signal aborts and opens nothing, under
+         * the same word the scope that went away is released with — a reader
+         * leaving is its scope being released, and the log line a person finds
+         * should say so.
+         */
         const made = yield* Effect.tryPromise({
-          try: () =>
+          try: (signal) =>
             startHarness<ChatEntry>({
               leg: row.leg,
               adapter: row.adapter,
@@ -2305,6 +2325,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
               numbering: "restarts",
               whenLoadRefused: "report",
               whenReplayed: "keep",
+              // ... AND WHEN THIS END STOPS WANTING IT ({@link abandonWhen}).
+              abandonWhen: { signal, reason: "scope released" },
               onChange,
             }),
           catch: (cause) => cause as HarnessRefused | HarnessUnavailable,
@@ -3441,13 +3463,48 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           // The pictures went with it. They exist so that a prompt in THIS
           // conversation can name them, and no prompt in the next one will.
           yield* files.discard
+          /**
+           * WHAT THIS OPEN IS BEING TRIED INSTEAD OF, where it is being tried
+           * instead of anything: the face a refusal left up, and the status it
+           * left behind it. Read BEFORE the panel says `booting`, because that
+           * is the first thing this verb makes untrue.
+           */
+          const resting = state.unopened === null ? null : state.status
           move({ status: "booting" })
           // HELD ACROSS THE WHOLE OPEN, not around it: what a send has to wait
           // for is the replay, which is the last thing to happen and the thing
           // that fills the panel ({@link opening}).
           replaying = true
           const before = new Set(rows.keys())
-          const outcome = yield* opening.withPermit(Effect.result(what))
+          const outcome = yield* opening.withPermit(Effect.result(what)).pipe(
+            /**
+             * AN OPEN NOBODY WAITED FOR LEAVES THE PANEL AS IT FOUND IT.
+             *
+             * The attempt is TAKEN before it is run — `reopen` empties the
+             * slot, and every other open calls {@link opened} on its way in —
+             * so a refusal arms it again ({@link refusedOpen}) and a landing
+             * drops it for good. An open that is given up on does neither:
+             * the reader that asked for it went away (`./scoped.ts` opens one
+             * inside the reading), and what is left is the one pair this file
+             * says must not be constructible — a face offering a retry with
+             * nothing behind it, whose button can only ever answer *no
+             * conversation is waiting to be opened*.
+             *
+             * So the attempt goes back where it was, with the status that was
+             * drawn over it. Only where the refusal is still the panel's face:
+             * an open that landed has already cleared it ({@link projecting}),
+             * and a fresh conversation that was abandoned was never a retry of
+             * anything — arming one there would be the same lie read the other
+             * way round.
+             */
+            Effect.onInterrupt(() =>
+              Effect.sync(() => {
+                if (resting === null || unopened !== null || state.unopened === null) return
+                unopened = { again: what, ...(completed === undefined ? {} : { completed }) }
+                move({ status: resting })
+              })
+            ),
+          )
           if (outcome._tag === "Failure") {
             unopenedRows(before)
             // THE AGENT SAID NO, as against there being no agent to say it —
