@@ -7,8 +7,9 @@
   "dependencies": {
     "@agentclientprotocol/claude-agent-acp": "0.81.2"
   },
-  "//overrides": "GHSA-6qxp-vccf-f47h: @anthropic-ai/claude-agent-sdk (peer of @agentclientprotocol/claude-agent-acp) declares @modelcontextprotocol/sdk ^1.29.0, which resolves to a version before 1.31.0. This override forces the patched line rather than adding a phantom direct dependency.",
+  "//overrides": "Two advisories whose parent declaration cannot reach the patched release. @modelcontextprotocol/sdk (GHSA-6qxp-vccf-f47h): @anthropic-ai/claude-agent-sdk, a peer of @agentclientprotocol/claude-agent-acp, declares ^1.29.0, which resolves below 1.31.0. zod (GHSA-mrhx-c7xc-m3w5): @agentclientprotocol/claude-agent-acp pins 4.6.5 exactly, and the first patched release is 4.6.6. Both overrides stay inside the major the parent already chose rather than adding a phantom dependency or moving the adapter pin.",
   "overrides": {
-    "@modelcontextprotocol/sdk": "^1.32.1"
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^4.6.6"
   }
 }
