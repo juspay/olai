@@ -1638,10 +1638,22 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * `asking` is not a status of olai's, because a question is true AT THE
      * SAME TIME as the turn that is blocked on it ({@link ChatState.asking}
      * counts those separately).
+     *
+     * A CONVERSATION THE AGENT REFUSED IS NOT A DEAD AGENT, which is the one
+     * place this reading parts company with the conversation's own: the
+     * harness calls a refused open `offline` because it has no session to be
+     * in, and the subprocess it kept is precisely the one a sign-in has to run
+     * against (`@kolu/acp-harness`'s `refusedOpen`). Drawn as `gone`, the
+     * panel would take itself down between the refusal and the signature —
+     * taking the sign-in row, the retry and the fold with it, on every state
+     * frame the attempt publishes. The agent ANSWERED, so it is there, and the
+     * refusal has a face of its own ({@link ChatState.unopened}).
      */
     const facing = (now: HarnessState): ChatState["status"] =>
       now.phase === "offline"
-        ? "gone"
+        ? now.refusal !== null && talking?.harness.alive() === true
+          ? "idle"
+          : "gone"
         : now.phase === "starting"
         ? "booting"
         : now.phase === "idle"
@@ -1668,11 +1680,25 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *
      * A method's LABEL is looked up in that same advertisement, because the
      * attempt names the method by its id and a person reads a name.
+     *
+     * AND A CHOOSER SOMEBODY CLOSED STAYS CLOSED, which is this panel's own
+     * answer and not the conversation's: the conversation keeps the agent's
+     * offer standing after a cancel, on the reading that the refusal behind it
+     * still stands (`@kolu/acp-harness`'s `signInCancel`) — and it does, which
+     * is why the REFUSAL is still on screen. But *get this off my screen* is
+     * half of what a person means by pressing cancel, so the row is this
+     * panel's to take down ({@link signInCancel}) and this is what keeps the
+     * next state frame from putting it straight back. Only the chooser: an
+     * ATTEMPT is something new happening, and a refused open or a person
+     * asking again brings the offer back at the door each of them goes
+     * through.
      */
+    let dismissed = false
+
     const signingIn = (now: HarnessState): ChatState["signIn"] => {
       const attempt = now.signIn?.attempt ?? null
       if (now.signIn === null) return null
-      if (attempt === null) return { kind: "choosing" }
+      if (attempt === null) return dismissed ? null : { kind: "choosing" }
       const label = said.methods.find((one) => one.id === attempt.method)?.name ?? attempt.method
       // A LINK IS THE AGENT'S OWN FLOW — it opened a page and is waiting on it
       // — and anything else is a command this end ran, whose output IS the
@@ -1730,6 +1756,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       // boot that adopts one all answer it the same way.
       const entered = to !== null && to.session !== reported
       reported = to === null ? null : to.session
+      // ... and a conversation entered is a chooser nobody has closed: the row
+      // a person dismissed was about the conversation that would not open.
+      if (entered) dismissed = false
       move({
         ...(entered ? { unopened: null, trouble: null } : {}),
         // `off` is the one face this does not touch: a serve whose last engine
@@ -1758,6 +1787,16 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         identity: now.identity,
         asking: now.openAsks.length,
         signIn: signingIn(now),
+        // ... AND A TURN THAT IS RUNNING IS WHERE A STOPPED ONE STOPS BEING
+        // NEWS. `cancelled` is the verdict on the turn that just ENDED and is
+        // read a turn at a time by the pass that writes a node agent's memo
+        // (`server/sleep.ts`), so a verdict left standing makes every later
+        // pass over that node a cancelled one — the loop warns, retries, and
+        // warns again, for ever, over a node nobody stopped twice. A turn in
+        // flight is the next turn's `begin` as the conversation reports it
+        // ({@link ChatState.cancelled}), which is the moment the last one's
+        // ending stopped being the thing this panel is saying.
+        ...(now.busySince === null ? {} : { cancelled: false }),
       })
     }
 
@@ -1908,12 +1947,23 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      *     reason: it is taken while the row has no name and never again, so the
      *     friendly title that arrives with the ownership a frame later cannot
      *     be overwritten by the raw label repeating itself.
+     *   - WHAT IS WORTH FOLDING UNDER IT, which for a call of olai's own is
+     *     what was ASKED and never the answer again: the reply is drawn by the
+     *     owning plugin's own face, and a fold repeating it underneath says the
+     *     same thing twice. The conversation's default fold is the call's input
+     *     AND its output together (`@kolu/acp-client`'s `detailOf`, which can
+     *     only leave the output out for a call it was TOLD olai owns — and the
+     *     harness builds its agent without that advertisement, since olai's
+     *     ownership is read here instead). So the fold is written here, on
+     *     every frame of the call, because the harness's own `detail` is
+     *     applied before this reading and would otherwise bring the answer back
+     *     with the frame that settles the call.
      *
      * A call nothing recognised answers nothing at all, which is what lets a
      * background task's own report stay a report rather than minting a card for
      * a call nobody made.
      */
-    const readCall: HarnessOptions<ChatEntry>["readCall"] = (frame) => {
+    const readCall: HarnessOptions<ChatEntry>["readCall"] = (frame, held) => {
       if (frame.terminals !== undefined) return { extra: { terminals: frame.terminals } }
       const owned = frame.mcp.map((one) => options.advertised?.(one.server, one.tool) ?? null)
       const ours = owned.length > 0 && owned.every((one) => one !== null)
@@ -1925,6 +1975,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       const reply = ours === null || frame.mcp.length !== 1 ? undefined : frame.answer as Json
       const named = frame.called === undefined ? {} : { untilNamed: { called: frame.called } }
       if (ours === null) return frame.called === undefined ? undefined : named
+      // THE INPUT ALONE, as the agent wrote it — or what this call was last
+      // read as, for the frame that carries only the answer: the arming frame
+      // is where the arguments are, so a reading taken off the frame in front
+      // of us alone would empty the fold at the moment the call settles.
+      const asked = frame.input === undefined || frame.input === null
+        ? held?.detail
+        : JSON.stringify(frame.input, null, 2)
       return {
         extra: {
           // THE NAME OLAI GIVES IT, which arrives with the ownership and
@@ -1933,6 +1990,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           text: ours.title,
           ...(ours.owner === undefined ? {} : { row: ours.owner }),
           ...(reply === undefined ? {} : { reply }),
+          ...(asked === undefined ? {} : { detail: asked }),
         },
         ...named,
       }
@@ -2057,6 +2115,20 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         servers: [],
         usage: null,
         wake: wakeOf(null),
+        // ... AND THE SIGN-IN ROW GOES WITH THE PROCESS THAT OFFERED IT. The
+        // attempt it draws is the outgoing agent's, and the conversation kills
+        // a login with its own scope (`@kolu/acp-harness`'s `stop`) — so a row
+        // left up offers buttons on behalf of a subprocess that no longer
+        // exists. The conversation says so itself in one last frame, which
+        // this panel cannot read: `talking` is already `null` by the time it
+        // arrives ({@link projecting} answers about a panel that is talking to
+        // somebody), so the one place that knows the agent is leaving says it.
+        signIn: null,
+        // ... AND SO DOES THE ACCOUNT IT NAMED, for the same reason read one
+        // field over: the chip is what the agent said about ITSELF, and the
+        // agent has been stopped. A panel still naming an account describes a
+        // subprocess that is not there.
+        identity: null,
       })
     }
 
@@ -2245,6 +2317,27 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           methods: conversation.methods,
         }
         projecting()
+        // THE AGENT SAID NO, AND IS STILL RUNNING — the one refusal a bring-up
+        // keeps its child for, and the one it does not THROW: an open refused
+        // for want of a signature leaves the subprocess up, because that
+        // subprocess is the one the sign-in has to run against, and the
+        // conversation publishes what it was told rather than raising it
+        // (`@kolu/acp-harness`'s `refusedOpen`, and `HarnessState.refusal`).
+        //
+        // SO THE PANEL ASKS, after what the conversation does know about itself
+        // is on the cell. A harness handed back with a refusal on it is not a
+        // conversation: nothing opened, `sessionId` is null, and a caller that
+        // read the return alone would call the open landed — write the node's
+        // binding, flush a doorbell's held words into a conversation that does
+        // not exist, and leave a person looking at a composer with no account
+        // of why nothing happens. Failing here is what puts the refusal, the
+        // retry and the sign-in row on screen, by the same line under every
+        // other refused open ({@link refusedOpen}).
+        if (conversation.refusal !== null) {
+          return yield* Effect.fail(
+            new HarnessRefused(conversation.refusal, "signed-out", false),
+          )
+        }
         yield* noting(remembering(), remembranceLost)
       }))
 
@@ -3158,8 +3251,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // it: what the agent said is still what happened, and the buttons are
         // what a person can do about it. `Try again` stays where it is, and is
         // honest — the retry is exactly what signing in makes work.
+        //
+        // A REFUSAL IS ALWAYS NEWS, so a chooser somebody closed over the LAST
+        // one comes back with this one ({@link signingIn}): they asked for this
+        // open, and this is what it would take.
         signIn: askingToSignIn(failure) ? { kind: "choosing" } : null,
       })
+      dismissed = false
     }
 
     /**
@@ -3187,11 +3285,15 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             }),
           )
         }
+        // SOMEBODY IS ASKING, so a row they closed earlier is not the answer to
+        // this press ({@link signingIn}).
+        dismissed = false
         if (method === null) {
           // THE CHOOSER IS A ROW THE CONVERSATION PUTS UP, signed in or not,
           // and one already on screen — the agent's own, or a running attempt —
           // is left exactly as it is.
           at.harness.askSignIn()
+          projecting()
           return Effect.void
         }
         return aside(Effect.gen(function*() {
@@ -3256,6 +3358,11 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      */
     const signInCancel: Effect.Effect<void, OpFailure> = Effect.suspend(() => {
       const at = talking
+      // ... AND IT STAYS OFF, which the row's own `move` cannot promise by
+      // itself: the conversation keeps the agent's offer standing where the
+      // refusal behind it stands, and the next state frame would draw it again
+      // ({@link signingIn} is where this is read).
+      dismissed = true
       move({ signIn: null })
       return at === null
         ? Effect.void
