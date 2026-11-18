@@ -19,11 +19,12 @@
  * plugin that made it, and the honest proof of a fiber's owner is that there is
  * exactly one place a fiber can be made.
  *
- * So: three sites, each named with the handle that holds it. A fourth appearing
+ * So: two sites, each named with the handle that holds it. A third appearing
  * anywhere in this package fails here, which is the property the audit's
  * section 9 actually asked for — *identify the right owner for each task, then
  * make its shutdown cancel or join the task* — kept as something a reviewer can
- * check by reading one list.
+ * check by reading one list. The agent client's own fork moved with it to
+ * `@kolu/acp-client`, where kolu's run-edge allowlist holds it.
  */
 
 import { expect, test } from "bun:test"
@@ -51,7 +52,8 @@ const sources = (): ReadonlyArray<string> =>
  * rather than exempted in it.
  */
 const OWNED: ReadonlyArray<{ readonly file: string; readonly held: string }> = [
-  { file: "src/agent.ts", held: "`aside`, whose set `stopWithReason` interrupts" },
+  // The agent's own `aside` is `@kolu/acp-client`'s now (kolu's
+  // `packages/tests/governance/runEdges.ts` names it).
   { file: "src/chat.ts", held: "`ticket.fiber`, drained and interrupted by `stopWithReason`" },
   { file: "src/chat.ts", held: "`aside`, whose set `stopWithReason` interrupts" },
 ]

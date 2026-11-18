@@ -33,14 +33,13 @@
  *     has plugins ({@link ./scopes.ts}). It is built there and handed to
  *     {@link make} as `Options.scoping`.
  *
- * `agent.ts` is deliberately NOT exported. Nothing above this line should be
- * able to spell `session/update`.
+ * The agent client (`@kolu/acp-client`) is deliberately NOT exported. Nothing
+ * above this line should be able to spell `session/update`.
  *
- * `Probe` and what it answers are TYPES only, and they are here because the
- * composition root is what fills that list: an optional MCP server this host
- * might be running is something only the root knows about, so this package
- * declares the SHAPE of the question and never an answer to it
- * ({@link ./probes.ts}).
+ * `Probe` and what it answers are the client's TYPES: an optional MCP server
+ * this host might be running is something only the composition root knows
+ * about, so the root fills that list and imports the SHAPE of the question
+ * from `@kolu/acp-client` itself.
  */
 
 export { AGENT_ENV, whyNoAgent } from "./adapter.ts"
@@ -52,9 +51,7 @@ export {
   type Sessions,
 } from "./sessions.ts"
 export { type Installed, roster, type Roster } from "./agents/roster.ts"
-export { type ToolServer } from "./chat.ts"
 export { type Chat, DEFAULT_CAPACITY, DEFAULT_IDLE, type LiveSession, make, type Options, type ToolTicket } from "./scoped.ts"
-export type { Probe, Probed, StdioServer } from "./probes.ts"
 export { forLocalState as scopesIn, type Scoped, type Scopes } from "./scopes.ts"
 export type { Change } from "./transcript.ts"
 export { type Cadence, cadence, type Frame, type Pieces } from "./cadence.ts"

@@ -15,7 +15,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { QUEUES } from "./agents/legs.testlib.ts"
+import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { makePanel, type Panel } from "./chat.ts"

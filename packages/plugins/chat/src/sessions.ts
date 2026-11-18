@@ -154,7 +154,8 @@
 import { Effect, Semaphore } from "effect"
 
 import type { ChatLocalState } from "./local.ts"
-import { MemoryFailure, word } from "./memory.ts"
+import { MemoryFailure } from "@kolu/acp-client"
+import { word } from "./memory.ts"
 import { ROWS } from "./scopes.ts"
 
 /** This state machine's section in chat's one machine-local document. */

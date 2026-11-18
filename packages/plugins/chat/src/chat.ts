@@ -101,28 +101,26 @@ import { BusyFailure, type NodeAgent, UsageFailure } from "@olai/format"
 import { emitter } from "@olai/log"
 import { Deferred, Effect, Fiber, References, Semaphore } from "effect"
 
-import * as AcpAgent from "./agent.ts"
+import * as AcpAgent from "@kolu/acp-client"
 import type { Conversing, Overheard, Sessions } from "./sessions.ts"
 import { choiceOf, here, offBecause, type Installed, type Roster } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
 import * as Deliveries from "./deliveries.ts"
-import type { AgentEvent, Stored } from "./events.ts"
+import type { AgentEvent, Stored } from "@kolu/acp-client"
 import { lastSaid } from "./heard.ts"
 import * as Listings from "./listings.ts"
-import type { Models } from "./models.ts"
+import type { Models } from "@kolu/acp-client"
 import * as Memory from "./memory.ts"
 import { ephemeralLocalState } from "./local.ts"
 import { annotated } from "./prompt.ts"
-import type { Probe } from "./probes.ts"
+import type { Probe } from "@kolu/acp-client"
 import type { Scoped, Scopes } from "./scopes.ts"
 import { succeeded } from "./succession.ts"
 import { remindingFor, teachingFor } from "./teaching.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
-
-export type { ToolServer } from "./agent.ts"
 
 /** One conversation a plugin may wake, optionally narrowed to a node scope. */
 export interface WakeScope {
@@ -190,7 +188,7 @@ export interface PanelOptions {
    * shared instance so it can route boot before any panel starts; a standalone
    * panel builds the ordinary state-home implementation itself. */
   readonly models?: Models
-  readonly memory?: Memory.Memory
+  readonly memory?: AcpAgent.Memory
   /** The internal MCP server to hand the session, or nothing yet. A THUNK,
    *  because its address is not known until the listener has bound and the
    *  session is opened after that. */
@@ -846,8 +844,8 @@ const silence = (agent: string): string =>
  * just worth a sentence, they decide what may be shown.
  */
 const noting = (
-  write: Effect.Effect<void, Memory.MemoryFailure> | undefined,
-  why: (failure: Memory.MemoryFailure) => string,
+  write: Effect.Effect<void, AcpAgent.MemoryFailure> | undefined,
+  why: (failure: AcpAgent.MemoryFailure) => string,
 ): Effect.Effect<void> =>
   write === undefined ? Effect.void : Effect.gen(function*() {
     const done = yield* Effect.result(write)
@@ -857,14 +855,14 @@ const noting = (
 /** ... and what each of them costs when it is lost, said where the write is
  *  rather than at the call site: the sentence is about this record, and the
  *  gesture that made the write is a package away. */
-const tookLost = (teach: Teaching, failure: Memory.MemoryFailure): string =>
+const tookLost = (teach: Teaching, failure: AcpAgent.MemoryFailure): string =>
   teach.taught
     ? `a node agent was taught its contract and it could not be written down ` +
       `(${failure.why}) — the next message in this session will say it again`
     : `a node agent's message could not be counted (${failure.why}) — ` +
       `its writing rule is reminded one message later than it would have been`
 
-const replaceLost = (failure: Memory.MemoryFailure): string =>
+const replaceLost = (failure: AcpAgent.MemoryFailure): string =>
   `a node agent was given a fresh session and what it replaced could not be written down ` +
   `(${failure.why}) — the new session is bound, and the old one comes back as a chat ` +
   `no node claims`
@@ -3700,7 +3698,9 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       answer: (id, answers) =>
         onAgent((agent) =>
           Effect.flatMap(
-            agent.answer(id, answers),
+            // The client refuses an answer in its own word; this panel's
+            // verbs refuse in `UsageFailure`, with the client's sentence.
+            Effect.mapError(agent.answer(id, answers), (refused) => new UsageFailure({ reason: refused.reason })),
             (took) =>
               took ? Effect.void : Effect.fail(
                 new UsageFailure({

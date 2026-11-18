@@ -50,9 +50,9 @@
 import type { Listed, SessionInfo } from "olai-plugin-chat/wire"
 import { Effect, Semaphore } from "effect"
 
-import { type AgentGone, newestFirst } from "./agent.ts"
+import { type AgentGone, newestFirst } from "@kolu/acp-client"
 import type { Installed } from "./agents/roster.ts"
-import type { Stored } from "./events.ts"
+import type { Stored } from "@kolu/acp-client"
 
 /**
  * How this process reaches one agent — the whole of what the caller supplies.

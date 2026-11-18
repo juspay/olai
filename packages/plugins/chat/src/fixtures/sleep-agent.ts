@@ -172,6 +172,13 @@ process.stdin.on("data", (chunk: string) => {
         respond(id, { stopReason: "end_turn" })
         continue
       }
+      default:
+        // A request this fixture does not speak is refused the way a real
+        // agent refuses it, so a caller that asks one (`session/close`) is not
+        // left waiting for an answer that never comes.
+        if (message.method !== undefined && message.id !== undefined) {
+          write({ jsonrpc: "2.0", id: message.id, error: { code: -32601, message: `method not found: ${message.method}` } })
+        }
     }
   }
 })

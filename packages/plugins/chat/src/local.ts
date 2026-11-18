@@ -10,19 +10,10 @@
  */
 
 import type { LocalState, Refusal } from "@olai/plugin-api/services"
-import { Data, Effect, Semaphore } from "effect"
+import { MemoryFailure } from "@kolu/acp-client"
+import { Effect, Semaphore } from "effect"
 
 export type LocalSection = "memory" | "models" | "wake" | "heard" | "live"
-
-/** A chat-local record could not be read or written. The panel renders this
- * tagged failure as a transcript row rather than losing the gesture quietly. */
-export class MemoryFailure extends Data.TaggedError("MemoryFailure")<{
-  readonly why: string
-}> {
-  override get message(): string {
-    return this.why
-  }
-}
 
 export interface ChatLocalState {
   /** One section, or `null` when this machine has never written it. */

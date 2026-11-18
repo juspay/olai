@@ -12,13 +12,13 @@ import { join } from "node:path"
 
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 
-import { type Agent, make } from "./agent.ts"
+import { type Agent, type AgentEvent, make } from "@kolu/acp-client"
 import type { Leg } from "@kolu/acp/engine"
-import { QUEUES } from "./agents/legs.testlib.ts"
+import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat } from "./chat.ts"
-import type { Memory } from "./memory.ts"
+import type { Memory } from "@kolu/acp-client"
 
 const FIXTURE = join(import.meta.dirname, "fixtures", "lifecycle-agent.ts")
 
@@ -426,7 +426,7 @@ test("actual MCP reports update the roster and warn once, fenced to this session
 })
 
 test("an absent catalogue leaves raw titles and never reads the reply", async () => {
-  const events: import("./events.ts").AgentEvent[] = []
+  const events: AgentEvent[] = []
   let reads = 0
   const agent = await Effect.runPromise(make({ ...options(),
     leg: { ...QUEUES, mcpCall: () => [{ server: "ours", tool: "read" }], replyIn: () => { reads++; return {} } },
@@ -444,7 +444,7 @@ test("an absent catalogue leaves raw titles and never reads the reply", async ()
 })
 
 test.each([false, true])("completion uses remembered identity with late catalogue=%s", async (late) => {
-  const events: import("./events.ts").AgentEvent[] = []
+  const events: AgentEvent[] = []
   let lookups = 0
   const agent = await Effect.runPromise(make({ ...options(),
     leg: { ...QUEUES, mcpCall: frame => frame.title === "engine_tool" && frame.rawInput !== undefined ? [{ server: "ours", tool: "read" }] : [],

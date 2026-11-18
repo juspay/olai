@@ -17,17 +17,21 @@
  *   - **Who may import which half.** `./engine` is the engine wall — a `Leg`,
  *     an `Adapter` probe, an install sentence — so an engine plugin, the plugin
  *     API that declares the `Agents` tag and the serve that composes them all
- *     name it. `./wire` is the vocabulary a conversation travels in, and the
- *     main entry is the projections over the protocol's payloads; both are
- *     `olai-plugin-chat`'s alone, because it is the package that runs the
- *     subprocess. A plugin growing an import of the main entry is a plugin
- *     reading protocol payloads nobody handed it.
+ *     name it. `./wire` is the vocabulary a conversation travels in, and it is
+ *     `olai-plugin-chat`'s alone. The main entry, the projections over the
+ *     protocol's payloads, is named by nobody here any more: the package that
+ *     reads payloads is `@kolu/acp-client`, hydrated from the same pin. A
+ *     plugin growing an import of the main entry is a plugin reading protocol
+ *     payloads nobody handed it.
  *   - **Where the SDK RUNS.** `@agentclientprotocol/sdk` imports zod at runtime
  *     (it is a declared peer), and zod is the one validator this tree does not
  *     own. A type-only import erases, so it costs nothing and is left alone;
- *     a RUNTIME import is the protocol's transport, and there may be exactly
- *     one package holding it. The reading is the walk's own — `importsOf`
- *     elides an erased import — so the claim cannot be dodged by spelling.
+ *     a RUNTIME import is the protocol's transport, and there is exactly one
+ *     package holding it: `@kolu/acp-client`, which is kolu's. So no package in
+ *     this tree runs it, and the one that holds conversations on the client —
+ *     chat — is the one that may reach the client. The reading is the walk's
+ *     own — `importsOf` elides an erased import — so the claim cannot be
+ *     dodged by spelling.
  *
  * Both are EQUALITIES rather than allow-lists: a package that stops importing
  * is as red as one that starts, because a table nobody has to maintain is a
@@ -38,7 +42,7 @@ import { describe, expect, test } from "bun:test"
 
 import { TREE } from "./tree.testlib.ts"
 
-/** `packages/plugins/chat/src/agent.ts` → `plugins/chat`; `packages/server/…`
+/** `packages/plugins/chat/src/chat.ts` → `plugins/chat`; `packages/server/…`
  *  → `server`. The tenants nest, so the first segment is not the answer. */
 const packageOf = (file: string): string => {
   const parts = file.replace(/^packages\//, "").split("/")
@@ -63,31 +67,34 @@ const byName = (left: readonly [string, unknown], right: readonly [string, unkno
  */
 const reach = (() => {
   const halves = new Map<string, Set<string>>()
+  const client = new Map<string, Set<string>>()
   const running = new Set<string>()
+  const note = (into: Map<string, Set<string>>, pkg: string, spec: string): void => {
+    const held = into.get(pkg) ?? new Set<string>()
+    held.add(spec)
+    into.set(pkg, held)
+  }
   for (const source of TREE.sources) {
     if (source.grammar === "css") continue
     const pkg = packageOf(source.file)
     for (const spec of TREE.specifiersOf(source.file)) {
-      if (spec !== "@kolu/acp" && !spec.startsWith("@kolu/acp/")) continue
-      const held = halves.get(pkg) ?? new Set<string>()
-      held.add(spec)
-      halves.set(pkg, held)
+      if (spec === "@kolu/acp" || spec.startsWith("@kolu/acp/")) note(halves, pkg, spec)
+      if (spec === "@kolu/acp-client" || spec.startsWith("@kolu/acp-client/")) note(client, pkg, spec)
     }
     for (const edge of TREE.importsOf(source.file)) {
       if (edge.spec.startsWith("@agentclientprotocol/sdk")) running.add(pkg)
     }
   }
-  return {
-    halves: Object.fromEntries([...halves].sort(byName).map(([pkg, specs]) => [pkg, [...specs].sort()])),
-    running: [...running].sort(),
-  }
+  const table = (from: Map<string, Set<string>>) =>
+    Object.fromEntries([...from].sort(byName).map(([pkg, specs]) => [pkg, [...specs].sort()]))
+  return { halves: table(halves), client: table(client), running: [...running].sort() }
 })()
 
 describe("the protocol enters this tree where the table says", () => {
   test("every package, and which half of @kolu/acp it names", () => {
     expect(reach.halves).toEqual({
       "plugin-api": ["@kolu/acp/engine"],
-      "plugins/chat": ["@kolu/acp", "@kolu/acp/engine", "@kolu/acp/wire"],
+      "plugins/chat": ["@kolu/acp/engine", "@kolu/acp/wire"],
       "plugins/claude": ["@kolu/acp/engine"],
       "plugins/codex": ["@kolu/acp/engine"],
       "plugins/omp": ["@kolu/acp/engine"],
@@ -97,7 +104,10 @@ describe("the protocol enters this tree where the table says", () => {
     })
   })
 
-  test("the SDK runs in one package, and a type-only reach is not running it", () => {
-    expect(reach.running).toEqual(["plugins/chat"])
+  test("the SDK runs in no package here, and only chat reaches the client that runs it", () => {
+    expect(reach.running).toEqual([])
+    expect(reach.client).toEqual({
+      "plugins/chat": ["@kolu/acp-client", "@kolu/acp-client/testlib"],
+    })
   })
 })

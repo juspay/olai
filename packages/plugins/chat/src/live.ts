@@ -40,7 +40,8 @@
  */
 
 import type { ChatLocalState } from "./local.ts"
-import { MemoryFailure, word } from "./memory.ts"
+import { MemoryFailure } from "@kolu/acp-client"
+import { word } from "./memory.ts"
 import { Effect } from "effect"
 
 /** This state machine's section in chat's one machine-local document. */

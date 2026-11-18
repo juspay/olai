@@ -12,13 +12,13 @@
 , ...
 }:
 {
-  "@agentclientprotocol/sdk@1.3.0" = fetchurl
+  "@agentclientprotocol/sdk@1.9.0" = fetchurl
     {
-      url = "https://registry.npmjs.org/@agentclientprotocol/sdk/-/sdk-1.3.0.tgz";
-      hash = "sha512-i3h/efaeuMUFAO1HSfo97QZQnnvMd7wWBYtBsdL6UMZg3a78sk3Ffya5Xu7C7tYsXomXoDXJBAzQF2PcFKAhIQ==";
+      url = "https://registry.npmjs.org/@agentclientprotocol/sdk/-/sdk-1.9.0.tgz";
+      hash = "sha512-saCOTPYBK1iqWqJFAYHXbg3+zCoFXyZZFoqQAwdTWkbrZZPpAETr80QOnYr2l+dzPwL0jpNhn3eDY8MoEIDbUA==";
     } // {
     manifest = {
-      tarballUrl = "https://registry.npmjs.org/@agentclientprotocol/sdk/-/sdk-1.3.0.tgz";
+      tarballUrl = "https://registry.npmjs.org/@agentclientprotocol/sdk/-/sdk-1.9.0.tgz";
       dependencies = { };
       peerDependencies = {
         "zod" = "^3.25.0 || ^4.0.0";

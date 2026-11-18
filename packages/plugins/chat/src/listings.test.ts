@@ -17,10 +17,10 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
-import { AgentGone } from "./agent.ts"
+import { AgentGone } from "@kolu/acp-client"
 import type { Installed } from "./agents/roster.ts"
 import { clock } from "./clock.testlib.ts"
-import type { Stored } from "./events.ts"
+import type { Stored } from "@kolu/acp-client"
 import { KEEP_FOR_MS, type Listings, make, type Where } from "./listings.ts"
 
 /** A roster row. Only the id is ever read here — how to spawn one is the

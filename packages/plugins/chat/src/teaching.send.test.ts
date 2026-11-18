@@ -32,7 +32,7 @@ import { join } from "node:path"
 
 import type { NodeAgent } from "@olai/format"
 import type { ChatEntry, ChatState } from "olai-plugin-chat/wire"
-import { QUEUES } from "./agents/legs.testlib.ts"
+import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 import { makePanel as makeChat, type Panel } from "./chat.ts"

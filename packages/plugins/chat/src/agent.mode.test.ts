@@ -9,10 +9,8 @@ import { makePanel } from "./chat.ts"
 import type { Installed } from "./agents/roster.ts"
 import { seated } from "./agents/roster.testlib.ts"
 
-import { make, type Agent } from "./agent.ts"
-import { SAYS_NOTHING } from "./agents/legs.testlib.ts"
-import type { AgentEvent } from "./events.ts"
-import type { MemorySnapshot } from "./memory.ts"
+import { type AgentEvent, make, type Agent, type MemorySnapshot } from "@kolu/acp-client"
+import { fixtureAgent, SAYS_NOTHING } from "@kolu/acp-client/testlib"
 
 const run = Effect.runPromise
 const withAgent = async (
@@ -27,7 +25,7 @@ const withAgent = async (
   const agent = await run(make({
     id: "test-agent", leg: { ...SAYS_NOTHING, bypassMode: mode, bypassModeRequired: required },
     command: process.execPath,
-    args: [join(import.meta.dirname, "fixtures/mode-agent.ts"), ...(stored ? ["--stored"] : [])],
+    args: [fixtureAgent("mode-agent.ts"), ...(stored ? ["--stored"] : [])],
     cwd, tools: () => ({ name: "olai", url: "http://127.0.0.1:7714/mcp", token: "test" }),
     memory: { recall: Effect.succeed(null), remember: (value) => Effect.sync(() => { remembered.push(value) }) },
     onEvent: (event) => events.push(event),
@@ -145,7 +143,7 @@ for (const stored of [false, true]) {
       writeFileSync(join(cwd, "reject-mode"), "")
       const row: Installed = {
         id: "test-agent", name: "Test agent", prompt: { kind: "first-turn" },
-        adapter: { command: process.execPath, args: [join(import.meta.dirname, "fixtures/mode-agent.ts"),
+        adapter: { command: process.execPath, args: [fixtureAgent("mode-agent.ts"),
           "--history", ...(stored ? ["--stored"] : [])] },
         leg: { ...SAYS_NOTHING, bypassMode: "full", bypassModeRequired: required,
           models: { config: "model", nameIn: namedExactly } },

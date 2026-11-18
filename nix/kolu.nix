@@ -124,6 +124,9 @@ let
     # buys exactly the directory it names.
     seeds = [
       "@kolu/acp"
+      # the ACP client chat runs every agent through: the subprocess, the
+      # handshake, sessions, turns, sign-in.
+      "@kolu/acp-client"
       # every subprocess olai starts — chat's agent, a pane's `git`, the
       # browser's chromium, the web build — comes from this one socket.
       "@kolu/child"

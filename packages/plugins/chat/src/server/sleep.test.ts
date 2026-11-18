@@ -20,7 +20,7 @@ import { join } from "node:path"
 
 import type { Installed } from "../agents/roster.ts"
 import { seated } from "../agents/roster.testlib.ts"
-import { QUEUES } from "../agents/legs.testlib.ts"
+import { QUEUES } from "@kolu/acp-client/testlib"
 import type { Chat, LiveSession } from "../scoped.ts"
 import { make } from "../scoped.ts"
 import type { Sleeping } from "./sleep.ts"

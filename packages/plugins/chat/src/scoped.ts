@@ -7,7 +7,7 @@ import { BusyFailure, type NodeAgent, type NodeAgents, UsageFailure } from "@ola
 import type { OpFailure } from "@olai/format"
 import { Deferred, Duration, Effect, Exit, Fiber, Scope, Semaphore } from "effect"
 
-import { AgentGone, type StopReason } from "./agent.ts"
+import { AgentGone, type StopReason } from "@kolu/acp-client"
 import type { Panel, PanelOptions, WakeScope } from "./chat.ts"
 import { makePanel } from "./chat.ts"
 import { here } from "./agents/roster.ts"
