@@ -22,7 +22,7 @@ The adapter's own advertised `mcpCapabilities` is the testable witness: `{ http:
 | `extension.mjs` | The shell the derivation bundles (why bundling: [pi's extension loader is jiti in a bun-compiled binary](https://github.com/earendil-works/pi) and can't trace the node_modules tree — in the file's header). |
 | `naming.test.js` | Pure unit answers. No pin in sight. |
 | `roundtrip.test.js` | A real SDK pair over an in-memory transport: tools listed, names answered, calls through pi's API, errors surfaced. |
-| `regenerate.sh` | The patches/generation dance (same discipline as `packages/plugins/claude/acp/session-list-info/regenerate.sh`). |
+| `regenerate.sh` | The patches/generation dance (same discipline as `@kolu/acp-claude`'s `adapter/session-list-info/regenerate.sh`). |
 
 ## Bumping the pin
 

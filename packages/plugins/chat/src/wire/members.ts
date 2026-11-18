@@ -247,7 +247,7 @@ export type Spawned = typeof Spawned.Type
  *
  * It is on the wire because the WIRE says it: the pinned adapter stamps the
  * harness's own `task_started` onto the call it names, and the call stays
- * running until the harness reports a terminal state (`packages/plugins/claude/acp/patches/README.md`).
+ * running until the harness reports a terminal state (`@kolu/acp-claude`'s `adapter/patches/README.md`).
  * Nothing here is inferred from a tool's name or from an argument — a client
  * that guessed would be putting a live face on somebody's ordinary call.
  *
@@ -735,10 +735,10 @@ export const ToolEntry = Schema.Struct({
    * A subagent that has reported can be sent more work — the harness wakes it
    * and starts the same task again — and the call that answers for it is the
    * one that SPAWNED it: everything the agent does is stamped with that call
-   * for as long as it lives (`olai-plugin-claude`'s `src/leg.ts`, its `parentToolUseId`),
+   * for as long as it lives (`@kolu/acp-claude`'s `src/leg.ts`, its `parentToolUseId`),
    * so a resumed agent is one row, one lane and one face rather than a second
    * of each. The adapter reopens that call when the harness says the task
-   * started again (`packages/plugins/claude/acp/patches/README.md`), which is what puts the agent back
+   * started again (`@kolu/acp-claude`'s `adapter/patches/README.md`), which is what puts the agent back
    * on the strip through the membership rule that was already there.
    *
    * WHAT IT COSTS IS THE CLOCK, which is what this field is. `since` is the
@@ -1008,7 +1008,7 @@ export const isTaskOut = (entry: ToolEntry): boolean =>
  * The sibling of {@link isTaskOut}, one field over, and the reason it is not
  * spelled in terms of that one: **a spawn does not have to arm anything.**
  * Only an ASYNCHRONOUS `Agent` launch registers a background task with the
- * harness (`packages/plugins/claude/acp/patches/README.md`'s `BACKGROUND_LAUNCHES` table — a
+ * harness (`@kolu/acp-claude`'s `adapter/patches/README.md`'s `BACKGROUND_LAUNCHES` table — a
  * synchronous subagent answers ordinarily and arms nothing), so a rule that
  * asked about `armed` would carry a fan-out's agents on some wires and none of
  * them on others, and which of the two you got would be a fact about a patch
@@ -2052,7 +2052,7 @@ export const ChatState = Schema.Struct({
    * the strip twice under one key.
    *
    * WHY THE SECOND MEMBERSHIP IS NOT SPELLED OVER `armed`: only an ASYNCHRONOUS
-   * spawn registers a task with the harness (`packages/plugins/claude/acp/patches/README.md`'s
+   * spawn registers a task with the harness (`@kolu/acp-claude`'s `adapter/patches/README.md`'s
    * `BACKGROUND_LAUNCHES` — a synchronous subagent answers ordinarily and arms
    * nothing), so a rule that asked about `armed` would carry a fan-out's agents
    * on some wires and none of them on others, and which you got would be a fact

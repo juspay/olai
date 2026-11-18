@@ -221,7 +221,7 @@ export const PI: Leg = {
   terminalOutput: true,
   // THE PICKER, READ EXACTLY. pi-acp puts the model in the entry every agent
   // olai talks to puts it in, and its values ARE the ids it reports — so the
-  // alias arithmetic one engine over (`olai-plugin-claude`'s `models.ts`, whose
+  // alias arithmetic one engine over (`@kolu/acp-claude`'s `models.ts`, whose
   // picker offers `sonnet` for `claude-sonnet-5`) is not this adapter's and is
   // not on the path a pi conversation's model name is read through.
   models: { config: "model", nameIn: namedExactly },

@@ -365,7 +365,7 @@ export const OMP: Leg = {
   // THE PICKER, READ EXACTLY. omp puts the model in the entry every agent olai
   // talks to puts it in, its values ARE the `provider/id` strings it reports,
   // and the row's display name is the picker's own label — so the alias
-  // arithmetic one engine over (`olai-plugin-claude`'s `models.ts`) is not this
+  // arithmetic one engine over (`@kolu/acp-claude`'s `models.ts`) is not this
   // adapter's. A change comes back as a `config_option_update`, and
   // `session/set_mode` mirrors `current_mode_update`.
   models: { config: "model", nameIn: namedExactly },

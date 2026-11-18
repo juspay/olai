@@ -982,7 +982,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * change to what the panel OFFERS rather than a fact about the adapter,
      * so it waits on a ruling. The measurement — every history tried, both
      * pins, and the pristine run that says whose bug it is — is written once,
-     * in `packages/plugins/claude/acp/patches/README.md`, because it is a fact about the pin.
+     * in `@kolu/acp-claude`'s `adapter/patches/README.md`, because it is a fact about the pin.
      *
      * Before this PR the combination was unreachable — olai never sent a
      * mid-turn `session/prompt` on this leg — so the queue is what makes it
@@ -1019,7 +1019,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * It goes when the adapter is FIXED, which is not the same as when the
      * pin moves: the 0.66.0 → 0.70.0 bump moved it four releases and #1039
      * stayed open. 0.70.0 → 0.73.0 is a different swallow (#958, candidate
-     * #1065), not this latch. `packages/plugins/claude/acp/patches/README.md` is where each bump
+     * #1065), not this latch. `@kolu/acp-claude`'s `adapter/patches/README.md` is where each bump
      * records whether it re-measured this.
      */
     let queuedHere = false

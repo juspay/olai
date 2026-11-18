@@ -124,7 +124,7 @@ describe("what is still out", () => {
     // strip said nothing at all — a running agent with no face anywhere in the
     // panel. The membership rule never had to change: the adapter reopens the
     // call that SPAWNED the agent when the harness starts its task again
-    // (`packages/plugins/claude/acp/patches/README.md`), so the row is running again and this reads it
+    // (`@kolu/acp-claude`'s `adapter/patches/README.md`), so the row is running again and this reads it
     // running again. What matters here is that it is the SAME row — one agent,
     // one entry, one door — rather than a second entry beside the first.
     //
@@ -264,7 +264,7 @@ describe("whether the strip has moved", () => {
  * updated a call in place correctly — what nothing anywhere asserted was the
  * SEQUENCE, and the sequence is where a resumed agent went missing. So this
  * drives the transcript with the frames the patched adapter really sends
- * (`packages/plugins/claude/acp/patches/README.md`, measured through `packages/tests/tasks.ts`) and
+ * (`@kolu/acp-claude`'s `adapter/patches/README.md`, measured through `packages/tests/tasks.ts`) and
  * reads the strip after each one.
  *
  * Still no subprocess, no socket and no browser: a Transcript is a data

@@ -15,14 +15,18 @@ No plugin's name is spelled here. Kolu's path is `packages/client/favicon.svg`; 
 ## The `nix/` doors — the Nix mechanisms, said once
 
 `nix/` holds the shared Nix machinery the plugins' `default.nix` files call
-and the root's fold validates against. Four files:
+and the root's fold validates against. Three files, and one door from the
+kolu pin:
 
 - `mark.nix` — turn a tenant's npins-pinned logo file into a TypeScript module
   the plugin runs its SVG transform over (the mechanism the paragraphs above
   describe, which a tenant's `default.nix` names in its `generated` map).
-- `npm-adapter.nix` — build one shipped ACP adapter from an npm shim's
-  committed lockfile: one fixed-output derivation, patches applied with
-  `patch -p1 -F0`, nothing fetched at build time and no `npx` at run time.
+- `npmAdapter` — build one shipped ACP adapter from an npm shim's committed
+  lockfile: one fixed-output derivation, patches applied with `patch -p1 -F0`,
+  nothing fetched at build time and no `npx` at run time. It is kolu's
+  `nix/npm-adapter.nix`, read out of the kolu pin: kolu builds the same pinned
+  Claude adapter with it, and a missing or empty `patches` directory fails the
+  eval there rather than building upstream behaviour in silence.
 - `contract.nix` — the validator that knows what a plugin's `default.nix` may
   return and refuses anything else by name (the two doors `contract` and
   `contractProblems`, so `fold-check.nix` can assert a refusal names both
