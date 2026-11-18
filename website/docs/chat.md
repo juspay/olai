@@ -4,7 +4,7 @@ olai runs a coding agent beside your notes. Pick an agent, sign in once, then ty
 
 ## Pick an agent
 
-A conversation is one chat with one agent, from start to end.[^plugin] What each agent needs:[^path]
+A conversation is one chat with one agent, drawn on its own page, which a pane shows.[^plugin] What each agent needs:[^path]
 
 | Agent | Needs |
 | --- | --- |
@@ -35,7 +35,7 @@ Each agent's own page says what else it supports. What a conversation does with 
 
 ## Sign in
 
-An agent that is not signed in can neither open a conversation nor answer you, so olai shows the ways that agent offers. Type `/login` to sign in first.[^methods] There are three kinds:
+An agent that is not signed in cannot answer you, so olai shows the ways that agent offers. Type `/login` to sign in first.[^methods] There are three kinds:
 
 - a command olai runs for you[^command]
 - a sign-in page the agent opens[^card]
@@ -43,9 +43,9 @@ An agent that is not signed in can neither open a conversation nor answer you, s
 
 Only one sign-in runs at a time for each agent.[^one]
 
-## Read the agent line
+## Read the chat page
 
-One line under the title says who you are talking to and what it is doing:[^line]
+The page says what the chat is about.[^where] One line under that says who you are talking to and what it is doing:[^line]
 
 - the account it is signed in as[^account]
 - the model it uses, which you can change[^model]
@@ -71,9 +71,9 @@ Press **Send** at any time.[^send] **Cancel** stops the turn, which is the agent
 
 ## Long conversations and restarts
 
-A conversation opens with its newest sixty messages.[^scroll] A restart reopens up to eight conversations that were open.[^restart]
+A conversation opens with its newest sixty messages.[^scroll] A restart reopens up to eight that were open.[^restart]
 
-[^plugin]: Each agent is a plugin, one of the parts the **Plugins** panel lists. Switching that plugin off takes away the choice of that agent and leaves the other agents alone ([choosing what runs](settings.md)). Starting a conversation on a row, starting one about the page in front of you, and the **New chat** row in the palette that `Cmd` + `K` opens, are on [node agents](node-agents.md).
+[^plugin]: Each agent is a plugin, one of the parts the **Plugins** panel lists. Switching that plugin off takes away the choice of that agent and leaves the other agents alone ([choosing what runs](settings.md)). Which rows and documents can have a chat, and every way to start one, are on [node agents](node-agents.md).
 
 [^path]: Each of these agents is started by a helper program, called an adapter, and you can name a different one: `KOLU_ACP_AGENT` for Claude Code, `OLAI_ACP_CODEX` for Codex, `OLAI_ACP_PI` for Pi. An empty value for one of the three variables makes that agent unavailable, with an explanation, and leaves the other agents alone.
 
@@ -93,7 +93,9 @@ A conversation opens with its newest sixty messages.[^scroll] A restart reopens 
 
     You can sign in before a conversation exists: the first start records only which agent you chose, and the conversation is written down once the agent opens one.
 
-[^line]: The agent line carries the agent's icon and name, and one of these states: **Starting…**, **Working…**, **Waiting on you**, **Ready**, **Not running** or **Not set up**. Its buttons sit at the right: **Open beside ›**, which puts the conversation in the pane to the right, **Show in outline ›**, **Fresh start** and **Close**.
+[^where]: The chat's page carries the name of the row or document it belongs to as its title, with that path under it and how the chat stands at the right. Open one from **Chats** in the sidebar, from the line at the top of a document, or from a row that has an agent. **Open plan beside ›** on the agent line puts the row or document in the pane beside the conversation ([node agents](node-agents.md)).
+
+[^line]: The agent line carries the agent's icon and name, and one of these states: **Starting…**, **Working…**, **Waiting on you**, **Ready**, **Not running** or **Not set up**. Its buttons sit at the right: **Open plan beside ›**, **Fresh start** and **Close**. Where the conversation is drawn under a row or on a row's page instead, the first button is **Open beside ›**, which puts the conversation in the pane to the right, and **Show in outline ›** sits beside it.
 
 [^account]: The account reads `Claude Max · you@example.com` for a subscription, `Anthropic API key · apiKeyHelper` for an API key or a gateway, and `Not signed in` when the agent looked and found nobody. The organization, the plan and the rest of the detail are in the tip that hovering shows, and pressing the account opens the sign-in chooser. An agent that reports no account shows none, which is not the same as being signed out. Pi, Oh My Pi and OpenCode report no account.
 
@@ -160,8 +162,6 @@ When olai starts again it reopens the conversations that were open when the proc
 
 olai drops the entry for a row that was trashed or whose link to its chat was taken off, for an agent that refuses to resume or asks to be signed in, and for an agent that has been uninstalled.
 
-Words you have typed but not sent, the files you attached and the rows you chose with `@` belong to that conversation in this browser tab. Folding the conversation away or reading its earlier chats keeps them, sending clears them, and reloading the tab discards them.
-
-Words typed into a box that starts a chat belong to that note and that box, so leaving the page and coming back finds them. That is the box in the line at the top of a note. The **Ask about** box on a row's page is kept the same way.
+Words typed into a box that starts a chat belong to that document and that box, so leaving the page and coming back finds them. That is the box in the line at the top of a document, and the one a chat's own page draws for an item with no chat yet. The **Ask about** box on a row's page is kept the same way.
 
 </details>

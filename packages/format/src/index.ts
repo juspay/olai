@@ -1122,6 +1122,10 @@ export {
    *  presses an item, the server resolves one. */
   AgentItem,
   agentsIn,
+  /** WHAT A CHAT IS CALLED where its item is a note — the note's name, or the
+   *  folder's for a `README`, so a vault building three plugins does not have
+   *  three chats called `README`. */
+  noteTitle,
   isNotePath,
   itemKey,
   itemOf,

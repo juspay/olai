@@ -32,6 +32,12 @@ Feature: A plugin's chat is the chat of its README
     And the plugin "bar-beside" is being built by a conversation called "Bar beside"
     And the plugin page is "building"
 
+    # ...AND THAT BLOCK IS NOT PROSE. The page renders what a person wrote and
+    # cuts the front matter off it, or the tie would be drawn as a line of
+    # text above the plugin's own title.
+    And the plugin page's README says "Bar beside"
+    And the plugin page's README does not say "chat-agent-session"
+
     # ...AND THE PAGE FINDS IT BY THAT NOTE. It opens in the pane beside the
     # page because this plugin is being built, and the menu offers the way back
     # to it once the reader has closed that pane.

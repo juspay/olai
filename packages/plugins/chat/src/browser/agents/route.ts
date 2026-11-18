@@ -38,7 +38,7 @@ import { type AgentItem, type Claims, ID_SHAPE, isNotePath, readPath, spellPath 
 import { defineSelfDrawnRoute } from "olai-plugin-navigation/routes"
 
 import { servedDirectory } from "../vault.ts"
-import { nameOfItem, titleOfNode } from "./called.ts"
+import { labelOfChat, titleOfNode } from "./called.ts"
 
 /** The prefix this page claims. Trailing slash, so `/chat` itself is not ours:
  *  a list of chats is the sidebar's job, and claiming the bare word would take
@@ -74,12 +74,14 @@ export const chatPage = defineSelfDrawnRoute<AgentItem>({
   // address rather than leaving it half-read.
   parse: (pathname) => itemAt(servedDirectory()?.claims(), pathname),
   href: (item) => `${CHAT_PATH}${chatSpelling(item)}`,
-  // THE CRUMB IS THE ITEM'S NAME, and the page itself draws no breadcrumb at
-  // all: this is what the pane's header, a tab, the phone's tab strip and a
-  // folded pane's rail read, and a column headed `/notes/plan.md` or a uuid
-  // is a column nobody can tell from the one beside it (`./called.ts` is the
-  // whole of the naming, and says where each half comes from).
-  breadcrumb: (item) => nameOfItem(item, servedDirectory()?.claims(), titleOfNode),
+  // THE CRUMB IS THE ITEM'S NAME AND THE WORD `chat`, and the page itself
+  // draws no breadcrumb at all: this is what the pane's header, a tab, the
+  // phone's tab strip and a folded pane's rail read, and a column headed
+  // `/notes/plan.md` or a uuid is a column nobody can tell from the one
+  // beside it — while a bare `plan` beside the note's own `plan` is a column
+  // nobody can tell from its neighbour either (`./called.ts` is the whole of
+  // the naming, and says where each half comes from).
+  breadcrumb: (item) => labelOfChat(item, servedDirectory()?.claims(), titleOfNode),
   narrowable: false,
 })
 

@@ -112,7 +112,7 @@ A read never walks into a mirror, because a mirror is a second view of a row tha
 | --- | --- |
 | `outline.row.action` | a command or a choice on a row's menu. The plugin supplies the words, what the press does, and whether it writes; outlines decides where it goes. Entry ids are `<plugin>:<id>` |
 | `outline.crumb.aside` | something drawn beside one breadcrumb, given that ancestor's id |
-| `outline.row.aside`, `outline.row.fold` | something drawn beside a row, and something drawn inside it when it is open |
+| `outline.row.aside`, `outline.row.fold` | something drawn beside a row, and something drawn inside it when it is open. Chat draws a row's conversation there, or one line reading **Shown beside** while a pane holds that conversation ([chat.md](chat.md)) |
 | `outline.page.head`, `outline.page.foot` | something drawn above and below a page's rows |
 | `outline.row.chip`, `outline.row.pane`, `outline.row.block` | how one kind of property is drawn, keyed by kind |
 | `outline.row.placement` | whether a kind of property is drawn among the rows |

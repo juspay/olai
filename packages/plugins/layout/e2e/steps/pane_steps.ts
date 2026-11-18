@@ -257,6 +257,24 @@ Then("there are {int} pane tabs", async function (this: OlaiWorld, n: number) {
   );
 });
 
+/** A PHONE SCROLLS THE DOCUMENT, so this is the window's own scroll — what a
+ *  reader does half-way down a long conversation. */
+When("I scroll the page to its end", async function (this: OlaiWorld) {
+  await this.page.evaluate(() => { window.scrollTo(0, document.body.scrollHeight) });
+  await this.page.waitForTimeout(150);
+});
+
+/** ...and the strip is still there afterwards, pinned under the app header:
+ *  the way back to the page a conversation is about must not scroll away. */
+Then("the pane tabs stay under the header", async function (this: OlaiWorld) {
+  const tabs = this.frontLane().locator(PANE_TABS);
+  await tabs.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const header = await this.page.locator(APP_HEADER).boundingBox();
+  const box = await tabs.boundingBox();
+  assert.ok(header && box && Math.abs(box.y - header.y - header.height) <= 1,
+    `the pane strip scrolled away: ${JSON.stringify({ header, box })}`);
+});
+
 When("I scroll pane {int} to its middle", async function(this: OlaiWorld, index: number) {
   await this.pane(index).evaluate(root => {
     let host = root.parentElement

@@ -50,7 +50,7 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { DOT } from "@olai/web/client/readout.ts"
 import { run } from "@olai/web/client/run.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
-import { type AgentItem, itemKey } from "@olai/format"
+import { type AgentItem, itemKey, proseIn } from "@olai/format"
 import type { BesideDoor } from "olai-plugin-chat/beside"
 import { Control } from "olai-plugin-plugin-inspector/control"
 import { useHere } from "olai-plugin-navigation/routing"
@@ -263,9 +263,14 @@ function Known(props: { readonly plugin: Defined; readonly file?: string; readon
       <Show when={source().readme !== undefined && stage() !== "paused"}>
         <Block heading="What it does">
           {/* THE README, RENDERED — the author's own prose through the app's
-              own pipeline, never a second renderer and never raw text. */}
+              own pipeline, never a second renderer and never raw text. THE
+              PROSE ONLY: this file is also where a plugin's own chat is tied
+              (`chat-agent-session:` in its front matter), and a block handed
+              to a renderer as body is drawn as text above the title — so it
+              is cut here exactly as the note page cuts it (`@olai/format`'s
+              `proseIn`). */}
           <div data-testid={TESTID.pageReadme}>
-            <Markdown claims={undefined} from={`${source().folder}${PLUGIN_README_FILE}`} source={source().readme ?? ""} class="olai-md" />
+            <Markdown claims={undefined} from={`${source().folder}${PLUGIN_README_FILE}`} source={proseIn(source().readme ?? "")} class="olai-md" />
           </div>
         </Block>
       </Show>

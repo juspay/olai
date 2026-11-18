@@ -61,6 +61,18 @@ When("I press Shown beside about {string}", async function (this: OlaiWorld, cha
   await this.press(await beside(this, besideLine(this, chat), true));
 });
 
+/** THE SAME VERB ON A CHATS ROW, which is the one door that can be pressed
+ *  while the chat page is the pane a person is looking at: the row is in the
+ *  sidebar and the sidebar belongs to no pane. The press goes to the pane
+ *  that has the chat — its own included — rather than opening a second
+ *  column with the same address. */
+When("I press the beside door on the Chats row {string}", async function (this: OlaiWorld, chat: string) {
+  await this.showSidebar();
+  const door = this.page.locator(`${CHAT_BESIDE}${attr("data-agent", this.nodeId(chat))}`);
+  await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.press(door);
+});
+
 // ── drawn once ─────────────────────────────────────────────────────────
 
 /** ONE LINE INSTEAD OF THE CONVERSATION, wherever the item is drawn. The

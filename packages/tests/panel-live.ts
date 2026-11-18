@@ -124,13 +124,14 @@ const changed = async (name: Named, from: string | null, ms = 30_000): Promise<s
 await p.goto(BASE)
 ok("the app came up", await drawn("outline-list"))
 // New conversations start from the `+` on the sidebar's Chats heading, which
-// opens the palette at New chat: the default place (Inbox › Chats), then the
+// opens the palette at New chat: its rows are the ITEMS a chat can be about,
+// and the first is what the focused pane is showing, under **Here**. Then the
 // first message with Claude — the adapter this driver exists to measure —
-// chosen. Nothing is created until that message is sent; the new node's page
+// chosen. Nothing is created until that message is sent; the chat's own page
 // opens on its conversation.
 ok("the panel has a door", await drawn("chat-new"))
 await p.locator(selector("chat-new")).click()
-await p.locator(`${selector("palette-item")}[data-id="new-chat-default"]`).click()
+await p.locator(selector("palette-item")).first().click()
 await p.locator(`${selector("palette-option")}[data-id="claude"]`).click()
 await p.locator(selector("palette-input")).fill("Reply with exactly READY and nothing else.")
 await p.locator(selector("palette-input")).press("Enter")

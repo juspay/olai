@@ -34,6 +34,28 @@ Feature: A chat opens in the pane beside what it is about
     And there are 2 panes
     And there should be no page errors
 
+  # THE DOOR THAT CAN BE PRESSED FROM THE CHAT ITSELF: the Chats row's
+  # two-column button belongs to no pane, so it can be pressed while the chat
+  # page IS the focused pane. It goes to the pane that has the conversation —
+  # its own included — rather than opening a second column with the same
+  # address, which would leave two panes each pointing at the other and the
+  # conversation drawn in neither.
+  Scenario: The Chats row's beside door pressed on the chat itself opens no second pane
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    Then there are 1 panes
+    And pane 0 is showing "/chat/notes/plan.md"
+    And the chat page conversation is ready
+    When I press the beside door on the Chats row "plan-chat"
+    Then there are 1 panes
+    And pane 0 is showing "/chat/notes/plan.md"
+    And pane 0 is focused
+    And the conversation is drawn once
+    And the chat page conversation is ready
+    And there should be no page errors
+
   # THE LAYOUT IS THE ADDRESS, so the split is a thing a reload, a new tab and
   # a pasted link all restore.
   Scenario: A reload restores the split and the conversation in it

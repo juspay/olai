@@ -322,35 +322,35 @@ export const surface = defineSurface({
         error: ChatFailure,
       },
       /**
-       * A CONVERSATION, STARTED — the two things that can mean, as a union so
-       * a caller cannot half-say either.
+       * A CONVERSATION, STARTED — on the node or the note it is about.
        *
-       * MINT: a first message, and a PARENT the person chose — there is no
-       * default, because a chat filed wherever olai felt like putting it is
-       * one nobody finds twice.
+       * Refused where that item already has a started chat; a tie whose start
+       * was refused is started again on the same item rather than making a
+       * second one. `say` is its first message, delivered once by the server.
        *
-       * ITEM: the chat of a node or a note that already exists. Refused where
-       * that item already has a started chat; a tie whose start was refused is
-       * started again on the same item rather than mints a second one. `say`
-       * is its first message, delivered once by the server.
-       *
-       * The answer's `node` is the ITEM KEY either way — a node's id, or `/`
-       * and a note's path — and it comes back even when the start refuses,
-       * because a chat that exists and has not begun is something a person can
-       * open later.
+       * The answer's `node` is the ITEM KEY — a node's id, or `/` and a
+       * note's path — and it comes back even when the start refuses, because
+       * a chat that exists and has not begun is something a person can open
+       * later.
        */
       newChat: {
-        input: Schema.Union([
-          Schema.Struct({ agent: Schema.String, title: Schema.String, parent: Schema.String }),
-          Schema.Struct({ agent: Schema.String, item: AgentItem, say: Schema.optionalKey(Schema.String) }),
-        ]),
+        input: Schema.Struct({ agent: Schema.String, item: AgentItem, say: Schema.optionalKey(Schema.String) }),
         output: Schema.Struct({ node: Schema.String, to: Schema.NullOr(Schema.Struct({ agent: Schema.String, session: Schema.String })), refusal: Schema.NullOr(Schema.String) }),
         error: ChatFailure,
       },
+      /**
+       * WHICH NODE OR NOTE A NEW CHAT COULD BE ABOUT — the palette's item
+       * level, bounded: `keys` are the items it wants named whatever is typed
+       * (what the pane is standing on, the chats it was last in), and
+       * `filter` is the typed search, answered up to `limit` of EACH kind.
+       *
+       * WHICH OF THEM ALREADY HAS A CHAT IS NOT HERE: every browser holds the
+       * roster, so the level marks its own rows off it.
+       */
       locations: {
-        input: Schema.Struct({ filter: Schema.String, limit: Schema.Number, ids: Schema.Array(Schema.String), parents: Schema.Array(Schema.String) }),
-        output: Schema.Struct({ nodes: Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String, file: Schema.String,
-          path: Schema.Array(Schema.String), parent: Schema.NullOr(Schema.String) })) }),
+        input: Schema.Struct({ filter: Schema.String, limit: Schema.Number, keys: Schema.Array(Schema.String) }),
+        output: Schema.Struct({ items: Schema.Array(Schema.Struct({ key: Schema.String, kind: Schema.Literals(["node", "note"]),
+          title: Schema.String, file: Schema.String, path: Schema.Array(Schema.String) })) }),
         error: ChatFailure,
       },
       /** Null means the panel holds an auth-refused open for sign-in. */

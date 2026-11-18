@@ -159,7 +159,7 @@ Feature: Signing in to Codex from inside olai
     And the agent needs a sign-in
     When I press new chat in Chats
     And I type "a lane nobody" into the palette
-    And I choose the new chat place "lane-fresh"
+    And I choose the new chat item "lane-fresh"
     And I choose new chat engine "Codex"
     And I type new chat draft "sign in first"
     And I send the new chat draft

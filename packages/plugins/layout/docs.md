@@ -63,6 +63,8 @@ A page that fails while being drawn shows **Something went wrong on this page**,
 
 [^strip]: The place the tab strip fills is directly below the header, and stays there while a single page scrolls.
 
+    On a phone there are no columns: the panes become a strip of tabs, one pane on screen at a time, and that strip is pinned under the header while the page under it scrolls. So a conversation in one tab and the document it is about in the next are always one tap apart ([chat.md](chat.md)).
+
 [^pane]: A pane's header shows a document's name without its suffix, such as `garden`, or the page's label where it has no file name. The pane's close button is named `Close garden`, and the narrow strip a collapsed pane leaves behind is named `Expand garden`.
 
 [^thumb]: Each button is an icon above a word, a finger's height, lit in the accent colour while you are on its page, with room for one badge at the icon's top corner. Every page leaves room under its last line, and under a composer fixed to the bottom, so nothing is hidden behind the bar. A desktop draws no such bar, whatever plugins added to it: the sidebar and the command palette are how you reach those pages there.

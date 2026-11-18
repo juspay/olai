@@ -16,7 +16,7 @@ import type {Navigation} from "olai-plugin-navigation/contract"
 import { createSignal,createMemo,createSelector,createComputed,createEffect,on,For,onCleanup,Show } from "solid-js"
 
 import { TARGET_BOX } from "@olai/ui-primitives/touch.ts"
-import { WITHIN } from "@olai/web/client/layer.ts"
+import { LAYER, WITHIN } from "@olai/web/client/layer.ts"
 import { drag as pointerDrag } from "@olai/web/client/pointer.ts"
 
 import { PaneProvider } from "olai-plugin-navigation/pane"
@@ -295,12 +295,22 @@ function Divider(props: {
   )
 }
 
+/**
+ * THE PANES, ON A PHONE — one tab each, and the strip STAYS IN VIEW while the
+ * page under it scrolls.
+ *
+ * A phone scrolls the document, so a strip in the flow scrolled away with it:
+ * a reader half-way down a long conversation had no way back to the note it
+ * was about without scrolling to the top first. Pinned under the header
+ * (`../Header.tsx` is `sticky top-0` at `--height-header`), at the strip's own
+ * layer, so it sits over the page and under anything the app puts in front.
+ */
 function TabStrip() {
   const router = useRouter()
   const isFocused = createSelector(router.focusIndex)
   return (
     <div
-      class="flex shrink-0 gap-1 overflow-x-auto border-b border-rule bg-desk px-2 py-1"
+      class={`sticky top-[var(--height-header)] ${LAYER.strip} flex shrink-0 gap-1 overflow-x-auto border-b border-rule bg-desk px-2 py-1`}
       data-testid={TESTID.paneTabs}
       role="tablist"
       aria-label="Panes"

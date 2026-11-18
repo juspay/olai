@@ -15,7 +15,7 @@ import { chatVerbs } from "../verbs.tsx"
 import type { RowVerb } from "olai-plugin-outlines/slots"
 import type { Roster } from "./answered.tsx"
 import { nameOfNote } from "./called.ts"
-import { sendAbout } from "./Door.tsx"
+import { sendAbout } from "./send-about.ts"
 import { noteHere } from "./here.ts"
 import { chatRouteOf } from "./route.ts"
 import { servedDirectory } from "../vault.ts"
@@ -169,7 +169,7 @@ export const createAgentPalette = (agents: Roster): PaletteAdapter => {
         validate: text => text.trim() === "" ? "Type a message first." : null,
         submit: async (text, engine) => {
           if (engine === undefined) return { keepOpen: true, said: { tone: "alarm", text: "No agent is set up" } }
-          // ONE PRESS OF THE DOOR (`./Door.tsx`'s `sendAbout`): a refusal keeps
+          // ONE PRESS OF THE DOOR (`./send-about.ts`'s `sendAbout`): a refusal keeps
           // the words in this box with the sentence beside them, and opens
           // nothing.
           const sent = await sendAbout({ item: { kind: "note", path }, engine: engine.id, text })

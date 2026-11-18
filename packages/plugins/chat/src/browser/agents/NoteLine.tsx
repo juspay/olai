@@ -34,7 +34,7 @@
  *     offered, and the page is whole.
  *
  * A refusal keeps the words where they were typed, with the sentence under
- * them (`./Door.tsx`'s `sendAbout` is the one press every door shares).
+ * them (`./send-about.ts`'s `sendAbout` is the one press every door shares).
  */
 import { batch, createMemo, createSignal, For, Show } from "solid-js"
 import { isNotePath, itemKey } from "@olai/format"
@@ -46,8 +46,9 @@ import { servedDirectory } from "../vault.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"
 import { useAgents } from "./answered.tsx"
 import { ChatBeside, useChatBeside } from "./ChatBeside.tsx"
-import { sendAbout } from "./Door.tsx"
+import { sendAbout } from "./send-about.ts"
 import { agentReadings } from "./reading.ts"
+import { nameOfNote } from "./called.ts"
 import { chatRouteOf } from "./route.ts"
 import type { Row } from "./roster.ts"
 import { StandingWords } from "./Standing.tsx"
@@ -56,7 +57,7 @@ import { StandingWords } from "./Standing.tsx"
 const ROW = "flex items-center gap-2 text-label text-muted"
 const RULE = "h-px flex-1 bg-rule"
 
-export function NoteLine(props: { readonly path: string; readonly name: string }) {
+export function NoteLine(props: { readonly path: string }) {
   const agents = useAgents()
   /** A note is what the DIRECTORY calls one, never a suffix this package
    *  spells — the same question every other face asks (`./here.ts`). */
@@ -70,7 +71,7 @@ export function NoteLine(props: { readonly path: string; readonly name: string }
       <Show when={chat() !== undefined || agents.engines().length > 0}>
         <section class="mt-2 mb-3 border-y border-rule py-1.5" data-testid={TESTID.chatLine}
           data-note={path()} data-chat={chat()?.id}>
-          <Show when={chat()} fallback={<Ask path={path()} name={props.name} />}>
+          <Show when={chat()} fallback={<Ask path={path()} />}>
             {(row) => <Here row={row()} path={path()} />}
           </Show>
         </section>
@@ -104,11 +105,17 @@ function Here(props: { readonly row: Row; readonly path: string }) {
  *
  *  The words are the ACTIVATION's, under this note's own door key, so a
  *  refused start — or leaving the page and coming back — finds them where
- *  they were typed (`./reading.ts`'s `Unsent`). */
-function Ask(props: { readonly path: string; readonly name: string }) {
+ *  they were typed (`./reading.ts`'s `Unsent`).
+ *
+ *  WHAT THE NOTE IS CALLED IS THIS ROW'S OWN RULE (`./called.ts`), the one
+ *  behind the chat page's title, the sidebar row, the palette and the pane
+ *  header: *Ask about swatch* on `plugins/swatch/README.md`, never *Ask about
+ *  README*. */
+function Ask(props: { readonly path: string }) {
   const agents = useAgents()
   const router = useRouter()
   const here = useHere()
+  const name = () => nameOfNote(servedDirectory()?.claims(), props.path)
   const owner = () => ({ kind: "door", where: "line", item: itemKey({ kind: "note", path: props.path }) }) as const
   const draft = () => agentReadings()?.unsent(owner()) ?? ""
   const [chosen, choose] = createSignal<string>()
@@ -140,7 +147,7 @@ function Ask(props: { readonly path: string; readonly name: string }) {
           to it. */}
       <input type="text" class="min-w-0 flex-1 bg-transparent text-label outline-none placeholder:text-muted"
         data-testid={TESTID.agentPlainInput} disabled={starting()}
-        aria-label={`Ask about ${props.name}`} placeholder={`Ask about ${props.name}…`}
+        aria-label={`Ask about ${name()}`} placeholder={`Ask about ${name()}…`}
         value={draft()} onInput={event => agentReadings()?.setUnsent(owner(), event.currentTarget.value)}
         onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (composing(event)) return; void send() } }} />
       {/* ONE ENGINE ASKS NOTHING: the picker is drawn exactly where there is a

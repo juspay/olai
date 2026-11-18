@@ -818,8 +818,8 @@ test("every stylesheet with an endless animation answers the motion preference",
 //
 // The boxes below are drawn by owners that name navigation NOWHERE, which
 // makes that guard a fact about the page rather than a promise to them: the
-// chat composer comes from the dock (`app.panel`, the shell's slot) and from a
-// row's fold (`outline.row.fold`, the outline's); the node agent's plain box
+// chat composer comes from a row's fold (`outline.row.fold`, the outline's)
+// and from the chat's own page; the node agent's plain box
 // is on a page the chat row draws; the note's one-line ask box is drawn into
 // markdown's own `markdown.note-line`; the new-file box is OFFERED (`files.state`'s
 // `New`) and drawn by whoever asks; a property value box is drawn into a

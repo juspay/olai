@@ -28,11 +28,11 @@ A plugin from your directory runs with the same powers as olai's server, so only
 
 [^how]: This plugin also serves the browser part of each plugin your directory defines. [../dynamic-plugins.md](../dynamic-plugins.md) is how you ask for a plugin, write one and turn one on.
 
-[^readme]: The `README.md` is an ordinary Markdown file. This plugin reads its first heading for the plugin's title, and its first paragraph for the line shown under that title.
+[^readme]: The `README.md` is an ordinary Markdown file. This plugin reads its first heading for the plugin's title, and its first paragraph for the line shown under that title. Its frontmatter carries the tie to the builder chat. So the builder is told to leave the `---` block at the top of the file exactly as it is, and olai refuses a write by an agent that changes or drops that tie.
 
 [^edit]: Editing either code file pauses the plugin, stops it, and leaves its page showing a diff against the version that was approved. Editing the `README.md` changes no version, so it never asks anyone to approve the plugin again.
 
-[^builder]: Asking for a new plugin starts a chat about the plugin's own `README.md`, and that chat is the plugin's builder ([../node-agents.md](../node-agents.md)). The page reads **Being built** until the agent calls `vault-plugins_run` without a fault.
+[^builder]: Asking for a new plugin starts a chat about the plugin's own `README.md`, and that chat is the plugin's builder ([chat.md](chat.md)). It is named after the folder, so the builder of `plugins/swatch/README.md` reads `swatch`. The page reads **Being built** until the agent calls `vault-plugins_run` without a fault.
 
     That page carries **Ask for a change…**, which opens the builder chat in the pane beside it, and **Ask about …** where no chat is about this plugin yet. A `builder` property on a settings row is ordinary text, and olai reads nothing from it.
 

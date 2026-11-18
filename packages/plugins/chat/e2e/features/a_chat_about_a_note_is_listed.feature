@@ -76,3 +76,17 @@ Feature: A note's chat is named, opened and lit by its note
     And I type "Agents" into the palette
     Then the Agents palette row "plan-chat" is no taller than the row "install"
     And there should be no page errors
+
+  # A NOTE IS THE MEMORY OF ITS CHAT, so there is nothing under it to tidy:
+  # the server refuses the pass on a note outright, and a menu that offered it
+  # could only ever answer with the sentence saying why not. Its row's `•••`
+  # offers the two verbs that do work.
+  Scenario: A note's Chats menu offers no tidying
+    Given the vault holds "notes/plan.md" saying "# Plan"
+    And another writer ties a chat to the note "notes/plan.md" as "plan-chat"
+    And I open the outline "house.olai"
+    When I press the Chats row "plan-chat"
+    Then the chat page conversation is ready
+    When I open the Chats menu of "plan-chat"
+    Then the Chats menu offers "Put to sleep, Close the agent"
+    And there should be no page errors

@@ -17,7 +17,10 @@
  *
  * ONCE A PANE HAS THE CHAT the same button reads *Shown beside* and focuses
  * that pane — and the face around it draws this line INSTEAD of the
- * conversation, which is the drawn-once rule (`./beside.ts`).
+ * conversation, which is the drawn-once rule (`./beside.ts`). The press looks
+ * for that pane INCLUDING THE ONE IT IS IN: pressed from the chat page
+ * itself, the answer is "you are already there" rather than a second pane
+ * with the same route.
  */
 
 import { type Accessor, createMemo, Show } from "solid-js"
@@ -25,7 +28,7 @@ import { type AgentItem, itemKey } from "@olai/format"
 import { useHere, useRouter } from "olai-plugin-navigation/routing"
 
 import { TESTID } from "../../testids.ts"
-import { besideIn } from "./beside.ts"
+import { besideIn, drawnIn } from "./beside.ts"
 import { chatRouteOf } from "./route.ts"
 import { LINE_VERB } from "./verb.ts"
 
@@ -56,7 +59,7 @@ export const useChatBeside = (item: Accessor<AgentItem>): {
   return {
     beside,
     press: () => {
-      const at = beside()
+      const at = drawnIn(router.panes().map((pane) => pane.route()), itemKey(item()))
       if (at !== null) router.focus(at)
       else router.openRight(here(), chatRouteOf(item()))
     },

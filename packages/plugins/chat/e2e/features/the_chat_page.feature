@@ -56,9 +56,10 @@ Feature: A chat is a page of its own
     And pane 1 is showing "/chat/notes/plan.md"
     And pane 1 is focused
     # THE PANES ARE HEADED BY THE NAME: a column headed `/notes/plan.md` or a
-    # row id is a column nobody can tell from the one beside it.
+    # row id is a column nobody can tell from the one beside it — and the
+    # chat's column says it is the chat, or these two would read the same word.
     And pane 0's header reads "plan", and its close button is called "Close plan"
-    And pane 1's header reads "plan", and its close button is called "Close plan"
+    And pane 1's header reads "plan · chat", and its close button is called "Close plan · chat"
     # ...and the conversation came with it: the chat moved, it did not reopen.
     And the chat page conversation is ready
     # ONCE THE ITEM IS BESIDE IT the button says so and opens nothing: a second

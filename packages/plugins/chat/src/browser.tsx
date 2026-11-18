@@ -2,7 +2,7 @@ import { linkPreviews } from "olai-plugin-navigation/contract"
 import { noteLine } from "olai-plugin-markdown/contract"
 import { NoteLine } from "./browser/agents/NoteLine.tsx"
 import { BESIDE, type BesideDoor } from "./beside.ts"
-import { besideIn } from "./browser/agents/beside.ts"
+import { drawnIn } from "./browser/agents/beside.ts"
 import { chatRouteOf } from "./browser/agents/route.ts"
 import { ChatLinkPreview, previewNode } from "./browser/LinkPreview.tsx"
 import { Landings } from "@olai/plugin-api"
@@ -170,7 +170,7 @@ export default definePlugin({
     // (`olai-plugin-markdown/contract`'s `noteLine`, which markdown's own
     // document page places).
     yield* (yield* rendererSlots).contribute(noteLine,
-      props => <AgentsProvider value={state.agents}><NoteLine path={props.path} name={props.name} /></AgentsProvider>)
+      props => <AgentsProvider value={state.agents}><NoteLine path={props.path} /></AgentsProvider>)
     // The aside reads the activation roster once per row; only opening a fold
     // acquires a conversation. Unbound rows offer a start gesture.
     yield* slots.register("outline.row.placement", SESSION_KIND, { inRows: false })
@@ -210,6 +210,7 @@ import { createComponent, createRoot, Show } from "solid-js"
 import { shell as appShell, thumbs as thumbSeats } from "olai-plugin-layout/contract"
 import { ChatsThumb } from "./browser/agents/ChatsThumb.tsx"
 import { isCurrent } from "./browser/agents/here.ts"
+import { holdShell } from "./browser/shell.ts"
 export const components = {
   /** THE PHONE'S THUMB, DECLARED — a component of its own because it needs
    *  the shell (to open the drawer) and nothing else of this row's does. */
@@ -221,6 +222,14 @@ export const components = {
       order: 30,
       body: () => <Show when={roster()}>{agents => <AgentsProvider value={agents()}><ChatsThumb reveal={geometry.revealSidebar} /></AgentsProvider>}</Show>,
     })
+  }) }),
+  /** THE SHELL'S BREAKPOINT, DECLARED — a component of its own, so the chat
+   *  page keeps drawing under another layout (`./browser/shell.ts`). Below
+   *  `md` the panes are a strip of tabs, which is what the page's own door
+   *  reads it for. */
+  shell: definePlugin({ name: "shell", needs: [appShell], apply: Effect.gen(function*() {
+    const geometry = yield* appShell
+    yield* Effect.acquireRelease(Effect.sync(() => holdShell(geometry)), stop => Effect.sync(stop))
   }) }),
   /** What this deployment is called, DECLARED — a component of its own so a
    *  notification is raised with the bare word rather than not at all when the
@@ -243,8 +252,9 @@ export const components = {
       open: ({ item, from }) => {
         // THE DRAWN-ONCE RULE, as every face in this row reads it
         // (`./browser/agents/beside.ts`): a pane that already has this
-        // conversation is focused rather than a second one opened.
-        const at = besideIn(router.panes().map((pane) => pane.route()), itemKey(item), from)
+        // conversation is focused rather than a second one opened — including
+        // the pane the press came from, which is already there.
+        const at = drawnIn(router.panes().map((pane) => pane.route()), itemKey(item))
         if (at !== null) router.focus(at)
         else router.openRight(from, chatRouteOf(item))
       },

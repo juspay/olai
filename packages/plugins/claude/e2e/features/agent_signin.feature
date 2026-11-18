@@ -254,7 +254,7 @@ Feature: Signing in to Claude from inside olai
     Given the agent needs a sign-in
     When I press new chat in Chats
     And I type "kitchen" into the palette
-    And I choose the new chat place "kitchen"
+    And I choose the new chat item "kitchen"
     And I type new chat draft "sign in first"
     And I send the new chat draft
     Then the pending conversation is unfolded as "new-chat" with engine "claude"

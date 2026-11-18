@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test"
 import type { AgentItem } from "@olai/format"
 import { TEST_CLAIMS } from "@olai/format/testlib"
 
-import { nameOfItem } from "./called.ts"
+import { labelOfChat, nameOfItem } from "./called.ts"
 import { chatPage, chatSpelling, CHAT_PATH, itemAt } from "./route.ts"
 
 const href = (item: AgentItem) => chatPage.href(item)
@@ -80,5 +80,12 @@ describe("what a chat page is called", () => {
 
   test("with no claim table the file keeps the suffix rather than being guessed at", () => {
     expect(nameOfItem({ kind: "note", path: "notes/plan.md" }, undefined, titled)).toBe("plan.md")
+  })
+
+  // THE COLUMN SAYS IT IS THE CHAT, because a note and its chat beside each
+  // other are otherwise two tabs with one word on them.
+  test("the label is the name and the word chat", () => {
+    expect(labelOfChat({ kind: "note", path: "notes/plan.md" }, TEST_CLAIMS, titled)).toBe("plan · chat")
+    expect(labelOfChat({ kind: "node", id: "install" }, TEST_CLAIMS, titled)).toBe("install the cabinets · chat")
   })
 })

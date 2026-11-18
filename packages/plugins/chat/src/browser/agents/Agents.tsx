@@ -15,14 +15,26 @@ import { agoOf, createNow } from "@olai/web/client/ago.ts"
 import { TESTID } from "../../testids.ts"
 import { AgentMark } from "../chat/AgentMark.tsx"
 import { useAgents } from "./answered.tsx"
-import { createFocus } from "./focus.ts"
-import { awake, LOOK } from "./roster.ts"
+import { chatHref, visitAgent } from "./focus.ts"
+import { awake, LOOK, type Row } from "./roster.ts"
 import { ChatRowMenu } from "./ChatRowMenu.tsx"
 import { needing } from "./attention-order.ts"
 import { byActivity } from "./activity-order.ts"
 import { unfolded } from "./folding.ts"
 import { useChatBeside } from "./ChatBeside.tsx"
 import { itemOf } from "@olai/format"
+
+/** THE DOOR A ROW IS, read for the pane this column is drawn in: the address
+ *  a press opens (`./focus.ts` decides which, off the row's own switch) and
+ *  what opening it marks. A hook rather than a value, because the router is
+ *  the thing it closes over. */
+const createFocus = () => {
+  const router = useRouter()
+  return {
+    href: (row: Row) => chatHref(router.routes, row),
+    visit: visitAgent,
+  }
+}
 
 export function NeedsYou() {
   const shown = useShown()

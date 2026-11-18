@@ -85,7 +85,7 @@ Every commit message olai writes starts with `olai`, so `git log --grep '^olai'`
 
 [^body]: A commit that swept up files beside the outlines names them in its body, with what happened to each.
 
-[^trailer]: The `X-Olai-Writer` trailer names the part of olai that wrote the commit: `chat-agent`, `mcp`, `web`, `filer`, `auto` or `sleep`. Each one is in the table at the foot of this page, with what it stands for.
+[^trailer]: The `X-Olai-Writer` trailer names the part of olai that wrote the commit: `chat-agent`, `mcp`, `web`, `move`, `auto` or `sleep`. Each one is in the table at the foot of this page, with what it stands for.
 
 [^hook]: A hook is your project's rule about the commits people type, so olai passes `--no-verify`. A signature is your own statement about your own history: where you have a key the commit is signed, and where you do not, the refusal comes back with gpg's own words.
 
@@ -173,7 +173,7 @@ git refuses every write while an `index.lock` file exists, and a killed process,
 | `chat-agent` | an agent you chat with inside olai |
 | `mcp` | anything on `/mcp`, including a command you typed with `olai surface` |
 | `web` | the browser: the keyboard editor and the row's `•••` menu |
-| `filer` | olai filing conversations into the Inbox |
+| `move` | the one-time move that gave each conversation its own page |
 | `auto` | the fifteen-second wait, with nobody clicking anything |
 | `sleep` | a node agent's own pass over its memory ([node-agents.md](node-agents.md)) |
 

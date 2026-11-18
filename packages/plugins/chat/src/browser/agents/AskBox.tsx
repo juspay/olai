@@ -29,15 +29,13 @@ export function AskBox(props: {
   readonly note: JSX.Element
   /** An engine the box may not change — a row that already names its own. */
   readonly fixed?: string
-  /** The engine to offer first where none is fixed. */
-  readonly preferred?: string
   readonly testid: string
   readonly class?: string
   readonly where?: string
 }) {
   const agents = useAgents()
   const [chosen, choose] = createSignal<string>()
-  const engine = () => props.fixed ?? chosen() ?? props.preferred ?? agents.engines()[0]?.id
+  const engine = () => props.fixed ?? chosen() ?? agents.engines()[0]?.id
   const send = () => { const id = engine(); if (id !== undefined) props.send(id) }
   return (
     <div class={props.class ?? "rounded-control border border-dashed border-rule bg-paper p-3"} data-testid={props.testid} data-where={props.where}>

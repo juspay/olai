@@ -354,6 +354,19 @@ Then("the plugin page's README says {string}", async function (this: OlaiWorld, 
   )
 })
 
+/** ...AND NOT THE BLOCK AT THE TOP OF IT. This README is also where the
+ *  plugin's own chat is tied (`chat-agent-session` in its front matter), and
+ *  front matter handed to a renderer as body is drawn as text above the
+ *  title — so the page cuts it exactly as the note page does. */
+Then("the plugin page's README does not say {string}", async function (this: OlaiWorld, said: string) {
+  const readme = this.page.locator(`${PAGE} ${PAGE_README}`).first()
+  await readme.waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+  // A beat, so prose still arriving fails this rather than landing after it.
+  await this.page.waitForTimeout(500)
+  assert.ok(!(await readme.innerText()).includes(said),
+    `the README on the page says ${JSON.stringify(said)}, and it may not`)
+})
+
 /** *What it uses*, read off the code's own imports rather than off anything
  *  the author wrote in prose — the kinds it teaches, the slots it draws into,
  *  the services it names. */

@@ -12,10 +12,9 @@ Feature: Asking for a plugin
   WHAT IS ASSERTED HERE IS THE DISK AND THE PANE. A mint that drew the right
   words and wrote nothing would pass any assertion made about the screen, so
   these scenarios ask the vault what is in it: the folder with the README the
-  person's own sentence went into, the chat row TITLED WITH THE PLUGIN'S PAGE
-  — `[Bar beside](/plugins/bar-beside)`, under Inbox › Chats, which is the
-  whole of what makes it that plugin's conversation — and the conversation
-  itself in the seat beside the page.
+  person's own sentence went into, `chat-agent-session` IN THAT README'S OWN
+  FRONT MATTER — which is the whole of what makes that conversation this
+  plugin's — and the conversation itself in the pane beside the page.
 
   THE REFUSALS ARE IN PLACE, and that is the one interaction claim worth
   spelling out. A word already taken and a word that is not a word are both

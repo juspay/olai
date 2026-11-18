@@ -24,7 +24,7 @@ A capture is added as a new top-level row of `_olai/Inbox.olai`, marked **To do*
 
 ## The Inbox entry in the sidebar
 
-The entry opens `_olai/Inbox.olai` and carries a count of what is waiting there.[^chip] Chat puts some conversations in the inbox too.[^chats]
+The entry opens `_olai/Inbox.olai` and carries a count of what is waiting there.[^chip]
 
 ## When something is off
 
@@ -38,5 +38,3 @@ The entry opens `_olai/Inbox.olai` and carries a count of what is waiting there.
 [^undo]: Undoing a capture takes the row straight back out. An inbox file the capture created is left standing, so you delete it yourself if you want it gone.
 
 [^chip]: The count beside **Inbox** counts the rows in the inbox marked **To do** or **Doing**, however deeply they are nested, and is not drawn when that count is zero. A ⚠ beside the word means `Couldn't open this file`.
-
-[^chats]: Conversations in the inbox: a conversation that is attached to no row is filed under a top-level `Chats` row of the inbox, and chat offers **Inbox › Chats** as the default place on its **New chat** command. Switching capture off removes that place and stops the filing. The other places still work, and conversations already attached to a row are untouched.

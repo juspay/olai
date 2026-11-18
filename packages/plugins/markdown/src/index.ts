@@ -87,16 +87,17 @@ export const properties = location<(props: PropertiesProps) => JSX.Element>("mar
  *
  * WHAT IS IN IT IS NOT THIS ROW'S. Today it is a chat: the agent's mark, how
  * it stands and the way into the conversation beside the page. This package
- * knows none of that and never will — it declares the PLACE and what the
- * occupant is told about the note it is over (its path, and the name a person
- * reads), exactly as {@link properties} declares the place a richer property
- * drawer fills. With nothing contributed there is no line and the page is
- * whole, which is also what *chat switched off* looks like.
+ * knows none of that and never will — it declares the PLACE and the one thing
+ * the occupant is told, WHICH NOTE it is over, exactly as {@link properties}
+ * declares the place a richer property drawer fills. What that note is CALLED
+ * is the occupant's own question, because the occupant is also what names it
+ * everywhere else — a chat is named by one rule wherever it is named, and a
+ * second word handed in here is how `README` ends up on a line whose page,
+ * row and tab all say the folder. With nothing contributed there is no line
+ * and the page is whole, which is also what *chat switched off* looks like.
  */
 export interface NoteLineProps {
   /** The note the page is drawing, root-relative. */
   readonly path: string
-  /** ...and what it is called, in the words a person reads on it. */
-  readonly name: string
 }
 export const noteLine = location<(props: NoteLineProps) => JSX.Element>("markdown.note-line", "one")

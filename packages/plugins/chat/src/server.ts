@@ -1,4 +1,4 @@
-import { newChat, chatLocations, type LocationQuery, type NewChatInput } from "./server/new-chat.ts"
+import { newChat, itemLocations, type LocationQuery, type NewChatInput } from "./server/new-chat.ts"
 /**
  * CHAT'S SERVER HALF — the conversation, the node scopes, the doorbell's other
  * end, and the fourteen verbs, as a row.
@@ -612,26 +612,24 @@ export default definePlugin({
     const published = Effect.sync(() => void mine?.cells.sessionsRevision.set(++sessionsRevision))
 
     /**
-     * THE ACTS, ONCE — the start a person's *New chat* runs and the start
-     * another row's `open` runs, which are the same start.
+     * THE START, ONCE — the one a person's *New chat* runs, the one a door on
+     * a page runs, and the one another row's `open` runs.
      *
      * It was written inside the surface procedure, which was right while the
      * only caller was a keystroke. A second caller arriving (core's
      * {@link Conversations}) would have had to say the same thunks again,
      * and the two copies would have been where "that item already has a chat"
-     * quietly got two answers. The permit, the committed reading the seat is
-     * written against and the refusal sentences are all
-     * `./server/new-chat.ts`'s; what is here is this row's doors into the
-     * vault.
+     * quietly got two answers. The permit, the reading the seat is written
+     * against and the refusal sentences are all `./server/new-chat.ts`'s;
+     * what is here is this row's doors into the vault.
      */
     const mintConversation = (open: Chat.Chat, input: NewChatInput) =>
       creationPermit.withPermit(newChat({
         read: gate.read,
-        write: request => gate.run(request, "web"),
         start: (node, agent, committed) => Effect.gen(function*() {
-          // Ops has committed the new node, but revision delivery may still
-          // be queued. Seat against that committed reading, not the earlier
-          // roster used to paint the sidebar.
+          // Seat against the reading the refusal was asked over, not the
+          // earlier roster used to paint the sidebar: a revision delivery may
+          // still be queued behind a write that has already committed.
           levelWith(committed)
           return yield* startAgentSession(open, binding, { node, agent })
         }),
@@ -719,7 +717,7 @@ export default definePlugin({
       seen: ({ input }: { input: { agent: string; session: string; at: string } }) =>
         withChat((open) => open.seen(input, input.at))
           .pipe(Effect.tap(() => Effect.sync(republishAgents))),
-      locations: ({ input }: { input: LocationQuery }) => Effect.map(ops.reading, reading => chatLocations(reading as Reading, input)),
+      locations: ({ input }: { input: LocationQuery }) => Effect.map(ops.reading, reading => itemLocations(reading as Reading, input)),
       // THE CHAT OF AN ITEM (`item`) carries its first message (`say`) and
       // is handed it HERE, once, the way another row's `open` is: the door on
       // a page stays on that page, so there is nowhere else for the words to
@@ -727,7 +725,7 @@ export default definePlugin({
       newChat: ({ input }: { input: NewChatInput }) =>
         withChat(open => Effect.gen(function*() {
           const made = yield* mintConversation(open, input)
-          const say = "item" in input ? input.say : undefined
+          const say = input.say
           if (made.to === null || say === undefined || say.trim() === "") return made
           const said = yield* Effect.result(open.inConversation(made.to, undefined, panel => panel.send(say, [], [], false, [])))
           return said._tag === "Failure" ? { ...made, refusal: said.failure.message } : made

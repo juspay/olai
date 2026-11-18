@@ -2,7 +2,7 @@ import { LAYER } from "@olai/web/client/layer.ts"
 import { CLEARANCE } from "olai-plugin-layout/clearance"
 import { type AgentItem, itemOf, memoryOf, UsageFailure } from "@olai/format"
 import { Result } from "effect"
-import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, untrack, onCleanup, Show } from "solid-js"
+import { type Accessor, batch, createEffect, createMemo, createRoot, createSignal, onCleanup, Show } from "solid-js"
 import { usePane } from "olai-plugin-navigation/pane"
 import { runAsync } from "@olai/web/client/run.ts"
 import { TESTID } from "../../testids.ts"
@@ -21,10 +21,8 @@ import { Strips } from "../chat/Strips.tsx"
 import { Conversation } from "./Fold.tsx"
 import { AskBox } from "./AskBox.tsx"
 import { ChatBeside, useBeside } from "./ChatBeside.tsx"
-import { receive } from "./handoff.ts"
 
 export interface PageSession {
-  readonly preferredEngine: Accessor<string | undefined>
   readonly chat: Accessor<Chat | null>
   readonly draft: Accessor<string>
   readonly setDraft: (text: string) => void
@@ -55,7 +53,7 @@ function createPageSession(node: string): PageSession {
   const [failure, setFailure] = createSignal<string | null>(null)
   // THE WORDS GO INTO THE CONVERSATION the moment there is one to put them in
   // — the plain composer's unsent draft, and the words a door's start left for
-  // this row when it stopped at a sign-in (`./Door.tsx`'s `sendAbout`).
+  // this row when it stopped at a sign-in (`./send-about.ts`'s `sendAbout`).
   //
   // INTO THE CHAT'S OWN MEMORY (`value.ui`), and not before it is OPEN. A
   // start held at a sign-in has a conversation that could not be opened: its
@@ -102,20 +100,6 @@ function createPageSession(node: string): PageSession {
       } else if (!await value.send(text, [], [])) keepMessage(ui.messages, key, text, true)
     } finally { releaseUI() }
   }
-  const [preferredEngine, prefer] = createSignal<string>()
-  createEffect(() => {
-    const arrival = reading.newChat.take(node)
-    if (arrival === undefined) return
-    untrack(() => receive(arrival, {
-      prefer,
-      refuse: setFailure,
-      redraft: before,
-      deliver: (to, text) => {
-        setStarting(true)
-        return deliver(to, text, "").finally(() => setStarting(false))
-      },
-    }))
-  })
   const start = async (engine: string) => {
     const text = draft()
     if (starting() || text.trim() === "") return
@@ -138,7 +122,7 @@ function createPageSession(node: string): PageSession {
       await deliver(to, text, later)
     } finally { setStarting(false) }
   }
-  return { chat, draft, setDraft, starting, failure, start, preferredEngine }
+  return { chat, draft, setDraft, starting, failure, start }
 }
 
 /** The page session of a chat row, held for the pane this is drawn in — a
@@ -214,7 +198,7 @@ function PlainComposer(props: { readonly node: string; readonly page: PageSessio
     <AskBox name={node().title} draft={props.page.draft} setDraft={props.page.setDraft}
       starting={props.page.starting} failure={props.page.failure}
       send={engine => void props.page.start(engine)}
-      fixed={agents.at(props.node)?.engine} preferred={props.page.preferredEngine()}
+      fixed={agents.at(props.node)?.engine}
       note={<>Sending starts an agent here · Memory: {memoryOf(node())}</>}
       testid={TESTID.agentPlainComposer}
       class={`sticky bottom-0 ${LAYER.row} rounded-control border border-dashed border-rule bg-paper p-3 ${CLEARANCE}`} />

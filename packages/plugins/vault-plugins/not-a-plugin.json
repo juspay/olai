@@ -15,7 +15,7 @@
   },
   "chat": {
     "src/browser.tsx": 1,
-    "src/server.ts": 7,
+    "src/server.ts": 8,
     "src/browser/Page.tsx": 9,
     "src/browser/alerts.ts": 1,
     "src/runtime.ts": 4,

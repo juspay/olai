@@ -1,4 +1,3 @@
-import { keepMessage } from "../chat/message-draft.ts"
 import { createStore } from "solid-js/store"
 import { createNewChat } from "./new-chat.ts"
 import { createPreviews } from "../chat/previews.ts"
@@ -22,7 +21,7 @@ export type Unsent =
   | { readonly kind: "door"; readonly where: "line" | "page"; readonly item: string }
 
 export const createAgentReadings = (agents: Roster) => {
-  const newChat = createNewChat((to, text) => keepMessage(ui(to).messages, JSON.stringify([to.agent, to.session]), text, true))
+  const newChat = createNewChat()
   const page = createPageOwners<PageSession>()
   const previews = createPreviews()
   const reveals = new Set<string>()

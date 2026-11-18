@@ -144,10 +144,15 @@ const CLOSE_AGENT: RowVerb = {
   },
 }
 
-/** The two answers {@link chatVerbs} has, and the empty one — VALUES, so the
+/** The four answers {@link chatVerbs} has, and the empty one — VALUES, so the
  *  same row asked twice is handed the same array and the same objects. */
 const SEATED: ReadonlyArray<RowVerb> = [PUT_TO_SLEEP, TIDY_MEMORY, CLOSE_AGENT]
 const UNSEATED: ReadonlyArray<RowVerb> = [TIDY_MEMORY, CLOSE_AGENT]
+/** ...and the same two without the pass, for a NOTE: its chat's memory is the
+ *  note, so there is nothing under it to tidy and the server refuses the pass
+ *  outright (`../server/server.ts`'s `NO_SLEEP_ON_A_NOTE`). */
+const NOTE_SEATED: ReadonlyArray<RowVerb> = [PUT_TO_SLEEP, CLOSE_AGENT]
+const NOTE_UNSEATED: ReadonlyArray<RowVerb> = [CLOSE_AGENT]
 const NO_CHAT: ReadonlyArray<RowVerb> = []
 
 /**
@@ -158,10 +163,16 @@ const NO_CHAT: ReadonlyArray<RowVerb> = []
  * second copy anywhere is how one of them ends up saying something the others
  * do not, which is exactly what *Sleep now* did before it was *Tidy memory*.
  *
- * EVERY ENTRY IS A VERB THAT CAN WORK, which is one rule read twice. A row
- * naming no conversation has NONE of these — `Tidy memory` and `Close the
+ * EVERY ENTRY IS A VERB THAT CAN WORK, which is one rule read three times. A
+ * row naming no conversation has NONE of these — `Tidy memory` and `Close the
  * agent` are both about a chat, and a sidebar row may be a bare node (the
  * outline's menu never reaches here for one, so only the column had to ask).
+ * `Tidy memory` is off a NOTE's chat, because a note IS the memory of its
+ * chat: there is nothing under it to tidy, and the server refuses the pass on
+ * one unconditionally (`../server/server.ts`'s `NO_SLEEP_ON_A_NOTE`), so
+ * offering it here could only ever produce a sentence saying why not. The
+ * sleep strip asks the same question for the same reason
+ * (`./chat/sleeping.ts`).
  * `Put to sleep` is narrower still: it hands a SEAT back, so it is offered
  * exactly where there is one to hand back ({@link seated}) — which includes
  * the stopped agent whose dot the column does not draw. That row is the one
@@ -169,9 +180,14 @@ const NO_CHAT: ReadonlyArray<RowVerb> = []
  * its own, and the seat is held until somebody says otherwise.
  *
  * A VERB CLOSES OVER NOTHING — the node it acts on is its argument — so these
- * are three constants and this function is a choice between two of them. What
- * that buys a caller is identity: a menu redrawn on a roster frame is handed
- * the objects it already had (`./agents/ChatRowPanel.tsx` keys on them).
+ * are three constants in four arrangements and this function is a choice
+ * between them. What that buys a caller is identity: a menu redrawn on a
+ * roster frame is handed the objects it already had
+ * (`./agents/ChatRowPanel.tsx` keys on them).
  */
 export const chatVerbs = (bound: Row): ReadonlyArray<RowVerb> =>
-  bound.session == null ? NO_CHAT : seated(bound.standing) ? SEATED : UNSEATED
+  bound.session == null
+    ? NO_CHAT
+    : bound.kind === "note"
+      ? (seated(bound.standing) ? NOTE_SEATED : NOTE_UNSEATED)
+      : (seated(bound.standing) ? SEATED : UNSEATED)

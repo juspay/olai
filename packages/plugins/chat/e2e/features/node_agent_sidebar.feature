@@ -113,13 +113,13 @@ Feature: Agent activity is reachable from Chats and the palette
     Given I open the outline "house.olai"
     When I press new chat in Chats
     And I type "gate" into the palette
-    And I choose the new chat place "gate"
+    And I choose the new chat item "gate"
     And I type new chat draft "about the gate"
     And I send the new chat draft
-    Then the chat child under "gate" in "yard.olai" is titled "about the gate"
+    Then the item "gate" carries a chat on "claude"
     When I open the outline "house.olai"
-    And I press the Chats row "new-chat"
-    Then the chat page is about the node "new-chat" named "about the gate" in "yard.olai"
+    And I press the Chats row "gate"
+    Then the chat page is about the node "gate" named "oil the gate hinge" in "yard.olai"
     And the chat page conversation is ready
     And there should be no page errors
 

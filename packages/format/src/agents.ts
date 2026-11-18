@@ -214,10 +214,11 @@ export const NodeAgent = Schema.Struct({
   /** Where it is, root-relative: the outline a node is written in, or the
    *  note's own path. */
   file: Schema.String,
-  /** What it is called, live: a node's title, or a note's name
-   *  ({@link ./kinds.ts}'s `nameOf` — `plan` for `notes/plan.md`). Rename
-   *  either and the roster says the new name on the frame the store
-   *  publishes, because there is no second copy of it anywhere to go stale. */
+  /** What it is called, live: a node's title, or a note's chat name
+   *  ({@link noteTitle} — `plan` for `notes/plan.md`, `swatch` for
+   *  `plugins/swatch/README.md`). Rename either and the roster says the new
+   *  name on the frame the store publishes, because there is no second copy
+   *  of it anywhere to go stale. */
   title: Schema.String,
   /**
    * WHICH ENGINE this node's agent runs on — the first half of the property's
@@ -433,6 +434,36 @@ export const seatableIn = (derived: Derived, node: string): boolean => {
 }
 
 /**
+ * WHAT A NOTE'S CHAT IS CALLED — the note's name, except for a `README`,
+ * which is called after the FOLDER it describes.
+ *
+ * A plugin's builder chat is the chat of `plugins/<word>/README.md`, and a
+ * vault with three plugins being built would otherwise have three chats all
+ * called `README` — in the sidebar, in the palette, on the chat's own page
+ * and in a pane's header, which is four places where the one word a reader
+ * has to tell them apart by is the same word. A README is named for the thing
+ * it describes, and the thing it describes is its folder (`swatch` for
+ * `plugins/swatch/README.md`).
+ *
+ * EVERY README, not a plugin's: this package knows nothing about plugins, and
+ * the argument has nothing to do with them — a folder's README is that
+ * folder's own description wherever it sits. A README at the root has no
+ * folder to borrow and keeps its own name.
+ *
+ * HERE, beside the roster, because it is the roster's title: every face reads
+ * the row the server published (`./notesIn`), and the browser asks the same
+ * function for the one item that has no row yet — a note nobody has started a
+ * chat on (`olai-plugin-chat`'s `called.ts`). One rule, one spelling.
+ */
+export const noteTitle = (claims: Claims, path: string): string => {
+  const name = nameOf(claims, path)
+  if (name !== "README") return name
+  const folder = path.slice(0, path.lastIndexOf("/"))
+  if (folder === "") return name
+  return folder.slice(folder.lastIndexOf("/") + 1)
+}
+
+/**
  * THE NOTES OF A SET THAT CARRY A CHAT — the same query as {@link agentsIn},
  * asked of front matter instead of records, in path order.
  *
@@ -477,7 +508,7 @@ export const notesIn = (
       kind: "note" as const,
       id: itemKey({ kind: "note", path: note.path }),
       file: note.path,
-      title: nameOf(claims, note.path),
+      title: noteTitle(claims, note.path),
       engine: said.engine,
       session: said.session,
       memory: 0,

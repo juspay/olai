@@ -38,13 +38,15 @@ export { name } from "./index.ts"
  * WHAT THE BUILDER IS TOLD BEFORE IT IS ASKED FOR ANYTHING — the preamble, in
  * the lane chat already teaches its agents in.
  *
- * FIVE SENTENCES, and each of them exists because an agent that was not told
+ * SIX SENTENCES, and each of them exists because an agent that was not told
  * it got it wrong on this branch: it wrote the two halves and no README, so the
  * page had nothing to say the plugin DID; it wrote against a memory of olai's
  * services rather than reading the live registry; it put the files somewhere
- * of its own choosing; it stopped without checking, leaving a person to find
- * the compile error; and it tried to approve its own work, which is the one
- * thing it can never do.
+ * of its own choosing; it rewrote the README whole and dropped the front
+ * matter THIS CONVERSATION IS TIED BY, which the write gate refuses and which
+ * would otherwise close the chat the person is talking in; it stopped without
+ * checking, leaving a person to find the compile error; and it tried to
+ * approve its own work, which is the one thing it can never do.
  *
  * It rides chat's teaching seam rather than a channel of this row's own,
  * because that seam already answers the two questions a preamble has: WHERE it
@@ -62,6 +64,9 @@ const preambleFor = (word: string, title: string): ReadonlyArray<string> => [
     + `PERSON — a \`# Title\` line, a blank line, then one sentence saying what it does, then as `
     + `much prose as it deserves — and then \`${PLUGIN_SERVER_FILE}\`, and `
     + `\`${PLUGIN_BROWSER_FILE}\` if it draws anything.`,
+  `Keep the \`---\` block at the top of \`${PLUGIN_README_FILE}\` exactly as it is when you `
+    + `rewrite the file. This conversation is tied to that note by those keys — olai refuses a `
+    + `write that changes or drops them, and the chat you are in is the one they name.`,
   `Finish by calling \`vault-plugins_run\`. If it answers a fault, fix it and run again.`,
   `You cannot turn it on. \`pending\` is not a failure — it is a person being asked, with your `
     + `code in front of them, and only they can press the button. Say when it is ready.`,

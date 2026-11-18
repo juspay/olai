@@ -17,8 +17,10 @@
  *
  * WHICH PANE, as a pure function of the pane routes and the item key, so the
  * rule is a table (`./beside.test.ts`) rather than three components' guesses.
- * The reader's OWN pane is excluded, which is what makes the chat page itself
- * draw the conversation rather than a sentence about its own column.
+ * The pane that DRAWS is the leftmost one whose page is that chat — named,
+ * rather than "any pane but mine", so that two panes on one chat page settle
+ * on the same answer instead of each pointing at the other and neither
+ * drawing anything.
  */
 
 import { itemKey } from "@olai/format"
@@ -26,19 +28,30 @@ import type { Route } from "olai-plugin-navigation/routes"
 
 import { chatPage } from "./route.ts"
 
-/** The pane OTHER THAN `here` whose page is this item's chat, or `null`.
- *  First in pane order: two panes on one chat is something a person can
- *  arrange by hand, and the leftmost of them is the one the others point at.
+/** The pane whose page is this item's chat, or `null`. FIRST IN PANE ORDER:
+ *  two panes on one chat is something a person can arrange by hand, and the
+ *  leftmost of them is the one that draws the conversation and the one the
+ *  others point at.
+ *
+ *  This is the answer a PRESS wants — go to where the chat already is,
+ *  whichever pane that is, including the one pressing. */
+export const drawnIn = (routes: ReadonlyArray<Route>, key: string): number | null => {
+  const at = routes.findIndex((route) => {
+    const item = chatPage.value(route)
+    return item !== null && itemKey(item) === key
+  })
+  return at < 0 ? null : at
+}
+
+/** The pane drawing this item's chat as seen FROM pane `here`: the same pane
+ *  as {@link drawnIn}, except that the pane which draws is told `null` — it
+ *  draws the conversation rather than a sentence about its own column.
  *
  *  PURE, and in a file with no face in it, so the rule is a bun test over a
  *  list of routes rather than a mounted layout (`./ChatBeside.tsx` is where
  *  it is read for the pane a component is drawn in). */
 export const besideIn = (routes: ReadonlyArray<Route>, key: string, here: number): number | null => {
-  const at = routes.findIndex((route, index) => {
-    if (index === here) return false
-    const item = chatPage.value(route)
-    return item !== null && itemKey(item) === key
-  })
-  return at < 0 ? null : at
+  const at = drawnIn(routes, key)
+  return at === null || at === here ? null : at
 }
 

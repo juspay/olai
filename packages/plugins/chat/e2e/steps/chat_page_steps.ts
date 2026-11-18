@@ -36,6 +36,8 @@ import {
   CHAT_PAGE_STANDING,
   CHAT_PAGE_TITLE,
   CHAT_PAGE_WHERE,
+  CHAT_SEND,
+  CHAT_TRANSCRIPT,
 } from "../selectors.ts";
 import { matterOf } from "./chat_about_steps.ts";
 
@@ -206,10 +208,64 @@ Then("the chat page offers to open {string} beside", async function (this: OlaiW
     `the button to offer to open ${name} beside`, HYDRATION_TIMEOUT);
 });
 
+/** ...AND ON A PHONE IT IS THE SAME VERB WITHOUT THE COLUMN: the panes are a
+ *  strip of tabs there, so the door reads *Open <name> ›* and the press puts
+ *  the item in the next tab. */
+Then("the chat page offers to open {string}", async function (this: OlaiWorld, name: string) {
+  const button = page(this).locator(CHAT_OPEN_BESIDE);
+  await button.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await this.waitUntil(async () => (await button.innerText()).trim() === `Open ${name} ›`,
+    `the button to offer to open ${name}`, HYDRATION_TIMEOUT);
+});
+
 Then("the chat page says the item is shown beside", async function (this: OlaiWorld) {
   const button = page(this).locator(CHAT_OPEN_BESIDE);
   await button.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await this.waitUntil(async () => await button.getAttribute("data-beside") === "true"
     && (await button.innerText()).trim() === "Shown beside",
     "the button to read Shown beside", HYDRATION_TIMEOUT);
+});
+
+/**
+ * THE PHONE'S WHOLE SCREEN. One pane at a time there, so a chat opened on a
+ * phone IS the screen: its head, the conversation and the composer are all
+ * inside the viewport, with the composer in its bottom quarter where a thumb
+ * is.
+ *
+ * EVERYTHING IS READ AT THE TOP OF THE SCROLL, in the same frame as the
+ * scroll: the head is sticky only above `md`
+ * (`../../src/browser/agents/ChatPage.tsx`), so on a handset it is the first
+ * thing in the scroll and a conversation sitting at its end has scrolled it
+ * away on purpose — and the transcript's own stick-to-the-bottom would
+ * otherwise land between the scroll and the reading. What is asserted is the
+ * screen a person arrives at.
+ */
+Then("the chat page fills the phone screen", async function (this: OlaiWorld) {
+  const here = page(this);
+  await here.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await here.locator(CHAT_SEND).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await here.locator(CHAT_TRANSCRIPT).waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const { width, height } = this.viewport();
+  const seen = await here.evaluate((root, ids) => {
+    let host: HTMLElement | null = root as HTMLElement;
+    while (host !== null && !/auto|scroll/.test(getComputedStyle(host).overflowY)) host = host.parentElement;
+    if (host !== null) host.scrollTop = 0;
+    window.scrollTo(0, 0);
+    const box = (id: string) => {
+      const rect = root.querySelector(id)?.getBoundingClientRect();
+      return rect === undefined ? null : { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    };
+    return { head: box(ids.head), body: box(ids.body), composer: box(ids.composer) };
+  }, { head: CHAT_PAGE_TITLE, body: CHAT_TRANSCRIPT, composer: CHAT_SEND });
+  const said = JSON.stringify({ ...seen, screen: [width, height] });
+  const inside = (box: { x: number; y: number; width: number; height: number } | null): boolean => box !== null
+    && box.x >= -1 && box.y >= -1 && box.x + box.width <= width + 1 && box.y + box.height <= height + 1;
+  assert.ok(inside(seen.head), `the chat page's head is not on the phone's screen: ${said}`);
+  assert.ok(inside(seen.body), `the conversation is not on the phone's screen: ${said}`);
+  assert.ok(inside(seen.composer), `the composer is not on the phone's screen: ${said}`);
+  // AT THE BOTTOM, under the conversation: a phone's chat with its composer
+  // anywhere else is a page somebody has to scroll to type into.
+  assert.ok(seen.composer !== null && seen.body !== null
+    && seen.composer.y >= seen.body.y && seen.composer.y > height * 0.75,
+    `the composer is not at the bottom of the phone's screen: ${said}`);
 });

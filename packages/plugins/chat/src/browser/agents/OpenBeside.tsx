@@ -14,6 +14,16 @@
  * person can ask for by hand, and never a thing a button should do by
  * surprise — the layout is the address, and this one would quietly grow a
  * column every time it was pressed.
+ *
+ * ## On a phone it is *Open <name> ›*
+ *
+ * Below `md` the panes are a strip of tabs, one at a time
+ * (`olai-plugin-layout`'s `Panes.tsx`), so there is no left and no right to
+ * put anything on and *beside* names nothing a reader would see. The verb is
+ * the same verb — the way from the conversation to the thing it is about — and
+ * it adds the item as another TAB and goes there (`openRight`, which on a
+ * strip is "the next one along"). The chat stays a tab away, which is the
+ * whole reason the strip is kept in view while the page scrolls.
  */
 
 import { createMemo, Show } from "solid-js"
@@ -22,6 +32,7 @@ import { useRouter } from "olai-plugin-navigation/routing"
 import { usePane } from "olai-plugin-navigation/pane"
 
 import { TESTID } from "../../testids.ts"
+import { desktop } from "../shell.ts"
 import { LINE_VERB } from "./verb.ts"
 import { routeOfItem } from "./here.ts"
 import { chatRouteOf } from "./route.ts"
@@ -38,6 +49,7 @@ export function OpenBeside(props: { readonly item: AgentItem; readonly name: str
     const already = shown()
     if (already !== undefined) { router.focus(already.index()); return }
     const here = pane?.index ?? router.focusIndex()
+    if (!desktop()) { router.openRight(here, target()); return }
     router.goIn(here, target())
     router.openRight(here, chatRouteOf(props.item))
   }
@@ -49,7 +61,14 @@ export function OpenBeside(props: { readonly item: AgentItem; readonly name: str
       data-beside={String(shown() !== undefined)}
       onClick={press}
     >
-      <Show when={shown() === undefined} fallback={<>Shown beside</>}>{`Open ${props.name} beside ›`}</Show>
+      {/* ON A PHONE IT ALWAYS READS *Open <name> ›*: the item is never on
+          screen beside the conversation there, so *Shown beside* would be a
+          sentence about a column that does not exist — and the press goes to
+          its tab, which is the same verb as opening one. */}
+      <Show when={desktop() && shown() !== undefined}
+        fallback={desktop() ? `Open ${props.name} beside ›` : `Open ${props.name} ›`}>
+        Shown beside
+      </Show>
     </button>
   )
 }

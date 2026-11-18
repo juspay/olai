@@ -17,7 +17,7 @@ Feature: An agent is offered only where one can start
     Given I open the outline "house.olai"
     When I press new chat in Chats
     And I type "pick the hinges" into the palette
-    And I choose the new chat place "hinges"
+    And I choose the new chat item "hinges"
     Then the palette options are "claude, codex"
     When I press "Escape"
     Then the command palette is closed
@@ -96,12 +96,12 @@ Feature: An agent is offered only where one can start
     When I press "Escape"
     And I press new chat in Chats
     And I type "pick the hinges" into the palette
-    And I choose the new chat place "hinges"
+    And I choose the new chat item "hinges"
     # One agent left: it is the one option.
     Then the palette options are "claude"
     When I type new chat draft "engine selection"
     And I send the new chat draft
-    Then the new conversation is unfolded as "new-chat" with engine "claude"
+    Then the new conversation is unfolded as "hinges" with engine "claude"
     When I open the plugins panel
     And I switch the plugin "codex" on
     And I close the plugins panel

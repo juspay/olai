@@ -29,7 +29,7 @@ A link to a row is `/#<id>`; the bullet and **Zoom in** open `/zoom/#<id>`.[^rev
 | `Alt` + `Shift` and a click | in a new pane beside this one |
 | `Ctrl`, `Cmd`, `Shift` or a middle-click | the browser's own, untouched |
 
-A link opens in the pane it is drawn in.[^pane] Back and Forward walk the window's history.[^back]
+A link opens in the pane it is drawn in.[^pane][^chat] Back and Forward walk the window's history.[^back]
 
 ## When a page cannot be opened
 
@@ -54,6 +54,8 @@ A plugin can add a page, a palette row, a prefix, a link preview or a keyboard s
 [^pane]: Anything outside every pane, such as the header, acts on the pane you last used. A link to a place on the page you are already on stays with the content that drew it, and so do `download` links and links aimed at another window.
 
     A hover preview ([link-preview.md](link-preview.md)) and the tab strip's link menu ([tabs.md](tabs.md)) read the same rules, so all three agree about where a link goes.
+
+[^chat]: A pane drawing a conversation keeps it: a link pressed there opens in the pane to its left, or in one opened to its right where there is nothing on the left. So an agent's answer stays on screen while you read what it points at. **Open beside ›**, on the chat's own page and wherever chat names a conversation, is the same arrangement made by hand ([chat.md](chat.md)).
 
 [^back]: A plugin that keeps several layouts open, such as the tab strip ([tabs.md](tabs.md)), gives the one in front a history list of its own, and Back and Forward then walk that list alone. A step that meets another list's entry keeps going the same way without drawing anything, and returns to where it started when this list has nothing further. Nothing on screen changes while it travels.
 
