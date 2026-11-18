@@ -212,26 +212,29 @@ const keyOf = (input: unknown): string => {
  *  key is not present` for a name the collection did hold, and olai's own
  *  read-back of a capture failed with it.
  *
- *  A name is written SEGMENT BY SEGMENT and joined with `/`, which is the one
- *  spelling both expansions accept: `{+id}` keeps the `/` that makes
- *  `_olai/Inbox.olai` ONE address, and the server's item reader
- *  (`parseCollectionItem`) decodes `a%2Fb` to the same name an `{id}` expansion
- *  would have written. A template carrying neither placeholder is a defect in
- *  the publisher, not something to paper over with the template as-is. */
+ *  `{+id}` ALONE, and anything else is refused rather than guessed at. The
+ *  server's reader happens to accept a simple `{id}` expansion too — it decodes
+ *  `a%2Fb` to the same name — but that is the server tolerating an old client,
+ *  not a second contract this side may build against: a fill that quietly
+ *  handled both would go on working (and go on being wrong about which
+ *  expansion the address is) through a change nobody read. So the shape here
+ *  says what is published today, and a template that stops matching is a
+ *  sentence naming itself rather than a read that lands on the wrong row.
+ *
+ *  A name is written SEGMENT BY SEGMENT and joined with `/` — `{+id}`'s own
+ *  rule, and the one that keeps the `/` in `_olai/Inbox.olai` so the whole
+ *  thing stays ONE address rather than two path segments. */
 export const itemAddress = (uriTemplate: string, name: string): string => {
-  const placeholder = /\{\+?id\}/.exec(uriTemplate)
-  if (placeholder === null) {
+  const placeholder = "{+id}"
+  const at = uriTemplate.indexOf(placeholder)
+  if (at === -1) {
     throw new McpUnreachable(
-      `the item template ${uriTemplate} carries no {id} or {+id} to fill`,
+      `the item template ${uriTemplate} does not carry ${placeholder}, which is the only placeholder a collection's item address is published with`,
     )
   }
   const filled = name
     .split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/")
-  return (
-    uriTemplate.slice(0, placeholder.index) +
-    filled +
-    uriTemplate.slice(placeholder.index + placeholder[0].length)
-  )
+  return uriTemplate.slice(0, at) + filled + uriTemplate.slice(at + placeholder.length)
 }
