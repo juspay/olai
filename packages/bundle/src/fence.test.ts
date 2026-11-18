@@ -825,24 +825,28 @@ describe("a plugin is a sibling, and core computes none of its addresses", () =>
  *     spelled.** `@kolu/surface*` is olai's foundation, imported anywhere, like
  *     `effect`; `@kolu/acp` is the protocol's vocabulary, which every engine
  *     plugin registers against and `olai-plugin-chat` speaks out loud, so it is
- *     imported anywhere too.
+ *     imported anywhere too; `@kolu/child` is a subprocess, which five packages
+ *     start by design (chat's agent, git's runner, the browser's chromium, the
+ *     web build, the server's process-boundary tests).
  */
 
 /** THE FRAMEWORK TIER, and the only list in this block that a person wrote.
  *
- *  TWO kolu packages, for two different reasons. `@kolu/surface*` is the wire
+ *  THREE kolu packages, each for its own reason. `@kolu/surface*` is the wire
  *  framework the whole app is built on. `@kolu/acp` is the ACP vocabulary —
  *  kolu owns it because kolu seats an ACP conversation of its own, and olai
  *  consumes it the way it consumes the surface: `./engine` under every engine
  *  plugin and `@olai/plugin-api`, `./wire` under the chat row's members, the
- *  projections under the one package that runs the subprocess. A tier rule
- *  cannot hold a package that five plugins and two general packages import by
- *  design.
+ *  projections under the one package that runs the subprocess. `@kolu/child` is
+ *  the subprocess socket — a LEAF with no dependency of its own, started by
+ *  chat's agent, git's runner, the browser's chromium, the web build and the
+ *  server's process-boundary tests. A tier rule cannot hold a package that five
+ *  plugins and two general packages import by design.
  *
  *  `cordis` AND `@cordisjs/plugin-*` USED TO BE ON THE SAME SIDE and are not any
  *  more: it is an ENGINE behind one package now, weighed as an ordinary hydrated
  *  specifier with {@link BRIDGE} as the one package allowed to reach it. */
-const FRAMEWORK = /^@kolu\/(acp|surface(-[a-z]+)*)(\/|$)/
+const FRAMEWORK = /^@kolu\/(acp|child|surface(-[a-z]+)*)(\/|$)/
 
 /** THE ENGINE, and the one package that may see it. */
 const BRIDGE = "effect-cordis"

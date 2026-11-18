@@ -20,7 +20,7 @@
  * these run against the source entry point directly, in a second or two.
  */
 
-import { run } from "@olai/child"
+import { run } from "@kolu/child"
 import { expect, test } from "bun:test"
 import * as path from "node:path"
 

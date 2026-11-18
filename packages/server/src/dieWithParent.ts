@@ -74,7 +74,7 @@
  * to another's lifetime: Linux's `prctl` today, nothing on darwin, a pidfd
  * tomorrow — and it has already changed once, from #355's shape to this one,
  * without the composition root's call site (`dieWithParent()`) changing at
- * all. It is not `packages/child`'s: that package's README and
+ * all. It is not `@kolu/child`'s: that package's README and
  * `website/docs/architecture/overview.md` both put the orphan sweep explicitly OUT of it. It is
  * not `@olai/sigterm`'s either — that package is the RECEIVE side, deciding
  * which TERMs to honor, where this is the composition root deciding who may

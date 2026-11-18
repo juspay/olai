@@ -14,7 +14,7 @@ How the parts fit together while olai runs is in [overview.md](overview.md); the
 
 [^container]: The two paths: `packages/plugins/` is only a folder holding the plugin packages, and is not a package itself.
 
-[^downward]: What sits where: `server` and `web` sit on top, so nothing depends on them. The packages at the bottom, which name no `@olai/*` sibling at all, are `format`, `store`, `child`, `log`, `state`, `sigterm`, `fonts`, `ui-primitives`, `plugin-kit` and `effect-cordis`.
+[^downward]: What sits where: `server` and `web` sit on top, so nothing depends on them. The packages at the bottom, which name no `@olai/*` sibling at all, are `format`, `store`, `log`, `state`, `sigterm`, `fonts`, `ui-primitives`, `plugin-kit` and `effect-cordis`. The subprocess socket is kolu's `@kolu/child`, copied in from the kolu pin like every other `@kolu/*` package, so it is not a package here.
 
 [^linker]: How the dependencies are checked: Bun's isolated linker (`bunfig.toml`) gives each package only the siblings its own manifest names, so importing one it did not name fails to resolve.
 
@@ -29,7 +29,6 @@ How the parts fit together while olai runs is in [overview.md](overview.md); the
 | --- | --- |
 | `appearance` | The palette, type-size and text-scale tables, the CSS generated from them, and the contrast arithmetic. Importing it creates no state. |
 | `bundle` | The plugin registry: the catalogue of plugins, the modules generated from it, profiles, assets and write policy, plus the test that checks imports. |
-| `child` | One owner for a subprocess: starting it, the start-up failure that arrives after the start call returns, the error output it drains, and a kill with a grace period. |
 | `edit-history` | Undo, kept as the edits that reverse a write, and the component that says what was taken back. |
 | `edit-intents` | What a key press or a menu entry meant, turned into exactly one request to `ops`, worked out from the server's own reading of the file. |
 | `effect-cordis` | Cordis, the plugin engine, written in Effect's vocabulary: activation scopes, dispatch gates, teardown order, and the import check. The only package that names Cordis. |

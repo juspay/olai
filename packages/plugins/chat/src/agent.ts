@@ -86,7 +86,7 @@ import type { Advertised } from "@olai/plugin-api/services"
 
 import { tailBytes, Terminals } from "./terminals.ts"
 import { terminalMetaIn, urlOf } from "@kolu/acp"
-import { type Child, start as startChild } from "@olai/child"
+import { type Child, childEnvOf, start as startChild } from "@kolu/child"
 
 import {
   client as acpClient,
@@ -614,28 +614,6 @@ interface Attempt {
     /** The row's value, for the completion notification to mark done. */
     readonly view: SignInLink
   } | null
-}
-
-/**
- * ... AND WHAT IS TAKEN OUT OF IT ({@link Options.unset}), which is the one
- * rule about a child's environment this file owns.
- *
- * A `delete` on a COPY and never on what was handed in: `process.env` is olai's
- * own environment, an adapter is not entitled to edit it, and a mutation there
- * would outlive the spawn for every later child of this process.
- *
- * Exported for its own test, which is the only way this rule can be checked
- * without a subprocess: what a spawned process's environment IS is a fact about
- * the call, and the call is this function.
- */
-export const childEnvOf = (
-  base: NodeJS.ProcessEnv,
-  extra: Readonly<Record<string, string>> | undefined,
-  unset: ReadonlyArray<string> | undefined,
-): NodeJS.ProcessEnv => {
-  const env: NodeJS.ProcessEnv = { ...base, ...extra }
-  for (const name of unset ?? []) delete env[name]
-  return env
 }
 
 /** How much of a sign-in's output is kept. The same order as a terminal's own
@@ -1865,7 +1843,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
          * `KOLU_ACP_AGENT` is a path a PERSON sets, which makes it the likeliest
          * thing here to be wrong — and an exec that fails does so after `spawn`
          * has returned, so the `catch` above has never once seen one. What
-         * happened instead was both halves of `@olai/child`'s argument at
+         * happened instead was both halves of `@kolu/child`'s argument at
          * their worst: an uncaught `error` event dumped a stack trace on olai's
          * stderr, and the refusal a person got was ``initialize` failed: Cannot
          * call write after a stream was destroyed` — our end of a dead pipe,
@@ -2862,7 +2840,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // THE WAIT, with the kill behind it: this fiber is the panel's (it runs
         // the attempt to its end, `./chat.ts`), and when it goes — a cancel, a
         // shutdown, the engine switched off — the process goes with it. A stop
-        // of a process that has already closed is a no-op (`@olai/child`: ESRCH
+        // of a process that has already closed is a no-op (`@kolu/child`: ESRCH
         // is success), so the ordinary ending pays nothing for the guarantee.
         const close = yield* Effect.ensuring(
           Effect.promise(() => child.closed),

@@ -9,7 +9,7 @@
  * it is written once, here, and neither of them owns it.
  *
  * What this file owns is TRANSPORT, and only that: how a child's stdin/stdout
- * become Web streams. Whether the child ever ran is `@olai/child`'s
+ * become Web streams. Whether the child ever ran is `@kolu/child`'s
  * (`unstartable`, attached at spawn). Built by hand rather than with
  * `stream.Web` helpers because this runs under Bun's Node compatibility, and
  * the two adapters differ in when they close and how they surface a broken

@@ -2,7 +2,7 @@
  * used by the agent again, but their snapshots remain available to tool rows. */
 import type { CreateTerminalRequest, TerminalOutputRequest } from "@agentclientprotocol/sdk"
 import { RequestError } from "@agentclientprotocol/sdk"
-import { start, type Child } from "@olai/child"
+import { start, type Child } from "@kolu/child"
 import { randomUUID } from "node:crypto"
 import { isAbsolute } from "node:path"
 import type { TerminalView } from "olai-plugin-chat/wire"

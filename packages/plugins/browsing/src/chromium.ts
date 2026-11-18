@@ -15,7 +15,7 @@
  * it). A file left by an earlier run is still removed first, so nothing ever
  * reads a stale one.
  */
-import { run, start, type Child } from "@olai/child"
+import { run, start, type Child } from "@kolu/child"
 import { accessSync, constants, statSync } from "node:fs"
 import { mkdir, rm } from "node:fs/promises"
 import { isAbsolute, join } from "node:path"
