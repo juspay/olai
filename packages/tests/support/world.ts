@@ -2234,12 +2234,22 @@ export class OlaiWorld extends World {
    * one of the two does not exist and asking for it is a no-op that reads as
    * "the correction did not work".
    *
-   * ONE CORRECTION, then the state is read again — never a loop that nudges
-   * until something works. A pinned box holds one position while the page
-   * moves under it, so one move clears it or nothing will, and "nothing will"
-   * is a scenario asking for the impossible: it throws naming what is on top
-   * and where the page already is, rather than leaving the page to be scrolled
-   * somewhere nobody chose.
+   * ONE CORRECTION PER READING, and another only while the page MOVED. A
+   * pinned box holds one position while the page moves under it, so a
+   * correction measured against where things stand either clears the control
+   * or tells us nothing will — unless the page itself moved in between, which
+   * it does while a conversation FOLLOWS a streaming turn: a row arrives
+   * between the reading and the scroll, the follower jumps to the new end,
+   * and the correction lands short by exactly that jump. That is a stale
+   * reading rather than an unreachable control, so it is read and corrected
+   * again.
+   *
+   * WHAT ENDS IT IS THE PAGE STANDING STILL: a correction that leaves the
+   * scroll where it was is a page with nowhere left to go, which is a
+   * scenario asking for the impossible. It throws naming what is on top and
+   * where the page already is, rather than leaving the page to be scrolled
+   * somewhere nobody chose. No clock and no count — the only thing that buys
+   * another reading is movement.
    */
   async intoReach(target: Locator, what?: string): Promise<void> {
     const first = await coverOf(target);
@@ -2268,14 +2278,19 @@ export class OlaiWorld extends World {
       const recovered = await coverOf(target);
       if (recovered.pressable) return;
     }
-    await this.page.evaluate((by) => window.scrollBy(0, by), before.clearBy);
-    await this.waitForFrame();
-    const after = await coverOf(target);
-    if (after.pressable) return;
+    let state = before;
+    for (;;) {
+      const was = state.at;
+      await this.page.evaluate((by) => window.scrollBy(0, by), state.clearBy);
+      await this.waitForFrame();
+      state = await coverOf(target);
+      if (state.pressable) return;
+      if (!state.pinned || state.at === was) break;
+    }
     throw new Error(
-      `${what ?? after.control} is under ${after.by}, which is pinned there, ` +
-        `and the page will not come out from under it: it is at ${after.at}px ` +
-        `of ${after.furthest}px. A press here is a press no reader could make ` +
+      `${what ?? state.control} is under ${state.by}, which is pinned there, ` +
+        `and the page will not come out from under it: it is at ${state.at}px ` +
+        `of ${state.furthest}px. A press here is a press no reader could make ` +
         `— left alone, Playwright answers one by scrolling the page until it ` +
         `lands, which leaves the reader somewhere nobody chose.`,
     );
