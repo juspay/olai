@@ -1,7 +1,7 @@
 /**
  * *ASK ABOUT …* — THE ONE BOX that starts a conversation: on a row's own page,
- * and in the seat at the foot of a page and the side panel's **This page**
- * block. What **Send** does is the caller's (start an agent on the row, or a
+ * in the line at the top of a note, and on the chat page of an item that has
+ * no chat yet. What **Send** does is the caller's (start an agent on the row, or a
  * chat about the page); the words, the choice of agent, the key handling and
  * the sentence a refusal leaves are this box's, once.
  *
@@ -29,15 +29,13 @@ export function AskBox(props: {
   readonly note: JSX.Element
   /** An engine the box may not change — a row that already names its own. */
   readonly fixed?: string
-  /** The engine to offer first where none is fixed. */
-  readonly preferred?: string
   readonly testid: string
   readonly class?: string
   readonly where?: string
 }) {
   const agents = useAgents()
   const [chosen, choose] = createSignal<string>()
-  const engine = () => props.fixed ?? chosen() ?? props.preferred ?? agents.engines()[0]?.id
+  const engine = () => props.fixed ?? chosen() ?? agents.engines()[0]?.id
   const send = () => { const id = engine(); if (id !== undefined) props.send(id) }
   return (
     <div class={props.class ?? "rounded-control border border-dashed border-rule bg-paper p-3"} data-testid={props.testid} data-where={props.where}>

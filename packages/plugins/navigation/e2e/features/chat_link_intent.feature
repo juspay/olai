@@ -52,9 +52,11 @@ Feature: Chat references share the app link vocabulary
       | Alt | 1 |
       | Alt-Shift | 1 |
 
-  Scenario Outline: The agent roster row opens the conversation's own page
+  # A CHAT HAS ITS OWN ADDRESS, and the roster's rows are links to it like any
+  # other: the gestures are the pane vocabulary, unchanged.
+  Scenario Outline: The agent roster row opens the chat's own page
     When I activate the unified "roster" link with "<gesture>"
-    Then the zoomed node in pane <pane> is "kitchen"
+    Then pane <pane> is showing "/chat/kitchen"
     And there are <count> panes
     And there should be no page errors
 
@@ -67,9 +69,11 @@ Feature: Chat references share the app link vocabulary
 
   Scenario: A roster row lands on the conversation, not the file that holds it
     When I activate the unified "roster" link with "click"
-    Then the address is "/zoom/#kitchen"
-    And the breadcrumbs are "house.olai"
-    And the node page conversation is ready for "kitchen"
+    Then the address is "/chat/kitchen"
+    # THE CHAT IS NOT INSIDE ANYTHING: its page is headed by the name of the
+    # row it belongs to and draws no trail above it.
+    And the chat page shows no breadcrumb
+    And the chat page conversation is ready
     And there should be no page errors
 
   Scenario: Written transcript links retain browser gestures, preview and the tab menu
@@ -83,7 +87,7 @@ Feature: Chat references share the app link vocabulary
     Then the unified link menu offers Open in new tab
 
   Scenario: Roster anchors retain browser gestures, preview and the tab menu
-    Then the unified "roster" link leads to "/zoom/#kitchen"
+    Then the unified "roster" link leads to "/chat/kitchen"
     And the unified "roster" link leaves "Ctrl" to the browser
     And the unified "roster" link leaves "Meta" to the browser
     And the unified "roster" link leaves "middle" to the browser

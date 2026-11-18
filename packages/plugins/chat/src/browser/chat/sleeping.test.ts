@@ -17,6 +17,8 @@ import { nodeAgentOf, saidOf, sleepWords } from "./sleeping.ts"
 /** One roster row, as the wire sends it. */
 const row = (over: Partial<NodeAgentRow> = {}): NodeAgentRow => ({
   id: "install",
+  kind: "node",
+  beside: false,
   file: "house.olai",
   title: "install the cabinets",
   engine: "one-engine",
@@ -40,6 +42,16 @@ test("a node agent's conversation finds its row, and a plain chat finds none", (
   // ...AND A CONVERSATION NOBODY IS SEATED ON IS NOT A NODE AGENT'S AT ALL.
   expect(nodeAgentOf([row()], undefined)).toBeUndefined()
   expect(nodeAgentOf([], { agent: "one-engine", session: "sess-1" })).toBeUndefined()
+})
+
+// A NOTE IS THE MEMORY OF ITS CHAT, so no pass tidies it and no line offers
+// to: the sleep item, the *Tidy memory* press beside it and the bar that holds
+// them are all this one answer, wherever that conversation is drawn.
+test("a note's chat is never a sleep row, however it is seated", () => {
+  const note = row({ kind: "note", id: "/notes/plan.md", file: "notes/plan.md", title: "plan", memory: 0 })
+  expect(nodeAgentOf([note], { agent: "one-engine", session: "sess-1" })).toBeUndefined()
+  // ...and a node seated on another session in the same roster still answers.
+  expect(nodeAgentOf([note, row()], { agent: "one-engine", session: "sess-1" })?.id).toBe("install")
 })
 
 test("the switch says which way the mark is, in the two words a person reads", () => {

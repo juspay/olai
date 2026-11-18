@@ -161,7 +161,7 @@ A terminal and a CI run are not among the seven types, and this format never lea
 
 The declaration is what turns the behaviour on. A key declared `kolu-terminal` gets kolu's Dock row and its live pane ([plugins/kolu.md](plugins/kolu.md)); a key declared `odu-run` holds a run id that olai asks the odu service about ([plugins/odu.md](plugins/odu.md)). Both of these are live properties, which show what is happening right now ([live-properties.md](live-properties.md)).
 
-Chat contributes three types: `chat-agent-session`, which puts a conversation on a row, `chat-agent-slept`, the moment olai last tidied that agent's memory, and `chat-agent-sleep`, your `on` or `off` answer to whether olai may tidy that chat on its own schedule ([chat.md](chat.md)).
+Chat contributes four types. `chat-agent-session` puts a conversation on a row or a document, and `chat-opens` says where a document's chat opens. `chat-agent-slept` is the moment olai last tidied that agent's memory, and `chat-agent-sleep` is your `on` or `off` answer to whether olai may tidy it on a schedule ([chat.md](chat.md)).
 
 A plugin you switch on declares its own key for you, so a row carrying `kolu-terminal 303dc985` works without olai writing anything into your directory. The key a plugin claims is always the type's own word, which carries the plugin's name in it, so a key you call `terminal` is never taken over by switching a plugin on.
 

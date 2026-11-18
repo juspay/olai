@@ -1,6 +1,6 @@
 # Layout
 
-The `layout` plugin draws the frame around every page: the header, the left column, the pages in the middle, the panel on the right, and a phone's bar of buttons.[^seats]
+The `layout` plugin draws the frame around every page: the header, the left column, the pages in the middle, and a phone's bar of buttons.[^seats]
 
 ## The header
 
@@ -20,15 +20,14 @@ One dot is always drawn, green, amber or red: the worst colour among the connect
 
 ## The columns
 
-Below the header are up to three columns: the sidebar (the left column of files), the main column of pages, and the agent panel on the right, labelled **Panel**.[^widths] Drag a handle to resize one:
+Below the header are two columns: the sidebar (the left column of files) and the main column of pages.[^widths] Drag a handle to resize one:
 
 | Handle | What it resizes |
 | --- | --- |
 | **Resize sidebar** | the sidebar's width |
-| **Resize agent panel** | the panel's width |
 | **Resize panes** | the boundary between two panes |
 
-The panel column is drawn when a plugin has filled it, you have it open and the screen is desktop-sized.[^panel] The tab strip sits above the pages, on a desktop only ([tabs.md](tabs.md)).[^strip] A pane's header shows its page's name.[^pane]
+The tab strip sits above the pages, on a desktop only ([tabs.md](tabs.md)).[^strip] A pane's header shows its page's name.[^pane]
 
 ## The bar of buttons on a phone
 
@@ -60,11 +59,11 @@ A page that fails while being drawn shows **Something went wrong on this page**,
 
 [^foot]: The last line above the foot is quiet and does not affect the dot's colour: `Running for 2h`, with `Running since <instant>` in its tip and in what a screen reader reads. Choosing **Plugins** closes the list and opens the plugins panel under the dot. `Escape` closes the panel and puts the keyboard focus back on the dot.
 
-[^widths]: The columns sit under the header, and the main column holds the tab strip as well as the pages. Both stored widths are fitted to the window as you resize it, so the page in the middle keeps its minimum space. The command `Reset sidebar width` in the command palette puts the sidebar back to its default width, for a keyboard that cannot drag a handle.
-
-[^panel]: The panel column stays under the header as you scroll and is exactly one screen tall, so a conversation scrolls inside it while the page scrolls behind it. On a phone, or when no plugin has filled it, there is no third column whatever width was stored.
+[^widths]: The columns sit under the header, and the main column holds the tab strip as well as the pages. The stored width is fitted to the window as you resize it, so the pages keep their minimum space. The command `Reset sidebar width` in the command palette puts the sidebar back to its default width, for a keyboard that cannot drag a handle.
 
 [^strip]: The place the tab strip fills is directly below the header, and stays there while a single page scrolls.
+
+    On a phone there are no columns: the panes become a strip of tabs, one pane on screen at a time, and that strip is pinned under the header while the page under it scrolls. So a conversation in one tab and the document it is about in the next are always one tap apart ([chat.md](chat.md)).
 
 [^pane]: A pane's header shows a document's name without its suffix, such as `garden`, or the page's label where it has no file name. The pane's close button is named `Close garden`, and the narrow strip a collapsed pane leaves behind is named `Expand garden`.
 
@@ -79,7 +78,6 @@ A page that fails while being drawn shows **Something went wrong on this page**,
 | --- | --- |
 | `layout.sidebar` | one occupant: the column and its strip of icons ([sidebar.md](sidebar.md)) |
 | `layout.strip` | one occupant: the strip above the pages, on a desktop |
-| `app.panel` | one occupant: what the panel column shows |
 | `layout.tools` | a control, with its own desktop and mobile order. Its `desktop` place is `header` (the top bar) or `health` (the foot of the health dot's list) |
 | `layout.thumbs` | a button for the phone's bar: `{ order, body }`, drawn left to right by `order` |
 | `layout.overlays` | something drawn over the page, such as the command palette |
@@ -89,7 +87,7 @@ A page that fails while being drawn shows **Something went wrong on this page**,
 | `app.viewer` | one occupant: who is signed in |
 | `app.mount` | a provider wrapped around the frame |
 
-`layout.shell` carries what the frame knows: the screen size it is drawing for, whether each panel is open and how wide it is, which position the phone's sheet is at, and the panel's drag handle. Name it on a component of your own. With no frame mounted, its readings answer as for a phone-width window, a closed panel and an open sidebar, and its buttons do nothing.
+`layout.shell` carries what the frame knows: the screen size it is drawing for, whether the sidebar is open and how wide it is, which position the phone's sheet is at, and the sidebar's drag handle. Name it on a component of your own. With no frame mounted, its readings answer as for a phone-width window and an open sidebar, and its buttons do nothing.
 
 `layout.deployment` carries the name of this olai server and when it started; the header shows that name once the server has given it.
 

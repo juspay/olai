@@ -1,9 +1,10 @@
-Feature: A plugin's chat is the chat about its page
-  Asking for a plugin starts a conversation, and NOTHING RECORDS WHICH ONE. The
-  chat's title is the plugin's own address — `[Bar beside](/plugins/bar-beside)`
-  — and that is the whole of the binding: the serve finds the conversation by
-  asking chat what is at that address, the page docks it by that address, and a
-  plugin's settings node carries the person's consent and nothing else.
+Feature: A plugin's chat is the chat of its README
+  Asking for a plugin starts a conversation, and NOTHING RECORDS WHICH ONE
+  except the plugin's own README note: `plugins/<word>/README.md` carries
+  `chat-agent-session` in its front matter, and that is the whole of the
+  binding — the serve finds the conversation by asking chat for that note's
+  chat, the page docks the same one, and a plugin's settings node carries the
+  person's consent and nothing else.
 
   WHAT THIS REPLACED was a `builder` property on that node, pointing at a chat
   row. Two places recorded one fact, and they could disagree the moment
@@ -11,10 +12,10 @@ Feature: A plugin's chat is the chat about its page
   that still has one from before must behave as though it does not, which is
   the last scenario here.
 
-  THE PHONE IS THE OTHER HALF of what the page offers. With a column beside the
-  page, *Ask for a change…* opens the conversation in it; with no column there
-  is nothing to open, so the *Ask* spot holds the page's own seat and the
-  conversation is read there.
+  THE PHONE IS THE OTHER HALF of what the page offers. *Ask for a change…*
+  opens the conversation in the pane beside the page, and a handset — which
+  draws those panes as a strip of tabs — opens the same chat page the same
+  way.
 
   @scratch:plugins
   Scenario: The conversation is a chat about the plugin's page, and the page finds it
@@ -26,19 +27,25 @@ Feature: A plugin's chat is the chat about its page
     And I accept the name
     Then the address is "/plugins/bar-beside"
 
-    # THE CHAT IS TITLED WITH THE PAGE, under Inbox › Chats like every other
-    # chat in this app — and the plugin's own node says nothing about it.
+    # THE CHAT IS THE README'S, written in that note's own front matter — and
+    # the plugin's settings node says nothing about it.
     And the plugin "bar-beside" is being built by a conversation called "Bar beside"
     And the plugin page is "building"
 
-    # ...AND THE PAGE FINDS IT BY THAT ADDRESS. It is docked beside the page
-    # because this plugin is being built, and the menu offers the way back to
-    # it once the reader has closed the column.
-    And the conversation building "bar-beside" is docked
+    # ...AND THAT BLOCK IS NOT PROSE. The page renders what a person wrote and
+    # cuts the front matter off it, or the tie would be drawn as a line of
+    # text above the plugin's own title.
+    And the plugin page's README says "Bar beside"
+    And the plugin page's README does not say "chat-agent-session"
+
+    # ...AND THE PAGE FINDS IT BY THAT NOTE. It opens in the pane beside the
+    # page because this plugin is being built, and the menu offers the way back
+    # to it once the reader has closed that pane.
+    And the conversation building "bar-beside" is beside the page
     And the plugin page offers to ask for a change
 
     When I ask for a change to the plugin "bar-beside"
-    Then the conversation building "bar-beside" is docked
+    Then the conversation building "bar-beside" is beside the page
     And there should be no page errors
 
   @scratch:plugins
@@ -63,10 +70,9 @@ Feature: A plugin's chat is the chat about its page
     And there should be no page errors
 
   @phone @scratch:plugins
-  Scenario: On a handset the new plugin's conversation is in the page's seat
-    # A phone has no column to put a conversation in, so the page draws its
-    # SEAT where the button would be — the same chat, read under the page
-    # instead of beside it.
+  Scenario: On a handset the new plugin's conversation opens as its own page
+    # A phone has no room for two panes side by side, so the same press opens
+    # the same chat page — full screen, in the strip beside the plugin's.
     Given I open the app
     When I press the palette shortcut
     And I open New plugin from the palette
@@ -75,7 +81,8 @@ Feature: A plugin's chat is the chat about its page
     And I accept the name
     Then the address is "/plugins/hours"
     And the plugin "hours" is being built by a conversation called "Hours"
-    And the plugin page seats the chat about "hours"
+    When I ask for a change to the plugin "hours"
+    Then the conversation building "hours" is beside the page
     And there should be no page errors
 
   # A RELOAD IS WHERE "FIND IT BY THE ADDRESS" IS ACTUALLY TESTED. Nothing is
@@ -93,8 +100,8 @@ Feature: A plugin's chat is the chat about its page
     And I name the plugin "Bar beside"
     And I accept the name
     Then the address is "/plugins/bar-beside"
-    And the conversation building "bar-beside" is docked
+    And the conversation building "bar-beside" is beside the page
     When I reload the page
     Then the plugin page is "building"
-    And the conversation building "bar-beside" is docked
+    And the conversation building "bar-beside" is beside the page
     And there should be no page errors

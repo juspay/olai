@@ -97,12 +97,21 @@ export const ticketing = (options: {
 
   // A lifetime may gain content after boot. Cache per composed generation,
   // not per request or forever: newly arriving siblings need their clients.
+  //
+  // EVERY RESERVATION, and not only the file-scoped ones. A build's reserved
+  // words are reserved against the AGENT FACE, not against one credential: a
+  // terminal talking to `/mcp` with the loopback token holds the same write
+  // door a session does, and a key-wide reservation that only a ticket carried
+  // was a fence with a gate beside it — `approved` could be written, and a
+  // conversation re-seated, by the one caller that never had to ask chat for a
+  // ticket. A person's own face is untouched: a keystroke runs under the
+  // runtime's writer with no session rule at all.
   let reservedGroup: ReturnType<Reading>["group"] | undefined
   let reservedClients: RootedSurfaceClients | undefined
   const reserved = (): RootedSurfaceClients => {
     const group = reading().group
     if (reservedClients === undefined || reservedGroup !== group) {
-      reservedClients = composed({ _tag: "open", forbidden: new Map(options.reservations.filter((one) => one.file !== undefined).map((one) => [one.key, { says: one.says, file: one.file! }])) }, "mcp")
+      reservedClients = composed({ _tag: "open", forbidden: new Map(options.reservations.map((one) => [one.key, one.file === undefined ? one.says : { says: one.says, file: one.file }] as const)) }, "mcp")
       reservedGroup = group
     }
     return reservedClients
@@ -140,14 +149,14 @@ export const ticketing = (options: {
     },
     doorAt: (held) => {
       const bearer = options.currentTicket()
-      if (bearer === null || bearer === options.token) return options.reservations.some((one) => one.file !== undefined) ? reserved() : held
+      if (bearer === null || bearer === options.token) return options.reservations.length > 0 ? reserved() : held
       const at = tickets.get(bearer)
       // Preserve the route's existing loopback affordance for arbitrary tokens.
       if (at !== undefined) return at
       // A released (or forged) node-shaped credential stays closed without a
       // tombstone per historical token. Other arbitrary loopback tokens keep
       // the route's longstanding loopback behaviour.
-      return bearer.startsWith(prefix) ? closed : options.reservations.some((one) => one.file !== undefined) ? reserved() : held
+      return bearer.startsWith(prefix) ? closed : options.reservations.length > 0 ? reserved() : held
     },
   }
 }

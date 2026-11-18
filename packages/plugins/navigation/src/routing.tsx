@@ -3,6 +3,7 @@ import { localLink, type Intent } from "@olai/surface"
  * context; importing this contract starts no history, observer or timer. */
 import { type Accessor,createContext,createMemo,type JSX,useContext } from "solid-js"
 import { Tip } from "@olai/web/client/Tip.tsx"
+import { elsewhereOf, ELSEWHERE_SELECTOR } from "./elsewhere.ts"
 import type { Landing } from "./landing.ts"
 import type { RevealState } from "./reveal.ts"
 import { usePane } from "./pane/context.tsx"
@@ -305,9 +306,10 @@ export interface LinkProps {
    * from a row silently and compiled.
    *
    * The tip rides the PAGE's layer, which is what a link in a row wants. A
-   * link that sits in the bar or in the chat dock has to cover them, and that
-   * is a fact about the PLACE rather than about the link: such a caller wraps
-   * `<Link>` in its own `<Tip layer={LAYER.over}>` and passes nothing here —
+   * link that sits in the bar, or anywhere else drawn over the page, has to
+   * cover them, and that is a fact about the PLACE rather than about the
+   * link: such a caller wraps `<Link>` in its own `<Tip layer={LAYER.over}>`
+   * and passes nothing here —
    * the `<a>` below is this component's root, so the tip measures the same box
    * either way.
    */
@@ -373,11 +375,26 @@ declare module "solid-js" { namespace JSX { interface CustomEvents { "olai-navig
 export const follow = (target: LinkTarget, intent: Intent): void => {
   const { destination, router, index, anchor, tabs } = target
   const workspace = workspaceFor(destination)
+  /**
+   * A PANE THAT KEEPS WHAT IT IS DRAWING sends a plain press to the pane next
+   * to it instead of swallowing itself (`./elsewhere.ts` is the rule and the
+   * argument). `Alt` is untouched: it has always meant "to the right".
+   *
+   * ASKED ONLY OF A PRESS THAT NAMES ONE PAGE. A whole-window address names
+   * every pane at once, so it has no "other pane" to land in — a reader who
+   * presses one asked for that window, which is the sentence a pinned one
+   * says too.
+   */
   if (intent === "go" && anchor.dataset.linkIntent === "new-tab" && tabs?.openTab(workspace)) { /* served by tabs */ }
   else if (destination.kind === "layout") {
     if (intent === "go") router.open(workspace)
     else router.openWorkspaceRight(index, workspace, intent === "new-pane")
-  } else if (intent === "go") router.goIn(index, destination.route)
+  } else if (intent === "go") {
+    const elsewhere = anchor.closest(ELSEWHERE_SELECTOR) === null ? null : elsewhereOf(index)
+    if (elsewhere === null) router.goIn(index, destination.route)
+    else if (elsewhere.kind === "into") router.goIn(elsewhere.index, destination.route)
+    else router.openRight(elsewhere.from, destination.route)
+  }
   else router.openRight(index, destination.route, intent === "new-pane")
   anchor.dispatchEvent(new CustomEvent("olai-navigated"))
 }

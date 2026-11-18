@@ -42,7 +42,9 @@
     "src/patch.ts": 4,
     "src/searching.ts": 1
   },
+  "//markdown": "The word names the GRAMMAR a file's body is written in — the `Markdown` document, `isMarkdown`, and the set readers `markdownIn`/`markdownAt` — not the markdown row.",
   "markdown": {
+    "src/agents.ts": 2,
     "src/dates.ts": 1,
     "src/document.ts": 8,
     "src/filter.ts": 2,

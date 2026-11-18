@@ -9,13 +9,13 @@ import { freshStartQuestion } from "./agents/fresh-start.ts"
 const engines: ReadonlyArray<AgentChoice> = [{ id: "claude", name: "Claude", standing: "here" }, { id: "codex", name: "Codex", standing: "here" }]
 const roster = (bound?: Row, installed = engines): Roster => ({
   at: () => bound, engines: () => installed, rows: () => bound ? [bound] : [],
-  chatAt: () => bound, placeOf: (one) => ({ kind: "row", id: one.id }), standsIn: () => false, named: (one) => ({ name: one.title }),
+  chatOf: () => bound, named: (one) => ({ name: one.title }),
   standings: () => installed,
   only: () => installed.length === 1 ? installed[0]! : null,
   missing: () => null,
-  chats: () => null, unreachable: () => [], chatsRefusal: () => null, askChats: () => {},
+  chats: () => null, askChats: () => {},
 })
-const node: Row = { id: "one", title: "One", file: "house.olai", engine: "claude", session: null, memory: 0, standing: "unbound", waiting: 0, said: null, seen: null, unread: false, sleeps: false, sleep: null }
+const node: Row = { id: "one", title: "One", kind: "node", beside: false, file: "house.olai", engine: "claude", session: null, memory: 0, standing: "unbound", waiting: 0, said: null, seen: null, unread: false, sleeps: false, sleep: null }
 
 /** What a menu draws of the answer: each entry's words, and a choice's options. */
 const drawn = (actions: ReadonlyArray<RowAction>) => actions.map(action => "choices" in action
@@ -49,11 +49,11 @@ test("a node talking through a conversation offers fresh start, its own engine f
     { id: "sleep-when-idle", label: "Sleep when idle" },
     // ...THEN THE PASS BY HAND, on the rows that have a conversation and above
     // the release: tidying a node's memory is not being done with its agent,
-    // and `Close the agent` is the one that takes the binding away. The seat's
+    // and `Close the chat` is the one that takes the tie away. The seat's
     // own verb is absent here because this row is asleep — `unbound` standing
     // with a session is the shape a roster frame has before anything is live.
     { id: "tidy-memory", label: "Tidy memory" },
-    { id: "close-agent", label: "Close the agent" },
+    { id: "close-agent", label: "Close the chat" },
   ])
 })
 

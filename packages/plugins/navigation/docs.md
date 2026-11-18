@@ -29,7 +29,7 @@ A link to a row is `/#<id>`; the bullet and **Zoom in** open `/zoom/#<id>`.[^rev
 | `Alt` + `Shift` and a click | in a new pane beside this one |
 | `Ctrl`, `Cmd`, `Shift` or a middle-click | the browser's own, untouched |
 
-A link opens in the pane it is drawn in.[^pane] Back and Forward walk the window's history.[^back]
+A link opens in the pane it is drawn in.[^pane][^chat] Back and Forward walk the window's history.[^back]
 
 ## When a page cannot be opened
 
@@ -41,7 +41,7 @@ A pane says `Loading…` while the directory is read, and `Finding…` while ola
 
 ## What other plugins add
 
-A plugin can add a page, a palette row, a prefix, a link preview or a keyboard shortcut.[^locations][^seat] Navigation offers three services.[^services]
+A plugin can add a page, a palette row, a prefix, a link preview or a keyboard shortcut.[^locations] Navigation offers three services.[^services]
 
 [^anchor]: Every link in olai is an ordinary HTML anchor, and this plugin answers the click on it.
 
@@ -54,6 +54,8 @@ A plugin can add a page, a palette row, a prefix, a link preview or a keyboard s
 [^pane]: Anything outside every pane, such as the header, acts on the pane you last used. A link to a place on the page you are already on stays with the content that drew it, and so do `download` links and links aimed at another window.
 
     A hover preview ([link-preview.md](link-preview.md)) and the tab strip's link menu ([tabs.md](tabs.md)) read the same rules, so all three agree about where a link goes.
+
+[^chat]: A pane drawing a conversation keeps it: a link pressed there opens in the pane to its left, or in one opened to its right where there is nothing on the left. So an agent's answer stays on screen while you read what it points at. **Open beside ›**, on the chat's own page and wherever chat names a conversation, is the same arrangement made by hand ([chat.md](chat.md)).
 
 [^back]: A plugin that keeps several layouts open, such as the tab strip ([tabs.md](tabs.md)), gives the one in front a history list of its own, and Back and Forward then walk that list alone. A step that meets another list's entry keeps going the same way without drawing anything, and returns to where it started when this list has nothing further. Nothing on screen changes while it travels.
 
@@ -69,9 +71,7 @@ A plugin can add a page, a palette row, a prefix, a link preview or a keyboard s
 
 [^levels]: A further step replaces the list, puts a breadcrumb for itself before the box, and empties the box. A step is either a group of ordinary rows or a box you type a value into. The closed block below holds both kinds, the keys that move through them, how a plugin declares one, and what happens when its plugin is switched off.
 
-[^locations]: The eight places a plugin can add to are `app.route`, `navigation.pages`, `navigation.content`, `navigation.palette-adapters`, `navigation.link-previews`, `navigation.page-seats`, `app.keys` and `app.palette`. The closed block below says what each takes, and how a keyboard shortcut is registered.
-
-[^seat]: Navigation owns the seat and hands every page it draws what was contributed there. The page frame places it and says which file or address it is drawing, and what that page is called. The document page, the page of a file olai only shows, an outline's own page and a plugin's page each place one, and chat draws the conversation about that page in it ([chat.md](chat.md)).
+[^locations]: The seven places a plugin can add to are `app.route`, `navigation.pages`, `navigation.content`, `navigation.palette-adapters`, `navigation.link-previews`, `app.keys` and `app.palette`. The closed block below says what each takes, and how a keyboard shortcut is registered.
 
 [^services]: `navigation.state` writes a plugin's address, reads one, says which plugin is behind an address, and says whether a page takes a filter. `navigation.palette` is what another plugin may do to the box: open it, open it at a step, ask a question in it, or close it. `navigation.gestures` ignores the extra click a touch browser sends after a long press. The runtime these sit on is [../architecture/plugin-system.md](../architecture/plugin-system.md).
 
@@ -80,7 +80,7 @@ A plugin can add a page, a palette row, a prefix, a link preview or a keyboard s
 
 | The pane says | Why |
 | --- | --- |
-| `Loading…` | the directory is still being read |
+| `Loading…` | the directory has not answered yet — the reading is in flight, or no file kind has arrived, so nothing can be said about this path |
 | `Finding…` | olai is still looking for the file the row lives in |
 | `Page not found` — `There is no node at this address.` | the row does not exist |
 | `Page not found` — `There is no document named notes/plan.md.` | the directory holds nothing by that name |
@@ -161,7 +161,6 @@ The palette's steps are tested end to end against the maintained fixture in [tes
 | `navigation.content` | a handler for a computed address |
 | `navigation.palette-adapters` | palette rows and prefixes that depend on where you are |
 | `navigation.link-previews` | a preview of where a link goes |
-| `navigation.page-seats` | something drawn at the foot of a page, told which place the page is and what it is called |
 | `app.keys` | a keyboard shortcut |
 | `app.palette` | a row that opens an address |
 

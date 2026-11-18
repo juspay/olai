@@ -95,7 +95,7 @@ import { atOnce,spend } from "@olai/web/client/settled.ts"
 import { useToday } from "./clock.ts"
 import { topmostWhileOpen } from "@olai/web/client/topmost.ts"
 import { claimCloseRequest, lightDismiss } from "@olai/web/client/dismiss.ts"
-import { resetPanelWidths } from "./shell.ts"
+import { resetSidebarWidth } from "./shell.ts"
 import type { Route } from "olai-plugin-navigation/routes"
 import { useRouter } from "olai-plugin-navigation/routing"
 import { isLone } from "olai-plugin-navigation/workspace"
@@ -685,7 +685,7 @@ export function Palette(props: {
     // rather than an input that unmounts a moment later (`handBack`).
     else if (action.kind === "shortcuts") wantKeys = true
     else if (action.kind === "toggle-sidebar") props.toggleDirectory()
-    else if (action.kind === "reset-widths") resetPanelWidths()
+    else if (action.kind === "reset-sidebar-width") resetSidebarWidth()
     else if (action.kind === "close-pane") router.close()
     close()
   }

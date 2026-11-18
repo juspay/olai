@@ -7,8 +7,7 @@
  * leave the bar: connection and git are banners when they are news, the agent
  * is the thumb strip, preferences live in the directory drawer. The sidebar
  * carries what is about the DIRECTORY (the agenda, the inbox, the calendar,
- * the file tree), collapsing to an icon rail when minimized; chat is a
- * resizable dock or a minimized pill/strip.
+ * the file tree), collapsing to an icon rail when minimized.
  * The main column is a LIST of routes (`./workspace.ts`) — one pane is the
  * page this app has always been; two or more are the same page component
  * side by side, never a stripped copy.
@@ -24,7 +23,6 @@ import { TESTID as LAYOUT_TESTID } from "./testids.ts"
 import type { RendererSlots } from "olai-plugin-ui-renderer/contract"
 import { For } from "solid-js"
 import { contentStatus,overlays,sidebar,strip,thumbs } from "./index.ts"
-import { only } from "./faces.ts"
 import {
 createEffect,
 createMemo,
@@ -37,15 +35,14 @@ import { watchFocus } from "@olai/web/client/connection/focus.ts"
 import { Panes } from "olai-plugin-layout/pane/Panes.tsx"
 import { PluginBanners } from "./Chrome.tsx"
 import { PluginsMounted } from "./Mounted.tsx"
-import { PluginPanel } from "./Seats.tsx"
 import { connectionReadout, rosterChanging } from "@olai/web/client/wire.ts"
-import { desktop, panelOpen } from "./layout/live.ts"
+import { desktop } from "./layout/live.ts"
 import { drawerOpen as menuOpen,setDrawerOpen as setMenuOpen,sidebarOpen,toggleSidebar } from "./layout/live.ts"
 import { SHELL_LONE,SHELL_SPLIT } from "olai-plugin-layout/sheet"
 import { HOME_ROUTE } from "olai-plugin-navigation/routes"
 import { RouterProvider } from "olai-plugin-navigation/routing"
 import { Header } from "./Header.tsx"
-import { PanelHandle, SidebarHandle } from "./layout/Handle.tsx"
+import { SidebarHandle } from "./layout/Handle.tsx"
 import { Tools } from "./Tools.tsx"
 
 export default function Frame(props: { readonly slots: RendererSlots; readonly router: import("olai-plugin-navigation/contract").Navigation }) {
@@ -71,11 +68,10 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
   })
 
   const split = router.split
-  /** THE SEAT'S COLUMN IS DRAWN when three things hold: somebody is in the
-   *  seat, the reader has it open, and this is a desktop — a phone has no
-   *  width for a column beside the page, and the occupant draws its phone
-   *  faces inside the page instead. */
-  const paneled = createMemo(() => desktop() && panelOpen() && only("app.panel") !== undefined)
+  /** WHEN A SPLIT IS COLUMNS: on a desktop. The same list below `md` is one
+   *  page with a strip of tabs over it, which is a LONE page's sheet
+   *  (`./pane/Panes.tsx` draws the strip and says why the box must grow). */
+  const columns = createMemo(() => split() && desktop())
   const ready = createMemo(() => props.slots.read(contentStatus).every(({ value }) => value.ready()))
   onCleanup(router.drawContent(ready))
   const started = createMemo((was: boolean) => was || ready(), false)
@@ -84,14 +80,6 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
       <RouterProvider router={router}>
       <TipFloor.Provider value={() => (stripElement?.isConnected ? stripElement : header)?.getBoundingClientRect().bottom ?? 0}>
       <PluginsMounted>
-      {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
-          the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
-          node half is matched by the format's own grammar, whose relative words
-          (`@date:today`) count from the day the reader is standing on. Under
-          the page's own arm, as it was, the composer's only way to that day
-          would be a second `createToday()` — a second midnight timer and a
-          second answer to what day it is, in a tab that is supposed to have
-          one. */}
       {/* THE FREEZE, over everything — the app takes no gesture at all while
           the wire cannot carry a question (`./connection/Offline.tsx`, the
           human's §5b ruling). It is drawn beside the chrome rather than inside
@@ -123,27 +111,32 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
           }
         />
         <PluginBanners />
+        {/* A SPLIT IS COLUMNS ONLY ON A DESKTOP. Below `md` the same list is
+            a strip of tabs over ONE page (`./pane/Panes.tsx`), and that page
+            is read by scrolling the document — so the shell grows with it,
+            exactly as a lone page's does. Clamped to the viewport it was a
+            box one screen tall with a conversation spilling out of it, and
+            everything `sticky` inside this box — the bar, the tab strip, a
+            page's own head — stopped sticking at the first screen's end,
+            which is why the way back to a note scrolled away. */}
         <div
           class="flex-1"
           classList={{
-            "min-h-0": split(),
+            "min-h-0": columns(),
           }}
         >
                   <div
                     class="relative md:grid"
                     classList={{
-                      [SHELL_SPLIT]: split(),
+                      [SHELL_SPLIT]: columns(),
                       // Split columns own scrolling. In particular, sticky
                       // children after a resize must not extend document overflow.
                       "md:overflow-clip": split(),
-                      // THE COLUMNS: the directory, the page, and — while the
-                      // seat's panel is open — the panel. The widths are the
-                      // tokens `layout/css.ts` publishes, so the grid and the
-                      // columns it holds read one number each.
-                      "md:grid-cols-[var(--width-sidebar)_1fr]": props.slots.read(sidebar).length > 0 && !paneled(),
-                      "md:grid-cols-[var(--width-sidebar)_1fr_var(--width-panel)]": props.slots.read(sidebar).length > 0 && paneled(),
-                      "md:grid-cols-[1fr_var(--width-panel)]": props.slots.read(sidebar).length === 0 && paneled(),
-                      [SHELL_LONE]: !split(),
+                      // THE COLUMNS: the directory and the page. The width is
+                      // the token `layout/css.ts` publishes, so the grid and
+                      // the column it holds read one number.
+                      "md:grid-cols-[var(--width-sidebar)_1fr]": props.slots.read(sidebar).length > 0,
+                      [SHELL_LONE]: !columns(),
                     }}
                   >
                     <For each={props.slots.read(sidebar)}>{({ value: parts }) => <>
@@ -180,25 +173,6 @@ export default function Frame(props: { readonly slots: RendererSlots; readonly r
                       <For each={props.slots.read(contentStatus)}>{({value})=><value.Message/>}</For>
                       <div style={{ display: ready() ? "contents" : "none" }}><Show when={started()}><Panes/></Show></div>
                     </div>
-                    {/* THE PANEL IN THE SEAT THIS APP RESERVES FOR ONE — whichever
-                        plugin took it, drawn as the third column while the
-                        reader has it open. The shell keeps the seat's geometry
-                        (the column, its width, the handle on its left edge) and
-                        the plugin draws inside it (`./Seats.tsx`). Sticky under
-                        the bar and exactly one viewport tall, like the directory
-                        column on the other side: a conversation scrolls inside
-                        it while the page scrolls the document. */}
-                    <Show when={paneled()}>
-                      <aside
-                        class={`relative ${LAYER.chrome} olai-frame hidden md:sticky md:top-[var(--height-header)] md:flex md:h-[calc(100dvh-var(--height-header))] md:min-w-0 md:flex-col md:border-l md:border-rule`}
-                        data-testid={LAYOUT_TESTID.panelColumn}
-                        data-layout="dock"
-                        aria-label="Panel"
-                      >
-                        <PanelHandle />
-                        <PluginPanel />
-                      </aside>
-                    </Show>
                   </div>
         </div>
         {/* THE THUMB BAR, on a phone, while somebody is in the seat

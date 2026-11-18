@@ -39,7 +39,6 @@ export interface BarSeat {
 
 declare module "@olai/plugin-api/slots" {
   interface SlotDefinitions {
-    "app.panel": SlotDefinition<() => JSX.Element, "app">
     "app.header": SlotDefinition<BarSeat, "plugin">
     "app.banner": SlotDefinition<() => JSX.Element, "plugin">
     "app.viewer": SlotDefinition<() => JSX.Element, "app">
@@ -48,7 +47,6 @@ declare module "@olai/plugin-api/slots" {
 }
 
 export const slotContracts = {
-  "app.panel": slotContract<() => JSX.Element>("app.panel","app"),
   "app.header": slotContract<BarSeat>("app.header","plugin"),
   "app.banner": slotContract<() => JSX.Element>("app.banner","plugin"),
   "app.viewer": slotContract<() => JSX.Element>("app.viewer","app"),

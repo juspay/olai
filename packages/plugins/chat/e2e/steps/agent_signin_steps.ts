@@ -394,13 +394,42 @@ Then("the card links to {string}", async function (this: OlaiWorld, url: string)
   );
 });
 
-Then("the pending Inbox conversation is unfolded as {string} with engine {string}", async function(this: OlaiWorld, name: string, engine: string) {
+/** Every outline this serve holds, as paths `servedNodes` takes: new chat
+ *  mints its row under the parent the person chose, so which FILE it landed in
+ *  is their business rather than this step's.
+ *
+ *  BY WHAT IS IN A FILE and not by its suffix — which suffix names which kind
+ *  is the claiming row's to say (`packages/tests/kinds.test.ts`) — so an
+ *  outline here is a file whose every line is a record. */
+const outlinesHeld = (world: OlaiWorld): ReadonlyArray<string> => {
+  const root = world.scratch();
+  const found: Array<string> = [];
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
+      const here = dir === "" ? entry.name : `${dir}/${entry.name}`;
+      if (entry.isDirectory()) { if (!entry.name.startsWith(".")) walk(here); continue }
+      const text = fs.readFileSync(path.join(root, here), "utf8");
+      const lines = text.split("\n").filter(line => line.trim() !== "");
+      if (lines.length > 0 && lines.every(line => line.startsWith("{") && line.endsWith("}"))) found.push(here);
+    }
+  };
+  walk("");
+  return found;
+};
+
+/** THE ROW A REFUSED NEW CHAT LEFT, wherever the person put it. An engine and
+ *  NO session is the refused state: the chat was never opened, and the row is
+ *  still the way back to it. Nothing is filed under the Inbox any more, so the
+ *  row is found by the tie it carries rather than by the file it is in. */
+Then("the pending conversation is unfolded as {string} with engine {string}", async function(this: OlaiWorld, name: string, engine: string) {
   let id: string | undefined;
   await this.waitUntil(async () => {
-    const found = this.servedNodesSoFar("_olai/Inbox.olai").find(node => node.parent === "chats"
-      && ((node.custom as Record<string, unknown> | undefined)?.["chat-agent-session"]
-        ?? (node.custom as Record<string, unknown> | undefined)?.["agent-session"]) === engine);
-    id = found?.id as string | undefined;
+    id = outlinesHeld(this)
+      .flatMap(file => [...this.servedNodesSoFar(file)])
+      .find(node => {
+        const custom = node.custom as Record<string, unknown> | undefined;
+        return (custom?.["chat-agent-session"] ?? custom?.["agent-session"]) === engine;
+      })?.id as string | undefined;
     return id !== undefined;
   }, "the new node to name only its engine before authentication", HYDRATION_TIMEOUT);
   assert.ok(id);

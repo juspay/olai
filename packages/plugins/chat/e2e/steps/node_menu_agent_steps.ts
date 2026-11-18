@@ -1,6 +1,6 @@
 /**
  * CHAT'S ENTRIES ON A ROW'S `•••` — `Start an agent`, `Fresh start` and
- * `Close the agent` — driven where they are a SUBMENU.
+ * `Close the chat` — driven where they are a SUBMENU.
  *
  * Chat hangs one entry per gesture (`../../src/browser/verbs.tsx`): the verb
  * itself when one agent can start, and a choice of agents, drawn by outlines as

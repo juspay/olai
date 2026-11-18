@@ -10,6 +10,7 @@ import { createMemo, createSignal, Show } from "solid-js"
 
 import { DeleteFile } from "../files.tsx"
 import { Properties } from "../Properties.tsx"
+import { NoteLine } from "../NoteLine.tsx"
 
 import { DocEditor } from "./DocEditor.tsx"
 import { Referrers } from "./Referrers.tsx"
@@ -102,6 +103,12 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
             </div>
           </Show>
         </div>
+        {/* THE ONE LINE ABOUT THIS NOTE AS A WHOLE — under the path and its
+            verbs, over the record, which is where the page's own facts end
+            and what somebody else has to say about the note begins. Whatever
+            fills it is a tenant's (`../NoteLine.tsx`); this page knows the
+            file and the name, and nothing about chats. */}
+        <NoteLine file={props.file} />
         {/* THE RECORD, as the same run a node's own page draws — under the
             path, above the body. Hidden while editing, because the editor IS
             the YAML (and the prose), and two spellings of one block on one

@@ -19,7 +19,7 @@ export type PaletteAction =
   | { readonly kind: "route"; readonly route: Route }
   | { readonly kind: "shortcuts" }
   | { readonly kind: "toggle-sidebar" }
-  | { readonly kind: "reset-widths" }
+  | { readonly kind: "reset-sidebar-width" }
   | { readonly kind: "close-pane" }
   /**
    * PIN THIS PAGE, or take it off the shelf — its own arm rather than an
@@ -213,7 +213,7 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     hint: "⌘\\",
     action: { kind: "toggle-sidebar" },
     taking: atOnce,
-    search: "toggle sidebar panel rail directory",
+    search: "toggle sidebar rail directory",
   },
   {
     id: "shortcuts",
@@ -224,12 +224,12 @@ export const SHELL_ITEMS: ReadonlyArray<PaletteItem> = [
     search: "keyboard shortcuts keys help reference bindings",
   },
   {
-    id: "reset-widths",
+    id: "reset-sidebar-width",
     label: "Reset sidebar width",
     hint: "Back to default",
-    action: { kind: "reset-widths" },
+    action: { kind: "reset-sidebar-width" },
     taking: atOnce,
-    search: "reset sidebar width panel default size",
+    search: "reset sidebar width default size",
   },
   {
     id: "close-pane",

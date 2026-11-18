@@ -1,5 +1,5 @@
 /**
- * The agent panel, driven through the browser.
+ * A conversation, driven through the browser.
  *
  * Every assertion here is about the PAGE — what a person would see — because
  * everything below it already has unit tests: the ops layer has its own, the
@@ -939,7 +939,7 @@ Then("the agent is working", async function (this: OlaiWorld) {
   await this.expectAttribute(this.chatSelector(CHAT_PANEL),
     "data-status",
     "thinking",
-    "the agent panel",
+    "the conversation",
   );
 });
 
@@ -977,7 +977,7 @@ Then("the agent is idle", async function (this: OlaiWorld) {
     this.chatSelector(`${CHAT_PANEL}${attr("data-pending-sends", "0")}`),
     "data-status",
     "idle",
-    "the agent panel",
+    "the conversation",
     HYDRATION_TIMEOUT,
   );
 });
@@ -4599,10 +4599,6 @@ When("I return to the parent agent {string}", async function (this: OlaiWorld, n
   await this.page.getByRole("button", { name: `Back to ${name}`, exact: true }).click();
 });
 
-Then("the agent panel is already visible", async function(this: OlaiWorld) {
-  await this.chat(CHAT_PANEL).waitFor({ state: "visible" })
-})
-
 When("the agent starts so far are counted", function (this: OlaiWorld) {
   this.notedAgentStarts = this.serverLog.text.split("chat agent ready").length - 1;
 });
@@ -4613,9 +4609,6 @@ Then("no further agent process has started", function (this: OlaiWorld) {
 Then("the list-asks have grown", async function (this: OlaiWorld) {
   assert.notEqual(this.notedListAsks, null);
   await this.waitUntil(async () => listAsks(this.scratch()) > this.notedListAsks!, "the running engine to answer a new listing request");
-});
-Then("the filer log names {string} with {string}", async function (this: OlaiWorld, engine: string, why: string) {
-  await this.waitUntil(async () => this.serverLog.text.split("\n").some(line => line.includes(`filer: ${engine}:`) && line.includes(why)), "the filer's engine refusal to be logged");
 });
 
 When("I send the recovered draft again", async function (this: OlaiWorld) {

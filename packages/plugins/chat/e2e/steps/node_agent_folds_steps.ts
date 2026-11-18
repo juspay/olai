@@ -26,22 +26,51 @@ const standing = (world: OlaiWorld, node: string) => world.node(node).locator(`$
 
 /**
  * A CONVERSATION HAS TWO FACES, and a scenario that opened its agent from a
- * Chats row is looking at the second one. The fold lives on the node's row in
- * its outline; the page IS the conversation. A fold VERB therefore comes back
- * through the page's file crumb before it has a row to press — same document,
- * same tab, so drafts and folds survive. Reading readiness never navigates.
+ * Chats row, the palette or a permalink is looking at the second one: the
+ * chat's own page (`/chat/<item>`), which IS the conversation. The fold lives
+ * on the node's row in its outline.
+ *
+ * A fold VERB therefore comes back to the outline first, through the sidebar's
+ * own row for the file the page says the node is written in — in the same tab,
+ * so drafts and folds survive. Reading readiness never navigates.
+ *
+ * The node's OWN page (`/zoom/#id`) is a conversation face too: it draws the
+ * same page head, and a scenario that zoomed into a node is on it.
  */
+const chatPageOf = (world: OlaiWorld, node: string) =>
+  world.frontLane().locator(`${selector(PLUGIN_TESTID.chatPage)}${attr("data-item", world.nodeId(node))}`);
+
 export const onConversationPage = async (world: OlaiWorld, node: string) =>
-  (await world.page.locator(`${ZOOM_TITLE}${attr("data-node-id", world.nodeId(node))}`).count()) > 0;
+  (await world.page.locator(`${ZOOM_TITLE}${attr("data-node-id", world.nodeId(node))}`).count()) > 0
+  || (await chatPageOf(world, node).count()) > 0;
+
+/** The file the page in front says it is about: the pane's own drawn file on a
+ *  node's zoom page, and the chat page's mono line — the outline the node is
+ *  written in — on a chat page, which draws no breadcrumb at all. */
+const fileBehind = async (world: OlaiWorld, node: string): Promise<string | null> => {
+  const page = chatPageOf(world, node);
+  if (await page.count() > 0) return (await page.locator(selector(PLUGIN_TESTID.chatPageWhere)).innerText()).trim();
+  // The file the PANE says it is drawing, not the crumb in slot #0: the first
+  // crumb is navigation's layout, and a leading one would move it.
+  return await world.frontLane().locator(`${PANE}[data-pane-focused="true"]`).first().getAttribute("data-drawn-file");
+};
 
 export const returnToOutline = async (world: OlaiWorld, node: string) => {
   if (!(await onConversationPage(world, node))) return;
-  // The file the PANE says it is drawing, not the crumb in slot #0: the first
-  // crumb is navigation's layout, and a leading one would move it.
-  const file = await world.frontLane().locator(`${PANE}[data-pane-focused="true"]`).first().getAttribute("data-drawn-file");
-  const crumb = world.crumbs().getByText(file ?? "", { exact: true }).first();
-  await crumb.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  await crumb.click();
+  const file = await fileBehind(world, node);
+  assert.ok(file, `the page in front says nothing about where ${node} is`);
+  // THE SIDEBAR'S OWN ROW for that file, rather than a crumb: a chat page has
+  // no breadcrumb — it belongs to one item, and the trail above a file it is
+  // not drawing would be a trail to somewhere else. The press is in-app, so
+  // this tab keeps its folds and its drafts.
+  if (await world.crumbs().getByText(file, { exact: true }).count() > 0) {
+    await world.crumbs().getByText(file, { exact: true }).first().click();
+  } else {
+    await world.showSidebar();
+    const link = world.outlineLink(file);
+    await link.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await link.click();
+  }
   await world.waitForFrame();
   // THE DOOR PROMISES THE OUTLINE, not just an address: a step that presses
   // the row's history a frame later used to meet a tree (and a fold) still
@@ -64,14 +93,15 @@ export const returnToOutline = async (world: OlaiWorld, node: string) => {
 };
 
 /** Press a row that opens a conversation, then come back to its outline row so
- *  a fold verb has something to press. The page's TITLE, not its conversation:
- *  an unbound agent has no conversation face, and this door still gets back. */
+ *  a fold verb has something to press. The page's own HEAD, not its
+ *  conversation: an unbound agent has no conversation face, and this door
+ *  still gets back. */
 export const openRowInOutline = async (world: OlaiWorld, row: Locator, node: string) => {
   await world.showSidebar();
   await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
   await world.press(row);
-  await world.page.locator(`${ZOOM_TITLE}${attr("data-node-id", world.nodeId(node))}`)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await world.waitUntil(() => onConversationPage(world, node),
+    `the conversation's own page for ${node}`, POLL_TIMEOUT);
   await returnToOutline(world, node);
 };
 

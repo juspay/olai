@@ -27,7 +27,7 @@ Each entry says what the word means, what it carries, and what leaving it out co
 | [watching](#watching) | being told what happened in a conversation |
 | [local state](#local-state) | one record file and one directory per plugin |
 | [offer](#offer) | a service the plugin provides to other plugins |
-| [engine](#engine) | a coding agent the chat panel can run |
+| [engine](#engine) | a coding agent olai can run |
 | [slot](#slot) | a named place in the page the plugin may draw in |
 | [`environment`, `config`](#environment-and-config) | the variables and settings it reads |
 | [roster, licence](#roster-and-licence) | which plugins run, and what is allowed to draw |
@@ -297,7 +297,7 @@ Writing one is covered in [dynamic-plugins.md](../dynamic-plugins.md).
 
 ### engine
 
-One ACP coding agent olai can run in the chat panel, shipped as a plugin. It carries a `Leg` that knows how that agent talks, a probe that finds it on this machine, the channel its standing prompt travels on, plus a logo and a sentence about installing it in its browser code. One directory and one registry row each, and no surface of its own.
+One ACP coding agent olai can run in a conversation, shipped as a plugin. It carries a `Leg` that knows how that agent talks, a probe that finds it on this machine, the channel its standing prompt travels on, plus a logo and a sentence about installing it in its browser code. One directory and one registry row each, and no surface of its own.
 
 The chat plugin detects engines and remembers each machine's answer until that engine unregisters. The roster lists every mounted engine in registry order, each marked `standing: "here"` or `"not-here"`, and only one that is here can start.
 

@@ -79,7 +79,7 @@ export const marksOver = (
       const mine = rows().filter(about)
       if (mine.length === 0) return new Set<string>()
       return new Set(parsed().filter((tab) => tab.panes().some(({ route }) =>
-        mine.some((row) => chat.isCurrent(routes, route, row)))).map((tab) => tab.id))
+        mine.some((row) => chat.isCurrent(route, row)))).map((tab) => tab.id))
     }),
   })
 

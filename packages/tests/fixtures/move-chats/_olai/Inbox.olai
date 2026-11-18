@@ -1,0 +1,7 @@
+{"id":"chats","ord":"a0","title":"Chats"}
+{"id":"plan-row","parent":"chats","ord":"a0","title":"[plan](/notes/plan.md)","custom":{"chat-agent-session":"claude:fake-session-1"}}
+{"id":"plan-memory","parent":"plan-row","ord":"a0","title":"what we decided about the cabinets"}
+{"id":"plan-memory-two","parent":"plan-row","ord":"a1","title":"and what is still open"}
+{"id":"house-row","parent":"chats","ord":"a1","title":"[house](/house.olai)","custom":{"chat-agent-session":"claude:fake-session-2"}}
+{"id":"ordinary-row","parent":"chats","ord":"a2","title":"an ordinary chat","custom":{"chat-agent-session":"claude:fake-session-3"}}
+{"id":"kept-row","parent":"chats","ord":"a3","title":"[kept](/notes/kept.md)","custom":{"chat-agent-session":"claude:fake-session-4"}}

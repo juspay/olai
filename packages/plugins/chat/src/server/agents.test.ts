@@ -18,26 +18,27 @@
  * node agents at all — a claimed key declared something else, and a column
  * nothing declares.
  */
-import { TEST_CLAIMS } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
 import type { Overheard } from "olai-plugin-chat"
-import { derive, type NodeAgents } from "@olai/format"
-import { recordsOf, setOf } from "@olai/format/testlib"
+import { type NodeAgents } from "@olai/format"
+import { readingOf, setOf } from "@olai/format/testlib"
 
-import { SESSION_TYPE } from "../kinds.ts"
+import { OPENS_TYPE, SESSION_TYPE } from "../kinds.ts"
 import { joined, roster } from "./agents.ts"
 
 const AGENTS: NodeAgents = [
   {
+    kind: "node",
     id: "spaces",
     file: "lanes.olai",
     title: "Xyne Spaces",
     engine: "grok",
     session: "sess-1",
     memory: 14,
+    beside: false,
   },
-  { id: "odu", file: "lanes.olai", title: "Odu", engine: "opus", session: null, memory: 3 },
+  { kind: "node", id: "odu", file: "lanes.olai", title: "Odu", engine: "opus", session: null, memory: 3, beside: false },
 ]
 
 const HEARD: Overheard = {
@@ -50,6 +51,8 @@ const HEARD: Overheard = {
 test("the VAULT leads: every node agent is a row, with a session or without one", () => {
   expect(joined(AGENTS, [HEARD])).toEqual([
     {
+      kind: "node",
+      beside: false,
       id: "spaces",
       file: "lanes.olai",
       title: "Xyne Spaces",
@@ -62,6 +65,8 @@ test("the VAULT leads: every node agent is a row, with a session or without one"
       seen: null,
     },
     {
+      kind: "node",
+      beside: false,
       id: "odu",
       file: "lanes.olai",
       title: "Odu",
@@ -144,12 +149,12 @@ test("what a person has READ is joined on the PAIR, exactly as the line is", () 
 /** One revision of a board with two node agents on it, one of them bound —
  *  under the key this kind CLAIMS, which is what a vault that has declared
  *  nothing at all carries. */
-const SEEN = derive(TEST_CLAIMS, recordsOf(setOf({
+const SEEN = readingOf(setOf({
   "lanes.olai": [
     `{"id":"spaces","ord":"a0","title":"Xyne Spaces","custom":{"chat-agent-session":"grok:sess-1"}}`,
     `{"id":"odu","ord":"a1","title":"Odu","custom":{"chat-agent-session":"opus"}}`,
   ].join("\n"),
-})))
+}))
 
 test("a conversation is answered with the node agent whose property names it", () => {
   const carrier = roster()
@@ -170,13 +175,13 @@ test("a conversation no property names is nobody's, which is nearly every one", 
 })
 
 test("the nearest node agent at or above is named from the current vault reading", () => {
-  const nested = derive(TEST_CLAIMS, recordsOf(setOf({
+  const nested = readingOf(setOf({
     "lanes.olai": [
       `{"id":"root","ord":"a0","title":"Root","custom":{"chat-agent-session":"claude:r"}}`,
       `{"id":"child","parent":"root","ord":"a0","title":"Child","custom":{"chat-agent-session":"claude:c"}}`,
       `{"id":"leaf","parent":"child","ord":"a0","title":"Leaf","custom":{"chat-agent-session":"claude:l"}}`,
     ].join("\n"),
-  })))
+  }))
   const carrier = roster()
   carrier.seen(nested)
   expect(carrier.nearestAt("leaf", new Set(["root", "child"]))).toBe("child")
@@ -211,12 +216,12 @@ test("...and a vault keeping its bindings under a word of its own says so in ONE
   // ONE ROW IN `_olai/Properties.olai` puts this kind on any column a board
   // likes — here the bare `agent-session`, which is what a vault written before
   // chat was a plugin carries. The row is what says that key is this kind.
-  const migrated = derive(TEST_CLAIMS, recordsOf(setOf({
+  const migrated = readingOf(setOf({
     "_olai/Properties.olai":
       `{"id":"prop-agent-session","ord":"a0","title":"agent-session","custom":{"type":"chat-agent-session"}}`,
     "lanes.olai":
       `{"id":"spaces","ord":"a0","title":"Xyne Spaces","custom":{"agent-session":"grok:sess-1"}}`,
-  })))
+  }))
   const carrier = roster()
   carrier.seen(migrated)
   expect(carrier.nodeAt("spaces")?.session).toBe("sess-1")
@@ -234,12 +239,12 @@ test("a board that declares the claimed key something else keeps no node agents"
   // The vault wins in both directions. A row saying the column is prose is a
   // person saying what they mean, and a default that argued back would be this
   // plugin overruling them.
-  const said = derive(TEST_CLAIMS, recordsOf(setOf({
+  const said = readingOf(setOf({
     "_olai/Properties.olai":
       `{"id":"prop-session","ord":"a0","title":"chat-agent-session","custom":{"type":"text"}}`,
     "lanes.olai":
       `{"id":"spaces","ord":"a0","title":"Xyne Spaces","custom":{"chat-agent-session":"grok:sess-1"}}`,
-  })))
+  }))
   const carrier = roster()
   carrier.seen(said)
   expect(carrier.nodes()).toEqual([])
@@ -250,9 +255,9 @@ test("a board whose bindings sit on a column nothing declares keeps no node agen
   // vault might be using for something of its own, so a plugin may only ever
   // declare the key carrying its own name — and a board that wants its bindings
   // in that column says so with the row above rather than being read anyway.
-  const bare = derive(TEST_CLAIMS, recordsOf(setOf({
+  const bare = readingOf(setOf({
     "lanes.olai": `{"id":"one","ord":"a0","title":"One","custom":{"agent-session":"claude:s-1"}}`,
-  })))
+  }))
   const carrier = roster()
   carrier.seen(bare)
   expect(carrier.nodes()).toEqual([])
@@ -261,9 +266,64 @@ test("a board whose bindings sit on a column nothing declares keeps no node agen
 
 test("the wire roster carries the current vault edit stamp for agents not yet heard", () => {
   const carrier = roster()
-  const seen = (changed: string) => derive(TEST_CLAIMS, recordsOf(setOf({ "one.olai": JSON.stringify({ id: "one", ord: "a0", title: "One", changed, custom: { "chat-agent-session": "engine" } }) })))
+  const seen = (changed: string) => readingOf(setOf({ "one.olai": JSON.stringify({ id: "one", ord: "a0", title: "One", changed, custom: { "chat-agent-session": "engine" } }) }))
   carrier.seen(seen("2026-01-01T00:00:00Z"))
   expect(carrier.rowsWith([])[0]?.changed).toBe("2026-01-01T00:00:00Z")
   carrier.seen(seen("2026-02-01T00:00:00Z"))
   expect(carrier.rowsWith([])[0]?.changed).toBe("2026-02-01T00:00:00Z")
+})
+
+// ── and the other half of the roster: the notes ────────────────────────
+
+/** One board with a tied NODE and a tied NOTE on it — the note's tie in the
+ *  YAML block at the top of the file, where a person can read it. */
+const BOTH = readingOf(setOf(
+  {
+    "lanes.olai": `{"id":"spaces","ord":"a0","title":"Xyne Spaces","custom":{"chat-agent-session":"grok:sess-1"}}`,
+  },
+  [
+    ["notes/plan.md", "---\nchat-agent-session: claude:sess-2\nchat-opens: beside\n---\n\n# Plan\n"],
+    ["notes/idle.md", "# Idle\n"],
+  ],
+))
+
+test("the roster is the nodes and then the notes, each keyed by its item key", () => {
+  const carrier = roster()
+  carrier.seen(BOTH)
+  expect(carrier.nodes().map((one) => [one.kind, one.id, one.title, one.beside])).toEqual([
+    ["node", "spaces", "Xyne Spaces", false],
+    ["note", "/notes/plan.md", "plan", true],
+  ])
+  // ...and both ends of the reading answer about a note exactly as they do
+  // about a node: by key, and by the conversation its tie names.
+  expect(carrier.nodeAt("/notes/plan.md")?.engine).toBe("claude")
+  expect(carrier.agentAt({ agent: "claude", session: "sess-2" })?.id).toBe("/notes/plan.md")
+})
+
+test("a note olai still holds can be seated on, and one it does not cannot", () => {
+  const carrier = roster()
+  carrier.seen(BOTH)
+  expect(carrier.seatableAt("/notes/idle.md")).toBe(true)
+  expect(carrier.seatableAt("/notes/gone.md")).toBe(false)
+  expect(carrier.seatableAt("spaces")).toBe(true)
+  expect(carrier.seatableAt("nobody")).toBe(false)
+})
+
+test("the opens switch is written under the word this kind claims until a board says otherwise", () => {
+  const carrier = roster()
+  carrier.seen(BOTH)
+  expect(carrier.opensKey()).toBe(OPENS_TYPE)
+  const migrated = readingOf(setOf({
+    "_olai/Properties.olai":
+      `{"id":"prop-opens","ord":"a0","title":"opens","custom":{"type":"chat-opens"}}`,
+  }))
+  carrier.seen(migrated)
+  expect(carrier.opensKey()).toBe("opens")
+})
+
+test("a note is never tidied: it carries no sleep memo and no sleeping mark", () => {
+  const carrier = roster()
+  carrier.seen(BOTH)
+  expect(carrier.sleeps("/notes/plan.md")).toBe(false)
+  expect(carrier.sleptAt("/notes/plan.md")).toBeNull()
 })

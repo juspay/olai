@@ -24,7 +24,7 @@ Type the rows of an outline, move them, give them dates and to-do marks, and fin
 | [Typing an outline](editing.md) | The keys for writing an outline: new rows, to-do marks, splitting and joining rows, a note under a row, and undo. |
 | [Moving rows about, and the Trash](organising.md) | Dragging rows, picking several at once, dates and repeating tasks, the Trash, and deleting a file. |
 | [Marks, days and repeating](dates-and-status.md) | The to-do marks (**To do**, **Doing**, **Done**, **Cancelled**), dates on rows, and tasks that repeat. |
-| [The sidebar, tabs and the palette](getting-around.md) | The sidebar of files, pinned pages, tabs, the command palette, and quick capture into the inbox. |
+| [The sidebar, tabs and the palette](getting-around.md) | The sidebar of files, pinned pages, panes and tabs, the command palette, and quick capture into the inbox. |
 | [Search](search.md) | How to write a search: every operator, what it matches, and what each result shows. |
 | [Filtering a page](filtering.md) | Hiding the rows on the current page that don't match, and sending the filtered page to someone as a link. |
 
@@ -34,15 +34,15 @@ Chat with a coding agent, such as Claude Code, beside your notes, and give it wo
 
 | Page | What it covers |
 | --- | --- |
-| [Talking to an agent](chat.md) | Picking an agent, signing in, the controls while it works, and how full its context is. |
+| [Talking to an agent](chat.md) | Picking an agent, signing in, the chat page and its agent line, the controls while it works, and how full its context is. |
 | [Giving an agent work](giving-an-agent-work.md) | Handing an agent a file, a row or a picture, and reading what it changed. |
-| [Node agents: giving a row its own agent](node-agents.md) | Starting a conversation that belongs to one row, or to the page you are reading, and managing the agent behind it. |
+| [Node agents: giving a row or a document its own agent](node-agents.md) | A chat that belongs to one row or one Markdown document: starting it, reading it in a pane, and managing the agent behind it. |
 | [When olai interrupts you, and what it marks unread](attention.md) | How olai tells you an agent is waiting on you, and which messages you have not read. |
 | [Point an agent at a running olai](connecting-agents.md) | Letting an agent that runs outside olai use a running olai: `/mcp`, `olai surface`, and capture from a terminal. |
 
 ### Each agent
 
-The five coding agents the chat panel can run.
+The five coding agents olai can run.
 
 | Page | What it covers |
 | --- | --- |
@@ -58,7 +58,7 @@ What olai keeps on disk, what it refuses to write, and how git records it.
 
 | Page | What it covers |
 | --- | --- |
-| [The outline file format](format.md) | How an outline is stored on disk: the two kinds of record, their fields, and properties. |
+| [The outline file format](format.md) | How an outline is stored on disk: the two kinds of record, their fields, properties, and the keys that tie a chat to a row or a document. |
 | [Property types](properties.md) | Giving a property a type, such as a date or a link to a row, and how its value is read. |
 | [Documents, references and the kinds olai shows](documents-and-kinds.md) | Markdown documents, links between files, pins, and the kinds of file olai shows but does not edit. |
 | [How olai checks your files, and how it writes them](validation.md) | What olai refuses to write, and what each error message says. |
@@ -111,7 +111,7 @@ The parts of the page you see and use.
 | Page | What it covers |
 | --- | --- |
 | [UI renderer: starting the browser app and its named places](plugins/ui-renderer.md) | Draws the browser app with Solid, and lets plugins add parts to named places on the page. |
-| [Layout](plugins/layout.md) | The page's frame: the panels, the header and its health dot, banners, and the places where file viewers sit. |
+| [Layout](plugins/layout.md) | The page's frame: the sidebar column, the header and its health dot, banners, and the places where file viewers sit. |
 | [Addresses, panes and the command palette](plugins/navigation.md) | Page addresses, Back and Forward, which pane has focus, and the command palette. |
 | [Tabs](plugins/tabs.md) | Several pages open as tabs above the panes, each with its own Back and Forward. |
 | [Sidebar](plugins/sidebar.md) | The column of files on the left, the narrow rail beside it, and the places plugins can add to them. |

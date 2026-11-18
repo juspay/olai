@@ -25,7 +25,7 @@ import { expect, test } from "bun:test"
 
 import { kindWordOf } from "@olai/plugin-api"
 
-import { SLEEPING_KIND, SLEEPING_TYPE, SLEPT_KIND, SLEPT_TYPE, SESSION_KIND, SESSION_TYPE } from "./binding.ts"
+import { OPENS_KIND, OPENS_TYPE, SLEEPING_KIND, SLEEPING_TYPE, SLEPT_KIND, SLEPT_TYPE, SESSION_KIND, SESSION_TYPE } from "./binding.ts"
 import { kinds } from "./kinds.ts"
 import { name } from "./wire.ts"
 
@@ -33,6 +33,7 @@ test("the word `./binding.ts` writes out is the word the registry composes", () 
   expect(SESSION_TYPE).toBe(kindWordOf(name, SESSION_KIND))
   expect(SLEPT_TYPE).toBe(kindWordOf(name, SLEPT_KIND))
   expect(SLEEPING_TYPE).toBe(kindWordOf(name, SLEEPING_KIND))
+  expect(OPENS_TYPE).toBe(kindWordOf(name, OPENS_KIND))
 })
 
 test("...and it decomposes back to this plugin and this kind, hyphen and all", () => {
@@ -48,6 +49,7 @@ test("...and it decomposes back to this plugin and this kind, hyphen and all", (
       [SESSION_KIND, SESSION_TYPE],
       [SLEPT_KIND, SLEPT_TYPE],
       [SLEEPING_KIND, SLEEPING_TYPE],
+      [OPENS_KIND, OPENS_TYPE],
     ] as const
   ) {
     expect(composed.slice(0, composed.indexOf("-"))).toBe(name)
@@ -69,6 +71,9 @@ test("the contribution names the bare word, and its clause names the composed on
   const sleeping = kinds[2]
   expect(sleeping.kind).toBe(SLEEPING_KIND)
   expect(sleeping.takes).toContain(SLEEPING_TYPE)
+  const opens = kinds[3]
+  expect(opens.kind).toBe(OPENS_KIND)
+  expect(opens.takes).toContain(OPENS_TYPE)
 })
 
 test("the sleeping mark admits the two words a person writes, and nothing else", () => {
@@ -84,6 +89,19 @@ test("the sleeping mark admits the two words a person writes, and nothing else",
   expect(sleeping.admits("true")).toBe(false)
   expect(sleeping.admits("")).toBe(false)
   expect(sleeping.admits("on, but not on Fridays")).toBe(false)
+})
+
+test("the opens switch admits the two words a note's front matter can carry", () => {
+  // The other kind a person writes by hand, and the one they write in a `.md`'s
+  // YAML block rather than in a drawer: `alone` and `beside` are the value, the
+  // key being absent is the same as `alone`, and a boolean is not an answer.
+  const opens = kinds[3]
+  expect(opens.admits("alone")).toBe(true)
+  expect(opens.admits("beside")).toBe(true)
+  expect(opens.admits(" beside ")).toBe(true)
+  expect(opens.admits("Beside")).toBe(false)
+  expect(opens.admits("true")).toBe(false)
+  expect(opens.admits("")).toBe(false)
 })
 
 test("the memo kind admits what the format's own instant is, and refuses prose", () => {

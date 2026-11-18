@@ -20,8 +20,6 @@ import { only } from "@olai/web/client/narrow.ts"
 import { DocumentPage } from "./document/DocumentPage.tsx"
 import { DocumentReading } from "./reading.tsx"
 import { documentFile, documentRequest } from "./document-route.ts"
-import { PageSeat } from "olai-plugin-navigation/seat"
-import { atFile } from "olai-plugin-navigation/routes"
 
 export function MarkdownPageView() {
   const router = useRouter() as Navigation
@@ -43,14 +41,8 @@ export function MarkdownPageView() {
       <Show when={page()?.shows} fallback={<p class="m-0 py-8 text-muted">Loading…</p>}>
         {shows => <Switch fallback={<p data-testid={IDS_UI_PRIMITIVES.nothing}>No such document here.</p>}>
           <Match when={only(shows(), "nothing")}>{missing => <Empty testid={IDS_UI_PRIMITIVES.nothing} line="Page not found" detail={`There is no ${servedDirectory()?.claims().byKind.get(missing().sought)?.noun ?? "file"} named ${missing().requested}.`} />}</Match>
-          <Match when={only(shows(), "document")}>{doc => <>
-            <DocumentPage file={doc().file} custom={doc().props} />
-            {/* THE SEAT, at the foot of the document: the page says which
-                file it is, and whatever is contributed there is about it.
-                Keyed on the file, so a seat never reads a document this
-                branch has already let go of. */}
-            <Show when={doc().file} keyed>{file => <PageSeat place={atFile(file)} name={router.routes.name(atFile(file)) ?? file} />}</Show>
-          </>}</Match>
+          <Match when={only(shows(), "document")}>{doc =>
+            <DocumentPage file={doc().file} custom={doc().props} />}</Match>
         </Switch>}
       </Show>
     </DocumentReading>

@@ -25,7 +25,7 @@ const above = selector(PLUGIN_TESTID.agentAbove);
 const aboveLine = selector(PLUGIN_TESTID.agentAboveLine);
 const crumbMark = selector(PLUGIN_TESTID.crumbMark);
 const pageHead = selector(PLUGIN_TESTID.agentPageHead);
-const dock = selector(PLUGIN_TESTID.chatDock);
+const chatPage = selector(PLUGIN_TESTID.chatPage);
 
 const visiblePill = (world: OlaiWorld) => world.frontLane().locator(`${above}:visible`);
 
@@ -67,8 +67,8 @@ Then("the agent page's line wears the agent-above pill", async function (this: O
   await this.frontLane().locator(`${pageHead} ${above}`).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
-Then("the agent panel's agent-above pill points at {string}", async function (this: OlaiWorld, node: string) {
-  await this.page.locator(`${dock} ${above}${attr("data-agent", this.nodeId(node))}`)
+Then("the chat page's agent-above pill points at {string}", async function (this: OlaiWorld, node: string) {
+  await this.page.locator(`${chatPage} ${above}${attr("data-agent", this.nodeId(node))}`)
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 

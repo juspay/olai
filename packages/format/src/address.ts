@@ -339,10 +339,11 @@ export interface Split {
  * spelling of a NODE's own page, whose path half names no document either.
  *
  * ONE function because two readings ask exactly this and then project it: the
- * node a pin addresses (`./shelf.ts`'s `pinTargetIn`) and the place a chat row
- * stands for ({@link placeWritten}). Spelled twice, the `/zoom/` rule is a rule
- * free to disagree with itself about one of them. TOTAL over any string,
- * because {@link parseAddress} is.
+ * node a pin addresses (`./shelf.ts`'s `pinTargetIn`) and the note a chat row
+ * titled with an address is about, which is what the one-time move reads
+ * (`olai-plugin-chat`'s `server/move.ts`). Spelled twice, the `/zoom/` rule is
+ * a rule free to disagree with itself about one of them. TOTAL over any
+ * string, because {@link parseAddress} is.
  */
 export const addressAt = (claims: Claims, at: string): Address | null => {
   if (!at.startsWith("/")) return null
@@ -374,7 +375,7 @@ export const addressWritten = (title: string): string =>
  * runs once per title per draw. A target with whitespace in it is a sentence
  * somebody wrote, not an address. Navigation reads a title through this before
  * its router parses what is left (`olai-plugin-navigation`'s `addressIn`), and
- * {@link placeWritten} below reads it the same way on the server, so the two
+ * the chat's one-time move reads it the same way on the server, so the two
  * cannot disagree about what counts as an address at all.
  */
 export const titleAddress = (title: string): string | undefined => {
@@ -382,100 +383,6 @@ export const titleAddress = (title: string): string | undefined => {
   if (!text.startsWith("/") && !text.startsWith("[")) return undefined
   const address = addressWritten(text)
   return /\s/.test(address) ? undefined : address
-}
-
-/**
- * A PLACE — anything olai can open from an address, as far as a conversation
- * ABOUT it is concerned.
- *
- * Coarser than an {@link Address} on purpose. A chat about a document is about
- * the whole document, so a heading inside it is the file; a row is the same
- * row whether it is written `/#id`, `/zoom/#id` or `house.olai#id`, so a row is
- * its id and nothing else; and every page that is not a file or a row (a
- * plugin's page, the agenda, a day) is its address with any `?q=` dropped,
- * because a filter narrows a page and does not make it a different one.
- */
-export type Place =
-  | { readonly kind: "row"; readonly id: string }
-  | { readonly kind: "file"; readonly path: string }
-  | { readonly kind: "page"; readonly href: string }
-
-/** One string per place, so a place can key a map. */
-export const placeKey = (place: Place): string =>
-  place.kind === "row" ? `row:${place.id}` : place.kind === "file" ? `file:${place.path}` : `page:${place.href}`
-
-/** Whether two places are the same place. */
-export const samePlace = (a: Place, b: Place): boolean => placeKey(a) === placeKey(b)
-
-/**
- * THE PLACE A TITLE NAMES, by this format's own grammar — the server's half of
- * "what does this chat row stand for", and `null` for a title that names none.
- *
- * The browser asks the same question through the router, which also knows
- * which plugin pages are mounted; the server has no router, so a page that is
- * not a file or a row is answered as its written path. For files and rows the
- * two halves agree, which is what lets the server refuse a second chat for a
- * place the browser offered a door to.
- *
- * Whether the place still EXISTS is the caller's question, asked of whatever
- * reading it holds: this is a reading of text and claims, nothing more. A path
- * that looks like a file of a kind nobody claims names nothing, because olai
- * does not serve it.
- */
-export const placeWritten = (claims: Claims, title: string): Place | null => {
-  const at = titleAddress(title)
-  if (at === undefined || !at.startsWith("/")) return null
-  const named = addressAt(claims, at)
-  if (named !== null) return named.kind === "node" || named.kind === "row" ? { kind: "row", id: named.id } : { kind: "file", path: named.path }
-  // The grammar named nothing, so what is left is a PAGE — except the paths
-  // that name a node and nothing else (`/zoom/`, and `/` with a fragment
-  // nothing can spell), and except a file of a kind nobody claims, which olai
-  // does not serve and so does not open.
-  const { pathname, fragment } = splitAddress(at.slice(1))
-  if (pathname === ZOOM || (pathname === "" && fragment !== undefined)) return null
-  return /\.[^./]+$/.test(pathname.slice(pathname.lastIndexOf("/") + 1)) ? null : { kind: "page", href: `/${pathname}` }
-}
-
-/**
- * WHICH CHAT IS AT WHICH PLACE — the one rule, over a list of chat rows in
- * roster order and what each one's title stands for.
- *
- * A chat row is always its OWN row's chat, so a row's own chat wins over any
- * stand-in for it, and a chat row titled with its own address stands for
- * nothing else. Between stand-ins for one place the first in order wins, and a
- * stand-in that loses is an ordinary chat row, standing for itself.
- */
-export interface StandIns<Row> {
-  /** The chat at a place, or `undefined`. */
-  readonly at: (place: Place) => Row | undefined
-  /** The place a chat row stands for once the rule has run — its own row for
-   *  every chat that is not a winning stand-in. */
-  readonly of: (row: { readonly id: string }) => Place
-  /** Whether a chat row stands for a place other than itself. */
-  readonly standsIn: (row: { readonly id: string }) => boolean
-}
-
-export const standIns = <Row extends { readonly id: string }>(
-  rows: ReadonlyArray<Row>,
-  standsFor: (row: Row) => Place | null,
-): StandIns<Row> => {
-  const own = new Map<string, Row>()
-  for (const row of rows) if (!own.has(row.id)) own.set(row.id, row)
-  const at = new Map<string, Row>()
-  const standing = new Map<string, Place>()
-  for (const row of rows) {
-    const place = standsFor(row)
-    if (place === null || (place.kind === "row" && own.has(place.id))) continue
-    const key = placeKey(place)
-    if (at.has(key) || standing.has(row.id)) continue
-    at.set(key, row)
-    standing.set(row.id, place)
-  }
-  return {
-    at: (place) => (place.kind === "row" ? own.get(place.id) : undefined) ?? at.get(placeKey(place)),
-    of: (row) => standing.get(row.id) ?? { kind: "row", id: row.id },
-    standsIn: (row) => standing.has(row.id),
-  }
 }
 
 /**
@@ -620,8 +527,13 @@ export const outlineAt = (claims: Claims, at: AtDocument): AtOutline | null => {
  * runs once per link the browser draws, per frame, and nearly every filename
  * in a vault is already the characters a URL takes verbatim. The walk is what
  * the answer IS; the test is what says the answer is the argument.
+ *
+ * EXPORTED for the one grammar that writes a path into a URL of its OWN
+ * rather than into an address — `olai-plugin-chat`'s `/chat/<note path>` —
+ * so a chat page's address escapes a filename exactly as every other link to
+ * that file does, rather than in a second spelling one character apart.
  */
-const spellPath = (path: string): string =>
+export const spellPath = (path: string): string =>
   PLAIN.test(path) ? path : path.split("/").map(encodeURIComponent).join("/")
 
 /** EXACTLY the characters `encodeURIComponent` leaves alone, plus the
@@ -638,9 +550,10 @@ const PLAIN = /^[A-Za-z0-9\-_.!~*'()/]*$/
  * Per SEGMENT because `%2F` is a slash in somebody's filename rather than a
  * separator, and a whole-string decode would turn one into the other. A path
  * with no `%` in it can hold neither, so it is its own reading — which is
- * every path a person types and every one this module prints.
+ * every path a person types and every one this module prints. Exported for
+ * {@link spellPath}'s reader, so the two ends of one escaping stay together.
  */
-const readPath = (text: string): string | null => {
+export const readPath = (text: string): string | null => {
   if (!text.includes("%")) return text
   const segments = text.split("/").map(spelled)
   return segments.includes(null) ? null : segments.join("/")

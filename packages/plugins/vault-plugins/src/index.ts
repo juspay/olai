@@ -1,3 +1,5 @@
+import type { AgentItem } from "@olai/format"
+import { PLUGIN_FOLDER, PLUGIN_README_FILE } from "@olai/surface"
 import { serviceTag } from "@olai/plugin-api/services"
 import type { Effect } from "effect"
 export const name = "vault-plugins"
@@ -42,16 +44,31 @@ export const slugOf = (title: string): string => {
 export const PLUGIN_PATH = "/plugins/"
 
 /**
- * WHERE A PLUGIN IS, as an address — `/plugins/<word>`, its own page.
+ * WHERE A PLUGIN'S README IS — `plugins/<word>/README.md`, the first file a
+ * mint writes and the one a person reads.
  *
- * It is what a chat about this plugin is ABOUT: a chat row titled
- * `[<Title>](/plugins/<word>)` is this plugin's builder, and that is the whole
- * of the binding — nothing is written on the plugin's own node for it. So the
- * serve spells this when it opens a conversation and when it speaks into one,
- * the page spells it when it docks one, and `./browser/route.ts` spells the
- * same string as the page's own URL.
+ * It is what a plugin's BUILDER CHAT is about: a chat belongs to a node or a
+ * note, one each, and a plugin's note is its README. The tie lives in that
+ * file's own front matter, so nothing is written on the plugin's folder to say
+ * which conversation is building it and nothing has to be kept in step with
+ * the folder's name. The serve spells this when it opens a conversation and
+ * when it speaks into one, and the runtime spells it when it asks chat which
+ * plugins have one.
+ *
+ * THE PATH IS SPELLED HERE AND NOWHERE ELSE — composed from the folder and the
+ * file name a plugin's halves are already named by (`@olai/surface`), so the
+ * CREATE that makes the folder and every reader that asks for the note cannot
+ * come to spell one file two ways. `mint` wrote its own
+ * `${PLUGIN_FOLDER}${word}/${PLUGIN_README_FILE}` beside this, which is the
+ * same string until the day one of them moves.
  */
-export const pluginAbout = (word: string): string => `${PLUGIN_PATH}${encodeURIComponent(word)}`
+export const pluginReadme = (word: string): string => `${PLUGIN_FOLDER}${word}/${PLUGIN_README_FILE}`
+
+/** ...AND THAT NOTE AS AN ITEM — what a plugin's builder chat IS, composed
+ *  once rather than at each of the four places that ask chat about it (the
+ *  open, the say, the question *which plugins have a chat* and the answer it
+ *  is read against, which have to agree about one item to work at all). */
+export const readmeItem = (word: string): AgentItem => ({ kind: "note", path: pluginReadme(word) })
 
 /** One definition, at one version, as the panel asks about it. */
 export interface ApprovalRequest {

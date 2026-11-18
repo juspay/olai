@@ -13,19 +13,15 @@
  * module's until an outline row needed the same thing (`../drag/dragging.ts`);
  * what stayed here is the only part that is about a WIDTH.
  *
- * Axis is horizontal only. `edge: "right"` means the handle sits on the
- * right of its panel (sidebar): dragging right grows it. `edge: "left"` is the
- * chat dock: dragging left grows it (delta inverted).
+ * Axis is horizontal only, and the handle sits on the RIGHT of the panel it
+ * resizes (the directory column): dragging right grows it.
  */
 
 import { drag as pointerDrag } from "@olai/web/client/pointer.ts"
 import { clamp } from "./prefs.ts"
 
-export type ResizeEdge = "left" | "right"
-
 export interface ResizeStart {
   readonly event: PointerEvent
-  readonly edge: ResizeEdge
   readonly startWidth: number
   readonly min: number
   readonly max: number
@@ -33,20 +29,13 @@ export interface ResizeStart {
   readonly onEnd?: (width: number) => void
 }
 
-/**
- * Pure half of a drag: how an edge maps a pointer delta onto a width.
- * Right-edge (sidebar) grows with +dx; left-edge (chat) grows with −dx.
- */
+/** Pure half of a drag: how a pointer delta maps onto a width. */
 export const widthAfter = (
-  edge: ResizeEdge,
   start: number,
   dx: number,
   min: number,
   max: number,
-): number => {
-  const raw = edge === "right" ? start + dx : start - dx
-  return clamp(Math.round(raw), min, max)
-}
+): number => clamp(Math.round(start + dx), min, max)
 
 /**
  * Begin a drag. Returns a teardown if the caller needs to cancel early
@@ -68,7 +57,6 @@ export const startResize = (opts: ResizeStart): (() => void) => {
   return pointerDrag(opts.event, {
     onMove: (event) => {
       last = widthAfter(
-        opts.edge,
         opts.startWidth,
         event.clientX - originX,
         opts.min,

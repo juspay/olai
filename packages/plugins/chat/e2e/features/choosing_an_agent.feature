@@ -244,7 +244,8 @@ Feature: Choosing a node agent's engine
 
   @opencode @agent-stored @scratch:chat
   Scenario: Reopening the conversation talks to the agent that has it
-    When I open the filed "opencode" conversation "an opencode conversation" as node "filed-engine"
+    Given node "kitchen" in "house.olai" is tied to the stored "opencode" conversation "an opencode conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
     # The note beside the session id. A session id means nothing to the other
     # agent — asking it to load one gets a refusal — so the boot has to know
@@ -376,9 +377,10 @@ Feature: Choosing a node agent's engine
     And the panel does not say it is busy
 
   @opencode @agent-stored @scratch:chat
-  Scenario: A message typed while a filed agent is opening is delivered once
+  Scenario: A message typed while a stored conversation is opening is delivered once
+    Given node "kitchen" in "house.olai" is tied to the stored "opencode" conversation "an opencode conversation"
     When the next conversation load will hang
-    And I open the filed "opencode" conversation "an opencode conversation" as node "opening-chat"
+    And I press the agent "kitchen"
     Then the panel says it is busy, with "Starting"
     When I ask the agent "hello"
     And the agent is released
@@ -386,78 +388,89 @@ Feature: Choosing a node agent's engine
     And the chat shows no refusal
 
   @opencode @omp @agent-stored @scratch:chat
-  Scenario: Every engine's stored conversations are filed with their engine identity
-    Then the filer's boot run has settled
-    # THREE, and the count is the claim rather than bookkeeping: each engine's
-    # filed rows have to carry their OWN identity, so three engines with a stored
-    # conversation file three rows — not one engine's rows landing under another
-    # engine's name, and not one row standing in for two. It read 2 while this
-    # suite had two engines that stored anything; omp is the third, and it is the
-    # one that is FOUND on the search path rather than shipped, so its row is
-    # also the one no pin could have filed for it.
-    And the Inbox has 3 filed conversations
-    When I open the filed "opencode" conversation "an opencode conversation" as node "opencode-chat"
+  Scenario: Every engine's stored conversations are reopened with their own identity
+    # THREE ENGINES, THREE TIES, and the count is the claim rather than
+    # bookkeeping: a conversation names the engine it belongs to, so a node
+    # tied to one talks to THAT engine — not one engine's conversation opening
+    # under another's name, and not one row standing in for two. omp is the
+    # third, and it is the one that is FOUND on the search path rather than
+    # shipped, so nothing on this side could have guessed it for it.
+    Given node "kitchen" in "house.olai" is tied to the stored "opencode" conversation "an opencode conversation"
+    And node "order" in "house.olai" is tied to the stored "omp" conversation "an Oh My Pi conversation"
+    And node "install" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    Then the agents roster holds 3 agents
+    When I press the agent "kitchen"
     Then the header names the agent "opencode"
-    When I open the filed "omp" conversation "an Oh My Pi conversation" as node "omp-chat"
+    When I press the agent "order"
     Then the header names the agent "omp"
-    When I open the filed conversation "the last conversation" as node "claude-chat"
+    When I press the agent "install"
     Then the header names the agent "claude"
     When I open the fold history
     Then the past sessions hold "an older conversation"
 
   @opencode @agent-stored @scratch:chat
-  Scenario: Filed notes and history retain the listing's counts and lineage
-    When I open the "claude" agent on node "kitchen"
+  Scenario: History retains the listing's counts and lineage
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
-    When I open the filed conversation "the last conversation" as node "filed-chat"
-    Then the filed node "filed-chat" has a note containing "1 messages"
-    When I open the fold history
+    And I open the fold history
+    # WHAT THE LISTING SAID, KEPT: claude's adapter stamps a count on every
+    # stored conversation and names what replaced the one a `/clear` left
+    # behind, and both are drawn on the row a person picks from.
     Then the row for "an older conversation" says it has 47 messages
     And the row for "an older conversation" was superseded by "the last conversation"
-    When I open the filed "opencode" conversation "an opencode conversation" as node "opencode-chat"
-    Then the filed node "opencode-chat" has no message count in its note
+    # ... and NOTHING IS INVENTED where an engine says nothing. opencode's
+    # listing carries no count, so its row carries none either — read here
+    # through the other way a conversation reaches a node's history: a fresh
+    # session, which is olai saying what replaced what.
+    When node "order" in "house.olai" is tied to the stored "opencode" conversation "an opencode conversation"
+    And I press the agent "order"
+    And the node agent's fold is ready
+    And I start a fresh session with "OpenCode"
+    And I open the fold history
+    Then the row for "an opencode conversation" shows no message count
 
   @opencode @agent-stored @scratch:chat
   Scenario: History retains its count when the listed successor disappears
-    When I open the "claude" agent on node "kitchen"
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
-    When I open the filed conversation "the last conversation" as node "filed-chat"
     And the conversation "fake-stored-new" is gone from the agent
     And I open the fold history
     Then the row for "an older conversation" says it has 47 messages
     And the row for "an older conversation" was not superseded
 
   @opencode @agent-stored @scratch:chat
-  Scenario: Picking another agent's conversation switches the panel to that agent
-    When I open the "opencode" agent on node "kitchen"
+  Scenario: Picking a conversation of another agent switches the panel to that agent
+    Given node "kitchen" in "house.olai" is tied to the stored "opencode" conversation "an opencode conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
-    # The consequence of the list spanning both: a row in it may belong to the
-    # agent this panel is NOT talking to, and a session id means nothing to the
-    # wrong agent. So opening it is a change of agent as well as of
-    # conversation — the same change + new makes, through the same door.
     Then the header names the agent "opencode"
-    When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the fold history
-    And I open the past session "an older conversation"
+    # A fresh session may hand the node to ANOTHER engine, so one node's chain
+    # spans both: a row in its history then belongs to the agent this panel is
+    # NOT talking to, and a session id means nothing to the wrong agent. So
+    # opening it is a change of agent as well as of conversation — the same
+    # change + new makes, through the same door.
+    When I start a fresh session with "Claude Code"
     Then the header names the agent "claude"
-    And the opened conversation carries the title "an older conversation"
+    When I open the fold history
+    And I open the past session "an opencode conversation"
+    Then the header names the agent "opencode"
+    And the opened conversation carries the title "an opencode conversation"
     And the chat input takes typing
 
-  @agent-stored @scratch:chat
-  Scenario: A single engine's filed node owns its history
-    When I open the "claude" agent on node "kitchen"
-    And the node agent's fold is ready
-    When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I open the fold history
-    Then the past sessions hold "an older conversation"
-    And the Unassigned row and list are absent
-
   @opencode @agent-stored @scratch:chat
-  Scenario: An engine's refused listing leaves other engines' filed rows usable
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+  Scenario: An engine's refused listing leaves other engines' conversations usable
+    Given node "kitchen" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    And node "order" in "house.olai" is tied to the stored "opencode" conversation "an opencode conversation"
+    When I press the agent "kitchen"
+    And the node agent's fold is ready
     And I ask the agent "lose"
-    Then the filer log names "claude" with "the conversation store is unreadable"
-    When I open the filed "opencode" conversation "an opencode conversation" as node "opencode-chat"
+    Then the chat eventually shows "the conversation store is unreadable"
+    # One engine's store going unreadable is ONE engine's answer: the other
+    # engine's conversation opens on its own node and takes typing.
+    When I press the agent "order"
+    And the node agent's fold is ready
     Then the header names the agent "opencode"
     And the chat input takes typing
 
@@ -546,20 +559,27 @@ Feature: Choosing a node agent's engine
     And the agent is idle
 
   @pi @agent-stored @scratch:chat
-  Scenario: A filed pi conversation carries no invented message count
-    When I open the "claude" agent on node "kitchen"
+  Scenario: A pi conversation carries no invented message count
+    Given node "kitchen" in "house.olai" is tied to the stored "pi" conversation "a pi conversation"
+    And node "order" in "house.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
-    Then the filer's boot run has settled
-    And the Inbox has 2 filed conversations
-    When I open the filed "pi" conversation "a pi conversation" as node "pi-chat"
-    Then the filed node "pi-chat" has no message count in its note
-    And the header names the agent "pi"
-    When I open the filed conversation "the last conversation" as node "claude-chat"
+    Then the header names the agent "pi"
+    # pi's listing says nothing about how long a conversation is, so its row in
+    # the history says nothing either — a fresh session is what puts the
+    # conversation it replaced into that list.
+    When I start a fresh session with "Pi"
+    And I open the fold history
+    Then the row for "a pi conversation" shows no message count
+    # ... and the other engine on this machine is untouched by any of it.
+    When I press the agent "order"
+    And the node agent's fold is ready
     Then the header names the agent "claude"
 
   @pi @agent-stored @scratch:chat
   Scenario: Reopening a stored pi conversation talks to pi
-    When I open the filed "pi" conversation "a pi conversation" as node "filed-engine"
+    Given node "kitchen" in "house.olai" is tied to the stored "pi" conversation "a pi conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
     # `session/load` is the adapter's own session map reattaching a fresh pi
     # to the stored file; the replays are the conversation, and the note is
@@ -791,7 +811,8 @@ Feature: Choosing a node agent's engine
 
   @opencode @agent-stored @scratch:chat
   Scenario: A reopened conversation keeps the spawning row and no lane
-    When I open the filed "opencode" conversation "an opencode conversation" as node "filed-subagents"
+    Given node "kitchen" in "house.olai" is tied to the stored "opencode" conversation "an opencode conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
     # WHAT A REPLAY CARRIES, captured rather than assumed: `session/load`
     # replays the `subagent` call and its report and NOTHING on the
@@ -1178,7 +1199,8 @@ Feature: Choosing a node agent's engine
 
   @omp @agent-stored @scratch:chat
   Scenario: Reopening the conversation talks to the agent that has it
-    When I open the filed "omp" conversation "an Oh My Pi conversation" as node "filed-engine"
+    Given node "kitchen" in "house.olai" is tied to the stored "omp" conversation "an Oh My Pi conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
     # A session id means nothing to the wrong agent — asking one to load it gets a
     # refusal — so the boot has to know which engine this conversation belongs to
@@ -1194,15 +1216,16 @@ Feature: Choosing a node agent's engine
     And the chat eventually shows "omp remembers this conversation"
 
   @omp @agent-stored @scratch:chat
-  Scenario: A filed omp conversation carries the count its listing reported
-    When I open the "claude" agent on node "kitchen"
+  Scenario: An omp conversation carries the count its listing reported
+    Given node "kitchen" in "house.olai" is tied to the stored "omp" conversation "an Oh My Pi conversation"
+    When I press the agent "kitchen"
     And the node agent's fold is ready
-    Then the filer's boot run has settled
-    When I open the filed "omp" conversation "an Oh My Pi conversation" as node "omp-chat"
-    # This wire is the one that answers the question the picker's note asks:
-    # omp stamps a real `messageCount` on each `session/list` entry, so the filed
-    # row can say how long a stored conversation is without opening it — and
-    # because it is a count the agent reported rather than one this side
-    # inferred, the note can be asserted to the number.
-    Then the filed node "omp-chat" has a note containing "21 messages"
-    And the header names the agent "omp"
+    Then the header names the agent "omp"
+    # This wire is the one that answers the question the picker's row asks:
+    # omp stamps a real `messageCount` on each `session/list` entry, so the
+    # history can say how long a stored conversation is without opening it —
+    # and because it is a count the agent reported rather than one this side
+    # inferred, the row can be asserted to the number.
+    When I start a fresh session with "Oh My Pi"
+    And I open the fold history
+    Then the row for "an Oh My Pi conversation" says it has 21 messages

@@ -69,7 +69,7 @@ A plugin that runs a coding agent has no such file. What such a plugin shows in 
 Export as `default` a `definePlugin({ name, needs, apply })`, where `apply` is one Effect. Yield each service you listed in `needs`; the compiler refuses one you did not list.
 
 - This is where you call the client for your outside program, where `Surfaces.register(…)` puts your calls on the connection, where `Kinds.register(…)` teaches the directory a word, and where `Deliveries` sends a message into a conversation.
-- Register a `wake`, or no control appears for you in the agent panel and `chat.scope` refuses your plugin's name. That is the check working.
+- Register a `wake`, or no control appears for you on a conversation's strip and `chat.scope` refuses your plugin's name. That is the check working.
 - Register on `SessionStart` if you have a tool to look for on the machine, and on `Agents` if your plugin runs a coding agent.
 - Log with `Effect.logDebug` and `Effect.logWarning`, which are printed at whatever level the operator asked for.
 - If your outside program calls you back from a timer or a socket, take `detached` once and start Effects through it. Use `ring(work)` where nobody needs to track the work, and `ring.held(work)` where something of yours has to interrupt it or wait for it.
@@ -128,7 +128,7 @@ The generator writes everything else from the row: the browser's table of plugin
 
 ## 7. If the plugin runs a coding agent
 
-Such a plugin runs an ACP coding agent in the chat panel, rather than talking to an outside program the way the kolu and odu plugins do. Smaller shape, same rules.
+Such a plugin runs an ACP coding agent in a conversation, rather than talking to an outside program the way the kolu and odu plugins do. Smaller shape, same rules.
 
 - No `./wire`, no surface, no `faces`: `src/index.ts` holds the plugin's word and nothing else.
 - `src/leg.ts` is a `Leg` from `@kolu/acp/engine`: every assumption about how that agent talks, each written as a pure function with a unit test. Where none of them matches, the person is asked.

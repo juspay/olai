@@ -26,7 +26,7 @@ test("the same question, still waiting, does not ring twice", () => {
 
 test("walking away from a question you were shown badges without ringing", () => {
   // It arrived while they were looking, so nothing arrived at nobody — but it
-  // is still waiting on them, and the icon is what says so from the dock.
+  // is still waiting on them, and the icon is what says so from the tab.
   expect(alarmFor(at(1, true), at(1, false))).toEqual({ alert: false, badge: 1 })
 })
 

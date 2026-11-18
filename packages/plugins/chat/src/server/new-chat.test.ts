@@ -1,205 +1,200 @@
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
-import { UsageFailure, isRegular, type WriteRequest } from "@olai/format"
-import { TEST_CLAIMS, readingOf, setOf, planning } from "@olai/ops/testlib"
-import { newChat, chatLocations, type NewChat } from "./new-chat.ts"
+import { type NodeAgent, UsageFailure } from "@olai/format"
+import { readingOf, setOf } from "@olai/ops/testlib"
+import { roster } from "./agents.ts"
+import { newChat, itemLocations, seated, type NewChat } from "./new-chat.ts"
+
+const NOTE = "notes/plan.md"
 
 const fixture = () => {
   const texts: Record<string, string> = { "house.olai": '{"id":"kitchen","title":"kitchen remodel","ord":"a0"}\n' }
-  const started: string[] = []
+  const documents: Record<string, string> = { [NOTE]: "# Plan\n" }
+  /** What the vault says is tied, by ITEM KEY — the roster the refusals are
+   *  asked over, moved by a start exactly as a binding write would move it. */
+  const ties = new Map<string, { engine: string; session: string | null; title: string }>()
   const events: string[] = []
-  let inbox: string | null = "Inbox.olai"
-  let refuse: "write" | "start" | undefined
+  let refuse: "start" | undefined
+  const reading = () =>
+    readingOf(setOf(texts, Object.entries(documents).map(([path, text]) => [path, text] as const)))
   const owner: NewChat = {
-    current: () => inbox, read: Effect.sync(() => readingOf(setOf(texts))),
-    write: (request: WriteRequest) => Effect.gen(function*() {
-      events.push(request.op)
-      if (refuse === "write") return yield* new UsageFailure({ reason: "write refused" })
-      const plan = planning(setOf(texts), request)
-      if (plan._tag === "Failure") return yield* plan.failure
-      for (const file of plan.success.files) texts[file.file] = TEST_CLAIMS.byKind.get("outline-olai")!.format!.serialize(file.nodes)
-      return { id: plan.success.id }
-    }),
-    start: (node, engine) => Effect.gen(function*() {
+    read: Effect.sync(reading),
+    start: (item, engine) => Effect.gen(function*() {
       events.push(`start:${engine}`)
-      expect(readingOf(setOf(texts)).derived.byId.has(node)).toBe(true)
-      if (refuse === "start") return yield* new UsageFailure({ reason: "start refused" })
-      started.push(node)
+      if (refuse === "start") {
+        // A refused start still writes the engine, which is what makes the
+        // retry land on this same item rather than on a second one.
+        ties.set(item, { engine, session: null, title: item })
+        return yield* new UsageFailure({ reason: "start refused" })
+      }
+      ties.set(item, { engine, session: "session", title: item })
       return { agent: engine, session: "session" }
     }),
-    chats: (reading) => started.flatMap(id => {
-      const row = reading.derived.byId.get(id)
-      return row !== undefined && isRegular(row) ? [{ id, title: row.node.title, session: "session" }] : []
-    }),
+    chats: () =>
+      [...ties].map(([id, tie]): Pick<NodeAgent, "id" | "title" | "session"> => ({
+        id,
+        title: tie.title,
+        session: tie.session,
+      })),
   }
-  return { owner, texts, events, inbox: (value: string | null) => { inbox = value }, refuse: (value: typeof refuse) => { refuse = value } }
+  return { owner, texts, documents, events, ties, refuse: (value: typeof refuse) => { refuse = value } }
 }
 
-test("new chat ensures Chats, mints its plain child, then starts the chosen engine", async () => {
+// ── the chat of a node or a note that exists ───────────────────────────
+
+test("a node's own chat is started on the node, and nothing is minted", async () => {
   const it = fixture()
-  const { node: id } = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "First message", parent: null }))
-  expect(it.events).toEqual(["create", "add", "start:claude"])
-  const row = readingOf(setOf(it.texts)).derived.byId.get(id)!
-  if (!isRegular(row)) throw new Error("new chat minted a mirror")
-  expect(row.node.title).toBe("First message")
-  expect(row.node.parent).toBe("chats")
-  await Effect.runPromise(newChat(it.owner, { agent: "codex", title: "First message", parent: null }))
-  expect(it.events).toEqual(["create", "add", "start:claude", "add", "start:codex"])
+  const made = await Effect.runPromise(newChat(it.owner, { agent: "claude", item: { kind: "node", id: "kitchen" } }))
+  expect(it.events).toEqual(["start:claude"])
+  expect(made.node).toBe("kitchen")
+  expect(made.to).toEqual({ agent: "claude", session: "session" })
 })
 
-test("missing or withdrawn Inbox refuses before minting or starting", async () => {
+test("a note's own chat is started on the note, keyed by its path", async () => {
   const it = fixture()
-  it.inbox(null)
-  expect((await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", title: "First message", parent: null }))))._tag).toBe("Failure")
+  const made = await Effect.runPromise(newChat(it.owner, { agent: "claude", item: { kind: "note", path: NOTE } }))
+  expect(made.node).toBe(`/${NOTE}`)
+  expect(it.events).toEqual(["start:claude"])
+})
+
+test("an item that already has a started chat is refused by name, and nothing is started", async () => {
+  const it = fixture()
+  await Effect.runPromise(newChat(it.owner, { agent: "claude", item: { kind: "note", path: NOTE } }))
+  it.ties.set(`/${NOTE}`, { engine: "claude", session: "session", title: "plan" })
+  it.events.length = 0
+  const second = await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", item: { kind: "note", path: NOTE } })))
+  if (second._tag !== "Failure") throw new Error("a second chat was started on one item")
+  expect(second.failure.message).toBe("“plan” already has a chat; no conversation was created")
   expect(it.events).toEqual([])
-  it.inbox("Inbox.olai")
-  const write = it.owner.write
-  const withdrawn: NewChat = { ...it.owner, write: request => write(request).pipe(Effect.tap(() => Effect.sync(() => it.inbox(null)))) }
-  expect((await Effect.runPromise(Effect.result(newChat(withdrawn, { agent: "claude", title: "First message", parent: null }))))._tag).toBe("Failure")
-  expect(it.events).toEqual(["create"])
 })
 
-test("a refused write starts nothing; a refused start preserves the minted node", async () => {
-  const it = fixture()
-  it.refuse("write")
-  expect((await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", title: "First message", parent: null }))))._tag).toBe("Failure")
-  expect(it.events).toEqual(["create"])
-  it.refuse("start")
-  const refused = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "First message", parent: null }))
-  expect(refused.refusal).toBe("start refused")
-  expect(refused.to).toBeNull()
-  expect(it.events).toEqual(["create", "create", "add", "start:claude"])
-  expect(readingOf(setOf(it.texts)).derived.nodes.some(row => isRegular(row) && row.node.title === "First message")).toBe(true)
-})
-
-const titleOf = (it: ReturnType<typeof fixture>, id: string): string => {
-  const row = readingOf(setOf(it.texts)).derived.byId.get(id)!
-  if (!isRegular(row)) throw new Error("new chat minted a mirror")
-  return row.node.title
-}
-
-test("a chat about a place is titled with its name around its address", async () => {
-  const it = fixture()
-  const { node } = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "house", parent: null, about: "/house.olai" }))
-  expect(titleOf(it, node)).toBe("[house](/house.olai)")
-})
-
-test("a long name is cut, and the address is never touched", async () => {
-  const it = fixture()
-  const name = "a plan for the kitchen that goes on and on about cabinets, worktops and hinges"
-  const { node } = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: name, parent: null, about: "/house.olai" }))
-  const title = titleOf(it, node)
-  expect(title.endsWith("…](/house.olai)")).toBe(true)
-  expect(title.length).toBeLessThanOrEqual(60 + "[](/house.olai)".length)
-})
-
-test("a second chat about one place is refused in words, and nothing is minted", async () => {
-  const it = fixture()
-  await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "house", parent: null, about: "/house.olai" }))
-  const events = it.events.length
-  const second = await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", title: "house", parent: null, about: "/house.olai?q=hinges" })))
-  if (second._tag !== "Failure") throw new Error("a second chat about one place was minted")
-  expect(second.failure.message).toBe("this page already has a chat; no conversation was created")
-  expect(it.events.length).toBe(events)
-})
-
-test("a refused start about a place leaves one row, and the retry starts on that row", async () => {
+test("a tie whose start was refused is started again on the SAME item", async () => {
   const it = fixture()
   it.refuse("start")
-  const first = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "house", parent: null, about: "/house.olai" }))
+  const first = await Effect.runPromise(newChat(it.owner, { agent: "claude", item: { kind: "note", path: NOTE } }))
   expect(first.refusal).toBe("start refused")
-  const second = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "house", parent: null, about: "/house.olai" }))
-  expect(second.node).toBe(first.node)
   it.refuse(undefined)
-  const third = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "house", parent: null, about: "/house.olai" }))
-  expect(third.node).toBe(first.node)
-  expect(third.to).toEqual({ agent: "claude", session: "session" })
-  expect(it.events.filter(event => event === "add")).toEqual(["add"])
+  const second = await Effect.runPromise(newChat(it.owner, { agent: "claude", item: { kind: "note", path: NOTE } }))
+  expect(second.node).toBe(first.node)
+  expect(second.to).toEqual({ agent: "claude", session: "session" })
+  expect(it.events).toEqual(["start:claude", "start:claude"])
 })
 
-test("a name that cannot be a link's label leaves the bare address", async () => {
+test("an item olai does not hold is refused before anything is started", async () => {
   const it = fixture()
-  const { node } = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "house [old]", parent: null, about: "/house.olai" }))
-  expect(titleOf(it, node)).toBe("/house.olai")
-})
-
-test("an address naming nothing olai holds is refused before anything is minted", async () => {
-  const it = fixture()
-  const missing = await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", title: "gone", parent: null, about: "/gone.olai" })))
-  expect(missing._tag).toBe("Failure")
+  for (
+    const item of [
+      { kind: "note", path: "notes/gone.md" },
+      { kind: "node", id: "nobody" },
+    ] as const
+  ) {
+    const missing = await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", item })))
+    expect(missing._tag).toBe("Failure")
+    if (missing._tag !== "Failure") throw new Error("unreachable")
+    expect(missing.failure.message).toContain("to talk about; no conversation was created")
+  }
   expect(it.events).toEqual([])
 })
 
-test("new chat seats against the committed reading while its display projection still lags", async () => {
+test("the start is seated against the reading the refusal was asked over", async () => {
   const it = fixture()
-  const earlier = await Effect.runPromise(it.owner.read)
-  let started = false
+  let seen = false
   const owner: NewChat = { ...it.owner, start: (node, _engine, committed) => Effect.sync(() => {
-    expect(earlier.derived.byId.has(node)).toBe(false)
     expect(committed.derived.byId.has(node)).toBe(true)
-    started = true
+    seen = true
     return null
   }) }
-  await Effect.runPromise(newChat(owner, { agent: "claude", title: "First message", parent: null }))
-  expect(started).toBe(true)
+  await Effect.runPromise(newChat(owner, { agent: "claude", item: { kind: "node", id: "kitchen" } }))
+  expect(seen).toBe(true)
 })
 
-
-test("an explicit parent works without capture and does not create Chats", async () => {
-  const it = fixture()
-  await Effect.runPromise(it.owner.write({ op: "create", file: "work.olai", seed: { id: "work", title: "Work" } }))
-  it.events.length = 0
-  it.inbox(null)
-  const result = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: "Planning", parent: "work" }))
-  expect(it.events).toEqual(["add", "start:claude"])
-  expect(result.to).toEqual({ agent: "claude", session: "session" })
-  expect(it.texts["Inbox.olai"]).toBeUndefined()
-})
-
-test("a missing or trashed explicit parent refuses before spending", async () => {
-  const it = fixture()
-  for (const parent of ["missing", "gone"]) {
-    if (parent === "gone") await Effect.runPromise(it.owner.write({ op: "create", file: "_olai/Trash.olai", seed: { id: "gone", title: "Gone" } }))
-    it.events.length = 0
-    const result = await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", title: "Planning", parent })))
-    expect(result._tag).toBe("Failure")
-    expect(it.events).toEqual([])
-  }
-})
-
-test("a mirror cannot be a parent and is absent from the picker", async () => {
-  const it = fixture()
-  it.texts["work.olai"] = '{"id":"work","title":"Work","ord":"a0"}\n{"id":"mirror","mirror":"work","ord":"a1"}\n'
-  const result = await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", title: "Planning", parent: "mirror" })))
-  expect(result._tag).toBe("Failure")
-  expect(it.events).toEqual([])
-  expect(chatLocations(await Effect.runPromise(it.owner.read), { filter: "Work", limit: 20, ids: [], parents: [] }).nodes.map(node => node.id)).toEqual(["work"])
-})
-
-
-test("server normalizes long multiline titles and refuses empty titles before any writes", async () => {
-  const it = fixture()
-  const empty = await Effect.runPromise(Effect.result(newChat(it.owner, { agent: "claude", title: " \n\t", parent: null })))
-  expect(empty._tag).toBe("Failure")
-  expect(it.events).toEqual([])
-  const result = await Effect.runPromise(newChat(it.owner, { agent: "claude", title: `\n  ${"x".repeat(80)}  \nignored`, parent: null }))
-  const row = readingOf(setOf(it.texts)).derived.byId.get(result.node)!
-  expect(isRegular(row) && row.node.title).toBe(`${"x".repeat(59)}…`)
-})
-
-test("location queries cap matches, resolve ids and parents, and exclude machinery except Inbox", () => {
-  const rows = Array.from({ length: 100 }, (_, index) => ({ id: `n${index}`, title: `Work ${index}`, ord: `a${index}` }))
-  const reading = readingOf(setOf({
-    "work.olai": rows.map(row => JSON.stringify(row)).join("\n"),
-    "_olai/Inbox.olai": '{"id":"chats","title":"Chats","ord":"a0"}\n{"id":"child","title":"Conversation","parent":"chats","ord":"a0"}',
-    "_olai/Settings.olai": '{"id":"settings","title":"Work settings","ord":"a0"}',
-    "_olai/Properties.olai": '{"id":"prop","title":"Work property","ord":"a0"}',
+/**
+ * THE FIRST MESSAGE OF A NEW CHAT CARRIES WHAT IT IS ABOUT (`seated`).
+ *
+ * What the agent is taught is read off the ROSTER, by the conversation it is
+ * having — so the roster has to carry the tie the start just wrote by the time
+ * the start returns, which is when both callers send their first message. The
+ * claim below is the ORDER and not a delay: the reading the gate answers with
+ * after the start already has the tie, and the roster is levelled with it
+ * before anything is said.
+ */
+test("the roster carries the tie the start wrote by the time the start returns", async () => {
+  const documents: Record<string, string> = { [NOTE]: "# Plan\n" }
+  const reading = () => readingOf(setOf({}, Object.entries(documents).map(([path, text]) => [path, text] as const)))
+  const rows = roster()
+  const to = { agent: "claude", session: "sess-1" }
+  const committed = reading()
+  // The seat: the tie is written into the note's own front matter, which is
+  // what the next reading of the gate holds.
+  const start = Effect.sync(() => {
+    documents[NOTE] = `---\nchat-agent-session: ${to.agent}:${to.session}\n---\n# Plan\n`
+    return to
+  })
+  const seat = await Effect.runPromise(seated({
+    committed,
+    level: (at) => { rows.seen(at) },
+    read: Effect.sync(reading),
+    start,
   }))
-  const query = { filter: "Work", limit: 5, ids: [], parents: [] }
-  expect(chatLocations(reading, query).nodes).toHaveLength(5)
-  expect(chatLocations(reading, { ...query, limit: 1000 }).nodes).toHaveLength(20)
-  expect(chatLocations(reading, { ...query, filter: "" }).nodes).toEqual([])
-  const lookup = chatLocations(reading, { ...query, filter: "", ids: ["n99", "settings", "prop"], parents: ["child"] }, "_olai/Inbox.olai")
-  expect(lookup.nodes.map(node => node.id)).toEqual(["n99", "chats"])
-  expect(lookup.defaultParent).toBe("chats")
+  expect(seat).toEqual(to)
+  // WHAT THE TEACHING ASKS, in the middle of the send that follows: whose
+  // agent this conversation is. A roster still level with the pre-tie reading
+  // answers `null`, and the first message goes out with no contract at all.
+  expect(rows.agentAt(to)?.id).toBe(`/${NOTE}`)
+})
+
+// ── which node or note a new chat can be about ─────────────────────────
+
+const vault = () => readingOf(setOf({
+  "work.olai": Array.from({ length: 100 }, (_, index) => JSON.stringify({ id: `n${index}`, title: `Work ${index}`, ord: `a${index}` })).join("\n"),
+  "_olai/Settings.olai": '{"id":"settings","title":"Work settings","ord":"a0"}',
+}, [
+  ["notes/work.md", "# Work\n"],
+  ["notes/other.md", "# Other\n"],
+  ["plugins/swatch/README.md", "# Swatch\n"],
+  ["_olai/Hidden.md", "# Work hidden\n"],
+]))
+
+test("a typed search answers nodes and notes, each kind capped, machinery excluded", () => {
+  const reading = vault()
+  const query = { filter: "Work", limit: 5, keys: [] }
+  const few = itemLocations(reading, query).items
+  expect(few.filter(one => one.kind === "node")).toHaveLength(5)
+  expect(few.filter(one => one.kind === "note").map(one => one.key)).toEqual(["/notes/work.md"])
+  expect(itemLocations(reading, { ...query, limit: 1000 }).items.filter(one => one.kind === "node")).toHaveLength(20)
+  expect(itemLocations(reading, { ...query, filter: "" }).items).toEqual([])
+  // `_olai` is olai's own machinery, node and note alike.
+  expect(few.some(one => one.file.startsWith("_olai/"))).toBe(false)
+})
+
+test("a README is named after its folder, so no two plugin chats share a word", () => {
+  const found = itemLocations(vault(), { filter: "swatch", limit: 20, keys: [] }).items
+  expect(found.map(one => [one.key, one.title]))
+    .toEqual([["/plugins/swatch/README.md", "swatch"]])
+})
+
+test("keys are answered whatever is typed, and an item that is not there is simply absent", () => {
+  const found = itemLocations(vault(), { filter: "", limit: 20, keys: ["n99", "/notes/other.md", "settings", "/notes/gone.md"] })
+  expect(found.items.map(one => one.key)).toEqual(["n99", "/notes/other.md"])
+})
+
+/** THE ROWS THE ONE-TIME MOVE LEAVES BEHIND (`./move.ts` refuses them: an
+ *  outline, a picture, a plugin's page), whose titles are markdown links. The
+ *  roster, the chat page and the outline all draw `house`; so does this list,
+ *  and so does every ancestor it names a trail with. */
+test("a row titled as one markdown link is listed by its label, ancestors included", () => {
+  const reading = readingOf(setOf({
+    "house.olai": [
+      '{"id":"whole","ord":"a0","title":"[house](/house.olai)"}',
+      '{"id":"handle","parent":"whole","ord":"a0","title":"[handle](/art/handle.png)"}',
+    ].join("\n"),
+  }, []))
+  const found = itemLocations(reading, { filter: "", limit: 20, keys: ["whole", "handle"] }).items
+  expect(found.map(one => [one.title, one.path]))
+    .toEqual([["house", []], ["handle", ["house"]]])
+  // ...and the raw record text is not what is searched either: a person types
+  // what the list drew.
+  expect(itemLocations(reading, { filter: "art/handle.png", limit: 20, keys: [] }).items).toEqual([])
+  expect(itemLocations(reading, { filter: "handle", limit: 20, keys: [] }).items.map(one => one.title))
+    .toEqual(["handle"])
 })

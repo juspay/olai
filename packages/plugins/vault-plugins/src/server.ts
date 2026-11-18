@@ -26,7 +26,7 @@ import {
   PLUGIN_SERVER_FILE,
   WORD,
 } from "@olai/surface"
-import { name, chunks, pluginAbout, slugOf } from "./index.ts"
+import { name, chunks, pluginReadme, readmeItem, slugOf } from "./index.ts"
 import { openDynamic, RESERVED } from "./runtime.ts"
 import { pluginChunks } from "./route.ts"
 import { claim } from "./claim.ts"
@@ -45,6 +45,12 @@ export { name } from "./index.ts"
  * of its own choosing; it stopped without checking, leaving a person to find
  * the compile error; and it tried to approve its own work, which is the one
  * thing it can never do.
+ *
+ * WHAT IS NOT HERE is the `---` block: chat's own note contract already tells
+ * every note's agent to leave the front matter at the top of the file exactly
+ * as it is (`olai-plugin-chat`'s `teaching.ts`), and a builder's chat is a
+ * note's chat — the README's. The two arrive in the same first message, so a
+ * sentence of this row's own was the same instruction twice, two lines apart.
  *
  * It rides chat's teaching seam rather than a channel of this row's own,
  * because that seam already answers the two questions a preamble has: WHERE it
@@ -191,7 +197,7 @@ export default definePlugin({
           const sentence = input.sentence.trim()
           yield* gate.run({
             op: "create-doc",
-            file: `${PLUGIN_FOLDER}${word}/${PLUGIN_README_FILE}`,
+            file: pluginReadme(word),
             text: `# ${title}\n\n${sentence === "" ? `A plugin called ${title}.` : sentence}\n`,
           }, "web")
           yield* abreast
@@ -215,14 +221,12 @@ export default definePlugin({
             ? chat.engines()[0]?.id ?? ""
             : input.engine.trim()
           if (engine === "") return { name: word }
-          // THE CHAT IS ABOUT THE PAGE, and that is the whole of the binding:
-          // a chat row titled `[<Title>](/plugins/<word>)` IS this plugin's
-          // builder, so nothing is written on the plugin's own node to say so
-          // and nothing has to be kept in step with the folder's name.
+          // THE CHAT IS THE README'S, and that is the whole of the binding:
+          // the file this mint has just written IS the plugin's note, so the
+          // tie goes in its own front matter and nothing has to be kept in
+          // step with the folder's name.
           yield* Effect.result(chat.open({
-            parent: null,
-            title,
-            about: pluginAbout(word),
+            about: readmeItem(word),
             engine,
             say: sentence === "" ? `Build a plugin called ${title}.` : sentence,
             teach: preambleFor(word, title),
@@ -260,10 +264,10 @@ export default definePlugin({
                 + `Its files are in \`${one.folder}\`. Please fix it and call \`vault-plugins_run\` again.`
               : `The plugin \`${one.name}\` is ${row?.state ?? "off"} (its files are in `
                 + `\`${one.folder}\`). I have not said what I want changed yet.`
-          // THE ADDRESS AND NOT A NODE: chat looks up the conversation at this
-          // plugin's page itself, so a chat somebody retitled or trashed is
-          // `false` here rather than words sent to a row nobody is reading.
-          return { sent: yield* chat.say({ about: pluginAbout(input.name), text: said }) }
+          // THE README AND NOT A NODE: chat looks up the conversation tied to
+          // this plugin's own note, so a README somebody deleted or a chat
+          // they closed is `false` here rather than words sent nowhere.
+          return { sent: yield* chat.say({ about: readmeItem(input.name), text: said }) }
         }),
 
       run: ({ input }) =>

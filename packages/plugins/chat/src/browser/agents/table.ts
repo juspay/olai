@@ -1,15 +1,16 @@
 /**
- * THE ROSTER BY NODE — a keyed projection of the rows, so `at(node)` wakes one
- * row's readers rather than every row's.
+ * THE ROSTER BY ITEM KEY — a keyed projection of the rows, so `at(key)` wakes
+ * one row's readers rather than every row's. A node's key is its id and a
+ * note's is `/` and its path (`@olai/format`'s `itemKey`).
  *
- * `at(node)` is read once per outline row (its standing), per Chats row, per
- * fold and per dock. A `Map` minted on every roster frame woke every one of
+ * `at(key)` is read once per outline row (its standing), per Chats row, per
+ * fold and per chat page. A `Map` minted on every roster frame woke every one of
  * those readers whenever ANY agent moved — which, while an agent is working, is
- * several times a turn. Here each node has a signal of its own, written only
+ * several times a turn. Here each key has a signal of its own, written only
  * when the row under that key SAYS something new: the next frame's row is
  * compared whole against the one the signal holds, and an equal row is not a
- * write. A node that left is written `undefined`, so its readers alone hear
- * it; a node nobody has heard of yet still has a signal, so a reader waiting
+ * write. A chat that left is written `undefined`, so its readers alone hear
+ * it; a key nobody has heard of yet still has a signal, so a reader waiting
  * on it is woken by its arrival and by nothing else.
  *
  * ONE SIGNAL PER KEY, AND NOT A STORE. The rows are copies of the wire's cell
@@ -37,13 +38,13 @@ const sameNodeAgentRow = Schema.toEquivalence(NodeAgentRow)
 const sameRow = (a: Row | undefined, b: Row | undefined): boolean =>
   a === b || (a !== undefined && b !== undefined && untrack(() => a.unread === b.unread && sameNodeAgentRow(a, b)))
 
-export const createRosterTable = (rows: Accessor<ReadonlyArray<Row>>): { readonly at: (node: string) => Row | undefined } => {
+export const createRosterTable = (rows: Accessor<ReadonlyArray<Row>>): { readonly at: (key: string) => Row | undefined } => {
   const cells = new Map<string, readonly [Accessor<Row | undefined>, Setter<Row | undefined>]>()
-  const cellOf = (node: string) => {
-    let cell = cells.get(node)
+  const cellOf = (key: string) => {
+    let cell = cells.get(key)
     if (cell === undefined) {
       cell = createSignal<Row | undefined>(undefined, { equals: sameRow })
-      cells.set(node, cell)
+      cells.set(key, cell)
     }
     return cell
   }
@@ -56,5 +57,5 @@ export const createRosterTable = (rows: Accessor<ReadonlyArray<Row>>): { readonl
     }
     for (const [id, [, write]] of cells) if (!seen.has(id)) write(undefined)
   })
-  return { at: node => cellOf(node)[0]() }
+  return { at: key => cellOf(key)[0]() }
 }

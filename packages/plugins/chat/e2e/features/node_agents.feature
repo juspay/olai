@@ -74,7 +74,11 @@ Feature: A node with an `agent-session` property IS an agent
     And I ask the agent "ask"
     Then the chat shows a question
     And the agent "door-live" stands "needs-you"
-    And the aside on "door-live" stands "needs-you"
+    # THE ROW'S OWN FACE says the same thing, and the row is in its outline:
+    # the press above opened the chat's own page, so the way back to the row
+    # is the way a person takes.
+    When I return to the conversation's outline
+    Then the aside on "door-live" stands "needs-you"
     And the aside on "door-live" reads "Needs you"
 
   @scratch:good
@@ -247,24 +251,30 @@ Feature: A node with an `agent-session` property IS an agent
     And the agent is idle
     When I ask the agent "done door-live"
     Then the agent is idle
-    And the node "door-live" has status "done"
     And the chat shows no refusal
+    # WHAT IT WROTE is read on the row, which is in the outline the press came
+    # from — the chat itself is a page of its own now.
+    When I return to the conversation's outline
+    And I show the done nodes
+    Then the node "door-live" has status "done"
 
   @agent-stored @scratch:lanes
   Scenario: Two node agents converse at once, with both roster rows live
-    # The current unassigned conversation becomes `lane-fresh`'s. Its slow
+    # A conversation the engine already had becomes `lane-fresh`'s. Its slow
     # turn then stays alive while the panel moves to `door-live`, whose own
     # process loads its own conversation and answers independently.
     Given I open the outline "lanes.olai"
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And node "lane-fresh" in "lanes.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "lane-fresh"
+    And the node agent's fold is ready
     And I ask the agent "slow"
-    Then the agent "filed-chat" stands "working"
+    Then the agent "lane-fresh" stands "working"
     When I press the agent "door-live"
-    Then the agent "filed-chat" stands "working"
+    Then the agent "lane-fresh" stands "working"
     And the agent "door-live" stands "idle"
     When I ask the agent "the second conversation"
     Then the agent has answered "the second conversation" exactly once
-    And the agent "filed-chat" stands "working"
+    And the agent "lane-fresh" stands "working"
     When the agent is released
 
   @scratch:lanes
@@ -340,120 +350,76 @@ Feature: A node with an `agent-session` property IS an agent
     Then the agent was reminded of its writing rule 0 times
     And the agent was told its contract 1 time
 
-  # ── migration: the chats that are nobody's yet ────────────────────────
+  # ── a conversation the engine already had ────────────────────────────
   #
-  # Migration is ASSOCIATION, NOT CONVERSION. Nothing moves on disk and no
-  # transcript is copied anywhere: what a press writes is one property, and from
-  # that frame the conversation is that node agent's current session with its
-  # context intact.
+  # NOTHING FILES AN ENGINE'S STORED CONVERSATIONS. A conversation is somebody's
+  # because an ITEM names it, so giving one a home is one property on a row —
+  # `chat-agent-session: <engine>:<session>`, written by a person, by a `git
+  # pull`, or by the fixture step below. Nothing moves on disk and no transcript
+  # is copied anywhere: from that frame the conversation is that node agent's
+  # current session with its context intact.
   #
   # These scenarios run on a serve whose agent has TWO stored conversations, one
   # of them a `/clear` behind the other (the scripted agent, `@olai/tests/agent/scripted-acp.ts`) — which is
-  # what makes the chain assertable — and the panel comes up in the newer of
-  # them, which is the state a person migrating is actually in: talking in a
-  # chat that belongs to nobody.
+  # what makes the chain assertable.
 
   @agent-stored @scratch:lanes
-  Scenario: Stored conversation heads are filed and every agent starts asleep
+  Scenario: A node tied to a stored conversation joins the roster asleep
     Given I open the outline "lanes.olai"
-    Then the Inbox has 1 filed conversations
-    And the agents roster holds 10 agents
+    And node "lane-fresh" in "lanes.olai" is tied to the stored "claude" conversation "the last conversation"
+    # TEN, and the tenth is the tie: the roster is the query, so a row that
+    # names a conversation is in it the moment the property lands.
+    Then the agents roster holds 10 agents
+    # ... and NOTHING WAS OPENED by the tie. Every bound agent is asleep until
+    # somebody presses one — a property is not a wake.
     And all bound node agents are asleep
-    And the Unassigned row and list are absent
-    When I open the filed conversation "the last conversation" as node "filed-chat"
-    Then the node "filed-chat" keeps the session "claude:fake-stored-new" in file "_olai/Inbox.olai"
-    When I ask the agent "where were we?"
-    Then the agent was told its contract 1 time
-    And the contract says the conversation was assigned
+    When I press the agent "lane-fresh"
+    And the node agent's fold is ready
+    Then the panel header names the node agent "a lane nobody has put an agent on"
+    # THE CHAIN CAME WITH IT: the conversation this one replaced is this
+    # agent's history from the first frame, rather than starting empty and
+    # filling as somebody clears.
     When I open the fold history
     Then the past sessions hold "an older conversation"
 
-  @agent-stored @scratch:good
-  Scenario: Stored chats create node agents in a directory that had none
-    Given I open the outline "garden.olai"
-    Then the Inbox has 1 filed conversations
-    And the agents roster holds 1 agents
-    And all bound node agents are asleep
-    And the Unassigned row and list are absent
-
   @agent-stored @scratch:lanes
-  Scenario: Moving a filed conversation keeps its identity and history
+  Scenario: Moving a tied node keeps its conversation and history
     Given I open the outline "lanes.olai"
-    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
+    And node "lane-fresh" in "lanes.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "lane-fresh" in its outline
     # The move picker is the ROW's menu, so this is the file view the press
     # opened from.
-    And I open the node menu of "filed-chat"
+    And I open the node menu of "lane-fresh"
     And I choose "Move to…" from the node menu
-    And I search the move picker for "lane nobody"
-    And I choose "a lane nobody has put an agent on" from the move picker
-    Then the node "filed-chat" keeps the session "claude:fake-stored-new" in file "lanes.olai"
-    When I open the outline "backlog.olai"
-    And I press the agent "filed-chat"
-    Then the sidebar marks the outline "lanes.olai" as the one open
+    And I search the move picker for "someday"
+    And I choose "someday: where the quiet lane went" from the move picker
+    # THE TIE RIDES THE ROW into the other file, because the row is where it
+    # lives: there is no second record anywhere to tell.
+    Then the node "lane-fresh" keeps the session "claude:fake-stored-new" in file "backlog.olai"
+    When I open the outline "lanes.olai"
+    And I press the agent "lane-fresh"
+    # ...AND THE CHAT KNOWS WHERE THE ROW WENT: its page says the node is in
+    # the other file now, because the row is the only record of either.
+    Then the chat page is about the node "lane-fresh" named "a lane nobody has put an agent on" in "backlog.olai"
     When I open the fold history
     Then the past sessions hold "an older conversation"
-    And the Unassigned row and list are absent
 
   @agent-stored @scratch:lanes
-  Scenario: Trashing a filed conversation does not resurrect it on the next boot
+  Scenario: Trashing a tied node takes its agent off the roster, across a restart
     Given I open the outline "lanes.olai"
-    When I open the filed conversation "the last conversation" as node "filed-chat" in its outline
-    And I open the node menu of "filed-chat"
+    And node "lane-fresh" in "lanes.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "lane-fresh" in its outline
+    And I open the node menu of "lane-fresh"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
-    Then the node "filed-chat" keeps the session "claude:fake-stored-new" in file "_olai/Trash.olai"
+    Then the node "lane-fresh" keeps the session "claude:fake-stored-new" in file "_olai/Trash.olai"
     When the server stops
     And the server starts again on the same port
     And I open the outline "lanes.olai"
-    Then the filer's boot run has settled
-    And the Inbox has 0 filed conversations
-    And the agents roster holds 9 agents
-
-  @agent-stored @scratch:lanes
-  Scenario: An assigned session is taught the MIGRATION contract, once
-    # The distillation order, and the reason assigning is a procedure rather
-    # than a property write from a browser: nothing in a transcript says a
-    # conversation was moved to a node, so the fact is written down when the
-    # gesture runs and read when that session next says something.
-    #
-    # The panel is already IN the conversation being assigned — a boot with
-    # stored conversations comes back to the most recent — which is the ordinary
-    # way this happens: you are talking in a chat, and you give it a home.
-    Given I open the outline "lanes.olai"
-    When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I ask the agent "where were we?"
-    Then the agent was told its contract 1 time
-    And the contract says the conversation was assigned
-    And the contract orders it to bank what it knows into the subtree
-    # ... and it is said once, like every other contract: the second message
-    # says nothing.
-    When I ask the agent "and now?"
-    Then the agent was told its contract 1 time
-
-  @agent-stored @scratch:lanes
-  Scenario: ... and a restart does not teach the migration contract again
-    # The human's report of 2026-09-02 on the team deploy: an opencode
-    # conversation ASSIGNED to a node agent, taught its migration contract on
-    # the message after the assign — and the same preamble rode the next
-    # message after a redeploy, nowhere near the session's first. The rule is
-    # the one every contract keeps: once per session, and it is written down;
-    # neither does a restart say it again.
-    Given I open the outline "lanes.olai"
-    When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I ask the agent "where were we?"
-    Then the agent was told its contract 1 time
-    And the contract says the conversation was assigned
-    # THE REDEPLOY: the process goes down, the tab comes up against a new one,
-    # and the message that follows is nowhere near the conversation's first.
-    When the server stops
-    And the server starts again on the same port
-    And I open the app
-    And the node agent's fold is ready
-    And I ask the agent "still there?"
-    # The anchor first: the count means nothing until the round trip has
-    # answered — 0 is where every count starts.
-    And the agent has answered "still there?" exactly once
-    Then the agent was told its contract 0 times
+    # AND NOTHING BRINGS IT BACK. A conversation is an agent because an item
+    # names it, and the item that named this one is in the trash — the engine
+    # still has the conversation, and no boot turns it into a row again.
+    Then the agents roster holds 9 agents
 
   @corpus:lanes
   Scenario: A node agent's panel offers a fresh session, labelled with what it means
@@ -467,7 +433,10 @@ Feature: A node with an `agent-session` property IS an agent
     And the node agent's fold is ready
     Then the agent "door-live" stands "idle"
     When I open the fold history
-    Then the panel offers a fresh session, saying "keeping memory in"
+    # A LEAF ROW HAS NOTHING UNDER IT YET, and the control says that rather
+    # than counting it: "keeping memory in 0 rows" is arithmetic where a
+    # person wants a plain fact.
+    Then the panel offers a fresh session, saying "nothing under it yet"
     When I request a fresh session without confirming
     Then the fresh-session confirmation says "The current chat moves to earlier chats."
     When I cancel the fresh session
@@ -522,7 +491,7 @@ Feature: A node with an `agent-session` property IS an agent
     # wrote is being thrown away, and *try again* is still there beside it for an
     # engine that had merely lost its store for a moment.
     When I open the fold history
-    Then the panel offers a fresh session, saying "keeping memory in"
+    Then the panel offers a fresh session, saying "nothing under it yet"
     # ...and pressing it moves. A fresh conversation is `session/new`, which this
     # agent never refused — it said no to the old one — so the node comes back to
     # a conversation and the refusal is off the screen.
@@ -696,39 +665,37 @@ Feature: A node with an `agent-session` property IS an agent
 
   @agent-stored @scratch:lanes
   Scenario: ... and names the conversations this agent has had before this one
-    # Assigning claims the `/clear` chain in one gesture, so *past sessions* is
+    # A tie claims the `/clear` chain in one gesture, so *past sessions* is
     # populated from day one rather than starting empty and filling as somebody
     # clears. `lane-fresh` takes the newer conversation; the older one — the
     # conversation it superseded — is its history.
     Given I open the outline "lanes.olai"
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And node "lane-fresh" in "lanes.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "lane-fresh"
     And I open the fold history
     Then the panel says this agent has had 1 past session
     And the past sessions hold "an older conversation"
 
   @agent-stored @scratch:lanes
-  Scenario: A filed conversation has the node session controls immediately
+  Scenario: A node tied to a stored conversation has the session controls immediately
     Given I open the outline "lanes.olai"
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And node "lane-fresh" in "lanes.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "lane-fresh"
     And I open the fold history
-    Then the panel offers a fresh session, saying "keeping memory in"
+    Then the panel offers a fresh session, saying "nothing under it yet"
     And the past sessions hold "an older conversation"
 
-  @agent-stored @scratch:lanes
-  Scenario: A refused listing is named in the filer log and writes no rows
-    Given I open the outline "lanes.olai"
-    When I open the filed conversation "the last conversation" as node "filed-chat"
-    And I ask the agent "lose"
-    Then the filer log names "claude" with "the conversation store is unreadable"
-    And the Inbox has 1 filed conversations
-    And the Unassigned row and list are absent
-
   @codex @scratch:chat
-  Scenario: A settled turn files a terminal conversation through its running engine
+  Scenario: Opening the history lists conversations through the running engine
+    # WHAT A TERMINAL DID WHILE THIS TAB WAS OPEN. A conversation stored by a
+    # `claude` run in a terminal is one this serve has never heard of, and
+    # *earlier chats* is where it is asked after: opening the list asks the
+    # engine again rather than redrawing boot's answer. And it is asked of the
+    # PROCESS THAT IS ALREADY RUNNING — a second one started to answer a
+    # question about conversations would be a process nobody asked for.
     Given the harness keeps distinct sessions on disk
     And the listing counter is armed
     And I open the outline "house.olai"
-    And the filer's boot run has settled
     When I open the node menu of "install"
     And I pick "Claude Code" in the "Start an agent" submenu of the node menu
     And I ask the agent "cabinet conversation"
@@ -736,47 +703,42 @@ Feature: A node with an `agent-session` property IS an agent
     And a terminal stores a conversation titled "terminal conversation"
     And the agent starts so far are counted
     And the list-asks so far are counted
-    And I ask the agent "check again"
-    And the agent is idle
+    When I open the fold history
     Then the list-asks have grown
-    And the Inbox has 1 filed conversations
     And no further agent process has started
-    When I open the filed conversation "terminal conversation" as node "terminal-chat"
-    Then the chat shows my message "terminal conversation"
 
   @agent-stored @scratch:lanes
   Scenario: Pressing an agent in the sidebar does BOTH halves of what it means
     # The sibling of *A conversation no node claims has no sessions of its
     # own*, from the press's other face. A door press switches the panel and
     # navigates nowhere — the reader is already on the node; a SIDEBAR press
-    # owes both at once: the outline at the agent's own row AND the panel
-    # switched to its conversation (`@olai/web`'s `agents/focus.ts`). The
+    # owes both at once: the CHAT'S OWN PAGE, carrying the reader to the
+    # conversation, AND the panel switched to it (`agents/focus.ts`). The
     # failure this catches is exactly one half of that working: a press that
     # navigates and leaves the panel where it was looks, to a person, exactly
     # like a press that worked — because the page moved — and an assertion of
     # the navigation alone would pass straight over it.
     #
     # It starts on `backlog.olai`, not `lanes.olai`: the navigation half is
-    # real only if the press has to CARRY the reader somewhere, and every
-    # agent in this vault lives on the one board it used to have, so the
-    # row's route used to resolve to the page the reader was already on. The
-    # panel half is anchored the door scenario's way: the boot came up in a
-    # stored conversation NO NODE claims, so the sessions pill afterwards is
-    # the panel having MOVED — not the panel happening to be showing the
+    # real only if the press has to CARRY the reader somewhere. The panel half
+    # is anchored the door scenario's way: the boot came up in a stored
+    # conversation NO NODE claims, so the sessions pill afterwards is the
+    # panel having MOVED — not the panel happening to be showing the
     # conversation anyway.
     Given I open the outline "backlog.olai"
     Then no agent fold is open
     When I press the agent "door-live"
-    Then the sidebar marks the outline "lanes.olai" as the one open
+    Then the chat page is about the node "door-live" named "watch the connector" in "lanes.olai"
+    And the Chats row "door-live" is current
     When I open the fold history
-    Then the panel offers a fresh session, saying "keeping memory in"
+    Then the panel offers a fresh session, saying "nothing under it yet"
 
   @scratch:lanes
   Scenario: An unbound agent's sidebar press navigates, and says nothing
     Given I open the outline "backlog.olai"
     Then the agent "door-live" stands "asleep"
     When I press the agent "door-implement"
-    Then the sidebar marks the outline "lanes.olai" as the one open
+    Then the chat page is about the node "door-implement" named "implement + open PR" in "lanes.olai"
     And the agent "door-live" stands "asleep"
     And the agents roster says nothing
     And no agent fold is open
@@ -784,15 +746,15 @@ Feature: A node with an `agent-session` property IS an agent
   # ── what the list must not swallow ────────────────────────────────────
 
   @agent-stored @scratch:lanes
-  Scenario: A filed agent's history can be read while its current turn keeps working
+  Scenario: A tied agent's history can be read while its current turn keeps working
     Given I open the outline "lanes.olai"
-    When I open the filed conversation "the last conversation" as node "filed-chat"
+    And node "lane-fresh" in "lanes.olai" is tied to the stored "claude" conversation "the last conversation"
+    When I press the agent "lane-fresh"
+    And the node agent's fold is ready
     And I ask the agent "hold"
-    Then the agent "filed-chat" stands "working"
+    Then the agent "lane-fresh" stands "working"
     When I open the fold history
     And I open the past session "an older conversation"
     Then the opened conversation carries the title "an older conversation"
-    And the agent "filed-chat" stands "working"
-    When I press the agent "filed-chat"
-    And the agent is released
-    Then the agent is idle
+    And the agent "lane-fresh" stands "working"
+    When I press the agent "lane-fresh"

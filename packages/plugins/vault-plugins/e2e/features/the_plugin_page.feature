@@ -272,21 +272,17 @@ Feature: A plugin's own page
     And there should be no page errors
 
   @phone @scratch:plugins
-  Scenario: On a handset the conversation is in the page's seat
-    # There is no column beside the page on a phone, so there is nothing to
-    # dock. The sentence this used to draw — "no agent is available to ask
-    # right now" — was false: the agent is there, it is the seat that is not.
-    # What the *Ask* spot holds instead is the page's own SEAT, which is where
-    # the conversation about this page is read when there is nowhere to put a
-    # column.
+  Scenario: On a handset the conversation opens as its own page
+    # A phone shows one pane at a time, so *Ask for a change…* opens the
+    # builder chat as its own page in the strip beside this one — the way into
+    # the conversation is the same on both viewports.
     Given a conversation about the plugin "greeting" called "Greeting"
     And I open the app
     When I go to the plugin "greeting"
-    Then the plugin page seats the chat about "greeting"
-    # ...and no primary verb at all while the folder is still being written: a
-    # handset has no seat to open the conversation in, and the only thing that
-    # actually stops a build is the agent's own Stop inside it.
-    And the plugin page offers no verb
+    Then the plugin page offers to ask for a change
     When I read the unfinished plugin "greeting" anyway
     Then the plugin page's verb is in the foot
+    # ...and the press opens the builder chat as a page of its own.
+    When I ask for a change to the plugin "greeting"
+    Then the conversation building "greeting" is beside the page
     And there should be no page errors

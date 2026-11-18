@@ -62,7 +62,7 @@ import {
   PLUGIN_SERVER_FILE,
   WORD,
 } from "@olai/surface"
-import { isKeptText } from "@olai/format"
+import { isKeptText, proseIn } from "@olai/format"
 
 import { usesOf, type Uses } from "./uses.ts"
 
@@ -369,12 +369,15 @@ const defined = (
  * with a README that is not that shape is take what it can — a first heading at
  * any level, the first paragraph that is not a heading — because a person's own
  * prose is not a format to refuse.
+ *
+ * The front matter is not prose: a README that is a plugin's builder chat
+ * carries that chat's tie there, and it is never the plugin's title.
  */
 export const toldBy = (readme: string | null): { readonly title: string; readonly description: string } => {
   if (readme === null) return { title: "", description: "" }
   let title = ""
   const paragraph: Array<string> = []
-  for (const raw of readme.split("\n")) {
+  for (const raw of proseIn(readme).split("\n")) {
     const line = raw.trim()
     const heading = /^#{1,6}\s+(.*)$/.exec(line)
     if (heading !== null) {

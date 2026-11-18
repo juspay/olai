@@ -9,7 +9,6 @@
  */
 import { slotContracts as navigationSlots } from "olai-plugin-navigation/slots"
 import { slotContracts } from "./slots.ts"
-import { PanelHandle } from "./layout/Handle.tsx"
 import { definePlugin,Faces,Offers } from "@olai/plugin-api"
 import { holdFaces } from "./faces.ts"
 import { holdRouting } from "./routing.ts"
@@ -24,8 +23,8 @@ import Frame from "./Frame.tsx"
 import { contentStatus,name,overlays,type Shell,sidebar,strip,thumbs,tools } from "./index.ts"
 import { trackDesktop } from "./layout/media-owner.ts"
 import {
-  createLayoutState, holdLayoutState, desktop, panelOpen, panelSnap, panelWidth, resetPanelWidths, setPanelOpen, setPanelSnap,
-  revealSidebar, setPanelWidth, setSidebarOpen, setSidebarWidth, sidebarOpen, sidebarWidth, togglePanel, toggleSidebar,
+  createLayoutState, holdLayoutState, desktop, resetSidebarWidth,
+  revealSidebar, setSidebarOpen, setSidebarWidth, sidebarOpen, sidebarWidth, toggleSidebar,
 } from "./layout/live.ts"
 import { followLayout } from "./layout/prefs-owner.ts"
 
@@ -52,8 +51,7 @@ export default definePlugin({
     // contribution's `activate` below, on this same activation.
     yield* (yield* Offers).own("shell", (): Shell => ({
       desktop, sidebarOpen, setSidebarOpen, toggleSidebar, revealSidebar, sidebarWidth, setSidebarWidth,
-      panelOpen, setPanelOpen, togglePanel, panelWidth, setPanelWidth, panelSnap, setPanelSnap,
-      resetPanelWidths, PanelHandle,
+      resetSidebarWidth,
     }))
     yield* slots.contribute(root, () => <ErrorBoundary fallback={(error) => {
       console.error(error)
