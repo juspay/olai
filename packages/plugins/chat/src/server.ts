@@ -119,7 +119,7 @@ import { applyMoves } from "./server/move.ts"
 import type { Forecast } from "./wire.ts"
 import { type Asked, makeSleeper, START } from "./server/sleep.ts"
 import { readings } from "./server/readings.ts"
-import type { Change } from "./transcript.ts"
+import type { Change } from "@kolu/acp-harness"
 import * as Chat from "./scoped.ts"
 import { whyNoAgent } from "./adapter.ts"
 import { choiceOf, detecting, here, offBecause } from "./agents/roster.ts"
@@ -537,13 +537,13 @@ export default definePlugin({
       }
     }
 
-    const publishTranscript = (state: ChatState, change: Change): void => {
+    const publishTranscript = (state: ChatState, change: Change<ChatEntry>): void => {
       // Through the CADENCE, never straight onto the collection: a row that
       // grows reaches the wire as pieces on a clock rather than as itself once
       // per token.
       const who = whoOf(state)
       if (who === null) return
-      for (const [, entry] of change.upserts) {
+      for (const entry of change.upserts) {
         if (entry.kind === "user" && entry.rang !== undefined && entry.text !== "") {
           const key = JSON.stringify([who.agent, who.session, entry.id])
           if (deliveredIds.has(key)) continue

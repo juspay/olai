@@ -1,5 +1,5 @@
 /**
- * WHERE THE AGENT CLIENT PROTOCOL ENTERS THIS TREE, held as two equalities.
+ * WHERE THE AGENT CLIENT PROTOCOL ENTERS THIS TREE, held as three equalities.
  *
  * The protocol's VOCABULARY is not olai's any more: `@kolu/acp` owns the ask,
  * diff, usage and terminal words, the pure projections over ACP's own payloads
@@ -32,8 +32,14 @@
  *     chat — is the one that may reach the client. The reading is the walk's
  *     own — `importsOf` elides an erased import — so the claim cannot be
  *     dodged by spelling.
+ *   - **And where the CONVERSATION is run.** `@kolu/acp-harness` is one
+ *     conversation on that client — the turns, the rows and the bodies held
+ *     for one nobody is in — so it is chat's alone for the client's own
+ *     reason: a second package reaching it would be a second conversation with
+ *     a subprocess under it. It has ONE entry on purpose, so the only
+ *     specifier a package can name is the package.
  *
- * Both are EQUALITIES rather than allow-lists: a package that stops importing
+ * All three are EQUALITIES rather than allow-lists: a package that stops importing
  * is as red as one that starts, because a table nobody has to maintain is a
  * table that stops describing the tree.
  */
@@ -68,6 +74,7 @@ const byName = (left: readonly [string, unknown], right: readonly [string, unkno
 const reach = (() => {
   const halves = new Map<string, Set<string>>()
   const client = new Map<string, Set<string>>()
+  const harness = new Map<string, Set<string>>()
   const running = new Set<string>()
   const note = (into: Map<string, Set<string>>, pkg: string, spec: string): void => {
     const held = into.get(pkg) ?? new Set<string>()
@@ -80,6 +87,7 @@ const reach = (() => {
     for (const spec of TREE.specifiersOf(source.file)) {
       if (spec === "@kolu/acp" || spec.startsWith("@kolu/acp/")) note(halves, pkg, spec)
       if (spec === "@kolu/acp-client" || spec.startsWith("@kolu/acp-client/")) note(client, pkg, spec)
+      if (spec === "@kolu/acp-harness" || spec.startsWith("@kolu/acp-harness/")) note(harness, pkg, spec)
     }
     for (const edge of TREE.importsOf(source.file)) {
       if (edge.spec.startsWith("@agentclientprotocol/sdk")) running.add(pkg)
@@ -87,7 +95,12 @@ const reach = (() => {
   }
   const table = (from: Map<string, Set<string>>) =>
     Object.fromEntries([...from].sort(byName).map(([pkg, specs]) => [pkg, [...specs].sort()]))
-  return { halves: table(halves), client: table(client), running: [...running].sort() }
+  return {
+    halves: table(halves),
+    client: table(client),
+    harness: table(harness),
+    running: [...running].sort(),
+  }
 })()
 
 describe("the protocol enters this tree where the table says", () => {
@@ -108,6 +121,12 @@ describe("the protocol enters this tree where the table says", () => {
     expect(reach.running).toEqual([])
     expect(reach.client).toEqual({
       "plugins/chat": ["@kolu/acp-client", "@kolu/acp-client/testlib"],
+    })
+  })
+
+  test("... and only chat holds a conversation on it", () => {
+    expect(reach.harness).toEqual({
+      "plugins/chat": ["@kolu/acp-harness"],
     })
   })
 })

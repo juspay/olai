@@ -134,7 +134,7 @@ const withChat = async (
     // instead would be asking the transcript about itself; this is what a panel
     // would have drawn.
     onTranscript: (change) => {
-      for (const [key, entry] of change.upserts) entries.set(key, entry)
+      for (const entry of change.upserts) entries.set(entry.id, entry)
       for (const key of change.removes) entries.delete(key)
       for (const piece of change.appends) {
         const row = entries.get(piece.of)

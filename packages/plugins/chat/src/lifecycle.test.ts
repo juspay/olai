@@ -226,7 +226,12 @@ describe("chat lifecycle lines", () => {
 })
 
 describe("a message that queues behind a running turn", () => {
-  test("logs that it queued, with agent and session", async () => {
+  // THE ROW rather than the LOG, which is where this claim went with the
+  // turns: the conversation (`@kolu/acp-harness`) is what sends a prompt
+  // alongside a running turn and what writes the line about it, and what this
+  // package is still the authority on is the half a PERSON reads — the row
+  // saying the agent has these words and has not started on them.
+  test("marks the row the agent has not started on", async () => {
     const { layer, said } = collector()
     const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> =>
       Effect.runPromise(
@@ -252,6 +257,7 @@ describe("a message that queues behind a running turn", () => {
         onTranscript: () => {},
       }),
     )
+    let queued: ReadonlyArray<string> = []
     try {
       await run(chat.start)
       const deadline = Date.now() + 8_000
@@ -263,15 +269,15 @@ describe("a message that queues behind a running turn", () => {
       await run(chat.send("queue-wait", [], []))
       await run(chat.send("hi", [], []))
       await Effect.runPromise(Effect.sleep("400 millis"))
+      queued = [...chat.entries().values()]
+        .filter((entry) => entry.kind === "user" && entry.queued === true)
+        .map((entry) => entry.text)
     } finally {
       await run(chat.stop)
       await Effect.runPromise(Effect.sleep("40 millis"))
     }
 
-    const queued = findSaid(said, "message queued behind a running turn")
-    expect(queued?.level).toBe("Info")
-    expect(queued?.annotations.agent).toBe("opencode")
-    expect(queued?.annotations.session).toBe("sess-1")
+    expect(queued).toEqual(["hi"])
   }, 15_000)
 
   /**

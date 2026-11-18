@@ -69,6 +69,7 @@ import {
   Server,
   Setting,
   SignIn,
+  SignInReason,
   Spawned,
   TerminalView,
   ToolStatus,
@@ -311,7 +312,10 @@ export const UserEntry = Schema.Struct({
   delivery: Schema.optionalKey(Delivery),
   /**
    * ... AND WHY, on the one refusal that has something to do about it: the
-   * agent would not take the message because nobody is signed in.
+   * agent would not take the message because nobody is signed in, or because
+   * the ACCOUNT it is signed in as cannot run it (`@kolu/acp/wire`'s
+   * {@link SignInReason}, which the client reads off the protocol's own code
+   * and the agent's own error data rather than off its prose).
    *
    * A second field beside {@link Delivery} rather than a third value of it, and
    * that is the same call `Gone` makes one layer down: `delivery` answers "may I
@@ -328,10 +332,11 @@ export const UserEntry = Schema.Struct({
    * message it is handing back. *Send again* stays beside it, because the row
    * is still the record of what did not go.
    *
-   * Absent rather than `false` for {@link queued}'s reason: the writer only ever
-   * writes `true`.
+   * Absent on every row that went, and on every refusal a signature would not
+   * fix — the writer is the conversation's own reading of the refusal
+   * (`@kolu/acp-harness`), and it writes nothing where that reading is `no`.
    */
-  auth: Schema.optionalKey(Schema.Literal(true)),
+  signIn: Schema.optionalKey(SignInReason),
   /**
    * A MACHINE SAID THIS, AND WHICH ONE — the plugin's `name`, as data.
    *
@@ -513,6 +518,25 @@ export const ToolEntry = Schema.Struct({
    * Absent on every call on its first outing, which is very nearly all of them.
    */
   resumed: Schema.optionalKey(Schema.String),
+  /**
+   * WHEN THIS CALL STARTED RUNNING, stamped by the writer at the first frame
+   * that reported it running and never moved again
+   * (`@kolu/acp-harness`'s `transcript.ts`).
+   *
+   * DECLARED HERE BECAUSE THE WRITER WRITES IT, which is the whole of the
+   * reason: the class that mints these rows is shared with kolu and copies a
+   * product's own fields without reading them, so a field it decides and this
+   * union does not declare is a field sanitized off the row on its way to a
+   * browser — present on the server, absent on screen, and nothing red.
+   *
+   * It is NOT the clock this panel counts from. That is {@link outSince}'s
+   * answer over {@link ToolEntry.resumed}, which is about an outing rather
+   * than about the call, and the two differ for exactly the row the strip is
+   * about: an agent sent out again an hour after it first ran.
+   *
+   * Absent until a frame says the call is running.
+   */
+  startedAt: Schema.optionalKey(Schema.String),
 })
 export type ToolEntry = typeof ToolEntry.Type
 

@@ -15,10 +15,10 @@ import * as Memory from "./memory.ts"
 import { type LiveMark, type LiveRecord, marksOf, RECORDED } from "./live.ts"
 import type { Conversing } from "./sessions.ts"
 import type { PanelAddress } from "./wire/session.ts"
-import type { Change } from "./transcript.ts"
+import type { Change } from "@kolu/acp-harness"
 import { succeeded } from "./succession.ts"
 import { pastOf } from "./lineage.ts"
-import { agentIn, type Listed } from "olai-plugin-chat/wire"
+import { agentIn, type ChatEntry, type Listed } from "olai-plugin-chat/wire"
 
 /** Keep idle chats warm for 48 hours. With this long window, the capacity cap
  * bounds resident node agents: an LRU of 8, evicting only eligible idle scopes.
@@ -154,7 +154,7 @@ export interface Chat extends Panel {
 
 export interface ReadingObserver {
   readonly state: (state: ReturnType<Panel["state"]>) => void
-  readonly transcript: (change: Change) => void
+  readonly transcript: (change: Change<ChatEntry>) => void
 }
 
 /** The scheduler's policy and dependencies. Unlike a panel, this always owns
@@ -163,7 +163,7 @@ export interface ReadingObserver {
 export interface Options extends PanelOptions {
   readonly onConversationClosed?: (state: ReturnType<Panel["state"]>) => void
   readonly onConversationState?: (state: ReturnType<Panel["state"]>, entries: ReturnType<Panel["entries"]>, node: string | null) => void
-  readonly onConversationTranscript?: (state: ReturnType<Panel["state"]>, change: Change) => void
+  readonly onConversationTranscript?: (state: ReturnType<Panel["state"]>, change: Change<ChatEntry>) => void
   /** Current user-controlled wake activation, read through its Cordis service.
    * Absent for delivery-only plugins, which use node-derived recipients. */
   readonly wake: (plugin: string) => object | undefined
@@ -274,7 +274,7 @@ interface PendingDelivery {
   readonly options?: { readonly coalesce?: string; readonly sleep?: true }
 }
 
-const empty: Change = { upserts: [], removes: [], appends: [] }
+const empty: Change<ChatEntry> = { upserts: [], removes: [], appends: [] }
 
 /** Build the scheduler. Focused state-machine tests call `makePanel` directly;
  * package consumers always get the node-scoped lifecycle. */
@@ -494,7 +494,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const publishSwitch = (before: Panel, after: Panel): void => {
       const gone = [...before.entries().keys()]
       if (gone.length > 0) panelOptions.onTranscript({ ...empty, removes: gone })
-      const arrived = [...after.entries()]
+      const arrived = [...after.entries().values()]
       if (arrived.length > 0) panelOptions.onTranscript({ ...empty, upserts: arrived })
       panelOptions.onState(after.state())
       liveMoved()
@@ -1214,7 +1214,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               yield* Effect.catch(slot.panel.loadSession(bound.engine, bound.session), () => Effect.void)
             }
             observer.state(slot.panel.state())
-            observer.transcript({ ...empty, upserts: [...slot.panel.entries()] })
+            observer.transcript({ ...empty, upserts: [...slot.panel.entries().values()] })
             return slot.panel
           })))
         }
@@ -1239,7 +1239,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             : yield* Effect.acquireRelease(rootPanel(), panel => panel.stop)
           if (panel !== root) yield* Effect.catch(panel.loadSession(to.agent, to.session), () => Effect.void)
           observer.state(panel.state())
-          observer.transcript({ ...empty, upserts: [...panel.entries()] })
+          observer.transcript({ ...empty, upserts: [...panel.entries().values()] })
           return panel
         }
         readerNodes.set(observer, place.node.id)
@@ -1255,7 +1255,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           }
           if (!slot.history) yield* flush(slot)
           observer.state(slot.panel.state())
-          observer.transcript({ ...empty, upserts: [...slot.panel.entries()] })
+          observer.transcript({ ...empty, upserts: [...slot.panel.entries().values()] })
           return slot.panel
         }))
       })
@@ -1470,7 +1470,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               const previous = replaced === null ? null : {
                 agent: agentIn(slot.state)?.id, session: replaced,
               }
-              const before = [...slot.panel.entries()].map(([id]) => id)
+              const before = [...slot.panel.entries().keys()]
               const completed = Effect.gen(function*() {
                 const session = slot.panel.state().session
                 if (session === null) return yield* new UsageFailure({
@@ -1495,7 +1495,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                 // existing readers still need the new state and cleared replay.
                 for (const reader of readingListeners(slot)) {
                   reader.state(slot.state)
-                  reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries()] })
+                  reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries().values()] })
                 }
                 yield* flush(slot)
                 if (committed !== undefined) yield* committed({ agent, session: session.id })
@@ -1513,7 +1513,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
                   // the existing reader face and report their gesture's error.
                   for (const reader of readingListeners(slot)) {
                     reader.state(state)
-                    reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries()] })
+                    reader.transcript({ ...empty, removes: before, upserts: [...slot.panel.entries().values()] })
                   }
                   return null
                 }

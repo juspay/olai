@@ -12,7 +12,8 @@ import { sayingKey } from "olai-plugin-chat/wire"
 import { describe, expect, test } from "bun:test"
 
 import { type After, cadence, type Frame } from "./cadence.ts"
-import type { Change } from "./transcript.ts"
+import type { Change } from "@kolu/acp-harness"
+import type { ChatEntry } from "olai-plugin-chat/wire"
 
 /** A clock somebody turns. `run()` fires the open window; `open` says whether
  *  there is one, which is how a test asserts that nothing is waiting. */
@@ -34,14 +35,14 @@ const byHand = (): { readonly after: After; readonly turn: () => void; readonly 
   }
 }
 
-const appending = (of: string, at: number, text: string): Change => ({
+const appending = (of: string, at: number, text: string): Change<ChatEntry> => ({
   upserts: [],
   removes: [],
   appends: [{ of, at, text }],
 })
 
-const row = (key: string, text: string): Change => ({
-  upserts: [[key, { kind: "agent", id: key, seq: 0, since: "2026-08-22T00:00:00.000Z", text }]],
+const row = (key: string, text: string): Change<ChatEntry> => ({
+  upserts: [{ kind: "agent", id: key, seq: 0, since: "2026-08-22T00:00:00.000Z", text }],
   removes: [],
   appends: [],
 })

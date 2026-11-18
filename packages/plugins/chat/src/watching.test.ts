@@ -26,7 +26,7 @@ import type { ChatEntry, ToolEntry } from "olai-plugin-chat/wire"
 import type { Watching } from "@kolu/acp/wire"
 import { armedTask, sentAgent } from "./outings.testlib.ts"
 import { clock } from "./clock.testlib.ts"
-import { Transcript } from "./transcript.ts"
+import { Transcript, toolKey } from "@kolu/acp-harness"
 import { sameWatching, watching } from "./watching.ts"
 
 /** When a row was announced. The strip's clock counts from it, so it is the
@@ -274,12 +274,12 @@ describe("whether the strip has moved", () => {
  */
 describe("out, back, out again", () => {
   /** The strip as a reader would read it: what it says, in order. */
-  const strip = (transcript: Transcript): ReadonlyArray<string> =>
+  const strip = (transcript: Transcript<ChatEntry>): ReadonlyArray<string> =>
     watching(transcript.entries()).map((one) => `${one.kind} ${one.name} since ${one.since}`)
 
   test("the strip carries an agent, loses it, and carries it AGAIN", () => {
     const time = clock("2026-08-28T09:00:00.000Z")
-    const transcript = new Transcript(time.now)
+    const transcript = new Transcript<ChatEntry>({ now: time.now, firstSeq: "zero" })
 
     // SENT OUT — the adapter announces the `Agent` tool use, titled with the
     // tool's own name and carrying the description in its arguments.
@@ -309,7 +309,7 @@ describe("out, back, out again", () => {
     transcript.tool("toolu_01CALL", {
       title: "run the tests",
       status: "in_progress",
-      parent: "toolu_01AGENT",
+      parent: toolKey("toolu_01AGENT"),
     })
     expect(
       [...transcript.entries().values()].filter((row) =>
@@ -340,7 +340,7 @@ describe("out, back, out again", () => {
     // quiet under a working agent all over again, this time in a turn boundary
     // rather than in the wire.
     const time = clock("2026-08-28T09:00:00.000Z")
-    const transcript = new Transcript(time.now)
+    const transcript = new Transcript<ChatEntry>({ now: time.now, firstSeq: "zero" })
     transcript.tool("toolu_01AGENT", {
       title: "Task",
       status: "in_progress",
@@ -364,7 +364,7 @@ describe("out, back, out again", () => {
     // whose turn walked away from it is over whichever outing it was on, and a
     // face that outlived one is the failure the whole strip is written against.
     const time = clock("2026-08-28T09:00:00.000Z")
-    const transcript = new Transcript(time.now)
+    const transcript = new Transcript<ChatEntry>({ now: time.now, firstSeq: "zero" })
     transcript.tool("toolu_01AGENT", { title: "Task", status: "pending", spawned: sentAgent() })
     transcript.tool("toolu_01AGENT", { status: "completed" })
     time.pass(60_000)

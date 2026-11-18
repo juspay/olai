@@ -127,6 +127,9 @@ let
       # the ACP client chat runs every agent through: the subprocess, the
       # handshake, sessions, turns, sign-in.
       "@kolu/acp-client"
+      # the conversation above that client: the turns, the rows a panel draws,
+      # and the bodies held for a conversation nobody is in.
+      "@kolu/acp-harness"
       # every subprocess olai starts — chat's agent, a pane's `git`, the
       # browser's chromium, the web build — comes from this one socket.
       "@kolu/child"

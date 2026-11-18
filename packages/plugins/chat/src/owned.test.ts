@@ -52,9 +52,9 @@ const sources = (): ReadonlyArray<string> =>
  * rather than exempted in it.
  */
 const OWNED: ReadonlyArray<{ readonly file: string; readonly held: string }> = [
-  // The agent's own `aside` is `@kolu/acp-client`'s now (kolu's
-  // `packages/tests/governance/runEdges.ts` names it).
-  { file: "src/chat.ts", held: "`ticket.fiber`, drained and interrupted by `stopWithReason`" },
+  // A turn's own fiber is `@kolu/acp-harness`'s now, with the conversation it
+  // belongs to: this panel accepts a turn and reads what became of it off the
+  // changes the conversation publishes, so there is no handle here to hold.
   { file: "src/chat.ts", held: "`aside`, whose set `stopWithReason` interrupts" },
 ]
 

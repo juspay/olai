@@ -554,7 +554,7 @@ export const createChat = (conv: PanelAddress, options: { readonly ui?: Conversa
       // below it in the column is either somebody else's message or one that
       // was answered long ago.
       if (row === undefined || row.kind !== "user") continue
-      if (row.auth !== true || row.delivery !== "refused" || handedBack === row.id) return null
+      if (row.signIn === undefined || row.delivery !== "refused" || handedBack === row.id) return null
       handedBack = row.id
       return row.text
     }

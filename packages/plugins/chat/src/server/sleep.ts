@@ -488,18 +488,22 @@ export const makeSleeper = (
     /**
      * WHAT ONE STATE SAYS ABOUT THE TURN — `null` while it is still running.
      *
-     * THE TURN IS OVER when the mark went off or the status left `thinking`, and
-     * both are read because `idle` is published a frame BEFORE the mark is
-     * cleared (`chat.ts`'s `ensuring`). `idle` is the one ending that says
-     * nothing went wrong, and the panel's own `trouble` is where a failed turn
-     * says so.
+     * THE TURN IS OVER when the mark goes off, or when the agent is not there
+     * any more. `idle` alone is not an ending: the conversation publishes its
+     * state a frame BEFORE it reports how the turn ended, and the mark comes
+     * off in the same frame as that outcome (`chat.ts`'s `ended`) — so a state
+     * that is `idle` with the mark still up is a turn whose verdict is on its
+     * way, and reading it as finished would stamp the memo on a turn that
+     * died. `idle` with the mark off is the one ending that says nothing went
+     * wrong, and the panel's own `trouble` is where a failed turn says so.
      *
      * CANCELLED BEFORE TROUBLE, and it is why the state carries the flag: a
      * cancelled turn lands on `idle` with no `trouble`, and calling that a
      * finished sleep would stamp the memo on a rewrite that stopped halfway.
      */
     const ended = (state: ChatState): Verdict | null => {
-      if (state.sleep === true && state.status === "thinking") return state.trouble === null ? null : "trouble"
+      if (state.status !== "idle" && state.status !== "thinking") return "gone"
+      if (state.sleep === true) return state.trouble === null ? null : "trouble"
       if (state.status !== "idle") return "gone"
       if (state.cancelled) return "cancelled"
       return state.trouble === null ? "slept" : "trouble"

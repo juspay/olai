@@ -832,14 +832,17 @@ describe("a plugin is a sibling, and core computes none of its addresses", () =>
 
 /** THE FRAMEWORK TIER, and the only list in this block that a person wrote.
  *
- *  FIVE kolu packages, each for its own reason. `@kolu/surface*` is the wire
+ *  SIX kolu packages, each for its own reason. `@kolu/surface*` is the wire
  *  framework the whole app is built on. `@kolu/acp` is the ACP vocabulary —
  *  kolu owns it because kolu seats an ACP conversation of its own, and olai
  *  consumes it the way it consumes the surface: `./engine` under every engine
  *  plugin and `@olai/plugin-api`, `./wire` under the chat row's members.
  *  `@kolu/acp-client` is the one package that runs the subprocess — the
- *  handshake, sessions, turns, sign-in — and chat holds every conversation on
- *  it. `@kolu/acp-claude` is the Claude Code agent
+ *  handshake, sessions, turns, sign-in. `@kolu/acp-harness` is the one
+ *  conversation above it — its turns, the rows a panel draws, and the bodies
+ *  held for a conversation nobody is in — which chat holds every conversation
+ *  on, the same claim its client made one layer down.
+ *  `@kolu/acp-claude` is the Claude Code agent
  *  both products run — its leg, its model table and the pinned adapter — read
  *  by the Claude engine plugin the way every engine reads `@kolu/acp/engine`:
  *  a fact about an agent, not an appliance's product. `@kolu/child` is the
@@ -851,7 +854,7 @@ describe("a plugin is a sibling, and core computes none of its addresses", () =>
  *  `cordis` AND `@cordisjs/plugin-*` USED TO BE ON THE SAME SIDE and are not any
  *  more: it is an ENGINE behind one package now, weighed as an ordinary hydrated
  *  specifier with {@link BRIDGE} as the one package allowed to reach it. */
-const FRAMEWORK = /^@kolu\/(acp(-claude|-client)?|child|surface(-[a-z]+)*)(\/|$)/
+const FRAMEWORK = /^@kolu\/(acp(-claude|-client|-harness)?|child|surface(-[a-z]+)*)(\/|$)/
 
 /** THE ENGINE, and the one package that may see it. */
 const BRIDGE = "effect-cordis"

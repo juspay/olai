@@ -199,11 +199,14 @@ test("a seat freed while the reading is between attempts is not lost", async () 
  * `page` reads them — so what is asserted is exactly the boundary the frame
  * moved.
  */
-const longRows = (count: number): Array<[string, ChatEntry]> =>
-  Array.from({ length: count }, (_, at) => [
-    `m${at}`,
-    { kind: "user", id: `m${at}`, seq: at, since: "2020-01-01T00:00:00.000Z", text: `m${at}` },
-  ] as const)
+const longRows = (count: number): Array<ChatEntry> =>
+  Array.from({ length: count }, (_, at) => ({
+    kind: "user" as const,
+    id: `m${at}`,
+    seq: at,
+    since: "2020-01-01T00:00:00.000Z",
+    text: `m${at}`,
+  }))
 
 test("a subscribe ships the newest window, and pages read the rest back", async () => {
   await Effect.runPromise(Effect.scoped(Effect.gen(function*() {
