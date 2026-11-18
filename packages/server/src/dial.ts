@@ -143,15 +143,13 @@ const clientOver = (connection: McpConnection, url: string): RootedSurfaceClient
         // The key SET, at the collection's own URI…
         verbs.keys = () => once(() => connection.readResource(resource.uri))
         // …and one item, at the template the face publishes beside it. The key
-        // travels as a path segment, encoded exactly as `collectionItemTemplate`
-        // spells the placeholder it replaces.
+        // travels as the placeholder's own expansion, which {@link itemAddress}
+        // spells and REFUSES to guess at.
         const template = templateByKey.get(member)
         if (template !== undefined) {
           verbs.get = (input) =>
             once(() =>
-              connection.readResource(
-                template.uriTemplate.replace("{id}", encodeURIComponent(keyOf(input))),
-              )
+              connection.readResource(itemAddress(template.uriTemplate, keyOf(input))),
             )
         }
       } else {
@@ -202,4 +200,38 @@ const keyOf = (input: unknown): string => {
     throw new McpUnreachable("a collection read reached the transport with no key")
   }
   return typeof said === "string" ? said : JSON.stringify(said)
+}
+
+/** One item's address: the published template with its placeholder filled.
+ *
+ *  The fill is not a string replace with a spelling baked in, and that is the
+ *  whole reason this is a function. `@kolu/surface-mcp` publishes the item
+ *  template as `…/{+id}` — RFC 6570's RESERVED expansion — since
+ *  juspay/kolu#2393, and `.replace("{id}", …)` therefore found nothing and read
+ *  the template ITSELF: the server answered `has no value yet — its collection
+ *  key is not present` for a name the collection did hold, and olai's own
+ *  read-back of a capture failed with it.
+ *
+ *  A name is written SEGMENT BY SEGMENT and joined with `/`, which is the one
+ *  spelling both expansions accept: `{+id}` keeps the `/` that makes
+ *  `_olai/Inbox.olai` ONE address, and the server's item reader
+ *  (`parseCollectionItem`) decodes `a%2Fb` to the same name an `{id}` expansion
+ *  would have written. A template carrying neither placeholder is a defect in
+ *  the publisher, not something to paper over with the template as-is. */
+export const itemAddress = (uriTemplate: string, name: string): string => {
+  const placeholder = /\{\+?id\}/.exec(uriTemplate)
+  if (placeholder === null) {
+    throw new McpUnreachable(
+      `the item template ${uriTemplate} carries no {id} or {+id} to fill`,
+    )
+  }
+  const filled = name
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/")
+  return (
+    uriTemplate.slice(0, placeholder.index) +
+    filled +
+    uriTemplate.slice(placeholder.index + placeholder[0].length)
+  )
 }

@@ -17,7 +17,7 @@
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
 
-import { dialOlai } from "./dial.ts"
+import { dialOlai, itemAddress } from "./dial.ts"
 import { mcpUrl } from "./mcpClient.ts"
 import { MCP_PATH } from "olai-plugin-mcp/testlib"
 
@@ -90,4 +90,29 @@ test("refuses a scheme this client cannot speak, naming what --url is for", () =
   // entirely, and one this door is deliberately not.
   expect(() => mcpUrl("file:///home/srid/vault")).toThrow(/olai web/)
   expect(() => mcpUrl("ws://127.0.0.1:7714")).toThrow(/olai web/)
+})
+
+test("fills the item template the server publishes, whichever expansion it spells", () => {
+  // The template a collection publishes beside its key set. `{+id}` is kolu's
+  // current spelling (juspay/kolu#2393) and `{id}` the one before it; a fill
+  // that knows only one of them reads the template ITSELF when the other moves,
+  // and the read that comes back is `has no value yet` for a name the
+  // collection does hold — a capture a terminal wrote and could not read back.
+  const template = (placeholder: string) =>
+    `surface://collections/outlines/outlines/${placeholder}`
+  expect(itemAddress(template("{+id}"), "_olai/Inbox.olai")).toBe(
+    "surface://collections/outlines/outlines/_olai/Inbox.olai",
+  )
+  expect(itemAddress(template("{id}"), "_olai/Inbox.olai")).toBe(
+    "surface://collections/outlines/outlines/_olai/Inbox.olai",
+  )
+  // A name that is not address-shaped stays one segment, and a literal `%`
+  // survives as `%25` rather than turning into an escape.
+  expect(itemAddress(template("{+id}"), "a b:c%d")).toBe(
+    "surface://collections/outlines/outlines/a%20b%3Ac%25d",
+  )
+  // Nothing to fill is a publisher's defect, named rather than read as-is.
+  expect(() => itemAddress("surface://collections/outlines/outlines", "x")).toThrow(
+    /carries no \{id\}/,
+  )
 })
