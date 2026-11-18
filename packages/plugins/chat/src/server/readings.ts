@@ -15,7 +15,8 @@ import type { OpFailure } from "@olai/format"
 import { type Cadence, cadence } from "../cadence.ts"
 import type { Chat, ReadingObserver } from "../scoped.ts"
 import type { PanelAddress } from "../wire/session.ts"
-import { CHAT_OFF, type ChatEntry, type ChatState, type Saying, TRANSCRIPT_WINDOW } from "../wire.ts"
+import { CHAT_OFF, type ChatEntry, type ChatState, TRANSCRIPT_WINDOW } from "../wire.ts"
+import type { Saying } from "@kolu/acp/wire"
 
 class Key extends Data.Class<{ readonly node: string | null; readonly agent: string | null; readonly session: string | null }> {}
 

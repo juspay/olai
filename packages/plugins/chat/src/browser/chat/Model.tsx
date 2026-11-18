@@ -7,7 +7,7 @@ import { listKey } from "@olai/web/client/keys.ts"
 import { createCursor } from "@olai/ui-primitives/cursor.ts"
 import { TESTID } from "../../testids.ts"
 import { type Offered, visibleModels } from "./model-filter.ts"
-import type { SessionSetting } from "olai-plugin-chat/wire"
+import type { Setting } from "@kolu/acp/wire"
 import type { Chat } from "./state.ts"
 
 export function Model(props: { readonly chat: Chat; readonly name: string }) {
@@ -143,7 +143,7 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
     )
   }
 
-  const choose = (setting: SessionSetting, value: string | boolean): void => {
+  const choose = (setting: Setting, value: string | boolean): void => {
     const at = picker.showing()
     if (disabled() || at?.agent === undefined || at.session === undefined) return
     setPending(true)
@@ -165,19 +165,27 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
           <Show when={state().models.length > 0}>
             <ModelFilter />
           </Show>
-          <For each={state().settings}>
+          {/* EVERY CONTROL EXCEPT THE MODEL'S, which the filter above already
+              is. The agent advertises its model picker as a setting like any
+              other and the client marks it `kind: "model"` and puts it first
+              (`@kolu/acp-client`'s `settingsIn`), so the row has to be taken
+              out here rather than simply drawn: a conversation would otherwise
+              offer its model twice, once as a filtered list and once as a
+              select, and a person pressing either would have no way to know
+              they are the same control. */}
+          <For each={state().settings.filter((setting) => setting.kind !== "model")}>
             {(setting) => (
               <li class="border-t border-rule/60 px-2 py-2">
                 <label class="flex items-center justify-between gap-3 text-label">
                   <span>{setting.name}</span>
-                  <Show when={setting.type === "select" ? setting : undefined} fallback={
+                  <Show when={setting.kind === "choice" ? setting : undefined} fallback={
                     <input type="checkbox" aria-label={setting.name}
-                      checked={setting.currentValue === true} disabled={disabled()}
-                      onChange={(event) => { const value = event.currentTarget.checked; event.currentTarget.checked = setting.currentValue === true; choose(setting, value) }} />
+                      checked={setting.value === "true"} disabled={disabled()}
+                      onChange={(event) => { const value = event.currentTarget.checked; event.currentTarget.checked = setting.value === "true"; choose(setting, value) }} />
                   }>
-                    {(select) => <select aria-label={select().name} value={select().currentValue}
+                    {(select) => <select aria-label={select().name} value={select().value ?? ""}
                       disabled={disabled()} class="max-w-40 rounded-control border border-rule bg-panel px-1 py-1"
-                      onChange={(event) => { const value = event.currentTarget.value; event.currentTarget.value = select().currentValue; choose(setting, value) }}>
+                      onChange={(event) => { const value = event.currentTarget.value; event.currentTarget.value = select().value ?? ""; choose(setting, value) }}>
                       {/* THE ONE `title` THIS APP KEEPS, and it is kept
                           because an `<option>` can hold nothing else. A
                           `<select>`'s content model admits `<option>`,
@@ -198,8 +206,8 @@ export function Model(props: { readonly chat: Chat; readonly name: string }) {
                           this element really does hand the words to a reader —
                           which is the whole reason the attribute is wrong
                           everywhere else and right here. */}
-                      <For each={select().options}>{(option) =>
-                        <option value={option.value} title={option.description}>{option.name}</option>
+                      <For each={select().choices}>{(choice) =>
+                        <option value={choice.value} title={choice.hint ?? undefined}>{choice.label}</option>
                       }</For>
                     </select>}
                   </Show>

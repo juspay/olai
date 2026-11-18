@@ -1,4 +1,8 @@
-/** Session facts supplied by an ACP agent, independent of their controls. */
+/** WHICH CONVERSATION a panel is addressed by — the only session fact this
+ *  module still declares, because every other one an ACP agent supplies (its
+ *  settings, its plan, the terminals it was given) is `@kolu/acp/wire`'s: the
+ *  package that speaks the protocol owns its words, and both panels drawn from
+ *  those shapes read the one declaration. */
 import { Schema } from "effect"
 
 export const Conversing = Schema.Struct({ agent: Schema.String, session: Schema.String })
@@ -9,18 +13,3 @@ export type Conversing = typeof Conversing.Type
 export const PanelAddress = Schema.Union([Conversing, Schema.Struct({ node: Schema.String })])
 export type PanelAddress = typeof PanelAddress.Type
 
-const SettingInfo = { id: Schema.String, name: Schema.String, description: Schema.String }
-export const SessionSetting = Schema.Union([
-  Schema.Struct({ ...SettingInfo, type: Schema.Literal("select"), currentValue: Schema.String,
-    options: Schema.Array(Schema.Struct({ value: Schema.String, name: Schema.String, description: Schema.String })) }),
-  Schema.Struct({ ...SettingInfo, type: Schema.Literal("boolean"), currentValue: Schema.Boolean }),
-])
-export type SessionSetting = typeof SessionSetting.Type
-export const PlanStep = Schema.Struct({ content: Schema.String,
-  priority: Schema.Literals(["high", "medium", "low"]),
-  status: Schema.Literals(["pending", "in_progress", "completed"]) })
-export type PlanStep = typeof PlanStep.Type
-export const TerminalView = Schema.Struct({ id: Schema.String, output: Schema.String,
-  truncated: Schema.Boolean, exitCode: Schema.NullOr(Schema.Number),
-  signal: Schema.NullOr(Schema.String), running: Schema.Boolean })
-export type TerminalView = typeof TerminalView.Type

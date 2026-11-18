@@ -121,7 +121,7 @@ export interface Slot {
  *
  * NO ELISION LINE when it bites. Saying "and 4 more" would be core composing a
  * sentence, which is the one thing the doorbell's whole shape refuses
- * ({@link ./probes.ts}: core displays a sentence and never composes one).
+ * (`@kolu/acp-client`'s `probes.ts`: core displays a sentence and never composes one).
  */
 export const SLOTS = 32
 

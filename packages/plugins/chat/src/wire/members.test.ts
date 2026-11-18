@@ -15,20 +15,17 @@ import { Schema } from "effect"
 
 import {
   type AgentEntry,
-  Armed,
-  Ask,
   type ChatEntry,
   ChatEntry as ChatEntryUnion,
-  Delivery,
-  FileDiff,
   isTaskOut,
   NodeContext,
   OpFailure,
-  Spawned,
   type ToolEntry,
   type UserEntry,
   Json,
 } from "./members.ts"
+import { Armed, Ask, Delivery, FileDiff, Spawned } from "@kolu/acp/wire"
+import { armedTask, sentAgent } from "../outings.testlib.ts"
 
 /**
  * The PRE-UNION shape, pinned here so the old schema can be deleted from the
@@ -202,7 +199,7 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       },
       locations: ["house.olai:4"],
       parent: "tool:agent-1",
-      spawned: { kind: "Explore" },
+      spawned: sentAgent({ kind: "Explore" }),
     },
   },
   {
@@ -219,11 +216,11 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       text: "kolu watch --states waiting,awaiting",
       status: "failed",
       progress: 'Background command "kolu fleet watch" failed with exit code 3',
-      armed: {
+      armed: armedTask({
         task: "bwa85c0r2",
         description: "kolu fleet watch",
         ended: "failed",
-      },
+      }),
     },
   },
   {
@@ -451,17 +448,17 @@ describe("which rows have a task still out", () => {
   })
 
   test("armed, no ending, and the wire still calls the call running", () => {
-    expect(isTaskOut(row({ armed: { task: "bu13xz2ie" } }))).toBe(true)
+    expect(isTaskOut(row({ armed: armedTask({ task: "bu13xz2ie" }) }))).toBe(true)
     // `pending` is a running state — it is what every call is announced with.
-    expect(isTaskOut(row({ status: "pending", armed: { task: "bu13xz2ie" } }))).toBe(true)
+    expect(isTaskOut(row({ status: "pending", armed: armedTask({ task: "bu13xz2ie" }) }))).toBe(true)
   })
 
   test("... and NOT once the harness has said how it ended", () => {
     expect(
-      isTaskOut(row({ status: "failed", armed: { task: "bu13xz2ie", ended: "killed" } })),
+      isTaskOut(row({ status: "failed", armed: armedTask({ task: "bu13xz2ie", ended: "killed" }) })),
     ).toBe(false)
     expect(
-      isTaskOut(row({ status: "completed", armed: { task: "bu13xz2ie", ended: "completed" } })),
+      isTaskOut(row({ status: "completed", armed: armedTask({ task: "bu13xz2ie", ended: "completed" }) })),
     ).toBe(false)
   })
 
@@ -470,21 +467,21 @@ describe("which rows have a task still out", () => {
     // a cancelled turn resolves an armed call to `failed`, the harness never
     // says what became of the task, and nothing is ever going to. A count that
     // kept this row would keep the strip up for the life of the panel.
-    expect(isTaskOut(row({ status: "failed", armed: { task: "bu13xz2ie" } }))).toBe(false)
-    expect(isTaskOut(row({ status: "completed", armed: { task: "bu13xz2ie" } }))).toBe(false)
+    expect(isTaskOut(row({ status: "failed", armed: armedTask({ task: "bu13xz2ie" }) }))).toBe(false)
+    expect(isTaskOut(row({ status: "completed", armed: armedTask({ task: "bu13xz2ie" }) }))).toBe(false)
   })
 
   test("... and NOT when its own turn walked away from it", () => {
     // A dead agent's tasks: the exemption that keeps an armed row unstranded
     // is the transcript's, and it stops at the conversation's end.
     expect(
-      isTaskOut(row({ stranded: true, armed: { task: "bu13xz2ie" } })),
+      isTaskOut(row({ stranded: true, armed: armedTask({ task: "bu13xz2ie" }) })),
     ).toBe(false)
   })
 
   test("a row that armed nothing has no task out, however it stands", () => {
     expect(isTaskOut(row({}))).toBe(false)
     expect(isTaskOut(row({ status: "completed" }))).toBe(false)
-    expect(isTaskOut(row({ spawned: { kind: "Explore" } }))).toBe(false)
+    expect(isTaskOut(row({ spawned: sentAgent({ kind: "Explore" }) }))).toBe(false)
   })
 })

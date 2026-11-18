@@ -14,7 +14,7 @@
  *     whose only honest answer is "still full", and an alarm colour would
  *     report a problem with a chat that has nothing wrong with it;
  *   - a chat this engine's store has no record of (ACP's `-32002`,
- *     `../../agent.ts`'s `missingOf`) is the opposite kind of permanent: *Try
+ *     `@kolu/acp-client`'s `agent.ts`'s `missingOf`) is the opposite kind of permanent: *Try
  *     again* is honest about what it asks for and will be refused for ever.
  *     It is drawn calm rather than red — nothing broke, the chat is simply
  *     somewhere else — and the gesture that MOVES is on it;

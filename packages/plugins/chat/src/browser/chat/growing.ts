@@ -41,7 +41,7 @@
  */
 
 import { sayingEnd } from "olai-plugin-chat/wire"
-import type { Saying } from "olai-plugin-chat/wire"
+import type { Saying } from "@kolu/acp/wire"
 import type { CollectionFold, CollectionFoldOptions } from "@kolu/surface/solid"
 import { type Accessor, createMemo } from "solid-js"
 

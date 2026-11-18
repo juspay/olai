@@ -1,7 +1,7 @@
 /**
  * The conversation, as rows.
  *
- * {@link ./agent.ts} says what the agent DID; this says what the panel shows.
+ * `@kolu/acp-client`'s `agent.ts` says what the agent DID; this says what the panel shows.
  * Keeping the two apart is what lets the transcript have rules of its own —
  * chunks accumulate into one entry, a tool call is updated in place by its id,
  * a replay replaces everything rather than appending to it — without any of
@@ -55,9 +55,9 @@
 import { isDeepStrictEqual } from "node:util"
 
 import { isRunningStatus, isTaskOut, sentToDo } from "olai-plugin-chat/wire"
-import type { Armed, ChatEntry, Delivery, Saying, Spawned, ToolEntry, TerminalView, ToolStatus, Json } from "olai-plugin-chat/wire"
+import type { ChatEntry, Json, ToolEntry } from "olai-plugin-chat/wire"
 import type { OpFailure } from "@olai/format"
-import type { AskField, AskLink, AskOutcome, FileDiff } from "@kolu/acp/wire"
+import type { Armed, AskField, AskLink, AskOutcome, Delivery, FileDiff, Saying, Spawned, TerminalView, ToolStatus } from "@kolu/acp/wire"
 export interface Change {
   readonly upserts: ReadonlyArray<readonly [string, ChatEntry]>
   readonly removes: ReadonlyArray<string>
@@ -219,13 +219,41 @@ const minted = (
  *  outing has not ended, and has not reported, and those fields are read as
  *  live facts rather than as history ({@link ToolEntry.armed}, `isTaskOut`).
  *
- *  A function rather than a spread at the one call site, because taking a key
- *  OFF a value is the shape a reader has to look twice at, and it is worth
- *  looking at once here with a name on it. */
-const withoutOuting = (armed: Armed): Armed => {
-  const { ended: _ended, report: _report, ...before } = armed
-  return before
-}
+ *  A function rather than a spread at the one call site, because putting a
+ *  field BACK to "nothing said" is the shape a reader has to look twice at,
+ *  and it is worth looking at once here with a name on it. */
+const withoutOuting = (armed: Armed): Armed => ({ ...armed, ended: null, report: null })
+
+/** What this call ARMED, after a frame that says something about it: the
+ *  frame's own facts over the ones the row already had.
+ *
+ *  `null` IS A FIELD THE FRAME SAYS NOTHING ABOUT and never an erasure, which
+ *  is why this is a field-by-field `??` rather than a spread. The fact arrives
+ *  split across frames because the TASK'S OWN LIFE is: the frame that arms the
+ *  call names the task and the description it was armed with, and the frame
+ *  that settles it names the task and how it ended, minutes later and in
+ *  another turn. Neither carries the other's fields, so a spread would take
+ *  the description off the row at the moment it dies — which is the row a
+ *  person reads. */
+const armedBy = (held: Armed | undefined, move: Armed): Armed =>
+  held === undefined ? move : {
+    task: move.task,
+    description: move.description ?? held.description,
+    ended: move.ended ?? held.ended,
+    report: move.report ?? held.report,
+  }
+
+/** ... and who it SENT OUT, under the same rule and for the same reason: the
+ *  adapter announces the call as the tool use starts, refines it once the
+ *  arguments have parsed, and sends a frame with no `rawInput` at all when the
+ *  input would not serialize. Every one of those is honestly a spawn and some
+ *  of them honestly name nothing, so a later report that said only "this is a
+ *  spawn" must not take back a kind an earlier frame already gave. */
+const spawnedBy = (held: Spawned | undefined, move: Spawned): Spawned =>
+  held === undefined ? move : {
+    kind: move.kind ?? held.kind,
+    said: move.said ?? held.said,
+  }
 
 /** What a tool call is filed under. Spelled ONCE: the row a call writes and
  *  the row it names as the agent that made it are the same kind of key, and
@@ -869,9 +897,10 @@ export class Transcript {
       && move.terminals === undefined
       && move.progress === undefined
       && move.spawned === undefined
-      && move.armed?.report !== undefined
-      && move.armed.ended === undefined
-      && move.armed.description === undefined
+      && move.armed !== undefined
+      && move.armed.report !== null
+      && move.armed.ended === null
+      && move.armed.description === null
     ) {
       return EMPTY
     }
@@ -944,38 +973,25 @@ export class Transcript {
     // agent now" would step out of its lane at the moment the call finished.
     const parent = move.parent === undefined ? held?.parent : toolKey(move.parent)
     // ... and what this call STARTED, which is the one field here that is
-    // sticky a level DOWN as well as at the top. The fact arrives split across
-    // frames because the ARGUMENTS DO: the adapter announces the call as the
-    // tool use starts, refines it once they have finished parsing, and sends a
-    // frame with no `rawInput` at all when the input would not serialize.
-    // Every one of those is honestly a spawn and some of them honestly name no
-    // kind — so a later report that said only "this is a spawn" would take
-    // back a kind an earlier frame already gave.
-    //
-    // A SPREAD, so the rule is the same one word deeper rather than a second
-    // rule: an absent field is "unchanged" inside this object exactly as an
-    // absent `move` is unchanged outside it, and a field added to `Spawned`
-    // later inherits that instead of needing a line of its own here to stop
-    // being taken back off the row.
+    // sticky a level DOWN as well as at the top ({@link spawnedBy}): the fact
+    // arrives split across frames because the ARGUMENTS DO, and a `null`
+    // inside a reported frame is a field that frame says nothing about rather
+    // than one it takes back.
     const spawned = move.spawned === undefined
       ? held?.spawned
-      : { ...held?.spawned, ...move.spawned }
-    // ... and what this call ARMED, under the same rule one word deeper and for
-    // the same reason: the fact arrives split across frames because the TASK's
-    // OWN LIFE is. The frame that arms the call names the task, its kind and the
-    // description it was armed with; the frame that settles it names the task
-    // and how it ended, minutes later and in another turn. Neither repeats the
-    // other's fields, so a spread is what keeps the description on the row at
-    // the moment it dies — which is the row a person reads.
+      : spawnedBy(held?.spawned, move.spawned)
+    // ... and what this call ARMED, under the same rule one word deeper and
+    // for the same reason ({@link armedBy}): the frame that arms the call and
+    // the frame that settles it carry different halves of one task, minutes
+    // apart and in two turns.
     const merged = move.armed === undefined
       ? held?.armed
-      : { ...held?.armed, ...move.armed }
+      : armedBy(held?.armed, move.armed)
     // ... and a REOPENED call's task has not ended and has not reported,
-    // whatever the last outing said (see `reopened` above). The spread is what
-    // makes these the fields that need saying: every other fact about a task —
-    // its id, its kind, the description it was armed with — is as true of the
-    // second outing as it was of the first, and is carried forward exactly as
-    // it always was.
+    // whatever the last outing said (see `reopened` above). Those two fields
+    // are the ones that need saying: every other fact about a task — its id,
+    // the description it was armed with — is as true of the second outing as
+    // it was of the first, and is carried forward exactly as it always was.
     const armed = reopened && merged !== undefined
       ? withoutOuting(merged)
       : merged
@@ -1082,7 +1098,8 @@ export class Transcript {
     // whose reason land on two frames left the reason on a row at its birth
     // position and the line at the bottom saying nothing but *failed*.
     const failed = spawned !== undefined && content.status === "failed"
-    const died = armed?.ended !== undefined
+    const ending = armed?.ended ?? null
+    const died = ending !== null
       ? this.#dies(
         key,
         spawned === undefined ? "background task" : "agent",
@@ -1090,8 +1107,8 @@ export class Transcript {
         // spawn's where it did not — one line, two vocabularies for the same
         // question, because an ASYNC `Agent` launch is both and the harness's
         // word is the more specific of the two.
-        armed.description ?? sentToDo(spawned, text),
-        armed.ended,
+        armed?.description ?? sentToDo(spawned, text),
+        ending,
         move.progress,
       )
       : failed
@@ -1230,10 +1247,10 @@ export class Transcript {
     // there is nothing to say later, because a question is asked once by one
     // agent. A caller that could leave it off is a caller that can mint an
     // unattributed form without a type error, which is the bug this argument
-    // exists to close ({@link ./events.ts} draws the same line one layer up).
+    // exists to close (`@kolu/acp-client`'s `events.ts` draws the same line one layer up).
     parent: string | undefined,
     // WHERE THE QUESTION SENDS THEM, for the one elicitation that asks for no
-    // fields (`./events.ts`'s `asked`). `null` for every form, which is what
+    // fields (`@kolu/acp-client`'s `events.ts`'s `asked`). `null` for every form, which is what
     // makes this the same row with one part left out rather than a second kind
     // of row: what is drawn is the ask, and the link is what it has INSTEAD of
     // fields.

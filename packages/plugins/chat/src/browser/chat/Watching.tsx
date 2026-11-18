@@ -131,7 +131,7 @@ function Strip(props: { readonly chat: Chat }) {
             )
             /**
              * AN AGENT IS A DOOR AND A TASK IS NOT, which is the whole reason
-             * the kind is on the wire ({@link @olai/surface}'s `Watched`).
+             * the kind is on the wire (`@kolu/acp/wire`'s `Watching`).
              *
              * A subagent's calls are not in the transcript any more, so this
              * strip is where a person watching a fan-out goes to read one —

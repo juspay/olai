@@ -13,8 +13,8 @@
  * have cost:
  *
  *   - **ACP has no system prompt.** `session/new` carries a cwd and a list of
- *     MCP servers and nothing else a client may put words in ({@link
- *     ./agent.ts}); there is no field, on either leg. Getting one would mean
+ *     MCP servers and nothing else a client may put words in
+ *     (`@kolu/acp-client`'s `agent.ts`); there is no field, on either leg. Getting one would mean
  *     patching the pinned adapter — a fifth patch, on a surface upstream has
  *     never offered — and then the feature would be *absent on opencode and on
  *     pi*, which is exactly the shape this repo refuses: a capability silently
@@ -59,7 +59,7 @@
  * The node this conversation belongs to, that the node's own note is its
  * charter, WHEN to write to the subtree and in what shape. No tool names —
  * which verbs are reachable is a property of the servers that conversation was
- * handed ({@link ./servers.ts}), and an instruction naming a call the session
+ * handed (`@kolu/acp-client`'s `servers.ts`), and an instruction naming a call the session
  * does not have would be teaching a contract it cannot keep. The charter is
  * POINTED AT, never quoted: the node's `desc` IS the charter and the agent can
  * read it, so quoting it here would be the second copy this whole design

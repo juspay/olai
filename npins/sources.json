@@ -61,9 +61,9 @@
       },
       "branch": "one-acp-runner",
       "submodules": false,
-      "revision": "d2f0a637d66ac78ae2a789856f460bc95285997d",
-      "url": "https://github.com/juspay/kolu/archive/d2f0a637d66ac78ae2a789856f460bc95285997d.tar.gz",
-      "hash": "sha256-iiuLib5GZt6OYtCnD+Aus4BKj8Zeg+eFJvKkEfFnmQM="
+      "revision": "03faf8d62a3449141a1bebed45cbd859072444c6",
+      "url": "https://github.com/juspay/kolu/archive/03faf8d62a3449141a1bebed45cbd859072444c6.tar.gz",
+      "hash": "sha256-3idB85SXnDrgumImnJ+4oUzknqb05sxtmABGGaB6Taw="
     },
     "nixpkgs": {
       "type": "Git",

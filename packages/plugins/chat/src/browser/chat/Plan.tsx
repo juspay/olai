@@ -18,11 +18,18 @@ export function Plan(props: { readonly chat: Chat }) {
             <span aria-label={step.status.replaceAll("_", " ")}>{MARK[step.status]}</span>
             {/* HOW URGENT THE STEP IS — a fact with no drawn mark at all, so
                 it rides an sr-only companion after the step's words as well
-                as under the pointer. */}
-            <Tip text={step.priority + " priority"}>
-              <span>{step.content}</span>
-              <span class="sr-only">{step.priority} priority</span>
-            </Tip>
+                as under the pointer. An agent that sends no urgency at all
+                leaves the words alone rather than wearing a tip that says
+                nothing: every adapter olai talks to sends one, and a plan
+                from one that does not is still a plan. */}
+            <Show when={step.priority} fallback={<span>{step.content}</span>}>
+              {(priority) => (
+                <Tip text={priority() + " priority"}>
+                  <span>{step.content}</span>
+                  <span class="sr-only">{priority()} priority</span>
+                </Tip>
+              )}
+            </Show>
           </li>
         }</For>
       </ol>

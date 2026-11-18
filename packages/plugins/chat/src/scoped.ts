@@ -125,7 +125,7 @@ export interface Chat extends Panel {
    * the scope closes with its own reason ({@link StopReason}'s `put to sleep`)
    * — all three because they are one act: closing the scope stops the
    * subprocess, and stopping the subprocess is what ends the turn and settles
-   * the questions ({@link ./agent.ts}'s `leaving`). NOTHING IS UNBOUND: the
+   * the questions (`@kolu/acp-client`'s `agent.ts`'s `leaving`). NOTHING IS UNBOUND: the
    * node goes on naming its conversation, so the roster draws it `asleep` and
    * opening it again continues where it left off. Releasing the binding is
    * `closeAgent`, a different verb with a different answer.
@@ -1318,7 +1318,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        * here because they are not three acts: `close` stops the panel with
        * this reason, the panel stops its subprocess, and that is what ends the
        * turn in flight and settles every question still waiting
-       * (`agent.ts`'s `leaving`). A verb that cancelled first would be asking
+       * (`@kolu/acp-client`'s `agent.ts`'s `leaving`). A verb that cancelled first would be asking
        * an agent to finish politely before killing it, and the one thing a
        * person pressing this asked for is that it STOP.
        *

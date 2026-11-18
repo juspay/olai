@@ -59,7 +59,7 @@
  */
 
 import { SAYING_MS, sayingEnd, sayingKey } from "olai-plugin-chat/wire"
-import type { Saying } from "olai-plugin-chat/wire"
+import type { Saying } from "@kolu/acp/wire"
 import { movesRows } from "./transcript.ts"
 
 import type { Change } from "./transcript.ts"

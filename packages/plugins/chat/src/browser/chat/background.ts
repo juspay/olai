@@ -43,7 +43,8 @@
  * the agent's words rather than the task's.
  */
 
-import { type Armed, type ChatEntry, isTaskOut } from "olai-plugin-chat/wire"
+import { type ChatEntry, isTaskOut } from "olai-plugin-chat/wire"
+import type { Armed } from "@kolu/acp/wire"
 import { isRunning } from "./running.ts"
 
 /** The task this row armed, or `null` for every row that armed nothing — which

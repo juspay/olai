@@ -254,7 +254,7 @@ export const make = (where: Where): Effect.Effect<Listings> =>
  * conversations, newest first, with the unreachable rows keeping the order
  * they were asked in.
  *
- * The sort is the SAME rule `agent.ts`'s `newestFirst`, and it is IMPORTED
+ * The sort is the SAME rule `@kolu/acp-client`'s `agent.ts`'s `newestFirst`, and it is IMPORTED
  * rather than repeated: one agent's list is sorted there, this merge is sorted
  * here, and the two answers are what a boot adopts and what a person clicks.
  * They must not be able to disagree about which of two identical-looking rows

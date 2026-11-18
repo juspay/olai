@@ -50,16 +50,30 @@
 import { Json } from "../json.ts"
 export { Json } from "../json.ts"
 
-import { Conversing, SessionSetting, PlanStep, TerminalView } from "./session.ts"
+import { Conversing } from "./session.ts"
 import {
+  Armed,
+  Ask,
   AskAnswer,
   AskChoice,
   AskField,
   AskLink,
   AskOutcome,
+  AuthMethod,
   AuthStatus,
+  Command,
+  Delivery,
   FileDiff,
+  PlanStep,
+  Saying,
+  Server,
+  Setting,
+  SignIn,
+  Spawned,
+  TerminalView,
+  ToolStatus,
   Usage,
+  Watching,
   YES_NO,
 } from "@kolu/acp/wire"
 import {
@@ -92,34 +106,6 @@ import { Schema } from "effect"
  * payloads ride the main entry, and only `olai-plugin-chat` reads those.
  */
 export { AskAnswer, AskChoice, AskField, AskLink, AskOutcome, AuthStatus, FileDiff, Usage, YES_NO }
-
-/**
- * A question the agent asked, and what became of it.
- *
- * `outcome` is `null` exactly while the turn is BLOCKED on a person: the form is
- * live, the composer says so, and nothing else in the conversation is going to
- * happen until it is answered or dismissed. Afterwards the same row stays in
- * the transcript with what was chosen written into it — the record of what was
- * asked and what was said back, which is the reason this is an entry rather
- * than a modal.
- */
-export const Ask = Schema.Struct({
-  fields: Schema.Array(AskField),
-  /**
-   * WHERE THE QUESTION SENDS THEM, for the one elicitation that is a place to
-   * go rather than something to fill in (ACP's URL mode, `@kolu/acp`'s
-   * `urlOf`): empty {@link fields} and a link, and the row draws the link
-   * instead of a form.
-   *
-   * On the ask rather than as a seventh kind of entry, because it IS an ask:
-   * it blocks on a person, it is answered or declined through the same two
-   * verbs, it counts toward {@link ChatState.asking}, and the one thing that
-   * differs — what is drawn — is the last thing a reader needs to know.
-   */
-  link: Schema.NullOr(AskLink),
-  outcome: Schema.NullOr(AskOutcome),
-})
-export type Ask = typeof Ask.Type
 
 /**
  * A NODE a message is about — what "ask agent" on a row arms the composer with.
@@ -177,239 +163,6 @@ export const NodeContext = Schema.Struct({
   path: Found.fields.path,
 })
 export type NodeContext = typeof NodeContext.Type
-
-/**
- * A call that SENT AN AGENT OUT, and what is known about the agent.
- *
- * It exists so that a spawn is legible as a spawn from the instant it is
- * announced. The other half of the same feature — which `Agent` call a row was
- * made INSIDE ({@link ToolEntry.parent}) — cannot say anything until the
- * spawned agent has made a call, and a subagent that is still reading its
- * instructions has made none: for the whole of that stretch, which is the
- * stretch a person is watching, the panel had a pending row with an ordinary
- * title on it and no reason to think anybody had been sent anywhere.
- *
- * PRESENCE is the fact, and the field inside it is the detail. A spawn is known
- * to be one whether or not it named a kind of agent — so this is a STRUCT that
- * may be empty rather than a nullable string, and which of the two it is
- * decides how a caller can be wrong. A bare `spawned: string | null` puts "not
- * a spawn" and "a spawn nobody labelled" one falsy value apart, and the first
- * `if (entry.spawned)` anybody writes drops the second on the floor; an empty
- * struct is truthy, and the only way to ask about the kind is to ask about the
- * kind.
- */
-export const Spawned = Schema.Struct({
-  /** Which kind of agent, in the words whoever configured it used —
-   *  `Explore`, `general-purpose`, a name out of somebody's own agent
-   *  definitions.
-   *
-   *  ABSENT when nobody has said, which is an ordinary spawn rather than a
-   *  broken one: naming a kind is optional in the tool that starts an agent.
-   *  Absent rather than `null` so that "nobody said" is spelled the way
-   *  "unchanged" is spelled everywhere else on a tool row — the fact arrives
-   *  across several frames, and one word for a field that has nothing in it
-   *  means the transcript's stickiness needs no second rule to hold this
-   *  together.
-   *
-   *  The agent's own word, never mapped onto one of olai's. A name this end
-   *  does not recognise is drawn as it came, for the reason the header draws an
-   *  unrecognised model id raw: rounding somebody's agent to the nearest one
-   *  this panel has heard of would be naming an agent nobody started. */
-  kind: Schema.optionalKey(Schema.String),
-  /** ... and WHAT IT WAS SENT TO DO — the short description the `Agent` call
-   *  was made with, which is the only thing that tells one agent of a fan-out
-   *  from another.
-   *
-   *  It is not the row's TITLE, and that is the whole reason it is a field. A
-   *  tool row's title is the name the call was announced with and it is pinned
-   *  at the first frame that carries one — for this adapter that is the tool's
-   *  own name, so four agents dispatched in one message are four rows reading
-   *  `Task`. Drawn under the call that sent them, that was survivable: a reader
-   *  works downwards and finds out. Lifted onto a strip and put behind a door
-   *  it is four identical buttons, which is the one thing the strip may not be.
-   *
-   *  ABSENT when nobody has said, like {@link Spawned.kind} and for its reason:
-   *  the arguments arrive across frames, so "unchanged" is spelled by the field
-   *  not being there. Every reader falls back to the row's own title, which is
-   *  what a spawn nobody described has to be called. */
-  said: Schema.optionalKey(Schema.String),
-})
-export type Spawned = typeof Spawned.Type
-
-/**
- * A call that ARMED A BACKGROUND TASK, and what is known about the task.
- *
- * The other kind of call that outlives its own result. A `Monitor`, a
- * `Bash(run_in_background)`, an async `Agent`: the tool answers the moment the
- * task is running, and the task then lives on — past the frame, past the turn,
- * and (for a persistent monitor) for the whole of the conversation. What the
- * agent gets back is an acknowledgement; what a person needs is the task.
- *
- * It is on the wire because the WIRE says it: the pinned adapter stamps the
- * harness's own `task_started` onto the call it names, and the call stays
- * running until the harness reports a terminal state (`@kolu/acp-claude`'s `adapter/patches/README.md`).
- * Nothing here is inferred from a tool's name or from an argument — a client
- * that guessed would be putting a live face on somebody's ordinary call.
- *
- * PRESENCE is the fact, like {@link Spawned}'s: a task that named no kind and
- * carried no description is still a task, so this is a struct with one required
- * field rather than a nullable string.
- */
-export const Armed = Schema.Struct({
-  /** The harness's own id for the task — the word every later frame about it
-   *  arrives under, and the one thing that is always said. */
-  task: Schema.String,
-  /** The description it was armed WITH — "tick watch", "kolu fleet watch…" —
-   *  which is the sentence a person recognises the task by, and which the
-   *  call's own title (`Monitor`) is not. Absent for the same reason `kind`
-   *  is. */
-  description: Schema.optionalKey(Schema.String),
-  /**
-   * How it ENDED, in the harness's own word — and absent for the whole of the
-   * time it is still running, which is what makes the presence of this field
-   * the death itself.
-   *
-   * ACP has four statuses and the harness has more: `completed`, `failed`,
-   * `killed` and `stopped` all reach the row's own `status` as one of two
-   * words, and a monitor somebody STOPPED is not a monitor that failed. So the
-   * word travels beside the status rather than being folded into it — the same
-   * bargain {@link ChatServer}'s `said` strikes with an MCP server's status.
-   */
-  ended: Schema.optionalKey(Schema.String),
-  /**
-   * The agent's REPORT, once the outing has handed one back.
-   *
-   * A subagent's own prose never enters this conversation's column — the
-   * ruling in `website/docs/chat.md`. The one place those words appear is the fold
-   * of the call that armed the task. An async completion arrives as a
-   * harness-injected user turn (`origin.kind: "task-notification"`) carrying
-   * the whole report as XML; that turn is not a person speaking, and this
-   * field is where the report is filed instead — on the task, next to how
-   * it ended, which is the vocabulary the wire already uses
-   * (`backgroundTask` on the pinned adapter).
-   *
-   * ABSENT until the agent has reported, like {@link Armed.ended}, and sticky
-   * across frames for the same reason: a later status-only update must not
-   * take the report back off the row.
-   */
-  report: Schema.optionalKey(Schema.String),
-})
-export type Armed = typeof Armed.Type
-
-/**
- * What became of a message that did not land — the two things this end can
- * HONESTLY know, and the difference between them is a button.
- *
- *   - `refused` — it CERTAINLY did not go. Something said no to it while it
- *     had taken no effect: the agent has no steering method or no such session,
- *     the process was not there to be asked, or the turn it was aimed at had
- *     been stopped by the person who sent it (the agent answers "nothing to
- *     steer", and the server tells that from a turn that merely finished by the
- *     ticket the message was aimed at). Nothing happened, so *send again* is an
- *     honest offer and the server still holds the exact prompt to make good on
- *     it.
- *   - `unanswered` — NOTHING CAME BACK. The steer went out and the deadline
- *     passed, or the connection died with it in flight. An agent that took the
- *     message and then went quiet is indistinguishable from one that never took
- *     it, so this end cannot say which — and the panel says exactly that, with
- *     no retry, because pressing one would offer a duplicate to somebody with
- *     no way to tell. The words are still on the row, which was always the
- *     promise; what is missing is the certainty, not the message.
- *
- * The distinction is made where it is knowable — at the wire, in
- * `olai-plugin-chat`'s `AgentGone` — and carried here rather than re-inferred from a
- * sentence: a reason is prose, and prose is not something a panel can draw two
- * faces out of.
- */
-export const Delivery = Schema.Literals(["refused", "unanswered"])
-export type Delivery = typeof Delivery.Type
-
-/**
- * What a tool call is doing, in ACP's own four words.
- *
- * Required on a {@link ToolEntry} because the transcript's one writer always
- * says: a call nothing has reported a status for is announced `pending`, and
- * that is a value on the row rather than a default every reader re-applies.
- */
-/**
- * What a strip row IS — a task the conversation armed, or an agent it sent
- * out.
- *
- * ONE STRIP, TWO KINDS, and the kind is on the wire rather than inferred at
- * the far end from which fields happen to be filled in. Both are the same
- * sentence to a reader — *something is still going on, and it has been going
- * on for this long* — which is why they share a strip; what differs is what
- * pressing one is FOR. An agent has a record behind it (every call it made,
- * kept out of the transcript now) and the strip is the door to it. A task has
- * no such record — its events are on no wire olai can reach — so there is
- * nothing behind that door and it is not drawn one.
- *
- * A CALL CAN BE BOTH, and the precedence is stated here once rather than
- * falling out of the order two reads happen to be written in: **the agent
- * wins.** An asynchronous `Agent` launch arms a background task as well as
- * sending somebody out, and who was sent is the more specific thing to say
- * about it — the same precedence the rail under the row already keeps
- * (`web/src/client/chat/rail.ts`), so a row and its strip entry cannot
- * disagree about what kind of thing it is.
- */
-export const Watched = Schema.Literals(["agent", "task"])
-export type Watched = typeof Watched.Type
-
-/**
- * ONE THING THIS CONVERSATION STILL HAS OUT — the strip's row, on the state
- * cell rather than in the transcript.
- *
- * The transcript already holds it: the call that armed the task, or sent the
- * agent, is a row with everything on it. What that row cannot be is IN FRONT
- * OF SOMEBODY. A monitor armed at the top of a three-hour session is at the
- * top of a three-hour session — unreachable scrollback by the time it matters,
- * and the question it answers ("is my watch still up?") is asked at the
- * bottom, where the reader is. So the live half is lifted onto the cell and
- * drawn above the scroll, exactly as the MCP roster is and for the same
- * reason: a standing property of the conversation belongs where the header's
- * other facts are.
- *
- * THE SAME ARGUMENT CARRIES AN AGENT, and one step further. A subagent's own
- * calls are no longer drawn in the transcript at all — the column is the main
- * agent's ({@link ToolEntry.parent}) — so for a fan-out this strip is not
- * merely the convenient place to read who is out: it is the DOOR to what they
- * are doing. A person watching five agents work reads the strip, presses one,
- * and gets that agent's calls.
- *
- * The HISTORY stays where it happened. This is not a second copy — it is the
- * same thing named twice, and it is here only while it is out: when it ends
- * this row is gone from the cell, and the record is still reachable from the
- * row that started it, which never moved.
- */
-export const Watching = Schema.Struct({
-  /** The transcript key of the call that armed the task or sent the agent —
-   *  the row that IS this thing, so the strip and the record are one thing
-   *  named twice rather than two facts to keep in step. Also what the strip
-   *  draws its list by, and what a preview of an agent's calls is addressed
-   *  by ({@link ToolEntry.parent} names the very same key). */
-  row: Schema.String,
-  /** Which of the two it is — see {@link Watched}. */
-  kind: Watched,
-  /** What to call it: the description the task was armed with, and the call's
-   *  own title when it was armed with none (which is always what an agent is
-   *  called, since a spawn's title IS the description it was sent with).
-   *  Decided by the server, because the fallback is a field of a row this cell
-   *  does not carry. */
-  name: Schema.String,
-  /** When it was armed or sent, as an ISO 8601 instant — the same stamp the
-   *  row wears ({@link ToolEntry}'s `since`), so the strip's *running for* and
-   *  the row's own readout count from one moment rather than from two. */
-  since: Schema.String,
-})
-export type Watching = typeof Watching.Type
-
-export const ToolStatus = Schema.Literals([
-  "pending",
-  "in_progress",
-  "completed",
-  "failed",
-])
-export type ToolStatus = typeof ToolStatus.Type
 
 /**
  * The four fields every row carries, in the order the encoded JSON has always
@@ -862,10 +615,11 @@ export type ChatEntry = typeof ChatEntry.Type
  * badly, and what a reader SEES is an answer arriving in lumps.
  *
  * So a chunk rides as ITS OWN ENTRY in a collection of its own, and carries
- * only what is new. `of` names the transcript row it belongs to, `at` is where
- * in that row's text this piece starts, and `text` is the piece. The reader
- * joins them onto the row it already holds. What crosses the socket over a
- * turn is the answer's own size, once.
+ * only what is new — `@kolu/acp/wire`'s {@link Saying}, whose `of` names the
+ * transcript row it belongs to, `at` is where in that row's text this piece
+ * starts, and `text` is the piece. The reader joins them onto the row it
+ * already holds. What crosses the socket over a turn is the answer's own size,
+ * once.
  *
  * THE JOIN IS TOTAL AND IDEMPOTENT, which is what lets this be a SECOND
  * member rather than a change to how the first one is delivered. `transcript`
@@ -883,33 +637,14 @@ export type ChatEntry = typeof ChatEntry.Type
  * cancel, at a new conversation — and the last word about a row is always the
  * row. Nothing has to be reassembled to be right; the pieces are an
  * ACCELERATION of a fact the transcript states anyway.
- */
-export const Saying = Schema.Struct({
-  /** The transcript row this piece belongs to, by that row's own key — the
-   *  same spelling `ToolEntry.parent` uses, and for its reason: what a reader
-   *  wants is the row, so the row is what is named. */
-  of: Schema.String,
-  /** Where this piece starts in that row's text, counted in characters of the
-   *  text the transcript itself holds. It is what makes the join idempotent
-   *  ({@link Saying}) and what orders two pieces of one row without a counter
-   *  beside them: pieces of a row are contiguous, so `at` is both the position
-   *  and the sequence. */
-  at: Schema.Int,
-  /** The piece itself — never the text so far, which is the bug this member
-   *  exists to be the absence of. */
-  text: Schema.String,
-})
-export type Saying = typeof Saying.Type
-
-/**
- * How a piece is filed: the row it belongs to and where it starts.
  *
+ * HOW A PIECE IS FILED is the one half of that both ends have to agree on, so
+ * it is spelled here and only here: the row it belongs to and where it starts.
  * Derived from the value rather than counted, so the key of a piece is a
  * function of the piece — two writers cannot mint the same key for two
  * different pieces, and a re-publish of one piece is an upsert on the key it
- * already had. Spelled ONCE, here, because both ends need it: the server files
- * pieces under it and drops a row's by it, and a reader that wanted to look one
- * up would have to agree.
+ * already had. The server files pieces under it and drops a row's by it, and a
+ * reader that wanted to look one up would have to agree.
  */
 export const sayingKey = (piece: Pick<Saying, "of" | "at">): string =>
   `${piece.of}#${piece.at}`
@@ -993,14 +728,16 @@ export const isStillRunning = (entry: ToolEntry): boolean =>
  * for), and one of those answering differently from the others is a rail that
  * goes out under a clock that goes on counting.
  *
- * TWO HALVES, and the second is why this is not simply "has an `armed` with no
- * `ended`". The harness's own ending is the ordinary way a task stops being
- * out — but a call can also reach a terminal ACP status without one (a
- * cancelled turn resolving what it left outstanding), and a task whose CALL is
- * over is not a task anybody is going to hear about again.
+ * TWO HALVES, and the second is why this is not simply "has an `armed` whose
+ * ending is unsaid". The harness's own ending is the ordinary way a task stops
+ * being out — `null` for as long as nothing has said one, which is how
+ * `@kolu/acp/wire`'s {@link Armed} spells a field a frame has not spoken about
+ * — but a call can also reach a terminal ACP status without one (a cancelled
+ * turn resolving what it left outstanding), and a task whose CALL is over is
+ * not a task anybody is going to hear about again.
  */
 export const isTaskOut = (entry: ToolEntry): boolean =>
-  entry.armed !== undefined && entry.armed.ended === undefined && isStillRunning(entry)
+  entry.armed !== undefined && entry.armed.ended === null && isStillRunning(entry)
 
 /**
  * ... and whether the AGENT this call sent out is still out there.
@@ -1190,7 +927,7 @@ export const SessionInfo = Schema.Struct({
   /** The conversation that replaced this one, as the pair `{agent, session}`
    *  ({@link Conversing}) — the engine's id and the id IT calls it by — or
    *  `null` when nothing says one did. An adapter says it when its transcripts
-   *  make the link (see {@link ../../plugins/chat/src/events.ts}'s `Stored`); a
+   *  make the link (see `@kolu/acp-client`'s `events.ts`'s `Stored`); a
    *  `/clear` sibling is where a person meets it, and a fresh start names it
    *  even when the new conversation lives on ANOTHER engine. */
   supersededBy: Schema.NullOr(Conversing),
@@ -1345,117 +1082,6 @@ export const AgentChoice = Schema.Union([
 export type AgentChoice = typeof AgentChoice.Type
 
 /**
- * ONE WAY TO SIGN IN, as an agent advertised it at the handshake.
- *
- * WHAT THE PANEL IS TOLD is the half that decides what a button does, and the
- * other half — the command line a `terminal` method wants run — is deliberately
- * NOT here. A command and its arguments are what this machine spawns, and the
- * panel that would draw them is the browser ({@link ../../agent.ts} keeps them
- * where the spawn happens). What a person needs on screen is a name and a
- * sentence.
- *
- * `kind` is the whole of the difference a button has:
- *
- *   - `terminal` — THIS panel runs something and draws what it says. A
- *     subscription sign-in on the Claude Code adapter is one: the adapter hands
- *     over a command that prints a URL and waits for a code, and the panel owns
- *     the process, the output it streams and the line somebody types back.
- *   - `agent` — the AGENT runs it. Something happens at the other end of a URL
- *     and the agent says when it is done, so all this panel has is the page to
- *     send a person to and the wait.
- *   - `byHand` — NOBODY here runs it. The method is an interactive wizard that
- *     refuses a pipe, so what is drawn is the method's label and the command
- *     to type into a terminal on the server — the one case where the command
- *     line IS the content and therefore the one field below.
- */
-export const AuthMethod = Schema.Struct({
-  id: Schema.String,
-  name: Schema.String,
-  /** The agent's own second line about the method, or `null` — drawn as the
-   *  button's tooltip rather than under it, because the chooser is a list of
-   *  things to press and not a page to read. */
-  description: Schema.NullOr(Schema.String),
-  kind: Schema.Literals(["terminal", "agent", "byHand"]),
-  /** The command line to run in a terminal on the SERVER, for a `byHand`
-   *  method and `null` for every other — an absolute path, because the agent
-   *  this names may be reachable only through olai's own agent search path and
-   *  a bare name would not exist in that person's shell either. */
-  command: Schema.NullOr(Schema.String),
-})
-export type AuthMethod = typeof AuthMethod.Type
-
-/** The page an agent sent a person to, and how far it got. */
-export const SignInLink = Schema.Struct({
-  url: Schema.String,
-  /** Which machine it goes to — {@link ../../agent.ts} computes it where the
-   *  payload is read, because the question a person is answering is "who am I
-   *  about to hand this to" and a browser's URL parser is not the authority on
-   *  a string the agent sent. */
-  host: Schema.String,
-  /** The agent's own message, which for a device-code sign-in carries the code
-   *  to type into the page. */
-  message: Schema.String,
-  /** The agent has said the elicitation is complete. The row stays until the
-   *  sign-in itself answers, so what a person sees in between is "finished at
-   *  the page, waiting for the agent" rather than the card silently vanishing. */
-  done: Schema.Boolean,
-})
-export type SignInLink = typeof SignInLink.Type
-
-/**
- * A SIGN-IN THE PANEL IS OFFERING OR RUNNING.
- *
- * THREE ARMS, and each is a different thing a person can do something about:
- *
- *   - `choosing` — nothing is running and there is a method to pick. The panel
- *     shows one button per {@link AuthMethod} the agent advertised, and this arm
- *     is also what puts a sign-in on screen at all: it is what `/login` asks for,
- *     and what the panel falls into when an agent refuses something because
- *     nobody is signed in.
- *   - `terminal` — a method this PANEL runs ({@link AuthMethod}'s own note). The
- *     row is the process: its output so far, verbatim and clickable, one input
- *     line that writes to its stdin, and a way out. Exit 0 is the end of it —
- *     the row goes and the panel reopens the conversation — and anything else
- *     leaves the output on screen AS the failure, because for a CLI sign-in the
- *     output is what a person needs to read.
- *   - `agent` — a method the AGENT runs. There is no process and no stdin: there
- *     is a page ({@link SignInLink}) while the agent waits on it, and then
- *     whatever the agent answers.
- *
- * `why` is the OTHER way an attempt ends — it could not be started, or the agent
- * refused it — and it is a sentence rather than a code because the two arms
- * would otherwise say it in two vocabularies. An arm with `why` set is finished
- * and failed; a `terminal` arm with `running: false` and a `code` is finished
- * and failed for the reason the output says.
- */
-export const SignIn = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("choosing") }),
-  Schema.Struct({
-    kind: Schema.Literal("terminal"),
-    /** Which method this is running — the id a button was pressed with. */
-    method: Schema.String,
-    /** ... and what to call it, out of the same advertisement. */
-    label: Schema.String,
-    /** Everything the process has said, stdout and stderr interleaved as they
-     *  arrived, oldest first and capped at the tail. */
-    output: Schema.String,
-    running: Schema.Boolean,
-    /** How it ended, once it has: the process's own exit code, or `null` when it
-     *  was signalled. */
-    code: Schema.NullOr(Schema.Int),
-    why: Schema.NullOr(Schema.String),
-  }),
-  Schema.Struct({
-    kind: Schema.Literal("agent"),
-    method: Schema.String,
-    label: Schema.String,
-    link: Schema.NullOr(SignInLink),
-    why: Schema.NullOr(Schema.String),
-  }),
-])
-export type SignIn = typeof SignIn.Type
-
-/**
  * WHO the panel is talking to — or that it is waiting to be told which.
  *
  * ONE MEMBER RATHER THAN THREE, and that is the shape carrying the rule instead
@@ -1535,7 +1161,7 @@ export const Talking = Schema.Union([
     queues: Schema.Boolean,
     /**
      * HOW TO SIGN IN, when the agent offers a way at all — the handshake's
-     * `authMethods`, in the panel's spelling ({@link AuthMethod}).
+     * `authMethods`, as `@kolu/acp/wire` spells it ({@link AuthMethod}).
      *
      * ON THE AGENT for the reason the two flags above are: it is something
      * THIS AGENT said about ITSELF at the handshake, it is true for as long as
@@ -1573,189 +1199,35 @@ export const agentIn = (
 ): Extract<Talking, { kind: "agent" }> | null =>
   state.talking?.kind === "agent" ? state.talking : null
 
-/** A slash command the agent offers, as the input's completion draws it. */
-export const Command = Schema.Struct({
-  name: Schema.String,
-  description: Schema.String,
-})
-export type Command = typeof Command.Type
-
 /**
- * How an MCP server STANDS on this conversation — four answers, and which one
- * is true is decided by who said so.
+ * Whether this conversation does NOT have that server — the one question both
+ * MCP faces ask of a standing, and the reason it is a TOTAL SWITCH here rather
+ * than a list of the two words at each of them.
  *
- *   - `connected` — the AGENT reports it attached. The only arm resting on the
- *     agent's own word, and the only one that may be read as "these tools are
- *     actually reachable from the conversation".
- *   - `handed` — olai gave it to the session and nothing has said what became
- *     of it. The ordinary state on an agent that reports nothing per server
- *     (ACP's `session/new` answers with a session id and says no more), and
- *     the state every conversation is in until its agent has spoken.
- *   - `unattached` — olai handed it over and the agent says it did NOT attach.
- *     Its `why` is the agent's own word for it.
- *   - `missing` — olai could not hand it over at all, because its own probe
- *     said no. `why` is that probe's sentence, carried WHOLE — the whole of
- *     `mcp-fail-visible` (`../../plugins/chat/src/probes.ts` asks; the plugin whose
- *     tool it is writes the words).
- *
- * POSITIVE RECOGNITION, which is the rule the legs already read permissions by
- * (`@kolu/acp`'s `./engine` door, where the `Leg` shape lives): `connected` is claimed only where an agent
- * said that word, and every other word it could send falls to `unattached`.
- * A tick on this panel is one somebody asserted, never one inferred from
- * silence — the losing direction being an agent whose servers are all fine
- * drawn as merely handed, which is what every conversation looked like before
- * this member existed.
- *
- * A UNION AND NOT A LABEL BESIDE A NULLABLE REASON, which is the shape this
- * shipped in for a day and is the one thing about it worth a paragraph. `why`
- * is grounded by the standing and by nothing else — the two arms that mean
- * "this conversation does not have it" carry one and the two that do not,
- * cannot. Written flat, each field reads honestly alone and the lie lives in
- * the pair: `{ standing: "missing", why: null }` is constructible and renders
- * as a failure with no reason, which is precisely the log line
- * `mcp-fail-visible` exists to stop putting on screen — and the panel promptly
- * grew a `why !== null` filter, deriving the standing back out of the field
- * that depends on it. Discriminated, both are type errors. {@link whyNot} is
- * the one read that turns it back into a sentence.
+ * `@kolu/acp/wire`'s {@link Server} carries the standing as one of four words
+ * and the sentence beside it as `said`, so turning a standing back into prose
+ * takes no helper any more — the field IS the prose. What a reader still
+ * cannot get off the word alone is which rows belong under the roster as
+ * failures, and a fifth standing must SAY which side it is on: one that
+ * carried a sentence meaning something other than "not here" would otherwise
+ * route itself into the failure list, and one that meant "not here" without a
+ * sentence would vanish from it. Neither is a type error under a `said !==
+ * null` test; both are here.
  */
-export const ServerStanding = Schema.Union([
-  /** The agent itself reports it attached. */
-  Schema.Struct({ kind: Schema.Literal("connected") }),
-  /** Olai gave it to the session and nothing has said what became of it. */
-  Schema.Struct({ kind: Schema.Literal("handed") }),
-  /** Olai handed it over and the agent says it did NOT attach. */
-  Schema.Struct({
-    kind: Schema.Literal("unattached"),
-    /** The agent's own word for it. */
-    why: Schema.String,
-  }),
-  /** Olai could not hand it over at all, because its own probe said no. */
-  Schema.Struct({
-    kind: Schema.Literal("missing"),
-    /** The probe's or the server's own sentence. */
-    why: Schema.String,
-  }),
-])
-export type ServerStanding = typeof ServerStanding.Type
-
-/**
- * An MCP server this conversation has, and how it stands.
- *
- * `mcp-roster-visible` on the wire, and `mcp-fail-visible`'s `MissingServer`
- * with the healthy majority of its own subject put back in. #140 published the
- * FAILURES and deliberately nothing else, on the argument that a working
- * conversation is owed no sentence. The incident that filed THIS one is the
- * other half of that argument arriving: somebody asked an agent which MCP
- * servers it had, and it answered wrong — opencode listed olai and deepwiki,
- * omitted kolu, and then called `kolu_lifecycle_create` perfectly. "Which
- * servers does this conversation have?" is a question people actually ask, and
- * a panel that answers it only when something is broken leaves the MODEL to
- * answer it the rest of the time, out of a context that never contained the
- * answer.
- *
- * ONE MEMBER FOR ALL FOUR STANDINGS rather than a healthy list beside the
- * broken one. A roster split in two is two lists to read in the right order to
- * learn one thing, and the split would fall exactly where the interesting
- * question is: whether the server named on the healthy list is the one the
- * agent could not reach.
- *
- * The standing's `why` is the SERVER'S OWN SENTENCE wherever there is one — a
- * JSON-RPC error message, an exec failure's reason, the agent's own status word
- * — with the probe's framing around it and nothing invented. That is the
- * field's whole value: "it did not attach" names the symptom every failure
- * shares and is the one thing that never helped anybody, and the ways of
- * failing a probe want different things done about them. Which is why no
- * general package composes this sentence: the words are the plugin's whose
- * tool would not answer (`../../plugin-kolu/src/probe.ts` is the one that
- * exists), and chat and this wire carry them through untouched.
- *
- * `where` is where the server IS: the absolute file that was probed or would
- * be spawned, or the URL of one reached over http. It is here because the
- * incident #140 comes from was a question about WHICH binary: a `kolu` on PATH
- * is not necessarily the host's kolu, a padi-spawned terminal prepends its own
- * bundled copy, and one of those was an older build that spawned perfectly and
- * knew nothing (juspay/kolu#2146). A reason without the path leaves the reader
- * where the incident started.
- *
- * `null` is the one failure that never reached a file, and it is the reason
- * that field is nullable at all: an environment that names a padi with no
- * `kolu` on PATH to reach it (`../../plugin-kolu/src/probe.ts`). #140 shipped `where`
- * required on the argument that a server olai can find is one it found on PATH
- * — true of every reason that comes back from a spawn, and not of the one that
- * never got to spawn anything. The absence IS the finding there, so it is spelt
- * as one rather than as a sentinel path that is not a path.
- *
- * A server that is simply NOT INSTALLED is on no arm of this. Nothing failed on
- * a host that is not running kolu, and a roster row reporting an absence as a
- * fault is a row a reader learns to ignore — which is the same mistake as
- * saying nothing, arrived at from the other side.
- */
-export const ChatServer = Schema.Struct({
-  /** What it is called — the same name the session was given it under, which
-   *  is the name the agent's own tools carry. */
-  name: Schema.String,
-  /** Where it is: the executable that was probed or would be spawned,
-   *  absolute, or the URL of one reached over http — and `null` when the
-   *  failure was that there was nothing to probe. */
-  where: Schema.NullOr(Schema.String),
-  /** How it stands, and — on the two arms that have one — why not. See
-   *  {@link ServerStanding}. */
-  standing: ServerStanding,
-  /** Where in this app a person can see what the server works on — an app
-   *  address its plugin named on the probe (`Probed.at`), drawn as a link on
-   *  the chip. Absent for a server with nothing to look at; chat never learns
-   *  what the address shows. */
-  at: Schema.optional(Schema.String),
-})
-export type ChatServer = typeof ChatServer.Type
-
-/**
- * Why this conversation does not have that server, or `null` for one nothing
- * has been said against.
- *
- * The one read that turns {@link ServerStanding} back into a sentence, and it
- * is here rather than at the two call sites because it is the ONLY question
- * asked of the union that both of them ask: which rows get prose under the
- * roster, and what that prose says. Which ARM a row is on stays a `switch` at
- * the call site — that is the question the union exists to make total, and a
- * helper per arm would be a second vocabulary over a closed one.
- */
-export const whyNot = (server: ChatServer): string | null => {
-  // A TOTAL SWITCH and not `"why" in standing`, which is the same reading with
-  // the exhaustiveness taken out. This answer is what the panel filters on to
-  // decide which rows get a sentence under the roster, so a fifth standing must
-  // SAY whether it is one of those — an arm that carried a reason meaning
-  // something other than "not here" would otherwise route itself into the
-  // failure list, and one that meant "not here" without a reason would vanish
-  // from it. Neither is a type error under the `in` check; both are here.
-  switch (server.standing.kind) {
+export const notHere = (server: Server): boolean => {
+  switch (server.standing) {
     case "connected":
     case "handed":
-      return null
+      return false
     case "unattached":
     case "missing":
-      return server.standing.why
+      return true
   }
 }
 
 /**
- * Whether two standings say the same thing.
- *
- * DERIVED from the schema, exactly as `@olai/format`'s `sameGit` and
- * `samePending` are, and for their reason: written out by hand it would be a
- * field comparison beside the declaration of those same fields, and a field
- * added to an arm would simply not be compared. What that costs here is a frame
- * that is NEVER SENT — `olai-plugin-chat`'s roster asks this to decide whether an
- * agent's report moved anything, so an equality that missed a field would leave
- * the panel drawing the standing before last, silently, because a roster
- * written and not published looks exactly like a roster nothing changed.
- */
-export const sameStanding: (a: ServerStanding, b: ServerStanding) => boolean = Schema
-  .toEquivalence(ServerStanding)
-
-/**
  * THE CHAT IS NOT IN THIS ENGINE'S STORE — read off ACP's `-32002` answered to
- * a `session/load` (`../agent.ts`'s `missingOf`) and never off the sentence
+ * a `session/load` (`@kolu/acp-client`'s `agent.ts`'s `missingOf`) and never off the sentence
  * around it.
  *
  * Olai's own vocabulary, one layer up from the protocol's number and one layer
@@ -1792,7 +1264,7 @@ export type UnopenedCause = typeof UnopenedCause.Type
  * answered, so it is running and the header says so; what failed is a
  * conversation, and a panel that folded that into `gone` would be reporting a
  * dead process because a live one said no — which is exactly the confusion the
- * three-valued `Gone` (`../../plugins/chat/src/agent.ts`) exists to end, met again one
+ * three-valued `Gone` (`@kolu/acp-client`'s `agent.ts`) exists to end, met again one
  * layer up. `booting` cannot carry it either: this is a state that has SETTLED,
  * and it settles until somebody presses something.
  *
@@ -1879,7 +1351,10 @@ export type OffBecause = typeof OffBecause.Type
  * composer needs to know about whether it may send.
  */
 export const ChatState = Schema.Struct({
-  settings: Schema.Array(SessionSetting),
+  /** Every control the agent advertises, in its own order with the MODEL ROW
+   *  FIRST — `@kolu/acp/wire`'s {@link Setting}, which is how the picker knows
+   *  which row is the model without a second list beside this one. */
+  settings: Schema.Array(Setting),
   plan: Schema.Array(PlanStep),
   /**
    * What the one session is doing.
@@ -2045,7 +1520,7 @@ export const ChatState = Schema.Struct({
    * fact in a second place, free to disagree with the row a person is reading.
    *
    * WHICH ROWS COUNT is {@link isTaskOut}'s and {@link isAgentOut}'s, and the
-   * ORDER those two are asked in is {@link Watched}'s: a call can be both — an
+   * ORDER those two are asked in is {@link ../watching.ts}'s: a call can be both — an
    * asynchronous `Agent` launch arms a harness task as well as sending somebody
    * out — and the agent wins, so a row reaches this list once and reaches it as
    * the more specific thing. Written as two independent pushes it would reach
@@ -2139,7 +1614,7 @@ export const ChatState = Schema.Struct({
   unopened: Schema.NullOr(Unopened),
   /**
    * The MCP servers this conversation has, and how each one stands — see
-   * {@link ChatServer}.
+   * `@kolu/acp/wire`'s {@link Server}.
    *
    * On the CELL rather than in the transcript, and that is the decision: this
    * is a standing property of the conversation, like the model it runs on and
@@ -2166,7 +1641,7 @@ export const ChatState = Schema.Struct({
    * panel says "plus the agent's own" instead of pretending this list is the
    * whole of what the conversation can reach.
    */
-  servers: Schema.Array(ChatServer),
+  servers: Schema.Array(Server),
   /**
    * WHAT THIS CONVERSATION WAKES ON — one row per plugin whose doorbell a
    * person pointed at a file, and how many of its sentences this end is holding.

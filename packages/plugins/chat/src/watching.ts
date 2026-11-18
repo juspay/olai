@@ -18,7 +18,8 @@
  * is a strip that goes on drawing something that has stopped being true.
  */
 
-import { type ChatEntry, isAgentOut, isTaskOut, outSince, sentToDo, type Watching } from "olai-plugin-chat/wire"
+import { type ChatEntry, isAgentOut, isTaskOut, outSince, sentToDo } from "olai-plugin-chat/wire"
+import type { Watching } from "@kolu/acp/wire"
 /**
  * The background tasks this conversation armed and the agents it sent, read off
  * the ROWS rather than tallied beside them — {@link ./chat.ts}'s `asking` makes
@@ -34,10 +35,10 @@ import { type ChatEntry, isAgentOut, isTaskOut, outSince, sentToDo, type Watchin
  * out — and a count above zero is a clock ticking in every open tab.
  *
  * THE AGENT WINS when a row is both, which an asynchronous `Agent` launch is:
- * it arms a harness task as well as sending somebody out. The precedence is the
- * surface's ({@link Watched}) and is spelled here as an ORDER OF TESTS rather
- * than as two pushes — a row can only be on this strip once, and the strip is
- * the door to a subagent's calls, which a task has nothing behind.
+ * it arms a harness task as well as sending somebody out. The precedence is
+ * spelled here as an ORDER OF TESTS rather than as two pushes — a row can only
+ * be on this strip once, and the strip is the door to a subagent's calls,
+ * which a task has nothing behind.
  */
 export const watching = (
   entries: ReadonlyMap<string, ChatEntry>,

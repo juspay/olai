@@ -15,6 +15,7 @@
 import { describe, expect, test } from "bun:test"
 
 import { armedOf, endedOf, stillOf, watchOf } from "./background.ts"
+import { armedTask } from "../../outings.testlib.ts"
 import { toolRow as row } from "./rows.testlib.ts"
 
 describe("which rows left something running", () => {
@@ -41,7 +42,7 @@ describe("what it is watching", () => {
       watchOf(row({
         text: "Monitor",
         status: "in_progress",
-        armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+        armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch" }),
       })),
     ).toBe("kolu fleet watch")
   })
@@ -51,7 +52,7 @@ describe("what it is watching", () => {
     // kind still started somebody, so *agent* is true and worth drawing. A task
     // nobody described has nothing to add to the row's own title, and a chip
     // reading "background task" beside a title reading `Monitor` is furniture.
-    expect(watchOf(row({ text: "Monitor", armed: { task: "bu13xz2ie" } }))).toBeNull()
+    expect(watchOf(row({ text: "Monitor", armed: armedTask({ task: "bu13xz2ie" }) }))).toBeNull()
   })
 
   test("... and goes on saying it after the task has died", () => {
@@ -60,7 +61,7 @@ describe("what it is watching", () => {
     expect(
       watchOf(row({
         status: "failed",
-        armed: { task: "bu13xz2ie", description: "kolu fleet watch", ended: "killed" },
+        armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch", ended: "killed" }),
       })),
     ).toBe("kolu fleet watch")
   })
@@ -71,7 +72,7 @@ describe("whether it is still out there", () => {
     expect(
       stillOf(row({
         status: "in_progress",
-        armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+        armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch" }),
       })),
     ).toBe("Still running…")
   })
@@ -83,13 +84,13 @@ describe("whether it is still out there", () => {
     expect(
       stillOf(row({
         status: "failed",
-        armed: { task: "bu13xz2ie", description: "kolu fleet watch", ended: "stopped" },
+        armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch", ended: "stopped" }),
       })),
     ).toBeNull()
     expect(
       stillOf(row({
         status: "completed",
-        armed: { task: "bu13xz2ie", ended: "completed" },
+        armed: armedTask({ task: "bu13xz2ie", ended: "completed" }),
       })),
     ).toBeNull()
   })
@@ -104,7 +105,7 @@ describe("whether it is still out there", () => {
       stillOf(row({
         status: "in_progress",
         stranded: true,
-        armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+        armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch" }),
       })),
     ).toBeNull()
   })
@@ -113,7 +114,7 @@ describe("whether it is still out there", () => {
     // `pending` is what the adapter announces every call with, so it is a
     // running state rather than a case to fall through — the same reading the
     // rail under a spawn makes, from the same module.
-    expect(stillOf(row({ status: "pending", armed: { task: "t1" } }))).toBe("Still running…")
+    expect(stillOf(row({ status: "pending", armed: armedTask({ task: "t1" }) }))).toBe("Still running…")
   })
 })
 
@@ -124,12 +125,12 @@ describe("how it ended", () => {
     // monitor somebody STOPPED did not fail, and this is the row a person
     // reads to find out what happened to their watch.
     for (const ended of ["completed", "failed", "killed", "stopped"]) {
-      expect(endedOf(row({ status: "failed", armed: { task: "t1", ended } }))).toBe(ended)
+      expect(endedOf(row({ status: "failed", armed: armedTask({ task: "t1", ended }) }))).toBe(ended)
     }
   })
 
   test("nothing at all while it is still running", () => {
     // Which is what makes the presence of this readout the death itself.
-    expect(endedOf(row({ status: "in_progress", armed: { task: "t1" } }))).toBeNull()
+    expect(endedOf(row({ status: "in_progress", armed: armedTask({ task: "t1" }) }))).toBeNull()
   })
 })

@@ -43,18 +43,24 @@ afterEach(() => {
 
 type Run = <A, E>(effect: Effect.Effect<A, E>) => Promise<A>
 
-/** NO PROBES, said by omitting them ({@link ./agent.ts}'s `Options.probes`).
+/** NO PROBES, said by omitting them (`@kolu/acp-client`'s `agent.ts`'s `Options.probes`).
  *  These tests are about the journal, and an agent with an empty list asks this
  *  machine nothing on the way into a session. It used to be said by emptying
  *  `PATH` and unsetting a daemon's socket variable in a `beforeEach` — a test
  *  reaching into the process to silence a dependency it could not name. */
+
+/** One turn of plain words, in the BLOCKS a prompt is made of
+ *  (`@kolu/acp-client`'s `Agent.prompt`) — every case here sends text and
+ *  nothing else, and spelling the block at each of them would be the same
+ *  wrapper fifteen times. */
+const words = (text: string) => [{ type: "text" as const, text }]
 const options = () => ({
   id: "opencode" as const,
   leg: QUEUES,
   command: process.execPath,
   args: [FIXTURE],
   cwd,
-  tools: () => null,
+  tools: () => [],
   memory: REMEMBERS_NOTHING,
   onEvent: () => {},
 })
@@ -96,7 +102,7 @@ describe("chat lifecycle lines", () => {
     const secret = "do not put this in the journal"
     const said = await withAgent("Info", async (agent, run) => {
       await run(agent.boot)
-      await run(agent.prompt(secret))
+      await run(agent.prompt(words(secret)))
     })
 
     const spawned = findSaid(said, "chat agent ready")
@@ -154,7 +160,7 @@ describe("chat lifecycle lines", () => {
   test("a failed turn is WARN with the error verbatim, and the agent's stderr with it", async () => {
     const said = await withAgent("Info", async (agent, run) => {
       await run(agent.boot)
-      const outcome = await run(Effect.result(agent.prompt("fail")))
+      const outcome = await run(Effect.result(agent.prompt(words("fail"))))
       expect(outcome._tag).toBe("Failure")
       await Effect.runPromise(Effect.sleep("40 millis"))
     })
@@ -180,7 +186,7 @@ describe("chat lifecycle lines", () => {
     expect(Buffer.byteLength(text)).toBe(5)
     const said = await withAgent("Info", async (agent, run) => {
       await run(agent.boot)
-      await run(agent.prompt(text))
+      await run(agent.prompt(words(text)))
     })
     expect(findSaid(said, "prompt sent")?.annotations.bytes).toBe(5)
     expect(JSON.stringify(findSaid(said, "prompt sent")?.annotations)).not.toContain("café")
@@ -189,8 +195,8 @@ describe("chat lifecycle lines", () => {
   test("a failed turn still dumps stderr after the 32KB cap has bitten", async () => {
     const said = await withAgent("Info", async (agent, run) => {
       await run(agent.boot)
-      await run(agent.prompt("pad"))
-      const outcome = await run(Effect.result(agent.prompt("fail")))
+      await run(agent.prompt(words("pad")))
+      const outcome = await run(Effect.result(agent.prompt(words("fail"))))
       expect(outcome._tag).toBe("Failure")
       await Effect.runPromise(Effect.sleep("40 millis"))
     })
@@ -202,7 +208,7 @@ describe("chat lifecycle lines", () => {
   test("a crash while a session is open logs the exit code", async () => {
     const said = await withAgent("Info", async (agent, run, lines) => {
       await run(agent.boot)
-      await run(Effect.result(agent.prompt("crash")))
+      await run(Effect.result(agent.prompt(words("crash"))))
       // Wait HERE, before stop() nulls the session the exit handler reads.
       const deadline = Date.now() + 2_000
       while (Date.now() < deadline && findSaid(lines, "chat agent exited") === undefined) {
@@ -407,7 +413,7 @@ test("actual MCP reports update the roster and warn once, fenced to this session
   }))
   try {
     await run(agent.boot)
-    await run(agent.prompt("mcp-report"))
+    await run(agent.prompt(words("mcp-report")))
     const deadline = Date.now() + 2000
     while (!findSaid(said, "MCP server connection problem") && Date.now() < deadline) {
       await run(Effect.sleep("10 millis"))
@@ -415,17 +421,20 @@ test("actual MCP reports update the roster and warn once, fenced to this session
     expect(reportsRead).toBe(2) // The other session never reaches the leg.
     expect(rosters).toHaveLength(2) // Handed, then failed; duplicate report changes nothing.
     expect(rosters[1]).toEqual([{ name: "optional", where: "/optional",
-      standing: { kind: "unattached", why: "the agent did not attach it: connection refused" } }])
+      standing: "unattached", said: "connection refused" }])
     const warnings = said.filter((line) => line.message.includes("MCP server connection problem"))
     expect(warnings).toHaveLength(1)
+    // THE AGENT'S OWN WORD, carried whole and unwrapped
+    // (`@kolu/acp/wire`'s `Server`). The sentence a person reads around it is
+    // the panel's (`browser/chat/Missing.tsx`'s `reasonOf`), not the client's.
     expect(warnings[0]).toMatchObject({ level: "Warn", annotations: {
       agent: "opencode", session: "sess-1", server: "optional",
-      reason: "the agent did not attach it: connection refused",
+      reason: "connection refused",
     } })
   } finally { await run(agent.stop) }
 })
 
-test("an absent catalogue leaves raw titles and never reads the reply", async () => {
+test("an absent catalogue leaves raw titles and files no reply on the row", async () => {
   const events: AgentEvent[] = []
   let reads = 0
   const agent = await Effect.runPromise(make({ ...options(),
@@ -434,12 +443,17 @@ test("an absent catalogue leaves raw titles and never reads the reply", async ()
   }))
   try {
     await Effect.runPromise(agent.boot)
-    await Effect.runPromise(agent.prompt("display-tool"))
+    await Effect.runPromise(agent.prompt(words("display-tool")))
     const frames = events.filter(event => event._tag === "tool")
     expect(frames.length).toBe(2)
     expect(frames[0]?.title).toBe("engine_tool")
     expect(frames.every(frame => frame.row === undefined && frame.reply === undefined)).toBe(true)
-    expect(reads).toBe(0)
+    // THE ROW is what an absent catalogue decides: no owner, and no reply
+    // filed under it. The leg is still asked for the call's ANSWER, which is
+    // the event's own field now (`@kolu/acp-client`'s `tool` event's
+    // `answer`) and is read for every frame whether olai advertises the tool
+    // or not — olai draws none of it.
+    expect(reads).toBe(frames.length)
   } finally { await Effect.runPromise(agent.stop) }
 })
 
@@ -454,7 +468,7 @@ test.each([false, true])("completion uses remembered identity with late catalogu
   }))
   try {
     await Effect.runPromise(agent.boot)
-    await Effect.runPromise(agent.prompt("display-tool"))
+    await Effect.runPromise(agent.prompt(words("display-tool")))
     const frames = events.filter(event => event._tag === "tool")
     expect(lookups).toBe(2)
     expect(frames[0]?.title).toBe(late ? "engine_tool" : "Read a node")

@@ -36,7 +36,7 @@
  *   - {@link Overheard.superseded} — the conversation that replaced this one,
  *     as the FULL PAIR `{agent, session}`, WHERE OLAI ITSELF DID THE
  *     REPLACING. The adapter reports a `/clear` in its own corner of
- *     `session/list` ({@link ./events.ts}'s `Stored`) and says nothing about
+ *     `session/list` (`@kolu/acp-client`'s `events.ts`'s `Stored`) and says nothing about
  *     a re-pointing olai made, so without this a node agent's own previous
  *     session would come back as a conversation nobody claims
  *     ({@link ./succession.ts}). It names the pair because fresh start may

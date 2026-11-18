@@ -11,6 +11,7 @@
 
 import { describe, expect, test } from "bun:test"
 
+import { sentAgent } from "../../outings.testlib.ts"
 import { toolRow as row } from "./rows.testlib.ts"
 import { doingOf, sentOf, whoOf } from "./spawn.ts"
 
@@ -34,23 +35,23 @@ describe("which rows sent somebody", () => {
 
 describe("who was sent", () => {
   test("the kind of agent, in the agent's own word", () => {
-    expect(whoOf(row({ spawned: { kind: "Explore" } }))).toBe("Explore")
+    expect(whoOf(row({ spawned: sentAgent({ kind: "Explore" }) }))).toBe("Explore")
     // Not rounded to anything this panel has heard of — a name nobody here
     // knows is still the name somebody started.
-    expect(whoOf(row({ spawned: { kind: "roadmap-auditor" } }))).toBe("roadmap-auditor")
+    expect(whoOf(row({ spawned: sentAgent({ kind: "roadmap-auditor" }) }))).toBe("roadmap-auditor")
   })
 
   test("a spawn that named no kind still says somebody was sent", () => {
     // Naming a kind is optional in the tool that starts an agent, so this is
     // an ordinary spawn rather than a broken one — and a row saying nothing
     // where every other spawn says something reads as a row that failed.
-    expect(whoOf(row({ spawned: {} }))).toBe("Agent")
+    expect(whoOf(row({ spawned: sentAgent() }))).toBe("Agent")
   })
 
   test("... and goes on saying it after the agent has reported back", () => {
     // The row is the record of an agent having been sent out, which does not
     // stop being true when it comes back.
-    expect(whoOf(row({ spawned: { kind: "Explore" }, status: "completed" })))
+    expect(whoOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "completed" })))
       .toBe("Explore")
   })
 })
@@ -63,19 +64,19 @@ describe("whether it is still going", () => {
     // made it wrong is the `pending` case: a heartbeat can be half a minute
     // away, so a subagent whose calls were already drawn in the lane below
     // this rail went on being described as *starting…* while they arrived.
-    expect(doingOf(row({ spawned: { kind: "Explore" } }))).toBe("Working…")
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "pending" })))
+    expect(doingOf(row({ spawned: sentAgent({ kind: "Explore" }) }))).toBe("Working…")
+    expect(doingOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "pending" })))
       .toBe("Working…")
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "in_progress" })))
+    expect(doingOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "in_progress" })))
       .toBe("Working…")
   })
 
   test("a spawn that has stopped has nothing live left to say", () => {
     // The half that has to come OFF: a rail still saying "working…" under a
     // finished call tells a reader a fan-out is running when the turn is over.
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "completed" })))
+    expect(doingOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "completed" })))
       .toBeNull()
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "failed" })))
+    expect(doingOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "failed" })))
       .toBeNull()
   })
 
@@ -90,14 +91,14 @@ describe("whether it is still going", () => {
     // The server marks what its turns abandoned, so this is the ROW's answer
     // rather than a conversation-wide one — which is what makes it survive the
     // next thing anybody sends (`./running.ts`).
-    expect(doingOf(row({ spawned: { kind: "Explore" }, status: "pending", stranded: true })))
+    expect(doingOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "pending", stranded: true })))
       .toBeNull()
     expect(
-      doingOf(row({ spawned: { kind: "Explore" }, status: "in_progress", stranded: true })),
+      doingOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "in_progress", stranded: true })),
     ).toBeNull()
     // ... and who it was is still said, because that is a fact about what
     // happened rather than about what is happening.
-    expect(whoOf(row({ spawned: { kind: "Explore" }, status: "pending", stranded: true })))
+    expect(whoOf(row({ spawned: sentAgent({ kind: "Explore" }), status: "pending", stranded: true })))
       .toBe("Explore")
   })
 })
@@ -125,7 +126,7 @@ describe("what an agent was sent to do", () => {
   })
 
   test("a spawn answers with its description, not with the tool's name", () => {
-    expect(sentOf(row({ text: "Task", spawned: { said: "read every note" } })))
+    expect(sentOf(row({ text: "Task", spawned: sentAgent({ said: "read every note" }) })))
       .toBe("read every note")
     // The kind is a different question and does not stand in for this one: an
     // agent's KIND is `Explore`, and four `Explore`s tell you nothing either.
@@ -137,8 +138,8 @@ describe("what an agent was sent to do", () => {
     // The honest fallback: it is exactly what a reader sees on that row. The
     // arguments arrive across frames, so a spawn is briefly one of these even
     // when it does end up describing itself.
-    expect(sentOf(row({ text: "Task", spawned: {} }))).toBe("Task")
-    expect(sentOf(row({ text: "read every note", spawned: { kind: "Explore" } })))
+    expect(sentOf(row({ text: "Task", spawned: sentAgent() }))).toBe("Task")
+    expect(sentOf(row({ text: "read every note", spawned: sentAgent({ kind: "Explore" }) })))
       .toBe("read every note")
   })
 })

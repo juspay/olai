@@ -31,14 +31,15 @@
  * They want different things done about them, which is why the words differ.
  */
 
-import { type ChatServer, whyNot } from "olai-plugin-chat/wire"
+import { notHere } from "olai-plugin-chat/wire"
+import type { Server } from "@kolu/acp/wire"
 import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../../testids.ts"
 import { Tip } from "@olai/web/client/Tip.tsx"
 import { SAID } from "./standing.ts"
 
-export function Missing(props: { readonly servers: ReadonlyArray<ChatServer> }) {
+export function Missing(props: { readonly servers: ReadonlyArray<Server> }) {
   /**
    * The rows this component is about, picked out of the whole roster.
    *
@@ -47,17 +48,17 @@ export function Missing(props: { readonly servers: ReadonlyArray<ChatServer> }) 
    * that pre-filtered would be the rule living one file away from the thing it
    * is about, and the component could not be read alone.
    *
-   * Asked as "is there a reason?" rather than by listing the two standings that
-   * have one: `whyNot` is a TOTAL switch over the union
-   * (`../../../../surface/src/chat.ts`), so a fifth standing has to answer the
-   * question rather than quietly not match a list here.
+   * Asked as "is this server not here?" rather than by listing the two
+   * standings that mean it: `notHere` is a TOTAL switch over the four words
+   * (`olai-plugin-chat/wire`), so a fifth standing has to answer the question
+   * rather than quietly not match a list here.
    *
    * MEMOIZED, which is the difference between one filter per change and two
    * fresh arrays per read: `<Show>` reads it and `<For>` reads it, and a fresh
    * array on the second read is one `mapArray` can never skip — throwing away
    * exactly what the cell's `arrayKey: "name"` identity declaration buys.
    */
-  const absent = createMemo(() => props.servers.filter((server) => whyNot(server) !== null))
+  const absent = createMemo(() => props.servers.filter(notHere))
   return (
     <Show when={absent().length > 0}>
       <div class="mt-1 space-y-1" data-testid={TESTID.chatMissing}>
@@ -67,9 +68,31 @@ export function Missing(props: { readonly servers: ReadonlyArray<ChatServer> }) 
   )
 }
 
+/**
+ * WHAT TO PUT UNDER THE NAME — the sentence a person reads about a server
+ * this conversation does not have.
+ *
+ * A `missing` row's words are the PROBE'S and are already a sentence, written
+ * by the plugin whose tool would not answer, and they are carried through
+ * untouched: no template here takes a noun from anybody.
+ *
+ * An `unattached` row's words are the AGENT'S and are a WORD — `needs-auth`,
+ * `failed` — because the client quotes what the agent said rather than
+ * wrapping it (`@kolu/acp/wire`'s `Server`, whose `said` is the agent's own).
+ * A word alone under a server's name reads as a tag rather than as an answer,
+ * so the framing is this panel's: the client carries the fact and the panel
+ * words it, which is the same division `./standing.ts` keeps one line up.
+ */
+const reasonOf = (server: Server): string | null =>
+  server.said === null
+    ? null
+    : server.standing === "unattached"
+    ? `the agent did not attach it: ${server.said}`
+    : server.said
+
 /** One of them: what is not here, why not, and — when there was one — which
  *  file was asked. */
-function Row(props: { readonly server: ChatServer }) {
+function Row(props: { readonly server: Server }) {
   return (
     <div data-testid={TESTID.chatMissingServer} data-server={props.server.name}>
       <p class="flex items-baseline gap-1.5 text-ink">
@@ -79,16 +102,22 @@ function Row(props: { readonly server: ChatServer }) {
         />
         <span>
           <span class="font-semibold">{props.server.name}</span>{" "}
-          {SAID[props.server.standing.kind].sentence}
+          {SAID[props.server.standing].sentence}
         </span>
       </p>
       {/* The server's own words, and the reason this strip is worth its
           pixels. `break-words` because a reason can carry a socket path or an
           errno string, and a 26rem drawer is not wide enough to be trusted
-          with one. */}
-      <p class="break-words pl-3 text-muted" data-testid={TESTID.chatMissingWhy}>
-        {whyNot(props.server)}
-      </p>
+          with one. Absent when the agent or the probe said nothing at all —
+          an empty line under the name would be this panel implying a sentence
+          nobody wrote. */}
+      <Show when={reasonOf(props.server)}>
+        {(said) => (
+          <p class="break-words pl-3 text-muted" data-testid={TESTID.chatMissingWhy}>
+            {said()}
+          </p>
+        )}
+      </Show>
       {/* WHICH file was asked. The incident this whole feature comes from was
           exactly this question: a `kolu` on PATH is not necessarily the host's
           kolu, and a padi-spawned terminal prepends its own bundled copy. It

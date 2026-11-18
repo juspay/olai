@@ -9,7 +9,7 @@
  * collection and gets the conversation in its first frame.
  *
  * This file is the join, and it is the only place that knows both halves:
- * {@link ./agent.ts} speaks ACP and emits typed events; {@link ./transcript.ts}
+ * `@kolu/acp-client`'s `agent.ts` speaks ACP and emits typed events; {@link ./transcript.ts}
  * turns those into rows; the surface members below are how a browser sees them.
  * Nothing above knows an agent exists, and nothing below knows a browser does.
  *
@@ -91,9 +91,10 @@
  *     landed — so the whole path from browser to agent stays a string, and the
  *     one place that knows otherwise is the module that owns that directory.
  */
-import type { Advertised } from "@olai/plugin-api/services"
+import type { Advertised, ToolServer } from "@olai/plugin-api/services"
 
-import { type Attached, type AttachChunk, type AuthMethod, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type SignIn, type Talking } from "olai-plugin-chat/wire"
+import { type Attached, type AttachChunk, CHAT_OFF, type ChatEntry, type ChatState, type Wake, type NodeContext, type Listed, type Talking } from "olai-plugin-chat/wire"
+import type { AuthMethod, SignIn } from "@kolu/acp/wire"
 
 import { type OpFailure } from "@olai/format"
 import { type AskAnswer } from "@kolu/acp/wire"
@@ -192,10 +193,10 @@ export interface PanelOptions {
   /** The internal MCP server to hand the session, or nothing yet. A THUNK,
    *  because its address is not known until the listener has bound and the
    *  session is opened after that. */
-  readonly tools: () => AcpAgent.ToolServer | null
+  readonly tools: () => ToolServer | null
   /** The OPTIONAL servers to look for, once per conversation — whatever else
-   *  this host turns out to be running ({@link ./probes.ts}). A THUNK, and
-   *  carried through to {@link ./agent.ts} untouched: what is on the list is the
+   *  this host turns out to be running (`@kolu/acp-client`'s `probes.ts`). A THUNK, and
+   *  carried through to `@kolu/acp-client`'s `agent.ts` untouched: what is on the list is the
    *  composition root.s business, and so is WHEN the list is settled — a serve
    *  whose integrations are fibers answers a different list per conversation, so
    *  this side holds no copy of one. Omitting it is a chat that asks this
@@ -750,7 +751,7 @@ interface Teaching {
  *     arrives when a SESSION opens as readily as when a turn starts.
  *
  * A RECORD over the closed vocabulary rather than two sets, because
- * {@link ./events.ts} is closed on purpose and this is a question every member
+ * `@kolu/acp-client`'s `events.ts` is closed on purpose and this is a question every member
  * has to answer. Sets are opt-in: a member added later would default to
  * `neither` in silence, and the two ways that goes wrong are a turn accused of
  * silence for something it drew, and a silent turn nobody is told about. The
@@ -886,7 +887,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * READ IN TWO PLACES now, which is new and is the shape of the fact rather
      * than a duplication: this file reads the AGENT out of it, because which
      * subprocess to start is a question that comes before there is one to ask,
-     * and {@link ./agent.ts} reads the conversation and the model out of it,
+     * and `@kolu/acp-client`'s `agent.ts` reads the conversation and the model out of it,
      * because those are facts about a session only the thing holding one can
      * act on. One writer per field, and the write is the agent's.
      */
@@ -912,7 +913,21 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // variables to take away (`@kolu/acp/engine`'s `Adapter.unset`).
         unset: row.adapter.unset,
         cwd: options.cwd,
-        tools: options.tools,
+        // OLAI'S OWN SERVER FIRST, as the one entry the client is handed, and
+        // the probed ones after it (`@kolu/acp-client`'s `mcpServersOf`) — which
+        // is the order a person reads the roster in. The bearer line is
+        // composed HERE because it is olai's: the client carries the headers
+        // it was given rather than deciding how somebody else's route lets a
+        // caller in.
+        tools: () => {
+          const own = options.tools()
+          return own === null ? [] : [{
+            kind: "http" as const,
+            name: own.name,
+            url: own.url,
+            headers: { Authorization: `Bearer ${own.token}` },
+          }]
+        },
         probes: options.probes,
         advertised: options.advertised,
         memory,
@@ -1184,7 +1199,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * has arrived, rather than as it arrives.
      *
      * A `session/load` re-sends the whole conversation before it answers
-     * ({@link ./agent.ts}), and published as it came, every tab drew that
+     * (`@kolu/acp-client`'s `agent.ts`), and published as it came, every tab drew that
      * history a few rows a frame: a long conversation typed itself out again
      * and the pane followed it down the screen for seconds. Nobody is reading a
      * conversation that has not finished opening, so the rows are built here
@@ -1551,7 +1566,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
     }
 
     /** The agent's events, as rows and as state. The one place the vocabulary
-     *  of {@link ./events.ts} is consumed. */
+     *  of `@kolu/acp-client`'s `events.ts` is consumed. */
     const receive = (event: AgentEvent): void => {
       // How much this agent has said, ever, under BOTH readings of "said".
       // What every reader needs is not a count but a CHANGE — has anything
@@ -1911,7 +1926,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           trouble: null,
           // ... AND A SIGN-IN ROW ABOUT SOMEBODY ELSE GOES WITH IT. The attempt
           // it drew was the outgoing agent's, and that agent has just been
-          // stopped (`./agent.ts` kills a login with its scope) — so a row left
+          // stopped (`@kolu/acp-client`'s `agent.ts` kills a login with its scope) — so a row left
           // up would offer buttons on behalf of a process that no longer
           // exists, on the strength of an advertisement from another one.
           signIn: null,
@@ -2115,7 +2130,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * A PROBE ENTERS NO CONVERSATION and says nothing into this one. Its events
      * go nowhere — a replay from an agent nobody is talking to has no business
      * in the transcript on screen — and `sessions` is the one verb that brings
-     * up the process without opening a session ({@link ./agent.ts}'s
+     * up the process without opening a session (`@kolu/acp-client`'s `agent.ts`'s
      * `onProcess`), so nothing is entered and the directory's note is not
      * rewritten by a question about it.
      */
@@ -2426,7 +2441,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * ({@link ./transcript.ts}) and offers *send again*, because nothing
      * happened and asking again is honest.
      *
-     * The ROW's two faces are two where {@link ./agent.ts}'s `Gone` is three,
+     * The ROW's two faces are two where `@kolu/acp-client`'s `agent.ts`'s `Gone` is three,
      * and the fold is deliberate: those two arms differ in whether the agent is
      * still there, which is a fact about the CONVERSATION and not about these
      * words. A message that did not go did not go.
@@ -2439,7 +2454,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * missing is the certainty, not the message.
      *
      * The distinction is not made here and never was ours to make: it is
-     * {@link ./agent.ts}'s `Gone`, decided at the wire, where "did anything
+     * `@kolu/acp-client`'s `agent.ts`'s `Gone`, decided at the wire, where "did anything
      * answer" is a fact rather than a guess. This file used to infer it from a
      * comment.
      *
@@ -2649,7 +2664,13 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             if (turn.first !== undefined) {
               yield* Effect.ensuring(turn.first, Deferred.succeed(hailed, undefined))
             }
-            const outcome = yield* Effect.result(at.agent.prompt(prompt))
+            // ONE TEXT BLOCK, because that is what olai sends: a picture
+            // pasted into the composer is on disk before a turn starts and
+            // rides the prompt as its path, so the blocks a message is made
+            // of (`@kolu/acp-client`'s `Agent.prompt`) are always the one.
+            const outcome = yield* Effect.result(
+              at.agent.prompt([{ type: "text", text: prompt }]),
+            )
             // Whether this turn was the LAST one running. The notices go in
             // either way — they are things that happened, and they happened —
             // and only the state is withheld: a turn that ends while another is
@@ -3068,7 +3089,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * The refusal channel is the easy half and it was missing: `agent.cancel`
      * used to swallow the notification's own failure, so a cancel that could
      * not be put on the wire typed as a success. That is fixed at the source
-     * ({@link ./agent.ts}) and mapped here like every other verb's refusal.
+     * (`@kolu/acp-client`'s `agent.ts`) and mapped here like every other verb's refusal.
      *
      * It is not the half a person sees. A cancel is a NOTIFICATION: it is
      * written and never answered, and under Bun a pipe reports nothing back to
@@ -3207,7 +3228,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
 
     /**
      * WHICH CONVERSATION THE OPEN IN FLIGHT IS FOR, as the verb doing it said
-     * ({@link ./events.ts}'s `opening`) — `null` for one that picks its own.
+     * (`@kolu/acp-client`'s `events.ts`'s `opening`) — `null` for one that picks its own.
      *
      * Held rather than passed, because the two open paths could not both pass
      * it: a picker's load is given an id, and a BOOT adopts one nobody named.
@@ -3255,7 +3276,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       //
       // THE SERVERS GO, for `sessionOver`'s reason met from the other side. The
       // roster is composed and announced BEFORE `session/new` is asked — it is
-      // the very list that call is handed ({@link ./agent.ts}) — so an open
+      // the very list that call is handed (`@kolu/acp-client`'s `agent.ts`) — so an open
       // that comes back a NO leaves a strip answering "which servers does this
       // conversation have?" about a conversation that does not exist. Empty
       // means "there is no conversation" on this member
@@ -3264,8 +3285,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
       move({
         status: "idle",
         // ... AND THE ONE CLASSIFICATION A FACE MAY BRANCH ON, where the agent
-        // answered a `session/load` with ACP's `-32002` ({@link
-        // ./agent.ts}'s `missingOf`). `why` is still the agent's own sentence
+        // answered a `session/load` with ACP's `-32002` (`@kolu/acp-client`'s
+        // `agent.ts`'s `missingOf`). `why` is still the agent's own sentence
         // and still what is shown; this says that asking for the SAME
         // conversation again can only ever get the same answer, which is the
         // difference between a body with a retry on it and a body with a way
@@ -3305,7 +3326,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
      * has nothing to do with any process, while running a method is the agent
      * spawning one and reporting on it. So the first arm is a `move` and nothing
      * else, and the second is a fork — the attempt may last minutes, and what
-     * happens while it runs arrives as `signIn` events (`./agent.ts`).
+     * happens while it runs arrives as `signIn` events (`@kolu/acp-client`'s `agent.ts`).
      *
      * WHAT HAPPENS AT THE END is {@link signedIn}, and only on success: a failed
      * attempt leaves its own row on screen (the output IS the failure), and a
@@ -3424,7 +3445,8 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
         // ... AND A SIGN-IN GOES WITH THE PROCESS IT WAS ABOUT. The agent
         // stopped emitting anything when it died, so nothing else will ever
         // move this row — and buttons that press nothing are how somebody
-        // finds out. The attempt itself died with the subprocess (`./agent.ts`
+        // finds out. The attempt itself died with the subprocess
+        // (`@kolu/acp-client`'s `agent.ts`
         // kills a login with its scope).
         signIn: null,
       })
@@ -3460,7 +3482,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
           const outcome = yield* opening.withPermit(Effect.result(what))
           if (outcome._tag === "Failure") {
             // THE AGENT SAID NO, as against there being no agent to say it —
-            // `refused` and only `refused` ({@link ./agent.ts}'s `Gone`). It is
+            // `refused` and only `refused` (`@kolu/acp-client`'s `agent.ts`'s `Gone`). It is
             // running, it just will not open this; the panel says that rather
             // than reporting a dead process, and holds what it would take to
             // ask again.
@@ -3846,7 +3868,7 @@ export const makePanel = (options: PanelOptions): Effect.Effect<Panel, never, ne
             // WHAT IT WAS TRYING TO OPEN IS ON THE FACE HERE TOO, and this is
             // the arm that could never say it: a boot adopts its own
             // conversation, so nothing at this end was ever handed one to name.
-            // The verb says it instead ({@link ./events.ts}'s `opening`), which
+            // The verb says it instead (`@kolu/acp-client`'s `events.ts`'s `opening`), which
             // is why a boot's refusal now names the conversation AND the node
             // agent it belongs to — the trap this arm used to be the whole of.
             // Trying again is the boot itself, which is idempotent and re-opens.

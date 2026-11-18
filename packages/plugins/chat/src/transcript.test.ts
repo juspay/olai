@@ -11,6 +11,7 @@ import { ValidationFailure, verdictOf } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
 import { clock } from "./clock.testlib.ts"
+import { armedTask, sentAgent } from "./outings.testlib.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 
 /** The rows as a reader would see them: conversation order, which is `seq`. */
@@ -315,7 +316,7 @@ describe("tool calls", () => {
       detail: "{}",
       diffs: [{ path: "notes.md", oldText: "one", newText: "two" }],
       locations: ["notes.md:3"],
-      spawned: { kind: "Explore" },
+      spawned: sentAgent({ kind: "Explore" }),
     }
     transcript.tool("call-1", move)
     // A FRESH VALUE with the same words in it, which is what a second frame off
@@ -403,9 +404,9 @@ describe("tool calls", () => {
     transcript.tool("toolu_01AGENT", {
       title: "explore the outline",
       status: "pending",
-      spawned: { kind: "Explore" },
+      spawned: sentAgent({ kind: "Explore" }),
     })
-    transcript.tool("toolu_01AGENT", { status: "in_progress", spawned: {} })
+    transcript.tool("toolu_01AGENT", { status: "in_progress", spawned: sentAgent() })
     transcript.tool("toolu_01AGENT", { status: "completed" })
 
     expect(rows(transcript)[0]).toMatchObject({
@@ -420,10 +421,10 @@ describe("tool calls", () => {
     // spawn happened and nothing about who. The row is drawable then; the
     // kind lands on the next frame.
     const transcript = new Transcript()
-    transcript.tool("toolu_01AGENT", { title: "explore the outline", spawned: {} })
-    expect(asKind(rows(transcript)[0], "tool")?.spawned).toEqual({})
+    transcript.tool("toolu_01AGENT", { title: "explore the outline", spawned: sentAgent() })
+    expect(asKind(rows(transcript)[0], "tool")?.spawned).toEqual(sentAgent())
 
-    transcript.tool("toolu_01AGENT", { spawned: { kind: "Explore" } })
+    transcript.tool("toolu_01AGENT", { spawned: sentAgent({ kind: "Explore" }) })
     expect(rows(transcript)[0]).toMatchObject({
       text: "explore the outline",
       spawned: { kind: "Explore" },
@@ -445,25 +446,25 @@ describe("tool calls", () => {
     transcript.tool("toolu_01AGENT", {
       title: "Task",
       status: "in_progress",
-      spawned: { said: "count the ticks" },
-      armed: { task: "a4015bf2ba1fa514d", description: "count the ticks" },
+      spawned: sentAgent({ said: "count the ticks" }),
+      armed: armedTask({ task: "a4015bf2ba1fa514d", description: "count the ticks" }),
     })
     transcript.tool("toolu_01AGENT", {
-      armed: { task: "a4015bf2ba1fa514d", report: "I have thorough coverage now.\n\n# Findings\n" },
+      armed: armedTask({ task: "a4015bf2ba1fa514d", report: "I have thorough coverage now.\n\n# Findings\n" }),
     })
     transcript.tool("toolu_01AGENT", { status: "completed" })
 
-    expect(asKind(rows(transcript)[0], "tool")?.armed).toEqual({
+    expect(asKind(rows(transcript)[0], "tool")?.armed).toEqual(armedTask({
       task: "a4015bf2ba1fa514d",
       description: "count the ticks",
       report: "I have thorough coverage now.\n\n# Findings\n",
-    })
+    }))
   })
 
   test("a report for a call that was never announced writes no row", () => {
     const transcript = new Transcript()
     const change = transcript.tool("toolu_01GHOST", {
-      armed: { task: "ghost", report: "nobody sent this agent out" },
+      armed: armedTask({ task: "ghost", report: "nobody sent this agent out" }),
     })
     expect(change.upserts).toEqual([])
     expect(rows(transcript)).toEqual([])
@@ -481,11 +482,11 @@ describe("tool calls", () => {
     transcript.tool("toolu_01WATCH", {
       title: "Monitor",
       status: "in_progress",
-      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+      armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch" }),
     })
     transcript.tool("toolu_01WATCH", {
       status: "failed",
-      armed: { task: "bu13xz2ie", ended: "killed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "killed" }),
     })
 
     expect(rows(transcript)[0]).toMatchObject({
@@ -508,7 +509,7 @@ describe("tool calls", () => {
     transcript.tool("toolu_01WATCH", {
       title: "Monitor",
       status: "in_progress",
-      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+      armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch" }),
     })
     transcript.settle()
     transcript.user("what else is on the list?")
@@ -516,7 +517,7 @@ describe("tool calls", () => {
     transcript.settle()
     transcript.tool("toolu_01WATCH", {
       status: "failed",
-      armed: { task: "bu13xz2ie", ended: "failed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "failed" }),
       progress: 'Background command "kolu fleet watch" failed with exit code 3',
     })
 
@@ -541,9 +542,9 @@ describe("tool calls", () => {
     transcript.tool("toolu_01WATCH", {
       title: "Monitor",
       status: "in_progress",
-      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+      armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch" }),
     })
-    transcript.tool("toolu_01WATCH", { status: "failed", armed: { task: "bu13xz2ie", ended: "killed" } })
+    transcript.tool("toolu_01WATCH", { status: "failed", armed: armedTask({ task: "bu13xz2ie", ended: "killed" }) })
     // Nothing was said with the ending, so the row says the true thing it can.
     expect(rows(transcript)[1]).toMatchObject({
       kind: "notice",
@@ -552,7 +553,7 @@ describe("tool calls", () => {
 
     transcript.tool("toolu_01WATCH", {
       status: "failed",
-      armed: { task: "bu13xz2ie", ended: "killed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "killed" }),
       progress: 'Monitor "kolu fleet watch" was stopped',
     })
     const said = rows(transcript)
@@ -570,11 +571,11 @@ describe("tool calls", () => {
     transcript.tool("toolu_01WATCH", {
       title: "Monitor",
       status: "in_progress",
-      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+      armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch" }),
     })
     const ending = {
       status: "failed" as const,
-      armed: { task: "bu13xz2ie", ended: "failed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "failed" }),
       progress: "it fell over",
     }
     transcript.tool("toolu_01WATCH", ending)
@@ -596,7 +597,7 @@ describe("tool calls", () => {
     transcript.tool("toolu_01WATCH", {
       title: "Monitor",
       status: "in_progress",
-      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+      armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch" }),
     })
     transcript.settle()
     transcript.user("what about the fleet?")
@@ -604,7 +605,7 @@ describe("tool calls", () => {
     transcript.say("Once upon a time the fleet was waiting and ")
     transcript.tool("toolu_01WATCH", {
       status: "completed",
-      armed: { task: "bu13xz2ie", ended: "completed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "completed" }),
     })
     transcript.say("then the rest of the answer continues here.")
     transcript.settle()
@@ -652,7 +653,7 @@ describe("tool calls", () => {
     transcript.tool("toolu_01WATCH", {
       title: "Monitor",
       status: "in_progress",
-      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+      armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch" }),
     })
     transcript.say("armed; carrying on")
     transcript.settle()
@@ -687,7 +688,7 @@ describe("an agent that was sent out", () => {
   const sent = {
     title: "survey the web package",
     status: "in_progress" as const,
-    spawned: { kind: "Explore" },
+    spawned: sentAgent({ kind: "Explore" }),
   }
 
   /** The lines at the bottom, which is the whole subject here — a death is
@@ -740,14 +741,14 @@ describe("an agent that was sent out", () => {
     // outing #1's prose in the fold of outing #2 is "here is what the agent
     // found" while it is still out finding it.
     const transcript = new Transcript()
-    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", { ...sent, armed: armedTask({ task: "bu13xz2ie" }) })
     transcript.tool("toolu_01AGENT", {
       status: "completed",
-      armed: {
+      armed: armedTask({
         task: "bu13xz2ie",
         ended: "completed",
         report: "outing one found three notes.",
-      },
+      }),
     })
     transcript.tool("toolu_01AGENT", { status: "in_progress" })
 
@@ -755,7 +756,7 @@ describe("an agent that was sent out", () => {
     // Everything else the harness said about the task is as true of this outing
     // as of the last, and is still on the row. The last outing's ending and
     // its report are not.
-    expect(out?.armed).toEqual({ task: "bu13xz2ie" })
+    expect(out?.armed).toEqual(armedTask({ task: "bu13xz2ie" }))
     expect(out?.status).toBe("in_progress")
 
     // ... AND IT IS PUT BACK WHEN THIS OUTING ENDS, which is the other half and
@@ -766,18 +767,18 @@ describe("an agent that was sent out", () => {
     // stopped being a task.
     transcript.tool("toolu_01AGENT", {
       status: "completed",
-      armed: {
+      armed: armedTask({
         task: "bu13xz2ie",
         ended: "completed",
         report: "outing two pushed the branch.",
-      },
+      }),
     })
     expect(asKind(rows(transcript)[0], "tool")?.armed)
-      .toEqual({
+      .toEqual(armedTask({
         task: "bu13xz2ie",
         ended: "completed",
         report: "outing two pushed the branch.",
-      })
+      }))
   })
 
   test("... so a turn ending under a RESUMED async agent leaves it alone", () => {
@@ -785,10 +786,10 @@ describe("an agent that was sent out", () => {
     // a background task off the stranding sweep applies to the second outing
     // exactly as it applied to the first.
     const transcript = new Transcript()
-    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", { ...sent, armed: armedTask({ task: "bu13xz2ie" }) })
     transcript.tool("toolu_01AGENT", {
       status: "completed",
-      armed: { task: "bu13xz2ie", ended: "completed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "completed" }),
     })
     transcript.tool("toolu_01AGENT", { status: "in_progress" })
     transcript.settle()
@@ -803,10 +804,10 @@ describe("an agent that was sent out", () => {
     // silence the second — and the ending it would silence is the one a person
     // supervising a fan-out must not miss.
     const transcript = new Transcript()
-    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", { ...sent, armed: armedTask({ task: "bu13xz2ie" }) })
     transcript.tool("toolu_01AGENT", {
       status: "completed",
-      armed: { task: "bu13xz2ie", ended: "completed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "completed" }),
     })
     expect(notices(transcript)).toEqual([
       "the agent “survey the web package” ended (completed)",
@@ -829,15 +830,15 @@ describe("an agent that was sent out", () => {
     // where the first was, and a reader who was not watching the strip is told
     // both times.
     const transcript = new Transcript()
-    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", { ...sent, armed: armedTask({ task: "bu13xz2ie" }) })
     transcript.tool("toolu_01AGENT", {
       status: "completed",
-      armed: { task: "bu13xz2ie", ended: "completed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "completed" }),
     })
     transcript.tool("toolu_01AGENT", { status: "in_progress" })
     transcript.tool("toolu_01AGENT", {
       status: "completed",
-      armed: { task: "bu13xz2ie", ended: "completed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "completed" }),
     })
 
     expect(notices(transcript)).toEqual([
@@ -855,19 +856,19 @@ describe("an agent that was sent out", () => {
     // second outing's death said `failed` and nothing about why, with the reason
     // on a row at its birth position.
     const transcript = new Transcript()
-    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", { ...sent, armed: armedTask({ task: "bu13xz2ie" }) })
     transcript.tool("toolu_01AGENT", {
       status: "completed",
-      armed: { task: "bu13xz2ie", ended: "completed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "completed" }),
     })
     transcript.tool("toolu_01AGENT", { status: "in_progress" })
     transcript.tool("toolu_01AGENT", {
       status: "failed",
-      armed: { task: "bu13xz2ie", ended: "failed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "failed" }),
     })
     transcript.tool("toolu_01AGENT", {
       status: "failed",
-      armed: { task: "bu13xz2ie", ended: "failed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "failed" }),
       progress: "the agent ran out of context",
     })
 
@@ -895,14 +896,14 @@ describe("an agent that was sent out", () => {
     // ending keeps the line a task's ending has always had — the row is far
     // above by then — and only the word changes.
     const transcript = new Transcript()
-    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", { ...sent, armed: armedTask({ task: "bu13xz2ie" }) })
     transcript.settle()
     transcript.user("what else is on the list?")
     transcript.say("this and that")
     transcript.settle()
     transcript.tool("toolu_01AGENT", {
       status: "completed",
-      armed: { task: "bu13xz2ie", ended: "completed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "completed" }),
     })
 
     expect(notices(transcript)).toEqual([
@@ -918,13 +919,13 @@ describe("an agent that was sent out", () => {
     // could not see each other, and the one death a person actually watches for
     // was reported to them twice, in two lines, at the bottom.
     const transcript = new Transcript()
-    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", { ...sent, armed: armedTask({ task: "bu13xz2ie" }) })
     // The call falls over first — its own status, with nothing about the task.
     transcript.tool("toolu_01AGENT", { status: "failed" })
     // ... and the harness's ending for the task it armed arrives after it.
     transcript.tool("toolu_01AGENT", {
       status: "failed",
-      armed: { task: "bu13xz2ie", ended: "failed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "failed" }),
     })
 
     expect(notices(transcript)).toEqual([
@@ -939,10 +940,10 @@ describe("an agent that was sent out", () => {
     // later. A second row would be the same death reported twice — which is
     // exactly what a reader at the bottom would read it as.
     const transcript = new Transcript()
-    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", { ...sent, armed: armedTask({ task: "bu13xz2ie" }) })
     transcript.tool("toolu_01AGENT", {
       status: "failed",
-      armed: { task: "bu13xz2ie", ended: "failed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "failed" }),
     })
     expect(notices(transcript)).toEqual([
       "the agent “survey the web package” ended (failed)",
@@ -950,7 +951,7 @@ describe("an agent that was sent out", () => {
 
     transcript.tool("toolu_01AGENT", {
       status: "failed",
-      armed: { task: "bu13xz2ie", ended: "failed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "failed" }),
       progress: 'Agent "survey the web package" exited before reporting',
     })
     expect(notices(transcript)).toEqual([
@@ -967,11 +968,11 @@ describe("an agent that was sent out", () => {
     transcript.tool("toolu_01WATCH", {
       title: "Monitor",
       status: "in_progress",
-      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+      armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch" }),
     })
     transcript.tool("toolu_01WATCH", {
       status: "failed",
-      armed: { task: "bu13xz2ie", ended: "killed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "killed" }),
     })
 
     expect(notices(transcript)).toEqual([
@@ -1095,7 +1096,7 @@ describe("what a turn leaves behind", () => {
     transcript.tool("toolu_01WATCH", {
       title: "Monitor",
       status: "in_progress",
-      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+      armed: armedTask({ task: "bu13xz2ie", description: "kolu fleet watch" }),
     })
     transcript.settle()
     transcript.user("what else is on the list?")
@@ -1116,14 +1117,14 @@ describe("what a turn leaves behind", () => {
     transcript.tool("toolu_01WATCH", {
       title: "Monitor",
       status: "in_progress",
-      armed: { task: "bu13xz2ie" },
+      armed: armedTask({ task: "bu13xz2ie" }),
     })
     transcript.tool("toolu_01WATCH", {
       // A harness that reported the ending without moving the status — the
       // status arm and the task arm are two facts, and this pins the one the
       // exemption reads.
       status: "in_progress",
-      armed: { task: "bu13xz2ie", ended: "stopped" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "stopped" }),
     })
     transcript.settle()
 
@@ -1246,7 +1247,7 @@ describe("when a row arrived", () => {
     transcript.tool("toolu_01AGENT", {
       title: "Task",
       status: "in_progress",
-      spawned: { said: "author the PR" },
+      spawned: sentAgent({ said: "author the PR" }),
     })
     time.pass(20 * 60_000)
     transcript.tool("toolu_01AGENT", { status: "completed" })
@@ -1301,7 +1302,7 @@ describe("when a row arrived", () => {
     // person is reading, backwards, once per repeat.
     const time = clock("2026-08-21T12:00:00.000Z")
     const transcript = new Transcript(time.now)
-    transcript.tool("toolu_01AGENT", { title: "Task", status: "in_progress", spawned: {} })
+    transcript.tool("toolu_01AGENT", { title: "Task", status: "in_progress", spawned: sentAgent() })
     transcript.tool("toolu_01AGENT", { status: "completed" })
     time.pass(60_000)
     transcript.tool("toolu_01AGENT", { status: "in_progress" })
@@ -1694,7 +1695,7 @@ describe("what a dead agent is called", () => {
   const dispatched = (said: string) => ({
     title: "Task",
     status: "in_progress" as const,
-    spawned: { said },
+    spawned: sentAgent({ said }),
   })
 
   const notices = (transcript: Transcript): ReadonlyArray<string> =>
@@ -1737,7 +1738,7 @@ describe("what a dead agent is called", () => {
     // Never a category — *agent* is what KIND was sent, which is a different
     // question and is drawn on the row's own line.
     const transcript = new Transcript()
-    transcript.tool("toolu_01A", { title: "Task", status: "in_progress", spawned: {} })
+    transcript.tool("toolu_01A", { title: "Task", status: "in_progress", spawned: sentAgent() })
     transcript.tool("toolu_01A", { status: "failed" })
 
     expect(notices(transcript)).toEqual(["the agent “Task” ended (failed)"])
@@ -1750,9 +1751,9 @@ describe("what a dead agent is called", () => {
     const transcript = new Transcript()
     transcript.tool("toolu_01A", {
       ...dispatched("count the markdown files"),
-      armed: { task: "task-1", description: "counting markdown under docs" },
+      armed: armedTask({ task: "task-1", description: "counting markdown under docs" }),
     })
-    transcript.tool("toolu_01A", { armed: { task: "task-1", ended: "failed" } })
+    transcript.tool("toolu_01A", { armed: armedTask({ task: "task-1", ended: "failed" }) })
 
     expect(notices(transcript)).toEqual([
       "the agent “counting markdown under docs” ended (failed)",

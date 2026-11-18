@@ -13,6 +13,10 @@ import { type AgentEvent, make, type Agent, type MemorySnapshot } from "@kolu/ac
 import { fixtureAgent, SAYS_NOTHING } from "@kolu/acp-client/testlib"
 
 const run = Effect.runPromise
+/** One turn of plain words, in the BLOCKS a prompt is made of
+ *  (`@kolu/acp-client`'s `Agent.prompt`). */
+const words = (text: string) => [{ type: "text" as const, text }]
+
 const withAgent = async (
   mode: string | null, stored: boolean,
   body: (it: { agent: Agent; events: AgentEvent[]; remembered: MemorySnapshot[];
@@ -26,7 +30,15 @@ const withAgent = async (
     id: "test-agent", leg: { ...SAYS_NOTHING, bypassMode: mode, bypassModeRequired: required },
     command: process.execPath,
     args: [fixtureAgent("mode-agent.ts"), ...(stored ? ["--stored"] : [])],
-    cwd, tools: () => ({ name: "olai", url: "http://127.0.0.1:7714/mcp", token: "test" }),
+    cwd,
+    // OLAI'S OWN SERVER, as the composition root hands it over: an endpoint
+    // with its bearer line already composed (`chat.ts`'s `tools`).
+    tools: () => [{
+      kind: "http" as const,
+      name: "olai",
+      url: "http://127.0.0.1:7714/mcp",
+      headers: { Authorization: "Bearer test" },
+    }],
     memory: { recall: Effect.succeed(null), remember: (value) => Effect.sync(() => { remembered.push(value) }) },
     onEvent: (event) => events.push(event),
   }))
@@ -49,9 +61,9 @@ describe("session permission selection", () => {
             for (const open of [agent.boot, agent.newSession, agent.loadSession("stored")]) {
               await run(open)
               const settings = events.findLast((event) => event._tag === "settings")
-              expect(settings?._tag === "settings" ? settings.settings.find((option) => option.id === "mode")?.currentValue : undefined)
+              expect(settings?._tag === "settings" ? settings.settings.find((option) => option.id === "mode")?.value : undefined)
                 .toBe(mode ?? "default")
-              await run(agent.prompt("report the preset"))
+              await run(agent.prompt(words("report the preset")))
             }
             expect(events.filter((event) => event._tag === "said").map((event) => event.text))
               .toEqual([mode ?? "default", mode ?? "default", mode ?? "default"])
@@ -72,10 +84,10 @@ describe("session permission selection", () => {
     test(`rejected ${stored ? "restored" : "new"} boot cannot admit a later prompt; retry can recover`, async () => {
       await withAgent("full", stored, async ({ agent, events, remembered, cwd, requests }) => {
         writeFileSync(join(cwd, "reject-mode"), "")
-        for (const action of [agent.boot, agent.prompt("must not run")]) {
+        for (const action of [agent.boot, agent.prompt(words("must not run"))]) {
           const result = await run(Effect.result(action))
           expect(result._tag).toBe("Failure")
-          if (result._tag === "Failure") expect(result.failure.why).toContain("could not select permission mode full")
+          if (result._tag === "Failure") expect(result.failure.why).toContain("the permission mode `full` was not selected")
         }
         expect(events.some((event) => event._tag === "trouble" && event.message.includes("mode selection refused"))).toBe(true)
         expect(events.some((event) => event._tag === "session")).toBe(false)
@@ -84,7 +96,7 @@ describe("session permission selection", () => {
         expect(events.some((event) => event._tag === "said" && event.text === "late refused history")).toBe(false)
         expect(requests().some((call) => call.method === "session/prompt")).toBe(false)
         rmSync(join(cwd, "reject-mode"))
-        await run(agent.prompt("retry"))
+        await run(agent.prompt(words("retry")))
         expect(events.some((event) => event._tag === "said" && event.text === "full")).toBe(true)
       })
     })
@@ -101,16 +113,16 @@ describe("session permission selection", () => {
           expect(remembered).toHaveLength(count + 1)
           expect(events.some((event) => event._tag === "trouble" && event.message.includes("mode selection refused"))).toBe(true)
           const settings = events.findLast((event) => event._tag === "settings")
-          expect(settings?._tag === "settings" ? settings.settings.find((option) => option.id === "mode")?.currentValue : undefined)
+          expect(settings?._tag === "settings" ? settings.settings.find((option) => option.id === "mode")?.value : undefined)
             .toBe("default")
-          await run(agent.prompt("use the existing permissions"))
+          await run(agent.prompt(words("use the existing permissions")))
           expect(events.some((event) => event._tag === "said" && event.text === "default")).toBe(true)
         }
         expect(requests().filter((call) => call.method === "session/set_mode")).toHaveLength(3)
         expect(requests().filter((call) => call.method === "session/prompt")).toHaveLength(3)
         rmSync(join(cwd, "reject-mode"))
         await run(agent.loadSession("stored"))
-        await run(agent.prompt("selection now succeeds"))
+        await run(agent.prompt(words("selection now succeeds")))
         expect(events.some((event) => event._tag === "said" && event.text === "full")).toBe(true)
       }, false)
     })
@@ -127,7 +139,7 @@ describe("session permission selection", () => {
         if (result._tag === "Failure") expect(result.failure.why).toContain("mode selection refused")
         expect(events.some((event) => event._tag === "session")).toBe(false)
         expect(remembered).toHaveLength(count)
-        expect((await run(Effect.result(agent.prompt("must not run"))))._tag).toBe("Failure")
+        expect((await run(Effect.result(agent.prompt(words("must not run")))))._tag).toBe("Failure")
         expect(requests().some((call) => call.method === "session/prompt")).toBe(false)
       })
     })
@@ -169,7 +181,7 @@ for (const stored of [false, true]) {
         } else {
           expect(state.session).not.toBeNull()
           expect(state.model).toBe("Test model")
-          expect(state.settings.find((option) => option.id === "mode")?.currentValue).toBe("default")
+          expect(state.settings.find((option) => option.id === "mode")?.value).toBe("default")
           if (stored) expect(transcript).toContain("restored history")
         }
       } finally {

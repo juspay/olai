@@ -22,7 +22,9 @@
 
 import { describe, expect, test } from "bun:test"
 
-import type { ChatEntry, ToolEntry, Watching } from "olai-plugin-chat/wire"
+import type { ChatEntry, ToolEntry } from "olai-plugin-chat/wire"
+import type { Watching } from "@kolu/acp/wire"
+import { armedTask, sentAgent } from "./outings.testlib.ts"
 import { clock } from "./clock.testlib.ts"
 import { Transcript } from "./transcript.ts"
 import { sameWatching, watching } from "./watching.ts"
@@ -54,7 +56,7 @@ describe("what is still out", () => {
     // The row's own title and no fallback: a spawn's title IS the description
     // it was sent with, so the strip and the record read as one thing. A
     // fallback here would be a second string for the same call.
-    expect(watching(rows(call("tool:7", { text: "audit the pins", spawned: {} })))).toEqual([
+    expect(watching(rows(call("tool:7", { text: "audit the pins", spawned: sentAgent() })))).toEqual([
       { row: "tool:7", kind: "agent", name: "audit the pins", since: SINCE },
     ])
   })
@@ -66,7 +68,7 @@ describe("what is still out", () => {
     expect(
       watching(rows(call("tool:1", {
         text: "Monitor",
-        armed: { task: "task-9", description: "kolu fleet watch" },
+        armed: armedTask({ task: "task-9", description: "kolu fleet watch" }),
       }))),
     ).toEqual([{ row: "tool:1", kind: "task", name: "kolu fleet watch", since: SINCE }])
   })
@@ -75,7 +77,7 @@ describe("what is still out", () => {
     // Naming a task is optional in the tool that arms one, and a `Monitor`
     // reads better on a strip than a blank does.
     expect(
-      watching(rows(call("tool:1", { text: "Monitor", armed: { task: "task-9" } }))),
+      watching(rows(call("tool:1", { text: "Monitor", armed: armedTask({ task: "task-9" }) }))),
     ).toEqual([{ row: "tool:1", kind: "task", name: "Monitor", since: SINCE }])
   })
 
@@ -87,8 +89,8 @@ describe("what is still out", () => {
     // the rail under the row cannot disagree about what kind of thing it is.
     const out = watching(rows(call("tool:2", {
       text: "hunt the leak",
-      spawned: { kind: "Explore" },
-      armed: { task: "task-3", description: "hunt the leak (background)" },
+      spawned: sentAgent({ kind: "Explore" }),
+      armed: armedTask({ task: "task-3", description: "hunt the leak (background)" }),
     })))
     expect(out).toEqual([
       { row: "tool:2", kind: "agent", name: "hunt the leak", since: SINCE },
@@ -101,21 +103,21 @@ describe("what is still out", () => {
     // for as long as the panel is up. What takes it off is the turn's own
     // observation that it walked away. Left on, a dead subagent keeps a rail
     // lit and the panel's clock ticking forever.
-    expect(watching(rows(call("tool:2", { spawned: {}, stranded: true })))).toEqual([])
+    expect(watching(rows(call("tool:2", { spawned: sentAgent(), stranded: true })))).toEqual([])
     // ... and the task it armed does not resurrect it on the way past: the
     // agent test failing is not a licence for the second branch to answer.
     expect(
       watching(rows(call("tool:2", {
-        spawned: {},
-        armed: { task: "task-3", description: "hunt the leak" },
+        spawned: sentAgent(),
+        armed: armedTask({ task: "task-3", description: "hunt the leak" }),
         stranded: true,
       }))),
     ).toEqual([])
   })
 
   test("a spawn whose call has come back is off the list, completed or failed", () => {
-    expect(watching(rows(call("tool:2", { spawned: {}, status: "completed" })))).toEqual([])
-    expect(watching(rows(call("tool:2", { spawned: {}, status: "failed" })))).toEqual([])
+    expect(watching(rows(call("tool:2", { spawned: sentAgent(), status: "completed" })))).toEqual([])
+    expect(watching(rows(call("tool:2", { spawned: sentAgent(), status: "failed" })))).toEqual([])
   })
 
   test("a spawn SENT OUT AGAIN is back on it, and it is still one entry", () => {
@@ -137,7 +139,7 @@ describe("what is still out", () => {
     expect(
       watching(rows(call("tool:2", {
         text: "author the PR",
-        spawned: {},
+        spawned: sentAgent(),
         status: "in_progress",
         resumed: LATER,
       }))),
@@ -153,8 +155,8 @@ describe("what is still out", () => {
     // prevent.
     expect(
       watching(rows(
-        call("tool:2", { spawned: {}, status: "completed", resumed: LATER }),
-        call("tool:3", { spawned: {}, status: "in_progress", resumed: LATER }),
+        call("tool:2", { spawned: sentAgent(), status: "completed", resumed: LATER }),
+        call("tool:3", { spawned: sentAgent(), status: "in_progress", resumed: LATER }),
       )),
     ).toEqual([{ row: "tool:3", kind: "agent", name: "Agent", since: LATER }])
   })
@@ -164,7 +166,7 @@ describe("what is still out", () => {
     // row has been round twice is not a licence to stay: what decides membership
     // is the status, and `resumed` only says what a clock counts from.
     expect(
-      watching(rows(call("tool:2", { spawned: {}, status: "completed", resumed: LATER }))),
+      watching(rows(call("tool:2", { spawned: sentAgent(), status: "completed", resumed: LATER }))),
     ).toEqual([])
   })
 
@@ -174,7 +176,7 @@ describe("what is still out", () => {
     expect(
       watching(rows(call("tool:1", {
         status: "completed",
-        armed: { task: "task-9", description: "tick watch", ended: "killed" },
+        armed: armedTask({ task: "task-9", description: "tick watch", ended: "killed" }),
       }))),
     ).toEqual([])
   })
@@ -192,7 +194,7 @@ describe("what is still out", () => {
       "agent:1",
       { id: "agent:1", seq: 2, since: SINCE, kind: "agent", text: "spawning four" },
     ]
-    expect(watching(rows(prose, call("tool:2", { spawned: {} })))).toEqual([
+    expect(watching(rows(prose, call("tool:2", { spawned: sentAgent() })))).toEqual([
       { row: "tool:2", kind: "agent", name: "Agent", since: SINCE },
     ])
   })
@@ -203,9 +205,9 @@ describe("what is still out", () => {
     // calls name as their parent.
     expect(
       watching(rows(
-        call("tool:1", { text: "read the web", spawned: {} }),
-        call("tool:2", { text: "Monitor", since: LATER, armed: { task: "task-9" } }),
-        call("tool:3", { text: "read the server", since: LATER, spawned: {} }),
+        call("tool:1", { text: "read the web", spawned: sentAgent() }),
+        call("tool:2", { text: "Monitor", since: LATER, armed: armedTask({ task: "task-9" }) }),
+        call("tool:3", { text: "read the server", since: LATER, spawned: sentAgent() }),
       )),
     ).toEqual([
       { row: "tool:1", kind: "agent", name: "read the web", since: SINCE },
@@ -342,12 +344,12 @@ describe("out, back, out again", () => {
     transcript.tool("toolu_01AGENT", {
       title: "Task",
       status: "in_progress",
-      spawned: { said: "audit the pins" },
-      armed: { task: "bu13xz2ie" },
+      spawned: sentAgent({ said: "audit the pins" }),
+      armed: armedTask({ task: "bu13xz2ie" }),
     })
     transcript.tool("toolu_01AGENT", {
       status: "completed",
-      armed: { task: "bu13xz2ie", ended: "completed" },
+      armed: armedTask({ task: "bu13xz2ie", ended: "completed" }),
     })
     expect(strip(transcript)).toEqual([])
 
@@ -363,7 +365,7 @@ describe("out, back, out again", () => {
     // face that outlived one is the failure the whole strip is written against.
     const time = clock("2026-08-28T09:00:00.000Z")
     const transcript = new Transcript(time.now)
-    transcript.tool("toolu_01AGENT", { title: "Task", status: "pending", spawned: {} })
+    transcript.tool("toolu_01AGENT", { title: "Task", status: "pending", spawned: sentAgent() })
     transcript.tool("toolu_01AGENT", { status: "completed" })
     time.pass(60_000)
     transcript.tool("toolu_01AGENT", { status: "in_progress" })
